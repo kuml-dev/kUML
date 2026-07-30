@@ -84,7 +84,7 @@ internal class UpdateCheckCommand internal constructor(
         val cache = cacheFactory()
         val cached = cache.read()
 
-        val release = resolveRelease(cache, cached)
+        val release = resolveRelease(cache = cache, cached = cached)
         // `resolveRelease` either returns a usable release or throws ProgramResult.
         val latest = release.semver
         if (latest == null) {
@@ -116,7 +116,7 @@ internal class UpdateCheckCommand internal constructor(
                         latestTag = release.tagName,
                         htmlUrl = release.htmlUrl,
                         isPreRelease = isPrerelease,
-                        source = sourceLabel(cached, release),
+                        source = sourceLabel(cached = cached, chosen = release),
                     ),
                 )
                 // Exit 0 implicitly — `ProgramResult(0)` is unnecessary.
@@ -129,7 +129,7 @@ internal class UpdateCheckCommand internal constructor(
                         latestTag = release.tagName,
                         htmlUrl = release.htmlUrl,
                         isPreRelease = true,
-                        source = sourceLabel(cached, release),
+                        source = sourceLabel(cached = cached, chosen = release),
                     ),
                 )
                 throw ProgramResult(ExitCodes.PRERELEASE_AVAILABLE)
@@ -142,7 +142,7 @@ internal class UpdateCheckCommand internal constructor(
                         latestTag = release.tagName,
                         htmlUrl = release.htmlUrl,
                         isPreRelease = false,
-                        source = sourceLabel(cached, release),
+                        source = sourceLabel(cached = cached, chosen = release),
                     ),
                 )
                 throw ProgramResult(ExitCodes.UPDATE_AVAILABLE)
@@ -175,7 +175,7 @@ internal class UpdateCheckCommand internal constructor(
         }
 
         // 2. Cache is fresh enough and the caller didn't pass `--no-cache`.
-        if (!noCache && cached != null && cache.isFresh(cached, UpdateCache.DEFAULT_TTL)) {
+        if (!noCache && cached != null && cache.isFresh(entry = cached, ttl = UpdateCache.DEFAULT_TTL)) {
             return cached.release
         }
 
@@ -190,9 +190,9 @@ internal class UpdateCheckCommand internal constructor(
                         r.releases
                             .firstOrNull { !it.isDraft }
                             ?.let { ReleasesClient.Result.Ok(it) }
-                            ?: ReleasesClient.Result.Failure("no published releases found")
-                    is ReleasesClient.ListResult.HttpError -> ReleasesClient.Result.HttpError(r.statusCode, r.body)
-                    is ReleasesClient.ListResult.Failure -> ReleasesClient.Result.Failure(r.message, r.cause)
+                            ?: ReleasesClient.Result.Failure(message = "no published releases found")
+                    is ReleasesClient.ListResult.HttpError -> ReleasesClient.Result.HttpError(statusCode = r.statusCode, body = r.body)
+                    is ReleasesClient.ListResult.Failure -> ReleasesClient.Result.Failure(message = r.message, cause = r.cause)
                 }
             } else {
                 client.fetchLatest()

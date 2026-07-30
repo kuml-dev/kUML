@@ -185,8 +185,8 @@ class InterpreterUmlModelDslPrinterTest :
                     id = "assoc:1",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "kt:Owner", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "kt:Pet", multiplicity = Multiplicity(0, null)),
+                            UmlAssociationEnd(typeId = "kt:Owner", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "kt:Pet", multiplicity = Multiplicity(lower = 0, upper = null)),
                         ),
                 )
             val out = InterpreterUmlModelDslPrinter.print(makeModel(listOf(a, b, assoc)))
@@ -472,7 +472,7 @@ class InterpreterUmlModelDslPrinterTest :
                     ends =
                         listOf(
                             UmlAssociationEnd(typeId = "kt:Customer", navigable = false),
-                            UmlAssociationEnd(typeId = "kt:Order", role = "orders", multiplicity = Multiplicity(0, null)),
+                            UmlAssociationEnd(typeId = "kt:Order", role = "orders", multiplicity = Multiplicity(lower = 0, upper = null)),
                         ),
                 )
             val out = InterpreterUmlModelDslPrinter.print(makeModel(listOf(a, b, assoc)))

@@ -103,7 +103,7 @@ class BpmnModelBuilder(
         block: CollaborationBuilder.() -> Unit,
     ) {
         val cid = id ?: "collab_${collaborationBuilders.size + 1}"
-        collaborationBuilders += CollaborationBuilder(cid, name).apply(block)
+        collaborationBuilders += CollaborationBuilder(id = cid, name = name).apply(block)
     }
 
     /**
@@ -137,7 +137,7 @@ class BpmnModelBuilder(
         block: ChoreographyBuilder.() -> Unit,
     ): String {
         val cid = id ?: "choreography_${choreographyBuilders.size + 1}"
-        choreographyBuilders += ChoreographyBuilder(cid, name).apply(block)
+        choreographyBuilders += ChoreographyBuilder(id = cid, name = name).apply(block)
         return cid
     }
 
@@ -171,7 +171,7 @@ class BpmnModelBuilder(
         block: ConversationBuilder.() -> Unit,
     ): String {
         val cid = id ?: "conversation_${conversationBuilders.size + 1}"
-        conversationBuilders += ConversationBuilder(cid, name).apply(block)
+        conversationBuilders += ConversationBuilder(id = cid, name = name).apply(block)
         return cid
     }
 

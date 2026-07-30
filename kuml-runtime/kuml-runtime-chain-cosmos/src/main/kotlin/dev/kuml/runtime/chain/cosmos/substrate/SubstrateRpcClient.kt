@@ -75,16 +75,16 @@ public class SubstrateRpcClient(
                     val response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream())
                     if (response.statusCode() !in 200..299) {
                         throw SubstrateChainAdapterException.NetworkError(
-                            "HTTP ${response.statusCode()} from ${sanitizeUrl(rpcUrl)}",
+                            message = "HTTP ${response.statusCode()} from ${sanitizeUrl(rpcUrl)}",
                         )
                     }
-                    readLimited(response.body(), maxResponseBytes)
+                    readLimited(stream = response.body(), limit = maxResponseBytes)
                 } catch (e: SubstrateChainAdapterException) {
                     throw e
                 } catch (e: Exception) {
                     throw SubstrateChainAdapterException.NetworkError(
-                        "IO error calling ${sanitizeUrl(rpcUrl)}: ${e.message}",
-                        e,
+                        message = "IO error calling ${sanitizeUrl(rpcUrl)}: ${e.message}",
+                        cause = e,
                     )
                 }
             }
@@ -93,47 +93,50 @@ public class SubstrateRpcClient(
             try {
                 json.parseToJsonElement(responseBody)
             } catch (e: Exception) {
-                throw SubstrateChainAdapterException.MalformedResponse("Could not parse JSON-RPC response: ${e.message}", e)
+                throw SubstrateChainAdapterException.MalformedResponse(
+                    message = "Could not parse JSON-RPC response: ${e.message}",
+                    cause = e,
+                )
             }
 
         val obj =
             parsed as? JsonObject
-                ?: throw SubstrateChainAdapterException.MalformedResponse("JSON-RPC response is not an object")
+                ?: throw SubstrateChainAdapterException.MalformedResponse(message = "JSON-RPC response is not an object")
 
         val errorObj = obj["error"]
         if (errorObj != null && errorObj !is JsonNull) {
             val errObj =
                 errorObj as? JsonObject
-                    ?: throw SubstrateChainAdapterException.MalformedResponse("JSON-RPC error field is not an object")
+                    ?: throw SubstrateChainAdapterException.MalformedResponse(message = "JSON-RPC error field is not an object")
             val code =
                 errObj["code"]?.jsonPrimitive?.int
-                    ?: throw SubstrateChainAdapterException.MalformedResponse("JSON-RPC error missing code")
+                    ?: throw SubstrateChainAdapterException.MalformedResponse(message = "JSON-RPC error missing code")
             val message = errObj["message"]?.jsonPrimitive?.content ?: "unknown"
             val data = errObj["data"]?.jsonPrimitive?.content
-            throw SubstrateChainAdapterException.RpcError(code, message, data)
+            throw SubstrateChainAdapterException.RpcError(code = code, rpcMessage = message, rpcData = data)
         }
 
         return obj["result"]
-            ?: throw SubstrateChainAdapterException.MalformedResponse("JSON-RPC response missing 'result' field")
+            ?: throw SubstrateChainAdapterException.MalformedResponse(message = "JSON-RPC response missing 'result' field")
     }
 
     /** `chain_getHeader(getFinalizedHead)` → number (hex) → Long. */
     public suspend fun getFinalizedHeight(): Long {
-        val headHash = call("chain_getFinalizedHead", buildJsonArray {}).jsonPrimitive.content
+        val headHash = call(method = "chain_getFinalizedHead", params = buildJsonArray {}).jsonPrimitive.content
         val header =
-            call("chain_getHeader", buildJsonArray { add(JsonPrimitive(headHash)) }).jsonObject
+            call(method = "chain_getHeader", params = buildJsonArray { add(JsonPrimitive(headHash)) }).jsonObject
         val numberHex =
             header["number"]?.jsonPrimitive?.content
-                ?: throw SubstrateChainAdapterException.MalformedResponse("header missing 'number'")
+                ?: throw SubstrateChainAdapterException.MalformedResponse(message = "header missing 'number'")
         return parseHexQuantity(numberHex)
     }
 
     /** `chain_getBlockHash(height)` → Block-Hash (hex). */
     public suspend fun getBlockHash(height: Long): String {
         val params = buildJsonArray { add(JsonPrimitive(height)) }
-        val res = call("chain_getBlockHash", params)
+        val res = call(method = "chain_getBlockHash", params = params)
         if (res is JsonNull) {
-            throw SubstrateChainAdapterException.MalformedResponse("no block hash for height $height")
+            throw SubstrateChainAdapterException.MalformedResponse(message = "no block hash for height $height")
         }
         return res.jsonPrimitive.content
     }
@@ -145,14 +148,14 @@ public class SubstrateRpcClient(
                 add(JsonPrimitive(SYSTEM_EVENTS_KEY))
                 add(JsonPrimitive(blockHash))
             }
-        val res = call("state_getStorage", params)
+        val res = call(method = "state_getStorage", params = params)
         return if (res is JsonNull) "" else res.jsonPrimitive.content
     }
 
     /** `state_getStorage(Timestamp.Now)` → u64-LE Millis (hex), oder "" wenn leer. */
     public suspend fun getTimestampNowHex(): String {
         val params = buildJsonArray { add(JsonPrimitive(TIMESTAMP_NOW_KEY)) }
-        val res = call("state_getStorage", params)
+        val res = call(method = "state_getStorage", params = params)
         return if (res is JsonNull) "" else res.jsonPrimitive.content
     }
 
@@ -182,12 +185,12 @@ public class SubstrateRpcClient(
         val contractAccountId =
             SubstrateAddress.base58Decode(contractAddress)
                 ?: throw SubstrateChainAdapterException.MalformedResponse(
-                    "Cannot decode SS58 address for contractsCall: $contractAddress",
+                    message = "Cannot decode SS58 address for contractsCall: $contractAddress",
                 )
         val prefixLen = if (contractAccountId.size == 35) 1 else 2
         val destAccountId = contractAccountId.copyOfRange(prefixLen, prefixLen + 32)
 
-        val args = buildScaleContractsApiCallArgs(destAccountId, selectorBytes)
+        val args = buildScaleContractsApiCallArgs(destAccountId = destAccountId, inputData = selectorBytes)
         val argsHex = "0x" + args.joinToString("") { "%02x".format(it) }
 
         val params =
@@ -195,7 +198,7 @@ public class SubstrateRpcClient(
                 add(JsonPrimitive("ContractsApi_call"))
                 add(JsonPrimitive(argsHex))
             }
-        val res = call("state_call", params)
+        val res = call(method = "state_call", params = params)
         // Standard Substrate nodes return state_call result as a plain hex-string JsonPrimitive.
         // Some RPC proxies wrap it as { "result": { "Ok": { "data": "0x..." } } } or
         // { "data": "0x..." }. Handle all three forms, preferring the plain hex case first.
@@ -205,7 +208,7 @@ public class SubstrateRpcClient(
         val obj =
             res as? JsonObject
                 ?: throw SubstrateChainAdapterException.MalformedResponse(
-                    "ContractsApi_call result is neither a hex string nor a JSON object",
+                    message = "ContractsApi_call result is neither a hex string nor a JSON object",
                 )
         val data =
             obj["result"]
@@ -216,7 +219,7 @@ public class SubstrateRpcClient(
                 ?.jsonPrimitive
                 ?.content
                 ?: obj["data"]?.jsonPrimitive?.content
-                ?: throw SubstrateChainAdapterException.MalformedResponse("ContractsApi_call result missing data")
+                ?: throw SubstrateChainAdapterException.MalformedResponse(message = "ContractsApi_call result missing data")
         return data
     }
 
@@ -342,7 +345,7 @@ public class SubstrateRpcClient(
             val clean = hex.removePrefix("0x").removePrefix("0X")
             if (clean.isEmpty()) return 0L
             return clean.toLongOrNull(16)
-                ?: throw SubstrateChainAdapterException.MalformedResponse("Not a valid hex quantity: '$hex'")
+                ?: throw SubstrateChainAdapterException.MalformedResponse(message = "Not a valid hex quantity: '$hex'")
         }
 
         /** Entfernt Credentials aus einer URL vor Logging/Exceptions. */
@@ -368,7 +371,7 @@ public class SubstrateRpcClient(
                     totalRead += n
                     if (totalRead > limit) {
                         throw SubstrateChainAdapterException.NetworkError(
-                            "RPC response exceeds maximum allowed size of $limit bytes",
+                            message = "RPC response exceeds maximum allowed size of $limit bytes",
                         )
                     }
                     sb.append(String(buffer, 0, n, Charsets.UTF_8))

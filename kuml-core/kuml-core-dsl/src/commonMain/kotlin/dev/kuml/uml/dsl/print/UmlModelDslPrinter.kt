@@ -135,30 +135,30 @@ public object UmlModelDslPrinter {
         sb.appendLine("classDiagram(name = ${quote(diagram.name)}) {")
 
         elements.filterIsInstance<UmlEnumeration>().forEach { e ->
-            printEnum(sb, e)
+            printEnum(sb = sb, e = e)
         }
         elements.filterIsInstance<UmlInterface>().forEach { i ->
-            printInterface(sb, i)
+            printInterface(sb = sb, i = i)
         }
         elements.filterIsInstance<UmlClass>().forEach { c ->
-            printClass(sb, c)
+            printClass(sb = sb, c = c)
         }
         elements.filterIsInstance<UmlPackage>().forEach { pkg ->
-            printPackageTodo(sb, pkg)
+            printPackageTodo(sb = sb, pkg = pkg)
         }
         elements.filterIsInstance<UmlGeneralization>().forEach { g ->
-            printGeneralization(sb, g)
+            printGeneralization(sb = sb, g = g)
         }
         elements.filterIsInstance<UmlInterfaceRealization>().forEach { r ->
-            printRealization(sb, r)
+            printRealization(sb = sb, r = r)
         }
         elements.filterIsInstance<UmlAssociation>().forEach { a ->
-            printAssociation(sb, a)
+            printAssociation(sb = sb, a = a)
         }
         elements.filterIsInstance<UmlDependency>().forEach { d ->
-            printDependency(sb, d)
+            printDependency(sb = sb, d = d)
         }
-        printComments(sb, elements)
+        printComments(sb = sb, elements = elements)
 
         sb.appendLine("}")
         return sb.toString()
@@ -172,11 +172,11 @@ public object UmlModelDslPrinter {
     ) {
         sb.appendLine("    enumOf(name = ${quote(e.name)}, id = ${quote(e.id)}) {")
         if (e.visibility != Visibility.PUBLIC) sb.appendLine("        visibility = Visibility.${e.visibility.name}")
-        stereotypesLines(e.stereotypes, "        ").forEach(sb::appendLine)
+        stereotypesLines(s = e.stereotypes, indent = "        ").forEach(sb::appendLine)
         e.literals.forEach { lit ->
             sb.appendLine("        literal(${quote(lit.name)}, id = ${quote(lit.id)})")
         }
-        printLayoutHints(sb, e, indent = "        ")
+        printLayoutHints(sb = sb, element = e, indent = "        ")
         sb.appendLine("    }")
     }
 
@@ -186,11 +186,11 @@ public object UmlModelDslPrinter {
     ) {
         sb.appendLine("    interfaceOf(name = ${quote(i.name)}, id = ${quote(i.id)}) {")
         if (i.visibility != Visibility.PUBLIC) sb.appendLine("        visibility = Visibility.${i.visibility.name}")
-        stereotypesLines(i.stereotypes, "        ").forEach(sb::appendLine)
-        i.attributes.forEach { printAttribute(sb, it, indent = "        ") }
-        i.operations.forEach { printOperation(sb, it, indent = "        ") }
-        i.constraints.forEach { printConstraint(sb, it, "        ") }
-        printLayoutHints(sb, i, indent = "        ")
+        stereotypesLines(s = i.stereotypes, indent = "        ").forEach(sb::appendLine)
+        i.attributes.forEach { printAttribute(sb = sb, p = it, indent = "        ") }
+        i.operations.forEach { printOperation(sb = sb, o = it, indent = "        ") }
+        i.constraints.forEach { printConstraint(sb = sb, c = it, indent = "        ") }
+        printLayoutHints(sb = sb, element = i, indent = "        ")
         sb.appendLine("    }")
     }
 
@@ -201,11 +201,11 @@ public object UmlModelDslPrinter {
         sb.appendLine("    classOf(name = ${quote(c.name)}, id = ${quote(c.id)}) {")
         if (c.visibility != Visibility.PUBLIC) sb.appendLine("        visibility = Visibility.${c.visibility.name}")
         if (c.isAbstract) sb.appendLine("        isAbstract = true")
-        stereotypesLines(c.stereotypes, "        ").forEach(sb::appendLine)
-        c.attributes.forEach { printAttribute(sb, it, indent = "        ") }
-        c.operations.forEach { printOperation(sb, it, indent = "        ") }
-        c.constraints.forEach { printConstraint(sb, it, "        ") }
-        printLayoutHints(sb, c, indent = "        ")
+        stereotypesLines(s = c.stereotypes, indent = "        ").forEach(sb::appendLine)
+        c.attributes.forEach { printAttribute(sb = sb, p = it, indent = "        ") }
+        c.operations.forEach { printOperation(sb = sb, o = it, indent = "        ") }
+        c.constraints.forEach { printConstraint(sb = sb, c = it, indent = "        ") }
+        printLayoutHints(sb = sb, element = c, indent = "        ")
         sb.appendLine("    }")
     }
 
@@ -307,7 +307,7 @@ public object UmlModelDslPrinter {
             visArg?.let { sb.appendLine("$indent    $it") }
             if (o.isStatic) sb.appendLine("$indent    isStatic = true")
             if (o.isAbstract) sb.appendLine("$indent    isAbstract = true")
-            o.parameters.forEach { printParameter(sb, it, "$indent   ") }
+            o.parameters.forEach { printParameter(sb = sb, p = it, indent = "$indent   ") }
             o.returnType?.let { sb.appendLine("$indent    returnType = ${typeRefExpr(it)}") }
             o.stereotypes.forEach { sb.appendLine("$indent    stereotypes += ${quote(it)}") }
             sb.appendLine("$indent }")
@@ -386,7 +386,7 @@ public object UmlModelDslPrinter {
             sb.appendLine("    association(sourceId = ${quote(srcId)}, targetId = ${quote(tgtId)}) {")
             if (hasName) sb.appendLine("        name = ${quote(a.name!!)}")
             if (hasAggregation) sb.appendLine("        aggregation = AggregationKind.${a.aggregation.name}")
-            stereotypesLines(a.stereotypes, "        ").forEach(sb::appendLine)
+            stereotypesLines(s = a.stereotypes, indent = "        ").forEach(sb::appendLine)
             srcBody?.let { sb.appendLine("        source { $it }") }
             tgtBody?.let { sb.appendLine("        target { $it }") }
             sb.appendLine("    }")

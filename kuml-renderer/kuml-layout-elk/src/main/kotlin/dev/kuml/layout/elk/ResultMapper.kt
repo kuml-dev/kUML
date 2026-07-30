@@ -71,7 +71,7 @@ internal object ResultMapper {
         // falls negativ, alles um `(-minX, -minY)` shiften, so dass das Canvas wieder bei
         // 0,0 startet.
         val (canvas, shiftedNodes, shiftedEdges, shiftedGroups) =
-            computeNormalizedCanvas(nodeMappings, edgeMappings, groupMappings)
+            computeNormalizedCanvas(nodes = nodeMappings, edges = edgeMappings, groups = groupMappings)
 
         // seed = null because ELK is non-deterministic (capabilities.deterministic = false)
         return LayoutResult(
@@ -97,9 +97,9 @@ internal object ResultMapper {
             // each ancestor's offset and yields absolute canvas coordinates,
             // which is what the renderer / edge router expect.
             val (absX, absY) = absolutePosition(elkNode)
-            val origin = Point(absX, absY)
-            val size = Size(elkNode.width.toFloat(), elkNode.height.toFloat())
-            result[nodeId] = NodeLayout(bounds = Rect(origin, size))
+            val origin = Point(x = absX, y = absY)
+            val size = Size(width = elkNode.width.toFloat(), height = elkNode.height.toFloat())
+            result[nodeId] = NodeLayout(bounds = Rect(origin = origin, size = size))
         }
         return result
     }
@@ -140,8 +140,8 @@ internal object ResultMapper {
             val containing = elkEdge.containingNode
             val (offX, offY) =
                 if (containing != null) absolutePosition(containing) else 0f to 0f
-            val source = Point(section.startX.toFloat() + offX, section.startY.toFloat() + offY)
-            val target = Point(section.endX.toFloat() + offX, section.endY.toFloat() + offY)
+            val source = Point(x = section.startX.toFloat() + offX, y = section.startY.toFloat() + offY)
+            val target = Point(x = section.endX.toFloat() + offX, y = section.endY.toFloat() + offY)
             val bendPoints = section.bendPoints
 
             val route: EdgeRoute =
@@ -149,7 +149,7 @@ internal object ResultMapper {
                     EdgeRoute.Direct(source = source, target = target)
                 } else {
                     val waypoints =
-                        bendPoints.map { Point(it.x.toFloat() + offX, it.y.toFloat() + offY) }
+                        bendPoints.map { Point(x = it.x.toFloat() + offX, y = it.y.toFloat() + offY) }
                     // cornerRadiusPx = 0f: Renderer applies rounding later (Spec Z4)
                     EdgeRoute.OrthogonalRounded(
                         source = source,
@@ -247,7 +247,7 @@ internal object ResultMapper {
 
             result[gid] =
                 GroupLayout(
-                    bounds = Rect(Point(x, y), Size(width, height)),
+                    bounds = Rect(origin = Point(x = x, y = y), size = Size(width = width, height = height)),
                 )
         }
 
@@ -322,7 +322,7 @@ internal object ResultMapper {
             val sw = (maxX - minX) + 2f * margin + pad.left + pad.right
             val sh = (maxY - minY) + headerPx + 2f * margin + pad.top + pad.bottom
 
-            result[groupId] = GroupLayout(bounds = Rect(Point(ox, oy), Size(sw, sh)))
+            result[groupId] = GroupLayout(bounds = Rect(origin = Point(x = ox, y = oy), size = Size(width = sw, height = sh)))
         }
 
         return result
@@ -352,7 +352,7 @@ internal object ResultMapper {
         groups: Map<GroupId, GroupLayout>,
     ): NormalizedLayout {
         if (nodes.isEmpty() && groups.isEmpty()) {
-            return NormalizedLayout(Size(0f, 0f), nodes, edges, groups)
+            return NormalizedLayout(canvas = Size(width = 0f, height = 0f), nodes = nodes, edges = edges, groups = groups)
         }
 
         var minX = Float.MAX_VALUE
@@ -385,34 +385,34 @@ internal object ResultMapper {
 
         // Falls absolut nichts gefunden: 0×0-Canvas.
         if (minX == Float.MAX_VALUE) {
-            return NormalizedLayout(Size(0f, 0f), nodes, edges, groups)
+            return NormalizedLayout(canvas = Size(width = 0f, height = 0f), nodes = nodes, edges = edges, groups = groups)
         }
 
         val dx = if (minX < 0f) -minX else 0f
         val dy = if (minY < 0f) -minY else 0f
-        val canvas = Size(maxX - minOf(minX, 0f), maxY - minOf(minY, 0f))
+        val canvas = Size(width = maxX - minOf(minX, 0f), height = maxY - minOf(minY, 0f))
 
         if (dx == 0f && dy == 0f) {
-            return NormalizedLayout(canvas, nodes, edges, groups)
+            return NormalizedLayout(canvas = canvas, nodes = nodes, edges = edges, groups = groups)
         }
 
         val shiftedNodes =
             nodes.mapValues { (_, l) ->
                 l.copy(
-                    bounds = l.bounds.copy(origin = Point(l.bounds.origin.x + dx, l.bounds.origin.y + dy)),
+                    bounds = l.bounds.copy(origin = Point(x = l.bounds.origin.x + dx, y = l.bounds.origin.y + dy)),
                 )
             }
         val shiftedGroups =
             groups.mapValues { (_, l) ->
                 l.copy(
-                    bounds = l.bounds.copy(origin = Point(l.bounds.origin.x + dx, l.bounds.origin.y + dy)),
+                    bounds = l.bounds.copy(origin = Point(x = l.bounds.origin.x + dx, y = l.bounds.origin.y + dy)),
                 )
             }
         val shiftedEdges =
             edges.mapValues { (_, route) ->
-                route.shiftBy(dx, dy)
+                route.shiftBy(dx = dx, dy = dy)
             }
-        return NormalizedLayout(canvas, shiftedNodes, shiftedEdges, shiftedGroups)
+        return NormalizedLayout(canvas = canvas, nodes = shiftedNodes, edges = shiftedEdges, groups = shiftedGroups)
     }
 
     private data class NormalizedLayout(
@@ -425,7 +425,7 @@ internal object ResultMapper {
     private fun Point.shifted(
         dx: Float,
         dy: Float,
-    ): Point = Point(x + dx, y + dy)
+    ): Point = Point(x = x + dx, y = y + dy)
 
     /** Liefert alle für die Bounding-Box relevanten Punkte einer Route. */
     private fun EdgeRoute.allPoints(): List<Point> =
@@ -442,24 +442,24 @@ internal object ResultMapper {
     ): EdgeRoute {
         if (dx == 0f && dy == 0f) return this
         return when (this) {
-            is EdgeRoute.Direct -> copy(source = source.shifted(dx, dy), target = target.shifted(dx, dy))
+            is EdgeRoute.Direct -> copy(source = source.shifted(dx = dx, dy = dy), target = target.shifted(dx = dx, dy = dy))
             is EdgeRoute.OrthogonalRounded ->
                 copy(
-                    source = source.shifted(dx, dy),
-                    target = target.shifted(dx, dy),
-                    waypoints = waypoints.map { it.shifted(dx, dy) },
+                    source = source.shifted(dx = dx, dy = dy),
+                    target = target.shifted(dx = dx, dy = dy),
+                    waypoints = waypoints.map { it.shifted(dx = dx, dy = dy) },
                 )
             is EdgeRoute.TreeRounded ->
                 copy(
-                    source = source.shifted(dx, dy),
-                    target = target.shifted(dx, dy),
-                    waypoints = waypoints.map { it.shifted(dx, dy) },
+                    source = source.shifted(dx = dx, dy = dy),
+                    target = target.shifted(dx = dx, dy = dy),
+                    waypoints = waypoints.map { it.shifted(dx = dx, dy = dy) },
                 )
             is EdgeRoute.Bezier ->
                 copy(
-                    source = source.shifted(dx, dy),
-                    target = target.shifted(dx, dy),
-                    controlPoints = controlPoints.map { it.shifted(dx, dy) },
+                    source = source.shifted(dx = dx, dy = dy),
+                    target = target.shifted(dx = dx, dy = dy),
+                    controlPoints = controlPoints.map { it.shifted(dx = dx, dy = dy) },
                 )
         }
     }

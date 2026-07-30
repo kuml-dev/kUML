@@ -41,7 +41,7 @@ public fun BehaviourWidget(
     val highlightIds = state.currentHighlightIds()
     val svg =
         remember(state.model, highlightIds, layoutResult) {
-            renderStateMachineSvg(state.model, layoutResult, highlightIds)
+            renderStateMachineSvg(model = state.model, layoutResult = layoutResult, highlightIds = highlightIds)
         }
 
     Column(modifier = modifier.fillMaxSize()) {

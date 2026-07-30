@@ -89,31 +89,37 @@ class StmSmilRendererTest :
             return LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(500f, 400f),
+                canvas = Size(width = 500f, height = 400f),
                 nodes =
                     mapOf(
-                        NodeId("sm1") to NodeLayout(Rect(Point(0f, 0f), Size(500f, 400f))),
-                        NodeId("initial") to NodeLayout(Rect(Point(20f - p, 20f - p), Size(24f, 24f))),
-                        NodeId("stateA") to NodeLayout(Rect(Point(100f - p, 50f - p), Size(120f, 60f))),
-                        NodeId("stateB") to NodeLayout(Rect(Point(250f - p, 50f - p), Size(120f, 60f))),
-                        NodeId("final") to NodeLayout(Rect(Point(400f - p, 50f - p), Size(24f, 24f))),
+                        NodeId(
+                            "sm1",
+                        ) to NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 500f, height = 400f))),
+                        NodeId("initial") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 20f - p, y = 20f - p), size = Size(width = 24f, height = 24f))),
+                        NodeId("stateA") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 100f - p, y = 50f - p), size = Size(width = 120f, height = 60f))),
+                        NodeId("stateB") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 250f - p, y = 50f - p), size = Size(width = 120f, height = 60f))),
+                        NodeId("final") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 400f - p, y = 50f - p), size = Size(width = 24f, height = 24f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("t_initial_A") to
                             EdgeRoute.Direct(
-                                source = Point(20f - p, 32f - p),
-                                target = Point(100f - p, 80f - p),
+                                source = Point(x = 20f - p, y = 32f - p),
+                                target = Point(x = 100f - p, y = 80f - p),
                             ),
                         EdgeId("t_A_B") to
                             EdgeRoute.Direct(
-                                source = Point(220f - p, 80f - p),
-                                target = Point(250f - p, 80f - p),
+                                source = Point(x = 220f - p, y = 80f - p),
+                                target = Point(x = 250f - p, y = 80f - p),
                             ),
                         EdgeId("t_B_final") to
                             EdgeRoute.Direct(
-                                source = Point(370f - p, 80f - p),
-                                target = Point(400f - p, 62f - p),
+                                source = Point(x = 370f - p, y = 80f - p),
+                                target = Point(x = 400f - p, y = 62f - p),
                             ),
                     ),
                 groups = emptyMap(),
@@ -137,8 +143,15 @@ class StmSmilRendererTest :
         // ── (1) Null trace → byte-identical to KumlSvgRenderer.toSvg ──
 
         test("null trace produces output byte-identical to KumlSvgRenderer.toSvg") {
-            val expected = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme(), options)
-            val result = StmSmilRenderer.render(diagram, sm, layoutResult, options = options, trace = null)
+            val expected = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme(), options = options)
+            val result =
+                StmSmilRenderer.render(
+                    diagram = diagram,
+                    stateMachine = sm,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = null,
+                )
 
             result.hasAnimation.shouldBeFalse()
             result.svg shouldBe expected
@@ -147,12 +160,12 @@ class StmSmilRendererTest :
         // ── (2) Empty trace → byte-identical ──
 
         test("empty trace produces output byte-identical to KumlSvgRenderer.toSvg") {
-            val expected = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme(), options)
+            val expected = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme(), options = options)
             val result =
                 StmSmilRenderer.render(
-                    diagram,
-                    sm,
-                    layoutResult,
+                    diagram = diagram,
+                    stateMachine = sm,
+                    layoutResult = layoutResult,
                     options = options,
                     trace = TraceFile(entries = emptyList()),
                 )
@@ -165,7 +178,14 @@ class StmSmilRendererTest :
 
         test("StateEntered trace produces animate fill and highlight overlay rect") {
             val trace = stateEnteredTrace("stateA", "stateB")
-            val result = StmSmilRenderer.render(diagram, sm, layoutResult, options = options, trace = trace)
+            val result =
+                StmSmilRenderer.render(
+                    diagram = diagram,
+                    stateMachine = sm,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = trace,
+                )
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "attributeName=\"fill\""
@@ -190,7 +210,14 @@ class StmSmilRendererTest :
                             TraceEntry.StateEntered(seqNo = 2, timestamp = "T2", vertexId = "stateB"),
                         ),
                 )
-            val result = StmSmilRenderer.render(diagram, sm, layoutResult, options = options, trace = trace)
+            val result =
+                StmSmilRenderer.render(
+                    diagram = diagram,
+                    stateMachine = sm,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = trace,
+                )
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "attributeName=\"stroke-width\""
@@ -212,7 +239,14 @@ class StmSmilRendererTest :
                             ),
                         ),
                 )
-            val result = StmSmilRenderer.render(diagram, sm, layoutResult, options = options, trace = trace)
+            val result =
+                StmSmilRenderer.render(
+                    diagram = diagram,
+                    stateMachine = sm,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = trace,
+                )
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "smil-stm-hl-final"
@@ -226,8 +260,24 @@ class StmSmilRendererTest :
             val ctx1x = StmAnimationContext(speedFactor = SpeedFactor(1.0))
             val ctx2x = StmAnimationContext(speedFactor = SpeedFactor(2.0))
 
-            val result1x = StmSmilRenderer.render(diagram, sm, layoutResult, options = options, trace = trace, context = ctx1x)
-            val result2x = StmSmilRenderer.render(diagram, sm, layoutResult, options = options, trace = trace, context = ctx2x)
+            val result1x =
+                StmSmilRenderer.render(
+                    diagram = diagram,
+                    stateMachine = sm,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = trace,
+                    context = ctx1x,
+                )
+            val result2x =
+                StmSmilRenderer.render(
+                    diagram = diagram,
+                    stateMachine = sm,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = trace,
+                    context = ctx2x,
+                )
 
             result1x.hasAnimation.shouldBeTrue()
             result2x.hasAnimation.shouldBeTrue()
@@ -275,7 +325,13 @@ class StmSmilRendererTest :
                         },
                 )
             shouldThrow<IllegalArgumentException> {
-                StmSmilRenderer.render(diagram, sm, layoutResult, options = options, trace = oversized)
+                StmSmilRenderer.render(
+                    diagram = diagram,
+                    stateMachine = sm,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = oversized,
+                )
             }
         }
 
@@ -287,12 +343,15 @@ class StmSmilRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(500f, 400f),
+                    canvas = Size(width = 500f, height = 400f),
                     nodes =
                         mapOf(
-                            NodeId("sm1") to NodeLayout(Rect(Point(0f, 0f), Size(500f, 400f))),
-                            NodeId("stateA") to NodeLayout(Rect(Point(100f, 50f), Size(120f, 60f))),
-                            NodeId("stateB") to NodeLayout(Rect(Point(250f, 50f), Size(120f, 60f))),
+                            NodeId("sm1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 500f, height = 400f))),
+                            NodeId("stateA") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 100f, y = 50f), size = Size(width = 120f, height = 60f))),
+                            NodeId("stateB") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 250f, y = 50f), size = Size(width = 120f, height = 60f))),
                         ),
                     edges = emptyMap(), // no edge routes
                     groups = emptyMap(),
@@ -313,7 +372,14 @@ class StmSmilRendererTest :
                 )
 
             // Should not crash; transition is skipped since no layout edge exists
-            val result = StmSmilRenderer.render(diagram, sm, minimalLayout, options = options, trace = trace)
+            val result =
+                StmSmilRenderer.render(
+                    diagram = diagram,
+                    stateMachine = sm,
+                    layoutResult = minimalLayout,
+                    options = options,
+                    trace = trace,
+                )
             // No animation produced since the transition path is unresolvable
             result.svg shouldNotContain "smil-stm-trans-t_A_B"
         }
@@ -330,8 +396,15 @@ class StmSmilRendererTest :
                         ),
                 )
 
-            val expected = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme(), options)
-            val result = StmSmilRenderer.render(diagram, sm, layoutResult, options = options, trace = bpmnTrace)
+            val expected = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme(), options = options)
+            val result =
+                StmSmilRenderer.render(
+                    diagram = diagram,
+                    stateMachine = sm,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = bpmnTrace,
+                )
 
             result.hasAnimation.shouldBeFalse()
             result.svg shouldBe expected
@@ -341,7 +414,14 @@ class StmSmilRendererTest :
 
         test("output contains exactly one closing svg tag") {
             val trace = stateEnteredTrace("stateA", "stateB")
-            val result = StmSmilRenderer.render(diagram, sm, layoutResult, options = options, trace = trace)
+            val result =
+                StmSmilRenderer.render(
+                    diagram = diagram,
+                    stateMachine = sm,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = trace,
+                )
 
             result.hasAnimation.shouldBeTrue()
             val svgCloseCount = Regex("</svg>").findAll(result.svg).count()
@@ -379,20 +459,25 @@ class StmSmilRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(300f, 200f),
+                    canvas = Size(width = 300f, height = 200f),
                     nodes = emptyMap(),
                     edges =
                         mapOf(
                             EdgeId("t1") to
                                 EdgeRoute.Direct(
-                                    source = Point(10f, 20f),
-                                    target = Point(100f, 20f),
+                                    source = Point(x = 10f, y = 20f),
+                                    target = Point(x = 100f, y = 20f),
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val paths = StmTransitionPathResolver.buildTransitionPaths(listOf(singleTransition), minimalLayout, padding = 0f)
+            val paths =
+                StmTransitionPathResolver.buildTransitionPaths(
+                    transitions = listOf(singleTransition),
+                    layoutResult = minimalLayout,
+                    padding = 0f,
+                )
             paths["t1"] shouldBe "M 10 20 L 100 20"
         }
 

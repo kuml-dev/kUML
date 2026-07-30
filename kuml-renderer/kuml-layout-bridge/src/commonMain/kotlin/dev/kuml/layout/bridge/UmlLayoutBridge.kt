@@ -112,7 +112,7 @@ public object UmlLayoutBridge {
      * Ohne einen Content-aware [SizeProvider] (z. B. `SizeProvider.constant()` in
      * Tests) bleibt `.width` weiterhin die bisherige Default-Breite für Artefakte.
      */
-    internal val DEPLOYMENT_ARTIFACT_SIZE: Size = Size(120f, 52f)
+    internal val DEPLOYMENT_ARTIFACT_SIZE: Size = Size(width = 120f, height = 52f)
 
     // ── UML 2.x Activity-Diagramm: per-Kind Default-Größen (V2.0.46) ──
     //
@@ -264,8 +264,8 @@ public object UmlLayoutBridge {
                                                 id = NodeId(subMember.id),
                                                 intrinsicSize =
                                                     sizeProvider.sizeOf(
-                                                        subMember.id,
-                                                        subMember::class.simpleName ?: "Unknown",
+                                                        elementId = subMember.id,
+                                                        elementKind = subMember::class.simpleName ?: "Unknown",
                                                     ),
                                                 hints = HintsReader.read(subMember.metadata),
                                                 groupId = subGroupId,
@@ -276,9 +276,9 @@ public object UmlLayoutBridge {
                             }
                             is UmlRelationship -> {
                                 // Relationships inside packages are treated as edges
-                                val endpoints = EndpointResolver.resolveWithPorts(member, componentPorts)
+                                val endpoints = EndpointResolver.resolveWithPorts(relationship = member, componentPorts = componentPorts)
                                 if (endpoints != null) {
-                                    edges.add(toEdge(member.id, endpoints))
+                                    edges.add(toEdge(edgeId = member.id, endpoints = endpoints))
                                 }
                             }
                             else -> {
@@ -288,8 +288,8 @@ public object UmlLayoutBridge {
                                         id = NodeId(member.id),
                                         intrinsicSize =
                                             sizeProvider.sizeOf(
-                                                member.id,
-                                                member::class.simpleName ?: "Unknown",
+                                                elementId = member.id,
+                                                elementKind = member::class.simpleName ?: "Unknown",
                                             ),
                                         hints = HintsReader.read(member.metadata),
                                         groupId = groupId,
@@ -308,7 +308,7 @@ public object UmlLayoutBridge {
                     // only qualifies as internal if BOTH resolved nodeIds are in
                     // the nested-part set.
                     if (element is UmlConnector) {
-                        val endpoints = EndpointResolver.resolveWithPorts(element, componentPorts)
+                        val endpoints = EndpointResolver.resolveWithPorts(relationship = element, componentPorts = componentPorts)
                         if (endpoints != null &&
                             (
                                 endpoints.sourceNodeId in nestedPartIds ||
@@ -336,12 +336,12 @@ public object UmlLayoutBridge {
                             //    through ELK as well would cause a double-draw.
                             // In both cases: exclude from ELK unconditionally.
                         } else if (endpoints != null) {
-                            edges.add(toEdge(element.id, endpoints))
+                            edges.add(toEdge(edgeId = element.id, endpoints = endpoints))
                         }
                     } else {
-                        val endpoints = EndpointResolver.resolveWithPorts(element, componentPorts)
+                        val endpoints = EndpointResolver.resolveWithPorts(relationship = element, componentPorts = componentPorts)
                         if (endpoints != null) {
-                            edges.add(toEdge(element.id, endpoints))
+                            edges.add(toEdge(edgeId = element.id, endpoints = endpoints))
                         }
                     }
                 }
@@ -377,7 +377,7 @@ public object UmlLayoutBridge {
                         nodes.add(
                             LayoutNode(
                                 id = NodeId(lifeline.id),
-                                intrinsicSize = Size(lifelineWidth, nodeH),
+                                intrinsicSize = Size(width = lifelineWidth, height = nodeH),
                             ),
                         )
                     }
@@ -425,9 +425,9 @@ public object UmlLayoutBridge {
                             } else {
                                 val size =
                                     when (vertex) {
-                                        is UmlPseudostate -> Size(24f, 24f)
-                                        is UmlFinalState -> Size(28f, 28f)
-                                        is UmlState -> sizeProvider.sizeOf(vertex.id, "UmlState")
+                                        is UmlPseudostate -> Size(width = 24f, height = 24f)
+                                        is UmlFinalState -> Size(width = 28f, height = 28f)
+                                        is UmlState -> sizeProvider.sizeOf(elementId = vertex.id, elementKind = "UmlState")
                                     }
                                 nodes.add(
                                     LayoutNode(
@@ -469,7 +469,7 @@ public object UmlLayoutBridge {
                     nodes.add(
                         LayoutNode(
                             id = NodeId(element.id),
-                            intrinsicSize = sizeProvider.sizeOf(element.id, "UmlComment"),
+                            intrinsicSize = sizeProvider.sizeOf(elementId = element.id, elementKind = "UmlComment"),
                             hints = HintsReader.read(element.metadata),
                         ),
                     )
@@ -530,13 +530,13 @@ public object UmlLayoutBridge {
                             UmlActivityNodeKind.FLOW_FINAL,
                             UmlActivityNodeKind.DECISION,
                             UmlActivityNodeKind.MERGE,
-                            -> Size(ACTIVITY_PSEUDO_SIZE, ACTIVITY_PSEUDO_SIZE)
+                            -> Size(width = ACTIVITY_PSEUDO_SIZE, height = ACTIVITY_PSEUDO_SIZE)
                             UmlActivityNodeKind.FORK,
                             UmlActivityNodeKind.JOIN,
-                            -> Size(ACTIVITY_BAR_WIDTH, ACTIVITY_BAR_HEIGHT)
+                            -> Size(width = ACTIVITY_BAR_WIDTH, height = ACTIVITY_BAR_HEIGHT)
                             UmlActivityNodeKind.ACTION,
                             UmlActivityNodeKind.OBJECT,
-                            -> sizeProvider.sizeOf(element.id, "UmlActivityNode")
+                            -> sizeProvider.sizeOf(elementId = element.id, elementKind = "UmlActivityNode")
                         }
                     nodes.add(
                         LayoutNode(
@@ -568,8 +568,8 @@ public object UmlLayoutBridge {
                             id = NodeId(element.id),
                             intrinsicSize =
                                 sizeProvider.sizeOf(
-                                    element.id,
-                                    element::class.simpleName ?: "Unknown",
+                                    elementId = element.id,
+                                    elementKind = element::class.simpleName ?: "Unknown",
                                 ),
                             hints = HintsReader.read(element.metadata),
                             groupId = useCaseGroupMap[element.id],
@@ -610,7 +610,7 @@ public object UmlLayoutBridge {
             nodes.add(
                 LayoutNode(
                     id = NodeId(node.id),
-                    intrinsicSize = sizeProvider.sizeOf(node.id, "UmlNode"),
+                    intrinsicSize = sizeProvider.sizeOf(elementId = node.id, elementKind = "UmlNode"),
                     hints = HintsReader.read(node.metadata),
                     groupId = parentGroupId,
                 ),
@@ -628,7 +628,7 @@ public object UmlLayoutBridge {
                     parent = parentGroupId,
                     padding = DEPLOYMENT_NODE_GROUP_INSETS,
                     layoutAsCompound = true,
-                    minSize = sizeProvider.sizeOf(node.id, "UmlNode"),
+                    minSize = sizeProvider.sizeOf(elementId = node.id, elementKind = "UmlNode"),
                 ),
             )
             // Nested child UmlNodes — handled recursively (supports arbitrary depth).
@@ -646,7 +646,7 @@ public object UmlLayoutBridge {
                 nodes.add(
                     LayoutNode(
                         id = NodeId(artifact.id),
-                        intrinsicSize = sizeProvider.sizeOf(artifact.id, "UmlArtifact"),
+                        intrinsicSize = sizeProvider.sizeOf(elementId = artifact.id, elementKind = "UmlArtifact"),
                         hints = HintsReader.read(artifact.metadata),
                         groupId = groupId,
                     ),
@@ -686,8 +686,8 @@ public object UmlLayoutBridge {
         val result = mutableMapOf<String, Set<String>>()
         for (element in diagram.elements) {
             when (element) {
-                is UmlComponent -> collectFromComponent(element, result)
-                is UmlPackage -> collectFromPackage(element, result)
+                is UmlComponent -> collectFromComponent(component = element, out = result)
+                is UmlPackage -> collectFromPackage(pkg = element, out = result)
                 else -> {} // ignore
             }
         }
@@ -700,8 +700,8 @@ public object UmlLayoutBridge {
     ) {
         for (member in pkg.members) {
             when (member) {
-                is UmlComponent -> collectFromComponent(member, out)
-                is UmlPackage -> collectFromPackage(member, out)
+                is UmlComponent -> collectFromComponent(component = member, out = out)
+                is UmlPackage -> collectFromPackage(pkg = member, out = out)
                 else -> {}
             }
         }
@@ -713,7 +713,7 @@ public object UmlLayoutBridge {
     ) {
         out[component.id] = component.ports.map { it.name }.toSet()
         for (nested in component.nestedComponents) {
-            collectFromComponent(nested, out)
+            collectFromComponent(component = nested, out = out)
         }
     }
 
@@ -730,7 +730,7 @@ public object UmlLayoutBridge {
     private fun collectNestedPartIds(diagram: KumlDiagram): Set<String> {
         val result = mutableSetOf<String>()
         for (element in diagram.elements) {
-            if (element is UmlComponent) collectNestedPartsFromComponent(element, result)
+            if (element is UmlComponent) collectNestedPartsFromComponent(component = element, out = result)
         }
         return result
     }
@@ -742,7 +742,7 @@ public object UmlLayoutBridge {
         for (nested in component.nestedComponents) {
             if (nested.id in out) continue // cycle guard: skip already-visited nodes
             out += nested.id
-            collectNestedPartsFromComponent(nested, out)
+            collectNestedPartsFromComponent(component = nested, out = out)
         }
     }
 }

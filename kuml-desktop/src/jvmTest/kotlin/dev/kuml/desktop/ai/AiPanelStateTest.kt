@@ -20,9 +20,9 @@ import java.nio.file.Files
 private fun testSettingsStore(settings: KumlAiSettings = KumlAiSettings(privacyMode = false)): KumlAiSettingsStore {
     val tmpDir = Files.createTempDirectory("kuml-settings-test")
     val settingsPath = tmpDir.resolve("ai-settings.json")
-    val store = KumlAiSettingsStore(settingsPath)
+    val store = KumlAiSettingsStore(path = settingsPath)
     store.save(settings)
-    return KumlAiSettingsStore(settingsPath)
+    return KumlAiSettingsStore(path = settingsPath)
 }
 
 /** Create a minimal ApiKeyVault using the plain JSON backend (test override). */

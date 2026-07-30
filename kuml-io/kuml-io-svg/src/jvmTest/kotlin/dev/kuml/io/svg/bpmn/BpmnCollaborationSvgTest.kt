@@ -41,7 +41,7 @@ class BpmnCollaborationSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(800f, 400f),
+                canvas = Size(width = 800f, height = 400f),
                 nodes = emptyMap(),
                 edges = emptyMap(),
                 groups = emptyMap(),
@@ -57,10 +57,10 @@ class BpmnCollaborationSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(w + 40f, h + 40f),
-                nodes = mapOf(NodeId(id) to NodeLayout(bounds = Rect(Point(x, y), Size(0f, 0f)))),
+                canvas = Size(width = w + 40f, height = h + 40f),
+                nodes = mapOf(NodeId(id) to NodeLayout(bounds = Rect(origin = Point(x = x, y = y), size = Size(width = 0f, height = 0f)))),
                 edges = emptyMap(),
-                groups = mapOf(GroupId(id) to GroupLayout(bounds = Rect(Point(x, y), Size(w, h)))),
+                groups = mapOf(GroupId(id) to GroupLayout(bounds = Rect(origin = Point(x = x, y = y), size = Size(width = w, height = h)))),
             )
 
         fun twoGroupOneEdgeLayout(
@@ -71,24 +71,26 @@ class BpmnCollaborationSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(800f, 400f),
+                canvas = Size(width = 800f, height = 400f),
                 nodes =
                     mapOf(
-                        NodeId(id1) to NodeLayout(bounds = Rect(Point(10f, 10f), Size(0f, 0f))),
-                        NodeId(id2) to NodeLayout(bounds = Rect(Point(400f, 10f), Size(0f, 0f))),
+                        NodeId(id1) to NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 0f, height = 0f))),
+                        NodeId(id2) to NodeLayout(bounds = Rect(origin = Point(x = 400f, y = 10f), size = Size(width = 0f, height = 0f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId(edgeId) to
                             EdgeRoute.Direct(
-                                source = Point(160f, 85f),
-                                target = Point(400f, 85f),
+                                source = Point(x = 160f, y = 85f),
+                                target = Point(x = 400f, y = 85f),
                             ),
                     ),
                 groups =
                     mapOf(
-                        GroupId(id1) to GroupLayout(bounds = Rect(Point(10f, 10f), Size(300f, 150f))),
-                        GroupId(id2) to GroupLayout(bounds = Rect(Point(400f, 10f), Size(300f, 150f))),
+                        GroupId(id1) to
+                            GroupLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 300f, height = 150f))),
+                        GroupId(id2) to
+                            GroupLayout(bounds = Rect(origin = Point(x = 400f, y = 10f), size = Size(width = 300f, height = 150f))),
                     ),
             )
 
@@ -99,13 +101,18 @@ class BpmnCollaborationSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(600f, 300f),
-                nodes = mapOf(NodeId(poolId) to NodeLayout(bounds = Rect(Point(10f, 10f), Size(0f, 0f)))),
+                canvas = Size(width = 600f, height = 300f),
+                nodes =
+                    mapOf(
+                        NodeId(poolId) to NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 0f, height = 0f))),
+                    ),
                 edges = emptyMap(),
                 groups =
                     mapOf(
-                        GroupId(poolId) to GroupLayout(bounds = Rect(Point(10f, 10f), Size(500f, 200f))),
-                        GroupId(laneId) to GroupLayout(bounds = Rect(Point(40f, 10f), Size(470f, 200f))),
+                        GroupId(poolId) to
+                            GroupLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 500f, height = 200f))),
+                        GroupId(laneId) to
+                            GroupLayout(bounds = Rect(origin = Point(x = 40f, y = 10f), size = Size(width = 470f, height = 200f))),
                     ),
             )
 
@@ -117,7 +124,13 @@ class BpmnCollaborationSvgTest :
             val model = BpmnModel(name = "M", collaborations = listOf(collab))
             val diagram = CollaborationDiagram(name = "D", collaborationId = "c1")
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleGroupLayout("buyer"), PlainTheme())
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = singleGroupLayout("buyer"),
+                    theme = PlainTheme(),
+                )
 
             // Outer pool frame — PlainTheme border = Black = #000000
             svg shouldContain "stroke=\"#000000\""
@@ -133,7 +146,13 @@ class BpmnCollaborationSvgTest :
             val model = BpmnModel(name = "M", collaborations = listOf(collab))
             val diagram = CollaborationDiagram(name = "D", collaborationId = "c1")
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleGroupLayout("pool1"), PlainTheme())
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = singleGroupLayout("pool1"),
+                    theme = PlainTheme(),
+                )
 
             svg shouldContain "rotate(-90,"
             svg shouldContain "Sales Department"
@@ -145,7 +164,13 @@ class BpmnCollaborationSvgTest :
             val model = BpmnModel(name = "M", collaborations = listOf(collab))
             val diagram = CollaborationDiagram(name = "D", collaborationId = "c1")
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleGroupLayout("vpool"), PlainTheme())
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = singleGroupLayout("vpool"),
+                    theme = PlainTheme(),
+                )
 
             // For vertical pool there is no rotate(-90) on the title
             svg shouldNotContain "rotate(-90,"
@@ -161,7 +186,7 @@ class BpmnCollaborationSvgTest :
             val diagram = CollaborationDiagram(name = "D", collaborationId = "c1")
 
             val layout = singleGroupLayout("ext")
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // Pool border present — PlainTheme border = Black = #000000
             svg shouldContain "stroke=\"#000000\""
@@ -175,7 +200,13 @@ class BpmnCollaborationSvgTest :
             val model = BpmnModel(name = "M", collaborations = listOf(collab))
             val diagram = CollaborationDiagram(name = "D", collaborationId = "c1")
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleGroupLayout("anon"), PlainTheme())
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = singleGroupLayout("anon"),
+                    theme = PlainTheme(),
+                )
 
             // The pool rect is there but no text element — PlainTheme border = #000000
             svg shouldContain "stroke=\"#000000\""
@@ -192,7 +223,13 @@ class BpmnCollaborationSvgTest :
             val model = BpmnModel(name = "M", collaborations = listOf(collab))
             val diagram = CollaborationDiagram(name = "D", collaborationId = "c1")
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, participantWithLaneLayout("pool1", "lane1"), PlainTheme())
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = participantWithLaneLayout("pool1", "lane1"),
+                    theme = PlainTheme(),
+                )
 
             // Lane border — PlainTheme border = Black = #000000
             svg shouldContain "stroke=\"#000000\""
@@ -209,7 +246,13 @@ class BpmnCollaborationSvgTest :
             val model = BpmnModel(name = "M", collaborations = listOf(collab))
             val diagram = CollaborationDiagram(name = "D", collaborationId = "c1")
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, participantWithLaneLayout("pool1", "lane1"), PlainTheme())
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = participantWithLaneLayout("pool1", "lane1"),
+                    theme = PlainTheme(),
+                )
 
             svg shouldContain "rotate(-90,"
             svg shouldContain "Procurement"
@@ -228,18 +271,25 @@ class BpmnCollaborationSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(600f, 300f),
-                    nodes = mapOf(NodeId("pool1") to NodeLayout(bounds = Rect(Point(10f, 10f), Size(0f, 0f)))),
+                    canvas = Size(width = 600f, height = 300f),
+                    nodes =
+                        mapOf(
+                            NodeId("pool1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 0f, height = 0f))),
+                        ),
                     edges = emptyMap(),
                     groups =
                         mapOf(
-                            GroupId("pool1") to GroupLayout(bounds = Rect(Point(10f, 10f), Size(500f, 200f))),
-                            GroupId("parent1") to GroupLayout(bounds = Rect(Point(40f, 10f), Size(470f, 200f))),
-                            GroupId("child1") to GroupLayout(bounds = Rect(Point(64f, 10f), Size(446f, 200f))),
+                            GroupId("pool1") to
+                                GroupLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 500f, height = 200f))),
+                            GroupId("parent1") to
+                                GroupLayout(bounds = Rect(origin = Point(x = 40f, y = 10f), size = Size(width = 470f, height = 200f))),
+                            GroupId("child1") to
+                                GroupLayout(bounds = Rect(origin = Point(x = 64f, y = 10f), size = Size(width = 446f, height = 200f))),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "Outer Lane"
             svg shouldContain "Inner Lane"
@@ -255,7 +305,13 @@ class BpmnCollaborationSvgTest :
             val model = BpmnModel(name = "M", collaborations = listOf(collab))
             val diagram = CollaborationDiagram(name = "D", collaborationId = "c1")
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, twoGroupOneEdgeLayout("buyer", "seller", "mf1"), PlainTheme())
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = twoGroupOneEdgeLayout("buyer", "seller", "mf1"),
+                    theme = PlainTheme(),
+                )
 
             svg shouldContain "stroke-dasharray=\"5,3\""
         }
@@ -268,7 +324,13 @@ class BpmnCollaborationSvgTest :
             val model = BpmnModel(name = "M", collaborations = listOf(collab))
             val diagram = CollaborationDiagram(name = "D", collaborationId = "c1")
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, twoGroupOneEdgeLayout("buyer", "seller", "mf1"), PlainTheme())
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = twoGroupOneEdgeLayout("buyer", "seller", "mf1"),
+                    theme = PlainTheme(),
+                )
 
             // Open arrowhead: polygon with fill = PlainTheme effectiveNodeFill = #FFFFFF
             svg shouldContain "fill=\"#FFFFFF\""
@@ -284,7 +346,13 @@ class BpmnCollaborationSvgTest :
             val model = BpmnModel(name = "M", collaborations = listOf(collab))
             val diagram = CollaborationDiagram(name = "D", collaborationId = "c1")
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, twoGroupOneEdgeLayout("buyer", "seller", "mf1"), PlainTheme())
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = twoGroupOneEdgeLayout("buyer", "seller", "mf1"),
+                    theme = PlainTheme(),
+                )
 
             svg shouldContain "<circle"
             svg shouldContain "r=\"4\""
@@ -298,7 +366,13 @@ class BpmnCollaborationSvgTest :
             val model = BpmnModel(name = "M", collaborations = listOf(collab))
             val diagram = CollaborationDiagram(name = "D", collaborationId = "c1")
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, twoGroupOneEdgeLayout("buyer", "seller", "mf1"), PlainTheme())
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = twoGroupOneEdgeLayout("buyer", "seller", "mf1"),
+                    theme = PlainTheme(),
+                )
 
             svg shouldContain "Order Request"
         }
@@ -311,7 +385,13 @@ class BpmnCollaborationSvgTest :
             val model = BpmnModel(name = "M", collaborations = listOf(collab))
             val diagram = CollaborationDiagram(name = "D", collaborationId = "c1")
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, twoGroupOneEdgeLayout("buyer", "seller", "mf1"), PlainTheme())
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = twoGroupOneEdgeLayout("buyer", "seller", "mf1"),
+                    theme = PlainTheme(),
+                )
 
             // Dashed line present but no extra text (beyond pool names)
             svg shouldContain "stroke-dasharray=\"5,3\""
@@ -355,7 +435,7 @@ class BpmnCollaborationSvgTest :
             val diagram = CollaborationDiagram(name = "Order View", collaborationId = "c1")
 
             val layout = twoGroupOneEdgeLayout("buyer", "seller", "mf1")
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // Both pool names present
             svg shouldContain "Buyer"
@@ -375,7 +455,7 @@ class BpmnCollaborationSvgTest :
             val model = BpmnModel(name = "M")
             val diagram = CollaborationDiagram(name = "D", collaborationId = "nonexistent")
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, emptyLayoutResult(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = emptyLayoutResult(), theme = PlainTheme())
 
             // Should not crash and should return a valid SVG string
             svg shouldContain "<svg"

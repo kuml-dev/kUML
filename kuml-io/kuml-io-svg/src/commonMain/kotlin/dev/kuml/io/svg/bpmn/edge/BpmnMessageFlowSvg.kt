@@ -96,7 +96,7 @@ internal fun renderBpmnMessageFlow(
                     // with enough gap that the halo edge clears the line.
                     Triple(anchor.x + 10f, anchor.y + 4f, "start")
             }
-        builder.renderEdgeLabelWithHalo(flowName, labelX, labelY, textAnchor)
+        builder.renderEdgeLabelWithHalo(label = flowName, x = labelX, y = labelY, textAnchor = textAnchor)
     }
 }
 

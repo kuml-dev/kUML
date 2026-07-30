@@ -12,7 +12,7 @@ class ExpressionTypeCheckerTest :
         fun infer(
             s: String,
             env: Map<String, KumlType> = emptyMap(),
-        ) = ExpressionTypeChecker.infer(parse(s), env)
+        ) = ExpressionTypeChecker.infer(expr = parse(s), env = env)
 
         test("1 + 2 → Int") {
             infer("1 + 2") shouldBe KumlType.Int

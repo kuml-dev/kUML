@@ -19,8 +19,13 @@ class TransformChainTest :
                     ctx: TransformContext,
                 ): TransformResult<Int> =
                     TransformResult.Success(
-                        source * 2,
-                        TransformTrace(listOf(TraceabilityLink("src-$source", "doubled", "double-rule"))),
+                        output = source * 2,
+                        trace =
+                            TransformTrace(
+                                listOf(
+                                    TraceabilityLink(sourceElementId = "src-$source", targetArtifactId = "doubled", ruleId = "double-rule"),
+                                ),
+                            ),
                     )
             }
 
@@ -35,8 +40,11 @@ class TransformChainTest :
                     ctx: TransformContext,
                 ): TransformResult<String> =
                     TransformResult.Success(
-                        source.toString(),
-                        TransformTrace(listOf(TraceabilityLink("num-$source", "str", "str-rule"))),
+                        output = source.toString(),
+                        trace =
+                            TransformTrace(
+                                listOf(TraceabilityLink(sourceElementId = "num-$source", targetArtifactId = "str", ruleId = "str-rule")),
+                            ),
                     )
             }
 
@@ -49,12 +57,13 @@ class TransformChainTest :
                 override fun transform(
                     source: Int,
                     ctx: TransformContext,
-                ): TransformResult<Int> = TransformResult.Failure(listOf(TransformError("Simulated failure", "elem-$source")))
+                ): TransformResult<Int> =
+                    TransformResult.Failure(listOf(TransformError(message = "Simulated failure", elementId = "elem-$source")))
             }
 
         test("two-step chain threads trace from both steps") {
-            val chain = TransformChain(doubler, intToStr)
-            val result = chain.transform(5, TransformContext())
+            val chain = TransformChain(first = doubler, second = intToStr)
+            val result = chain.transform(source = 5, ctx = TransformContext())
 
             result.shouldBeInstanceOf<TransformResult.Success<String>>()
             result.output shouldBe "10"
@@ -64,7 +73,7 @@ class TransformChainTest :
         }
 
         test("chain id is composed of first+second ids") {
-            val chain = TransformChain(doubler, intToStr)
+            val chain = TransformChain(first = doubler, second = intToStr)
             chain.id shouldBe "doubler+int-to-str"
         }
 
@@ -80,12 +89,12 @@ class TransformChainTest :
                         ctx: TransformContext,
                     ): TransformResult<String> {
                         secondCalled = true
-                        return TransformResult.Success(source.toString(), TransformTrace())
+                        return TransformResult.Success(output = source.toString(), trace = TransformTrace())
                     }
                 }
 
-            val chain = TransformChain(alwaysFail, second)
-            val result = chain.transform(42, TransformContext())
+            val chain = TransformChain(first = alwaysFail, second = second)
+            val result = chain.transform(source = 42, ctx = TransformContext())
 
             result.shouldBeInstanceOf<TransformResult.Failure>()
             secondCalled shouldBe false
@@ -104,7 +113,7 @@ class TransformChainTest :
                         ctx: TransformContext,
                     ): TransformResult<Int> {
                         firstRan = true
-                        return TransformResult.Success(source * 2, TransformTrace())
+                        return TransformResult.Success(output = source * 2, trace = TransformTrace())
                     }
                 }
 
@@ -116,11 +125,11 @@ class TransformChainTest :
                     override fun transform(
                         source: Int,
                         ctx: TransformContext,
-                    ): TransformResult<String> = TransformResult.Failure(listOf(TransformError("Second step failed")))
+                    ): TransformResult<String> = TransformResult.Failure(listOf(TransformError(message = "Second step failed")))
                 }
 
-            val chain = TransformChain(first, failingSecond)
-            val result = chain.transform(3, TransformContext())
+            val chain = TransformChain(first = first, second = failingSecond)
+            val result = chain.transform(source = 3, ctx = TransformContext())
 
             firstRan shouldBe true
             result.shouldBeInstanceOf<TransformResult.Failure>()

@@ -186,10 +186,10 @@ class ErmMappingProfileTest :
 
         test("Entity applied via DSL stores entry in appliedStereotypes") {
             val diagram =
-                classDiagram("ERM Mapping Test") {
+                classDiagram(name = "ERM Mapping Test") {
                     applyProfile(ermMappingProfile)
-                    classOf("Customer") {
-                        stereotype("Entity") {
+                    classOf(name = "Customer") {
+                        stereotype(name = "Entity") {
                             "tableName" to "customers"
                         }
                     }

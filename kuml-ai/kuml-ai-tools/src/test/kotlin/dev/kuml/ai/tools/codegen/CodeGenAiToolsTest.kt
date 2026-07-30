@@ -38,8 +38,8 @@ class CodeGenAiToolsTest :
                         tableName = "products",
                         fields =
                             listOf(
-                                CodeGenAiTools.FieldSpec("id", "Long"),
-                                CodeGenAiTools.FieldSpec("name", "String"),
+                                CodeGenAiTools.FieldSpec(name = "id", type = "Long"),
+                                CodeGenAiTools.FieldSpec(name = "name", type = "String"),
                             ),
                     )
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
@@ -55,7 +55,7 @@ class CodeGenAiToolsTest :
         test("add_jpa_entity with no fields creates a class with 'entity' stereotype only") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addJpaEntity("User", "users")
+                val result = tools.addJpaEntity(className = "User", tableName = "users")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
 
                 val model = ctx.resolveModel() as AnyKumlModel.Uml
@@ -68,7 +68,7 @@ class CodeGenAiToolsTest :
         test("add_jpa_entity records AddElement patch with jpa.table payload") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addJpaEntity("Order", "orders")
+                tools.addJpaEntity(className = "Order", tableName = "orders")
                 val patches = ctx.patches()
                 patches shouldHaveSize 1
                 val patch = patches.first() as dev.kuml.ai.tools.context.ModelPatch.AddElement
@@ -82,7 +82,7 @@ class CodeGenAiToolsTest :
         test("add_spring_bean adds the bean class with correct stereotype") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addSpringBean("OrderService", "service")
+                val result = tools.addSpringBean(className = "OrderService", beanType = "service")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
 
                 val model = ctx.resolveModel() as AnyKumlModel.Uml
@@ -95,10 +95,15 @@ class CodeGenAiToolsTest :
             val (ctx, tools) = makeTools()
             runTest {
                 // Add dependency targets first
-                tools.addJpaEntity("Order", "orders")
-                tools.addJpaEntity("Customer", "customers")
+                tools.addJpaEntity(className = "Order", tableName = "orders")
+                tools.addJpaEntity(className = "Customer", tableName = "customers")
 
-                val result = tools.addSpringBean("OrderService", "service", listOf("Order", "Customer"))
+                val result =
+                    tools.addSpringBean(
+                        className = "OrderService",
+                        beanType = "service",
+                        dependencies = listOf("Order", "Customer"),
+                    )
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
 
                 val model = ctx.resolveModel() as AnyKumlModel.Uml
@@ -112,7 +117,7 @@ class CodeGenAiToolsTest :
         test("add_spring_bean with unknown dependency returns Failure with hint") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addSpringBean("PaymentService", "service", listOf("NonExistent"))
+                val result = tools.addSpringBean(className = "PaymentService", beanType = "service", dependencies = listOf("NonExistent"))
                 val failure = result.shouldBeInstanceOf<PatchApplyResult.Failure>()
                 failure.hint shouldNotBe null
             }
@@ -121,7 +126,7 @@ class CodeGenAiToolsTest :
         test("add_spring_bean with invalid beanType returns Failure") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addSpringBean("Foo", "singleton")
+                val result = tools.addSpringBean(className = "Foo", beanType = "singleton")
                 result.shouldBeInstanceOf<PatchApplyResult.Failure>()
             }
         }
@@ -134,7 +139,11 @@ class CodeGenAiToolsTest :
             try {
                 runTest {
                     // Seed model with a class
-                    tools.addJpaEntity("Product", "products", listOf(CodeGenAiTools.FieldSpec("id", "Long")))
+                    tools.addJpaEntity(
+                        className = "Product",
+                        tableName = "products",
+                        fields = listOf(CodeGenAiTools.FieldSpec(name = "id", type = "Long")),
+                    )
 
                     // Ensure CodeGenRegistry has the kotlin generator
                     if (CodeGenRegistry.names().isEmpty()) {
@@ -142,13 +151,13 @@ class CodeGenAiToolsTest :
                     }
 
                     if ("kotlin" in CodeGenRegistry.names()) {
-                        val result = tools.generateCode("kotlin", tempDir.toString())
+                        val result = tools.generateCode(targetLanguage = "kotlin", outputPath = tempDir.toString())
                         val success = result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Success>()
                         success.generatedFiles.shouldNotBeEmpty()
                         success.generatorId shouldBe "kotlin"
                     } else {
                         // No kotlin generator on classpath in this test context — test generates with unknown plugin
-                        val result = tools.generateCode("kotlin", tempDir.toString())
+                        val result = tools.generateCode(targetLanguage = "kotlin", outputPath = tempDir.toString())
                         result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Failure>()
                     }
                 }
@@ -163,7 +172,7 @@ class CodeGenAiToolsTest :
             val tempDir = Files.createTempDirectory("kuml-codegen-c4-test")
             try {
                 runTest {
-                    val result = tools.generateCode("kotlin", tempDir.toString())
+                    val result = tools.generateCode(targetLanguage = "kotlin", outputPath = tempDir.toString())
                     val failure = result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Failure>()
                     failure.reason shouldContainString "C4"
                 }
@@ -178,7 +187,7 @@ class CodeGenAiToolsTest :
             val tempDir = Files.createTempDirectory("kuml-codegen-sysml2-test")
             try {
                 runTest {
-                    val result = tools.generateCode("kotlin", tempDir.toString())
+                    val result = tools.generateCode(targetLanguage = "kotlin", outputPath = tempDir.toString())
                     val failure = result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Failure>()
                     failure.reason shouldContainString "SysML 2"
                 }
@@ -190,7 +199,7 @@ class CodeGenAiToolsTest :
         test("generate_code with path traversal rejected") {
             val (_, tools) = makeTools()
             runTest {
-                val result = tools.generateCode("kotlin", "../../etc/passwd")
+                val result = tools.generateCode(targetLanguage = "kotlin", outputPath = "../../etc/passwd")
                 val failure = result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Failure>()
                 failure.reason shouldContainString "path traversal"
             }
@@ -201,8 +210,8 @@ class CodeGenAiToolsTest :
             val tempDir = Files.createTempDirectory("kuml-codegen-unknown-test")
             try {
                 runTest {
-                    tools.addJpaEntity("Foo", "foos")
-                    val result = tools.generateCode("nonexistent-language", tempDir.toString())
+                    tools.addJpaEntity(className = "Foo", tableName = "foos")
+                    val result = tools.generateCode(targetLanguage = "nonexistent-language", outputPath = tempDir.toString())
                     result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Failure>()
                 }
             } finally {

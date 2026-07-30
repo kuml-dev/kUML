@@ -35,10 +35,10 @@ class UmlCollaborationSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(w + 20f, h + 20f),
+                canvas = Size(width = w + 20f, height = h + 20f),
                 nodes =
                     mapOf(
-                        NodeId(id) to NodeLayout(bounds = Rect(Point(x, y), Size(w, h))),
+                        NodeId(id) to NodeLayout(bounds = Rect(origin = Point(x = x, y = y), size = Size(width = w, height = h))),
                     ),
                 edges = emptyMap(),
                 groups = emptyMap(),
@@ -51,7 +51,7 @@ class UmlCollaborationSvgTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(collab))
             val layout = singleNodeLayout("c1")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // The ellipse element must be present
             svg shouldContain "<ellipse"
@@ -80,7 +80,7 @@ class UmlCollaborationSvgTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(collab))
             val layout = singleNodeLayout("c2")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "«ServiceContract»"
             svg shouldContain "TradeExecution"
@@ -97,7 +97,7 @@ class UmlCollaborationSvgTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(collab))
             val layout = singleNodeLayout("c3")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "stroke-dasharray=\"4 4\""
         }
@@ -110,8 +110,8 @@ class UmlCollaborationSvgTest :
             val layout = singleNodeLayout("cls1")
             val theme = PlainTheme()
 
-            val svg1 = KumlSvgRenderer.toSvg(diagram, layout, theme)
-            val svg2 = KumlSvgRenderer.toSvg(diagram, layout, theme)
+            val svg1 = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = theme)
+            val svg2 = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = theme)
 
             // Determinism check — adding UmlCollaboration did not break existing rendering
             svg1 shouldBe svg2

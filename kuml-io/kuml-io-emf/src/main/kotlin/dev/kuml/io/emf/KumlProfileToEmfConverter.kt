@@ -63,7 +63,7 @@ public class KumlProfileToEmfConverter {
         emfProfile.eAnnotations.add(profileAnnotation)
 
         for (stereotype in profile.stereotypes) {
-            convertStereotype(stereotype, emfProfile)
+            convertStereotype(stereotype = stereotype, emfProfile = emfProfile)
         }
 
         return emfProfile
@@ -102,7 +102,7 @@ public class KumlProfileToEmfConverter {
 
         // Encode each tag property
         for (prop in stereotype.properties) {
-            convertProperty(prop, emfStereo, emfProfile)
+            convertProperty(prop = prop, emfStereo = emfStereo, emfProfile = emfProfile)
         }
 
         return emfStereo

@@ -89,16 +89,16 @@ public class CosmWasmRpcClient(
                     val response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream())
                     if (response.statusCode() !in 200..299) {
                         throw CosmWasmChainAdapterException.NetworkError(
-                            "HTTP ${response.statusCode()} from ${sanitizeUrl(rpcUrl)}",
+                            message = "HTTP ${response.statusCode()} from ${sanitizeUrl(rpcUrl)}",
                         )
                     }
-                    readLimited(response.body(), maxResponseBytes)
+                    readLimited(stream = response.body(), limit = maxResponseBytes)
                 } catch (e: CosmWasmChainAdapterException) {
                     throw e
                 } catch (e: Exception) {
                     throw CosmWasmChainAdapterException.NetworkError(
-                        "IO error calling ${sanitizeUrl(rpcUrl)}: ${e.message}",
-                        e,
+                        message = "IO error calling ${sanitizeUrl(rpcUrl)}: ${e.message}",
+                        cause = e,
                     )
                 }
             }
@@ -107,28 +107,31 @@ public class CosmWasmRpcClient(
             try {
                 json.parseToJsonElement(responseBody)
             } catch (e: Exception) {
-                throw CosmWasmChainAdapterException.MalformedResponse("Could not parse JSON-RPC response: ${e.message}", e)
+                throw CosmWasmChainAdapterException.MalformedResponse(
+                    message = "Could not parse JSON-RPC response: ${e.message}",
+                    cause = e,
+                )
             }
 
         val obj =
             parsed as? JsonObject
-                ?: throw CosmWasmChainAdapterException.MalformedResponse("JSON-RPC response is not an object")
+                ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "JSON-RPC response is not an object")
 
         val errorObj = obj["error"]
         if (errorObj != null && errorObj !is JsonNull) {
             val errObj =
                 errorObj as? JsonObject
-                    ?: throw CosmWasmChainAdapterException.MalformedResponse("JSON-RPC error field is not an object")
+                    ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "JSON-RPC error field is not an object")
             val code =
                 errObj["code"]?.jsonPrimitive?.int
-                    ?: throw CosmWasmChainAdapterException.MalformedResponse("JSON-RPC error missing code")
+                    ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "JSON-RPC error missing code")
             val message = errObj["message"]?.jsonPrimitive?.content ?: "unknown"
             val data = errObj["data"]?.jsonPrimitive?.content
-            throw CosmWasmChainAdapterException.RpcError(code, message, data)
+            throw CosmWasmChainAdapterException.RpcError(code = code, rpcMessage = message, rpcData = data)
         }
 
         return obj["result"]
-            ?: throw CosmWasmChainAdapterException.MalformedResponse("JSON-RPC response missing 'result' field")
+            ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "JSON-RPC response missing 'result' field")
     }
 
     /**
@@ -155,7 +158,7 @@ public class CosmWasmRpcClient(
         // (e.g. in tests with a single MockServer). In production, lcdUrl and rpcUrl differ
         // because Tendermint RPC (:26657) and LCD REST (:1317) are on separate ports.
         val baseUrl = lcdUrl ?: rpcUrl
-        val url = buildLcdUrl(baseUrl, lcdPath)
+        val url = buildLcdUrl(rpcUrl = baseUrl, lcdPath = lcdPath)
 
         val httpRequest =
             HttpRequest
@@ -172,16 +175,16 @@ public class CosmWasmRpcClient(
                     val response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream())
                     if (response.statusCode() !in 200..299) {
                         throw CosmWasmChainAdapterException.NetworkError(
-                            "HTTP ${response.statusCode()} from smartQuery at ${sanitizeUrl(url)}",
+                            message = "HTTP ${response.statusCode()} from smartQuery at ${sanitizeUrl(url)}",
                         )
                     }
-                    readLimited(response.body(), maxResponseBytes)
+                    readLimited(stream = response.body(), limit = maxResponseBytes)
                 } catch (e: CosmWasmChainAdapterException) {
                     throw e
                 } catch (e: Exception) {
                     throw CosmWasmChainAdapterException.NetworkError(
-                        "IO error during smartQuery at ${sanitizeUrl(url)}: ${e.message}",
-                        e,
+                        message = "IO error during smartQuery at ${sanitizeUrl(url)}: ${e.message}",
+                        cause = e,
                     )
                 }
             }
@@ -190,7 +193,7 @@ public class CosmWasmRpcClient(
             try {
                 json.parseToJsonElement(responseBody)
             } catch (e: Exception) {
-                throw CosmWasmChainAdapterException.MalformedResponse("smart query response is not JSON: ${e.message}", e)
+                throw CosmWasmChainAdapterException.MalformedResponse(message = "smart query response is not JSON: ${e.message}", cause = e)
             }
         // Cosmos LCD API wraps the contract response in {"data": {...}}.
         // Unwrap the envelope so callers receive the actual contract response object.
@@ -203,23 +206,23 @@ public class CosmWasmRpcClient(
 
     /** `status` → result.sync_info.latest_block_height (dezimal String → Long). */
     public suspend fun getLatestBlockHeight(): Long {
-        val result = call("status", buildJsonArray {}).jsonObject
+        val result = call(method = "status", params = buildJsonArray {}).jsonObject
         val syncInfo =
             result["sync_info"]?.jsonObject
-                ?: throw CosmWasmChainAdapterException.MalformedResponse("status missing 'sync_info'")
+                ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "status missing 'sync_info'")
         val h =
             syncInfo["latest_block_height"]?.jsonPrimitive?.content
-                ?: throw CosmWasmChainAdapterException.MalformedResponse("sync_info missing 'latest_block_height'")
+                ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "sync_info missing 'latest_block_height'")
         return h.toLongOrNull()
-            ?: throw CosmWasmChainAdapterException.MalformedResponse("latest_block_height not a long: '$h'")
+            ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "latest_block_height not a long: '$h'")
     }
 
     /** `status` → result.sync_info → {height, time}-Header für die BlockClock. */
     public suspend fun getLatestBlockHeader(): JsonObject {
-        val result = call("status", buildJsonArray {}).jsonObject
+        val result = call(method = "status", params = buildJsonArray {}).jsonObject
         val syncInfo =
             result["sync_info"]?.jsonObject
-                ?: throw CosmWasmChainAdapterException.MalformedResponse("status missing 'sync_info'")
+                ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "status missing 'sync_info'")
         return buildJsonObject {
             syncInfo["latest_block_height"]?.let { put("height", it.jsonPrimitive.content) }
             syncInfo["latest_block_time"]?.let { put("time", it.jsonPrimitive.content) }
@@ -233,7 +236,7 @@ public class CosmWasmRpcClient(
      */
     public suspend fun getBlockResults(height: Long): JsonElement {
         val params = buildJsonObject { put("height", JsonPrimitive(height.toString())) }
-        return call("block_results", params)
+        return call(method = "block_results", params = params)
     }
 
     public companion object {
@@ -289,7 +292,7 @@ public class CosmWasmRpcClient(
                     totalRead += n
                     if (totalRead > limit) {
                         throw CosmWasmChainAdapterException.NetworkError(
-                            "RPC response exceeds maximum allowed size of $limit bytes",
+                            message = "RPC response exceeds maximum allowed size of $limit bytes",
                         )
                     }
                     sb.append(String(buffer, 0, n, Charsets.UTF_8))

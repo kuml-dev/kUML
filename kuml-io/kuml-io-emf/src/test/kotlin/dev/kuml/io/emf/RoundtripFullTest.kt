@@ -49,7 +49,7 @@ class RoundtripFullTest :
         // ── Class with Properties and Operations ──────────────────────────────
 
         test("UmlClass mit Properties + Operations Roundtrip erhält alle Attribute") {
-            val prop = UmlProperty(id = "Order.total", name = "total", type = UmlTypeRef("Double"))
+            val prop = UmlProperty(id = "Order.total", name = "total", type = UmlTypeRef(name = "Double"))
             val op = UmlOperation(id = "Order.submit", name = "submit")
             val cls = UmlClass(id = "Order", name = "Order", attributes = listOf(prop), operations = listOf(op))
 
@@ -162,8 +162,8 @@ class RoundtripFullTest :
                     id = "Customer-Order",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "Order", role = "orders", multiplicity = Multiplicity(0, null)),
+                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "Order", role = "orders", multiplicity = Multiplicity(lower = 0, upper = null)),
                         ),
                 )
 
@@ -190,7 +190,13 @@ class RoundtripFullTest :
         }
 
         test("Property Multiplicity 0..* Roundtrip bleibt unbounded") {
-            val prop = UmlProperty(id = "Container.items", name = "items", type = UmlTypeRef("Item"), multiplicity = Multiplicity(0, null))
+            val prop =
+                UmlProperty(
+                    id = "Container.items",
+                    name = "items",
+                    type = UmlTypeRef(name = "Item"),
+                    multiplicity = Multiplicity(lower = 0, upper = null),
+                )
             val cls = UmlClass(id = "Container", name = "Container", attributes = listOf(prop))
 
             val diagram = toUml.convert(toEmf.convert(kumlModel(cls))).root as KumlDiagram
@@ -205,7 +211,7 @@ class RoundtripFullTest :
         }
 
         test("Operation returnType Roundtrip bleibt erhalten") {
-            val op = UmlOperation(id = "Math.sqrt", name = "sqrt", returnType = UmlTypeRef("Double"))
+            val op = UmlOperation(id = "Math.sqrt", name = "sqrt", returnType = UmlTypeRef(name = "Double"))
             val cls = UmlClass(id = "Math", name = "Math", operations = listOf(op))
 
             val diagram = toUml.convert(toEmf.convert(kumlModel(cls))).root as KumlDiagram

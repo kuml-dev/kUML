@@ -48,7 +48,7 @@ class Mp4EncoderTest :
         test("encode produces an MP4 file (ftyp box) when ffmpeg is available").config(
             enabled = EncoderBinaryLocator.isFfmpegAvailable(),
         ) {
-            val bytes = Mp4Encoder.encode(frames, 200L)
+            val bytes = Mp4Encoder.encode(frames = frames, delayMs = 200L)
             bytes.size shouldBe bytes.size // sanity: non-throwing
             // MP4 files start with a 4-byte size field, then the ASCII box type "ftyp"
             // at offset 4..7 (ISO base media file format).
@@ -77,7 +77,7 @@ class Mp4EncoderTest :
                 return baos.toByteArray()
             }
             val oddFrames = listOf(oddSyntheticPng(), oddSyntheticPng())
-            val bytes = Mp4Encoder.encode(oddFrames, 200L)
+            val bytes = Mp4Encoder.encode(frames = oddFrames, delayMs = 200L)
             val ftyp = bytes.copyOfRange(4, 8)
             String(ftyp, Charsets.ISO_8859_1) shouldBe "ftyp"
         }
@@ -86,7 +86,7 @@ class Mp4EncoderTest :
             if (!EncoderBinaryLocator.isFfmpegAvailable()) {
                 val ex =
                     shouldThrow<AnimEncoderException> {
-                        Mp4Encoder.encode(frames, 200L)
+                        Mp4Encoder.encode(frames = frames, delayMs = 200L)
                     }
                 ex.message shouldContain "No MP4 encoder found"
                 ex.message shouldContain "ffmpeg"

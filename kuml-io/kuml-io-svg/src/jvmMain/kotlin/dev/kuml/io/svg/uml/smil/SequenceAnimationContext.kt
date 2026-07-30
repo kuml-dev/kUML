@@ -30,7 +30,7 @@ public data class SequenceAnimationContext(
     val loopGapMs: Long = 2_000L,
 ) {
     init {
-        requireSafeCssColor(dotColor, "dotColor")
+        requireSafeCssColor(value = dotColor, paramName = "dotColor")
         require(loopCount >= 1) { "loopCount must be >= 1, got: $loopCount" }
         require(loopGapMs >= 0) { "loopGapMs must be >= 0, got: $loopGapMs" }
     }

@@ -58,7 +58,7 @@ internal class RunPatchTool(
         val variablesMap = arguments["variables"]?.jsonObject?.toKotlinMap() ?: emptyMap()
         val forceState = arguments["forceState"]?.jsonPrimitive?.content
 
-        return when (val result = manager.patch(sessionId, variablesMap, forceState)) {
+        return when (val result = manager.patch(sessionId = sessionId, variables = variablesMap, forceState = forceState)) {
             is SessionResult.Patched -> {
                 val json =
                     buildJsonObject {

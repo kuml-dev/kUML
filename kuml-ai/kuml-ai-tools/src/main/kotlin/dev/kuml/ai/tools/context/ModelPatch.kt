@@ -92,7 +92,7 @@ public sealed interface ModelPatch {
             val ts = System.currentTimeMillis()
             val randBytes = ByteArray(10).also { rng.nextBytes(it) }
             // Encode timestamp (48 bits) + random (80 bits) = 128 bits → 26 Crockford base32 chars
-            val enc = CrockfordBase32.encode(ts, randBytes)
+            val enc = CrockfordBase32.encode(tsMillis = ts, rand = randBytes)
             return enc
         }
 

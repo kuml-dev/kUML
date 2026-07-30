@@ -30,8 +30,8 @@ class ElkLayoutEngineTest :
         val engine = ElkLayoutEngine()
 
         test("two nodes one edge produces valid layout") {
-            val nodeA = LayoutNode(id = NodeId("A"), intrinsicSize = Size(100f, 50f))
-            val nodeB = LayoutNode(id = NodeId("B"), intrinsicSize = Size(100f, 50f))
+            val nodeA = LayoutNode(id = NodeId("A"), intrinsicSize = Size(width = 100f, height = 50f))
+            val nodeB = LayoutNode(id = NodeId("B"), intrinsicSize = Size(width = 100f, height = 50f))
             val edge =
                 LayoutEdge(
                     id = EdgeId("A-B"),
@@ -40,7 +40,7 @@ class ElkLayoutEngineTest :
                 )
             val graph = LayoutGraph(nodes = listOf(nodeA, nodeB), edges = listOf(edge))
 
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
 
             // Both nodes must have non-zero bounds
             val boundsA = result.nodes[NodeId("A")]!!.bounds
@@ -59,9 +59,9 @@ class ElkLayoutEngineTest :
 
         test("group bounds enclose children") {
             val groupId = GroupId("G1")
-            val nodeA = LayoutNode(id = NodeId("A"), intrinsicSize = Size(80f, 40f), groupId = groupId)
-            val nodeB = LayoutNode(id = NodeId("B"), intrinsicSize = Size(80f, 40f), groupId = groupId)
-            val nodeC = LayoutNode(id = NodeId("C"), intrinsicSize = Size(80f, 40f), groupId = groupId)
+            val nodeA = LayoutNode(id = NodeId("A"), intrinsicSize = Size(width = 80f, height = 40f), groupId = groupId)
+            val nodeB = LayoutNode(id = NodeId("B"), intrinsicSize = Size(width = 80f, height = 40f), groupId = groupId)
+            val nodeC = LayoutNode(id = NodeId("C"), intrinsicSize = Size(width = 80f, height = 40f), groupId = groupId)
             val group = LayoutGroup(id = groupId)
             val graph =
                 LayoutGraph(
@@ -70,7 +70,7 @@ class ElkLayoutEngineTest :
                     groups = listOf(group),
                 )
 
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
 
             val groupLayout = result.groups[groupId]
             groupLayout shouldNotBe null
@@ -97,14 +97,14 @@ class ElkLayoutEngineTest :
             val child =
                 LayoutNode(
                     id = childId,
-                    intrinsicSize = Size(80f, 40f),
+                    intrinsicSize = Size(width = 80f, height = 40f),
                     groupId = groupId,
                 )
             val group =
                 LayoutGroup(
                     id = groupId,
                     layoutAsCompound = true,
-                    minSize = Size(480f, 60f),
+                    minSize = Size(width = 480f, height = 60f),
                 )
             val graph =
                 LayoutGraph(
@@ -113,7 +113,7 @@ class ElkLayoutEngineTest :
                     groups = listOf(group),
                 )
 
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
 
             val groupLayout = result.groups[groupId]
             groupLayout shouldNotBe null
@@ -148,14 +148,14 @@ class ElkLayoutEngineTest :
             // itself never reserved room for the wider box, so it could overlap the
             // sibling branch that ELK placed right next to it in the same layer.
             val gatewayId = NodeId("gateway")
-            val gateway = LayoutNode(id = gatewayId, intrinsicSize = Size(50f, 70f))
+            val gateway = LayoutNode(id = gatewayId, intrinsicSize = Size(width = 50f, height = 70f))
 
             val groupId = GroupId("subprocess")
             val subChildId = NodeId("subChild")
             val subChild =
                 LayoutNode(
                     id = subChildId,
-                    intrinsicSize = Size(80f, 40f),
+                    intrinsicSize = Size(width = 80f, height = 40f),
                     groupId = groupId,
                 )
             val group =
@@ -165,11 +165,11 @@ class ElkLayoutEngineTest :
                     padding = Insets(top = 20f, right = 20f, bottom = 20f, left = 20f),
                     // Simulates a long expanded-SubProcess title estimate — far wider than
                     // the single small child (+ padding) would otherwise produce.
-                    minSize = Size(480f, 60f),
+                    minSize = Size(width = 480f, height = 60f),
                 )
 
             val siblingId = NodeId("sibling")
-            val sibling = LayoutNode(id = siblingId, intrinsicSize = Size(120f, 60f))
+            val sibling = LayoutNode(id = siblingId, intrinsicSize = Size(width = 120f, height = 60f))
 
             // Edge target uses the group's own id value (same convention as
             // BpmnLayoutBridge's outer-flow-to-expanded-SubProcess wiring): the ELK graph
@@ -195,7 +195,7 @@ class ElkLayoutEngineTest :
                     groups = listOf(group),
                 )
 
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
 
             val groupLayout = result.groups[groupId]
             groupLayout shouldNotBe null
@@ -221,7 +221,7 @@ class ElkLayoutEngineTest :
             val child =
                 LayoutNode(
                     id = NodeId("child2"),
-                    intrinsicSize = Size(80f, 40f),
+                    intrinsicSize = Size(width = 80f, height = 40f),
                     groupId = groupId,
                 )
             val group = LayoutGroup(id = groupId, layoutAsCompound = true)
@@ -232,7 +232,7 @@ class ElkLayoutEngineTest :
                     groups = listOf(group),
                 )
 
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
 
             val gb = result.groups[groupId]!!.bounds
             // No minSize declared → width stays governed purely by the child + padding,
@@ -244,12 +244,12 @@ class ElkLayoutEngineTest :
             val node =
                 LayoutNode(
                     id = NodeId("N1"),
-                    intrinsicSize = Size(100f, 50f),
+                    intrinsicSize = Size(width = 100f, height = 50f),
                     hints = NodeHints(gridCol = 1),
                 )
             val graph = LayoutGraph(nodes = listOf(node), edges = emptyList())
 
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
 
             val gridWarnings = result.warnings.filter { it.code == "hint.ignored.grid" }
             gridWarnings shouldHaveSize 1
@@ -258,9 +258,9 @@ class ElkLayoutEngineTest :
 
         test("direction LeftToRight orders nodes by x") {
             // Three nodes in a chain A → B → C
-            val nodeA = LayoutNode(id = NodeId("A"), intrinsicSize = Size(80f, 40f))
-            val nodeB = LayoutNode(id = NodeId("B"), intrinsicSize = Size(80f, 40f))
-            val nodeC = LayoutNode(id = NodeId("C"), intrinsicSize = Size(80f, 40f))
+            val nodeA = LayoutNode(id = NodeId("A"), intrinsicSize = Size(width = 80f, height = 40f))
+            val nodeB = LayoutNode(id = NodeId("B"), intrinsicSize = Size(width = 80f, height = 40f))
+            val nodeC = LayoutNode(id = NodeId("C"), intrinsicSize = Size(width = 80f, height = 40f))
             val edgeAB =
                 LayoutEdge(
                     id = EdgeId("AB"),
@@ -280,7 +280,7 @@ class ElkLayoutEngineTest :
                 )
             val hints = LayoutHints(direction = LayoutDirection.LeftToRight)
 
-            val result = engine.layout(graph, hints)
+            val result = engine.layout(graph = graph, hints = hints)
 
             val xA =
                 result.nodes[NodeId("A")]!!
@@ -298,8 +298,8 @@ class ElkLayoutEngineTest :
         }
 
         test("result round-trips through json") {
-            val nodeA = LayoutNode(id = NodeId("A"), intrinsicSize = Size(100f, 50f))
-            val nodeB = LayoutNode(id = NodeId("B"), intrinsicSize = Size(100f, 50f))
+            val nodeA = LayoutNode(id = NodeId("A"), intrinsicSize = Size(width = 100f, height = 50f))
+            val nodeB = LayoutNode(id = NodeId("B"), intrinsicSize = Size(width = 100f, height = 50f))
             val edge =
                 LayoutEdge(
                     id = EdgeId("AB"),
@@ -308,7 +308,7 @@ class ElkLayoutEngineTest :
                 )
             val graph = LayoutGraph(nodes = listOf(nodeA, nodeB), edges = listOf(edge))
 
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
 
             val json = Json { prettyPrint = false }
             val encoded = json.encodeToString(result)

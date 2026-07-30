@@ -176,41 +176,41 @@ internal class CsharpLexer(
                     val start = i
                     while (i < len && (src[i].isLetterOrDigit() || src[i] == '_')) i++
                     val text = src.substring(start, i)
-                    tokens += CsharpToken(CsharpTokenType.IDENTIFIER, text, line)
+                    tokens += CsharpToken(type = CsharpTokenType.IDENTIFIER, text = text, line = line)
                 }
                 c.isLetter() || c == '_' -> {
                     val start = i
                     while (i < len && (src[i].isLetterOrDigit() || src[i] == '_')) i++
                     val text = src.substring(start, i)
                     val type = if (text in KEYWORDS) CsharpTokenType.KEYWORD else CsharpTokenType.IDENTIFIER
-                    tokens += CsharpToken(type, text, line)
+                    tokens += CsharpToken(type = type, text = text, line = line)
                 }
                 c.isDigit() -> {
                     val start = i
                     while (i < len && (src[i].isLetterOrDigit() || src[i] == '.' || src[i] == '_')) i++
-                    tokens += CsharpToken(CsharpTokenType.NUMBER, src.substring(start, i), line)
+                    tokens += CsharpToken(type = CsharpTokenType.NUMBER, text = src.substring(start, i), line = line)
                 }
                 // Multi-char punctuation
                 c == ':' && i + 1 < len && src[i + 1] == ':' -> {
-                    tokens += CsharpToken(CsharpTokenType.PUNCT, "::", line)
+                    tokens += CsharpToken(type = CsharpTokenType.PUNCT, text = "::", line = line)
                     i += 2
                 }
                 c == '?' && i + 1 < len && src[i + 1] == '.' -> {
-                    tokens += CsharpToken(CsharpTokenType.PUNCT, "?.", line)
+                    tokens += CsharpToken(type = CsharpTokenType.PUNCT, text = "?.", line = line)
                     i += 2
                 }
                 c == '=' && i + 1 < len && src[i + 1] == '>' -> {
-                    tokens += CsharpToken(CsharpTokenType.PUNCT, "=>", line)
+                    tokens += CsharpToken(type = CsharpTokenType.PUNCT, text = "=>", line = line)
                     i += 2
                 }
                 c in PUNCTS -> {
-                    tokens += CsharpToken(CsharpTokenType.PUNCT, c.toString(), line)
+                    tokens += CsharpToken(type = CsharpTokenType.PUNCT, text = c.toString(), line = line)
                     i++
                 }
                 else -> i++ // skip unknown chars (stripped string placeholders etc.)
             }
         }
-        tokens += CsharpToken(CsharpTokenType.EOF, "", line)
+        tokens += CsharpToken(type = CsharpTokenType.EOF, text = "", line = line)
         return tokens
     }
 

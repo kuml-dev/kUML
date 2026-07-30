@@ -27,7 +27,7 @@ class SubstrateRpcClientTest :
             val v = 1_073_741_823L
             val enc = ScaleCodec.encodeCompact(v)
             enc.size shouldBe 4
-            ScaleCodec.reader(enc).readCompact() shouldBe v
+            ScaleCodec.reader(data = enc).readCompact() shouldBe v
         }
 
         test("scaleCompact boundary: big-integer mode min = 1073741824 (0x4000_0000)") {
@@ -35,7 +35,7 @@ class SubstrateRpcClientTest :
             val enc = ScaleCodec.encodeCompact(v)
             // big-integer mode: header byte + 4 data bytes (0x40000000 fits in 4 bytes)
             enc.size shouldBe 5
-            ScaleCodec.reader(enc).readCompact() shouldBe v
+            ScaleCodec.reader(data = enc).readCompact() shouldBe v
         }
 
         test("scaleCompact mode bits: four-byte mode uses 0b10 tag") {
@@ -133,12 +133,12 @@ class SubstrateRpcClientTest :
         // -------------------------------------------------------------------------
 
         test("SubstrateSystemEventsParser.parseContractEmitted: empty hex → emptyList") {
-            val result = SubstrateSystemEventsParser.parseContractEmitted("0x", 1L, "5addr")
+            val result = SubstrateSystemEventsParser.parseContractEmitted(eventsHex = "0x", blockNumber = 1L, contractAddress = "5addr")
             result shouldBe emptyList()
         }
 
         test("SubstrateSystemEventsParser.parseContractEmitted: short blob → emptyList (no crash)") {
-            val result = SubstrateSystemEventsParser.parseContractEmitted("0x0102", 1L, "5addr")
+            val result = SubstrateSystemEventsParser.parseContractEmitted(eventsHex = "0x0102", blockNumber = 1L, contractAddress = "5addr")
             result shouldBe emptyList()
         }
 
@@ -146,7 +146,7 @@ class SubstrateRpcClientTest :
             // A blob of 100 random bytes that doesn't contain 0x46 0x00
             val blob = ByteArray(100) { i -> if (i % 3 == 0) 0x01 else 0x02 }
             val hex = "0x" + blob.joinToString("") { "%02x".format(it) }
-            val result = SubstrateSystemEventsParser.parseContractEmitted(hex, 5L, "5addr")
+            val result = SubstrateSystemEventsParser.parseContractEmitted(eventsHex = hex, blockNumber = 5L, contractAddress = "5addr")
             result shouldBe emptyList()
         }
 
@@ -170,11 +170,11 @@ class SubstrateRpcClientTest :
                         // Direkte ScaleCodec-Nutzung um denselben Fehler zu triggern
                         if (bytes.size <= 32) {
                             throw SubstrateWasmException.MalformedResponse(
-                                "SCALE Compact decode: no bytes available at pos 32 (data size ${bytes.size})",
+                                message = "SCALE Compact decode: no bytes available at pos 32 (data size ${bytes.size})",
                             )
                         }
                         return dev.kuml.runtime.chain
-                            .ContractIdentity(contractAddress, ByteArray(32), "", 1)
+                            .ContractIdentity(address = contractAddress, modelHash = ByteArray(32), modelUri = "", schemaVersion = 1)
                     }
                 }
             val ex =
@@ -219,11 +219,13 @@ class SubstrateRpcClientTest :
                         val uriEnd = pos + 1 + uriLen
                         if (uriEnd > bytes.size) {
                             throw SubstrateWasmException.MalformedResponse(
-                                "ContractIdentity SCALE: Vec<u8> URI claims $uriLen bytes but only ${bytes.size - pos - 1} remain",
+                                message =
+                                    "ContractIdentity SCALE: Vec<u8> URI claims $uriLen bytes but only " +
+                                        "${bytes.size - pos - 1} remain",
                             )
                         }
                         return dev.kuml.runtime.chain
-                            .ContractIdentity(contractAddress, ByteArray(32), "", 1)
+                            .ContractIdentity(address = contractAddress, modelHash = ByteArray(32), modelUri = "", schemaVersion = 1)
                     }
                 }
             val ex =
@@ -263,9 +265,9 @@ class SubstrateRpcClientTest :
                     )
             val decoder =
                 dev.kuml.runtime.chain.wasm.ink
-                    .InkEventDecoder(abi)
+                    .InkEventDecoder(abi = abi)
             val topic = "0x" + "aa".repeat(32)
-            val result = decoder.decode(listOf(topic), byteArrayOf(0xFF.toByte()))
+            val result = decoder.decode(topicsHex = listOf(topic), dataScale = byteArrayOf(0xFF.toByte()))
             result!!.values["v"] shouldBe -1L
         }
 
@@ -293,9 +295,9 @@ class SubstrateRpcClientTest :
                     )
             val decoder =
                 dev.kuml.runtime.chain.wasm.ink
-                    .InkEventDecoder(abi)
+                    .InkEventDecoder(abi = abi)
             val topic = "0x" + "bb".repeat(32)
-            val result = decoder.decode(listOf(topic), byteArrayOf(0xFF.toByte(), 0xFF.toByte()))
+            val result = decoder.decode(topicsHex = listOf(topic), dataScale = byteArrayOf(0xFF.toByte(), 0xFF.toByte()))
             result!!.values["v"] shouldBe -1L
         }
 
@@ -323,9 +325,13 @@ class SubstrateRpcClientTest :
                     )
             val decoder =
                 dev.kuml.runtime.chain.wasm.ink
-                    .InkEventDecoder(abi)
+                    .InkEventDecoder(abi = abi)
             val topic = "0x" + "cc".repeat(32)
-            val result = decoder.decode(listOf(topic), byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte()))
+            val result =
+                decoder.decode(
+                    topicsHex = listOf(topic),
+                    dataScale = byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte()),
+                )
             result!!.values["v"] shouldBe -1L
         }
 
@@ -360,10 +366,10 @@ class SubstrateRpcClientTest :
                     )
             val decoder =
                 dev.kuml.runtime.chain.wasm.ink
-                    .InkEventDecoder(abi, maxCollectionLen = 1_048_576)
+                    .InkEventDecoder(abi = abi, maxCollectionLen = 1_048_576)
             val ex =
                 shouldThrow<dev.kuml.runtime.chain.wasm.scale.ScaleException> {
-                    decoder.decode(listOf("0x" + "dd".repeat(32)), ByteArray(100))
+                    decoder.decode(topicsHex = listOf("0x" + "dd".repeat(32)), dataScale = ByteArray(100))
                 }
             ex.message shouldContain "malicious ABI"
         }

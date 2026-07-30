@@ -56,20 +56,21 @@ internal fun renderBlueprintJourney(
             is JourneyDiagram -> emptySet()
         }
 
-    val geo = BlueprintGeometry(model, effectiveLayers, showEmotion)
+    val geo = BlueprintGeometry(model = model, visibleLayers = effectiveLayers, showEmotionCurve = showEmotion)
     // Touchpoint id -> legend badge number, so each touchpoint's icon in the
     // grid (below) can carry the same number the legend uses for its name.
     val badgeByTouchpointId = geo.legendEntries.associate { (badge, tp) -> tp.id to badge }
     val b = SvgBuilder(pretty = false)
 
     b.tag(
-        "svg",
-        mapOf(
-            "xmlns" to "http://www.w3.org/2000/svg",
-            "width" to f(geo.totalWidth),
-            "height" to f(geo.totalHeight),
-            "viewBox" to "0 0 ${f(geo.totalWidth)} ${f(geo.totalHeight)}",
-        ),
+        name = "svg",
+        attrs =
+            mapOf(
+                "xmlns" to "http://www.w3.org/2000/svg",
+                "width" to f(geo.totalWidth),
+                "height" to f(geo.totalHeight),
+                "viewBox" to "0 0 ${f(geo.totalWidth)} ${f(geo.totalHeight)}",
+            ),
     ) {
         // Arrowhead marker — emitted once per SVG in the root <defs> block.
         rawXml(
@@ -78,7 +79,7 @@ internal fun renderBlueprintJourney(
         )
         // Standard kUML CSS (kuml-title, kuml-body, etc.) so that text renders
         // correctly in standalone SVG/PNG — same style block used by all other renderers.
-        SvgDocument.buildDefs(b, theme)
+        SvgDocument.buildDefs(b = b, theme = theme)
 
         // 1. layer band backgrounds (z-order: background first) with distinct
         //    per-layer tint + the swimlane (layer) header on the left.
@@ -90,30 +91,32 @@ internal fun renderBlueprintJourney(
                     """fill="${layerBandFill(layer)}"/>""",
             )
             tag(
-                "text",
-                mapOf(
-                    "x" to f(geo.padding + 6),
-                    "y" to f(band.start + geo.rowHeight / 2),
-                    "class" to "kuml-body",
-                    "font-size" to "12",
-                    "font-weight" to "600",
-                    "fill" to "#1d2968",
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "x" to f(geo.padding + 6),
+                        "y" to f(band.start + geo.rowHeight / 2),
+                        "class" to "kuml-body",
+                        "font-size" to "12",
+                        "font-weight" to "600",
+                        "fill" to "#1d2968",
+                    ),
             ) { text(layerLabel(layer)) }
         }
 
         // 2. phase column headers
         geo.phases.forEachIndexed { i, phase ->
             tag(
-                "text",
-                mapOf(
-                    "x" to f(geo.columnCenters[i]),
-                    "y" to f(geo.padding + 22),
-                    "text-anchor" to "middle",
-                    "class" to "kuml-title",
-                    "font-size" to "13",
-                    "font-weight" to "700",
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "x" to f(geo.columnCenters[i]),
+                        "y" to f(geo.padding + 22),
+                        "text-anchor" to "middle",
+                        "class" to "kuml-title",
+                        "font-size" to "13",
+                        "font-weight" to "700",
+                    ),
             ) { text(phase.name ?: phase.id) }
         }
 
@@ -133,8 +136,8 @@ internal fun renderBlueprintJourney(
         // 4. step cards + touchpoints per cell
         geo.layers.forEach { layer ->
             geo.phases.forEachIndexed { i, phase ->
-                val (cellX, cellY) = geo.cellOrigin(i, layer)
-                val stepsHere = model.stepsIn(phase.id, layer)
+                val (cellX, cellY) = geo.cellOrigin(phaseIndex = i, layer = layer)
+                val stepsHere = model.stepsIn(phaseId = phase.id, layer = layer)
                 stepsHere.forEach { step ->
                     val actor = step.actorRef?.let { ref -> model.actors.firstOrNull { it.id == ref } }
                     renderStepCard(
@@ -173,15 +176,15 @@ internal fun renderBlueprintJourney(
         // 5. separator lines (full view only), drawn over the bands/cards but
         //    under the connections.
         if (showLines.isNotEmpty()) {
-            renderBlueprintLines(showLines, geo)
+            renderBlueprintLines(lines = showLines, geo = geo)
         }
 
         // 6. connections on top
         model.connections.forEach { conn ->
-            val src = cellCenterOf(model, geo, conn.sourceRef)
-            val dst = cellCenterOf(model, geo, conn.targetRef)
+            val src = cellCenterOf(model = model, geo = geo, elementId = conn.sourceRef)
+            val dst = cellCenterOf(model = model, geo = geo, elementId = conn.targetRef)
             if (src != null && dst != null) {
-                renderConnection(src, dst, conn.style)
+                renderConnection(from = src, to = dst, style = conn.style)
             }
         }
 
@@ -242,6 +245,6 @@ private fun cellCenterOf(
             ?: return null
     val phaseIdx = geo.phases.indexOfFirst { it.id == step.phaseRef }
     if (phaseIdx < 0 || step.layer !in geo.layers) return null
-    val (cx, cy) = geo.cellOrigin(phaseIdx, step.layer)
+    val (cx, cy) = geo.cellOrigin(phaseIndex = phaseIdx, layer = step.layer)
     return (cx + geo.columnWidth / 2) to (cy + geo.rowHeight / 2)
 }

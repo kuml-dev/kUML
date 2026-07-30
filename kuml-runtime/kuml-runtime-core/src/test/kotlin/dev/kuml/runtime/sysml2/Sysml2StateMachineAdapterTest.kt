@@ -30,18 +30,18 @@ class Sysml2StateMachineAdapterTest :
 
         test("adapter builds runtime from minimal flat STM (Initial → Final)") {
             val model =
-                sysml2Model("Minimal") {
-                    val init = stateDef("Init", isInitial = true)
-                    val done = stateDef("Done", isFinal = true)
-                    transition("go", init, done)
-                    stmDiagram("Minimal STM") {
+                sysml2Model(name = "Minimal") {
+                    val init = stateDef(name = "Init", isInitial = true)
+                    val done = stateDef(name = "Done", isFinal = true)
+                    transition(name = "go", source = init, target = done)
+                    stmDiagram(name = "Minimal STM") {
                         include(init)
                         include(done)
                     }
                 }
             val stm = model.diagrams.first() as dev.kuml.sysml2.StmDiagram
 
-            val handle = Sysml2StateMachineAdapter.runtimeFor(model, stm, clock = epochClock())
+            val handle = Sysml2StateMachineAdapter.runtimeFor(model = model, diagram = stm, clock = epochClock())
 
             handle.instance.isTerminated shouldBe true
             handle.stateMachine.vertices.map { it.id } shouldContain "Init"
@@ -55,92 +55,94 @@ class Sysml2StateMachineAdapterTest :
 
         test("transition with guard fires only when guard holds") {
             val model =
-                sysml2Model("Gated") {
-                    val init = stateDef("Init", isInitial = true)
-                    val a = stateDef("A")
-                    val b = stateDef("B")
-                    transition("seed", init, a)
-                    transition("toB", a, b, trigger = "tick", guard = "event.allow")
-                    stmDiagram("Gated STM") {
+                sysml2Model(name = "Gated") {
+                    val init = stateDef(name = "Init", isInitial = true)
+                    val a = stateDef(name = "A")
+                    val b = stateDef(name = "B")
+                    transition(name = "seed", source = init, target = a)
+                    transition(name = "toB", source = a, target = b, trigger = "tick", guard = "event.allow")
+                    stmDiagram(name = "Gated STM") {
                         include(init)
                         include(a)
                         include(b)
                     }
                 }
             val stm = model.diagrams.first() as dev.kuml.sysml2.StmDiagram
-            val handle = Sysml2StateMachineAdapter.runtimeFor(model, stm, clock = epochClock())
+            val handle = Sysml2StateMachineAdapter.runtimeFor(model = model, diagram = stm, clock = epochClock())
 
             // Guard fails — stays in A
             handle.runtime.step(
-                handle.instance,
-                Event(
-                    name = "tick",
-                    payload =
-                        kotlinx.serialization.json.JsonObject(
-                            mapOf("allow" to kotlinx.serialization.json.JsonPrimitive(false)),
-                        ),
-                ),
+                instance = handle.instance,
+                event =
+                    Event(
+                        name = "tick",
+                        payload =
+                            kotlinx.serialization.json.JsonObject(
+                                mapOf("allow" to kotlinx.serialization.json.JsonPrimitive(false)),
+                            ),
+                    ),
             )
             handle.instance.currentVertices.map { it.id } shouldContain "A"
 
             // Guard succeeds — transitions to B
             handle.runtime.step(
-                handle.instance,
-                Event(
-                    name = "tick",
-                    payload =
-                        kotlinx.serialization.json.JsonObject(
-                            mapOf("allow" to kotlinx.serialization.json.JsonPrimitive(true)),
-                        ),
-                ),
+                instance = handle.instance,
+                event =
+                    Event(
+                        name = "tick",
+                        payload =
+                            kotlinx.serialization.json.JsonObject(
+                                mapOf("allow" to kotlinx.serialization.json.JsonPrimitive(true)),
+                            ),
+                    ),
             )
             handle.instance.currentVertices.map { it.id } shouldContain "B"
         }
 
         test("transition with trigger fires on matching event") {
             val model =
-                sysml2Model("Triggered") {
-                    val init = stateDef("Init", isInitial = true)
-                    val a = stateDef("A")
-                    val b = stateDef("B")
-                    transition("seed", init, a)
-                    transition("toB", a, b, trigger = "go")
-                    stmDiagram("Triggered STM") {
+                sysml2Model(name = "Triggered") {
+                    val init = stateDef(name = "Init", isInitial = true)
+                    val a = stateDef(name = "A")
+                    val b = stateDef(name = "B")
+                    transition(name = "seed", source = init, target = a)
+                    transition(name = "toB", source = a, target = b, trigger = "go")
+                    stmDiagram(name = "Triggered STM") {
                         include(init)
                         include(a)
                         include(b)
                     }
                 }
             val stm = model.diagrams.first() as dev.kuml.sysml2.StmDiagram
-            val handle = Sysml2StateMachineAdapter.runtimeFor(model, stm, clock = epochClock())
+            val handle = Sysml2StateMachineAdapter.runtimeFor(model = model, diagram = stm, clock = epochClock())
 
             // Wrong event — stays in A
-            handle.runtime.step(handle.instance, Event(name = "noop"))
+            handle.runtime.step(instance = handle.instance, event = Event(name = "noop"))
             handle.instance.currentVertices.map { it.id } shouldContain "A"
 
             // Matching event — moves to B
-            handle.runtime.step(handle.instance, Event(name = "go"))
+            handle.runtime.step(instance = handle.instance, event = Event(name = "go"))
             handle.instance.currentVertices.map { it.id } shouldContain "B"
         }
 
         test("transition with effect emits the effect string in the trace") {
             val model =
-                sysml2Model("Effecting") {
-                    val init = stateDef("Init", isInitial = true)
-                    val a = stateDef("A")
-                    val b = stateDef("B")
-                    transition("seed", init, a)
-                    transition("toB", a, b, trigger = "go", effect = "logSwitch()")
-                    stmDiagram("Effecting STM") {
+                sysml2Model(name = "Effecting") {
+                    val init = stateDef(name = "Init", isInitial = true)
+                    val a = stateDef(name = "A")
+                    val b = stateDef(name = "B")
+                    transition(name = "seed", source = init, target = a)
+                    transition(name = "toB", source = a, target = b, trigger = "go", effect = "logSwitch()")
+                    stmDiagram(name = "Effecting STM") {
                         include(init)
                         include(a)
                         include(b)
                     }
                 }
             val stm = model.diagrams.first() as dev.kuml.sysml2.StmDiagram
-            val handle = Sysml2StateMachineAdapter.runtimeFor(model, stm, clock = epochClock())
+            val handle = Sysml2StateMachineAdapter.runtimeFor(model = model, diagram = stm, clock = epochClock())
 
-            handle.runtime.step(handle.instance, Event(name = "go"))
+            handle.runtime.step(instance = handle.instance, event = Event(name = "go"))
 
             val effectEntries =
                 handle.instance.trace
@@ -152,17 +154,17 @@ class Sysml2StateMachineAdapterTest :
 
         test("state with entryAction emits entry trace entry on activation") {
             val model =
-                sysml2Model("EntryAction") {
-                    val init = stateDef("Init", isInitial = true)
-                    val a = stateDef("A", entryAction = "logEnterA()")
-                    transition("seed", init, a)
-                    stmDiagram("EntryAction STM") {
+                sysml2Model(name = "EntryAction") {
+                    val init = stateDef(name = "Init", isInitial = true)
+                    val a = stateDef(name = "A", entryAction = "logEnterA()")
+                    transition(name = "seed", source = init, target = a)
+                    stmDiagram(name = "EntryAction STM") {
                         include(init)
                         include(a)
                     }
                 }
             val stm = model.diagrams.first() as dev.kuml.sysml2.StmDiagram
-            val handle = Sysml2StateMachineAdapter.runtimeFor(model, stm, clock = epochClock())
+            val handle = Sysml2StateMachineAdapter.runtimeFor(model = model, diagram = stm, clock = epochClock())
 
             val entryActions =
                 handle.instance.trace
@@ -174,22 +176,22 @@ class Sysml2StateMachineAdapterTest :
 
         test("state with exitAction emits exit trace entry on deactivation") {
             val model =
-                sysml2Model("ExitAction") {
-                    val init = stateDef("Init", isInitial = true)
-                    val a = stateDef("A", exitAction = "logExitA()")
-                    val b = stateDef("B")
-                    transition("seed", init, a)
-                    transition("toB", a, b, trigger = "go")
-                    stmDiagram("ExitAction STM") {
+                sysml2Model(name = "ExitAction") {
+                    val init = stateDef(name = "Init", isInitial = true)
+                    val a = stateDef(name = "A", exitAction = "logExitA()")
+                    val b = stateDef(name = "B")
+                    transition(name = "seed", source = init, target = a)
+                    transition(name = "toB", source = a, target = b, trigger = "go")
+                    stmDiagram(name = "ExitAction STM") {
                         include(init)
                         include(a)
                         include(b)
                     }
                 }
             val stm = model.diagrams.first() as dev.kuml.sysml2.StmDiagram
-            val handle = Sysml2StateMachineAdapter.runtimeFor(model, stm, clock = epochClock())
+            val handle = Sysml2StateMachineAdapter.runtimeFor(model = model, diagram = stm, clock = epochClock())
 
-            handle.runtime.step(handle.instance, Event(name = "go"))
+            handle.runtime.step(instance = handle.instance, event = Event(name = "go"))
 
             val exitActions =
                 handle.instance.trace
@@ -201,11 +203,11 @@ class Sysml2StateMachineAdapterTest :
 
         test("STM with no initial state — adapter throws a clear error") {
             val model =
-                sysml2Model("NoInitial") {
-                    val a = stateDef("A")
-                    val b = stateDef("B")
-                    transition("toB", a, b)
-                    stmDiagram("NoInitial STM") {
+                sysml2Model(name = "NoInitial") {
+                    val a = stateDef(name = "A")
+                    val b = stateDef(name = "B")
+                    transition(name = "toB", source = a, target = b)
+                    stmDiagram(name = "NoInitial STM") {
                         include(a)
                         include(b)
                     }
@@ -214,27 +216,27 @@ class Sysml2StateMachineAdapterTest :
 
             val ex =
                 shouldThrow<IllegalStateException> {
-                    Sysml2StateMachineAdapter.toUmlStateMachine(model, stm)
+                    Sysml2StateMachineAdapter.toUmlStateMachine(model = model, diagram = stm)
                 }
             ex.message!! shouldContain "no visible initial state"
         }
 
         test("transitions whose endpoints are not in the diagram are silently dropped") {
             val model =
-                sysml2Model("Filtered") {
-                    val init = stateDef("Init", isInitial = true)
-                    val a = stateDef("A")
-                    val hidden = stateDef("Hidden")
-                    transition("seed", init, a)
-                    transition("toHidden", a, hidden, trigger = "leak")
+                sysml2Model(name = "Filtered") {
+                    val init = stateDef(name = "Init", isInitial = true)
+                    val a = stateDef(name = "A")
+                    val hidden = stateDef(name = "Hidden")
+                    transition(name = "seed", source = init, target = a)
+                    transition(name = "toHidden", source = a, target = hidden, trigger = "leak")
                     // Hidden NOT included in the diagram
-                    stmDiagram("Filtered STM") {
+                    stmDiagram(name = "Filtered STM") {
                         include(init)
                         include(a)
                     }
                 }
             val stm = model.diagrams.first() as dev.kuml.sysml2.StmDiagram
-            val machine = Sysml2StateMachineAdapter.toUmlStateMachine(model, stm)
+            val machine = Sysml2StateMachineAdapter.toUmlStateMachine(model = model, diagram = stm)
 
             // Only the seed transition survives the visible-endpoint filter
             machine.transitions.map { it.id } shouldBe listOf("transition:Init::A")

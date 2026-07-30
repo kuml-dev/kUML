@@ -82,7 +82,7 @@ public object Sysml2ConstraintChecker {
             if (constraint.expression.isBlank()) continue
 
             // Build the type environment for this constraint's parameters
-            val typeEnv = buildTypeEnv(constraint.id, constraint.parameters.map { it.name }, model)
+            val typeEnv = buildTypeEnv(constraintId = constraint.id, paramNames = constraint.parameters.map { it.name }, model = model)
 
             // Parse the expression. PAR constraints commonly use mathematical `=`
             // for equality (e.g. `F = m * a`), which the OCL-like parser does not
@@ -92,7 +92,7 @@ public object Sysml2ConstraintChecker {
             // `<`, or `>`.
             val normalised = normaliseEquality(constraint.expression)
             val parseErrors = mutableListOf<dev.kuml.expr.ParseError>()
-            val parsed = OclLikeExpressionParser.tryParse(normalised, parseErrors)
+            val parsed = OclLikeExpressionParser.tryParse(input = normalised, errors = parseErrors)
             if (parsed == null) {
                 val msg = parseErrors.firstOrNull()?.message ?: "failed to parse"
                 val col = parseErrors.firstOrNull()?.column ?: -1
@@ -107,7 +107,7 @@ public object Sysml2ConstraintChecker {
             }
 
             // Type-check the parsed expression
-            val inferredType = ExpressionTypeChecker.infer(parsed, typeEnv)
+            val inferredType = ExpressionTypeChecker.infer(expr = parsed, env = typeEnv)
             if (inferredType is KumlType.TypeError) {
                 errors +=
                     ConstraintTypeError(
@@ -217,7 +217,7 @@ public object Sysml2ConstraintChecker {
                     } else {
                         binding.sourceEndId
                     }
-                resolveAttributeType(otherEnd, attrDefs, attrUsages)
+                resolveAttributeType(endpointId = otherEnd, attrDefs = attrDefs, attrUsages = attrUsages)
             }
         }
     }

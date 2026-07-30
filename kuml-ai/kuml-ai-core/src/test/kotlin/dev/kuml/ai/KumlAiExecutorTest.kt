@@ -78,7 +78,7 @@ class KumlAiExecutorTest :
                     registry = testRegistry(),
                 )
             val testPrompt = prompt("test") { user("hello") }
-            val result = executor.execute(testPrompt, ollamaModel)
+            val result = executor.execute(prompt = testPrompt, model = ollamaModel)
             result.textContent() shouldBe "hello from ollama"
         }
 
@@ -93,7 +93,7 @@ class KumlAiExecutorTest :
             val testPrompt = prompt("test") { user("hello") }
             val anthropicModel = LLModel(LLMProvider.Anthropic, "claude-sonnet-4-5")
             shouldThrow<KumlAiException.PrivacyModeViolation> {
-                executor.execute(testPrompt, anthropicModel)
+                executor.execute(prompt = testPrompt, model = anthropicModel)
             }
         }
 
@@ -110,7 +110,7 @@ class KumlAiExecutorTest :
                     registry = testRegistry(),
                 )
             val testPrompt = prompt("test") { user("hello") }
-            val flow = executor.executeStreaming(testPrompt, ollamaModel)
+            val flow = executor.executeStreaming(prompt = testPrompt, model = ollamaModel)
             flow.shouldBeInstanceOf<Flow<StreamFrame>>()
         }
 
@@ -124,7 +124,7 @@ class KumlAiExecutorTest :
                 )
             val testPrompt = prompt("test") { user("hello") }
             shouldThrow<KumlAiException.PrivacyModeViolation> {
-                executor.executeStreaming(testPrompt, openAiModel)
+                executor.executeStreaming(prompt = testPrompt, model = openAiModel)
             }
         }
 

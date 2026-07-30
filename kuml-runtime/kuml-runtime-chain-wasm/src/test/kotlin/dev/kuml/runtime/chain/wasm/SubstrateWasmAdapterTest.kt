@@ -31,10 +31,10 @@ private class FakeSubstrateRpcClient(
     private val eventsPerBlock: Map<Long, List<SubstrateRpcClient.RawContractEvent>> = emptyMap(),
     private val identity: ContractIdentity =
         ContractIdentity(
-            "5FakeAddr",
-            ByteArray(32) { it.toByte() },
-            "ipfs://test",
-            1,
+            address = "5FakeAddr",
+            modelHash = ByteArray(32) { it.toByte() },
+            modelUri = "ipfs://test",
+            schemaVersion = 1,
         ),
     private val metadataJson: String = EMPTY_ABI_JSON,
 ) : SubstrateRpcClient("http://fake-test-host-not-reachable.invalid") {
@@ -64,10 +64,10 @@ class SubstrateWasmAdapterTest :
         test("connect: returns ContractIdentity from abiProvider + readRegistryIdentity") {
             val expectedIdentity =
                 ContractIdentity(
-                    "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-                    ByteArray(32) { 0xAA.toByte() },
-                    "ipfs://QmTest",
-                    1,
+                    address = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+                    modelHash = ByteArray(32) { 0xAA.toByte() },
+                    modelUri = "ipfs://QmTest",
+                    schemaVersion = 1,
                 )
             val fakeClient = FakeSubstrateRpcClient(identity = expectedIdentity)
             val adapter =
@@ -76,7 +76,13 @@ class SubstrateWasmAdapterTest :
                     clientFactory = { _ -> fakeClient },
                     abiProvider = { _, _ -> InkAbiMetadata.parse(json.parseToJsonElement(EMPTY_ABI_JSON)) },
                 )
-            val identity = runBlocking { adapter.connect("http://localhost:9933", "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY") }
+            val identity =
+                runBlocking {
+                    adapter.connect(
+                        rpcUrl = "http://localhost:9933",
+                        contractAddress = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+                    )
+                }
             identity.address shouldBe "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
             identity.modelHash.contentEquals(ByteArray(32) { 0xAA.toByte() }) shouldBe true
             identity.modelUri shouldBe "ipfs://QmTest"
@@ -85,14 +91,14 @@ class SubstrateWasmAdapterTest :
         test("connect: blank rpcUrl → IllegalArgumentException") {
             val adapter = SubstrateWasmAdapter(urlValidator = SubstrateRpcUrlValidator.NoOp)
             shouldThrow<IllegalArgumentException> {
-                runBlocking { adapter.connect("  ", "5someAddr") }
+                runBlocking { adapter.connect(rpcUrl = "  ", contractAddress = "5someAddr") }
             }
         }
 
         test("connect: blank contractAddress → InvalidAddress") {
             val adapter = SubstrateWasmAdapter(urlValidator = SubstrateRpcUrlValidator.NoOp)
             shouldThrow<SubstrateWasmException.InvalidAddress> {
-                runBlocking { adapter.connect("http://localhost:9933", "") }
+                runBlocking { adapter.connect(rpcUrl = "http://localhost:9933", contractAddress = "") }
             }
         }
 
@@ -104,7 +110,7 @@ class SubstrateWasmAdapterTest :
             val adapter = SubstrateWasmAdapter(urlValidator = SubstrateRpcUrlValidator.Default)
             val ex =
                 shouldThrow<SubstrateWasmException.InvalidUrl> {
-                    runBlocking { adapter.connect("http://127.0.0.1:9933", "5addr") }
+                    runBlocking { adapter.connect(rpcUrl = "http://127.0.0.1:9933", contractAddress = "5addr") }
                 }
             ex.message shouldContain "SSRF"
         }
@@ -113,7 +119,7 @@ class SubstrateWasmAdapterTest :
             val adapter = SubstrateWasmAdapter(urlValidator = SubstrateRpcUrlValidator.Default)
             val ex =
                 shouldThrow<SubstrateWasmException.InvalidUrl> {
-                    runBlocking { adapter.connect("http://169.254.169.254", "5addr") }
+                    runBlocking { adapter.connect(rpcUrl = "http://169.254.169.254", contractAddress = "5addr") }
                 }
             ex.message shouldContain "SSRF"
         }
@@ -122,7 +128,7 @@ class SubstrateWasmAdapterTest :
             val adapter = SubstrateWasmAdapter(urlValidator = SubstrateRpcUrlValidator.Default)
             val ex =
                 shouldThrow<SubstrateWasmException.InvalidUrl> {
-                    runBlocking { adapter.connect("http://10.0.0.1:9933", "5addr") }
+                    runBlocking { adapter.connect(rpcUrl = "http://10.0.0.1:9933", contractAddress = "5addr") }
                 }
             ex.message shouldContain "SSRF"
         }
@@ -167,7 +173,7 @@ class SubstrateWasmAdapterTest :
                     clientFactory = { _ -> FakeSubstrateRpcClient(headBlock = 5L) },
                     abiProvider = { _, _ -> InkAbiMetadata.parse(json.parseToJsonElement(EMPTY_ABI_JSON)) },
                 )
-            runBlocking { adapter.connect("http://localhost:9933", "5addr") }
+            runBlocking { adapter.connect(rpcUrl = "http://localhost:9933", contractAddress = "5addr") }
             shouldThrow<IllegalArgumentException> {
                 adapter.replay(-1L)
             }
@@ -209,7 +215,7 @@ class SubstrateWasmAdapterTest :
                     clientFactory = { _ -> fakeClient },
                     abiProvider = { _, _ -> InkAbiMetadata.parse(json.parseToJsonElement(abiWithEvent)) },
                 )
-            runBlocking { adapter.connect("http://localhost:9933", "5addr") }
+            runBlocking { adapter.connect(rpcUrl = "http://localhost:9933", contractAddress = "5addr") }
             val events = runBlocking { adapter.replay(2L).toList() }
             events.size shouldBe 1
             events[0].eventType shouldBe "TestEvent"
@@ -238,7 +244,12 @@ class SubstrateWasmAdapterTest :
             val eventsMap =
                 (1L..5L).associateWith { b ->
                     listOf(
-                        SubstrateRpcClient.RawContractEvent(b, "0xtx$b", listOf(sig), byteArrayOf(0x04, 0x00, 0x00, 0x00)),
+                        SubstrateRpcClient.RawContractEvent(
+                            blockNumber = b,
+                            extrinsicHash = "0xtx$b",
+                            topicsHex = listOf(sig),
+                            dataScale = byteArrayOf(0x04, 0x00, 0x00, 0x00),
+                        ),
                     )
                 }
             val fakeClient = FakeSubstrateRpcClient(headBlock = 5L, eventsPerBlock = eventsMap)
@@ -249,7 +260,7 @@ class SubstrateWasmAdapterTest :
                     clientFactory = { _ -> fakeClient },
                     abiProvider = { _, _ -> InkAbiMetadata.parse(json.parseToJsonElement(abiWithEvent)) },
                 )
-            runBlocking { adapter.connect("http://localhost:9933", "5addr") }
+            runBlocking { adapter.connect(rpcUrl = "http://localhost:9933", contractAddress = "5addr") }
             val emitted = runBlocking { adapter.replay(1L).toList() }
             emitted.size shouldBe 5
         }
@@ -286,7 +297,14 @@ class SubstrateWasmAdapterTest :
                 """.trimIndent()
             val eventsMap =
                 (1L..3L).associateWith { b ->
-                    listOf(SubstrateRpcClient.RawContractEvent(b, "0xtx$b", listOf(sig), byteArrayOf(0x04, 0x00, 0x00, 0x00)))
+                    listOf(
+                        SubstrateRpcClient.RawContractEvent(
+                            blockNumber = b,
+                            extrinsicHash = "0xtx$b",
+                            topicsHex = listOf(sig),
+                            dataScale = byteArrayOf(0x04, 0x00, 0x00, 0x00),
+                        ),
+                    )
                 }
             val fakeClient = FakeSubstrateRpcClient(headBlock = 3L, eventsPerBlock = eventsMap)
             val adapter =
@@ -297,7 +315,7 @@ class SubstrateWasmAdapterTest :
                     clientFactory = { _ -> fakeClient },
                     abiProvider = { _, _ -> InkAbiMetadata.parse(json.parseToJsonElement(abiWithEvent)) },
                 )
-            runBlocking { adapter.connect("http://localhost:9933", "5addr") }
+            runBlocking { adapter.connect(rpcUrl = "http://localhost:9933", contractAddress = "5addr") }
             // Both replay calls start at fromBlock=1 and independently collect all 3 events.
             val collect1 = runBlocking { adapter.replay(1L).toList() }
             val collect2 = runBlocking { adapter.replay(1L).toList() }
@@ -326,7 +344,7 @@ class SubstrateWasmAdapterTest :
                     clientFactory = { _ -> fakeClient },
                     abiProvider = { _, _ -> InkAbiMetadata.parse(json.parseToJsonElement(EMPTY_ABI_JSON)) },
                 )
-            runBlocking { adapter.connect("http://localhost:9933", "5addr") }
+            runBlocking { adapter.connect(rpcUrl = "http://localhost:9933", contractAddress = "5addr") }
             // currentBlock() is non-suspend, uses runBlocking internally
             adapter.blockClock().currentBlock() shouldBe 42L
         }
@@ -344,7 +362,12 @@ class SubstrateWasmAdapterTest :
                         mapOf(
                             1L to
                                 listOf(
-                                    SubstrateRpcClient.RawContractEvent(1L, "0xtx", listOf(unknownSig), ByteArray(0)),
+                                    SubstrateRpcClient.RawContractEvent(
+                                        blockNumber = 1L,
+                                        extrinsicHash = "0xtx",
+                                        topicsHex = listOf(unknownSig),
+                                        dataScale = ByteArray(0),
+                                    ),
                                 ),
                         ),
                 )
@@ -354,7 +377,7 @@ class SubstrateWasmAdapterTest :
                     clientFactory = { _ -> fakeClient },
                     abiProvider = { _, _ -> InkAbiMetadata.parse(json.parseToJsonElement(EMPTY_ABI_JSON)) },
                 )
-            runBlocking { adapter.connect("http://localhost:9933", "5addr") }
+            runBlocking { adapter.connect(rpcUrl = "http://localhost:9933", contractAddress = "5addr") }
             val events = runBlocking { adapter.replay(1L).toList() }
             events.size shouldBe 0
         }

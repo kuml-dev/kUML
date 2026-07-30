@@ -114,7 +114,7 @@ class OperationBuilder internal constructor(
         direction: ParameterDirection = ParameterDirection.IN,
         defaultValue: String? = null,
     ) {
-        params += ParameterSpec(name, type, direction, defaultValue)
+        params += ParameterSpec(name = name, type = type, direction = direction, defaultValue = defaultValue)
     }
 
     /** Convenience overload — type by name string. */
@@ -123,7 +123,7 @@ class OperationBuilder internal constructor(
         type: String,
         direction: ParameterDirection = ParameterDirection.IN,
         defaultValue: String? = null,
-    ) = parameter(name, typeRef(type), direction, defaultValue)
+    ) = parameter(name = name, type = typeRef(type), direction = direction, defaultValue = defaultValue)
 
     /** Convenience overload — type by classifier handle. */
     fun parameter(
@@ -131,7 +131,7 @@ class OperationBuilder internal constructor(
         type: UmlClassifier,
         direction: ParameterDirection = ParameterDirection.IN,
         defaultValue: String? = null,
-    ) = parameter(name, typeRef(type), direction, defaultValue)
+    ) = parameter(name = name, type = typeRef(type), direction = direction, defaultValue = defaultValue)
 
     // ── Parameters (block form with stereotype support) ────────────────────────
 
@@ -151,7 +151,7 @@ class OperationBuilder internal constructor(
         type: UmlTypeRef,
         block: ParameterBuilder.() -> Unit,
     ) {
-        val builder = ParameterBuilder(name, type, container)
+        val builder = ParameterBuilder(name = name, type = type, container = container)
         builder.block()
         params += builder.build()
     }
@@ -161,14 +161,14 @@ class OperationBuilder internal constructor(
         name: String,
         type: String,
         block: ParameterBuilder.() -> Unit,
-    ) = parameter(name, typeRef(type), block)
+    ) = parameter(name = name, type = typeRef(type), block = block)
 
     /** Block overload — type by classifier handle. */
     fun parameter(
         name: String,
         type: UmlClassifier,
         block: ParameterBuilder.() -> Unit,
-    ) = parameter(name, typeRef(type), block)
+    ) = parameter(name = name, type = typeRef(type), block = block)
 
     // ── Build ─────────────────────────────────────────────────────────────────
 
@@ -177,7 +177,7 @@ class OperationBuilder internal constructor(
         val opId =
             explicitId
                 ?: UmlIds.disambiguate(
-                    candidate = UmlIds.operation(ownerId, name, paramTypeNames),
+                    candidate = UmlIds.operation(ownerId = ownerId, name = name, paramTypes = paramTypeNames),
                     taken = takenIds,
                 )
         takenIds += opId
@@ -186,7 +186,7 @@ class OperationBuilder internal constructor(
             params.map { spec ->
                 val paramId =
                     UmlIds.disambiguate(
-                        candidate = UmlIds.child(opId, spec.name),
+                        candidate = UmlIds.child(parentId = opId, name = spec.name),
                         taken = takenIds,
                     )
                 takenIds += paramId

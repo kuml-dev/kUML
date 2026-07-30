@@ -12,9 +12,9 @@ class TraceReplayerTest :
 
         test("happy-path roundtrip — isMatch true for same model and events") {
             val sm = oneEventSm()
-            val original = simulateToTraceFile(sm, listOf(Event.of("go")))
+            val original = simulateToTraceFile(model = sm, events = listOf(Event.of("go")))
 
-            val report = TraceReplayer().replay(sm, original)
+            val report = TraceReplayer().replay(model = sm, original = original)
 
             report.isMatch shouldBe true
             report.originalSize shouldBe original.entries.size
@@ -24,10 +24,10 @@ class TraceReplayerTest :
         test("mismatch when replaying fewer events than the original trace has") {
             val sm = twoStateSmWithFinal()
             // Record full trace with two events (goes all the way to final)
-            val fullTrace = simulateToTraceFile(sm, listOf(Event.of("go"), Event.of("done")))
+            val fullTrace = simulateToTraceFile(model = sm, events = listOf(Event.of("go"), Event.of("done")))
 
             // Now record partial trace (only "go") — different size than full trace
-            val partialTrace = simulateToTraceFile(sm, listOf(Event.of("go")))
+            val partialTrace = simulateToTraceFile(model = sm, events = listOf(Event.of("go")))
 
             // Replay using only the events from partialTrace but compare against fullTrace entries
             // We splice: replay the partial-event model against the full-trace entries
@@ -45,7 +45,7 @@ class TraceReplayerTest :
                     modelId = sm.id,
                     entries = fullTrace.entries.take(1), // only 1 entry — way fewer than actual
                 )
-            val report = TraceReplayer().replay(sm, corruptedTrace)
+            val report = TraceReplayer().replay(model = sm, original = corruptedTrace)
 
             // Replay with two events will produce a much longer trace than 1 entry
             report.isMatch shouldBe false
@@ -53,9 +53,9 @@ class TraceReplayerTest :
 
         test("replay with two events produces Terminated entry in actual trace") {
             val sm = twoStateSmWithFinal()
-            val original = simulateToTraceFile(sm, listOf(Event.of("go"), Event.of("done")))
+            val original = simulateToTraceFile(model = sm, events = listOf(Event.of("go"), Event.of("done")))
 
-            val report = TraceReplayer().replay(sm, original)
+            val report = TraceReplayer().replay(model = sm, original = original)
 
             report.isMatch shouldBe true
             report.actualTrace.any { it is TraceEntry.Terminated } shouldBe true
@@ -66,16 +66,16 @@ class TraceReplayerTest :
             val actTrace = activityTraceFile()
 
             shouldThrow<UnsupportedTraceFlavourException> {
-                TraceReplayer().replay(sm, actTrace)
+                TraceReplayer().replay(model = sm, original = actTrace)
             }
         }
 
         test("replay is deterministic — two replays produce identical traces") {
             val sm = twoStateSmWithFinal()
-            val original = simulateToTraceFile(sm, listOf(Event.of("go"), Event.of("done")))
+            val original = simulateToTraceFile(model = sm, events = listOf(Event.of("go"), Event.of("done")))
 
-            val report1 = TraceReplayer().replay(sm, original)
-            val report2 = TraceReplayer().replay(sm, original)
+            val report1 = TraceReplayer().replay(model = sm, original = original)
+            val report2 = TraceReplayer().replay(model = sm, original = original)
 
             report1.isMatch shouldBe report2.isMatch
             report1.actualSize shouldBe report2.actualSize
@@ -88,17 +88,17 @@ class TraceReplayerTest :
 
         test("events list in report matches extracted events from original") {
             val sm = twoStateSmWithFinal()
-            val original = simulateToTraceFile(sm, listOf(Event.of("go"), Event.of("done")))
+            val original = simulateToTraceFile(model = sm, events = listOf(Event.of("go"), Event.of("done")))
 
-            val report = TraceReplayer().replay(sm, original)
+            val report = TraceReplayer().replay(model = sm, original = original)
 
             report.events.map { it.name } shouldBe listOf("go", "done")
         }
 
         test("toHumanReadable returns match summary when isMatch is true") {
             val sm = oneEventSm()
-            val original = simulateToTraceFile(sm, listOf(Event.of("go")))
-            val report = TraceReplayer().replay(sm, original)
+            val original = simulateToTraceFile(model = sm, events = listOf(Event.of("go")))
+            val report = TraceReplayer().replay(model = sm, original = original)
 
             val text = report.toHumanReadable()
             text.contains("match", ignoreCase = true) shouldBe true

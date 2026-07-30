@@ -11,7 +11,7 @@ class JavaGeneralizationMapperTest :
         test("extends parent class emits UmlGeneralization(specific=this, general=parent)") {
             val cu = StaticJavaParser.parse("class Child extends Parent {}")
             val decl = cu.findAll(ClassOrInterfaceDeclaration::class.java).first { it.nameAsString == "Child" }
-            val result = JavaGeneralizationMapper.map(decl, "Child", "Child.rel")
+            val result = JavaGeneralizationMapper.map(decl = decl, ownId = "Child", relIdPrefix = "Child.rel")
             result.generalizations.size shouldBe 1
             val gen = result.generalizations.first()
             gen.specificId shouldBe "Child"
@@ -22,7 +22,7 @@ class JavaGeneralizationMapperTest :
         test("implements interface emits UmlInterfaceRealization (not UmlGeneralization)") {
             val cu = StaticJavaParser.parse("class ServiceImpl implements Service {}")
             val decl = cu.findAll(ClassOrInterfaceDeclaration::class.java).first { it.nameAsString == "ServiceImpl" }
-            val result = JavaGeneralizationMapper.map(decl, "ServiceImpl", "ServiceImpl.rel")
+            val result = JavaGeneralizationMapper.map(decl = decl, ownId = "ServiceImpl", relIdPrefix = "ServiceImpl.rel")
             result.realizations.size shouldBe 1
             val real = result.realizations.first()
             real.implementingId shouldBe "ServiceImpl"

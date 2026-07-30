@@ -51,31 +51,33 @@ internal fun renderChenEntity(
     val h = layout.bounds.size.height
 
     b.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(entity.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(entity.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-erm-entity"))
+        tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-erm-entity"))
         if (entity.weak) {
             val inset = ErmChenSizing.WEAK_BORDER_INSET
             tag(
-                "rect",
-                mapOf(
-                    "x" to fmt(inset),
-                    "y" to fmt(inset),
-                    "width" to fmt(w - 2 * inset),
-                    "height" to fmt(h - 2 * inset),
-                    "class" to "kuml-erm-entity-inner",
-                ),
+                name = "rect",
+                attrs =
+                    mapOf(
+                        "x" to fmt(inset),
+                        "y" to fmt(inset),
+                        "width" to fmt(w - 2 * inset),
+                        "height" to fmt(h - 2 * inset),
+                        "class" to "kuml-erm-entity-inner",
+                    ),
             )
         }
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-title",
-                "x" to fmt(w / 2f),
-                "y" to fmt(h / 2f + 5f),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-title",
+                    "x" to fmt(w / 2f),
+                    "y" to fmt(h / 2f + 5f),
+                    "text-anchor" to "middle",
+                ),
         ) { text(entity.name ?: entity.id) }
     }
 }
@@ -94,36 +96,38 @@ internal fun renderChenAttribute(
     val cy = h / 2f
 
     b.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(attr.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(attr.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         tag(
-            "ellipse",
-            mapOf(
-                "cx" to fmt(cx),
-                "cy" to fmt(cy),
-                "rx" to fmt(cx),
-                "ry" to fmt(cy),
-                "class" to "kuml-erm-chen-attribute",
-            ),
+            name = "ellipse",
+            attrs =
+                mapOf(
+                    "cx" to fmt(cx),
+                    "cy" to fmt(cy),
+                    "rx" to fmt(cx),
+                    "ry" to fmt(cy),
+                    "class" to "kuml-erm-chen-attribute",
+                ),
         )
         val name = attr.name ?: attr.id
         tag(
-            "text",
-            mapOf("class" to "kuml-body", "x" to fmt(cx), "y" to fmt(cy + 4f), "text-anchor" to "middle"),
+            name = "text",
+            attrs = mapOf("class" to "kuml-body", "x" to fmt(cx), "y" to fmt(cy + 4f), "text-anchor" to "middle"),
         ) { text(name) }
 
         if (attr.primaryKey) {
             val nameWidth = name.length * ErmChenSizing.BODY_CHAR_PX
             tag(
-                "line",
-                mapOf(
-                    "x1" to fmt(cx - nameWidth / 2f),
-                    "y1" to fmt(cy + 7f),
-                    "x2" to fmt(cx + nameWidth / 2f),
-                    "y2" to fmt(cy + 7f),
-                    "class" to "kuml-erm-pk-underline",
-                ),
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to fmt(cx - nameWidth / 2f),
+                        "y1" to fmt(cy + 7f),
+                        "x2" to fmt(cx + nameWidth / 2f),
+                        "y2" to fmt(cy + 7f),
+                        "class" to "kuml-erm-pk-underline",
+                    ),
             )
         }
     }
@@ -143,21 +147,21 @@ internal fun renderChenRelationshipNode(
     val cy = h / 2f
 
     b.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(rel.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(rel.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag("polygon", mapOf("points" to diamondPoints(w, h), "class" to "kuml-erm-chen-relationship"))
+        tag(name = "polygon", attrs = mapOf("points" to diamondPoints(w = w, h = h), "class" to "kuml-erm-chen-relationship"))
         if (rel.kind == RelationshipKind.IDENTIFYING) {
             val inset = ErmChenSizing.WEAK_BORDER_INSET
             tag(
-                "polygon",
-                mapOf("points" to diamondPoints(w, h, inset), "class" to "kuml-erm-chen-relationship-inner"),
+                name = "polygon",
+                attrs = mapOf("points" to diamondPoints(w = w, h = h, inset = inset), "class" to "kuml-erm-chen-relationship-inner"),
             )
         }
         val name = rel.name ?: rel.id
         tag(
-            "text",
-            mapOf("class" to "kuml-body", "x" to fmt(cx), "y" to fmt(cy + 4f), "text-anchor" to "middle"),
+            name = "text",
+            attrs = mapOf("class" to "kuml-body", "x" to fmt(cx), "y" to fmt(cy + 4f), "text-anchor" to "middle"),
         ) { text(name) }
     }
 }
@@ -225,7 +229,7 @@ internal fun renderChenConnector(
     entityBounds: Rect? = null,
 ) {
     val (tagName, attrs) = EdgePathBuilder.build(route)
-    b.tag(tagName, attrs + mapOf("class" to "kuml-edge"))
+    b.tag(name = tagName, attrs = attrs + mapOf("class" to "kuml-edge"))
 
     if (cardinality != null) {
         val entityPoint: Point
@@ -251,8 +255,8 @@ internal fun renderChenConnector(
         val label = chenCardinalityLabel(cardinality)
         val clampedStack = stackIndex.coerceIn(0, CHEN_CARDINALITY_MAX_STACK_INDEX)
         val baseOffset = ErmChenSizing.CARDINALITY_LABEL_OFFSET_PX + clampedStack * ErmChenSizing.CARDINALITY_LABEL_STACK_PX
-        val alongOffset = clearedAlongOffset(entityPoint, outward, entityBounds, baseOffset)
-        b.renderErmCardinalityLabel(entityPoint, outward, label, alongOffset)
+        val alongOffset = clearedAlongOffset(entityPoint = entityPoint, outward = outward, bounds = entityBounds, baseOffsetPx = baseOffset)
+        b.renderErmCardinalityLabel(anchor = entityPoint, outward = outward, label = label, alongOffsetPx = alongOffset)
     }
 }
 

@@ -53,13 +53,31 @@ public class BlueprintConstraintChecker {
         buildList {
             // 1–3. minimum content
             if (model.actors.isEmpty()) {
-                add(ConstraintViolation(null, "Blueprint '${model.name}' has no actors", ViolationSeverity.ERROR))
+                add(
+                    ConstraintViolation(
+                        elementId = null,
+                        message = "Blueprint '${model.name}' has no actors",
+                        severity = ViolationSeverity.ERROR,
+                    ),
+                )
             }
             if (model.phases.isEmpty()) {
-                add(ConstraintViolation(null, "Blueprint '${model.name}' has no phases", ViolationSeverity.ERROR))
+                add(
+                    ConstraintViolation(
+                        elementId = null,
+                        message = "Blueprint '${model.name}' has no phases",
+                        severity = ViolationSeverity.ERROR,
+                    ),
+                )
             }
             if (model.steps.isEmpty()) {
-                add(ConstraintViolation(null, "Blueprint '${model.name}' has no steps", ViolationSeverity.ERROR))
+                add(
+                    ConstraintViolation(
+                        elementId = null,
+                        message = "Blueprint '${model.name}' has no steps",
+                        severity = ViolationSeverity.ERROR,
+                    ),
+                )
             }
 
             // 5. phase order must be 0..n-1 unique
@@ -68,9 +86,9 @@ public class BlueprintConstraintChecker {
             if (model.phases.isNotEmpty() && orders != expected) {
                 add(
                     ConstraintViolation(
-                        null,
-                        "Phase orders must be a contiguous 0-based sequence; got ${model.phases.map { it.order }}",
-                        ViolationSeverity.ERROR,
+                        elementId = null,
+                        message = "Phase orders must be a contiguous 0-based sequence; got ${model.phases.map { it.order }}",
+                        severity = ViolationSeverity.ERROR,
                     ),
                 )
             }
@@ -85,9 +103,9 @@ public class BlueprintConstraintChecker {
                 if (model.steps.none { it.phaseRef == phase.id }) {
                     add(
                         ConstraintViolation(
-                            phase.id,
-                            "Phase '${phase.name ?: phase.id}' has no steps (empty column)",
-                            ViolationSeverity.WARNING,
+                            elementId = phase.id,
+                            message = "Phase '${phase.name ?: phase.id}' has no steps (empty column)",
+                            severity = ViolationSeverity.WARNING,
                         ),
                     )
                 }
@@ -98,18 +116,18 @@ public class BlueprintConstraintChecker {
                 if (step.phaseRef !in phaseIds) {
                     add(
                         ConstraintViolation(
-                            step.id,
-                            "Step '${step.name ?: step.id}' phaseRef '${step.phaseRef}' not found",
-                            ViolationSeverity.ERROR,
+                            elementId = step.id,
+                            message = "Step '${step.name ?: step.id}' phaseRef '${step.phaseRef}' not found",
+                            severity = ViolationSeverity.ERROR,
                         ),
                     )
                 }
                 if (step.actorRef != null && step.actorRef !in actorIds) {
                     add(
                         ConstraintViolation(
-                            step.id,
-                            "Step '${step.name ?: step.id}' actorRef '${step.actorRef}' not found",
-                            ViolationSeverity.ERROR,
+                            elementId = step.id,
+                            message = "Step '${step.name ?: step.id}' actorRef '${step.actorRef}' not found",
+                            severity = ViolationSeverity.ERROR,
                         ),
                     )
                 }
@@ -117,9 +135,9 @@ public class BlueprintConstraintChecker {
                     if (tpRef !in touchpointIds) {
                         add(
                             ConstraintViolation(
-                                step.id,
-                                "Step '${step.name ?: step.id}' touchpointRef '$tpRef' not found",
-                                ViolationSeverity.ERROR,
+                                elementId = step.id,
+                                message = "Step '${step.name ?: step.id}' touchpointRef '$tpRef' not found",
+                                severity = ViolationSeverity.ERROR,
                             ),
                         )
                     }
@@ -127,10 +145,11 @@ public class BlueprintConstraintChecker {
                 if (step.sentiment != null && step.layer != BlueprintLayer.CUSTOMER_ACTIONS) {
                     add(
                         ConstraintViolation(
-                            step.id,
-                            "Step '${step.name ?: step.id}' has a sentiment but is not in the Customer-Actions layer " +
-                                "(sentiment only drives the emotion curve there)",
-                            ViolationSeverity.WARNING,
+                            elementId = step.id,
+                            message =
+                                "Step '${step.name ?: step.id}' has a sentiment but is not in the Customer-Actions layer " +
+                                    "(sentiment only drives the emotion curve there)",
+                            severity = ViolationSeverity.WARNING,
                         ),
                     )
                 }
@@ -141,9 +160,9 @@ public class BlueprintConstraintChecker {
                 if (tp.channelRef != null && tp.channelRef !in channelIds) {
                     add(
                         ConstraintViolation(
-                            tp.id,
-                            "Touchpoint '${tp.name ?: tp.id}' channelRef '${tp.channelRef}' not found",
-                            ViolationSeverity.ERROR,
+                            elementId = tp.id,
+                            message = "Touchpoint '${tp.name ?: tp.id}' channelRef '${tp.channelRef}' not found",
+                            severity = ViolationSeverity.ERROR,
                         ),
                     )
                 }
@@ -156,18 +175,18 @@ public class BlueprintConstraintChecker {
                 if (conn.sourceRef !in connectable) {
                     add(
                         ConstraintViolation(
-                            conn.id,
-                            "Connection '${conn.id}' sourceRef '${conn.sourceRef}' not a step or touchpoint",
-                            ViolationSeverity.ERROR,
+                            elementId = conn.id,
+                            message = "Connection '${conn.id}' sourceRef '${conn.sourceRef}' not a step or touchpoint",
+                            severity = ViolationSeverity.ERROR,
                         ),
                     )
                 }
                 if (conn.targetRef !in connectable) {
                     add(
                         ConstraintViolation(
-                            conn.id,
-                            "Connection '${conn.id}' targetRef '${conn.targetRef}' not a step or touchpoint",
-                            ViolationSeverity.ERROR,
+                            elementId = conn.id,
+                            message = "Connection '${conn.id}' targetRef '${conn.targetRef}' not a step or touchpoint",
+                            severity = ViolationSeverity.ERROR,
                         ),
                     )
                 }
@@ -186,9 +205,9 @@ public class BlueprintConstraintChecker {
             if (wantsEmotion && !hasCustomerSentiment) {
                 add(
                     ConstraintViolation(
-                        null,
-                        "A diagram requests the emotion curve but no Customer-Actions step carries a sentiment",
-                        ViolationSeverity.WARNING,
+                        elementId = null,
+                        message = "A diagram requests the emotion curve but no Customer-Actions step carries a sentiment",
+                        severity = ViolationSeverity.WARNING,
                     ),
                 )
             }

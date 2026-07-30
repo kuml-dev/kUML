@@ -41,7 +41,7 @@ class InterpreterResourceBoundsTest :
             val limits = InterpreterLimits(maxSourceChars = 200)
             val source = "classDiagram(name = \"" + "A".repeat(500) + "\") { }"
 
-            val result = InterpreterScriptEvaluator.evaluate(source, "test.kuml.kts", limits)
+            val result = InterpreterScriptEvaluator.evaluate(source = source, fileName = "test.kuml.kts", limits = limits)
 
             result.shouldBeInstanceOf<EvaluatedScript.Failure>()
             result.kind shouldBe FailureKind.EVALUATION
@@ -55,7 +55,7 @@ class InterpreterResourceBoundsTest :
             val source = "classDiagram(name = \"Ok\") { }"
             val limits = InterpreterLimits(maxSourceChars = source.length)
 
-            val result = InterpreterScriptEvaluator.evaluate(source, "test.kuml.kts", limits)
+            val result = InterpreterScriptEvaluator.evaluate(source = source, fileName = "test.kuml.kts", limits = limits)
 
             if (result is EvaluatedScript.Failure) {
                 result.message.contains("too large") shouldBe false
@@ -67,7 +67,7 @@ class InterpreterResourceBoundsTest :
             val source = nestedSource(depth = 200)
 
             // The call itself must not throw StackOverflowError/OutOfMemoryError.
-            val result = InterpreterScriptEvaluator.evaluate(source, "test.kuml.kts", limits)
+            val result = InterpreterScriptEvaluator.evaluate(source = source, fileName = "test.kuml.kts", limits = limits)
 
             result.shouldBeInstanceOf<EvaluatedScript.Failure>()
             result.kind shouldBe FailureKind.EVALUATION
@@ -80,7 +80,7 @@ class InterpreterResourceBoundsTest :
             val limits = InterpreterLimits(maxNestingDepth = 64)
             val source = nestedSource(depth = 3)
 
-            val result = InterpreterScriptEvaluator.evaluate(source, "test.kuml.kts", limits)
+            val result = InterpreterScriptEvaluator.evaluate(source = source, fileName = "test.kuml.kts", limits = limits)
 
             // May succeed or fail for semantic reasons, but never for depth.
             if (result is EvaluatedScript.Failure) {
@@ -102,7 +102,12 @@ class InterpreterResourceBoundsTest :
                 }
                 """.trimIndent()
 
-            val result = InterpreterScriptEvaluator.evaluate(source, "animals.kuml.kts", InterpreterLimits.DEFAULT)
+            val result =
+                InterpreterScriptEvaluator.evaluate(
+                    source = source,
+                    fileName = "animals.kuml.kts",
+                    limits = InterpreterLimits.DEFAULT,
+                )
 
             result.shouldBeInstanceOf<EvaluatedScript.Success>()
         }

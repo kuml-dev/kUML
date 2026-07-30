@@ -22,7 +22,7 @@ import dev.kuml.profile.javaee.javaEeProfile
  * Reference: JetBrains Exposed 0.5x, `org.jetbrains.exposed.sql.Table` DSL.
  */
 public val exposedProfile: KumlProfile =
-    profile("Exposed") {
+    profile(name = "Exposed") {
         namespace = "dev.kuml.profiles.exposed"
         description = "Kotlin Exposed ORM — Table/Column/FK-Stereotypen für die MDA-Persistenzschicht (ADR-0016)"
         version = "1.0.0"
@@ -30,24 +30,24 @@ public val exposedProfile: KumlProfile =
 
         // ── Class-Level: renderable Exposed Table ────────────────────────────────
 
-        stereotype("Table") {
+        stereotype(name = "Table") {
             extends(UmlMetaclass.Class)
-            property<String>("tableName") // required — no default
-            property<String>("schema") { default = "public" }
+            property<String>(name = "tableName") // required — no default
+            property<String>(name = "schema") { default = "public" }
         }
 
         // ── Property-Level: Exposed column ───────────────────────────────────────
 
-        stereotype("Column") {
+        stereotype(name = "Column") {
             extends(UmlMetaclass.Property)
-            property<String>("columnType") // required — Exposed DSL fn name, e.g. "varchar"/"long"/"integer"/"bool"/"double"
-            property<String>("name") // required — actual DB column name (kuml-gen-sql-compatible tag key)
+            property<String>(name = "columnType") // required — Exposed DSL fn name, e.g. "varchar"/"long"/"integer"/"bool"/"double"
+            property<String>(name = "name") // required — actual DB column name (kuml-gen-sql-compatible tag key)
         }
 
         // ── Association-Level: cosmetic FK marker ────────────────────────────────
 
-        stereotype("FK") {
+        stereotype(name = "FK") {
             extends(UmlMetaclass.Association)
-            property<String>("targetTable") // required — cosmetic only, not consumed by kuml-gen-sql
+            property<String>(name = "targetTable") // required — cosmetic only, not consumed by kuml-gen-sql
         }
     }

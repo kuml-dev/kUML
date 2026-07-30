@@ -80,7 +80,7 @@ sysml2Model(name = "VehicleRequirements") {
     val verifyTopSpeed = useCaseDef(name = "VerifyTopSpeed")
 
     // ── Requirement Diagram ────────────────────────────────────────────────
-    reqDiagram("Vehicle — top-level requirements") {
+    reqDiagram(name = "Vehicle — top-level requirements") {
         // Nodes
         include(topSpeed)
         include(curbWeight)

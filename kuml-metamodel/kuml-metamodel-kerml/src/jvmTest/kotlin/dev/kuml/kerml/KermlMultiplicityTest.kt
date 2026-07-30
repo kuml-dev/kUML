@@ -15,23 +15,23 @@ class KermlMultiplicityTest :
         }
 
         "renders SysML 2 concrete syntax" {
-            KermlMultiplicity(0, 1).toSpecForm() shouldBe "0..1"
-            KermlMultiplicity(1, null).toSpecForm() shouldBe "1..*"
-            KermlMultiplicity(0, null).toSpecForm() shouldBe "0..*"
-            KermlMultiplicity(3, 3).toSpecForm() shouldBe "3"
-            KermlMultiplicity(2, 5).toSpecForm() shouldBe "2..5"
+            KermlMultiplicity(lower = 0, upper = 1).toSpecForm() shouldBe "0..1"
+            KermlMultiplicity(lower = 1, upper = null).toSpecForm() shouldBe "1..*"
+            KermlMultiplicity(lower = 0, upper = null).toSpecForm() shouldBe "0..*"
+            KermlMultiplicity(lower = 3, upper = 3).toSpecForm() shouldBe "3"
+            KermlMultiplicity(lower = 2, upper = 5).toSpecForm() shouldBe "2..5"
         }
 
         "rejects negative lower bound" {
-            shouldThrow<IllegalArgumentException> { KermlMultiplicity(-1, 1) }
+            shouldThrow<IllegalArgumentException> { KermlMultiplicity(lower = -1, upper = 1) }
         }
 
         "rejects upper < lower" {
-            shouldThrow<IllegalArgumentException> { KermlMultiplicity(5, 3) }
+            shouldThrow<IllegalArgumentException> { KermlMultiplicity(lower = 5, upper = 3) }
         }
 
         "round-trips through kotlinx.serialization" {
-            val original = KermlMultiplicity(1, null)
+            val original = KermlMultiplicity(lower = 1, upper = null)
             val json = Json.encodeToString(original)
             val restored = Json.decodeFromString<KermlMultiplicity>(json)
             restored shouldBe original

@@ -66,14 +66,21 @@ public class UmlToJpaTransformer : KumlTransformer<KumlDiagram, List<GeneratedFi
             when (result) {
                 is EntityResult.Ok -> {
                     files += result.file
-                    trace = trace.plus(TraceabilityLink(cls.id, result.file.relativePath, RULE_CLASS_TO_ENTITY))
+                    trace =
+                        trace.plus(
+                            TraceabilityLink(
+                                sourceElementId = cls.id,
+                                targetArtifactId = result.file.relativePath,
+                                ruleId = RULE_CLASS_TO_ENTITY,
+                            ),
+                        )
                 }
                 is EntityResult.Error -> errors += result.error
             }
         }
 
         if (errors.isNotEmpty()) return TransformResult.Failure(errors)
-        return TransformResult.Success(files, trace)
+        return TransformResult.Success(output = files, trace = trace)
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────────
@@ -155,7 +162,8 @@ public class UmlToJpaTransformer : KumlTransformer<KumlDiagram, List<GeneratedFi
         }
 
         // Add association properties
-        val assocParams = buildAssociationParams(cls, classById, classIdByName, associations)
+        val assocParams =
+            buildAssociationParams(cls = cls, classById = classById, classIdByName = classIdByName, associations = associations)
         params.addAll(assocParams)
 
         // Synthetic @Id if none found
@@ -187,7 +195,7 @@ public class UmlToJpaTransformer : KumlTransformer<KumlDiagram, List<GeneratedFi
 
         sb.appendLine()
 
-        return EntityResult.Ok(GeneratedFile("${cls.name}.kt", sb.toString()))
+        return EntityResult.Ok(GeneratedFile(relativePath = "${cls.name}.kt", content = sb.toString()))
     }
 
     private fun buildAssociationParams(

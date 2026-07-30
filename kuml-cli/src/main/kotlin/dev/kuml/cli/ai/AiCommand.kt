@@ -168,7 +168,7 @@ internal class AiProviderInfoCommand : CliktCommand(name = "info") {
                 "cloud — prompts are sent to a third-party API"
             }
         echo("  Type:    $typeStr")
-        echo("  Privacy: ${privacyLine(provider.isLocal, provider.displayName)}")
+        echo("  Privacy: ${privacyLine(isLocal = provider.isLocal, displayName = provider.displayName)}")
         if (provider.isCustomProvider) {
             echo("  Note:    Custom SPI provider (read-only in V3.1.15 — not yet executable)")
         }
@@ -250,22 +250,22 @@ internal class AiToolsListCommand : CliktCommand(name = "list") {
     override fun run() {
         val builtIns =
             listOf(
-                ToolSetEntry("uml", "UML Editing Tools", "built-in", emptyList()),
-                ToolSetEntry("c4", "C4 Editing Tools", "built-in", emptyList()),
-                ToolSetEntry("sysml2", "SysML 2 Editing Tools", "built-in", emptyList()),
+                ToolSetEntry(id = "uml", displayName = "UML Editing Tools", origin = "built-in", capabilities = emptyList()),
+                ToolSetEntry(id = "c4", displayName = "C4 Editing Tools", origin = "built-in", capabilities = emptyList()),
+                ToolSetEntry(id = "sysml2", displayName = "SysML 2 Editing Tools", origin = "built-in", capabilities = emptyList()),
                 ToolSetEntry(
-                    "render",
-                    "Rendering Tools",
-                    "built-in",
-                    listOf(ToolSetCapability.FILE_SYSTEM.name),
+                    id = "render",
+                    displayName = "Rendering Tools",
+                    origin = "built-in",
+                    capabilities = listOf(ToolSetCapability.FILE_SYSTEM.name),
                 ),
-                ToolSetEntry("inspection", "Model Inspection Tools", "built-in", emptyList()),
-                ToolSetEntry("mcp", "MCP Bridge", "built-in", emptyList()),
+                ToolSetEntry(id = "inspection", displayName = "Model Inspection Tools", origin = "built-in", capabilities = emptyList()),
+                ToolSetEntry(id = "mcp", displayName = "MCP Bridge", origin = "built-in", capabilities = emptyList()),
                 ToolSetEntry(
-                    "codegen",
-                    "Code Generation Tools",
-                    "built-in",
-                    listOf(ToolSetCapability.FILE_SYSTEM.name),
+                    id = "codegen",
+                    displayName = "Code Generation Tools",
+                    origin = "built-in",
+                    capabilities = listOf(ToolSetCapability.FILE_SYSTEM.name),
                 ),
             )
 

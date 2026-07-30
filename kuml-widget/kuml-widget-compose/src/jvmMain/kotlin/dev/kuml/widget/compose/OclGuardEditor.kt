@@ -59,18 +59,18 @@ internal fun OclGuardEditor(
 ) {
     var value by remember(initial) { mutableStateOf(TextFieldValue(initial)) }
     // Seed synchronously so Save-enabled state is correct on the first frame.
-    var check by remember(initial) { mutableStateOf(OclSyntax.typeCheck(initial, scope)) }
+    var check by remember(initial) { mutableStateOf(OclSyntax.typeCheck(expr = initial, scope = scope)) }
 
     // Debounced live type-check: each keystroke cancels the pending delay.
     LaunchedEffect(value.text) {
         delay(OCL_TYPECHECK_DEBOUNCE_MS)
-        check = OclSyntax.typeCheck(value.text, scope)
+        check = OclSyntax.typeCheck(expr = value.text, scope = scope)
     }
 
     val error = check as? OclCheckResult.Error
     val transformation =
         remember(error?.range, colors) {
-            OclHighlightTransformation(colors, error?.range)
+            OclHighlightTransformation(colors = colors, errorRange = error?.range)
         }
 
     Column(modifier = modifier.padding(8.dp)) {

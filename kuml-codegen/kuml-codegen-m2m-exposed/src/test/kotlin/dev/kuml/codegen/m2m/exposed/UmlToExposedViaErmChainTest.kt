@@ -41,13 +41,13 @@ class UmlToExposedViaErmChainTest :
 
         test("simple UML class with its own id attribute chains through to a Table object") {
             val diagram =
-                classDiagram("Simple") {
-                    classOf("Customer") {
-                        attribute("id", "UUID")
-                        attribute("name", "String")
+                classDiagram(name = "Simple") {
+                    classOf(name = "Customer") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "name", type = "String")
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
 
             files shouldHaveSize 1
@@ -59,18 +59,18 @@ class UmlToExposedViaErmChainTest :
 
         test("«Entity».kotlinObjectName overrides the generated Exposed object name end-to-end") {
             val diagram =
-                classDiagram("Simple") {
+                classDiagram(name = "Simple") {
                     applyProfile(ermMappingProfile)
-                    classOf("Member") {
-                        stereotype("Entity") {
+                    classOf(name = "Member") {
+                        stereotype(name = "Entity") {
                             "tableName" to "members"
                             "kotlinObjectName" to "MemberTable"
                         }
-                        attribute("id", "UUID")
-                        attribute("name", "String")
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "name", type = "String")
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
 
             files shouldHaveSize 1
@@ -83,31 +83,31 @@ class UmlToExposedViaErmChainTest :
             // (already exercised for the ERM-DSL origin in ErmToExposedTransformerTest)
             // also covers a UML-profile-supplied override, not just the DSL one.
             val diagram =
-                classDiagram("Simple") {
+                classDiagram(name = "Simple") {
                     applyProfile(ermMappingProfile)
-                    classOf("Member") {
-                        stereotype("Entity") {
+                    classOf(name = "Member") {
+                        stereotype(name = "Entity") {
                             "tableName" to "members"
                             "kotlinObjectName" to "123Invalid"
                         }
-                        attribute("id", "UUID")
+                        attribute(name = "id", type = "UUID")
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             result.shouldBeInstanceOf<TransformResult.Failure>()
         }
 
         test("many-to-many association becomes a real junction Table object with composite PK") {
             val diagram =
-                classDiagram("Enrollment") {
-                    val student = classOf("Student") { attribute("id", "UUID") }
-                    val course = classOf("Course") { attribute("id", "UUID") }
+                classDiagram(name = "Enrollment") {
+                    val student = classOf(name = "Student") { attribute(name = "id", type = "UUID") }
+                    val course = classOf(name = "Course") { attribute(name = "id", type = "UUID") }
                     association(source = student, target = course) {
                         source { multiplicity("0..*") }
                         target { multiplicity("0..*") }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
 
             files shouldHaveSize 3
@@ -122,10 +122,10 @@ class UmlToExposedViaErmChainTest :
 
         test("--package option is threaded through both chain steps") {
             val diagram =
-                classDiagram("Simple") {
-                    classOf("Customer") { attribute("id", "UUID") }
+                classDiagram(name = "Simple") {
+                    classOf(name = "Customer") { attribute(name = "id", type = "UUID") }
                 }
-            val result = transformer.transform(diagram, TransformContext(mapOf("package" to "org.myapp.tables")))
+            val result = transformer.transform(source = diagram, ctx = TransformContext(mapOf("package" to "org.myapp.tables")))
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
 
             files.single().content shouldContain "package org.myapp.tables"
@@ -133,10 +133,10 @@ class UmlToExposedViaErmChainTest :
 
         test("trace links merge across both chain steps (UML element -> ERM entity -> generated file)") {
             val diagram =
-                classDiagram("Simple") {
-                    classOf("Customer") { attribute("id", "UUID") }
+                classDiagram(name = "Simple") {
+                    classOf(name = "Customer") { attribute(name = "id", type = "UUID") }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             val success = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
 
             // uml-to-erm step: UmlClass -> ErmEntity

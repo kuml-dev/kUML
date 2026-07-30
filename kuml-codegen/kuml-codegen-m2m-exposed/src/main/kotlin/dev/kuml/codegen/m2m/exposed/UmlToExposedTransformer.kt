@@ -133,14 +133,21 @@ public class UmlToExposedTransformer : KumlTransformer<KumlDiagram, List<Generat
             when (result) {
                 is TableResult.Ok -> {
                     files += result.file
-                    trace = trace.plus(TraceabilityLink(cls.id, result.file.relativePath, RULE_CLASS_TO_TABLE))
+                    trace =
+                        trace.plus(
+                            TraceabilityLink(
+                                sourceElementId = cls.id,
+                                targetArtifactId = result.file.relativePath,
+                                ruleId = RULE_CLASS_TO_TABLE,
+                            ),
+                        )
                 }
                 is TableResult.Error -> errors += result.error
             }
         }
 
         if (errors.isNotEmpty()) return TransformResult.Failure(errors)
-        return TransformResult.Success(files, trace)
+        return TransformResult.Success(output = files, trace = trace)
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────────
@@ -164,18 +171,18 @@ public class UmlToExposedTransformer : KumlTransformer<KumlDiagram, List<Generat
         tableObjectNameById: Map<String, String>,
     ): TableResult {
         try {
-            requireValidKotlinIdentifier(cls.name, "class name", cls.id)
+            requireValidKotlinIdentifier(name = cls.name, what = "class name", elementId = cls.id)
         } catch (e: InvalidIdentifierException) {
-            return TableResult.Error(TransformError(e.message ?: "invalid class name", cls.id))
+            return TableResult.Error(TransformError(message = e.message ?: "invalid class name", elementId = cls.id))
         }
 
         val objectName = toTableObjectName(cls.name) // e.g. "Users"
         val tableName = toSnakeCase(cls.name).toPlural() // e.g. "users"
 
         try {
-            requireSafeRelativePath("$objectName.kt", cls.id)
+            requireSafeRelativePath(relativePath = "$objectName.kt", elementId = cls.id)
         } catch (e: InvalidIdentifierException) {
-            return TableResult.Error(TransformError(e.message ?: "unsafe generated file path", cls.id))
+            return TableResult.Error(TransformError(message = e.message ?: "unsafe generated file path", elementId = cls.id))
         }
 
         val sb = StringBuilder()
@@ -196,9 +203,9 @@ public class UmlToExposedTransformer : KumlTransformer<KumlDiagram, List<Generat
         for (attr in cls.attributes) {
             val attrName = attr.name
             try {
-                requireValidKotlinIdentifier(attrName, "attribute name", cls.id)
+                requireValidKotlinIdentifier(name = attrName, what = "attribute name", elementId = cls.id)
             } catch (e: InvalidIdentifierException) {
-                return TableResult.Error(TransformError(e.message ?: "invalid attribute name", cls.id))
+                return TableResult.Error(TransformError(message = e.message ?: "invalid attribute name", elementId = cls.id))
             }
 
             val colName = toSnakeCase(attrName)
@@ -217,7 +224,7 @@ public class UmlToExposedTransformer : KumlTransformer<KumlDiagram, List<Generat
                     lines += "    // '${commentSafe(attrName)}' is «transient» — skipped, not persisted as an Exposed column."
                 }
                 else -> {
-                    val exposedCall = exposedColumnCall(attr.type.name, escapedColName)
+                    val exposedCall = exposedColumnCall(umlType = attr.type.name, colName = escapedColName)
                     lines += "    public val $attrName: ${exposedKotlinColumnType(attr.type.name)} = $exposedCall"
                 }
             }
@@ -226,9 +233,15 @@ public class UmlToExposedTransformer : KumlTransformer<KumlDiagram, List<Generat
         // Association FK columns (many-to-one / one-to-one side only)
         val assocLines =
             try {
-                buildAssociationColumns(cls, classById, classIdByName, associations, tableObjectNameById)
+                buildAssociationColumns(
+                    cls = cls,
+                    classById = classById,
+                    classIdByName = classIdByName,
+                    associations = associations,
+                    tableObjectNameById = tableObjectNameById,
+                )
             } catch (e: InvalidIdentifierException) {
-                return TableResult.Error(TransformError(e.message ?: "invalid association-derived name", cls.id))
+                return TableResult.Error(TransformError(message = e.message ?: "invalid association-derived name", elementId = cls.id))
             }
         lines.addAll(assocLines.columnLines)
 
@@ -274,7 +287,7 @@ public class UmlToExposedTransformer : KumlTransformer<KumlDiagram, List<Generat
         sb.append("}")
         sb.appendLine()
 
-        return TableResult.Ok(GeneratedFile("$objectName.kt", sb.toString()))
+        return TableResult.Ok(GeneratedFile(relativePath = "$objectName.kt", content = sb.toString()))
     }
 
     private data class AssociationColumns(
@@ -326,18 +339,22 @@ public class UmlToExposedTransformer : KumlTransformer<KumlDiagram, List<Generat
             }
 
             // many-to-one / one-to-one: FK column via reference()
-            requireValidKotlinIdentifier(targetClass.name, "association target class name", cls.id)
+            requireValidKotlinIdentifier(name = targetClass.name, what = "association target class name", elementId = cls.id)
             val targetObjectName = tableObjectNameById[targetClass.id] ?: toTableObjectName(targetClass.name)
             val propName = targetClass.name.replaceFirstChar { it.lowercase() }
             val fkColName = "${toSnakeCase(propName)}_id"
             val fkPropertyName = "${propName}Id"
-            requireValidKotlinIdentifier(fkPropertyName, "derived FK property name", cls.id)
+            requireValidKotlinIdentifier(name = fkPropertyName, what = "derived FK property name", elementId = cls.id)
             lines +=
                 "    public val $fkPropertyName: Column<Long> = " +
                 "reference(\"${kotlinStringLiteral(fkColName)}\", $targetObjectName)"
         }
 
-        return AssociationColumns(lines, collectionNoteNeeded, selfReferenceNoteNeeded)
+        return AssociationColumns(
+            columnLines = lines,
+            collectionNoteNeeded = collectionNoteNeeded,
+            selfReferenceNoteNeeded = selfReferenceNoteNeeded,
+        )
     }
 
     // ── Type mapping ──────────────────────────────────────────────────────────

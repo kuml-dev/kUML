@@ -16,15 +16,15 @@ class ContainerDiagramBuilderTest :
     FunSpec(body = {
         test(name = "container diagram shows all containers of a system") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Container 1")
-                            container("Container 2")
-                            container("Container 3")
+                        softwareSystem(name = "System") {
+                            container(name = "Container 1")
+                            container(name = "Container 2")
+                            container(name = "Container 3")
                         }
 
-                    containerDiagram("Containers") {
+                    containerDiagram(name = "Containers") {
                         this.system = system
                     }
                 }
@@ -36,17 +36,17 @@ class ContainerDiagramBuilderTest :
 
         test(name = "external systems are optional") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("Main System") {
-                            container("Web App")
-                            container("API")
+                        softwareSystem(name = "Main System") {
+                            container(name = "Web App")
+                            container(name = "API")
                         }
-                    val external = softwareSystem("External") { external = true }
+                    val external = softwareSystem(name = "External") { external = true }
 
-                    relationship(system, external)
+                    relationship(source = system, target = external)
 
-                    containerDiagram("Containers") {
+                    containerDiagram(name = "Containers") {
                         this.system = system
                         showExternalSystems = true
                     }
@@ -60,14 +60,14 @@ class ContainerDiagramBuilderTest :
         test(name = "exclude containers is supported") {
             lateinit var excluded: C4Container
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Container 1")
-                            excluded = container("Container 2")
+                        softwareSystem(name = "System") {
+                            container(name = "Container 1")
+                            excluded = container(name = "Container 2")
                         }
 
-                    containerDiagram("Containers") {
+                    containerDiagram(name = "Containers") {
                         this.system = system
                         exclude(excluded)
                     }
@@ -84,15 +84,15 @@ class ContainerDiagramBuilderTest :
 
         test(name = "container count includes system plus all its containers") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("API")
-                            container("Database")
-                            container("Cache")
+                        softwareSystem(name = "System") {
+                            container(name = "API")
+                            container(name = "Database")
+                            container(name = "Cache")
                         }
 
-                    containerDiagram("Containers") {
+                    containerDiagram(name = "Containers") {
                         this.system = system
                     }
                 }
@@ -104,19 +104,19 @@ class ContainerDiagramBuilderTest :
 
         test(name = "multiple external systems are included") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("Main System") {
-                            container("API")
-                            container("DB")
+                        softwareSystem(name = "Main System") {
+                            container(name = "API")
+                            container(name = "DB")
                         }
-                    val external1 = softwareSystem("Email Service") { external = true }
-                    val external2 = softwareSystem("Analytics") { external = true }
+                    val external1 = softwareSystem(name = "Email Service") { external = true }
+                    val external2 = softwareSystem(name = "Analytics") { external = true }
 
-                    relationship(system, external1)
-                    relationship(system, external2)
+                    relationship(source = system, target = external1)
+                    relationship(source = system, target = external2)
 
-                    containerDiagram("Containers") {
+                    containerDiagram(name = "Containers") {
                         this.system = system
                         showExternalSystems = true
                     }
@@ -129,17 +129,17 @@ class ContainerDiagramBuilderTest :
 
         test(name = "external systems are excluded when showExternalSystems is false") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("Main System") {
-                            container("API")
-                            container("DB")
+                        softwareSystem(name = "Main System") {
+                            container(name = "API")
+                            container(name = "DB")
                         }
-                    val external = softwareSystem("External") { external = true }
+                    val external = softwareSystem(name = "External") { external = true }
 
-                    relationship(system, external)
+                    relationship(source = system, target = external)
 
-                    containerDiagram("Containers") {
+                    containerDiagram(name = "Containers") {
                         this.system = system
                         showExternalSystems = false
                     }
@@ -153,12 +153,12 @@ class ContainerDiagramBuilderTest :
         test(name = "system must be set") {
             var thrown = false
             try {
-                c4Model("Test") {
-                    softwareSystem("System") {
-                        container("Container 1")
+                c4Model(name = "Test") {
+                    softwareSystem(name = "System") {
+                        container(name = "Container 1")
                     }
 
-                    containerDiagram("Containers") {
+                    containerDiagram(name = "Containers") {
                         // No system set
                     }
                 }
@@ -170,14 +170,14 @@ class ContainerDiagramBuilderTest :
 
         test(name = "serialization round-trip works") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("API")
-                            container("DB")
+                        softwareSystem(name = "System") {
+                            container(name = "API")
+                            container(name = "DB")
                         }
 
-                    containerDiagram("Containers") {
+                    containerDiagram(name = "Containers") {
                         this.system = system
                     }
                 }
@@ -191,19 +191,19 @@ class ContainerDiagramBuilderTest :
 
         test(name = "relationships external to diagram are excluded") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system1 =
-                        softwareSystem("System 1") {
-                            container("API 1")
+                        softwareSystem(name = "System 1") {
+                            container(name = "API 1")
                         }
                     val system2 =
-                        softwareSystem("System 2") {
-                            container("API 2")
+                        softwareSystem(name = "System 2") {
+                            container(name = "API 2")
                         }
 
-                    relationship(system1, system2)
+                    relationship(source = system1, target = system2)
 
-                    containerDiagram("System 1 Containers") {
+                    containerDiagram(name = "System 1 Containers") {
                         this.system = system1
                         showExternalSystems = false
                     }
@@ -217,13 +217,13 @@ class ContainerDiagramBuilderTest :
 
         test(name = "diagram name and description are set correctly") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("API")
+                        softwareSystem(name = "System") {
+                            container(name = "API")
                         }
 
-                    containerDiagram("My Container View", "This shows the containers") {
+                    containerDiagram(name = "My Container View", description = "This shows the containers") {
                         this.system = system
                     }
                 }
@@ -235,19 +235,19 @@ class ContainerDiagramBuilderTest :
 
         test(name = "related persons are automatically included by default") {
             val model =
-                c4Model("Test") {
-                    val customer = person("Customer")
+                c4Model(name = "Test") {
+                    val customer = person(name = "Customer")
                     val system =
-                        softwareSystem("Internet Banking") {
-                            container("Web App")
-                            container("API")
+                        softwareSystem(name = "Internet Banking") {
+                            container(name = "Web App")
+                            container(name = "API")
                         }
-                    val email = softwareSystem("Email Service") { external = true }
+                    val email = softwareSystem(name = "Email Service") { external = true }
 
-                    relationship(customer, system)
-                    relationship(system, email)
+                    relationship(source = customer, target = system)
+                    relationship(source = system, target = email)
 
-                    containerDiagram("Containers") {
+                    containerDiagram(name = "Containers") {
                         this.system = system
                     }
                 }
@@ -265,17 +265,17 @@ class ContainerDiagramBuilderTest :
 
         test(name = "related persons can be suppressed via showRelatedPersons = false") {
             val model =
-                c4Model("Test") {
-                    val customer = person("Customer")
+                c4Model(name = "Test") {
+                    val customer = person(name = "Customer")
                     val system =
-                        softwareSystem("Internet Banking") {
-                            container("Web App")
-                            container("API")
+                        softwareSystem(name = "Internet Banking") {
+                            container(name = "Web App")
+                            container(name = "API")
                         }
 
-                    relationship(customer, system)
+                    relationship(source = customer, target = system)
 
-                    containerDiagram("Containers") {
+                    containerDiagram(name = "Containers") {
                         this.system = system
                         showRelatedPersons = false
                     }
@@ -290,14 +290,14 @@ class ContainerDiagramBuilderTest :
 
         test(name = "unrelated persons are not pulled in") {
             val model =
-                c4Model("Test") {
-                    person("Lonely Person") // keine Beziehung zum System
+                c4Model(name = "Test") {
+                    person(name = "Lonely Person") // keine Beziehung zum System
                     val system =
-                        softwareSystem("System") {
-                            container("API")
+                        softwareSystem(name = "System") {
+                            container(name = "API")
                         }
 
-                    containerDiagram("Containers") {
+                    containerDiagram(name = "Containers") {
                         this.system = system
                     }
                 }
@@ -309,19 +309,19 @@ class ContainerDiagramBuilderTest :
 
         test(name = "only includes containers of the target system") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system1 =
-                        softwareSystem("System 1") {
-                            container("API 1")
-                            container("DB 1")
+                        softwareSystem(name = "System 1") {
+                            container(name = "API 1")
+                            container(name = "DB 1")
                         }
                     val system2 =
-                        softwareSystem("System 2") {
-                            container("API 2")
-                            container("DB 2")
+                        softwareSystem(name = "System 2") {
+                            container(name = "API 2")
+                            container(name = "DB 2")
                         }
 
-                    containerDiagram("System 1 Containers") {
+                    containerDiagram(name = "System 1 Containers") {
                         this.system = system1
                     }
                 }

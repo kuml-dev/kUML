@@ -42,23 +42,32 @@ class ErmSerializationTest :
                     name = "Customer",
                     attributes =
                         listOf(
-                            ErmAttribute("attr_0_0", "id", ErmDataType.Uuid, primaryKey = true, nullable = false),
-                            ErmAttribute("attr_0_1", "email", ErmDataType.Varchar(255), unique = true),
-                            ErmAttribute("attr_0_2", "balance", ErmDataType.Decimal(10, 2), default = "0.00"),
-                            ErmAttribute("attr_0_3", "age", ErmDataType.Integer(16), autoIncrement = false),
-                            ErmAttribute("attr_0_4", "rating", ErmDataType.Real(double = false)),
-                            ErmAttribute("attr_0_5", "bio", ErmDataType.Text),
-                            ErmAttribute("attr_0_6", "active", ErmDataType.Boolean),
-                            ErmAttribute("attr_0_7", "birthday", ErmDataType.Date),
-                            ErmAttribute("attr_0_8", "curfew", ErmDataType.Time),
-                            ErmAttribute("attr_0_9", "created_at", ErmDataType.Timestamp(withTimeZone = true)),
-                            ErmAttribute("attr_0_10", "avatar", ErmDataType.Blob),
-                            ErmAttribute("attr_0_11", "prefs", ErmDataType.Json),
-                            ErmAttribute("attr_0_12", "vector", ErmDataType.Custom("TSVECTOR")),
-                            ErmAttribute("attr_0_13", "status", ErmDataType.Enum("Status", listOf("Active", "Inactive"))),
+                            ErmAttribute(id = "attr_0_0", name = "id", type = ErmDataType.Uuid, primaryKey = true, nullable = false),
+                            ErmAttribute(id = "attr_0_1", name = "email", type = ErmDataType.Varchar(255), unique = true),
+                            ErmAttribute(
+                                id = "attr_0_2",
+                                name = "balance",
+                                type = ErmDataType.Decimal(precision = 10, scale = 2),
+                                default = "0.00",
+                            ),
+                            ErmAttribute(id = "attr_0_3", name = "age", type = ErmDataType.Integer(16), autoIncrement = false),
+                            ErmAttribute(id = "attr_0_4", name = "rating", type = ErmDataType.Real(double = false)),
+                            ErmAttribute(id = "attr_0_5", name = "bio", type = ErmDataType.Text),
+                            ErmAttribute(id = "attr_0_6", name = "active", type = ErmDataType.Boolean),
+                            ErmAttribute(id = "attr_0_7", name = "birthday", type = ErmDataType.Date),
+                            ErmAttribute(id = "attr_0_8", name = "curfew", type = ErmDataType.Time),
+                            ErmAttribute(id = "attr_0_9", name = "created_at", type = ErmDataType.Timestamp(withTimeZone = true)),
+                            ErmAttribute(id = "attr_0_10", name = "avatar", type = ErmDataType.Blob),
+                            ErmAttribute(id = "attr_0_11", name = "prefs", type = ErmDataType.Json),
+                            ErmAttribute(id = "attr_0_12", name = "vector", type = ErmDataType.Custom("TSVECTOR")),
+                            ErmAttribute(
+                                id = "attr_0_13",
+                                name = "status",
+                                type = ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")),
+                            ),
                         ),
-                    indexes = listOf(ErmIndex("idx_0_0", "idx_email", listOf("attr_0_1"), unique = true)),
-                    checks = listOf(ErmCheckConstraint("check_0_0", "positive_age", "age > 0")),
+                    indexes = listOf(ErmIndex(id = "idx_0_0", name = "idx_email", attributeIds = listOf("attr_0_1"), unique = true)),
+                    checks = listOf(ErmCheckConstraint(id = "check_0_0", name = "positive_age", expression = "age > 0")),
                 )
             val order =
                 ErmEntity(
@@ -68,9 +77,9 @@ class ErmSerializationTest :
                     attributes =
                         listOf(
                             ErmAttribute(
-                                "attr_1_0",
-                                "customer_id",
-                                ErmDataType.Uuid,
+                                id = "attr_1_0",
+                                name = "customer_id",
+                                type = ErmDataType.Uuid,
                                 foreignKey =
                                     ErmForeignKey(
                                         targetEntityId = "entity_0",
@@ -132,7 +141,7 @@ class ErmSerializationTest :
                     ErmDataType.Integer(16),
                     ErmDataType.Integer(32),
                     ErmDataType.Integer(64),
-                    ErmDataType.Decimal(10, 2),
+                    ErmDataType.Decimal(precision = 10, scale = 2),
                     ErmDataType.Real(true),
                     ErmDataType.Real(false),
                     ErmDataType.Varchar(255),
@@ -146,7 +155,7 @@ class ErmSerializationTest :
                     ErmDataType.Blob,
                     ErmDataType.Json,
                     ErmDataType.Custom("TSVECTOR"),
-                    ErmDataType.Enum("Status", listOf("Active", "Inactive")),
+                    ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")),
                 )
             types.forEach { type ->
                 val encoded = json.encodeToString(ErmDataType.serializer(), type)
@@ -160,7 +169,7 @@ class ErmSerializationTest :
                 ErmEntity(
                     id = "entity_0",
                     name = "sensor_readings",
-                    attributes = listOf(ErmAttribute("attr_0_0", "recorded_at", ErmDataType.Timestamp())),
+                    attributes = listOf(ErmAttribute(id = "attr_0_0", name = "recorded_at", type = ErmDataType.Timestamp())),
                     metadata =
                         mapOf(
                             ErmMetadataKeys.HYPERTABLE to
@@ -182,7 +191,10 @@ class ErmSerializationTest :
                 ErmEntity(
                     id = "entity_0",
                     name = "member",
-                    attributes = listOf(ErmAttribute("attr_0_0", "id", ErmDataType.Uuid, primaryKey = true, nullable = false)),
+                    attributes =
+                        listOf(
+                            ErmAttribute(id = "attr_0_0", name = "id", type = ErmDataType.Uuid, primaryKey = true, nullable = false),
+                        ),
                     metadata =
                         mapOf(
                             ErmMetadataKeys.KOTLIN_OBJECT_NAME to KumlMetaValue.Text("MemberTable"),
@@ -196,13 +208,20 @@ class ErmSerializationTest :
         "every ErmElement variant round-trips through the sealed ErmElement serializer" {
             val elements =
                 listOf(
-                    ErmAttribute("a", "n", ErmDataType.Uuid, primaryKey = true, nullable = false),
-                    ErmIndex("i", "n", listOf("a"), unique = true),
-                    ErmCheckConstraint("c", "n", "x > 0"),
-                    ErmView("v", "n", "SELECT 1", listOf("e")),
-                    ErmRelationship("r", "n", "e1", "e2", Cardinality.ONE, Cardinality.ZERO_MANY),
-                    ErmEntity("e", "n", listOf(ErmAttribute("a2", "n2", ErmDataType.Text))),
-                    ErmCategory("cat", "n", "e1", listOf("e2")),
+                    ErmAttribute(id = "a", name = "n", type = ErmDataType.Uuid, primaryKey = true, nullable = false),
+                    ErmIndex(id = "i", name = "n", attributeIds = listOf("a"), unique = true),
+                    ErmCheckConstraint(id = "c", name = "n", expression = "x > 0"),
+                    ErmView(id = "v", name = "n", query = "SELECT 1", referencedEntityIds = listOf("e")),
+                    ErmRelationship(
+                        id = "r",
+                        name = "n",
+                        sourceEntityId = "e1",
+                        targetEntityId = "e2",
+                        sourceCardinality = Cardinality.ONE,
+                        targetCardinality = Cardinality.ZERO_MANY,
+                    ),
+                    ErmEntity(id = "e", name = "n", attributes = listOf(ErmAttribute(id = "a2", name = "n2", type = ErmDataType.Text))),
+                    ErmCategory(id = "cat", name = "n", supertypeEntityId = "e1", subtypeEntityIds = listOf("e2")),
                 )
             elements.forEach { element ->
                 val encoded =

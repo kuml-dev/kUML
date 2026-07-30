@@ -64,9 +64,9 @@ internal class ExportCommand : CliktCommand(name = "export") {
 
     override fun run() {
         val scriptFile = input
-        val outputFile = output ?: deriveOutputFile(scriptFile, format)
+        val outputFile = output ?: deriveOutputFile(inputFile = scriptFile, format = format)
 
-        val evalResult = KumlScriptHost.eval(scriptFile)
+        val evalResult = KumlScriptHost.eval(file = scriptFile)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
             System.err.println("Script error:\n" + errors.joinToString("\n") { it.message })
@@ -92,16 +92,16 @@ internal class ExportCommand : CliktCommand(name = "export") {
                         )
                         throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                     }
-            exportProfileUml(profileValue, scriptFile, outputFile)
+            exportProfileUml(profile = profileValue, scriptFile = scriptFile, outputFile = outputFile)
             return
         }
 
-        val extracted = DiagramExtractor.extractAny(success.value.returnValue, scriptFile)
+        val extracted = DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = scriptFile)
 
         when (format) {
-            "structurizr" -> exportStructurizr(extracted, scriptFile, outputFile)
-            "xmi" -> exportXmi(extracted, scriptFile, outputFile)
-            "arxml" -> exportArxml(extracted, scriptFile, outputFile)
+            "structurizr" -> exportStructurizr(extracted = extracted, scriptFile = scriptFile, outputFile = outputFile)
+            "xmi" -> exportXmi(extracted = extracted, scriptFile = scriptFile, outputFile = outputFile)
+            "arxml" -> exportArxml(extracted = extracted, scriptFile = scriptFile, outputFile = outputFile)
             else -> {
                 System.err.println("Unknown format: $format")
                 throw ProgramResult(1)
@@ -159,7 +159,7 @@ internal class ExportCommand : CliktCommand(name = "export") {
                 }
             }
 
-        writeOutput(outputFile, text)
+        writeOutput(outputFile = outputFile, content = text)
         echo("Exported: ${scriptFile.name} → ${outputFile.path}")
     }
 

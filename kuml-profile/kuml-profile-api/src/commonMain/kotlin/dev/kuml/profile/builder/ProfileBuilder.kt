@@ -42,7 +42,7 @@ public class ProfileBuilder internal constructor(
         require(stereotypes.map { it.name }.toSet().size == stereotypes.size) {
             "Profile '$name' has duplicate stereotype names"
         }
-        validateSpecializesClosure(stereotypes, extendsList)
+        validateSpecializesClosure(stereotypes = stereotypes, extendsNamespaces = extendsList)
         return KumlProfileImpl(
             name = name,
             namespace = namespace,

@@ -58,7 +58,7 @@ class MultiUserPatchTest :
 
                 val patch = addElementPatch("cls1")
                 // Buffer as "bob" — different owner than the engine
-                engine.buffer(patch, patchOwnerId = "bob")
+                engine.buffer(patch = patch, patchOwnerId = "bob")
 
                 val outcome = engine.applyOne(patch.patchId)
 
@@ -85,7 +85,7 @@ class MultiUserPatchTest :
                     )
 
                 val patch = addElementPatch("cls-alice")
-                engine.buffer(patch, patchOwnerId = "alice")
+                engine.buffer(patch = patch, patchOwnerId = "alice")
                 val outcome = engine.applyOne(patch.patchId)
                 outcome.shouldBeInstanceOf<PatchApplyOutcome.Applied>()
             }
@@ -153,7 +153,7 @@ class MultiUserPatchTest :
                 val sessionAlice = "SES-ALICE-CONFLICT"
 
                 // Alice's engine with its own store
-                val storeAlice = PersistentPatchStore.open(sessionAlice, dir, fixedClock(t0))
+                val storeAlice = PersistentPatchStore.open(sessionId = sessionAlice, dir = dir, clock = fixedClock(t0))
                 val ctxAlice = AgentEditingContext.emptyUml()
                 val engineAlice =
                     PatchApplyEngine(
@@ -165,7 +165,7 @@ class MultiUserPatchTest :
 
                 // Bob's engine uses a different session but same directory (shared storage)
                 val sessionBob = "SES-BOB-CONFLICT"
-                val storeBob = PersistentPatchStore.open(sessionBob, dir, fixedClock(t0 + 1_000))
+                val storeBob = PersistentPatchStore.open(sessionId = sessionBob, dir = dir, clock = fixedClock(t0 + 1_000))
                 val ctxBob = AgentEditingContext.emptyUml()
                 val engineBob =
                     PatchApplyEngine(
@@ -185,7 +185,7 @@ class MultiUserPatchTest :
                 // In this test we verify store-level conflict using the SAME store object.
                 val patchBob = addElementPatch("elem-SHARED", name = "Bob")
                 // Verify directly with store that conflict is detected
-                val conflictResult = storeBob.insert(patchBob, "bob", PatchStatus.PENDING)
+                val conflictResult = storeBob.insert(patch = patchBob, ownerId = "bob", status = PatchStatus.PENDING)
                 // Bob's store doesn't have Alice's record — conflict only if same store.
                 // This test documents the cross-store limitation.
                 // For single-store scenario, we do a direct test:
@@ -194,15 +194,15 @@ class MultiUserPatchTest :
 
                 // Single shared store conflict test
                 val sharedSessionId = "SES-SHARED-STORE"
-                val sharedStore = PersistentPatchStore.open(sharedSessionId, dir, fixedClock(t0))
+                val sharedStore = PersistentPatchStore.open(sessionId = sharedSessionId, dir = dir, clock = fixedClock(t0))
                 val patchX = addElementPatch("elem-X-SHARED", name = "First")
                 sharedStore
-                    .insert(patchX, "alice", PatchStatus.APPLIED)
+                    .insert(patch = patchX, ownerId = "alice", status = PatchStatus.APPLIED)
                     .shouldBeInstanceOf<InsertResult.Inserted>()
 
-                val storeWithLaterClock = PersistentPatchStore.open(sharedSessionId, dir, fixedClock(t0 + 2_000))
+                val storeWithLaterClock = PersistentPatchStore.open(sessionId = sharedSessionId, dir = dir, clock = fixedClock(t0 + 2_000))
                 val patchY = addElementPatch("elem-X-SHARED", name = "Second")
-                val result = storeWithLaterClock.insert(patchY, "bob", PatchStatus.APPLIED)
+                val result = storeWithLaterClock.insert(patch = patchY, ownerId = "bob", status = PatchStatus.APPLIED)
                 result.shouldBeInstanceOf<InsertResult.ConflictDetected>()
 
                 sharedStore.close()

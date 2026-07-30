@@ -39,16 +39,22 @@ class UmlComponentContractsSvgTest :
                     elements = listOf(comp) + interfaces,
                 )
             val nodes =
-                mapOf(NodeId(comp.id) to NodeLayout(bounds = Rect(Point(50f, 100f), Size(200f, 80f)))) +
+                mapOf(
+                    NodeId(
+                        comp.id,
+                    ) to NodeLayout(bounds = Rect(origin = Point(x = 50f, y = 100f), size = Size(width = 200f, height = 80f))),
+                ) +
                     interfaces.mapIndexed { i, iface ->
                         NodeId(iface.id) to
-                            NodeLayout(bounds = Rect(Point(260f + i * 220f, 100f), Size(200f, 80f)))
+                            NodeLayout(
+                                bounds = Rect(origin = Point(x = 260f + i * 220f, y = 100f), size = Size(width = 200f, height = 80f)),
+                            )
                     }
             val layout =
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(800f, 360f),
+                    canvas = Size(width = 800f, height = 360f),
                     nodes = nodes,
                     edges = emptyMap(),
                     groups = emptyMap(),
@@ -64,7 +70,7 @@ class UmlComponentContractsSvgTest :
                     providedInterfaceIds = listOf("IOrderApi"),
                 )
             val (diagram, layout) = componentLayout(comp)
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "contracts-OrderService"
             // Lollipop = full circle
@@ -80,7 +86,7 @@ class UmlComponentContractsSvgTest :
                     requiredInterfaceIds = listOf("IOrderApi"),
                 )
             val (diagram, layout) = componentLayout(comp)
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "contracts-InvoiceService"
             // V2.0.48 — Socket muss UML-konform die Öffnung NACH AUSSEN
@@ -101,7 +107,7 @@ class UmlComponentContractsSvgTest :
                     providedInterfaceIds = listOf("IOrderApi"),
                 )
             val (diagram, layout) = componentLayout(comp, interfaces = listOf(iface))
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // The contract group must NOT appear — explicit notation (= the
             // interface box plus a Realization edge synthesised at diagram
@@ -118,7 +124,7 @@ class UmlComponentContractsSvgTest :
                     requiredInterfaceIds = listOf("IEventBus"),
                 )
             val (diagram, layout) = componentLayout(comp)
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "IOrderApi"
             svg shouldContain "IShippingApi"
@@ -138,7 +144,7 @@ class UmlComponentContractsSvgTest :
                     providedInterfaceIds = listOf("IOrderApi"),
                 )
             val (diagram, layout) = componentLayout(comp)
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // viewBox height grows by (paddingBump - defaultPadding) on each
             // side; we don't assert the exact value to stay tolerant against
@@ -171,12 +177,16 @@ class UmlComponentContractsSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(400f, 200f),
-                    nodes = mapOf(NodeId(comp.id) to NodeLayout(bounds = Rect(Point(20f, 20f), Size(200f, 80f)))),
+                    canvas = Size(width = 400f, height = 200f),
+                    nodes =
+                        mapOf(
+                            NodeId(comp.id) to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 200f, height = 80f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldNotContain "contracts-OrderService"
         }
     })

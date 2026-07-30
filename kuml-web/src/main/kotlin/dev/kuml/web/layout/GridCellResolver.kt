@@ -21,8 +21,8 @@ internal object GridCellResolver {
         xPx: Float,
         yPx: Float,
     ): LayoutHintWriter.GridCell {
-        val col = resolveAxis(grid.originX, grid.cellW, grid.cols, xPx)
-        val row = resolveAxis(grid.originY, grid.cellH, grid.rows, yPx)
+        val col = resolveAxis(origin = grid.originX, cellExtent = grid.cellW, count = grid.cols, positionPx = xPx)
+        val row = resolveAxis(origin = grid.originY, cellExtent = grid.cellH, count = grid.rows, positionPx = yPx)
         return LayoutHintWriter.GridCell(col = col, row = row)
     }
 

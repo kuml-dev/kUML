@@ -72,39 +72,43 @@ class Sysml2UcEdgeLabelSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(800f, 220f),
+                canvas = Size(width = 800f, height = 220f),
                 nodes =
                     mapOf(
-                        NodeId("Reader") to NodeLayout(bounds = Rect(Point(20f, 60f), Size(60f, 100f))),
-                        NodeId("BorrowBook") to NodeLayout(bounds = Rect(Point(160f, 30f), Size(160f, 70f))),
-                        NodeId("Authenticate") to NodeLayout(bounds = Rect(Point(420f, 30f), Size(160f, 70f))),
-                        NodeId("PayLateFee") to NodeLayout(bounds = Rect(Point(160f, 130f), Size(160f, 70f))),
+                        NodeId("Reader") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 60f), size = Size(width = 60f, height = 100f))),
+                        NodeId("BorrowBook") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 160f, y = 30f), size = Size(width = 160f, height = 70f))),
+                        NodeId("Authenticate") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 420f, y = 30f), size = Size(width = 160f, height = 70f))),
+                        NodeId("PayLateFee") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 160f, y = 130f), size = Size(width = 160f, height = 70f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("assoc:Reader::BorrowBook") to
-                            EdgeRoute.Direct(source = Point(80f, 110f), target = Point(160f, 65f)),
+                            EdgeRoute.Direct(source = Point(x = 80f, y = 110f), target = Point(x = 160f, y = 65f)),
                         EdgeId("include:BorrowBook::Authenticate") to
-                            EdgeRoute.Direct(source = Point(320f, 65f), target = Point(420f, 65f)),
+                            EdgeRoute.Direct(source = Point(x = 320f, y = 65f), target = Point(x = 420f, y = 65f)),
                         EdgeId("extend:PayLateFee::BorrowBook") to
-                            EdgeRoute.Direct(source = Point(240f, 130f), target = Point(240f, 100f)),
+                            EdgeRoute.Direct(source = Point(x = 240f, y = 130f), target = Point(x = 240f, y = 100f)),
                     ),
                 groups = emptyMap(),
             )
 
         "«include» stereotype appears in the SVG output" {
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "«include»"
-            SampleOutput.write("sysml2-edge-labels/uc-include-extend.svg", svg)
+            SampleOutput.write(filename = "sysml2-edge-labels/uc-include-extend.svg", content = svg)
         }
 
         "«extend» stereotype appears in the SVG output" {
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "«extend»"
         }
 
         "include + extend edges are styled dashed (stroke-dasharray)" {
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "stroke-dasharray"
         }
 
@@ -112,7 +116,7 @@ class Sysml2UcEdgeLabelSvgTest :
             // We can't easily assert "this one edge has no label" globally,
             // but we can confirm that no «association» literal appears
             // (the metadata for associations has stereotype=null).
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldNotContain "«association»"
         }
     })

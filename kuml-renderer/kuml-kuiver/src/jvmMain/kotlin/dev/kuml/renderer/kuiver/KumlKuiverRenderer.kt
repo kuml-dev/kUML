@@ -80,7 +80,7 @@ public object KumlKuiverRenderer {
             nodeContent = { kuiverNode ->
                 val element = elementIndex[kuiverNode.id]
                 if (element != null) {
-                    NodeContentDispatcher.render(element, theme)
+                    NodeContentDispatcher.render(element = element, theme = theme)
                 } else {
                     GenericFallbackNode(
                         element =
@@ -100,9 +100,15 @@ public object KumlKuiverRenderer {
                         .filterIsInstance<dev.kuml.core.model.KumlElement>()
                         .find { it.id == kuiverEdge.fromId + "--" + kuiverEdge.toId }
                 if (rel != null) {
-                    EdgeContentDispatcher.render(rel, kuiverEdge, sourceOffset, targetOffset, theme)
+                    EdgeContentDispatcher.render(
+                        relationship = rel,
+                        kuiverEdge = kuiverEdge,
+                        source = sourceOffset,
+                        target = targetOffset,
+                        theme = theme,
+                    )
                 } else {
-                    GenericFallbackEdge(sourceOffset, targetOffset, theme)
+                    GenericFallbackEdge(source = sourceOffset, target = targetOffset, theme = theme)
                 }
             },
         )
@@ -150,7 +156,7 @@ public object KumlKuiverRenderer {
             nodeContent = { kuiverNode ->
                 val element = elementIndex[kuiverNode.id]
                 if (element != null) {
-                    NodeContentDispatcher.render(element, theme)
+                    NodeContentDispatcher.render(element = element, theme = theme)
                 } else {
                     GenericFallbackNode(
                         element =
@@ -165,9 +171,15 @@ public object KumlKuiverRenderer {
             edgeContent = { kuiverEdge, sourceOffset, targetOffset ->
                 val rel = relationshipIndex[kuiverEdge.fromId + "--" + kuiverEdge.toId]
                 if (rel != null) {
-                    EdgeContentDispatcher.render(rel, kuiverEdge, sourceOffset, targetOffset, theme)
+                    EdgeContentDispatcher.render(
+                        relationship = rel,
+                        kuiverEdge = kuiverEdge,
+                        source = sourceOffset,
+                        target = targetOffset,
+                        theme = theme,
+                    )
                 } else {
-                    GenericFallbackEdge(sourceOffset, targetOffset, theme)
+                    GenericFallbackEdge(source = sourceOffset, target = targetOffset, theme = theme)
                 }
             },
         )

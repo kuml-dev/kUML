@@ -65,9 +65,9 @@ class PatchValidatorTest :
 
         test("valid AddElement on clean UML model returns Valid with empty warnings") {
             val model = AnyKumlModel.emptyUml("Test")
-            val patch = addElementPatch("cls1")
+            val patch = addElementPatch(elementId = "cls1")
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = validator.validate(model, patch, mutate)
+            val result = validator.validate(baseModel = model, patch = patch, mutate = mutate)
             result.shouldBeInstanceOf<PatchValidationResult.Valid>()
             result.warnings.shouldBeEmpty()
         }
@@ -78,9 +78,9 @@ class PatchValidatorTest :
                     name = "Test",
                     elements = listOf(UmlClass(id = "cls1", name = "Existing")),
                 )
-            val patch = addElementPatch("cls1", name = "Duplicate")
+            val patch = addElementPatch(elementId = "cls1", name = "Duplicate")
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = validator.validate(model, patch, mutate)
+            val result = validator.validate(baseModel = model, patch = patch, mutate = mutate)
             val invalid = result.shouldBeInstanceOf<PatchValidationResult.Invalid>()
             invalid.phase shouldBe ValidationPhase.STRUCTURAL
             invalid.errors.any { it.code == "DUPLICATE_ID" } shouldBe true
@@ -88,10 +88,10 @@ class PatchValidatorTest :
 
         test("AddRelationship referencing unknown source returns dangling reference warning (Valid)") {
             val model = AnyKumlModel.emptyUml("Test")
-            val patch = addRelPatch("rel1", "unknownSource", "unknownTarget", "uml.association")
+            val patch = addRelPatch(relId = "rel1", sourceId = "unknownSource", targetId = "unknownTarget", kind = "uml.association")
             val mutate = ModelMutationRouter.mutateFor(patch)
             // Dangling references are warnings in V2.0.31 — patch is still Valid
-            val result = validator.validate(model, patch, mutate)
+            val result = validator.validate(baseModel = model, patch = patch, mutate = mutate)
             result.shouldBeInstanceOf<PatchValidationResult.Valid>()
             result.warnings.shouldNotBeEmpty()
         }
@@ -107,9 +107,9 @@ class PatchValidatorTest :
                         ),
                 )
             // Add B→A generalization, creating a cycle A→B→A
-            val patch = addRelPatch("gen-ba", "B", "A", "uml.generalization")
+            val patch = addRelPatch(relId = "gen-ba", sourceId = "B", targetId = "A", kind = "uml.generalization")
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = validator.validate(model, patch, mutate)
+            val result = validator.validate(baseModel = model, patch = patch, mutate = mutate)
             val invalid = result.shouldBeInstanceOf<PatchValidationResult.Invalid>()
             invalid.phase shouldBe ValidationPhase.STRUCTURAL
             invalid.errors.any { it.code == "CIRCULAR_INHERITANCE" } shouldBe true
@@ -118,11 +118,11 @@ class PatchValidatorTest :
         test("UpdateAttribute setting a disallowed function in a guard returns Invalid SANDBOX or TYPE_CHECK") {
             // Set up a model with a state machine element (as a plain class for structural purposes)
             val model = AnyKumlModel.emptyUml("Test")
-            val patch = updateAttrPatch("stm1", "guard", "exec(something())")
+            val patch = updateAttrPatch(ownerId = "stm1", field = "guard", value = "exec(something())")
             val mutate = ModelMutationRouter.mutateFor(patch)
             // Since there's no actual UmlStateMachine in the model, SANDBOX is skipped.
             // TYPE_CHECK with SandboxPolicy.Strict (empty allowedFunctions) will catch disallowed functions.
-            val result = validator.validate(model, patch, mutate)
+            val result = validator.validate(baseModel = model, patch = patch, mutate = mutate)
             // The function call "exec" should fail TYPE_CHECK with Strict policy (allowedFunctions = empty set)
             // Note: Strict policy has allowedFunctions=emptySet() so any function call is disallowed
             // However, since "guard" with "exec(something())" — exec is not in empty allowedFunctions
@@ -144,9 +144,9 @@ class PatchValidatorTest :
             val model = AnyKumlModel.emptyUml("Test")
             // Deeply nested: f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(f(x))))))))))))))))
             val deepExpr = "f(" + "f(".repeat(20) + "x" + ")".repeat(21) + ")"
-            val patch = updateAttrPatch("stm1", "guard", deepExpr)
+            val patch = updateAttrPatch(ownerId = "stm1", field = "guard", value = deepExpr)
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = validator.validate(model, patch, mutate)
+            val result = validator.validate(baseModel = model, patch = patch, mutate = mutate)
             // With Strict policy (empty allowedFunctions), DISALLOWED_FUNCTION or depth warning
             result.shouldBeInstanceOf<PatchValidationResult.Valid>().let {
                 // Best-effort: either warning emitted or errors collected
@@ -155,17 +155,17 @@ class PatchValidatorTest :
 
         test("UpdateAttribute on a non-expression field returns Valid") {
             val model = AnyKumlModel.emptyUml("Test")
-            val patch = updateAttrPatch("cls1", "visibility", "public")
+            val patch = updateAttrPatch(ownerId = "cls1", field = "visibility", value = "public")
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = validator.validate(model, patch, mutate)
+            val result = validator.validate(baseModel = model, patch = patch, mutate = mutate)
             result.shouldBeInstanceOf<PatchValidationResult.Valid>()
         }
 
         test("non-STM patch skips SANDBOX phase silently") {
             val model = AnyKumlModel.emptyUml("Test")
-            val patch = addElementPatch("cls1", "uml.class")
+            val patch = addElementPatch(elementId = "cls1", elementKind = "uml.class")
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = validator.validate(model, patch, mutate)
+            val result = validator.validate(baseModel = model, patch = patch, mutate = mutate)
             // No STM → sandbox never runs → Valid
             result.shouldBeInstanceOf<PatchValidationResult.Valid>()
         }
@@ -173,17 +173,17 @@ class PatchValidatorTest :
         test("guard expression with valid known function returns Valid") {
             val permissiveValidator = PatchValidator(sandboxPolicy = SandboxPolicy.Permissive, renderSmokeEnabled = false)
             val model = AnyKumlModel.emptyUml("Test")
-            val patch = updateAttrPatch("t1", "guard", "math.max(x, 0) > 0")
+            val patch = updateAttrPatch(ownerId = "t1", field = "guard", value = "math.max(x, 0) > 0")
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = permissiveValidator.validate(model, patch, mutate)
+            val result = permissiveValidator.validate(baseModel = model, patch = patch, mutate = mutate)
             result.shouldBeInstanceOf<PatchValidationResult.Valid>()
         }
 
         test("guard expression returning type error with Strict policy") {
             val model = AnyKumlModel.emptyUml("Test")
-            val patch = updateAttrPatch("t1", "guard", "unknown_fn()")
+            val patch = updateAttrPatch(ownerId = "t1", field = "guard", value = "unknown_fn()")
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = validator.validate(model, patch, mutate)
+            val result = validator.validate(baseModel = model, patch = patch, mutate = mutate)
             when (result) {
                 is PatchValidationResult.Invalid -> result.phase shouldBe ValidationPhase.TYPE_CHECK
                 is PatchValidationResult.Valid -> result.warnings.shouldNotBeEmpty()
@@ -197,9 +197,9 @@ class PatchValidatorTest :
             // length check fires first, as a TYPE_CHECK-phase error (not a warning).
             val model = AnyKumlModel.emptyUml("Test")
             val overlong = "(".repeat(20_000) + "1" + ")".repeat(20_000)
-            val patch = updateAttrPatch("t1", "guard", overlong)
+            val patch = updateAttrPatch(ownerId = "t1", field = "guard", value = overlong)
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = validator.validate(model, patch, mutate)
+            val result = validator.validate(baseModel = model, patch = patch, mutate = mutate)
             val invalid = result.shouldBeInstanceOf<PatchValidationResult.Invalid>()
             invalid.phase shouldBe ValidationPhase.TYPE_CHECK
             invalid.errors.any { it.code == "EXPRESSION_TOO_LONG" } shouldBe true
@@ -208,9 +208,9 @@ class PatchValidatorTest :
         test("RENDER smoke disabled by default does not invoke renderer") {
             // Validator has renderSmokeEnabled = false (default) — just checks it returns Valid
             val model = AnyKumlModel.emptyUml("Test")
-            val patch = addElementPatch("cls1")
+            val patch = addElementPatch(elementId = "cls1")
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = validator.validate(model, patch, mutate)
+            val result = validator.validate(baseModel = model, patch = patch, mutate = mutate)
             result.shouldBeInstanceOf<PatchValidationResult.Valid>()
         }
 
@@ -226,9 +226,9 @@ class PatchValidatorTest :
         test("PatchValidator.desktop() enables RENDER smoke with the default strategy") {
             val renderValidator = PatchValidator.desktop(sandboxPolicy = SandboxPolicy.Permissive)
             val model = AnyKumlModel.emptyUml("Test")
-            val patch = addElementPatch("cls1")
+            val patch = addElementPatch(elementId = "cls1")
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = renderValidator.validate(model, patch, mutate)
+            val result = renderValidator.validate(baseModel = model, patch = patch, mutate = mutate)
             // Empty model renders fine
             result.shouldBeInstanceOf<PatchValidationResult.Valid>()
         }
@@ -247,9 +247,9 @@ class PatchValidatorTest :
                     renderSmokeStrategy = customStrategy,
                 )
             val model = AnyKumlModel.emptyUml("Test")
-            val patch = addElementPatch("cls1")
+            val patch = addElementPatch(elementId = "cls1")
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = pluggableValidator.validate(model, patch, mutate)
+            val result = pluggableValidator.validate(baseModel = model, patch = patch, mutate = mutate)
 
             invocationCount shouldBe 1
             result.shouldBeInstanceOf<PatchValidationResult.Valid>().warnings shouldBe listOf("custom-strategy-ran")
@@ -276,9 +276,9 @@ class PatchValidatorTest :
                     renderSmokeStrategy = rejectingStrategy,
                 )
             val model = AnyKumlModel.emptyUml("Test")
-            val patch = addElementPatch("cls1")
+            val patch = addElementPatch(elementId = "cls1")
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = pluggableValidator.validate(model, patch, mutate)
+            val result = pluggableValidator.validate(baseModel = model, patch = patch, mutate = mutate)
 
             val invalid = result.shouldBeInstanceOf<PatchValidationResult.Invalid>()
             invalid.phase shouldBe ValidationPhase.RENDER
@@ -287,17 +287,17 @@ class PatchValidatorTest :
 
         test("C4 model AddElement returns Valid") {
             val model = AnyKumlModel.emptyC4("C4Model")
-            val patch = addElementPatch("person1", "c4.person", "User")
+            val patch = addElementPatch(elementId = "person1", elementKind = "c4.person", name = "User")
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = validator.validate(model, patch, mutate)
+            val result = validator.validate(baseModel = model, patch = patch, mutate = mutate)
             result.shouldBeInstanceOf<PatchValidationResult.Valid>()
         }
 
         test("SysML2 model AddElement returns Valid") {
             val model = AnyKumlModel.emptySysml2("SysML2Model")
-            val patch = addElementPatch("part1", "sysml2.partdef", "Engine")
+            val patch = addElementPatch(elementId = "part1", elementKind = "sysml2.partdef", name = "Engine")
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val result = validator.validate(model, patch, mutate)
+            val result = validator.validate(baseModel = model, patch = patch, mutate = mutate)
             result.shouldBeInstanceOf<PatchValidationResult.Valid>()
         }
     })

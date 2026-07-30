@@ -66,7 +66,7 @@ class PrinterRoundTripTest :
     StringSpec({
 
         fun reparse(printed: String): KumlDiagram {
-            val result = InProcessScriptEvaluator.evaluate(printed, "roundtrip.kuml.kts")
+            val result = InProcessScriptEvaluator.evaluate(source = printed, fileName = "roundtrip.kuml.kts")
             require(result is EvaluatedScript.Success) { "re-parse failed: $result" }
             val extracted = result.diagram
             require(extracted is ExtractedDiagram.Uml) { "expected a UML diagram, got: $extracted" }
@@ -75,10 +75,10 @@ class PrinterRoundTripTest :
 
         "dependency (with and without name) round-trips" {
             val original =
-                classDiagram("D") {
-                    val a = classOf("Order")
-                    val b = classOf("NotificationService")
-                    val c = classOf("AuditLog")
+                classDiagram(name = "D") {
+                    val a = classOf(name = "Order")
+                    val b = classOf(name = "NotificationService")
+                    val c = classOf(name = "AuditLog")
                     dependency(client = a, supplier = b, name = "notifies")
                     dependency(client = a, supplier = c)
                 }
@@ -89,8 +89,8 @@ class PrinterRoundTripTest :
 
         "invariant and precondition constraints round-trip" {
             val original =
-                classDiagram("D") {
-                    classOf("Order") {
+                classDiagram(name = "D") {
+                    classOf(name = "Order") {
                         attribute(name = "total", type = "Int")
                         operation(name = "place")
                         constraint(name = "hasTotal", body = "self.total >= 0")
@@ -109,11 +109,11 @@ class PrinterRoundTripTest :
 
         "comments (zero-anchor and multi-anchor) round-trip" {
             val original =
-                classDiagram("D") {
-                    val order = classOf("Order")
-                    val item = classOf("OrderItem")
+                classDiagram(name = "D") {
+                    val order = classOf(name = "Order")
+                    val item = classOf(name = "OrderItem")
                     comment(text = "General remark, not attached to anything.")
-                    comment(text = "Applies to both.", order, item)
+                    comment(text = "Applies to both.", firstAnchor = order, item)
                 }
 
             val printed = UmlModelDslPrinter.print(original)
@@ -122,9 +122,9 @@ class PrinterRoundTripTest :
 
         "association name, aggregation, role and navigable round-trip" {
             val original =
-                classDiagram("D") {
-                    val customer = classOf("Customer")
-                    val order = classOf("Order")
+                classDiagram(name = "D") {
+                    val customer = classOf(name = "Customer")
+                    val order = classOf(name = "Order")
                     association(source = customer, target = order) {
                         name = "places"
                         aggregation = AggregationKind.COMPOSITE
@@ -142,9 +142,9 @@ class PrinterRoundTripTest :
 
         "association stereotypes round-trip and force block form" {
             val original =
-                classDiagram("D") {
-                    val customer = classOf("Customer")
-                    val order = classOf("Order")
+                classDiagram(name = "D") {
+                    val customer = classOf(name = "Customer")
+                    val order = classOf(name = "Order")
                     association(source = customer, target = order) {
                         stereotypes += "FK"
                     }
@@ -157,8 +157,8 @@ class PrinterRoundTripTest :
 
         "operation parameters (IN, OUT, defaultValue) round-trip in declared order" {
             val original =
-                classDiagram("D") {
-                    classOf("Order") {
+                classDiagram(name = "D") {
+                    classOf(name = "Order") {
                         operation(name = "place") {
                             parameter(name = "items", type = "List<OrderItem>")
                             parameter(name = "flags", type = "Int", direction = ParameterDirection.OUT, defaultValue = "0")
@@ -173,8 +173,8 @@ class PrinterRoundTripTest :
 
         "non-default visibility on class, operation and attribute round-trips" {
             val original =
-                classDiagram("D") {
-                    classOf("Order") {
+                classDiagram(name = "D") {
+                    classOf(name = "Order") {
                         visibility = Visibility.PROTECTED
                         attribute(name = "id", type = "UUID", visibility = Visibility.PUBLIC)
                         operation(name = "internalHelper") {
@@ -189,13 +189,13 @@ class PrinterRoundTripTest :
 
         "classifier-typed attribute (referencedId) round-trips via typeRef(name, referencedId)" {
             val original =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     val status =
-                        enumOf("OrderStatus") {
-                            literal("DRAFT")
-                            literal("CONFIRMED")
+                        enumOf(name = "OrderStatus") {
+                            literal(name = "DRAFT")
+                            literal(name = "CONFIRMED")
                         }
-                    classOf("Order") {
+                    classOf(name = "Order") {
                         attribute(name = "status", type = status)
                     }
                 }
@@ -206,20 +206,20 @@ class PrinterRoundTripTest :
 
         "comprehensive: every gap combined into a single diagram round-trips exactly" {
             val original =
-                classDiagram("Order Domain") {
+                classDiagram(name = "Order Domain") {
                     val status =
-                        enumOf("OrderStatus") {
-                            literal("DRAFT")
-                            literal("PAID")
+                        enumOf(name = "OrderStatus") {
+                            literal(name = "DRAFT")
+                            literal(name = "PAID")
                         }
-                    val greeter = interfaceOf("Greeter") { operation(name = "greet") }
-                    val greeterImpl = classOf("GreeterImpl")
+                    val greeter = interfaceOf(name = "Greeter") { operation(name = "greet") }
+                    val greeterImpl = classOf(name = "GreeterImpl")
                     val customer =
-                        classOf("Customer") {
+                        classOf(name = "Customer") {
                             attribute(name = "id", type = "UUID", visibility = Visibility.PUBLIC)
                         }
                     val order =
-                        classOf("Order") {
+                        classOf(name = "Order") {
                             visibility = Visibility.PROTECTED
                             attribute(name = "status", type = status)
                             attribute(name = "total", type = "Int")
@@ -245,8 +245,8 @@ class PrinterRoundTripTest :
                                 contextOperation = "place",
                             )
                         }
-                    val notifier = classOf("NotificationService")
-                    val auditLog = classOf("AuditLog")
+                    val notifier = classOf(name = "NotificationService")
+                    val auditLog = classOf(name = "AuditLog")
 
                     // NOTE: UmlModelDslPrinter always emits generalizations before
                     // realizations (its fixed canonical dispatch order), regardless of
@@ -267,7 +267,7 @@ class PrinterRoundTripTest :
                     }
                     dependency(client = order, supplier = notifier, name = "notifies")
                     comment(text = "General remark, not attached to anything.")
-                    comment(text = "Encapsulates the order lifecycle.", order, customer)
+                    comment(text = "Encapsulates the order lifecycle.", firstAnchor = order, customer)
                 }
 
             val printed = UmlModelDslPrinter.print(original)
@@ -276,8 +276,8 @@ class PrinterRoundTripTest :
 
         "attribute defaultValue and isStatic round-trip" {
             val original =
-                classDiagram("D") {
-                    classOf("Config") {
+                classDiagram(name = "D") {
+                    classOf(name = "Config") {
                         attribute(name = "maxRetries", type = "Int", defaultValue = "3", isStatic = true)
                     }
                 }
@@ -295,8 +295,8 @@ class PrinterRoundTripTest :
             // printed script if quote() didn't escape `$`.
             val trickyName = "Foo\"Bar\\Baz\${'$'}{1+1}\nLine2\r\tTabbed"
             val original =
-                classDiagram("D") {
-                    classOf(trickyName) {
+                classDiagram(name = "D") {
+                    classOf(name = trickyName) {
                         attribute(name = "field", type = "String", defaultValue = trickyName)
                     }
                 }

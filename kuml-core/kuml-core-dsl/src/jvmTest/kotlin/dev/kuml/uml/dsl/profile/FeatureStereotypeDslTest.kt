@@ -34,33 +34,33 @@ private val KumlModel.elements
 // ── Test profiles ─────────────────────────────────────────────────────────────
 
 private val featureTestProfile: KumlProfile =
-    profile("Feature") {
+    profile(name = "Feature") {
         namespace = "dev.kuml.test.profiles.feature"
-        stereotype("Scheduled") {
+        stereotype(name = "Scheduled") {
             extends(UmlMetaclass.Operation)
-            property<String>("cron") { default = "* * * * *" }
+            property<String>(name = "cron") { default = "* * * * *" }
         }
-        stereotype("RequestParam") {
+        stereotype(name = "RequestParam") {
             extends(UmlMetaclass.Parameter)
-            property<Boolean>("required") { default = true }
+            property<Boolean>(name = "required") { default = true }
         }
-        stereotype("PersistenceContext") {
+        stereotype(name = "PersistenceContext") {
             extends(UmlMetaclass.Property)
         }
-        stereotype("InitialState") {
+        stereotype(name = "InitialState") {
             extends(UmlMetaclass.State)
         }
-        stereotype("Guard") {
+        stereotype(name = "Guard") {
             extends(UmlMetaclass.Transition)
         }
     }
 
 private val featureTestProfile2: KumlProfile =
-    profile("Feature2") {
+    profile(name = "Feature2") {
         namespace = "dev.kuml.test.profiles.feature2"
-        stereotype("Scheduled") {
+        stereotype(name = "Scheduled") {
             extends(UmlMetaclass.Operation)
-            property<String>("expression") { default = "" }
+            property<String>(name = "expression") { default = "" }
         }
     }
 
@@ -77,11 +77,11 @@ class FeatureStereotypeDslTest :
 
         test("operation stereotype — simple name stores appliedStereotype entry") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(featureTestProfile)
-                    classOf("Scheduler") {
-                        operation("tick") {
-                            stereotype("Scheduled")
+                    classOf(name = "Scheduler") {
+                        operation(name = "tick") {
+                            stereotype(name = "Scheduled")
                         }
                     }
                 }
@@ -100,11 +100,11 @@ class FeatureStereotypeDslTest :
 
         test("operation stereotype — tagged value stored correctly") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(featureTestProfile)
-                    classOf("Scheduler") {
-                        operation("tick") {
-                            stereotype("Scheduled") {
+                    classOf(name = "Scheduler") {
+                        operation(name = "tick") {
+                            stereotype(name = "Scheduled") {
                                 "cron" to "0 0 * * *"
                             }
                         }
@@ -127,10 +127,10 @@ class FeatureStereotypeDslTest :
 
         test("operation backward-compat — flat call without block produces empty appliedStereotypes") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(featureTestProfile)
-                    classOf("Scheduler") {
-                        operation("tick")
+                    classOf(name = "Scheduler") {
+                        operation(name = "tick")
                     }
                 }
 
@@ -149,11 +149,11 @@ class FeatureStereotypeDslTest :
 
         test("attribute block form stores appliedStereotype on UmlProperty") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(featureTestProfile)
-                    classOf("UserRepository") {
-                        attribute("connection", "DataSource") {
-                            stereotype("PersistenceContext")
+                    classOf(name = "UserRepository") {
+                        attribute(name = "connection", type = "DataSource") {
+                            stereotype(name = "PersistenceContext")
                         }
                     }
                 }
@@ -172,12 +172,12 @@ class FeatureStereotypeDslTest :
 
         test("attribute block form with classifier handle stores appliedStereotype") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(featureTestProfile)
-                    val dataSource = classOf("DataSource")
-                    classOf("UserRepository") {
-                        attribute("connection", dataSource) {
-                            stereotype("PersistenceContext")
+                    val dataSource = classOf(name = "DataSource")
+                    classOf(name = "UserRepository") {
+                        attribute(name = "connection", type = dataSource) {
+                            stereotype(name = "PersistenceContext")
                         }
                     }
                 }
@@ -196,10 +196,10 @@ class FeatureStereotypeDslTest :
 
         test("attribute backward-compat — flat call without block produces empty appliedStereotypes") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(featureTestProfile)
-                    classOf("User") {
-                        attribute("name", "String")
+                    classOf(name = "User") {
+                        attribute(name = "name", type = "String")
                     }
                 }
 
@@ -218,12 +218,12 @@ class FeatureStereotypeDslTest :
 
         test("parameter block form stores appliedStereotype on UmlParameter") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(featureTestProfile)
-                    classOf("UserService") {
-                        operation("findByEmail") {
-                            parameter("email", "String") {
-                                stereotype("RequestParam")
+                    classOf(name = "UserService") {
+                        operation(name = "findByEmail") {
+                            parameter(name = "email", type = "String") {
+                                stereotype(name = "RequestParam")
                             }
                         }
                     }
@@ -245,14 +245,14 @@ class FeatureStereotypeDslTest :
 
         test("multiple parameters with different stereotypes stored independently") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(featureTestProfile)
-                    classOf("UserService") {
-                        operation("register") {
-                            parameter("email", "String") {
-                                stereotype("RequestParam")
+                    classOf(name = "UserService") {
+                        operation(name = "register") {
+                            parameter(name = "email", type = "String") {
+                                stereotype(name = "RequestParam")
                             }
-                            parameter("name", "String")
+                            parameter(name = "name", type = "String")
                         }
                     }
                 }
@@ -274,11 +274,11 @@ class FeatureStereotypeDslTest :
 
         test("parameter backward-compat — flat call without block produces empty appliedStereotypes") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(featureTestProfile)
-                    classOf("UserService") {
-                        operation("findById") {
-                            parameter("id", "Long")
+                    classOf(name = "UserService") {
+                        operation(name = "findById") {
+                            parameter(name = "id", type = "Long")
                         }
                     }
                 }
@@ -300,12 +300,12 @@ class FeatureStereotypeDslTest :
 
         test("ambiguous operation stereotype resolved via qualified form") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(featureTestProfile)
                     applyProfile(featureTestProfile2)
-                    classOf("Scheduler") {
-                        operation("tick") {
-                            stereotype("dev.kuml.test.profiles.feature:Scheduled") {
+                    classOf(name = "Scheduler") {
+                        operation(name = "tick") {
+                            stereotype(name = "dev.kuml.test.profiles.feature:Scheduled") {
                                 "cron" to "0 0 * * *"
                             }
                         }
@@ -331,11 +331,11 @@ class FeatureStereotypeDslTest :
         test("attribute stereotype for Operation metaclass throws mismatch error") {
             val ex =
                 shouldThrow<IllegalArgumentException> {
-                    umlModel("M") {
+                    umlModel(name = "M") {
                         applyProfile(featureTestProfile)
-                        classOf("Scheduler") {
-                            attribute("x", "Int") {
-                                stereotype("Scheduled") // Scheduled targets Operation, not Property
+                        classOf(name = "Scheduler") {
+                            attribute(name = "x", type = "Int") {
+                                stereotype(name = "Scheduled") // Scheduled targets Operation, not Property
                             }
                         }
                     }
@@ -349,10 +349,10 @@ class FeatureStereotypeDslTest :
 
         test("state stereotype stores appliedStereotype on UmlState") {
             val diag =
-                stateDiagram("Lifecycle") {
+                stateDiagram(name = "Lifecycle") {
                     applyProfile(featureTestProfile)
-                    state("Idle") {
-                        stereotype("InitialState")
+                    state(name = "Idle") {
+                        stereotype(name = "InitialState")
                     }
                 }
 
@@ -365,13 +365,13 @@ class FeatureStereotypeDslTest :
 
         test("transition stereotype stores appliedStereotype on UmlTransition") {
             val diag =
-                stateDiagram("Lifecycle") {
+                stateDiagram(name = "Lifecycle") {
                     applyProfile(featureTestProfile)
-                    val idle = state("Idle")
-                    val active = state("Active")
-                    transition(idle, active) {
+                    val idle = state(name = "Idle")
+                    val active = state(name = "Active")
+                    transition(source = idle, target = active) {
                         trigger = "start()"
-                        stereotype("Guard")
+                        stereotype(name = "Guard")
                     }
                 }
 

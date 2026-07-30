@@ -48,7 +48,7 @@ class LayeredSandboxCombinationTest :
             // behavioural run below is genuinely exercising all three.
             WorkerClassLoaderPolicy.enforcedFor(null).shouldBeTrue() // Welle 7 enforced
             if (isMac) {
-                OsSandbox.modeFrom(null, OsSandbox.Platform.MAC) shouldBe OsSandbox.Mode.REQUIRED
+                OsSandbox.modeFrom(raw = null, platform = OsSandbox.Platform.MAC) shouldBe OsSandbox.Mode.REQUIRED
                 OsSandbox.isolationAvailable().shouldBeTrue() // sandbox-exec present
             }
         }
@@ -82,7 +82,7 @@ class LayeredSandboxCombinationTest :
 
                 families.forEach { (name, src) ->
                     withClue(name) {
-                        val result = pool.evaluate(src)
+                        val result = pool.evaluate(source = src)
                         result.shouldBeInstanceOf<EvaluatedScript.Success>()
                     }
                 }
@@ -98,7 +98,7 @@ class LayeredSandboxCombinationTest :
             val pool = WorkerPool(poolSize = 1, maxConcurrentWorkers = 2)
             try {
                 val hostile = """diagram(name = "x", type = DiagramType.CLASS) {}; ProcessBuilder("id").start()"""
-                val result = pool.evaluate(hostile)
+                val result = pool.evaluate(source = hostile)
                 val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                 failure.kind shouldBe FailureKind.GUARD
             } finally {

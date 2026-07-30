@@ -13,17 +13,18 @@ class CompanionObjectTest :
         test("companion object members are attached to a separate companion classifier") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Widget.kt" to
-                            """
-                            class Widget {
-                                val name: String = ""
-                                companion object {
-                                    val DEFAULT_SIZE = 10
+                    sources =
+                        mapOf(
+                            "Widget.kt" to
+                                """
+                                class Widget {
+                                    val name: String = ""
+                                    companion object {
+                                        val DEFAULT_SIZE = 10
+                                    }
                                 }
-                            }
-                            """.trimIndent(),
-                    ),
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()

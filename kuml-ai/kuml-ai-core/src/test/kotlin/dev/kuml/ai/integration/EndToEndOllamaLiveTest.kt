@@ -37,7 +37,7 @@ class EndToEndOllamaLiveTest :
                     privacyMode = true,
                 )
             val vault = ApiKeyVault.detect()
-            val executor = KumlAiExecutor.fromSettings(settings, vault)
+            val executor = KumlAiExecutor.fromSettings(settings = settings, vault = vault)
 
             val testPrompt =
                 prompt("e2e-test") {
@@ -45,7 +45,7 @@ class EndToEndOllamaLiveTest :
                 }
 
             val ollamaModel = LLModel(LLMProvider.Ollama, "llama3.2")
-            val response = executor.execute(testPrompt, ollamaModel)
+            val response = executor.execute(prompt = testPrompt, model = ollamaModel)
             response.textContent().shouldNotBeBlank()
         }
     })

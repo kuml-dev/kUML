@@ -90,7 +90,7 @@ class AppState(
         currentFile = file
         isDirty = false
         lastDir = file.parentFile?.absolutePath
-        val updated = RecentFiles.add(recentFiles.toList(), file.absolutePath)
+        val updated = RecentFiles.add(list = recentFiles.toList(), path = file.absolutePath)
         recentFiles.clear()
         recentFiles.addAll(updated)
     }
@@ -103,7 +103,7 @@ class AppState(
         currentFile = file
         isDirty = false
         lastDir = file.parentFile?.absolutePath
-        val updated = RecentFiles.add(recentFiles.toList(), file.absolutePath)
+        val updated = RecentFiles.add(list = recentFiles.toList(), path = file.absolutePath)
         recentFiles.clear()
         recentFiles.addAll(updated)
     }

@@ -23,20 +23,20 @@ class UmlToErmInheritanceTest :
 
         test("JOINED (default) creates one entity per class, weak subtype, identifying relationship and a category") {
             val diagram =
-                classDiagram("Fleet") {
+                classDiagram(name = "Fleet") {
                     val vehicle =
-                        classOf("Vehicle") {
-                            attribute("id", "UUID")
-                            attribute("make", "String")
+                        classOf(name = "Vehicle") {
+                            attribute(name = "id", type = "UUID")
+                            attribute(name = "make", type = "String")
                         }
                     val car =
-                        classOf("Car") {
-                            attribute("doors", "Integer")
+                        classOf(name = "Car") {
+                            attribute(name = "doors", type = "Integer")
                         }
                     generalization(specific = car, general = vehicle)
                 }
 
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val model = result.output
 
             model.entities shouldHaveSize 2
@@ -67,22 +67,22 @@ class UmlToErmInheritanceTest :
                 "after its own child (declaration order != root-to-leaf order)",
         ) {
             val diagram =
-                classDiagram("Chain") {
+                classDiagram(name = "Chain") {
                     // Declaration order is Alpha, Gamma, Beta — Beta is Gamma's parent but is
                     // declared *after* Gamma. Regression test for the review finding: applyJoinedLinks
                     // must not rely on `classes` being in root-to-leaf order.
                     val alpha =
-                        classOf("Alpha") {
-                            attribute("id", "UUID")
-                            attribute("afield", "String")
+                        classOf(name = "Alpha") {
+                            attribute(name = "id", type = "UUID")
+                            attribute(name = "afield", type = "String")
                         }
-                    val gamma = classOf("Gamma") { attribute("cfield", "String") }
-                    val beta = classOf("Beta") { attribute("bfield", "String") }
+                    val gamma = classOf(name = "Gamma") { attribute(name = "cfield", type = "String") }
+                    val beta = classOf(name = "Beta") { attribute(name = "bfield", type = "String") }
                     generalization(specific = beta, general = alpha)
                     generalization(specific = gamma, general = beta)
                 }
 
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val model = result.output
 
             val alphas = model.entities.first { it.name == "alphas" }
@@ -110,24 +110,24 @@ class UmlToErmInheritanceTest :
 
         test("«Inheritance».strategy=SINGLE_TABLE merges all subtype columns into one entity plus a discriminator") {
             val diagram =
-                classDiagram("Fleet") {
+                classDiagram(name = "Fleet") {
                     applyProfile(ermMappingProfile)
                     val vehicle =
-                        classOf("Vehicle") {
-                            stereotype("Inheritance") {
+                        classOf(name = "Vehicle") {
+                            stereotype(name = "Inheritance") {
                                 "strategy" to "SINGLE_TABLE"
                             }
-                            attribute("id", "UUID")
-                            attribute("make", "String")
+                            attribute(name = "id", type = "UUID")
+                            attribute(name = "make", type = "String")
                         }
                     val car =
-                        classOf("Car") {
-                            attribute("doors", "Integer")
+                        classOf(name = "Car") {
+                            attribute(name = "doors", type = "Integer")
                         }
                     generalization(specific = car, general = vehicle)
                 }
 
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val model = result.output
 
             model.entities shouldHaveSize 1
@@ -142,33 +142,33 @@ class UmlToErmInheritanceTest :
 
         test("SINGLE_TABLE via TransformContext option (no stereotype needed)") {
             val diagram =
-                classDiagram("Fleet") {
-                    val vehicle = classOf("Vehicle") { attribute("id", "UUID") }
-                    val car = classOf("Car") { attribute("doors", "Integer") }
+                classDiagram(name = "Fleet") {
+                    val vehicle = classOf(name = "Vehicle") { attribute(name = "id", type = "UUID") }
+                    val car = classOf(name = "Car") { attribute(name = "doors", type = "Integer") }
                     generalization(specific = car, general = vehicle)
                 }
             val result =
-                transformer.transform(diagram, TransformContext(options = mapOf("inheritance" to "SINGLE_TABLE"))) as
+                transformer.transform(source = diagram, ctx = TransformContext(options = mapOf("inheritance" to "SINGLE_TABLE"))) as
                     TransformResult.Success
             result.output.entities shouldHaveSize 1
         }
 
         test("«Inheritance».discriminatorColumn override renames the discriminator column") {
             val diagram =
-                classDiagram("Fleet") {
+                classDiagram(name = "Fleet") {
                     applyProfile(ermMappingProfile)
                     val vehicle =
-                        classOf("Vehicle") {
-                            stereotype("Inheritance") {
+                        classOf(name = "Vehicle") {
+                            stereotype(name = "Inheritance") {
                                 "strategy" to "SINGLE_TABLE"
                                 "discriminatorColumn" to "vehicle_kind"
                             }
-                            attribute("id", "UUID")
+                            attribute(name = "id", type = "UUID")
                         }
-                    val car = classOf("Car") { attribute("doors", "Integer") }
+                    val car = classOf(name = "Car") { attribute(name = "doors", type = "Integer") }
                     generalization(specific = car, general = vehicle)
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             result.output.entities
                 .first()
                 .attributeByName("vehicle_kind") shouldNotBe null
@@ -176,24 +176,24 @@ class UmlToErmInheritanceTest :
 
         test("«Inheritance».strategy=TABLE_PER_CLASS gives every concrete class its own table with inherited columns") {
             val diagram =
-                classDiagram("Fleet") {
+                classDiagram(name = "Fleet") {
                     applyProfile(ermMappingProfile)
                     val vehicle =
-                        classOf("Vehicle") {
+                        classOf(name = "Vehicle") {
                             isAbstract = true
-                            stereotype("Inheritance") {
+                            stereotype(name = "Inheritance") {
                                 "strategy" to "TABLE_PER_CLASS"
                             }
-                            attribute("id", "UUID")
-                            attribute("make", "String")
+                            attribute(name = "id", type = "UUID")
+                            attribute(name = "make", type = "String")
                         }
-                    val car = classOf("Car") { attribute("doors", "Integer") }
-                    val truck = classOf("Truck") { attribute("payloadKg", "Integer") }
+                    val car = classOf(name = "Car") { attribute(name = "doors", type = "Integer") }
+                    val truck = classOf(name = "Truck") { attribute(name = "payloadKg", type = "Integer") }
                     generalization(specific = car, general = vehicle)
                     generalization(specific = truck, general = vehicle)
                 }
 
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val model = result.output
 
             model.entities.map { it.name } shouldContainExactlyInAnyOrder listOf("cars", "trucks")
@@ -213,20 +213,20 @@ class UmlToErmInheritanceTest :
 
         test("TABLE_PER_CLASS with a concrete root gives the root its own table too") {
             val diagram =
-                classDiagram("Fleet") {
+                classDiagram(name = "Fleet") {
                     applyProfile(ermMappingProfile)
                     val vehicle =
-                        classOf("Vehicle") {
-                            stereotype("Inheritance") {
+                        classOf(name = "Vehicle") {
+                            stereotype(name = "Inheritance") {
                                 "strategy" to "TABLE_PER_CLASS"
                             }
-                            attribute("id", "UUID")
-                            attribute("make", "String")
+                            attribute(name = "id", type = "UUID")
+                            attribute(name = "make", type = "String")
                         }
-                    val car = classOf("Car") { attribute("doors", "Integer") }
+                    val car = classOf(name = "Car") { attribute(name = "doors", type = "Integer") }
                     generalization(specific = car, general = vehicle)
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             result.output.entities.map { it.name } shouldContainExactlyInAnyOrder listOf("vehicles", "cars")
         }
     })

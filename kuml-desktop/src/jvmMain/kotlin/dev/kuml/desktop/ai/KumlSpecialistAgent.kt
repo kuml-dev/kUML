@@ -52,15 +52,15 @@ internal class KumlSpecialistAgent(
         history: List<ConversationMessage>,
         emit: suspend (AgentEvent) -> Unit,
     ): SpecialistResult {
-        val systemPrompt = domainSystemPrompt(domain, executor.currentSettings().systemPrompt)
-        val koogPrompt = buildPrompt(history, systemPrompt)
+        val systemPrompt = domainSystemPrompt(domain = domain, baseSystemPrompt = executor.currentSettings().systemPrompt)
+        val koogPrompt = buildPrompt(history = history, systemPrompt = systemPrompt)
 
         // Koog 1.0.0: execute() returns Message.Assistant directly.
         val response =
             if (executorFn != null) {
                 executorFn.invoke(koogPrompt, model)
             } else {
-                executor.execute(koogPrompt, model)
+                executor.execute(prompt = koogPrompt, model = model)
             }
 
         // textContent() aggregates all text MessageParts.
@@ -72,16 +72,16 @@ internal class KumlSpecialistAgent(
         val toolCalls = response.parts.filterIsInstance<MessagePart.Tool.Call>()
         for (tc in toolCalls) {
             val callId = UUID.randomUUID().toString()
-            emit(AgentEvent.ToolCallStart(callId, tc.tool, tc.argsJson.toString()))
+            emit(AgentEvent.ToolCallStart(callId = callId, tool = tc.tool, argsJson = tc.argsJson.toString()))
 
             if (patchEngine != null && tc.tool in domain.allowedToolNames) {
-                val patch = runCatching { decoder.decode(tc.tool, tc.argsJson.toString()) }.getOrNull()
+                val patch = runCatching { decoder.decode(toolName = tc.tool, argsJson = tc.argsJson.toString()) }.getOrNull()
                 if (patch != null) {
                     val engine = patchEngine // local val enables smart cast inside runCatching lambda
                     runCatching { engine.buffer(patch) }
                     val kind = patch::class.simpleName ?: "unknown"
                     bufferedPatchKinds += kind
-                    emit(AgentEvent.PatchBuffered(patch.patchId, kind))
+                    emit(AgentEvent.PatchBuffered(patchId = patch.patchId, kind = kind))
                 }
             }
 

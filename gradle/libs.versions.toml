@@ -36,6 +36,7 @@ sqlite-jdbc            = "3.53.2.0"
 atomicfu               = "0.33.0"
 lsp4j                  = "0.24.0"
 markdown-renderer      = "0.43.0"
+detekt                 = "2.0.0-alpha.5"
 
 [libraries]
 # ── Compose / Kuiver ─────────────────────────────────────────────────────────
@@ -155,6 +156,19 @@ lsp4j                            = { module = "org.eclipse.lsp4j:org.eclipse.lsp
 # (verified against this repo's compose-multiplatform 1.11.1 / material3 1.9.0).
 markdown-renderer-m3             = { module = "com.mikepenz:multiplatform-markdown-renderer-m3",         version.ref = "markdown-renderer" }
 
+# ── Detekt (custom ruleset :kuml-detekt-rules — RequireNamedArguments gate) ──
+# Pinned to the 2.0.0-alpha.5 K2/Analysis-API line, NOT the stable 1.23.8 line —
+# 1.23.8 pins kotlin-compiler-embeddable:2.0.21, whose shaded IntelliJ JavaVersion
+# cannot parse JDK 26's version string ("26.0.2") and crashes in the Gradle daemon
+# JVM (jvmToolchain does not help, it runs in-process). 2.0.0-alpha.5 pins
+# kotlin-compiler:2.4.0, matching this repo's Kotlin version. Verified 2026-07-30.
+detekt-api                       = { module = "dev.detekt:detekt-api",         version.ref = "detekt" }
+# NOTE: dev.detekt:detekt-test is deliberately NOT declared here — its published
+# module metadata cannot be resolved outside the detekt monorepo (see the
+# comment in kuml-detekt-rules/build.gradle.kts). detekt-test-utils resolves
+# fine and is all RequireNamedArgumentsSpec needs.
+detekt-test-utils                = { module = "dev.detekt:detekt-test-utils",  version.ref = "detekt" }
+
 [plugins]
 kotlin-jvm              = { id = "org.jetbrains.kotlin.jvm",                      version.ref = "kotlin" }
 kotlin-multiplatform    = { id = "org.jetbrains.kotlin.multiplatform",            version.ref = "kotlin" }
@@ -168,3 +182,4 @@ gradle-plugin-publish   = { id = "com.gradle.plugin-publish",                   
 intellij-platform       = { id = "org.jetbrains.intellij.platform",               version.ref = "intellij-platform" }
 shadow                  = { id = "com.gradleup.shadow",                            version.ref = "shadow" }
 kotlinx-atomicfu        = { id = "org.jetbrains.kotlinx.atomicfu",                version.ref = "atomicfu" }
+detekt                  = { id = "dev.detekt",                                    version.ref = "detekt" }

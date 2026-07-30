@@ -51,38 +51,38 @@ public object WorkspaceExampleRenderer {
     ): WorkspaceRenderResult {
         ensureInit()
         return try {
-            val evalResult = KumlScriptHost.eval(script)
+            val evalResult = KumlScriptHost.eval(code = script)
             val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
             if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
                 val msg = errors.joinToString("\n") { it.message }
-                return WorkspaceRenderResult(null, msg.ifBlank { "Script evaluation failed" })
+                return WorkspaceRenderResult(svg = null, error = msg.ifBlank { "Script evaluation failed" })
             }
             val success =
                 evalResult as? ResultWithDiagnostics.Success
-                    ?: return WorkspaceRenderResult(null, "No result from script")
+                    ?: return WorkspaceRenderResult(svg = null, error = "No result from script")
 
             val extracted =
                 DiagramExtractor.extractAny(
-                    success.value.returnValue,
-                    File("inline.kuml.kts"),
+                    returnValue = success.value.returnValue,
+                    input = File("inline.kuml.kts"),
                 )
 
             val theme =
                 ThemeRegistry.get(themeName)
                     ?: ThemeRegistry.get("plain")
-                    ?: return WorkspaceRenderResult(null, "Theme not found")
+                    ?: return WorkspaceRenderResult(svg = null, error = "Theme not found")
 
             val elkEngine =
                 LayoutEngineRegistry.get("elk.layered")
-                    ?: return WorkspaceRenderResult(null, "ELK layout engine not available")
+                    ?: return WorkspaceRenderResult(svg = null, error = "ELK layout engine not available")
 
             when (extracted) {
                 is ExtractedDiagram.Uml -> {
-                    val sizeProvider = UmlContentSizeProvider(extracted.diagram)
-                    val graph = UmlLayoutBridge.toLayoutGraph(extracted.diagram, sizeProvider)
-                    val layout = elkEngine.layout(graph, LayoutHints.DEFAULT)
-                    val svg = KumlSvgRenderer.toSvg(extracted.diagram, layout, theme)
-                    WorkspaceRenderResult(svg, null)
+                    val sizeProvider = UmlContentSizeProvider(diagram = extracted.diagram)
+                    val graph = UmlLayoutBridge.toLayoutGraph(diagram = extracted.diagram, sizeProvider = sizeProvider)
+                    val layout = elkEngine.layout(graph = graph, hints = LayoutHints.DEFAULT)
+                    val svg = KumlSvgRenderer.toSvg(diagram = extracted.diagram, layoutResult = layout, theme = theme)
+                    WorkspaceRenderResult(svg = svg, error = null)
                 }
 
                 is ExtractedDiagram.Bpmn -> {
@@ -100,28 +100,28 @@ public object WorkspaceExampleRenderer {
                                     )
                                 val layout =
                                     elkEngine.layout(
-                                        BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram),
-                                        LayoutHints.DEFAULT,
+                                        graph = BpmnLayoutBridge.toLayoutGraph(model = extracted.model, diagram = diagram),
+                                        hints = LayoutHints.DEFAULT,
                                     )
-                                KumlSvgRenderer.toSvg(kumlDiagram, layout, theme)
+                                KumlSvgRenderer.toSvg(diagram = kumlDiagram, layoutResult = layout, theme = theme)
                             }
                             else ->
                                 return WorkspaceRenderResult(
-                                    null,
-                                    "Unsupported BPMN diagram kind for this trimmed renderer: ${diagram::class.simpleName}",
+                                    svg = null,
+                                    error = "Unsupported BPMN diagram kind for this trimmed renderer: ${diagram::class.simpleName}",
                                 )
                         }
-                    WorkspaceRenderResult(svg, null)
+                    WorkspaceRenderResult(svg = svg, error = null)
                 }
 
                 else ->
                     WorkspaceRenderResult(
-                        null,
-                        "Unsupported diagram kind for this trimmed renderer: ${extracted::class.simpleName}",
+                        svg = null,
+                        error = "Unsupported diagram kind for this trimmed renderer: ${extracted::class.simpleName}",
                     )
             }
         } catch (e: Exception) {
-            WorkspaceRenderResult(null, "Render exception: ${e.javaClass.simpleName}: ${e.message}")
+            WorkspaceRenderResult(svg = null, error = "Render exception: ${e.javaClass.simpleName}: ${e.message}")
         }
     }
 

@@ -82,60 +82,64 @@ private fun drawComponentBox(
     val cx = (w - 20f) / 2f
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-component"))
+        tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-component"))
 
         // Component glyph: two small rects protruding at top-right
         val gx = w - 16f
         tag(
-            "rect",
-            mapOf(
-                "x" to fmt(gx - 4f),
-                "y" to "6",
-                "width" to "12",
-                "height" to "6",
-                "class" to "kuml-component",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmt(gx - 4f),
+                    "y" to "6",
+                    "width" to "12",
+                    "height" to "6",
+                    "class" to "kuml-component",
+                ),
         )
         tag(
-            "rect",
-            mapOf(
-                "x" to fmt(gx - 4f),
-                "y" to "16",
-                "width" to "12",
-                "height" to "6",
-                "class" to "kuml-component",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmt(gx - 4f),
+                    "y" to "16",
+                    "width" to "12",
+                    "height" to "6",
+                    "class" to "kuml-component",
+                ),
         )
 
         var cy = 20f
 
         // Applied stereotypes header (V1.1) — prepended before «component»
-        val stereoAdv = StereotypeHelper.renderHeader(element, theme, this, cx, cy)
+        val stereoAdv = StereotypeHelper.renderHeader(element = element, theme = theme, builder = this, cx = cx, cy = cy)
         cy += stereoAdv
 
         // Fixed «component» keyword always present
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(cx),
-                "y" to fmt(cy),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(cx),
+                    "y" to fmt(cy),
+                    "text-anchor" to "middle",
+                ),
         ) { text("«component»") }
         cy += 15f
 
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-title",
-                "x" to fmt(cx),
-                "y" to fmt(cy),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-title",
+                    "x" to fmt(cx),
+                    "y" to fmt(cy),
+                    "text-anchor" to "middle",
+                ),
         ) { text(element.name) }
 
         // V1.1.3 — feature compartments (attributes/operations) when present.
@@ -146,29 +150,8 @@ private fun drawComponentBox(
             cy += 6f
 
             tag(
-                "line",
-                mapOf(
-                    "x1" to "0",
-                    "y1" to fmt(cy),
-                    "x2" to fmt(w),
-                    "y2" to fmt(cy),
-                    "class" to "kuml-divider",
-                ),
-            )
-            cy += 12f
-
-            for (attr in element.attributes) {
-                val stereoPrefix = StereotypeHelper.featureStereotypeTspan(attr, theme)
-                tag(
-                    "text",
-                    mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-                ) { rawXml(stereoPrefix + xmlEscapeContent(attr.format())) }
-                cy += 13f
-            }
-
-            if (element.attributes.isNotEmpty() && element.operations.isNotEmpty()) {
-                tag(
-                    "line",
+                name = "line",
+                attrs =
                     mapOf(
                         "x1" to "0",
                         "y1" to fmt(cy),
@@ -176,15 +159,38 @@ private fun drawComponentBox(
                         "y2" to fmt(cy),
                         "class" to "kuml-divider",
                     ),
+            )
+            cy += 12f
+
+            for (attr in element.attributes) {
+                val stereoPrefix = StereotypeHelper.featureStereotypeTspan(element = attr, theme = theme)
+                tag(
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
+                ) { rawXml(stereoPrefix + xmlEscapeContent(attr.format())) }
+                cy += 13f
+            }
+
+            if (element.attributes.isNotEmpty() && element.operations.isNotEmpty()) {
+                tag(
+                    name = "line",
+                    attrs =
+                        mapOf(
+                            "x1" to "0",
+                            "y1" to fmt(cy),
+                            "x2" to fmt(w),
+                            "y2" to fmt(cy),
+                            "class" to "kuml-divider",
+                        ),
                 )
                 cy += 12f
             }
 
             for (op in element.operations) {
-                val stereoPrefix = StereotypeHelper.featureStereotypeTspan(op, theme)
+                val stereoPrefix = StereotypeHelper.featureStereotypeTspan(element = op, theme = theme)
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
                 ) { rawXml(stereoPrefix + xmlEscapeContent(op.format(theme))) }
                 cy += 13f
             }
@@ -206,9 +212,9 @@ private fun drawComponentBox(
         // in SVG z-order. Without internal connectors the combined renderPorts is fine.
         val hasInternalConnectors = element.nestedComponents.isNotEmpty() && internalConnectors.isNotEmpty()
         if (hasInternalConnectors) {
-            renderPortSquares(element, w, h)
+            renderPortSquares(element = element, w = w, h = h)
         } else {
-            renderPorts(element, w, h)
+            renderPorts(element = element, w = w, h = h)
         }
 
         // V3.x — Composite-Structure: verschachtelte Parts als Innenstruktur.
@@ -232,16 +238,26 @@ private fun drawComponentBox(
             // The outer box itself is keyed by element.id at (0,0,w,h).
             val partRects = mutableMapOf<String, Rect>()
             partRects[element.id] =
-                Rect(origin = dev.kuml.layout.Point(0f, 0f), size = dev.kuml.layout.Size(w, h))
+                Rect(origin = dev.kuml.layout.Point(x = 0f, y = 0f), size = dev.kuml.layout.Size(width = w, height = h))
 
             for (part in element.nestedComponents) {
-                val ph = compositeHeight(part, depth - 1)
+                val ph = compositeHeight(c = part, depth = depth - 1)
                 partRects[part.id] =
                     Rect(
-                        origin = dev.kuml.layout.Point(sideInset, py),
-                        size = dev.kuml.layout.Size(interiorW, ph),
+                        origin = dev.kuml.layout.Point(x = sideInset, y = py),
+                        size = dev.kuml.layout.Size(width = interiorW, height = ph),
                     )
-                drawComponentBox(part, sideInset, py, interiorW, ph, theme, this, depth = depth - 1)
+                drawComponentBox(
+                    element = part,
+                    x = sideInset,
+                    y = py,
+                    w = interiorW,
+                    h = ph,
+                    theme = theme,
+                    builder = this,
+                    depth =
+                        depth - 1,
+                )
                 py += ph + NESTED_PART_GAP
             }
 
@@ -273,13 +289,13 @@ private fun drawComponentBox(
                     var childPy = chromeHeight(comp) + NESTED_TOP_GAP
                     for (child in comp.nestedComponents) {
                         if (!visited.add(child.id)) continue // cycle guard
-                        val childH = compositeHeight(child, depth - 1)
+                        val childH = compositeHeight(c = child, depth = depth - 1)
                         val childAbsX = offsetX + compSideInset
                         val childAbsY = offsetY + childPy
                         partRects[child.id] =
                             Rect(
-                                origin = dev.kuml.layout.Point(childAbsX, childAbsY),
-                                size = dev.kuml.layout.Size(compInteriorW, childH),
+                                origin = dev.kuml.layout.Point(x = childAbsX, y = childAbsY),
+                                size = dev.kuml.layout.Size(width = compInteriorW, height = childH),
                             )
                         componentById[child.id] = child
                         if (child.nestedComponents.isNotEmpty()) {
@@ -297,10 +313,15 @@ private fun drawComponentBox(
                     }
                 }
 
-                drawInternalConnectors(internalConnectors, partRects, componentById, this)
+                drawInternalConnectors(
+                    connectors = internalConnectors,
+                    partRects = partRects,
+                    componentById = componentById,
+                    builder = this,
+                )
 
                 // Port labels drawn LAST so they appear on top of connector polylines.
-                renderPortLabels(element, w, h)
+                renderPortLabels(element = element, w = w, h = h)
             }
         }
     }
@@ -395,7 +416,7 @@ private fun compositeHeight(
     }
     val parts = c.nestedComponents
     val stack =
-        parts.sumOf { compositeHeight(it, depth - 1).toDouble() }.toFloat() +
+        parts.sumOf { compositeHeight(c = it, depth = depth - 1).toDouble() }.toFloat() +
             (parts.size - 1) * NESTED_PART_GAP
     return chrome + NESTED_TOP_GAP + stack + NESTED_BOTTOM_PAD
 }
@@ -409,8 +430,8 @@ private fun SvgBuilder.renderPorts(
     w: Float,
     h: Float,
 ) {
-    renderPortSquares(element, w, h)
-    renderPortLabels(element, w, h)
+    renderPortSquares(element = element, w = w, h = h)
+    renderPortLabels(element = element, w = w, h = h)
 }
 
 /**
@@ -431,28 +452,30 @@ private fun SvgBuilder.renderPortSquares(
     leftPorts.forEachIndexed { i, _ ->
         val py = h * (i + 1) / (leftPorts.size + 1) - portSize / 2f
         tag(
-            "rect",
-            mapOf(
-                "x" to fmt(-portSize / 2f),
-                "y" to fmt(py),
-                "width" to fmt(portSize),
-                "height" to fmt(portSize),
-                "class" to "kuml-port",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmt(-portSize / 2f),
+                    "y" to fmt(py),
+                    "width" to fmt(portSize),
+                    "height" to fmt(portSize),
+                    "class" to "kuml-port",
+                ),
         )
     }
 
     rightPorts.forEachIndexed { i, _ ->
         val py = h * (i + 1) / (rightPorts.size + 1) - portSize / 2f
         tag(
-            "rect",
-            mapOf(
-                "x" to fmt(w - portSize / 2f),
-                "y" to fmt(py),
-                "width" to fmt(portSize),
-                "height" to fmt(portSize),
-                "class" to "kuml-port",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmt(w - portSize / 2f),
+                    "y" to fmt(py),
+                    "width" to fmt(portSize),
+                    "height" to fmt(portSize),
+                    "class" to "kuml-port",
+                ),
         )
     }
 }
@@ -487,8 +510,8 @@ private fun SvgBuilder.renderPortLabels(
                 "y" to fmt(py + portSize / 2f + 3f),
                 "text-anchor" to "start",
             )
-        tag("text", baseAttrs + mapOf("class" to "kuml-port-label-halo")) { text(port.name) }
-        tag("text", baseAttrs + mapOf("class" to "kuml-port-label")) { text(port.name) }
+        tag(name = "text", attrs = baseAttrs + mapOf("class" to "kuml-port-label-halo")) { text(port.name) }
+        tag(name = "text", attrs = baseAttrs + mapOf("class" to "kuml-port-label")) { text(port.name) }
     }
 
     rightPorts.forEachIndexed { i, port ->
@@ -499,8 +522,8 @@ private fun SvgBuilder.renderPortLabels(
                 "y" to fmt(py + portSize / 2f + 3f),
                 "text-anchor" to "end",
             )
-        tag("text", baseAttrs + mapOf("class" to "kuml-port-label-halo")) { text(port.name) }
-        tag("text", baseAttrs + mapOf("class" to "kuml-port-label")) { text(port.name) }
+        tag(name = "text", attrs = baseAttrs + mapOf("class" to "kuml-port-label-halo")) { text(port.name) }
+        tag(name = "text", attrs = baseAttrs + mapOf("class" to "kuml-port-label")) { text(port.name) }
     }
 }
 
@@ -560,18 +583,19 @@ private fun drawInternalConnectors(
         }
     val sep = "::"
     for (connector in cappedConnectors) {
-        val pa1 = resolvePortAnchor(connector.end1Id, sep, partRects, componentById) ?: continue
-        val pa2 = resolvePortAnchor(connector.end2Id, sep, partRects, componentById) ?: continue
+        val pa1 = resolvePortAnchor(endId = connector.end1Id, sep = sep, partRects = partRects, componentById = componentById) ?: continue
+        val pa2 = resolvePortAnchor(endId = connector.end2Id, sep = sep, partRects = partRects, componentById = componentById) ?: continue
 
-        val points = buildInternalRoute(pa1, pa2, partRects)
+        val points = buildInternalRoute(p1 = pa1, p2 = pa2, partRects = partRects)
         val pointsAttr = points.joinToString(" ") { (x, y) -> "${fmt(x)},${fmt(y)}" }
         builder.tag(
-            "polyline",
-            mapOf(
-                "points" to pointsAttr,
-                "class" to "kuml-connector",
-                "fill" to "none",
-            ),
+            name = "polyline",
+            attrs =
+                mapOf(
+                    "points" to pointsAttr,
+                    "class" to "kuml-connector",
+                    "fill" to "none",
+                ),
         )
 
         // Optional name label at midpoint of the full route.
@@ -580,13 +604,14 @@ private fun drawInternalConnectors(
             val mx = (pa1.cx + pa2.cx) / 2f
             val my = (pa1.cy + pa2.cy) / 2f - 3f
             builder.tag(
-                "text",
-                mapOf(
-                    "class" to "kuml-connector-label",
-                    "x" to fmt(mx),
-                    "y" to fmt(my),
-                    "text-anchor" to "middle",
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-connector-label",
+                        "x" to fmt(mx),
+                        "y" to fmt(my),
+                        "text-anchor" to "middle",
+                    ),
             ) { text(connectorName) }
         }
     }
@@ -618,8 +643,8 @@ private fun buildInternalRoute(
     val r2 = partRects[p2.compId]
     val distinctBoxes = p1.compId != p2.compId && r1 != null && r2 != null
     // `distinctBoxes` already smart-casts r1/r2 to non-null in these expressions.
-    val p1IsOuter = distinctBoxes && rectContains(r1, r2)
-    val p2IsOuter = distinctBoxes && rectContains(r2, r1)
+    val p1IsOuter = distinctBoxes && rectContains(outer = r1, inner = r2)
+    val p2IsOuter = distinctBoxes && rectContains(outer = r2, inner = r1)
 
     // Stub x: inner-part ports leave outward (away from their box body); an outer
     // boundary port leaves inward (its open face points into the composite).

@@ -129,19 +129,22 @@ class UmlConvergingAssociationLabelsSvgTest :
             // compact hub node: distinct-but-close anchor points, all with a
             // near-vertical, upward-pointing final segment (target tangent
             // bucket "N").
-            val mitgliedBounds = Rect(Point(300f, 40f), Size(220f, 110f))
+            val mitgliedBounds = Rect(origin = Point(x = 300f, y = 40f), size = Size(width = 220f, height = 110f))
             val layout =
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(600f, 400f),
+                    canvas = Size(width = 600f, height = 400f),
                     nodes = mapOf(NodeId("Mitglied") to NodeLayout(bounds = mitgliedBounds)),
                     edges =
                         mapOf(
-                            EdgeId("assocVerein") to EdgeRoute.Direct(Point(345f, 300f), Point(335f, 150f)),
-                            EdgeId("assocVorstand") to EdgeRoute.Direct(Point(385f, 300f), Point(375f, 150f)),
-                            EdgeId("assocKassenpruefung") to EdgeRoute.Direct(Point(425f, 300f), Point(415f, 150f)),
-                            EdgeId("assocMv") to EdgeRoute.Direct(Point(465f, 300f), Point(455f, 150f)),
+                            EdgeId("assocVerein") to
+                                EdgeRoute.Direct(source = Point(x = 345f, y = 300f), target = Point(x = 335f, y = 150f)),
+                            EdgeId("assocVorstand") to
+                                EdgeRoute.Direct(source = Point(x = 385f, y = 300f), target = Point(x = 375f, y = 150f)),
+                            EdgeId("assocKassenpruefung") to
+                                EdgeRoute.Direct(source = Point(x = 425f, y = 300f), target = Point(x = 415f, y = 150f)),
+                            EdgeId("assocMv") to EdgeRoute.Direct(source = Point(x = 465f, y = 300f), target = Point(x = 455f, y = 150f)),
                         ),
                     groups = emptyMap(),
                 )
@@ -150,7 +153,7 @@ class UmlConvergingAssociationLabelsSvgTest :
             // brackets (`>mitglieder<`) — with pretty-printing the text would be
             // on its own indented line, making the extraction regex unreliable.
             val options = SvgRenderOptions(prettyPrint = false, paddingPx = 0f)
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme(), options)
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme(), options = options)
 
             // All four role names and multiplicities are present — none dropped.
             svg shouldContain "mitglieder"
@@ -191,10 +194,10 @@ class UmlConvergingAssociationLabelsSvgTest :
             // Assertion 3 — determinism: identical output across renders,
             // guarding the sort-by-edge-id stability of the stack-index
             // assignment.
-            val again = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme(), options)
+            val again = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme(), options = options)
             svg shouldBe again
 
-            SampleOutput.write("uml/converging-association-labels.svg", svg)
+            SampleOutput.write(filename = "uml/converging-association-labels.svg", content = svg)
         }
 
         test("three links converging on one instance fan their role labels apart") {
@@ -228,24 +231,24 @@ class UmlConvergingAssociationLabelsSvgTest :
                     elements = listOf(order, item1, item2, item3, l1, l2, l3),
                 )
 
-            val orderBounds = Rect(Point(300f, 40f), Size(160f, 60f))
+            val orderBounds = Rect(origin = Point(x = 300f, y = 40f), size = Size(width = 160f, height = 60f))
             val layout =
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(600f, 300f),
+                    canvas = Size(width = 600f, height = 300f),
                     nodes = mapOf(NodeId("order1") to NodeLayout(bounds = orderBounds)),
                     edges =
                         mapOf(
-                            EdgeId("linkItem1") to EdgeRoute.Direct(Point(335f, 220f), Point(325f, 100f)),
-                            EdgeId("linkItem2") to EdgeRoute.Direct(Point(375f, 220f), Point(370f, 100f)),
-                            EdgeId("linkItem3") to EdgeRoute.Direct(Point(415f, 220f), Point(415f, 100f)),
+                            EdgeId("linkItem1") to EdgeRoute.Direct(source = Point(x = 335f, y = 220f), target = Point(x = 325f, y = 100f)),
+                            EdgeId("linkItem2") to EdgeRoute.Direct(source = Point(x = 375f, y = 220f), target = Point(x = 370f, y = 100f)),
+                            EdgeId("linkItem3") to EdgeRoute.Direct(source = Point(x = 415f, y = 220f), target = Point(x = 415f, y = 100f)),
                         ),
                     groups = emptyMap(),
                 )
 
             val options = SvgRenderOptions(prettyPrint = false, paddingPx = 0f)
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme(), options)
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme(), options = options)
 
             val orderLabels = smallLabels(svg).filter { it.text == "order" }
             orderLabels shouldHaveSize 3
@@ -256,6 +259,6 @@ class UmlConvergingAssociationLabelsSvgTest :
                 }
             }
 
-            SampleOutput.write("uml/converging-link-labels.svg", svg)
+            SampleOutput.write(filename = "uml/converging-link-labels.svg", content = svg)
         }
     })

@@ -19,7 +19,7 @@ public object OclValidator {
      */
     public fun parseOclSyntax(expression: String) {
         val tokens = OclLexer.tokenize(expression)
-        OclParser(tokens).parse()
+        OclParser(tokens = tokens).parse()
     }
 
     public fun validate(diagram: KumlDiagram): KumlValidationResult {
@@ -28,10 +28,22 @@ public object OclValidator {
             when (element) {
                 is UmlClass ->
                     violations +=
-                        validateClassifier(element, element.id, element.name, element.constraints, diagram.elements)
+                        validateClassifier(
+                            self = element,
+                            classifierId = element.id,
+                            classifierName = element.name,
+                            constraints = element.constraints,
+                            model = diagram.elements,
+                        )
                 is UmlInterface ->
                     violations +=
-                        validateClassifier(element, element.id, element.name, element.constraints, diagram.elements)
+                        validateClassifier(
+                            self = element,
+                            classifierId = element.id,
+                            classifierName = element.name,
+                            constraints = element.constraints,
+                            model = diagram.elements,
+                        )
                 else -> Unit
             }
         }
@@ -117,7 +129,14 @@ public object OclValidator {
             constraintBodies.map { (name, body) ->
                 UmlConstraint(id = "$elementId::$name", name = name, body = body)
             }
-        val violations = validateClassifier(self, elementId, elementName, constraints, model)
+        val violations =
+            validateClassifier(
+                self = self,
+                classifierId = elementId,
+                classifierName = elementName,
+                constraints = constraints,
+                model = model,
+            )
         return KumlValidationResult(valid = violations.isEmpty(), violations = violations)
     }
 
@@ -145,8 +164,8 @@ public object OclValidator {
         for (d in defs) {
             try {
                 val (tokens, positions) = OclLexer.tokenizeWithPositions(d.body)
-                val expr = OclParser(tokens, positions).parse()
-                defEnv[d.name] = OclEvaluator(self, model).eval(expr, defEnv.toMap())
+                val expr = OclParser(tokens = tokens, positions = positions).parse()
+                defEnv[d.name] = OclEvaluator(self = self, model = model).eval(expr = expr, env = defEnv.toMap())
             } catch (e: OclEvaluationException) {
                 defViolations +=
                     KumlViolation(
@@ -183,7 +202,14 @@ public object OclValidator {
                                 "operation '${c.contextOperation}'",
                     )
                 }
-                evaluateAssertion(self, classifierId, classifierName, c, defEnv, model)
+                evaluateAssertion(
+                    self = self,
+                    classifierId = classifierId,
+                    classifierName = classifierName,
+                    c = c,
+                    defEnv = defEnv,
+                    model = model,
+                )
             }
     }
 
@@ -211,10 +237,10 @@ public object OclValidator {
     ): KumlViolation? =
         try {
             val (tokens, positions) = OclLexer.tokenizeWithPositions(c.body)
-            val expr = OclParser(tokens, positions).parse()
+            val expr = OclParser(tokens = tokens, positions = positions).parse()
             val bindsResult = c.kind == UmlConstraintKind.Postcondition || c.kind == UmlConstraintKind.Body
             val env = if (bindsResult) defEnv + mapOf("result" to null) else defEnv
-            val result = OclEvaluator(self, model).eval(expr, env)
+            val result = OclEvaluator(self = self, model = model).eval(expr = expr, env = env)
             if (result != true) {
                 KumlViolation(
                     constraintId = c.id,

@@ -53,13 +53,17 @@ public fun UmlModelScope.comment(
     id: String? = null,
 ): UmlComment {
     val commentId =
-        id ?: UmlIds.disambiguate(UmlIds.comment(containerId ?: "root", nextCommentIndex(takenIds)), takenIds)
+        id
+            ?: UmlIds.disambiguate(
+                candidate = UmlIds.comment(diagramId = containerId ?: "root", index = nextCommentIndex(takenIds)),
+                taken = takenIds,
+            )
     takenIds += commentId
     val c = UmlComment(id = commentId, body = text)
     addComment(c)
     for (anchorId in anchors) {
         val linkId =
-            UmlIds.disambiguate(UmlIds.commentLink(commentId, anchorId), takenIds)
+            UmlIds.disambiguate(candidate = UmlIds.commentLink(commentId = commentId, annotatedElementId = anchorId), taken = takenIds)
         takenIds += linkId
         addRelationship(UmlCommentLink(id = linkId, commentId = commentId, annotatedElementId = anchorId))
     }
@@ -99,12 +103,21 @@ public fun UmlInteractionScope.comment(
     vararg anchors: String,
     id: String? = null,
 ): UmlComment {
-    val commentId = id ?: UmlIds.disambiguate(UmlIds.comment(interactionId, nextCommentIndex(takenIds)), takenIds)
+    val commentId =
+        id
+            ?: UmlIds.disambiguate(
+                candidate = UmlIds.comment(diagramId = interactionId, index = nextCommentIndex(takenIds)),
+                taken = takenIds,
+            )
     takenIds += commentId
     val c = UmlComment(id = commentId, body = text)
     addComment(c)
     for (anchorId in anchors) {
-        val linkId = UmlIds.disambiguate(UmlIds.commentLink(commentId, anchorId), takenIds)
+        val linkId =
+            UmlIds.disambiguate(
+                candidate = UmlIds.commentLink(commentId = commentId, annotatedElementId = anchorId),
+                taken = takenIds,
+            )
         takenIds += linkId
         addCommentLink(UmlCommentLink(id = linkId, commentId = commentId, annotatedElementId = anchorId))
     }
@@ -145,12 +158,21 @@ public fun UmlStateMachineScope.comment(
     vararg anchors: String,
     id: String? = null,
 ): UmlComment {
-    val commentId = id ?: UmlIds.disambiguate(UmlIds.comment(stateMachineId, nextCommentIndex(takenIds)), takenIds)
+    val commentId =
+        id
+            ?: UmlIds.disambiguate(
+                candidate = UmlIds.comment(diagramId = stateMachineId, index = nextCommentIndex(takenIds)),
+                taken = takenIds,
+            )
     takenIds += commentId
     val c = UmlComment(id = commentId, body = text)
     addComment(c)
     for (anchorId in anchors) {
-        val linkId = UmlIds.disambiguate(UmlIds.commentLink(commentId, anchorId), takenIds)
+        val linkId =
+            UmlIds.disambiguate(
+                candidate = UmlIds.commentLink(commentId = commentId, annotatedElementId = anchorId),
+                taken = takenIds,
+            )
         takenIds += linkId
         addCommentLink(UmlCommentLink(id = linkId, commentId = commentId, annotatedElementId = anchorId))
     }

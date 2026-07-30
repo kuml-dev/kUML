@@ -14,5 +14,5 @@ internal object DiagramExtractor {
         input: File,
     ): KumlDiagram =
         dev.kuml.core.script.DiagramExtractor
-            .extract(returnValue, input)
+            .extract(returnValue = returnValue, input = input)
 }

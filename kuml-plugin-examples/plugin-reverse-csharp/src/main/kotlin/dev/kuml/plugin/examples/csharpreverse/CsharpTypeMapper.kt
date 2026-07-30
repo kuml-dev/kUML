@@ -10,7 +10,7 @@ package dev.kuml.plugin.examples.csharpreverse
  */
 internal class CsharpTypeMapper {
     /** Public entry point — delegates to the depth-guarded implementation. */
-    fun map(csType: String): String = mapInternal(csType.trim(), depth = 0)
+    fun map(csType: String): String = mapInternal(t = csType.trim(), depth = 0)
 
     @Suppress("CyclomaticComplexMethod")
     private fun mapInternal(
@@ -55,12 +55,12 @@ internal class CsharpTypeMapper {
             // Nullable<T>
             noNullable.startsWith("Nullable<") && noNullable.endsWith(">") -> {
                 val inner = noNullable.drop("Nullable<".length).dropLast(1)
-                mapInternal(inner, depth + 1)
+                mapInternal(t = inner, depth = depth + 1)
             }
             // Task<T> → mapped return type
             noNullable.startsWith("Task<") && noNullable.endsWith(">") -> {
                 val inner = noNullable.drop("Task<".length).dropLast(1)
-                mapInternal(inner, depth + 1)
+                mapInternal(t = inner, depth = depth + 1)
             }
             noNullable == "Task" -> "void"
             // List<T>, IList<T>, IReadOnlyList<T>
@@ -74,12 +74,12 @@ internal class CsharpTypeMapper {
             ) &&
                 noNullable.endsWith(">") -> {
                 val inner = noNullable.drop(noNullable.indexOf('<') + 1).dropLast(1)
-                "List<${mapInternal(inner, depth + 1)}>"
+                "List<${mapInternal(t = inner, depth = depth + 1)}>"
             }
             // T[] → List<T>
             noNullable.endsWith("[]") -> {
                 val inner = noNullable.dropLast(2)
-                "List<${mapInternal(inner, depth + 1)}>"
+                "List<${mapInternal(t = inner, depth = depth + 1)}>"
             }
             // Dictionary<K,V>, IDictionary<K,V>
             (
@@ -96,7 +96,7 @@ internal class CsharpTypeMapper {
             ) &&
                 noNullable.endsWith(">") -> {
                 val inner = noNullable.drop(noNullable.indexOf('<') + 1).dropLast(1)
-                "Set<${mapInternal(inner, depth + 1)}>"
+                "Set<${mapInternal(t = inner, depth = depth + 1)}>"
             }
             else -> noNullable.ifEmpty { trimmed }
         }

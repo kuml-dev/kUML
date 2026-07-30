@@ -93,9 +93,9 @@ public object ScriptWorkerMain {
             // evaluation path the real request will take.
             try {
                 ScriptEvaluationCore.evaluateAndExtract(
-                    WARMUP_SCRIPT,
-                    "warmup.kuml.kts",
-                    WorkerClassLoaderPolicy.evaluationClassLoader(enforceAllowlist),
+                    source = WARMUP_SCRIPT,
+                    fileName = "warmup.kuml.kts",
+                    evaluationClassLoader = WorkerClassLoaderPolicy.evaluationClassLoader(enforceAllowlist),
                 )
             } catch (_: Throwable) {
                 // Ignore: worst case is a cold-start-like latency on the real call.
@@ -109,9 +109,9 @@ public object ScriptWorkerMain {
             try {
                 val requestLine =
                     System.`in`.bufferedReader(Charsets.UTF_8).readLine()
-                        ?: return respond(realStdout, sandboxFailure("No request received on stdin"))
+                        ?: return respond(out = realStdout, response = sandboxFailure("No request received on stdin"))
                 val request = json.decodeFromString(WorkerRequest.serializer(), requestLine)
-                evaluate(request, enforceAllowlist)
+                evaluate(request = request, enforceAllowlist = enforceAllowlist)
             } catch (e: Throwable) {
                 // Any framing/decoding error is a sandbox-level failure. Do not
                 // leak the exception's toString (may contain internals) beyond
@@ -119,7 +119,7 @@ public object ScriptWorkerMain {
                 sandboxFailure("Worker request handling failed: ${e::class.simpleName}")
             }
 
-        respond(realStdout, response)
+        respond(out = realStdout, response = response)
     }
 
     /**
@@ -137,10 +137,10 @@ public object ScriptWorkerMain {
         when (
             val result =
                 ScriptEvaluationCore.evaluateAndExtract(
-                    request.source,
-                    request.fileName,
+                    source = request.source,
+                    fileName = request.fileName,
                     // Fresh allowlist loader per request (no cross-script state).
-                    WorkerClassLoaderPolicy.evaluationClassLoader(enforceAllowlist),
+                    evaluationClassLoader = WorkerClassLoaderPolicy.evaluationClassLoader(enforceAllowlist),
                 )
         ) {
             is EvaluatedScript.Success ->

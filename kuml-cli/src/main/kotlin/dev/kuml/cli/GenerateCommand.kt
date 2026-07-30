@@ -108,7 +108,7 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
                 throw ProgramResult(ExitCodes.USAGE)
             }
 
-        val evalResult = KumlScriptHost.eval(inputFile)
+        val evalResult = KumlScriptHost.eval(file = inputFile)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
             val msg = errors.joinToString("\n") { it.message }
@@ -124,7 +124,7 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
 
         val extracted =
             try {
-                DiagramExtractor.extractAny(success.value.returnValue, inputFile)
+                DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = inputFile)
             } catch (e: ScriptEvaluationException) {
                 echo(e.message, err = true)
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
@@ -135,7 +135,7 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
         val outputDir = output.toFile()
         val generated =
             try {
-                generate(extracted, outputDir, options)
+                generate(extracted = extracted, outputDir = outputDir, options = options)
             } catch (e: IOException) {
                 echo("I/O error: ${e.message}", err = true)
                 throw ProgramResult(ExitCodes.IO_ERROR)
@@ -166,7 +166,7 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
                             )
                             throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                         }
-                generator.generate(extracted.diagram, outputDir, options)
+                generator.generate(diagram = extracted.diagram, outputDir = outputDir, options = options)
             }
             is ExtractedDiagram.Erm -> {
                 if (ErmCodeGenRegistry.names().isEmpty()) ErmCodeGenRegistry.loadFromClasspath()
@@ -180,7 +180,7 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
                             )
                             throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                         }
-                generator.generate(extracted.model, outputDir, options)
+                generator.generate(model = extracted.model, outputDir = outputDir, options = options)
             }
             else -> {
                 echo(
@@ -227,7 +227,14 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
 
         val migrationFile =
             try {
-                ErmSqlMigrationGenerator().generate(oldModel, newModel, outputDir, version, description, options)
+                ErmSqlMigrationGenerator().generate(
+                    old = oldModel,
+                    new = newModel,
+                    outputDir = outputDir,
+                    version = version,
+                    description = description,
+                    options = options,
+                )
             } catch (e: IOException) {
                 echo("I/O error: ${e.message}", err = true)
                 throw ProgramResult(ExitCodes.IO_ERROR)
@@ -245,7 +252,7 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
 
     /** Loads and evaluates [scriptFile], requiring it to be an ERM script (`ermModel(…) { … }`). */
     private fun loadErmModel(scriptFile: File): ErmModel {
-        val evalResult = KumlScriptHost.eval(scriptFile)
+        val evalResult = KumlScriptHost.eval(file = scriptFile)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
             val msg = errors.joinToString("\n") { it.message }
@@ -261,7 +268,7 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
 
         val extracted =
             try {
-                DiagramExtractor.extractAny(success.value.returnValue, scriptFile)
+                DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = scriptFile)
             } catch (e: ScriptEvaluationException) {
                 echo(e.message, err = true)
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)

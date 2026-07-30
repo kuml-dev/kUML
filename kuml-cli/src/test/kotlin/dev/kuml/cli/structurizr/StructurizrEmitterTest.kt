@@ -229,13 +229,13 @@ class StructurizrEmitterTest :
 
             parsed.name shouldBe "RT"
             val parsedPersons = parsed.model.elements.filterIsInstance<StructurizrElement.Person>()
-            shouldContainOne(parsedPersons) {
+            shouldContainOne(list = parsedPersons) {
                 it.identifier shouldBe "customer"
                 it.name shouldBe "Customer"
                 it.description shouldBe "User"
             }
             val parsedSystems = parsed.model.elements.filterIsInstance<StructurizrElement.SoftwareSystem>()
-            shouldContainOne(parsedSystems) {
+            shouldContainOne(list = parsedSystems) {
                 it.identifier shouldBe "ib"
                 it.name shouldBe "Internet Banking"
             }

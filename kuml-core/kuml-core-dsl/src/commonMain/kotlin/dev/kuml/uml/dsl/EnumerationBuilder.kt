@@ -32,8 +32,8 @@ class EnumerationBuilder internal constructor(
     /** The computed or explicitly provided ID for this enumeration. */
     val id: String =
         run {
-            val candidate = explicitId ?: UmlIds.child(parentId, name)
-            val resolved = UmlIds.disambiguate(candidate, takenIds)
+            val candidate = explicitId ?: UmlIds.child(parentId = parentId, name = name)
+            val resolved = UmlIds.disambiguate(candidate = candidate, taken = takenIds)
             takenIds += resolved
             resolved
         }
@@ -79,7 +79,7 @@ class EnumerationBuilder internal constructor(
         name: String,
         id: String? = null,
     ) {
-        val litId = id ?: UmlIds.disambiguate(UmlIds.child(this.id, name), takenIds)
+        val litId = id ?: UmlIds.disambiguate(candidate = UmlIds.child(parentId = this.id, name = name), taken = takenIds)
         takenIds += litId
         literals += UmlEnumerationLiteral(id = litId, name = name)
     }

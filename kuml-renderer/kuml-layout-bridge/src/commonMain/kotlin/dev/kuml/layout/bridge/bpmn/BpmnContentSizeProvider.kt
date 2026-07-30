@@ -56,7 +56,7 @@ public class BpmnContentSizeProvider(
     private val byId: Map<String, Size> =
         run {
             val out = mutableMapOf<String, Size>()
-            for (process in model.processes) collect(process.flowNodes, out)
+            for (process in model.processes) collect(nodes = process.flowNodes, out = out)
             out
         }
 
@@ -75,7 +75,7 @@ public class BpmnContentSizeProvider(
                 is BpmnCallActivity -> out[node.id] = taskBoxSize(node.name)
                 is BpmnSubProcess -> {
                     out[node.id] = taskBoxSize(node.name)
-                    collect(node.flowElementNodes, out)
+                    collect(nodes = node.flowElementNodes, out = out)
                 }
                 // Gateways/events fall through to the fixed default in sizeOf() —
                 // their labels render outside the shape, see class KDoc.
@@ -119,7 +119,7 @@ public class BpmnContentSizeProvider(
         val label = name ?: ""
         val measured = label.length * TASK_CHAR_PX + BOX_H_PADDING
         val width = measured.coerceIn(BpmnLayoutBridge.DEFAULT_TASK_SIZE.width, MAX_TASK_WIDTH)
-        return Size(width, BpmnLayoutBridge.DEFAULT_TASK_SIZE.height)
+        return Size(width = width, height = BpmnLayoutBridge.DEFAULT_TASK_SIZE.height)
     }
 
     public companion object {

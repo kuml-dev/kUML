@@ -36,28 +36,28 @@ public object ExpressionTypeChecker {
 
             is FunctionCall -> KumlType.Unknown // V2.0.20b adds function resolution
 
-            is UnaryOp -> inferUnary(expr, env)
+            is UnaryOp -> inferUnary(expr = expr, env = env)
 
-            is BinaryOp -> inferBinary(expr, env)
+            is BinaryOp -> inferBinary(expr = expr, env = env)
         }
 
     private fun inferUnary(
         expr: UnaryOp,
         env: Map<String, KumlType>,
     ): KumlType {
-        val t = infer(expr.operand, env)
+        val t = infer(expr = expr.operand, env = env)
         return when (expr.op) {
             UnaryOperator.NOT ->
                 when (t) {
                     is KumlType.Bool, KumlType.Unknown -> KumlType.Bool
-                    else -> KumlType.TypeError("Operator '!' requires Bool, got $t")
+                    else -> KumlType.TypeError(message = "Operator '!' requires Bool, got $t")
                 }
             UnaryOperator.NEG ->
                 when (t) {
                     is KumlType.Int -> KumlType.Int
                     is KumlType.Real -> KumlType.Real
                     KumlType.Unknown -> KumlType.Unknown
-                    else -> KumlType.TypeError("Unary '-' requires Int or Real, got $t")
+                    else -> KumlType.TypeError(message = "Unary '-' requires Int or Real, got $t")
                 }
         }
     }
@@ -66,8 +66,8 @@ public object ExpressionTypeChecker {
         expr: BinaryOp,
         env: Map<String, KumlType>,
     ): KumlType {
-        val lt = infer(expr.left, env)
-        val rt = infer(expr.right, env)
+        val lt = infer(expr = expr.left, env = env)
+        val rt = infer(expr = expr.right, env = env)
 
         // Propagate existing type errors
         if (lt is KumlType.TypeError) return lt
@@ -80,7 +80,7 @@ public object ExpressionTypeChecker {
                     lt == KumlType.Bool && rt == KumlType.Bool -> KumlType.Bool
                     else ->
                         KumlType.TypeError(
-                            "Operator '${expr.op.symbol}' requires Bool operands, got $lt and $rt",
+                            message = "Operator '${expr.op.symbol}' requires Bool operands, got $lt and $rt",
                         )
                 }
             }
@@ -97,7 +97,7 @@ public object ExpressionTypeChecker {
                     isNumeric(lt) && isNumeric(rt) -> KumlType.Bool
                     else ->
                         KumlType.TypeError(
-                            "Comparison '${expr.op.symbol}' requires numeric operands, got $lt and $rt",
+                            message = "Comparison '${expr.op.symbol}' requires numeric operands, got $lt and $rt",
                         )
                 }
             }
@@ -108,7 +108,7 @@ public object ExpressionTypeChecker {
                     lt == KumlType.Int && rt == KumlType.Int -> KumlType.Int
                     isNumeric(lt) && isNumeric(rt) -> KumlType.Real
                     lt == KumlType.Str && rt == KumlType.Str -> KumlType.Str
-                    else -> KumlType.TypeError("Operator '+' cannot be applied to $lt and $rt")
+                    else -> KumlType.TypeError(message = "Operator '+' cannot be applied to $lt and $rt")
                 }
             }
 
@@ -119,7 +119,7 @@ public object ExpressionTypeChecker {
                     isNumeric(lt) && isNumeric(rt) -> KumlType.Real
                     else ->
                         KumlType.TypeError(
-                            "Operator '${expr.op.symbol}' requires numeric operands, got $lt and $rt",
+                            message = "Operator '${expr.op.symbol}' requires numeric operands, got $lt and $rt",
                         )
                 }
             }

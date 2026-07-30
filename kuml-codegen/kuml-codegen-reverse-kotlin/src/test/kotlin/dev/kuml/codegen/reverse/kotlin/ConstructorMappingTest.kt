@@ -12,9 +12,10 @@ class ConstructorMappingTest :
         test("primary constructor without val/var params does not create properties") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Event.kt" to "class Event(name: String)",
-                    ),
+                    sources =
+                        mapOf(
+                            "Event.kt" to "class Event(name: String)",
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()
@@ -27,14 +28,15 @@ class ConstructorMappingTest :
         test("secondary constructor gets constructor stereotype") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Person.kt" to
-                            """
-                            class Person(val name: String) {
-                                constructor(name: String, age: Int) : this(name)
-                            }
-                            """.trimIndent(),
-                    ),
+                    sources =
+                        mapOf(
+                            "Person.kt" to
+                                """
+                                class Person(val name: String) {
+                                    constructor(name: String, age: Int) : this(name)
+                                }
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()

@@ -55,18 +55,18 @@ internal object TypeCheckPatchChecks {
                     expr.trim().let {
                         if (it.startsWith("[") && it.endsWith("]")) it.substring(1, it.length - 1).trim() else it
                     }
-                val parsed = OclLikeExpressionParser.tryParse(cleaned, parseErrors)
+                val parsed = OclLikeExpressionParser.tryParse(input = cleaned, errors = parseErrors)
                 if (parsed == null) {
                     // Parse failure is a type-check warning (not error) — best effort
                     warnings.add("Guard expression could not be parsed: ${parseErrors.firstOrNull()?.message ?: "unknown"}")
                     emptyList()
                 } else {
                     // Check function names against allowlist
-                    checkFunctionNames(collectFunctionNames(parsed), policy, warnings)
+                    checkFunctionNames(names = collectFunctionNames(parsed), policy = policy, warnings = warnings)
                 }
             }
             "effect", "entry", "exit", "doActivity" -> {
-                val effects = OclLikeExpressionParser.tryParseEffects(expr, parseErrors)
+                val effects = OclLikeExpressionParser.tryParseEffects(input = expr, errors = parseErrors)
                 if (effects == null) {
                     warnings.add("Effect expression could not be parsed: ${parseErrors.firstOrNull()?.message ?: "unknown"}")
                     emptyList()
@@ -74,7 +74,7 @@ internal object TypeCheckPatchChecks {
                     val errors = mutableListOf<ValidationError>()
                     for (effect in effects) {
                         errors.addAll(
-                            checkFunctionNames(collectFunctionNamesFromEffect(effect), policy, warnings),
+                            checkFunctionNames(names = collectFunctionNamesFromEffect(effect), policy = policy, warnings = warnings),
                         )
                     }
                     errors

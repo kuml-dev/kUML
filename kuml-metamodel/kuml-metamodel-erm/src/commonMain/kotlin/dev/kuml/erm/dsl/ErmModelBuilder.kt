@@ -42,10 +42,10 @@ class ErmModelBuilder(
         block: EntityBuilder.() -> Unit,
     ): String {
         val entityIx = entities.size
-        val id = autoId("entity", entityIx)
-        val builder = EntityBuilder(id, entityIx, this)
+        val id = autoId(prefix = "entity", n = entityIx)
+        val builder = EntityBuilder(entityId = id, entityIx = entityIx, model = this)
         builder.apply(block)
-        entities += builder.build(name, weak)
+        entities += builder.build(name = name, weak = weak)
         return id
     }
 
@@ -60,7 +60,7 @@ class ErmModelBuilder(
         sourceRole: String? = null,
         targetRole: String? = null,
     ): String {
-        val id = autoId("rel", relationships.size)
+        val id = autoId(prefix = "rel", n = relationships.size)
         relationships +=
             ErmRelationship(
                 id = id,
@@ -82,7 +82,7 @@ class ErmModelBuilder(
         query: String,
         references: List<String> = emptyList(),
     ): String {
-        val id = autoId("view", views.size)
+        val id = autoId(prefix = "view", n = views.size)
         views += ErmView(id = id, name = name, query = query, referencedEntityIds = references)
         return id
     }
@@ -101,7 +101,7 @@ class ErmModelBuilder(
         complete: Boolean = false,
         discriminator: String? = null,
     ): String {
-        val id = autoId("category", categories.size)
+        val id = autoId(prefix = "category", n = categories.size)
         categories +=
             ErmCategory(
                 id = id,

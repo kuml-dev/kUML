@@ -35,14 +35,14 @@ class MarkdownProcessorTest :
 
         test("input without kuml blocks is passed through unchanged") {
             val md = "# Plain\n\nNo diagrams here.\n"
-            val result = MarkdownProcessor().process(md, MarkdownOutputMode.InlineSvg)
+            val result = MarkdownProcessor().process(input = md, mode = MarkdownOutputMode.InlineSvg)
             result.output shouldBe md
             result.assets shouldHaveSize 0
         }
 
         test("InlineSvg mode replaces block with raw <svg>") {
             val md = mdWith(simpleScript)
-            val result = MarkdownProcessor().process(md, MarkdownOutputMode.InlineSvg)
+            val result = MarkdownProcessor().process(input = md, mode = MarkdownOutputMode.InlineSvg)
             result.output shouldContain "<svg"
             result.output shouldContain "</svg>"
             result.output shouldNotContain "```kuml"

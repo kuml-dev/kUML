@@ -92,10 +92,10 @@ class ContainerDiagramBuilderImpl(
                 }.map { it.id }
 
         // 2. Sammle externe Systeme (falls showExternalSystems = true)
-        val externalSystems = findExternalSystems(targetSystem.id, systemContainers)
+        val externalSystems = findExternalSystems(systemId = targetSystem.id, systemContainers = systemContainers)
 
         // 3. Sammle verwandte Personen (falls showRelatedPersons = true)
-        val relatedPersons = findRelatedPersons(targetSystem.id, systemContainers)
+        val relatedPersons = findRelatedPersons(systemId = targetSystem.id, systemContainers = systemContainers)
 
         // 4. Kombiniere alle Elemente (System + Container + externe Systeme + Personen)
         val allElements =

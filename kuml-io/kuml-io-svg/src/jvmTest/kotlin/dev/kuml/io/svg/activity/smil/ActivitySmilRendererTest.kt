@@ -67,42 +67,48 @@ class ActivitySmilRendererTest :
             return LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(600f, 400f),
+                canvas = Size(width = 600f, height = 400f),
                 nodes =
                     mapOf(
-                        NodeId("initial") to NodeLayout(Rect(Point(50f - p, 50f - p), Size(24f, 24f))),
-                        NodeId("actionA") to NodeLayout(Rect(Point(100f - p, 40f - p), Size(120f, 50f))),
-                        NodeId("fork1") to NodeLayout(Rect(Point(250f - p, 55f - p), Size(8f, 50f))),
-                        NodeId("actionB") to NodeLayout(Rect(Point(290f - p, 40f - p), Size(120f, 50f))),
-                        NodeId("join1") to NodeLayout(Rect(Point(440f - p, 55f - p), Size(8f, 50f))),
-                        NodeId("finalNode") to NodeLayout(Rect(Point(480f - p, 50f - p), Size(24f, 24f))),
+                        NodeId("initial") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 50f - p, y = 50f - p), size = Size(width = 24f, height = 24f))),
+                        NodeId("actionA") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 100f - p, y = 40f - p), size = Size(width = 120f, height = 50f))),
+                        NodeId("fork1") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 250f - p, y = 55f - p), size = Size(width = 8f, height = 50f))),
+                        NodeId("actionB") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 290f - p, y = 40f - p), size = Size(width = 120f, height = 50f))),
+                        NodeId("join1") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 440f - p, y = 55f - p), size = Size(width = 8f, height = 50f))),
+                        NodeId("finalNode") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 480f - p, y = 50f - p), size = Size(width = 24f, height = 24f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("e_init_A") to
                             EdgeRoute.Direct(
-                                source = Point(74f - p, 62f - p),
-                                target = Point(100f - p, 65f - p),
+                                source = Point(x = 74f - p, y = 62f - p),
+                                target = Point(x = 100f - p, y = 65f - p),
                             ),
                         EdgeId("e_A_fork") to
                             EdgeRoute.Direct(
-                                source = Point(220f - p, 65f - p),
-                                target = Point(250f - p, 80f - p),
+                                source = Point(x = 220f - p, y = 65f - p),
+                                target = Point(x = 250f - p, y = 80f - p),
                             ),
                         EdgeId("e_fork_B") to
                             EdgeRoute.Direct(
-                                source = Point(258f - p, 80f - p),
-                                target = Point(290f - p, 65f - p),
+                                source = Point(x = 258f - p, y = 80f - p),
+                                target = Point(x = 290f - p, y = 65f - p),
                             ),
                         EdgeId("e_B_join") to
                             EdgeRoute.Direct(
-                                source = Point(410f - p, 65f - p),
-                                target = Point(440f - p, 80f - p),
+                                source = Point(x = 410f - p, y = 65f - p),
+                                target = Point(x = 440f - p, y = 80f - p),
                             ),
                         EdgeId("e_join_final") to
                             EdgeRoute.Direct(
-                                source = Point(448f - p, 80f - p),
-                                target = Point(480f - p, 62f - p),
+                                source = Point(x = 448f - p, y = 80f - p),
+                                target = Point(x = 480f - p, y = 62f - p),
                             ),
                     ),
                 groups = emptyMap(),
@@ -127,12 +133,12 @@ class ActivitySmilRendererTest :
         // ── (1) Null trace → byte-identical ──
 
         test("null trace produces output byte-identical to KumlSvgRenderer.toSvg") {
-            val expected = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme(), options)
+            val expected = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme(), options = options)
             val result =
                 ActivitySmilRenderer.render(
-                    diagram,
-                    activityEdges,
-                    layoutResult,
+                    diagram = diagram,
+                    activityEdges = activityEdges,
+                    layoutResult = layoutResult,
                     options = options,
                     trace = null,
                 )
@@ -144,12 +150,12 @@ class ActivitySmilRendererTest :
         // ── (2) Empty trace → byte-identical ──
 
         test("empty trace produces output byte-identical to KumlSvgRenderer.toSvg") {
-            val expected = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme(), options)
+            val expected = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme(), options = options)
             val result =
                 ActivitySmilRenderer.render(
-                    diagram,
-                    activityEdges,
-                    layoutResult,
+                    diagram = diagram,
+                    activityEdges = activityEdges,
+                    layoutResult = layoutResult,
                     options = options,
                     trace = TraceFile(entries = emptyList()),
                 )
@@ -163,7 +169,13 @@ class ActivitySmilRendererTest :
         test("TokenPlaced with resolvable flow produces animateMotion and injected token circle") {
             val trace = tokenTrace("initial", "actionA")
             val result =
-                ActivitySmilRenderer.render(diagram, activityEdges, layoutResult, options = options, trace = trace)
+                ActivitySmilRenderer.render(
+                    diagram = diagram,
+                    activityEdges = activityEdges,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = trace,
+                )
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "<animateMotion"
@@ -176,7 +188,13 @@ class ActivitySmilRendererTest :
             // "initial" → "finalNode" is not directly connected
             val trace = tokenTrace("initial", "finalNode")
             val result =
-                ActivitySmilRenderer.render(diagram, activityEdges, layoutResult, options = options, trace = trace)
+                ActivitySmilRenderer.render(
+                    diagram = diagram,
+                    activityEdges = activityEdges,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = trace,
+                )
 
             // No motion animation produced — the result may have no animation at all
             result.svg shouldNotContain "<animateMotion"
@@ -195,7 +213,13 @@ class ActivitySmilRendererTest :
                         ),
                 )
             val result =
-                ActivitySmilRenderer.render(diagram, activityEdges, layoutResult, options = options, trace = trace)
+                ActivitySmilRenderer.render(
+                    diagram = diagram,
+                    activityEdges = activityEdges,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = trace,
+                )
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "attributeName=\"opacity\""
@@ -221,7 +245,13 @@ class ActivitySmilRendererTest :
                         ),
                 )
             val result =
-                ActivitySmilRenderer.render(diagram, activityEdges, layoutResult, options = options, trace = trace)
+                ActivitySmilRenderer.render(
+                    diagram = diagram,
+                    activityEdges = activityEdges,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = trace,
+                )
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "attributeName=\"fill\""
@@ -246,7 +276,13 @@ class ActivitySmilRendererTest :
                         ),
                 )
             val result =
-                ActivitySmilRenderer.render(diagram, activityEdges, layoutResult, options = options, trace = trace)
+                ActivitySmilRenderer.render(
+                    diagram = diagram,
+                    activityEdges = activityEdges,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = trace,
+                )
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "attributeName=\"fill\""
@@ -323,7 +359,13 @@ class ActivitySmilRendererTest :
                         },
                 )
             shouldThrow<IllegalArgumentException> {
-                ActivitySmilRenderer.render(diagram, activityEdges, layoutResult, options = options, trace = oversized)
+                ActivitySmilRenderer.render(
+                    diagram = diagram,
+                    activityEdges = activityEdges,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = oversized,
+                )
             }
         }
 
@@ -335,12 +377,12 @@ class ActivitySmilRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(200f, 100f),
+                    canvas = Size(width = 200f, height = 100f),
                     nodes = emptyMap(),
-                    edges = mapOf(EdgeId("e1") to EdgeRoute.Direct(Point(10f, 20f), Point(100f, 20f))),
+                    edges = mapOf(EdgeId("e1") to EdgeRoute.Direct(source = Point(x = 10f, y = 20f), target = Point(x = 100f, y = 20f))),
                     groups = emptyMap(),
                 )
-            val paths = ActivityFlowPathResolver.buildEdgePaths(listOf(edge), lr, padding = 0f)
+            val paths = ActivityFlowPathResolver.buildEdgePaths(edges = listOf(edge), layoutResult = lr, padding = 0f)
             paths["e1"] shouldBe "M 10 20 L 100 20"
         }
 
@@ -359,7 +401,14 @@ class ActivitySmilRendererTest :
 
         test("animated output contains exactly one closing svg tag") {
             val trace = tokenTrace("initial", "actionA")
-            val result = ActivitySmilRenderer.render(diagram, activityEdges, layoutResult, options = options, trace = trace)
+            val result =
+                ActivitySmilRenderer.render(
+                    diagram = diagram,
+                    activityEdges = activityEdges,
+                    layoutResult = layoutResult,
+                    options = options,
+                    trace = trace,
+                )
 
             result.hasAnimation.shouldBeTrue()
             Regex("</svg>").findAll(result.svg).count() shouldBe 1

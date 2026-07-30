@@ -23,8 +23,8 @@ public class C4EditingTools(
         @LLMDescription("Short description of the role, max ~80 chars.") description: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val c4 = model as? AnyKumlModel.C4 ?: return PatchApplyResult.Failure("Context is not a C4 model")
-        val id = IdHelpers.uniqueId(name, C4PatchOps.allIds(c4), "person")
+        val c4 = model as? AnyKumlModel.C4 ?: return PatchApplyResult.Failure(reason = "Context is not a C4 model")
+        val id = IdHelpers.uniqueId(name = name, takenIds = C4PatchOps.allIds(c4), prefix = "person")
 
         val patch =
             ModelPatch.AddElement(
@@ -36,8 +36,8 @@ public class C4EditingTools(
                 name = name,
             )
 
-        return ctx.applyPatch(patch) { m ->
-            C4PatchOps.addPerson(m as AnyKumlModel.C4, id, name, description)
+        return ctx.applyPatch(patch = patch) { m ->
+            C4PatchOps.addPerson(model = m as AnyKumlModel.C4, id = id, name = name, description = description)
         }
     }
 
@@ -49,8 +49,8 @@ public class C4EditingTools(
         @LLMDescription("If true, the system is marked external (rendered with dashed border).") isExternal: Boolean = false,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val c4 = model as? AnyKumlModel.C4 ?: return PatchApplyResult.Failure("Context is not a C4 model")
-        val id = IdHelpers.uniqueId(name, C4PatchOps.allIds(c4), "system")
+        val c4 = model as? AnyKumlModel.C4 ?: return PatchApplyResult.Failure(reason = "Context is not a C4 model")
+        val id = IdHelpers.uniqueId(name = name, takenIds = C4PatchOps.allIds(c4), prefix = "system")
 
         val patch =
             ModelPatch.AddElement(
@@ -63,8 +63,14 @@ public class C4EditingTools(
                 payload = if (isExternal) mapOf("external" to "true") else emptyMap(),
             )
 
-        return ctx.applyPatch(patch) { m ->
-            C4PatchOps.addSoftwareSystem(m as AnyKumlModel.C4, id, name, description, isExternal)
+        return ctx.applyPatch(patch = patch) { m ->
+            C4PatchOps.addSoftwareSystem(
+                model = m as AnyKumlModel.C4,
+                id = id,
+                name = name,
+                description = description,
+                isExternal = isExternal,
+            )
         }
     }
 
@@ -77,15 +83,15 @@ public class C4EditingTools(
         @LLMDescription("Short description.") description: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val c4 = model as? AnyKumlModel.C4 ?: return PatchApplyResult.Failure("Context is not a C4 model")
+        val c4 = model as? AnyKumlModel.C4 ?: return PatchApplyResult.Failure(reason = "Context is not a C4 model")
         val system =
-            C4PatchOps.resolveElement(c4, systemIdOrName)
+            C4PatchOps.resolveElement(model = c4, idOrName = systemIdOrName)
                 ?: return PatchApplyResult.Failure(
                     reason = "Software System '$systemIdOrName' not found",
                     hint = "Use list_elements to discover available system ids",
                 )
 
-        val id = IdHelpers.uniqueId(name, C4PatchOps.allIds(c4), "container")
+        val id = IdHelpers.uniqueId(name = name, takenIds = C4PatchOps.allIds(c4), prefix = "container")
 
         val patch =
             ModelPatch.AddElement(
@@ -98,8 +104,15 @@ public class C4EditingTools(
                 payload = mapOf("systemId" to system.id),
             )
 
-        return ctx.applyPatch(patch) { m ->
-            C4PatchOps.addContainer(m as AnyKumlModel.C4, id, system.id, name, technology, description)
+        return ctx.applyPatch(patch = patch) { m ->
+            C4PatchOps.addContainer(
+                model = m as AnyKumlModel.C4,
+                id = id,
+                systemId = system.id,
+                name = name,
+                technology = technology,
+                description = description,
+            )
         }
     }
 
@@ -112,15 +125,15 @@ public class C4EditingTools(
         @LLMDescription("Short description.") description: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val c4 = model as? AnyKumlModel.C4 ?: return PatchApplyResult.Failure("Context is not a C4 model")
+        val c4 = model as? AnyKumlModel.C4 ?: return PatchApplyResult.Failure(reason = "Context is not a C4 model")
         val container =
-            C4PatchOps.resolveElement(c4, containerIdOrName)
+            C4PatchOps.resolveElement(model = c4, idOrName = containerIdOrName)
                 ?: return PatchApplyResult.Failure(
                     reason = "Container '$containerIdOrName' not found",
                     hint = "Use list_elements to discover available container ids",
                 )
 
-        val id = IdHelpers.uniqueId(name, C4PatchOps.allIds(c4), "component")
+        val id = IdHelpers.uniqueId(name = name, takenIds = C4PatchOps.allIds(c4), prefix = "component")
 
         val patch =
             ModelPatch.AddElement(
@@ -133,8 +146,15 @@ public class C4EditingTools(
                 payload = mapOf("containerId" to container.id),
             )
 
-        return ctx.applyPatch(patch) { m ->
-            C4PatchOps.addComponent(m as AnyKumlModel.C4, id, container.id, name, technology, description)
+        return ctx.applyPatch(patch = patch) { m ->
+            C4PatchOps.addComponent(
+                model = m as AnyKumlModel.C4,
+                id = id,
+                containerId = container.id,
+                name = name,
+                technology = technology,
+                description = description,
+            )
         }
     }
 
@@ -147,16 +167,16 @@ public class C4EditingTools(
         @LLMDescription("Optional technology label, e.g. 'HTTPS' or 'JDBC'.") technology: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val c4 = model as? AnyKumlModel.C4 ?: return PatchApplyResult.Failure("Context is not a C4 model")
+        val c4 = model as? AnyKumlModel.C4 ?: return PatchApplyResult.Failure(reason = "Context is not a C4 model")
 
         val source =
-            C4PatchOps.resolveElement(c4, sourceIdOrName)
+            C4PatchOps.resolveElement(model = c4, idOrName = sourceIdOrName)
                 ?: return PatchApplyResult.Failure(reason = "Source '$sourceIdOrName' not found")
         val target =
-            C4PatchOps.resolveElement(c4, targetIdOrName)
+            C4PatchOps.resolveElement(model = c4, idOrName = targetIdOrName)
                 ?: return PatchApplyResult.Failure(reason = "Target '$targetIdOrName' not found")
 
-        val id = IdHelpers.uniqueId("${source.name}_to_${target.name}", C4PatchOps.allIds(c4), "rel")
+        val id = IdHelpers.uniqueId(name = "${source.name}_to_${target.name}", takenIds = C4PatchOps.allIds(c4), prefix = "rel")
 
         val patch =
             ModelPatch.AddRelationship(
@@ -170,8 +190,15 @@ public class C4EditingTools(
                 payload = mapOf("label" to label),
             )
 
-        return ctx.applyPatch(patch) { m ->
-            C4PatchOps.addRelationship(m as AnyKumlModel.C4, id, source.id, target.id, label, technology)
+        return ctx.applyPatch(patch = patch) { m ->
+            C4PatchOps.addRelationship(
+                model = m as AnyKumlModel.C4,
+                id = id,
+                sourceId = source.id,
+                targetId = target.id,
+                label = label,
+                technology = technology,
+            )
         }
     }
 }

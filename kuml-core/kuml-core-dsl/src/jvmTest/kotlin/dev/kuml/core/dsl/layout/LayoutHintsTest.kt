@@ -231,8 +231,8 @@ class LayoutHintsTest :
 
         test("smoke: ClassBuilder layout hint stored on UmlClass") {
             val model =
-                umlModel("M") {
-                    classOf("Order") {
+                umlModel(name = "M") {
+                    classOf(name = "Order") {
                         layout { col = 1 }
                     }
                 }
@@ -243,8 +243,8 @@ class LayoutHintsTest :
 
         test("smoke: ClassBuilder without layout block has empty metadata") {
             val model =
-                umlModel("M") {
-                    classOf("Order")
+                umlModel(name = "M") {
+                    classOf(name = "Order")
                 }
             val diagram = model.root as dev.kuml.core.model.KumlDiagram
             val cls = diagram.elements.filterIsInstance<UmlClass>().first()
@@ -253,8 +253,8 @@ class LayoutHintsTest :
 
         test("smoke: InterfaceBuilder layout hint stored on UmlInterface") {
             val model =
-                umlModel("M") {
-                    interfaceOf("IService") {
+                umlModel(name = "M") {
+                    interfaceOf(name = "IService") {
                         layout {
                             col = 3
                             row = 2
@@ -269,9 +269,9 @@ class LayoutHintsTest :
 
         test("smoke: EnumerationBuilder layout hint stored on UmlEnumeration") {
             val model =
-                umlModel("M") {
-                    enumOf("Status") {
-                        literal("ACTIVE")
+                umlModel(name = "M") {
+                    enumOf(name = "Status") {
+                        literal(name = "ACTIVE")
                         layout {
                             col = 2
                             pinned = true
@@ -286,8 +286,8 @@ class LayoutHintsTest :
 
         test("smoke: ComponentBuilder layout hint stored on UmlComponent") {
             val diagram =
-                componentDiagram("Arch") {
-                    component("OrderService") {
+                componentDiagram(name = "Arch") {
+                    component(name = "OrderService") {
                         layout {
                             col = 1
                             row = 2
@@ -301,8 +301,8 @@ class LayoutHintsTest :
 
         test("smoke: ActorBuilder layout hint stored on UmlActor") {
             val diagram =
-                useCaseDiagram("UC") {
-                    actor("Customer") {
+                useCaseDiagram(name = "UC") {
+                    actor(name = "Customer") {
                         layout {
                             col = 1
                             row = 1
@@ -316,8 +316,8 @@ class LayoutHintsTest :
 
         test("smoke: UseCaseBuilder layout hint stored on UmlUseCase") {
             val diagram =
-                useCaseDiagram("UC") {
-                    useCase("Place Order") {
+                useCaseDiagram(name = "UC") {
+                    useCase(name = "Place Order") {
                         layout {
                             col = 2
                             row = 1
@@ -330,8 +330,8 @@ class LayoutHintsTest :
 
         test("smoke: StateBodyBuilder layout hint stored on UmlState") {
             val diagram =
-                stateDiagram("OrderSM") {
-                    state("Draft") {
+                stateDiagram(name = "OrderSM") {
+                    state(name = "Draft") {
                         layout {
                             col = 1
                             row = 2
@@ -346,8 +346,8 @@ class LayoutHintsTest :
 
         test("smoke: C4 PersonScope layout hint stored on C4Person") {
             val model =
-                c4Model("Shop") {
-                    person("Customer") {
+                c4Model(name = "Shop") {
+                    person(name = "Customer") {
                         layout {
                             col = 1
                             row = 1
@@ -361,8 +361,8 @@ class LayoutHintsTest :
 
         test("smoke: SoftwareSystemScope layout hint stored on C4SoftwareSystem") {
             val model =
-                c4Model("Shop") {
-                    softwareSystem("Banking System") {
+                c4Model(name = "Shop") {
+                    softwareSystem(name = "Banking System") {
                         layout {
                             col = 2
                             row = 1
@@ -375,9 +375,9 @@ class LayoutHintsTest :
 
         test("smoke: ContainerScope layout hint stored on C4Container") {
             val model =
-                c4Model("Shop") {
-                    softwareSystem("System") {
-                        container("Web App") {
+                c4Model(name = "Shop") {
+                    softwareSystem(name = "System") {
+                        container(name = "Web App") {
                             technology = "Spring Boot"
                             layout {
                                 col = 2
@@ -393,10 +393,10 @@ class LayoutHintsTest :
 
         test("smoke: ComponentScope layout hint stored on C4Component") {
             val model =
-                c4Model("Shop") {
-                    softwareSystem("System") {
-                        container("API") {
-                            component("Auth") {
+                c4Model(name = "Shop") {
+                    softwareSystem(name = "System") {
+                        container(name = "API") {
+                            component(name = "Auth") {
                                 layout {
                                     col = 1
                                     row = 3

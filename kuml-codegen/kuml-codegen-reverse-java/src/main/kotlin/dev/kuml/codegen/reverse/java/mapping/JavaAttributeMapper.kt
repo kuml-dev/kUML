@@ -23,7 +23,7 @@ internal object JavaAttributeMapper {
         val isStatic = field.modifiers.any { it.keyword == Modifier.Keyword.STATIC }
         val isReadOnly = field.modifiers.any { it.keyword == Modifier.Keyword.FINAL }
 
-        val (multiplicity, elementTypeName) = inferTypeAndMultiplicity(field, variable)
+        val (multiplicity, elementTypeName) = inferTypeAndMultiplicity(field = field, variable = variable)
 
         return UmlProperty(
             id = "$idPrefix.${variable.nameAsString}",

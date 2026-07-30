@@ -28,9 +28,9 @@ class UpdateCheckCommandTest :
 
         "stable update available → exit 10, JSON status='update-available'" {
             val tmpDir = Files.createTempDirectory("kuml-update-test-")
-            val stub = StubReleasesClient(latest = release("v9999.0.0"))
+            val stub = StubReleasesClient(latest = release(tag = "v9999.0.0"))
             val result =
-                parent(stub, tmpDir, currentVersion = "1.0.0")
+                parent(stub = stub, tmpDir = tmpDir, currentVersion = "1.0.0")
                     .test(listOf("check", "--json"))
 
             result.statusCode shouldBe ExitCodes.UPDATE_AVAILABLE
@@ -41,9 +41,9 @@ class UpdateCheckCommandTest :
 
         "already up to date → exit 0, JSON status='current'" {
             val tmpDir = Files.createTempDirectory("kuml-update-test-")
-            val stub = StubReleasesClient(latest = release("v0.0.1"))
+            val stub = StubReleasesClient(latest = release(tag = "v0.0.1"))
             val result =
-                parent(stub, tmpDir, currentVersion = "1.0.0")
+                parent(stub = stub, tmpDir = tmpDir, currentVersion = "1.0.0")
                     .test(listOf("check", "--json"))
 
             result.statusCode shouldBe 0
@@ -54,15 +54,15 @@ class UpdateCheckCommandTest :
             val tmpDir = Files.createTempDirectory("kuml-update-test-")
             val stub =
                 StubReleasesClient(
-                    latest = release("v0.0.1"),
+                    latest = release(tag = "v0.0.1"),
                     all =
                         listOf(
-                            release("v9999.0.0-rc.1", isPreRelease = true),
-                            release("v0.0.1"),
+                            release(tag = "v9999.0.0-rc.1", isPreRelease = true),
+                            release(tag = "v0.0.1"),
                         ),
                 )
             val result =
-                parent(stub, tmpDir, currentVersion = "1.0.0")
+                parent(stub = stub, tmpDir = tmpDir, currentVersion = "1.0.0")
                     .test(listOf("check", "--include-prereleases", "--json"))
 
             result.statusCode shouldBe ExitCodes.PRERELEASE_AVAILABLE
@@ -73,7 +73,7 @@ class UpdateCheckCommandTest :
             val tmpDir = Files.createTempDirectory("kuml-update-test-")
             val stub = StubReleasesClient(latestFailure = "DNS lookup failed")
             val result =
-                parent(stub, tmpDir, currentVersion = "1.0.0")
+                parent(stub = stub, tmpDir = tmpDir, currentVersion = "1.0.0")
                     .test(listOf("check", "--json"))
 
             result.statusCode shouldBe ExitCodes.ONLINE_ERROR
@@ -83,12 +83,12 @@ class UpdateCheckCommandTest :
         "online error with stale cache → falls back to cache (no online_error)" {
             val tmpDir = Files.createTempDirectory("kuml-update-test-")
             val cache = UpdateCache(path = tmpDir.resolve("update.json"))
-            cache.write(release("v0.0.1"))
+            cache.write(release(tag = "v0.0.1"))
 
             val stub = StubReleasesClient(latestFailure = "timeout")
             // --no-cache forces an online attempt that fails → fallback to cache.
             val result =
-                parent(stub, tmpDir, currentVersion = "1.0.0")
+                parent(stub = stub, tmpDir = tmpDir, currentVersion = "1.0.0")
                     .test(listOf("check", "--no-cache", "--json"))
 
             result.statusCode shouldBe 0
@@ -98,11 +98,11 @@ class UpdateCheckCommandTest :
         "--offline reads cache only, no network call" {
             val tmpDir = Files.createTempDirectory("kuml-update-test-")
             val cache = UpdateCache(path = tmpDir.resolve("update.json"))
-            cache.write(release("v0.0.1"))
+            cache.write(release(tag = "v0.0.1"))
 
             val stub = StubReleasesClient(latestFailure = "should-not-be-called")
             val result =
-                parent(stub, tmpDir, currentVersion = "1.0.0")
+                parent(stub = stub, tmpDir = tmpDir, currentVersion = "1.0.0")
                     .test(listOf("check", "--offline", "--json"))
 
             result.statusCode shouldBe 0
@@ -112,11 +112,11 @@ class UpdateCheckCommandTest :
         "fresh cache prevents a redundant network call" {
             val tmpDir = Files.createTempDirectory("kuml-update-test-")
             val cache = UpdateCache(path = tmpDir.resolve("update.json"))
-            cache.write(release("v0.0.1"))
+            cache.write(release(tag = "v0.0.1"))
 
-            val stub = StubReleasesClient(latest = release("v0.0.1"))
+            val stub = StubReleasesClient(latest = release(tag = "v0.0.1"))
             val result =
-                parent(stub, tmpDir, currentVersion = "1.0.0")
+                parent(stub = stub, tmpDir = tmpDir, currentVersion = "1.0.0")
                     .test(listOf("check", "--json"))
 
             result.statusCode shouldBe 0
@@ -125,9 +125,9 @@ class UpdateCheckCommandTest :
 
         "current version not parseable as SemVer → exit ONLINE_ERROR with error status" {
             val tmpDir = Files.createTempDirectory("kuml-update-test-")
-            val stub = StubReleasesClient(latest = release("v0.4.0"))
+            val stub = StubReleasesClient(latest = release(tag = "v0.4.0"))
             val result =
-                parent(stub, tmpDir, currentVersion = "unknown")
+                parent(stub = stub, tmpDir = tmpDir, currentVersion = "unknown")
                     .test(listOf("check", "--json"))
 
             result.statusCode shouldBe ExitCodes.ONLINE_ERROR
@@ -164,9 +164,9 @@ private class StubReleasesClient(
     override fun fetchLatest(): ReleasesClient.Result {
         calls++
         return when {
-            latestFailure != null -> ReleasesClient.Result.Failure(latestFailure)
+            latestFailure != null -> ReleasesClient.Result.Failure(message = latestFailure)
             latest != null -> ReleasesClient.Result.Ok(latest)
-            else -> ReleasesClient.Result.Failure("stub: no release configured")
+            else -> ReleasesClient.Result.Failure(message = "stub: no release configured")
         }
     }
 
@@ -174,9 +174,9 @@ private class StubReleasesClient(
         calls++
         return when {
             all != null -> ReleasesClient.ListResult.Ok(all)
-            latestFailure != null -> ReleasesClient.ListResult.Failure(latestFailure)
+            latestFailure != null -> ReleasesClient.ListResult.Failure(message = latestFailure)
             latest != null -> ReleasesClient.ListResult.Ok(listOf(latest))
-            else -> ReleasesClient.ListResult.Failure("stub: no release configured")
+            else -> ReleasesClient.ListResult.Failure(message = "stub: no release configured")
         }
     }
 }

@@ -31,13 +31,13 @@ class Sysml2SeqLatexTest :
 
         "SEQ-TikZ enthält Lifeline-Namen und «lifeline»-Stereotyp (V2.0.11 fallback)" {
             val model =
-                sysml2Model("LoginFlow") {
-                    val user = lifelineDef("user")
-                    val browser = lifelineDef("browser")
-                    val auth = lifelineDef("authService")
-                    message("login", user, browser, seqNo = 0)
-                    message("validate", browser, auth, seqNo = 1)
-                    seqDiagram("Login") {
+                sysml2Model(name = "LoginFlow") {
+                    val user = lifelineDef(name = "user")
+                    val browser = lifelineDef(name = "browser")
+                    val auth = lifelineDef(name = "authService")
+                    message(label = "login", source = user, target = browser, seqNo = 0)
+                    message(label = "validate", source = browser, target = auth, seqNo = 1)
+                    seqDiagram(name = "Login") {
                         include(user)
                         include(browser)
                         include(auth)
@@ -48,18 +48,21 @@ class Sysml2SeqLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(600f, 240f),
+                    canvas = Size(width = 600f, height = 240f),
                     nodes =
                         mapOf(
-                            NodeId("user") to NodeLayout(bounds = Rect(Point(20f, 20f), Size(140f, 160f))),
-                            NodeId("browser") to NodeLayout(bounds = Rect(Point(180f, 20f), Size(140f, 160f))),
-                            NodeId("authService") to NodeLayout(bounds = Rect(Point(340f, 20f), Size(140f, 160f))),
+                            NodeId("user") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 140f, height = 160f))),
+                            NodeId("browser") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 180f, y = 20f), size = Size(width = 140f, height = 160f))),
+                            NodeId("authService") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 340f, y = 20f), size = Size(width = 140f, height = 160f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(model, seq, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = seq, layoutResult = layout)
             tex shouldContain "\\begin{tikzpicture}"
             tex shouldContain "user"
             tex shouldContain "browser"
@@ -67,16 +70,16 @@ class Sysml2SeqLatexTest :
             // V2.0.11-Fallback emittiert das `«lifeline»`-Stereotyp.
             tex shouldContain "lifeline"
 
-            SampleOutput.write("sysml2-seq/login-flow-seq.tex", tex)
+            SampleOutput.write(filename = "sysml2-seq/login-flow-seq.tex", content = tex)
         }
 
         "deterministic SEQ output" {
             val model =
-                sysml2Model("Det") {
-                    val a = lifelineDef("a")
-                    val b = lifelineDef("b")
-                    message("ping", a, b, seqNo = 0)
-                    seqDiagram("S") {
+                sysml2Model(name = "Det") {
+                    val a = lifelineDef(name = "a")
+                    val b = lifelineDef(name = "b")
+                    message(label = "ping", source = a, target = b, seqNo = 0)
+                    seqDiagram(name = "S") {
                         include(a)
                         include(b)
                     }
@@ -86,17 +89,19 @@ class Sysml2SeqLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("a") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(140f, 150f))),
-                            NodeId("b") to NodeLayout(bounds = Rect(Point(200f, 0f), Size(140f, 150f))),
+                            NodeId("a") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 140f, height = 150f))),
+                            NodeId("b") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 200f, y = 0f), size = Size(width = 140f, height = 150f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val one = KumlLatexRenderer.toLatex(model, seq, layout)
-            val two = KumlLatexRenderer.toLatex(model, seq, layout)
+            val one = KumlLatexRenderer.toLatex(model = model, diagram = seq, layoutResult = layout)
+            val two = KumlLatexRenderer.toLatex(model = model, diagram = seq, layoutResult = layout)
             one shouldBe two
         }
     })

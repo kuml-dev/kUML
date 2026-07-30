@@ -121,10 +121,10 @@ class ExposedProfileTest :
 
         test("Table applied via DSL stores entry in appliedStereotypes") {
             val diagram =
-                classDiagram("Exposed Test") {
+                classDiagram(name = "Exposed Test") {
                     applyProfile(exposedProfile)
-                    classOf("User") {
-                        stereotype("Table") {
+                    classOf(name = "User") {
+                        stereotype(name = "Table") {
                             "tableName" to "users"
                         }
                     }

@@ -64,7 +64,7 @@ internal class AiBenchCommand(
         val settings = buildSettings()
         val resolvedModel = resolveModelId(settings)
         val koogModel =
-            resolveModel(provider, resolvedModel)
+            resolveModel(providerId = provider, modelId = resolvedModel)
                 ?: run {
                     System.err.println(
                         "Cannot resolve model '$resolvedModel' for provider '$provider'. " +
@@ -83,7 +83,7 @@ internal class AiBenchCommand(
         val report =
             runBlocking {
                 try {
-                    AiBench.run(suite, executor, provider, koogModel)
+                    AiBench.run(tasks = suite, executor = executor, provider = provider, model = koogModel)
                 } catch (e: AiBench.ProviderUnreachableException) {
                     System.err.println("Provider '$provider' is not reachable: ${e.message}")
                     System.err.println(
@@ -137,7 +137,7 @@ internal class AiBenchCommand(
     private fun buildExecutor(settings: KumlAiSettings): KumlAiExecutor {
         executorFactory?.let { return it(settings) }
         val vault = ApiKeyVault.detect()
-        return KumlAiExecutor.fromSettings(settings, vault)
+        return KumlAiExecutor.fromSettings(settings = settings, vault = vault)
     }
 
     private fun renderText(report: BenchReport): String {
@@ -160,7 +160,7 @@ internal class AiBenchCommand(
 
         for (r in report.results) {
             val status = if (r.pass) "PASS" else "FAIL"
-            val detail = r.error ?: truncate(r.actual, 60)
+            val detail = r.error ?: truncate(s = r.actual, maxLen = 60)
             sb.appendLine(
                 "%-${idWidth}s  %-${statusWidth}s  %${latWidth}d  %6d/%-6d  %s".format(
                     r.task.id,
@@ -174,7 +174,7 @@ internal class AiBenchCommand(
             if (!r.pass && r.error == null) {
                 // Show expected vs actual on failure
                 sb.appendLine("  Expected substrings: ${r.task.expectedSubstrings}")
-                sb.appendLine("  Actual (truncated):  ${truncate(r.actual, 120)}")
+                sb.appendLine("  Actual (truncated):  ${truncate(s = r.actual, maxLen = 120)}")
             }
         }
         return sb.toString()

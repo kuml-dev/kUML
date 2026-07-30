@@ -162,13 +162,13 @@ class OsSandboxTest :
         // ── Mode resolution / fail-closed policy (platform-independent) ────────
 
         test("OS-isolation mode defaults to required on macOS, best-effort elsewhere") {
-            OsSandbox.modeFrom(null, OsSandbox.Platform.MAC) shouldBe OsSandbox.Mode.REQUIRED
-            OsSandbox.modeFrom(null, OsSandbox.Platform.LINUX) shouldBe OsSandbox.Mode.BEST_EFFORT
-            OsSandbox.modeFrom(null, OsSandbox.Platform.WINDOWS) shouldBe OsSandbox.Mode.BEST_EFFORT
-            OsSandbox.modeFrom(null, OsSandbox.Platform.OTHER) shouldBe OsSandbox.Mode.BEST_EFFORT
-            OsSandbox.modeFrom("best-effort", OsSandbox.Platform.MAC) shouldBe OsSandbox.Mode.BEST_EFFORT
-            OsSandbox.modeFrom("required", OsSandbox.Platform.LINUX) shouldBe OsSandbox.Mode.REQUIRED
-            OsSandbox.modeFrom("  REQUIRED  ", OsSandbox.Platform.LINUX) shouldBe OsSandbox.Mode.REQUIRED
+            OsSandbox.modeFrom(raw = null, platform = OsSandbox.Platform.MAC) shouldBe OsSandbox.Mode.REQUIRED
+            OsSandbox.modeFrom(raw = null, platform = OsSandbox.Platform.LINUX) shouldBe OsSandbox.Mode.BEST_EFFORT
+            OsSandbox.modeFrom(raw = null, platform = OsSandbox.Platform.WINDOWS) shouldBe OsSandbox.Mode.BEST_EFFORT
+            OsSandbox.modeFrom(raw = null, platform = OsSandbox.Platform.OTHER) shouldBe OsSandbox.Mode.BEST_EFFORT
+            OsSandbox.modeFrom(raw = "best-effort", platform = OsSandbox.Platform.MAC) shouldBe OsSandbox.Mode.BEST_EFFORT
+            OsSandbox.modeFrom(raw = "required", platform = OsSandbox.Platform.LINUX) shouldBe OsSandbox.Mode.REQUIRED
+            OsSandbox.modeFrom(raw = "  REQUIRED  ", platform = OsSandbox.Platform.LINUX) shouldBe OsSandbox.Mode.REQUIRED
         }
 
         test("on macOS, OS isolation is reported available (sandbox-exec + profile present)") {
@@ -201,7 +201,7 @@ class OsSandboxTest :
             val work = Files.createTempDirectory("kuml-ossbx-avail-").toFile().apply { deleteOnExit() }
             try {
                 val bare = listOf("/bin/true")
-                val wrapped = OsSandbox.wrap(bare, work)
+                val wrapped = OsSandbox.wrap(command = bare, workDir = work)
                 if (OsSandbox.isolationAvailable()) {
                     wrapped.first() shouldBe bwrapPath
                     println("[os-sandbox] Linux: bwrap present at $bwrapPath and smoke test passed — cage is active.")
@@ -231,7 +231,13 @@ class OsSandboxTest :
             // the (separately tested below) secret-directory shadowing, and
             // must not depend on which dotfiles happen to exist on the CI/dev
             // machine's real $HOME.
-            val cmd = OsSandbox.bwrapCommandFor(bwrap, bare, work, homeDir = "/nonexistent-test-home-kuml")
+            val cmd =
+                OsSandbox.bwrapCommandFor(
+                    bwrapPath = bwrap,
+                    command = bare,
+                    canonicalWorkDir = work,
+                    homeDir = "/nonexistent-test-home-kuml",
+                )
 
             // First token is bwrap itself.
             cmd.first() shouldBe bwrap
@@ -290,7 +296,13 @@ class OsSandboxTest :
                 File(fakeHome, ".gnupg").mkdirs()
                 // Deliberately do NOT create .aws or .config/gcloud.
 
-                val cmd = OsSandbox.bwrapCommandFor("/usr/bin/bwrap", listOf("java"), "/tmp/w", homeDir = fakeHome.absolutePath)
+                val cmd =
+                    OsSandbox.bwrapCommandFor(
+                        bwrapPath = "/usr/bin/bwrap",
+                        command = listOf("java"),
+                        canonicalWorkDir = "/tmp/w",
+                        homeDir = fakeHome.absolutePath,
+                    )
 
                 cmd shouldContain File(fakeHome, ".ssh").absolutePath
                 cmd shouldContain File(fakeHome, ".gnupg").absolutePath
@@ -315,9 +327,9 @@ class OsSandboxTest :
         test("bwrapCommandFor adds no secret-dir shadow when none of them exist (no crash, no phantom mounts)") {
             val cmd =
                 OsSandbox.bwrapCommandFor(
-                    "/usr/bin/bwrap",
-                    listOf("java"),
-                    "/tmp/w",
+                    bwrapPath = "/usr/bin/bwrap",
+                    command = listOf("java"),
+                    canonicalWorkDir = "/tmp/w",
                     homeDir = "/nonexistent-test-home-kuml-2",
                 )
             OsSandbox.SECRET_HOME_SUBPATHS.forEach { subpath ->
@@ -329,7 +341,7 @@ class OsSandboxTest :
             // Regression guard for the precedence invariant: the writable workdir
             // bind must always shadow the read-only root, else legit temp writes
             // would be denied on real Linux.
-            val cmd = OsSandbox.bwrapCommandFor("/usr/bin/bwrap", listOf("java"), "/tmp/w")
+            val cmd = OsSandbox.bwrapCommandFor(bwrapPath = "/usr/bin/bwrap", command = listOf("java"), canonicalWorkDir = "/tmp/w")
             cmd.indexOf("--bind") shouldBeGreaterThan cmd.indexOf("--ro-bind")
         }
 
@@ -375,7 +387,7 @@ class OsSandboxTest :
                 p.waitFor()
                 val work = Files.createTempDirectory("kuml-poststart-").toFile().apply { deleteOnExit() }
                 try {
-                    val cage = OsSandbox.applyPostStart(p, work)
+                    val cage = OsSandbox.applyPostStart(process = p, workDir = work)
                     // No-op cage identity on non-Windows.
                     (cage === OsSandbox.PostStartCage.NONE).shouldBeTrue()
                     cage.close() // must not throw
@@ -426,7 +438,7 @@ class OsSandboxTest :
 
                 // Under the OS sandbox: the very same write must FAIL at the kernel,
                 // even though nothing here ever went near KumlScriptGuard.
-                val wrapped = OsSandbox.wrap(bare, work)
+                val wrapped = OsSandbox.wrap(command = bare, workDir = work)
                 // wrap() must actually have wrapped it in sandbox-exec on macOS.
                 wrapped.first() shouldBe OsSandbox.SANDBOX_EXEC_PATH
                 run(wrapped)
@@ -462,7 +474,7 @@ class OsSandboxTest :
                 // Raw IP (no DNS needed) — the strongest test: even if DNS were
                 // somehow reachable, a direct connect must still be refused.
                 val bareIp = listOf(WorkerProcessSupport.defaultJavaBinary(), "-cp", cp, "NetEscape", "1.1.1.1")
-                val wrapped = OsSandbox.wrap(bareIp, work)
+                val wrapped = OsSandbox.wrap(command = bareIp, workDir = work)
                 wrapped.first() shouldBe OsSandbox.SANDBOX_EXEC_PATH
                 val (_, out) = run(wrapped)
                 out shouldContainString "NET-BLOCKED"
@@ -498,7 +510,7 @@ class OsSandboxTest :
                         """.trimIndent(),
                     )
                 val bare = listOf(WorkerProcessSupport.defaultJavaBinary(), "-cp", cp, "SshRead", probe.absolutePath)
-                val wrapped = OsSandbox.wrap(bare, work)
+                val wrapped = OsSandbox.wrap(command = bare, workDir = work)
                 val (_, out) = run(wrapped)
                 out shouldContainString "SSH-BLOCKED"
             } finally {
@@ -529,7 +541,7 @@ class OsSandboxTest :
                         """.trimIndent(),
                     )
                 val bare = listOf(WorkerProcessSupport.defaultJavaBinary(), "-cp", cp, "OkWrite", work.absolutePath)
-                val wrapped = OsSandbox.wrap(bare, work)
+                val wrapped = OsSandbox.wrap(command = bare, workDir = work)
                 val (_, out) = run(wrapped)
                 out shouldContainString "OK-WROTE"
                 File(work, "scratch.txt").exists().shouldBeTrue()
@@ -591,7 +603,7 @@ class OsSandboxTest :
                 // Under bwrap: the very same write must FAIL at the kernel (mount
                 // namespace makes $HOME read-only outside the workdir), even though
                 // nothing here ever went near KumlScriptGuard.
-                val wrapped = OsSandbox.wrap(bare, work)
+                val wrapped = OsSandbox.wrap(command = bare, workDir = work)
                 wrapped.first() shouldBe OsSandbox.bwrapPathOrNull()
                 run(wrapped)
                 escapeTarget.exists().shouldBeFalse()
@@ -630,7 +642,7 @@ class OsSandboxTest :
                 // Raw IP (no DNS needed) — --unshare-all removes the network
                 // namespace entirely, so even a direct connect must be refused.
                 val bareIp = listOf(WorkerProcessSupport.defaultJavaBinary(), "-cp", cp, "NetEscapeLinux", "1.1.1.1")
-                val wrapped = OsSandbox.wrap(bareIp, work)
+                val wrapped = OsSandbox.wrap(command = bareIp, workDir = work)
                 wrapped.first() shouldBe OsSandbox.bwrapPathOrNull()
                 val (_, out) = run(wrapped)
                 out shouldContainString "NET-BLOCKED"
@@ -670,7 +682,7 @@ class OsSandboxTest :
                         """.trimIndent(),
                     )
                 val bare = listOf(WorkerProcessSupport.defaultJavaBinary(), "-cp", cp, "SshReadLinux", probe.absolutePath)
-                val wrapped = OsSandbox.wrap(bare, work)
+                val wrapped = OsSandbox.wrap(command = bare, workDir = work)
                 val (_, out) = run(wrapped)
                 out shouldContainString "SSH-BLOCKED"
             } finally {
@@ -705,7 +717,7 @@ class OsSandboxTest :
                         """.trimIndent(),
                     )
                 val bare = listOf(WorkerProcessSupport.defaultJavaBinary(), "-cp", cp, "OkWriteLinux", work.absolutePath)
-                val wrapped = OsSandbox.wrap(bare, work)
+                val wrapped = OsSandbox.wrap(command = bare, workDir = work)
                 val (_, out) = run(wrapped)
                 out shouldContainString "OK-WROTE"
                 File(work, "scratch.txt").exists().shouldBeTrue()
@@ -738,13 +750,13 @@ class OsSandboxTest :
                     }
                 val javac = File(WorkerProcessSupport.defaultJavaBinary()).parentFile.resolve("javac").absolutePath
                 val bare = listOf(javac, "-d", work.absolutePath, src.absolutePath)
-                val wrapped = OsSandbox.wrap(bare, work)
+                val wrapped = OsSandbox.wrap(command = bare, workDir = work)
                 val (compileExit, compileOut) = run(wrapped)
                 compileExit shouldBe 0
                 File(work, "Hello.class").exists().shouldBeTrue()
 
                 val runBare = listOf(WorkerProcessSupport.defaultJavaBinary(), "-cp", work.absolutePath, "Hello")
-                val runWrapped = OsSandbox.wrap(runBare, work)
+                val runWrapped = OsSandbox.wrap(command = runBare, workDir = work)
                 val (_, runOut) = run(runWrapped)
                 runOut shouldContainString "HELLO-FROM-CAGE"
             } finally {
@@ -801,7 +813,10 @@ class OsSandboxTest :
                 val p = startSleeper(work)
                 try {
                     val handle =
-                        WindowsJobObjectSandbox.applyJobObject(p.pid(), OsSandbox.WINDOWS_JOB_MAX_PROCESS_MEMORY_BYTES)
+                        WindowsJobObjectSandbox.applyJobObject(
+                            pid = p.pid(),
+                            maxProcessMemoryBytes = OsSandbox.WINDOWS_JOB_MAX_PROCESS_MEMORY_BYTES,
+                        )
                     (handle != null).shouldBeTrue()
                     p.isAlive.shouldBeTrue()
                     handle!!.close()
@@ -822,7 +837,10 @@ class OsSandboxTest :
             try {
                 val p = startSleeper(work)
                 val handle =
-                    WindowsJobObjectSandbox.applyJobObject(p.pid(), OsSandbox.WINDOWS_JOB_MAX_PROCESS_MEMORY_BYTES)
+                    WindowsJobObjectSandbox.applyJobObject(
+                        pid = p.pid(),
+                        maxProcessMemoryBytes = OsSandbox.WINDOWS_JOB_MAX_PROCESS_MEMORY_BYTES,
+                    )
                 (handle != null).shouldBeTrue()
                 p.isAlive.shouldBeTrue()
                 handle!!.close()
@@ -871,7 +889,7 @@ class OsSandboxTest :
                 // separation so the assertion isn't sensitive to exact JVM
                 // baseline memory use on this host.
                 val cap = 96L * 1024 * 1024
-                val handle = WindowsJobObjectSandbox.applyJobObject(p.pid(), cap)
+                val handle = WindowsJobObjectSandbox.applyJobObject(pid = p.pid(), maxProcessMemoryBytes = cap)
                 (handle != null).shouldBeTrue()
                 val output = reader.readText()
                 val finished = p.waitFor(20, TimeUnit.SECONDS)
@@ -917,7 +935,10 @@ class OsSandboxTest :
                 val first = reader.readLine()
                 check(first == "STARTED") { "SpawnChild did not start cleanly: $first" }
                 val handle =
-                    WindowsJobObjectSandbox.applyJobObject(p.pid(), OsSandbox.WINDOWS_JOB_MAX_PROCESS_MEMORY_BYTES)
+                    WindowsJobObjectSandbox.applyJobObject(
+                        pid = p.pid(),
+                        maxProcessMemoryBytes = OsSandbox.WINDOWS_JOB_MAX_PROCESS_MEMORY_BYTES,
+                    )
                 (handle != null).shouldBeTrue()
                 val output = reader.readText()
                 p.waitFor(15, TimeUnit.SECONDS)
@@ -933,7 +954,7 @@ class OsSandboxTest :
             val work = Files.createTempDirectory("kuml-win-poststart-").toFile().apply { deleteOnExit() }
             try {
                 val p = startSleeper(work)
-                val cage = OsSandbox.applyPostStart(p, work)
+                val cage = OsSandbox.applyPostStart(process = p, workDir = work)
                 (cage === OsSandbox.PostStartCage.NONE).shouldBeFalse()
                 p.isAlive.shouldBeTrue()
                 cage.close()
@@ -956,7 +977,7 @@ class OsSandboxTest :
                 dead.waitFor()
                 withEnvVar(OsSandbox.ENV_OS_ISOLATION, "required") {
                     shouldThrow<SandboxUnavailableException> {
-                        OsSandbox.applyPostStart(dead, work)
+                        OsSandbox.applyPostStart(process = dead, workDir = work)
                     }
                 }
             } finally {
@@ -971,7 +992,7 @@ class OsSandboxTest :
                 val dead = ProcessBuilder(WorkerProcessSupport.defaultJavaBinary(), "-version").start()
                 dead.waitFor()
                 withEnvVar(OsSandbox.ENV_OS_ISOLATION, "best-effort") {
-                    val cage = OsSandbox.applyPostStart(dead, work)
+                    val cage = OsSandbox.applyPostStart(process = dead, workDir = work)
                     (cage === OsSandbox.PostStartCage.NONE).shouldBeTrue()
                 }
             } finally {

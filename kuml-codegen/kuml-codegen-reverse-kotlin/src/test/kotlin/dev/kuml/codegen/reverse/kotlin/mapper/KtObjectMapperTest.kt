@@ -11,7 +11,7 @@ class KtObjectMapperTest :
     FunSpec({
 
         test("object declaration gets object stereotype") {
-            val result = TestSupport.runEngine(mapOf("Singleton.kt" to "object Singleton"))
+            val result = TestSupport.runEngine(sources = mapOf("Singleton.kt" to "object Singleton"))
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()
             val singleton = classes.find { it.name == "Singleton" }
@@ -22,16 +22,17 @@ class KtObjectMapperTest :
         test("companion object gets object and companion stereotypes") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "MyClass.kt" to
-                            """
-                            class MyClass {
-                                companion object {
-                                    val VERSION = "1.0"
+                    sources =
+                        mapOf(
+                            "MyClass.kt" to
+                                """
+                                class MyClass {
+                                    companion object {
+                                        val VERSION = "1.0"
+                                    }
                                 }
-                            }
-                            """.trimIndent(),
-                    ),
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()

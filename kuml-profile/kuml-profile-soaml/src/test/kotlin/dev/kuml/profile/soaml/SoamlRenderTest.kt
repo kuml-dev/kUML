@@ -39,27 +39,27 @@ class SoamlRenderTest :
         // ── Build the Order Processing SOA diagram ────────────────────────────────
 
         val diagram =
-            classDiagram("Order Processing SOA") {
+            classDiagram(name = "Order Processing SOA") {
                 applyProfile(soamlProfile)
 
                 val orderService =
-                    component("OrderService") {
-                        stereotype("Participant")
+                    component(name = "OrderService") {
+                        stereotype(name = "Participant")
                     }
 
                 val paymentService =
-                    component("PaymentService") {
-                        stereotype("Participant")
+                    component(name = "PaymentService") {
+                        stereotype(name = "Participant")
                     }
 
-                classOf("OrderMessage") {
-                    stereotype("MessageType")
+                classOf(name = "OrderMessage") {
+                    stereotype(name = "MessageType")
                     attribute(name = "orderId", type = "UUID")
                     attribute(name = "totalAmount", type = "BigDecimal")
                 }
 
-                collaboration("OrderPaymentContract") {
-                    stereotype("ServiceContract")
+                collaboration(name = "OrderPaymentContract") {
+                    stereotype(name = "ServiceContract")
                     role(name = "provider", type = orderService.name)
                     role(name = "consumer", type = paymentService.name)
                 }
@@ -101,7 +101,7 @@ class SoamlRenderTest :
 
         test("SVG contains Participant stereotype label at least 2 times") {
             val layout = buildLayout()
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // Count occurrences of «Participant»
             var count = 0
@@ -117,7 +117,7 @@ class SoamlRenderTest :
 
         test("SVG contains ServiceContract stereotype label") {
             val layout = buildLayout()
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "«ServiceContract»"
         }
 
@@ -125,7 +125,7 @@ class SoamlRenderTest :
 
         test("SVG contains MessageType stereotype label") {
             val layout = buildLayout()
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "«MessageType»"
         }
 
@@ -133,7 +133,7 @@ class SoamlRenderTest :
 
         test("SVG contains all expected element names") {
             val layout = buildLayout()
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "OrderService"
             svg shouldContain "PaymentService"
             svg shouldContain "OrderMessage"
@@ -145,8 +145,8 @@ class SoamlRenderTest :
         test("SoaML diagram renders deterministically") {
             val layout = buildLayout()
             val theme = PlainTheme()
-            val svg1 = KumlSvgRenderer.toSvg(diagram, layout, theme)
-            val svg2 = KumlSvgRenderer.toSvg(diagram, layout, theme)
+            val svg1 = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = theme)
+            val svg2 = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = theme)
             svg1 shouldBe svg2
         }
 

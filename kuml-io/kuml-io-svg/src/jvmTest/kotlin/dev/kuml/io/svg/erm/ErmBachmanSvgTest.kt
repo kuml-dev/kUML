@@ -58,17 +58,17 @@ class ErmBachmanSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
-                            "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                            "customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)),
+                            "order" to Rect(origin = Point(x = 260f, y = 20f), size = Size(width = 180f, height = 90f)),
                         ),
-                    edges = listOf("rel1" to EdgeRoute.Direct(Point(200f, 65f), Point(260f, 65f))),
+                    edges = listOf("rel1" to EdgeRoute.Direct(source = Point(x = 200f, y = 65f), target = Point(x = 260f, y = 65f))),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "kuml-erm-bachman-arrow"
             svg shouldContain "kuml-erm-bachman-mandatory"
-            SampleOutput.write("erm/bachman-one-to-many.svg", svg)
+            SampleOutput.write(filename = "erm/bachman-one-to-many.svg", content = svg)
         }
 
         "mandatory (min>=1) end renders a filled circle" {
@@ -89,16 +89,16 @@ class ErmBachmanSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
-                            "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                            "customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)),
+                            "order" to Rect(origin = Point(x = 260f, y = 20f), size = Size(width = 180f, height = 90f)),
                         ),
-                    edges = listOf("rel1" to EdgeRoute.Direct(Point(200f, 65f), Point(260f, 65f))),
+                    edges = listOf("rel1" to EdgeRoute.Direct(source = Point(x = 200f, y = 65f), target = Point(x = 260f, y = 65f))),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "kuml-erm-bachman-mandatory"
-            SampleOutput.write("erm/bachman-mandatory-one-to-many.svg", svg)
+            SampleOutput.write(filename = "erm/bachman-mandatory-one-to-many.svg", content = svg)
         }
 
         "optional (min=0) end renders a hollow circle" {
@@ -119,16 +119,16 @@ class ErmBachmanSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
-                            "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                            "customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)),
+                            "order" to Rect(origin = Point(x = 260f, y = 20f), size = Size(width = 180f, height = 90f)),
                         ),
-                    edges = listOf("rel1" to EdgeRoute.Direct(Point(200f, 65f), Point(260f, 65f))),
+                    edges = listOf("rel1" to EdgeRoute.Direct(source = Point(x = 200f, y = 65f), target = Point(x = 260f, y = 65f))),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "kuml-erm-optional-marker"
-            SampleOutput.write("erm/bachman-optional-zero-one.svg", svg)
+            SampleOutput.write(filename = "erm/bachman-optional-zero-one.svg", content = svg)
         }
 
         "entity boxes render identically to Martin (shared renderer)" {
@@ -138,16 +138,16 @@ class ErmBachmanSvgTest :
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.BACHMAN)
             val layout =
                 layoutOf(
-                    "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
-                    "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                    "customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)),
+                    "order" to Rect(origin = Point(x = 260f, y = 20f), size = Size(width = 180f, height = 90f)),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "kuml-erm-entity"
             svg shouldContain "Customer"
             svg shouldContain "Order"
-            SampleOutput.write("erm/bachman-two-entities.svg", svg)
+            SampleOutput.write(filename = "erm/bachman-two-entities.svg", content = svg)
         }
 
         "NON_IDENTIFYING dashed / IDENTIFYING solid" {
@@ -181,45 +181,45 @@ class ErmBachmanSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            "customer" to Rect(Point(20f, 20f), Size(160f, 90f)),
-                            "order" to Rect(Point(220f, 20f), Size(160f, 90f)),
-                            "item" to Rect(Point(420f, 20f), Size(160f, 90f)),
+                            "customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 160f, height = 90f)),
+                            "order" to Rect(origin = Point(x = 220f, y = 20f), size = Size(width = 160f, height = 90f)),
+                            "item" to Rect(origin = Point(x = 420f, y = 20f), size = Size(width = 160f, height = 90f)),
                         ),
                     edges =
                         listOf(
-                            "rel1" to EdgeRoute.Direct(Point(180f, 65f), Point(220f, 65f)),
-                            "rel2" to EdgeRoute.Direct(Point(380f, 65f), Point(420f, 65f)),
+                            "rel1" to EdgeRoute.Direct(source = Point(x = 180f, y = 65f), target = Point(x = 220f, y = 65f)),
+                            "rel2" to EdgeRoute.Direct(source = Point(x = 380f, y = 65f), target = Point(x = 420f, y = 65f)),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "kuml-edge-dashed"
             svg shouldContain "kuml-edge\""
-            SampleOutput.write("erm/bachman-identifying-vs-non-identifying.svg", svg)
+            SampleOutput.write(filename = "erm/bachman-identifying-vs-non-identifying.svg", content = svg)
         }
 
         "no raw XML entities leak into rendered text" {
             val customer = ErmEntity(id = "customer", name = "Customer's Table", attributes = listOf(pk("id")))
             val model = ErmModel(name = "Shop", entities = listOf(customer))
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.BACHMAN)
-            val layout = layoutOf("customer" to Rect(Point(20f, 20f), Size(200f, 90f)))
+            val layout = layoutOf("customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 200f, height = 90f)))
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldNotContain "&amp;apos;"
             svg shouldNotContain "&amp;lt;"
-            SampleOutput.write("erm/bachman-xml-escape-guard.svg", svg)
+            SampleOutput.write(filename = "erm/bachman-xml-escape-guard.svg", content = svg)
         }
 
         "deterministic output — same input renders byte-identically" {
             val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
             val model = ErmModel(name = "Shop", entities = listOf(customer))
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.BACHMAN)
-            val layout = layoutOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)))
+            val layout = layoutOf("customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)))
 
-            val one = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
-            val two = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val one = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
+            val two = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             one shouldBe two
         }
 
@@ -227,9 +227,16 @@ class ErmBachmanSvgTest :
             val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
             val model = ErmModel(name = "Shop", entities = listOf(customer))
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.MARTIN)
-            val layout = layoutOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)))
+            val layout = layoutOf("customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)))
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), notation = ErmNotation.BACHMAN)
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layout,
+                    theme = PlainTheme(),
+                    notation = ErmNotation.BACHMAN,
+                )
 
             svg shouldContain "kuml-erm-entity"
         }
@@ -253,20 +260,27 @@ class ErmBachmanSvgTest :
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.BACHMAN)
             val layout =
                 layoutOf(
-                    nodes = listOf("category" to Rect(Point(200f, 100f), Size(180f, 120f))),
+                    nodes = listOf("category" to Rect(origin = Point(x = 200f, y = 100f), size = Size(width = 180f, height = 120f))),
                     edges =
                         listOf(
                             "rel1" to
                                 EdgeRoute.OrthogonalRounded(
-                                    source = Point(200f, 140f),
-                                    target = Point(200f, 190f),
-                                    waypoints = listOf(Point(180f, 140f), Point(180f, 190f)),
+                                    source = Point(x = 200f, y = 140f),
+                                    target = Point(x = 200f, y = 190f),
+                                    waypoints = listOf(Point(x = 180f, y = 140f), Point(x = 180f, y = 190f)),
                                     cornerRadiusPx = 6f,
                                 ),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), SvgRenderOptions(prettyPrint = false))
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layout,
+                    theme = PlainTheme(),
+                    options = SvgRenderOptions(prettyPrint = false),
+                )
 
             val nameLabel = edgeLabels(svg).single { it.text == "subcategory of" }
             // V3.4.x — see ErmMartinSvgTest's matching test for the rationale:
@@ -274,13 +288,13 @@ class ErmBachmanSvgTest :
             // outward from the node's RIGHT edge (x=380 = origin.x=200 + width=180).
             nameLabel.textAnchor shouldBe "start"
             (nameLabel.x >= 380f) shouldBe true
-            SampleOutput.write("erm/bachman-self-loop-name-label-no-overflow.svg", svg)
+            SampleOutput.write(filename = "erm/bachman-self-loop-name-label-no-overflow.svg", content = svg)
         }
     })
 
 private fun pk(name: String): ErmAttribute = ErmAttribute(id = name, name = name, type = ErmDataType.Uuid, primaryKey = true)
 
-private fun layoutOf(vararg nodes: Pair<String, Rect>): LayoutResult = layoutOf(nodes.toList(), emptyList())
+private fun layoutOf(vararg nodes: Pair<String, Rect>): LayoutResult = layoutOf(nodes = nodes.toList(), edges = emptyList())
 
 private fun layoutOf(
     nodes: List<Pair<String, Rect>>,
@@ -291,7 +305,7 @@ private fun layoutOf(
     return LayoutResult(
         engineId = LayoutEngineId("test"),
         seed = 1L,
-        canvas = Size(maxX + 20f, maxY + 20f),
+        canvas = Size(width = maxX + 20f, height = maxY + 20f),
         nodes = nodes.associate { (id, rect) -> NodeId(id) to NodeLayout(bounds = rect) },
         edges = edges.associate { (id, route) -> EdgeId(id) to route },
         groups = emptyMap(),

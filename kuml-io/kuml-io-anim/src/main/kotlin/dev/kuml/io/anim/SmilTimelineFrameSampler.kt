@@ -55,13 +55,13 @@ public object SmilTimelineFrameSampler {
             val sizeMb = svgBytes.size / (1024 * 1024)
             val maxMb = options.maxSvgBytes / (1024 * 1024)
             throw AnimEncoderException(
-                "SVG input is $sizeMb MiB, exceeds $maxMb MiB limit (maxSvgBytes=${options.maxSvgBytes}).",
+                message = "SVG input is $sizeMb MiB, exceeds $maxMb MiB limit (maxSvgBytes=${options.maxSvgBytes}).",
             )
         }
 
         return (0 until budget.frameCount).map { i ->
             val tMs = i.toLong() * budget.intervalMs
-            renderFrameAtTime(svg, timeline, tMs, options)
+            renderFrameAtTime(svg = svg, timeline = timeline, tMs = tMs, options = options)
         }
     }
 
@@ -71,14 +71,14 @@ public object SmilTimelineFrameSampler {
         tMs: Long,
         options: AnimRenderOptions,
     ): ByteArray {
-        val staticSvg = buildStaticFrame(svg, timeline, tMs)
+        val staticSvg = buildStaticFrame(svg = svg, timeline = timeline, tMs = tMs)
         val pngOpts =
             PngRenderOptions(
                 widthPx = options.widthPx,
                 transparent = options.transparent,
                 backgroundColor = if (options.transparent) null else KumlColor.White,
             )
-        return KumlPngRenderer.toPng(staticSvg, pngOpts)
+        return KumlPngRenderer.toPng(svg = staticSvg, options = pngOpts)
     }
 
     internal fun buildStaticFrame(
@@ -115,18 +115,24 @@ public object SmilTimelineFrameSampler {
             val (elementId, attrName) = key
             // The winning animation is the one with the latest begin time that has started.
             val chosen = anims.filter { tMs >= it.beginMs }.maxByOrNull { it.beginMs } ?: continue
-            val value = attrValueOf(chosen, tMs) ?: continue
-            result = setAttr(result, elementId, attrName, value)
+            val value = attrValueOf(anim = chosen, tMs = tMs) ?: continue
+            result = setAttr(svg = result, elementId = elementId, attribute = attrName, value = value)
         }
 
         // Motion animations grouped by target element.
         val motionGroups = motions.groupBy { it.elementId }
         for ((elementId, anims) in motionGroups) {
             val chosen = anims.filter { tMs >= it.beginMs }.maxByOrNull { it.beginMs } ?: continue
-            val t = normalise(tMs, chosen.beginMs, chosen.durationMs, chosen.repeatCount).coerceIn(0f, 1f)
-            val (x, y) = pointAlongPath(chosen.path, t.toDouble())
-            result = setAttr(result, elementId, "cx", String.format(Locale.ROOT, "%.2f", x))
-            result = setAttr(result, elementId, "cy", String.format(Locale.ROOT, "%.2f", y))
+            val t =
+                normalise(
+                    tMs = tMs,
+                    beginMs = chosen.beginMs,
+                    durationMs = chosen.durationMs,
+                    repeatCount = chosen.repeatCount,
+                ).coerceIn(0f, 1f)
+            val (x, y) = pointAlongPath(d = chosen.path, t = t.toDouble())
+            result = setAttr(svg = result, elementId = elementId, attribute = "cx", value = String.format(Locale.ROOT, "%.2f", x))
+            result = setAttr(svg = result, elementId = elementId, attribute = "cy", value = String.format(Locale.ROOT, "%.2f", y))
         }
 
         return result
@@ -153,19 +159,19 @@ public object SmilTimelineFrameSampler {
     ): String? =
         when (anim) {
             is SmilAnimation.Animate -> {
-                val t = normalise(tMs, anim.beginMs, anim.durationMs, anim.repeatCount)
-                if (t <= 1f) lerp(anim.from, anim.to, t) else anim.to
+                val t = normalise(tMs = tMs, beginMs = anim.beginMs, durationMs = anim.durationMs, repeatCount = anim.repeatCount)
+                if (t <= 1f) lerp(from = anim.from, to = anim.to, t = t) else anim.to
             }
             is SmilAnimation.AnimateTransform -> {
-                val t = normalise(tMs, anim.beginMs, anim.durationMs, anim.repeatCount)
-                val value = if (t <= 1f) lerp(anim.from, anim.to, t) else anim.to
+                val t = normalise(tMs = tMs, beginMs = anim.beginMs, durationMs = anim.durationMs, repeatCount = anim.repeatCount)
+                val value = if (t <= 1f) lerp(from = anim.from, to = anim.to, t = t) else anim.to
                 "${anim.type.svgToken}($value)"
             }
             is SmilAnimation.Set -> anim.to
             is SmilAnimation.Fill -> {
-                val t = normalise(tMs, anim.beginMs, anim.durationMs)
+                val t = normalise(tMs = tMs, beginMs = anim.beginMs, durationMs = anim.durationMs)
                 when {
-                    t <= 1f -> lerp(anim.fromColor ?: "none", anim.color, t)
+                    t <= 1f -> lerp(from = anim.fromColor ?: "none", to = anim.color, t = t)
                     else -> anim.color
                 }
             }
@@ -281,9 +287,9 @@ public object SmilTimelineFrameSampler {
     ): Pair<Double, Double> =
         try {
             val path = GeneralPath()
-            parseSvgPathInto(d, path)
+            parseSvgPathInto(d = d, path = path)
             val totalLength = pathLength(path.getPathIterator(AffineTransform()))
-            pointAtLength(path.getPathIterator(AffineTransform()), totalLength * t.coerceIn(0.0, 1.0))
+            pointAtLength(iter = path.getPathIterator(AffineTransform()), target = totalLength * t.coerceIn(0.0, 1.0))
         } catch (_: Exception) {
             Pair(0.0, 0.0)
         }

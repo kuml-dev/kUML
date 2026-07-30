@@ -110,7 +110,7 @@ class C4ModelBuilder(
         block: SoftwareSystemScopeImpl.() -> Unit = {},
     ): C4SoftwareSystem {
         val systemId = C4Ids.generateId()
-        val scope = SoftwareSystemScopeImpl(systemId, takenIds, elements, relationships)
+        val scope = SoftwareSystemScopeImpl(systemId = systemId, takenIds = takenIds, elements = elements, relationships = relationships)
         scope.apply(block)
 
         val containerIds = scope.containers.map { it.id }
@@ -140,7 +140,7 @@ class C4ModelBuilder(
         block: DeploymentNodeScopeImpl.() -> Unit = {},
     ): C4DeploymentNode {
         val nodeId = C4Ids.generateId()
-        val scope = DeploymentNodeScopeImpl(nodeId, takenIds, elements, relationships)
+        val scope = DeploymentNodeScopeImpl(nodeId = nodeId, takenIds = takenIds, elements = elements, relationships = relationships)
         scope.apply(block)
 
         val childrenIds = scope.children.map { it.id }
@@ -174,7 +174,7 @@ class C4ModelBuilder(
         val scope = RelationshipScopeImpl()
         scope.apply(block)
 
-        val relationshipId = C4Ids.relationship(source.id, target.id)
+        val relationshipId = C4Ids.relationship(sourceId = source.id, targetId = target.id)
         val relationship =
             C4Relationship(
                 id = relationshipId,
@@ -201,7 +201,7 @@ class C4ModelBuilder(
         description: String? = null,
         block: SystemContextDiagramBuilder.() -> Unit = {},
     ) {
-        diagramDefs.add(DiagramDef.SystemContext(name, description, block))
+        diagramDefs.add(DiagramDef.SystemContext(name = name, description = description, block = block))
     }
 
     /**
@@ -218,7 +218,7 @@ class C4ModelBuilder(
         description: String? = null,
         block: ContainerDiagramBuilder.() -> Unit = {},
     ) {
-        diagramDefs.add(DiagramDef.Container(name, description, block))
+        diagramDefs.add(DiagramDef.Container(name = name, description = description, block = block))
     }
 
     /**
@@ -235,7 +235,7 @@ class C4ModelBuilder(
         description: String? = null,
         block: SystemLandscapeDiagramBuilder.() -> Unit = {},
     ) {
-        diagramDefs.add(DiagramDef.SystemLandscape(name, description, block))
+        diagramDefs.add(DiagramDef.SystemLandscape(name = name, description = description, block = block))
     }
 
     /**
@@ -252,7 +252,7 @@ class C4ModelBuilder(
         description: String? = null,
         block: ComponentDiagramBuilder.() -> Unit,
     ) {
-        diagramDefs.add(DiagramDef.Component(name, description, block))
+        diagramDefs.add(DiagramDef.Component(name = name, description = description, block = block))
     }
 
     /**
@@ -270,7 +270,7 @@ class C4ModelBuilder(
         description: String? = null,
         block: DeploymentDiagramBuilder.() -> Unit = {},
     ) {
-        diagramDefs.add(DiagramDef.Deployment(name, description, block))
+        diagramDefs.add(DiagramDef.Deployment(name = name, description = description, block = block))
     }
 
     /**
@@ -288,7 +288,7 @@ class C4ModelBuilder(
         description: String? = null,
         block: DynamicDiagramBuilder.() -> Unit = {},
     ) {
-        diagramDefs.add(DiagramDef.Dynamic(name, description, block))
+        diagramDefs.add(DiagramDef.Dynamic(name = name, description = description, block = block))
     }
 
     /**
@@ -402,7 +402,7 @@ class SoftwareSystemScopeImpl(
         block: ContainerScope.() -> Unit,
     ): C4Container {
         val containerId = C4Ids.generateId()
-        val scope = ContainerScopeImpl(containerId, takenIds, elements, relationships)
+        val scope = ContainerScopeImpl(containerId = containerId, takenIds = takenIds, elements = elements, relationships = relationships)
         scope.apply(block)
 
         val componentIds = scope.components.map { it.id }
@@ -484,7 +484,7 @@ class DeploymentNodeScopeImpl(
         block: DeploymentNodeScope.() -> Unit,
     ): C4DeploymentNode {
         val childNodeId = C4Ids.generateId()
-        val scope = DeploymentNodeScopeImpl(childNodeId, takenIds, elements, relationships)
+        val scope = DeploymentNodeScopeImpl(nodeId = childNodeId, takenIds = takenIds, elements = elements, relationships = relationships)
         scope.apply(block)
 
         val childrenIds = scope.children.map { it.id }

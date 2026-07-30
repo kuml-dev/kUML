@@ -38,7 +38,7 @@ public class SubstrateChainAdapter(
     private val urlValidator: SubstrateUrlValidator = SubstrateUrlValidator.Default,
     private val pollIntervalMillis: Long = 6_000L,
     private val maxReplayBlocks: Long = DEFAULT_MAX_REPLAY_BLOCKS,
-    private val clientFactory: (String) -> SubstrateRpcClient = { url -> SubstrateRpcClient(url) },
+    private val clientFactory: (String) -> SubstrateRpcClient = { url -> SubstrateRpcClient(rpcUrl = url) },
     private val eventDecoder: SubstrateEventDecoder = SubstrateEventDecoder(),
 ) : KumlChainAdapter {
     private var rpcClient: SubstrateRpcClient? = null
@@ -85,13 +85,13 @@ public class SubstrateChainAdapter(
         }
 
         // Read-only ink!-Message "kuml_identity" — Selector als hex an contracts_call.
-        val resultHex = client.contractsCall(contractAddress, KUML_IDENTITY_SELECTOR)
+        val resultHex = client.contractsCall(contractAddress = contractAddress, selectorHex = KUML_IDENTITY_SELECTOR)
         val identity = eventDecoder.decodeIdentity(resultHex)
         return ContractIdentity(
-            contractAddress,
-            identity.modelHash,
-            identity.modelUri,
-            identity.schemaVersion,
+            address = contractAddress,
+            modelHash = identity.modelHash,
+            modelUri = identity.modelUri,
+            schemaVersion = identity.schemaVersion,
         )
     }
 
@@ -108,7 +108,7 @@ public class SubstrateChainAdapter(
             while (true) {
                 val head = client.getFinalizedHeight()
                 while (height <= head) {
-                    emitContractEvents(client, addr, height)
+                    emitContractEvents(client = client, addr = addr, height = height)
                     height++
                 }
                 delay(pollIntervalMillis)
@@ -141,7 +141,7 @@ public class SubstrateChainAdapter(
             }
             var height = startHeight
             while (height <= head) {
-                emitContractEvents(client, addr, height)
+                emitContractEvents(client = client, addr = addr, height = height)
                 height++
             }
         }
@@ -157,7 +157,14 @@ public class SubstrateChainAdapter(
     ) {
         val blockHash = client.getBlockHash(height)
         val eventsHex = client.getSystemEvents(blockHash)
-        for (e in eventDecoder.decodeContractEmitted(eventsHex, addr, height, blockHash)) emit(e)
+        for (e in eventDecoder.decodeContractEmitted(
+            eventsHex = eventsHex,
+            contractAddr = addr,
+            height = height,
+            blockHash = blockHash,
+        )) {
+            emit(e)
+        }
     }
 
     private fun requireClient(): SubstrateRpcClient = rpcClient ?: error("SubstrateChainAdapter not connected — call connect() first")

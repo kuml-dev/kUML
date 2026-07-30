@@ -9,12 +9,12 @@ class DesktopRenderPipelineTest :
     FunSpec({
 
         test("render with empty script returns Error") {
-            DesktopRenderPipeline.render("", "plain").shouldBeInstanceOf<DesktopRenderResult.Error>()
+            DesktopRenderPipeline.render(script = "", themeName = "plain").shouldBeInstanceOf<DesktopRenderResult.Error>()
         }
 
         test("render with invalid kotlin returns Error") {
             DesktopRenderPipeline
-                .render("this is not valid kotlin @@@@", "plain")
+                .render(script = "this is not valid kotlin @@@@", themeName = "plain")
                 .shouldBeInstanceOf<DesktopRenderResult.Error>()
         }
 
@@ -27,7 +27,7 @@ class DesktopRenderPipelineTest :
                     }
                 }
                 """.trimIndent()
-            val result = DesktopRenderPipeline.render(script, "plain")
+            val result = DesktopRenderPipeline.render(script = script, themeName = "plain")
             result.shouldBeInstanceOf<DesktopRenderResult.Svg>()
             result.svg shouldContain "<svg"
         }
@@ -40,7 +40,7 @@ class DesktopRenderPipelineTest :
                 }
                 """.trimIndent()
             DesktopRenderPipeline
-                .render(script, "nonexistent-theme-xyz")
+                .render(script = script, themeName = "nonexistent-theme-xyz")
                 .shouldBeInstanceOf<DesktopRenderResult.Svg>()
         }
 
@@ -51,8 +51,8 @@ class DesktopRenderPipelineTest :
                     val c = classOf(name = "Baz") { }
                 }
                 """.trimIndent()
-            val r1 = DesktopRenderPipeline.render(script, "plain") as DesktopRenderResult.Svg
-            val r2 = DesktopRenderPipeline.render(script, "plain") as DesktopRenderResult.Svg
+            val r1 = DesktopRenderPipeline.render(script = script, themeName = "plain") as DesktopRenderResult.Svg
+            val r2 = DesktopRenderPipeline.render(script = script, themeName = "plain") as DesktopRenderResult.Svg
             r1.svg shouldBe r2.svg
         }
 
@@ -69,7 +69,7 @@ class DesktopRenderPipelineTest :
                     classOf(name = "Fahrzeug") { }
                 }
                 """.trimIndent()
-            val result = DesktopRenderPipeline.render(script, "plain") as DesktopRenderResult.Svg
+            val result = DesktopRenderPipeline.render(script = script, themeName = "plain") as DesktopRenderResult.Svg
             result.svg shouldContain "Fahrzeug"
         }
 
@@ -83,7 +83,7 @@ class DesktopRenderPipelineTest :
                     association(source = a, target = b)
                 }
                 """.trimIndent()
-            val result = DesktopRenderPipeline.render(script, "plain") as DesktopRenderResult.Svg
+            val result = DesktopRenderPipeline.render(script = script, themeName = "plain") as DesktopRenderResult.Svg
             result.svg shouldContain "Alpha"
             result.svg shouldContain "Beta"
         }
@@ -98,7 +98,7 @@ class DesktopRenderPipelineTest :
                     }
                 }
                 """.trimIndent()
-            val result = DesktopRenderPipeline.render(script, "plain") as DesktopRenderResult.Svg
+            val result = DesktopRenderPipeline.render(script = script, themeName = "plain") as DesktopRenderResult.Svg
             result.svg shouldContain "email"
         }
 
@@ -110,6 +110,6 @@ class DesktopRenderPipelineTest :
                     classOf(name = "A") { }
                 }
                 """.trimIndent()
-            DesktopRenderPipeline.render(script, "dark").shouldBeInstanceOf<DesktopRenderResult.Svg>()
+            DesktopRenderPipeline.render(script = script, themeName = "dark").shouldBeInstanceOf<DesktopRenderResult.Svg>()
         }
     })

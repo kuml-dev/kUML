@@ -48,34 +48,34 @@ internal fun renderSysml2Definition(
     builder: SvgBuilder,
 ) {
     when (element) {
-        is PartDefinition -> renderBox(element, layout, builder, stereotype = "part def")
-        is AttributeDefinition -> renderBox(element, layout, builder, stereotype = "attribute def")
-        is PortDefinition -> renderBox(element, layout, builder, stereotype = "port def")
-        is ConnectionDefinition -> renderBox(element, layout, builder, stereotype = "connection def")
+        is PartDefinition -> renderBox(element = element, layout = layout, builder = builder, stereotype = "part def")
+        is AttributeDefinition -> renderBox(element = element, layout = layout, builder = builder, stereotype = "attribute def")
+        is PortDefinition -> renderBox(element = element, layout = layout, builder = builder, stereotype = "port def")
+        is ConnectionDefinition -> renderBox(element = element, layout = layout, builder = builder, stereotype = "connection def")
         // V2.0.7: UC-Diagramm-spezifische Formen.
-        is ActorDefinition -> renderSysml2Actor(element, layout, theme, builder)
-        is UseCaseDefinition -> renderSysml2UseCase(element, layout, theme, builder)
+        is ActorDefinition -> renderSysml2Actor(element = element, layout = layout, theme = theme, builder = builder)
+        is UseCaseDefinition -> renderSysml2UseCase(element = element, layout = layout, theme = theme, builder = builder)
         // V2.0.8: REQ-Diagramm — dreikompartimentige Anforderungs-Box mit
         // `«requirement»`-Stereotyp, optional `R-NNN ::`-prefixiertem Namen,
         // und wort-gewrapptem Anforderungstext.
-        is RequirementDefinition -> renderSysml2Requirement(element, layout, theme, builder)
+        is RequirementDefinition -> renderSysml2Requirement(element = element, layout = layout, theme = theme, builder = builder)
         // V2.0.9: STM-Diagramm — abgerundeter Zustand (oder Initial/Final
         // Pseudo-State als Kreis/Donut).
-        is StateDefinition -> renderStateDefinition(element, layout, theme, builder)
+        is StateDefinition -> renderStateDefinition(element = element, layout = layout, theme = theme, builder = builder)
         // V2.0.10: ACT-Diagramm — Aktion, Pseudo-Knoten (Initial/Final/FlowFinal),
         // Decision/Merge-Raute oder Fork/Join-Bar — Dispatch über
         // ActionDefinition.kind.
-        is ActionDefinition -> renderActionDefinition(element, layout, theme, builder)
+        is ActionDefinition -> renderActionDefinition(element = element, layout = layout, theme = theme, builder = builder)
         // V2.0.11: SEQ-Diagramm — Lifeline-Kopf (Box mit «lifeline»-Stereotyp)
         // plus vertikale gestrichelte Zeit-Achse unter dem Kopf bis zum
         // unteren Ende der Bounds. Nachrichten werden NICHT hier gezeichnet
         // — sie werden vom Sequence-Renderer direkt nach dem Standard-Knoten-
         // Loop emittiert (siehe Sysml2SequenceSvg.kt).
-        is LifelineDefinition -> renderLifelineHead(element, layout, theme, builder)
+        is LifelineDefinition -> renderLifelineHead(element = element, layout = layout, theme = theme, builder = builder)
         // V2.0.12: PAR-Diagramm — drei-Kompartiment-Box mit `«constraint»`-
         // Stereotyp, Name, Expression-Body (monospaced, ggf. ellipsis-trunkiert)
         // und Parameter-Liste mit `«in»`/`«out»`/`«inout»`-Stereotyp-Präfix.
-        is ConstraintDefinition -> renderConstraintDefinition(element, layout, theme, builder)
+        is ConstraintDefinition -> renderConstraintDefinition(element = element, layout = layout, theme = theme, builder = builder)
         // V2.0.16: ACT-Diagramm — ActivityPartitions (Swimlanes) sind KEINE
         // gewöhnlichen Node-Boxes. Sie surface'n im Renderer als Gruppen-
         // Container über `layoutResult.groups` — die KumlSvgRenderer-ACT-
@@ -108,22 +108,23 @@ private fun renderBox(
     val h = layout.bounds.size.height
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
+        tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
 
         var cy = 16f
 
         // Stereotype line — guillemets so the SysML-2 ‹‹kind››-Konvention bleibt erhalten.
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(w / 2f),
-                "y" to fmt(cy),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(w / 2f),
+                    "y" to fmt(cy),
+                    "text-anchor" to "middle",
+                ),
         ) { text("«$stereotype»") }
         cy += 14f
 
@@ -137,26 +138,27 @@ private fun renderBox(
                 put("text-anchor", "middle")
                 if (element.isAbstract) put("font-style", "italic")
             }
-        tag("text", nameAttrs) { text(element.name) }
+        tag(name = "text", attrs = nameAttrs) { text(element.name) }
         cy += 12f
 
         if (element.features.isNotEmpty()) {
             tag(
-                "line",
-                mapOf(
-                    "x1" to "0",
-                    "y1" to fmt(cy),
-                    "x2" to fmt(w),
-                    "y2" to fmt(cy),
-                    "class" to "kuml-divider",
-                ),
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to "0",
+                        "y1" to fmt(cy),
+                        "x2" to fmt(w),
+                        "y2" to fmt(cy),
+                        "class" to "kuml-divider",
+                    ),
             )
             cy += 14f
 
             for (feature in element.features) {
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
                 ) { text(feature.formatBdd()) }
                 cy += 13f
             }

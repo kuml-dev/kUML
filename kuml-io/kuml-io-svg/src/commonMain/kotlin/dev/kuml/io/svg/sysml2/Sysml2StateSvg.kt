@@ -51,9 +51,9 @@ internal fun renderStateDefinition(
     builder: SvgBuilder,
 ) {
     when {
-        element.isInitial -> renderInitialPseudoState(element, layout, builder)
-        element.isFinal -> renderFinalPseudoState(element, layout, builder)
-        else -> renderRegularState(element, layout, builder)
+        element.isInitial -> renderInitialPseudoState(element = element, layout = layout, builder = builder)
+        element.isFinal -> renderFinalPseudoState(element = element, layout = layout, builder = builder)
+        else -> renderRegularState(element = element, layout = layout, builder = builder)
     }
 }
 
@@ -76,18 +76,19 @@ private fun renderInitialPseudoState(
     val r = minOf(w, h) * 0.4f
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(cx),
-                "cy" to fmt(cy),
-                "r" to fmt(r),
-                "class" to "kuml-class",
-                "fill" to "currentColor",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(cx),
+                    "cy" to fmt(cy),
+                    "r" to fmt(r),
+                    "class" to "kuml-class",
+                    "fill" to "currentColor",
+                ),
         )
     }
 }
@@ -112,30 +113,32 @@ private fun renderFinalPseudoState(
     val innerR = outerR * 0.5f
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         // Outer ring — Stroke only, weißer Hintergrund.
         tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(cx),
-                "cy" to fmt(cy),
-                "r" to fmt(outerR),
-                "class" to "kuml-class",
-                "fill" to "white",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(cx),
+                    "cy" to fmt(cy),
+                    "r" to fmt(outerR),
+                    "class" to "kuml-class",
+                    "fill" to "white",
+                ),
         )
         // Inner filled disc.
         tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(cx),
-                "cy" to fmt(cy),
-                "r" to fmt(innerR),
-                "class" to "kuml-class",
-                "fill" to "currentColor",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(cx),
+                    "cy" to fmt(cy),
+                    "r" to fmt(innerR),
+                    "class" to "kuml-class",
+                    "fill" to "currentColor",
+                ),
         )
     }
 }
@@ -164,18 +167,19 @@ private fun renderRegularState(
             !element.doAction.isNullOrEmpty()
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         tag(
-            "rect",
-            mapOf(
-                "width" to fmt(w),
-                "height" to fmt(h),
-                "rx" to "12",
-                "ry" to "12",
-                "class" to "kuml-class",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "width" to fmt(w),
+                    "height" to fmt(h),
+                    "rx" to "12",
+                    "ry" to "12",
+                    "class" to "kuml-class",
+                ),
         )
 
         var cy = 18f
@@ -190,40 +194,41 @@ private fun renderRegularState(
                 put("text-anchor", "middle")
                 if (element.isAbstract) put("font-style", "italic")
             }
-        tag("text", nameAttrs) { text(element.name) }
+        tag(name = "text", attrs = nameAttrs) { text(element.name) }
         cy += 8f
 
         if (hasActions) {
             tag(
-                "line",
-                mapOf(
-                    "x1" to "0",
-                    "y1" to fmt(cy),
-                    "x2" to fmt(w),
-                    "y2" to fmt(cy),
-                    "class" to "kuml-divider",
-                ),
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to "0",
+                        "y1" to fmt(cy),
+                        "x2" to fmt(w),
+                        "y2" to fmt(cy),
+                        "class" to "kuml-divider",
+                    ),
             )
             cy += 14f
 
             element.entryAction?.takeIf { it.isNotEmpty() }?.let { action ->
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
                 ) { text("entry / $action") }
                 cy += 13f
             }
             element.exitAction?.takeIf { it.isNotEmpty() }?.let { action ->
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
                 ) { text("exit / $action") }
                 cy += 13f
             }
             element.doAction?.takeIf { it.isNotEmpty() }?.let { action ->
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
                 ) { text("do / $action") }
                 cy += 13f
             }

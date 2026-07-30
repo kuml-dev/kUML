@@ -22,15 +22,22 @@ class BudgetGuardTest :
 
         fun makeEstimator(vararg entries: PricingEntry) = CostEstimator.fromDocument(PricingDocument(entries = entries.toList()))
 
-        fun gpt4oEntry() = PricingEntry("openai", "gpt-4o", 5.0, 15.0, "2026-01-01")
+        fun gpt4oEntry() =
+            PricingEntry(
+                providerId = "openai",
+                modelId = "gpt-4o",
+                inputPricePerMToken = 5.0,
+                outputPricePerMToken = 15.0,
+                updatedAt = "2026-01-01",
+            )
 
         // ── Test 1: null budget — never throws, accumulates ───────────────────
 
         test("null budget never throws on checkBeforeCall or recordUsage") {
-            val guard = BudgetGuard(null, makeEstimator(gpt4oEntry()))
+            val guard = BudgetGuard(budgetUsd = null, estimator = makeEstimator(gpt4oEntry()))
             shouldNotThrow<KumlAiException.BudgetExceeded> {
                 guard.checkBeforeCall()
-                guard.recordUsage("openai", "gpt-4o", 1_000_000L, 1_000_000L)
+                guard.recordUsage(providerId = "openai", modelId = "gpt-4o", inTok = 1_000_000L, outTok = 1_000_000L)
                 guard.checkBeforeCall() // still no throw
             }
             guard.currentSpendUsd shouldBe (20.0 plusOrMinus 1e-9)
@@ -39,13 +46,13 @@ class BudgetGuardTest :
         // ── Test 2: budget 0.01, call costs 0.02 → recordUsage throws ────────
 
         test("recordUsage throws BudgetExceeded when spend exceeds budget") {
-            val guard = BudgetGuard(0.01, makeEstimator(gpt4oEntry()))
+            val guard = BudgetGuard(budgetUsd = 0.01, estimator = makeEstimator(gpt4oEntry()))
             val ex =
                 shouldThrow<KumlAiException.BudgetExceeded> {
                     // gpt-4o: 5.0/MTok in, 15.0/MTok out
                     // 1000 input + 1000 output = 5*1000/1_000_000 + 15*1000/1_000_000
                     //   = 0.005 + 0.015 = 0.02 USD
-                    guard.recordUsage("openai", "gpt-4o", 1_000L, 1_000L)
+                    guard.recordUsage(providerId = "openai", modelId = "gpt-4o", inTok = 1_000L, outTok = 1_000L)
                 }
             ex.spentUsd shouldBe (0.02 plusOrMinus 1e-9)
             ex.budgetUsd shouldBe 0.01
@@ -54,9 +61,9 @@ class BudgetGuardTest :
         // ── Test 3: already over budget → next checkBeforeCall throws ─────────
 
         test("checkBeforeCall throws when session is already over budget") {
-            val guard = BudgetGuard(0.005, makeEstimator(gpt4oEntry()))
+            val guard = BudgetGuard(budgetUsd = 0.005, estimator = makeEstimator(gpt4oEntry()))
             // First record: 1000 input = 0.005 USD — exactly at limit, does not throw
-            guard.recordUsage("openai", "gpt-4o", 1_000L, 0L)
+            guard.recordUsage(providerId = "openai", modelId = "gpt-4o", inTok = 1_000L, outTok = 0L)
             // 0.005 >= 0.005 → next checkBeforeCall must throw
             shouldThrow<KumlAiException.BudgetExceeded> {
                 guard.checkBeforeCall()
@@ -66,9 +73,9 @@ class BudgetGuardTest :
         // ── Test 4: unknown model → null cost → no throw ─────────────────────
 
         test("unknown model produces no cost and does not throw") {
-            val guard = BudgetGuard(0.001, makeEstimator(gpt4oEntry()))
+            val guard = BudgetGuard(budgetUsd = 0.001, estimator = makeEstimator(gpt4oEntry()))
             shouldNotThrow<KumlAiException.BudgetExceeded> {
-                guard.recordUsage("unknown", "unknown-model", 999_999_999L, 999_999_999L)
+                guard.recordUsage(providerId = "unknown", modelId = "unknown-model", inTok = 999_999_999L, outTok = 999_999_999L)
             }
             guard.currentSpendUsd shouldBe 0.0
         }
@@ -76,7 +83,7 @@ class BudgetGuardTest :
         // ── Test 5: thread-safety — concurrent recordUsage ────────────────────
 
         test("concurrent recordUsage accumulates spend correctly without data races") {
-            val guard = BudgetGuard(null, makeEstimator(gpt4oEntry()))
+            val guard = BudgetGuard(budgetUsd = null, estimator = makeEstimator(gpt4oEntry()))
             val threads = 10
             val callsPerThread = 100
             // Each call: 100 input tokens = 100 * 5.0 / 1_000_000 = 0.0005 USD input
@@ -88,7 +95,7 @@ class BudgetGuardTest :
                     .map {
                         async(Dispatchers.Default) {
                             repeat(callsPerThread) {
-                                guard.recordUsage("openai", "gpt-4o", 100L, 0L)
+                                guard.recordUsage(providerId = "openai", modelId = "gpt-4o", inTok = 100L, outTok = 0L)
                             }
                         }
                     }.awaitAll()
@@ -101,8 +108,8 @@ class BudgetGuardTest :
         // ── Test 6: reset() zeroes spend ──────────────────────────────────────
 
         test("reset zeroes accumulated spend") {
-            val guard = BudgetGuard(null, makeEstimator(gpt4oEntry()))
-            guard.recordUsage("openai", "gpt-4o", 1_000L, 0L)
+            val guard = BudgetGuard(budgetUsd = null, estimator = makeEstimator(gpt4oEntry()))
+            guard.recordUsage(providerId = "openai", modelId = "gpt-4o", inTok = 1_000L, outTok = 0L)
             guard.currentSpendUsd shouldBe (0.005 plusOrMinus 1e-9)
             guard.reset()
             guard.currentSpendUsd shouldBe 0.0
@@ -111,21 +118,21 @@ class BudgetGuardTest :
         // ── Test 7: limitUsd exposed correctly ────────────────────────────────
 
         test("limitUsd reflects the configured budget") {
-            val guardWithBudget = BudgetGuard(1.50, makeEstimator())
+            val guardWithBudget = BudgetGuard(budgetUsd = 1.50, estimator = makeEstimator())
             guardWithBudget.limitUsd shouldBe 1.50
 
-            val guardUnlimited = BudgetGuard(null, makeEstimator())
+            val guardUnlimited = BudgetGuard(budgetUsd = null, estimator = makeEstimator())
             guardUnlimited.limitUsd shouldBe null
         }
 
         // ── Test 8: BudgetExceeded message contains spend and limit markers ───
 
         test("BudgetExceeded exception message contains KUML-AI-E-006 code and USD markers") {
-            val guard = BudgetGuard(1.00, makeEstimator(gpt4oEntry()))
+            val guard = BudgetGuard(budgetUsd = 1.00, estimator = makeEstimator(gpt4oEntry()))
             val ex =
                 shouldThrow<KumlAiException.BudgetExceeded> {
                     // 1M input at $5/MTok = $5.00 > $1.00 limit
-                    guard.recordUsage("openai", "gpt-4o", 1_000_000L, 0L)
+                    guard.recordUsage(providerId = "openai", modelId = "gpt-4o", inTok = 1_000_000L, outTok = 0L)
                 }
             // Message should contain the error code
             ex.message!!.contains("KUML-AI-E-006") shouldBe true

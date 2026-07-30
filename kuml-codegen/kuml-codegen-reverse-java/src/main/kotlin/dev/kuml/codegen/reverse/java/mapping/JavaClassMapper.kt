@@ -30,7 +30,7 @@ internal object JavaClassMapper {
         enclosingName: String? = null,
     ): MappedClassifier {
         val simpleName = decl.nameAsString
-        val qualifiedName = buildQualifiedName(packageName, enclosingName, simpleName)
+        val qualifiedName = buildQualifiedName(packageName = packageName, enclosingName = enclosingName, simpleName = simpleName)
         val visibility = JavaVisibilityMapper.map(decl)
 
         val stereotypes =

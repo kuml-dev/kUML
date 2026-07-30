@@ -12,7 +12,7 @@ class WorkspaceTrustTest :
         test("isTrusted is false for a fresh root") {
             val root = Files.createTempDirectory("kuml-trust-test").toFile()
             try {
-                WorkspaceTrust.isTrusted(emptyList(), root) shouldBe false
+                WorkspaceTrust.isTrusted(trustedPaths = emptyList(), root = root) shouldBe false
             } finally {
                 root.deleteRecursively()
             }
@@ -21,9 +21,9 @@ class WorkspaceTrustTest :
         test("withTrust adds the canonical path") {
             val root = Files.createTempDirectory("kuml-trust-test").toFile()
             try {
-                val updated = WorkspaceTrust.withTrust(emptyList(), root)
+                val updated = WorkspaceTrust.withTrust(trustedPaths = emptyList(), root = root)
                 updated shouldBe listOf(WorkspaceTrust.canonicalPath(root))
-                WorkspaceTrust.isTrusted(updated, root) shouldBe true
+                WorkspaceTrust.isTrusted(trustedPaths = updated, root = root) shouldBe true
             } finally {
                 root.deleteRecursively()
             }
@@ -32,8 +32,8 @@ class WorkspaceTrustTest :
         test("withTrust does not duplicate an already-trusted path") {
             val root = Files.createTempDirectory("kuml-trust-test").toFile()
             try {
-                val once = WorkspaceTrust.withTrust(emptyList(), root)
-                val twice = WorkspaceTrust.withTrust(once, root)
+                val once = WorkspaceTrust.withTrust(trustedPaths = emptyList(), root = root)
+                val twice = WorkspaceTrust.withTrust(trustedPaths = once, root = root)
                 twice shouldBe once
             } finally {
                 root.deleteRecursively()
@@ -44,7 +44,7 @@ class WorkspaceTrustTest :
             val root = Files.createTempDirectory("kuml-trust-test").toFile()
             try {
                 val trusted = listOf("/some/other/path")
-                WorkspaceTrust.isTrusted(trusted, root) shouldBe false
+                WorkspaceTrust.isTrusted(trustedPaths = trusted, root = root) shouldBe false
                 trusted shouldBe listOf("/some/other/path")
             } finally {
                 root.deleteRecursively()
@@ -56,11 +56,11 @@ class WorkspaceTrustTest :
             val settingsDir = Files.createTempDirectory("kuml-trust-store-test")
             try {
                 val store = AppSettingsStore(settingsDir.resolve("settings.json"))
-                val trusted = WorkspaceTrust.withTrust(AppSettings.DEFAULT.trustedWorkspaces, root)
+                val trusted = WorkspaceTrust.withTrust(trustedPaths = AppSettings.DEFAULT.trustedWorkspaces, root = root)
                 store.save(AppSettings.DEFAULT.copy(trustedWorkspaces = trusted))
 
                 val loaded = store.load()
-                WorkspaceTrust.isTrusted(loaded.trustedWorkspaces, root) shouldBe true
+                WorkspaceTrust.isTrusted(trustedPaths = loaded.trustedWorkspaces, root = root) shouldBe true
             } finally {
                 root.deleteRecursively()
                 settingsDir.toFile().deleteRecursively()

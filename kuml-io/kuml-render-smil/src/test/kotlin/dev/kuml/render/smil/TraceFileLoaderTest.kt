@@ -24,7 +24,7 @@ class TraceFileLoaderTest :
             requireNotNull(url) { "sample-trace.json test resource not found" }
             val file = File(url.toURI())
 
-            val result = TraceFileLoader.load(file)
+            val result = TraceFileLoader.load(file = file)
 
             result.schema shouldBe TraceFile.SCHEMA
             result.modelId shouldBe "test-model"
@@ -45,7 +45,7 @@ class TraceFileLoaderTest :
                 }
 
             shouldThrow<IllegalArgumentException> {
-                TraceFileLoader.load(bigFile, maxBytes = 5L) // very small cap
+                TraceFileLoader.load(file = bigFile, maxBytes = 5L) // very small cap
             }
         }
 
@@ -60,7 +60,7 @@ class TraceFileLoaderTest :
 
             val ex =
                 shouldThrow<IllegalArgumentException> {
-                    TraceFileLoader.load(malformed)
+                    TraceFileLoader.load(file = malformed)
                 }
 
             // Message must not echo raw file content (the invalid tokens)
@@ -80,7 +80,7 @@ class TraceFileLoaderTest :
 
             val ex =
                 shouldThrow<IllegalArgumentException> {
-                    TraceFileLoader.load(wrongSchema)
+                    TraceFileLoader.load(file = wrongSchema)
                 }
 
             ex.message shouldContain "kuml.events.v1"
@@ -96,7 +96,7 @@ class TraceFileLoaderTest :
                     it.deleteOnExit()
                 }
 
-            val result = TraceFileLoader.load(empty)
+            val result = TraceFileLoader.load(file = empty)
 
             result.schema shouldBe TraceFile.SCHEMA
             result.entries.size shouldBe 0

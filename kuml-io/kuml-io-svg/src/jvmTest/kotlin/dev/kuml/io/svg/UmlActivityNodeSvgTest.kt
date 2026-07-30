@@ -46,17 +46,20 @@ class UmlActivityNodeSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(1000f, 200f),
+                    canvas = Size(width = 1000f, height = 200f),
                     nodes =
                         nodes
                             .mapIndexed { i, n ->
-                                NodeId(n.id) to NodeLayout(bounds = Rect(Point(20f + i * 130f, 40f), Size(120f, 80f)))
+                                NodeId(n.id) to
+                                    NodeLayout(
+                                        bounds = Rect(origin = Point(x = 20f + i * 130f, y = 40f), size = Size(width = 120f, height = 80f)),
+                                    )
                             }.toMap(),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             // Every class the renderer references must have a CSS rule in
             // the <style> block, otherwise the shape falls back to black-

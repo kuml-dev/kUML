@@ -19,6 +19,6 @@ public class ConstraintBuilder internal constructor(
             bodyText ?: error(
                 "Constraint '$name' must call ocl(\"...\") with the expression",
             )
-        return OclConstraint(name, body)
+        return OclConstraint(name = name, body = body)
     }
 }

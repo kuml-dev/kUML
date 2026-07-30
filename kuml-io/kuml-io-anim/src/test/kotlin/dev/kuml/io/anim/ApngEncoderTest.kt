@@ -44,7 +44,7 @@ class ApngEncoderTest :
         val frame3 = syntheticPng(0, 0, 255) // blue
         val frames = listOf(frame1, frame2, frame3)
         val delayMs = 200L
-        val apng = ApngEncoder.encode(frames, delayMs)
+        val apng = ApngEncoder.encode(frames = frames, delayMs = delayMs)
 
         test("output starts with PNG signature") {
             val sig = apng.copyOfRange(0, 8)

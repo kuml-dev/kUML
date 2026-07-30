@@ -70,9 +70,13 @@ public class KotlinCodeGenerator : KumlCodeGenerator {
         for (element in diagram.elements) {
             val (name, code) =
                 when (element) {
-                    is UmlClass -> element.name to generateClass(element, packageName, classParents[element.id] ?: emptyList())
-                    is UmlInterface -> element.name to generateInterface(element, packageName, classParents[element.id] ?: emptyList())
-                    is UmlEnumeration -> element.name to generateEnum(element, packageName)
+                    is UmlClass ->
+                        element.name to
+                            generateClass(cls = element, packageName = packageName, parents = classParents[element.id] ?: emptyList())
+                    is UmlInterface ->
+                        element.name to
+                            generateInterface(iface = element, packageName = packageName, parents = classParents[element.id] ?: emptyList())
+                    is UmlEnumeration -> element.name to generateEnum(enum = element, packageName = packageName)
                     else -> continue
                 }
             val file = outputDir.resolve("${name.capitalizeFirst()}.kt")
@@ -122,7 +126,7 @@ public class KotlinCodeGenerator : KumlCodeGenerator {
             sb.append("$visStr $classKeyword ${cls.name}(")
             val ctorParams =
                 cls.attributes.joinToString(",\n    ") { prop ->
-                    val type = KotlinTypeMapper.toKotlinType(prop.type, prop.multiplicity)
+                    val type = KotlinTypeMapper.toKotlinType(typeRef = prop.type, multiplicity = prop.multiplicity)
                     "    val ${prop.name}: $type" + (if (prop.defaultValue != null) " = ${prop.defaultValue}" else "")
                 }
             if (cls.attributes.size > 1) {
@@ -137,7 +141,7 @@ public class KotlinCodeGenerator : KumlCodeGenerator {
                 sb.append("(\n")
                 cls.attributes.forEach { prop ->
                     val valOrVar = if (prop.isReadOnly) "val" else "var"
-                    val type = KotlinTypeMapper.toKotlinType(prop.type, prop.multiplicity)
+                    val type = KotlinTypeMapper.toKotlinType(typeRef = prop.type, multiplicity = prop.multiplicity)
                     sb.appendLine("    $valOrVar ${prop.name}: $type,")
                 }
                 sb.append(")")
@@ -152,7 +156,7 @@ public class KotlinCodeGenerator : KumlCodeGenerator {
         // Body
         if (cls.operations.isNotEmpty() || (!isDataClass && cls.attributes.isEmpty())) {
             sb.appendLine(" {")
-            cls.operations.forEach { op -> sb.append(generateOperation(op, "    ")) }
+            cls.operations.forEach { op -> sb.append(generateOperation(op = op, indent = "    ")) }
             sb.appendLine("}")
         } else {
             sb.appendLine()
@@ -179,7 +183,7 @@ public class KotlinCodeGenerator : KumlCodeGenerator {
             val returnType = KotlinTypeMapper.toKotlinReturnType(op.returnType)
             val params =
                 op.parameters.joinToString(", ") { p ->
-                    "${p.name}: ${KotlinTypeMapper.toKotlinType(p.type, Multiplicity())}"
+                    "${p.name}: ${KotlinTypeMapper.toKotlinType(typeRef = p.type, multiplicity = Multiplicity())}"
                 }
             sb.appendLine("    fun ${op.name}($params): $returnType")
         }
@@ -211,7 +215,7 @@ public class KotlinCodeGenerator : KumlCodeGenerator {
         val returnType = KotlinTypeMapper.toKotlinReturnType(op.returnType)
         val params =
             op.parameters.joinToString(", ") { p ->
-                "${p.name}: ${KotlinTypeMapper.toKotlinType(p.type, Multiplicity())}"
+                "${p.name}: ${KotlinTypeMapper.toKotlinType(typeRef = p.type, multiplicity = Multiplicity())}"
             }
         val abstractMod = if (op.isAbstract) "abstract " else ""
 

@@ -85,8 +85,16 @@ public abstract class KumlRenderTask
                         throw GradleException("kumlRender: ${ex.message}", ex)
                     }
                 when (fmt) {
-                    "svg" -> outFile.writeText(GradlePipeline.renderSvg(extracted, theme, watermark.get()))
-                    "png" -> outFile.writeBytes(GradlePipeline.renderPng(extracted, theme, widthPx.get(), watermark.get()))
+                    "svg" -> outFile.writeText(GradlePipeline.renderSvg(extracted = extracted, theme = theme, watermark = watermark.get()))
+                    "png" ->
+                        outFile.writeBytes(
+                            GradlePipeline.renderPng(
+                                extracted = extracted,
+                                theme = theme,
+                                widthPx = widthPx.get(),
+                                watermark = watermark.get(),
+                            ),
+                        )
                 }
                 rendered++
                 logger.lifecycle("kumlRender: ${script.name} -> ${outFile.path}")

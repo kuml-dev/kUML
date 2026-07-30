@@ -26,9 +26,9 @@ public class SandboxEffectInvoker(
         event: Event,
     ): InvocationOutcome =
         try {
-            executor.execute(action, instance, event)
+            executor.execute(actionBody = action, instance = instance, event = event)
             InvocationOutcome.Success
         } catch (ex: SandboxException) {
-            InvocationOutcome.Error(ex.message ?: "sandbox error", ex)
+            InvocationOutcome.Error(message = ex.message ?: "sandbox error", cause = ex)
         }
 }

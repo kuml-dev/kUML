@@ -62,10 +62,10 @@ internal fun renderSysml2Usage(
     builder: SvgBuilder,
 ) {
     when (element) {
-        is PartUsage -> renderUsageBox(element, layout, builder, stereotype = "part", ibdPorts = layout.ports)
-        is PortUsage -> renderUsageBox(element, layout, builder, stereotype = "port")
-        is AttributeUsage -> renderUsageBox(element, layout, builder, stereotype = "attribute")
-        is ConnectionUsage -> renderUsageBox(element, layout, builder, stereotype = "connection")
+        is PartUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "part", ibdPorts = layout.ports)
+        is PortUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "port")
+        is AttributeUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "attribute")
+        is ConnectionUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "connection")
         // V2.0.7: UC-Usage-Kinds. Die Bridge zeigt im V2.0.7-MVP keine
         // UC-Usages auf der Node-Ebene (UC-Diagramme rendern Actor/UseCase
         // *Definitions* direkt), aber der Dispatcher braucht trotzdem einen
@@ -73,54 +73,54 @@ internal fun renderSysml2Usage(
         // in den UML-Fallback rutscht. Wir nutzen die gleiche Box-Form mit
         // einem semantischen Stereotyp; V2.x-Polish bringt ggf. Stickfigur/
         // Ellipsen-Varianten für Usages.
-        is ActorUsage -> renderUsageBox(element, layout, builder, stereotype = "actor")
-        is UseCaseUsage -> renderUsageBox(element, layout, builder, stereotype = "use case")
-        is IncludeUsage -> renderUsageBox(element, layout, builder, stereotype = "include")
-        is ExtendUsage -> renderUsageBox(element, layout, builder, stereotype = "extend")
+        is ActorUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "actor")
+        is UseCaseUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "use case")
+        is IncludeUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "include")
+        is ExtendUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "extend")
         // V2.0.8: REQ-Usage-Kind. Die Bridge zeigt im V2.0.8-MVP keine
         // RequirementUsages auf der Node-Ebene (REQ-Diagramme rendern
         // RequirementDefinitions direkt), aber der Dispatcher braucht einen
         // Branch, damit ein direkter Aufruf — z. B. aus einem Test — nicht
         // in den UML-Fallback rutscht.
-        is RequirementUsage -> renderUsageBox(element, layout, builder, stereotype = "requirement")
+        is RequirementUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "requirement")
         // V2.0.9: STM-Usage-Kinds. Die Bridge zeigt im V2.0.9-MVP keine
         // StateUsages/TransitionUsages auf der Node-Ebene (STM-Diagramme
         // rendern StateDefinitions direkt; Transitionen werden Edges, keine
         // Knoten), aber der Dispatcher braucht Branches, damit ein direkter
         // Aufruf nicht in den UML-Fallback rutscht.
-        is StateUsage -> renderUsageBox(element, layout, builder, stereotype = "state")
-        is TransitionUsage -> renderUsageBox(element, layout, builder, stereotype = "transition")
+        is StateUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "state")
+        is TransitionUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "transition")
         // V2.0.10: ACT-Usage-Kinds. Die Bridge zeigt im V2.0.10-MVP keine
         // ActionUsages/ControlFlowUsages/ObjectFlowUsages auf der Node-Ebene
         // (ACT-Diagramme rendern ActionDefinitions direkt; Flows werden Edges,
         // keine Knoten), aber der Dispatcher braucht Branches, damit ein
         // direkter Aufruf nicht in den UML-Fallback rutscht.
-        is ActionUsage -> renderUsageBox(element, layout, builder, stereotype = "action")
-        is ControlFlowUsage -> renderUsageBox(element, layout, builder, stereotype = "control flow")
-        is ObjectFlowUsage -> renderUsageBox(element, layout, builder, stereotype = "object flow")
+        is ActionUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "action")
+        is ControlFlowUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "control flow")
+        is ObjectFlowUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "object flow")
         // V2.0.11: SEQ-Usage-Kinds. Die Bridge zeigt im V2.0.11-MVP keine
         // LifelineUsages/MessageUsages auf der Node-Ebene (SEQ-Diagramme
         // rendern LifelineDefinitions direkt; Nachrichten werden im Renderer
         // direkt gezeichnet, keine Knoten), aber der Dispatcher braucht
         // Branches, damit ein direkter Aufruf nicht in den UML-Fallback rutscht.
-        is LifelineUsage -> renderUsageBox(element, layout, builder, stereotype = "lifeline")
-        is MessageUsage -> renderUsageBox(element, layout, builder, stereotype = "message")
+        is LifelineUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "lifeline")
+        is MessageUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "message")
         // V2.0.12: PAR-Usage-Kinds. Die Bridge zeigt im V2.0.12-MVP keine
         // ConstraintUsages/BindingConnectorUsages auf der Node-Ebene (PAR-
         // Diagramme rendern ConstraintDefinitions direkt; Bindings werden
         // Edges, keine Knoten), aber der Dispatcher braucht Branches, damit
         // ein direkter Aufruf nicht in den UML-Fallback rutscht.
-        is ConstraintUsage -> renderUsageBox(element, layout, builder, stereotype = "constraint")
-        is BindingConnectorUsage -> renderUsageBox(element, layout, builder, stereotype = "binding")
+        is ConstraintUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "constraint")
+        is BindingConnectorUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "binding")
         // V2.0.15: SEQ-Combined-Fragment / Execution-Spec. Diese Usages
         // rendert der SEQ-Renderer normalerweise *direkt* (renderer-direct,
         // siehe Sysml2SequenceSvg) — sie tauchen nie als LayoutGraph-Knoten
         // auf. Der Dispatcher braucht trotzdem Branches, damit ein direkter
         // Aufruf — z. B. aus einem Unit-Test — nicht in den UML-Fallback rutscht.
         is CombinedFragmentUsage ->
-            renderUsageBox(element, layout, builder, stereotype = "combined fragment")
+            renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "combined fragment")
         is ExecutionSpecificationUsage ->
-            renderUsageBox(element, layout, builder, stereotype = "execution spec")
+            renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "execution spec")
         // V2.0.16: ACT-Diagramm — ActivityPartition-Usage. Die Bridge zeigt
         // im V2.0.16-MVP keine ActivityPartitionUsages auf der Node-Ebene
         // (ACT-Diagramme rendern ActivityPartitionDefinitions als Gruppen-
@@ -128,7 +128,7 @@ internal fun renderSysml2Usage(
         // Branch, damit ein direkter Aufruf — z. B. aus einem Unit-Test —
         // nicht in den UML-Fallback rutscht.
         is ActivityPartitionUsage ->
-            renderUsageBox(element, layout, builder, stereotype = "activity partition")
+            renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "activity partition")
     }
 }
 
@@ -154,37 +154,39 @@ private fun renderUsageBox(
     val h = layout.bounds.size.height
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(usage.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(usage.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
+        tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
 
         val cx = w / 2f
         // Stereotype line — `«part»` etc., mid-upper.
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(cx),
-                "y" to "18",
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(cx),
+                    "y" to "18",
+                    "text-anchor" to "middle",
+                ),
         ) { text("«$stereotype»") }
 
         // Content line — `name : Type [mult]`, vertically centred.
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-title",
-                "x" to fmt(cx),
-                "y" to fmt(h / 2f + 10f),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-title",
+                    "x" to fmt(cx),
+                    "y" to fmt(h / 2f + 10f),
+                    "text-anchor" to "middle",
+                ),
         ) { text(usage.formatIbd()) }
 
         // IBD boundary ports — small squares on the box edge, one per connected port.
         if (ibdPorts.isNotEmpty()) {
-            renderIbdBoundaryPorts(ibdPorts, w, h)
+            renderIbdBoundaryPorts(ports = ibdPorts, w = w, h = h)
         }
     }
 }
@@ -215,14 +217,15 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
 
         // Port square — centered on the boundary attachment point.
         tag(
-            "rect",
-            mapOf(
-                "x" to fmt(px - half),
-                "y" to fmt(py - half),
-                "width" to fmt(ps),
-                "height" to fmt(ps),
-                "class" to "kuml-port",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmt(px - half),
+                    "y" to fmt(py - half),
+                    "width" to fmt(ps),
+                    "height" to fmt(ps),
+                    "class" to "kuml-port",
+                ),
         )
 
         // Determine which side of the box this port sits on, then place the label
@@ -245,13 +248,14 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
             }
 
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-port-label",
-                "x" to fmt(labelX),
-                "y" to fmt(labelY),
-                "text-anchor" to anchor,
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-port-label",
+                    "x" to fmt(labelX),
+                    "y" to fmt(labelY),
+                    "text-anchor" to anchor,
+                ),
         ) { text(portId.value) }
     }
 }

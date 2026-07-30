@@ -76,7 +76,7 @@ public object SequenceSmilRenderer {
         context: SequenceAnimationContext = SequenceAnimationContext.DEFAULT,
     ): AnimatedSequenceRenderResult {
         // Always render the static base SVG first
-        val baseSvg = KumlSvgRenderer.toSvg(diagram, layoutResult, theme, options)
+        val baseSvg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
 
         // Static path: null or empty trace
         if (trace == null || trace.entries.isEmpty()) {
@@ -136,10 +136,10 @@ public object SequenceSmilRenderer {
         }
 
         // Inject dot circle elements before </svg>
-        val svgWithDots = injectDots(baseSvg, dots)
+        val svgWithDots = injectDots(svg = baseSvg, dots = dots)
 
         // Inject SMIL animations via SmilEmitter
-        val animatedSvg = SmilEmitter().inject(svgWithDots, timeline)
+        val animatedSvg = SmilEmitter().inject(svg = svgWithDots, timeline = timeline)
 
         return AnimatedSequenceRenderResult(svg = animatedSvg, hasAnimation = true, timeline = timeline)
     }

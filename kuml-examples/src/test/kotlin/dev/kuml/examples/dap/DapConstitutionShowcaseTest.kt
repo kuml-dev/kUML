@@ -103,24 +103,24 @@ class DapConstitutionShowcaseTest :
 
         "Artikel-STM kann mit bekanntem Key signiert werden" {
             val src = loadResource("dap-constitution-article-stm.kuml.kts")
-            val sig = ModelSigner().sign(src, PRIV)
+            val sig = ModelSigner().sign(modelSource = src, privateKeyHex = PRIV)
             sig.signer.equals(EXPECTED_ADDR, ignoreCase = true) shouldBe true
             sig.signature.size shouldBe 65
         }
 
         "Signatur ist verifizierbar (ModelSigner.recover)" {
             val src = loadResource("dap-constitution-article-stm.kuml.kts")
-            val sig = ModelSigner().sign(src, PRIV)
-            val recovered = ModelSigner().recover(src, sig)
+            val sig = ModelSigner().sign(modelSource = src, privateKeyHex = PRIV)
+            val recovered = ModelSigner().recover(modelSource = src, sig = sig)
             recovered.equals(EXPECTED_ADDR, ignoreCase = true) shouldBe true
         }
 
         "manipuliertes Modell ergibt andere Signatur-Verifikation" {
             val srcA = loadResource("dap-constitution-article-stm.kuml.kts")
             val srcB = loadResource("dap-constitution-amendment-stm.kuml.kts")
-            val sigA = ModelSigner().sign(srcA, PRIV)
+            val sigA = ModelSigner().sign(modelSource = srcA, privateKeyHex = PRIV)
             shouldThrow<IllegalArgumentException> {
-                ModelSigner().recover(srcB, sigA)
+                ModelSigner().recover(modelSource = srcB, sig = sigA)
             }
         }
 
@@ -132,7 +132,7 @@ class DapConstitutionShowcaseTest :
             val hashHex = expectedHash.joinToString("") { "%02x".format(it) }
 
             val server = MockRpcServer()
-            server.onMethod("eth_call") { body ->
+            server.onMethod(method = "eth_call") { body ->
                 when {
                     body.contains(EvmChainAdapter.SELECTOR_MODEL_HASH.removePrefix("0x")) ->
                         abiCallResult(abiBytes32(hashHex))
@@ -147,10 +147,10 @@ class DapConstitutionShowcaseTest :
             try {
                 val adapter =
                     EvmChainAdapter(
-                        clientFactory = { url -> EvmJsonRpcClient(url) },
+                        clientFactory = { url -> EvmJsonRpcClient(rpcUrl = url) },
                         urlValidator = RpcUrlValidator.NoOp,
                     )
-                val identity = runBlocking { adapter.connect(server.baseUrl(), TEST_CONTRACT) }
+                val identity = runBlocking { adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_CONTRACT) }
                 identity.modelHash.contentEquals(expectedHash) shouldBe true
                 identity.modelUri shouldBe "ipfs://QmDapVerfassung"
                 identity.schemaVersion shouldBe 1
@@ -165,7 +165,7 @@ class DapConstitutionShowcaseTest :
             val hashHex = expectedHash.joinToString("") { "%02x".format(it) }
 
             val server = MockRpcServer()
-            server.onMethod("eth_call") { body ->
+            server.onMethod(method = "eth_call") { body ->
                 when {
                     body.contains(EvmChainAdapter.SELECTOR_MODEL_HASH.removePrefix("0x")) ->
                         abiCallResult(abiBytes32(hashHex))
@@ -180,10 +180,10 @@ class DapConstitutionShowcaseTest :
             try {
                 val adapter =
                     EvmChainAdapter(
-                        clientFactory = { url -> EvmJsonRpcClient(url) },
+                        clientFactory = { url -> EvmJsonRpcClient(rpcUrl = url) },
                         urlValidator = RpcUrlValidator.NoOp,
                     )
-                val identity = runBlocking { adapter.connect(server.baseUrl(), TEST_CONTRACT) }
+                val identity = runBlocking { adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_CONTRACT) }
                 val localHash = ModelHasher.hashCanonical(ModelHasher.canonicalize(structSrc))
                 localHash.contentEquals(identity.modelHash) shouldBe true
             } finally {
@@ -197,7 +197,7 @@ class DapConstitutionShowcaseTest :
             val hashHex = expectedHash.joinToString("") { "%02x".format(it) }
 
             val server = MockRpcServer()
-            server.onMethod("eth_call") { body ->
+            server.onMethod(method = "eth_call") { body ->
                 when {
                     body.contains(EvmChainAdapter.SELECTOR_MODEL_HASH.removePrefix("0x")) ->
                         abiCallResult(abiBytes32(hashHex))
@@ -212,10 +212,10 @@ class DapConstitutionShowcaseTest :
             try {
                 val adapter =
                     EvmChainAdapter(
-                        clientFactory = { url -> EvmJsonRpcClient(url) },
+                        clientFactory = { url -> EvmJsonRpcClient(rpcUrl = url) },
                         urlValidator = RpcUrlValidator.NoOp,
                     )
-                val identity = runBlocking { adapter.connect(server.baseUrl(), TEST_CONTRACT) }
+                val identity = runBlocking { adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_CONTRACT) }
                 val tamperedHash =
                     ModelHasher.hashCanonical(
                         ModelHasher.canonicalize(structSrc + "\n// tampered"),
@@ -263,7 +263,7 @@ class DapConstitutionShowcaseTest :
             val hashHex = expectedHash.joinToString("") { "%02x".format(it) }
 
             val server = MockRpcServer()
-            server.onMethod("eth_call") { body ->
+            server.onMethod(method = "eth_call") { body ->
                 when {
                     body.contains(EvmChainAdapter.SELECTOR_MODEL_HASH.removePrefix("0x")) ->
                         abiCallResult(abiBytes32(hashHex))
@@ -279,16 +279,16 @@ class DapConstitutionShowcaseTest :
                 val identity1 =
                     runBlocking {
                         EvmChainAdapter(
-                            clientFactory = { url -> EvmJsonRpcClient(url) },
+                            clientFactory = { url -> EvmJsonRpcClient(rpcUrl = url) },
                             urlValidator = RpcUrlValidator.NoOp,
-                        ).connect(server.baseUrl(), TEST_CONTRACT)
+                        ).connect(rpcUrl = server.baseUrl(), contractAddress = TEST_CONTRACT)
                     }
                 val identity2 =
                     runBlocking {
                         EvmChainAdapter(
-                            clientFactory = { url -> EvmJsonRpcClient(url) },
+                            clientFactory = { url -> EvmJsonRpcClient(rpcUrl = url) },
                             urlValidator = RpcUrlValidator.NoOp,
-                        ).connect(server.baseUrl(), TEST_CONTRACT)
+                        ).connect(rpcUrl = server.baseUrl(), contractAddress = TEST_CONTRACT)
                     }
                 identity1.modelHash.contentEquals(identity2.modelHash) shouldBe true
             } finally {

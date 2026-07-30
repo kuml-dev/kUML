@@ -47,9 +47,9 @@ internal class ImportCommand : CliktCommand(name = "import") {
         val outputFile = output ?: deriveOutputFile(inputFile)
 
         when (format) {
-            "structurizr" -> importStructurizr(inputFile, outputFile)
-            "xmi" -> importXmi(inputFile, outputFile)
-            "arxml" -> importArxml(inputFile, outputFile)
+            "structurizr" -> importStructurizr(inputFile = inputFile, outputFile = outputFile)
+            "xmi" -> importXmi(inputFile = inputFile, outputFile = outputFile)
+            "arxml" -> importArxml(inputFile = inputFile, outputFile = outputFile)
             else -> {
                 // Clikt choice() already validates the value, but keep for safety
                 System.err.println("Unknown format: $format")
@@ -73,13 +73,13 @@ internal class ImportCommand : CliktCommand(name = "import") {
         val kumlScript =
             try {
                 val workspace = StructurizrDslParser.parse(source)
-                KumlDslGenerator.generate(workspace, inputFile.name)
+                KumlDslGenerator.generate(workspace = workspace, sourceFileName = inputFile.name)
             } catch (e: Exception) {
                 System.err.println("Structurizr parse error: ${e.message}")
                 throw ProgramResult(ExitCodes.IO_ERROR)
             }
 
-        writeOutput(outputFile, kumlScript)
+        writeOutput(outputFile = outputFile, content = kumlScript)
         echo("Imported: ${inputFile.name} → ${outputFile.path}")
     }
 
@@ -115,7 +115,7 @@ internal class ImportCommand : CliktCommand(name = "import") {
                     "// Use `kuml export --format xmi` for roundtrip.\n"
             }
 
-        writeOutput(outputFile, script)
+        writeOutput(outputFile = outputFile, content = script)
         echo("Imported XMI: ${inputFile.name} → ${outputFile.path}")
     }
 
@@ -160,7 +160,7 @@ internal class ImportCommand : CliktCommand(name = "import") {
                     "// Use `kuml export --format arxml` for roundtrip.\n"
             }
 
-        writeOutput(outputFile, script)
+        writeOutput(outputFile = outputFile, content = script)
         echo("Imported ARXML: ${inputFile.name} → ${outputFile.path}")
     }
 

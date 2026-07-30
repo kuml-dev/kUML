@@ -24,12 +24,12 @@ class LayoutApiSerializationTest :
                         listOf(
                             LayoutNode(
                                 id = NodeId("n1"),
-                                intrinsicSize = Size(120f, 60f),
+                                intrinsicSize = Size(width = 120f, height = 60f),
                                 hints = NodeHints(gridCol = 0, gridRow = 0),
                             ),
                             LayoutNode(
                                 id = NodeId("n2"),
-                                intrinsicSize = Size(100f, 80f),
+                                intrinsicSize = Size(width = 100f, height = 80f),
                                 hints = NodeHints.NONE,
                                 groupId = GroupId("g1"),
                             ),
@@ -45,7 +45,7 @@ class LayoutApiSerializationTest :
                         ),
                     groups =
                         listOf(
-                            LayoutGroup(id = GroupId("g1"), padding = Insets(8f, 8f, 8f, 8f)),
+                            LayoutGroup(id = GroupId("g1"), padding = Insets(top = 8f, right = 8f, bottom = 8f, left = 8f)),
                         ),
                 )
 
@@ -59,42 +59,43 @@ class LayoutApiSerializationTest :
                 LayoutResult(
                     engineId = LayoutEngineId("kuml.test"),
                     seed = 42L,
-                    canvas = Size(800f, 600f),
+                    canvas = Size(width = 800f, height = 600f),
                     nodes =
                         mapOf(
-                            NodeId("n1") to NodeLayout(bounds = Rect(Point(10f, 10f), Size(120f, 60f))),
+                            NodeId("n1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 120f, height = 60f))),
                             NodeId("n2") to
                                 NodeLayout(
-                                    bounds = Rect(Point(200f, 10f), Size(100f, 80f)),
-                                    ports = mapOf(PortId("p1") to Point(200f, 50f)),
+                                    bounds = Rect(origin = Point(x = 200f, y = 10f), size = Size(width = 100f, height = 80f)),
+                                    ports = mapOf(PortId("p1") to Point(x = 200f, y = 50f)),
                                 ),
                         ),
                     edges =
                         mapOf(
                             EdgeId("e-direct") to
                                 EdgeRoute.Direct(
-                                    source = Point(130f, 40f),
-                                    target = Point(200f, 50f),
+                                    source = Point(x = 130f, y = 40f),
+                                    target = Point(x = 200f, y = 50f),
                                 ),
                             EdgeId("e-ortho") to
                                 EdgeRoute.OrthogonalRounded(
-                                    source = Point(130f, 40f),
-                                    target = Point(200f, 50f),
-                                    waypoints = listOf(Point(165f, 40f), Point(165f, 50f)),
+                                    source = Point(x = 130f, y = 40f),
+                                    target = Point(x = 200f, y = 50f),
+                                    waypoints = listOf(Point(x = 165f, y = 40f), Point(x = 165f, y = 50f)),
                                     cornerRadiusPx = 4f,
                                 ),
                             EdgeId("e-tree") to
                                 EdgeRoute.TreeRounded(
-                                    source = Point(130f, 40f),
-                                    target = Point(200f, 50f),
-                                    waypoints = listOf(Point(165f, 40f)),
+                                    source = Point(x = 130f, y = 40f),
+                                    target = Point(x = 200f, y = 50f),
+                                    waypoints = listOf(Point(x = 165f, y = 40f)),
                                     cornerRadiusPx = 6f,
                                 ),
                             EdgeId("e-bezier") to
                                 EdgeRoute.Bezier(
-                                    source = Point(130f, 40f),
-                                    target = Point(200f, 50f),
-                                    controlPoints = listOf(Point(150f, 20f), Point(180f, 70f)),
+                                    source = Point(x = 130f, y = 40f),
+                                    target = Point(x = 200f, y = 50f),
+                                    controlPoints = listOf(Point(x = 150f, y = 20f), Point(x = 180f, y = 70f)),
                                 ),
                         ),
                     groups = emptyMap(),

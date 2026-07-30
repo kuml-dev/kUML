@@ -24,6 +24,6 @@ internal class ServeCommand : CliktCommand(name = "serve") {
     override fun help(context: Context): String = "Start the kUML web UI (live SVG preview)."
 
     override fun run() {
-        KumlWebServer.start(host, port)
+        KumlWebServer.start(host = host, port = port)
     }
 }

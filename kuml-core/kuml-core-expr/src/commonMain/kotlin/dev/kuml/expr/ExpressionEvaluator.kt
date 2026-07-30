@@ -28,13 +28,13 @@ public object ExpressionEvaluator {
             is LiteralString -> expr.value
             is LiteralNull -> null
 
-            is AttributeRef -> resolveAttrRef(expr, context)
+            is AttributeRef -> resolveAttrRef(ref = expr, context = context)
 
             is FunctionCall -> null // V2.0.20b adds function resolution
 
-            is UnaryOp -> evalUnary(expr, context)
+            is UnaryOp -> evalUnary(expr = expr, context = context)
 
-            is BinaryOp -> evalBinary(expr, context)
+            is BinaryOp -> evalBinary(expr = expr, context = context)
         }
 
     // ── AttributeRef resolution ───────────────────────────────────────────────
@@ -62,7 +62,7 @@ public object ExpressionEvaluator {
         expr: UnaryOp,
         context: Map<String, Any?>,
     ): Any? {
-        val v = evaluate(expr.operand, context)
+        val v = evaluate(expr = expr.operand, context = context)
         return when (expr.op) {
             UnaryOperator.NOT -> {
                 val b =
@@ -91,48 +91,48 @@ public object ExpressionEvaluator {
     ): Any? {
         // Short-circuit evaluation for logical operators
         if (expr.op == BinaryOperator.OR) {
-            val l = evaluate(expr.left, context)
+            val l = evaluate(expr = expr.left, context = context)
             val lb =
                 l as? Boolean
                     ?: throw EvaluationException(
                         "Operator '||' requires Boolean left operand, got ${l?.let { it::class.simpleName } ?: "null"}",
                     )
             if (lb) return true
-            val r = evaluate(expr.right, context)
+            val r = evaluate(expr = expr.right, context = context)
             return r as? Boolean
                 ?: throw EvaluationException(
                     "Operator '||' requires Boolean right operand, got ${r?.let { it::class.simpleName } ?: "null"}",
                 )
         }
         if (expr.op == BinaryOperator.AND) {
-            val l = evaluate(expr.left, context)
+            val l = evaluate(expr = expr.left, context = context)
             val lb =
                 l as? Boolean
                     ?: throw EvaluationException(
                         "Operator '&&' requires Boolean left operand, got ${l?.let { it::class.simpleName } ?: "null"}",
                     )
             if (!lb) return false
-            val r = evaluate(expr.right, context)
+            val r = evaluate(expr = expr.right, context = context)
             return r as? Boolean
                 ?: throw EvaluationException(
                     "Operator '&&' requires Boolean right operand, got ${r?.let { it::class.simpleName } ?: "null"}",
                 )
         }
 
-        val left = evaluate(expr.left, context)
-        val right = evaluate(expr.right, context)
+        val left = evaluate(expr = expr.left, context = context)
+        val right = evaluate(expr = expr.right, context = context)
 
         return when (expr.op) {
-            BinaryOperator.EQ -> evalEquals(left, right)
-            BinaryOperator.NEQ -> !evalEquals(left, right)
+            BinaryOperator.EQ -> evalEquals(left = left, right = right)
+            BinaryOperator.NEQ -> !evalEquals(left = left, right = right)
 
             BinaryOperator.LT, BinaryOperator.LTE, BinaryOperator.GT, BinaryOperator.GTE ->
-                evalCompare(expr.op, left, right)
+                evalCompare(op = expr.op, left = left, right = right)
 
-            BinaryOperator.ADD -> evalAdd(left, right)
+            BinaryOperator.ADD -> evalAdd(left = left, right = right)
 
             BinaryOperator.SUB, BinaryOperator.MUL, BinaryOperator.DIV ->
-                evalArith(expr.op, left, right)
+                evalArith(op = expr.op, left = left, right = right)
 
             BinaryOperator.OR, BinaryOperator.AND ->
                 error("Unreachable — handled above")
@@ -175,7 +175,7 @@ public object ExpressionEvaluator {
             if (left is String && right is String) return left + right
             throw EvaluationException("Operator '+' cannot mix String and ${typeName(if (left !is String) left else right)}")
         }
-        if (left is Number && right is Number) return addNumbers(left, right)
+        if (left is Number && right is Number) return addNumbers(a = left, b = right)
         throw EvaluationException("Operator '+' cannot be applied to ${typeName(left)} and ${typeName(right)}")
     }
 
@@ -191,9 +191,9 @@ public object ExpressionEvaluator {
             right as? Number
                 ?: throw EvaluationException("Operator '${op.name}' requires numeric right operand, got ${typeName(right)}")
         return when (op) {
-            BinaryOperator.SUB -> subNumbers(l, r)
-            BinaryOperator.MUL -> mulNumbers(l, r)
-            BinaryOperator.DIV -> divNumbers(l, r)
+            BinaryOperator.SUB -> subNumbers(a = l, b = r)
+            BinaryOperator.MUL -> mulNumbers(a = l, b = r)
+            BinaryOperator.DIV -> divNumbers(a = l, b = r)
             else -> error("Unreachable")
         }
     }

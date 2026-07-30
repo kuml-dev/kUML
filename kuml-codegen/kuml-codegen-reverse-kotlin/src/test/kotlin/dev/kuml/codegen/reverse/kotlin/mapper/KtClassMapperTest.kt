@@ -13,7 +13,7 @@ class KtClassMapperTest :
     FunSpec({
 
         test("simple class becomes UmlClass with correct name and isAbstract false") {
-            val result = TestSupport.runEngine(mapOf("Foo.kt" to "class Foo"))
+            val result = TestSupport.runEngine(sources = mapOf("Foo.kt" to "class Foo"))
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()
             val foo = classes.find { it.name == "Foo" }
@@ -23,7 +23,7 @@ class KtClassMapperTest :
         }
 
         test("abstract class sets isAbstract true") {
-            val result = TestSupport.runEngine(mapOf("Foo.kt" to "abstract class Foo"))
+            val result = TestSupport.runEngine(sources = mapOf("Foo.kt" to "abstract class Foo"))
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()
             val foo = classes.find { it.name == "Foo" }
@@ -32,7 +32,7 @@ class KtClassMapperTest :
         }
 
         test("data class gets data stereotype and maps primary-ctor val param as attribute") {
-            val result = TestSupport.runEngine(mapOf("Foo.kt" to "data class Foo(val x: Int)"))
+            val result = TestSupport.runEngine(sources = mapOf("Foo.kt" to "data class Foo(val x: Int)"))
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()
             val foo = classes.find { it.name == "Foo" }

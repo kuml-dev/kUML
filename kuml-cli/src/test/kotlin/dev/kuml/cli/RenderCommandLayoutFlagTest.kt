@@ -32,7 +32,7 @@ class RenderCommandLayoutFlagTest :
             LayoutEngineRegistry.clear()
             LayoutEngineRegistry.register(ElkLayoutEngineProvider())
             LayoutEngineRegistry.register(GridLayoutEngineProvider())
-            val engine = LayoutEngineRegistry.pickFor(DiagramKind.UmlClass, null)
+            val engine = LayoutEngineRegistry.pickFor(kind = DiagramKind.UmlClass, preferredEngineId = null)
             engine shouldNotBe null
             engine!!.id shouldBe LayoutEngineId("elk.layered")
         }
@@ -41,7 +41,7 @@ class RenderCommandLayoutFlagTest :
             LayoutEngineRegistry.clear()
             LayoutEngineRegistry.register(ElkLayoutEngineProvider())
             LayoutEngineRegistry.register(GridLayoutEngineProvider())
-            val engine = LayoutEngineRegistry.pickFor(DiagramKind.UmlClass, LayoutEngineId("kuml.grid"))
+            val engine = LayoutEngineRegistry.pickFor(kind = DiagramKind.UmlClass, preferredEngineId = LayoutEngineId("kuml.grid"))
             engine shouldNotBe null
             engine!!.id shouldBe LayoutEngineId("kuml.grid")
         }

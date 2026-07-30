@@ -116,16 +116,16 @@ internal object McpServer {
     private fun handleToolsCall(request: JsonRpcRequest): JsonRpcResponse {
         val params =
             request.params?.jsonObject
-                ?: return errorResponse(request, -32602, "Missing params")
+                ?: return errorResponse(request = request, code = -32602, message = "Missing params")
 
         val toolName =
             params["name"]?.jsonPrimitive?.content
-                ?: return errorResponse(request, -32602, "Missing params.name")
+                ?: return errorResponse(request = request, code = -32602, message = "Missing params.name")
 
         val arguments = params["arguments"]?.jsonObject ?: JsonObject(emptyMap())
 
         return try {
-            val contents = ToolRegistry.dispatch(toolName, arguments)
+            val contents = ToolRegistry.dispatch(name = toolName, arguments = arguments)
             val result = json.encodeToJsonElement(McpToolResult.serializer(), McpToolResult(content = contents, isError = false))
             JsonRpcResponse(id = request.id, result = result)
         } catch (e: McpToolException) {
@@ -176,11 +176,11 @@ internal object McpServer {
     private fun handleResourcesRead(request: JsonRpcRequest): JsonRpcResponse {
         val params =
             request.params?.jsonObject
-                ?: return errorResponse(request, -32602, "Missing params")
+                ?: return errorResponse(request = request, code = -32602, message = "Missing params")
 
         val uri =
             params["uri"]?.jsonPrimitive?.content
-                ?: return errorResponse(request, -32602, "Missing params.uri")
+                ?: return errorResponse(request = request, code = -32602, message = "Missing params.uri")
 
         return try {
             val contents = ResourceRegistry.read(uri)
@@ -192,7 +192,7 @@ internal object McpServer {
                 }
             JsonRpcResponse(id = request.id, result = result)
         } catch (e: McpResourceException) {
-            errorResponse(request, -32602, e.message ?: "Unknown resource: '$uri'")
+            errorResponse(request = request, code = -32602, message = e.message ?: "Unknown resource: '$uri'")
         }
     }
 

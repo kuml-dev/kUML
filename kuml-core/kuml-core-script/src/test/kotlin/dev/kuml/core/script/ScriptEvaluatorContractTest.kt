@@ -55,13 +55,13 @@ class ScriptEvaluatorContractTest :
 
             context("[$name] success cases") {
                 test("minimal UML diagram evaluates to an ExtractedDiagram.Uml") {
-                    val result = evaluator.evaluate(minimalUml)
+                    val result = evaluator.evaluate(source = minimalUml)
                     result.shouldBeInstanceOf<EvaluatedScript.Success>()
                     result.diagram.shouldBeInstanceOf<ExtractedDiagram.Uml>()
                 }
 
                 test("class diagram preserves elements across the boundary") {
-                    val result = evaluator.evaluate(classDiagram)
+                    val result = evaluator.evaluate(source = classDiagram)
                     result.shouldBeInstanceOf<EvaluatedScript.Success>()
                     val uml = result.diagram.shouldBeInstanceOf<ExtractedDiagram.Uml>()
                     // Order + Customer must survive serialization (child path)
@@ -71,7 +71,7 @@ class ScriptEvaluatorContractTest :
                 }
 
                 test("SysML 2 STM model round-trips as ExtractedDiagram.Sysml2") {
-                    val result = evaluator.evaluate(sysml2Stm)
+                    val result = evaluator.evaluate(source = sysml2Stm)
                     result.shouldBeInstanceOf<EvaluatedScript.Success>()
                     val s2 = result.diagram.shouldBeInstanceOf<ExtractedDiagram.Sysml2>()
                     s2.model.diagrams.isEmpty() shouldBe false
@@ -81,21 +81,21 @@ class ScriptEvaluatorContractTest :
             context("[$name] failure cases") {
                 test("guard rejection is a GUARD failure") {
                     val hostile = """diagram(name = "x") { }; ProcessBuilder("id").start()"""
-                    val result = evaluator.evaluate(hostile)
+                    val result = evaluator.evaluate(source = hostile)
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.kind shouldBe FailureKind.GUARD
                 }
 
                 test("compile error is an EVALUATION failure") {
                     val broken = """diagram(name = "x", type = DiagramType.CLASS) { thisIsNotAValidBuilder() }"""
-                    val result = evaluator.evaluate(broken)
+                    val result = evaluator.evaluate(source = broken)
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.kind shouldBe FailureKind.EVALUATION
                 }
 
                 test("script producing no diagram is an EVALUATION failure") {
                     val noDiagram = """val x = 1 + 1"""
-                    val result = evaluator.evaluate(noDiagram)
+                    val result = evaluator.evaluate(source = noDiagram)
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.kind shouldBe FailureKind.EVALUATION
                 }
@@ -106,7 +106,7 @@ class ScriptEvaluatorContractTest :
                     // caller-supplied virtual one, never the server-internal
                     // temp file path.
                     val noDiagram = """val x = 1 + 1"""
-                    val result = evaluator.evaluate(noDiagram, fileName = "myscript.kuml.kts")
+                    val result = evaluator.evaluate(source = noDiagram, fileName = "myscript.kuml.kts")
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.message shouldContain "myscript.kuml.kts"
                     failure.message.contains("kuml-eval-") shouldBe false

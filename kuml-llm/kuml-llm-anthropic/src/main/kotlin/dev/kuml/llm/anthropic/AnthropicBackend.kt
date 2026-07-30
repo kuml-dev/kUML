@@ -50,7 +50,7 @@ public class AnthropicBackend(
         messages: List<LlmMessage>,
         systemPrompt: String?,
     ): LlmResponse {
-        val requestBody = buildRequestBody(messages, systemPrompt)
+        val requestBody = buildRequestBody(messages = messages, systemPrompt = systemPrompt)
         val request =
             HttpRequest
                 .newBuilder()
@@ -66,11 +66,11 @@ public class AnthropicBackend(
             try {
                 httpClient.send(request, HttpResponse.BodyHandlers.ofString())
             } catch (e: Exception) {
-                throw LlmException("Network error calling Anthropic API: ${e.message}", e)
+                throw LlmException(message = "Network error calling Anthropic API: ${e.message}", cause = e)
             }
 
         if (response.statusCode() !in 200..299) {
-            throw LlmException("Anthropic API error ${response.statusCode()}: ${response.body()}")
+            throw LlmException(message = "Anthropic API error ${response.statusCode()}: ${response.body()}")
         }
 
         return parseResponse(response.body())
@@ -105,7 +105,7 @@ public class AnthropicBackend(
             try {
                 json.parseToJsonElement(body).jsonObject
             } catch (e: Exception) {
-                throw LlmException("Failed to parse Anthropic response: ${e.message}", e)
+                throw LlmException(message = "Failed to parse Anthropic response: ${e.message}", cause = e)
             }
         val text =
             parsed["content"]
@@ -115,7 +115,7 @@ public class AnthropicBackend(
                 ?.get("text")
                 ?.jsonPrimitive
                 ?.content
-                ?: throw LlmException("No text content in Anthropic response")
+                ?: throw LlmException(message = "No text content in Anthropic response")
         val usage = parsed["usage"]?.jsonObject
         val inputTokens =
             usage

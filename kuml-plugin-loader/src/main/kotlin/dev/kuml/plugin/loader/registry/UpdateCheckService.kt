@@ -52,5 +52,8 @@ public class UpdateCheckService(
         return UpdateCheckResult(plugins = infos, registryReachable = true)
     }
 
-    private fun parseVersion(v: String): PluginVersion = runCatching { PluginVersion.parse(v) }.getOrDefault(PluginVersion(0, 0, 0))
+    private fun parseVersion(v: String): PluginVersion =
+        runCatching {
+            PluginVersion.parse(v)
+        }.getOrDefault(PluginVersion(major = 0, minor = 0, patch = 0))
 }

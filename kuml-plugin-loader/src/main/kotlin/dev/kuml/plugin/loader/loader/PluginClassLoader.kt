@@ -17,6 +17,6 @@ public class PluginClassLoader(
     parent: ClassLoader = KumlPlugin::class.java.classLoader,
 ) : URLClassLoader(jarUrls, parent) {
     public companion object {
-        public fun forJar(jarPath: File): PluginClassLoader = PluginClassLoader(arrayOf(jarPath.toURI().toURL()))
+        public fun forJar(jarPath: File): PluginClassLoader = PluginClassLoader(jarUrls = arrayOf(jarPath.toURI().toURL()))
     }
 }

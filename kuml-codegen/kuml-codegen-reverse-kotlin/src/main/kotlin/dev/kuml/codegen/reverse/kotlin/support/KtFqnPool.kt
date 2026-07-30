@@ -29,10 +29,16 @@ internal class KtFqnPool private constructor(
 
             for (file in files) {
                 val pkg = file.packageFqName.asString()
-                collectDeclarations(file.declarations.filterIsInstance<KtClassOrObject>(), pkg, null, fqnToDecl, fqnToId)
+                collectDeclarations(
+                    declarations = file.declarations.filterIsInstance<KtClassOrObject>(),
+                    pkg = pkg,
+                    enclosingFqn = null,
+                    fqnToDecl = fqnToDecl,
+                    fqnToId = fqnToId,
+                )
             }
 
-            return KtFqnPool(fqnToDecl, fqnToId)
+            return KtFqnPool(fqnToDecl = fqnToDecl, fqnToId = fqnToId)
         }
 
         private fun collectDeclarations(
@@ -56,7 +62,7 @@ internal class KtFqnPool private constructor(
                 // Recurse into nested declarations
                 val nested = decl.declarations.filterIsInstance<KtClassOrObject>()
                 if (nested.isNotEmpty()) {
-                    collectDeclarations(nested, pkg, fqn, fqnToDecl, fqnToId)
+                    collectDeclarations(declarations = nested, pkg = pkg, enclosingFqn = fqn, fqnToDecl = fqnToDecl, fqnToId = fqnToId)
                 }
             }
         }

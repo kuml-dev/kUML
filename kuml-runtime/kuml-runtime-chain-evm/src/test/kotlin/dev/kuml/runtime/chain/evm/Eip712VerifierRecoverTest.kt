@@ -45,7 +45,7 @@ class Eip712VerifierRecoverTest :
         "recoverAddress returns signer for known digest and signature vector" {
             // We test that recoverAddress produces a deterministic, non-null Ethereum address.
             // The recovered address is implementation-consistent; we validate the round-trip below.
-            val recovered = verifier.recoverAddress(KNOWN_DIGEST, KNOWN_SIG)
+            val recovered = verifier.recoverAddress(digest = KNOWN_DIGEST, signature = KNOWN_SIG)
             recovered shouldNotBe null
             // Must start with 0x and be 42 chars (0x + 40 hex)
             recovered!!.length shouldBe 42
@@ -54,16 +54,21 @@ class Eip712VerifierRecoverTest :
 
         "verify returns true for matching expectedAddress and false for wrong address" {
             // Round-trip: whatever recoverAddress returns, verify must accept it and reject others.
-            val recovered = verifier.recoverAddress(KNOWN_DIGEST, KNOWN_SIG)
+            val recovered = verifier.recoverAddress(digest = KNOWN_DIGEST, signature = KNOWN_SIG)
             recovered shouldNotBe null
-            verifier.verify(KNOWN_DIGEST, KNOWN_SIG, recovered!!) shouldBe true
+            verifier.verify(digest = KNOWN_DIGEST, signature = KNOWN_SIG, expectedAddress = recovered!!) shouldBe true
             // A wrong address should be rejected
-            verifier.verify(KNOWN_DIGEST, KNOWN_SIG, "0x0000000000000000000000000000000000000001") shouldBe false
+            verifier.verify(
+                digest = KNOWN_DIGEST,
+                signature = KNOWN_SIG,
+                expectedAddress = "0x0000000000000000000000000000000000000001",
+            ) shouldBe
+                false
         }
 
         "recoverAddress returns null for invalid v byte" {
             val badSig = KNOWN_SIG.copyOf()
             badSig[64] = 99.toByte()
-            verifier.recoverAddress(KNOWN_DIGEST, badSig) shouldBe null
+            verifier.recoverAddress(digest = KNOWN_DIGEST, signature = badSig) shouldBe null
         }
     })

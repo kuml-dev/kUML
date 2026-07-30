@@ -44,21 +44,53 @@ class GridLayoutGoldfileTest :
                 LayoutGraph(
                     nodes =
                         listOf(
-                            LayoutNode(NodeId("a"), Size(100f, 60f), NodeHints(gridCol = 0, gridRow = 0)),
-                            LayoutNode(NodeId("b"), Size(100f, 60f), NodeHints(gridCol = 1, gridRow = 0)),
-                            LayoutNode(NodeId("c"), Size(100f, 60f), NodeHints(gridCol = 2, gridRow = 0)),
-                            LayoutNode(NodeId("d"), Size(100f, 60f), NodeHints(gridCol = 0, gridRow = 1)),
-                            LayoutNode(NodeId("e"), Size(100f, 60f), NodeHints(gridCol = 1, gridRow = 1)),
-                            LayoutNode(NodeId("f"), Size(100f, 60f), NodeHints(gridCol = 2, gridRow = 1)),
+                            LayoutNode(
+                                id = NodeId("a"),
+                                intrinsicSize = Size(width = 100f, height = 60f),
+                                hints = NodeHints(gridCol = 0, gridRow = 0),
+                            ),
+                            LayoutNode(
+                                id = NodeId("b"),
+                                intrinsicSize = Size(width = 100f, height = 60f),
+                                hints = NodeHints(gridCol = 1, gridRow = 0),
+                            ),
+                            LayoutNode(
+                                id = NodeId("c"),
+                                intrinsicSize = Size(width = 100f, height = 60f),
+                                hints = NodeHints(gridCol = 2, gridRow = 0),
+                            ),
+                            LayoutNode(
+                                id = NodeId("d"),
+                                intrinsicSize = Size(width = 100f, height = 60f),
+                                hints = NodeHints(gridCol = 0, gridRow = 1),
+                            ),
+                            LayoutNode(
+                                id = NodeId("e"),
+                                intrinsicSize = Size(width = 100f, height = 60f),
+                                hints = NodeHints(gridCol = 1, gridRow = 1),
+                            ),
+                            LayoutNode(
+                                id = NodeId("f"),
+                                intrinsicSize = Size(width = 100f, height = 60f),
+                                hints = NodeHints(gridCol = 2, gridRow = 1),
+                            ),
                         ),
                     edges =
                         listOf(
-                            LayoutEdge(EdgeId("ab"), EndpointRef(NodeId("a")), EndpointRef(NodeId("b"))),
-                            LayoutEdge(EdgeId("de"), EndpointRef(NodeId("d")), EndpointRef(NodeId("e"))),
+                            LayoutEdge(
+                                id = EdgeId("ab"),
+                                source = EndpointRef(nodeId = NodeId("a")),
+                                target = EndpointRef(nodeId = NodeId("b")),
+                            ),
+                            LayoutEdge(
+                                id = EdgeId("de"),
+                                source = EndpointRef(nodeId = NodeId("d")),
+                                target = EndpointRef(nodeId = NodeId("e")),
+                            ),
                         ),
                 )
             val result =
-                engine.layout(graph, LayoutHints(defaultEdgeStyle = EdgeRouteStyle.OrthogonalRounded))
+                engine.layout(graph = graph, hints = LayoutHints(defaultEdgeStyle = EdgeRouteStyle.OrthogonalRounded))
 
             val serialized = json.encodeToString(result)
             // Spot-Checks: bekannte Knoten- und Kanten-IDs sind im JSON vorhanden.
@@ -76,18 +108,18 @@ class GridLayoutGoldfileTest :
         test("port allocation produces deterministic positions across runs") {
             val graph =
                 LayoutGraph(
-                    nodes = listOf(LayoutNode(NodeId("svc"), Size(200f, 100f))),
+                    nodes = listOf(LayoutNode(id = NodeId("svc"), intrinsicSize = Size(width = 200f, height = 100f))),
                     edges =
                         listOf(
                             LayoutEdge(
-                                EdgeId("loopback"),
-                                EndpointRef(NodeId("svc"), dev.kuml.layout.PortId("p_in")),
-                                EndpointRef(NodeId("svc"), dev.kuml.layout.PortId("p_out")),
+                                id = EdgeId("loopback"),
+                                source = EndpointRef(nodeId = NodeId("svc"), portId = dev.kuml.layout.PortId("p_in")),
+                                target = EndpointRef(nodeId = NodeId("svc"), portId = dev.kuml.layout.PortId("p_out")),
                             ),
                         ),
                 )
-            val r1 = engine.layout(graph)
-            val r2 = engine.layout(graph)
+            val r1 = engine.layout(graph = graph)
+            val r2 = engine.layout(graph = graph)
             r1.nodes shouldBe r2.nodes
             r1.edges shouldBe r2.edges
         }

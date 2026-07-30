@@ -14,17 +14,18 @@ class KtDataClassClassifierTest :
         test("data sealed value inner classes get correct stereotype combinations") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Types.kt" to
-                            """
-                            data class DataClass(val x: Int)
-                            sealed class SealedBase
-                            value class ValueWrapper(val v: Int)
-                            class Outer {
-                                inner class InnerOne
-                            }
-                            """.trimIndent(),
-                    ),
+                    sources =
+                        mapOf(
+                            "Types.kt" to
+                                """
+                                data class DataClass(val x: Int)
+                                sealed class SealedBase
+                                value class ValueWrapper(val v: Int)
+                                class Outer {
+                                    inner class InnerOne
+                                }
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()

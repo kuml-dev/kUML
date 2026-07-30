@@ -90,7 +90,7 @@ internal object AnimatedExampleRenderer {
         }
         val traceFile = KumlRuntimeJson.decodeFromString(TraceFile.serializer(), traceJson)
 
-        val evalResult = KumlScriptHost.eval(script)
+        val evalResult = KumlScriptHost.eval(code = script)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         check(errors.isEmpty() && evalResult !is ResultWithDiagnostics.Failure) {
             errors.joinToString("\n") { it.message }.ifBlank { "Script-Auswertung fehlgeschlagen" }
@@ -98,7 +98,7 @@ internal object AnimatedExampleRenderer {
         val success = evalResult as ResultWithDiagnostics.Success
 
         val extracted =
-            DiagramExtractor.extractAny(success.value.returnValue, File("inline.kuml.kts"))
+            DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = File("inline.kuml.kts"))
         check(extracted is ExtractedDiagram.Bpmn) {
             "Erwartet ExtractedDiagram.Bpmn, erhalten: ${extracted::class.simpleName}"
         }
@@ -123,8 +123,8 @@ internal object AnimatedExampleRenderer {
             )
         val layout =
             elkEngine.layout(
-                BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram),
-                LayoutHints.DEFAULT,
+                graph = BpmnLayoutBridge.toLayoutGraph(model = extracted.model, diagram = diagram),
+                hints = LayoutHints.DEFAULT,
             )
 
         return BpmnSmilRenderer.render(
@@ -166,7 +166,7 @@ internal object AnimatedExampleRenderer {
         }
         val traceFile = KumlRuntimeJson.decodeFromString(TraceFile.serializer(), traceJson)
 
-        val evalResult = KumlScriptHost.eval(script)
+        val evalResult = KumlScriptHost.eval(code = script)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         check(errors.isEmpty() && evalResult !is ResultWithDiagnostics.Failure) {
             errors.joinToString("\n") { it.message }.ifBlank { "Script-Auswertung fehlgeschlagen" }
@@ -174,7 +174,7 @@ internal object AnimatedExampleRenderer {
         val success = evalResult as ResultWithDiagnostics.Success
 
         val extracted =
-            DiagramExtractor.extractAny(success.value.returnValue, File("inline.kuml.kts"))
+            DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = File("inline.kuml.kts"))
         check(extracted is ExtractedDiagram.Uml) {
             "Erwartet ExtractedDiagram.Uml, erhalten: ${extracted::class.simpleName}"
         }
@@ -185,9 +185,9 @@ internal object AnimatedExampleRenderer {
                 .firstOrNull()
                 ?: error("Kein UmlStateMachine in KumlDiagram.elements gefunden")
 
-        val sizeProvider = UmlContentSizeProvider(extracted.diagram)
-        val graph = UmlLayoutBridge.toLayoutGraph(extracted.diagram, sizeProvider)
-        val layout = elkEngine.layout(graph, LayoutHints.DEFAULT)
+        val sizeProvider = UmlContentSizeProvider(diagram = extracted.diagram)
+        val graph = UmlLayoutBridge.toLayoutGraph(diagram = extracted.diagram, sizeProvider = sizeProvider)
+        val layout = elkEngine.layout(graph = graph, hints = LayoutHints.DEFAULT)
 
         return StmSmilRenderer.render(
             diagram = extracted.diagram,
@@ -229,7 +229,7 @@ internal object AnimatedExampleRenderer {
         }
         val traceFile = KumlRuntimeJson.decodeFromString(TraceFile.serializer(), traceJson)
 
-        val evalResult = KumlScriptHost.eval(script)
+        val evalResult = KumlScriptHost.eval(code = script)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         check(errors.isEmpty() && evalResult !is ResultWithDiagnostics.Failure) {
             errors.joinToString("\n") { it.message }.ifBlank { "Script-Auswertung fehlgeschlagen" }
@@ -237,15 +237,15 @@ internal object AnimatedExampleRenderer {
         val success = evalResult as ResultWithDiagnostics.Success
 
         val extracted =
-            DiagramExtractor.extractAny(success.value.returnValue, File("inline.kuml.kts"))
+            DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = File("inline.kuml.kts"))
         check(extracted is ExtractedDiagram.Uml) {
             "Erwartet ExtractedDiagram.Uml, erhalten: ${extracted::class.simpleName}"
         }
 
         val diagram = extracted.diagram
-        val sizeProvider = UmlContentSizeProvider(diagram)
-        val graph = UmlLayoutBridge.toLayoutGraph(diagram, sizeProvider)
-        val layout = elkEngine.layout(graph, LayoutHints.DEFAULT)
+        val sizeProvider = UmlContentSizeProvider(diagram = diagram)
+        val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram, sizeProvider = sizeProvider)
+        val layout = elkEngine.layout(graph = graph, hints = LayoutHints.DEFAULT)
 
         return SequenceSmilRenderer.render(
             diagram = diagram,
@@ -265,5 +265,6 @@ internal object AnimatedExampleRenderer {
      * @param animatedSvg The animated SVG string produced by [renderBpmn] or [renderStm].
      * @return Static SVG string with all SMIL elements removed.
      */
-    fun stripSmil(animatedSvg: String): String = SmilEmitter().inject(animatedSvg, SmilTimeline(emptyList()), StaticSnapshotMode.STRIPPED)
+    fun stripSmil(animatedSvg: String): String =
+        SmilEmitter().inject(svg = animatedSvg, timeline = SmilTimeline(emptyList()), staticSnapshot = StaticSnapshotMode.STRIPPED)
 }

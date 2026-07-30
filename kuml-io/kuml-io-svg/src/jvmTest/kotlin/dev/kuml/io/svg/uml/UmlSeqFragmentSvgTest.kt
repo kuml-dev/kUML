@@ -154,17 +154,17 @@ class UmlSeqFragmentSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(750f, 420f),
+                canvas = Size(width = 750f, height = 420f),
                 nodes =
                     mapOf(
                         NodeId(engineer.id) to
-                            NodeLayout(bounds = Rect(Point(20f, 20f), Size(140f, 320f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 140f, height = 320f))),
                         NodeId(llm.id) to
-                            NodeLayout(bounds = Rect(Point(200f, 20f), Size(140f, 320f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 200f, y = 20f), size = Size(width = 140f, height = 320f))),
                         NodeId(kotlinc.id) to
-                            NodeLayout(bounds = Rect(Point(380f, 20f), Size(140f, 320f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 380f, y = 20f), size = Size(width = 140f, height = 320f))),
                         NodeId(renderer.id) to
-                            NodeLayout(bounds = Rect(Point(560f, 20f), Size(140f, 320f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 560f, y = 20f), size = Size(width = 140f, height = 320f))),
                     ),
                 edges = emptyMap(),
                 groups = emptyMap(),
@@ -173,14 +173,14 @@ class UmlSeqFragmentSvgTest :
         // ── Tests ─────────────────────────────────────────────────────────────
 
         test("break_ inside loop renders BREAK keyword and LOOP keyword") {
-            val svg = KumlSvgRenderer.toSvg(diagram, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = fakeLayout(), theme = PlainTheme())
             assert(svg.contains("BREAK")) { "Expected 'BREAK' keyword in pentagon — not found in SVG" }
             assert(svg.contains("LOOP")) { "Expected 'LOOP' keyword in pentagon — not found in SVG" }
-            SampleOutput.write("uml-seq/loop-with-break.svg", svg)
+            SampleOutput.write(filename = "uml-seq/loop-with-break.svg", content = svg)
         }
 
         test("break_ frame uses solid border — no stroke-dasharray on BREAK group") {
-            val svg = KumlSvgRenderer.toSvg(diagram, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = fakeLayout(), theme = PlainTheme())
             val breakGroupStart = svg.indexOf("id=\"${breakFrag.id}\"")
             assert(breakGroupStart >= 0) { "BREAK fragment <g> not found in SVG" }
             // The fragment <g> contains only flat child elements (<rect>, <polygon>, <text>)
@@ -194,7 +194,7 @@ class UmlSeqFragmentSvgTest :
         }
 
         test("LOOP frame retains dashed border") {
-            val svg = KumlSvgRenderer.toSvg(diagram, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = fakeLayout(), theme = PlainTheme())
             val loopGroupStart = svg.indexOf("id=\"${loopFrag.id}\"")
             assert(loopGroupStart >= 0) { "LOOP fragment <g> not found in SVG" }
             val loopGroupEnd = svg.indexOf("</g>", loopGroupStart) + 4
@@ -206,7 +206,7 @@ class UmlSeqFragmentSvgTest :
         }
 
         test("LOOP is rendered before BREAK in SVG — BREAK appears on top") {
-            val svg = KumlSvgRenderer.toSvg(diagram, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = fakeLayout(), theme = PlainTheme())
             val loopPos = svg.indexOf("id=\"${loopFrag.id}\"")
             val breakPos = svg.indexOf("id=\"${breakFrag.id}\"")
             assert(loopPos >= 0) { "LOOP fragment not found in SVG" }
@@ -218,7 +218,7 @@ class UmlSeqFragmentSvgTest :
         }
 
         test("BREAK frame uses light fill to distinguish from enclosing LOOP frame") {
-            val svg = KumlSvgRenderer.toSvg(diagram, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = fakeLayout(), theme = PlainTheme())
             val breakGroupStart = svg.indexOf("id=\"${breakFrag.id}\"")
             assert(breakGroupStart >= 0) { "BREAK fragment <g> not found in SVG" }
             val breakGroupEnd = svg.indexOf("</g>", breakGroupStart) + 4
@@ -231,7 +231,7 @@ class UmlSeqFragmentSvgTest :
         }
 
         test("nested BREAK frame is narrower than enclosing LOOP frame") {
-            val svg = KumlSvgRenderer.toSvg(diagram, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = fakeLayout(), theme = PlainTheme())
 
             // Extract width from rect attribute: width="NNN"
             fun extractRectWidth(fragId: String): Float {
@@ -265,7 +265,7 @@ class UmlSeqFragmentSvgTest :
 
         test("all sequence label background rects use the theme's uniform effectiveNodeFill") {
             val theme = KumlBrandTheme()
-            val svg = KumlSvgRenderer.toSvg(diagram, fakeLayout(), theme)
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = fakeLayout(), theme = theme)
             val expectedFill = theme.colors.effectiveNodeFill.toHex()
             assert(expectedFill != "#eef6ff") {
                 "Test assumption violated: KumlBrandTheme effectiveNodeFill should differ from #eef6ff"
@@ -292,7 +292,7 @@ class UmlSeqFragmentSvgTest :
         // and thus paint over the pentagon's border stroke.
 
         test("guard label rect never overlaps its operator-tag pentagon") {
-            val svg = KumlSvgRenderer.toSvg(diagram, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = fakeLayout(), theme = PlainTheme())
 
             fun pentagonRightX(fragId: String): Float {
                 val groupStart = svg.indexOf("id=\"$fragId\"")

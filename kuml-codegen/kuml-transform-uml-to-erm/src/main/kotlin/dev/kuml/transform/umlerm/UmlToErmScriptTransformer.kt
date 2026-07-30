@@ -35,7 +35,7 @@ public class UmlToErmScriptTransformer : KumlTransformer<KumlDiagram, List<Gener
         source: KumlDiagram,
         ctx: TransformContext,
     ): TransformResult<List<GeneratedFile>> =
-        when (val result = core.transform(source, ctx)) {
+        when (val result = core.transform(source = source, ctx = ctx)) {
             is TransformResult.Success -> {
                 val slug =
                     source.name
@@ -44,8 +44,8 @@ public class UmlToErmScriptTransformer : KumlTransformer<KumlDiagram, List<Gener
                         .replace(" ", "-")
                         .lowercase()
                         .ifBlank { "model" }
-                val file = GeneratedFile("$slug.erm.kuml.kts", ErmScriptRenderer.render(result.output))
-                TransformResult.Success(listOf(file), result.trace)
+                val file = GeneratedFile(relativePath = "$slug.erm.kuml.kts", content = ErmScriptRenderer.render(result.output))
+                TransformResult.Success(output = listOf(file), trace = result.trace)
             }
             is TransformResult.Failure -> result
         }

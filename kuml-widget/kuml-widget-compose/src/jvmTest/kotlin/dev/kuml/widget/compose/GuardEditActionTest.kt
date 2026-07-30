@@ -30,27 +30,27 @@ class GuardEditActionTest :
             )
 
         test(name = "None + unprotected => Denied") {
-            resolveGuardEditAction(EditPolicy.None, unprotected) shouldBe GuardEditAction.Denied
+            resolveGuardEditAction(policy = EditPolicy.None, transition = unprotected) shouldBe GuardEditAction.Denied
         }
 
         test(name = "None + protected => Denied (protected cannot grant access)") {
-            resolveGuardEditAction(EditPolicy.None, protected) shouldBe GuardEditAction.Denied
+            resolveGuardEditAction(policy = EditPolicy.None, transition = protected) shouldBe GuardEditAction.Denied
         }
 
         test(name = "GuardsOnly + unprotected => Apply") {
-            resolveGuardEditAction(EditPolicy.GuardsOnly, unprotected) shouldBe GuardEditAction.Apply
+            resolveGuardEditAction(policy = EditPolicy.GuardsOnly, transition = unprotected) shouldBe GuardEditAction.Apply
         }
 
         test(name = "GuardsOnly + protected => Confirm") {
-            resolveGuardEditAction(EditPolicy.GuardsOnly, protected) shouldBe GuardEditAction.Confirm
+            resolveGuardEditAction(policy = EditPolicy.GuardsOnly, transition = protected) shouldBe GuardEditAction.Confirm
         }
 
         test(name = "FullStructural + unprotected => Apply") {
-            resolveGuardEditAction(EditPolicy.FullStructural, unprotected) shouldBe GuardEditAction.Apply
+            resolveGuardEditAction(policy = EditPolicy.FullStructural, transition = unprotected) shouldBe GuardEditAction.Apply
         }
 
         test(name = "FullStructural + protected => Confirm") {
-            resolveGuardEditAction(EditPolicy.FullStructural, protected) shouldBe GuardEditAction.Confirm
+            resolveGuardEditAction(policy = EditPolicy.FullStructural, transition = protected) shouldBe GuardEditAction.Confirm
         }
 
         test(name = "every GuardEditGate value maps onto exactly one GuardEditAction (no silent fallthrough)") {
@@ -69,7 +69,7 @@ class GuardEditActionTest :
                         GuardEditGate.RequiresConfirmation -> GuardEditAction.Confirm
                     }
 
-                resolveGuardEditAction(policy, transition) shouldBe expected
+                resolveGuardEditAction(policy = policy, transition = transition) shouldBe expected
             }
         }
     })

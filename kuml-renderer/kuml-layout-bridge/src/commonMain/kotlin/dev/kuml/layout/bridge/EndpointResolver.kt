@@ -85,8 +85,8 @@ internal object EndpointResolver {
         if (relationship !is UmlConnector) {
             return ResolvedEndpoints(sourceNodeId = raw.first, targetNodeId = raw.second)
         }
-        val (sNode, sPort) = splitPortId(raw.first, componentPorts)
-        val (tNode, tPort) = splitPortId(raw.second, componentPorts)
+        val (sNode, sPort) = splitPortId(endId = raw.first, componentPorts = componentPorts)
+        val (tNode, tPort) = splitPortId(endId = raw.second, componentPorts = componentPorts)
         return ResolvedEndpoints(
             sourceNodeId = sNode,
             sourcePortId = sPort,

@@ -108,7 +108,7 @@ public class ActivityDiagramBuilder(
         name: String,
         kind: UmlActivityNodeKind,
     ): UmlActivityNode {
-        val id = UmlIds.disambiguate(candidate = UmlIds.child(containerId, name), taken = takenIds)
+        val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId = containerId, name = name), taken = takenIds)
         val n = UmlActivityNode(id = id, name = name, kind = kind)
         addNamedElement(n)
         return n

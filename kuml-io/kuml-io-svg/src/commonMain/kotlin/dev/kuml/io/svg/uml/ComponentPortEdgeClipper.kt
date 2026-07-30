@@ -187,7 +187,7 @@ internal object ComponentPortEdgeClipper {
         box: Rect,
     ): Boolean {
         for (i in 0 until points.size - 1) {
-            if (axisSegmentCrossesBox(points[i], points[i + 1], box)) return true
+            if (axisSegmentCrossesBox(a = points[i], b = points[i + 1], box = box)) return true
         }
         return false
     }
@@ -242,7 +242,7 @@ internal object ComponentPortEdgeClipper {
         // nicht zu erwarten; verhindert eine Endlosschleife bei
         // pathologischen/degenerierten Layouts.
         repeat(obstacles.size + 8) {
-            val box = obstacles.firstOrNull { pathCrossesBox(result, it) } ?: return result
+            val box = obstacles.firstOrNull { pathCrossesBox(points = result, box = it) } ?: return result
             val boxLeft = box.origin.x
             val boxRight = box.origin.x + box.size.width
             val boxTop = box.origin.y
@@ -265,12 +265,12 @@ internal object ComponentPortEdgeClipper {
             val last = result.last()
             val corners =
                 listOf(
-                    Point(leftGutter, topGutter),
-                    Point(rightGutter, topGutter),
-                    Point(leftGutter, bottomGutter),
-                    Point(rightGutter, bottomGutter),
+                    Point(x = leftGutter, y = topGutter),
+                    Point(x = rightGutter, y = topGutter),
+                    Point(x = leftGutter, y = bottomGutter),
+                    Point(x = rightGutter, y = bottomGutter),
                 ).sortedBy { corner ->
-                    distanceToSegment(corner, first, last)
+                    distanceToSegment(p = corner, a = first, b = last)
                 }
 
             // Der Ersatz-Abschnitt darf weder eine der `obstacles` noch die
@@ -296,16 +296,16 @@ internal object ComponentPortEdgeClipper {
                 val candidate =
                     listOf(
                         first,
-                        Point(corner.x, first.y),
-                        Point(corner.x, corner.y),
-                        Point(last.x, corner.y),
+                        Point(x = corner.x, y = first.y),
+                        Point(x = corner.x, y = corner.y),
+                        Point(x = last.x, y = corner.y),
                         last,
                     )
-                if (validationBoxes.none { pathCrossesBox(candidate, it) }) {
+                if (validationBoxes.none { pathCrossesBox(points = candidate, box = it) }) {
                     replacement = candidate
                     break
                 }
-                if (replacement == null || obstacles.none { pathCrossesBox(candidate, it) }) {
+                if (replacement == null || obstacles.none { pathCrossesBox(points = candidate, box = it) }) {
                     // Fallback-Präferenz: ein Kandidat, der wenigstens keine
                     // `obstacles` mehr kreuzt (auch wenn er src/tgt streift),
                     // ist besser als gar keiner.
@@ -377,7 +377,7 @@ internal object ComponentPortEdgeClipper {
         val tx = tgt.x + tStub
 
         val waypoints = mutableListOf<Point>()
-        waypoints.add(Point(sx, src.y))
+        waypoints.add(Point(x = sx, y = src.y))
         if (src.side == tgt.side) {
             // U-Form: gemeinsamer vertikaler Korridor außerhalb beider
             // Komponenten. Auf der linken Seite ist das die WEITER LINKS
@@ -389,9 +389,9 @@ internal object ComponentPortEdgeClipper {
                 } else {
                     maxOf(sx, tx)
                 }
-            waypoints.add(Point(cornerX, src.y))
-            waypoints.add(Point(cornerX, tgt.y))
-            waypoints.add(Point(tx, tgt.y))
+            waypoints.add(Point(x = cornerX, y = src.y))
+            waypoints.add(Point(x = cornerX, y = tgt.y))
+            waypoints.add(Point(x = tx, y = tgt.y))
         } else {
             val sLeft = srcBounds.origin.x
             val sRight = srcBounds.origin.x + srcBounds.size.width
@@ -416,22 +416,22 @@ internal object ComponentPortEdgeClipper {
                     } else {
                         (tBottom + sTop) / 2f
                     }
-                waypoints.add(Point(sx, corridorY))
-                waypoints.add(Point(tx, corridorY))
-                waypoints.add(Point(tx, tgt.y))
+                waypoints.add(Point(x = sx, y = corridorY))
+                waypoints.add(Point(x = tx, y = corridorY))
+                waypoints.add(Point(x = tx, y = tgt.y))
             } else {
                 // Z-Form: vertikaler Mittelkorridor zwischen den beiden Stub-x
                 // (Boxen liegen nebeneinander).
                 val midX = (sx + tx) / 2f
-                waypoints.add(Point(midX, src.y))
-                waypoints.add(Point(midX, tgt.y))
-                waypoints.add(Point(tx, tgt.y))
+                waypoints.add(Point(x = midX, y = src.y))
+                waypoints.add(Point(x = midX, y = tgt.y))
+                waypoints.add(Point(x = tx, y = tgt.y))
             }
         }
 
         val fullPath =
             avoidObstacles(
-                points = listOf(Point(src.x, src.y)) + waypoints + Point(tgt.x, tgt.y),
+                points = listOf(Point(x = src.x, y = src.y)) + waypoints + Point(x = tgt.x, y = tgt.y),
                 siblingBounds = siblingBounds,
                 srcBounds = srcBounds,
                 tgtBounds = tgtBounds,
@@ -477,8 +477,14 @@ internal object ComponentPortEdgeClipper {
         val tgtComp = componentLookup(s2Id) ?: return route
         val srcBounds = boundsLookup(s1Id) ?: return route
         val tgtBounds = boundsLookup(s2Id) ?: return route
-        val srcAnchor = portAnchor(srcComp, srcBounds, s1Port) ?: return route
-        val tgtAnchor = portAnchor(tgtComp, tgtBounds, s2Port) ?: return route
-        return buildOrthogonalRoute(srcAnchor, tgtAnchor, srcBounds, tgtBounds, siblingBounds)
+        val srcAnchor = portAnchor(component = srcComp, compBounds = srcBounds, portName = s1Port) ?: return route
+        val tgtAnchor = portAnchor(component = tgtComp, compBounds = tgtBounds, portName = s2Port) ?: return route
+        return buildOrthogonalRoute(
+            src = srcAnchor,
+            tgt = tgtAnchor,
+            srcBounds = srcBounds,
+            tgtBounds = tgtBounds,
+            siblingBounds = siblingBounds,
+        )
     }
 }

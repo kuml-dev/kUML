@@ -33,9 +33,9 @@ internal fun routeEdge(
 ): EdgeRoute =
     when (style) {
         EdgeRouteStyle.Direct -> EdgeRoute.Direct(source = source, target = target)
-        EdgeRouteStyle.OrthogonalRounded -> orthogonalRounded(source, target)
-        EdgeRouteStyle.TreeRounded -> orthogonalRoundedAsTree(source, target)
-        EdgeRouteStyle.Bezier -> bezier(source, target)
+        EdgeRouteStyle.OrthogonalRounded -> orthogonalRounded(source = source, target = target)
+        EdgeRouteStyle.TreeRounded -> orthogonalRoundedAsTree(source = source, target = target)
+        EdgeRouteStyle.Bezier -> bezier(source = source, target = target)
     }
 
 private fun orthogonalRounded(
@@ -49,12 +49,12 @@ private fun orthogonalRounded(
             // Quasi-horizontal: H-V-H mit Knick in der Mitte (V-Segment).
             abs(dx) >= abs(dy) -> {
                 val midX = source.x + dx / 2f
-                listOf(Point(midX, source.y), Point(midX, target.y))
+                listOf(Point(x = midX, y = source.y), Point(x = midX, y = target.y))
             }
             // Quasi-vertikal: V-H-V mit Knick in der Mitte (H-Segment).
             else -> {
                 val midY = source.y + dy / 2f
-                listOf(Point(source.x, midY), Point(target.x, midY))
+                listOf(Point(x = source.x, y = midY), Point(x = target.x, y = midY))
             }
         }
     return EdgeRoute.OrthogonalRounded(
@@ -77,7 +77,7 @@ private fun orthogonalRoundedAsTree(
         if (source.x == target.x) {
             emptyList()
         } else {
-            listOf(Point(source.x, midY), Point(target.x, midY))
+            listOf(Point(x = source.x, y = midY), Point(x = target.x, y = midY))
         }
     return EdgeRoute.TreeRounded(
         source = source,
@@ -102,7 +102,7 @@ private fun bezier(
     val len = kotlin.math.sqrt(nx * nx + ny * ny).coerceAtLeast(1f)
     val ox = (nx / len) * perpScale * kotlin.math.sqrt(dx * dx + dy * dy)
     val oy = (ny / len) * perpScale * kotlin.math.sqrt(dx * dx + dy * dy)
-    val c1 = Point(source.x + dx / 3f + ox, source.y + dy / 3f + oy)
-    val c2 = Point(source.x + 2f * dx / 3f + ox, source.y + 2f * dy / 3f + oy)
+    val c1 = Point(x = source.x + dx / 3f + ox, y = source.y + dy / 3f + oy)
+    val c2 = Point(x = source.x + 2f * dx / 3f + ox, y = source.y + 2f * dy / 3f + oy)
     return EdgeRoute.Bezier(source = source, target = target, controlPoints = listOf(c1, c2))
 }

@@ -33,7 +33,7 @@ internal class KtFunctionMapper(
                 if (func.receiverTypeReference != null) add("extension")
             }
 
-        val params = func.valueParameters.map { param -> paramMapper.map(param, opId) }
+        val params = func.valueParameters.map { param -> paramMapper.map(param = param, ownerId = opId) }
         val returnType = func.typeReference?.let { typeResolver.resolve(it) }
 
         return UmlOperation(
@@ -62,7 +62,7 @@ internal class KtFunctionMapper(
             ctor
                 .getValueParameters()
                 .filter { !it.hasValOrVar() } // val/var params become properties, not ctor params in UML
-                .map { param -> paramMapper.map(param, opId) }
+                .map { param -> paramMapper.map(param = param, ownerId = opId) }
 
         return UmlOperation(
             id = opId,

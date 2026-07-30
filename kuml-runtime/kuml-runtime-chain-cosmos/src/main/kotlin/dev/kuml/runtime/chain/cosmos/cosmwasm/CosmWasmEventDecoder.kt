@@ -49,7 +49,7 @@ public class CosmWasmEventDecoder {
         val finalizeEvents = root["finalize_block_events"]?.jsonArray ?: emptyList<JsonElement>()
         for (evt in finalizeEvents) {
             val obj = evt as? JsonObject ?: continue
-            extractWasmEvent(obj, contractAddr, height, txHash = "")?.let { events.add(it) }
+            extractWasmEvent(evt = obj, contractAddr = contractAddr, height = height, txHash = "")?.let { events.add(it) }
         }
 
         // Events aus txs_results[].events
@@ -60,7 +60,7 @@ public class CosmWasmEventDecoder {
             val txEvents = txObj["events"]?.jsonArray ?: continue
             for (evt in txEvents) {
                 val obj = evt as? JsonObject ?: continue
-                extractWasmEvent(obj, contractAddr, height, txHash)?.let { events.add(it) }
+                extractWasmEvent(evt = obj, contractAddr = contractAddr, height = height, txHash = txHash)?.let { events.add(it) }
             }
         }
 
@@ -126,8 +126,8 @@ public class CosmWasmEventDecoder {
 
             // Per-Attribut-Fallback: wenn erkannter Modus zu ungültigem Ergebnis führt,
             // das Gegenteil versuchen, um Datenverlust bei ambiguösen ersten Keys zu vermeiden.
-            val key = decodeWithFallback(rawKey, preferBase64 = isBase64)
-            val value = decodeWithFallback(rawValue, preferBase64 = isBase64)
+            val key = decodeWithFallback(s = rawKey, preferBase64 = isBase64)
+            val value = decodeWithFallback(s = rawValue, preferBase64 = isBase64)
             result[key] = value
         }
         return result

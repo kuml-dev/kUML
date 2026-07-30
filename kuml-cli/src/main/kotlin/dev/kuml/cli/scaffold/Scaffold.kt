@@ -73,8 +73,8 @@ internal object Scaffolder {
         }
         for (tmpl in templates) {
             val content = loadResource(tmpl.resourcePath)
-            val rendered = TemplateEngine.render(content, vars)
-            val outRelative = TemplateEngine.render(tmpl.outputPath, vars)
+            val rendered = TemplateEngine.render(template = content, vars = vars)
+            val outRelative = TemplateEngine.render(template = tmpl.outputPath, vars = vars)
             val outFile = File(targetDir, outRelative)
             outFile.parentFile?.mkdirs()
             outFile.writeText(rendered)

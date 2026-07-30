@@ -14,39 +14,39 @@ class SqlNamesTest :
     FunSpec({
 
         test("requireSafe accepts a plain identifier") {
-            SqlNames.requireSafe("users", "table name", "src") shouldBe "users"
+            SqlNames.requireSafe(name = "users", what = "table name", source = "src") shouldBe "users"
         }
 
         test("requireSafe accepts underscores and digits (not leading)") {
-            SqlNames.requireSafe("auth_users_2", "table name", "src") shouldBe "auth_users_2"
+            SqlNames.requireSafe(name = "auth_users_2", what = "table name", source = "src") shouldBe "auth_users_2"
         }
 
         test("requireSafe rejects a name containing SQL metacharacters") {
             shouldThrow<UnsafeSqlIdentifierException> {
-                SqlNames.requireSafe("users; DROP TABLE users; --", "table name", "src")
+                SqlNames.requireSafe(name = "users; DROP TABLE users; --", what = "table name", source = "src")
             }
         }
 
         test("requireSafe rejects a name with embedded whitespace") {
             shouldThrow<UnsafeSqlIdentifierException> {
-                SqlNames.requireSafe("evil name", "column name", "src")
+                SqlNames.requireSafe(name = "evil name", what = "column name", source = "src")
             }
         }
 
         test("requireSafe rejects a name starting with a digit") {
             shouldThrow<UnsafeSqlIdentifierException> {
-                SqlNames.requireSafe("2fast", "table name", "src")
+                SqlNames.requireSafe(name = "2fast", what = "table name", source = "src")
             }
         }
 
         test("requireSafe rejects a name longer than 63 characters") {
             shouldThrow<UnsafeSqlIdentifierException> {
-                SqlNames.requireSafe("a".repeat(64), "table name", "src")
+                SqlNames.requireSafe(name = "a".repeat(64), what = "table name", source = "src")
             }
         }
 
         test("requireSafe accepts exactly 63 characters") {
             val name = "a".repeat(63)
-            SqlNames.requireSafe(name, "table name", "src") shouldBe name
+            SqlNames.requireSafe(name = name, what = "table name", source = "src") shouldBe name
         }
     })

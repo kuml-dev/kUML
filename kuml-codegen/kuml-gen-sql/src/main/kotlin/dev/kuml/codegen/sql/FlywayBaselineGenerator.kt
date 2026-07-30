@@ -47,13 +47,13 @@ public class FlywayBaselineGenerator(
         outputDir.mkdirs()
         val version = options["flyway-version"] ?: "1"
         val description = options["flyway-description"] ?: "init"
-        val migrationFile = FlywayFileNaming.resolveMigrationFile(outputDir, version, description)
+        val migrationFile = FlywayFileNaming.resolveMigrationFile(outputDir = outputDir, version = version, description = description)
 
         // Delegate into a scratch subdirectory so SqlDdlGenerator's fixed
         // "schema.sql" never touches outputDir directly — avoids collisions
         // and guarantees no leftover schema.sql remains in outputDir.
         val scratchDir = File(outputDir, ".flyway-baseline-scratch")
-        val delegateFiles = delegate.generate(diagram, scratchDir, options)
+        val delegateFiles = delegate.generate(diagram = diagram, outputDir = scratchDir, options = options)
         check(delegateFiles.size == 1) {
             "FlywayBaselineGenerator expects SqlDdlGenerator to produce exactly one file, got ${delegateFiles.size}"
         }

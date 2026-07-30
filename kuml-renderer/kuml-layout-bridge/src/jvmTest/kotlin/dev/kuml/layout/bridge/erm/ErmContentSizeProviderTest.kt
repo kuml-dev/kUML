@@ -75,25 +75,25 @@ class ErmContentSizeProviderTest :
         val diagram = ErmDiagram(name = "Hub")
 
         test("entity with no relationships gets no connection buffer (TopToBottom)") {
-            val provider = ErmContentSizeProvider(hubModel, diagram, LayoutDirection.TopToBottom)
-            val baseSize = provider.sizeOf("base", "ErmEntity")
+            val provider = ErmContentSizeProvider(model = hubModel, diagram = diagram, layoutDirection = LayoutDirection.TopToBottom)
+            val baseSize = provider.sizeOf(elementId = "base", elementKind = "ErmEntity")
             (baseSize.width >= ErmContentSizeProvider.DEFAULT_W) shouldBe true
             (baseSize.height >= ErmContentSizeProvider.DEFAULT_H) shouldBe true
         }
 
         test("TopToBottom layout: hub entity grows horizontally by connections * CONNECTION_PUFFER_PX") {
-            val provider = ErmContentSizeProvider(hubModel, diagram, LayoutDirection.TopToBottom)
-            val baseSize = provider.sizeOf("base", "ErmEntity")
-            val hubSize = provider.sizeOf("hub", "ErmEntity")
+            val provider = ErmContentSizeProvider(model = hubModel, diagram = diagram, layoutDirection = LayoutDirection.TopToBottom)
+            val baseSize = provider.sizeOf(elementId = "base", elementKind = "ErmEntity")
+            val hubSize = provider.sizeOf(elementId = "hub", elementKind = "ErmEntity")
             hubSize.width shouldBeGreaterThan baseSize.width
             hubSize.height shouldBe baseSize.height
             (hubSize.width - baseSize.width) shouldBe 3 * ErmContentSizeProvider.CONNECTION_PUFFER_PX
         }
 
         test("LeftToRight layout: hub entity grows vertically instead") {
-            val provider = ErmContentSizeProvider(hubModel, diagram, LayoutDirection.LeftToRight)
-            val baseSize = provider.sizeOf("base", "ErmEntity")
-            val hubSize = provider.sizeOf("hub", "ErmEntity")
+            val provider = ErmContentSizeProvider(model = hubModel, diagram = diagram, layoutDirection = LayoutDirection.LeftToRight)
+            val baseSize = provider.sizeOf(elementId = "base", elementKind = "ErmEntity")
+            val hubSize = provider.sizeOf(elementId = "hub", elementKind = "ErmEntity")
             hubSize.height shouldBeGreaterThan baseSize.height
             hubSize.width shouldBe baseSize.width
         }
@@ -109,9 +109,9 @@ class ErmContentSizeProviderTest :
                 }
             val relationships = spokes.map { rel("rel-${it.id}", it.id, "hub") }
             val megaModel = ErmModel(name = "MegaHub", entities = listOf(baseline, hub) + spokes, relationships = relationships)
-            val provider = ErmContentSizeProvider(megaModel, diagram, LayoutDirection.TopToBottom)
-            val baseSize = provider.sizeOf("base", "ErmEntity")
-            val hubSize = provider.sizeOf("hub", "ErmEntity")
+            val provider = ErmContentSizeProvider(model = megaModel, diagram = diagram, layoutDirection = LayoutDirection.TopToBottom)
+            val baseSize = provider.sizeOf(elementId = "base", elementKind = "ErmEntity")
+            val hubSize = provider.sizeOf(elementId = "hub", elementKind = "ErmEntity")
             (hubSize.width - baseSize.width) shouldBe ErmContentSizeProvider.CONNECTION_PUFFER_MAX_PX
         }
 
@@ -131,8 +131,8 @@ class ErmContentSizeProviderTest :
                         ),
                 )
             val model = ErmModel(name = "Wide", entities = listOf(wideEntity))
-            val provider = ErmContentSizeProvider(model, ErmDiagram(name = "Wide"))
-            val size = provider.sizeOf("wide", "ErmEntity")
+            val provider = ErmContentSizeProvider(model = model, diagram = ErmDiagram(name = "Wide"))
+            val size = provider.sizeOf(elementId = "wide", elementKind = "ErmEntity")
             size.width shouldBeGreaterThan ErmContentSizeProvider.DEFAULT_W
         }
 
@@ -152,9 +152,9 @@ class ErmContentSizeProviderTest :
                             (1..10).map { ErmAttribute(id = "attr$it", name = "col$it", type = ErmDataType.Integer()) },
                 )
             val model = ErmModel(name = "Rows", entities = listOf(small, many))
-            val provider = ErmContentSizeProvider(model, ErmDiagram(name = "Rows"))
-            val smallSize = provider.sizeOf("small", "ErmEntity")
-            val manySize = provider.sizeOf("many", "ErmEntity")
+            val provider = ErmContentSizeProvider(model = model, diagram = ErmDiagram(name = "Rows"))
+            val smallSize = provider.sizeOf(elementId = "small", elementKind = "ErmEntity")
+            val manySize = provider.sizeOf(elementId = "many", elementKind = "ErmEntity")
             manySize.height shouldBeGreaterThan smallSize.height
         }
 
@@ -164,9 +164,9 @@ class ErmContentSizeProviderTest :
             // ErmLayoutBridge → ELK pipeline to prove the size provider's output
             // really reaches the layout engine.
             val engine = ElkLayoutEngineProvider().engine()
-            val sizeProvider = ErmContentSizeProvider(hubModel, diagram, LayoutHints.DEFAULT.direction)
-            val graph = ErmLayoutBridge.toLayoutGraph(hubModel, diagram, sizeProvider)
-            val layout = engine.layout(graph, LayoutHints.DEFAULT)
+            val sizeProvider = ErmContentSizeProvider(model = hubModel, diagram = diagram, layoutDirection = LayoutHints.DEFAULT.direction)
+            val graph = ErmLayoutBridge.toLayoutGraph(model = hubModel, diagram = diagram, sizeProvider = sizeProvider)
+            val layout = engine.layout(graph = graph, hints = LayoutHints.DEFAULT)
 
             val hubBounds =
                 layout.nodes.entries

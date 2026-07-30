@@ -31,7 +31,7 @@ class UmlToJpaTransformerTest :
         ) = UmlProperty(
             id = id,
             name = name,
-            type = UmlTypeRef(type),
+            type = UmlTypeRef(name = type),
             stereotypes = stereotypes,
         )
 
@@ -56,7 +56,7 @@ class UmlToJpaTransformerTest :
                         prop("p-email", "email", "String"),
                     ),
                 )
-            val result = transformer.transform(diagram(userClass), ctx)
+            val result = transformer.transform(source = diagram(userClass), ctx = ctx)
 
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             files shouldHaveSize 1
@@ -79,7 +79,7 @@ class UmlToJpaTransformerTest :
                         prop("p-total", "total", "Double"),
                     ),
                 )
-            val result = transformer.transform(diagram(cls), ctx)
+            val result = transformer.transform(source = diagram(cls), ctx = ctx)
 
             val content = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output[0].content
             content shouldContain "@Id"
@@ -90,7 +90,7 @@ class UmlToJpaTransformerTest :
 
         test("class without 'id' attribute gets synthetic @Id generated") {
             val cls = cls("product", "Product", listOf(prop("p-name", "name", "String")))
-            val result = transformer.transform(diagram(cls), ctx)
+            val result = transformer.transform(source = diagram(cls), ctx = ctx)
 
             val content = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output[0].content
             content shouldContain "@Id"
@@ -112,7 +112,7 @@ class UmlToJpaTransformerTest :
                         prop("p-d", "score", "Double"),
                     ),
                 )
-            val result = transformer.transform(diagram(cls), ctx)
+            val result = transformer.transform(source = diagram(cls), ctx = ctx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "val label: String"
             content shouldContain "val count: Long"
@@ -128,11 +128,11 @@ class UmlToJpaTransformerTest :
                     id = "assoc-1",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "address", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "address", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
-            val result = transformer.transform(diagram(userClass, addressClass, assoc), ctx)
+            val result = transformer.transform(source = diagram(userClass, addressClass, assoc), ctx = ctx)
 
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             val userFile = files.first { it.relativePath == "User.kt" }
@@ -149,11 +149,11 @@ class UmlToJpaTransformerTest :
                     id = "assoc-2",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "post", multiplicity = Multiplicity(0, null)),
+                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "post", multiplicity = Multiplicity(lower = 0, upper = null)),
                         ),
                 )
-            val result = transformer.transform(diagram(userClass, postClass, assoc), ctx)
+            val result = transformer.transform(source = diagram(userClass, postClass, assoc), ctx = ctx)
 
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             val userFile = files.first { it.relativePath == "User.kt" }
@@ -165,7 +165,7 @@ class UmlToJpaTransformerTest :
 
         test("table name snake_case: OrderItem -> order_items") {
             val cls = cls("oi", "OrderItem", listOf(prop("p-id", "id", "Long")))
-            val result = transformer.transform(diagram(cls), ctx)
+            val result = transformer.transform(source = diagram(cls), ctx = ctx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "@Table(name = \"order_items\")"
         }
@@ -180,7 +180,7 @@ class UmlToJpaTransformerTest :
                         prop("p-fn", "firstName", "String"),
                     ),
                 )
-            val result = transformer.transform(diagram(cls), ctx)
+            val result = transformer.transform(source = diagram(cls), ctx = ctx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "@Column(name = \"first_name\""
         }
@@ -195,7 +195,7 @@ class UmlToJpaTransformerTest :
                         prop("p-tmp", "tmpData", "String", stereotypes = listOf("transient")),
                     ),
                 )
-            val result = transformer.transform(diagram(cls), ctx)
+            val result = transformer.transform(source = diagram(cls), ctx = ctx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "@Transient"
             content shouldContain "val tmpData"
@@ -204,14 +204,14 @@ class UmlToJpaTransformerTest :
         test("package option overrides default package name") {
             val cls = cls("thing", "Thing", listOf(prop("p-id", "id", "Long")))
             val customCtx = TransformContext(options = mapOf("package" to "org.myapp.domain"))
-            val result = transformer.transform(diagram(cls), customCtx)
+            val result = transformer.transform(source = diagram(cls), ctx = customCtx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "package org.myapp.domain"
         }
 
         test("empty class generates minimal entity with synthetic id") {
             val cls = UmlClass(id = "empty", name = "Empty")
-            val result = transformer.transform(diagram(cls), ctx)
+            val result = transformer.transform(source = diagram(cls), ctx = ctx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "@Entity"
             content shouldContain "@Table(name = \"empties\")"
@@ -227,11 +227,11 @@ class UmlToJpaTransformerTest :
                     id = "assoc-ab",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "author", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "book", multiplicity = Multiplicity(0, null)),
+                            UmlAssociationEnd(typeId = "author", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "book", multiplicity = Multiplicity(lower = 0, upper = null)),
                         ),
                 )
-            val result = transformer.transform(diagram(authorClass, bookClass, assoc), ctx)
+            val result = transformer.transform(source = diagram(authorClass, bookClass, assoc), ctx = ctx)
 
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             files shouldHaveSize 2
@@ -250,7 +250,7 @@ class UmlToJpaTransformerTest :
                         prop("p-email", "email", "String"),
                     ),
                 )
-            val result = transformer.transform(diagram(userClass), ctx)
+            val result = transformer.transform(source = diagram(userClass), ctx = ctx)
             val content = (result as TransformResult.Success).output[0].content
             val golden =
                 this::class.java.classLoader
@@ -283,11 +283,11 @@ class UmlToJpaTransformerTest :
                     id = "post-comment",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "post", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "comment", multiplicity = Multiplicity(0, null)),
+                            UmlAssociationEnd(typeId = "post", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "comment", multiplicity = Multiplicity(lower = 0, upper = null)),
                         ),
                 )
-            val result = transformer.transform(diagram(postClass, commentClass, assoc), ctx)
+            val result = transformer.transform(source = diagram(postClass, commentClass, assoc), ctx = ctx)
             val postFile =
                 (result as TransformResult.Success).output.first { it.relativePath == "Post.kt" }
             val golden =

@@ -52,7 +52,7 @@ class ErmChenLayoutBridgeTest :
 
         test("every entity, attribute, and relationship becomes its own node with the correct prefix") {
             val diagram = ErmDiagram(name = "Overview")
-            val graph = ErmChenLayoutBridge.toChenLayoutGraph(model, diagram)
+            val graph = ErmChenLayoutBridge.toChenLayoutGraph(model = model, diagram = diagram)
 
             // 2 entities + 2 attributes on customer + 1 attribute on order + 1 relationship = 6 nodes
             graph.nodes shouldHaveSize 6
@@ -67,7 +67,7 @@ class ErmChenLayoutBridgeTest :
 
         test("attribute edges connect each entity to its own attributes, one edge per attribute") {
             val diagram = ErmDiagram(name = "Overview")
-            val graph = ErmChenLayoutBridge.toChenLayoutGraph(model, diagram)
+            val graph = ErmChenLayoutBridge.toChenLayoutGraph(model = model, diagram = diagram)
 
             val attrEdges = graph.edges.filter { it.id.value.startsWith(ErmChenLayoutBridge.ATTR_EDGE_PREFIX) }
             attrEdges shouldHaveSize 3 // 2 customer attrs + 1 order attr
@@ -80,7 +80,7 @@ class ErmChenLayoutBridgeTest :
 
         test("relationship gets a diamond node plus one edge to each entity end, chained sourceEntity -> diamond -> targetEntity") {
             val diagram = ErmDiagram(name = "Overview")
-            val graph = ErmChenLayoutBridge.toChenLayoutGraph(model, diagram)
+            val graph = ErmChenLayoutBridge.toChenLayoutGraph(model = model, diagram = diagram)
 
             // Bug-fix V3.4.6: the source-entity edge points sourceEntity -> diamond
             // (not diamond -> sourceEntity), so the layout graph preserves the real
@@ -97,7 +97,7 @@ class ErmChenLayoutBridgeTest :
 
         test("elementIds filters to a subset — attributes/relationship of hidden entities are dropped") {
             val diagram = ErmDiagram(name = "CustomerOnly", elementIds = listOf("customer"))
-            val graph = ErmChenLayoutBridge.toChenLayoutGraph(model, diagram)
+            val graph = ErmChenLayoutBridge.toChenLayoutGraph(model = model, diagram = diagram)
 
             // 1 entity + its 2 attributes = 3 nodes; no relationship (order is hidden)
             graph.nodes shouldHaveSize 3
@@ -114,10 +114,18 @@ class ErmChenLayoutBridgeTest :
             val view = ErmView(id = "view_big", name = "big_orders", query = "SELECT * FROM \"order\"")
             val modelWithView = model.copy(views = listOf(view))
 
-            val shown = ErmChenLayoutBridge.toChenLayoutGraph(modelWithView, ErmDiagram(name = "WithViews", showViews = true))
+            val shown =
+                ErmChenLayoutBridge.toChenLayoutGraph(
+                    model = modelWithView,
+                    diagram = ErmDiagram(name = "WithViews", showViews = true),
+                )
             shown.nodes.map { it.id } shouldContain NodeId(ErmChenLayoutBridge.VIEW_PREFIX + "view_big")
 
-            val hidden = ErmChenLayoutBridge.toChenLayoutGraph(modelWithView, ErmDiagram(name = "NoViews", showViews = false))
+            val hidden =
+                ErmChenLayoutBridge.toChenLayoutGraph(
+                    model = modelWithView,
+                    diagram = ErmDiagram(name = "NoViews", showViews = false),
+                )
             hidden.nodes.map { it.id } shouldBe
                 listOf(
                     NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer"),
@@ -146,7 +154,7 @@ class ErmChenLayoutBridgeTest :
                     targetCardinality = Cardinality.ZERO_MANY,
                 )
             val selfModel = ErmModel(name = "Org", entities = listOf(employee), relationships = listOf(managerRel))
-            val graph = ErmChenLayoutBridge.toChenLayoutGraph(selfModel, ErmDiagram(name = "Org"))
+            val graph = ErmChenLayoutBridge.toChenLayoutGraph(model = selfModel, diagram = ErmDiagram(name = "Org"))
 
             // 1 entity + 1 attribute + 1 relationship diamond = 3 nodes
             graph.nodes shouldHaveSize 3
@@ -166,7 +174,7 @@ class ErmChenLayoutBridgeTest :
         }
 
         test("groups is always empty") {
-            val graph = ErmChenLayoutBridge.toChenLayoutGraph(model, ErmDiagram(name = "Overview"))
+            val graph = ErmChenLayoutBridge.toChenLayoutGraph(model = model, diagram = ErmDiagram(name = "Overview"))
             graph.groups shouldBe emptyList()
         }
 
@@ -182,9 +190,9 @@ class ErmChenLayoutBridgeTest :
             val diagram = ErmDiagram(name = "Wide")
 
             val engine = ElkLayoutEngineProvider().engine()
-            val sizeProvider = ErmChenSizeProvider(wideModel, diagram)
-            val graph = ErmChenLayoutBridge.toChenLayoutGraph(wideModel, diagram, sizeProvider)
-            val layout = engine.layout(graph, LayoutHints.DEFAULT)
+            val sizeProvider = ErmChenSizeProvider(model = wideModel, diagram = diagram)
+            val graph = ErmChenLayoutBridge.toChenLayoutGraph(model = wideModel, diagram = diagram, sizeProvider = sizeProvider)
+            val layout = engine.layout(graph = graph, hints = LayoutHints.DEFAULT)
 
             val ovalBounds =
                 layout.nodes.entries
@@ -257,9 +265,9 @@ class ErmChenLayoutBridgeTest :
             val denseDiagram = ErmDiagram(name = "Dense")
 
             val engine = ElkLayoutEngineProvider().engine()
-            val sizeProvider = ErmChenSizeProvider(denseModel, denseDiagram)
-            val graph = ErmChenLayoutBridge.toChenLayoutGraph(denseModel, denseDiagram, sizeProvider)
-            val layout = engine.layout(graph, LayoutHints.DEFAULT)
+            val sizeProvider = ErmChenSizeProvider(model = denseModel, diagram = denseDiagram)
+            val graph = ErmChenLayoutBridge.toChenLayoutGraph(model = denseModel, diagram = denseDiagram, sizeProvider = sizeProvider)
+            val layout = engine.layout(graph = graph, hints = LayoutHints.DEFAULT)
 
             // 1) Global aspect ratio must not degenerate into one extremely wide row.
             val aspectRatio = layout.canvas.width / layout.canvas.height

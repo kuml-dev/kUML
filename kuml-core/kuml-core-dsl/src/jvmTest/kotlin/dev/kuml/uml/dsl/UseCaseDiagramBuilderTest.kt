@@ -112,7 +112,7 @@ class UseCaseDiagramBuilderTest :
         }
 
         test(name = "config is UseCaseDiagramConfig with defaults") {
-            val d = useCaseDiagram("Config Test") {}
+            val d = useCaseDiagram(name = "Config Test") {}
             val config = d.config
             config.shouldBeInstanceOf<UseCaseDiagramConfig>()
             config.showSubjectBox shouldBe true

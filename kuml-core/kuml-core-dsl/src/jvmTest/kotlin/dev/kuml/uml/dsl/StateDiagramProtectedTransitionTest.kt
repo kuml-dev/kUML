@@ -16,10 +16,10 @@ class StateDiagramProtectedTransitionTest :
 
         test(name = "transition { protected = true } sets metadata flag and isProtected") {
             val d =
-                stateDiagram("X") {
-                    val a = state("A")
-                    val b = state("B")
-                    transition(a, b) { protected = true }
+                stateDiagram(name = "X") {
+                    val a = state(name = "A")
+                    val b = state(name = "B")
+                    transition(source = a, target = b) { protected = true }
                 }
             val t = (d.elements.single() as UmlStateMachine).transitions.single()
             t.metadata[TransitionMetadataKeys.PROTECTED] shouldBe KumlMetaValue.Flag(true)
@@ -28,10 +28,10 @@ class StateDiagramProtectedTransitionTest :
 
         test(name = "default transition (no protected set) has empty metadata and isProtected == false") {
             val d =
-                stateDiagram("X") {
-                    val a = state("A")
-                    val b = state("B")
-                    transition(a, b) {}
+                stateDiagram(name = "X") {
+                    val a = state(name = "A")
+                    val b = state(name = "B")
+                    transition(source = a, target = b) {}
                 }
             val t = (d.elements.single() as UmlStateMachine).transitions.single()
             t.metadata.shouldNotContainKey(TransitionMetadataKeys.PROTECTED)
@@ -40,10 +40,10 @@ class StateDiagramProtectedTransitionTest :
 
         test(name = "protected = true composes with guard/trigger/effect without clobbering them") {
             val d =
-                stateDiagram("X") {
-                    val a = state("A")
-                    val b = state("B")
-                    transition(a, b) {
+                stateDiagram(name = "X") {
+                    val a = state(name = "A")
+                    val b = state(name = "B")
+                    transition(source = a, target = b) {
                         trigger = "confirm()"
                         guard = "[valid]"
                         effect = "log()"
@@ -59,10 +59,10 @@ class StateDiagramProtectedTransitionTest :
 
         test(name = "protected = false explicitly set omits the metadata key") {
             val d =
-                stateDiagram("X") {
-                    val a = state("A")
-                    val b = state("B")
-                    transition(a, b) { protected = false }
+                stateDiagram(name = "X") {
+                    val a = state(name = "A")
+                    val b = state(name = "B")
+                    transition(source = a, target = b) { protected = false }
                 }
             val t = (d.elements.single() as UmlStateMachine).transitions.single()
             t.metadata.shouldNotContainKey(TransitionMetadataKeys.PROTECTED)

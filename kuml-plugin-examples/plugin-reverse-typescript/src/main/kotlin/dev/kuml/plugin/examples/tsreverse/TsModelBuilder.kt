@@ -49,8 +49,8 @@ internal class TsModelBuilder(
     }
 
     private fun buildInterface(decl: TsInterfaceDecl): UmlInterface {
-        val attrs = decl.members.filter { !it.isMethod }.map { buildProperty(it, decl.name) }
-        val ops = decl.members.filter { it.isMethod }.map { buildOperation(it, decl.name) }
+        val attrs = decl.members.filter { !it.isMethod }.map { buildProperty(member = it, owner = decl.name) }
+        val ops = decl.members.filter { it.isMethod }.map { buildOperation(member = it, owner = decl.name) }
         return UmlInterface(
             id = "ts::${decl.name}",
             name = decl.name,
@@ -62,8 +62,8 @@ internal class TsModelBuilder(
     }
 
     private fun buildClass(decl: TsClassDecl): UmlClass {
-        val attrs = decl.members.filter { !it.isMethod }.map { buildProperty(it, decl.name) }
-        val ops = decl.members.filter { it.isMethod }.map { buildOperation(it, decl.name) }
+        val attrs = decl.members.filter { !it.isMethod }.map { buildProperty(member = it, owner = decl.name) }
+        val ops = decl.members.filter { it.isMethod }.map { buildOperation(member = it, owner = decl.name) }
         return UmlClass(
             id = "ts::${decl.name}",
             name = decl.name,

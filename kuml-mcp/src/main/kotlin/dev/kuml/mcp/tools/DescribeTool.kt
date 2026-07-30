@@ -51,12 +51,13 @@ internal object DescribeTool : McpTool {
             arguments["elementId"]?.jsonPrimitive?.content
                 ?: throw IllegalArgumentException("Missing required argument: elementId")
 
-        val extracted = McpScriptEvaluator.extract(script, "describe.kuml.kts")
+        val extracted = McpScriptEvaluator.extract(script = script, fileName = "describe.kuml.kts")
         val diagram =
             (extracted as? ExtractedDiagram.Uml)?.diagram
                 ?: throw ScriptEvaluationException(
-                    "kuml.describe currently supports UML diagrams. " +
-                        "End the script with a `classDiagram { … }` / `diagram { … }` expression.",
+                    message =
+                        "kuml.describe currently supports UML diagrams. " +
+                            "End the script with a `classDiagram { … }` / `diagram { … }` expression.",
                 )
         val element =
             diagram.elements.firstOrNull { it.id == elementId }

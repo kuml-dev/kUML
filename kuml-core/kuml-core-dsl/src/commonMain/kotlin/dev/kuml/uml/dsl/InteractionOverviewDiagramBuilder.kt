@@ -78,7 +78,7 @@ public class InteractionOverviewDiagramBuilder(
         name: String,
         referencedInteractionId: String? = null,
     ): UmlInteractionOverviewFrame {
-        val id = UmlIds.disambiguate(candidate = UmlIds.child(containerId, name), taken = takenIds)
+        val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId = containerId, name = name), taken = takenIds)
         val f =
             UmlInteractionOverviewFrame(
                 id = id,
@@ -112,7 +112,7 @@ public class InteractionOverviewDiagramBuilder(
         name: String,
         kind: UmlInteractionFrameKind,
     ): UmlInteractionOverviewFrame {
-        val id = UmlIds.disambiguate(candidate = UmlIds.child(containerId, name), taken = takenIds)
+        val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId = containerId, name = name), taken = takenIds)
         val f = UmlInteractionOverviewFrame(id = id, name = name, kind = kind)
         addNamedElement(f)
         return f

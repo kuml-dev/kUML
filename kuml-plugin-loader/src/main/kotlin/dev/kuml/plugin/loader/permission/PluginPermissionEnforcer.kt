@@ -26,7 +26,7 @@ public object PluginPermissionEnforcer {
         permission: PluginPermission,
     ) {
         if (permission !in plugin.descriptor.requiredPermissions) {
-            throw PluginPermissionDeniedException(plugin.descriptor.id, permission)
+            throw PluginPermissionDeniedException(pluginId = plugin.descriptor.id, requiredPermission = permission)
         }
     }
 
@@ -47,7 +47,7 @@ public object PluginPermissionEnforcer {
         permission: PluginPermission,
         block: () -> T,
     ): T {
-        require(plugin, permission)
+        require(plugin = plugin, permission = permission)
         return block()
     }
 }

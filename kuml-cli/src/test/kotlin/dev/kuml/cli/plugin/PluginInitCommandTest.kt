@@ -60,26 +60,26 @@ class PluginInitCommandTest :
 
         context("PluginInitSpec.deriveClassName") {
             test("PascalCase + category + Plugin suffix") {
-                PluginInitSpec.deriveClassName("my-theme", "theme") shouldBe "MyThemePlugin"
+                PluginInitSpec.deriveClassName(artifactId = "my-theme", category = "theme") shouldBe "MyThemePlugin"
             }
 
             test("codegen suffix") {
-                PluginInitSpec.deriveClassName("typescript", "codegen") shouldBe "TypescriptCodegenPlugin"
+                PluginInitSpec.deriveClassName(artifactId = "typescript", category = "codegen") shouldBe "TypescriptCodegenPlugin"
             }
 
             test("reverse suffix") {
-                PluginInitSpec.deriveClassName("my-reverse", "reverse") shouldBe "MyReversePlugin"
+                PluginInitSpec.deriveClassName(artifactId = "my-reverse", category = "reverse") shouldBe "MyReversePlugin"
             }
         }
 
         context("TemplateEngine") {
             test("replaces known tokens") {
-                val result = TemplateEngine.render("Hello {{name}}!", mapOf("name" to "kUML"))
+                val result = TemplateEngine.render(template = "Hello {{name}}!", vars = mapOf("name" to "kUML"))
                 result shouldBe "Hello kUML!"
             }
 
             test("throws on unknown token") {
-                val ex = runCatching { TemplateEngine.render("{{unknown}}", emptyMap()) }
+                val ex = runCatching { TemplateEngine.render(template = "{{unknown}}", vars = emptyMap()) }
                 ex.isFailure shouldBe true
             }
 
@@ -102,7 +102,7 @@ class PluginInitCommandTest :
                         "category" to "theme",
                     )
                 val template = "{{pluginId}} {{artifactId}} {{className}}"
-                TemplateEngine.render(template, vars) shouldNotContain "{{"
+                TemplateEngine.render(template = template, vars = vars) shouldNotContain "{{"
             }
         }
 
@@ -136,7 +136,7 @@ class PluginInitCommandTest :
                 test("creates expected file set") {
                     val tmpDir = Files.createTempDirectory("kuml-init-test-$category").toFile()
                     val spec = buildSpec(category)
-                    PluginScaffolder.scaffold(category, spec, tmpDir, force = true, echo = {})
+                    PluginScaffolder.scaffold(category = category, spec = spec, targetDir = tmpDir, force = true, echo = {})
 
                     val created =
                         tmpDir
@@ -155,7 +155,7 @@ class PluginInitCommandTest :
                 test("generated manifest is parseable and correct") {
                     val tmpDir = Files.createTempDirectory("kuml-manifest-test-$category").toFile()
                     val spec = buildSpec(category)
-                    PluginScaffolder.scaffold(category, spec, tmpDir, force = true, echo = {})
+                    PluginScaffolder.scaffold(category = category, spec = spec, targetDir = tmpDir, force = true, echo = {})
 
                     val manifestFile = File(tmpDir, "src/main/resources/kuml-plugin.json")
                     val manifest = PluginManifestParser.parse(manifestFile.readText())
@@ -170,7 +170,7 @@ class PluginInitCommandTest :
                 test("manifest permissions match category contract") {
                     val tmpDir = Files.createTempDirectory("kuml-perms-test-$category").toFile()
                     val spec = buildSpec(category)
-                    PluginScaffolder.scaffold(category, spec, tmpDir, force = true, echo = {})
+                    PluginScaffolder.scaffold(category = category, spec = spec, targetDir = tmpDir, force = true, echo = {})
 
                     val manifestFile = File(tmpDir, "src/main/resources/kuml-plugin.json")
                     val manifest = PluginManifestParser.parse(manifestFile.readText())
@@ -187,7 +187,7 @@ class PluginInitCommandTest :
                 test("build.gradle.kts has correct kUML coordinates") {
                     val tmpDir = Files.createTempDirectory("kuml-gradle-test-$category").toFile()
                     val spec = buildSpec(category)
-                    PluginScaffolder.scaffold(category, spec, tmpDir, force = true, echo = {})
+                    PluginScaffolder.scaffold(category = category, spec = spec, targetDir = tmpDir, force = true, echo = {})
 
                     val gradle = File(tmpDir, "build.gradle.kts").readText()
                     gradle shouldContain "dev.kuml:kuml-plugin-api-$category:"
@@ -200,7 +200,7 @@ class PluginInitCommandTest :
                 test("no unresolved template tokens in any generated file") {
                     val tmpDir = Files.createTempDirectory("kuml-tokens-test-$category").toFile()
                     val spec = buildSpec(category)
-                    PluginScaffolder.scaffold(category, spec, tmpDir, force = true, echo = {})
+                    PluginScaffolder.scaffold(category = category, spec = spec, targetDir = tmpDir, force = true, echo = {})
 
                     tmpDir.walkTopDown().filter { it.isFile }.forEach { file ->
                         val content = file.readText()
@@ -213,8 +213,8 @@ class PluginInitCommandTest :
                 test("force flag allows overwriting existing dir") {
                     val tmpDir = Files.createTempDirectory("kuml-force-test-$category").toFile()
                     val spec = buildSpec(category)
-                    PluginScaffolder.scaffold(category, spec, tmpDir, force = true, echo = {})
-                    PluginScaffolder.scaffold(category, spec, tmpDir, force = true, echo = {})
+                    PluginScaffolder.scaffold(category = category, spec = spec, targetDir = tmpDir, force = true, echo = {})
+                    PluginScaffolder.scaffold(category = category, spec = spec, targetDir = tmpDir, force = true, echo = {})
 
                     tmpDir.deleteRecursively()
                 }
@@ -226,7 +226,7 @@ class PluginInitCommandTest :
 
                     val result =
                         runCatching {
-                            PluginScaffolder.scaffold(category, spec, tmpDir, force = false, echo = {})
+                            PluginScaffolder.scaffold(category = category, spec = spec, targetDir = tmpDir, force = false, echo = {})
                         }
                     result.isFailure shouldBe true
                     result.exceptionOrNull() shouldNotBe null

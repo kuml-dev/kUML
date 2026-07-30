@@ -58,7 +58,7 @@ internal object BpmnToUmlActivityMapper {
      *
      * Equivalent to `map(process, emptyList())`.
      */
-    fun map(process: BpmnProcess): UmlActivityModel = map(process, emptyList())
+    fun map(process: BpmnProcess): UmlActivityModel = map(process = process, lanes = emptyList())
 
     /**
      * Maps a [BpmnProcess] to a [UmlActivityModel], enriching mapped nodes with
@@ -103,7 +103,7 @@ internal object BpmnToUmlActivityMapper {
         for (node in process.flowNodes) {
             when (node) {
                 is BpmnTask -> {
-                    val meta = buildBaseMeta(node.id, laneIndex)
+                    val meta = buildBaseMeta(nodeId = node.id, laneIndex = laneIndex)
                     val umlNode =
                         UmlActivityNode(
                             id = node.id,
@@ -116,8 +116,8 @@ internal object BpmnToUmlActivityMapper {
                 }
 
                 is BpmnEvent -> {
-                    val (kind, extraMeta) = mapEventKind(node.position, node.definition)
-                    val meta = buildBaseMeta(node.id, laneIndex) + extraMeta
+                    val (kind, extraMeta) = mapEventKind(position = node.position, definition = node.definition)
+                    val meta = buildBaseMeta(nodeId = node.id, laneIndex = laneIndex) + extraMeta
                     val umlNode =
                         UmlActivityNode(
                             id = node.id,
@@ -144,7 +144,7 @@ internal object BpmnToUmlActivityMapper {
                         val mergeId = "${node.id}_merge"
                         val decisionId = "${node.id}_decision"
                         val inclusiveMeta =
-                            buildGatewayMeta(node.id, node.gatewayType, laneIndex)
+                            buildGatewayMeta(nodeId = node.id, gatewayType = node.gatewayType, laneIndex = laneIndex)
 
                         nodes +=
                             UmlActivityNode(
@@ -179,7 +179,7 @@ internal object BpmnToUmlActivityMapper {
                                 else ->
                                     if (out > 1) UmlActivityNodeKind.DECISION else UmlActivityNodeKind.MERGE
                             }
-                        val meta = buildGatewayMeta(node.id, node.gatewayType, laneIndex)
+                        val meta = buildGatewayMeta(nodeId = node.id, gatewayType = node.gatewayType, laneIndex = laneIndex)
                         nodes +=
                             UmlActivityNode(
                                 id = node.id,
@@ -193,7 +193,7 @@ internal object BpmnToUmlActivityMapper {
 
                 else -> {
                     // BpmnSubProcess, BpmnCallActivity — map as ACTION (best-effort)
-                    val meta = buildBaseMeta(node.id, laneIndex)
+                    val meta = buildBaseMeta(nodeId = node.id, laneIndex = laneIndex)
                     val umlNode =
                         UmlActivityNode(
                             id = node.id,

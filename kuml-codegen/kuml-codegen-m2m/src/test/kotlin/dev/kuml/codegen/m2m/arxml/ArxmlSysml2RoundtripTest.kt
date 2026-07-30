@@ -79,11 +79,11 @@ class ArxmlSysml2RoundtripTest :
             val originalModel = makeModel(comp, iface)
 
             // Forward: KumlModel → SysML 2
-            val sysml2Result = toSysml2.transform(originalModel, ctx) as TransformResult.Success<*>
+            val sysml2Result = toSysml2.transform(source = originalModel, ctx = ctx) as TransformResult.Success<*>
             val sysml2Model = sysml2Result.output as dev.kuml.sysml2.Sysml2Model
 
             // Reverse: SysML 2 → KumlModel
-            val reverseResult = toArxml.transform(sysml2Model, ctx) as TransformResult.Success<*>
+            val reverseResult = toArxml.transform(source = sysml2Model, ctx = ctx) as TransformResult.Success<*>
             val reverseModel = reverseResult.output as KumlModel
 
             // Verify: component names + stereotypes preserved
@@ -130,8 +130,8 @@ class ArxmlSysml2RoundtripTest :
                 )
             val model = makeModel(comp)
 
-            val sysml2 = (toSysml2.transform(model, ctx) as TransformResult.Success<*>).output as dev.kuml.sysml2.Sysml2Model
-            val reverse = (toArxml.transform(sysml2, ctx) as TransformResult.Success<*>).output as KumlModel
+            val sysml2 = (toSysml2.transform(source = model, ctx = ctx) as TransformResult.Success<*>).output as dev.kuml.sysml2.Sysml2Model
+            val reverse = (toArxml.transform(source = sysml2, ctx = ctx) as TransformResult.Success<*>).output as KumlModel
             val reverseRoot = reverse.root as UmlPackage
             val reverseComp: UmlComponent = reverseRoot.members.filterIsInstance<UmlComponent>().first { it.name == "SomeComp" }
 
@@ -156,8 +156,8 @@ class ArxmlSysml2RoundtripTest :
                     metadata = mapOf("kind" to KumlMetaValue.Text("application")),
                 )
             val model = makeModel(comp)
-            val sysml2 = (toSysml2.transform(model, ctx) as TransformResult.Success<*>).output as dev.kuml.sysml2.Sysml2Model
-            val reverse = (toArxml.transform(sysml2, ctx) as TransformResult.Success<*>).output as KumlModel
+            val sysml2 = (toSysml2.transform(source = model, ctx = ctx) as TransformResult.Success<*>).output as dev.kuml.sysml2.Sysml2Model
+            val reverse = (toArxml.transform(source = sysml2, ctx = ctx) as TransformResult.Success<*>).output as KumlModel
             reverse.language shouldBe ModelingLanguage.UML
             (reverse.root as UmlPackage).name shouldBe "AUTOSAR"
         }
@@ -181,8 +181,8 @@ class ArxmlSysml2RoundtripTest :
                     }
             val namedMembers: List<dev.kuml.uml.UmlNamedElement> = members.map { it as dev.kuml.uml.UmlNamedElement }
             val model = makeModel(*namedMembers.toTypedArray())
-            val sysml2 = (toSysml2.transform(model, ctx) as TransformResult.Success<*>).output as dev.kuml.sysml2.Sysml2Model
-            val reverse = (toArxml.transform(sysml2, ctx) as TransformResult.Success<*>).output as KumlModel
+            val sysml2 = (toSysml2.transform(source = model, ctx = ctx) as TransformResult.Success<*>).output as dev.kuml.sysml2.Sysml2Model
+            val reverse = (toArxml.transform(source = sysml2, ctx = ctx) as TransformResult.Success<*>).output as KumlModel
             val reverseRoot = reverse.root as UmlPackage
             reverseRoot.members.filterIsInstance<UmlComponent>().size shouldBe 3
             reverseRoot.members.filterIsInstance<UmlInterface>().size shouldBe 2

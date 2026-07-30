@@ -353,7 +353,7 @@ class ProcessBuilder(
      * @return [target], enabling left-associative chaining.
      */
     infix fun String.flowsTo(target: String): String {
-        sequenceFlow(this, target)
+        sequenceFlow(from = this, to = target)
         return target
     }
 

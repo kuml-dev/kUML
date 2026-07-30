@@ -28,15 +28,16 @@ internal object ConfigLoader {
         val errors = result.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || result is ResultWithDiagnostics.Failure) {
             throw ScriptEvaluationException(
-                "Config script '${file.path}' failed:\n" +
-                    errors.joinToString("\n") { it.message },
+                message =
+                    "Config script '${file.path}' failed:\n" +
+                        errors.joinToString("\n") { it.message },
             )
         }
         val success =
             result as? ResultWithDiagnostics.Success
                 ?: throw ScriptEvaluationException(
-                    "Config script '${file.path}' did not produce a value",
+                    message = "Config script '${file.path}' did not produce a value",
                 )
-        return ConfigExtractor.extract(success.value.returnValue, file)
+        return ConfigExtractor.extract(returnValue = success.value.returnValue, file = file)
     }
 }

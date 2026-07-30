@@ -44,7 +44,7 @@ public class CosmWasmChainAdapter(
     private val pollIntervalMillis: Long = 2_000L,
     private val pageSize: Int = 20,
     private val maxReplayBlocks: Long = DEFAULT_MAX_REPLAY_BLOCKS,
-    private val clientFactory: (String) -> CosmWasmRpcClient = { url -> CosmWasmRpcClient(url) },
+    private val clientFactory: (String) -> CosmWasmRpcClient = { url -> CosmWasmRpcClient(rpcUrl = url) },
     private val eventDecoder: CosmWasmEventDecoder = CosmWasmEventDecoder(),
 ) : KumlChainAdapter {
     private var rpcClient: CosmWasmRpcClient? = null
@@ -76,15 +76,15 @@ public class CosmWasmChainAdapter(
 
         // Smart-Query { "kuml_identity": {} } gegen den Contract; Resultat ist base64 → JSON.
         val query = "{\"kuml_identity\":{}}"
-        val resultJson = client.smartQuery(contractAddress, query)
+        val resultJson = client.smartQuery(contractAddress = contractAddress, queryJson = query)
         val fields =
             resultJson as? JsonObject
-                ?: throw CosmWasmChainAdapterException.MalformedResponse("smart query result is not an object")
+                ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "smart query result is not an object")
 
         val modelHash = decodeModelHash(fields)
         val modelUri =
             fields["model_uri"]?.jsonPrimitive?.content
-                ?: throw CosmWasmChainAdapterException.MalformedResponse("smart query result missing 'model_uri'")
+                ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "smart query result missing 'model_uri'")
         val schemaVersionRaw = fields["schema_version"]?.jsonPrimitive?.content
         val schemaVersion =
             schemaVersionRaw?.toIntOrNull()
@@ -97,7 +97,7 @@ public class CosmWasmChainAdapter(
                     0
                 }
 
-        return ContractIdentity(contractAddress, modelHash, modelUri, schemaVersion)
+        return ContractIdentity(address = contractAddress, modelHash = modelHash, modelUri = modelUri, schemaVersion = schemaVersion)
     }
 
     /**
@@ -113,7 +113,7 @@ public class CosmWasmChainAdapter(
             while (true) {
                 val head = client.getLatestBlockHeight()
                 while (height <= head) {
-                    emitWasmEvents(client, addr, height)
+                    emitWasmEvents(client = client, addr = addr, height = height)
                     height++
                 }
                 delay(pollIntervalMillis)
@@ -147,7 +147,7 @@ public class CosmWasmChainAdapter(
             }
             var height = startHeight
             while (height <= head) {
-                emitWasmEvents(client, addr, height)
+                emitWasmEvents(client = client, addr = addr, height = height)
                 height++
             }
         }
@@ -162,7 +162,7 @@ public class CosmWasmChainAdapter(
         height: Long,
     ) {
         val results = client.getBlockResults(height)
-        for (e in eventDecoder.decodeWasmEvents(results, addr, height)) emit(e)
+        for (e in eventDecoder.decodeWasmEvents(blockResults = results, contractAddr = addr, height = height)) emit(e)
     }
 
     /**
@@ -174,7 +174,7 @@ public class CosmWasmChainAdapter(
     private fun decodeModelHash(fields: JsonObject): ByteArray {
         val el =
             fields["model_hash"]
-                ?: throw CosmWasmChainAdapterException.MalformedResponse("smart query result missing 'model_hash'")
+                ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "smart query result missing 'model_hash'")
         return when (el) {
             is JsonArray ->
                 ByteArray(el.size) { i ->
@@ -215,14 +215,14 @@ public class CosmWasmChainAdapter(
             val clean = hex.removePrefix("0x").removePrefix("0X")
             if (clean.isEmpty()) return ByteArray(0)
             if (clean.length % 2 != 0) {
-                throw CosmWasmChainAdapterException.MalformedResponse("Hex string has odd length: '$hex'")
+                throw CosmWasmChainAdapterException.MalformedResponse(message = "Hex string has odd length: '$hex'")
             }
             return try {
                 ByteArray(clean.length / 2) { i ->
                     clean.substring(i * 2, i * 2 + 2).toInt(16).toByte()
                 }
             } catch (e: NumberFormatException) {
-                throw CosmWasmChainAdapterException.MalformedResponse("Invalid hex string: '$hex'", e)
+                throw CosmWasmChainAdapterException.MalformedResponse(message = "Invalid hex string: '$hex'", cause = e)
             }
         }
     }

@@ -45,17 +45,17 @@ internal object StereotypeResolution {
                             "any applied profile. Applied: ${appliedProfiles.map { it.name }}",
                     )
                 listOfNotNull(
-                    matchedProfile.stereotype(name)?.let { ResolvedStereotype(matchedProfile, it) },
+                    matchedProfile.stereotype(name)?.let { ResolvedStereotype(profile = matchedProfile, stereotype = it) },
                 )
             } else {
                 appliedProfiles.mapNotNull { p ->
-                    p.stereotype(name)?.let { ResolvedStereotype(p, it) }
+                    p.stereotype(name)?.let { ResolvedStereotype(profile = p, stereotype = it) }
                 }
             }
 
         if (candidates.isEmpty()) {
             val allNames = appliedProfiles.flatMap { p -> p.stereotypes.map { it.name } }
-            val suggestion = Levenshtein.closest(name, allNames)
+            val suggestion = Levenshtein.closest(target = name, candidates = allNames)
             error(
                 "Stereotype '$rawName' not found in applied profiles " +
                     "(${appliedProfiles.map { it.name }})." +

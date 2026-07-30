@@ -25,13 +25,13 @@ internal fun renderBpmnTask(
     theme: KumlTheme,
     builder: SvgBuilder,
 ) {
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(task.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(task.id))) {
         // boxId gives the inner <rect> its own id so SMIL fill/stroke-width animations
         // can target the shape directly. Animating fill on the parent <g> does NOT
         // propagate to a child <rect> that carries its own explicit fill="white".
-        renderActivityBox(layout, this, strokeWidth = 1.5f, label = task.name, boxId = "${task.id}-box", theme = theme)
-        renderBpmnTaskMarkers(task, layout, this, theme)
-        renderTaskTypeIcon(task.taskType, layout, this, theme)
+        renderActivityBox(layout = layout, builder = this, strokeWidth = 1.5f, label = task.name, boxId = "${task.id}-box", theme = theme)
+        renderBpmnTaskMarkers(activity = task, layout = layout, builder = this, theme = theme)
+        renderTaskTypeIcon(type = task.taskType, layout = layout, builder = this, theme = theme)
     }
 }
 
@@ -41,7 +41,7 @@ internal fun renderBpmnSubProcess(
     theme: KumlTheme,
     builder: SvgBuilder,
 ) {
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(sp.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(sp.id))) {
         val x = layout.bounds.origin.x
         val y = layout.bounds.origin.y
         val w = layout.bounds.size.width
@@ -56,25 +56,26 @@ internal fun renderBpmnSubProcess(
             // Expanded SubProcess: the frame contains its child flow-nodes, so
             // the name must NOT be centred (it would collide with the children).
             // BPMN convention places the name at the top of the frame.
-            renderActivityBox(layout, this, strokeWidth = 1.5f, label = null, rx = 8f, theme = theme)
+            renderActivityBox(layout = layout, builder = this, strokeWidth = 1.5f, label = null, rx = 8f, theme = theme)
             if (!sp.name.isNullOrBlank()) {
                 tag(
-                    "text",
-                    mapOf(
-                        "x" to fmtF(x + w / 2f),
-                        "y" to fmtF(y + 16f),
-                        "text-anchor" to "middle",
-                        "dominant-baseline" to "middle",
-                        "font-family" to fontFamily,
-                        "font-size" to "12",
-                        "fill" to textColor,
-                    ),
+                    name = "text",
+                    attrs =
+                        mapOf(
+                            "x" to fmtF(x + w / 2f),
+                            "y" to fmtF(y + 16f),
+                            "text-anchor" to "middle",
+                            "dominant-baseline" to "middle",
+                            "font-family" to fontFamily,
+                            "font-size" to "12",
+                            "fill" to textColor,
+                        ),
                 ) { text(sp.name!!) }
             }
         } else {
-            renderActivityBox(layout, this, strokeWidth = 1.5f, label = sp.name, rx = 8f, theme = theme)
+            renderActivityBox(layout = layout, builder = this, strokeWidth = 1.5f, label = sp.name, rx = 8f, theme = theme)
         }
-        renderBpmnTaskMarkers(sp, layout, this, theme)
+        renderBpmnTaskMarkers(activity = sp, layout = layout, builder = this, theme = theme)
 
         if (!sp.expanded) {
             // Collapsed: + Symbol in der Mitte unten
@@ -111,8 +112,8 @@ internal fun renderBpmnCallActivity(
     theme: KumlTheme,
     builder: SvgBuilder,
 ) {
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(ca.id))) {
-        renderActivityBox(layout, this, strokeWidth = 3f, label = ca.name, theme = theme)
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(ca.id))) {
+        renderActivityBox(layout = layout, builder = this, strokeWidth = 3f, label = ca.name, theme = theme)
     }
 }
 
@@ -160,16 +161,17 @@ private fun renderActivityBox(
         val cx = x + w / 2f
         val cy = y + h / 2f
         builder.tag(
-            "text",
-            mapOf(
-                "x" to fmtF(cx),
-                "y" to fmtF(cy + 4f),
-                "text-anchor" to "middle",
-                "dominant-baseline" to "middle",
-                "font-family" to fontFamily,
-                "font-size" to "12",
-                "fill" to textColor,
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "x" to fmtF(cx),
+                    "y" to fmtF(cy + 4f),
+                    "text-anchor" to "middle",
+                    "dominant-baseline" to "middle",
+                    "font-family" to fontFamily,
+                    "font-size" to "12",
+                    "fill" to textColor,
+                ),
         ) { text(label) }
     }
 }
@@ -199,16 +201,17 @@ private fun renderTaskTypeIcon(
 
     if (iconLabel.isNotEmpty()) {
         builder.tag(
-            "text",
-            mapOf(
-                "x" to fmtF(ix + 6f),
-                "y" to fmtF(iy + 10f),
-                "text-anchor" to "middle",
-                "font-size" to "10",
-                // Explicit fill prevents inheritance from parent <g> when SMIL
-                // animates the group fill (e.g. task highlight animation).
-                "fill" to theme.colors.foreground.toHex(),
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "x" to fmtF(ix + 6f),
+                    "y" to fmtF(iy + 10f),
+                    "text-anchor" to "middle",
+                    "font-size" to "10",
+                    // Explicit fill prevents inheritance from parent <g> when SMIL
+                    // animates the group fill (e.g. task highlight animation).
+                    "fill" to theme.colors.foreground.toHex(),
+                ),
         ) { text(iconLabel) }
     }
 }

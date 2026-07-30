@@ -26,7 +26,7 @@ public class PdfRendererPlugin : KumlRendererPlugin {
         PluginDescriptor(
             id = "dev.kuml.plugin.renderer.pdf",
             name = "PDF Renderer",
-            version = PluginVersion(1, 0, 0),
+            version = PluginVersion(major = 1, minor = 0, patch = 0),
             kumlVersionRange = KumlVersionRange(">=0.12.0"),
             capabilities = setOf(PluginCapability.RENDERER),
             // No special permissions — rendering is pure computation

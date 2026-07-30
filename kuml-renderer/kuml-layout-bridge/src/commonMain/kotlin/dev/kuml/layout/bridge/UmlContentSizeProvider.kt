@@ -83,21 +83,21 @@ public class UmlContentSizeProvider
         private val connectionsById: Map<String, Int> =
             run {
                 val out = mutableMapOf<String, Int>()
-                countConnections(diagram.elements, out)
+                countConnections(elements = diagram.elements, out = out)
                 out
             }
 
         private val byId: Map<String, Size> =
             run {
                 val out = mutableMapOf<String, Size>()
-                collect(diagram.elements, out)
+                collect(elements = diagram.elements, out = out)
                 out
             }
 
         override fun sizeOf(
             elementId: String,
             elementKind: String,
-        ): Size = byId[elementId] ?: Size(DEFAULT_W, DEFAULT_H)
+        ): Size = byId[elementId] ?: Size(width = DEFAULT_W, height = DEFAULT_H)
 
         private fun collect(
             elements: Iterable<*>,
@@ -113,11 +113,11 @@ public class UmlContentSizeProvider
                     is UmlComment -> out[e.id] = UmlCommentLayout.sizeOf(e)
                     is UmlComponent -> {
                         out[e.id] = componentSize(e)
-                        collect(e.nestedComponents, out)
+                        collect(elements = e.nestedComponents, out = out)
                     }
                     is UmlNode -> {
                         out[e.id] = deploymentNodeSize(e)
-                        collect(e.children, out)
+                        collect(elements = e.children, out = out)
                         e.artifacts.forEach { out[it.id] = deploymentArtifactSize(it) }
                     }
                     is UmlArtifact -> out[e.id] = deploymentArtifactSize(e)
@@ -132,8 +132,8 @@ public class UmlContentSizeProvider
                             // them, so no entry is needed here.
                             else -> {}
                         }
-                    is UmlPackage -> collect(e.members, out)
-                    is UmlStateMachine -> collect(e.vertices, out)
+                    is UmlPackage -> collect(elements = e.members, out = out)
+                    is UmlStateMachine -> collect(elements = e.vertices, out = out)
                     is UmlState ->
                         if (e.substates.isEmpty()) {
                             out[e.id] = stateSize(e)
@@ -144,7 +144,7 @@ public class UmlContentSizeProvider
                             // stateSize() doc comment below. Its substates (possibly nested
                             // composite states of their own) still need collecting so any
                             // simple states inside get content-aware sizing too.
-                            collect(e.substates, out)
+                            collect(elements = e.substates, out = out)
                         }
                     else -> {} // ignore — fall back to default
                 }
@@ -200,8 +200,8 @@ public class UmlContentSizeProvider
                         bump(e.sourceId)
                         bump(e.targetId)
                     }
-                    is UmlComponent -> countConnections(e.nestedComponents, out)
-                    is UmlPackage -> countConnections(e.members, out)
+                    is UmlComponent -> countConnections(elements = e.nestedComponents, out = out)
+                    is UmlPackage -> countConnections(elements = e.members, out = out)
                     else -> {}
                 }
             }
@@ -249,7 +249,7 @@ public class UmlContentSizeProvider
         private fun stereotypeSize(s: UmlStereotype): Size {
             val w = boxWidth(nameLine = s.name, stereoLine = "«stereotype»", bodyLines = emptyList())
             val (wExtra, hExtra) = connectionPuffer(s.id)
-            return Size(w + wExtra, DEFAULT_H + hExtra)
+            return Size(width = w + wExtra, height = DEFAULT_H + hExtra)
         }
 
         private fun classSize(c: UmlClass): Size {
@@ -279,12 +279,12 @@ public class UmlContentSizeProvider
             val attrLines = c.attributes.map { it.toFormattedLine() }
             val opLines = c.operations.map { it.toFormattedLine() }
 
-            val w = boxWidth(nameLine, stereoLine, attrLines + opLines)
+            val w = boxWidth(nameLine = nameLine, stereoLine = stereoLine, bodyLines = attrLines + opLines)
             val attrs = c.attributes.size
             val ops = c.operations.size
             val h = boxHeight(hasStereo = stereoLine.isNotEmpty(), attrs = attrs, ops = ops)
             val (wExtra, hExtra) = connectionPuffer(c.id)
-            return Size(w + wExtra, h + hExtra)
+            return Size(width = w + wExtra, height = h + hExtra)
         }
 
         /**
@@ -303,12 +303,12 @@ public class UmlContentSizeProvider
             val nameLine = e.name
             val stereoLine = stereoLabel(e.appliedStereotypes) ?: "«enumeration»"
             val literalLines = e.literals.map { it.name }
-            val w = boxWidth(nameLine, stereoLine, literalLines)
+            val w = boxWidth(nameLine = nameLine, stereoLine = stereoLine, bodyLines = literalLines)
             // Enum has «enumeration» keyword always → hasStereo = true.
             // Literals slot into the "attributes" compartment shape.
             val h = boxHeight(hasStereo = true, attrs = e.literals.size, ops = 0)
             val (wExtra, hExtra) = connectionPuffer(e.id)
-            return Size(w + wExtra, h + hExtra)
+            return Size(width = w + wExtra, height = h + hExtra)
         }
 
         /**
@@ -348,7 +348,7 @@ public class UmlContentSizeProvider
             val w = boxWidth(nameLine = nameLine, stereoLine = "", bodyLines = slotLines)
             val h = boxHeight(hasStereo = false, attrs = i.slots.size, ops = 0)
             val (wExtra, hExtra) = connectionPuffer(i.id)
-            return Size(w + wExtra, h + hExtra)
+            return Size(width = w + wExtra, height = h + hExtra)
         }
 
         /**
@@ -370,9 +370,9 @@ public class UmlContentSizeProvider
          * Text, kein Wort-Wrap in V1 dieses Fixes.
          */
         private fun activityActionSize(node: UmlActivityNode): Size {
-            val measured = estimateLabelWidth(node.name, charPx = TITLE_CHAR_PX).toFloat() + BOX_H_PADDING
+            val measured = estimateLabelWidth(text = node.name, charPx = TITLE_CHAR_PX).toFloat() + BOX_H_PADDING
             val w = maxOf(UmlLayoutBridge.ACTIVITY_ACTION_WIDTH, measured)
-            return Size(w, UmlLayoutBridge.ACTIVITY_ACTION_HEIGHT)
+            return Size(width = w, height = UmlLayoutBridge.ACTIVITY_ACTION_HEIGHT)
         }
 
         /**
@@ -405,7 +405,7 @@ public class UmlContentSizeProvider
                     else -> ""
                 }
             val w = boxWidth(nameLine = n.name, stereoLine = stereoLine, bodyLines = emptyList())
-            return Size(w, DEFAULT_H)
+            return Size(width = w, height = DEFAULT_H)
         }
 
         /**
@@ -422,7 +422,7 @@ public class UmlContentSizeProvider
          */
         private fun deploymentArtifactSize(a: UmlArtifact): Size {
             val w = boxWidth(nameLine = a.name, stereoLine = "«artifact»", bodyLines = emptyList())
-            return Size(w, UmlLayoutBridge.DEPLOYMENT_ARTIFACT_SIZE.height)
+            return Size(width = w, height = UmlLayoutBridge.DEPLOYMENT_ARTIFACT_SIZE.height)
         }
 
         /**
@@ -438,8 +438,8 @@ public class UmlContentSizeProvider
          * bei Use-Case-Ellipsen oder Klassenboxen.
          */
         private fun actorSize(a: UmlActor): Size {
-            val nameW = estimateLabelWidth(a.name, charPx = BODY_CHAR_PX)
-            return Size(maxOf(DEFAULT_W, nameW.toFloat() + BOX_H_PADDING), DEFAULT_H)
+            val nameW = estimateLabelWidth(text = a.name, charPx = BODY_CHAR_PX)
+            return Size(width = maxOf(DEFAULT_W, nameW.toFloat() + BOX_H_PADDING), height = DEFAULT_H)
         }
 
         /**
@@ -458,8 +458,8 @@ public class UmlContentSizeProvider
          * `use-case-customer.kuml.kts`, Pepela Portal).
          */
         private fun usecaseSize(u: UmlUseCase): Size {
-            val nameW = estimateLabelWidth(u.name, charPx = BODY_CHAR_PX)
-            return Size(maxOf(DEFAULT_W, nameW.toFloat() + 2 * ELLIPSE_H_PAD), DEFAULT_H)
+            val nameW = estimateLabelWidth(text = u.name, charPx = BODY_CHAR_PX)
+            return Size(width = maxOf(DEFAULT_W, nameW.toFloat() + 2 * ELLIPSE_H_PAD), height = DEFAULT_H)
         }
 
         /**
@@ -514,9 +514,9 @@ public class UmlContentSizeProvider
          */
         private fun stateSize(s: UmlState): Size {
             val wrapWidthPx = DEFAULT_W - STATE_H_PADDING
-            val lines = stateWrappedLineCount(s.name, wrapWidthPx)
+            val lines = stateWrappedLineCount(text = s.name, maxWidthPx = wrapWidthPx)
             val neededHeight = (lines - 1) * STATE_LINE_HEIGHT + STATE_HEIGHT_SAFETY_PADDING
-            return Size(DEFAULT_W, maxOf(DEFAULT_H, neededHeight))
+            return Size(width = DEFAULT_W, height = maxOf(DEFAULT_H, neededHeight))
         }
 
         private fun interfaceSize(i: UmlInterface): Size {
@@ -526,10 +526,10 @@ public class UmlContentSizeProvider
             val opLines = i.operations.map { it.toFormattedLine() }
             val attrLines = i.attributes.map { it.toFormattedLine() }
 
-            val w = boxWidth(nameLine, stereoLine, attrLines + opLines)
+            val w = boxWidth(nameLine = nameLine, stereoLine = stereoLine, bodyLines = attrLines + opLines)
             val h = boxHeight(hasStereo = true, attrs = i.attributes.size, ops = i.operations.size)
             val (wExtra, hExtra) = connectionPuffer(i.id)
-            return Size(w + wExtra, h + hExtra)
+            return Size(width = w + wExtra, height = h + hExtra)
         }
 
         private fun componentSize(c: UmlComponent): Size {
@@ -542,7 +542,7 @@ public class UmlContentSizeProvider
             // weil kuml-io-svg bewusst NICHT an kuml-layout-bridge hängt.
             if (c.nestedComponents.isNotEmpty()) {
                 val (wExtra, hExtra) = connectionPuffer(c.id)
-                return Size(compositeWidth(c) + wExtra, maxOf(compositeHeight(c), DEFAULT_H) + hExtra)
+                return Size(width = compositeWidth(c = c) + wExtra, height = maxOf(compositeHeight(c = c), DEFAULT_H) + hExtra)
             }
 
             // ── Klassischer (flacher) Component ohne Innenleben — unverändert ──
@@ -557,7 +557,7 @@ public class UmlContentSizeProvider
                     (if (hasFeatures) DIVIDER_GAP + (c.attributes.size + c.operations.size) * FEATURE_LINE_H + DIVIDER_GAP else 0f) +
                     BOX_BOTTOM_PAD
             val (wExtra, hExtra) = connectionPuffer(c.id)
-            return Size(w + wExtra, maxOf(h, DEFAULT_H) + hExtra)
+            return Size(width = w + wExtra, height = maxOf(h, DEFAULT_H) + hExtra)
         }
 
         /**
@@ -573,12 +573,12 @@ public class UmlContentSizeProvider
             val stereoLine = stereoLabel(c.appliedStereotypes) ?: ""
             val attrLines = c.attributes.map { it.toFormattedLine() }
             val opLines = c.operations.map { it.toFormattedLine() }
-            var w = boxWidth(c.name, stereoLine, attrLines + opLines)
+            var w = boxWidth(nameLine = c.name, stereoLine = stereoLine, bodyLines = attrLines + opLines)
             if (c.ports.isNotEmpty()) {
                 val leftPorts = c.ports.filterIndexed { idx, _ -> idx % 2 == 0 }
                 val rightPorts = c.ports.filterIndexed { idx, _ -> idx % 2 == 1 }
-                val maxLeftLabel = leftPorts.maxOfOrNull { estimateLabelWidth(it.name, SMALL_CHAR_PX) } ?: 0
-                val maxRightLabel = rightPorts.maxOfOrNull { estimateLabelWidth(it.name, SMALL_CHAR_PX) } ?: 0
+                val maxLeftLabel = leftPorts.maxOfOrNull { estimateLabelWidth(text = it.name, charPx = SMALL_CHAR_PX) } ?: 0
+                val maxRightLabel = rightPorts.maxOfOrNull { estimateLabelWidth(text = it.name, charPx = SMALL_CHAR_PX) } ?: 0
                 w += maxLeftLabel + maxRightLabel + PORT_RESERVE * 2f
             }
             return w
@@ -611,7 +611,7 @@ public class UmlContentSizeProvider
             }
             val parts = c.nestedComponents
             val stack =
-                parts.sumOf { compositeHeight(it, depth - 1).toDouble() }.toFloat() +
+                parts.sumOf { compositeHeight(c = it, depth = depth - 1).toDouble() }.toFloat() +
                     (parts.size - 1) * NESTED_PART_GAP
             return chrome + NESTED_TOP_GAP + stack + NESTED_BOTTOM_PAD
         }
@@ -637,7 +637,7 @@ public class UmlContentSizeProvider
             val cw = chromeWidth(c)
             if (c.nestedComponents.isEmpty()) return cw
             val sideInset = NESTED_SIDE_PAD + if (c.ports.isNotEmpty()) NESTED_PORT_CLEARANCE else 0f
-            val innerMax = c.nestedComponents.maxOf { compositeWidth(it, depth - 1) }
+            val innerMax = c.nestedComponents.maxOf { compositeWidth(c = it, depth = depth - 1) }
             return maxOf(cw, innerMax + sideInset * 2f)
         }
 
@@ -715,9 +715,9 @@ public class UmlContentSizeProvider
             stereoLine: String,
             bodyLines: List<String>,
         ): Float {
-            val titleW = estimateLabelWidth(nameLine, charPx = TITLE_CHAR_PX)
-            val stereoW = if (stereoLine.isEmpty()) 0 else estimateLabelWidth(stereoLine, charPx = STEREO_CHAR_PX)
-            val bodyMax = bodyLines.maxOfOrNull { estimateLabelWidth(it, charPx = BODY_CHAR_PX) } ?: 0
+            val titleW = estimateLabelWidth(text = nameLine, charPx = TITLE_CHAR_PX)
+            val stereoW = if (stereoLine.isEmpty()) 0 else estimateLabelWidth(text = stereoLine, charPx = STEREO_CHAR_PX)
+            val bodyMax = bodyLines.maxOfOrNull { estimateLabelWidth(text = it, charPx = BODY_CHAR_PX) } ?: 0
             val raw = maxOf(titleW, stereoW, bodyMax)
             return maxOf(DEFAULT_W, raw.toFloat() + BOX_H_PADDING)
         }

@@ -26,7 +26,7 @@ public class SuiEventDecoder {
     public fun decode(eventJson: JsonObject): ChainEvent {
         val type =
             eventJson["type"]?.jsonPrimitive?.content
-                ?: throw SuiChainAdapterException.MalformedResponse("Event missing 'type'")
+                ?: throw SuiChainAdapterException.MalformedResponse(message = "Event missing 'type'")
         val bcs = eventJson["bcs"]?.jsonPrimitive?.content ?: ""
         val payloadAbi = Base64Decoder.decode(bcs)
         val checkpoint = eventJson["checkpoint"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
@@ -36,8 +36,8 @@ public class SuiEventDecoder {
                 ?.get("txDigest")
                 ?.jsonPrimitive
                 ?.content
-                ?: throw SuiChainAdapterException.MalformedResponse("Event missing 'id.txDigest'")
-        return ChainEvent(type, payloadAbi, checkpoint, txDigest)
+                ?: throw SuiChainAdapterException.MalformedResponse(message = "Event missing 'id.txDigest'")
+        return ChainEvent(eventType = type, payloadAbi = payloadAbi, blockNumber = checkpoint, txHash = txDigest)
     }
 
     /**
@@ -48,7 +48,7 @@ public class SuiEventDecoder {
     public fun decodeAll(dataArray: JsonElement): List<ChainEvent> {
         val arr =
             dataArray as? JsonArray
-                ?: throw SuiChainAdapterException.MalformedResponse("Expected JsonArray of events")
+                ?: throw SuiChainAdapterException.MalformedResponse(message = "Expected JsonArray of events")
         return arr.map { decode(it.jsonObject) }
     }
 }

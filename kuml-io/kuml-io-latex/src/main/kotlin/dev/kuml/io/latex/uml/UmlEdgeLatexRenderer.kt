@@ -41,28 +41,28 @@ internal object UmlEdgeLatexRenderer {
     ) {
         val styleAttr = style.tikzStyle
         when (route) {
-            is EdgeRoute.Direct -> renderDirect(route, styleAttr, options, out)
+            is EdgeRoute.Direct -> renderDirect(route = route, styleAttr = styleAttr, options = options, out = out)
             is EdgeRoute.OrthogonalRounded ->
                 renderPolyline(
-                    route.source,
-                    route.target,
-                    route.waypoints,
-                    route.cornerRadiusPx,
-                    styleAttr,
-                    options,
-                    out,
+                    source = route.source,
+                    target = route.target,
+                    waypoints = route.waypoints,
+                    cornerRadiusPx = route.cornerRadiusPx,
+                    styleAttr = styleAttr,
+                    options = options,
+                    out = out,
                 )
             is EdgeRoute.TreeRounded ->
                 renderPolyline(
-                    route.source,
-                    route.target,
-                    route.waypoints,
-                    route.cornerRadiusPx,
-                    styleAttr,
-                    options,
-                    out,
+                    source = route.source,
+                    target = route.target,
+                    waypoints = route.waypoints,
+                    cornerRadiusPx = route.cornerRadiusPx,
+                    styleAttr = styleAttr,
+                    options = options,
+                    out = out,
                 )
-            is EdgeRoute.Bezier -> renderBezier(route, styleAttr, options, out)
+            is EdgeRoute.Bezier -> renderBezier(route = route, styleAttr = styleAttr, options = options, out = out)
         }
     }
 

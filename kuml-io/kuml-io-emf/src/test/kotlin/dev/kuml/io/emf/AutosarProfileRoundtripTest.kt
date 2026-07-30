@@ -19,7 +19,7 @@ class AutosarProfileRoundtripTest :
         test("autosar round-trip kUML → .profile.uml → kUML preserves all 5 stereotypes") {
             val tmpFile = createTempFile("autosar-roundtrip-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             imported.stereotypes shouldHaveSize 5
             imported.stereotypes.map { it.name } shouldContainExactlyInAnyOrder
@@ -29,7 +29,7 @@ class AutosarProfileRoundtripTest :
         test("round-trip preserves profile name") {
             val tmpFile = createTempFile("autosar-roundtrip-name-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             imported.name shouldBe autosarProfile.name
         }
@@ -37,7 +37,7 @@ class AutosarProfileRoundtripTest :
         test("round-trip preserves profile namespace") {
             val tmpFile = createTempFile("autosar-roundtrip-ns-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             imported.namespace shouldBe autosarProfile.namespace
         }
@@ -45,7 +45,7 @@ class AutosarProfileRoundtripTest :
         test("round-trip preserves profile version") {
             val tmpFile = createTempFile("autosar-roundtrip-ver-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             imported.version shouldBe autosarProfile.version
         }
@@ -53,7 +53,7 @@ class AutosarProfileRoundtripTest :
         test("round-trip preserves profile description") {
             val tmpFile = createTempFile("autosar-roundtrip-desc-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             imported.description shouldBe autosarProfile.description
         }
@@ -61,7 +61,7 @@ class AutosarProfileRoundtripTest :
         test("round-trip preserves each stereotype targetMetaclass") {
             val tmpFile = createTempFile("autosar-roundtrip-mc-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             for (original in autosarProfile.stereotypes) {
                 val roundTripped = imported.stereotype(original.name)!!
@@ -72,7 +72,7 @@ class AutosarProfileRoundtripTest :
         test("round-trip preserves property name sets per stereotype") {
             val tmpFile = createTempFile("autosar-roundtrip-props-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             for (original in autosarProfile.stereotypes) {
                 val roundTripped = imported.stereotype(original.name)!!
@@ -84,7 +84,7 @@ class AutosarProfileRoundtripTest :
         test("round-trip preserves required flags via EAnnotation") {
             val tmpFile = createTempFile("autosar-roundtrip-req-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             // SoftwareComponent.kind has a default → required=false in original
             val swc = imported.stereotype("SoftwareComponent")!!
@@ -95,7 +95,7 @@ class AutosarProfileRoundtripTest :
         test("importResult on valid file returns Success") {
             val tmpFile = createTempFile("autosar-roundtrip-result-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
             val result = importer.importResult(tmpFile)
             result.shouldBeInstanceOf<ProfileResult.Success>()
         }

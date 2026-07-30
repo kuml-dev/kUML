@@ -118,7 +118,7 @@ class ArxmlWriterTest :
                     .createTempFile("arxml-writer-", ".arxml")
                     .toFile()
             try {
-                writer.write(root, tmpFile)
+                writer.write(rootPackage = root, file = tmpFile)
                 tmpFile.readText() shouldBe xmlString
             } finally {
                 tmpFile.delete()

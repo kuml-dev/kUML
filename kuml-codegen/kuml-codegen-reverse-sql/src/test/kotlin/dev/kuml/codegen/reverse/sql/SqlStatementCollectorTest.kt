@@ -109,7 +109,7 @@ class SqlStatementCollectorTest :
                 """.trimIndent(),
             )
             val diagnostics = mutableListOf<ReverseDiagnostic>()
-            val statements = SqlStatementCollector.collect(listOf(dir.resolve("dump.sql")), diagnostics)
+            val statements = SqlStatementCollector.collect(files = listOf(dir.resolve("dump.sql")), diagnostics = diagnostics)
             val tableNames = statements.map { it.statement }.filterIsInstance<CreateTable>().map { it.table.name }
             tableNames shouldBe listOf("t", "u")
             diagnostics.any { it.code == "REV-SQL-002" } shouldBe true

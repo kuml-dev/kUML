@@ -43,18 +43,26 @@ public object WebpEncoder {
         val binary =
             EncoderBinaryLocator.findWebpBinary()
                 ?: throw AnimEncoderException(
-                    "No animated-WebP encoder found on PATH. " +
-                        "Install libwebp (provides img2webp) via 'brew install webp' on macOS, " +
-                        "'apt-get install webp' on Debian/Ubuntu, or ensure ffmpeg is on PATH as a fallback.",
+                    message =
+                        "No animated-WebP encoder found on PATH. " +
+                            "Install libwebp (provides img2webp) via 'brew install webp' on macOS, " +
+                            "'apt-get install webp' on Debian/Ubuntu, or ensure ffmpeg is on PATH as a fallback.",
                 )
 
         val tempDir = createTempDir()
         return try {
             val outputFile = File(tempDir, "output.webp")
-            encodeWithBinary(binary, frames, delayMs, numPlays, tempDir, outputFile)
+            encodeWithBinary(
+                binary = binary,
+                frames = frames,
+                delayMs = delayMs,
+                numPlays = numPlays,
+                tempDir = tempDir,
+                outputFile = outputFile,
+            )
             if (!outputFile.exists() || outputFile.length() == 0L) {
                 throw AnimEncoderException(
-                    "WebP encoder '$binary' ran successfully but produced an empty output file.",
+                    message = "WebP encoder '$binary' ran successfully but produced an empty output file.",
                 )
             }
             outputFile.readBytes()
@@ -91,9 +99,9 @@ public object WebpEncoder {
 
         val cmd =
             if (binary == "img2webp") {
-                buildImg2WebpCommand(frameFiles, delayMs, numPlays, outputFile)
+                buildImg2WebpCommand(frameFiles = frameFiles, delayMs = delayMs, numPlays = numPlays, outputFile = outputFile)
             } else {
-                buildFfmpegCommand(frameFiles, delayMs, outputFile, tempDir)
+                buildFfmpegCommand(frameFiles = frameFiles, delayMs = delayMs, outputFile = outputFile, tempDir = tempDir)
             }
 
         val process =
@@ -118,7 +126,7 @@ public object WebpEncoder {
         if (!finished) {
             process.destroyForcibly()
             throw AnimEncoderException(
-                "WebP encoder '$binary' timed out after ${TIMEOUT_SECONDS}s.",
+                message = "WebP encoder '$binary' timed out after ${TIMEOUT_SECONDS}s.",
             )
         }
 
@@ -136,7 +144,7 @@ public object WebpEncoder {
                     ""
                 }
             throw AnimEncoderException(
-                "WebP encoder '$binary' exited with code ${process.exitValue()}.$hint Stderr: $stderr",
+                message = "WebP encoder '$binary' exited with code ${process.exitValue()}.$hint Stderr: $stderr",
             )
         }
     }
@@ -204,7 +212,7 @@ public object WebpEncoder {
                 dir.setExecutable(true, true)
                 dir
             } catch (e: IOException) {
-                throw AnimEncoderException("Cannot create temp directory: ${e.message}", e)
+                throw AnimEncoderException(message = "Cannot create temp directory: ${e.message}", cause = e)
             }
         }
 }

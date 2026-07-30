@@ -63,7 +63,7 @@ internal object GenerateTool : McpTool {
         val pluginId = arguments["plugin"]?.jsonPrimitive?.content ?: "kotlin"
         val packageName = arguments["package"]?.jsonPrimitive?.content
 
-        val extracted = McpScriptEvaluator.extract(script, "generate.kuml.kts")
+        val extracted = McpScriptEvaluator.extract(script = script, fileName = "generate.kuml.kts")
         val options =
             buildMap<String, String> {
                 packageName?.let { put("package", it) }
@@ -72,7 +72,7 @@ internal object GenerateTool : McpTool {
         val outputDir = Files.createTempDirectory("kuml-mcp-generated-").toFile()
 
         return try {
-            val generatedFiles = generate(extracted, pluginId, outputDir, options)
+            val generatedFiles = generate(extracted = extracted, pluginId = pluginId, outputDir = outputDir, options = options)
 
             generatedFiles.map { file ->
                 McpContent(
@@ -100,7 +100,7 @@ internal object GenerateTool : McpTool {
                             "Unknown codegen plugin: '$pluginId'. " +
                                 "Registered plugins: ${CodeGenRegistry.names()}",
                         )
-                generator.generate(extracted.diagram, outputDir, options)
+                generator.generate(diagram = extracted.diagram, outputDir = outputDir, options = options)
             }
             is ExtractedDiagram.Erm -> {
                 if (ErmCodeGenRegistry.names().isEmpty()) ErmCodeGenRegistry.loadFromClasspath()
@@ -110,12 +110,13 @@ internal object GenerateTool : McpTool {
                             "Unknown ERM codegen plugin: '$pluginId'. " +
                                 "Registered plugins: ${ErmCodeGenRegistry.names()}",
                         )
-                generator.generate(extracted.model, outputDir, options)
+                generator.generate(model = extracted.model, outputDir = outputDir, options = options)
             }
             else ->
                 throw ScriptEvaluationException(
-                    "kuml.generate currently supports UML class diagrams (`classDiagram { … }`) or " +
-                        "ERM models (`ermModel(…) { … }`).",
+                    message =
+                        "kuml.generate currently supports UML class diagrams (`classDiagram { … }`) or " +
+                            "ERM models (`ermModel(…) { … }`).",
                 )
         }
 }

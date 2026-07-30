@@ -31,21 +31,21 @@ class SpringRenderTest :
 
         // Payment Service diagram — both profiles applied simultaneously
         val diagram =
-            classDiagram("Payment Service") {
+            classDiagram(name = "Payment Service") {
                 applyProfile(javaEeProfile)
                 applyProfile(springProfile)
 
-                classOf("PaymentProcessor") {
-                    stereotype("Service") // from JavaEE
+                classOf(name = "PaymentProcessor") {
+                    stereotype(name = "Service") // from JavaEE
                     // from Spring
-                    stereotype("RestController") {
+                    stereotype(name = "RestController") {
                         "produces" to "application/json"
                     }
                     operation(name = "process") { returns("PaymentResult") }
                 }
 
-                classOf("PaymentRepository") {
-                    stereotype("SpringData") { "readOnly" to false }
+                classOf(name = "PaymentRepository") {
+                    stereotype(name = "SpringData") { "readOnly" to false }
                     operation(name = "findByOrderId") { returns("Payment") }
                 }
             }
@@ -82,21 +82,21 @@ class SpringRenderTest :
         // ── Test 1: multi-stereotype comma-joined header ──────────────────────────
 
         test("SVG contains comma-joined 'Service, RestController' header for PaymentProcessor") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "«Service, RestController»"
         }
 
         // ── Test 2: SpringData stereotype header ──────────────────────────────────
 
         test("SVG contains SpringData stereotype label for PaymentRepository") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "«SpringData»"
         }
 
         // ── Test 3: class names appear in SVG ─────────────────────────────────────
 
         test("SVG contains both class names") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "PaymentProcessor"
             svg shouldContain "PaymentRepository"
         }

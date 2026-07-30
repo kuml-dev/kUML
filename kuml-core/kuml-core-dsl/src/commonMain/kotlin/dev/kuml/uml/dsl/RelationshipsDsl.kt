@@ -29,7 +29,7 @@ fun UmlModelScope.generalization(
     val relId =
         id
             ?: UmlIds.disambiguate(
-                candidate = UmlIds.generalization(specificId, generalId),
+                candidate = UmlIds.generalization(specificId = specificId, generalId = generalId),
                 taken = takenIds,
             )
     takenIds += relId
@@ -43,7 +43,7 @@ fun UmlModelScope.generalization(
     specific: UmlClassifier,
     general: UmlClassifier,
     id: String? = null,
-): UmlGeneralization = generalization(specific.id, general.id, id)
+): UmlGeneralization = generalization(specificId = specific.id, generalId = general.id, id = id)
 
 // ── Interface Realization ─────────────────────────────────────────────────────
 
@@ -67,7 +67,7 @@ fun UmlModelScope.realization(
     val relId =
         id
             ?: UmlIds.disambiguate(
-                candidate = UmlIds.realization(implementingId, interfaceId),
+                candidate = UmlIds.realization(implementingId = implementingId, interfaceId = interfaceId),
                 taken = takenIds,
             )
     takenIds += relId
@@ -81,7 +81,7 @@ fun UmlModelScope.realization(
     implementing: UmlClassifier,
     iface: UmlInterface,
     id: String? = null,
-): UmlInterfaceRealization = realization(implementing.id, iface.id, id)
+): UmlInterfaceRealization = realization(implementingId = implementing.id, interfaceId = iface.id, id = id)
 
 // ── Dependency ────────────────────────────────────────────────────────────────
 
@@ -105,7 +105,7 @@ fun UmlModelScope.dependency(
     val depId =
         id
             ?: UmlIds.disambiguate(
-                candidate = UmlIds.dependency(clientId, supplierId),
+                candidate = UmlIds.dependency(clientId = clientId, supplierId = supplierId),
                 taken = takenIds,
             )
     takenIds += depId
@@ -120,4 +120,4 @@ fun UmlModelScope.dependency(
     supplier: UmlClassifier,
     name: String? = null,
     id: String? = null,
-): UmlDependency = dependency(client.id, supplier.id, name, id)
+): UmlDependency = dependency(clientId = client.id, supplierId = supplier.id, name = name, id = id)

@@ -47,9 +47,9 @@ internal object ModelMutationRouter {
     private fun addElementMutate(patch: ModelPatch.AddElement): (AnyKumlModel) -> AnyKumlModel =
         { model ->
             when (model) {
-                is AnyKumlModel.Uml -> addUmlElement(model, patch)
-                is AnyKumlModel.C4 -> addC4Element(model, patch)
-                is AnyKumlModel.Sysml2 -> addSysml2Element(model, patch)
+                is AnyKumlModel.Uml -> addUmlElement(model = model, patch = patch)
+                is AnyKumlModel.C4 -> addC4Element(model = model, patch = patch)
+                is AnyKumlModel.Sysml2 -> addSysml2Element(model = model, patch = patch)
             }
         }
 
@@ -172,8 +172,8 @@ internal object ModelMutationRouter {
     private fun addRelationshipMutate(patch: ModelPatch.AddRelationship): (AnyKumlModel) -> AnyKumlModel =
         { model ->
             when (model) {
-                is AnyKumlModel.Uml -> addUmlRelationship(model, patch)
-                is AnyKumlModel.C4 -> addC4Relationship(model, patch)
+                is AnyKumlModel.Uml -> addUmlRelationship(model = model, patch = patch)
+                is AnyKumlModel.C4 -> addC4Relationship(model = model, patch = patch)
                 is AnyKumlModel.Sysml2 -> model // SysML2 relationships: identity for structural checks
             }
         }

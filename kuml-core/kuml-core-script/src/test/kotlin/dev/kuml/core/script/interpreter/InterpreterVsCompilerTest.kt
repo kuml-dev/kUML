@@ -28,8 +28,8 @@ class InterpreterVsCompilerTest :
         "interpreter reproduces the compiler's KumlDiagram for the real Order-Domain vault script" {
             val source = loadScript("order-domain.kuml.kts")
 
-            val compilerResult = InProcessScriptEvaluator.evaluate(source, "order-domain.kuml.kts")
-            val interpreterResult = InterpreterScriptEvaluator.evaluate(source, "order-domain.kuml.kts")
+            val compilerResult = InProcessScriptEvaluator.evaluate(source = source, fileName = "order-domain.kuml.kts")
+            val interpreterResult = InterpreterScriptEvaluator.evaluate(source = source, fileName = "order-domain.kuml.kts")
 
             require(compilerResult is EvaluatedScript.Success) { "compiler path failed: $compilerResult" }
             require(interpreterResult is EvaluatedScript.Success) { "interpreter path failed: $interpreterResult" }
@@ -46,9 +46,9 @@ class InterpreterVsCompilerTest :
         "both paths agree on the diagram name and element count (coarse sanity, independent of full equality)" {
             val source = loadScript("order-domain.kuml.kts")
             val compiled =
-                (InProcessScriptEvaluator.evaluate(source) as EvaluatedScript.Success).diagram as ExtractedDiagram.Uml
+                (InProcessScriptEvaluator.evaluate(source = source) as EvaluatedScript.Success).diagram as ExtractedDiagram.Uml
             val interpreted =
-                (InterpreterScriptEvaluator.evaluate(source) as EvaluatedScript.Success).diagram as ExtractedDiagram.Uml
+                (InterpreterScriptEvaluator.evaluate(source = source) as EvaluatedScript.Success).diagram as ExtractedDiagram.Uml
 
             interpreted.diagram.name shouldBe compiled.diagram.name
             interpreted.diagram.type shouldBe compiled.diagram.type
@@ -59,8 +59,8 @@ class InterpreterVsCompilerTest :
         "interpreter reproduces the compiler's KumlDiagram for a second, simpler class diagram (breadth)" {
             val source = loadScript("animals.kuml.kts")
 
-            val compilerResult = InProcessScriptEvaluator.evaluate(source, "animals.kuml.kts")
-            val interpreterResult = InterpreterScriptEvaluator.evaluate(source, "animals.kuml.kts")
+            val compilerResult = InProcessScriptEvaluator.evaluate(source = source, fileName = "animals.kuml.kts")
+            val interpreterResult = InterpreterScriptEvaluator.evaluate(source = source, fileName = "animals.kuml.kts")
 
             require(compilerResult is EvaluatedScript.Success) { "compiler path failed: $compilerResult" }
             require(interpreterResult is EvaluatedScript.Success) { "interpreter path failed: $interpreterResult" }

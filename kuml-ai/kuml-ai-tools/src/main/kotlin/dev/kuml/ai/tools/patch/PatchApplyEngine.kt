@@ -129,7 +129,7 @@ public class PatchApplyEngine(
      *
      * Backward-compatible single-argument form; the patch is owned by [ownerId].
      */
-    public suspend fun buffer(patch: ModelPatch): Unit = buffer(patch, ownerId)
+    public suspend fun buffer(patch: ModelPatch): Unit = buffer(patch = patch, patchOwnerId = ownerId)
 
     /**
      * Adds [patch] to the pending buffer attributed to [patchOwnerId].
@@ -199,7 +199,7 @@ public class PatchApplyEngine(
 
             val baseModel = context.resolveModel()
             val mutate = ModelMutationRouter.mutateFor(patch)
-            val validationResult = validator.validate(baseModel, patch, mutate)
+            val validationResult = validator.validate(baseModel = baseModel, patch = patch, mutate = mutate)
 
             val patchKind = patchKindOf(patch)
 
@@ -235,7 +235,7 @@ public class PatchApplyEngine(
             // Apply to the real working model
             // Persistence conflict check (when store is wired).
             if (store != null) {
-                val storeResult = store.insert(patch, ownerId, PatchStatus.PENDING)
+                val storeResult = store.insert(patch = patch, ownerId = ownerId, status = PatchStatus.PENDING)
                 if (storeResult is InsertResult.ConflictDetected) {
                     val conflictReason =
                         "${PatchReasonPrefix.CONFLICT}: element touched within ${storeResult.windowMs}ms" +
@@ -273,7 +273,7 @@ public class PatchApplyEngine(
                 }
             }
 
-            val applyResult = context.applyPatch(patch, mutate)
+            val applyResult = context.applyPatch(patch = patch, mutate = mutate)
             return@withLock when (applyResult) {
                 is PatchApplyResult.Success -> {
                     appliedPatchIds += patchId
@@ -288,7 +288,7 @@ public class PatchApplyEngine(
                             elementId = applyResult.elementId,
                         ),
                     )
-                    store?.updateStatus(patchId, PatchStatus.APPLIED)
+                    store?.updateStatus(patchId = patchId, status = PatchStatus.APPLIED)
                     broker?.publish(
                         PatchBrokerEvent.PatchAppliedBySession(
                             sessionId = sessionId.value,
@@ -304,7 +304,7 @@ public class PatchApplyEngine(
                     )
                 }
                 is PatchApplyResult.Failure -> {
-                    store?.updateStatus(patchId, PatchStatus.REJECTED)
+                    store?.updateStatus(patchId = patchId, status = PatchStatus.REJECTED)
                     patchOwners.remove(patchId)
                     PatchApplyOutcome.ApplyFailed(patchId = patchId, reason = applyResult.reason)
                 }
@@ -333,7 +333,7 @@ public class PatchApplyEngine(
                     reason = reason,
                 ),
             )
-            store?.updateStatus(patchId, PatchStatus.REJECTED)
+            store?.updateStatus(patchId = patchId, status = PatchStatus.REJECTED)
         }
 
     /**
@@ -371,19 +371,19 @@ public class PatchApplyEngine(
             pendingBuffer.firstOrNull { it.patchId == patchId }
                 ?: return PatchDiff(
                     patchId = patchId,
-                    before = ModelSnippet(emptyList(), "(patch not found)"),
-                    after = ModelSnippet(emptyList(), "(patch not found)"),
+                    before = ModelSnippet(elementIds = emptyList(), text = "(patch not found)"),
+                    after = ModelSnippet(elementIds = emptyList(), text = "(patch not found)"),
                     elementChanges = emptyList(),
                 )
 
         val baseModel = context.resolveModel()
         val touchedId = touchedElementId(patch)
-        val contextIds = nearbyElementIds(baseModel, touchedId, contextWindow = 2)
+        val contextIds = nearbyElementIds(model = baseModel, targetId = touchedId, contextWindow = 2)
 
         val beforeSnippet =
             ModelSnippet(
                 elementIds = contextIds,
-                text = buildSnippetText(baseModel, contextIds),
+                text = buildSnippetText(model = baseModel, elementIds = contextIds),
             )
 
         val mutate = ModelMutationRouter.mutateFor(patch)
@@ -397,10 +397,10 @@ public class PatchApplyEngine(
         val afterSnippet =
             ModelSnippet(
                 elementIds = contextIds + listOfNotNull(touchedId).filter { it !in contextIds },
-                text = buildSnippetText(patchedModel, contextIds + listOfNotNull(touchedId)),
+                text = buildSnippetText(model = patchedModel, elementIds = contextIds + listOfNotNull(touchedId)),
             )
 
-        val changes = buildElementChanges(patch, baseModel, patchedModel)
+        val changes = buildElementChanges(patch = patch, before = baseModel, after = patchedModel)
 
         return PatchDiff(
             patchId = patchId,

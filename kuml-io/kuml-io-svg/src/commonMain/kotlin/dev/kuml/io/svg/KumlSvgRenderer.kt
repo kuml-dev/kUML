@@ -149,17 +149,17 @@ public object KumlSvgRenderer {
     ): String {
         // SEQ diagrams have their own renderer-direct path (no edge routing through ELK)
         if (diagram.type == DiagramType.SEQUENCE) {
-            return renderUmlSequence(diagram, layoutResult, theme, options)
+            return renderUmlSequence(diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
         }
         // STATE diagrams have their own renderer-direct path (vertex/transition dispatch)
         if (diagram.type == DiagramType.STATE) {
-            return renderUmlStateDiagram(diagram, layoutResult, theme, options)
+            return renderUmlStateDiagram(diagram = diagram, rawLayoutResult = layoutResult, theme = theme, options = options)
         }
         // BPMN_PROCESS diagrams have a dedicated rendering path with explicit z-order:
         // expanded SubProcess frames (groups) are painted BEFORE their child nodes so the
         // frame background never occludes its contents — identical fix as C4/SysML-2 groups.
         if (diagram.type == DiagramType.BPMN_PROCESS) {
-            return renderBpmnProcess(diagram, layoutResult, theme, options)
+            return renderBpmnProcess(diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
         }
         // V11.x package-diagram fix: build a flat (id → element) lookup that
         // recurses into UmlPackage.members. Without this, classes/interfaces
@@ -179,9 +179,9 @@ public object KumlSvgRenderer {
         // which is always full-width and therefore always visually reachable.
         val effectiveLayoutResult: LayoutResult =
             if (diagram.type == DiagramType.PACKAGE) {
-                snapPackageEdgesToBodyBoundary(elementIndex, layoutResult)
+                snapPackageEdgesToBodyBoundary(elementIndex = elementIndex, layoutResult = layoutResult)
             } else if (diagram.type == DiagramType.ACTIVITY) {
-                umlActivityWidenForGuardOverhang(layoutResult, diagram.elements, options.paddingPx)
+                umlActivityWidenForGuardOverhang(layoutResult = layoutResult, elements = diagram.elements, padding = options.paddingPx)
             } else {
                 layoutResult
             }
@@ -222,7 +222,7 @@ public object KumlSvgRenderer {
             if (diagram.type == DiagramType.ACTIVITY ||
                 diagram.type == DiagramType.INTERACTION_OVERVIEW
             ) {
-                buildActivityShapeIndex(diagram.elements, effectiveLayoutResult, options.paddingPx)
+                buildActivityShapeIndex(elements = diagram.elements, layoutResult = effectiveLayoutResult, paddingPx = options.paddingPx)
             } else {
                 emptyMap()
             }
@@ -268,7 +268,7 @@ public object KumlSvgRenderer {
             diagram.type == DiagramType.COMPONENT &&
                 elementIndex.values.any {
                     it is UmlComponent &&
-                        dev.kuml.io.svg.uml.UmlComponentContracts.hasUnboundContracts(it) { id ->
+                        dev.kuml.io.svg.uml.UmlComponentContracts.hasUnboundContracts(component = it) { id ->
                             id in layoutNodeIdSet
                         }
                 }
@@ -288,7 +288,7 @@ public object KumlSvgRenderer {
                 elementIndex.values.any {
                     it is UmlConnector &&
                         dev.kuml.io.svg.uml.ComponentPortEdgeClipper
-                            .bindsPorts(it.end1Id, it.end2Id)
+                            .bindsPorts(end1Id = it.end1Id, end2Id = it.end2Id)
                 }
         val frameGapPx = 10f
         val requiredPadding =
@@ -331,9 +331,9 @@ public object KumlSvgRenderer {
             }
 
         return SvgDocument.render(
-            effectiveLayoutResult,
-            theme,
-            effectiveOptions,
+            layoutResult = effectiveLayoutResult,
+            theme = theme,
+            options = effectiveOptions,
             frameName = diagram.name.takeIf { frameTypeLabel != null },
             frameTypeLabel = frameTypeLabel,
         ) { nodesBuilder, edgesBuilder ->
@@ -361,9 +361,9 @@ public object KumlSvgRenderer {
                 val subject = subjectsById[groupId.value]
                 val deployNode = elementIndex[groupId.value] as? UmlNode
                 if (pkg != null && showFolderTabs) {
-                    renderPackageGroup(pkg, gx, gy, gw, gh, theme, nodesBuilder)
+                    renderPackageGroup(pkg = pkg, gx = gx, gy = gy, gw = gw, gh = gh, theme = theme, nodesBuilder = nodesBuilder)
                 } else if (subject != null) {
-                    renderSubjectGroup(subject, gx, gy, gw, gh, theme, nodesBuilder)
+                    renderSubjectGroup(subject = subject, gx = gx, gy = gy, gw = gw, gh = gh, theme = theme, nodesBuilder = nodesBuilder)
                 } else if (deployNode != null) {
                     // Deployment-Diagramm: UmlNode-Gruppe als 3D-Cube-Rahmen rendern.
                     // Gleiche Technik wie renderUmlStateDiagram für den UmlStateMachine-
@@ -373,28 +373,30 @@ public object KumlSvgRenderer {
                         dev.kuml.layout.NodeLayout(
                             bounds =
                                 dev.kuml.layout.Rect(
-                                    origin = dev.kuml.layout.Point(gx, gy),
-                                    size = dev.kuml.layout.Size(gw, gh),
+                                    origin = dev.kuml.layout.Point(x = gx, y = gy),
+                                    size = dev.kuml.layout.Size(width = gw, height = gh),
                                 ),
                         )
-                    NodeRendererDispatcher.dispatch(deployNode, nodeLayout, theme, nodesBuilder)
+                    NodeRendererDispatcher.dispatch(element = deployNode, layout = nodeLayout, theme = theme, builder = nodesBuilder)
                 } else {
                     nodesBuilder.tag(
-                        "g",
-                        mapOf(
-                            "id" to xmlEscapeAttr("system-${groupId.value}"),
-                            "transform" to "translate(${fmt(gx)},${fmt(gy)})",
-                        ),
+                        name = "g",
+                        attrs =
+                            mapOf(
+                                "id" to xmlEscapeAttr("system-${groupId.value}"),
+                                "transform" to "translate(${fmt(gx)},${fmt(gy)})",
+                            ),
                     ) {
                         tag(
-                            "rect",
-                            mapOf(
-                                "width" to fmt(gw),
-                                "height" to fmt(gh),
-                                "class" to "kuml-system",
-                                "rx" to fmt(theme.borders.cornerRadiusPx),
-                                "ry" to fmt(theme.borders.cornerRadiusPx),
-                            ),
+                            name = "rect",
+                            attrs =
+                                mapOf(
+                                    "width" to fmt(gw),
+                                    "height" to fmt(gh),
+                                    "class" to "kuml-system",
+                                    "rx" to fmt(theme.borders.cornerRadiusPx),
+                                    "ry" to fmt(theme.borders.cornerRadiusPx),
+                                ),
                         )
                     }
                 }
@@ -420,9 +422,15 @@ public object KumlSvgRenderer {
                     val connectors = internalConnectorsByParentId[nodeId.value]
                     if (connectors != null && element is UmlComponent) {
                         dev.kuml.io.svg.uml
-                            .renderUmlComponent(element, shifted, theme, nodesBuilder, connectors)
+                            .renderUmlComponent(
+                                element = element,
+                                layout = shifted,
+                                theme = theme,
+                                builder = nodesBuilder,
+                                internalConnectors = connectors,
+                            )
                     } else {
-                        NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+                        NodeRendererDispatcher.dispatch(element = element, layout = shifted, theme = theme, builder = nodesBuilder)
                     }
                 }
             }
@@ -565,8 +573,8 @@ public object KumlSvgRenderer {
                     // V2.x — Self-Loops bekommen eine vergrößerte C-Loop-Route,
                     // statt der von ELK gelieferten 10-px-U-Form, damit Self-FKs
                     // (z.B. `UserPosts.parent → UserPosts`) sichtbar bleiben.
-                    val routed = SelfLoopRouter.adjust(element, route, nodeLookup)
-                    val shiftedRoute = shiftRoute(routed, padding)
+                    val routed = SelfLoopRouter.adjust(element = element, originalRoute = route, nodeLookup = nodeLookup)
+                    val shiftedRoute = shiftRoute(route = routed, dx = padding)
                     // V2.0.46: für Activity-Diagramme die Endpunkte auf den
                     //          tatsächlichen Shape-Rand des Quell-/Zielknotens
                     //          snappen (siehe `activityShapeByNodeId`-KDoc).
@@ -608,7 +616,14 @@ public object KumlSvgRenderer {
                         }
                     val srcStackIdx = umlEndpointStackIndex[edgeId.value to UmlEndpointSide.SOURCE] ?: 0
                     val tgtStackIdx = umlEndpointStackIndex[edgeId.value to UmlEndpointSide.TARGET] ?: 0
-                    EdgeRendererDispatcher.dispatch(element, clippedRoute, theme, edgesBuilder, srcStackIdx, tgtStackIdx)
+                    EdgeRendererDispatcher.dispatch(
+                        relationship = element,
+                        route = clippedRoute,
+                        theme = theme,
+                        builder = edgesBuilder,
+                        sourceStackIndex = srcStackIdx,
+                        targetStackIndex = tgtStackIdx,
+                    )
                 }
             }
         }
@@ -641,9 +656,9 @@ public object KumlSvgRenderer {
                 is SystemLandscapeDiagram -> "system landscape"
             }
         return SvgDocument.render(
-            layoutResult,
-            theme,
-            options,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
             frameName = diagram.name,
             frameTypeLabel = c4TypeLabel,
         ) { nodesBuilder, edgesBuilder ->
@@ -663,21 +678,23 @@ public object KumlSvgRenderer {
                 // in the 36px top-inset that C4LayoutBridge.C4_BOUNDARY_INSETS reserves.
                 val anchorElement = elementIndex[groupId.value]
                 nodesBuilder.tag(
-                    "g",
-                    mapOf(
-                        "id" to xmlEscapeAttr("system-${groupId.value}"),
-                        "transform" to "translate(${fmt(gx)},${fmt(gy)})",
-                    ),
+                    name = "g",
+                    attrs =
+                        mapOf(
+                            "id" to xmlEscapeAttr("system-${groupId.value}"),
+                            "transform" to "translate(${fmt(gx)},${fmt(gy)})",
+                        ),
                 ) {
                     tag(
-                        "rect",
-                        mapOf(
-                            "width" to fmt(gw),
-                            "height" to fmt(gh),
-                            "class" to "kuml-system",
-                            "rx" to fmt(theme.borders.cornerRadiusPx),
-                            "ry" to fmt(theme.borders.cornerRadiusPx),
-                        ),
+                        name = "rect",
+                        attrs =
+                            mapOf(
+                                "width" to fmt(gw),
+                                "height" to fmt(gh),
+                                "class" to "kuml-system",
+                                "rx" to fmt(theme.borders.cornerRadiusPx),
+                                "ry" to fmt(theme.borders.cornerRadiusPx),
+                            ),
                     )
                     // Render boundary label inside the top inset area.
                     // ContainerDiagram anchor = C4SoftwareSystem → "[Software System]" + name
@@ -686,42 +703,46 @@ public object KumlSvgRenderer {
                         is C4Container -> {
                             val tech = anchorElement.technology?.let { " $it" } ?: ""
                             tag(
-                                "text",
-                                mapOf(
-                                    "class" to "kuml-stereotype",
-                                    "x" to fmt(gw / 2f),
-                                    "y" to "14",
-                                    "text-anchor" to "middle",
-                                ),
+                                name = "text",
+                                attrs =
+                                    mapOf(
+                                        "class" to "kuml-stereotype",
+                                        "x" to fmt(gw / 2f),
+                                        "y" to "14",
+                                        "text-anchor" to "middle",
+                                    ),
                             ) { text("[Container:$tech]") }
                             tag(
-                                "text",
-                                mapOf(
-                                    "class" to "kuml-title",
-                                    "x" to fmt(gw / 2f),
-                                    "y" to "30",
-                                    "text-anchor" to "middle",
-                                ),
+                                name = "text",
+                                attrs =
+                                    mapOf(
+                                        "class" to "kuml-title",
+                                        "x" to fmt(gw / 2f),
+                                        "y" to "30",
+                                        "text-anchor" to "middle",
+                                    ),
                             ) { text(anchorElement.name) }
                         }
                         is C4SoftwareSystem -> {
                             tag(
-                                "text",
-                                mapOf(
-                                    "class" to "kuml-stereotype",
-                                    "x" to fmt(gw / 2f),
-                                    "y" to "14",
-                                    "text-anchor" to "middle",
-                                ),
+                                name = "text",
+                                attrs =
+                                    mapOf(
+                                        "class" to "kuml-stereotype",
+                                        "x" to fmt(gw / 2f),
+                                        "y" to "14",
+                                        "text-anchor" to "middle",
+                                    ),
                             ) { text("[Software System]") }
                             tag(
-                                "text",
-                                mapOf(
-                                    "class" to "kuml-title",
-                                    "x" to fmt(gw / 2f),
-                                    "y" to "30",
-                                    "text-anchor" to "middle",
-                                ),
+                                name = "text",
+                                attrs =
+                                    mapOf(
+                                        "class" to "kuml-title",
+                                        "x" to fmt(gw / 2f),
+                                        "y" to "30",
+                                        "text-anchor" to "middle",
+                                    ),
                             ) { text(anchorElement.name) }
                         }
                         else -> Unit // Unknown anchor type — boundary rect only, no label
@@ -744,7 +765,7 @@ public object KumlSvgRenderer {
                                         ),
                                 ),
                         )
-                    NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+                    NodeRendererDispatcher.dispatch(element = element, layout = shifted, theme = theme, builder = nodesBuilder)
                 }
             }
 
@@ -780,21 +801,21 @@ public object KumlSvgRenderer {
             // Pre-compute all shifted routes so the stagger-detection and the
             // rendering pass both use the same (already-padded) coordinates.
             val shiftedEdgeRoutes: Map<EdgeId, EdgeRoute> =
-                layoutResult.edges.mapValues { (_, route) -> shiftRoute(route, padding) }
+                layoutResult.edges.mapValues { (_, route) -> shiftRoute(route = route, dx = padding) }
 
             val labelYOffsets: Map<String, Float> =
-                computeC4LabelStaggerOffsets(shiftedEdgeRoutes, relationshipIndex)
+                computeC4LabelStaggerOffsets(shiftedRoutes = shiftedEdgeRoutes, relationshipIndex = relationshipIndex)
 
             for ((edgeId, shiftedRoute) in shiftedEdgeRoutes) {
                 val rel = relationshipIndex[edgeId.value]
                 if (rel != null) {
                     val yOff = labelYOffsets[edgeId.value] ?: 0f
-                    renderC4Relationship(rel, shiftedRoute, theme, edgesBuilder, yOff)
+                    renderC4Relationship(rel = rel, route = shiftedRoute, theme = theme, builder = edgesBuilder, labelYOffset = yOff)
                     continue
                 }
                 val interaction = interactionIndex[edgeId.value]
                 if (interaction != null) {
-                    renderC4Interaction(interaction, shiftedRoute, theme, edgesBuilder)
+                    renderC4Interaction(interaction = interaction, route = shiftedRoute, theme = theme, builder = edgesBuilder)
                 }
             }
         }
@@ -808,7 +829,7 @@ public object KumlSvgRenderer {
     ): String {
         val interaction =
             diagram.elements.filterIsInstance<UmlInteraction>().firstOrNull()
-                ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> } // fallback
+                ?: return SvgDocument.render(layoutResult = layoutResult, theme = theme, options = options) { _, _ -> } // fallback
 
         val visibleIds = interaction.lifelines.map { it.id }.toSet()
 
@@ -849,7 +870,7 @@ public object KumlSvgRenderer {
                     val lifelineLayout = layoutResult.nodes[dev.kuml.layout.NodeId(msg.fromLifelineId)] ?: return@mapNotNull null
                     val cx = lifelineLayout.bounds.origin.x + lifelineLayout.bounds.size.width / 2f
                     dev.kuml.io.svg.uml
-                        .umlSelfCallRightExtent(cx, msg.label)
+                        .umlSelfCallRightExtent(cx = cx, label = msg.label)
                 }.maxOrNull() ?: 0f
         val effectiveLayoutResult =
             if (selfCallRightExtent > layoutResult.canvas.width) {
@@ -859,9 +880,9 @@ public object KumlSvgRenderer {
             }
 
         return SvgDocument.render(
-            effectiveLayoutResult,
-            theme,
-            effectiveOptions,
+            layoutResult = effectiveLayoutResult,
+            theme = theme,
+            options = effectiveOptions,
             frameName = diagram.name,
             frameTypeLabel = "sequence",
         ) { nodesBuilder, edgesBuilder ->
@@ -919,11 +940,11 @@ public object KumlSvgRenderer {
                     .mapNotNull { shiftedLayouts[dev.kuml.layout.NodeId(it.id)] }
             val fragmentRenderResult =
                 dev.kuml.io.svg.uml.renderUmlCombinedFragments(
-                    interaction.fragments,
-                    interaction,
-                    visibleLifelineLayouts,
-                    nodesBuilder,
-                    labelBackdropFill,
+                    fragments = interaction.fragments,
+                    interaction = interaction,
+                    visibleLifelineLayouts = visibleLifelineLayouts,
+                    builder = nodesBuilder,
+                    labelBackdropFill = labelBackdropFill,
                 )
 
             // 3. NOW render the lifeline heads + dashed time axes on top of the
@@ -931,7 +952,7 @@ public object KumlSvgRenderer {
             //    every alt/opt/loop frame.
             for ((nodeId, shifted) in shiftedLayouts) {
                 val lifeline = interaction.lifelines.find { it.id == nodeId.value } ?: continue
-                NodeRendererDispatcher.dispatch(lifeline, shifted, theme, nodesBuilder)
+                NodeRendererDispatcher.dispatch(element = lifeline, layout = shifted, theme = theme, builder = nodesBuilder)
             }
 
             // 3b. Guard labels (`[k ≤ 3]`, `[kompiliert]` …) paint AFTER the lifelines,
@@ -940,21 +961,22 @@ public object KumlSvgRenderer {
             //     sits inside the fragment, not just on its border). See
             //     renderUmlCombinedFragments doc comment.
             dev.kuml.io.svg.uml
-                .renderUmlGuardLabels(fragmentRenderResult.guardLabels, nodesBuilder)
+                .renderUmlGuardLabels(guards = fragmentRenderResult.guardLabels, builder = nodesBuilder)
 
             // 4. Render messages directly into the edges layer — they paint
             //    last (after the entire nodes layer), so arrows always sit on
             //    top of frames and lifelines.
             dev.kuml.io.svg.uml.renderUmlSeqMessages(
-                interaction.messages,
-                visibleIds,
-                shiftedLayouts,
-                edgesBuilder,
-                dev.kuml.io.svg.uml.umlOperandFirstSeqs(
-                    interaction.fragments,
-                    interaction.messages.associateBy { it.id },
-                ),
-                labelBackdropFill,
+                messages = interaction.messages,
+                visibleLifelineIds = visibleIds,
+                nodeLayouts = shiftedLayouts,
+                builder = edgesBuilder,
+                operandFirstSeqs =
+                    dev.kuml.io.svg.uml.umlOperandFirstSeqs(
+                        fragments = interaction.fragments,
+                        msgById = interaction.messages.associateBy { it.id },
+                    ),
+                labelBackdropFill = labelBackdropFill,
             )
 
             // 5. V0.23.1 — UML Comments. Sequence diagrams route lifelines
@@ -980,12 +1002,17 @@ public object KumlSvgRenderer {
                                     ),
                             ),
                     )
-                NodeRendererDispatcher.dispatch(comment, shifted, theme, nodesBuilder)
+                NodeRendererDispatcher.dispatch(element = comment, layout = shifted, theme = theme, builder = nodesBuilder)
             }
             val commentLinks = diagram.elements.filterIsInstance<dev.kuml.uml.UmlCommentLink>()
             for (link in commentLinks) {
                 val route = layoutResult.edges[dev.kuml.layout.EdgeId(link.id)] ?: continue
-                EdgeRendererDispatcher.dispatch(link, shiftRoute(route, padding), theme, edgesBuilder)
+                EdgeRendererDispatcher.dispatch(
+                    relationship = link,
+                    route = shiftRoute(route = route, dx = padding),
+                    theme = theme,
+                    builder = edgesBuilder,
+                )
             }
         }
     }
@@ -1041,7 +1068,7 @@ public object KumlSvgRenderer {
     ): Pair<Float, Float> {
         val isBackEdge = label.isNotEmpty() && shiftedRoute.source.y > shiftedRoute.target.y + 5f
         return if (isBackEdge) {
-            val a = EdgeLabelGeometry.anchorAt(shiftedRoute, 0.08f)
+            val a = EdgeLabelGeometry.anchorAt(route = shiftedRoute, fraction = 0.08f)
             a.x to a.y
         } else {
             dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
@@ -1073,10 +1100,10 @@ public object KumlSvgRenderer {
             layoutResult.edges.entries.map { (edgeId, route) ->
                 val transition = transitionIndex[edgeId.value]
                 val labelText = transition?.let { umlStmTransitionLabel(it).ifEmpty { null } }
-                val shiftedRoute = shiftRoute(route, padding)
-                val anchor = umlStmEffectiveAnchor(shiftedRoute, labelText ?: "")
+                val shiftedRoute = shiftRoute(route = route, dx = padding)
+                val anchor = umlStmEffectiveAnchor(shiftedRoute = shiftedRoute, label = labelText ?: "")
                 dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
-                    .LabelAnchorInput(edgeId, anchor, labelText)
+                    .LabelAnchorInput(edgeId = edgeId, anchor = anchor, labelText = labelText)
             },
         )
 
@@ -1096,7 +1123,7 @@ public object KumlSvgRenderer {
         shiftedRoute: dev.kuml.layout.EdgeRoute,
         label: String,
         assignment: dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.LabelStackAssignment?,
-    ): Pair<Float, Float> = assignment?.anchorOverride ?: umlStmEffectiveAnchor(shiftedRoute, label)
+    ): Pair<Float, Float> = assignment?.anchorOverride ?: umlStmEffectiveAnchor(shiftedRoute = shiftedRoute, label = label)
 
     /**
      * Widens the state-machine frame (and, if needed, the overall canvas) so
@@ -1133,15 +1160,16 @@ public object KumlSvgRenderer {
         val smFrameLeft = smGroupLayout.bounds.origin.x + padding
         val smFrameRight = smFrameLeft + smGroupLayout.bounds.size.width
 
-        val preAssignments = umlStmComputeLabelStackAssignments(layoutResult, transitionIndex, padding)
+        val preAssignments =
+            umlStmComputeLabelStackAssignments(layoutResult = layoutResult, transitionIndex = transitionIndex, padding = padding)
         var leftOverhang = 0f
         var rightOverhang = 0f
         for ((edgeId, route) in layoutResult.edges) {
             val transition = transitionIndex[edgeId.value] ?: continue
             val label = umlStmTransitionLabel(transition)
             if (label.isEmpty()) continue
-            val shiftedRoute = shiftRoute(route, padding)
-            val (mx, _) = umlStmTransitionLabelAnchor(shiftedRoute, label, preAssignments[edgeId])
+            val shiftedRoute = shiftRoute(route = route, dx = padding)
+            val (mx, _) = umlStmTransitionLabelAnchor(shiftedRoute = shiftedRoute, label = label, assignment = preAssignments[edgeId])
             val halfWidth =
                 dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
                     .estimateLabelHalfWidth(label)
@@ -1166,7 +1194,7 @@ public object KumlSvgRenderer {
                 )
             }
         val shiftedEdges =
-            layoutResult.edges.mapValues { (_, route) -> shiftRoute(route, dx = leftOverhang, dy = 0f) }
+            layoutResult.edges.mapValues { (_, route) -> shiftRoute(route = route, dx = leftOverhang, dy = 0f) }
         val shiftedGroups =
             layoutResult.groups.mapValues { (groupId, groupLayout) ->
                 if (groupId == smGroupId) {
@@ -1240,7 +1268,7 @@ public object KumlSvgRenderer {
             val label = "[$guard]"
             val (mx, _) =
                 dev.kuml.io.svg.uml
-                    .routeLabelMid(shiftRoute(route, padding))
+                    .routeLabelMid(shiftRoute(route = route, dx = padding))
             val halfWidth =
                 dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
                     .estimateLabelHalfWidth(label)
@@ -1263,7 +1291,7 @@ public object KumlSvgRenderer {
                 )
             }
         val shiftedEdges =
-            layoutResult.edges.mapValues { (_, route) -> shiftRoute(route, dx = leftOverhang, dy = 0f) }
+            layoutResult.edges.mapValues { (_, route) -> shiftRoute(route = route, dx = leftOverhang, dy = 0f) }
         val shiftedGroups =
             layoutResult.groups.mapValues { (_, groupLayout) ->
                 groupLayout.copy(
@@ -1297,7 +1325,7 @@ public object KumlSvgRenderer {
     ): String {
         val sm =
             diagram.elements.filterIsInstance<UmlStateMachine>().firstOrNull()
-                ?: return SvgDocument.render(rawLayoutResult, theme, options) { _, _ -> } // fallback
+                ?: return SvgDocument.render(layoutResult = rawLayoutResult, theme = theme, options = options) { _, _ -> } // fallback
 
         // Flatten all vertices (including substates) into a lookup map
         val vertexIndex = mutableMapOf<String, dev.kuml.uml.UmlVertex>()
@@ -1317,9 +1345,14 @@ public object KumlSvgRenderer {
         // below, so every subsequent step already sees the final geometry — see
         // umlStmWidenForLabelOverhang KDoc for why widening beats clamping here.
         val layoutResult =
-            umlStmWidenForLabelOverhang(rawLayoutResult, sm, transitionIndex, options.paddingPx)
+            umlStmWidenForLabelOverhang(
+                layoutResult = rawLayoutResult,
+                sm = sm,
+                transitionIndex = transitionIndex,
+                padding = options.paddingPx,
+            )
 
-        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+        return SvgDocument.render(layoutResult = layoutResult, theme = theme, options = options) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
 
             // 1. Render state machine frame (group background) and composite state frames.
@@ -1356,18 +1389,23 @@ public object KumlSvgRenderer {
                     dev.kuml.layout.NodeLayout(
                         bounds =
                             dev.kuml.layout.Rect(
-                                origin = dev.kuml.layout.Point(gx, gy),
-                                size = dev.kuml.layout.Size(gw, gh),
+                                origin = dev.kuml.layout.Point(x = gx, y = gy),
+                                size = dev.kuml.layout.Size(width = gw, height = gh),
                             ),
                     )
                 if (isSmFrame) {
                     // State machine outer frame
-                    NodeRendererDispatcher.dispatch(sm, groupNodeLayout, theme, nodesBuilder)
+                    NodeRendererDispatcher.dispatch(element = sm, layout = groupNodeLayout, theme = theme, builder = nodesBuilder)
                 } else {
                     // Composite state frame — look up the vertex by group ID
                     val compositeVertex = vertexIndex[groupId.value]
                     if (compositeVertex != null) {
-                        NodeRendererDispatcher.dispatch(compositeVertex, groupNodeLayout, theme, nodesBuilder)
+                        NodeRendererDispatcher.dispatch(
+                            element = compositeVertex,
+                            layout = groupNodeLayout,
+                            theme = theme,
+                            builder = nodesBuilder,
+                        )
                     }
                 }
             }
@@ -1386,7 +1424,7 @@ public object KumlSvgRenderer {
                                     ),
                             ),
                     )
-                NodeRendererDispatcher.dispatch(vertex, shifted, theme, nodesBuilder)
+                NodeRendererDispatcher.dispatch(element = vertex, layout = shifted, theme = theme, builder = nodesBuilder)
             }
 
             // V2.0.43: highlight ring overlay — injected AFTER vertices, BEFORE transitions
@@ -1398,20 +1436,21 @@ public object KumlSvgRenderer {
                     val gw = nodeLayout.bounds.size.width + 2 * options.highlightRingOffsetPx
                     val gh = nodeLayout.bounds.size.height + 2 * options.highlightRingOffsetPx
                     nodesBuilder.tag(
-                        "rect",
-                        mapOf(
-                            "id" to xmlEscapeAttr("highlight-ring-${nodeId.value}"),
-                            "class" to "kuml-highlight-ring",
-                            "x" to fmt(gx),
-                            "y" to fmt(gy),
-                            "width" to fmt(gw),
-                            "height" to fmt(gh),
-                            "fill" to "none",
-                            "stroke" to options.highlightStrokeColor,
-                            "stroke-width" to fmt(options.highlightStrokeWidthPx),
-                            "rx" to "4",
-                            "ry" to "4",
-                        ),
+                        name = "rect",
+                        attrs =
+                            mapOf(
+                                "id" to xmlEscapeAttr("highlight-ring-${nodeId.value}"),
+                                "class" to "kuml-highlight-ring",
+                                "x" to fmt(gx),
+                                "y" to fmt(gy),
+                                "width" to fmt(gw),
+                                "height" to fmt(gh),
+                                "fill" to "none",
+                                "stroke" to options.highlightStrokeColor,
+                                "stroke-width" to fmt(options.highlightStrokeWidthPx),
+                                "rx" to "4",
+                                "ry" to "4",
+                            ),
                     )
                 }
             }
@@ -1431,10 +1470,11 @@ public object KumlSvgRenderer {
             // umlStmWidenForLabelOverhang), so this recomputes assignments on
             // the final, already-widened geometry — cluster membership is
             // translation-invariant, so this agrees with the pre-pass.
-            val stmStackAssignments = umlStmComputeLabelStackAssignments(layoutResult, transitionIndex, padding)
+            val stmStackAssignments =
+                umlStmComputeLabelStackAssignments(layoutResult = layoutResult, transitionIndex = transitionIndex, padding = padding)
             for ((edgeId, route) in layoutResult.edges) {
                 val transition = transitionIndex[edgeId.value] ?: continue
-                val shiftedRoute = shiftRoute(route, padding)
+                val shiftedRoute = shiftRoute(route = route, dx = padding)
                 val label = umlStmTransitionLabel(transition)
 
                 val meta =
@@ -1446,14 +1486,14 @@ public object KumlSvgRenderer {
                     )
 
                 val assignment = stmStackAssignments[edgeId]
-                val anchor = umlStmTransitionLabelAnchor(shiftedRoute, label, assignment)
+                val anchor = umlStmTransitionLabelAnchor(shiftedRoute = shiftedRoute, label = label, assignment = assignment)
 
                 dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
                     .render(
-                        shiftedRoute,
-                        meta,
-                        theme,
-                        edgesBuilder,
+                        route = shiftedRoute,
+                        metadata = meta,
+                        theme = theme,
+                        builder = edgesBuilder,
                         labelStackIndex = assignment?.index ?: 0,
                         overrideLabelAnchor = anchor,
                     )
@@ -1478,12 +1518,17 @@ public object KumlSvgRenderer {
                                     ),
                             ),
                     )
-                NodeRendererDispatcher.dispatch(comment, shifted, theme, nodesBuilder)
+                NodeRendererDispatcher.dispatch(element = comment, layout = shifted, theme = theme, builder = nodesBuilder)
             }
             val commentLinks = diagram.elements.filterIsInstance<dev.kuml.uml.UmlCommentLink>()
             for (link in commentLinks) {
                 val route = layoutResult.edges[dev.kuml.layout.EdgeId(link.id)] ?: continue
-                EdgeRendererDispatcher.dispatch(link, shiftRoute(route, padding), theme, edgesBuilder)
+                EdgeRendererDispatcher.dispatch(
+                    relationship = link,
+                    route = shiftRoute(route = route, dx = padding),
+                    theme = theme,
+                    builder = edgesBuilder,
+                )
             }
         }
     }
@@ -1514,9 +1559,9 @@ public object KumlSvgRenderer {
         typeLabel: String,
     ): String =
         SvgDocument.render(
-            layoutResult,
-            theme,
-            options,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
             frameName = synthetic.name,
             frameTypeLabel = typeLabel,
         ) { nodesBuilder, edgesBuilder ->
@@ -1537,7 +1582,7 @@ public object KumlSvgRenderer {
                                         ),
                                 ),
                         )
-                    NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+                    NodeRendererDispatcher.dispatch(element = element, layout = shifted, theme = theme, builder = nodesBuilder)
                 }
             }
 
@@ -1560,18 +1605,18 @@ public object KumlSvgRenderer {
                     },
                 )
             for ((edgeId, route) in layoutResult.edges) {
-                val shiftedRoute = shiftRoute(route, padding)
+                val shiftedRoute = shiftRoute(route = route, dx = padding)
                 val element = elementIndex[edgeId.value]
                 if (element != null) {
-                    EdgeRendererDispatcher.dispatch(element, shiftedRoute, theme, edgesBuilder)
+                    EdgeRendererDispatcher.dispatch(relationship = element, route = shiftedRoute, theme = theme, builder = edgesBuilder)
                 } else {
                     val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
                     if (meta != null) {
                         Sysml2EdgeRenderer.render(
-                            shiftedRoute,
-                            meta,
-                            theme,
-                            edgesBuilder,
+                            route = shiftedRoute,
+                            metadata = meta,
+                            theme = theme,
+                            builder = edgesBuilder,
                             labelStackIndex = syntheticStackIndices[edgeId] ?: 0,
                         )
                     } else {
@@ -1580,7 +1625,7 @@ public object KumlSvgRenderer {
                         // happen for the five SysML-2 diagram kinds the
                         // adapters cover — kept for safety.
                         val (tag, attrs) = EdgePathBuilder.build(shiftedRoute)
-                        edgesBuilder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
+                        edgesBuilder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge"))
                     }
                 }
             }
@@ -1615,7 +1660,14 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, BddEdgeAdapter(model, diagram), typeLabel = "bdd")
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
+            sysml2EdgeAdapter = BddEdgeAdapter(model = model, diagram = diagram),
+            typeLabel = "bdd",
+        )
     }
 
     /**
@@ -1641,15 +1693,22 @@ public object KumlSvgRenderer {
         theme: KumlTheme = PlainTheme(),
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): String {
-        val visible = visiblePartUsageElements(model, diagram)
+        val visible = visiblePartUsageElements(model = model, diagram = diagram)
         val synthetic =
             KumlDiagram(
                 name = diagram.name,
                 type = DiagramType.CLASS,
                 elements = visible,
             )
-        val enrichedLayout = Sysml2LayoutBridge.enrichIbdPortPositions(model, diagram, layoutResult)
-        return renderSysml2Synthetic(synthetic, enrichedLayout, theme, options, IbdEdgeAdapter(model, diagram), typeLabel = "ibd")
+        val enrichedLayout = Sysml2LayoutBridge.enrichIbdPortPositions(model = model, diagram = diagram, layoutResult = layoutResult)
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            layoutResult = enrichedLayout,
+            theme = theme,
+            options = options,
+            sysml2EdgeAdapter = IbdEdgeAdapter(model = model, diagram = diagram),
+            typeLabel = "ibd",
+        )
     }
 
     /**
@@ -1688,7 +1747,14 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, UcEdgeAdapter(diagram), typeLabel = "use case")
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
+            sysml2EdgeAdapter = UcEdgeAdapter(diagram),
+            typeLabel = "use case",
+        )
     }
 
     /**
@@ -1734,7 +1800,14 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, ReqEdgeAdapter(diagram), typeLabel = "requirement")
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
+            sysml2EdgeAdapter = ReqEdgeAdapter(diagram),
+            typeLabel = "requirement",
+        )
     }
 
     /**
@@ -1774,7 +1847,14 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, StmEdgeAdapter(model, diagram), typeLabel = "state machine")
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
+            sysml2EdgeAdapter = StmEdgeAdapter(model = model, diagram = diagram),
+            typeLabel = "state machine",
+        )
     }
 
     /**
@@ -1833,7 +1913,7 @@ public object KumlSvgRenderer {
             model.definitions
                 .filterIsInstance<ActivityPartitionDefinition>()
                 .associateBy { it.id }
-        val adapter = ActEdgeAdapter(model, diagram)
+        val adapter = ActEdgeAdapter(model = model, diagram = diagram)
 
         // V2.0.46: Index der Activity-Knoten-Formen für den Edge-Clipper.
         //          ELK liefert Edge-Endpunkte auf dem Rand der achsparallelen
@@ -1922,9 +2002,9 @@ public object KumlSvgRenderer {
             }
 
         return SvgDocument.render(
-            layoutResult,
-            theme,
-            options,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
             frameName = diagram.name,
             frameTypeLabel = "activity",
         ) { nodesBuilder, edgesBuilder ->
@@ -1935,7 +2015,12 @@ public object KumlSvgRenderer {
             for ((groupId, groupLayout) in layoutResult.groups) {
                 val partition = partitionsById[groupId.value] ?: continue
                 dev.kuml.io.svg.sysml2
-                    .renderActivityPartitionGroup(partition, groupLayout, padding, nodesBuilder)
+                    .renderActivityPartitionGroup(
+                        partition = partition,
+                        groupLayout = groupLayout,
+                        paddingPx = padding,
+                        builder = nodesBuilder,
+                    )
             }
 
             // 2. Standard node loop (action boxes + pins, pseudo nodes,
@@ -1954,7 +2039,7 @@ public object KumlSvgRenderer {
                                         ),
                                 ),
                         )
-                    NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+                    NodeRendererDispatcher.dispatch(element = element, layout = shifted, theme = theme, builder = nodesBuilder)
                 }
             }
 
@@ -1979,7 +2064,7 @@ public object KumlSvgRenderer {
                     },
                 )
             for ((edgeId, route) in layoutResult.edges) {
-                val shiftedRoute = shiftRoute(route, padding)
+                val shiftedRoute = shiftRoute(route = route, dx = padding)
                 val endpoints = endpointsByEdgeId[edgeId.value]
                 val clippedRoute =
                     if (endpoints != null) {
@@ -1993,20 +2078,20 @@ public object KumlSvgRenderer {
                     }
                 val element = elementIndex[edgeId.value]
                 if (element != null) {
-                    EdgeRendererDispatcher.dispatch(element, clippedRoute, theme, edgesBuilder)
+                    EdgeRendererDispatcher.dispatch(relationship = element, route = clippedRoute, theme = theme, builder = edgesBuilder)
                 } else {
                     val meta = adapter.metadataFor(edgeId.value)
                     if (meta != null) {
                         Sysml2EdgeRenderer.render(
-                            clippedRoute,
-                            meta,
-                            theme,
-                            edgesBuilder,
+                            route = clippedRoute,
+                            metadata = meta,
+                            theme = theme,
+                            builder = edgesBuilder,
                             labelStackIndex = actStackIndices[edgeId] ?: 0,
                         )
                     } else {
                         val (tag, attrs) = EdgePathBuilder.build(clippedRoute)
-                        edgesBuilder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
+                        edgesBuilder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge"))
                     }
                 }
             }
@@ -2100,7 +2185,7 @@ public object KumlSvgRenderer {
                         (it.seqNo + 1) *
                         dev.kuml.io.svg.sysml2.SYSML2_SEQ_MESSAGE_ROW_HEIGHT +
                         dev.kuml.io.svg.sysml2
-                            .sysml2SeqRowOffset(it.seqNo, operandStartSeqs)
+                            .sysml2SeqRowOffset(seqNo = it.seqNo, operandStartSeqs = operandStartSeqs)
                 }
 
         // V3.0.x: Wenn Fragments existieren, ragt der Frame FRAGMENT_PADDING
@@ -2124,9 +2209,9 @@ public object KumlSvgRenderer {
             }
 
         return SvgDocument.render(
-            layoutResult,
-            theme,
-            effectiveOptions,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = effectiveOptions,
             frameName = diagram.name,
             frameTypeLabel = "sequence",
         ) { nodesBuilder, edgesBuilder ->
@@ -2203,7 +2288,12 @@ public object KumlSvgRenderer {
             for (es in execSpecs) {
                 val lifelineLayout = shiftedLayouts[NodeId(es.lifelineId)] ?: continue
                 dev.kuml.io.svg.sysml2
-                    .renderExecutionSpec(es, lifelineLayout, edgesBuilder, operandStartSeqs)
+                    .renderExecutionSpec(
+                        execSpec = es,
+                        lifelineLayout = lifelineLayout,
+                        builder = edgesBuilder,
+                        operandStartSeqs = operandStartSeqs,
+                    )
             }
 
             // 5. Direkt-Render der Nachrichten — siehe Architektur-Divergenz
@@ -2259,7 +2349,14 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, ParEdgeAdapter(model, diagram), typeLabel = "parametric")
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
+            sysml2EdgeAdapter = ParEdgeAdapter(model = model, diagram = diagram),
+            typeLabel = "parametric",
+        )
     }
 
     /**
@@ -2278,7 +2375,7 @@ public object KumlSvgRenderer {
         model: BlueprintModel,
         diagram: BlueprintDiagram,
         theme: KumlTheme = PlainTheme(),
-    ): String = renderBlueprintJourney(model, diagram, theme)
+    ): String = renderBlueprintJourney(model = model, diagram = diagram, theme = theme)
 
     /**
      * Rendert ein ERM-Diagramm (V3.4.2) als SVG.
@@ -2315,10 +2412,38 @@ public object KumlSvgRenderer {
         notation: ErmNotation = diagram.notation,
     ): String =
         when (notation) {
-            ErmNotation.MARTIN -> renderErmMartin(model, diagram, layoutResult, theme, options)
-            ErmNotation.BACHMAN -> renderErmBachman(model, diagram, layoutResult, theme, options)
-            ErmNotation.CHEN -> renderErmChen(model, diagram, layoutResult, theme, options)
-            ErmNotation.IDEF1X -> renderErmIdef1x(model, diagram, layoutResult, theme, options)
+            ErmNotation.MARTIN ->
+                renderErmMartin(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = theme,
+                    options = options,
+                )
+            ErmNotation.BACHMAN ->
+                renderErmBachman(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = theme,
+                    options = options,
+                )
+            ErmNotation.CHEN ->
+                renderErmChen(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = theme,
+                    options = options,
+                )
+            ErmNotation.IDEF1X ->
+                renderErmIdef1x(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = theme,
+                    options = options,
+                )
         }
 
     private fun renderErmMartin(
@@ -2327,7 +2452,16 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme,
         options: SvgRenderOptions,
-    ): String = renderErm(model, diagram, layoutResult, theme, options, "erm/martin", ::renderErmMartinRelationship)
+    ): String =
+        renderErm(
+            model = model,
+            diagram = diagram,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
+            frameTypeLabel = "erm/martin",
+            renderRelationship = ::renderErmMartinRelationship,
+        )
 
     /** [toSvg] path for [ErmNotation.BACHMAN] (V3.4.3) — shares layout, entity/view rendering, and label stacking with [renderErmMartin]; only the edge-glyph renderer differs. */
     private fun renderErmBachman(
@@ -2336,7 +2470,16 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme,
         options: SvgRenderOptions,
-    ): String = renderErm(model, diagram, layoutResult, theme, options, "erm/bachman", ::renderErmBachmanRelationship)
+    ): String =
+        renderErm(
+            model = model,
+            diagram = diagram,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
+            frameTypeLabel = "erm/bachman",
+            renderRelationship = ::renderErmBachmanRelationship,
+        )
 
     /**
      * Shared ERM render body for [renderErmMartin] and [renderErmBachman] —
@@ -2370,9 +2513,9 @@ public object KumlSvgRenderer {
             )
 
         return SvgDocument.render(
-            layoutResult,
-            theme,
-            options,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
             frameName = diagram.name,
             frameTypeLabel = frameTypeLabel,
         ) { nodesBuilder, edgesBuilder ->
@@ -2390,12 +2533,12 @@ public object KumlSvgRenderer {
                     )
                 val entity = entitiesById[nodeId.value]
                 if (entity != null) {
-                    renderErmEntity(entity, shifted, diagram, theme, nodesBuilder)
+                    renderErmEntity(entity = entity, layout = shifted, diagram = diagram, theme = theme, b = nodesBuilder)
                     continue
                 }
                 val view = viewsById[nodeId.value]
                 if (view != null) {
-                    renderErmView(view, shifted, theme, nodesBuilder)
+                    renderErmView(view = view, layout = shifted, theme = theme, b = nodesBuilder)
                 }
             }
 
@@ -2408,8 +2551,8 @@ public object KumlSvgRenderer {
                 // Category`) get the same wide C-loop treatment as UML/C4 self-
                 // loops instead of ELK's cramped raw route (see SelfLoopRouter's
                 // KDoc on the ErmRelationship branch).
-                val routed = SelfLoopRouter.adjust(rel, route, nodeLookup)
-                val shiftedRoute = shiftRoute(routed, padding)
+                val routed = SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = nodeLookup)
+                val shiftedRoute = shiftRoute(route = routed, dx = padding)
                 renderRelationship(
                     rel,
                     shiftedRoute,
@@ -2508,9 +2651,9 @@ public object KumlSvgRenderer {
             }
 
         return SvgDocument.render(
-            layoutResult,
-            theme,
-            options,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
             frameName = diagram.name,
             frameTypeLabel = "erm/chen",
         ) { nodesBuilder, edgesBuilder ->
@@ -2530,38 +2673,38 @@ public object KumlSvgRenderer {
                 when {
                     id.startsWith(ErmChenLayoutBridge.ENTITY_PREFIX) -> {
                         val entity = entitiesById[id.removePrefix(ErmChenLayoutBridge.ENTITY_PREFIX)] ?: continue
-                        renderChenEntity(entity, shifted, theme, nodesBuilder)
+                        renderChenEntity(entity = entity, layout = shifted, theme = theme, b = nodesBuilder)
                     }
                     id.startsWith(ErmChenLayoutBridge.ATTR_PREFIX) -> {
                         val attr = attrsById[id.removePrefix(ErmChenLayoutBridge.ATTR_PREFIX)] ?: continue
-                        renderChenAttribute(attr, shifted, nodesBuilder)
+                        renderChenAttribute(attr = attr, layout = shifted, b = nodesBuilder)
                     }
                     id.startsWith(ErmChenLayoutBridge.REL_PREFIX) -> {
                         val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_PREFIX)] ?: continue
-                        renderChenRelationshipNode(rel, shifted, nodesBuilder)
+                        renderChenRelationshipNode(rel = rel, layout = shifted, b = nodesBuilder)
                     }
                     id.startsWith(ErmChenLayoutBridge.VIEW_PREFIX) -> {
                         val view = viewsById[id.removePrefix(ErmChenLayoutBridge.VIEW_PREFIX)] ?: continue
-                        renderErmView(view, shifted, theme, nodesBuilder)
+                        renderErmView(view = view, layout = shifted, theme = theme, b = nodesBuilder)
                     }
                 }
             }
 
             for ((edgeId, route) in layoutResult.edges) {
-                val shiftedRoute = shiftRoute(route, padding)
+                val shiftedRoute = shiftRoute(route = route, dx = padding)
                 val id = edgeId.value
                 when {
                     id.startsWith(ErmChenLayoutBridge.ATTR_EDGE_PREFIX) ->
-                        renderChenConnector(shiftedRoute, cardinality = null, edgesBuilder)
+                        renderChenConnector(route = shiftedRoute, cardinality = null, b = edgesBuilder)
                     id.startsWith(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX) -> {
                         val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX)] ?: continue
                         // ErmChenLayoutBridge points this edge sourceEntity -> diamond,
                         // so the entity sits at the route's source, not its target.
                         renderChenConnector(
-                            shiftedRoute,
-                            rel.sourceCardinality,
-                            edgesBuilder,
-                            ConnectorEntitySide.SOURCE,
+                            route = shiftedRoute,
+                            cardinality = rel.sourceCardinality,
+                            b = edgesBuilder,
+                            entitySide = ConnectorEntitySide.SOURCE,
                             stackIndex = chenCardinalityStackIndex[id] ?: 0,
                             entityBounds = chenEntityBoundsById[rel.sourceEntityId],
                         )
@@ -2569,10 +2712,10 @@ public object KumlSvgRenderer {
                     id.startsWith(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX) -> {
                         val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX)] ?: continue
                         renderChenConnector(
-                            shiftedRoute,
-                            rel.targetCardinality,
-                            edgesBuilder,
-                            ConnectorEntitySide.TARGET,
+                            route = shiftedRoute,
+                            cardinality = rel.targetCardinality,
+                            b = edgesBuilder,
+                            entitySide = ConnectorEntitySide.TARGET,
                             stackIndex = chenCardinalityStackIndex[id] ?: 0,
                             entityBounds = chenEntityBoundsById[rel.targetEntityId],
                         )
@@ -2637,9 +2780,9 @@ public object KumlSvgRenderer {
             )
 
         return SvgDocument.render(
-            layoutResult,
-            theme,
-            options,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
             frameName = diagram.name,
             frameTypeLabel = "erm/idef1x",
         ) { nodesBuilder, edgesBuilder ->
@@ -2659,19 +2802,32 @@ public object KumlSvgRenderer {
                 if (id.startsWith(ErmIdef1xLayoutBridge.CATEGORY_NODE_PREFIX)) {
                     val category = categoriesById[id.removePrefix(ErmIdef1xLayoutBridge.CATEGORY_NODE_PREFIX)] ?: continue
                     val supertype = entitiesById[category.supertypeEntityId]
-                    val discriminatorName = idef1xDiscriminatorName(category, supertype)
-                    renderIdef1xCategoryCircle(category, shifted, theme, nodesBuilder, discriminatorName)
+                    val discriminatorName = idef1xDiscriminatorName(category = category, supertype = supertype)
+                    renderIdef1xCategoryCircle(
+                        category = category,
+                        layout = shifted,
+                        theme = theme,
+                        b = nodesBuilder,
+                        discriminatorName = discriminatorName,
+                    )
                     continue
                 }
                 val entity = entitiesById[id]
                 if (entity != null) {
                     val cornerRadius = if (id in dependentEntityIds) IDEF1X_CORNER_RADIUS else 0f
-                    renderErmEntity(entity, shifted, diagram, theme, nodesBuilder, cornerRadius)
+                    renderErmEntity(
+                        entity = entity,
+                        layout = shifted,
+                        diagram = diagram,
+                        theme = theme,
+                        b = nodesBuilder,
+                        cornerRadius = cornerRadius,
+                    )
                     continue
                 }
                 val view = viewsById[id]
                 if (view != null) {
-                    renderErmView(view, shifted, theme, nodesBuilder)
+                    renderErmView(view = view, layout = shifted, theme = theme, b = nodesBuilder)
                 }
             }
 
@@ -2683,16 +2839,23 @@ public object KumlSvgRenderer {
                 when {
                     id.startsWith(ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUP_PREFIX) ||
                         id.startsWith(ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUB_PREFIX) -> {
-                        val shiftedRoute = shiftRoute(route, padding)
+                        val shiftedRoute = shiftRoute(route = route, dx = padding)
                         val (tagName, attrs) = EdgePathBuilder.build(shiftedRoute)
-                        edgesBuilder.tag(tagName, attrs + mapOf("class" to "kuml-edge"))
+                        edgesBuilder.tag(name = tagName, attrs = attrs + mapOf("class" to "kuml-edge"))
                     }
                     else -> {
                         val rel = relationshipsById[id] ?: continue
                         // V3.4.x — see the matching self-loop wiring in [renderErm].
-                        val routed = SelfLoopRouter.adjust(rel, route, nodeLookup)
-                        val shiftedRoute = shiftRoute(routed, padding)
-                        renderErmIdef1xRelationship(rel, shiftedRoute, theme, edgesBuilder, stackIndices[edgeId] ?: 0)
+                        val routed = SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = nodeLookup)
+                        val shiftedRoute = shiftRoute(route = routed, dx = padding)
+                        renderErmIdef1xRelationship(
+                            rel = rel,
+                            route = shiftedRoute,
+                            theme = theme,
+                            b = edgesBuilder,
+                            labelStackIndex =
+                                stackIndices[edgeId] ?: 0,
+                        )
                     }
                 }
             }
@@ -2762,7 +2925,7 @@ public object KumlSvgRenderer {
             val clientGroup = layoutResult.groups[clientId] ?: continue
             val supplierGroup = layoutResult.groups[supplierId] ?: continue
 
-            val endpoints = packageBodyEndpoints(clientGroup.bounds, supplierGroup.bounds)
+            val endpoints = packageBodyEndpoints(client = clientGroup.bounds, supplier = supplierGroup.bounds)
 
             // Obstacles = every other package body. Skip the two endpoints and
             // any package that *contains* an endpoint (a nesting parent), which
@@ -2772,15 +2935,15 @@ public object KumlSvgRenderer {
                     .asSequence()
                     .filter { (id, _) -> id != clientId && id != supplierId }
                     .map { it.second }
-                    .filterNot { rectContains(it, endpoints.source) || rectContains(it, endpoints.target) }
-                    .filter { segmentIntersectsRect(endpoints.source, endpoints.target, it) }
+                    .filterNot { rectContains(r = it, p = endpoints.source) || rectContains(r = it, p = endpoints.target) }
+                    .filter { segmentIntersectsRect(p0 = endpoints.source, p1 = endpoints.target, r = it) }
                     .toList()
 
             fixedEdges[edgeId] =
                 if (crossed.isEmpty()) {
                     EdgeRoute.Direct(source = endpoints.source, target = endpoints.target)
                 } else {
-                    routeAroundPackages(endpoints, crossed, layoutResult.canvas)
+                    routeAroundPackages(ep = endpoints, obstacles = crossed, canvas = layoutResult.canvas)
                 }
         }
         return layoutResult.copy(edges = fixedEdges)
@@ -2821,24 +2984,32 @@ public object KumlSvgRenderer {
         return if (kotlin.math.abs(dy) >= kotlin.math.abs(dx)) {
             if (dy > 0f) {
                 // supplier is below client
-                PackageEndpoints(Point(clientCx, clientBodyBottom), Point(supplierCx, supplierBodyTop), vertical = true)
+                PackageEndpoints(
+                    source = Point(x = clientCx, y = clientBodyBottom),
+                    target = Point(x = supplierCx, y = supplierBodyTop),
+                    vertical = true,
+                )
             } else {
                 // supplier is above client
-                PackageEndpoints(Point(clientCx, clientBodyTop), Point(supplierCx, supplierBodyBottom), vertical = true)
+                PackageEndpoints(
+                    source = Point(x = clientCx, y = clientBodyTop),
+                    target = Point(x = supplierCx, y = supplierBodyBottom),
+                    vertical = true,
+                )
             }
         } else {
             if (dx > 0f) {
                 // supplier is to the right
                 PackageEndpoints(
-                    Point(client.origin.x + client.size.width, clientBodyCy),
-                    Point(supplier.origin.x, supplierBodyCy),
+                    source = Point(x = client.origin.x + client.size.width, y = clientBodyCy),
+                    target = Point(x = supplier.origin.x, y = supplierBodyCy),
                     vertical = false,
                 )
             } else {
                 // supplier is to the left
                 PackageEndpoints(
-                    Point(client.origin.x, clientBodyCy),
-                    Point(supplier.origin.x + supplier.size.width, supplierBodyCy),
+                    source = Point(x = client.origin.x, y = clientBodyCy),
+                    target = Point(x = supplier.origin.x + supplier.size.width, y = supplierBodyCy),
                     vertical = false,
                 )
             }
@@ -2889,10 +3060,10 @@ public object KumlSvgRenderer {
                 val yA = (ep.source.y + edgeNearSource) / 2f
                 val yB = (ep.target.y + edgeNearTarget) / 2f
                 listOf(
-                    Point(ep.source.x, yA),
-                    Point(corridorX, yA),
-                    Point(corridorX, yB),
-                    Point(ep.target.x, yB),
+                    Point(x = ep.source.x, y = yA),
+                    Point(x = corridorX, y = yA),
+                    Point(x = corridorX, y = yB),
+                    Point(x = ep.target.x, y = yB),
                 )
             } else {
                 val center = (ep.source.y + ep.target.y) / 2f
@@ -2918,10 +3089,10 @@ public object KumlSvgRenderer {
                 val xA = (ep.source.x + edgeNearSource) / 2f
                 val xB = (ep.target.x + edgeNearTarget) / 2f
                 listOf(
-                    Point(xA, ep.source.y),
-                    Point(xA, corridorY),
-                    Point(xB, corridorY),
-                    Point(xB, ep.target.y),
+                    Point(x = xA, y = ep.source.y),
+                    Point(x = xA, y = corridorY),
+                    Point(x = xB, y = corridorY),
+                    Point(x = xB, y = ep.target.y),
                 )
             }
 
@@ -3034,46 +3205,50 @@ public object KumlSvgRenderer {
                 .coerceAtLeast(PACKAGE_TAB_MIN_WIDTH)
                 .coerceAtMost(gw - 4f)
         nodesBuilder.tag(
-            "g",
-            mapOf(
-                "id" to xmlEscapeAttr("package-${pkg.id}"),
-                "transform" to "translate(${fmt(gx)},${fmt(gy)})",
-            ),
+            name = "g",
+            attrs =
+                mapOf(
+                    "id" to xmlEscapeAttr("package-${pkg.id}"),
+                    "transform" to "translate(${fmt(gx)},${fmt(gy)})",
+                ),
         ) {
             // Tab (top-left)
             tag(
-                "rect",
-                mapOf(
-                    "x" to "0",
-                    "y" to "0",
-                    "width" to fmt(tabW),
-                    "height" to fmt(tabH),
-                    "class" to "kuml-system",
-                ),
+                name = "rect",
+                attrs =
+                    mapOf(
+                        "x" to "0",
+                        "y" to "0",
+                        "width" to fmt(tabW),
+                        "height" to fmt(tabH),
+                        "class" to "kuml-system",
+                    ),
             )
             // Main body — sits flush below the tab on its left side and
             // extends the full group width on its right. Top edge stops at
             // tabH on the left half, drops down on the tab's right edge,
             // then runs across to the right side.
             tag(
-                "rect",
-                mapOf(
-                    "x" to "0",
-                    "y" to fmt(tabH + PACKAGE_TAB_GAP),
-                    "width" to fmt(gw),
-                    "height" to fmt(gh - tabH - PACKAGE_TAB_GAP),
-                    "class" to "kuml-system",
-                ),
+                name = "rect",
+                attrs =
+                    mapOf(
+                        "x" to "0",
+                        "y" to fmt(tabH + PACKAGE_TAB_GAP),
+                        "width" to fmt(gw),
+                        "height" to fmt(gh - tabH - PACKAGE_TAB_GAP),
+                        "class" to "kuml-system",
+                    ),
             )
             // Package name centered in the tab
             tag(
-                "text",
-                mapOf(
-                    "class" to "kuml-title",
-                    "x" to fmt(tabW / 2f),
-                    "y" to fmt(tabH - 5f),
-                    "text-anchor" to "middle",
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-title",
+                        "x" to fmt(tabW / 2f),
+                        "y" to fmt(tabH - 5f),
+                        "text-anchor" to "middle",
+                    ),
             ) { text(pkg.name) }
         }
     }
@@ -3096,31 +3271,34 @@ public object KumlSvgRenderer {
         nodesBuilder: SvgBuilder,
     ) {
         nodesBuilder.tag(
-            "g",
-            mapOf(
-                "id" to xmlEscapeAttr("subject-${subject.id}"),
-                "transform" to "translate(${fmt(gx)},${fmt(gy)})",
-            ),
+            name = "g",
+            attrs =
+                mapOf(
+                    "id" to xmlEscapeAttr("subject-${subject.id}"),
+                    "transform" to "translate(${fmt(gx)},${fmt(gy)})",
+                ),
         ) {
             tag(
-                "rect",
-                mapOf(
-                    "width" to fmt(gw),
-                    "height" to fmt(gh),
-                    "class" to "kuml-system",
-                    "rx" to fmt(theme.borders.cornerRadiusPx),
-                    "ry" to fmt(theme.borders.cornerRadiusPx),
-                ),
+                name = "rect",
+                attrs =
+                    mapOf(
+                        "width" to fmt(gw),
+                        "height" to fmt(gh),
+                        "class" to "kuml-system",
+                        "rx" to fmt(theme.borders.cornerRadiusPx),
+                        "ry" to fmt(theme.borders.cornerRadiusPx),
+                    ),
             )
             // Subject name in the top-left corner, inside the top-padding area
             tag(
-                "text",
-                mapOf(
-                    "class" to "kuml-title",
-                    "x" to "8",
-                    "y" to "18",
-                    "text-anchor" to "start",
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-title",
+                        "x" to "8",
+                        "y" to "18",
+                        "text-anchor" to "start",
+                    ),
             ) { text(subject.name) }
         }
     }
@@ -3301,7 +3479,7 @@ public object KumlSvgRenderer {
         dx: Float,
         dy: Float = dx,
     ): dev.kuml.layout.EdgeRoute {
-        fun dev.kuml.layout.Point.shift() = dev.kuml.layout.Point(x + dx, y + dy)
+        fun dev.kuml.layout.Point.shift() = dev.kuml.layout.Point(x = x + dx, y = y + dy)
         return when (route) {
             is dev.kuml.layout.EdgeRoute.Direct ->
                 route.copy(source = route.source.shift(), target = route.target.shift())
@@ -3401,16 +3579,16 @@ public object KumlSvgRenderer {
     ): LayoutResult {
         if (left == 0f && top == 0f && right == 0f && bottom == 0f) return layoutResult
 
-        fun Rect.shifted() = copy(origin = Point(origin.x + left, origin.y + top))
+        fun Rect.shifted() = copy(origin = Point(x = origin.x + left, y = origin.y + top))
         return layoutResult.copy(
             canvas =
                 dev.kuml.layout.Size(
-                    layoutResult.canvas.width + left + right,
-                    layoutResult.canvas.height + top + bottom,
+                    width = layoutResult.canvas.width + left + right,
+                    height = layoutResult.canvas.height + top + bottom,
                 ),
             nodes = layoutResult.nodes.mapValues { (_, n) -> n.copy(bounds = n.bounds.shifted()) },
             groups = layoutResult.groups.mapValues { (_, g) -> g.copy(bounds = g.bounds.shifted()) },
-            edges = layoutResult.edges.mapValues { (_, r) -> shiftRoute(r, left, top) },
+            edges = layoutResult.edges.mapValues { (_, r) -> shiftRoute(route = r, dx = left, dy = top) },
         )
     }
 
@@ -3569,7 +3747,7 @@ public object KumlSvgRenderer {
     ): String {
         val collaboration =
             model.collaborations.firstOrNull { it.id == diagram.collaborationId }
-                ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> }
+                ?: return SvgDocument.render(layoutResult = layoutResult, theme = theme, options = options) { _, _ -> }
 
         // Build element index: participants, lanes (flat), message flows, and
         // flow-nodes from referenced processes.
@@ -3625,9 +3803,9 @@ public object KumlSvgRenderer {
             }
 
         return SvgDocument.render(
-            layoutResult,
-            theme,
-            options,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
             frameName = diagram.name,
             frameTypeLabel = "collaboration",
         ) { nodesBuilder, edgesBuilder ->
@@ -3648,11 +3826,11 @@ public object KumlSvgRenderer {
                             dev.kuml.layout.NodeLayout(
                                 bounds =
                                     dev.kuml.layout.Rect(
-                                        origin = dev.kuml.layout.Point(gx, gy),
-                                        size = dev.kuml.layout.Size(gw, gh),
+                                        origin = dev.kuml.layout.Point(x = gx, y = gy),
+                                        size = dev.kuml.layout.Size(width = gw, height = gh),
                                     ),
                             )
-                        NodeRendererDispatcher.dispatch(participant, nl, theme, nodesBuilder)
+                        NodeRendererDispatcher.dispatch(element = participant, layout = nl, theme = theme, builder = nodesBuilder)
                     }
 
                     lane != null -> {
@@ -3665,32 +3843,34 @@ public object KumlSvgRenderer {
                             dev.kuml.layout.NodeLayout(
                                 bounds =
                                     dev.kuml.layout.Rect(
-                                        origin = dev.kuml.layout.Point(gx, gy),
-                                        size = dev.kuml.layout.Size(gw, gh),
+                                        origin = dev.kuml.layout.Point(x = gx, y = gy),
+                                        size = dev.kuml.layout.Size(width = gw, height = gh),
                                     ),
                             )
                         dev.kuml.io.svg.bpmn
-                            .renderBpmnLane(lane, nl, horizontal, theme, nodesBuilder)
+                            .renderBpmnLane(lane = lane, layout = nl, horizontal = horizontal, theme = theme, builder = nodesBuilder)
                     }
 
                     else -> {
                         // Generic group fallback
                         nodesBuilder.tag(
-                            "g",
-                            mapOf(
-                                "id" to xmlEscapeAttr("bpmn-collab-group-${groupId.value}"),
-                                "transform" to "translate(${fmt(gx)},${fmt(gy)})",
-                            ),
+                            name = "g",
+                            attrs =
+                                mapOf(
+                                    "id" to xmlEscapeAttr("bpmn-collab-group-${groupId.value}"),
+                                    "transform" to "translate(${fmt(gx)},${fmt(gy)})",
+                                ),
                         ) {
                             tag(
-                                "rect",
-                                mapOf(
-                                    "width" to fmt(gw),
-                                    "height" to fmt(gh),
-                                    "class" to "kuml-system",
-                                    "rx" to fmt(theme.borders.cornerRadiusPx),
-                                    "ry" to fmt(theme.borders.cornerRadiusPx),
-                                ),
+                                name = "rect",
+                                attrs =
+                                    mapOf(
+                                        "width" to fmt(gw),
+                                        "height" to fmt(gh),
+                                        "class" to "kuml-system",
+                                        "rx" to fmt(theme.borders.cornerRadiusPx),
+                                        "ry" to fmt(theme.borders.cornerRadiusPx),
+                                    ),
                             )
                         }
                     }
@@ -3722,14 +3902,14 @@ public object KumlSvgRenderer {
                                     ),
                             ),
                     )
-                NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+                NodeRendererDispatcher.dispatch(element = element, layout = shifted, theme = theme, builder = nodesBuilder)
             }
 
             // Edges (MessageFlows and SequenceFlows inside processes)
             for ((edgeId, route) in layoutResult.edges) {
                 val element = allElementIndex[edgeId.value] ?: continue
-                val shiftedRoute = shiftRoute(route, padding)
-                EdgeRendererDispatcher.dispatch(element, shiftedRoute, theme, edgesBuilder)
+                val shiftedRoute = shiftRoute(route = route, dx = padding)
+                EdgeRendererDispatcher.dispatch(relationship = element, route = shiftedRoute, theme = theme, builder = edgesBuilder)
             }
         }
     }
@@ -3757,7 +3937,7 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme = PlainTheme(),
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
-    ): String = renderBpmnChoreography(model, diagram, layoutResult, theme, options)
+    ): String = renderBpmnChoreography(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
 
     /**
      * Rendert ein BPMN-Conversation-Diagramm als SVG.
@@ -3781,7 +3961,7 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme = PlainTheme(),
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
-    ): String = renderBpmnConversation(model, diagram, layoutResult, theme, options)
+    ): String = renderBpmnConversation(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
 
     /**
      * Dedizierter Render-Pfad für BPMN-Choreografie-Diagramme.
@@ -3801,7 +3981,7 @@ public object KumlSvgRenderer {
     ): String {
         val choreography =
             model.choreographies.firstOrNull { it.id == diagram.choreographyId }
-                ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> }
+                ?: return SvgDocument.render(layoutResult = layoutResult, theme = theme, options = options) { _, _ -> }
 
         // Build element index
         val taskById: Map<String, ChoreographyTask> = choreography.tasks.associateBy { it.id }
@@ -3810,9 +3990,9 @@ public object KumlSvgRenderer {
         val flowById: Map<String, ChoreographySequenceFlow> = choreography.sequenceFlows.associateBy { it.id }
 
         return SvgDocument.render(
-            layoutResult,
-            theme,
-            options,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
             frameName = diagram.name,
             frameTypeLabel = "choreography",
         ) { nodesBuilder, edgesBuilder ->
@@ -3833,19 +4013,19 @@ public object KumlSvgRenderer {
                     )
                 when {
                     taskById.containsKey(nodeId.value) ->
-                        renderChoreographyTask(taskById[nodeId.value]!!, shifted, theme, nodesBuilder)
+                        renderChoreographyTask(task = taskById[nodeId.value]!!, layout = shifted, theme = theme, builder = nodesBuilder)
                     gatewayById.containsKey(nodeId.value) ->
-                        renderChoreographyGateway(gatewayById[nodeId.value]!!, shifted, theme, nodesBuilder)
+                        renderChoreographyGateway(gw = gatewayById[nodeId.value]!!, layout = shifted, theme = theme, builder = nodesBuilder)
                     eventById.containsKey(nodeId.value) ->
-                        renderChoreographyEvent(eventById[nodeId.value]!!, shifted, theme, nodesBuilder)
+                        renderChoreographyEvent(event = eventById[nodeId.value]!!, layout = shifted, theme = theme, builder = nodesBuilder)
                 }
             }
 
             // Edges
             for ((edgeId, route) in layoutResult.edges) {
                 val flow = flowById[edgeId.value] ?: continue
-                val shiftedRoute = shiftRoute(route, padding)
-                renderChoreoSequenceFlow(flow, shiftedRoute, edgesBuilder, theme)
+                val shiftedRoute = shiftRoute(route = route, dx = padding)
+                renderChoreoSequenceFlow(flow = flow, route = shiftedRoute, builder = edgesBuilder, theme = theme)
             }
         }
     }
@@ -3868,7 +4048,7 @@ public object KumlSvgRenderer {
     ): String {
         val conversation: BpmnConversation =
             model.conversations.firstOrNull { it.id == diagram.conversationId }
-                ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> }
+                ?: return SvgDocument.render(layoutResult = layoutResult, theme = theme, options = options) { _, _ -> }
 
         // Build element indexes
         val participantNames: Set<String> = conversation.participants.toSet()
@@ -3876,9 +4056,9 @@ public object KumlSvgRenderer {
         val linkById: Map<String, ConversationLink> = conversation.links.associateBy { it.id }
 
         return SvgDocument.render(
-            layoutResult,
-            theme,
-            options,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = options,
             frameName = diagram.name,
             frameTypeLabel = "conversation",
         ) { nodesBuilder, edgesBuilder ->
@@ -3899,17 +4079,22 @@ public object KumlSvgRenderer {
                     )
                 when {
                     nodeId.value in participantNames ->
-                        renderConversationParticipant(nodeId.value, shifted, theme, nodesBuilder)
+                        renderConversationParticipant(
+                            participantName = nodeId.value,
+                            layout = shifted,
+                            theme = theme,
+                            builder = nodesBuilder,
+                        )
                     nodeById.containsKey(nodeId.value) ->
-                        renderConversationNode(nodeById[nodeId.value]!!, shifted, theme, nodesBuilder)
+                        renderConversationNode(node = nodeById[nodeId.value]!!, layout = shifted, theme = theme, builder = nodesBuilder)
                 }
             }
 
             // Edges — Conversation Links (keine Pfeilköpfe)
             for ((edgeId, route) in layoutResult.edges) {
                 val link = linkById[edgeId.value] ?: continue
-                val shiftedRoute = shiftRoute(route, padding)
-                renderConversationLink(link, shiftedRoute, edgesBuilder, theme)
+                val shiftedRoute = shiftRoute(route = route, dx = padding)
+                renderConversationLink(link = link, route = shiftedRoute, builder = edgesBuilder, theme = theme)
             }
         }
     }
@@ -3951,13 +4136,13 @@ public object KumlSvgRenderer {
 
         // Inflate the canvas so event/gateway labels rendered outside the node
         // footprint (below + horizontally centred) are not clipped at the edge.
-        val (mLeft, mTop, mRight, mBottom) = bpmnLabelMargins(diagram.elements, layoutResult)
-        val renderLayout = applyCanvasMargins(layoutResult, mLeft, mTop, mRight, mBottom)
+        val (mLeft, mTop, mRight, mBottom) = bpmnLabelMargins(elements = diagram.elements, layoutResult = layoutResult)
+        val renderLayout = applyCanvasMargins(layoutResult = layoutResult, left = mLeft, top = mTop, right = mRight, bottom = mBottom)
 
         return SvgDocument.render(
-            renderLayout,
-            theme,
-            options,
+            layoutResult = renderLayout,
+            theme = theme,
+            options = options,
             frameName = diagram.name,
             frameTypeLabel = "process",
         ) { nodesBuilder, edgesBuilder ->
@@ -3983,51 +4168,55 @@ public object KumlSvgRenderer {
                             dev.kuml.layout.NodeLayout(
                                 bounds =
                                     dev.kuml.layout.Rect(
-                                        origin = dev.kuml.layout.Point(gx, gy),
-                                        size = dev.kuml.layout.Size(gw, gh),
+                                        origin = dev.kuml.layout.Point(x = gx, y = gy),
+                                        size = dev.kuml.layout.Size(width = gw, height = gh),
                                     ),
                             )
-                        NodeRendererDispatcher.dispatch(sp, groupNodeLayout, theme, nodesBuilder)
+                        NodeRendererDispatcher.dispatch(element = sp, layout = groupNodeLayout, theme = theme, builder = nodesBuilder)
                     } else {
                         // Fallback: generic frame rect if element not found
                         nodesBuilder.tag(
-                            "g",
-                            mapOf(
-                                "id" to xmlEscapeAttr("bpmn-subprocess-${groupId.value}"),
-                                "transform" to "translate(${fmt(gx)},${fmt(gy)})",
-                            ),
+                            name = "g",
+                            attrs =
+                                mapOf(
+                                    "id" to xmlEscapeAttr("bpmn-subprocess-${groupId.value}"),
+                                    "transform" to "translate(${fmt(gx)},${fmt(gy)})",
+                                ),
                         ) {
                             tag(
-                                "rect",
-                                mapOf(
-                                    "width" to fmt(gw),
-                                    "height" to fmt(gh),
-                                    "rx" to "8",
-                                    "fill" to "white",
-                                    "stroke" to "#333",
-                                    "stroke-width" to "1.5",
-                                ),
+                                name = "rect",
+                                attrs =
+                                    mapOf(
+                                        "width" to fmt(gw),
+                                        "height" to fmt(gh),
+                                        "rx" to "8",
+                                        "fill" to "white",
+                                        "stroke" to "#333",
+                                        "stroke-width" to "1.5",
+                                    ),
                             )
                         }
                     }
                 } else {
                     // Generic group rect (pools, lanes, or unknown groups)
                     nodesBuilder.tag(
-                        "g",
-                        mapOf(
-                            "id" to xmlEscapeAttr("bpmn-group-${groupId.value}"),
-                            "transform" to "translate(${fmt(gx)},${fmt(gy)})",
-                        ),
+                        name = "g",
+                        attrs =
+                            mapOf(
+                                "id" to xmlEscapeAttr("bpmn-group-${groupId.value}"),
+                                "transform" to "translate(${fmt(gx)},${fmt(gy)})",
+                            ),
                     ) {
                         tag(
-                            "rect",
-                            mapOf(
-                                "width" to fmt(gw),
-                                "height" to fmt(gh),
-                                "class" to "kuml-system",
-                                "rx" to fmt(theme.borders.cornerRadiusPx),
-                                "ry" to fmt(theme.borders.cornerRadiusPx),
-                            ),
+                            name = "rect",
+                            attrs =
+                                mapOf(
+                                    "width" to fmt(gw),
+                                    "height" to fmt(gh),
+                                    "class" to "kuml-system",
+                                    "rx" to fmt(theme.borders.cornerRadiusPx),
+                                    "ry" to fmt(theme.borders.cornerRadiusPx),
+                                ),
                         )
                     }
                 }
@@ -4049,7 +4238,7 @@ public object KumlSvgRenderer {
                                     ),
                             ),
                     )
-                NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+                NodeRendererDispatcher.dispatch(element = element, layout = shifted, theme = theme, builder = nodesBuilder)
             }
 
             // 3. Edges LAST — SequenceFlows and any other BPMN edges render on top.
@@ -4059,8 +4248,8 @@ public object KumlSvgRenderer {
             // start back into the label space, re-introducing the coverage issue.
             for ((edgeId, route) in renderLayout.edges) {
                 val element = elementIndex[edgeId.value] ?: continue
-                val shiftedRoute = shiftRoute(route, padding)
-                EdgeRendererDispatcher.dispatch(element, shiftedRoute, theme, edgesBuilder)
+                val shiftedRoute = shiftRoute(route = route, dx = padding)
+                EdgeRendererDispatcher.dispatch(relationship = element, route = shiftedRoute, theme = theme, builder = edgesBuilder)
             }
         }
     }

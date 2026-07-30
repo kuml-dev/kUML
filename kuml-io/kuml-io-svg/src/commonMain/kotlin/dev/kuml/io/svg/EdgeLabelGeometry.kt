@@ -30,8 +30,8 @@ internal fun SvgBuilder.renderEdgeLabelWithHalo(
             "y" to fmtCoord(y),
             "text-anchor" to textAnchor,
         )
-    tag("text", mapOf("class" to "kuml-edge-label-halo") + attrs) { text(label) }
-    tag("text", mapOf("class" to "kuml-edge-label") + attrs) { text(label) }
+    tag(name = "text", attrs = mapOf("class" to "kuml-edge-label-halo") + attrs) { text(label) }
+    tag(name = "text", attrs = mapOf("class" to "kuml-edge-label") + attrs) { text(label) }
 }
 
 private fun fmtCoord(v: Float): String = fmt2(v)
@@ -150,18 +150,18 @@ internal object EdgeLabelGeometry {
         val polyline = polylineOf(route)
         if (polyline.size < 2) {
             // Degenerate route: single point. Just return it horizontally oriented.
-            val p = polyline.firstOrNull() ?: Point(0f, 0f)
-            return LabelAnchor(p.x, p.y, SegmentDirection.Horizontal)
+            val p = polyline.firstOrNull() ?: Point(x = 0f, y = 0f)
+            return LabelAnchor(x = p.x, y = p.y, direction = SegmentDirection.Horizontal)
         }
 
         // Find the longest segment of the polyline.
         var bestStart = polyline[0]
         var bestEnd = polyline[1]
-        var bestLen = segmentLength(bestStart, bestEnd)
+        var bestLen = segmentLength(a = bestStart, b = bestEnd)
         for (i in 2 until polyline.size) {
             val a = polyline[i - 1]
             val b = polyline[i]
-            val segLen = segmentLength(a, b)
+            val segLen = segmentLength(a = a, b = b)
             if (segLen > bestLen) {
                 bestLen = segLen
                 bestStart = a
@@ -171,7 +171,7 @@ internal object EdgeLabelGeometry {
 
         if (bestLen < 0.01f) {
             // Fully degenerate polyline.
-            return LabelAnchor(bestStart.x, bestStart.y, SegmentDirection.Horizontal)
+            return LabelAnchor(x = bestStart.x, y = bestStart.y, direction = SegmentDirection.Horizontal)
         }
 
         val midX = (bestStart.x + bestEnd.x) / 2f
@@ -182,7 +182,7 @@ internal object EdgeLabelGeometry {
             } else {
                 SegmentDirection.Vertical
             }
-        return LabelAnchor(midX, midY, direction)
+        return LabelAnchor(x = midX, y = midY, direction = direction)
     }
 
     /**
@@ -203,19 +203,19 @@ internal object EdgeLabelGeometry {
     ): LabelAnchor {
         val polyline = polylineOf(route)
         if (polyline.size < 2) {
-            val p = polyline.firstOrNull() ?: Point(0f, 0f)
-            return LabelAnchor(p.x, p.y, SegmentDirection.Horizontal)
+            val p = polyline.firstOrNull() ?: Point(x = 0f, y = 0f)
+            return LabelAnchor(x = p.x, y = p.y, direction = SegmentDirection.Horizontal)
         }
         val total = polylineLength(polyline)
         if (total < 0.01f) {
-            return LabelAnchor(polyline[0].x, polyline[0].y, SegmentDirection.Horizontal)
+            return LabelAnchor(x = polyline[0].x, y = polyline[0].y, direction = SegmentDirection.Horizontal)
         }
         val target = total * fraction.coerceIn(0f, 1f)
         var travelled = 0f
         for (i in 1 until polyline.size) {
             val a = polyline[i - 1]
             val b = polyline[i]
-            val segLen = segmentLength(a, b)
+            val segLen = segmentLength(a = a, b = b)
             if (travelled + segLen >= target || i == polyline.size - 1) {
                 val remaining = target - travelled
                 val t = if (segLen < 0.01f) 0f else (remaining / segLen).coerceIn(0f, 1f)
@@ -227,7 +227,7 @@ internal object EdgeLabelGeometry {
                     } else {
                         SegmentDirection.Vertical
                     }
-                return LabelAnchor(x, y, direction)
+                return LabelAnchor(x = x, y = y, direction = direction)
             }
             travelled += segLen
         }
@@ -264,7 +264,7 @@ internal object EdgeLabelGeometry {
                     val one = 1f - t
                     val x = one * one * src.x + 2f * one * t * c.x + t * t * tgt.x
                     val y = one * one * src.y + 2f * one * t * c.y + t * t * tgt.y
-                    Point(x, y)
+                    Point(x = x, y = y)
                 }
             }
             else -> {
@@ -284,7 +284,7 @@ internal object EdgeLabelGeometry {
                             3f * one * one * t * c1.y +
                             3f * one * t * t * c2.y +
                             t * t * t * tgt.y
-                    Point(x, y)
+                    Point(x = x, y = y)
                 }
             }
         }
@@ -293,7 +293,7 @@ internal object EdgeLabelGeometry {
     private fun polylineLength(points: List<Point>): Float {
         var sum = 0f
         for (i in 1 until points.size) {
-            sum += segmentLength(points[i - 1], points[i])
+            sum += segmentLength(a = points[i - 1], b = points[i])
         }
         return sum
     }

@@ -19,7 +19,7 @@ internal class ErmSchemaDiffEmitter(
     private val dialect: SqlDialect,
     private val options: SqlEmitOptions,
 ) {
-    private val emitter = ErmSqlEmitter(dialect, options)
+    private val emitter = ErmSqlEmitter(dialect = dialect, options = options)
 
     fun emit(
         oldModel: ErmModel,
@@ -52,18 +52,21 @@ internal class ErmSchemaDiffEmitter(
         if (diff.newAttributes.isNotEmpty()) {
             sb.appendLine("-- New columns")
             sb.appendLine()
-            for (added in diff.newAttributes) sb.append(emitter.renderAddColumnStatement(added.entity, added.attribute))
+            for (added in diff.newAttributes) sb.append(emitter.renderAddColumnStatement(entity = added.entity, attr = added.attribute))
             sb.appendLine()
         }
 
         val fkStatements = mutableListOf<String>()
         for (entity in diff.newEntities) {
             for (attr in entity.attributes) {
-                emitter.renderForeignKeyConstraintOrNull(entity, attr, newModel)?.let { fkStatements += it }
+                emitter.renderForeignKeyConstraintOrNull(entity = entity, attr = attr, model = newModel)?.let { fkStatements += it }
             }
         }
         for (added in diff.newAttributes) {
-            emitter.renderForeignKeyConstraintOrNull(added.entity, added.attribute, newModel)?.let { fkStatements += it }
+            emitter.renderForeignKeyConstraintOrNull(entity = added.entity, attr = added.attribute, model = newModel)?.let {
+                fkStatements +=
+                    it
+            }
         }
         if (fkStatements.isNotEmpty()) {
             sb.appendLine("-- Foreign Keys")
@@ -74,9 +77,9 @@ internal class ErmSchemaDiffEmitter(
 
         val indexStatements = mutableListOf<String>()
         for (entity in diff.newEntities) {
-            for (index in entity.indexes) indexStatements += emitter.renderIndexStatement(entity, index)
+            for (index in entity.indexes) indexStatements += emitter.renderIndexStatement(entity = entity, index = index)
         }
-        for (added in diff.newIndexes) indexStatements += emitter.renderIndexStatement(added.entity, added.index)
+        for (added in diff.newIndexes) indexStatements += emitter.renderIndexStatement(entity = added.entity, index = added.index)
         if (indexStatements.isNotEmpty()) {
             sb.appendLine("-- Indexes")
             sb.appendLine()
@@ -93,7 +96,7 @@ internal class ErmSchemaDiffEmitter(
         if (diff.newChecks.isNotEmpty()) {
             sb.appendLine("-- New check constraints")
             sb.appendLine()
-            for (added in diff.newChecks) sb.append(emitter.renderCheckConstraintStatement(added.entity, added.check))
+            for (added in diff.newChecks) sb.append(emitter.renderCheckConstraintStatement(entity = added.entity, check = added.check))
             sb.appendLine()
         }
 

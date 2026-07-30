@@ -24,22 +24,30 @@ class ErmSqlMigrationGeneratorTest :
         fun tempDir(): File = Files.createTempDirectory("kuml-sql-migration-test").toFile()
 
         fun oldModel() =
-            ermModel("D") {
-                entity("users") { id("id", ErmDataType.Integer(64)) }
+            ermModel(name = "D") {
+                entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) }
             }
 
         fun newModel() =
-            ermModel("D") {
-                entity("users") {
-                    id("id", ErmDataType.Integer(64))
-                    attribute("nickname", ErmDataType.Varchar(255), nullable = true)
+            ermModel(name = "D") {
+                entity(name = "users") {
+                    id(name = "id", type = ErmDataType.Integer(64))
+                    attribute(name = "nickname", type = ErmDataType.Varchar(255), nullable = true)
                 }
             }
 
         test("produces exactly V<version>__<description>.sql") {
             val out = tempDir()
             try {
-                val file = ErmSqlMigrationGenerator().generate(oldModel(), newModel(), out, "2", "add_nickname", emptyMap())
+                val file =
+                    ErmSqlMigrationGenerator().generate(
+                        old = oldModel(),
+                        new = newModel(),
+                        outputDir = out,
+                        version = "2",
+                        description = "add_nickname",
+                        options = emptyMap(),
+                    )
                 file.name shouldBe "V2__add_nickname.sql"
                 file.readText() shouldContain "ALTER TABLE users ADD COLUMN nickname VARCHAR(255) NULL;"
             } finally {
@@ -52,12 +60,12 @@ class ErmSqlMigrationGeneratorTest :
             try {
                 shouldThrow<IllegalArgumentException> {
                     ErmSqlMigrationGenerator().generate(
-                        oldModel(),
-                        newModel(),
-                        out,
-                        "../../../../../../tmp/evil",
-                        "add_nickname",
-                        emptyMap(),
+                        old = oldModel(),
+                        new = newModel(),
+                        outputDir = out,
+                        version = "../../../../../../tmp/evil",
+                        description = "add_nickname",
+                        options = emptyMap(),
                     )
                 }
                 out.listFiles().orEmpty().map { it.name } shouldBe emptyList()
@@ -70,7 +78,14 @@ class ErmSqlMigrationGeneratorTest :
             val out = tempDir()
             try {
                 shouldThrow<IllegalArgumentException> {
-                    ErmSqlMigrationGenerator().generate(oldModel(), newModel(), out, "1", "sub/evil", emptyMap())
+                    ErmSqlMigrationGenerator().generate(
+                        old = oldModel(),
+                        new = newModel(),
+                        outputDir = out,
+                        version = "1",
+                        description = "sub/evil",
+                        options = emptyMap(),
+                    )
                 }
                 out.listFiles().orEmpty().map { it.name } shouldBe emptyList()
             } finally {
@@ -82,16 +97,23 @@ class ErmSqlMigrationGeneratorTest :
             val out = tempDir()
             try {
                 val old =
-                    ermModel("D") {
-                        entity("users") { id("id", ErmDataType.Integer(64)) }
-                        entity("legacy") { id("id", ErmDataType.Integer(64)) }
+                    ermModel(name = "D") {
+                        entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) }
+                        entity(name = "legacy") { id(name = "id", type = ErmDataType.Integer(64)) }
                     }
                 val new =
-                    ermModel("D") {
-                        entity("users") { id("id", ErmDataType.Integer(64)) }
+                    ermModel(name = "D") {
+                        entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) }
                     }
                 shouldThrow<CodeGenerationException> {
-                    ErmSqlMigrationGenerator().generate(old, new, out, "1", "drop_legacy", emptyMap())
+                    ErmSqlMigrationGenerator().generate(
+                        old = old,
+                        new = new,
+                        outputDir = out,
+                        version = "1",
+                        description = "drop_legacy",
+                        options = emptyMap(),
+                    )
                 }
                 out.listFiles().orEmpty().toList() shouldBe emptyList()
             } finally {
@@ -104,7 +126,14 @@ class ErmSqlMigrationGeneratorTest :
             try {
                 val model = oldModel()
                 shouldThrow<CodeGenerationException> {
-                    ErmSqlMigrationGenerator().generate(model, model, out, "1", "noop", emptyMap())
+                    ErmSqlMigrationGenerator().generate(
+                        old = model,
+                        new = model,
+                        outputDir = out,
+                        version = "1",
+                        description = "noop",
+                        options = emptyMap(),
+                    )
                 }
                 out.listFiles().orEmpty().toList() shouldBe emptyList()
             } finally {
@@ -116,13 +145,20 @@ class ErmSqlMigrationGeneratorTest :
             val out = tempDir()
             try {
                 val broken =
-                    ermModel("D") {
-                        entity("broken") {
-                            attribute("name", ErmDataType.Varchar(255))
+                    ermModel(name = "D") {
+                        entity(name = "broken") {
+                            attribute(name = "name", type = ErmDataType.Varchar(255))
                         }
                     }
                 shouldThrow<CodeGenerationException> {
-                    ErmSqlMigrationGenerator().generate(broken, newModel(), out, "1", "x", emptyMap())
+                    ErmSqlMigrationGenerator().generate(
+                        old = broken,
+                        new = newModel(),
+                        outputDir = out,
+                        version = "1",
+                        description = "x",
+                        options = emptyMap(),
+                    )
                 }
                 out.listFiles().orEmpty().toList() shouldBe emptyList()
             } finally {
@@ -133,16 +169,26 @@ class ErmSqlMigrationGeneratorTest :
         test("dialect option is honoured") {
             val out = tempDir()
             try {
-                val old = ermModel("D") { entity("users") { id("id", ErmDataType.Integer(64)) } }
+                val old = ermModel(name = "D") { entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) } }
                 val new =
-                    ermModel("D") {
-                        entity("users") {
-                            id("id", ErmDataType.Integer(64))
-                            attribute("active", ErmDataType.Boolean, nullable = false, default = "true")
+                    ermModel(name = "D") {
+                        entity(name = "users") {
+                            id(name = "id", type = ErmDataType.Integer(64))
+                            attribute(name = "active", type = ErmDataType.Boolean, nullable = false, default = "true")
                         }
                     }
                 val file =
-                    ErmSqlMigrationGenerator().generate(old, new, out, "1", "add_active", mapOf("sql-dialect" to "mysql"))
+                    ErmSqlMigrationGenerator().generate(
+                        old = old,
+                        new = new,
+                        outputDir = out,
+                        version = "1",
+                        description = "add_active",
+                        options =
+                            mapOf(
+                                "sql-dialect" to "mysql",
+                            ),
+                    )
                 file.readText() shouldContain "TINYINT(1)"
             } finally {
                 out.deleteRecursively()

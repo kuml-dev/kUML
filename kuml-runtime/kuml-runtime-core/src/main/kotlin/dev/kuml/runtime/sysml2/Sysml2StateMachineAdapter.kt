@@ -126,7 +126,7 @@ public object Sysml2StateMachineAdapter {
         transitions.forEach { tr ->
             if (!tr.guard.isNullOrBlank()) {
                 val errors = mutableListOf<dev.kuml.expr.ParseError>()
-                OclLikeExpressionParser.tryParse(tr.guard!!, errors)
+                OclLikeExpressionParser.tryParse(input = tr.guard!!, errors = errors)
                 // Parse failures are intentionally not logged to avoid noise;
                 // the legacy evaluator will handle them at runtime.
             }
@@ -139,14 +139,14 @@ public object Sysml2StateMachineAdapter {
         transitions.forEach { tr ->
             if (!tr.effect.isNullOrBlank()) {
                 val errors = mutableListOf<dev.kuml.expr.ParseError>()
-                OclLikeExpressionParser.tryParseEffects(tr.effect!!, errors)
+                OclLikeExpressionParser.tryParseEffects(input = tr.effect!!, errors = errors)
             }
         }
         visibleStates.forEach { state ->
             listOfNotNull(state.entryAction, state.exitAction, state.doAction).forEach { action ->
                 if (action.isNotBlank()) {
                     val errors = mutableListOf<dev.kuml.expr.ParseError>()
-                    OclLikeExpressionParser.tryParseEffects(action, errors)
+                    OclLikeExpressionParser.tryParseEffects(input = action, errors = errors)
                 }
             }
         }
@@ -193,7 +193,7 @@ public object Sysml2StateMachineAdapter {
         diagram: StmDiagram,
         clock: () -> Instant = Instant::now,
     ): Sysml2RuntimeHandle {
-        val sm = toUmlStateMachine(model, diagram)
+        val sm = toUmlStateMachine(model = model, diagram = diagram)
         val runtime = StateMachineRuntime(guards = OclGuardEvaluator(), clock = clock)
         val instance = runtime.start(sm)
         return Sysml2RuntimeHandle(runtime = runtime, instance = instance, stateMachine = sm)

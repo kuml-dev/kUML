@@ -64,7 +64,7 @@ class Sysml2LayoutBridgeTest :
             val model = Sysml2Model(name = "Demo", definitions = listOf(vehicle, hybrid))
             val bdd = BdDiagram(name = "Overview", elementIds = listOf("Vehicle", "HybridVehicle"))
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, bdd)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = bdd)
 
             graph.nodes shouldHaveSize 2
             graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder listOf("Vehicle", "HybridVehicle")
@@ -80,8 +80,8 @@ class Sysml2LayoutBridgeTest :
                 .target.nodeId.value shouldBe "Vehicle"
 
             SampleOutput.write(
-                "sysml2-layout-bridge/two-parts-one-specialisation.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/two-parts-one-specialisation.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
@@ -100,7 +100,7 @@ class Sysml2LayoutBridgeTest :
             // Only HybridVehicle is included — the parent end is dangling.
             val bdd = BdDiagram(name = "PartialView", elementIds = listOf("HybridVehicle"))
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, bdd)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = bdd)
 
             graph.nodes shouldHaveSize 1
             graph.edges shouldHaveSize 0
@@ -111,7 +111,7 @@ class Sysml2LayoutBridgeTest :
             val model = Sysml2Model(name = "Demo", definitions = listOf(vehicle))
             val bdd = BdDiagram(name = "Demo", elementIds = listOf("Vehicle", "NonExistent"))
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, bdd)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = bdd)
 
             graph.nodes shouldHaveSize 1
             graph.nodes
@@ -124,7 +124,7 @@ class Sysml2LayoutBridgeTest :
             val b = PartDefinition(id = "B", name = "B")
             val model = Sysml2Model(name = "M", definitions = listOf(a, b))
             val bdd = BdDiagram(name = "D", elementIds = listOf("B", "A"))
-            Sysml2LayoutBridge.resolveVisibleDefinitions(model, bdd) shouldBe listOf(b, a)
+            Sysml2LayoutBridge.resolveVisibleDefinitions(model = model, diagram = bdd) shouldBe listOf(b, a)
         }
 
         "default size matches the announced 220×140 constants" {
@@ -133,12 +133,13 @@ class Sysml2LayoutBridgeTest :
             val bdd = BdDiagram(name = "D", elementIds = listOf("V"))
             val graph =
                 Sysml2LayoutBridge.toLayoutGraph(
-                    model,
-                    bdd,
-                    SizeProvider.constant(
-                        width = Sysml2LayoutBridge.DEFAULT_WIDTH,
-                        height = Sysml2LayoutBridge.DEFAULT_HEIGHT,
-                    ),
+                    model = model,
+                    diagram = bdd,
+                    sizeProvider =
+                        SizeProvider.constant(
+                            width = Sysml2LayoutBridge.DEFAULT_WIDTH,
+                            height = Sysml2LayoutBridge.DEFAULT_HEIGHT,
+                        ),
                 )
             graph.nodes
                 .single()
@@ -152,14 +153,14 @@ class Sysml2LayoutBridgeTest :
 
         "IBD with two part-usages and a connection → 2 nodes + 1 edge" {
             val model =
-                sysml2Model("M") {
-                    val engineDef = partDef("Engine")
-                    val batteryDef = partDef("Battery")
-                    val powerLine = connectionDef("PowerLine")
+                sysml2Model(name = "M") {
+                    val engineDef = partDef(name = "Engine")
+                    val batteryDef = partDef(name = "Battery")
+                    val powerLine = connectionDef(name = "PowerLine")
                     val vehicle =
-                        partDef("Vehicle") {
-                            part("engine", typeId = engineDef.id)
-                            part("battery", typeId = batteryDef.id)
+                        partDef(name = "Vehicle") {
+                            part(name = "engine", typeId = engineDef.id)
+                            part(name = "battery", typeId = batteryDef.id)
                             connect(
                                 name = "wiring",
                                 typeId = powerLine.id,
@@ -167,11 +168,11 @@ class Sysml2LayoutBridgeTest :
                                 targetEndId = "Vehicle::battery::in",
                             )
                         }
-                    ibd("Vehicle wiring", owner = vehicle)
+                    ibd(name = "Vehicle wiring", owner = vehicle)
                 }
             val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, ibd)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = ibd)
 
             graph.nodes shouldHaveSize 2
             graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
@@ -188,41 +189,41 @@ class Sysml2LayoutBridgeTest :
                 .target.nodeId.value shouldBe "Vehicle::battery"
 
             SampleOutput.write(
-                "sysml2-layout-bridge/ibd-two-parts-one-connection.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/ibd-two-parts-one-connection.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "IBD with no part-usages → empty graph (nodes + edges both empty)" {
             val model =
-                sysml2Model("M") {
-                    val empty = partDef("EmptyShell")
-                    ibd("Empty shell", owner = empty)
+                sysml2Model(name = "M") {
+                    val empty = partDef(name = "EmptyShell")
+                    ibd(name = "Empty shell", owner = empty)
                 }
             val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, ibd)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = ibd)
             graph.nodes shouldHaveSize 0
             graph.edges shouldHaveSize 0
 
             SampleOutput.write(
-                "sysml2-layout-bridge/ibd-empty-shell.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/ibd-empty-shell.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "IBD with elementIds filter selects subset" {
             val model =
-                sysml2Model("M") {
-                    val engineDef = partDef("Engine")
-                    val batteryDef = partDef("Battery")
-                    val controllerDef = partDef("Controller")
-                    val powerLine = connectionDef("PowerLine")
+                sysml2Model(name = "M") {
+                    val engineDef = partDef(name = "Engine")
+                    val batteryDef = partDef(name = "Battery")
+                    val controllerDef = partDef(name = "Controller")
+                    val powerLine = connectionDef(name = "PowerLine")
                     val vehicle =
-                        partDef("Vehicle") {
-                            part("engine", typeId = engineDef.id)
-                            part("battery", typeId = batteryDef.id)
-                            part("controller", typeId = controllerDef.id)
+                        partDef(name = "Vehicle") {
+                            part(name = "engine", typeId = engineDef.id)
+                            part(name = "battery", typeId = batteryDef.id)
+                            part(name = "controller", typeId = controllerDef.id)
                             connect(
                                 name = "powerWire",
                                 typeId = powerLine.id,
@@ -230,14 +231,14 @@ class Sysml2LayoutBridgeTest :
                                 targetEndId = "Vehicle::battery::in",
                             )
                         }
-                    ibd("Power-train only", owner = vehicle) {
+                    ibd(name = "Power-train only", owner = vehicle) {
                         includeById("Vehicle::engine")
                         includeById("Vehicle::battery")
                     }
                 }
             val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, ibd)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = ibd)
 
             graph.nodes shouldHaveSize 2
             graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
@@ -245,21 +246,21 @@ class Sysml2LayoutBridgeTest :
             graph.edges shouldHaveSize 1
 
             SampleOutput.write(
-                "sysml2-layout-bridge/ibd-filtered-subset.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/ibd-filtered-subset.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "IBD with connection to dangling endpoint → edge dropped" {
             val model =
-                sysml2Model("M") {
-                    val engineDef = partDef("Engine")
-                    val batteryDef = partDef("Battery")
-                    val powerLine = connectionDef("PowerLine")
+                sysml2Model(name = "M") {
+                    val engineDef = partDef(name = "Engine")
+                    val batteryDef = partDef(name = "Battery")
+                    val powerLine = connectionDef(name = "PowerLine")
                     val vehicle =
-                        partDef("Vehicle") {
-                            part("engine", typeId = engineDef.id)
-                            part("battery", typeId = batteryDef.id)
+                        partDef(name = "Vehicle") {
+                            part(name = "engine", typeId = engineDef.id)
+                            part(name = "battery", typeId = batteryDef.id)
                             // Connection target points at a non-existent part-usage.
                             connect(
                                 name = "dangling",
@@ -268,30 +269,30 @@ class Sysml2LayoutBridgeTest :
                                 targetEndId = "Vehicle::nonexistent::in",
                             )
                         }
-                    ibd("Vehicle wiring (dangling)", owner = vehicle)
+                    ibd(name = "Vehicle wiring (dangling)", owner = vehicle)
                 }
             val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, ibd)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = ibd)
             graph.nodes shouldHaveSize 2
             // The dangling connection is silently dropped — validator's job to
             // flag this; bridge stays render-friendly.
             graph.edges shouldHaveSize 0
 
             SampleOutput.write(
-                "sysml2-layout-bridge/ibd-dangling-connection.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/ibd-dangling-connection.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "IBD with missing owner → empty graph (validator's job, not bridge's)" {
             val model =
-                sysml2Model("M") {
-                    partDef("Vehicle")
+                sysml2Model(name = "M") {
+                    partDef(name = "Vehicle")
                 }
             // Hand-craft an IbdDiagram for a non-existent owner id.
             val ibd = IbdDiagram(name = "Ghost", ownerId = "NotInModel")
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, ibd)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = ibd)
             graph.nodes shouldHaveSize 0
             graph.edges shouldHaveSize 0
         }
@@ -300,21 +301,21 @@ class Sysml2LayoutBridgeTest :
 
         "UC with one actor + two use cases + association + include → 3 nodes + 2 edges" {
             val model =
-                sysml2Model("Library") {
-                    val reader = actorDef("Reader")
-                    val borrow = useCaseDef("BorrowBook")
-                    val auth = useCaseDef("Authenticate")
-                    ucDiagram("UC") {
+                sysml2Model(name = "Library") {
+                    val reader = actorDef(name = "Reader")
+                    val borrow = useCaseDef(name = "BorrowBook")
+                    val auth = useCaseDef(name = "Authenticate")
+                    ucDiagram(name = "UC") {
                         include(reader)
                         include(borrow)
                         include(auth)
-                        association(reader, borrow)
-                        include(borrow, auth)
+                        association(actor = reader, useCase = borrow)
+                        include(source = borrow, target = auth)
                     }
                 }
             val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, uc)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = uc)
             graph.nodes shouldHaveSize 3
             graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
                 listOf("Reader", "BorrowBook", "Authenticate")
@@ -323,8 +324,8 @@ class Sysml2LayoutBridgeTest :
                 listOf("assoc:Reader::BorrowBook", "include:BorrowBook::Authenticate")
 
             SampleOutput.write(
-                "sysml2-layout-bridge/uc-library-association-and-include.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/uc-library-association-and-include.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
@@ -377,7 +378,7 @@ class Sysml2LayoutBridgeTest :
                         ),
                 )
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, uc)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = uc)
             graph.nodes shouldHaveSize 3
             // Only the two edges with both endpoints visible survive.
             graph.edges shouldHaveSize 2
@@ -387,16 +388,16 @@ class Sysml2LayoutBridgeTest :
 
         "UC respects actor vs use-case default sizes" {
             val model =
-                sysml2Model("Sizes") {
-                    val reader = actorDef("Reader")
-                    val borrow = useCaseDef("BorrowBook")
-                    ucDiagram("UC") {
+                sysml2Model(name = "Sizes") {
+                    val reader = actorDef(name = "Reader")
+                    val borrow = useCaseDef(name = "BorrowBook")
+                    ucDiagram(name = "UC") {
                         include(reader)
                         include(borrow)
                     }
                 }
             val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, uc)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = uc)
 
             val readerNode = graph.nodes.single { it.id.value == "Reader" }
             val borrowNode = graph.nodes.single { it.id.value == "BorrowBook" }
@@ -414,15 +415,15 @@ class Sysml2LayoutBridgeTest :
                     name = "UC",
                     elementIds = listOf("Reader", "NonExistent"),
                 )
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, uc)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = uc)
             graph.nodes shouldHaveSize 1
             graph.nodes
                 .single()
                 .id.value shouldBe "Reader"
 
             SampleOutput.write(
-                "sysml2-layout-bridge/uc-missing-definition.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/uc-missing-definition.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
@@ -436,7 +437,7 @@ class Sysml2LayoutBridgeTest :
             val model = Sysml2Model(name = "M", definitions = listOf(reader, borrow, vehicle))
             val uc = UcDiagram(name = "UC", elementIds = listOf("Reader", "BorrowBook", "Vehicle"))
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, uc)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = uc)
             graph.nodes shouldHaveSize 2
             graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder listOf("Reader", "BorrowBook")
         }
@@ -445,22 +446,22 @@ class Sysml2LayoutBridgeTest :
 
         "REQ with two requirements + one satisfy + one verify → nodes + 2 edges" {
             val model =
-                sysml2Model("VehicleReqs") {
-                    val topSpeed = requirementDef("TopSpeed", reqId = "R-001", text = "≥180 km/h")
-                    requirementDef("Fuel", reqId = "R-003", text = "≤4 l/100km")
-                    val vehicle = partDef("Vehicle")
-                    val verifier = useCaseDef("VerifyTopSpeed")
-                    reqDiagram("REQ") {
+                sysml2Model(name = "VehicleReqs") {
+                    val topSpeed = requirementDef(name = "TopSpeed", reqId = "R-001", text = "≥180 km/h")
+                    requirementDef(name = "Fuel", reqId = "R-003", text = "≤4 l/100km")
+                    val vehicle = partDef(name = "Vehicle")
+                    val verifier = useCaseDef(name = "VerifyTopSpeed")
+                    reqDiagram(name = "REQ") {
                         include(topSpeed)
                         include(vehicle)
                         include(verifier)
-                        satisfy(vehicle, topSpeed)
-                        verify(verifier, topSpeed)
+                        satisfy(source = vehicle, requirement = topSpeed)
+                        verify(source = verifier, requirement = topSpeed)
                     }
                 }
             val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, req)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = req)
             graph.nodes shouldHaveSize 3
             graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
                 listOf("TopSpeed", "Vehicle", "VerifyTopSpeed")
@@ -469,24 +470,24 @@ class Sysml2LayoutBridgeTest :
                 listOf("satisfy:Vehicle::TopSpeed", "verify:VerifyTopSpeed::TopSpeed")
 
             SampleOutput.write(
-                "sysml2-layout-bridge/req-satisfy-and-verify.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/req-satisfy-and-verify.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "REQ with derive between two requirements" {
             val model =
-                sysml2Model("Derive") {
-                    val r1 = requirementDef("TopSpeed", reqId = "R-001")
-                    val r2 = requirementDef("Fuel", reqId = "R-003")
-                    reqDiagram("REQ") {
+                sysml2Model(name = "Derive") {
+                    val r1 = requirementDef(name = "TopSpeed", reqId = "R-001")
+                    val r2 = requirementDef(name = "Fuel", reqId = "R-003")
+                    reqDiagram(name = "REQ") {
                         include(r1)
                         include(r2)
-                        derive(r1, r2)
+                        derive(source = r1, target = r2)
                     }
                 }
             val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, req)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = req)
             graph.nodes shouldHaveSize 2
             graph.edges shouldHaveSize 1
             graph.edges
@@ -500,24 +501,24 @@ class Sysml2LayoutBridgeTest :
                 .target.nodeId.value shouldBe "Fuel"
 
             SampleOutput.write(
-                "sysml2-layout-bridge/req-derive.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/req-derive.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "REQ with contains between parent and child requirement" {
             val model =
-                sysml2Model("Contains") {
-                    val parent = requirementDef("Emissions", reqId = "R-004")
-                    val child = requirementDef("NOx", reqId = "R-005")
-                    reqDiagram("REQ") {
+                sysml2Model(name = "Contains") {
+                    val parent = requirementDef(name = "Emissions", reqId = "R-004")
+                    val child = requirementDef(name = "NOx", reqId = "R-005")
+                    reqDiagram(name = "REQ") {
                         include(parent)
                         include(child)
-                        contains(parent, child)
+                        contains(parent = parent, child = child)
                     }
                 }
             val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, req)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = req)
             graph.nodes shouldHaveSize 2
             graph.edges shouldHaveSize 1
             graph.edges
@@ -531,8 +532,8 @@ class Sysml2LayoutBridgeTest :
                 .target.nodeId.value shouldBe "NOx"
 
             SampleOutput.write(
-                "sysml2-layout-bridge/req-contains.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/req-contains.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
@@ -575,7 +576,7 @@ class Sysml2LayoutBridgeTest :
                             ),
                         ),
                 )
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, req)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = req)
             graph.nodes shouldHaveSize 3
             // Only the two edges with both endpoints visible survive.
             graph.edges shouldHaveSize 2
@@ -587,32 +588,32 @@ class Sysml2LayoutBridgeTest :
             val r1 = RequirementDefinition(id = "R1", name = "R1")
             val model = Sysml2Model(name = "M", definitions = listOf(r1))
             val req = ReqDiagram(name = "REQ", elementIds = listOf("R1", "NonExistent"))
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, req)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = req)
             graph.nodes shouldHaveSize 1
             graph.nodes
                 .single()
                 .id.value shouldBe "R1"
 
             SampleOutput.write(
-                "sysml2-layout-bridge/req-missing-definition.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/req-missing-definition.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "REQ default size for RequirementDefinition matches REQ_DEFAULT_WIDTH × REQ_DEFAULT_HEIGHT" {
             val model =
-                sysml2Model("Sizes") {
-                    val r = requirementDef("R1")
-                    reqDiagram("REQ") {
+                sysml2Model(name = "Sizes") {
+                    val r = requirementDef(name = "R1")
+                    reqDiagram(name = "REQ") {
                         include(r)
                     }
                 }
             val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
             val graph =
                 Sysml2LayoutBridge.toLayoutGraph(
-                    model,
-                    req,
-                    Sysml2LayoutBridge.reqDefaultSizeProvider(),
+                    model = model,
+                    diagram = req,
+                    sizeProvider = Sysml2LayoutBridge.reqDefaultSizeProvider(),
                 )
             graph.nodes
                 .single()
@@ -626,13 +627,13 @@ class Sysml2LayoutBridgeTest :
 
         "STM with three states + two transitions → 3 nodes + 2 edges" {
             val model =
-                sysml2Model("Lights") {
-                    val red = stateDef("Red")
-                    val green = stateDef("Green")
-                    val yellow = stateDef("Yellow")
-                    transition("redToGreen", red, green, trigger = "timer60s")
-                    transition("greenToYellow", green, yellow, trigger = "timer45s")
-                    stmDiagram("Phase cycle") {
+                sysml2Model(name = "Lights") {
+                    val red = stateDef(name = "Red")
+                    val green = stateDef(name = "Green")
+                    val yellow = stateDef(name = "Yellow")
+                    transition(name = "redToGreen", source = red, target = green, trigger = "timer60s")
+                    transition(name = "greenToYellow", source = green, target = yellow, trigger = "timer45s")
+                    stmDiagram(name = "Phase cycle") {
                         include(red)
                         include(green)
                         include(yellow)
@@ -640,7 +641,7 @@ class Sysml2LayoutBridgeTest :
                 }
             val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = stm)
             graph.nodes shouldHaveSize 3
             graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
                 listOf("Red", "Green", "Yellow")
@@ -649,20 +650,20 @@ class Sysml2LayoutBridgeTest :
                 listOf("transition:Red::Green", "transition:Green::Yellow")
 
             SampleOutput.write(
-                "sysml2-layout-bridge/stm-three-states-two-transitions.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/stm-three-states-two-transitions.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "STM initial and final pseudo-states are sized as pseudo (24×24)" {
             val model =
-                sysml2Model("PseudoSizes") {
-                    val initial = stateDef("Initial", isInitial = true)
-                    val red = stateDef("Red")
-                    val final = stateDef("Final", isFinal = true)
-                    transition("initial", initial, red)
-                    transition("end", red, final)
-                    stmDiagram("STM") {
+                sysml2Model(name = "PseudoSizes") {
+                    val initial = stateDef(name = "Initial", isInitial = true)
+                    val red = stateDef(name = "Red")
+                    val final = stateDef(name = "Final", isFinal = true)
+                    transition(name = "initial", source = initial, target = red)
+                    transition(name = "end", source = red, target = final)
+                    stmDiagram(name = "STM") {
                         include(initial)
                         include(red)
                         include(final)
@@ -671,7 +672,12 @@ class Sysml2LayoutBridgeTest :
             val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
             // Use fixed default size provider to keep this test as a regression guard
             // for the constant values (content-aware sizing is tested separately).
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm, Sysml2LayoutBridge.stmDefaultSizeProvider())
+            val graph =
+                Sysml2LayoutBridge.toLayoutGraph(
+                    model = model,
+                    diagram = stm,
+                    sizeProvider = Sysml2LayoutBridge.stmDefaultSizeProvider(),
+                )
 
             val initialNode = graph.nodes.single { it.id.value == "Initial" }
             val finalNode = graph.nodes.single { it.id.value == "Final" }
@@ -719,7 +725,7 @@ class Sysml2LayoutBridgeTest :
             // Ghost NOT in elementIds → both edges referencing it dangle.
             val stm = StmDiagram(name = "STM", elementIds = listOf("Red", "Green"))
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = stm)
             graph.nodes shouldHaveSize 2
             graph.edges shouldHaveSize 1
             graph.edges
@@ -727,8 +733,8 @@ class Sysml2LayoutBridgeTest :
                 .id.value shouldBe "transition:Red::Green"
 
             SampleOutput.write(
-                "sysml2-layout-bridge/stm-dangling-transitions.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/stm-dangling-transitions.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
@@ -736,15 +742,15 @@ class Sysml2LayoutBridgeTest :
             val red = StateDefinition(id = "Red", name = "Red")
             val model = Sysml2Model(name = "M", definitions = listOf(red))
             val stm = StmDiagram(name = "STM", elementIds = listOf("Red", "NonExistent"))
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = stm)
             graph.nodes shouldHaveSize 1
             graph.nodes
                 .single()
                 .id.value shouldBe "Red"
 
             SampleOutput.write(
-                "sysml2-layout-bridge/stm-missing-definition.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/stm-missing-definition.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
@@ -755,9 +761,9 @@ class Sysml2LayoutBridgeTest :
             // usage in model.usages after the bridge has built the layout
             // graph; the trigger label V2.x renderer will use this.
             val model =
-                sysml2Model("Labels") {
-                    val red = stateDef("Red")
-                    val green = stateDef("Green")
+                sysml2Model(name = "Labels") {
+                    val red = stateDef(name = "Red")
+                    val green = stateDef(name = "Green")
                     transition(
                         name = "redToGreen",
                         source = red,
@@ -766,13 +772,13 @@ class Sysml2LayoutBridgeTest :
                         guard = "!emergency",
                         effect = "switchLights('green')",
                     )
-                    stmDiagram("STM") {
+                    stmDiagram(name = "STM") {
                         include(red)
                         include(green)
                     }
                 }
             val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = stm)
             graph.edges shouldHaveSize 1
             graph.edges
                 .single()
@@ -794,18 +800,18 @@ class Sysml2LayoutBridgeTest :
             // Traffic-Light-Reproduktion: Red hat 4 anliegende Kanten
             // (Initial→Red, Red→Green, Yellow→Red, Red→Off).
             val model =
-                sysml2Model("TrafficLight") {
-                    val initial = stateDef("Initial", isInitial = true)
-                    val red = stateDef("Red")
-                    val green = stateDef("Green")
-                    val yellow = stateDef("Yellow")
-                    val off = stateDef("Off", isFinal = true)
-                    transition("init", initial, red)
-                    transition("redToGreen", red, green, trigger = "timer60s")
-                    transition("yellowToRed", yellow, red, trigger = "timer5s")
-                    transition("powerOff", red, off, trigger = "powerOff")
-                    transition("greenToYellow", green, yellow, trigger = "timer45s")
-                    stmDiagram("Phase cycle") {
+                sysml2Model(name = "TrafficLight") {
+                    val initial = stateDef(name = "Initial", isInitial = true)
+                    val red = stateDef(name = "Red")
+                    val green = stateDef(name = "Green")
+                    val yellow = stateDef(name = "Yellow")
+                    val off = stateDef(name = "Off", isFinal = true)
+                    transition(name = "init", source = initial, target = red)
+                    transition(name = "redToGreen", source = red, target = green, trigger = "timer60s")
+                    transition(name = "yellowToRed", source = yellow, target = red, trigger = "timer5s")
+                    transition(name = "powerOff", source = red, target = off, trigger = "powerOff")
+                    transition(name = "greenToYellow", source = green, target = yellow, trigger = "timer45s")
+                    stmDiagram(name = "Phase cycle") {
                         include(initial)
                         include(red)
                         include(green)
@@ -814,7 +820,7 @@ class Sysml2LayoutBridgeTest :
                     }
                 }
             val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = stm)
 
             val redNode = graph.nodes.single { it.id.value == "Red" }
             // 4 Transitionen → 4×14 = 56 px Breitenzuwachs.
@@ -829,15 +835,15 @@ class Sysml2LayoutBridgeTest :
             // Selbst wenn ein Pseudo-State viele Transitionen hat — Marker
             // dürfen visuell nicht zur regulären Box anwachsen.
             val model =
-                sysml2Model("PseudoFan") {
-                    val initial = stateDef("Initial", isInitial = true)
-                    val a = stateDef("A")
-                    val b = stateDef("B")
-                    val c = stateDef("C")
-                    transition("toA", initial, a)
-                    transition("toB", initial, b)
-                    transition("toC", initial, c)
-                    stmDiagram("STM") {
+                sysml2Model(name = "PseudoFan") {
+                    val initial = stateDef(name = "Initial", isInitial = true)
+                    val a = stateDef(name = "A")
+                    val b = stateDef(name = "B")
+                    val c = stateDef(name = "C")
+                    transition(name = "toA", source = initial, target = a)
+                    transition(name = "toB", source = initial, target = b)
+                    transition(name = "toC", source = initial, target = c)
+                    stmDiagram(name = "STM") {
                         include(initial)
                         include(a)
                         include(b)
@@ -845,7 +851,7 @@ class Sysml2LayoutBridgeTest :
                     }
                 }
             val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = stm)
 
             val initialNode = graph.nodes.single { it.id.value == "Initial" }
             initialNode.intrinsicSize.width shouldBe Sysml2LayoutBridge.STM_PSEUDO_SIZE
@@ -854,13 +860,13 @@ class Sysml2LayoutBridgeTest :
 
         "STM self-transition counts twice (both endpoints on the same box)" {
             val model =
-                sysml2Model("SelfLoop") {
-                    val s = stateDef("S")
-                    transition("loop", s, s, trigger = "tick")
-                    stmDiagram("STM") { include(s) }
+                sysml2Model(name = "SelfLoop") {
+                    val s = stateDef(name = "S")
+                    transition(name = "loop", source = s, target = s, trigger = "tick")
+                    stmDiagram(name = "STM") { include(s) }
                 }
             val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = stm)
 
             val sNode = graph.nodes.single { it.id.value == "S" }
             // 1 Self-Loop → 2 Endpunkt-Bumps → 2×14 = 28 px Breite extra.
@@ -873,17 +879,17 @@ class Sysml2LayoutBridgeTest :
             // STM_CONNECTION_PUFFER_MAX_PX (112 px). Verhindert, dass Hub-
             // States visuell aufblähen.
             val model =
-                sysml2Model("Hub") {
-                    val hub = stateDef("Hub")
-                    val states = (1..12).map { stateDef("S$it") }
-                    states.forEachIndexed { idx, s -> transition("to$idx", hub, s) }
-                    stmDiagram("STM") {
+                sysml2Model(name = "Hub") {
+                    val hub = stateDef(name = "Hub")
+                    val states = (1..12).map { stateDef(name = "S$it") }
+                    states.forEachIndexed { idx, s -> transition(name = "to$idx", source = hub, target = s) }
+                    stmDiagram(name = "STM") {
                         include(hub)
                         states.forEach { include(it) }
                     }
                 }
             val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = stm)
 
             val hubNode = graph.nodes.single { it.id.value == "Hub" }
             hubNode.intrinsicSize.width shouldBe
@@ -892,15 +898,15 @@ class Sysml2LayoutBridgeTest :
 
         "STM edge-fan puffer in LeftToRight direction grows height instead of width" {
             val model =
-                sysml2Model("HorizontalLayout") {
-                    val red = stateDef("Red")
-                    val green = stateDef("Green")
-                    val yellow = stateDef("Yellow")
-                    val off = stateDef("Off", isFinal = true)
-                    transition("rg", red, green)
-                    transition("yr", yellow, red)
-                    transition("ro", red, off)
-                    stmDiagram("STM") {
+                sysml2Model(name = "HorizontalLayout") {
+                    val red = stateDef(name = "Red")
+                    val green = stateDef(name = "Green")
+                    val yellow = stateDef(name = "Yellow")
+                    val off = stateDef(name = "Off", isFinal = true)
+                    transition(name = "rg", source = red, target = green)
+                    transition(name = "yr", source = yellow, target = red)
+                    transition(name = "ro", source = red, target = off)
+                    stmDiagram(name = "STM") {
                         include(red)
                         include(green)
                         include(yellow)
@@ -914,7 +920,7 @@ class Sysml2LayoutBridgeTest :
                     diagram = stm,
                     layoutDirection = LayoutDirection.LeftToRight,
                 )
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm, provider)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = stm, sizeProvider = provider)
 
             val redNode = graph.nodes.single { it.id.value == "Red" }
             // Red hat 3 Edges → Höhe wächst um 3×14 = 42 px ausgehend von
@@ -929,15 +935,15 @@ class Sysml2LayoutBridgeTest :
             // unverändertes V2.0.9-Verhalten bekommen — sonst würde jedes
             // Bestandsbild plötzlich anders aussehen.
             val model =
-                sysml2Model("LegacyShape") {
-                    val red = stateDef("Red")
-                    val green = stateDef("Green")
-                    val yellow = stateDef("Yellow")
-                    val off = stateDef("Off", isFinal = true)
-                    transition("rg", red, green)
-                    transition("yr", yellow, red)
-                    transition("ro", red, off)
-                    stmDiagram("STM") {
+                sysml2Model(name = "LegacyShape") {
+                    val red = stateDef(name = "Red")
+                    val green = stateDef(name = "Green")
+                    val yellow = stateDef(name = "Yellow")
+                    val off = stateDef(name = "Off", isFinal = true)
+                    transition(name = "rg", source = red, target = green)
+                    transition(name = "yr", source = yellow, target = red)
+                    transition(name = "ro", source = red, target = off)
+                    stmDiagram(name = "STM") {
                         include(red)
                         include(green)
                         include(yellow)
@@ -946,7 +952,7 @@ class Sysml2LayoutBridgeTest :
                 }
             val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
             val legacyProvider = Sysml2LayoutBridge.stmContentAwareSizeProvider(model)
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm, legacyProvider)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = stm, sizeProvider = legacyProvider)
 
             val redNode = graph.nodes.single { it.id.value == "Red" }
             redNode.intrinsicSize.width shouldBe Sysml2LayoutBridge.STM_STATE_WIDTH
@@ -961,7 +967,7 @@ class Sysml2LayoutBridgeTest :
             val model = Sysml2Model(name = "M", definitions = listOf(red, vehicle))
             val stm = StmDiagram(name = "STM", elementIds = listOf("Red", "Vehicle"))
 
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = stm)
             graph.nodes shouldHaveSize 1
             graph.nodes
                 .single()
@@ -972,20 +978,20 @@ class Sysml2LayoutBridgeTest :
 
         "ACT with action + decision + two control flows → 3 nodes + 2 edges" {
             val model =
-                sysml2Model("Workflow") {
-                    val validate = actionDef("Validate")
-                    val decide = decisionNode("Valid?")
-                    val process = actionDef("Process")
-                    controlFlow("vToD", validate, decide)
-                    controlFlow("dToP", decide, process, guard = "valid")
-                    actDiagram("Pipeline") {
+                sysml2Model(name = "Workflow") {
+                    val validate = actionDef(name = "Validate")
+                    val decide = decisionNode(name = "Valid?")
+                    val process = actionDef(name = "Process")
+                    controlFlow(name = "vToD", source = validate, target = decide)
+                    controlFlow(name = "dToP", source = decide, target = process, guard = "valid")
+                    actDiagram(name = "Pipeline") {
                         include(validate)
                         include(decide)
                         include(process)
                     }
                 }
             val act = model.diagrams.filterIsInstance<ActDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = act)
             graph.nodes shouldHaveSize 3
             graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
                 listOf("Validate", "Valid?", "Process")
@@ -994,25 +1000,25 @@ class Sysml2LayoutBridgeTest :
                 listOf("controlFlow:Validate::Valid?", "controlFlow:Valid?::Process")
 
             SampleOutput.write(
-                "sysml2-layout-bridge/act-action-decision-two-flows.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/act-action-decision-two-flows.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "ACT initial/final/flowFinal pseudo-nodes are sized as pseudo (28×28)" {
             val model =
-                sysml2Model("Pseudo") {
+                sysml2Model(name = "Pseudo") {
                     val initial = initialNode()
                     val finalN = finalNode()
                     val ff = flowFinalNode()
-                    actDiagram("ACT") {
+                    actDiagram(name = "ACT") {
                         include(initial)
                         include(finalN)
                         include(ff)
                     }
                 }
             val act = model.diagrams.filterIsInstance<ActDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = act)
             graph.nodes shouldHaveSize 3
             for (n in graph.nodes) {
                 n.intrinsicSize.width shouldBe Sysml2LayoutBridge.ACT_PSEUDO_SIZE
@@ -1020,54 +1026,54 @@ class Sysml2LayoutBridgeTest :
             }
 
             SampleOutput.write(
-                "sysml2-layout-bridge/act-pseudo-sizes.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/act-pseudo-sizes.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "ACT decision/merge nodes are sized as diamond (50×50)" {
             val model =
-                sysml2Model("Diamonds") {
-                    val d = decisionNode("Valid?")
-                    val m = mergeNode("Joined")
-                    actDiagram("ACT") {
+                sysml2Model(name = "Diamonds") {
+                    val d = decisionNode(name = "Valid?")
+                    val m = mergeNode(name = "Joined")
+                    actDiagram(name = "ACT") {
                         include(d)
                         include(m)
                     }
                 }
             val act = model.diagrams.filterIsInstance<ActDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = act)
             for (n in graph.nodes) {
                 n.intrinsicSize.width shouldBe Sysml2LayoutBridge.ACT_DIAMOND_WIDTH
                 n.intrinsicSize.height shouldBe Sysml2LayoutBridge.ACT_DIAMOND_HEIGHT
             }
 
             SampleOutput.write(
-                "sysml2-layout-bridge/act-diamond-sizes.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/act-diamond-sizes.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "ACT fork/join nodes are sized as bar (120×10)" {
             val model =
-                sysml2Model("Bars") {
-                    val f = forkNode("Split")
-                    val j = joinNode("Sync")
-                    actDiagram("ACT") {
+                sysml2Model(name = "Bars") {
+                    val f = forkNode(name = "Split")
+                    val j = joinNode(name = "Sync")
+                    actDiagram(name = "ACT") {
                         include(f)
                         include(j)
                     }
                 }
             val act = model.diagrams.filterIsInstance<ActDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = act)
             for (n in graph.nodes) {
                 n.intrinsicSize.width shouldBe Sysml2LayoutBridge.ACT_BAR_WIDTH
                 n.intrinsicSize.height shouldBe Sysml2LayoutBridge.ACT_BAR_HEIGHT
             }
 
             SampleOutput.write(
-                "sysml2-layout-bridge/act-bar-sizes.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/act-bar-sizes.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
@@ -1102,7 +1108,7 @@ class Sysml2LayoutBridgeTest :
                         ),
                 )
             val act = ActDiagram(name = "ACT", elementIds = listOf("A", "B"))
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = act)
             graph.nodes shouldHaveSize 2
             graph.edges shouldHaveSize 1
             graph.edges
@@ -1110,24 +1116,24 @@ class Sysml2LayoutBridgeTest :
                 .id.value shouldBe "controlFlow:A::B"
 
             SampleOutput.write(
-                "sysml2-layout-bridge/act-dangling-flows.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/act-dangling-flows.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "ACT object flow retains objectType via model.usages lookup" {
             val model =
-                sysml2Model("Carry") {
-                    val a = actionDef("Validate")
-                    val b = actionDef("Process")
-                    objectFlow("carry", a, b, objectType = "Order")
-                    actDiagram("ACT") {
+                sysml2Model(name = "Carry") {
+                    val a = actionDef(name = "Validate")
+                    val b = actionDef(name = "Process")
+                    objectFlow(name = "carry", source = a, target = b, objectType = "Order")
+                    actDiagram(name = "ACT") {
                         include(a)
                         include(b)
                     }
                 }
             val act = model.diagrams.filterIsInstance<ActDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = act)
             graph.edges shouldHaveSize 1
             graph.edges
                 .single()
@@ -1139,21 +1145,21 @@ class Sysml2LayoutBridgeTest :
             flow.objectType shouldBe "Order"
 
             SampleOutput.write(
-                "sysml2-layout-bridge/act-object-flow.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/act-object-flow.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "ACT regular action sized as ACT_ACTION_WIDTH × ACT_ACTION_HEIGHT" {
             val model =
-                sysml2Model("M") {
-                    val a = actionDef("Act", action = "x()")
-                    actDiagram("D") {
+                sysml2Model(name = "M") {
+                    val a = actionDef(name = "Act", action = "x()")
+                    actDiagram(name = "D") {
                         include(a)
                     }
                 }
             val act = model.diagrams.filterIsInstance<ActDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = act)
             graph.nodes
                 .single()
                 .intrinsicSize.width shouldBe Sysml2LayoutBridge.ACT_ACTION_WIDTH
@@ -1168,13 +1174,13 @@ class Sysml2LayoutBridgeTest :
 
         "ACT with 2 partitions and 3 actions emits 2 groups + 3 nodes" {
             val model =
-                sysml2Model("OrderProcessing") {
-                    val customer = activityPartition("Customer")
-                    val warehouse = activityPartition("Warehouse")
-                    val place = actionDef("PlaceOrder", partition = customer)
-                    val reserve = actionDef("ReserveInventory", partition = warehouse)
-                    val ship = actionDef("ShipOrder", partition = warehouse)
-                    actDiagram("Workflow") {
+                sysml2Model(name = "OrderProcessing") {
+                    val customer = activityPartition(name = "Customer")
+                    val warehouse = activityPartition(name = "Warehouse")
+                    val place = actionDef(name = "PlaceOrder", partition = customer)
+                    val reserve = actionDef(name = "ReserveInventory", partition = warehouse)
+                    val ship = actionDef(name = "ShipOrder", partition = warehouse)
+                    actDiagram(name = "Workflow") {
                         // V2.0.16: Partitions are auto-included via the
                         // partitionId reference on the action node — no
                         // explicit `include(...)` needed. Including them
@@ -1187,7 +1193,7 @@ class Sysml2LayoutBridgeTest :
                     }
                 }
             val act = model.diagrams.filterIsInstance<ActDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = act)
             // Action nodes only — partitions are NOT layout nodes.
             graph.nodes shouldHaveSize 3
             graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
@@ -1202,21 +1208,21 @@ class Sysml2LayoutBridgeTest :
             nodesById.getValue("ShipOrder").groupId?.value shouldBe "Warehouse"
 
             SampleOutput.write(
-                "sysml2-layout-bridge/act-partitions-three-actions.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/act-partitions-three-actions.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "ACT actions without partitionId stay outside groups" {
             val model =
-                sysml2Model("Standalone") {
-                    val a = actionDef("FreeAction")
-                    actDiagram("D") {
+                sysml2Model(name = "Standalone") {
+                    val a = actionDef(name = "FreeAction")
+                    actDiagram(name = "D") {
                         include(a)
                     }
                 }
             val act = model.diagrams.filterIsInstance<ActDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = act)
             graph.nodes shouldHaveSize 1
             graph.nodes.single().groupId shouldBe null
             graph.groups shouldHaveSize 0
@@ -1231,10 +1237,10 @@ class Sysml2LayoutBridgeTest :
             // resolve through the partition reference and fail at compile
             // time on a missing partition).
             val model =
-                sysml2Model("Dangling") {
+                sysml2Model(name = "Dangling") {
                     val a =
-                        actionDef("OrphanAction") // No partition reference via DSL.
-                    actDiagram("D") {
+                        actionDef(name = "OrphanAction") // No partition reference via DSL.
+                    actDiagram(name = "D") {
                         include(a)
                     }
                 }
@@ -1254,7 +1260,7 @@ class Sysml2LayoutBridgeTest :
                     diagrams = model.diagrams,
                 )
             val act = mutated.diagrams.filterIsInstance<ActDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(mutated, act)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = mutated, diagram = act)
             graph.nodes shouldHaveSize 1
             graph.nodes.single().groupId shouldBe null
             // No partition exists in the model → no groups.
@@ -1265,22 +1271,22 @@ class Sysml2LayoutBridgeTest :
 
         "SEQ with three lifelines and four messages → 3 nodes, 0 edges" {
             val model =
-                sysml2Model("SeqDemo") {
-                    val user = lifelineDef("user")
-                    val browser = lifelineDef("browser")
-                    val auth = lifelineDef("authService")
-                    message("enterCredentials", user, browser, seqNo = 0)
-                    message("login", browser, auth, seqNo = 1)
-                    message("sessionToken", auth, browser, seqNo = 2, kind = MessageKind.Reply)
-                    message("welcomeScreen", browser, user, seqNo = 3, kind = MessageKind.Reply)
-                    seqDiagram("Login flow") {
+                sysml2Model(name = "SeqDemo") {
+                    val user = lifelineDef(name = "user")
+                    val browser = lifelineDef(name = "browser")
+                    val auth = lifelineDef(name = "authService")
+                    message(label = "enterCredentials", source = user, target = browser, seqNo = 0)
+                    message(label = "login", source = browser, target = auth, seqNo = 1)
+                    message(label = "sessionToken", source = auth, target = browser, seqNo = 2, kind = MessageKind.Reply)
+                    message(label = "welcomeScreen", source = browser, target = user, seqNo = 3, kind = MessageKind.Reply)
+                    seqDiagram(name = "Login flow") {
                         include(user)
                         include(browser)
                         include(auth)
                     }
                 }
             val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = seq)
 
             graph.nodes shouldHaveSize 3
             graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
@@ -1291,30 +1297,30 @@ class Sysml2LayoutBridgeTest :
             model.usages.filterIsInstance<MessageUsage>() shouldHaveSize 4
 
             SampleOutput.write(
-                "sysml2-layout-bridge/seq-three-lifelines-four-messages.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/seq-three-lifelines-four-messages.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "SEQ lifeline height scales with max seqNo" {
             val model =
-                sysml2Model("SeqHeights") {
-                    val a = lifelineDef("a")
-                    val b = lifelineDef("b")
+                sysml2Model(name = "SeqHeights") {
+                    val a = lifelineDef(name = "a")
+                    val b = lifelineDef(name = "b")
                     // maxSeqNo = 5 → rowCount = 6 → 6+1 message rows of vertical space
-                    message("m0", a, b, seqNo = 0)
-                    message("m1", b, a, seqNo = 1)
-                    message("m2", a, b, seqNo = 2)
-                    message("m3", b, a, seqNo = 3)
-                    message("m4", a, b, seqNo = 4)
-                    message("m5", b, a, seqNo = 5)
-                    seqDiagram("S") {
+                    message(label = "m0", source = a, target = b, seqNo = 0)
+                    message(label = "m1", source = b, target = a, seqNo = 1)
+                    message(label = "m2", source = a, target = b, seqNo = 2)
+                    message(label = "m3", source = b, target = a, seqNo = 3)
+                    message(label = "m4", source = a, target = b, seqNo = 4)
+                    message(label = "m5", source = b, target = a, seqNo = 5)
+                    seqDiagram(name = "S") {
                         include(a)
                         include(b)
                     }
                 }
             val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = seq)
 
             // height = HEAD (40) + (5+1+1) * 32 + TAIL (40) = 40 + 224 + 40 = 304
             val expected =
@@ -1327,23 +1333,23 @@ class Sysml2LayoutBridgeTest :
             }
 
             SampleOutput.write(
-                "sysml2-layout-bridge/seq-height-scales-with-seqno.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/seq-height-scales-with-seqno.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "SEQ with no messages → minimum lifeline height (head + tail only)" {
             val model =
-                sysml2Model("SeqEmpty") {
-                    val a = lifelineDef("a")
-                    val b = lifelineDef("b")
-                    seqDiagram("S") {
+                sysml2Model(name = "SeqEmpty") {
+                    val a = lifelineDef(name = "a")
+                    val b = lifelineDef(name = "b")
+                    seqDiagram(name = "S") {
                         include(a)
                         include(b)
                     }
                 }
             val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = seq)
 
             // rowCount = 0 → height = HEAD + 1*ROW + TAIL  (one row of breathing space)
             val expected =
@@ -1359,15 +1365,15 @@ class Sysml2LayoutBridgeTest :
 
         "SEQ missing lifelines are skipped silently" {
             val model =
-                sysml2Model("SeqMissing") {
-                    val a = lifelineDef("a")
-                    seqDiagram("S") {
+                sysml2Model(name = "SeqMissing") {
+                    val a = lifelineDef(name = "a")
+                    seqDiagram(name = "S") {
                         include(a)
                         includeById("ghost") // not declared
                     }
                 }
             val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = seq)
 
             graph.nodes shouldHaveSize 1
             graph.nodes
@@ -1407,7 +1413,7 @@ class Sysml2LayoutBridgeTest :
                         ),
                 )
             val seq = SeqDiagram(name = "S", elementIds = listOf("a", "b"))
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = seq)
 
             // maxSeqNo = 0 (only visible pair) → rowCount = 1 → height = HEAD + 2*ROW + TAIL
             val expected =
@@ -1421,8 +1427,8 @@ class Sysml2LayoutBridgeTest :
             graph.edges shouldHaveSize 0
 
             SampleOutput.write(
-                "sysml2-layout-bridge/seq-dangling-messages-ignored.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/seq-dangling-messages-ignored.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
@@ -1433,19 +1439,19 @@ class Sysml2LayoutBridgeTest :
             // covers seqNo 1..5 → the lifeline must be tall enough for the
             // fragment's endSeqNo, not just the last-message seqNo.
             val model =
-                sysml2Model("CFHeight") {
-                    val a = lifelineDef("a")
-                    val b = lifelineDef("b")
-                    message("ping", a, b, seqNo = 1)
-                    message("pong", b, a, seqNo = 2)
-                    combinedFragment("loopBlock", CombinedFragmentOperator.Loop, startSeqNo = 1, endSeqNo = 5)
-                    seqDiagram("S") {
+                sysml2Model(name = "CFHeight") {
+                    val a = lifelineDef(name = "a")
+                    val b = lifelineDef(name = "b")
+                    message(label = "ping", source = a, target = b, seqNo = 1)
+                    message(label = "pong", source = b, target = a, seqNo = 2)
+                    combinedFragment(name = "loopBlock", operator = CombinedFragmentOperator.Loop, startSeqNo = 1, endSeqNo = 5)
+                    seqDiagram(name = "S") {
                         include(a)
                         include(b)
                     }
                 }
             val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = seq)
 
             // maxSeqNo = 5 (from CF) → rowCount = 6 → height = HEAD + (6+1)*ROW + TAIL.
             // The loop fragment has one operand → one header band is added on top
@@ -1461,25 +1467,25 @@ class Sysml2LayoutBridgeTest :
             graph.edges shouldHaveSize 0
 
             SampleOutput.write(
-                "sysml2-layout-bridge/seq-height-extended-by-fragment.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/seq-height-extended-by-fragment.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "SEQ lifeline height extends to accommodate an execution spec beyond the last message" {
             val model =
-                sysml2Model("ESHeight") {
-                    val a = lifelineDef("a")
-                    val b = lifelineDef("b")
-                    message("ping", a, b, seqNo = 1)
-                    executionSpec("activeB", b, startSeqNo = 1, endSeqNo = 7)
-                    seqDiagram("S") {
+                sysml2Model(name = "ESHeight") {
+                    val a = lifelineDef(name = "a")
+                    val b = lifelineDef(name = "b")
+                    message(label = "ping", source = a, target = b, seqNo = 1)
+                    executionSpec(name = "activeB", lifeline = b, startSeqNo = 1, endSeqNo = 7)
+                    seqDiagram(name = "S") {
                         include(a)
                         include(b)
                     }
                 }
             val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = seq)
 
             // maxSeqNo = 7 (from ExecSpec) → rowCount = 8 → height = HEAD + (8+1)*ROW + TAIL
             val expected =
@@ -1491,8 +1497,8 @@ class Sysml2LayoutBridgeTest :
             }
 
             SampleOutput.write(
-                "sysml2-layout-bridge/seq-height-extended-by-execspec.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/seq-height-extended-by-execspec.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
@@ -1500,21 +1506,21 @@ class Sysml2LayoutBridgeTest :
             // Messages reach seqNo=10 — that's the dominating maximum.
             // The fragment covers only 1..3. Height must follow messages.
             val model =
-                sysml2Model("MaxMix") {
-                    val a = lifelineDef("a")
-                    val b = lifelineDef("b")
+                sysml2Model(name = "MaxMix") {
+                    val a = lifelineDef(name = "a")
+                    val b = lifelineDef(name = "b")
                     for (i in 0..10) {
-                        message("m$i", if (i % 2 == 0) a else b, if (i % 2 == 0) b else a, seqNo = i)
+                        message(label = "m$i", source = if (i % 2 == 0) a else b, target = if (i % 2 == 0) b else a, seqNo = i)
                     }
-                    combinedFragment("smallFrag", CombinedFragmentOperator.Opt, startSeqNo = 1, endSeqNo = 3)
-                    executionSpec("activeShort", a, startSeqNo = 0, endSeqNo = 2)
-                    seqDiagram("S") {
+                    combinedFragment(name = "smallFrag", operator = CombinedFragmentOperator.Opt, startSeqNo = 1, endSeqNo = 3)
+                    executionSpec(name = "activeShort", lifeline = a, startSeqNo = 0, endSeqNo = 2)
+                    seqDiagram(name = "S") {
                         include(a)
                         include(b)
                     }
                 }
             val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = seq)
 
             // maxSeqNo = 10 (message > fragment 3 > execspec 2) → rowCount = 11.
             // The opt fragment has one operand → one header band is added on top
@@ -1529,8 +1535,8 @@ class Sysml2LayoutBridgeTest :
             }
 
             SampleOutput.write(
-                "sysml2-layout-bridge/seq-height-picks-larger-max.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/seq-height-picks-larger-max.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
@@ -1538,33 +1544,33 @@ class Sysml2LayoutBridgeTest :
 
         "PAR with one constraint + one part + two bindings → 2 nodes + 2 edges" {
             val model =
-                sysml2Model("PARTwoBindings") {
-                    val mass = attributeDef("Mass")
-                    val accel = attributeDef("Acceleration")
+                sysml2Model(name = "PARTwoBindings") {
+                    val mass = attributeDef(name = "Mass")
+                    val accel = attributeDef(name = "Acceleration")
                     val newton =
                         constraintDef(
-                            "NewtonsLaw",
+                            name = "NewtonsLaw",
                             expression = "F = m * a",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("m", typeId = mass.id, direction = ConstraintParameterDirection.In),
-                                    ConstraintParameter("a", typeId = accel.id, direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "m", typeId = mass.id, direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "a", typeId = accel.id, direction = ConstraintParameterDirection.In),
                                 ),
                         )
                     val vehicle =
-                        partDef("Vehicle") {
-                            attribute("mass", typeId = mass.id)
-                            attribute("acceleration", typeId = accel.id)
+                        partDef(name = "Vehicle") {
+                            attribute(name = "mass", typeId = mass.id)
+                            attribute(name = "acceleration", typeId = accel.id)
                         }
-                    bind("bindMass", source = "NewtonsLaw::m", target = "Vehicle::mass")
-                    bind("bindAccel", source = "NewtonsLaw::a", target = "Vehicle::acceleration")
-                    parDiagram("PAR") {
+                    bind(name = "bindMass", source = "NewtonsLaw::m", target = "Vehicle::mass")
+                    bind(name = "bindAccel", source = "NewtonsLaw::a", target = "Vehicle::acceleration")
+                    parDiagram(name = "PAR") {
                         include(newton)
                         include(vehicle)
                     }
                 }
             val par = model.diagrams.filterIsInstance<ParDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, par)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = par)
             graph.nodes shouldHaveSize 2
             graph.edges shouldHaveSize 2
             graph.edges.map { it.id.value } shouldContainExactlyInAnyOrder
@@ -1573,25 +1579,25 @@ class Sysml2LayoutBridgeTest :
                     "binding:NewtonsLaw::a::Vehicle::acceleration",
                 )
             SampleOutput.write(
-                "sysml2-layout-bridge/par-newton-two-bindings.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/par-newton-two-bindings.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "PAR constraint sized as PAR_CONSTRAINT_WIDTH × PAR_CONSTRAINT_HEIGHT" {
             val model =
-                sysml2Model("PARSize") {
-                    val newton = constraintDef("NewtonsLaw", expression = "F = m * a")
-                    parDiagram("PAR") { include(newton) }
+                sysml2Model(name = "PARSize") {
+                    val newton = constraintDef(name = "NewtonsLaw", expression = "F = m * a")
+                    parDiagram(name = "PAR") { include(newton) }
                 }
             val par = model.diagrams.filterIsInstance<ParDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, par)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = par)
             val node = graph.nodes.single()
             node.intrinsicSize.width shouldBe Sysml2LayoutBridge.PAR_CONSTRAINT_WIDTH
             node.intrinsicSize.height shouldBe Sysml2LayoutBridge.PAR_CONSTRAINT_HEIGHT
             SampleOutput.write(
-                "sysml2-layout-bridge/par-constraint-default-size.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/par-constraint-default-size.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
@@ -1601,7 +1607,7 @@ class Sysml2LayoutBridgeTest :
                     id = "NewtonsLaw",
                     name = "NewtonsLaw",
                     expression = "F = m * a",
-                    parameters = listOf(ConstraintParameter("m", direction = ConstraintParameterDirection.In)),
+                    parameters = listOf(ConstraintParameter(name = "m", direction = ConstraintParameterDirection.In)),
                 )
             val vehicle = PartDefinition(id = "Vehicle", name = "Vehicle")
             val model =
@@ -1625,93 +1631,97 @@ class Sysml2LayoutBridgeTest :
                         ),
                 )
             val par = ParDiagram(name = "PAR", elementIds = listOf("NewtonsLaw", "Vehicle"))
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, par)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = par)
             graph.nodes shouldHaveSize 2
             graph.edges shouldHaveSize 1
             graph.edges
                 .single()
                 .id.value shouldBe "binding:NewtonsLaw::m::Vehicle::mass"
             SampleOutput.write(
-                "sysml2-layout-bridge/par-dangling-bindings-dropped.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/par-dangling-bindings-dropped.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "PAR missing definitions are skipped silently" {
             val model =
-                sysml2Model("PARMissing") {
-                    val newton = constraintDef("NewtonsLaw", expression = "F = m * a")
-                    parDiagram("PAR") {
+                sysml2Model(name = "PARMissing") {
+                    val newton = constraintDef(name = "NewtonsLaw", expression = "F = m * a")
+                    parDiagram(name = "PAR") {
                         include(newton)
                         includeById("DoesNotExist")
                     }
                 }
             val par = model.diagrams.filterIsInstance<ParDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, par)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = par)
             graph.nodes shouldHaveSize 1
             graph.nodes
                 .single()
                 .id.value shouldBe "NewtonsLaw"
             SampleOutput.write(
-                "sysml2-layout-bridge/par-missing-definitions-skipped.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/par-missing-definitions-skipped.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "PAR longest-prefix-match resolves `Vehicle::force` to Vehicle node" {
             val model =
-                sysml2Model("PARLongestPrefix") {
-                    val force = attributeDef("Force")
+                sysml2Model(name = "PARLongestPrefix") {
+                    val force = attributeDef(name = "Force")
                     val newton =
                         constraintDef(
-                            "NewtonsLaw",
+                            name = "NewtonsLaw",
                             expression = "F = m * a",
-                            parameters = listOf(ConstraintParameter("F", typeId = force.id, direction = ConstraintParameterDirection.Out)),
+                            parameters =
+                                listOf(
+                                    ConstraintParameter(name = "F", typeId = force.id, direction = ConstraintParameterDirection.Out),
+                                ),
                         )
                     val vehicle =
-                        partDef("Vehicle") {
-                            attribute("force", typeId = force.id)
+                        partDef(name = "Vehicle") {
+                            attribute(name = "force", typeId = force.id)
                         }
                     // Endpoint id `Vehicle::force` does not exist as a top-level
                     // element — the longest-prefix-match must resolve it to
                     // the visible `Vehicle` node.
-                    bind("bindForce", source = "NewtonsLaw::F", target = "Vehicle::force")
-                    parDiagram("PAR") {
+                    bind(name = "bindForce", source = "NewtonsLaw::F", target = "Vehicle::force")
+                    parDiagram(name = "PAR") {
                         include(newton)
                         include(vehicle)
                     }
                 }
             val par = model.diagrams.filterIsInstance<ParDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, par)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = par)
             graph.edges shouldHaveSize 1
             val edge = graph.edges.single()
             edge.source.nodeId.value shouldBe "NewtonsLaw"
             edge.target.nodeId.value shouldBe "Vehicle"
             SampleOutput.write(
-                "sysml2-layout-bridge/par-longest-prefix-match.layout.json",
-                prettyJson.encodeToString(graph),
+                filename = "sysml2-layout-bridge/par-longest-prefix-match.layout.json",
+                content = prettyJson.encodeToString(graph),
             )
         }
 
         "IBD default size matches IBD_DEFAULT_WIDTH × IBD_DEFAULT_HEIGHT" {
             val model =
-                sysml2Model("M") {
-                    val engineDef = partDef("Engine")
+                sysml2Model(name = "M") {
+                    val engineDef = partDef(name = "Engine")
                     val vehicle =
-                        partDef("Vehicle") {
-                            part("engine", typeId = engineDef.id)
+                        partDef(name = "Vehicle") {
+                            part(name = "engine", typeId = engineDef.id)
                         }
-                    ibd("D", owner = vehicle)
+                    ibd(name = "D", owner = vehicle)
                 }
             val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
             val graph =
                 Sysml2LayoutBridge.toLayoutGraph(
-                    model,
-                    ibd,
-                    SizeProvider.constant(
-                        width = Sysml2LayoutBridge.IBD_DEFAULT_WIDTH,
-                        height = Sysml2LayoutBridge.IBD_DEFAULT_HEIGHT,
-                    ),
+                    model = model,
+                    diagram = ibd,
+                    sizeProvider =
+                        SizeProvider.constant(
+                            width = Sysml2LayoutBridge.IBD_DEFAULT_WIDTH,
+                            height = Sysml2LayoutBridge.IBD_DEFAULT_HEIGHT,
+                        ),
                 )
             graph.nodes
                 .single()

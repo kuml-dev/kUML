@@ -24,7 +24,7 @@ import io.kotest.matchers.string.shouldContain
  */
 class InterpreterSecurityAndNegativeTest :
     StringSpec({
-        fun eval(src: String): EvaluatedScript = InterpreterScriptEvaluator.evaluate(src, "test.kuml.kts")
+        fun eval(src: String): EvaluatedScript = InterpreterScriptEvaluator.evaluate(source = src, fileName = "test.kuml.kts")
 
         // ── Security: the canonical RCE payloads must fail, never succeed ────────────
 
@@ -55,7 +55,7 @@ class InterpreterSecurityAndNegativeTest :
                 }
                 """.trimIndent()
             val ex =
-                runCatching { DslParser.parse(payload) }.exceptionOrNull()
+                runCatching { DslParser.parse(src = payload) }.exceptionOrNull()
             (ex is DslParseException) shouldBe true
         }
 
@@ -69,7 +69,7 @@ class InterpreterSecurityAndNegativeTest :
                     someObject.someField.someMethod
                 }
                 """.trimIndent()
-            val ex = runCatching { DslParser.parse(payload) }.exceptionOrNull()
+            val ex = runCatching { DslParser.parse(src = payload) }.exceptionOrNull()
             (ex is DslParseException) shouldBe true
         }
 

@@ -63,16 +63,16 @@ public object UmlCommentLayout {
                 if (paragraph.isBlank()) {
                     listOf("")
                 } else {
-                    TextWrap.wrapToWidth(paragraph, maxInnerWidth, BODY_CHAR_PX)
+                    TextWrap.wrapToWidth(text = paragraph, maxWidthPx = maxInnerWidth, charPx = BODY_CHAR_PX)
                 }
             }
 
     /** Computes the note box [Size] for [comment], per [wrapBody] + padding rules. */
     public fun sizeOf(comment: UmlComment): Size {
-        val lines = wrapBody(comment.body)
+        val lines = wrapBody(body = comment.body)
         val widestLine = lines.maxOfOrNull { it.length * BODY_CHAR_PX } ?: 0f
         val w = maxOf(DEFAULT_W, minOf(MAX_W, widestLine + H_PADDING))
         val h = maxOf(DEFAULT_H, lines.size * LINE_H + V_PADDING)
-        return Size(w, h)
+        return Size(width = w, height = h)
     }
 }

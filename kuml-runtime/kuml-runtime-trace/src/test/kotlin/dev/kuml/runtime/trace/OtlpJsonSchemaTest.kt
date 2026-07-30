@@ -13,11 +13,12 @@ class OtlpJsonSchemaTest :
         val sm = oneEventSm()
         val traceFile =
             simulateToTraceFile(
-                sm,
-                listOf(
-                    dev.kuml.runtime.Event
-                        .of("go"),
-                ),
+                model = sm,
+                events =
+                    listOf(
+                        dev.kuml.runtime.Event
+                            .of("go"),
+                    ),
             )
 
         test("exported JSON is parseable by a standard Json instance") {

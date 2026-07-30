@@ -48,7 +48,7 @@ public class KotlinSourceReverseEngine : KumlReverseEngine {
         val startMs = System.currentTimeMillis()
         val diagnostics = DiagnosticCollector()
 
-        val session = KotlinAnalysisSession(request, diagnostics)
+        val session = KotlinAnalysisSession(request = request, diagnostics = diagnostics)
         try {
             val ktFiles = session.loadKtFiles()
 
@@ -67,16 +67,16 @@ public class KotlinSourceReverseEngine : KumlReverseEngine {
             }
 
             // Pass 1: build FQN pool
-            val pool = KtFqnPool.build(ktFiles, diagnostics)
+            val pool = KtFqnPool.build(files = ktFiles, diagnostics = diagnostics)
 
             // Instantiate mappers
             val typeResolver = KtTypeResolver(pool)
             val propertyMapper = KtPropertyMapper(typeResolver)
             val paramMapper = KtParameterMapper(typeResolver)
-            val functionMapper = KtFunctionMapper(paramMapper, typeResolver)
-            val classMapper = KtClassMapper(propertyMapper, functionMapper, diagnostics)
-            val interfaceMapper = KtInterfaceMapper(propertyMapper, functionMapper)
-            val objectMapper = KtObjectMapper(propertyMapper, functionMapper, diagnostics)
+            val functionMapper = KtFunctionMapper(paramMapper = paramMapper, typeResolver = typeResolver)
+            val classMapper = KtClassMapper(propertyMapper = propertyMapper, functionMapper = functionMapper, diagnostics = diagnostics)
+            val interfaceMapper = KtInterfaceMapper(propertyMapper = propertyMapper, functionMapper = functionMapper)
+            val objectMapper = KtObjectMapper(propertyMapper = propertyMapper, functionMapper = functionMapper, diagnostics = diagnostics)
             val enumMapper = KtEnumerationMapper(diagnostics)
 
             // Pass 2: walk all known FQNs and map classifiers
@@ -90,16 +90,16 @@ public class KotlinSourceReverseEngine : KumlReverseEngine {
 
                 when {
                     decl is KtClass && decl.isEnum() -> {
-                        enumerations += enumMapper.map(decl, fqn, id)
+                        enumerations += enumMapper.map(ktEnum = decl, fqn = fqn, id = id)
                     }
                     decl is KtClass && decl.isInterface() -> {
-                        interfaces += interfaceMapper.map(decl, fqn, id)
+                        interfaces += interfaceMapper.map(ktInterface = decl, fqn = fqn, id = id)
                     }
                     decl is KtClass -> {
-                        classes += classMapper.map(decl, fqn, id)
+                        classes += classMapper.map(ktClass = decl, fqn = fqn, id = id)
                     }
                     decl is KtObjectDeclaration -> {
-                        objectMapper.map(decl, fqn, id)?.let { classes += it }
+                        objectMapper.map(obj = decl, fqn = fqn, id = id)?.let { classes += it }
                     }
                 }
             }
@@ -143,12 +143,12 @@ public class KotlinSourceReverseEngine : KumlReverseEngine {
             }
 
             // Post-pass: generalization/realization relationships
-            val genMapper = KtGeneralizationMapper(pool, diagnostics)
+            val genMapper = KtGeneralizationMapper(pool = pool, diagnostics = diagnostics)
             val genResult = genMapper.mapAll()
 
             // Post-pass: association detection
             val assocDetector = KtAssociationDetector(pool)
-            val associations = assocDetector.detect(classes, interfaces)
+            val associations = assocDetector.detect(classes = classes, interfaces = interfaces)
 
             // Assemble element list in deterministic order
             val elements: List<UmlElement> =

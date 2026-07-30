@@ -14,10 +14,10 @@ class EvmJsonRpcClientTest :
         "ethBlockNumber parses 0x-quantity from RPC result" {
             runTest {
                 val server = MockRpcServer()
-                server.onMethod("eth_blockNumber") { rpcSuccess(result = "\"0x10\"") }
+                server.onMethod(method = "eth_blockNumber") { rpcSuccess(result = "\"0x10\"") }
                 server.start()
                 try {
-                    val client = EvmJsonRpcClient(server.baseUrl())
+                    val client = EvmJsonRpcClient(rpcUrl = server.baseUrl())
                     client.ethBlockNumber() shouldBe 16L
                 } finally {
                     server.stop()
@@ -28,10 +28,10 @@ class EvmJsonRpcClientTest :
         "call surfaces JSON-RPC error object as RpcError with code and message" {
             runTest {
                 val server = MockRpcServer()
-                server.onMethod("eth_blockNumber") { rpcError(code = -32000, message = "boom") }
+                server.onMethod(method = "eth_blockNumber") { rpcError(code = -32000, message = "boom") }
                 server.start()
                 try {
-                    val client = EvmJsonRpcClient(server.baseUrl())
+                    val client = EvmJsonRpcClient(rpcUrl = server.baseUrl())
                     val ex =
                         shouldThrow<EvmChainAdapterException.RpcError> {
                             client.ethBlockNumber()
@@ -57,7 +57,7 @@ class EvmJsonRpcClientTest :
                 }
                 httpServer.start()
                 try {
-                    val client = EvmJsonRpcClient("http://127.0.0.1:${httpServer.address.port}")
+                    val client = EvmJsonRpcClient(rpcUrl = "http://127.0.0.1:${httpServer.address.port}")
                     shouldThrow<EvmChainAdapterException.NetworkError> {
                         client.ethBlockNumber()
                     }
@@ -71,13 +71,13 @@ class EvmJsonRpcClientTest :
             runTest {
                 var capturedBody = ""
                 val server = MockRpcServer()
-                server.onMethod("eth_getLogs") { body ->
+                server.onMethod(method = "eth_getLogs") { body ->
                     capturedBody = body
                     rpcSuccess(result = "[]")
                 }
                 server.start()
                 try {
-                    val client = EvmJsonRpcClient(server.baseUrl())
+                    val client = EvmJsonRpcClient(rpcUrl = server.baseUrl())
                     client.ethGetLogs(
                         address = "0xdeadbeef",
                         fromBlock = 100L,

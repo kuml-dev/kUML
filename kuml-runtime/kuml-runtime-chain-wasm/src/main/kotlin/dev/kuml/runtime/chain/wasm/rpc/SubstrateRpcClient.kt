@@ -91,11 +91,11 @@ public open class SubstrateRpcClient(
      * Ruft `chain_getFinalizedHead` + `chain_getHeader` auf.
      */
     public open suspend fun currentHead(): Long {
-        val headHash = call("chain_getFinalizedHead", buildJsonArray {}).jsonPrimitive.content
-        val header = call("chain_getHeader", buildJsonArray { add(JsonPrimitive(headHash)) }).jsonObject
+        val headHash = call(method = "chain_getFinalizedHead", params = buildJsonArray {}).jsonPrimitive.content
+        val header = call(method = "chain_getHeader", params = buildJsonArray { add(JsonPrimitive(headHash)) }).jsonObject
         val numberHex =
             header["number"]?.jsonPrimitive?.content
-                ?: throw SubstrateWasmException.MalformedResponse("chain_getHeader missing 'number'")
+                ?: throw SubstrateWasmException.MalformedResponse(message = "chain_getHeader missing 'number'")
         return parseHexQuantity(numberHex)
     }
 
@@ -119,7 +119,11 @@ public open class SubstrateRpcClient(
         val blockHash = getBlockHash(block)
         val eventsHex = getSystemEventsHex(blockHash)
         if (eventsHex.isEmpty() || eventsHex == "0x") return emptyList()
-        return SubstrateSystemEventsParser.parseContractEmitted(eventsHex, block, contractAddress)
+        return SubstrateSystemEventsParser.parseContractEmitted(
+            eventsHex = eventsHex,
+            blockNumber = block,
+            contractAddress = contractAddress,
+        )
     }
 
     /**
@@ -132,8 +136,8 @@ public open class SubstrateRpcClient(
         // Vereinfacht: liest direkt aus dem Storage-Slot fuer die Registry-Identity.
         // In der vollen Implementierung wuerde hier der ABI-Selector fuer get_kuml_identity
         // genutzt. Fuer Tests injiziert der Adapter ein abiProvider-Lambda.
-        val result = contractsCall(contractAddress, GET_KUML_IDENTITY_SELECTOR)
-        return parseContractIdentity(contractAddress, result)
+        val result = contractsCall(contractAddress = contractAddress, selectorHex = GET_KUML_IDENTITY_SELECTOR)
+        return parseContractIdentity(address = contractAddress, scaleHex = result)
     }
 
     /**
@@ -141,7 +145,7 @@ public open class SubstrateRpcClient(
      * Ruft `get_metadata` Message auf und gibt das JSON-Dokument als String zurueck.
      */
     public open suspend fun fetchContractMetadata(contractAddress: String): String {
-        val result = contractsCall(contractAddress, GET_METADATA_SELECTOR)
+        val result = contractsCall(contractAddress = contractAddress, selectorHex = GET_METADATA_SELECTOR)
         return parseMetadataString(result)
     }
 
@@ -188,16 +192,16 @@ public open class SubstrateRpcClient(
                     val response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream())
                     if (response.statusCode() !in 200..299) {
                         throw SubstrateWasmException.NetworkError(
-                            "HTTP ${response.statusCode()} from ${sanitizeUrl(rpcUrl)}",
+                            message = "HTTP ${response.statusCode()} from ${sanitizeUrl(rpcUrl)}",
                         )
                     }
-                    readLimited(response.body(), maxResponseBytes)
+                    readLimited(stream = response.body(), limit = maxResponseBytes)
                 } catch (e: SubstrateWasmException) {
                     throw e
                 } catch (e: Exception) {
                     throw SubstrateWasmException.NetworkError(
-                        "IO error calling ${sanitizeUrl(rpcUrl)}: ${e.message}",
-                        e,
+                        message = "IO error calling ${sanitizeUrl(rpcUrl)}: ${e.message}",
+                        cause = e,
                     )
                 }
             }
@@ -206,35 +210,35 @@ public open class SubstrateRpcClient(
             try {
                 json.parseToJsonElement(responseBody)
             } catch (e: Exception) {
-                throw SubstrateWasmException.MalformedResponse("Could not parse JSON-RPC response: ${e.message}", e)
+                throw SubstrateWasmException.MalformedResponse(message = "Could not parse JSON-RPC response: ${e.message}", cause = e)
             }
 
         val obj =
             parsed as? JsonObject
-                ?: throw SubstrateWasmException.MalformedResponse("JSON-RPC response is not an object")
+                ?: throw SubstrateWasmException.MalformedResponse(message = "JSON-RPC response is not an object")
 
         val errorObj = obj["error"]
         if (errorObj != null && errorObj !is JsonNull) {
             val errObj =
                 errorObj as? JsonObject
-                    ?: throw SubstrateWasmException.MalformedResponse("JSON-RPC error field is not an object")
+                    ?: throw SubstrateWasmException.MalformedResponse(message = "JSON-RPC error field is not an object")
             val code =
                 errObj["code"]?.jsonPrimitive?.int
-                    ?: throw SubstrateWasmException.MalformedResponse("JSON-RPC error missing code")
+                    ?: throw SubstrateWasmException.MalformedResponse(message = "JSON-RPC error missing code")
             val message = errObj["message"]?.jsonPrimitive?.content ?: "unknown"
             val data = errObj["data"]?.jsonPrimitive?.content
-            throw SubstrateWasmException.RpcError(code, message, data)
+            throw SubstrateWasmException.RpcError(code = code, rpcMessage = message, rpcData = data)
         }
 
         return obj["result"]
-            ?: throw SubstrateWasmException.MalformedResponse("JSON-RPC response missing 'result' field")
+            ?: throw SubstrateWasmException.MalformedResponse(message = "JSON-RPC response missing 'result' field")
     }
 
     private suspend fun getBlockHash(height: Long): String {
         val params = buildJsonArray { add(JsonPrimitive(height)) }
-        val res = call("chain_getBlockHash", params)
+        val res = call(method = "chain_getBlockHash", params = params)
         if (res is JsonNull) {
-            throw SubstrateWasmException.MalformedResponse("no block hash for height $height")
+            throw SubstrateWasmException.MalformedResponse(message = "no block hash for height $height")
         }
         return res.jsonPrimitive.content
     }
@@ -245,7 +249,7 @@ public open class SubstrateRpcClient(
                 add(JsonPrimitive(SYSTEM_EVENTS_KEY))
                 add(JsonPrimitive(blockHash))
             }
-        val res = call("state_getStorage", params)
+        val res = call(method = "state_getStorage", params = params)
         return if (res is JsonNull) "" else res.jsonPrimitive.content
     }
 
@@ -256,7 +260,7 @@ public open class SubstrateRpcClient(
     ): String {
         val selectorBytes = hexToBytes(selectorHex)
         val destAccountId = decodeAccountId(contractAddress)
-        val args = buildScaleContractsApiCallArgs(destAccountId, selectorBytes)
+        val args = buildScaleContractsApiCallArgs(destAccountId = destAccountId, inputData = selectorBytes)
         val argsHex = "0x" + args.joinToString("") { "%02x".format(it) }
 
         val params =
@@ -264,11 +268,11 @@ public open class SubstrateRpcClient(
                 add(JsonPrimitive("ContractsApi_call"))
                 add(JsonPrimitive(argsHex))
             }
-        val res = call("state_call", params)
+        val res = call(method = "state_call", params = params)
         if (res is JsonPrimitive) return res.content
         val obj =
             res as? JsonObject
-                ?: throw SubstrateWasmException.MalformedResponse("ContractsApi_call result is neither hex nor object")
+                ?: throw SubstrateWasmException.MalformedResponse(message = "ContractsApi_call result is neither hex nor object")
         return obj["result"]
             ?.let { it as? JsonObject }
             ?.get("Ok")
@@ -277,7 +281,7 @@ public open class SubstrateRpcClient(
             ?.jsonPrimitive
             ?.content
             ?: obj["data"]?.jsonPrimitive?.content
-            ?: throw SubstrateWasmException.MalformedResponse("ContractsApi_call result missing data")
+            ?: throw SubstrateWasmException.MalformedResponse(message = "ContractsApi_call result missing data")
     }
 
     /**
@@ -338,7 +342,7 @@ public open class SubstrateRpcClient(
         val bytes = hexToBytes(scaleHex)
         if (bytes.size < 32) {
             throw SubstrateWasmException.MalformedResponse(
-                "ContractIdentity SCALE response too short: ${bytes.size} bytes",
+                message = "ContractIdentity SCALE response too short: ${bytes.size} bytes",
             )
         }
         // Simplified: read first 32 bytes as modelHash, then Vec<u8> as modelUri, then u32 as schemaVersion.
@@ -346,14 +350,14 @@ public open class SubstrateRpcClient(
         var pos = 32
         // Vec<u8>: compact length + bytes
         if (pos >= bytes.size) {
-            return ContractIdentity(address, modelHash, "", 1)
+            return ContractIdentity(address = address, modelHash = modelHash, modelUri = "", schemaVersion = 1)
         }
-        val uriLen = scaleCompactDecode(bytes, pos)
+        val uriLen = scaleCompactDecode(data = bytes, pos = pos)
         pos += uriLen.second
         val uriEnd = pos + uriLen.first
         if (uriEnd > bytes.size) {
             throw SubstrateWasmException.MalformedResponse(
-                "ContractIdentity SCALE: Vec<u8> URI claims ${ uriLen.first } bytes but only ${ bytes.size - pos } remain",
+                message = "ContractIdentity SCALE: Vec<u8> URI claims ${ uriLen.first } bytes but only ${ bytes.size - pos } remain",
             )
         }
         val modelUri = String(bytes.copyOfRange(pos, uriEnd), Charsets.UTF_8)
@@ -369,7 +373,7 @@ public open class SubstrateRpcClient(
             } else {
                 1
             }
-        return ContractIdentity(address, modelHash, modelUri, schemaVersion)
+        return ContractIdentity(address = address, modelHash = modelHash, modelUri = modelUri, schemaVersion = schemaVersion)
     }
 
     /** Parst das SCALE-Ergebnis von fetchContractMetadata als JSON-String. */
@@ -377,12 +381,12 @@ public open class SubstrateRpcClient(
         val bytes = hexToBytes(scaleHex)
         if (bytes.isEmpty()) return "{}"
         // Erwarte Vec<u8> (Compact-Laenge + UTF-8-Bytes)
-        val lenResult = scaleCompactDecode(bytes, 0)
+        val lenResult = scaleCompactDecode(data = bytes, pos = 0)
         val start = lenResult.second
         val end = start + lenResult.first
         if (end > bytes.size) {
             throw SubstrateWasmException.MalformedResponse(
-                "Metadata SCALE: Vec<u8> claims ${ lenResult.first } bytes but only ${ bytes.size - start } remain",
+                message = "Metadata SCALE: Vec<u8> claims ${ lenResult.first } bytes but only ${ bytes.size - start } remain",
             )
         }
         return String(bytes.copyOfRange(start, end), Charsets.UTF_8)
@@ -400,7 +404,7 @@ public open class SubstrateRpcClient(
     ): Pair<Int, Int> {
         if (pos >= data.size) {
             throw SubstrateWasmException.MalformedResponse(
-                "SCALE Compact decode: no bytes available at pos $pos (data size ${data.size})",
+                message = "SCALE Compact decode: no bytes available at pos $pos (data size ${data.size})",
             )
         }
         val first = data[pos].toInt() and 0xFF
@@ -409,7 +413,7 @@ public open class SubstrateRpcClient(
             0b01 -> {
                 if (pos + 1 >= data.size) {
                     throw SubstrateWasmException.MalformedResponse(
-                        "SCALE Compact two-byte mode: truncated at pos $pos (data size ${data.size})",
+                        message = "SCALE Compact two-byte mode: truncated at pos $pos (data size ${data.size})",
                     )
                 }
                 val v = ((data[pos].toInt() and 0xFF) or ((data[pos + 1].toInt() and 0xFF) shl 8)) ushr 2
@@ -418,7 +422,7 @@ public open class SubstrateRpcClient(
             0b10 -> {
                 if (pos + 3 >= data.size) {
                     throw SubstrateWasmException.MalformedResponse(
-                        "SCALE Compact four-byte mode: truncated at pos $pos (data size ${data.size})",
+                        message = "SCALE Compact four-byte mode: truncated at pos $pos (data size ${data.size})",
                     )
                 }
                 var v = 0
@@ -426,7 +430,7 @@ public open class SubstrateRpcClient(
                 Pair(v ushr 2, 4)
             }
             else -> throw SubstrateWasmException.MalformedResponse(
-                "SCALE Compact big-integer mode not supported in RPC client compact decoder at pos $pos",
+                message = "SCALE Compact big-integer mode not supported in RPC client compact decoder at pos $pos",
             )
         }
     }
@@ -466,7 +470,7 @@ public open class SubstrateRpcClient(
             val clean = hex.removePrefix("0x").removePrefix("0X")
             if (clean.isEmpty()) return 0L
             return clean.toLongOrNull(16)
-                ?: throw SubstrateWasmException.MalformedResponse("Not a valid hex quantity: '$hex'")
+                ?: throw SubstrateWasmException.MalformedResponse(message = "Not a valid hex quantity: '$hex'")
         }
 
         /** Entfernt Credentials aus URL vor Logging/Exceptions. */
@@ -492,7 +496,7 @@ public open class SubstrateRpcClient(
                     totalRead += n
                     if (totalRead > limit) {
                         throw SubstrateWasmException.NetworkError(
-                            "RPC response exceeds maximum allowed size of $limit bytes",
+                            message = "RPC response exceeds maximum allowed size of $limit bytes",
                         )
                     }
                     sb.append(String(buffer, 0, n, Charsets.UTF_8))
@@ -653,7 +657,8 @@ public object SubstrateSystemEventsParser {
             if (blob[i] == palletByte && blob[i + 1] == eventByte) {
                 // Versuch: Dekodiere ContractEmitted ab Position i+2
                 val pos = i + 2
-                val event = tryDecodeContractEmitted(blob, pos, blockNumber, targetAccountId)
+                val event =
+                    tryDecodeContractEmitted(blob = blob, startPos = pos, blockNumber = blockNumber, targetAccountId = targetAccountId)
                 if (event != null) {
                     result.add(event)
                 }
@@ -686,7 +691,7 @@ public object SubstrateSystemEventsParser {
 
             // topics: Vec<H256> (Compact-Laenge + N * 32 Bytes)
             if (pos >= blob.size) return null
-            val topicsLen = decodeCompactInt(blob, pos) ?: return null
+            val topicsLen = decodeCompactInt(data = blob, pos = pos) ?: return null
             if (topicsLen.first > MAX_TOPICS) return null
             pos += topicsLen.second
             val topicsHex = mutableListOf<String>()
@@ -699,7 +704,7 @@ public object SubstrateSystemEventsParser {
 
             // data: Vec<u8> (Compact-Laenge + N Bytes)
             if (pos >= blob.size) return null
-            val dataLen = decodeCompactInt(blob, pos) ?: return null
+            val dataLen = decodeCompactInt(data = blob, pos = pos) ?: return null
             if (dataLen.first > MAX_DATA_BYTES) return null
             pos += dataLen.second
             if (pos + dataLen.first > blob.size) return null

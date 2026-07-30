@@ -51,7 +51,7 @@ public data class Insets(
 ) {
     public companion object {
         /** Insets ohne Abstand auf allen Seiten. */
-        public val ZERO: Insets = Insets(0f, 0f, 0f, 0f)
+        public val ZERO: Insets = Insets(top = 0f, right = 0f, bottom = 0f, left = 0f)
     }
 }
 
@@ -80,7 +80,7 @@ public data class Spacing(
 ) {
     public companion object {
         /** Standard-Abstände: 40 px Knoten-zu-Knoten, 12 px Kante-zu-Kante, 16 px Gruppen-Padding. */
-        public val DEFAULT: Spacing = Spacing(40f, 12f, 16f)
+        public val DEFAULT: Spacing = Spacing(nodeToNode = 40f, edgeToEdge = 12f, groupPadding = 16f)
     }
 }
 

@@ -46,7 +46,7 @@ class OclValidatorTest :
                 UmlClass(
                     id = "Order",
                     name = "Order",
-                    attributes = listOf(UmlProperty(id = "Order::total", name = "total", type = UmlTypeRef("Int"))),
+                    attributes = listOf(UmlProperty(id = "Order::total", name = "total", type = UmlTypeRef(name = "Int"))),
                     constraints =
                         listOf(
                             UmlConstraint(

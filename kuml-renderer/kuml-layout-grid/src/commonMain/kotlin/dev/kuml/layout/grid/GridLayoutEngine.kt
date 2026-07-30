@@ -101,16 +101,16 @@ public class GridLayoutEngine : KumlLayoutEngine {
         warnings += placement.warnings
 
         // ── Phase 2: Spalten-/Zeilen-Geometrie ────────────────────────────
-        val geometry = computeGeometry(graph, placement, hints.spacing)
+        val geometry = computeGeometry(graph = graph, placement = placement, spacing = hints.spacing)
 
         // ── Phase 3: Knoten-Bounds + Ports ────────────────────────────────
         val portsByNode = portsByNode(graph.edges)
         val nodeLayouts: Map<NodeId, NodeLayout> =
             graph.nodes.associate { node ->
                 val slot = placement.slots.getValue(node.id)
-                val bounds = geometry.boundsFor(slot, node.intrinsicSize)
+                val bounds = geometry.boundsFor(slot = slot, nodeSize = node.intrinsicSize)
                 val portIds = portsByNode[node.id].orEmpty()
-                node.id to NodeLayout(bounds = bounds, ports = allocatePorts(bounds, portIds))
+                node.id to NodeLayout(bounds = bounds, ports = allocatePorts(bounds = bounds, portIds = portIds))
             }
 
         // ── Phase 4: Edge-Routing ─────────────────────────────────────────
@@ -121,13 +121,13 @@ public class GridLayoutEngine : KumlLayoutEngine {
                 val targetLayout = nodeLayouts.getValue(edge.target.nodeId)
                 val targetCenter = centerOf(targetLayout.bounds)
                 val sourceCenter = centerOf(sourceLayout.bounds)
-                val sourcePt = endpointPoint(edge.source, nodeLayouts, targetCenter)
-                val targetPt = endpointPoint(edge.target, nodeLayouts, sourceCenter)
-                edge.id to routeEdge(sourcePt, targetPt, style)
+                val sourcePt = endpointPoint(endpoint = edge.source, nodeLayouts = nodeLayouts, counterpartCenter = targetCenter)
+                val targetPt = endpointPoint(endpoint = edge.target, nodeLayouts = nodeLayouts, counterpartCenter = sourceCenter)
+                edge.id to routeEdge(source = sourcePt, target = targetPt, style = style)
             }
 
         // ── Group bounds: umschließendes Rechteck aller Kindknoten + Padding ──
-        val groupLayouts = computeGroupBounds(graph, nodeLayouts, warnings)
+        val groupLayouts = computeGroupBounds(graph = graph, nodeLayouts = nodeLayouts, warnings = warnings)
 
         return LayoutResult(
             engineId = id,
@@ -218,6 +218,6 @@ public class GridLayoutEngine : KumlLayoutEngine {
         val minY = rects.minOf { it.origin.y }
         val maxX = rects.maxOf { it.origin.x + it.size.width }
         val maxY = rects.maxOf { it.origin.y + it.size.height }
-        return Rect(origin = Point(minX, minY), size = Size(maxX - minX, maxY - minY))
+        return Rect(origin = Point(x = minX, y = minY), size = Size(width = maxX - minX, height = maxY - minY))
     }
 }

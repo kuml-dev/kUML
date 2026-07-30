@@ -112,12 +112,12 @@ internal object SelfLoopRouter {
         val lowerY = top + h * LOWER_ANCHOR_FRACTION
         val outerX = right + LOOP_EXTENT_PX
         return EdgeRoute.OrthogonalRounded(
-            source = Point(right, upperY),
-            target = Point(right, lowerY),
+            source = Point(x = right, y = upperY),
+            target = Point(x = right, y = lowerY),
             waypoints =
                 listOf(
-                    Point(outerX, upperY),
-                    Point(outerX, lowerY),
+                    Point(x = outerX, y = upperY),
+                    Point(x = outerX, y = lowerY),
                 ),
             cornerRadiusPx = LOOP_CORNER_RADIUS_PX,
         )

@@ -26,6 +26,18 @@ plugins {
 // the caller still supplies a precomputed `LayoutResult` (typically from the
 // JVM `kuml dump-json` command), because those diagram types are laid out with
 // ELK on the JVM and grid is a weaker fallback for them.
+// ── Detekt gate: intentionally EXCLUDED ──────────────────────────────────────
+// kuml-wasm-playground has no jvm() target, so the detekt Gradle plugin registers
+// no type-resolution compilation task for it (verified: only jvm/androidJvm
+// compilations get a detekt<Compilation>-with-classpath task). The
+// RequireNamedArguments rule is `RequiresAnalysisApi` and is therefore SILENTLY
+// SKIPPED here — it would report zero findings and go green without inspecting a
+// line, which is exactly the failure mode the ktlint incident of 2026-07-17
+// produced (see root build.gradle.kts). This module is listed in
+// `kumlDetektExemptModules` in the root build script so `verifyDetektCoverage`
+// fails if a NEW module ever ends up unanalysed by accident. Its source files
+// are named-argument-clean and must be kept so by review; if the module ever
+// grows a jvm() target, remove this exemption.
 @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
 kotlin {
     jvmToolchain(21)

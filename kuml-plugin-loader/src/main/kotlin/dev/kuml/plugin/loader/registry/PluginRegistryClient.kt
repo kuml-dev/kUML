@@ -42,19 +42,19 @@ public class PluginRegistryClient(
             try {
                 http.send(request, HttpResponse.BodyHandlers.ofString())
             } catch (e: Exception) {
-                throw PluginRegistryException("Failed to reach registry at $url: ${e.message}", e)
+                throw PluginRegistryException(message = "Failed to reach registry at $url: ${e.message}", cause = e)
             }
 
         if (response.statusCode() != 200) {
             throw PluginRegistryException(
-                "Registry returned HTTP ${response.statusCode()} for $url",
+                message = "Registry returned HTTP ${response.statusCode()} for $url",
             )
         }
 
         return try {
             json.decodeFromString<PluginRegistryIndex>(response.body())
         } catch (e: Exception) {
-            throw PluginRegistryException("Failed to parse registry index: ${e.message}", e)
+            throw PluginRegistryException(message = "Failed to parse registry index: ${e.message}", cause = e)
         }
     }
 

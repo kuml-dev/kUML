@@ -15,7 +15,7 @@ class JavaAssociationDetectorTest :
         // Detector backed by a solver that knows about "UserClass" as a user-defined type
         fun makeDetector(userTypeNames: Set<String>): JavaAssociationDetector {
             val solver = CombinedTypeSolver().apply { add(ReflectionTypeSolver(false)) }
-            return JavaAssociationDetector(JavaTypeResolver(solver, userTypeNames))
+            return JavaAssociationDetector(JavaTypeResolver(combinedTypeSolver = solver, userTypeNames = userTypeNames))
         }
 
         fun firstField(src: String): FieldDeclaration = StaticJavaParser.parse(src).findAll(FieldDeclaration::class.java).first()
@@ -24,7 +24,7 @@ class JavaAssociationDetectorTest :
             val field = firstField("class Owner { private UserClass user; }")
             val variable = field.variables.first()
             val detector = makeDetector(setOf("UserClass"))
-            val result = detector.classify(field, variable, "Owner", "Owner.java")
+            val result = detector.classify(field = field, variable = variable, ownerClassId = "Owner", fileName = "Owner.java")
             val assoc = result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.AsAssociation>().association
             assoc.ends[1].typeId shouldBe "UserClass"
             assoc.ends[1].multiplicity.lower shouldBe 1
@@ -35,7 +35,7 @@ class JavaAssociationDetectorTest :
             val field = firstField("import java.util.List; class Owner { private List<UserClass> users; }")
             val variable = field.variables.first()
             val detector = makeDetector(setOf("UserClass"))
-            val result = detector.classify(field, variable, "Owner", "Owner.java")
+            val result = detector.classify(field = field, variable = variable, ownerClassId = "Owner", fileName = "Owner.java")
             val assoc = result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.AsAssociation>().association
             assoc.ends[1].multiplicity.lower shouldBe 0
             assoc.ends[1].multiplicity.upper shouldBe null
@@ -45,7 +45,7 @@ class JavaAssociationDetectorTest :
             val field = firstField("import java.util.Optional; class Owner { private Optional<UserClass> maybeUser; }")
             val variable = field.variables.first()
             val detector = makeDetector(setOf("UserClass"))
-            val result = detector.classify(field, variable, "Owner", "Owner.java")
+            val result = detector.classify(field = field, variable = variable, ownerClassId = "Owner", fileName = "Owner.java")
             val assoc = result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.AsAssociation>().association
             assoc.ends[1].multiplicity.lower shouldBe 0
             assoc.ends[1].multiplicity.upper shouldBe 1
@@ -55,7 +55,7 @@ class JavaAssociationDetectorTest :
             val field = firstField("import java.util.Map; class Owner { private Map<String, UserClass> mapField; }")
             val variable = field.variables.first()
             val detector = makeDetector(setOf("UserClass"))
-            val result = detector.classify(field, variable, "Owner", "Owner.java")
+            val result = detector.classify(field = field, variable = variable, ownerClassId = "Owner", fileName = "Owner.java")
             val skipped = result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.Skipped>()
             skipped.diagnostic.code shouldBe "REV-J-003"
             skipped.diagnostic.severity shouldBe ReverseDiagnostic.Severity.WARN
@@ -65,7 +65,7 @@ class JavaAssociationDetectorTest :
             val field = firstField("class Foo { private int count; }")
             val variable = field.variables.first()
             val detector = makeDetector(emptySet())
-            val result = detector.classify(field, variable, "Foo", "Foo.java")
+            val result = detector.classify(field = field, variable = variable, ownerClassId = "Foo", fileName = "Foo.java")
             val prop = result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.AsProperty>().property
             prop.shouldBeInstanceOf<UmlProperty>()
         }

@@ -25,7 +25,7 @@ class AsciidocProcessorTest :
         test("document without kuml blocks is returned unchanged") {
             val processor = AsciidocProcessor()
             val input = "= Title\n\nNo diagrams here.\n"
-            val result = processor.process(input, AsciidocOutputMode.InlineSvg)
+            val result = processor.process(input = input, mode = AsciidocOutputMode.InlineSvg)
             result.output shouldBe input
             result.assets.shouldBeEmpty()
         }
@@ -43,7 +43,7 @@ class AsciidocProcessorTest :
 
                 After.
                 """.trimIndent()
-            val result = processor.process(input, AsciidocOutputMode.InlineSvg)
+            val result = processor.process(input = input, mode = AsciidocOutputMode.InlineSvg)
             // The processor must emit passthrough fences and inline SVG
             result.output shouldContain "++++"
             result.output shouldContain "<svg"
@@ -67,8 +67,8 @@ class AsciidocProcessorTest :
                     """.trimIndent()
                 val result =
                     processor.process(
-                        input,
-                        AsciidocOutputMode.LinkedSvg(assetsDir),
+                        input = input,
+                        mode = AsciidocOutputMode.LinkedSvg(assetsDir),
                         baseName = "doc",
                     )
                 result.assets shouldHaveSize 1
@@ -94,8 +94,8 @@ class AsciidocProcessorTest :
                     """.trimIndent()
                 val result =
                     processor.process(
-                        input,
-                        AsciidocOutputMode.LinkedPng(assetsDir, widthPx = 1024),
+                        input = input,
+                        mode = AsciidocOutputMode.LinkedPng(assetsDir = assetsDir, widthPx = 1024),
                     )
                 result.assets shouldHaveSize 1
                 val file = result.assets.first()
@@ -125,7 +125,7 @@ class AsciidocProcessorTest :
 
                     Done.
                     """.trimIndent()
-                val result = processor.process(input, AsciidocOutputMode.InlineSvg)
+                val result = processor.process(input = input, mode = AsciidocOutputMode.InlineSvg)
                 result.output shouldContain "++++"
                 result.output shouldContain "<svg"
                 result.output shouldNotContain "kuml::hello.kuml.kts"
@@ -156,8 +156,8 @@ class AsciidocProcessorTest :
             try {
                 val result =
                     processor.process(
-                        input,
-                        AsciidocOutputMode.LinkedSvg(assetsDir),
+                        input = input,
+                        mode = AsciidocOutputMode.LinkedSvg(assetsDir),
                     )
                 result.assets shouldHaveSize 2
                 result.assets.map { it.name } shouldBe listOf("a.svg", "b.svg")
@@ -191,7 +191,7 @@ class AsciidocProcessorTest :
                 $blueprintScript
                 ----
                 """.trimIndent()
-            val result = processor.process(input, AsciidocOutputMode.InlineSvg)
+            val result = processor.process(input = input, mode = AsciidocOutputMode.InlineSvg)
             result.output shouldContain "++++"
             result.output shouldContain "<svg"
         }
@@ -221,7 +221,7 @@ class AsciidocProcessorTest :
                     ${ermScript(notation)}
                     ----
                     """.trimIndent()
-                val result = processor.process(input, AsciidocOutputMode.InlineSvg)
+                val result = processor.process(input = input, mode = AsciidocOutputMode.InlineSvg)
                 result.output shouldContain "++++"
                 result.output shouldContain "<svg"
             }
@@ -246,7 +246,7 @@ class AsciidocProcessorTest :
                 """.trimIndent()
             val exception =
                 shouldThrow<ScriptEvaluationException> {
-                    processor.process(input, AsciidocOutputMode.InlineSvg)
+                    processor.process(input = input, mode = AsciidocOutputMode.InlineSvg)
                 }
             exception.message shouldContain "C4"
         }
@@ -264,8 +264,8 @@ class AsciidocProcessorTest :
             try {
                 val result =
                     processor.process(
-                        input,
-                        AsciidocOutputMode.LinkedSvg(assetsDir),
+                        input = input,
+                        mode = AsciidocOutputMode.LinkedSvg(assetsDir),
                         baseName = "doc",
                     )
                 result.assets shouldHaveSize 1

@@ -21,7 +21,7 @@ class KumlWorkspaceServiceTest :
     FunSpec({
 
         test("valid settings update cliPath/enable/debounceMs and re-validate open docs") {
-            val stub = FakeCli.write(listOf("ERROR\t1\t1\t1\t1\tfrom new cli")) ?: return@test
+            val stub = FakeCli.write(tsvLines = listOf("ERROR\t1\t1\t1\t1\tfrom new cli")) ?: return@test
             val server = KumlLanguageServer()
             val client = WorkspaceRecordingClient()
             server.connect(client)
@@ -48,7 +48,7 @@ class KumlWorkspaceServiceTest :
                 server.config.debounceMs shouldBe 50L
 
                 // onConfigChanged() re-validates open docs -> a publish should follow.
-                client.awaitFor(uri, 10, TimeUnit.SECONDS) shouldBe true
+                client.awaitFor(uri = uri, timeout = 10, unit = TimeUnit.SECONDS) shouldBe true
                 client.diagnostics
                     .last { it.uri == uri }
                     .diagnostics.size shouldBe 1

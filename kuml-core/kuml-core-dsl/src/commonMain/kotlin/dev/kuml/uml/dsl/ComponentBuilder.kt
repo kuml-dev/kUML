@@ -34,8 +34,8 @@ class ComponentBuilder internal constructor(
     /** The computed or explicitly provided ID for this component. */
     val id: String =
         run {
-            val candidate = explicitId ?: UmlIds.child(parentId, name)
-            val resolved = UmlIds.disambiguate(candidate, takenIds)
+            val candidate = explicitId ?: UmlIds.child(parentId = parentId, name = name)
+            val resolved = UmlIds.disambiguate(candidate = candidate, taken = takenIds)
             takenIds += resolved
             resolved
         }

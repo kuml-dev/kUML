@@ -54,9 +54,9 @@ public class RenderingTools internal constructor(
 
         return try {
             when (model) {
-                is AnyKumlModel.Uml -> renderUml(model, format, artifactId)
-                is AnyKumlModel.C4 -> renderC4(model, format, artifactId)
-                is AnyKumlModel.Sysml2 -> renderSysml2(model, format, artifactId)
+                is AnyKumlModel.Uml -> renderUml(model = model, format = format, artifactId = artifactId)
+                is AnyKumlModel.C4 -> renderC4(model = model, format = format, artifactId = artifactId)
+                is AnyKumlModel.Sysml2 -> renderSysml2(model = model, format = format, artifactId = artifactId)
             }
         } catch (e: Exception) {
             RenderResult.Failure("Render failed: ${e.message}")
@@ -159,14 +159,14 @@ public class RenderingTools internal constructor(
 
         for (eventName in events) {
             if (stepCount >= maxSteps || instance.isTerminated) break
-            val result = runtime.step(instance, Event(eventName))
+            val result = runtime.step(instance = instance, event = Event(name = eventName))
             steps += "Event '$eventName': $result"
             stepCount++
         }
 
         val finalStates = instance.currentVertexIds
         val traceId = ModelPatch.newId()
-        val traceFile = writeTrace(traceId, stm.id, events, steps, finalStates)
+        val traceFile = writeTrace(traceId = traceId, modelId = stm.id, events = events, steps = steps, finalStates = finalStates)
 
         return SimulationResult.Trace(
             finalStates = finalStates,
@@ -185,21 +185,21 @@ public class RenderingTools internal constructor(
         val kumlModel = model.toKumlModel()
         val diagram = kumlModel.root as dev.kuml.core.model.KumlDiagram
         val engine = ElkLayoutEngine()
-        val graph = UmlLayoutBridge.toLayoutGraph(diagram)
-        val layoutResult = engine.layout(graph)
+        val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
+        val layoutResult = engine.layout(graph = graph)
         val nodeCount = model.elements.size
         val edgeCount = model.relationships.size
         val summary = "Rendered '${model.name}' with $nodeCount elements, $edgeCount relationships"
 
         return when (format.lowercase()) {
             "svg" -> {
-                val svg = KumlSvgRenderer.toSvg(diagram, layoutResult)
-                val file = artifactStore.writeSvg(artifactId, svg)
+                val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult)
+                val file = artifactStore.writeSvg(id = artifactId, content = svg)
                 RenderResult.Svg(filePath = file.absolutePath, summary = summary)
             }
             "png" -> {
-                val png = KumlPngRenderer.toPng(diagram, layoutResult)
-                val file = artifactStore.writePng(artifactId, png)
+                val png = KumlPngRenderer.toPng(diagram = diagram, layoutResult = layoutResult)
+                val file = artifactStore.writePng(id = artifactId, bytes = png)
                 // Approximate dimensions
                 RenderResult.Png(filePath = file.absolutePath, widthPx = 1200, heightPx = 900)
             }
@@ -223,21 +223,21 @@ public class RenderingTools internal constructor(
                 relationships = allRelIds,
             )
         val engine = ElkLayoutEngine()
-        val graph = C4LayoutBridge.toLayoutGraph(diagram, model.model)
-        val layoutResult = engine.layout(graph)
+        val graph = C4LayoutBridge.toLayoutGraph(diagram = diagram, model = model.model)
+        val layoutResult = engine.layout(graph = graph)
         val summary =
             "Rendered C4 '${model.model.name}' with ${model.model.elements.size} elements, " +
                 "${model.model.relationships.size} relationships"
 
         return when (format.lowercase()) {
             "svg" -> {
-                val svg = KumlSvgRenderer.toSvg(diagram, model.model, layoutResult)
-                val file = artifactStore.writeSvg(artifactId, svg)
+                val svg = KumlSvgRenderer.toSvg(diagram = diagram, model = model.model, layoutResult = layoutResult)
+                val file = artifactStore.writeSvg(id = artifactId, content = svg)
                 RenderResult.Svg(filePath = file.absolutePath, summary = summary)
             }
             "png" -> {
-                val png = KumlPngRenderer.toPng(diagram, model.model, layoutResult)
-                val file = artifactStore.writePng(artifactId, png)
+                val png = KumlPngRenderer.toPng(diagram = diagram, model = model.model, layoutResult = layoutResult)
+                val file = artifactStore.writePng(id = artifactId, bytes = png)
                 RenderResult.Png(filePath = file.absolutePath, widthPx = 1200, heightPx = 900)
             }
             else -> RenderResult.Failure("Unknown format '$format'. Use 'svg' or 'png'.")
@@ -258,21 +258,21 @@ public class RenderingTools internal constructor(
                     elementIds = sysmlModel.definitions.map { it.id },
                 )
         val engine = ElkLayoutEngine()
-        val graph = Sysml2LayoutBridge.toLayoutGraph(sysmlModel, diagram)
-        val layoutResult = engine.layout(graph)
+        val graph = Sysml2LayoutBridge.toLayoutGraph(model = sysmlModel, diagram = diagram)
+        val layoutResult = engine.layout(graph = graph)
         val summary =
             "Rendered SysML2 '${sysmlModel.name}' with ${sysmlModel.definitions.size} definitions"
 
         return when (format.lowercase()) {
             "svg" -> {
-                val svg = KumlSvgRenderer.toSvg(sysmlModel, diagram, layoutResult)
-                val file = artifactStore.writeSvg(artifactId, svg)
+                val svg = KumlSvgRenderer.toSvg(model = sysmlModel, diagram = diagram, layoutResult = layoutResult)
+                val file = artifactStore.writeSvg(id = artifactId, content = svg)
                 RenderResult.Svg(filePath = file.absolutePath, summary = summary)
             }
             "png" -> {
-                val svg = KumlSvgRenderer.toSvg(sysmlModel, diagram, layoutResult)
-                val png = KumlPngRenderer.toPng(svg)
-                val file = artifactStore.writePng(artifactId, png)
+                val svg = KumlSvgRenderer.toSvg(model = sysmlModel, diagram = diagram, layoutResult = layoutResult)
+                val png = KumlPngRenderer.toPng(svg = svg)
+                val file = artifactStore.writePng(id = artifactId, bytes = png)
                 RenderResult.Png(filePath = file.absolutePath, widthPx = 1200, heightPx = 900)
             }
             else -> RenderResult.Failure("Unknown format '$format'. Use 'svg' or 'png'.")

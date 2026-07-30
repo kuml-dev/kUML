@@ -30,7 +30,7 @@ import io.kotest.matchers.shouldBe
 class AllowlistClassLoaderTest :
     FunSpec({
 
-        val loader = AllowlistClassLoader(AllowlistClassLoaderTest::class.java.classLoader)
+        val loader = AllowlistClassLoader(delegate = AllowlistClassLoaderTest::class.java.classLoader)
 
         context("isAllowed — default-DENY over CLASSPATH classes (not a denylist)") {
             test("allowed: legitimate kUML DSL / stdlib / serialization packages") {

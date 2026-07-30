@@ -175,25 +175,26 @@ internal fun renderUmlLifelineHead(
     val y = layout.bounds.origin.y
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})")) {
-        tag("rect", mapOf("width" to fmt(w), "height" to fmt(SEQ_HEAD_HEIGHT), "class" to "kuml-class"))
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})")) {
+        tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(SEQ_HEAD_HEIGHT), "class" to "kuml-class"))
         val stereotypeLabel = if (element.isActor) "«actor»" else "«lifeline»"
-        tag("text", mapOf("class" to "kuml-stereotype", "x" to fmt(w / 2f), "y" to "14", "text-anchor" to "middle")) {
+        tag(name = "text", attrs = mapOf("class" to "kuml-stereotype", "x" to fmt(w / 2f), "y" to "14", "text-anchor" to "middle")) {
             text(stereotypeLabel)
         }
-        tag("text", mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to "30", "text-anchor" to "middle")) {
+        tag(name = "text", attrs = mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to "30", "text-anchor" to "middle")) {
             text(element.name)
         }
         tag(
-            "line",
-            mapOf(
-                "x1" to fmt(w / 2f),
-                "y1" to fmt(SEQ_HEAD_HEIGHT),
-                "x2" to fmt(w / 2f),
-                "y2" to fmt(h),
-                "class" to "kuml-divider",
-                "stroke-dasharray" to "4 4",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(w / 2f),
+                    "y1" to fmt(SEQ_HEAD_HEIGHT),
+                    "x2" to fmt(w / 2f),
+                    "y2" to fmt(h),
+                    "class" to "kuml-divider",
+                    "stroke-dasharray" to "4 4",
+                ),
         )
     }
 }
@@ -224,8 +225,15 @@ internal fun renderUmlSeqMessages(
     for (msg in visible) {
         val srcLayout = nodeLayouts[NodeId(msg.fromLifelineId)] ?: continue
         val tgtLayout = nodeLayouts[NodeId(msg.toLifelineId)] ?: continue
-        val rowOffset = umlSeqRowOffset(msg.sequence, operandFirstSeqs)
-        renderUmlMessage(msg, srcLayout, tgtLayout, builder, rowOffset, labelBackdropFill)
+        val rowOffset = umlSeqRowOffset(sequence = msg.sequence, operandFirstSeqs = operandFirstSeqs)
+        renderUmlMessage(
+            msg = msg,
+            srcLayout = srcLayout,
+            tgtLayout = tgtLayout,
+            builder = builder,
+            rowOffset = rowOffset,
+            backdropFill = labelBackdropFill,
+        )
     }
 }
 
@@ -244,7 +252,7 @@ private fun renderUmlMessage(
     val y = srcHeadBottom + msg.sequence * SEQ_ROW_HEIGHT + rowOffset
 
     if (msg.fromLifelineId == msg.toLifelineId) {
-        renderUmlSelfCall(msg, srcCx, y, builder, backdropFill)
+        renderUmlSelfCall(msg = msg, cx = srcCx, y = y, builder = builder, backdropFill = backdropFill)
         return
     }
 
@@ -252,16 +260,17 @@ private fun renderUmlMessage(
     val strokeClass = if (isReply) "kuml-edge-dashed" else "kuml-edge"
     val arrowDx = if (tgtCx >= srcCx) -8f else 8f
 
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(msg.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(msg.id))) {
         tag(
-            "line",
-            mapOf(
-                "x1" to fmt(srcCx),
-                "y1" to fmt(y),
-                "x2" to fmt(tgtCx),
-                "y2" to fmt(y),
-                "class" to strokeClass,
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(srcCx),
+                    "y1" to fmt(y),
+                    "x2" to fmt(tgtCx),
+                    "y2" to fmt(y),
+                    "class" to strokeClass,
+                ),
         )
         // Draw label BEFORE arrowhead so the arrowhead is painted on top of the
         // white background rect and is never obscured by it.
@@ -283,9 +292,9 @@ private fun renderUmlMessage(
         )
         when (msg.sort) {
             MessageSort.SYNC_CALL, MessageSort.CREATE ->
-                renderFilledArrowheadUml(tgtCx, y, arrowDx, this)
+                renderFilledArrowheadUml(tipX = tgtCx, y = y, baseDx = arrowDx, builder = this)
             MessageSort.ASYNC_CALL, MessageSort.REPLY, MessageSort.DELETE ->
-                renderOpenArrowheadUml(tgtCx, y, arrowDx, this)
+                renderOpenArrowheadUml(tipX = tgtCx, y = y, baseDx = arrowDx, builder = this)
         }
     }
 }
@@ -346,15 +355,16 @@ private fun drawLabelWithWhiteBackground(
     // überdecken.
     val bgY = y - BODY_TEXT_ASCENT
     builder.tag(
-        "rect",
-        mapOf(
-            "x" to fmt(bgX),
-            "y" to fmt(bgY),
-            "width" to fmt(bgW),
-            "height" to fmt(bgH),
-            "fill" to fill,
-            "stroke" to "none",
-        ),
+        name = "rect",
+        attrs =
+            mapOf(
+                "x" to fmt(bgX),
+                "y" to fmt(bgY),
+                "width" to fmt(bgW),
+                "height" to fmt(bgH),
+                "fill" to fill,
+                "stroke" to "none",
+            ),
     )
     val baseAttrs =
         if (anchor == "start") {
@@ -370,7 +380,7 @@ private fun drawLabelWithWhiteBackground(
         } else {
             baseAttrs
         }
-    builder.tag("text", attrs) { text(label) }
+    builder.tag(name = "text", attrs = attrs) { text(label) }
 }
 
 private fun renderUmlSelfCall(
@@ -382,21 +392,24 @@ private fun renderUmlSelfCall(
 ) {
     val isReply = msg.sort == MessageSort.REPLY
     val strokeClass = if (isReply) "kuml-edge-dashed" else "kuml-edge"
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(msg.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(msg.id))) {
         tag(
-            "path",
-            mapOf(
-                "d" to
-                    "M ${fmt(
-                        cx,
-                    )} ${fmt(y)} L ${fmt(cx + SELF_CALL_W)} ${fmt(y)} L ${fmt(cx + SELF_CALL_W)} ${fmt(y + SELF_CALL_H)} L ${fmt(cx)} ${fmt(
-                        y + SELF_CALL_H,
-                    )}",
-                "class" to strokeClass,
-                "fill" to "none",
-            ),
+            name = "path",
+            attrs =
+                mapOf(
+                    "d" to
+                        "M ${fmt(
+                            cx,
+                        )} ${fmt(
+                            y,
+                        )} L ${fmt(cx + SELF_CALL_W)} ${fmt(y)} L ${fmt(cx + SELF_CALL_W)} ${fmt(y + SELF_CALL_H)} L ${fmt(cx)} ${fmt(
+                            y + SELF_CALL_H,
+                        )}",
+                    "class" to strokeClass,
+                    "fill" to "none",
+                ),
         )
-        renderOpenArrowheadUml(cx, y + SELF_CALL_H, +8f, this)
+        renderOpenArrowheadUml(tipX = cx, y = y + SELF_CALL_H, baseDx = +8f, builder = this)
         // hPad = 0f: background exactly matches the text width estimate so it
         // does not spill into the next lifeline's dashed time-axis column.
         drawLabelWithWhiteBackground(
@@ -499,7 +512,7 @@ internal fun renderUmlCombinedFragments(
 ): SeqFragmentRenderResult {
     if (visibleLifelineLayouts.isEmpty()) return SeqFragmentRenderResult(emptyList())
     val msgById: Map<String, UmlMessage> = interaction.messages.associateBy { it.id }
-    val operandFirstSeqs = umlOperandFirstSeqs(fragments, msgById)
+    val operandFirstSeqs = umlOperandFirstSeqs(fragments = fragments, msgById = msgById)
     // Nested fragments (those referenced by any operand's fragmentIds) must be
     // rendered AFTER their enclosing outer frames so they appear on top in SVG.
     // Without this sort, a break_ inside loop is added to the flat list BEFORE
@@ -510,13 +523,13 @@ internal fun renderUmlCombinedFragments(
     val guardLabels = mutableListOf<SeqGuardLabel>()
     for (fragment in renderOrder) {
         renderUmlFragment(
-            fragment,
-            msgById,
-            visibleLifelineLayouts,
-            builder,
-            operandFirstSeqs,
-            guardLabels,
-            labelBackdropFill,
+            fragment = fragment,
+            msgById = msgById,
+            visibleLifelineLayouts = visibleLifelineLayouts,
+            builder = builder,
+            operandFirstSeqs = operandFirstSeqs,
+            guardLabels = guardLabels,
+            labelBackdropFill = labelBackdropFill,
             isNested = fragment.id in nestedIds,
         )
     }
@@ -575,8 +588,8 @@ private fun renderUmlFragment(
     // The first message of this fragment (operand 0) is pushed down by exactly
     // one FRAGMENT_HEADER_BAND (its own operand's band), which creates the clear
     // corridor between the pentagon/guard row and that first arrow.
-    val firstMsgY = headBottom + minSeq * SEQ_ROW_HEIGHT + umlSeqRowOffset(minSeq, operandFirstSeqs)
-    val lastMsgY = headBottom + maxSeq * SEQ_ROW_HEIGHT + umlSeqRowOffset(maxSeq, operandFirstSeqs)
+    val firstMsgY = headBottom + minSeq * SEQ_ROW_HEIGHT + umlSeqRowOffset(sequence = minSeq, operandFirstSeqs = operandFirstSeqs)
+    val lastMsgY = headBottom + maxSeq * SEQ_ROW_HEIGHT + umlSeqRowOffset(sequence = maxSeq, operandFirstSeqs = operandFirstSeqs)
     // Pentagon top sits FRAGMENT_HEADER_BAND + 13 above the first arrow so the
     // guard (drawn at frameY + FRAGMENT_TAG_H/2 + 4) clears the first message
     // label. Frame bottom keeps the small asymmetric outset below the last arrow.
@@ -592,7 +605,7 @@ private fun renderUmlFragment(
     // actually paints; it is kept only so a style-based override could restore
     // it later. Guard labels use the uniform [labelBackdropFill], NOT this value.
     val isBreak = fragment.operator == InteractionOperator.BREAK
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(fragment.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(fragment.id))) {
         val rectAttrs =
             buildMap {
                 put("x", fmt(frameX))
@@ -603,7 +616,7 @@ private fun renderUmlFragment(
                 put("fill", if (isBreak) "#eef6ff" else "none")
                 if (!isBreak) put("stroke-dasharray", "6 4")
             }
-        tag("rect", rectAttrs)
+        tag(name = "rect", attrs = rectAttrs)
         val tagX = frameX
         val tagY = frameY
         val notch = 6f
@@ -612,15 +625,16 @@ private fun renderUmlFragment(
                 "${fmt(tagX + FRAGMENT_TAG_W)},${fmt(tagY + FRAGMENT_TAG_H - notch)} " +
                 "${fmt(tagX + FRAGMENT_TAG_W - notch)},${fmt(tagY + FRAGMENT_TAG_H)} " +
                 "${fmt(tagX)},${fmt(tagY + FRAGMENT_TAG_H)}"
-        tag("polygon", mapOf("points" to pts, "class" to "kuml-class", "fill" to "white"))
+        tag(name = "polygon", attrs = mapOf("points" to pts, "class" to "kuml-class", "fill" to "white"))
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(tagX + FRAGMENT_TAG_W / 2f),
-                "y" to fmt(tagY + FRAGMENT_TAG_H / 2f + 4f),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(tagX + FRAGMENT_TAG_W / 2f),
+                    "y" to fmt(tagY + FRAGMENT_TAG_H / 2f + 4f),
+                    "text-anchor" to "middle",
+                ),
         ) { text(fragment.operator.name) }
 
         // Guards per operand
@@ -637,7 +651,7 @@ private fun renderUmlFragment(
             val opBottomY =
                 if (opMaxSeq != null) {
                     headBottom + opMaxSeq * SEQ_ROW_HEIGHT +
-                        umlSeqRowOffset(opMaxSeq, operandFirstSeqs) + FRAGMENT_BOTTOM_OUTSET
+                        umlSeqRowOffset(sequence = opMaxSeq, operandFirstSeqs = operandFirstSeqs) + FRAGMENT_BOTTOM_OUTSET
                 } else {
                     null
                 }
@@ -657,22 +671,23 @@ private fun renderUmlFragment(
                 val computedSepY =
                     if (opMinSeq != null) {
                         headBottom + opMinSeq * SEQ_ROW_HEIGHT +
-                            umlSeqRowOffset(opMinSeq, operandFirstSeqs) - FRAGMENT_HEADER_BAND - 12f
+                            umlSeqRowOffset(sequence = opMinSeq, operandFirstSeqs = operandFirstSeqs) - FRAGMENT_HEADER_BAND - 12f
                     } else {
                         prevOperandBottom
                     }
                 val sepY = maxOf(computedSepY, prevOperandBottom + 8f)
                 // Draw separator line
                 tag(
-                    "line",
-                    mapOf(
-                        "x1" to fmt(frameX),
-                        "y1" to fmt(sepY),
-                        "x2" to fmt(frameX + frameW),
-                        "y2" to fmt(sepY),
-                        "class" to "kuml-divider",
-                        "stroke-dasharray" to "6 4",
-                    ),
+                    name = "line",
+                    attrs =
+                        mapOf(
+                            "x1" to fmt(frameX),
+                            "y1" to fmt(sepY),
+                            "x2" to fmt(frameX + frameW),
+                            "y2" to fmt(sepY),
+                            "class" to "kuml-divider",
+                            "stroke-dasharray" to "6 4",
+                        ),
                 )
                 guardY = sepY + 12f
                 prevOperandBottom = opBottomY ?: (guardY + 4f)
@@ -732,11 +747,12 @@ private fun renderFilledArrowheadUml(
     // higher CSS specificity than the `fill="currentColor"` presentation attribute and
     // would override it, causing the arrowhead to appear hollow.
     builder.tag(
-        "polygon",
-        mapOf(
-            "points" to "${fmt(tipX)},${fmt(y)} ${fmt(baseX)},${fmt(y - 4f)} ${fmt(baseX)},${fmt(y + 4f)}",
-            "class" to "kuml-seq-arrow-filled",
-        ),
+        name = "polygon",
+        attrs =
+            mapOf(
+                "points" to "${fmt(tipX)},${fmt(y)} ${fmt(baseX)},${fmt(y - 4f)} ${fmt(baseX)},${fmt(y + 4f)}",
+                "class" to "kuml-seq-arrow-filled",
+            ),
     )
 }
 
@@ -748,12 +764,13 @@ private fun renderOpenArrowheadUml(
 ) {
     val baseX = tipX + baseDx
     builder.tag(
-        "path",
-        mapOf(
-            "d" to "M ${fmt(baseX)} ${fmt(y - 4f)} L ${fmt(tipX)} ${fmt(y)} L ${fmt(baseX)} ${fmt(y + 4f)}",
-            "class" to "kuml-edge",
-            "fill" to "none",
-        ),
+        name = "path",
+        attrs =
+            mapOf(
+                "d" to "M ${fmt(baseX)} ${fmt(y - 4f)} L ${fmt(tipX)} ${fmt(y)} L ${fmt(baseX)} ${fmt(y + 4f)}",
+                "class" to "kuml-edge",
+                "fill" to "none",
+            ),
     )
 }
 

@@ -33,6 +33,6 @@ public fun interface SizeProvider {
         public fun constant(
             width: Float = 160f,
             height: Float = 80f,
-        ): SizeProvider = SizeProvider { _, _ -> Size(width, height) }
+        ): SizeProvider = SizeProvider { _, _ -> Size(width = width, height = height) }
     }
 }

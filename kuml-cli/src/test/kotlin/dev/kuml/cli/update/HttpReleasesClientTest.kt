@@ -27,7 +27,7 @@ class HttpReleasesClientTest :
         "200 OK from /releases/latest deserialises to a ReleaseInfo" {
             val seenHeaders = mutableMapOf<String, String>()
             withServer(
-                { exchange ->
+                handler = { exchange ->
                     seenHeaders["User-Agent"] = exchange.requestHeaders.getFirst("User-Agent").orEmpty()
                     seenHeaders["Accept"] = exchange.requestHeaders.getFirst("Accept").orEmpty()
                     seenHeaders["X-GitHub-Api-Version"] =
@@ -53,7 +53,7 @@ class HttpReleasesClientTest :
 
         "404 from /releases/latest becomes Result.HttpError (no exception)" {
             withServer(
-                { exchange ->
+                handler = { exchange ->
                     respond(exchange = exchange, status = 404, body = """{"message":"Not Found"}""")
                 },
             ) { baseUrl ->
@@ -66,7 +66,7 @@ class HttpReleasesClientTest :
 
         "fetchAll deserialises a list response" {
             withServer(
-                { exchange ->
+                handler = { exchange ->
                     respond(
                         exchange = exchange,
                         status = 200,

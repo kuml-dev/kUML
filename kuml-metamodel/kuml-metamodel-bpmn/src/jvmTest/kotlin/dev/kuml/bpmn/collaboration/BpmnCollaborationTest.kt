@@ -245,10 +245,10 @@ class BpmnCollaborationTest :
         describe("DSL: collaboration { pool {} }") {
             it("builds a collaboration with pools via DSL") {
                 val model =
-                    bpmnModel("Order Collab") {
+                    bpmnModel(name = "Order Collab") {
                         collaboration(name = "Order Flow", id = "collab1") {
-                            pool("Buyer", id = "buyer")
-                            pool("Seller", id = "seller")
+                            pool(name = "Buyer", id = "buyer")
+                            pool(name = "Seller", id = "seller")
                         }
                     }
                 model.collaborations shouldHaveSize 1
@@ -261,11 +261,11 @@ class BpmnCollaborationTest :
 
             it("DSL pool with lanes") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         collaboration(id = "c1") {
-                            pool("Sales Dept", id = "sales") {
-                                lane("Pre-Sales")
-                                lane("Post-Sales")
+                            pool(name = "Sales Dept", id = "sales") {
+                                lane(name = "Pre-Sales")
+                                lane(name = "Post-Sales")
                             }
                         }
                     }
@@ -280,14 +280,14 @@ class BpmnCollaborationTest :
                 // Note: ProcessBuilder auto-generates IDs; we capture the returned ID
                 var capturedTaskId = ""
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "proc1") {
-                            capturedTaskId = task("Review")
+                            capturedTaskId = task(name = "Review")
                         }
                         collaboration(id = "c1") {
-                            pool("Pool A", id = "pa") {
+                            pool(name = "Pool A", id = "pa") {
                                 process("proc1")
-                                lane("Sales") {
+                                lane(name = "Sales") {
                                     contains(capturedTaskId)
                                 }
                             }
@@ -299,9 +299,9 @@ class BpmnCollaborationTest :
 
             it("DSL blackBoxPool() creates participant without processRef") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         collaboration(id = "c1") {
-                            blackBoxPool("External Partner", id = "ext")
+                            blackBoxPool(name = "External Partner", id = "ext")
                         }
                     }
                 val pool = model.collaborations[0].participants[0]
@@ -312,10 +312,10 @@ class BpmnCollaborationTest :
 
             it("DSL messageFlow(from, to) creates MessageFlow in collaboration") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         collaboration(id = "c1") {
-                            val buyer = blackBoxPool("Buyer", id = "buyer")
-                            val seller = blackBoxPool("Seller", id = "seller")
+                            val buyer = blackBoxPool(name = "Buyer", id = "buyer")
+                            val seller = blackBoxPool(name = "Seller", id = "seller")
                             messageFlow(from = buyer, to = seller, name = "Order")
                         }
                     }
@@ -328,11 +328,11 @@ class BpmnCollaborationTest :
 
             it("DSL collaborationDiagram() creates a CollaborationDiagram in model.diagrams") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         collaboration(id = "c1") {
-                            blackBoxPool("P1", id = "p1")
+                            blackBoxPool(name = "P1", id = "p1")
                         }
-                        collaborationDiagram("Collab View", collaborationId = "c1") {
+                        collaborationDiagram(name = "Collab View", collaborationId = "c1") {
                             include("p1")
                         }
                     }
@@ -345,11 +345,11 @@ class BpmnCollaborationTest :
 
             it("DSL auto-generates IDs when not specified") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         collaboration {
-                            pool("A")
-                            pool("B")
-                            blackBoxPool("C")
+                            pool(name = "A")
+                            pool(name = "B")
+                            blackBoxPool(name = "C")
                         }
                     }
                 val collab = model.collaborations[0]
@@ -361,12 +361,12 @@ class BpmnCollaborationTest :
 
             it("DSL pool with nested lanes") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         collaboration(id = "c1") {
-                            pool("Big Pool", id = "pool1") {
-                                lane("Outer") {
-                                    lane("Inner A")
-                                    lane("Inner B")
+                            pool(name = "Big Pool", id = "pool1") {
+                                lane(name = "Outer") {
+                                    lane(name = "Inner A")
+                                    lane(name = "Inner B")
                                 }
                             }
                         }
@@ -380,10 +380,10 @@ class BpmnCollaborationTest :
 
             it("DSL process() in pool sets processRef") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "myProc") { }
                         collaboration(id = "c1") {
-                            pool("White Box", id = "wb") {
+                            pool(name = "White Box", id = "wb") {
                                 process("myProc")
                             }
                         }

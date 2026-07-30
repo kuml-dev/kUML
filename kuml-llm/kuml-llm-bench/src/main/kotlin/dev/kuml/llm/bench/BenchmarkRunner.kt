@@ -16,7 +16,7 @@ public object BenchmarkRunner {
             val llmResp =
                 try {
                     backend.complete(
-                        messages = listOf(LlmMessage("user", task.userPrompt)),
+                        messages = listOf(LlmMessage(role = "user", content = task.userPrompt)),
                         systemPrompt = task.systemPrompt,
                     )
                 } catch (e: LlmException) {

@@ -83,16 +83,16 @@ public class EvmJsonRpcClient(
                     if (statusCode !in 200..299) {
                         response.body().close()
                         throw EvmChainAdapterException.NetworkError(
-                            "HTTP $statusCode from ${sanitizeUrl(rpcUrl)}",
+                            message = "HTTP $statusCode from ${sanitizeUrl(rpcUrl)}",
                         )
                     }
-                    readLimited(response.body(), maxResponseBytes)
+                    readLimited(stream = response.body(), limit = maxResponseBytes)
                 } catch (e: EvmChainAdapterException) {
                     throw e
                 } catch (e: Exception) {
                     throw EvmChainAdapterException.NetworkError(
-                        "IO error calling ${sanitizeUrl(rpcUrl)}: ${e.message}",
-                        e,
+                        message = "IO error calling ${sanitizeUrl(rpcUrl)}: ${e.message}",
+                        cause = e,
                     )
                 }
             }
@@ -102,35 +102,35 @@ public class EvmJsonRpcClient(
                 json.parseToJsonElement(responseBody)
             } catch (e: Exception) {
                 throw EvmChainAdapterException.MalformedResponse(
-                    "Could not parse JSON-RPC response: ${e.message}",
-                    e,
+                    message = "Could not parse JSON-RPC response: ${e.message}",
+                    cause = e,
                 )
             }
 
         val obj =
             parsed as? JsonObject
-                ?: throw EvmChainAdapterException.MalformedResponse("JSON-RPC response is not an object")
+                ?: throw EvmChainAdapterException.MalformedResponse(message = "JSON-RPC response is not an object")
 
         val errorObj = obj["error"]
         if (errorObj != null && errorObj !is JsonNull) {
             val errObj =
                 errorObj as? JsonObject
-                    ?: throw EvmChainAdapterException.MalformedResponse("JSON-RPC error field is not an object")
+                    ?: throw EvmChainAdapterException.MalformedResponse(message = "JSON-RPC error field is not an object")
             val code =
                 errObj["code"]?.jsonPrimitive?.int
-                    ?: throw EvmChainAdapterException.MalformedResponse("JSON-RPC error missing code")
+                    ?: throw EvmChainAdapterException.MalformedResponse(message = "JSON-RPC error missing code")
             val message = errObj["message"]?.jsonPrimitive?.content ?: "unknown"
             val data = errObj["data"]?.jsonPrimitive?.content
-            throw EvmChainAdapterException.RpcError(code, message, data)
+            throw EvmChainAdapterException.RpcError(code = code, rpcMessage = message, rpcData = data)
         }
 
         return obj["result"]
-            ?: throw EvmChainAdapterException.MalformedResponse("JSON-RPC response missing 'result' field")
+            ?: throw EvmChainAdapterException.MalformedResponse(message = "JSON-RPC response missing 'result' field")
     }
 
     /** Liest die aktuelle Block-Höhe als Long (eth_blockNumber). */
     public suspend fun ethBlockNumber(): Long {
-        val result = call("eth_blockNumber", buildJsonArray {})
+        val result = call(method = "eth_blockNumber", params = buildJsonArray {})
         val hex = result.jsonPrimitive.content
         return parseHexQuantity(hex)
     }
@@ -145,7 +145,7 @@ public class EvmJsonRpcClient(
                 add(JsonPrimitive(toHexQuantity(blockNumber)))
                 add(JsonPrimitive(fullTx))
             }
-        return call("eth_getBlockByNumber", params)
+        return call(method = "eth_getBlockByNumber", params = params)
     }
 
     /** Liest einen Block per finality-Tag ("finalized", "latest", "safe"). */
@@ -158,7 +158,7 @@ public class EvmJsonRpcClient(
                 add(JsonPrimitive(tag))
                 add(JsonPrimitive(fullTx))
             }
-        return call("eth_getBlockByNumber", params)
+        return call(method = "eth_getBlockByNumber", params = params)
     }
 
     /** Holt Event-Logs für einen Adress- und Block-Range-Filter. */
@@ -185,7 +185,7 @@ public class EvmJsonRpcClient(
                 }
             }
         val params = buildJsonArray { add(filterObj) }
-        return call("eth_getLogs", params)
+        return call(method = "eth_getLogs", params = params)
     }
 
     /** Führt einen read-only eth_call aus und gibt den 0x-Hex-String zurück. */
@@ -204,7 +204,7 @@ public class EvmJsonRpcClient(
                 add(callObj)
                 add(JsonPrimitive(blockTag))
             }
-        val result = call("eth_call", params)
+        val result = call(method = "eth_call", params = params)
         return result.jsonPrimitive.content
     }
 
@@ -226,7 +226,7 @@ public class EvmJsonRpcClient(
             return try {
                 java.lang.Long.parseUnsignedLong(clean, 16)
             } catch (e: NumberFormatException) {
-                throw EvmChainAdapterException.MalformedResponse("Not a valid hex quantity: '$hex'", e)
+                throw EvmChainAdapterException.MalformedResponse(message = "Not a valid hex quantity: '$hex'", cause = e)
             }
         }
 
@@ -267,7 +267,7 @@ public class EvmJsonRpcClient(
                     totalRead += n
                     if (totalRead > limit) {
                         throw EvmChainAdapterException.NetworkError(
-                            "RPC response exceeds maximum allowed size of $limit bytes",
+                            message = "RPC response exceeds maximum allowed size of $limit bytes",
                         )
                     }
                     sb.append(String(buffer, 0, n, Charsets.UTF_8))

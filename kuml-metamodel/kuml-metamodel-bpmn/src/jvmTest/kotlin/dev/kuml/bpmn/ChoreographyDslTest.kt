@@ -36,7 +36,7 @@ class ChoreographyDslTest :
         describe("Target-example from the implementation plan") {
             it("builds a choreography with start event, task, end event, and two sequence flows") {
                 val model =
-                    bpmnModel("Bestellung") {
+                    bpmnModel(name = "Bestellung") {
                         choreography(id = "ch1", name = "Bestellprozess") {
                             val start = startEvent(name = "Bestellung eingegangen")
                             val order =
@@ -70,7 +70,7 @@ class ChoreographyDslTest :
         describe("ChoreographyTask messages") {
             it("stores one initiating and one non-initiating message") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") {
                             task(
                                 name = "Exchange",
@@ -95,7 +95,7 @@ class ChoreographyDslTest :
         describe("ID determinism") {
             it("generates sequential task IDs") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") {
                             task(
                                 name = "Task 1",
@@ -116,7 +116,7 @@ class ChoreographyDslTest :
 
             it("generates sequential sequence flow IDs") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") {
                             val s = startEvent()
                             val t =
@@ -136,7 +136,7 @@ class ChoreographyDslTest :
 
             it("generates start and end event IDs with positional prefixes") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") {
                             startEvent(name = "Start")
                             endEvent(name = "End")
@@ -151,7 +151,7 @@ class ChoreographyDslTest :
 
             it("generates message IDs scoped to the task") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") {
                             task(
                                 initiatingParticipant = "A",
@@ -169,7 +169,7 @@ class ChoreographyDslTest :
 
             it("auto-generates choreography ID when not specified") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography {
                             startEvent()
                         }
@@ -294,10 +294,10 @@ class ChoreographyDslTest :
         describe("Gateway and conditional sequence flows") {
             it("stores gateway type and conditional flows") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") {
                             val start = startEvent()
-                            val gw = gateway(GatewayType.EXCLUSIVE, name = "Route?")
+                            val gw = gateway(type = GatewayType.EXCLUSIVE, name = "Route?")
                             val taskA =
                                 task(
                                     name = "Path A",
@@ -332,7 +332,7 @@ class ChoreographyDslTest :
         describe("Loop type and isMultiInstance") {
             it("stores loopType MULTI_INSTANCE_PARALLEL and isMultiInstance = true") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") {
                             task(
                                 name = "Multi",
@@ -351,7 +351,7 @@ class ChoreographyDslTest :
 
             it("stores loopType STANDARD") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") {
                             task(
                                 initiatingParticipant = "A",
@@ -366,7 +366,7 @@ class ChoreographyDslTest :
 
             it("defaults loopType to null and isMultiInstance to false") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") {
                             task(
                                 initiatingParticipant = "A",
@@ -385,9 +385,9 @@ class ChoreographyDslTest :
         describe("ChoreographyDiagram") {
             it("without block produces empty elementIds") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") { startEvent() }
-                        choreographyDiagram("View", choreographyId = "ch1")
+                        choreographyDiagram(name = "View", choreographyId = "ch1")
                     }
                 model.diagrams shouldHaveSize 1
                 val diag = model.diagrams[0].shouldBeInstanceOf<ChoreographyDiagram>()
@@ -397,9 +397,9 @@ class ChoreographyDslTest :
 
             it("with include() fills elementIds") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") { startEvent() }
-                        choreographyDiagram("View", choreographyId = "ch1") {
+                        choreographyDiagram(name = "View", choreographyId = "ch1") {
                             include("ch1_start_1", "ch1_task_1")
                         }
                     }
@@ -409,10 +409,10 @@ class ChoreographyDslTest :
 
             it("multiple choreographyDiagrams appear in model.diagrams") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") { startEvent() }
-                        choreographyDiagram("View A", choreographyId = "ch1")
-                        choreographyDiagram("View B", choreographyId = "ch1")
+                        choreographyDiagram(name = "View A", choreographyId = "ch1")
+                        choreographyDiagram(name = "View B", choreographyId = "ch1")
                     }
                 model.diagrams shouldHaveSize 2
                 model.diagrams.all { it is ChoreographyDiagram } shouldBe true
@@ -424,7 +424,7 @@ class ChoreographyDslTest :
         describe("BpmnModel.elementById for choreographies") {
             it("finds choreography by ID") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") { startEvent() }
                     }
                 model.elementById("ch1").shouldNotBeNull().shouldBeInstanceOf<BpmnChoreography>()
@@ -432,7 +432,7 @@ class ChoreographyDslTest :
 
             it("finds task within choreography") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") {
                             task(
                                 initiatingParticipant = "A",
@@ -445,9 +445,9 @@ class ChoreographyDslTest :
 
             it("finds gateway within choreography") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") {
-                            gateway(GatewayType.PARALLEL)
+                            gateway(type = GatewayType.PARALLEL)
                         }
                     }
                 model.elementById("ch1_gw_1").shouldNotBeNull().shouldBeInstanceOf<ChoreographyGateway>()
@@ -455,7 +455,7 @@ class ChoreographyDslTest :
 
             it("finds event within choreography") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") {
                             startEvent(name = "Start")
                         }
@@ -465,7 +465,7 @@ class ChoreographyDslTest :
 
             it("finds message flow nested inside task") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") {
                             task(
                                 initiatingParticipant = "A",
@@ -480,7 +480,7 @@ class ChoreographyDslTest :
 
             it("returns null for unknown ID") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         choreography(id = "ch1") { startEvent() }
                     }
                 model.elementById("nonexistent").shouldBeNull()
@@ -526,7 +526,7 @@ class ChoreographyDslTest :
 
             it("round-trips full BpmnModel with choreographies via JSON") {
                 val model =
-                    bpmnModel("Full Model") {
+                    bpmnModel(name = "Full Model") {
                         choreography(id = "ch1", name = "Order Choreography") {
                             val start = startEvent(name = "Start")
                             val task =
@@ -542,7 +542,7 @@ class ChoreographyDslTest :
                             sequenceFlow(from = start, to = task)
                             sequenceFlow(from = task, to = end)
                         }
-                        choreographyDiagram("Order View", choreographyId = "ch1")
+                        choreographyDiagram(name = "Order View", choreographyId = "ch1")
                     }
 
                 val encoded = json.encodeToString(model)

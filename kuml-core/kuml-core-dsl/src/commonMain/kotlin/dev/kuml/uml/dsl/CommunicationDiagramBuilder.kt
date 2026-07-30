@@ -78,7 +78,7 @@ public class CommunicationDiagramBuilder(
     ): UmlInstanceSpecification {
         val id =
             UmlIds.disambiguate(
-                candidate = UmlIds.child(containerId, "${roleName.ifEmpty { "anon" }}@$classifierName"),
+                candidate = UmlIds.child(parentId = containerId, name = "${roleName.ifEmpty { "anon" }}@$classifierName"),
                 taken = takenIds,
             )
         val r =

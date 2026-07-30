@@ -84,9 +84,9 @@ internal fun renderUmlAssociation(
     targetStackIndex: Int = 0,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
-    builder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
+    builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge"))
     val (arrowFrom, arrowTip) = route.arrowDirection()
-    renderInlineArrow(arrowFrom, arrowTip, ArrowStyle.OPEN, theme, builder)
+    renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.OPEN, theme = theme, builder = builder)
 
     // Aggregation/composition diamond at the SOURCE end (the "whole"). UML places
     // the rhombus on the aggregating classifier: SHARED → hollow, COMPOSITE →
@@ -99,15 +99,15 @@ internal fun renderUmlAssociation(
         }
     diamondStyle?.let { style ->
         val (diaFrom, diaTip) = route.sourceArrowDirection()
-        renderInlineArrow(diaFrom, diaTip, style, theme, builder)
+        renderInlineArrow(from = diaFrom, tip = diaTip, style = style, theme = theme, builder = builder)
     }
 
     // Stereotype label takes precedence over association name; name is appended below it
     val (mx, my) = routeLabelMid(route)
-    val hadStereo = StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
+    val hadStereo = StereotypeHelper.renderEdgeStereotype(element = rel, theme = theme, builder = builder, midX = mx, midY = my)
     val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else my
     rel.name?.let { label ->
-        renderEdgeLabel(label, route, theme, builder, overrideY = if (hadStereo) labelY else null)
+        renderEdgeLabel(label = label, route = route, theme = theme, builder = builder, overrideY = if (hadStereo) labelY else null)
     }
 
     // V2.0.44 / V3.0.11 — Multiplicity labels on source and target ends (UML 2.x).
@@ -155,19 +155,19 @@ internal fun renderUmlAssociation(
         sourceEnd.multiplicity.toLabel()?.let { label ->
             val m = mulMargin + srcStep
             endpointLabel(
-                builder,
-                route.source.x + stx * m - sty * perpOff,
-                route.source.y + sty * m + stx * perpOff,
-                label,
+                builder = builder,
+                x = route.source.x + stx * m - sty * perpOff,
+                y = route.source.y + sty * m + stx * perpOff,
+                label = label,
             )
         }
         sourceEnd.role?.let { label ->
             val m = roleMargin + srcStep
             endpointLabel(
-                builder,
-                route.source.x + stx * m + sty * perpOff,
-                route.source.y + sty * m - stx * perpOff,
-                label,
+                builder = builder,
+                x = route.source.x + stx * m + sty * perpOff,
+                y = route.source.y + sty * m - stx * perpOff,
+                label = label,
             )
         }
 
@@ -175,19 +175,19 @@ internal fun renderUmlAssociation(
         targetEnd.multiplicity.toLabel()?.let { label ->
             val m = mulMargin + tgtStep
             endpointLabel(
-                builder,
-                route.target.x - ttx * m - tty * perpOff,
-                route.target.y - tty * m + ttx * perpOff,
-                label,
+                builder = builder,
+                x = route.target.x - ttx * m - tty * perpOff,
+                y = route.target.y - tty * m + ttx * perpOff,
+                label = label,
             )
         }
         targetEnd.role?.let { label ->
             val m = roleMargin + tgtStep
             endpointLabel(
-                builder,
-                route.target.x - ttx * m + tty * perpOff,
-                route.target.y - tty * m - ttx * perpOff,
-                label,
+                builder = builder,
+                x = route.target.x - ttx * m + tty * perpOff,
+                y = route.target.y - tty * m - ttx * perpOff,
+                label = label,
             )
         }
     }
@@ -209,8 +209,8 @@ private fun endpointLabel(
     label: String,
 ) {
     val attrs = mapOf("x" to fmt(x), "y" to fmt(y), "text-anchor" to "middle")
-    builder.tag("text", mapOf("class" to "kuml-small-halo") + attrs) { text(label) }
-    builder.tag("text", mapOf("class" to "kuml-small") + attrs) { text(label) }
+    builder.tag(name = "text", attrs = mapOf("class" to "kuml-small-halo") + attrs) { text(label) }
+    builder.tag(name = "text", attrs = mapOf("class" to "kuml-small") + attrs) { text(label) }
 }
 
 /**
@@ -239,11 +239,11 @@ internal fun renderUmlGeneralization(
     builder: SvgBuilder,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
-    builder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
+    builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge"))
     val (arrowFrom, arrowTip) = route.arrowDirection()
-    renderInlineArrow(arrowFrom, arrowTip, ArrowStyle.TRIANGLE, theme, builder)
+    renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.TRIANGLE, theme = theme, builder = builder)
     val (mx, my) = routeLabelMid(route)
-    StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
+    StereotypeHelper.renderEdgeStereotype(element = rel, theme = theme, builder = builder, midX = mx, midY = my)
 }
 
 /**
@@ -259,11 +259,11 @@ internal fun renderUmlInterfaceRealization(
     builder: SvgBuilder,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
-    builder.tag(tag, attrs + mapOf("class" to "kuml-edge-dashed"))
+    builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge-dashed"))
     val (arrowFrom, arrowTip) = route.arrowDirection()
-    renderInlineArrow(arrowFrom, arrowTip, ArrowStyle.TRIANGLE_MUTED, theme, builder)
+    renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.TRIANGLE_MUTED, theme = theme, builder = builder)
     val (mx, my) = routeLabelMid(route)
-    StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
+    StereotypeHelper.renderEdgeStereotype(element = rel, theme = theme, builder = builder, midX = mx, midY = my)
 }
 
 /**
@@ -279,14 +279,14 @@ internal fun renderUmlDependency(
     builder: SvgBuilder,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
-    builder.tag(tag, attrs + mapOf("class" to "kuml-edge-dashed"))
+    builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge-dashed"))
     val (arrowFrom, arrowTip) = route.arrowDirection()
-    renderInlineArrow(arrowFrom, arrowTip, ArrowStyle.OPEN_MUTED, theme, builder)
+    renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.OPEN_MUTED, theme = theme, builder = builder)
     val (mx, my) = routeLabelMid(route)
-    val hadStereo = StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
+    val hadStereo = StereotypeHelper.renderEdgeStereotype(element = rel, theme = theme, builder = builder, midX = mx, midY = my)
     val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else null
     rel.name?.let { label ->
-        renderEdgeLabel(label, route, theme, builder, overrideY = labelY)
+        renderEdgeLabel(label = label, route = route, theme = theme, builder = builder, overrideY = labelY)
     }
 }
 
@@ -303,12 +303,12 @@ internal fun renderUmlConnector(
     builder: SvgBuilder,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
-    builder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
+    builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge"))
     val (mx, my) = routeLabelMid(route)
-    val hadStereo = StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
+    val hadStereo = StereotypeHelper.renderEdgeStereotype(element = rel, theme = theme, builder = builder, midX = mx, midY = my)
     val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else null
     rel.name?.let { label ->
-        renderEdgeLabel(label, route, theme, builder, overrideY = labelY)
+        renderEdgeLabel(label = label, route = route, theme = theme, builder = builder, overrideY = labelY)
     }
 }
 
@@ -325,7 +325,7 @@ internal fun renderUmlCommentLink(
     builder: SvgBuilder,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
-    builder.tag(tag, attrs + mapOf("class" to "kuml-edge-dashed"))
+    builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge-dashed"))
 }
 
 /**
@@ -338,10 +338,10 @@ internal fun renderUmlInclude(
     builder: SvgBuilder,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
-    builder.tag(tag, attrs + mapOf("class" to "kuml-edge-dashed"))
+    builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge-dashed"))
     val (arrowFrom, arrowTip) = route.arrowDirection()
-    renderInlineArrow(arrowFrom, arrowTip, ArrowStyle.OPEN_MUTED, theme, builder)
-    renderEdgeLabel("«include»", route, theme, builder)
+    renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.OPEN_MUTED, theme = theme, builder = builder)
+    renderEdgeLabel(label = "«include»", route = route, theme = theme, builder = builder)
 }
 
 /**
@@ -354,10 +354,10 @@ internal fun renderUmlExtend(
     builder: SvgBuilder,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
-    builder.tag(tag, attrs + mapOf("class" to "kuml-edge-dashed"))
+    builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge-dashed"))
     val (arrowFrom, arrowTip) = route.arrowDirection()
-    renderInlineArrow(arrowFrom, arrowTip, ArrowStyle.OPEN_MUTED, theme, builder)
-    renderEdgeLabel("«extend»", route, theme, builder)
+    renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.OPEN_MUTED, theme = theme, builder = builder)
+    renderEdgeLabel(label = "«extend»", route = route, theme = theme, builder = builder)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -396,7 +396,7 @@ private fun renderEdgeLabel(
 ) {
     val (mx, defaultMy) = routeLabelMid(route)
     val my = overrideY ?: defaultMy
-    builder.renderEdgeLabelWithHalo(label, mx, my, "middle")
+    builder.renderEdgeLabelWithHalo(label = label, x = mx, y = my, textAnchor = "middle")
 }
 
 /**
@@ -420,7 +420,7 @@ internal fun renderUmlLink(
     targetStackIndex: Int = 0,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
-    builder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
+    builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge"))
 
     // Role-Labels werden an die jeweilige Endpoint angesetzt — dieselbe Konvention
     // wie für Multiplizitäts-Labels in [renderUmlAssociation] (V3.0.11): 16 px
@@ -438,10 +438,10 @@ internal fun renderUmlLink(
         val (tx, ty) = EdgeLabelGeometry.sourceSegmentTangent(route)
         val m = margin + srcStep
         endpointLabel(
-            builder,
-            route.source.x + tx * m - ty * perpOff,
-            route.source.y + ty * m + tx * perpOff,
-            label,
+            builder = builder,
+            x = route.source.x + tx * m - ty * perpOff,
+            y = route.source.y + ty * m + tx * perpOff,
+            label = label,
         )
     }
 
@@ -449,10 +449,10 @@ internal fun renderUmlLink(
         val (tx, ty) = EdgeLabelGeometry.targetSegmentTangent(route)
         val m = margin + tgtStep
         endpointLabel(
-            builder,
-            route.target.x - tx * m - ty * perpOff,
-            route.target.y - ty * m + tx * perpOff,
-            label,
+            builder = builder,
+            x = route.target.x - tx * m - ty * perpOff,
+            y = route.target.y - ty * m + tx * perpOff,
+            label = label,
         )
     }
 }
@@ -469,11 +469,11 @@ internal fun renderUmlActivityEdge(
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     val cls = if (rel.isObjectFlow) "kuml-edge kuml-edge-dashed" else "kuml-edge"
-    builder.tag(tag, attrs + mapOf("class" to cls))
+    builder.tag(name = tag, attrs = attrs + mapOf("class" to cls))
     val (arrowFrom, arrowTip) = route.arrowDirection()
-    renderInlineArrow(arrowFrom, arrowTip, ArrowStyle.OPEN, theme, builder)
+    renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.OPEN, theme = theme, builder = builder)
     rel.guard?.let { guard ->
-        renderEdgeLabel("[$guard]", route, theme, builder)
+        renderEdgeLabel(label = "[$guard]", route = route, theme = theme, builder = builder)
     }
 }
 

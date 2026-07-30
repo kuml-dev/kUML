@@ -15,8 +15,8 @@ private class StubProvider : KumlLlmProviderSpi {
 
     override fun supportedModels(): List<ModelDescriptor> =
         listOf(
-            ModelDescriptor("stub-model-fast", "Stub Fast", contextWindowTokens = 8_192),
-            ModelDescriptor("stub-model-large", "Stub Large", contextWindowTokens = 128_000),
+            ModelDescriptor(modelId = "stub-model-fast", displayName = "Stub Fast", contextWindowTokens = 8_192),
+            ModelDescriptor(modelId = "stub-model-large", displayName = "Stub Large", contextWindowTokens = 128_000),
         )
 
     override fun buildClient(
@@ -45,17 +45,17 @@ class KumlLlmProviderSpiTest :
         }
 
         test("buildClient returns a non-null Any without Koog types") {
-            val client = StubProvider().buildClient("test-key", emptyMap())
+            val client = StubProvider().buildClient(apiKey = "test-key", options = emptyMap())
             (client is StubClient) shouldBe true
         }
 
         test("ModelDescriptor defaults contextWindowTokens to null") {
-            val d = ModelDescriptor("my-model", "My Model")
+            val d = ModelDescriptor(modelId = "my-model", displayName = "My Model")
             d.contextWindowTokens shouldBe null
         }
 
         test("ModelDescriptor displayName is present") {
-            val d = ModelDescriptor("gpt-4o", "GPT-4o", contextWindowTokens = 128_000)
+            val d = ModelDescriptor(modelId = "gpt-4o", displayName = "GPT-4o", contextWindowTokens = 128_000)
             d.displayName shouldContain "GPT"
         }
     })

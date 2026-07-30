@@ -143,25 +143,25 @@ internal class CppLexer(
                     while (i < len && (src[i].isLetterOrDigit() || src[i] == '_')) i++
                     val text = src.substring(start, i)
                     val type = if (text in KEYWORDS) CppTokenType.KEYWORD else CppTokenType.IDENTIFIER
-                    tokens += CppToken(type, text, line)
+                    tokens += CppToken(type = type, text = text, line = line)
                 }
                 c.isDigit() -> {
                     val start = i
                     while (i < len && (src[i].isLetterOrDigit() || src[i] == '.' || src[i] == '_')) i++
-                    tokens += CppToken(CppTokenType.NUMBER, src.substring(start, i), line)
+                    tokens += CppToken(type = CppTokenType.NUMBER, text = src.substring(start, i), line = line)
                 }
                 c == ':' && i + 1 < len && src[i + 1] == ':' -> {
-                    tokens += CppToken(CppTokenType.PUNCT, "::", line)
+                    tokens += CppToken(type = CppTokenType.PUNCT, text = "::", line = line)
                     i += 2
                 }
                 c in PUNCTS -> {
-                    tokens += CppToken(CppTokenType.PUNCT, c.toString(), line)
+                    tokens += CppToken(type = CppTokenType.PUNCT, text = c.toString(), line = line)
                     i++
                 }
                 else -> i++ // skip unknown chars (e.g. stripped string placeholders)
             }
         }
-        tokens += CppToken(CppTokenType.EOF, "", line)
+        tokens += CppToken(type = CppTokenType.EOF, text = "", line = line)
         return tokens
     }
 

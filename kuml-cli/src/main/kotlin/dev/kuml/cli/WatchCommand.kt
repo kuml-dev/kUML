@@ -49,17 +49,17 @@ internal class WatchCommand : CliktCommand(name = "watch") {
     override fun help(context: Context): String = "Watch a kUML script and re-render on every change. Exit: Ctrl+C."
 
     override fun run() {
-        val resolvedFormat = FormatResolver.resolve(format, output, input)
-        val resolvedOutput = output ?: FormatResolver.defaultOutput(input, resolvedFormat)
+        val resolvedFormat = FormatResolver.resolve(format = format, output = output, input = input)
+        val resolvedOutput = output ?: FormatResolver.defaultOutput(input = input, format = resolvedFormat)
 
         echo("Watching ${input.name} — press Ctrl+C to stop")
 
         // Initial render before entering the watch loop
-        renderSafe(resolvedFormat, resolvedOutput)
+        renderSafe(format = resolvedFormat, output = resolvedOutput)
 
         // Poll loop — blocks until thread is interrupted (Ctrl+C / SIGINT)
-        WatchLoop.watch(input) {
-            renderSafe(resolvedFormat, resolvedOutput)
+        WatchLoop.watch(file = input) {
+            renderSafe(format = resolvedFormat, output = resolvedOutput)
         }
     }
 
@@ -69,7 +69,7 @@ internal class WatchCommand : CliktCommand(name = "watch") {
     ) {
         val ts = LocalTime.now().format(TS_FORMAT)
         try {
-            RenderPipeline.run(input, output, format, width, themeName)
+            RenderPipeline.run(input = input, output = output, format = format, width = width, themeName = themeName)
             echo("[$ts] Wrote $output")
         } catch (e: ScriptEvaluationException) {
             System.err.println("[$ts] Script error: ${e.message}")

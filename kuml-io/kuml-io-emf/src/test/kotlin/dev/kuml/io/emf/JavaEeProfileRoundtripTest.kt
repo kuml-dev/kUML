@@ -17,7 +17,7 @@ class JavaEeProfileRoundtripTest :
         test("javaee round-trip preserves stereotype count") {
             val tmpFile = createTempFile("javaee-roundtrip-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(javaEeProfile, tmpFile)
+            exporter.export(profile = javaEeProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             imported.stereotypes.size shouldBe javaEeProfile.stereotypes.size
         }
@@ -25,7 +25,7 @@ class JavaEeProfileRoundtripTest :
         test("javaee round-trip preserves stereotype names") {
             val tmpFile = createTempFile("javaee-roundtrip-names-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(javaEeProfile, tmpFile)
+            exporter.export(profile = javaEeProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             imported.stereotypes.map { it.name } shouldContainExactlyInAnyOrder
                 javaEeProfile.stereotypes.map { it.name }
@@ -34,7 +34,7 @@ class JavaEeProfileRoundtripTest :
         test("javaee round-trip preserves profile namespace") {
             val tmpFile = createTempFile("javaee-roundtrip-ns-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(javaEeProfile, tmpFile)
+            exporter.export(profile = javaEeProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             imported.namespace shouldBe javaEeProfile.namespace
         }
@@ -42,7 +42,7 @@ class JavaEeProfileRoundtripTest :
         test("javaee round-trip preserves each stereotype targetMetaclass") {
             val tmpFile = createTempFile("javaee-roundtrip-mc-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(javaEeProfile, tmpFile)
+            exporter.export(profile = javaEeProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             for (original in javaEeProfile.stereotypes) {
                 val roundTripped = imported.stereotype(original.name)!!

@@ -113,7 +113,7 @@ class ChoreographyBuilder(
     fun startEvent(
         name: String? = null,
         id: String? = null,
-    ): String = event(EventPosition.START, name, id, "start")
+    ): String = event(position = EventPosition.START, name = name, id = id, prefix = "start")
 
     /**
      * Declares an end event.
@@ -125,7 +125,7 @@ class ChoreographyBuilder(
     fun endEvent(
         name: String? = null,
         id: String? = null,
-    ): String = event(EventPosition.END, name, id, "end")
+    ): String = event(position = EventPosition.END, name = name, id = id, prefix = "end")
 
     /**
      * Declares an intermediate event.
@@ -137,7 +137,7 @@ class ChoreographyBuilder(
     fun intermediateEvent(
         name: String? = null,
         id: String? = null,
-    ): String = event(EventPosition.INTERMEDIATE, name, id, "intermediate")
+    ): String = event(position = EventPosition.INTERMEDIATE, name = name, id = id, prefix = "intermediate")
 
     private fun event(
         position: EventPosition,

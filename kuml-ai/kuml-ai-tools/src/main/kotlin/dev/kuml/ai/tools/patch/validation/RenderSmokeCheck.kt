@@ -37,9 +37,9 @@ internal object RenderSmokeCheck {
                 is AnyKumlModel.Uml -> {
                     val kumlModel = model.toKumlModel()
                     val diagram = kumlModel.root as dev.kuml.core.model.KumlDiagram
-                    val graph = UmlLayoutBridge.toLayoutGraph(diagram)
-                    val layoutResult = engine.layout(graph)
-                    KumlSvgRenderer.toSvg(diagram, layoutResult)
+                    val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
+                    val layoutResult = engine.layout(graph = graph)
+                    KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult)
                 }
                 is AnyKumlModel.C4 -> {
                     val c4Model = model.model
@@ -50,18 +50,18 @@ internal object RenderSmokeCheck {
                             elements = c4Model.elements.map { it.id },
                             relationships = c4Model.relationships.map { it.id },
                         )
-                    val graph = C4LayoutBridge.toLayoutGraph(diagram, c4Model)
-                    val layoutResult = engine.layout(graph)
-                    KumlSvgRenderer.toSvg(diagram, c4Model, layoutResult)
+                    val graph = C4LayoutBridge.toLayoutGraph(diagram = diagram, model = c4Model)
+                    val layoutResult = engine.layout(graph = graph)
+                    KumlSvgRenderer.toSvg(diagram = diagram, model = c4Model, layoutResult = layoutResult)
                 }
                 is AnyKumlModel.Sysml2 -> {
                     val sysmlModel = model.model
                     val diagram: BdDiagram =
                         sysmlModel.diagrams.filterIsInstance<BdDiagram>().firstOrNull()
                             ?: BdDiagram(name = sysmlModel.name, elementIds = sysmlModel.definitions.map { it.id })
-                    val graph = Sysml2LayoutBridge.toLayoutGraph(sysmlModel, diagram)
-                    val layoutResult = engine.layout(graph)
-                    KumlSvgRenderer.toSvg(sysmlModel, diagram, layoutResult)
+                    val graph = Sysml2LayoutBridge.toLayoutGraph(model = sysmlModel, diagram = diagram)
+                    val layoutResult = engine.layout(graph = graph)
+                    KumlSvgRenderer.toSvg(model = sysmlModel, diagram = diagram, layoutResult = layoutResult)
                 }
             }
             PatchValidationResult.Valid()

@@ -100,6 +100,7 @@ kuml/
 ├── kuml-mcp/               # MCP-Server (Ktor, Stdio + SSE)
 ├── kuml-cli/               # Kommandozeilen-Interface
 ├── kuml-gradle-plugin/     # Gradle-Plugin (dev.kuml)
+├── kuml-detekt-rules/      # Build-Tooling: custom Detekt-Ruleset (kuml/RequireNamedArguments), nie published
 ├── kuml-web/               # Web-Interface (Ktor + KVision)
 ├── kuml-desktop/           # Compose Desktop UI
 ├── kuml-docs/
@@ -304,6 +305,41 @@ association(source = Order::class, target = OrderItem::class) {
 diagram("Systemübersicht", DiagramType.CLASS)
 attribute("id", UUID, PRIVATE)
 ```
+
+> [!note] Maschinell durchgesetzt seit V-detekt-named-arguments (2026-07-30)
+> Diese Konvention wird nicht mehr nur durch Review geprüft, sondern durch den
+> Custom-Detekt-Rule `kuml/RequireNamedArguments` (Modul `kuml-detekt-rules`,
+> siehe Modulstruktur oben) via `./gradlew check` erzwungen: jeder Aufruf einer
+> `dev.kuml.*`-Funktion oder eines `dev.kuml.*`-Konstruktors mit mehr als einem
+> Value-Parameter muss benannte Argumente verwenden. Ausnahmen (automatisch,
+> nicht konfigurierbar pro Aufruf): `vararg`-Parameter, Operator-/Infix-Funktionen,
+> und die abschließende Trailing-Lambda eines Block-DSL-Aufrufs (`state("Idle", 2) { }`
+> — `"Idle"`/`2` müssen benannt werden, das `{ }` nicht). Kotlin-Stdlib- und
+> Drittanbieter-Aufrufe (`listOf(...)`, `"x".substring(...)`, ELK, Batik, JavaParser
+> usw.) sind bewusst nicht erfasst — Java-deklarierte Parameter können in Kotlin
+> ohnehin nicht benannt werden, ein generisches "alles außer kotlin/kotlinx"-Denylist
+> hätte dort nur unfixbare Findings erzeugt.
+>
+> **Bekannte, bewusste Lücken** (der Rule-Autocorrect erreicht sie strukturell nicht):
+> Annotation-Argumente (`@Serializable(with = Foo::class)`), Konstruktor-Delegation
+> (`: this(a, 0)` / `: super(x, y)`), und die `.kuml.kts`-DSL-Beispielskripte selbst
+> (kein Kotlin-Compile-Target, daher keine Typauflösung) — letztere sind bereits von
+> Hand im benannten Stil geschrieben, siehe `03 Bereiche/kUML/Beispiele/`.
+>
+> **Modul-Ausnahmen vom Gate** (dokumentiert in `kumlDetektExemptModules`,
+> root `build.gradle.kts`, mit Begründung im jeweiligen Modul-Build-Skript):
+> `kuml-wasm-playground` (kein `jvm()`-Target → keine Typauflösung möglich) und
+> `kuml-jetbrains-plugin` (`dev.detekt` kollidiert mit
+> `org.jetbrains.intellij.platform.gradle` im gemeinsamen Plugin-Classpath —
+> gelöst für den Rest des Repos über ein erzwungenes `kotlinx-serialization-core`
+> im root `buildscript{}`-Block, siehe Kommentar dort; `kuml-jetbrains-plugin`
+> bleibt trotzdem ausgenommen, weil es `dev.detekt` gar nicht erst anwendet).
+>
+> Autocorrect ist textuelles Ersetzen (`param = ` wird nur eingefügt, nie
+> umsortiert) — Kotlin wertet Argumente in Aufrufreihenfolge aus, nicht in
+> Deklarationsreihenfolge, daher ist reines Einfügen evaluation-order-neutral.
+> **Beim manuellen Nacharbeiten niemals Argumente umsortieren** — das wäre die
+> einzige Möglichkeit, wie diese Welle einen echten Bug einführen könnte.
 
 ### 2. Visibility Modifier — immer explizit in der DSL
 

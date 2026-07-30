@@ -30,15 +30,15 @@ class Sysml2ActLatexTest :
 
         "ACT-TikZ enthält Action-Namen und kind-spezifische Stereotypes (V2.0.10 fallback)" {
             val model =
-                sysml2Model("OrderProcessing") {
+                sysml2Model(name = "OrderProcessing") {
                     val initial = initialNode()
-                    val validate = actionDef("Validate", action = "validate(order)")
-                    val decide = decisionNode("Valid?")
+                    val validate = actionDef(name = "Validate", action = "validate(order)")
+                    val decide = decisionNode(name = "Valid?")
                     val finalN = finalNode()
-                    controlFlow("start", initial, validate)
-                    controlFlow("vToD", validate, decide)
-                    controlFlow("end", decide, finalN, guard = "valid")
-                    actDiagram("Workflow") {
+                    controlFlow(name = "start", source = initial, target = validate)
+                    controlFlow(name = "vToD", source = validate, target = decide)
+                    controlFlow(name = "end", source = decide, target = finalN, guard = "valid")
+                    actDiagram(name = "Workflow") {
                         include(initial)
                         include(validate)
                         include(decide)
@@ -50,19 +50,23 @@ class Sysml2ActLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(800f, 240f),
+                    canvas = Size(width = 800f, height = 240f),
                     nodes =
                         mapOf(
-                            NodeId("Initial") to NodeLayout(bounds = Rect(Point(20f, 100f), Size(28f, 28f))),
-                            NodeId("Validate") to NodeLayout(bounds = Rect(Point(80f, 80f), Size(160f, 60f))),
-                            NodeId("Valid?") to NodeLayout(bounds = Rect(Point(280f, 90f), Size(50f, 50f))),
-                            NodeId("Final") to NodeLayout(bounds = Rect(Point(400f, 100f), Size(28f, 28f))),
+                            NodeId("Initial") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 100f), size = Size(width = 28f, height = 28f))),
+                            NodeId("Validate") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 80f, y = 80f), size = Size(width = 160f, height = 60f))),
+                            NodeId("Valid?") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 280f, y = 90f), size = Size(width = 50f, height = 50f))),
+                            NodeId("Final") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 400f, y = 100f), size = Size(width = 28f, height = 28f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(model, act, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = act, layoutResult = layout)
             tex shouldContain "\\begin{tikzpicture}"
             tex shouldContain "Validate"
             // V2.0.10-Fallback emittiert kind-spezifische Stereotypes —
@@ -72,16 +76,16 @@ class Sysml2ActLatexTest :
             tex shouldContain "initial node"
             tex shouldContain "decision node"
 
-            SampleOutput.write("sysml2-act/order-processing-act.tex", tex)
+            SampleOutput.write(filename = "sysml2-act/order-processing-act.tex", content = tex)
         }
 
         "deterministic ACT output" {
             val model =
-                sysml2Model("Det") {
-                    val a = actionDef("A")
-                    val b = actionDef("B")
-                    controlFlow("aToB", a, b)
-                    actDiagram("ACT") {
+                sysml2Model(name = "Det") {
+                    val a = actionDef(name = "A")
+                    val b = actionDef(name = "B")
+                    controlFlow(name = "aToB", source = a, target = b)
+                    actDiagram(name = "ACT") {
                         include(a)
                         include(b)
                     }
@@ -91,17 +95,19 @@ class Sysml2ActLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("A") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(160f, 60f))),
-                            NodeId("B") to NodeLayout(bounds = Rect(Point(220f, 0f), Size(160f, 60f))),
+                            NodeId("A") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 160f, height = 60f))),
+                            NodeId("B") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 220f, y = 0f), size = Size(width = 160f, height = 60f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val one = KumlLatexRenderer.toLatex(model, act, layout)
-            val two = KumlLatexRenderer.toLatex(model, act, layout)
+            val one = KumlLatexRenderer.toLatex(model = model, diagram = act, layoutResult = layout)
+            val two = KumlLatexRenderer.toLatex(model = model, diagram = act, layoutResult = layout)
             one shouldBe two
         }
     })

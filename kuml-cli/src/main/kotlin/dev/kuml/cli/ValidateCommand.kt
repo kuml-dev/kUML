@@ -81,7 +81,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
 
     override fun run() {
         // 1. Evaluate script
-        val evalResult = KumlScriptHost.eval(input)
+        val evalResult = KumlScriptHost.eval(file = input)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
             echo("Script error: ${errors.joinToString("\n") { it.message }}", err = true)
@@ -98,7 +98,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         //    then fall back to the legacy UML-only path for backward compatibility.
         val extracted: ExtractedDiagram? =
             try {
-                DiagramExtractor.extractAny(success.value.returnValue, input)
+                DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = input)
             } catch (_: Throwable) {
                 null
             }
@@ -113,7 +113,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                 // Attempt the legacy extract for backward compat — errors are silently swallowed
                 // when the script is SysML 2 / C4 (those don't have OCL constraints).
                 try {
-                    DiagramExtractor.extract(success.value.returnValue, input)
+                    DiagramExtractor.extract(returnValue = success.value.returnValue, input = input)
                 } catch (_: Throwable) {
                     null
                 }
@@ -266,7 +266,13 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                     echo(kumlPrettyJson.encodeToString(KumlValidationResult.serializer(), modelResult))
                 }
             }
-            else -> printText(combined, modelResult.violations, stereotypeResult?.violations, allStructuralLikeViolations)
+            else ->
+                printText(
+                    combined = combined,
+                    modelViolations = modelResult.violations,
+                    stereotypeViolations = stereotypeResult?.violations,
+                    structuralViolations = allStructuralLikeViolations,
+                )
         }
 
         if (!combined.valid) throw ProgramResult(ExitCodes.VALIDATION_VIOLATIONS)
@@ -293,9 +299,9 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         model.usages.filterIsInstance<TransitionUsage>().forEach { tu ->
             tu.guard?.let { guard ->
                 val errs = mutableListOf<dev.kuml.expr.ParseError>()
-                val parsed = OclLikeExpressionParser.tryParse(guard, errs)
+                val parsed = OclLikeExpressionParser.tryParse(input = guard, errors = errs)
                 if (parsed != null) {
-                    val type = ExpressionTypeChecker.infer(parsed)
+                    val type = ExpressionTypeChecker.infer(expr = parsed)
                     if (type is dev.kuml.expr.KumlType.TypeError) {
                         messages +=
                             "transition:${tu.id} guard '$guard': ${type.message}"
@@ -307,7 +313,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
             }
             tu.effect?.let { effect ->
                 val errs = mutableListOf<dev.kuml.expr.ParseError>()
-                OclLikeExpressionParser.tryParseEffects(effect, errs)
+                OclLikeExpressionParser.tryParseEffects(input = effect, errors = errs)
                 if (errs.isNotEmpty()) {
                     messages +=
                         "transition:${tu.id} effect '$effect': ${errs.first().message}"
@@ -319,7 +325,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         model.usages.filterIsInstance<ControlFlowUsage>().forEach { cf ->
             cf.guard?.let { guard ->
                 val errs = mutableListOf<dev.kuml.expr.ParseError>()
-                val parsed = OclLikeExpressionParser.tryParse(guard, errs)
+                val parsed = OclLikeExpressionParser.tryParse(input = guard, errors = errs)
                 if (parsed == null && errs.isNotEmpty()) {
                     messages +=
                         "controlFlow:${cf.id} guard '$guard': ${errs.first().message}"
@@ -343,10 +349,10 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
             // No diagram filter — check all constraint definitions in model
             val allConstraints = model.definitions.filterIsInstance<ConstraintDefinition>()
             if (allConstraints.isEmpty()) return emptyList()
-            return Sysml2ConstraintChecker.check(model, null)
+            return Sysml2ConstraintChecker.check(model = model, diagram = null)
         }
         return parDiagrams.flatMap { diagram ->
-            Sysml2ConstraintChecker.check(model, diagram)
+            Sysml2ConstraintChecker.check(model = model, diagram = diagram)
         }
     }
 

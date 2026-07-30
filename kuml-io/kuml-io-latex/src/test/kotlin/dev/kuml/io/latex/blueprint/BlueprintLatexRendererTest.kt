@@ -18,26 +18,26 @@ import io.kotest.matchers.string.shouldNotContain
 class BlueprintLatexRendererTest :
     StringSpec({
         fun fullModel() =
-            blueprint("Service") {
-                val staff = actor("Mitarbeiter", ActorRole.STAFF)
-                val system = actor("CRM", ActorRole.SYSTEM)
-                val web = channel("Web", ChannelKind.WEB)
-                val formular = touchpoint("Formular", channel = web)
-                phase("Antrag") {
-                    customer("Füllt Formular", Sentiment.NEUTRAL, touchpoints = listOf(formular))
-                    frontstage("Bestätigt", actor = staff)
-                    backstage("Prüft", actor = staff)
-                    support("Speichert", actor = system)
+            blueprint(name = "Service") {
+                val staff = actor(name = "Mitarbeiter", role = ActorRole.STAFF)
+                val system = actor(name = "CRM", role = ActorRole.SYSTEM)
+                val web = channel(name = "Web", kind = ChannelKind.WEB)
+                val formular = touchpoint(name = "Formular", channel = web)
+                phase(name = "Antrag") {
+                    customer(name = "Füllt Formular", sentiment = Sentiment.NEUTRAL, touchpoints = listOf(formular))
+                    frontstage(name = "Bestätigt", actor = staff)
+                    backstage(name = "Prüft", actor = staff)
+                    support(name = "Speichert", actor = system)
                 }
-                phase("Aufnahme") {
-                    customer("Wartet", Sentiment.NEGATIVE)
-                    support("Weist zu", actor = system)
+                phase(name = "Aufnahme") {
+                    customer(name = "Wartet", sentiment = Sentiment.NEGATIVE)
+                    support(name = "Weist zu", actor = system)
                 }
-                blueprintDiagram("Blueprint", emotionCurve = true)
+                blueprintDiagram(name = "Blueprint", emotionCurve = true)
             }
 
         fun render(standalone: Boolean = false): String =
-            KumlLatexRenderer.toLatex(fullModel(), LatexRenderOptions(standalone = standalone))
+            KumlLatexRenderer.toLatex(model = fullModel(), options = LatexRenderOptions(standalone = standalone))
 
         "emits a tikzpicture block" {
             val tex = render()
@@ -84,7 +84,7 @@ class BlueprintLatexRendererTest :
         "respects showLines subset" {
             val model = fullModel()
             val full = model.diagrams.first() as dev.kuml.blueprint.model.BlueprintDiagramFull
-            val tex = KumlLatexRenderer.toLatex(model, full.copy(showLines = setOf(BlueprintLine.VISIBILITY)))
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = full.copy(showLines = setOf(BlueprintLine.VISIBILITY)))
             tex shouldContain "Line of Visibility"
             tex shouldNotContain "Line of Interaction"
         }
@@ -103,7 +103,7 @@ class BlueprintLatexRendererTest :
         }
 
         "empty model renders empty string" {
-            val empty = blueprint("Empty") {}
-            KumlLatexRenderer.toLatex(empty) shouldContain ""
+            val empty = blueprint(name = "Empty") {}
+            KumlLatexRenderer.toLatex(model = empty) shouldContain ""
         }
     })

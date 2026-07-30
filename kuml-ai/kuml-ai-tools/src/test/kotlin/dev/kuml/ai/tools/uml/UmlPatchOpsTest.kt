@@ -12,23 +12,30 @@ class UmlPatchOpsTest :
 
         test("pure addClass on cloned UmlModel returns model with one more class") {
             val model = AnyKumlModel.emptyUml()
-            val result = UmlPatchOps.addClass(model, "order_service", "OrderService", null, false)
+            val result =
+                UmlPatchOps.addClass(
+                    model = model,
+                    id = "order_service",
+                    name = "OrderService",
+                    stereotype = null,
+                    isAbstract = false,
+                )
             result.elements shouldHaveSize 1
             result.elements[0].name shouldBe "OrderService"
         }
 
         test("pure addAttribute updates the classifier in place") {
             val model = AnyKumlModel.emptyUml()
-            val withClass = UmlPatchOps.addClass(model, "order", "Order", null, false)
+            val withClass = UmlPatchOps.addClass(model = model, id = "order", name = "Order", stereotype = null, isAbstract = false)
             val withAttr =
                 UmlPatchOps.addAttribute(
-                    withClass,
-                    "order",
-                    "order_id",
-                    "id",
-                    "String",
-                    dev.kuml.uml.Visibility.PRIVATE,
-                    null,
+                    model = withClass,
+                    classifierId = "order",
+                    attrId = "order_id",
+                    attrName = "id",
+                    typeName = "String",
+                    visibility = dev.kuml.uml.Visibility.PRIVATE,
+                    defaultValue = null,
                 )
             withAttr.shouldNotBeNull()
             val cls = withAttr.elements[0] as UmlClass
@@ -40,25 +47,25 @@ class UmlPatchOpsTest :
             val model = AnyKumlModel.emptyUml()
             val withClasses =
                 UmlPatchOps.addClass(
-                    UmlPatchOps.addClass(model, "cls_a", "A", null, false),
-                    "cls_b",
-                    "B",
-                    null,
-                    false,
+                    model = UmlPatchOps.addClass(model = model, id = "cls_a", name = "A", stereotype = null, isAbstract = false),
+                    id = "cls_b",
+                    name = "B",
+                    stereotype = null,
+                    isAbstract = false,
                 )
             val withAssoc =
                 UmlPatchOps.addAssociation(
-                    withClasses,
-                    "assoc_ab",
-                    "cls_a",
-                    "cls_b",
-                    null,
-                    dev.kuml.uml.Multiplicity(),
-                    dev.kuml.uml.Multiplicity(),
+                    model = withClasses,
+                    assocId = "assoc_ab",
+                    sourceId = "cls_a",
+                    targetId = "cls_b",
+                    name = null,
+                    sourceMultiplicity = dev.kuml.uml.Multiplicity(),
+                    targetMultiplicity = dev.kuml.uml.Multiplicity(),
                 )
             withAssoc.relationships shouldHaveSize 1
             // Remove class A — should cascade-remove the association
-            val afterRemove = UmlPatchOps.removeElement(withAssoc, "cls_a")
+            val afterRemove = UmlPatchOps.removeElement(model = withAssoc, elementId = "cls_a")
             afterRemove.shouldNotBeNull()
             afterRemove.elements shouldHaveSize 1 // only B remains
             afterRemove.relationships shouldHaveSize 0 // association removed
@@ -66,8 +73,8 @@ class UmlPatchOpsTest :
 
         test("pure rename leaves id unchanged") {
             val model = AnyKumlModel.emptyUml()
-            val withClass = UmlPatchOps.addClass(model, "old_name", "OldName", null, false)
-            val (renamed, oldName) = UmlPatchOps.renameElement(withClass, "old_name", "NewName")!!
+            val withClass = UmlPatchOps.addClass(model = model, id = "old_name", name = "OldName", stereotype = null, isAbstract = false)
+            val (renamed, oldName) = UmlPatchOps.renameElement(model = withClass, elementId = "old_name", newName = "NewName")!!
             oldName shouldBe "OldName"
             renamed.elements[0].id shouldBe "old_name" // id unchanged
             renamed.elements[0].name shouldBe "NewName"
@@ -77,21 +84,21 @@ class UmlPatchOpsTest :
             val model = AnyKumlModel.emptyUml()
             val withClasses =
                 UmlPatchOps.addClass(
-                    UmlPatchOps.addClass(model, "src", "Source", null, false),
-                    "tgt",
-                    "Target",
-                    null,
-                    false,
+                    model = UmlPatchOps.addClass(model = model, id = "src", name = "Source", stereotype = null, isAbstract = false),
+                    id = "tgt",
+                    name = "Target",
+                    stereotype = null,
+                    isAbstract = false,
                 )
             val withAssoc =
                 UmlPatchOps.addAssociation(
-                    withClasses,
-                    "a1",
-                    "src",
-                    "tgt",
-                    null,
-                    dev.kuml.uml.Multiplicity(),
-                    dev.kuml.uml.Multiplicity(),
+                    model = withClasses,
+                    assocId = "a1",
+                    sourceId = "src",
+                    targetId = "tgt",
+                    name = null,
+                    sourceMultiplicity = dev.kuml.uml.Multiplicity(),
+                    targetMultiplicity = dev.kuml.uml.Multiplicity(),
                 )
             withAssoc.relationships shouldHaveSize 1
             val assoc = withAssoc.relationships[0] as dev.kuml.uml.UmlAssociation

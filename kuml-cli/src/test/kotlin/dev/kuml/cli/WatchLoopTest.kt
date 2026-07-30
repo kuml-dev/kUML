@@ -17,7 +17,7 @@ class WatchLoopTest :
 
             val thread =
                 Thread {
-                    WatchLoop.watch(file, pollIntervalMs = 100L) {
+                    WatchLoop.watch(file = file, pollIntervalMs = 100L) {
                         latch.countDown()
                     }
                 }
@@ -41,7 +41,7 @@ class WatchLoopTest :
 
             val thread =
                 Thread {
-                    WatchLoop.watch(file, pollIntervalMs = 100L) {
+                    WatchLoop.watch(file = file, pollIntervalMs = 100L) {
                         callCount.incrementAndGet()
                     }
                 }
@@ -61,7 +61,7 @@ class WatchLoopTest :
 
             val thread =
                 Thread {
-                    WatchLoop.watch(file, pollIntervalMs = 100L) { }
+                    WatchLoop.watch(file = file, pollIntervalMs = 100L) { }
                     latch.countDown() // reaches here only after interrupt exits the loop
                 }
             thread.start()

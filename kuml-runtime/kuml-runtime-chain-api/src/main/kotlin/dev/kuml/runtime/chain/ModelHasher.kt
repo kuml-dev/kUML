@@ -93,7 +93,7 @@ public object ModelHasher {
         // Wurzel unter dem Sentinel "" → kommt alphabetisch zuerst, kollisionsfrei.
         val collected = sortedMapOf<String, String>()
         collected[""] = canonicalize(script)
-        collectImports(script, importResolver, visited, collected)
+        collectImports(script = script, importResolver = importResolver, visited = visited, collected = collected)
 
         for ((uri, canonical) in collected) {
             digest.update(uri.toByteArray(Charsets.UTF_8))
@@ -122,7 +122,7 @@ public object ModelHasher {
             if (!visited.add(uri)) continue // Zyklus oder Doppel-Import → überspringen
             val importedSource = importResolver(uri)
             collected[uri] = canonicalize(importedSource)
-            collectImports(importedSource, importResolver, visited, collected)
+            collectImports(script = importedSource, importResolver = importResolver, visited = visited, collected = collected)
         }
     }
 

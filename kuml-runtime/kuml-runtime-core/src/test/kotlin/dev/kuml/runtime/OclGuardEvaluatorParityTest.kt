@@ -16,8 +16,8 @@ class OclGuardEvaluatorParityTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A")),
-                    transitions = listOf(trans("t0", "init", "A")),
+                    vertices = listOf(initial(), state(id = "A")),
+                    transitions = listOf(trans(id = "t0", from = "init", to = "A")),
                 )
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)
             return rt.start(sm)
@@ -26,11 +26,11 @@ class OclGuardEvaluatorParityTest :
         val ev = OclGuardEvaluator()
 
         test("simple guard 'true' evaluates to True (AST path)") {
-            ev.evaluate("true", newInstance(), Event.of("any")) shouldBe GuardResult.True
+            ev.evaluate(guard = "true", instance = newInstance(), event = Event.of("any")) shouldBe GuardResult.True
         }
 
         test("simple guard 'false' evaluates to False (AST path)") {
-            ev.evaluate("false", newInstance(), Event.of("any")) shouldBe GuardResult.False
+            ev.evaluate(guard = "false", instance = newInstance(), event = Event.of("any")) shouldBe GuardResult.False
         }
 
         test("guard 'event.allow' with payload {allow=true} evaluates to True") {
@@ -45,14 +45,14 @@ class OclGuardEvaluatorParityTest :
             // The OCL legacy evaluator resolves event.allow via dot-navigation on the
             // event's eval-map; the AST evaluator resolves it via AttributeRef(["event","allow"])
             // navigating into the nested map at context["event"]["allow"].
-            val result = ev.evaluate("event.allow", newInstance(), event)
+            val result = ev.evaluate(guard = "event.allow", instance = newInstance(), event = event)
             result shouldBe GuardResult.True
         }
 
         test("unparseable guard '@@@' falls back to legacy path and does not throw") {
             // '@@@' cannot be parsed by the AST parser — must fall back to legacy OCL,
             // which also cannot parse it and returns Failed.
-            val result = ev.evaluate("@@@", newInstance(), Event.of("any"))
+            val result = ev.evaluate(guard = "@@@", instance = newInstance(), event = Event.of("any"))
             // Must not throw — should be Failed or False (not True)
             (result is GuardResult.Failed || result == GuardResult.False) shouldBe true
         }
@@ -60,8 +60,8 @@ class OclGuardEvaluatorParityTest :
         test("parse cache is populated after first evaluation") {
             val evaluator = OclGuardEvaluator()
             // First call seeds the cache
-            evaluator.evaluate("true", newInstance(), Event.of("x")) shouldBe GuardResult.True
+            evaluator.evaluate(guard = "true", instance = newInstance(), event = Event.of("x")) shouldBe GuardResult.True
             // Second call uses the cache — still correct
-            evaluator.evaluate("true", newInstance(), Event.of("x")) shouldBe GuardResult.True
+            evaluator.evaluate(guard = "true", instance = newInstance(), event = Event.of("x")) shouldBe GuardResult.True
         }
     })

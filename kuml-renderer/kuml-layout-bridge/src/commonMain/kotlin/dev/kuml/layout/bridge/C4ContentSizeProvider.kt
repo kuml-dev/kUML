@@ -51,21 +51,21 @@ public class C4ContentSizeProvider
         private val connectionsById: Map<String, Int> =
             run {
                 val out = mutableMapOf<String, Int>()
-                countConnections(model.relationships, out)
+                countConnections(relationships = model.relationships, out = out)
                 out
             }
 
         private val byId: Map<String, Size> =
             run {
                 val out = mutableMapOf<String, Size>()
-                collect(model.elements, out)
+                collect(elements = model.elements, out = out)
                 out
             }
 
         override fun sizeOf(
             elementId: String,
             elementKind: String,
-        ): Size = byId[elementId] ?: Size(DEFAULT_W, DEFAULT_H)
+        ): Size = byId[elementId] ?: Size(width = DEFAULT_W, height = DEFAULT_H)
 
         private fun collect(
             elements: Iterable<C4Element>,
@@ -74,21 +74,23 @@ public class C4ContentSizeProvider
             for (e in elements) {
                 when (e) {
                     is C4Person -> out[e.id] = personSize(e)
-                    is C4SoftwareSystem -> out[e.id] = boxSize(e.name, "[Software System]", e.description, e.id)
+                    is C4SoftwareSystem ->
+                        out[e.id] =
+                            boxSize(name = e.name, header = "[Software System]", description = e.description, id = e.id)
                     is C4Container -> {
                         val tech = e.technology?.let { " $it" } ?: ""
-                        out[e.id] = boxSize(e.name, "[Container:$tech]", e.description, e.id)
+                        out[e.id] = boxSize(name = e.name, header = "[Container:$tech]", description = e.description, id = e.id)
                     }
                     is C4Component -> {
                         val tech = e.technology?.let { " $it" } ?: ""
-                        out[e.id] = boxSize(e.name, "[Component:$tech]", e.description, e.id)
+                        out[e.id] = boxSize(name = e.name, header = "[Component:$tech]", description = e.description, id = e.id)
                     }
                     is C4DeploymentNode -> {
                         // Same shape as a Container box: stereotype header + bold name
                         // + optional wrapped description. The SVG renderer in
                         // kuml-io-svg/c4/C4DeploymentNodeSvg.kt mirrors this layout.
                         val tech = e.technology?.let { ":$it" } ?: ""
-                        out[e.id] = boxSize(e.name, "[Deployment Node$tech]", e.description, e.id)
+                        out[e.id] = boxSize(name = e.name, header = "[Deployment Node$tech]", description = e.description, id = e.id)
                     }
                     else -> {} // C4Model itself and unknown subtypes — fall back to default.
                 }
@@ -139,9 +141,9 @@ public class C4ContentSizeProvider
             id: String,
         ): Size {
             // Step 1 — preliminary width: max over header, name, single-line desc.
-            val headerW = estimateWidth(header, STEREO_CHAR_PX)
-            val nameW = estimateWidth(name, TITLE_CHAR_PX)
-            val descSingleW = description?.let { estimateWidth(it, DESC_CHAR_PX) } ?: 0f
+            val headerW = estimateWidth(text = header, charPx = STEREO_CHAR_PX)
+            val nameW = estimateWidth(text = name, charPx = TITLE_CHAR_PX)
+            val descSingleW = description?.let { estimateWidth(text = it, charPx = DESC_CHAR_PX) } ?: 0f
             val descCappedW = descSingleW.coerceAtMost(DESC_WRAP_MAX_W - 2 * H_PAD)
 
             val contentW = maxOf(headerW, nameW, descCappedW)
@@ -160,7 +162,7 @@ public class C4ContentSizeProvider
                 }
             // Step 3 — let the box widen to fit the longest wrapped line in case
             // a single very long word forced a wider line than the cap.
-            val longestLinePx = descLines.maxOfOrNull { estimateWidth(it, DESC_CHAR_PX) } ?: 0f
+            val longestLinePx = descLines.maxOfOrNull { estimateWidth(text = it, charPx = DESC_CHAR_PX) } ?: 0f
             if (longestLinePx + 2 * H_PAD > boxW) {
                 boxW = longestLinePx + 2 * H_PAD
             }
@@ -179,7 +181,7 @@ public class C4ContentSizeProvider
                 }
 
             val (wExtra, hExtra) = connectionPuffer(id)
-            return Size(boxW + wExtra, boxH + hExtra)
+            return Size(width = boxW + wExtra, height = boxH + hExtra)
         }
 
         /**
@@ -189,8 +191,8 @@ public class C4ContentSizeProvider
          * `kuml-io-svg`.
          */
         private fun personSize(p: C4Person): Size {
-            val nameW = estimateWidth(p.name, TITLE_CHAR_PX)
-            val descSingleW = p.description?.let { estimateWidth(it, DESC_CHAR_PX) } ?: 0f
+            val nameW = estimateWidth(text = p.name, charPx = TITLE_CHAR_PX)
+            val descSingleW = p.description?.let { estimateWidth(text = it, charPx = DESC_CHAR_PX) } ?: 0f
             val descCappedW = descSingleW.coerceAtMost(DESC_WRAP_MAX_W - 2 * H_PAD)
             val contentW = maxOf(nameW, descCappedW)
             var boxW = maxOf(DEFAULT_W, contentW + 2 * H_PAD)
@@ -205,7 +207,7 @@ public class C4ContentSizeProvider
                 } else {
                     emptyList()
                 }
-            val longestLinePx = descLines.maxOfOrNull { estimateWidth(it, DESC_CHAR_PX) } ?: 0f
+            val longestLinePx = descLines.maxOfOrNull { estimateWidth(text = it, charPx = DESC_CHAR_PX) } ?: 0f
             if (longestLinePx + 2 * H_PAD + 8f > boxW) {
                 boxW = longestLinePx + 2 * H_PAD + 8f
             }
@@ -223,7 +225,7 @@ public class C4ContentSizeProvider
             val totalH = PERSON_STICK_AREA_H + labelBoxH
 
             val (wExtra, hExtra) = connectionPuffer(p.id)
-            return Size(boxW + wExtra, totalH + hExtra)
+            return Size(width = boxW + wExtra, height = totalH + hExtra)
         }
 
         private fun estimateWidth(

@@ -14,22 +14,22 @@ class DeploymentDiagramBuilderTest :
     FunSpec(body = {
         test(name = "deployment nodes can be nested hierarchically") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Web")
-                            container("Database")
+                        softwareSystem(name = "System") {
+                            container(name = "Web")
+                            container(name = "Database")
                         }
 
-                    val webServer = deploymentNode("Web Server")
-                    val dbServer = deploymentNode("DB Server")
+                    val webServer = deploymentNode(name = "Web Server")
+                    val dbServer = deploymentNode(name = "DB Server")
                     val cloud =
-                        deploymentNode("Cloud") {
+                        deploymentNode(name = "Cloud") {
                             children.add(webServer)
                             children.add(dbServer)
                         }
 
-                    deploymentDiagram("Deployment") {
+                    deploymentDiagram(name = "Deployment") {
                         include(cloud)
                     }
                 }
@@ -40,10 +40,10 @@ class DeploymentDiagramBuilderTest :
 
         test(name = "containers are deployed to nodes") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Web App")
+                        softwareSystem(name = "System") {
+                            container(name = "Web App")
                         }
 
                     val containers =
@@ -51,9 +51,9 @@ class DeploymentDiagramBuilderTest :
                             elements.filterIsInstance<C4Container>().find { it.id == cId }
                         }
 
-                    val server = deploymentNode("Server")
+                    val server = deploymentNode(name = "Server")
 
-                    deploymentDiagram("Deployment") {
+                    deploymentDiagram(name = "Deployment") {
                         include(server)
                     }
                 }
@@ -64,15 +64,15 @@ class DeploymentDiagramBuilderTest :
 
         test(name = "node instances are tracked") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Web App")
+                        softwareSystem(name = "System") {
+                            container(name = "Web App")
                         }
 
-                    val server = deploymentNode("Server") { instances = 5 }
+                    val server = deploymentNode(name = "Server") { instances = 5 }
 
-                    deploymentDiagram("Deployment") {
+                    deploymentDiagram(name = "Deployment") {
                         include(server)
                     }
                 }
@@ -83,17 +83,17 @@ class DeploymentDiagramBuilderTest :
 
         test(name = "multiple deployment contexts") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Web")
-                            container("API")
+                        softwareSystem(name = "System") {
+                            container(name = "Web")
+                            container(name = "API")
                         }
 
-                    val dev = deploymentNode("Development")
-                    val prod = deploymentNode("Production")
+                    val dev = deploymentNode(name = "Development")
+                    val prod = deploymentNode(name = "Production")
 
-                    deploymentDiagram("Deployment") {
+                    deploymentDiagram(name = "Deployment") {
                         include(dev, prod)
                     }
                 }
@@ -104,11 +104,11 @@ class DeploymentDiagramBuilderTest :
 
         test(name = "deployment relationships are inferred") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Web")
-                            container("Database")
+                        softwareSystem(name = "System") {
+                            container(name = "Web")
+                            container(name = "Database")
                         }
 
                     val containers =
@@ -116,12 +116,12 @@ class DeploymentDiagramBuilderTest :
                             elements.filterIsInstance<C4Container>().find { it.id == cId }
                         }
 
-                    relationship(containers[0], containers[1])
+                    relationship(source = containers[0], target = containers[1])
 
-                    val nodeA = deploymentNode("Node A")
-                    val nodeB = deploymentNode("Node B")
+                    val nodeA = deploymentNode(name = "Node A")
+                    val nodeB = deploymentNode(name = "Node B")
 
-                    deploymentDiagram("Deployment") {
+                    deploymentDiagram(name = "Deployment") {
                         include(nodeA, nodeB)
                     }
                 }
@@ -134,18 +134,18 @@ class DeploymentDiagramBuilderTest :
 
         test(name = "deeply nested nodes") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Container")
+                        softwareSystem(name = "System") {
+                            container(name = "Container")
                         }
 
-                    val cluster = deploymentNode("Cluster")
-                    val zone = deploymentNode("Zone") { children.add(cluster) }
-                    val region = deploymentNode("Region") { children.add(zone) }
-                    val cloud = deploymentNode("Cloud") { children.add(region) }
+                    val cluster = deploymentNode(name = "Cluster")
+                    val zone = deploymentNode(name = "Zone") { children.add(cluster) }
+                    val region = deploymentNode(name = "Region") { children.add(zone) }
+                    val cloud = deploymentNode(name = "Cloud") { children.add(region) }
 
-                    deploymentDiagram("Deployment") {
+                    deploymentDiagram(name = "Deployment") {
                         include(cloud)
                     }
                 }
@@ -156,15 +156,15 @@ class DeploymentDiagramBuilderTest :
 
         test(name = "serialization round-trip works") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Web")
+                        softwareSystem(name = "System") {
+                            container(name = "Web")
                         }
 
-                    val server = deploymentNode("Server")
+                    val server = deploymentNode(name = "Server")
 
-                    deploymentDiagram("Deployment") {
+                    deploymentDiagram(name = "Deployment") {
                         include(server)
                     }
                 }
@@ -177,15 +177,15 @@ class DeploymentDiagramBuilderTest :
 
         test(name = "diagram name and description are set correctly") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Web")
+                        softwareSystem(name = "System") {
+                            container(name = "Web")
                         }
 
-                    val server = deploymentNode("Server")
+                    val server = deploymentNode(name = "Server")
 
-                    deploymentDiagram("Production Setup", description = "Production deployment") {
+                    deploymentDiagram(name = "Production Setup", description = "Production deployment") {
                         include(server)
                     }
                 }
@@ -197,12 +197,12 @@ class DeploymentDiagramBuilderTest :
 
         test(name = "empty deployment diagram is allowed") {
             val model =
-                c4Model("Test") {
-                    softwareSystem("System") {
-                        container("Web")
+                c4Model(name = "Test") {
+                    softwareSystem(name = "System") {
+                        container(name = "Web")
                     }
 
-                    deploymentDiagram("Empty Deployment")
+                    deploymentDiagram(name = "Empty Deployment")
                 }
 
             model.diagrams shouldHaveSize 1

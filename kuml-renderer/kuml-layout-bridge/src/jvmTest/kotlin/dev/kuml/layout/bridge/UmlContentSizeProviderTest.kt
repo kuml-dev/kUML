@@ -58,8 +58,8 @@ class UmlContentSizeProviderTest :
             )
 
         test("Knoten ohne Kanten bekommt keinen Anschluss-Puffer (TopToBottom)") {
-            val provider = UmlContentSizeProvider(hubDiagram, LayoutDirection.TopToBottom)
-            val baseSize = provider.sizeOf("Base", "UmlClass")
+            val provider = UmlContentSizeProvider(diagram = hubDiagram, layoutDirection = LayoutDirection.TopToBottom)
+            val baseSize = provider.sizeOf(elementId = "Base", elementKind = "UmlClass")
             // Bekanntes Baseline-Format: DEFAULT_W × DEFAULT_H für eine namenlose
             // Klasse — hier kommt 4-Buchstaben-Name + Defaults raus.
             (baseSize.width >= UmlContentSizeProvider.DEFAULT_W) shouldBe true
@@ -67,9 +67,9 @@ class UmlContentSizeProviderTest :
         }
 
         test("TopToBottom-Layout: Hub-Knoten wächst horizontal (Breite > Baseline)") {
-            val provider = UmlContentSizeProvider(hubDiagram, LayoutDirection.TopToBottom)
-            val baseSize = provider.sizeOf("Base", "UmlClass")
-            val hubSize = provider.sizeOf("Hub", "UmlClass")
+            val provider = UmlContentSizeProvider(diagram = hubDiagram, layoutDirection = LayoutDirection.TopToBottom)
+            val baseSize = provider.sizeOf(elementId = "Base", elementKind = "UmlClass")
+            val hubSize = provider.sizeOf(elementId = "Hub", elementKind = "UmlClass")
             // 3 Kanten × 14 px = 42 px extra Breite, Höhe unverändert.
             hubSize.width shouldBeGreaterThan baseSize.width
             hubSize.height shouldBe baseSize.height
@@ -77,9 +77,9 @@ class UmlContentSizeProviderTest :
         }
 
         test("LeftToRight-Layout: Hub-Knoten wächst vertikal (Höhe > Baseline)") {
-            val provider = UmlContentSizeProvider(hubDiagram, LayoutDirection.LeftToRight)
-            val baseSize = provider.sizeOf("Base", "UmlClass")
-            val hubSize = provider.sizeOf("Hub", "UmlClass")
+            val provider = UmlContentSizeProvider(diagram = hubDiagram, layoutDirection = LayoutDirection.LeftToRight)
+            val baseSize = provider.sizeOf(elementId = "Base", elementKind = "UmlClass")
+            val hubSize = provider.sizeOf(elementId = "Hub", elementKind = "UmlClass")
             // 3 Kanten × 14 px = 42 px extra Höhe, Breite unverändert.
             hubSize.height shouldBeGreaterThan baseSize.height
             hubSize.width shouldBe baseSize.width
@@ -95,9 +95,9 @@ class UmlContentSizeProviderTest :
                     name = "MegaHub",
                     elements = listOf(baseline, hub) + spokes + assocs,
                 )
-            val provider = UmlContentSizeProvider(megaHubDiagram, LayoutDirection.TopToBottom)
-            val baseSize = provider.sizeOf("Base", "UmlClass")
-            val hubSize = provider.sizeOf("Hub", "UmlClass")
+            val provider = UmlContentSizeProvider(diagram = megaHubDiagram, layoutDirection = LayoutDirection.TopToBottom)
+            val baseSize = provider.sizeOf(elementId = "Base", elementKind = "UmlClass")
+            val hubSize = provider.sizeOf(elementId = "Hub", elementKind = "UmlClass")
             (hubSize.width - baseSize.width) shouldBe UmlContentSizeProvider.CONNECTION_PUFFER_MAX_PX
         }
 
@@ -113,9 +113,9 @@ class UmlContentSizeProviderTest :
                             assoc("self", "Selfish", "Selfish"),
                         ),
                 )
-            val provider = UmlContentSizeProvider(selfishDiagram, LayoutDirection.TopToBottom)
-            val baseSize = provider.sizeOf("Base", "UmlClass")
-            val selfSize = provider.sizeOf("Selfish", "UmlClass")
+            val provider = UmlContentSizeProvider(diagram = selfishDiagram, layoutDirection = LayoutDirection.TopToBottom)
+            val baseSize = provider.sizeOf(elementId = "Base", elementKind = "UmlClass")
+            val selfSize = provider.sizeOf(elementId = "Selfish", elementKind = "UmlClass")
             // 2 Endpunkte derselben Self-Loop-Association → 2 × 14 px = 28 px.
             (selfSize.width - baseSize.width) shouldBe 2 * UmlContentSizeProvider.CONNECTION_PUFFER_PX
         }
@@ -134,18 +134,19 @@ class UmlContentSizeProviderTest :
                             UmlGeneralization(id = "g1", specificId = "Child", generalId = "Parent"),
                         ),
                 )
-            val provider = UmlContentSizeProvider(genDiagram, LayoutDirection.TopToBottom)
-            val baseSize = provider.sizeOf("Base", "UmlClass")
-            val childSize = provider.sizeOf("Child", "UmlClass")
-            val parentSize = provider.sizeOf("Parent", "UmlClass")
+            val provider = UmlContentSizeProvider(diagram = genDiagram, layoutDirection = LayoutDirection.TopToBottom)
+            val baseSize = provider.sizeOf(elementId = "Base", elementKind = "UmlClass")
+            val childSize = provider.sizeOf(elementId = "Child", elementKind = "UmlClass")
+            val parentSize = provider.sizeOf(elementId = "Parent", elementKind = "UmlClass")
             (childSize.width - baseSize.width) shouldBe UmlContentSizeProvider.CONNECTION_PUFFER_PX
             (parentSize.width - baseSize.width) shouldBe UmlContentSizeProvider.CONNECTION_PUFFER_PX
         }
 
         test("Default-Konstruktor nimmt TopToBottom an (Backward-Compat)") {
-            val providerDefault = UmlContentSizeProvider(hubDiagram)
-            val providerExplicit = UmlContentSizeProvider(hubDiagram, LayoutDirection.TopToBottom)
-            providerDefault.sizeOf("Hub", "UmlClass") shouldBe providerExplicit.sizeOf("Hub", "UmlClass")
+            val providerDefault = UmlContentSizeProvider(diagram = hubDiagram)
+            val providerExplicit = UmlContentSizeProvider(diagram = hubDiagram, layoutDirection = LayoutDirection.TopToBottom)
+            providerDefault.sizeOf(elementId = "Hub", elementKind = "UmlClass") shouldBe
+                providerExplicit.sizeOf(elementId = "Hub", elementKind = "UmlClass")
         }
 
         // ADR-0017: plain display-label stereotype on an attribute (`stereotypes += "Column"`,
@@ -164,7 +165,7 @@ class UmlContentSizeProviderTest :
                             dev.kuml.uml.UmlProperty(
                                 id = "attr-${stereotypes.size}",
                                 name = "name",
-                                type = dev.kuml.uml.UmlTypeRef("String"),
+                                type = dev.kuml.uml.UmlTypeRef(name = "String"),
                                 stereotypes = stereotypes,
                             ),
                         ),
@@ -172,9 +173,9 @@ class UmlContentSizeProviderTest :
             val withoutStereo = classWith(emptyList())
             val withStereo = classWith(listOf("Column"))
             val plainDiagram = KumlDiagram(name = "PlainStereo", elements = listOf(withoutStereo, withStereo))
-            val provider = UmlContentSizeProvider(plainDiagram, LayoutDirection.TopToBottom)
-            val baseSize = provider.sizeOf(withoutStereo.id, "UmlClass")
-            val stereoSize = provider.sizeOf(withStereo.id, "UmlClass")
+            val provider = UmlContentSizeProvider(diagram = plainDiagram, layoutDirection = LayoutDirection.TopToBottom)
+            val baseSize = provider.sizeOf(elementId = withoutStereo.id, elementKind = "UmlClass")
+            val stereoSize = provider.sizeOf(elementId = withStereo.id, elementKind = "UmlClass")
             stereoSize.width shouldBeGreaterThan baseSize.width
         }
     })

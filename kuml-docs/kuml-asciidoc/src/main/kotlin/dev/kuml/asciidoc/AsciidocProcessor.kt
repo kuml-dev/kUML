@@ -55,7 +55,7 @@ public class AsciidocProcessor(
         baseName: String = "diagram",
     ): AsciidocProcessResult {
         val blocks = AsciidocBlockExtractor.extract(input)
-        if (blocks.isEmpty()) return AsciidocProcessResult(input)
+        if (blocks.isEmpty()) return AsciidocProcessResult(output = input)
 
         val assets = mutableListOf<File>()
         val lines = input.split('\n').toMutableList()
@@ -81,31 +81,31 @@ public class AsciidocProcessor(
                     }
                 }
 
-            val extracted = AsciidocRenderPipeline.evaluate(source, virtualName)
+            val extracted = AsciidocRenderPipeline.evaluate(source = source, virtualName = virtualName)
             val theme = AsciidocRenderPipeline.resolveTheme(block.theme)
 
             val replacement: List<String> =
                 when (mode) {
                     AsciidocOutputMode.InlineSvg -> {
-                        val svg = AsciidocRenderPipeline.renderSvg(extracted, theme)
+                        val svg = AsciidocRenderPipeline.renderSvg(extracted = extracted, theme = theme)
                         // Asciidoctor-Passthrough-Block: `++++` öffnet/schließt, alles dazwischen
                         // landet 1:1 im HTML-Output (Antora-kompatibel).
                         listOf("++++", svg, "++++")
                     }
                     is AsciidocOutputMode.LinkedSvg -> {
                         mode.assetsDir.mkdirs()
-                        val stem = block.name ?: defaultStem(block, baseName, idx)
+                        val stem = block.name ?: defaultStem(block = block, baseName = baseName, idx = idx)
                         val file = File(mode.assetsDir, "$stem.svg")
-                        file.writeText(AsciidocRenderPipeline.renderSvg(extracted, theme), Charsets.UTF_8)
+                        file.writeText(AsciidocRenderPipeline.renderSvg(extracted = extracted, theme = theme), Charsets.UTF_8)
                         assets += file
                         listOf("image::${file.name}[${AsciidocRenderPipeline.diagramName(extracted)}]")
                     }
                     is AsciidocOutputMode.LinkedPng -> {
                         mode.assetsDir.mkdirs()
-                        val stem = block.name ?: defaultStem(block, baseName, idx)
+                        val stem = block.name ?: defaultStem(block = block, baseName = baseName, idx = idx)
                         val width = block.width ?: mode.widthPx
                         val file = File(mode.assetsDir, "$stem.png")
-                        file.writeBytes(AsciidocRenderPipeline.renderPng(extracted, width, theme))
+                        file.writeBytes(AsciidocRenderPipeline.renderPng(extracted = extracted, widthPx = width, theme = theme))
                         assets += file
                         listOf("image::${file.name}[${AsciidocRenderPipeline.diagramName(extracted)}]")
                     }

@@ -47,9 +47,9 @@ internal object StructurizrEmitter {
         sb.appendLine("    !identifiers hierarchical")
         sb.appendLine()
 
-        sb.append(emitModelBlock(model, indent = "    "))
+        sb.append(emitModelBlock(model = model, indent = "    "))
         sb.appendLine()
-        sb.append(emitViewsBlock(model, indent = "    "))
+        sb.append(emitViewsBlock(model = model, indent = "    "))
 
         sb.appendLine("}")
         return sb.toString()
@@ -67,10 +67,10 @@ internal object StructurizrEmitter {
 
         // Top-level elements: persons + software systems first
         val persons = model.elements.filterIsInstance<C4Person>()
-        for (p in persons) sb.append(emitPerson(p, inner))
+        for (p in persons) sb.append(emitPerson(p = p, indent = inner))
 
         val systems = model.elements.filterIsInstance<C4SoftwareSystem>()
-        for (s in systems) sb.append(emitSoftwareSystem(s, model, inner))
+        for (s in systems) sb.append(emitSoftwareSystem(s = s, model = model, indent = inner))
 
         // Top-level deployment nodes (have no parent in our flat model — those whose id is not in any children list)
         val allDnIds =
@@ -84,12 +84,12 @@ internal object StructurizrEmitter {
                 .flatMap { it.children }
                 .toSet()
         val topLevelDns = model.elements.filterIsInstance<C4DeploymentNode>().filter { it.id !in childDnIds || it.id !in allDnIds }
-        for (dn in topLevelDns) sb.append(emitDeploymentNode(dn, model, inner))
+        for (dn in topLevelDns) sb.append(emitDeploymentNode(dn = dn, model = model, indent = inner))
 
         // Relationships at the end of the model block
         if (model.relationships.isNotEmpty()) {
             sb.appendLine()
-            for (r in model.relationships) sb.append(emitRelationship(r, inner))
+            for (r in model.relationships) sb.append(emitRelationship(r = r, indent = inner))
         }
 
         sb.append(indent).appendLine("}")
@@ -127,7 +127,7 @@ internal object StructurizrEmitter {
         if (containers.isNotEmpty()) {
             sb.appendLine(" {")
             val inner = "$indent    "
-            for (c in containers) sb.append(emitContainer(c, model, inner))
+            for (c in containers) sb.append(emitContainer(c = c, model = model, indent = inner))
             sb.append(indent).appendLine("}")
         } else {
             sb.appendLine()
@@ -152,7 +152,7 @@ internal object StructurizrEmitter {
         if (components.isNotEmpty()) {
             sb.appendLine(" {")
             val inner = "$indent    "
-            for (comp in components) sb.append(emitComponent(comp, inner))
+            for (comp in components) sb.append(emitComponent(comp = comp, indent = inner))
             sb.append(indent).appendLine("}")
         } else {
             sb.appendLine()
@@ -195,7 +195,7 @@ internal object StructurizrEmitter {
         if (childNodes.isNotEmpty()) {
             sb.appendLine(" {")
             val inner = "$indent    "
-            for (child in childNodes) sb.append(emitDeploymentNode(child, model, inner))
+            for (child in childNodes) sb.append(emitDeploymentNode(dn = child, model = model, indent = inner))
             sb.append(indent).appendLine("}")
         } else {
             sb.appendLine()

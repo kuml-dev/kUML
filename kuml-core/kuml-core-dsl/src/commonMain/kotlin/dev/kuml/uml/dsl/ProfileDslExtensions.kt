@@ -73,7 +73,7 @@ fun UmlElementScope.stereotype(
             appliedProfiles = container.appliedProfiles(),
             elementMetaclass = metaclass,
         )
-    val builder = StereotypeApplicationBuilder(resolved.profile.namespace, resolved.stereotype)
+    val builder = StereotypeApplicationBuilder(profileNamespace = resolved.profile.namespace, stereotype = resolved.stereotype)
     builder.block()
     val app = builder.build()
     StereotypeValidator.validateBuildTime(
@@ -94,7 +94,7 @@ fun UmlElementScope.stereotype(
  * ```
  */
 fun UmlElementScope.applyStereotypes(vararg names: String) {
-    names.forEach { stereotype(it) }
+    names.forEach { stereotype(name = it) }
 }
 
 // ── StereotypeApplicationBuilder ──────────────────────────────────────────────

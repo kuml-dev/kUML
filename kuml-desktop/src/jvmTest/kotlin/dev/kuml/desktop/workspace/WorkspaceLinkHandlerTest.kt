@@ -36,7 +36,7 @@ class WorkspaceLinkHandlerTest :
         test("external https link is opened via the injected opener") {
             val root = writeSampleWorkspace()
             try {
-                val workspace = WorkspaceScanner.scan(root)
+                val workspace = WorkspaceScanner.scan(root = root)
                 val indexDoc = workspace.documents.first { it.relativePath == "index.md" }
                 val opened = mutableListOf<URI>()
                 val navigated = mutableListOf<OkfDocument>()
@@ -60,7 +60,7 @@ class WorkspaceLinkHandlerTest :
         test("file: and javascript: schemes are refused") {
             val root = writeSampleWorkspace()
             try {
-                val workspace = WorkspaceScanner.scan(root)
+                val workspace = WorkspaceScanner.scan(root = root)
                 val indexDoc = workspace.documents.first { it.relativePath == "index.md" }
                 val opened = mutableListOf<URI>()
                 val handler =
@@ -83,7 +83,7 @@ class WorkspaceLinkHandlerTest :
         test("internal relative link resolving to a scanned document navigates to it") {
             val root = writeSampleWorkspace()
             try {
-                val workspace = WorkspaceScanner.scan(root)
+                val workspace = WorkspaceScanner.scan(root = root)
                 val articleDoc = workspace.documents.first { it.relativePath == "articles/01-intro.md" }
                 val indexDoc = workspace.documents.first { it.relativePath == "index.md" }
                 val navigated = mutableListOf<OkfDocument>()
@@ -105,7 +105,7 @@ class WorkspaceLinkHandlerTest :
         test("a path-traversal escape target is unresolved — no navigation, no file read") {
             val root = writeSampleWorkspace()
             try {
-                val workspace = WorkspaceScanner.scan(root)
+                val workspace = WorkspaceScanner.scan(root = root)
                 val articleDoc = workspace.documents.first { it.relativePath == "articles/01-intro.md" }
                 val navigated = mutableListOf<OkfDocument>()
                 val handler =

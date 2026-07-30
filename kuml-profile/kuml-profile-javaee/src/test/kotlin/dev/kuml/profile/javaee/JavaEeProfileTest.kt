@@ -154,11 +154,11 @@ class JavaEeProfileTest :
 
         test("PersistenceContext applied via DSL stores entry in appliedStereotypes") {
             val diagram =
-                classDiagram("PC Test") {
+                classDiagram(name = "PC Test") {
                     applyProfile(javaEeProfile)
-                    classOf("UserService") {
-                        attribute("em", "EntityManager") {
-                            stereotype("PersistenceContext") {
+                    classOf(name = "UserService") {
+                        attribute(name = "em", type = "EntityManager") {
+                            stereotype(name = "PersistenceContext") {
                                 "unitName" to "myPU"
                             }
                         }

@@ -34,24 +34,25 @@ internal fun renderUmlCollaboration(
     val cy = h / 2f
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         // Dashed ellipse — standard UML 2.5 collaboration notation
         // V2.0.44: `fill="none"` set as an XML attribute (presentation-attribute
         // precedence beats user-agent default, which on Batik fills shapes
         // with black even when CSS sets `fill: none` on the class).
         tag(
-            "ellipse",
-            mapOf(
-                "cx" to fmt(cx),
-                "cy" to fmt(cy),
-                "rx" to fmt(cx),
-                "ry" to fmt(cy),
-                "class" to "kuml-collaboration",
-                "fill" to "none",
-                "stroke-dasharray" to "4 4",
-            ),
+            name = "ellipse",
+            attrs =
+                mapOf(
+                    "cx" to fmt(cx),
+                    "cy" to fmt(cy),
+                    "rx" to fmt(cx),
+                    "ry" to fmt(cy),
+                    "class" to "kuml-collaboration",
+                    "fill" to "none",
+                    "stroke-dasharray" to "4 4",
+                ),
         )
 
         // Optional stereotype header «…» — uses StereotypeHelper from Ticket 3
@@ -67,13 +68,14 @@ internal fun renderUmlCollaboration(
         // Collaboration name centred in the ellipse (shifted down by stereotype height)
         val nameY = cy + theme.stereotypes.headerFontSize / 2f + stereotypeOffset / 2f + 4f
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-title",
-                "x" to fmt(cx),
-                "y" to fmt(if (stereotypeOffset > 0f) nameY else cy + 4f),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-title",
+                    "x" to fmt(cx),
+                    "y" to fmt(if (stereotypeOffset > 0f) nameY else cy + 4f),
+                    "text-anchor" to "middle",
+                ),
         ) { text(element.name) }
     }
 }

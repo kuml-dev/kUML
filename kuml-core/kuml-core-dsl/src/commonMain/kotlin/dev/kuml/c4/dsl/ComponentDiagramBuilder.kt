@@ -82,7 +82,7 @@ class ComponentDiagramBuilderImpl(
                 }.map { it.id }
 
         // 2. Sammle externe Container (falls showExternalReferences = true)
-        val externalContainers = findExternalContainers(targetContainer.id, containerComponents)
+        val externalContainers = findExternalContainers(containerId = targetContainer.id, containerComponents = containerComponents)
 
         // 3. Kombiniere alle Elemente (Container + seine Komponenten + externe Container)
         val allElements =

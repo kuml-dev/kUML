@@ -125,7 +125,7 @@ public class PersistentPatchStore private constructor(
                 stmt.execute("PRAGMA synchronous=NORMAL;")
             }
             createSchema(conn)
-            return PersistentPatchStore(conn, sessionId, clock)
+            return PersistentPatchStore(conn = conn, sessionId = sessionId, clock = clock)
         }
 
         private fun createSchema(conn: Connection) {

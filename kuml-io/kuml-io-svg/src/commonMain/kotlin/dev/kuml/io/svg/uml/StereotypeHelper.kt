@@ -66,16 +66,17 @@ internal object StereotypeHelper {
         cx: Float,
         cy: Float,
     ): Float {
-        val label = headerLabel(element, theme.stereotypes) ?: return 0f
+        val label = headerLabel(element = element, theme = theme.stereotypes) ?: return 0f
         val fontSize = theme.stereotypes.headerFontSize
         builder.tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(cx),
-                "y" to fmt(cy),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(cx),
+                    "y" to fmt(cy),
+                    "text-anchor" to "middle",
+                ),
         ) { text(label) }
         return fontSize + 4f
     }
@@ -102,25 +103,27 @@ internal object StereotypeHelper {
 
         // Divider before compartment
         builder.tag(
-            "line",
-            mapOf(
-                "x1" to "0",
-                "y1" to fmt(cy),
-                "x2" to fmt(w),
-                "y2" to fmt(cy),
-                "class" to "kuml-divider",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to "0",
+                    "y1" to fmt(cy),
+                    "x2" to fmt(w),
+                    "y2" to fmt(cy),
+                    "class" to "kuml-divider",
+                ),
         )
         var cy2 = cy + lineH
 
         for (row in rows) {
             builder.tag(
-                "text",
-                mapOf(
-                    "class" to "kuml-tagged-value",
-                    "x" to "8",
-                    "y" to fmt(cy2),
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-tagged-value",
+                        "x" to "8",
+                        "y" to fmt(cy2),
+                    ),
             ) { text(row) }
             cy2 += lineH
         }
@@ -145,15 +148,15 @@ internal object StereotypeHelper {
         midX: Float,
         midY: Float,
     ): Boolean {
-        val label = headerLabel(element, theme.stereotypes) ?: return false
+        val label = headerLabel(element = element, theme = theme.stereotypes) ?: return false
         val attrs =
             mapOf(
                 "x" to fmt(midX),
                 "y" to fmt(midY),
                 "text-anchor" to "middle",
             )
-        builder.tag("text", mapOf("class" to "kuml-stereotype-halo") + attrs) { text(label) }
-        builder.tag("text", mapOf("class" to "kuml-stereotype") + attrs) { text(label) }
+        builder.tag(name = "text", attrs = mapOf("class" to "kuml-stereotype-halo") + attrs) { text(label) }
+        builder.tag(name = "text", attrs = mapOf("class" to "kuml-stereotype") + attrs) { text(label) }
         return true
     }
 

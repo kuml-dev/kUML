@@ -128,7 +128,7 @@ class ModelHasherTest :
 
         "hashTransitive: without imports equals simple canonical hash" {
             val script = "model {\n    state(\"A\")\n}\n"
-            val transitive = ModelHasher.hashTransitive(script) { error("should not be called") }
+            val transitive = ModelHasher.hashTransitive(script = script) { error("should not be called") }
             val simple =
                 run {
                     val d = java.security.MessageDigest.getInstance("SHA-256")
@@ -153,8 +153,8 @@ class ModelHasherTest :
                     else -> error("unexpected uri: $uri")
                 }
             }
-            val h1 = ModelHasher.hashTransitive(script, resolver)
-            val h2 = ModelHasher.hashTransitive(script, resolver)
+            val h1 = ModelHasher.hashTransitive(script = script, importResolver = resolver)
+            val h2 = ModelHasher.hashTransitive(script = script, importResolver = resolver)
             h1.contentEquals(h2).shouldBeTrue()
             h1.size shouldBe 32
         }
@@ -168,14 +168,14 @@ class ModelHasherTest :
                 }
             }
             // Must not throw StackOverflowError or loop forever.
-            val hash = ModelHasher.hashTransitive("import(\"a.kuml\")\n// root\n", resolver)
+            val hash = ModelHasher.hashTransitive(script = "import(\"a.kuml\")\n// root\n", importResolver = resolver)
             hash.size shouldBe 32
         }
 
         "hashTransitive: different import content produces different hash" {
             val script = "import(\"lib.kuml\")\n// main\n"
-            val hV1 = ModelHasher.hashTransitive(script) { "// library v1\n" }
-            val hV2 = ModelHasher.hashTransitive(script) { "// library v2\n" }
+            val hV1 = ModelHasher.hashTransitive(script = script) { "// library v1\n" }
+            val hV2 = ModelHasher.hashTransitive(script = script) { "// library v2\n" }
             hV1.contentEquals(hV2) shouldBe false
         }
 
@@ -184,8 +184,8 @@ class ModelHasherTest :
             // Observable behavior: the function terminates and returns a deterministic 32-byte hash.
             val script = "import(\"lib.kuml\")\nimport(\"lib.kuml\")\n// main\n"
             val resolver: (String) -> String = { "// shared lib content\n" }
-            val h1 = ModelHasher.hashTransitive(script, resolver)
-            val h2 = ModelHasher.hashTransitive(script, resolver)
+            val h1 = ModelHasher.hashTransitive(script = script, importResolver = resolver)
+            val h2 = ModelHasher.hashTransitive(script = script, importResolver = resolver)
             h1.size shouldBe 32
             h1.contentEquals(h2).shouldBeTrue() // deterministic across calls
         }

@@ -112,13 +112,13 @@ internal object Sysml2ActivityEdgeClipper {
     ): EdgeRoute {
         val newSource =
             if (sourceShape != null) {
-                snapToBoundary(sourceShape, aimedAt = secondPoint(route))
+                snapToBoundary(shape = sourceShape, aimedAt = secondPoint(route))
             } else {
                 route.source
             }
         val newTarget =
             if (targetShape != null) {
-                snapToBoundary(targetShape, aimedAt = penultimatePoint(route))
+                snapToBoundary(shape = targetShape, aimedAt = penultimatePoint(route))
             } else {
                 route.target
             }
@@ -200,7 +200,7 @@ internal object Sysml2ActivityEdgeClipper {
                 }
             }
         val clamped = min(t, 1f)
-        return Point(cx + dx * clamped, cy + dy * clamped)
+        return Point(x = cx + dx * clamped, y = cy + dy * clamped)
     }
 
     /** Numerische Toleranz für Division-durch-null-Schutz. */

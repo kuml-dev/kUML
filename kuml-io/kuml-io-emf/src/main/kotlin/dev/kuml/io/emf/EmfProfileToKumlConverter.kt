@@ -46,7 +46,7 @@ public class EmfProfileToKumlConverter {
         val extendsRaw = profileAnnotation?.details?.get("extendsProfiles") ?: ""
         val extendsList = if (extendsRaw.isBlank()) emptyList() else extendsRaw.split(",")
 
-        return profile(emfProfile.name ?: "") {
+        return profile(name = emfProfile.name ?: "") {
             this.namespace = namespace
             this.version = version
             this.description = description
@@ -109,7 +109,7 @@ public class EmfProfileToKumlConverter {
                 ?.details
                 ?.get("specializes")
 
-        stereotype(emfStereo.name ?: "") {
+        stereotype(name = emfStereo.name ?: "") {
             extends(metaclass)
             specializes = specializesValue
             for (attr in tagAttrs) {
@@ -118,7 +118,7 @@ public class EmfProfileToKumlConverter {
                 val required = propAnnotation?.details?.get("required")?.toBoolean() ?: true
                 val defaultVal = propAnnotation?.details?.get("default")
                 val min = propAnnotation?.details?.get("min")?.toIntOrNull()
-                addTypedProperty(typeName, attr.name ?: "", required, defaultVal, min)
+                addTypedProperty(typeName = typeName, propName = attr.name ?: "", required = required, defaultVal = defaultVal, min = min)
             }
         }
     }
@@ -132,32 +132,32 @@ public class EmfProfileToKumlConverter {
     ) {
         when (typeName) {
             "Int" ->
-                property<Int>(propName) {
+                property<Int>(name = propName) {
                     this.required = required
                     this.default = defaultVal?.toIntOrNull()
                     this.min = min
                 }
             "Long" ->
-                property<Long>(propName) {
+                property<Long>(name = propName) {
                     this.required = required
                     this.default = defaultVal?.toLongOrNull()
                     this.min = min
                 }
             "Double" ->
-                property<Double>(propName) {
+                property<Double>(name = propName) {
                     this.required = required
                     this.default = defaultVal?.toDoubleOrNull()
                     this.min = min
                 }
             "Boolean" ->
-                property<Boolean>(propName) {
+                property<Boolean>(name = propName) {
                     this.required = required
                     this.default = defaultVal?.toBooleanStrictOrNull()
                     this.min = min
                 }
             // String, List, unknown types, and enum fallback all use String
             else ->
-                property<String>(propName) {
+                property<String>(name = propName) {
                     this.required = required
                     this.default = defaultVal
                     this.min = min

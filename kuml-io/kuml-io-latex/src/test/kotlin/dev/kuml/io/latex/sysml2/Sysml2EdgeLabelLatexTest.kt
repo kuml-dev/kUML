@@ -102,27 +102,31 @@ class Sysml2EdgeLabelLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(800f, 220f),
+                    canvas = Size(width = 800f, height = 220f),
                     nodes =
                         mapOf(
-                            NodeId("Reader") to NodeLayout(bounds = Rect(Point(20f, 60f), Size(60f, 100f))),
-                            NodeId("BorrowBook") to NodeLayout(bounds = Rect(Point(160f, 30f), Size(160f, 70f))),
-                            NodeId("Authenticate") to NodeLayout(bounds = Rect(Point(420f, 30f), Size(160f, 70f))),
-                            NodeId("PayLateFee") to NodeLayout(bounds = Rect(Point(160f, 130f), Size(160f, 70f))),
+                            NodeId("Reader") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 60f), size = Size(width = 60f, height = 100f))),
+                            NodeId("BorrowBook") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 160f, y = 30f), size = Size(width = 160f, height = 70f))),
+                            NodeId("Authenticate") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 420f, y = 30f), size = Size(width = 160f, height = 70f))),
+                            NodeId("PayLateFee") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 160f, y = 130f), size = Size(width = 160f, height = 70f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("assoc:Reader::BorrowBook") to
-                                EdgeRoute.Direct(source = Point(80f, 110f), target = Point(160f, 65f)),
+                                EdgeRoute.Direct(source = Point(x = 80f, y = 110f), target = Point(x = 160f, y = 65f)),
                             EdgeId("include:BorrowBook::Authenticate") to
-                                EdgeRoute.Direct(source = Point(320f, 65f), target = Point(420f, 65f)),
+                                EdgeRoute.Direct(source = Point(x = 320f, y = 65f), target = Point(x = 420f, y = 65f)),
                             EdgeId("extend:PayLateFee::BorrowBook") to
-                                EdgeRoute.Direct(source = Point(240f, 130f), target = Point(240f, 100f)),
+                                EdgeRoute.Direct(source = Point(x = 240f, y = 130f), target = Point(x = 240f, y = 100f)),
                         ),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(model, diagram, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = diagram, layoutResult = layout)
             tex shouldContain "\\guillemotleft{}include\\guillemotright{}"
             tex shouldContain "\\guillemotleft{}extend\\guillemotright{}"
             tex shouldContain "kuml-sysml2-edge-dashed"
@@ -167,24 +171,28 @@ class Sysml2EdgeLabelLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(900f, 400f),
+                    canvas = Size(width = 900f, height = 400f),
                     nodes =
                         mapOf(
-                            NodeId("Vehicle") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(120f, 80f))),
-                            NodeId("TopSpeedReq") to NodeLayout(bounds = Rect(Point(300f, 40f), Size(180f, 100f))),
-                            NodeId("SafetyReq") to NodeLayout(bounds = Rect(Point(600f, 40f), Size(180f, 100f))),
-                            NodeId("BrakingReq") to NodeLayout(bounds = Rect(Point(600f, 200f), Size(180f, 100f))),
+                            NodeId("Vehicle") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 120f, height = 80f))),
+                            NodeId("TopSpeedReq") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 300f, y = 40f), size = Size(width = 180f, height = 100f))),
+                            NodeId("SafetyReq") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 600f, y = 40f), size = Size(width = 180f, height = 100f))),
+                            NodeId("BrakingReq") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 600f, y = 200f), size = Size(width = 180f, height = 100f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("satisfy:Vehicle::TopSpeedReq") to
-                                EdgeRoute.Direct(source = Point(140f, 80f), target = Point(300f, 80f)),
+                                EdgeRoute.Direct(source = Point(x = 140f, y = 80f), target = Point(x = 300f, y = 80f)),
                             EdgeId("derive:BrakingReq::SafetyReq") to
-                                EdgeRoute.Direct(source = Point(690f, 200f), target = Point(690f, 140f)),
+                                EdgeRoute.Direct(source = Point(x = 690f, y = 200f), target = Point(x = 690f, y = 140f)),
                         ),
                     groups = emptyMap(),
                 )
-            val tex = KumlLatexRenderer.toLatex(model, diagram, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = diagram, layoutResult = layout)
             tex shouldContain "\\guillemotleft{}satisfy\\guillemotright{}"
             tex shouldContain "\\guillemotleft{}deriveReqt\\guillemotright{}"
         }
@@ -217,20 +225,22 @@ class Sysml2EdgeLabelLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(500f, 200f),
+                    canvas = Size(width = 500f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("Off") to NodeLayout(bounds = Rect(Point(40f, 60f), Size(120f, 60f))),
-                            NodeId("On") to NodeLayout(bounds = Rect(Point(300f, 60f), Size(120f, 60f))),
+                            NodeId("Off") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 60f), size = Size(width = 120f, height = 60f))),
+                            NodeId("On") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 300f, y = 60f), size = Size(width = 120f, height = 60f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("transition:Off::On") to
-                                EdgeRoute.Direct(source = Point(160f, 90f), target = Point(300f, 90f)),
+                                EdgeRoute.Direct(source = Point(x = 160f, y = 90f), target = Point(x = 300f, y = 90f)),
                         ),
                     groups = emptyMap(),
                 )
-            val tex = KumlLatexRenderer.toLatex(model, diagram, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = diagram, layoutResult = layout)
             tex shouldContain "powerOn [ready]"
             tex shouldContain "kuml-sysml2-edge-solid"
         }
@@ -270,23 +280,26 @@ class Sysml2EdgeLabelLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(600f, 200f),
+                    canvas = Size(width = 600f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("Start") to NodeLayout(bounds = Rect(Point(40f, 80f), Size(30f, 30f))),
-                            NodeId("Validate") to NodeLayout(bounds = Rect(Point(160f, 60f), Size(140f, 60f))),
-                            NodeId("Ship") to NodeLayout(bounds = Rect(Point(380f, 60f), Size(140f, 60f))),
+                            NodeId("Start") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 80f), size = Size(width = 30f, height = 30f))),
+                            NodeId("Validate") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 160f, y = 60f), size = Size(width = 140f, height = 60f))),
+                            NodeId("Ship") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 380f, y = 60f), size = Size(width = 140f, height = 60f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("controlFlow:Start::Validate") to
-                                EdgeRoute.Direct(source = Point(70f, 95f), target = Point(160f, 90f)),
+                                EdgeRoute.Direct(source = Point(x = 70f, y = 95f), target = Point(x = 160f, y = 90f)),
                             EdgeId("objectFlow:Validate::Ship") to
-                                EdgeRoute.Direct(source = Point(300f, 90f), target = Point(380f, 90f)),
+                                EdgeRoute.Direct(source = Point(x = 300f, y = 90f), target = Point(x = 380f, y = 90f)),
                         ),
                     groups = emptyMap(),
                 )
-            val tex = KumlLatexRenderer.toLatex(model, diagram, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = diagram, layoutResult = layout)
             tex shouldContain "[ready]"
             tex shouldContain "[Order]"
         }
@@ -317,20 +330,22 @@ class Sysml2EdgeLabelLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(500f, 220f),
+                    canvas = Size(width = 500f, height = 220f),
                     nodes =
                         mapOf(
-                            NodeId("Vehicle") to NodeLayout(bounds = Rect(Point(40f, 60f), Size(140f, 80f))),
-                            NodeId("NewtonsLaw") to NodeLayout(bounds = Rect(Point(300f, 60f), Size(140f, 80f))),
+                            NodeId("Vehicle") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 60f), size = Size(width = 140f, height = 80f))),
+                            NodeId("NewtonsLaw") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 300f, y = 60f), size = Size(width = 140f, height = 80f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("binding:NewtonsLaw::m::Vehicle::mass") to
-                                EdgeRoute.Direct(source = Point(180f, 100f), target = Point(300f, 100f)),
+                                EdgeRoute.Direct(source = Point(x = 180f, y = 100f), target = Point(x = 300f, y = 100f)),
                         ),
                     groups = emptyMap(),
                 )
-            val tex = KumlLatexRenderer.toLatex(model, diagram, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = diagram, layoutResult = layout)
             tex shouldContain "kuml-sysml2-edge-binding"
         }
     })

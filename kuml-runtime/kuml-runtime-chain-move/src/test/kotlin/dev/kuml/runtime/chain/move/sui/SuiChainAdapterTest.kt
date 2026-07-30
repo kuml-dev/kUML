@@ -78,15 +78,15 @@ class SuiChainAdapterTest :
         "connect reads modelHash as Int-Array from sui_getObject" {
             runTest {
                 val server = MockRpcServer()
-                server.onMethod("sui_getObject") { getObjectResponse(modelHashJson = "[1,2,3,4]") }
+                server.onMethod(method = "sui_getObject") { getObjectResponse(modelHashJson = "[1,2,3,4]") }
                 server.start()
                 try {
                     val adapter =
                         SuiChainAdapter(
                             urlValidator = SuiRpcUrlValidator.NoOp,
-                            clientFactory = { url -> SuiRpcClient(url) },
+                            clientFactory = { url -> SuiRpcClient(rpcUrl = url) },
                         )
-                    val identity = adapter.connect(server.baseUrl(), TEST_OBJECT_ID)
+                    val identity = adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_OBJECT_ID)
                     identity.address shouldBe TEST_OBJECT_ID
                     identity.modelHash.toList() shouldBe listOf<Byte>(1, 2, 3, 4)
                     identity.modelUri shouldBe "ipfs://QmTest"
@@ -101,15 +101,15 @@ class SuiChainAdapterTest :
             runTest {
                 val server = MockRpcServer()
                 val b64 = Base64.getEncoder().encodeToString(byteArrayOf(1, 2, 3, 4))
-                server.onMethod("sui_getObject") { getObjectResponse(modelHashJson = "\"$b64\"") }
+                server.onMethod(method = "sui_getObject") { getObjectResponse(modelHashJson = "\"$b64\"") }
                 server.start()
                 try {
                     val adapter =
                         SuiChainAdapter(
                             urlValidator = SuiRpcUrlValidator.NoOp,
-                            clientFactory = { url -> SuiRpcClient(url) },
+                            clientFactory = { url -> SuiRpcClient(rpcUrl = url) },
                         )
-                    val identity = adapter.connect(server.baseUrl(), TEST_OBJECT_ID)
+                    val identity = adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_OBJECT_ID)
                     identity.modelHash.toList() shouldBe listOf<Byte>(1, 2, 3, 4)
                 } finally {
                     server.stop()
@@ -120,15 +120,15 @@ class SuiChainAdapterTest :
         "connect reads modelHash as hex string" {
             runTest {
                 val server = MockRpcServer()
-                server.onMethod("sui_getObject") { getObjectResponse(modelHashJson = "\"0x01020304\"") }
+                server.onMethod(method = "sui_getObject") { getObjectResponse(modelHashJson = "\"0x01020304\"") }
                 server.start()
                 try {
                     val adapter =
                         SuiChainAdapter(
                             urlValidator = SuiRpcUrlValidator.NoOp,
-                            clientFactory = { url -> SuiRpcClient(url) },
+                            clientFactory = { url -> SuiRpcClient(rpcUrl = url) },
                         )
-                    val identity = adapter.connect(server.baseUrl(), TEST_OBJECT_ID)
+                    val identity = adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_OBJECT_ID)
                     identity.modelHash.toList() shouldBe listOf<Byte>(1, 2, 3, 4)
                 } finally {
                     server.stop()
@@ -140,7 +140,7 @@ class SuiChainAdapterTest :
             runTest {
                 val adapter = SuiChainAdapter(urlValidator = SuiRpcUrlValidator.NoOp)
                 shouldThrow<SuiChainAdapterException.InvalidObjectId> {
-                    adapter.connect("http://localhost:9999", "nothex")
+                    adapter.connect(rpcUrl = "http://localhost:9999", contractAddress = "nothex")
                 }
             }
         }
@@ -149,7 +149,7 @@ class SuiChainAdapterTest :
             runTest {
                 val adapter = SuiChainAdapter(urlValidator = SuiRpcUrlValidator.Default)
                 shouldThrow<SuiChainAdapterException.InvalidUrlException> {
-                    adapter.connect("http://127.0.0.1:8080/", TEST_OBJECT_ID)
+                    adapter.connect(rpcUrl = "http://127.0.0.1:8080/", contractAddress = TEST_OBJECT_ID)
                 }
             }
         }
@@ -158,7 +158,7 @@ class SuiChainAdapterTest :
             runTest {
                 val adapter = SuiChainAdapter(urlValidator = SuiRpcUrlValidator.Default)
                 shouldThrow<SuiChainAdapterException.InvalidUrlException> {
-                    adapter.connect("http://10.0.0.1/", TEST_OBJECT_ID)
+                    adapter.connect(rpcUrl = "http://10.0.0.1/", contractAddress = TEST_OBJECT_ID)
                 }
             }
         }
@@ -166,8 +166,8 @@ class SuiChainAdapterTest :
         "subscribe emits events from queryEvents" {
             runTest {
                 val server = MockRpcServer()
-                server.onMethod("sui_getObject") { getObjectResponse() }
-                server.onMethod("suix_queryEvents") {
+                server.onMethod(method = "sui_getObject") { getObjectResponse() }
+                server.onMethod(method = "suix_queryEvents") {
                     queryEventsResponse(
                         events = "[${suiEvent()}]",
                         hasNextPage = false,
@@ -179,9 +179,9 @@ class SuiChainAdapterTest :
                         SuiChainAdapter(
                             urlValidator = SuiRpcUrlValidator.NoOp,
                             pollIntervalMillis = 100L,
-                            clientFactory = { url -> SuiRpcClient(url) },
+                            clientFactory = { url -> SuiRpcClient(rpcUrl = url) },
                         )
-                    adapter.connect(server.baseUrl(), TEST_OBJECT_ID)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_OBJECT_ID)
                     val events = adapter.subscribe().take(1).toList()
                     events.size shouldBe 1
                     events[0].eventType shouldBe TEST_EVENT_TYPE
@@ -197,9 +197,9 @@ class SuiChainAdapterTest :
         "subscribe is a cold flow — each collection starts fresh" {
             runTest {
                 val server = MockRpcServer()
-                server.onMethod("sui_getObject") { getObjectResponse() }
+                server.onMethod(method = "sui_getObject") { getObjectResponse() }
                 var queryCount = 0
-                server.onMethod("suix_queryEvents") {
+                server.onMethod(method = "suix_queryEvents") {
                     queryCount++
                     queryEventsResponse(
                         events = "[${suiEvent(txDigest = "Tx$queryCount")}]",
@@ -212,9 +212,9 @@ class SuiChainAdapterTest :
                         SuiChainAdapter(
                             urlValidator = SuiRpcUrlValidator.NoOp,
                             pollIntervalMillis = 100L,
-                            clientFactory = { url -> SuiRpcClient(url) },
+                            clientFactory = { url -> SuiRpcClient(rpcUrl = url) },
                         )
-                    adapter.connect(server.baseUrl(), TEST_OBJECT_ID)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_OBJECT_ID)
                     val events1 = adapter.subscribe().take(1).toList()
                     val events2 = adapter.subscribe().take(1).toList()
                     // Cold flow: both collections started a new subscription
@@ -229,8 +229,8 @@ class SuiChainAdapterTest :
         "replay returns only events with checkpoint >= fromBlock" {
             runTest {
                 val server = MockRpcServer()
-                server.onMethod("sui_getObject") { getObjectResponse() }
-                server.onMethod("suix_queryEvents") {
+                server.onMethod(method = "sui_getObject") { getObjectResponse() }
+                server.onMethod(method = "suix_queryEvents") {
                     queryEventsResponse(
                         events = """[
                     ${suiEvent(checkpoint = "3", txDigest = "Tx3")},
@@ -245,9 +245,9 @@ class SuiChainAdapterTest :
                     val adapter =
                         SuiChainAdapter(
                             urlValidator = SuiRpcUrlValidator.NoOp,
-                            clientFactory = { url -> SuiRpcClient(url) },
+                            clientFactory = { url -> SuiRpcClient(rpcUrl = url) },
                         )
-                    adapter.connect(server.baseUrl(), TEST_OBJECT_ID)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_OBJECT_ID)
                     val events = adapter.replay(fromBlock = 5L).toList()
                     events.size shouldBe 2
                     events[0].blockNumber shouldBe 5L
@@ -261,8 +261,8 @@ class SuiChainAdapterTest :
         "replay terminates when hasNextPage is false" {
             runTest {
                 val server = MockRpcServer()
-                server.onMethod("sui_getObject") { getObjectResponse() }
-                server.onMethod("suix_queryEvents") {
+                server.onMethod(method = "sui_getObject") { getObjectResponse() }
+                server.onMethod(method = "suix_queryEvents") {
                     queryEventsResponse(events = "[${suiEvent()}]", hasNextPage = false)
                 }
                 server.start()
@@ -270,9 +270,9 @@ class SuiChainAdapterTest :
                     val adapter =
                         SuiChainAdapter(
                             urlValidator = SuiRpcUrlValidator.NoOp,
-                            clientFactory = { url -> SuiRpcClient(url) },
+                            clientFactory = { url -> SuiRpcClient(rpcUrl = url) },
                         )
-                    adapter.connect(server.baseUrl(), TEST_OBJECT_ID)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_OBJECT_ID)
                     val events = adapter.replay(fromBlock = 0L).toList()
                     events.size shouldBe 1
                 } finally {
@@ -284,9 +284,9 @@ class SuiChainAdapterTest :
         "blockClock currentBlock reflects latest checkpoint" {
             runTest {
                 val server = MockRpcServer()
-                server.onMethod("sui_getObject") { getObjectResponse() }
-                server.onMethod("suix_getLatestCheckpointSequenceNumber") { rpcSuccess(result = "\"12\"") }
-                server.onMethod("sui_getCheckpoint") {
+                server.onMethod(method = "sui_getObject") { getObjectResponse() }
+                server.onMethod(method = "suix_getLatestCheckpointSequenceNumber") { rpcSuccess(result = "\"12\"") }
+                server.onMethod(method = "sui_getCheckpoint") {
                     rpcSuccess(result = """{"sequenceNumber":"12","timestampMs":"1700000000000"}""")
                 }
                 server.start()
@@ -294,9 +294,9 @@ class SuiChainAdapterTest :
                     val adapter =
                         SuiChainAdapter(
                             urlValidator = SuiRpcUrlValidator.NoOp,
-                            clientFactory = { url -> SuiRpcClient(url) },
+                            clientFactory = { url -> SuiRpcClient(rpcUrl = url) },
                         )
-                    adapter.connect(server.baseUrl(), TEST_OBJECT_ID)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_OBJECT_ID)
                     val clock = adapter.blockClock() as SuiBlockClock
                     clock.refresh()
                     clock.currentBlock() shouldBe 12L
@@ -309,9 +309,9 @@ class SuiChainAdapterTest :
         "blockClock currentTime is Instant from timestampMs milliseconds" {
             runTest {
                 val server = MockRpcServer()
-                server.onMethod("sui_getObject") { getObjectResponse() }
-                server.onMethod("suix_getLatestCheckpointSequenceNumber") { rpcSuccess(result = "\"1\"") }
-                server.onMethod("sui_getCheckpoint") {
+                server.onMethod(method = "sui_getObject") { getObjectResponse() }
+                server.onMethod(method = "suix_getLatestCheckpointSequenceNumber") { rpcSuccess(result = "\"1\"") }
+                server.onMethod(method = "sui_getCheckpoint") {
                     rpcSuccess(result = """{"sequenceNumber":"1","timestampMs":"1700000000000"}""")
                 }
                 server.start()
@@ -319,9 +319,9 @@ class SuiChainAdapterTest :
                     val adapter =
                         SuiChainAdapter(
                             urlValidator = SuiRpcUrlValidator.NoOp,
-                            clientFactory = { url -> SuiRpcClient(url) },
+                            clientFactory = { url -> SuiRpcClient(rpcUrl = url) },
                         )
-                    adapter.connect(server.baseUrl(), TEST_OBJECT_ID)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_OBJECT_ID)
                     val clock = adapter.blockClock() as SuiBlockClock
                     clock.refresh()
                     // 1700000000000 ms = Instant.ofEpochMilli(1700000000000)

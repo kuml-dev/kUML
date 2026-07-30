@@ -31,7 +31,7 @@ fun UmlInteractionScope.lifeline(
 ): UmlLifeline {
     val resolvedId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.lifeline(interactionId, name),
+            candidate = UmlIds.lifeline(interactionId = interactionId, name = name),
             taken = takenIds,
         )
     takenIds += resolvedId
@@ -117,7 +117,7 @@ private fun newMessage(
 ): UmlMessage {
     val resolvedId =
         explicitId ?: UmlIds.disambiguate(
-            candidate = UmlIds.message(interactionId, seq),
+            candidate = UmlIds.message(interactionId = interactionId, sequence = seq),
             taken = takenIds,
         )
     takenIds += resolvedId
@@ -138,28 +138,28 @@ fun UmlInteractionScope.asyncMessage(
     to: UmlLifeline,
     label: String,
     id: String? = null,
-) = message(from, to, label, MessageSort.ASYNC_CALL, id)
+) = message(from = from, to = to, label = label, sort = MessageSort.ASYNC_CALL, id = id)
 
 fun UmlInteractionScope.reply(
     from: UmlLifeline,
     to: UmlLifeline,
     label: String,
     id: String? = null,
-) = message(from, to, label, MessageSort.REPLY, id)
+) = message(from = from, to = to, label = label, sort = MessageSort.REPLY, id = id)
 
 fun UmlInteractionScope.create(
     from: UmlLifeline,
     to: UmlLifeline,
     label: String = "«create»",
     id: String? = null,
-) = message(from, to, label, MessageSort.CREATE, id)
+) = message(from = from, to = to, label = label, sort = MessageSort.CREATE, id = id)
 
 fun UmlInteractionScope.delete(
     from: UmlLifeline,
     to: UmlLifeline,
     label: String = "«destroy»",
     id: String? = null,
-) = message(from, to, label, MessageSort.DELETE, id)
+) = message(from = from, to = to, label = label, sort = MessageSort.DELETE, id = id)
 
 // ── Convenience wrappers — sort-specific — UmlInteractionOperandScope ─────────
 
@@ -168,28 +168,28 @@ fun UmlInteractionOperandScope.asyncMessage(
     to: UmlLifeline,
     label: String,
     id: String? = null,
-) = message(from, to, label, MessageSort.ASYNC_CALL, id)
+) = message(from = from, to = to, label = label, sort = MessageSort.ASYNC_CALL, id = id)
 
 fun UmlInteractionOperandScope.reply(
     from: UmlLifeline,
     to: UmlLifeline,
     label: String,
     id: String? = null,
-) = message(from, to, label, MessageSort.REPLY, id)
+) = message(from = from, to = to, label = label, sort = MessageSort.REPLY, id = id)
 
 fun UmlInteractionOperandScope.create(
     from: UmlLifeline,
     to: UmlLifeline,
     label: String = "«create»",
     id: String? = null,
-) = message(from, to, label, MessageSort.CREATE, id)
+) = message(from = from, to = to, label = label, sort = MessageSort.CREATE, id = id)
 
 fun UmlInteractionOperandScope.delete(
     from: UmlLifeline,
     to: UmlLifeline,
     label: String = "«destroy»",
     id: String? = null,
-) = message(from, to, label, MessageSort.DELETE, id)
+) = message(from = from, to = to, label = label, sort = MessageSort.DELETE, id = id)
 
 // ── fragment() — UmlInteractionScope ─────────────────────────────────────────
 
@@ -217,7 +217,7 @@ fun UmlInteractionScope.fragment(
 ): UmlCombinedFragment {
     val fragId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.fragment(interactionId, nextFragmentIndex()),
+            candidate = UmlIds.fragment(interactionId = interactionId, index = nextFragmentIndex()),
             taken = takenIds,
         )
     takenIds += fragId
@@ -252,7 +252,7 @@ fun UmlInteractionOperandScope.fragment(
 ): UmlCombinedFragment {
     val fragId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.fragment(interactionId, nextFragmentIndex()),
+            candidate = UmlIds.fragment(interactionId = interactionId, index = nextFragmentIndex()),
             taken = takenIds,
         )
     takenIds += fragId
@@ -382,44 +382,44 @@ class OperandBuilder internal constructor(
 
 // ── Convenience operator wrappers — UmlInteractionScope ──────────────────────
 
-fun UmlInteractionScope.alt(block: FragmentBuilder.() -> Unit) = fragment(InteractionOperator.ALT, block = block)
+fun UmlInteractionScope.alt(block: FragmentBuilder.() -> Unit) = fragment(operator = InteractionOperator.ALT, block = block)
 
 fun UmlInteractionScope.opt(
     guard: String? = null,
     block: OperandBuilder.() -> Unit,
-) = fragment(InteractionOperator.OPT) { branch(guard, block) }
+) = fragment(operator = InteractionOperator.OPT) { branch(guard = guard, block = block) }
 
 fun UmlInteractionScope.loop(
     guard: String? = null,
     block: OperandBuilder.() -> Unit,
-) = fragment(InteractionOperator.LOOP) { branch(guard, block) }
+) = fragment(operator = InteractionOperator.LOOP) { branch(guard = guard, block = block) }
 
-fun UmlInteractionScope.par(block: FragmentBuilder.() -> Unit) = fragment(InteractionOperator.PAR, block = block)
+fun UmlInteractionScope.par(block: FragmentBuilder.() -> Unit) = fragment(operator = InteractionOperator.PAR, block = block)
 
 @Suppress("FunctionName")
 fun UmlInteractionScope.break_(
     guard: String? = null,
     block: OperandBuilder.() -> Unit,
-) = fragment(InteractionOperator.BREAK) { branch(guard, block) }
+) = fragment(operator = InteractionOperator.BREAK) { branch(guard = guard, block = block) }
 
 // ── Convenience operator wrappers — UmlInteractionOperandScope ────────────────
 
-fun UmlInteractionOperandScope.alt(block: FragmentBuilder.() -> Unit) = fragment(InteractionOperator.ALT, block = block)
+fun UmlInteractionOperandScope.alt(block: FragmentBuilder.() -> Unit) = fragment(operator = InteractionOperator.ALT, block = block)
 
 fun UmlInteractionOperandScope.opt(
     guard: String? = null,
     block: OperandBuilder.() -> Unit,
-) = fragment(InteractionOperator.OPT) { branch(guard, block) }
+) = fragment(operator = InteractionOperator.OPT) { branch(guard = guard, block = block) }
 
 fun UmlInteractionOperandScope.loop(
     guard: String? = null,
     block: OperandBuilder.() -> Unit,
-) = fragment(InteractionOperator.LOOP) { branch(guard, block) }
+) = fragment(operator = InteractionOperator.LOOP) { branch(guard = guard, block = block) }
 
-fun UmlInteractionOperandScope.par(block: FragmentBuilder.() -> Unit) = fragment(InteractionOperator.PAR, block = block)
+fun UmlInteractionOperandScope.par(block: FragmentBuilder.() -> Unit) = fragment(operator = InteractionOperator.PAR, block = block)
 
 @Suppress("FunctionName")
 fun UmlInteractionOperandScope.break_(
     guard: String? = null,
     block: OperandBuilder.() -> Unit,
-) = fragment(InteractionOperator.BREAK) { branch(guard, block) }
+) = fragment(operator = InteractionOperator.BREAK) { branch(guard = guard, block = block) }

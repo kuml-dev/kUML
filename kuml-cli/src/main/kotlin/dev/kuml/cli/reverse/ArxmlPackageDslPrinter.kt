@@ -64,7 +64,7 @@ internal object ArxmlPackageDslPrinter {
         sb.appendLine("import dev.kuml.uml.UmlPort")
         sb.appendLine()
         sb.appendLine("KumlModel(")
-        sb.appendLine("    root = ${printPackage(root, "    ")},")
+        sb.appendLine("    root = ${printPackage(pkg = root, indent = "    ")},")
         sb.appendLine("    language = ModelingLanguage.UML,")
         sb.appendLine("    level = ModelLevel.PIM,")
         sb.appendLine("    name = ${quote(model.name)},")
@@ -86,7 +86,7 @@ internal object ArxmlPackageDslPrinter {
         } else {
             sb.append("$inner    members = listOf(\n")
             for (member in pkg.members) {
-                sb.append("$inner        ${printMember(member, "$inner        ")},\n")
+                sb.append("$inner        ${printMember(member = member, indent = "$inner        ")},\n")
             }
             sb.append("$inner    ),\n")
         }
@@ -99,9 +99,9 @@ internal object ArxmlPackageDslPrinter {
         indent: String,
     ): String =
         when (member) {
-            is UmlPackage -> printPackage(member, indent)
-            is UmlComponent -> printComponent(member, indent)
-            is UmlInterface -> printInterface(member, indent)
+            is UmlPackage -> printPackage(pkg = member, indent = indent)
+            is UmlComponent -> printComponent(comp = member, indent = indent)
+            is UmlInterface -> printInterface(iface = member, indent = indent)
             else -> "// unsupported element type: ${member::class.simpleName}"
         }
 
@@ -123,14 +123,14 @@ internal object ArxmlPackageDslPrinter {
         if (comp.ports.isNotEmpty()) {
             sb.append("$inner    ports = listOf(\n")
             for (port in comp.ports) {
-                sb.append("$inner        ${printPort(port, "$inner        ")},\n")
+                sb.append("$inner        ${printPort(port = port, indent = "$inner        ")},\n")
             }
             sb.append("$inner    ),\n")
         }
         if (comp.operations.isNotEmpty()) {
             sb.append("$inner    operations = listOf(\n")
             for (op in comp.operations) {
-                sb.append("$inner        ${printOperation(op, "$inner        ")},\n")
+                sb.append("$inner        ${printOperation(op = op, indent = "$inner        ")},\n")
             }
             sb.append("$inner    ),\n")
         }

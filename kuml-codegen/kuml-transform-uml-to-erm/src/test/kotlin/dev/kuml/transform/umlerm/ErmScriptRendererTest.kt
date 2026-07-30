@@ -17,15 +17,15 @@ class ErmScriptRendererTest :
 
         fun renderedOf(): String {
             val diagram =
-                classDiagram("Orders") {
-                    val customer = classOf("Customer") { attribute("id", "UUID") }
-                    val order = classOf("Order") { attribute("id", "UUID") }
+                classDiagram(name = "Orders") {
+                    val customer = classOf(name = "Customer") { attribute(name = "id", type = "UUID") }
+                    val order = classOf(name = "Order") { attribute(name = "id", type = "UUID") }
                     association(source = customer, target = order) {
                         source { multiplicity("1") }
                         target { multiplicity("0..*") }
                     }
                 }
-            val model = (transformer.transform(diagram, TransformContext()) as TransformResult.Success).output
+            val model = (transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success).output
             return ErmScriptRenderer.render(model)
         }
 
@@ -43,11 +43,11 @@ class ErmScriptRendererTest :
 
         test("rendered script is idempotent for the same input model") {
             val diagram =
-                classDiagram("Orders") {
-                    classOf("Customer") { attribute("id", "UUID") }
-                    classOf("Order") { attribute("id", "UUID") }
+                classDiagram(name = "Orders") {
+                    classOf(name = "Customer") { attribute(name = "id", type = "UUID") }
+                    classOf(name = "Order") { attribute(name = "id", type = "UUID") }
                 }
-            val model = (transformer.transform(diagram, TransformContext()) as TransformResult.Success).output
+            val model = (transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success).output
             ErmScriptRenderer.render(model) shouldBe ErmScriptRenderer.render(model)
         }
 

@@ -81,7 +81,7 @@ internal fun placeOnGrid(graph: LayoutGraph): PlacementResult {
         var r = startRow
         while (true) {
             for (c in startCol..(startCol + occupied.size + colSpan)) {
-                val candidate = GridSlot(c, r, colSpan, rowSpan)
+                val candidate = GridSlot(col = c, row = r, colSpan = colSpan, rowSpan = rowSpan)
                 if (isFree(candidate)) return candidate
             }
             r++
@@ -130,7 +130,7 @@ internal fun placeOnGrid(graph: LayoutGraph): PlacementResult {
             .filter { it.id !in occupied && it.hints.relative.isNotEmpty() }
             .sortedBy { it.id.value } // deterministisch
     for (node in withRelative) {
-        val preferred = preferredSlotFromConstraints(node, occupied, warnings)
+        val preferred = preferredSlotFromConstraints(node = node, placed = occupied, warnings = warnings)
         val target =
             if (preferred != null && isFree(preferred)) {
                 preferred

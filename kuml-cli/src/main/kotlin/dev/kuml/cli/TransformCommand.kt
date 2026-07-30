@@ -84,7 +84,7 @@ internal class TransformCommand : CliktCommand(name = "transform") {
         // ── Resolve transformer id from --from/--to sugar ────────────────────
         val resolvedTransformerId: String? =
             when {
-                fromFormat != null && toFormat != null -> resolveFromTo(fromFormat!!, toFormat!!)
+                fromFormat != null && toFormat != null -> resolveFromTo(from = fromFormat!!, to = toFormat!!)
                 transformerOption != null -> transformerOption
                 else -> null
             }
@@ -104,7 +104,7 @@ internal class TransformCommand : CliktCommand(name = "transform") {
         TransformerRegistry.loadFromClasspath()
 
         // ── Evaluate the script ───────────────────────────────────────────────
-        val evalResult = KumlScriptHost.eval(input)
+        val evalResult = KumlScriptHost.eval(file = input)
         val scriptErrors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (scriptErrors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
             val msg = scriptErrors.joinToString("\n") { it.message }
@@ -135,7 +135,7 @@ internal class TransformCommand : CliktCommand(name = "transform") {
             if (isBpmnSource) {
                 val extracted =
                     try {
-                        DiagramExtractor.extractAny(success.value.returnValue, input)
+                        DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = input)
                     } catch (e: ScriptEvaluationException) {
                         System.err.println(e.message)
                         throw ProgramResult(ExitCodes.SCRIPT_ERROR)
@@ -161,7 +161,7 @@ internal class TransformCommand : CliktCommand(name = "transform") {
                             "Unknown transformer: '$transformerId'. " +
                                 "Use --list-transformers to see available transformers.",
                         )
-                t.transform(bpmnProcess, ctx)
+                t.transform(source = bpmnProcess, ctx = ctx)
             } else {
                 // Standard UML path
                 val t =
@@ -172,12 +172,12 @@ internal class TransformCommand : CliktCommand(name = "transform") {
                         )
                 val diagram =
                     try {
-                        DiagramExtractor.extract(success.value.returnValue, input)
+                        DiagramExtractor.extract(returnValue = success.value.returnValue, input = input)
                     } catch (e: ScriptEvaluationException) {
                         System.err.println(e.message)
                         throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                     }
-                t.transform(diagram, ctx)
+                t.transform(source = diagram, ctx = ctx)
             }
 
         // ── Transform ─────────────────────────────────────────────────────────
@@ -228,7 +228,11 @@ internal class TransformCommand : CliktCommand(name = "transform") {
             fun from(trace: dev.kuml.codegen.m2m.TransformTrace): TraceJson =
                 TraceJson(
                     trace.links.map {
-                        TraceabilityLinkJson(it.sourceElementId, it.targetArtifactId, it.ruleId)
+                        TraceabilityLinkJson(
+                            sourceElementId = it.sourceElementId,
+                            targetArtifactId = it.targetArtifactId,
+                            ruleId = it.ruleId,
+                        )
                     },
                 )
         }

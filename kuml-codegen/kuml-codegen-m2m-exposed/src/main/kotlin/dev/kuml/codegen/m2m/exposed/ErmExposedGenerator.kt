@@ -52,7 +52,11 @@ public class ErmExposedGenerator : ErmCodeGenerator {
         val dateTimeRepresentation = DateTimeRepresentation.fromOption(options["dateTimeRepresentation"])
         return when (
             val result =
-                ErmExposedEmitter(packageName, uuidRepresentation, dateTimeRepresentation).emit(model)
+                ErmExposedEmitter(
+                    packageName = packageName,
+                    uuidRepresentation = uuidRepresentation,
+                    dateTimeRepresentation = dateTimeRepresentation,
+                ).emit(model)
         ) {
             is TransformResult.Success ->
                 result.output.map { file ->
@@ -63,7 +67,7 @@ public class ErmExposedGenerator : ErmCodeGenerator {
                 }
             is TransformResult.Failure ->
                 throw CodeGenerationException(
-                    "erm-to-exposed: " + result.errors.joinToString("; ") { it.message },
+                    message = "erm-to-exposed: " + result.errors.joinToString("; ") { it.message },
                 )
         }
     }

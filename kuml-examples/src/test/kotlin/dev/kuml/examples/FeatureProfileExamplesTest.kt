@@ -107,7 +107,7 @@ class FeatureProfileExamplesTest :
                     }
                 }
 
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(diagram), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(diagram), theme = PlainTheme())
             svg shouldContain "«Entity»"
             svg shouldContain "«Repository»"
             svg shouldContain "«PersistenceContext»"
@@ -141,7 +141,7 @@ class FeatureProfileExamplesTest :
                     }
                 }
 
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(diagram), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(diagram), theme = PlainTheme())
             svg shouldContain "«Service»"
             svg shouldContain "«Scheduled»"
             svg shouldContain "ReportScheduler"
@@ -187,7 +187,7 @@ class FeatureProfileExamplesTest :
                     }
                 }
 
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(diagram), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(diagram), theme = PlainTheme())
             svg shouldContain "«Resource»"
             svg shouldContain "«Schema»"
             // «Operation» appears as feature-stereotype tspan prefix before the operation name
@@ -242,7 +242,7 @@ class FeatureProfileExamplesTest :
                     }
                 }
 
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(diagram), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(diagram), theme = PlainTheme())
             svg shouldContain "«SoftwareComponent»"
             svg shouldContain "«Runnable»"
             svg shouldContain "BrakeControllerImpl"

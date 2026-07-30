@@ -41,7 +41,7 @@ class ActEdgeAdapterTest :
                     targetNodeId = "Validate",
                     guard = "ready",
                 )
-            val meta = ActEdgeAdapter(model(flow), diagram).metadataFor("controlFlow:Start::Validate")!!
+            val meta = ActEdgeAdapter(model = model(flow), diagram = diagram).metadataFor("controlFlow:Start::Validate")!!
             meta.label shouldBe "[ready]"
             meta.dashArray.shouldBeNull()
             meta.arrowHead shouldBe Sysml2ArrowHead.FilledTriangle
@@ -55,7 +55,7 @@ class ActEdgeAdapterTest :
                     sourceNodeId = "Validate",
                     targetNodeId = "Ship",
                 )
-            val meta = ActEdgeAdapter(model(flow), diagram).metadataFor("cf")!!
+            val meta = ActEdgeAdapter(model = model(flow), diagram = diagram).metadataFor("cf")!!
             meta.label.shouldBeNull()
         }
 
@@ -68,7 +68,7 @@ class ActEdgeAdapterTest :
                     targetNodeId = "Ship",
                     objectType = "Order",
                 )
-            val meta = ActEdgeAdapter(model(flow), diagram).metadataFor("objectFlow:Validate::Ship")!!
+            val meta = ActEdgeAdapter(model = model(flow), diagram = diagram).metadataFor("objectFlow:Validate::Ship")!!
             meta.label shouldBe "[Order]"
             meta.arrowHead shouldBe Sysml2ArrowHead.FilledTriangle
         }
@@ -81,6 +81,6 @@ class ActEdgeAdapterTest :
                     sourceNodeId = "Start",
                     targetNodeId = "Ghost",
                 )
-            ActEdgeAdapter(model(flow), diagram).metadataFor("ghost").shouldBeNull()
+            ActEdgeAdapter(model = model(flow), diagram = diagram).metadataFor("ghost").shouldBeNull()
         }
     })

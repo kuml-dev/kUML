@@ -42,8 +42,8 @@ class FeatureStereotypeRenderTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(w + 20f, h + 20f),
-                nodes = mapOf(NodeId(id) to NodeLayout(bounds = Rect(Point(x, y), Size(w, h)))),
+                canvas = Size(width = w + 20f, height = h + 20f),
+                nodes = mapOf(NodeId(id) to NodeLayout(bounds = Rect(origin = Point(x = x, y = y), size = Size(width = w, height = h)))),
                 edges = emptyMap(),
                 groups = emptyMap(),
             )
@@ -63,7 +63,7 @@ class FeatureStereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val layout = singleNodeLayout("cls1")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // The stereotype prefix tspan must be present
             svg shouldContain "«PersistenceContext»"
@@ -82,14 +82,14 @@ class FeatureStereotypeRenderTest :
                 UmlProperty(
                     id = "attr1",
                     name = "connection",
-                    type = UmlTypeRef("DataSource"),
+                    type = UmlTypeRef(name = "DataSource"),
                     appliedStereotypes = listOf(stereoApp("Required")),
                 )
             val cls = UmlClass(id = "cls2", name = "Service", attributes = listOf(attr))
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val layout = singleNodeLayout("cls2")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "«Required»"
             svg shouldContain "kuml-feature-stereotype"
@@ -115,7 +115,7 @@ class FeatureStereotypeRenderTest :
                 PlainTheme().copy(
                     stereotypes = StereotypeTheme(showFeatureStereotypes = false),
                 )
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, themeOff)
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = themeOff)
 
             // No stereotype prefix when toggle is off
             svg shouldNotContain "kuml-feature-stereotype"
@@ -140,7 +140,7 @@ class FeatureStereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val layout = singleNodeLayout("cls4")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // Default joinSeparator is ", "
             svg shouldContain "«Transactional, Audited»"
@@ -167,7 +167,7 @@ class FeatureStereotypeRenderTest :
                 PlainTheme().copy(
                     stereotypes = StereotypeTheme(joinSeparator = " | "),
                 )
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, themeWithPipe)
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = themeWithPipe)
 
             svg shouldContain "«Transactional | Audited»"
             svg shouldNotContain "«Transactional, Audited»"
@@ -186,7 +186,7 @@ class FeatureStereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val layout = singleNodeLayout("cls6")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // No feature-stereotype markup should appear
             svg shouldNotContain "kuml-feature-stereotype"
@@ -202,7 +202,7 @@ class FeatureStereotypeRenderTest :
                 UmlProperty(
                     id = "attr7",
                     name = "timeout",
-                    type = UmlTypeRef("Duration"),
+                    type = UmlTypeRef(name = "Duration"),
                     visibility = Visibility.PUBLIC,
                     appliedStereotypes = listOf(stereoApp("ConfigProperty")),
                 )
@@ -210,7 +210,7 @@ class FeatureStereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(iface))
             val layout = singleNodeLayout("iface7")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "«ConfigProperty»"
             svg shouldContain "kuml-feature-stereotype"
@@ -230,7 +230,7 @@ class FeatureStereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val layout = singleNodeLayout("cls8")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             val stereoPos = svg.indexOf("«Scheduled»")
             val namePos = svg.indexOf("execute")
@@ -245,14 +245,14 @@ class FeatureStereotypeRenderTest :
                 UmlProperty(
                     id = "attr9",
                     name = "name",
-                    type = UmlTypeRef("String"),
+                    type = UmlTypeRef(name = "String"),
                     stereotypes = listOf("Column"),
                 )
             val cls = UmlClass(id = "cls9", name = "User", attributes = listOf(attr))
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val layout = singleNodeLayout("cls9")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "«Column»"
             svg shouldContain "kuml-feature-stereotype"
@@ -272,7 +272,7 @@ class FeatureStereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val layout = singleNodeLayout("cls10")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "«Transactional»"
             svg shouldContain "kuml-feature-stereotype"
@@ -285,7 +285,7 @@ class FeatureStereotypeRenderTest :
                 UmlProperty(
                     id = "attr11",
                     name = "id",
-                    type = UmlTypeRef("Long"),
+                    type = UmlTypeRef(name = "Long"),
                     stereotypes = listOf("Id", "PersistenceContext"),
                     appliedStereotypes = listOf(stereoApp("PersistenceContext")),
                 )
@@ -293,7 +293,7 @@ class FeatureStereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val layout = singleNodeLayout("cls11")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // Applied name comes first, then remaining plain names; duplicate "PersistenceContext" collapsed once
             svg shouldContain "«PersistenceContext, Id»"

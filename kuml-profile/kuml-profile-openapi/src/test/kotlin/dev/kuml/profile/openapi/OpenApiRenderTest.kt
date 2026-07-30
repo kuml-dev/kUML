@@ -30,18 +30,18 @@ class OpenApiRenderTest :
 
         // User API diagram — Resource + 2x Schema
         val diagram =
-            classDiagram("User API") {
+            classDiagram(name = "User API") {
                 applyProfile(openApiProfile)
 
-                classOf("UserResource") {
-                    stereotype("Resource") {
+                classOf(name = "UserResource") {
+                    stereotype(name = "Resource") {
                         "path" to "/users"
                         "version" to "v2"
                     }
                 }
 
-                classOf("UserSchema") {
-                    stereotype("Schema") {
+                classOf(name = "UserSchema") {
+                    stereotype(name = "Schema") {
                         "format" to "json"
                         "description" to "Public user representation"
                     }
@@ -49,8 +49,8 @@ class OpenApiRenderTest :
                     attribute(name = "email", type = "String")
                 }
 
-                classOf("ErrorSchema") {
-                    stereotype("Schema") {
+                classOf(name = "ErrorSchema") {
+                    stereotype(name = "Schema") {
                         "format" to "json"
                         "description" to "Standard RFC-7807 error body"
                     }
@@ -92,7 +92,7 @@ class OpenApiRenderTest :
         // ── Test 1: «Resource» over UserResource ──────────────────────────────────
 
         test("SVG contains Resource stereotype label over UserResource") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "«Resource»"
             svg shouldContain "UserResource"
         }
@@ -100,7 +100,7 @@ class OpenApiRenderTest :
         // ── Test 2: «Schema» over UserSchema ──────────────────────────────────────
 
         test("SVG contains Schema stereotype label over UserSchema") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "«Schema»"
             svg shouldContain "UserSchema"
         }
@@ -108,7 +108,7 @@ class OpenApiRenderTest :
         // ── Test 3: «Schema» appears at least twice (UserSchema + ErrorSchema) ────
 
         test("SVG contains Schema stereotype label at least twice") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             var count = 0
             var idx = svg.indexOf("«Schema»")
             while (idx >= 0) {
@@ -121,7 +121,7 @@ class OpenApiRenderTest :
         // ── Test 4: ErrorSchema class name appears ────────────────────────────────
 
         test("SVG contains ErrorSchema class name") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "ErrorSchema"
         }
 

@@ -14,44 +14,44 @@ import dev.kuml.profile.builder.profile
  * Reference: Jakarta EE Platform Specification 10 / JPA 3.1 / JAX-RS 3.1
  */
 public val javaEeProfile: KumlProfile =
-    profile("JavaEE") {
+    profile(name = "JavaEE") {
         namespace = "dev.kuml.profiles.javaee"
         description = "Java Enterprise Edition / Jakarta EE — Persistenz, Service-Layer, Web"
         version = "1.0.0"
 
         // ── Persistence ───────────────────────────────────────────────────────────
 
-        stereotype("Entity") {
+        stereotype(name = "Entity") {
             extends(UmlMetaclass.Class)
-            property<String>("tableName") // required — no default
-            property<String>("schema") { default = "public" }
-            property<Boolean>("cacheable") { default = false }
+            property<String>(name = "tableName") // required — no default
+            property<String>(name = "schema") { default = "public" }
+            property<Boolean>(name = "cacheable") { default = false }
         }
 
-        stereotype("Repository") {
+        stereotype(name = "Repository") {
             extends(UmlMetaclass.Class)
-            property<String>("dataSource") { default = "default" }
+            property<String>(name = "dataSource") { default = "default" }
         }
 
         // ── Property-Level: JPA EntityManager injection (V1.1.2) ─────────────────
 
-        stereotype("PersistenceContext") {
+        stereotype(name = "PersistenceContext") {
             extends(UmlMetaclass.Property)
-            property<String>("unitName") { default = "default" }
-            property<String>("type") { default = "TRANSACTION" } // TRANSACTION | EXTENDED
+            property<String>(name = "unitName") { default = "default" }
+            property<String>(name = "type") { default = "TRANSACTION" } // TRANSACTION | EXTENDED
         }
 
         // ── Service Layer ─────────────────────────────────────────────────────────
 
-        stereotype("Service") {
+        stereotype(name = "Service") {
             extends(UmlMetaclass.Class)
-            property<Boolean>("transactional") { default = true }
+            property<Boolean>(name = "transactional") { default = true }
         }
 
         // ── Web Layer ─────────────────────────────────────────────────────────────
 
-        stereotype("Controller") {
+        stereotype(name = "Controller") {
             extends(UmlMetaclass.Class)
-            property<String>("requestMapping") { default = "/" }
+            property<String>(name = "requestMapping") { default = "/" }
         }
     }

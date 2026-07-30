@@ -24,8 +24,8 @@ public class Sysml2EditingTools(
         @LLMDescription("Optional parent part definition id for nested blocks.") ownerIdOrName: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure("Context is not a SysML 2 model")
-        val id = IdHelpers.uniqueId(name, Sysml2PatchOps.allIds(sysml))
+        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure(reason = "Context is not a SysML 2 model")
+        val id = IdHelpers.uniqueId(name = name, takenIds = Sysml2PatchOps.allIds(sysml))
 
         val patch =
             ModelPatch.AddElement(
@@ -37,8 +37,8 @@ public class Sysml2EditingTools(
                 name = name,
             )
 
-        return ctx.applyPatch(patch) { m ->
-            Sysml2PatchOps.addPartDef(m as AnyKumlModel.Sysml2, id, name)
+        return ctx.applyPatch(patch = patch) { m ->
+            Sysml2PatchOps.addPartDef(model = m as AnyKumlModel.Sysml2, id = id, name = name)
         }
     }
 
@@ -51,15 +51,15 @@ public class Sysml2EditingTools(
         @LLMDescription("Optional SysML unit identifier, e.g. 'kg', 'm/s'.") unit: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure("Context is not a SysML 2 model")
+        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure(reason = "Context is not a SysML 2 model")
         val owner =
-            Sysml2PatchOps.resolveDefinition(sysml, ownerIdOrName)
+            Sysml2PatchOps.resolveDefinition(model = sysml, idOrName = ownerIdOrName)
                 ?: return PatchApplyResult.Failure(
                     reason = "Owner '$ownerIdOrName' not found",
                     hint = "Use list_elements to discover available part definition ids",
                 )
 
-        val id = IdHelpers.uniqueId(name, Sysml2PatchOps.allIds(sysml), "attr")
+        val id = IdHelpers.uniqueId(name = name, takenIds = Sysml2PatchOps.allIds(sysml), prefix = "attr")
 
         val patch =
             ModelPatch.AddElement(
@@ -77,8 +77,15 @@ public class Sysml2EditingTools(
                     },
             )
 
-        return ctx.applyPatch(patch) { m ->
-            Sysml2PatchOps.addAttributeDef(m as AnyKumlModel.Sysml2, id, name, owner.id, type, unit)
+        return ctx.applyPatch(patch = patch) { m ->
+            Sysml2PatchOps.addAttributeDef(
+                model = m as AnyKumlModel.Sysml2,
+                id = id,
+                name = name,
+                ownerId = owner.id,
+                typeName = type,
+                unit = unit,
+            )
         }
     }
 
@@ -91,8 +98,8 @@ public class Sysml2EditingTools(
         @LLMDescription("If true, marks this state as final.") isFinal: Boolean = false,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure("Context is not a SysML 2 model")
-        val id = IdHelpers.uniqueId(name, Sysml2PatchOps.allIds(sysml), "state")
+        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure(reason = "Context is not a SysML 2 model")
+        val id = IdHelpers.uniqueId(name = name, takenIds = Sysml2PatchOps.allIds(sysml), prefix = "state")
 
         val patch =
             ModelPatch.AddElement(
@@ -110,8 +117,8 @@ public class Sysml2EditingTools(
                     },
             )
 
-        return ctx.applyPatch(patch) { m ->
-            Sysml2PatchOps.addState(m as AnyKumlModel.Sysml2, id, name, isInitial, isFinal)
+        return ctx.applyPatch(patch = patch) { m ->
+            Sysml2PatchOps.addState(model = m as AnyKumlModel.Sysml2, id = id, name = name, isInitial = isInitial, isFinal = isFinal)
         }
     }
 
@@ -125,16 +132,16 @@ public class Sysml2EditingTools(
         @LLMDescription("Optional action expression executed on transition.") action: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure("Context is not a SysML 2 model")
+        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure(reason = "Context is not a SysML 2 model")
 
         val source =
-            Sysml2PatchOps.resolveDefinition(sysml, sourceIdOrName)
+            Sysml2PatchOps.resolveDefinition(model = sysml, idOrName = sourceIdOrName)
                 ?: return PatchApplyResult.Failure(reason = "Source state '$sourceIdOrName' not found")
         val target =
-            Sysml2PatchOps.resolveDefinition(sysml, targetIdOrName)
+            Sysml2PatchOps.resolveDefinition(model = sysml, idOrName = targetIdOrName)
                 ?: return PatchApplyResult.Failure(reason = "Target state '$targetIdOrName' not found")
 
-        val id = IdHelpers.uniqueId("transition_${source.name}_${target.name}", Sysml2PatchOps.allIds(sysml))
+        val id = IdHelpers.uniqueId(name = "transition_${source.name}_${target.name}", takenIds = Sysml2PatchOps.allIds(sysml))
 
         val patch =
             ModelPatch.AddRelationship(
@@ -153,8 +160,16 @@ public class Sysml2EditingTools(
                     },
             )
 
-        return ctx.applyPatch(patch) { m ->
-            Sysml2PatchOps.addTransition(m as AnyKumlModel.Sysml2, id, source.id, target.id, trigger, guard, action)
+        return ctx.applyPatch(patch = patch) { m ->
+            Sysml2PatchOps.addTransition(
+                model = m as AnyKumlModel.Sysml2,
+                id = id,
+                sourceId = source.id,
+                targetId = target.id,
+                trigger = trigger,
+                guard = guard,
+                action = action,
+            )
         }
     }
 
@@ -165,8 +180,8 @@ public class Sysml2EditingTools(
         @LLMDescription("Optional actor name; created if absent.") actorName: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure("Context is not a SysML 2 model")
-        val id = IdHelpers.uniqueId(name, Sysml2PatchOps.allIds(sysml), "uc")
+        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure(reason = "Context is not a SysML 2 model")
+        val id = IdHelpers.uniqueId(name = name, takenIds = Sysml2PatchOps.allIds(sysml), prefix = "uc")
 
         val patch =
             ModelPatch.AddElement(
@@ -179,8 +194,8 @@ public class Sysml2EditingTools(
                 payload = actorName?.let { mapOf("actorName" to it) } ?: emptyMap(),
             )
 
-        return ctx.applyPatch(patch) { m ->
-            Sysml2PatchOps.addUseCase(m as AnyKumlModel.Sysml2, id, name, null, actorName)
+        return ctx.applyPatch(patch = patch) { m ->
+            Sysml2PatchOps.addUseCase(model = m as AnyKumlModel.Sysml2, id = id, name = name, actorId = null, actorName = actorName)
         }
     }
 
@@ -192,8 +207,8 @@ public class Sysml2EditingTools(
         @LLMDescription("Optional parent requirement id if this is a derived requirement.") parentReqId: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure("Context is not a SysML 2 model")
-        val id = IdHelpers.uniqueId(reqId, Sysml2PatchOps.allIds(sysml), "req")
+        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure(reason = "Context is not a SysML 2 model")
+        val id = IdHelpers.uniqueId(name = reqId, takenIds = Sysml2PatchOps.allIds(sysml), prefix = "req")
 
         val patch =
             ModelPatch.AddElement(
@@ -210,8 +225,8 @@ public class Sysml2EditingTools(
                     },
             )
 
-        return ctx.applyPatch(patch) { m ->
-            Sysml2PatchOps.addRequirement(m as AnyKumlModel.Sysml2, id, reqId, text)
+        return ctx.applyPatch(patch = patch) { m ->
+            Sysml2PatchOps.addRequirement(model = m as AnyKumlModel.Sysml2, id = id, reqId = reqId, text = text)
         }
     }
 
@@ -225,8 +240,8 @@ public class Sysml2EditingTools(
         ) kind: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure("Context is not a SysML 2 model")
-        val id = IdHelpers.uniqueId(name, Sysml2PatchOps.allIds(sysml), "action")
+        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure(reason = "Context is not a SysML 2 model")
+        val id = IdHelpers.uniqueId(name = name, takenIds = Sysml2PatchOps.allIds(sysml), prefix = "action")
 
         val activityNodeKind =
             when (kind?.lowercase()) {
@@ -260,8 +275,8 @@ public class Sysml2EditingTools(
                 payload = buildMap { kind?.let { put("kind", it) } },
             )
 
-        return ctx.applyPatch(patch) { m ->
-            Sysml2PatchOps.addAction(m as AnyKumlModel.Sysml2, id, name, activityNodeKind)
+        return ctx.applyPatch(patch = patch) { m ->
+            Sysml2PatchOps.addAction(model = m as AnyKumlModel.Sysml2, id = id, name = name, kind = activityNodeKind)
         }
     }
 
@@ -273,8 +288,8 @@ public class Sysml2EditingTools(
         @LLMDescription("Owning part definition or constraint definition id.") ownerIdOrName: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure("Context is not a SysML 2 model")
-        val id = IdHelpers.uniqueId(name, Sysml2PatchOps.allIds(sysml), "constraint")
+        val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure(reason = "Context is not a SysML 2 model")
+        val id = IdHelpers.uniqueId(name = name, takenIds = Sysml2PatchOps.allIds(sysml), prefix = "constraint")
 
         val patch =
             ModelPatch.AddElement(
@@ -291,8 +306,8 @@ public class Sysml2EditingTools(
                     },
             )
 
-        return ctx.applyPatch(patch) { m ->
-            Sysml2PatchOps.addConstraint(m as AnyKumlModel.Sysml2, id, name, expression)
+        return ctx.applyPatch(patch = patch) { m ->
+            Sysml2PatchOps.addConstraint(model = m as AnyKumlModel.Sysml2, id = id, name = name, expression = expression)
         }
     }
 }

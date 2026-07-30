@@ -57,7 +57,7 @@ public class BpmnParticipantToUmlActivityTransformer : KumlTransformer<BpmnParti
                     ),
                 )
 
-        val model = BpmnToUmlActivityMapper.map(process, source.participant.lanes)
+        val model = BpmnToUmlActivityMapper.map(process = process, lanes = source.participant.lanes)
         val content = UmlActivityScriptRenderer.render(model)
 
         val participantName =
@@ -70,14 +70,14 @@ public class BpmnParticipantToUmlActivityTransformer : KumlTransformer<BpmnParti
 
         var trace = TransformTrace()
         for (node in model.nodes) {
-            trace = trace.plus(TraceabilityLink(node.id, outputPath, RULE_NODE))
+            trace = trace.plus(TraceabilityLink(sourceElementId = node.id, targetArtifactId = outputPath, ruleId = RULE_NODE))
         }
         for (edge in model.edges) {
-            trace = trace.plus(TraceabilityLink(edge.id, outputPath, RULE_EDGE))
+            trace = trace.plus(TraceabilityLink(sourceElementId = edge.id, targetArtifactId = outputPath, ruleId = RULE_EDGE))
         }
 
-        val file = GeneratedFile(outputPath, content)
-        return TransformResult.Success(listOf(file), trace)
+        val file = GeneratedFile(relativePath = outputPath, content = content)
+        return TransformResult.Success(output = listOf(file), trace = trace)
     }
 
     private companion object {
@@ -118,7 +118,7 @@ public data class BpmnParticipantBundle(
                     ?: return null
             val process =
                 participant.processRef?.let { ref -> model.processes.firstOrNull { it.id == ref } }
-            return BpmnParticipantBundle(participant, process)
+            return BpmnParticipantBundle(participant = participant, process = process)
         }
 
         /**
@@ -135,7 +135,7 @@ public data class BpmnParticipantBundle(
                         participant.processRef?.let { ref ->
                             model.processes.firstOrNull { it.id == ref }
                         }
-                    BpmnParticipantBundle(participant, process)
+                    BpmnParticipantBundle(participant = participant, process = process)
                 }
     }
 }

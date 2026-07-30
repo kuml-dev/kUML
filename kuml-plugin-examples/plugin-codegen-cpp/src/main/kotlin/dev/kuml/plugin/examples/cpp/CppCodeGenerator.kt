@@ -36,7 +36,7 @@ public class CppCodeGenerator : KumlCodeGenerator {
         // elementNamespace[elementId] = namespace derived from its owning UmlPackage (if any).
         val elementNamespace = mutableMapOf<String, String>()
         val umlNamedElements = diagram.elements.filterIsInstance<UmlNamedElement>()
-        val flatElements = flattenElements(umlNamedElements, namespace = null, elementNamespace)
+        val flatElements = flattenElements(elements = umlNamedElements, namespace = null, elementNamespace = elementNamespace)
 
         // Pre-build index: element id → class name
         val idToName = mutableMapOf<String, String>()
@@ -76,27 +76,33 @@ public class CppCodeGenerator : KumlCodeGenerator {
             when (el) {
                 is UmlClass -> {
                     val hppContent =
-                        generateClassHeader(el, generalizations, associations, idToName, effectiveOpts)
+                        generateClassHeader(
+                            cls = el,
+                            generalizations = generalizations,
+                            associations = associations,
+                            idToName = idToName,
+                            opts = effectiveOpts,
+                        )
                     val safeName = sanitizeElementName(el.name)
                     val hppFile = File(outputDir, "$safeName.hpp")
                     hppFile.writeText(hppContent)
                     generated += hppFile
                     if (opts.generateCpp) {
-                        val cppContent = generateClassSource(el, effectiveOpts)
+                        val cppContent = generateClassSource(cls = el, opts = effectiveOpts)
                         val cppFile = File(outputDir, "$safeName.cpp")
                         cppFile.writeText(cppContent)
                         generated += cppFile
                     }
                 }
                 is UmlInterface -> {
-                    val hppContent = generateInterfaceHeader(el, effectiveOpts)
+                    val hppContent = generateInterfaceHeader(iface = el, opts = effectiveOpts)
                     val safeName = sanitizeElementName(el.name)
                     val hppFile = File(outputDir, "$safeName.hpp")
                     hppFile.writeText(hppContent)
                     generated += hppFile
                 }
                 is UmlEnumeration -> {
-                    val hppContent = generateEnumHeader(el, effectiveOpts)
+                    val hppContent = generateEnumHeader(enum = el, opts = effectiveOpts)
                     val safeName = sanitizeElementName(el.name)
                     val hppFile = File(outputDir, "$safeName.hpp")
                     hppFile.writeText(hppContent)
@@ -147,7 +153,7 @@ public class CppCodeGenerator : KumlCodeGenerator {
             when (el) {
                 is UmlPackage -> {
                     val childNs = if (namespace != null) "$namespace::${el.name}" else el.name
-                    result += flattenElements(el.members, childNs, elementNamespace)
+                    result += flattenElements(elements = el.members, namespace = childNs, elementNamespace = elementNamespace)
                 }
                 else -> {
                     if (namespace != null) {
@@ -170,19 +176,24 @@ public class CppCodeGenerator : KumlCodeGenerator {
         val mapper = CppTypeMapper(opts.naming)
 
         // Collect association members for this class (where this class owns the navigable end)
-        val assocMembers = buildAssocMembers(cls.id, associations, idToName, opts)
+        val assocMembers = buildAssocMembers(ownerId = cls.id, associations = associations, idToName = idToName, opts = opts)
         val hasVectorMembers = assocMembers.any { it.contains("std::vector") }
 
         // Collect all C++ types used in attributes
         val attrTypes = cls.attributes.map { mapper.mapType(it.type.name) }
         val allTypes = attrTypes + assocMembers.map { extractTypeName(it) }
-        val includes = mapper.headerIncludesFor(allTypes, opts.useSmartPointers, hasVectorMembers)
+        val includes =
+            mapper.headerIncludesFor(
+                typeNames = allTypes,
+                useSmartPointers = opts.useSmartPointers,
+                hasVectorMembers = hasVectorMembers,
+            )
 
         val baseClass = generalizations[cls.id]?.let { idToName[it] }
 
         // Collect the user-defined target types of association pointer members (not vectors)
         // for which we can emit forward declarations instead of full includes.
-        val assocTargetNames = buildAssocTargetNames(cls.id, associations, idToName)
+        val assocTargetNames = buildAssocTargetNames(ownerId = cls.id, associations = associations, idToName = idToName)
         // Pointer-only targets (single pointer, not via vector) can be forward-declared.
         val pointerOnlyTargets =
             assocTargetNames.filter { name ->
@@ -230,7 +241,7 @@ public class CppCodeGenerator : KumlCodeGenerator {
 
         val inheritance = if (baseClass != null) " : public $baseClass" else ""
 
-        openNamespace(sb, opts)
+        openNamespace(sb = sb, opts = opts)
         sb.appendLine("class ${cls.name}$inheritance {")
         sb.appendLine("public:")
 
@@ -248,11 +259,11 @@ public class CppCodeGenerator : KumlCodeGenerator {
 
         // Operations
         for (op in cls.operations) {
-            sb.appendLine("    ${formatOperationDecl(op, mapper, opts)};")
+            sb.appendLine("    ${formatOperationDecl(op = op, mapper = mapper, opts = opts)};")
         }
 
         sb.appendLine("};")
-        closeNamespace(sb, opts)
+        closeNamespace(sb = sb, opts = opts)
 
         return sb.toString()
     }
@@ -267,7 +278,7 @@ public class CppCodeGenerator : KumlCodeGenerator {
         sb.appendLine("#include \"${sanitizeElementName(cls.name)}.hpp\"")
         sb.appendLine()
 
-        openNamespace(sb, opts)
+        openNamespace(sb = sb, opts = opts)
         for (op in cls.operations) {
             val returnType = op.returnType?.let { mapper.mapType(it.name) } ?: "void"
             val params =
@@ -281,7 +292,7 @@ public class CppCodeGenerator : KumlCodeGenerator {
             sb.appendLine("}")
             sb.appendLine()
         }
-        closeNamespace(sb, opts)
+        closeNamespace(sb = sb, opts = opts)
 
         return sb.toString()
     }
@@ -292,7 +303,7 @@ public class CppCodeGenerator : KumlCodeGenerator {
     ): String {
         val mapper = CppTypeMapper(opts.naming)
         val attrTypes = iface.attributes.map { mapper.mapType(it.type.name) }
-        val includes = mapper.headerIncludesFor(attrTypes, opts.useSmartPointers, false)
+        val includes = mapper.headerIncludesFor(typeNames = attrTypes, useSmartPointers = opts.useSmartPointers, hasVectorMembers = false)
 
         val sb = StringBuilder()
         sb.appendLine("// Generated by kUML C++ Code Generator")
@@ -305,7 +316,7 @@ public class CppCodeGenerator : KumlCodeGenerator {
         }
         sb.appendLine()
 
-        openNamespace(sb, opts)
+        openNamespace(sb = sb, opts = opts)
         sb.appendLine("class ${iface.name} {")
         sb.appendLine("public:")
         sb.appendLine("    virtual ~${iface.name}() = default;")
@@ -323,7 +334,7 @@ public class CppCodeGenerator : KumlCodeGenerator {
             sb.appendLine("    virtual $returnType ${opts.naming.apply(op.name)}($params) = 0;")
         }
         sb.appendLine("};")
-        closeNamespace(sb, opts)
+        closeNamespace(sb = sb, opts = opts)
 
         return sb.toString()
     }
@@ -337,14 +348,14 @@ public class CppCodeGenerator : KumlCodeGenerator {
         sb.appendLine("#pragma once")
         sb.appendLine()
 
-        openNamespace(sb, opts)
+        openNamespace(sb = sb, opts = opts)
         sb.appendLine("enum class ${enum.name} {")
         enum.literals.forEachIndexed { i, lit ->
             val comma = if (i < enum.literals.size - 1) "," else ""
             sb.appendLine("    ${lit.name}$comma")
         }
         sb.appendLine("};")
-        closeNamespace(sb, opts)
+        closeNamespace(sb = sb, opts = opts)
 
         return sb.toString()
     }
@@ -393,7 +404,7 @@ public class CppCodeGenerator : KumlCodeGenerator {
             val otherEnd = assoc.ends[otherEndIndex]
             if (!otherEnd.navigable) continue
             val targetName = idToName[otherEnd.typeId] ?: continue
-            val member = associationMemberFor(otherEnd, opts, targetName)
+            val member = associationMemberFor(end = otherEnd, opts = opts, targetName = targetName)
             members += member
         }
         return members

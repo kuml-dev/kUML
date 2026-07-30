@@ -142,9 +142,9 @@ public class ElkLayoutEngine(
             // resulting warnings are the same on every attempt — only the last attempt's are
             // kept below).
             val passWarnings = mutableListOf<LayoutWarning>()
-            passWarnings += HintsMapper.applyGlobalHints(root, hints, configuration)
+            passWarnings += HintsMapper.applyGlobalHints(root = root, hints = hints, config = configuration)
             passWarnings += HintsMapper.collectNodeHintWarnings(graph)
-            HintsMapper.applyGroupPadding(builder, hints, configuration, extraPaddingByGroup)
+            HintsMapper.applyGroupPadding(builder = builder, hints = hints, config = configuration, extraPadding = extraPaddingByGroup)
 
             // 3. Time-budget tracking (accumulated across all re-layout attempts so the
             // warning reflects the real total work performed for this [layout] call).
@@ -181,7 +181,7 @@ public class ElkLayoutEngine(
 
             // Retry with the deficit folded into the padding of the affected group(s) so the
             // next pass's ELK-computed compound size already satisfies minSize.
-            extraPaddingByGroup = mergeInsets(extraPaddingByGroup, deficits)
+            extraPaddingByGroup = mergeInsets(a = extraPaddingByGroup, b = deficits)
         }
 
         // 5. Check time budget

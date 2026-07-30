@@ -25,20 +25,21 @@ internal fun renderErmView(
     val h = layout.bounds.size.height
 
     b.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(view.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(view.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-erm-view"))
+        tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-erm-view"))
 
         var cy = ErmSizing.TITLE_ROW_H - 8f
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(w / 2f),
-                "y" to fmt(cy),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(w / 2f),
+                    "y" to fmt(cy),
+                    "text-anchor" to "middle",
+                ),
         ) { text("«view» ${view.name ?: view.id}") }
         cy = ErmSizing.TITLE_ROW_H
 
@@ -46,14 +47,15 @@ internal fun renderErmView(
         // fix as ErmMartinSvg.renderDivider: gives the full DIVIDER_GAP as
         // clearance to the query-preview baseline below instead of half of it.
         tag(
-            "line",
-            mapOf(
-                "x1" to "0",
-                "y1" to fmt(cy),
-                "x2" to fmt(w),
-                "y2" to fmt(cy),
-                "class" to "kuml-divider",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to "0",
+                    "y1" to fmt(cy),
+                    "x2" to fmt(w),
+                    "y2" to fmt(cy),
+                    "class" to "kuml-divider",
+                ),
         )
         cy += ErmSizing.DIVIDER_GAP
 
@@ -61,8 +63,8 @@ internal fun renderErmView(
         val maxChars = ((w - 2 * ErmSizing.PAD_X) / ErmSizing.SMALL_CHAR_PX).toInt().coerceAtLeast(4)
         val truncated = if (preview.length > maxChars) preview.take(maxChars - 1) + "…" else preview
         tag(
-            "text",
-            mapOf("class" to "kuml-erm-view-query", "x" to fmt(ErmSizing.PAD_X), "y" to fmt(cy)),
+            name = "text",
+            attrs = mapOf("class" to "kuml-erm-view-query", "x" to fmt(ErmSizing.PAD_X), "y" to fmt(cy)),
         ) { text(truncated) }
     }
 }

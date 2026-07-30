@@ -21,26 +21,26 @@ class UmlToErmValidationTest :
 
         test("SINGLE_TABLE column-name collision between supertype and subtype fails the transform") {
             val diagram =
-                classDiagram("Fleet") {
+                classDiagram(name = "Fleet") {
                     applyProfile(ermMappingProfile)
                     val vehicle =
-                        classOf("Vehicle") {
-                            stereotype("Inheritance") {
+                        classOf(name = "Vehicle") {
+                            stereotype(name = "Inheritance") {
                                 "strategy" to "SINGLE_TABLE"
                             }
-                            attribute("id", "UUID")
-                            attribute("name", "String")
+                            attribute(name = "id", type = "UUID")
+                            attribute(name = "name", type = "String")
                         }
                     val car =
-                        classOf("Car") {
+                        classOf(name = "Car") {
                             // Same attribute name as the supertype's own "name" column — after
                             // merging, the entity would have two "name" columns (ErmConstraintChecker rule 4).
-                            attribute("name", "String")
+                            attribute(name = "name", type = "String")
                         }
                     generalization(specific = car, general = vehicle)
                 }
 
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             result.shouldBeInstanceOf<TransformResult.Failure>()
             result.errors.shouldNotBeEmpty()
             result.errors.first().message shouldContain "name"

@@ -51,7 +51,7 @@ class BridgeLayoutKeysTest :
                     relationships = listOf("r1"),
                 )
 
-            val original = C4LayoutBridge.toLayoutGraph(diagram, model)
+            val original = C4LayoutBridge.toLayoutGraph(diagram = diagram, model = model)
 
             val json = Json { prettyPrint = false }
             val encoded = json.encodeToString(original)

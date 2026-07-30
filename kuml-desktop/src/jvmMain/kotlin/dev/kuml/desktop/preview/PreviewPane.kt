@@ -58,8 +58,8 @@ fun PreviewPane(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
         ) {
-            IconButton(onClick = { zoomCanvas(canvas, ZOOM_STEP) }) { Text("+") }
-            IconButton(onClick = { zoomCanvas(canvas, 1.0 / ZOOM_STEP) }) { Text("–") }
+            IconButton(onClick = { zoomCanvas(canvas = canvas, factor = ZOOM_STEP) }) { Text("+") }
+            IconButton(onClick = { zoomCanvas(canvas = canvas, factor = 1.0 / ZOOM_STEP) }) { Text("–") }
             IconButton(onClick = { canvas.renderingTransform = AffineTransform() }) { Text("100%") }
             IconButton(onClick = { canvas.resetRenderingTransform() }) { Text("Fit") }
         }
@@ -78,7 +78,7 @@ private fun zoomCanvas(
     val width = canvas.width.takeIf { it > 0 } ?: 400
     val height = canvas.height.takeIf { it > 0 } ?: 300
     val current = canvas.renderingTransform ?: AffineTransform()
-    canvas.renderingTransform = zoomedTransform(current, factor, width / 2.0, height / 2.0)
+    canvas.renderingTransform = zoomedTransform(current = current, factor = factor, centerX = width / 2.0, centerY = height / 2.0)
 }
 
 /**

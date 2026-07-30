@@ -25,15 +25,15 @@ public class AptosEventDecoder {
     public fun decode(eventJson: JsonObject): ChainEvent {
         val type =
             eventJson["type"]?.jsonPrimitive?.content
-                ?: throw AptosChainAdapterException.MalformedResponse("Event missing 'type'")
+                ?: throw AptosChainAdapterException.MalformedResponse(message = "Event missing 'type'")
         val dataObj =
             eventJson["data"]
-                ?: throw AptosChainAdapterException.MalformedResponse("Event missing 'data'")
+                ?: throw AptosChainAdapterException.MalformedResponse(message = "Event missing 'data'")
         // data-JSON-Objekt als kompakter UTF-8-String → payloadAbi
         // toString() von kotlinx-JsonElement ist deterministisch (insertion-order)
         val payloadAbi = dataObj.toString().toByteArray(Charsets.UTF_8)
         val version = eventJson["version"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
-        return ChainEvent(type, payloadAbi, version, version.toString())
+        return ChainEvent(eventType = type, payloadAbi = payloadAbi, blockNumber = version, txHash = version.toString())
     }
 
     /**

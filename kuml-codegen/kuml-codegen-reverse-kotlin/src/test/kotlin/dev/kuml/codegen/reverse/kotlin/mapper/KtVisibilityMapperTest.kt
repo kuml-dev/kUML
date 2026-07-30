@@ -13,15 +13,16 @@ class KtVisibilityMapperTest :
         test("all four visibility modifiers map to correct UML Visibility values") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Vis.kt" to
-                            """
-                            public class PublicClass
-                            private class PrivateClass
-                            protected class ProtectedClass
-                            internal class InternalClass
-                            """.trimIndent(),
-                    ),
+                    sources =
+                        mapOf(
+                            "Vis.kt" to
+                                """
+                                public class PublicClass
+                                private class PrivateClass
+                                protected class ProtectedClass
+                                internal class InternalClass
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val diagram = success.model.root as KumlDiagram

@@ -15,18 +15,18 @@ class FileMenuTest :
         // ── shouldProceedAfterUnsavedChoice() — P1 ─────────────────────────────
 
         test("DISCARD always proceeds, regardless of saveSucceeded") {
-            FileMenu.shouldProceedAfterUnsavedChoice(UnsavedChoice.DISCARD, saveSucceeded = false) shouldBe true
-            FileMenu.shouldProceedAfterUnsavedChoice(UnsavedChoice.DISCARD, saveSucceeded = true) shouldBe true
+            FileMenu.shouldProceedAfterUnsavedChoice(choice = UnsavedChoice.DISCARD, saveSucceeded = false) shouldBe true
+            FileMenu.shouldProceedAfterUnsavedChoice(choice = UnsavedChoice.DISCARD, saveSucceeded = true) shouldBe true
         }
 
         test("CANCEL never proceeds, regardless of saveSucceeded") {
-            FileMenu.shouldProceedAfterUnsavedChoice(UnsavedChoice.CANCEL, saveSucceeded = false) shouldBe false
-            FileMenu.shouldProceedAfterUnsavedChoice(UnsavedChoice.CANCEL, saveSucceeded = true) shouldBe false
+            FileMenu.shouldProceedAfterUnsavedChoice(choice = UnsavedChoice.CANCEL, saveSucceeded = false) shouldBe false
+            FileMenu.shouldProceedAfterUnsavedChoice(choice = UnsavedChoice.CANCEL, saveSucceeded = true) shouldBe false
         }
 
         test("SAVE proceeds only if the save actually succeeded") {
-            FileMenu.shouldProceedAfterUnsavedChoice(UnsavedChoice.SAVE, saveSucceeded = true) shouldBe true
-            FileMenu.shouldProceedAfterUnsavedChoice(UnsavedChoice.SAVE, saveSucceeded = false) shouldBe false
+            FileMenu.shouldProceedAfterUnsavedChoice(choice = UnsavedChoice.SAVE, saveSucceeded = true) shouldBe true
+            FileMenu.shouldProceedAfterUnsavedChoice(choice = UnsavedChoice.SAVE, saveSucceeded = false) shouldBe false
         }
 
         // ── exportBaseName() — P3 ──────────────────────────────────────────────

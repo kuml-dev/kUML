@@ -29,8 +29,8 @@ internal fun renderBpmnParticipant(
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
 
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(participant.id))) {
-        renderPoolFrame(participant, x, y, w, h, this, theme)
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(participant.id))) {
+        renderPoolFrame(participant = participant, x = x, y = y, w = w, h = h, builder = this, theme = theme)
     }
 }
 
@@ -51,8 +51,8 @@ internal fun renderBpmnLane(
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
 
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(lane.id))) {
-        renderLaneFrame(lane, x, y, w, h, horizontal, this, theme)
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(lane.id))) {
+        renderLaneFrame(lane = lane, x = x, y = y, w = w, h = h, horizontal = horizontal, builder = this, theme = theme)
     }
 }
 

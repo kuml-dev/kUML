@@ -73,7 +73,7 @@ public fun interface RpcUrlValidator {
 public class EvmChainAdapter(
     private val pollIntervalMillis: Long = 12_000L,
     private val logPageSize: Long = 2_000L,
-    private val clientFactory: (String) -> EvmJsonRpcClient = { url -> EvmJsonRpcClient(url) },
+    private val clientFactory: (String) -> EvmJsonRpcClient = { url -> EvmJsonRpcClient(rpcUrl = url) },
     private val eventDecoder: EvmEventDecoder = EvmEventDecoder(),
     private val urlValidator: RpcUrlValidator = RpcUrlValidator.Default,
 ) : KumlChainAdapter {
@@ -94,20 +94,20 @@ public class EvmChainAdapter(
         val client = clientFactory(rpcUrl)
         rpcClient = client
 
-        val clock = EvmBlockClock(client)
+        val clock = EvmBlockClock(rpc = client)
         blockClock = clock
         connectedAddress = contractAddress
 
         // Read modelHash() — returns bytes32
-        val hashHex = client.ethCall(contractAddress, SELECTOR_MODEL_HASH)
+        val hashHex = client.ethCall(to = contractAddress, data = SELECTOR_MODEL_HASH)
         val modelHash = AbiCodec.decodeBytes32(hashHex)
 
         // Read modelUri() — returns string (dynamic ABI)
-        val uriHex = client.ethCall(contractAddress, SELECTOR_MODEL_URI)
+        val uriHex = client.ethCall(to = contractAddress, data = SELECTOR_MODEL_URI)
         val modelUri = AbiCodec.decodeString(uriHex)
 
         // Read schemaVersion() — returns uint256
-        val versionHex = client.ethCall(contractAddress, SELECTOR_SCHEMA_VERSION)
+        val versionHex = client.ethCall(to = contractAddress, data = SELECTOR_SCHEMA_VERSION)
         val schemaVersion = AbiCodec.decodeUint(versionHex)
 
         return ContractIdentity(
@@ -127,7 +127,7 @@ public class EvmChainAdapter(
 
             // Capture hash of the starting block for reorg detection
             if (lastBlock > 0) {
-                val blk = client.ethGetBlockByNumber(lastBlock)
+                val blk = client.ethGetBlockByNumber(blockNumber = lastBlock)
                 lastBlockHash = blk.jsonObject["hash"]?.jsonPrimitive?.content
             }
 
@@ -137,7 +137,7 @@ public class EvmChainAdapter(
                 if (head > lastBlock) {
                     // Reorg check: re-read last seen block's hash
                     if (lastBlockHash != null && lastBlock > 0) {
-                        val rereadBlk = client.ethGetBlockByNumber(lastBlock)
+                        val rereadBlk = client.ethGetBlockByNumber(blockNumber = lastBlock)
                         val rereadHash = rereadBlk.jsonObject["hash"]?.jsonPrimitive?.content
                         if (rereadHash != null && rereadHash != lastBlockHash) {
                             throw EvmChainAdapterException.ReorgDetected(
@@ -164,7 +164,7 @@ public class EvmChainAdapter(
                     var current = fromBlock
                     while (current <= head) {
                         val pageEnd = if (head - current < logPageSize - 1) head else current + logPageSize - 1
-                        val logsJson = client.ethGetLogs(address, current, pageEnd)
+                        val logsJson = client.ethGetLogs(address = address, fromBlock = current, toBlock = pageEnd)
                         val events = eventDecoder.decodeAll(logsJson)
                         for (event in events) {
                             emit(event)
@@ -173,7 +173,7 @@ public class EvmChainAdapter(
                     }
 
                     // Update last seen block hash
-                    val headBlk = client.ethGetBlockByNumber(head)
+                    val headBlk = client.ethGetBlockByNumber(blockNumber = head)
                     lastBlockHash = headBlk.jsonObject["hash"]?.jsonPrimitive?.content
                     lastBlock = head
                 }
@@ -198,7 +198,7 @@ public class EvmChainAdapter(
             var current = fromBlock
             while (current <= head) {
                 val pageEnd = if (head - current < logPageSize - 1) head else current + logPageSize - 1
-                val logsJson = client.ethGetLogs(address, current, pageEnd)
+                val logsJson = client.ethGetLogs(address = address, fromBlock = current, toBlock = pageEnd)
                 val events = eventDecoder.decodeAll(logsJson)
                 for (event in events) {
                     emit(event)

@@ -76,7 +76,7 @@ private fun fakeExecutor(
     throwOnFirst: Boolean = false,
 ): KumlAiExecutor =
     KumlAiExecutor.forTest(
-        delegate = FakePromptExecutor(responseMap, defaultResponse, throwOnFirst),
+        delegate = FakePromptExecutor(responseMap = responseMap, defaultResponse = defaultResponse, throwOnFirst = throwOnFirst),
         settings = KumlAiSettings(defaultProvider = "ollama", privacyMode = false),
         privacy = PrivacyEnforcer(privacyMode = false),
         registry = ProviderRegistry.builtIns(),
@@ -96,8 +96,8 @@ class AiBenchTest :
         test("all tasks pass when all expected substrings are present in response") {
             val tasks =
                 listOf(
-                    BenchTask("t1", "sys", "q1", listOf("class", "attribute")),
-                    BenchTask("t2", "sys", "q2", listOf("Context")),
+                    BenchTask(id = "t1", systemPrompt = "sys", userPrompt = "q1", expectedSubstrings = listOf("class", "attribute")),
+                    BenchTask(id = "t2", systemPrompt = "sys", userPrompt = "q2", expectedSubstrings = listOf("Context")),
                 )
             val executor =
                 fakeExecutor(
@@ -108,7 +108,7 @@ class AiBenchTest :
                         ),
                 )
 
-            val report = AiBench.run(tasks, executor, "ollama", ollamaModel)
+            val report = AiBench.run(tasks = tasks, executor = executor, provider = "ollama", model = ollamaModel)
 
             report.allPassed.shouldBeTrue()
             report.passed shouldBe 2
@@ -120,11 +120,16 @@ class AiBenchTest :
         test("task fails when a required substring is absent from the response") {
             val tasks =
                 listOf(
-                    BenchTask("fail-task", "", "What is UML?", listOf("xyz-not-there")),
+                    BenchTask(
+                        id = "fail-task",
+                        systemPrompt = "",
+                        userPrompt = "What is UML?",
+                        expectedSubstrings = listOf("xyz-not-there"),
+                    ),
                 )
             val executor = fakeExecutor(defaultResponse = "UML is a modelling language.")
 
-            val report = AiBench.run(tasks, executor, "ollama", ollamaModel)
+            val report = AiBench.run(tasks = tasks, executor = executor, provider = "ollama", model = ollamaModel)
 
             report.allPassed.shouldBeFalse()
             report.passed shouldBe 0
@@ -138,13 +143,13 @@ class AiBenchTest :
         test("report correctly counts mixed pass and fail tasks") {
             val tasks =
                 listOf(
-                    BenchTask("pass1", "", "q", listOf("yes")),
-                    BenchTask("fail1", "", "q", listOf("no-match")),
-                    BenchTask("pass2", "", "q", listOf("yes")),
+                    BenchTask(id = "pass1", systemPrompt = "", userPrompt = "q", expectedSubstrings = listOf("yes")),
+                    BenchTask(id = "fail1", systemPrompt = "", userPrompt = "q", expectedSubstrings = listOf("no-match")),
+                    BenchTask(id = "pass2", systemPrompt = "", userPrompt = "q", expectedSubstrings = listOf("yes")),
                 )
             val executor = fakeExecutor(defaultResponse = "yes this is the answer")
 
-            val report = AiBench.run(tasks, executor, "ollama", ollamaModel)
+            val report = AiBench.run(tasks = tasks, executor = executor, provider = "ollama", model = ollamaModel)
 
             report.passed shouldBe 2
             report.failed shouldBe 1
@@ -154,10 +159,10 @@ class AiBenchTest :
         // ── Test 4: latency is non-negative ───────────────────────────────────
 
         test("all task results have non-negative latency") {
-            val tasks = listOf(BenchTask("t1", "", "hello", listOf("ok")))
+            val tasks = listOf(BenchTask(id = "t1", systemPrompt = "", userPrompt = "hello", expectedSubstrings = listOf("ok")))
             val executor = fakeExecutor(defaultResponse = "ok response")
 
-            val report = AiBench.run(tasks, executor, "ollama", ollamaModel)
+            val report = AiBench.run(tasks = tasks, executor = executor, provider = "ollama", model = ollamaModel)
 
             report.results.forEach { result ->
                 result.latencyMs shouldBeGreaterThanOrEqualTo 0L
@@ -167,11 +172,11 @@ class AiBenchTest :
         // ── Test 5: error on first call → ProviderUnreachableException ────────
 
         test("connection error on first task produces ProviderUnreachableException") {
-            val tasks = listOf(BenchTask("net-task", "", "q", listOf("ok")))
+            val tasks = listOf(BenchTask(id = "net-task", systemPrompt = "", userPrompt = "q", expectedSubstrings = listOf("ok")))
             val executor = fakeExecutor(throwOnFirst = true)
 
             shouldThrow<AiBench.ProviderUnreachableException> {
-                AiBench.run(tasks, executor, "ollama", ollamaModel)
+                AiBench.run(tasks = tasks, executor = executor, provider = "ollama", model = ollamaModel)
             }
         }
 
@@ -180,8 +185,8 @@ class AiBenchTest :
         test("error on second task does not produce ProviderUnreachableException") {
             val tasks =
                 listOf(
-                    BenchTask("first", "", "q1", listOf("ok")),
-                    BenchTask("second", "", "q2", listOf("ok")),
+                    BenchTask(id = "first", systemPrompt = "", userPrompt = "q1", expectedSubstrings = listOf("ok")),
+                    BenchTask(id = "second", systemPrompt = "", userPrompt = "q2", expectedSubstrings = listOf("ok")),
                 )
             // Executor succeeds first call, throws on second
             var call = 0
@@ -220,7 +225,7 @@ class AiBenchTest :
                 )
 
             // Must not throw — second error is recorded as a task failure
-            val report = AiBench.run(tasks, executor, "ollama", ollamaModel)
+            val report = AiBench.run(tasks = tasks, executor = executor, provider = "ollama", model = ollamaModel)
             report.results shouldHaveSize 2
             report.results[0].pass.shouldBeTrue()
             report.results[1].pass.shouldBeFalse()
@@ -233,23 +238,23 @@ class AiBenchTest :
             val results =
                 listOf(
                     BenchTaskResult(
-                        BenchTask("a", "", "q", emptyList()),
-                        "response",
+                        task = BenchTask(id = "a", systemPrompt = "", userPrompt = "q", expectedSubstrings = emptyList()),
+                        actual = "response",
                         pass = true,
                         latencyMs = 10L,
                         inputTokens = 0L,
                         outputTokens = 0L,
                     ),
                     BenchTaskResult(
-                        BenchTask("b", "", "q", listOf("missing")),
-                        "response",
+                        task = BenchTask(id = "b", systemPrompt = "", userPrompt = "q", expectedSubstrings = listOf("missing")),
+                        actual = "response",
                         pass = false,
                         latencyMs = 10L,
                         inputTokens = 0L,
                         outputTokens = 0L,
                     ),
                 )
-            val report = BenchReport("ollama", "llama3.2", results)
+            val report = BenchReport(provider = "ollama", model = "llama3.2", results = results)
             report.allPassed.shouldBeFalse()
             report.passed shouldBe 1
             report.failed shouldBe 1

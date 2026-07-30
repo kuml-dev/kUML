@@ -27,8 +27,8 @@ public data class ActivityAnimationContext(
     val highlightColor: String = "#ffd54a",
 ) {
     init {
-        requireSafeCssColor(tokenColor, "tokenColor")
-        requireSafeCssColor(highlightColor, "highlightColor")
+        requireSafeCssColor(value = tokenColor, paramName = "tokenColor")
+        requireSafeCssColor(value = highlightColor, paramName = "highlightColor")
     }
 
     public companion object {

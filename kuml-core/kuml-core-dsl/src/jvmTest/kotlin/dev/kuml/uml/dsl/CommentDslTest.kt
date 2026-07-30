@@ -50,7 +50,7 @@ class CommentDslTest :
             val diagram =
                 classDiagram(name = "Order Domain") {
                     val order = classOf(name = "Order")
-                    comment(text = "Encapsulates the order lifecycle.", order)
+                    comment(text = "Encapsulates the order lifecycle.", firstAnchor = order)
                 }
             val links = diagram.elements.filterIsInstance<UmlCommentLink>()
             links shouldHaveSize 1
@@ -119,7 +119,7 @@ class CommentDslTest :
             val diagram =
                 stateDiagram(name = "OrderSM") {
                     val draft = state(name = "DRAFT")
-                    comment(text = "Entry state.", draft)
+                    comment(text = "Entry state.", firstAnchor = draft)
                 }
             diagram.elements.filterIsInstance<UmlComment>() shouldHaveSize 1
             diagram.elements.filterIsInstance<UmlCommentLink>() shouldHaveSize 1

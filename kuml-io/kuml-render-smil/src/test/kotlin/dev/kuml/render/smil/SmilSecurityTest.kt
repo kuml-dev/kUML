@@ -132,7 +132,7 @@ class SmilSecurityTest :
             val trace = TraceFile(entries = entries)
             val options = BuildOptions(maxAnimations = limit)
             shouldThrow<IllegalArgumentException> {
-                builder.build(trace, options)
+                builder.build(traceFile = trace, options = options)
             }
         }
 
@@ -146,7 +146,7 @@ class SmilSecurityTest :
                 }
             val trace = TraceFile(entries = entries)
             val options = BuildOptions(maxAnimations = limit)
-            val timeline = builder.build(trace, options)
+            val timeline = builder.build(traceFile = trace, options = options)
             timeline.animations.size shouldBe limit
         }
 

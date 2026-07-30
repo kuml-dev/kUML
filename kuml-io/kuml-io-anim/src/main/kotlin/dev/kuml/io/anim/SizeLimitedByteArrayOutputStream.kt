@@ -48,7 +48,7 @@ internal class SizeLimitedByteArrayOutputStream(
     }
 
     override fun write(b: ByteArray) {
-        write(b, 0, b.size)
+        write(b = b, off = 0, len = b.size)
     }
 
     override fun flush() = backing.flush()

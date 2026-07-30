@@ -27,11 +27,11 @@ public fun PlainTheme(): KumlTheme {
         )
     val typography =
         KumlTypography(
-            title = KumlFont("system-ui, sans-serif", sizePt = 14f, weight = 700),
-            subtitle = KumlFont("system-ui, sans-serif", sizePt = 12f, weight = 600),
-            body = KumlFont("system-ui, sans-serif", sizePt = 11f),
-            small = KumlFont("system-ui, sans-serif", sizePt = 9f),
-            stereotype = KumlFont("system-ui, sans-serif", sizePt = 10f, italic = true),
+            title = KumlFont(family = "system-ui, sans-serif", sizePt = 14f, weight = 700),
+            subtitle = KumlFont(family = "system-ui, sans-serif", sizePt = 12f, weight = 600),
+            body = KumlFont(family = "system-ui, sans-serif", sizePt = 11f),
+            small = KumlFont(family = "system-ui, sans-serif", sizePt = 9f),
+            stereotype = KumlFont(family = "system-ui, sans-serif", sizePt = 10f, italic = true),
         )
     val borders = KumlBorders(thinPx = 1f, regularPx = 1.5f, thickPx = 2f, cornerRadiusPx = 4f)
     return KumlTheme(name = "Plain", colors = colors, typography = typography, borders = borders)

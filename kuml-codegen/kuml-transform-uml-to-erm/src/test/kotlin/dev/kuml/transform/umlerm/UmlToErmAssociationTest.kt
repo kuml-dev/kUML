@@ -41,21 +41,21 @@ class UmlToErmAssociationTest :
 
         test("one-to-many association adds an FK column on the many side") {
             val diagram =
-                classDiagram("Orders") {
+                classDiagram(name = "Orders") {
                     val customer =
-                        classOf("Customer") {
-                            attribute("id", "UUID")
+                        classOf(name = "Customer") {
+                            attribute(name = "id", type = "UUID")
                         }
                     val order =
-                        classOf("Order") {
-                            attribute("id", "UUID")
+                        classOf(name = "Order") {
+                            attribute(name = "id", type = "UUID")
                         }
                     association(source = customer, target = order, id = "assoc-cust-order") {
                         source { multiplicity("1") }
                         target { multiplicity("0..*") }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val orderEntity = result.output.entities.first { it.name == "orders" }
             val fkCol = orderEntity.attributeByName("customer_id")
             fkCol shouldNotBe null
@@ -72,45 +72,45 @@ class UmlToErmAssociationTest :
 
         test("optional one-to-many association (source lower=0) makes the FK column nullable") {
             val diagram =
-                classDiagram("Orders") {
-                    val customer = classOf("Customer") { attribute("id", "UUID") }
-                    val order = classOf("Order") { attribute("id", "UUID") }
+                classDiagram(name = "Orders") {
+                    val customer = classOf(name = "Customer") { attribute(name = "id", type = "UUID") }
+                    val order = classOf(name = "Order") { attribute(name = "id", type = "UUID") }
                     association(source = customer, target = order) {
                         source { multiplicity("0..1") }
                         target { multiplicity("0..*") }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val orderEntity = result.output.entities.first { it.name == "orders" }
             orderEntity.attributeByName("customer_id")!!.nullable shouldBe true
         }
 
         test("one-to-one association puts the FK on the target end") {
             val diagram =
-                classDiagram("Profiles") {
-                    val user = classOf("User") { attribute("id", "UUID") }
-                    val profile = classOf("Profile") { attribute("id", "UUID") }
+                classDiagram(name = "Profiles") {
+                    val user = classOf(name = "User") { attribute(name = "id", type = "UUID") }
+                    val profile = classOf(name = "Profile") { attribute(name = "id", type = "UUID") }
                     association(source = user, target = profile) {
                         source { multiplicity("1") }
                         target { multiplicity("0..1") }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val profileEntity = result.output.entities.first { it.name == "profiles" }
             profileEntity.attributeByName("user_id") shouldNotBe null
         }
 
         test("FK column type matches the target's primary key type") {
             val diagram =
-                classDiagram("Orders") {
-                    val customer = classOf("Customer") { attribute("id", "Long") }
-                    val order = classOf("Order") { attribute("id", "UUID") }
+                classDiagram(name = "Orders") {
+                    val customer = classOf(name = "Customer") { attribute(name = "id", type = "Long") }
+                    val order = classOf(name = "Order") { attribute(name = "id", type = "UUID") }
                     association(source = customer, target = order) {
                         source { multiplicity("1") }
                         target { multiplicity("0..*") }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val orderEntity = result.output.entities.first { it.name == "orders" }
             val customerEntity = result.output.entities.first { it.name == "customers" }
             orderEntity.attributeByName("customer_id")!!.type shouldBe customerEntity.primaryKey.first().type
@@ -118,26 +118,27 @@ class UmlToErmAssociationTest :
 
         test("«FK».onDelete/onUpdate overrides are applied to the referential action") {
             val diagram =
-                classDiagram("Orders") {
-                    val customer = classOf("Customer") { attribute("id", "UUID") }
-                    val order = classOf("Order") { attribute("id", "UUID") }
+                classDiagram(name = "Orders") {
+                    val customer = classOf(name = "Customer") { attribute(name = "id", type = "UUID") }
+                    val order = classOf(name = "Order") { attribute(name = "id", type = "UUID") }
                     association(source = customer, target = order, id = "assoc-cust-order") {
                         source { multiplicity("1") }
                         target { multiplicity("0..*") }
                     }
                 }.withAssociationStereotype(
-                    null,
-                    KumlStereotypeApplication(
-                        profileNamespace = ErmProfileNames.NAMESPACE,
-                        stereotypeName = ErmProfileNames.FK,
-                        tags =
-                            mapOf(
-                                ErmProfileNames.TAG_ON_DELETE to "CASCADE",
-                                ErmProfileNames.TAG_ON_UPDATE to "SET_NULL",
-                            ).mapValues { it.value.toTagValue() },
-                    ),
+                    assocName = null,
+                    stereotype =
+                        KumlStereotypeApplication(
+                            profileNamespace = ErmProfileNames.NAMESPACE,
+                            stereotypeName = ErmProfileNames.FK,
+                            tags =
+                                mapOf(
+                                    ErmProfileNames.TAG_ON_DELETE to "CASCADE",
+                                    ErmProfileNames.TAG_ON_UPDATE to "SET_NULL",
+                                ).mapValues { it.value.toTagValue() },
+                        ),
                 )
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val orderEntity = result.output.entities.first { it.name == "orders" }
             val fk = orderEntity.attributeByName("customer_id")!!.foreignKey!!
             fk.onDelete shouldBe ReferentialAction.CASCADE
@@ -149,9 +150,9 @@ class UmlToErmAssociationTest :
             // the second association must be renamed using its role to avoid an attribute-name
             // collision (see UmlToErmTransformer.addForeignKey's Known limitations).
             val diagram =
-                classDiagram("Orders") {
-                    val user = classOf("User") { attribute("id", "UUID") }
-                    val order = classOf("Order") { attribute("id", "UUID") }
+                classDiagram(name = "Orders") {
+                    val user = classOf(name = "User") { attribute(name = "id", type = "UUID") }
+                    val order = classOf(name = "Order") { attribute(name = "id", type = "UUID") }
                     association(source = order, target = user, id = "assoc-created-by") {
                         source { multiplicity("0..*") }
                         target {
@@ -167,7 +168,7 @@ class UmlToErmAssociationTest :
                         }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val orderEntity = result.output.entities.first { it.name == "orders" }
             val userEntity = result.output.entities.first { it.name == "users" }
 
@@ -183,14 +184,14 @@ class UmlToErmAssociationTest :
 
         test("self-referential 1:N association is skipped (no FK created, no failure)") {
             val diagram =
-                classDiagram("Trees") {
-                    val node = classOf("Node") { attribute("id", "UUID") }
+                classDiagram(name = "Trees") {
+                    val node = classOf(name = "Node") { attribute(name = "id", type = "UUID") }
                     association(source = node, target = node) {
                         source { multiplicity("0..1") }
                         target { multiplicity("0..*") }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             result.shouldBeInstanceOf<TransformResult.Success<*>>()
             val entity = (result as TransformResult.Success).output.entities.single()
             entity.attributes.map { it.name } shouldBe listOf("id")

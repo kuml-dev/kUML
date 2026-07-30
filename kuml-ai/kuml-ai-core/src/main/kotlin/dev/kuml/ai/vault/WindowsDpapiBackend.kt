@@ -58,8 +58,8 @@ public class WindowsDpapiBackend(
             String(decrypted, StandardCharsets.UTF_8)
         } catch (e: Exception) {
             throw KumlAiException.VaultUnavailable(
-                "Windows DPAPI decryption failed for key '$key': ${e.message}",
-                e,
+                message = "Windows DPAPI decryption failed for key '$key': ${e.message}",
+                cause = e,
             )
         }
     }
@@ -94,8 +94,8 @@ public class WindowsDpapiBackend(
             }
         } catch (e: Exception) {
             throw KumlAiException.VaultUnavailable(
-                "Windows DPAPI (Crypt32Util) not available: ${e.message}",
-                e,
+                message = "Windows DPAPI (Crypt32Util) not available: ${e.message}",
+                cause = e,
             )
         }
 
@@ -128,8 +128,8 @@ public class WindowsDpapiBackend(
             }
         } catch (e: Exception) {
             throw KumlAiException.VaultUnavailable(
-                "Cannot write DPAPI storage to $storagePath: ${e.message}",
-                e,
+                message = "Cannot write DPAPI storage to $storagePath: ${e.message}",
+                cause = e,
             )
         }
     }

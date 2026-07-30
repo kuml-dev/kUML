@@ -63,15 +63,21 @@ internal object EdgeContentDispatcher {
         theme: KumlTheme,
     ) {
         when (relationship) {
-            is UmlAssociation -> AssociationEdge(relationship, source, target, theme)
-            is UmlGeneralization -> GeneralizationEdge(relationship, source, target, theme)
-            is UmlInterfaceRealization -> InterfaceRealizationEdge(relationship, source, target, theme)
-            is UmlDependency -> DependencyEdge(relationship, source, target, theme)
-            is UmlConnector -> ConnectorEdge(relationship, source, target, theme)
-            is UmlInclude -> IncludeEdge(relationship, source, target, theme)
-            is UmlExtend -> ExtendEdge(relationship, source, target, theme)
-            is C4Relationship -> C4RelationshipEdge(relationship, source, target, theme)
-            else -> GenericFallbackEdge(source, target, theme)
+            is UmlAssociation -> AssociationEdge(relationship = relationship, source = source, target = target, theme = theme)
+            is UmlGeneralization -> GeneralizationEdge(relationship = relationship, source = source, target = target, theme = theme)
+            is UmlInterfaceRealization ->
+                InterfaceRealizationEdge(
+                    relationship = relationship,
+                    source = source,
+                    target = target,
+                    theme = theme,
+                )
+            is UmlDependency -> DependencyEdge(relationship = relationship, source = source, target = target, theme = theme)
+            is UmlConnector -> ConnectorEdge(relationship = relationship, source = source, target = target, theme = theme)
+            is UmlInclude -> IncludeEdge(relationship = relationship, source = source, target = target, theme = theme)
+            is UmlExtend -> ExtendEdge(relationship = relationship, source = source, target = target, theme = theme)
+            is C4Relationship -> C4RelationshipEdge(relationship = relationship, source = source, target = target, theme = theme)
+            else -> GenericFallbackEdge(source = source, target = target, theme = theme)
         }
     }
 }

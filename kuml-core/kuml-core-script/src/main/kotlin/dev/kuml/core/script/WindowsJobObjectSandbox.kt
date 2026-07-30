@@ -141,7 +141,7 @@ internal object WindowsJobObjectSandbox {
         var jobHandle: WinNT.HANDLE? = null
         try {
             // 2. Create an anonymous job object.
-            jobHandle = ext.CreateJobObjectW(null, null)
+            jobHandle = ext.CreateJobObjectW(lpJobAttributes = null, lpName = null)
             if (jobHandle == null || Pointer.nativeValue(jobHandle.pointer) == 0L) {
                 k32.CloseHandle(processHandle)
                 return null
@@ -159,10 +159,10 @@ internal object WindowsJobObjectSandbox {
 
             val ok =
                 ext.SetInformationJobObject(
-                    jobHandle,
-                    JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
-                    info.pointer,
-                    info.size(),
+                    hJob = jobHandle,
+                    jobObjectInformationClass = JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
+                    lpJobObjectInformation = info.pointer,
+                    cbJobObjectInformationLength = info.size(),
                 )
             if (!ok) {
                 ext.CloseHandleSafe(jobHandle)
@@ -171,7 +171,7 @@ internal object WindowsJobObjectSandbox {
             }
 
             // 4. Assign the running process into the job.
-            val assigned = ext.AssignProcessToJobObject(jobHandle, processHandle)
+            val assigned = ext.AssignProcessToJobObject(hJob = jobHandle, hProcess = processHandle)
             // We no longer need the process handle after assignment; the job holds
             // its own reference to the process.
             k32.CloseHandle(processHandle)
@@ -180,7 +180,7 @@ internal object WindowsJobObjectSandbox {
                 return null
             }
 
-            return WindowsJobHandle(jobHandle, ext)
+            return WindowsJobHandle(jobHandle = jobHandle, ext = ext)
         } catch (_: Throwable) {
             runCatching { jobHandle?.let { ext.CloseHandleSafe(it) } }
             runCatching { k32.CloseHandle(processHandle) }

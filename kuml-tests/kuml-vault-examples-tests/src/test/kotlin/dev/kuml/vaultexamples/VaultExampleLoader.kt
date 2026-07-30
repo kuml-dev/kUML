@@ -36,7 +36,7 @@ object VaultExampleLoader {
         val names = readManifest() ?: discoverFromFilesystem()
         return names
             .sorted()
-            .flatMap { name -> readResource(name)?.let { extractFromMarkdown(name, it) } ?: emptyList() }
+            .flatMap { name -> readResource(name)?.let { extractFromMarkdown(fileName = name, content = it) } ?: emptyList() }
     }
 
     private fun readManifest(): List<String>? {

@@ -40,7 +40,7 @@ internal object SampleOutput {
         // declaration, so a leading comment must still count as SVG for the PNG
         // side-render (otherwise Blueprint PNGs silently stop being written).
         if (trimmed.startsWith("<svg") || trimmed.startsWith("<?xml") || (trimmed.startsWith("<!--") && "<svg" in trimmed)) {
-            writePng(filename, content)
+            writePng(svgFilename = filename, svg = content)
         }
 
         return target
@@ -67,8 +67,8 @@ internal object SampleOutput {
             } else {
                 "$svgFilename.png"
             }
-        val pngBytes = KumlPngRenderer.toPng(svg, pngOptions)
-        return writeBytes(pngFilename, pngBytes)
+        val pngBytes = KumlPngRenderer.toPng(svg = svg, options = pngOptions)
+        return writeBytes(filename = pngFilename, content = pngBytes)
     }
 
     private fun baseDir(): Path = Paths.get(System.getProperty("user.dir")).resolve("build/sample-output")

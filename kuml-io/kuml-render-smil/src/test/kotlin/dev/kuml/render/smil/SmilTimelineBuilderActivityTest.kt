@@ -23,7 +23,7 @@ class SmilTimelineBuilderActivityTest :
                             TraceEntry.TokenPlaced(seqNo = 0, timestamp = ts, nodeId = "node1", clock = 0L),
                         ),
                 )
-            val timeline = builder.build(trace, options)
+            val timeline = builder.build(traceFile = trace, options = options)
             timeline.animations shouldHaveSize 1
             timeline.animations[0].shouldBeInstanceOf<SmilAnimation.AnimateMotion>()
         }
@@ -37,7 +37,7 @@ class SmilTimelineBuilderActivityTest :
                             TraceEntry.TokenPlaced(seqNo = 0, timestamp = ts, nodeId = "edge99", clock = 0L),
                         ),
                 )
-            val timeline = builder.build(trace, options)
+            val timeline = builder.build(traceFile = trace, options = options)
             // no AnimateMotion because resolver returned null
             val motions = timeline.animations.filterIsInstance<SmilAnimation.AnimateMotion>()
             motions shouldHaveSize 0
@@ -53,7 +53,7 @@ class SmilTimelineBuilderActivityTest :
                             TraceEntry.TokenPlaced(seqNo = 0, timestamp = ts, nodeId = "e1", clock = 0L),
                         ),
                 )
-            val timeline = builder.build(trace, options)
+            val timeline = builder.build(traceFile = trace, options = options)
             val motion = timeline.animations[0].shouldBeInstanceOf<SmilAnimation.AnimateMotion>()
             motion.path shouldBe expectedPath
         }
@@ -68,7 +68,7 @@ class SmilTimelineBuilderActivityTest :
                             TraceEntry.TokenPlaced(seqNo = 1, timestamp = ts, nodeId = "e1", clock = 1L),
                         ),
                 )
-            val timeline = builder.build(trace, options)
+            val timeline = builder.build(traceFile = trace, options = options)
             timeline.animations shouldHaveSize 2
             timeline.animations[0].shouldBeInstanceOf<SmilAnimation.Fill>()
             timeline.animations[1].shouldBeInstanceOf<SmilAnimation.AnimateMotion>()
@@ -84,7 +84,7 @@ class SmilTimelineBuilderActivityTest :
                             TraceEntry.TokenConsumed(seqNo = 0, timestamp = ts, nodeId = "edge1", clock = 0L),
                         ),
                 )
-            val timeline = builder.build(trace, options)
+            val timeline = builder.build(traceFile = trace, options = options)
             timeline.animations shouldHaveSize 1
             val motion = timeline.animations[0].shouldBeInstanceOf<SmilAnimation.AnimateMotion>()
             motion.path shouldBe "M 0 0 L 100 100"
@@ -101,7 +101,7 @@ class SmilTimelineBuilderActivityTest :
                             TraceEntry.TokenConsumed(seqNo = 0, timestamp = ts, nodeId = "edge99", clock = 0L),
                         ),
                 )
-            val timeline = builder.build(trace, options)
+            val timeline = builder.build(traceFile = trace, options = options)
             timeline.animations shouldHaveSize 0
         }
     })

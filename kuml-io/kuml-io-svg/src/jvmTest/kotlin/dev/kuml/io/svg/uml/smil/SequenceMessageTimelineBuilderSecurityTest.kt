@@ -51,8 +51,14 @@ class SequenceMessageTimelineBuilderSecurityTest :
 
         fun makeLayout(paddingPx: Float = 0f): Map<NodeId, NodeLayout> =
             mapOf(
-                NodeId("ll1") to NodeLayout(Rect(Point(50f - paddingPx, 50f - paddingPx), Size(100f, 400f))),
-                NodeId("ll2") to NodeLayout(Rect(Point(250f - paddingPx, 50f - paddingPx), Size(100f, 400f))),
+                NodeId("ll1") to
+                    NodeLayout(
+                        bounds = Rect(origin = Point(x = 50f - paddingPx, y = 50f - paddingPx), size = Size(width = 100f, height = 400f)),
+                    ),
+                NodeId("ll2") to
+                    NodeLayout(
+                        bounds = Rect(origin = Point(x = 250f - paddingPx, y = 50f - paddingPx), size = Size(width = 100f, height = 400f)),
+                    ),
             )
 
         fun makeTrace(messageCount: Int): TraceFile {
@@ -86,7 +92,12 @@ class SequenceMessageTimelineBuilderSecurityTest :
 
             val ex =
                 shouldThrow<IllegalArgumentException> {
-                    SequenceMessageTimelineBuilder.build(interaction, makeLayout(), trace, context)
+                    SequenceMessageTimelineBuilder.build(
+                        interaction = interaction,
+                        shiftedLayouts = makeLayout(),
+                        trace = trace,
+                        context = context,
+                    )
                 }
             ex.message shouldContain "exceeds the maximum of ${SequenceAnimationContext.MAX_ANIMATIONS}"
         }
@@ -103,7 +114,12 @@ class SequenceMessageTimelineBuilderSecurityTest :
 
             val ex =
                 shouldThrow<IllegalArgumentException> {
-                    SequenceMessageTimelineBuilder.build(interaction, makeLayout(), trace, context)
+                    SequenceMessageTimelineBuilder.build(
+                        interaction = interaction,
+                        shiftedLayouts = makeLayout(),
+                        trace = trace,
+                        context = context,
+                    )
                 }
             ex.message shouldContain "exceeds the maximum of ${SequenceAnimationContext.MAX_TOTAL_ANIMATION_STEPS}"
         }
@@ -118,7 +134,12 @@ class SequenceMessageTimelineBuilderSecurityTest :
 
             val ex =
                 shouldThrow<IllegalArgumentException> {
-                    SequenceMessageTimelineBuilder.build(interaction, makeLayout(), trace, context)
+                    SequenceMessageTimelineBuilder.build(
+                        interaction = interaction,
+                        shiftedLayouts = makeLayout(),
+                        trace = trace,
+                        context = context,
+                    )
                 }
             ex.message shouldContain "exceeds the maximum of ${SequenceAnimationContext.MAX_TOTAL_ANIMATION_STEPS}"
         }
@@ -131,7 +152,13 @@ class SequenceMessageTimelineBuilderSecurityTest :
             val trace = makeTrace(entryCount)
             val context = SequenceAnimationContext(loopCount = loops)
 
-            val (timeline, dots) = SequenceMessageTimelineBuilder.build(interaction, makeLayout(), trace, context)
+            val (timeline, dots) =
+                SequenceMessageTimelineBuilder.build(
+                    interaction = interaction,
+                    shiftedLayouts = makeLayout(),
+                    trace = trace,
+                    context = context,
+                )
             timeline.animations.size.toLong() shouldBeGreaterThan 0L
             dots.size shouldBe entryCount
         }
@@ -142,7 +169,13 @@ class SequenceMessageTimelineBuilderSecurityTest :
             val trace = makeTrace(entryCount)
             val context = SequenceAnimationContext(loopCount = SequenceAnimationContext.LOOP_INFINITE)
 
-            val (timeline, dots) = SequenceMessageTimelineBuilder.build(interaction, makeLayout(), trace, context)
+            val (timeline, dots) =
+                SequenceMessageTimelineBuilder.build(
+                    interaction = interaction,
+                    shiftedLayouts = makeLayout(),
+                    trace = trace,
+                    context = context,
+                )
             timeline.animations.size.toLong() shouldBeGreaterThan 0L
             dots.size shouldBe entryCount
         }
@@ -155,7 +188,13 @@ class SequenceMessageTimelineBuilderSecurityTest :
             val context = SequenceAnimationContext(loopCount = 1)
 
             // Should not throw — the guard only applies when effectiveLoopCount > 1
-            val (timeline, _) = SequenceMessageTimelineBuilder.build(interaction, makeLayout(), trace, context)
+            val (timeline, _) =
+                SequenceMessageTimelineBuilder.build(
+                    interaction = interaction,
+                    shiftedLayouts = makeLayout(),
+                    trace = trace,
+                    context = context,
+                )
             timeline.animations.size.toLong() shouldBeGreaterThan 0L
         }
     })

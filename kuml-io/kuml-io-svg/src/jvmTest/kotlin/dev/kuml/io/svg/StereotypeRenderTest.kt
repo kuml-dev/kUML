@@ -44,10 +44,10 @@ class StereotypeRenderTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(w + 20f, h + 20f),
+                canvas = Size(width = w + 20f, height = h + 20f),
                 nodes =
                     mapOf(
-                        NodeId(id) to NodeLayout(bounds = Rect(Point(x, y), Size(w, h))),
+                        NodeId(id) to NodeLayout(bounds = Rect(origin = Point(x = x, y = y), size = Size(width = w, height = h))),
                     ),
                 edges = emptyMap(),
                 groups = emptyMap(),
@@ -61,18 +61,20 @@ class StereotypeRenderTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(400f, 200f),
+                canvas = Size(width = 400f, height = 200f),
                 nodes =
                     mapOf(
-                        NodeId(nodeAId) to NodeLayout(bounds = Rect(Point(10f, 40f), Size(120f, 60f))),
-                        NodeId(nodeBId) to NodeLayout(bounds = Rect(Point(220f, 40f), Size(120f, 60f))),
+                        NodeId(nodeAId) to
+                            NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 40f), size = Size(width = 120f, height = 60f))),
+                        NodeId(nodeBId) to
+                            NodeLayout(bounds = Rect(origin = Point(x = 220f, y = 40f), size = Size(width = 120f, height = 60f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId(edgeId) to
                             EdgeRoute.Direct(
-                                source = Point(130f, 70f),
-                                target = Point(220f, 70f),
+                                source = Point(x = 130f, y = 70f),
+                                target = Point(x = 220f, y = 70f),
                             ),
                     ),
                 groups = emptyMap(),
@@ -106,7 +108,7 @@ class StereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val layout = singleNodeLayout("cls1")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "«Entity»"
             svg shouldContain "Order"
@@ -129,7 +131,7 @@ class StereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val layout = singleNodeLayout("cls2")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "«Entity, Service»"
         }
@@ -150,7 +152,7 @@ class StereotypeRenderTest :
                 PlainTheme().copy(
                     stereotypes = StereotypeTheme(joinSeparator = " | "),
                 )
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, themeWithPipe)
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = themeWithPipe)
 
             svg shouldContain "«Entity | Service»"
             svg shouldNotContain "«Entity, Service»"
@@ -182,7 +184,7 @@ class StereotypeRenderTest :
                 PlainTheme().copy(
                     stereotypes = StereotypeTheme(showTaggedValues = true),
                 )
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, themeWithTV)
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = themeWithTV)
 
             svg shouldContain "{table = orders}"
             svg shouldContain "{version = 2}"
@@ -208,7 +210,7 @@ class StereotypeRenderTest :
             val layout = singleNodeLayout("cls5")
 
             // Default PlainTheme: showTaggedValues = false
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // Tagged-value rows must not appear in the SVG content
             svg shouldNotContain "{table = orders}"
@@ -229,7 +231,7 @@ class StereotypeRenderTest :
             // StereotypeHelper.headerLabel is pure-Kotlin; test it directly without SVG run
             val label =
                 dev.kuml.io.svg.uml.StereotypeHelper
-                    .headerLabel(port, StereotypeTheme.Default)
+                    .headerLabel(element = port, theme = StereotypeTheme.Default)
             label shouldBe "«Service»"
         }
 
@@ -251,7 +253,7 @@ class StereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls6, cls7, rel))
             val layout = edgeLayout("cls6", "cls7", "cls6--cls7")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "«Audited»"
         }
@@ -269,8 +271,8 @@ class StereotypeRenderTest :
             val layout = singleNodeLayout("cls8")
             val theme = PlainTheme()
 
-            val svg1 = KumlSvgRenderer.toSvg(diagram, layout, theme)
-            val svg2 = KumlSvgRenderer.toSvg(diagram, layout, theme)
+            val svg1 = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = theme)
+            val svg2 = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = theme)
 
             // Determinism: two calls produce identical output
             svg1 shouldBe svg2
@@ -298,7 +300,7 @@ class StereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls9, cls10, rel))
             val layout = edgeLayout("cls9", "cls10", "cls9--cls10")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "«FK»"
             // Bug-fix V0.27.1: edge-mid stereotype labels need a halo pass so the
@@ -332,7 +334,7 @@ class StereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls11, cls12, rel))
             val layout = edgeLayout("cls11", "cls12", "cls11--cls12")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // Applied name first, then remaining plain names; duplicate "Audited" collapsed once
             svg shouldContain "«Audited, FK»"
@@ -353,7 +355,7 @@ class StereotypeRenderTest :
                 )
             val label =
                 dev.kuml.io.svg.uml.StereotypeHelper
-                    .headerLabel(rel, StereotypeTheme.Default)
+                    .headerLabel(element = rel, theme = StereotypeTheme.Default)
             label shouldBe "«FK»"
         }
 
@@ -369,7 +371,7 @@ class StereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val layout = singleNodeLayout("clsAbs")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "kuml-title-abstract"
             svg shouldContain "AbstractOrder"
@@ -389,7 +391,7 @@ class StereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val layout = singleNodeLayout("clsAbs2")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "«Entity»"
             svg shouldContain "kuml-title-abstract"

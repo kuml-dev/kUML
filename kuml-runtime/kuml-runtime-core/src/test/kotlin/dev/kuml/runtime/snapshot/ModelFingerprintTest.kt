@@ -21,13 +21,13 @@ class ModelFingerprintTest :
                 vertices =
                     listOf(
                         initial("init"),
-                        state("A"),
-                        state("B"),
+                        state(id = "A"),
+                        state(id = "B"),
                     ),
                 transitions =
                     listOf(
-                        trans("t1", "init", "A"),
-                        trans("t2", "A", "B", trigger = "go"),
+                        trans(id = "t1", from = "init", to = "A"),
+                        trans(id = "t2", from = "A", to = "B", trigger = "go"),
                     ),
             )
 
@@ -42,13 +42,13 @@ class ModelFingerprintTest :
                     vertices =
                         listOf(
                             initial("init"),
-                            state("A-renamed"),
-                            state("B"),
+                            state(id = "A-renamed"),
+                            state(id = "B"),
                         ),
                     transitions =
                         listOf(
-                            trans("t1", "init", "A-renamed"),
-                            trans("t2", "A-renamed", "B", trigger = "go"),
+                            trans(id = "t1", from = "init", to = "A-renamed"),
+                            trans(id = "t2", from = "A-renamed", to = "B", trigger = "go"),
                         ),
                 )
             fingerprint(baseModel) shouldNotBe fingerprint(renamedModel)
@@ -62,14 +62,14 @@ class ModelFingerprintTest :
                     vertices =
                         listOf(
                             initial("init"),
-                            state("A"),
-                            state("B"),
+                            state(id = "A"),
+                            state(id = "B"),
                         ),
                     transitions =
                         listOf(
                             // Same transitions but reversed order
-                            trans("t2", "A", "B", trigger = "go"),
-                            trans("t1", "init", "A"),
+                            trans(id = "t2", from = "A", to = "B", trigger = "go"),
+                            trans(id = "t1", from = "init", to = "A"),
                         ),
                 )
             fingerprint(baseModel) shouldBe fingerprint(reorderedModel)
@@ -82,14 +82,14 @@ class ModelFingerprintTest :
                     vertices =
                         listOf(
                             initial("init"),
-                            state("A"),
-                            state("B"),
+                            state(id = "A"),
+                            state(id = "B"),
                         ),
                     transitions =
                         listOf(
-                            trans("t1", "init", "A"),
-                            trans("t2", "A", "B", trigger = "go"),
-                            trans("t3", "B", "A", trigger = "back"),
+                            trans(id = "t1", from = "init", to = "A"),
+                            trans(id = "t2", from = "A", to = "B", trigger = "go"),
+                            trans(id = "t3", from = "B", to = "A", trigger = "back"),
                         ),
                 )
             fingerprint(baseModel) shouldNotBe fingerprint(extendedModel)

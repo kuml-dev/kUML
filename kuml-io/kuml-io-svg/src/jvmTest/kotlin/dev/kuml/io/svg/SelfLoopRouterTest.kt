@@ -100,14 +100,14 @@ class SelfLoopRouterTest :
                 )
             val originalRoute =
                 EdgeRoute.OrthogonalRounded(
-                    source = Point(300f, 60f),
-                    target = Point(300f, 70f),
-                    waypoints = listOf(Point(290f, 60f), Point(290f, 70f)),
+                    source = Point(x = 300f, y = 60f),
+                    target = Point(x = 300f, y = 70f),
+                    waypoints = listOf(Point(x = 290f, y = 60f), Point(x = 290f, y = 70f)),
                     cornerRadiusPx = 4f,
                 )
 
             val adjusted =
-                SelfLoopRouter.adjust(selfAssoc, originalRoute) { id ->
+                SelfLoopRouter.adjust(element = selfAssoc, originalRoute = originalRoute) { id ->
                     if (id == "Node") nodeLayout else null
                 }
 
@@ -130,9 +130,9 @@ class SelfLoopRouterTest :
                         ),
                 )
             val originalRoute =
-                EdgeRoute.Direct(source = Point(0f, 0f), target = Point(100f, 100f))
+                EdgeRoute.Direct(source = Point(x = 0f, y = 0f), target = Point(x = 100f, y = 100f))
 
-            val adjusted = SelfLoopRouter.adjust(regularAssoc, originalRoute) { null }
+            val adjusted = SelfLoopRouter.adjust(element = regularAssoc, originalRoute = originalRoute) { null }
 
             adjusted shouldBe originalRoute
         }
@@ -148,9 +148,9 @@ class SelfLoopRouterTest :
                         ),
                 )
             val originalRoute =
-                EdgeRoute.Direct(source = Point(0f, 0f), target = Point(100f, 100f))
+                EdgeRoute.Direct(source = Point(x = 0f, y = 0f), target = Point(x = 100f, y = 100f))
 
-            val adjusted = SelfLoopRouter.adjust(selfAssoc, originalRoute) { null }
+            val adjusted = SelfLoopRouter.adjust(element = selfAssoc, originalRoute = originalRoute) { null }
 
             adjusted shouldBe originalRoute
         }

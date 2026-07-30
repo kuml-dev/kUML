@@ -76,7 +76,7 @@ public object KumlCliLocator {
         envVar: String,
         sysProp: String,
     ): File? {
-        explicitOverride(sysProp, envVar)?.let { return it }
+        explicitOverride(sysProp = sysProp, envVar = envVar)?.let { return it }
         configuredPath
             ?.takeIf { it.isNotBlank() }
             ?.let(::File)
@@ -84,7 +84,7 @@ public object KumlCliLocator {
             ?.let { return it }
         onPath(launcher)?.let { return it }
         commonLocations(launcher)?.let { return it }
-        return walkUpForLocalBuild(searchHintDir, launcher, installRel)
+        return walkUpForLocalBuild(start = searchHintDir, launcher = launcher, installRel = installRel)
     }
 
     private fun explicitOverride(

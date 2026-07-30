@@ -42,22 +42,22 @@ internal object ErmModelDslPrinter {
         sb.appendLine()
 
         for (entity in order) {
-            renderEntity(sb, entity, valNames)
+            renderEntity(sb = sb, entity = entity, valNames = valNames)
         }
 
         if (model.relationships.isNotEmpty()) sb.appendLine()
         for (rel in model.relationships) {
-            renderRelationship(sb, rel, valNames)
+            renderRelationship(sb = sb, rel = rel, valNames = valNames)
         }
 
         if (model.views.isNotEmpty()) sb.appendLine()
         for (view in model.views) {
-            renderView(sb, view, valNames)
+            renderView(sb = sb, view = view, valNames = valNames)
         }
 
         if (model.categories.isNotEmpty()) sb.appendLine()
         for (category in model.categories) {
-            renderCategory(sb, category, valNames)
+            renderCategory(sb = sb, category = category, valNames = valNames)
         }
 
         val notation = model.diagrams.firstOrNull()?.notation ?: ErmNotation.MARTIN
@@ -82,10 +82,10 @@ internal object ErmModelDslPrinter {
         val weakPart = if (entity.weak) ", weak = true" else ""
         sb.appendLine("""    val $valName = entity("${escape(entity.name ?: entity.id)}"$weakPart) {""")
         for (attr in entity.attributes) {
-            renderAttribute(sb, attr, valNames)
+            renderAttribute(sb = sb, attr = attr, valNames = valNames)
         }
         for (index in entity.indexes) {
-            renderIndex(sb, index, entity)
+            renderIndex(sb = sb, index = index, entity = entity)
         }
         for (check in entity.checks) {
             val namePart = check.name?.let { """, name = "${escape(it)}"""" } ?: ""

@@ -88,7 +88,7 @@ class DeploymentDiagramBuilderImpl(
         // Recursively collect all node IDs (root + descendants)
         val allCollectedNodeIds =
             rootNodesToInclude
-                .flatMap { node -> collectNodeAndChildren(node, allDeploymentNodes) }
+                .flatMap { node -> collectNodeAndChildren(node = node, allNodes = allDeploymentNodes) }
                 .filter { nodeId -> nodeId !in excludedNodes }
                 .distinct()
 
@@ -124,7 +124,7 @@ class DeploymentDiagramBuilderImpl(
         for (childId in node.children) {
             val childNode = allNodes.find { it.id == childId }
             if (childNode != null) {
-                ids.addAll(collectNodeAndChildren(childNode, allNodes))
+                ids.addAll(collectNodeAndChildren(node = childNode, allNodes = allNodes))
             }
         }
         return ids

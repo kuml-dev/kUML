@@ -47,8 +47,8 @@ internal fun renderErmEntity(
     val h = layout.bounds.size.height
 
     b.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(entity.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(entity.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         val outerRectAttrs =
             mutableMapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-erm-entity")
@@ -56,7 +56,7 @@ internal fun renderErmEntity(
             outerRectAttrs["rx"] = fmt(cornerRadius)
             outerRectAttrs["ry"] = fmt(cornerRadius)
         }
-        tag("rect", outerRectAttrs)
+        tag(name = "rect", attrs = outerRectAttrs)
         if (entity.weak) {
             val inset = ErmSizing.WEAK_BORDER_INSET
             val innerRectAttrs =
@@ -72,18 +72,19 @@ internal fun renderErmEntity(
                 innerRectAttrs["rx"] = fmt(innerRadius)
                 innerRectAttrs["ry"] = fmt(innerRadius)
             }
-            tag("rect", innerRectAttrs)
+            tag(name = "rect", attrs = innerRectAttrs)
         }
 
         var cy = ErmSizing.TITLE_ROW_H - 8f
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-title",
-                "x" to fmt(w / 2f),
-                "y" to fmt(cy),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-title",
+                    "x" to fmt(w / 2f),
+                    "y" to fmt(cy),
+                    "text-anchor" to "middle",
+                ),
         ) { text(entity.name ?: entity.id) }
         cy = ErmSizing.TITLE_ROW_H
 
@@ -98,14 +99,14 @@ internal fun renderErmEntity(
         // and attribute rows rendered before the entity rect/title, which then
         // painted over them since the white-filled rect is appended last).
         if (pkAttrs.isNotEmpty()) {
-            cy = renderDivider(w, cy, this)
+            cy = renderDivider(w = w, cy = cy, b = this)
             for (attr in pkAttrs) {
-                cy = renderAttributeRow(attr, w, cy, marker = "PK", underline = true, this)
+                cy = renderAttributeRow(attr = attr, w = w, cy = cy, marker = "PK", underline = true, b = this)
             }
         }
 
         if (nonPkAttrs.isNotEmpty()) {
-            cy = renderDivider(w, cy, this)
+            cy = renderDivider(w = w, cy = cy, b = this)
             for (attr in nonPkAttrs) {
                 val marker =
                     when {
@@ -113,26 +114,26 @@ internal fun renderErmEntity(
                         attr.unique -> "U"
                         else -> ""
                     }
-                cy = renderAttributeRow(attr, w, cy, marker = marker, underline = false, this)
+                cy = renderAttributeRow(attr = attr, w = w, cy = cy, marker = marker, underline = false, b = this)
             }
         }
 
         if (diagram.showIndexes && (entity.indexes.isNotEmpty() || entity.checks.isNotEmpty())) {
-            cy = renderDivider(w, cy, this)
+            cy = renderDivider(w = w, cy = cy, b = this)
             for (idx in entity.indexes) {
                 val uniqueTag = if (idx.unique) " UNIQUE" else ""
                 val label = "«idx» ${idx.name ?: idx.id} (${idx.attributeIds.joinToString(", ")})$uniqueTag"
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-erm-index", "x" to fmt(ErmSizing.PAD_X), "y" to fmt(cy)),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-erm-index", "x" to fmt(ErmSizing.PAD_X), "y" to fmt(cy)),
                 ) { text(label) }
                 cy += ErmSizing.ROW_H
             }
             for (check in entity.checks) {
                 val label = "«check» ${check.expression}"
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-erm-index", "x" to fmt(ErmSizing.PAD_X), "y" to fmt(cy)),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-erm-index", "x" to fmt(ErmSizing.PAD_X), "y" to fmt(cy)),
                 ) { text(label) }
                 cy += ErmSizing.ROW_H
             }
@@ -158,14 +159,15 @@ private fun renderDivider(
 ): Float {
     val dividerY = cy
     b.tag(
-        "line",
-        mapOf(
-            "x1" to "0",
-            "y1" to fmt(dividerY),
-            "x2" to fmt(w),
-            "y2" to fmt(dividerY),
-            "class" to "kuml-divider",
-        ),
+        name = "line",
+        attrs =
+            mapOf(
+                "x1" to "0",
+                "y1" to fmt(dividerY),
+                "x2" to fmt(w),
+                "y2" to fmt(dividerY),
+                "class" to "kuml-divider",
+            ),
     )
     return cy + ErmSizing.DIVIDER_GAP
 }
@@ -181,8 +183,8 @@ private fun renderAttributeRow(
 ): Float {
     if (marker.isNotEmpty()) {
         b.tag(
-            "text",
-            mapOf("class" to "kuml-erm-marker", "x" to fmt(4f), "y" to fmt(cy)),
+            name = "text",
+            attrs = mapOf("class" to "kuml-erm-marker", "x" to fmt(4f), "y" to fmt(cy)),
         ) { text(marker) }
     }
 
@@ -193,8 +195,8 @@ private fun renderAttributeRow(
             if (!attr.nullable) append(" NN")
         }
     b.tag(
-        "text",
-        mapOf("class" to "kuml-body", "x" to fmt(nameX), "y" to fmt(cy)),
+        name = "text",
+        attrs = mapOf("class" to "kuml-body", "x" to fmt(nameX), "y" to fmt(cy)),
     ) { text(baseLine + suffix) }
 
     if (underline) {
@@ -203,22 +205,23 @@ private fun renderAttributeRow(
         val nameOnly = attr.name ?: attr.id
         val nameWidth = nameOnly.length * ErmSizing.BODY_CHAR_PX
         b.tag(
-            "line",
-            mapOf(
-                "x1" to fmt(nameX),
-                "y1" to fmt(cy + 2f),
-                "x2" to fmt(nameX + nameWidth),
-                "y2" to fmt(cy + 2f),
-                "class" to "kuml-erm-pk-underline",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(nameX),
+                    "y1" to fmt(cy + 2f),
+                    "x2" to fmt(nameX + nameWidth),
+                    "y2" to fmt(cy + 2f),
+                    "class" to "kuml-erm-pk-underline",
+                ),
         )
     }
 
     val default = attr.default
     if (default != null) {
         b.tag(
-            "text",
-            mapOf("class" to "kuml-erm-default", "x" to fmt(w - ErmSizing.PAD_X), "y" to fmt(cy), "text-anchor" to "end"),
+            name = "text",
+            attrs = mapOf("class" to "kuml-erm-default", "x" to fmt(w - ErmSizing.PAD_X), "y" to fmt(cy), "text-anchor" to "end"),
         ) { text("= $default") }
     }
     return cy + ErmSizing.ROW_H

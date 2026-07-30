@@ -44,8 +44,8 @@ class ErmIdef1xLayoutBridgeTest :
 
         test("without categories the graph is identical to ErmLayoutBridge's") {
             val diagram = ErmDiagram(name = "Overview")
-            val idef1xGraph = ErmIdef1xLayoutBridge.toLayoutGraph(model, diagram)
-            val martinGraph = ErmLayoutBridge.toLayoutGraph(model, diagram)
+            val idef1xGraph = ErmIdef1xLayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+            val martinGraph = ErmLayoutBridge.toLayoutGraph(model = model, diagram = diagram)
 
             idef1xGraph.nodes.map { it.id } shouldBe martinGraph.nodes.map { it.id }
             idef1xGraph.edges.map { it.id } shouldBe martinGraph.edges.map { it.id }
@@ -54,7 +54,7 @@ class ErmIdef1xLayoutBridgeTest :
 
         test("elementIds filters to a subset — relationships with a hidden endpoint are dropped") {
             val diagram = ErmDiagram(name = "CustomerOnly", elementIds = listOf("customer"))
-            val graph = ErmIdef1xLayoutBridge.toLayoutGraph(model, diagram)
+            val graph = ErmIdef1xLayoutBridge.toLayoutGraph(model = model, diagram = diagram)
 
             graph.nodes shouldHaveSize 1
             graph.nodes[0].id shouldBe NodeId("customer")
@@ -65,10 +65,18 @@ class ErmIdef1xLayoutBridgeTest :
             val view = ErmView(id = "view_big", name = "big_orders", query = "SELECT * FROM \"order\"")
             val modelWithView = model.copy(views = listOf(view))
 
-            val shown = ErmIdef1xLayoutBridge.toLayoutGraph(modelWithView, ErmDiagram(name = "WithViews", showViews = true))
+            val shown =
+                ErmIdef1xLayoutBridge.toLayoutGraph(
+                    model = modelWithView,
+                    diagram = ErmDiagram(name = "WithViews", showViews = true),
+                )
             shown.nodes.map { it.id } shouldBe listOf(NodeId("customer"), NodeId("order"), NodeId("view_big"))
 
-            val hidden = ErmIdef1xLayoutBridge.toLayoutGraph(modelWithView, ErmDiagram(name = "NoViews", showViews = false))
+            val hidden =
+                ErmIdef1xLayoutBridge.toLayoutGraph(
+                    model = modelWithView,
+                    diagram = ErmDiagram(name = "NoViews", showViews = false),
+                )
             hidden.nodes.map { it.id } shouldBe listOf(NodeId("customer"), NodeId("order"))
         }
 
@@ -93,7 +101,7 @@ class ErmIdef1xLayoutBridgeTest :
                 ErmModel(name = "Org", entities = listOf(party, person, org), categories = listOf(category))
             val diagram = ErmDiagram(name = "Overview")
 
-            val graph = ErmIdef1xLayoutBridge.toLayoutGraph(categorizedModel, diagram)
+            val graph = ErmIdef1xLayoutBridge.toLayoutGraph(model = categorizedModel, diagram = diagram)
 
             // 3 entities + 1 category circle
             graph.nodes shouldHaveSize 4
@@ -129,7 +137,7 @@ class ErmIdef1xLayoutBridgeTest :
             val categorizedModel = ErmModel(name = "Org", entities = listOf(party, person), categories = listOf(category))
 
             val diagram = ErmDiagram(name = "PersonOnly", elementIds = listOf("person"))
-            val graph = ErmIdef1xLayoutBridge.toLayoutGraph(categorizedModel, diagram)
+            val graph = ErmIdef1xLayoutBridge.toLayoutGraph(model = categorizedModel, diagram = diagram)
 
             graph.nodes shouldHaveSize 1
             graph.nodes[0].id shouldBe NodeId("person")
@@ -137,7 +145,7 @@ class ErmIdef1xLayoutBridgeTest :
         }
 
         test("groups is always empty") {
-            val graph = ErmIdef1xLayoutBridge.toLayoutGraph(model, ErmDiagram(name = "Overview"))
+            val graph = ErmIdef1xLayoutBridge.toLayoutGraph(model = model, diagram = ErmDiagram(name = "Overview"))
             graph.groups shouldBe emptyList()
         }
     })

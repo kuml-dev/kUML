@@ -53,7 +53,7 @@ internal class SandboxValidateCommand : CliktCommand(name = "validate") {
 
     override fun run() {
         // 1. Evaluate script
-        val evalResult = KumlScriptHost.eval(script)
+        val evalResult = KumlScriptHost.eval(file = script)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
             echo("Script error: ${errors.joinToString("\n") { it.message }}", err = true)
@@ -108,10 +108,10 @@ internal class SandboxValidateCommand : CliktCommand(name = "validate") {
     private fun extractStateMachine(success: ResultWithDiagnostics.Success<EvaluationResult>): UmlStateMachine {
         val extracted: ExtractedDiagram =
             try {
-                DiagramExtractor.extractAny(success.value.returnValue, script)
+                DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = script)
             } catch (_: Throwable) {
                 try {
-                    val diagram = DiagramExtractor.extract(success.value.returnValue, script)
+                    val diagram = DiagramExtractor.extract(returnValue = success.value.returnValue, input = script)
                     ExtractedDiagram.Uml(diagram)
                 } catch (ex: Throwable) {
                     echo("Could not extract diagram from script: ${ex.message}", err = true)
@@ -145,7 +145,7 @@ internal class SandboxValidateCommand : CliktCommand(name = "validate") {
                             throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                         }
                 try {
-                    Sysml2StateMachineAdapter.toUmlStateMachine(extracted.model, stm)
+                    Sysml2StateMachineAdapter.toUmlStateMachine(model = extracted.model, diagram = stm)
                 } catch (ex: IllegalStateException) {
                     echo("SysML 2 STM adapter error: ${ex.message}", err = true)
                     throw ProgramResult(ExitCodes.SCRIPT_ERROR)

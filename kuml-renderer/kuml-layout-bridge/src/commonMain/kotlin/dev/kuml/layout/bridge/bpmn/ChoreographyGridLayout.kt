@@ -79,7 +79,7 @@ public object ChoreographyGridLayout {
             LayoutResult(
                 engineId = ENGINE_ID,
                 seed = null,
-                canvas = Size(MARGIN * 2, MARGIN * 2),
+                canvas = Size(width = MARGIN * 2, height = MARGIN * 2),
                 nodes = emptyMap(),
                 edges = emptyMap(),
                 groups = emptyMap<GroupId, GroupLayout>(),
@@ -108,7 +108,7 @@ public object ChoreographyGridLayout {
         if (elementIds.isEmpty()) return emptyResult
 
         // STEP A/B — Sequenz-Ranking (Spalten)
-        val (ranks, backEdgeIds) = computeSequenceRanks(elementIds, flows)
+        val (ranks, backEdgeIds) = computeSequenceRanks(elementIds = elementIds, flows = flows)
 
         // STEP C — Teilnehmer-Spuren
         val laneIndex: Map<String, Int> = assignParticipantLanes(tasks)
@@ -181,7 +181,7 @@ public object ChoreographyGridLayout {
                     val lanes = task.participants.mapNotNull { laneIndex[it] }
                     val topLane = lanes.minOrNull() ?: spineLane
                     val bottomLane = lanes.maxOrNull() ?: spineLane
-                    val size = sizeProvider?.sizeOf(id, kind) ?: Size(TASK_W, TASK_MIN_H)
+                    val size = sizeProvider?.sizeOf(elementId = id, elementKind = kind) ?: Size(width = TASK_W, height = TASK_MIN_H)
                     val x = columnX(rank)
                     val y = laneY(topLane)
                     // Der Box-Span darf NUR die Lane-Höhen (LANE_HEIGHT je überspannter Lane) sowie die
@@ -215,21 +215,21 @@ public object ChoreographyGridLayout {
                     val spanH = (bottomLane - topLane + 1) * LANE_HEIGHT + innerGapReserve
                     val h = maxOf(TASK_MIN_H, spanH, size.height)
                     val w = maxOf(TASK_W, size.width)
-                    bounds[id] = Rect(Point(x, y), Size(w, h))
+                    bounds[id] = Rect(origin = Point(x = x, y = y), size = Size(width = w, height = h))
                 }
 
                 "ChoreographyGateway" -> {
-                    val size = sizeProvider?.sizeOf(id, kind) ?: Size(GATEWAY_D, GATEWAY_D)
+                    val size = sizeProvider?.sizeOf(elementId = id, elementKind = kind) ?: Size(width = GATEWAY_D, height = GATEWAY_D)
                     val x = columnX(rank) + (TASK_W - size.width) / 2f
                     val y = laneY(spineLane) + (LANE_HEIGHT - size.height) / 2f
-                    bounds[id] = Rect(Point(x, y), size)
+                    bounds[id] = Rect(origin = Point(x = x, y = y), size = size)
                 }
 
                 else -> {
-                    val size = sizeProvider?.sizeOf(id, kind) ?: Size(EVENT_D, EVENT_D)
+                    val size = sizeProvider?.sizeOf(elementId = id, elementKind = kind) ?: Size(width = EVENT_D, height = EVENT_D)
                     val x = columnX(rank) + (TASK_W - size.width) / 2f
                     val y = laneY(spineLane) + (LANE_HEIGHT - size.height) / 2f
-                    bounds[id] = Rect(Point(x, y), size)
+                    bounds[id] = Rect(origin = Point(x = x, y = y), size = size)
                 }
             }
         }
@@ -252,7 +252,8 @@ public object ChoreographyGridLayout {
                     .filterKeys { it != flow.sourceRef && it != flow.targetRef }
                     .values
                     .toList()
-            edges[EdgeId(flow.id)] = routeFlow(source, target, isBackEdge, canvasHeight, obstacles)
+            edges[EdgeId(flow.id)] =
+                routeFlow(source = source, target = target, isBackEdge = isBackEdge, canvasHeight = canvasHeight, obstacles = obstacles)
         }
 
         val nodes: Map<NodeId, NodeLayout> =
@@ -261,7 +262,7 @@ public object ChoreographyGridLayout {
         return LayoutResult(
             engineId = ENGINE_ID,
             seed = null,
-            canvas = Size(canvasWidth, canvasHeight),
+            canvas = Size(width = canvasWidth, height = canvasHeight),
             nodes = nodes,
             edges = edges,
             groups = emptyMap(),
@@ -371,17 +372,17 @@ public object ChoreographyGridLayout {
         canvasHeight: Float,
         obstacles: List<Rect>,
     ): EdgeRoute {
-        val sourcePort = Point(source.origin.x + source.size.width, source.origin.y + source.size.height / 2f)
-        val targetPort = Point(target.origin.x, target.origin.y + target.size.height / 2f)
+        val sourcePort = Point(x = source.origin.x + source.size.width, y = source.origin.y + source.size.height / 2f)
+        val targetPort = Point(x = target.origin.x, y = target.origin.y + target.size.height / 2f)
 
         if (isBackEdge) {
             val loopY = canvasHeight - LOOP_BACKEDGE_RESERVE / 2f
-            val sourceBottom = Point(source.origin.x + source.size.width / 2f, source.origin.y + source.size.height)
-            val targetBottom = Point(target.origin.x + target.size.width / 2f, target.origin.y + target.size.height)
+            val sourceBottom = Point(x = source.origin.x + source.size.width / 2f, y = source.origin.y + source.size.height)
+            val targetBottom = Point(x = target.origin.x + target.size.width / 2f, y = target.origin.y + target.size.height)
             return EdgeRoute.OrthogonalRounded(
                 source = sourceBottom,
                 target = targetBottom,
-                waypoints = listOf(Point(sourceBottom.x, loopY), Point(targetBottom.x, loopY)),
+                waypoints = listOf(Point(x = sourceBottom.x, y = loopY), Point(x = targetBottom.x, y = loopY)),
                 cornerRadiusPx = CORNER_RADIUS,
             )
         }
@@ -394,18 +395,18 @@ public object ChoreographyGridLayout {
 
         // Kandidat A — Jog auf halber Distanz (langer Lauf auf Quell-Y).
         val midX = (sourcePort.x + targetPort.x) / 2f
-        val routeA = listOf(sourcePort, Point(midX, sourcePort.y), Point(midX, targetPort.y), targetPort)
+        val routeA = listOf(sourcePort, Point(x = midX, y = sourcePort.y), Point(x = midX, y = targetPort.y), targetPort)
 
         // Kandidat B — Jog in der Lücke direkt hinter der Quelle (langer Lauf auf
         // Ziel-Y). `min(…, midX)` verhindert, dass der Jog bei sehr kurzen Kanten
         // hinter das Ziel rutscht.
         val earlyJogX = minOf(sourcePort.x + COL_GAP / 2f, midX)
-        val routeB = listOf(sourcePort, Point(earlyJogX, sourcePort.y), Point(earlyJogX, targetPort.y), targetPort)
+        val routeB = listOf(sourcePort, Point(x = earlyJogX, y = sourcePort.y), Point(x = earlyJogX, y = targetPort.y), targetPort)
 
         val chosen =
             when {
-                !polylineHitsAnyRect(routeA, obstacles) -> routeA
-                !polylineHitsAnyRect(routeB, obstacles) -> routeB
+                !polylineHitsAnyRect(points = routeA, rects = obstacles) -> routeA
+                !polylineHitsAnyRect(points = routeB, rects = obstacles) -> routeB
                 else -> routeA
             }
         return EdgeRoute.OrthogonalRounded(
@@ -424,7 +425,7 @@ public object ChoreographyGridLayout {
         for (i in 0 until points.size - 1) {
             val a = points[i]
             val b = points[i + 1]
-            for (r in rects) if (axisSegmentIntersectsRect(a, b, r)) return true
+            for (r in rects) if (axisSegmentIntersectsRect(a = a, b = b, r = r)) return true
         }
         return false
     }

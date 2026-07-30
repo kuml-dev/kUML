@@ -54,13 +54,14 @@ internal fun SvgBuilder.renderBlueprintLegend(
             val label = tp.name ?: tp.id
             val textX = cursorX + badgeDiameter + badgeTextGap
             tag(
-                "text",
-                mapOf(
-                    "x" to f(textX),
-                    "y" to f(rowCy + 3.0),
-                    "class" to "kuml-small",
-                    "font-size" to "9",
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "x" to f(textX),
+                        "y" to f(rowCy + 3.0),
+                        "class" to "kuml-small",
+                        "font-size" to "9",
+                    ),
             ) { text(label) }
             cursorX = textX + label.length * LEGEND_CHAR_WIDTH_PX + chipGap
         }

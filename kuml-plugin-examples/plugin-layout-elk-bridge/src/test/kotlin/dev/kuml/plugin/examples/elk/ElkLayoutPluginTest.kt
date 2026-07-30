@@ -56,7 +56,7 @@ class ElkLayoutPluginTest :
             val range = plugin.descriptor.kumlVersionRange
             range.contains(
                 dev.kuml.plugin.api.core
-                    .PluginVersion(0, 12, 0),
+                    .PluginVersion(major = 0, minor = 12, patch = 0),
             ) shouldBe true
         }
     })

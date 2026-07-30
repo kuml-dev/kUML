@@ -23,7 +23,7 @@ public class ElkLayoutPlugin : KumlLayoutPlugin {
         PluginDescriptor(
             id = "dev.kuml.plugin.layout.elk",
             name = "ELK Layout Engine",
-            version = PluginVersion(1, 0, 0),
+            version = PluginVersion(major = 1, minor = 0, patch = 0),
             kumlVersionRange = KumlVersionRange(">=0.12.0"),
             capabilities = setOf(PluginCapability.LAYOUT),
             // No special permissions — layout is pure computation

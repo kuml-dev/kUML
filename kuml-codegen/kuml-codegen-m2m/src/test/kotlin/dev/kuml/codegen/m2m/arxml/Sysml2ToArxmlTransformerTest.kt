@@ -86,7 +86,7 @@ class Sysml2ToArxmlTransformerTest :
         test("Block maps back to UmlComponent with SoftwareComponent stereotype") {
             val block = makeBlock("BrakeController")
             val sysml2 = Sysml2Model(name = "Test", definitions = listOf(block))
-            val result = transformer.transform(sysml2, ctx) as TransformResult.Success<*>
+            val result = transformer.transform(source = sysml2, ctx = ctx) as TransformResult.Success<*>
             val kuml = result.output as dev.kuml.core.model.KumlModel
             val rootPkg = kuml.root as UmlPackage
             val comp: UmlComponent? = rootPkg.members.filterIsInstance<UmlComponent>().firstOrNull { it.name == "BrakeController" }
@@ -99,7 +99,7 @@ class Sysml2ToArxmlTransformerTest :
             val feature = portFeature("BrakePort", portDef.id, "provided")
             val block = makeBlock("BrakeController", feature)
             val sysml2 = Sysml2Model(name = "Test", definitions = listOf(portDef, block))
-            val result = transformer.transform(sysml2, ctx) as TransformResult.Success<*>
+            val result = transformer.transform(source = sysml2, ctx = ctx) as TransformResult.Success<*>
             val kuml = result.output as dev.kuml.core.model.KumlModel
             val rootPkg = kuml.root as UmlPackage
             val comp: UmlComponent = rootPkg.members.filterIsInstance<UmlComponent>().first { it.name == "BrakeController" }
@@ -112,7 +112,7 @@ class Sysml2ToArxmlTransformerTest :
         test("interfaceBlock PartDefinition maps back to UmlInterface with ComInterface stereotype") {
             val ifaceBlock = makeInterfaceBlock("IBrake")
             val sysml2 = Sysml2Model(name = "Test", definitions = listOf(ifaceBlock))
-            val result = transformer.transform(sysml2, ctx) as TransformResult.Success<*>
+            val result = transformer.transform(source = sysml2, ctx = ctx) as TransformResult.Success<*>
             val kuml = result.output as dev.kuml.core.model.KumlModel
             val rootPkg = kuml.root as UmlPackage
             val iface: UmlInterface? = rootPkg.members.filterIsInstance<UmlInterface>().firstOrNull { it.name == "IBrake" }
@@ -123,7 +123,7 @@ class Sysml2ToArxmlTransformerTest :
         test("result KumlModel root is a UmlPackage named AUTOSAR, language=UML") {
             val block = makeBlock("SomeComp")
             val sysml2 = Sysml2Model(name = "Test", definitions = listOf(block))
-            val result = transformer.transform(sysml2, ctx) as TransformResult.Success<*>
+            val result = transformer.transform(source = sysml2, ctx = ctx) as TransformResult.Success<*>
             val kuml = result.output as dev.kuml.core.model.KumlModel
             kuml.language shouldBe ModelingLanguage.UML
             kuml.level shouldBe ModelLevel.PIM
@@ -135,14 +135,14 @@ class Sysml2ToArxmlTransformerTest :
         test("TransformResult.Success carries non-empty TransformTrace") {
             val block = makeBlock("Comp1")
             val sysml2 = Sysml2Model(name = "Test", definitions = listOf(block))
-            val result = transformer.transform(sysml2, ctx) as TransformResult.Success<*>
+            val result = transformer.transform(source = sysml2, ctx = ctx) as TransformResult.Success<*>
             result.trace.links.shouldNotBeEmpty()
         }
 
         test("trace contains block-to-swc link") {
             val block = makeBlock("Comp1")
             val sysml2 = Sysml2Model(name = "Test", definitions = listOf(block))
-            val result = transformer.transform(sysml2, ctx) as TransformResult.Success<*>
+            val result = transformer.transform(source = sysml2, ctx = ctx) as TransformResult.Success<*>
             result.trace.links
                 .any { it.ruleId == "block-to-swc" }
                 .shouldBeTrue()

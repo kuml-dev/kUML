@@ -39,7 +39,7 @@ internal object BpmnFlowPathResolver {
         val allFlows = collectAllFlows(process)
         for (flow in allFlows) {
             val route = layoutResult.edges[dev.kuml.layout.EdgeId(flow.id)] ?: continue
-            val shifted = shiftRoute(route, padding)
+            val shifted = shiftRoute(route = route, padding = padding)
             result[flow.id] = bpmnFlowPathD(shifted)
         }
         return result
@@ -106,7 +106,7 @@ internal object BpmnFlowPathResolver {
                 buildPolyline(pts)
             }
 
-            is EdgeRoute.Bezier -> buildBezierPath(src, tgt, route.controlPoints)
+            is EdgeRoute.Bezier -> buildBezierPath(src = src, tgt = tgt, controlPoints = route.controlPoints)
         }
     }
 
@@ -156,7 +156,7 @@ internal object BpmnFlowPathResolver {
         route: EdgeRoute,
         padding: Float,
     ): EdgeRoute {
-        fun Point.shift() = Point(x + padding, y + padding)
+        fun Point.shift() = Point(x = x + padding, y = y + padding)
         return when (route) {
             is EdgeRoute.Direct ->
                 route.copy(source = route.source.shift(), target = route.target.shift())

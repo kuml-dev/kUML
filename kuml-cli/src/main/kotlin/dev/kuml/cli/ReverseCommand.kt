@@ -122,7 +122,7 @@ internal class ReverseCommand : CliktCommand(name = "reverse") {
                 echo("Source directory does not exist or is not a directory: $srcDir", err = true)
                 throw ProgramResult(ExitCodes.IO_ERROR)
             }
-            reverseArxml(srcDir, output)
+            reverseArxml(dir = srcDir, outputPath = output)
             return
         }
 
@@ -140,7 +140,7 @@ internal class ReverseCommand : CliktCommand(name = "reverse") {
                 echo("Source path does not exist: $src", err = true)
                 throw ProgramResult(ExitCodes.IO_ERROR)
             }
-            reverseSql(src, output, dialect)
+            reverseSql(src = src, outputPath = output, dialectId = dialect)
             return
         }
 

@@ -11,11 +11,11 @@ class StateMachineRuntimeAtomicTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), state("B")),
+                    vertices = listOf(initial(), state(id = "A"), state(id = "B")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
-                            trans("t1", "A", "B", trigger = "go", guard = "boom"),
+                            trans(id = "t0", from = "init", to = "A"),
+                            trans(id = "t1", from = "A", to = "B", trigger = "go", guard = "boom"),
                         ),
                 )
             val throwingGuard =
@@ -23,7 +23,7 @@ class StateMachineRuntimeAtomicTest :
             val rt = StateMachineRuntime(guards = throwingGuard)
             val instance = rt.start(sm)
             val snapshotIds = instance.currentVertices.map { it.id }
-            val result = rt.step(instance, Event.of("go"))
+            val result = rt.step(instance = instance, event = Event.of("go"))
             result.shouldBeInstanceOf<StepResult.Error>()
             // State unchanged after rollback
             instance.currentVertices.map { it.id } shouldBe snapshotIds
@@ -35,21 +35,21 @@ class StateMachineRuntimeAtomicTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), state("B")),
+                    vertices = listOf(initial(), state(id = "A"), state(id = "B")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
-                            trans("t1", "A", "B", trigger = "go"),
+                            trans(id = "t0", from = "init", to = "A"),
+                            trans(id = "t1", from = "A", to = "B", trigger = "go"),
                         ),
                 )
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)
             val instance = rt.start(sm)
             instance.variables["x"] = 42
             instance.variables["name"] = "alice"
-            rt.step(instance, Event.of("go"))
+            rt.step(instance = instance, event = Event.of("go"))
 
             val snap = rt.snapshot(instance)
-            val restored = rt.restore(sm, snap)
+            val restored = rt.restore(model = sm, snapshot = snap)
 
             restored.currentVertices.map { it.id } shouldBe instance.currentVertices.map { it.id }
             restored.variables["x"] shouldBe 42L
@@ -62,19 +62,19 @@ class StateMachineRuntimeAtomicTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), state("B"), state("C")),
+                    vertices = listOf(initial(), state(id = "A"), state(id = "B"), state(id = "C")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
-                            trans("t1", "A", "B", trigger = "go"),
-                            trans("t2", "B", "C", trigger = "auto"),
+                            trans(id = "t0", from = "init", to = "A"),
+                            trans(id = "t1", from = "A", to = "B", trigger = "go"),
+                            trans(id = "t2", from = "B", to = "C", trigger = "auto"),
                         ),
                 )
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)
             val instance = rt.start(sm)
             // Step takes us A → B; we *pre-load* the internal queue so the drain follows up to C.
             instance.mutInternalQueue.addLast(Event.of("auto"))
-            rt.step(instance, Event.of("go"))
+            rt.step(instance = instance, event = Event.of("go"))
             instance.currentVertices.map { it.id } shouldBe listOf("C")
             instance.mutInternalQueue.isEmpty() shouldBe true
         }

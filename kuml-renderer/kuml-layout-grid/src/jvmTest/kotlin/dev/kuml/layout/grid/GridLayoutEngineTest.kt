@@ -27,7 +27,7 @@ private fun node(
     width: Float = 100f,
     height: Float = 60f,
     hints: NodeHints = NodeHints.NONE,
-): LayoutNode = LayoutNode(NodeId(id), Size(width, height), hints)
+): LayoutNode = LayoutNode(id = NodeId(id), intrinsicSize = Size(width = width, height = height), hints = hints)
 
 private fun edge(
     id: String,
@@ -38,9 +38,9 @@ private fun edge(
     toPort: String? = null,
 ): LayoutEdge =
     LayoutEdge(
-        EdgeId(id),
-        source = EndpointRef(NodeId(from), fromPort?.let { PortId(it) }),
-        target = EndpointRef(NodeId(to), toPort?.let { PortId(it) }),
+        id = EdgeId(id),
+        source = EndpointRef(nodeId = NodeId(from), portId = fromPort?.let { PortId(it) }),
+        target = EndpointRef(nodeId = NodeId(to), portId = toPort?.let { PortId(it) }),
         hints = hints,
     )
 
@@ -60,7 +60,7 @@ class GridLayoutEngineTest :
         }
 
         test("empty graph produces an empty result with valid canvas") {
-            val result = engine.layout(LayoutGraph(emptyList(), emptyList()))
+            val result = engine.layout(graph = LayoutGraph(nodes = emptyList(), edges = emptyList()))
             result.nodes.shouldHaveSize(0)
             result.edges.shouldHaveSize(0)
             result.canvas.width shouldBeGreaterThan 0f // includes the half-gap on each side
@@ -68,8 +68,8 @@ class GridLayoutEngineTest :
         }
 
         test("three unhinted nodes are placed in a single row by default reading order") {
-            val graph = LayoutGraph(nodes = listOf(node("a"), node("b"), node("c")), edges = emptyList())
-            val result = engine.layout(graph)
+            val graph = LayoutGraph(nodes = listOf(node(id = "a"), node(id = "b"), node(id = "c")), edges = emptyList())
+            val result = engine.layout(graph = graph)
             val a = result.nodes.getValue(NodeId("a")).bounds
             val b = result.nodes.getValue(NodeId("b")).bounds
             val c = result.nodes.getValue(NodeId("c")).bounds
@@ -86,13 +86,13 @@ class GridLayoutEngineTest :
                 LayoutGraph(
                     nodes =
                         listOf(
-                            node("a", hints = NodeHints(gridCol = 0, gridRow = 0)),
-                            node("b", hints = NodeHints(gridCol = 1, gridRow = 1)),
-                            node("c", hints = NodeHints(gridCol = 0, gridRow = 1)),
+                            node(id = "a", hints = NodeHints(gridCol = 0, gridRow = 0)),
+                            node(id = "b", hints = NodeHints(gridCol = 1, gridRow = 1)),
+                            node(id = "c", hints = NodeHints(gridCol = 0, gridRow = 1)),
                         ),
                     edges = emptyList(),
                 )
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
             val a = result.nodes.getValue(NodeId("a")).bounds
             val b = result.nodes.getValue(NodeId("b")).bounds
             val c = result.nodes.getValue(NodeId("c")).bounds
@@ -109,12 +109,12 @@ class GridLayoutEngineTest :
                 LayoutGraph(
                     nodes =
                         listOf(
-                            node("a", hints = NodeHints(gridCol = 0, gridRow = 0)),
-                            node("b", hints = NodeHints(gridCol = 0, gridRow = 0)),
+                            node(id = "a", hints = NodeHints(gridCol = 0, gridRow = 0)),
+                            node(id = "b", hints = NodeHints(gridCol = 0, gridRow = 0)),
                         ),
                     edges = emptyList(),
                 )
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
             result.warnings.any { it.code == "hint.conflict.gridSlot" } shouldBe true
             val a = result.nodes.getValue(NodeId("a")).bounds
             val b = result.nodes.getValue(NodeId("b")).bounds
@@ -127,9 +127,9 @@ class GridLayoutEngineTest :
                 LayoutGraph(
                     nodes =
                         listOf(
-                            node("anchor", hints = NodeHints(gridCol = 1, gridRow = 1)),
+                            node(id = "anchor", hints = NodeHints(gridCol = 1, gridRow = 1)),
                             node(
-                                "follower",
+                                id = "follower",
                                 hints =
                                     NodeHints(
                                         relative = listOf(RelativeConstraint.Above(NodeId("anchor"))),
@@ -138,7 +138,7 @@ class GridLayoutEngineTest :
                         ),
                     edges = emptyList(),
                 )
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
             val anchor = result.nodes.getValue(NodeId("anchor")).bounds
             val follower = result.nodes.getValue(NodeId("follower")).bounds
             (follower.origin.y < anchor.origin.y) shouldBe true
@@ -149,9 +149,9 @@ class GridLayoutEngineTest :
                 LayoutGraph(
                     nodes =
                         listOf(
-                            node("anchor", hints = NodeHints(gridCol = 0, gridRow = 0)),
+                            node(id = "anchor", hints = NodeHints(gridCol = 0, gridRow = 0)),
                             node(
-                                "follower",
+                                id = "follower",
                                 hints =
                                     NodeHints(
                                         relative = listOf(RelativeConstraint.RightOf(NodeId("anchor"))),
@@ -160,7 +160,7 @@ class GridLayoutEngineTest :
                         ),
                     edges = emptyList(),
                 )
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
             val anchor = result.nodes.getValue(NodeId("anchor")).bounds
             val follower = result.nodes.getValue(NodeId("follower")).bounds
             (follower.origin.x > anchor.origin.x) shouldBe true
@@ -171,12 +171,12 @@ class GridLayoutEngineTest :
                 LayoutGraph(
                     nodes =
                         listOf(
-                            node("a", hints = NodeHints(gridCol = 0, gridRow = 0)),
-                            node("b", hints = NodeHints(gridCol = 2, gridRow = 0)),
+                            node(id = "a", hints = NodeHints(gridCol = 0, gridRow = 0)),
+                            node(id = "b", hints = NodeHints(gridCol = 2, gridRow = 0)),
                         ),
-                    edges = listOf(edge("e", "a", "b")),
+                    edges = listOf(edge(id = "e", from = "a", to = "b")),
                 )
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
             val route = result.edges.getValue(EdgeId("e"))
             route.shouldBeInstanceOf<EdgeRoute.OrthogonalRounded>()
             route.waypoints.size shouldBe 2
@@ -185,24 +185,24 @@ class GridLayoutEngineTest :
         test("EdgeHints.routeStyle overrides the default per edge") {
             val graph =
                 LayoutGraph(
-                    nodes = listOf(node("a"), node("b")),
+                    nodes = listOf(node(id = "a"), node(id = "b")),
                     edges =
                         listOf(
-                            edge("e", "a", "b", hints = EdgeHints(routeStyle = EdgeRouteStyle.Direct)),
+                            edge(id = "e", from = "a", to = "b", hints = EdgeHints(routeStyle = EdgeRouteStyle.Direct)),
                         ),
                 )
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
             result.edges.getValue(EdgeId("e")).shouldBeInstanceOf<EdgeRoute.Direct>()
         }
 
         test("Bezier style produces two control points offset from the direct line") {
             val graph =
                 LayoutGraph(
-                    nodes = listOf(node("a"), node("b")),
-                    edges = listOf(edge("e", "a", "b")),
+                    nodes = listOf(node(id = "a"), node(id = "b")),
+                    edges = listOf(edge(id = "e", from = "a", to = "b")),
                 )
             val result =
-                engine.layout(graph, LayoutHints(defaultEdgeStyle = EdgeRouteStyle.Bezier))
+                engine.layout(graph = graph, hints = LayoutHints(defaultEdgeStyle = EdgeRouteStyle.Bezier))
             val route = result.edges.getValue(EdgeId("e"))
             route.shouldBeInstanceOf<EdgeRoute.Bezier>()
             route.controlPoints.size shouldBe 2
@@ -211,10 +211,10 @@ class GridLayoutEngineTest :
         test("port-bound endpoints attach the edge to the allocated port position") {
             val graph =
                 LayoutGraph(
-                    nodes = listOf(node("a"), node("b")),
-                    edges = listOf(edge("e", "a", "b", fromPort = "p1", toPort = "p2")),
+                    nodes = listOf(node(id = "a"), node(id = "b")),
+                    edges = listOf(edge(id = "e", from = "a", to = "b", fromPort = "p1", toPort = "p2")),
                 )
-            val result = engine.layout(graph)
+            val result = engine.layout(graph = graph)
             val aLayout = result.nodes.getValue(NodeId("a"))
             val bLayout = result.nodes.getValue(NodeId("b"))
             (PortId("p1") in aLayout.ports) shouldBe true
@@ -227,19 +227,19 @@ class GridLayoutEngineTest :
 
         test("graph above maxRecommendedNodes triggers a performance warning") {
             val many =
-                (0 until 520).map { node("n$it") }
-            val result = engine.layout(LayoutGraph(many, emptyList()))
+                (0 until 520).map { node(id = "n$it") }
+            val result = engine.layout(graph = LayoutGraph(nodes = many, edges = emptyList()))
             result.warnings.any { it.code == "engine.performance.large_graph" } shouldBe true
         }
 
         test("layout is deterministic — same input produces byte-identical result") {
             val graph =
                 LayoutGraph(
-                    nodes = listOf(node("a"), node("b"), node("c")),
-                    edges = listOf(edge("e1", "a", "b"), edge("e2", "b", "c")),
+                    nodes = listOf(node(id = "a"), node(id = "b"), node(id = "c")),
+                    edges = listOf(edge(id = "e1", from = "a", to = "b"), edge(id = "e2", from = "b", to = "c")),
                 )
-            val r1 = engine.layout(graph, LayoutHints(deterministicSeed = 42L))
-            val r2 = engine.layout(graph, LayoutHints(deterministicSeed = 42L))
+            val r1 = engine.layout(graph = graph, hints = LayoutHints(deterministicSeed = 42L))
+            val r2 = engine.layout(graph = graph, hints = LayoutHints(deterministicSeed = 42L))
             r1 shouldBe r2
         }
     })

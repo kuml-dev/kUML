@@ -12,14 +12,15 @@ class SuspendStereotypeTest :
         test("suspend function gets suspend stereotype") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Repo.kt" to
-                            """
-                            class Repo {
-                                suspend fun fetch(): String = ""
-                            }
-                            """.trimIndent(),
-                    ),
+                    sources =
+                        mapOf(
+                            "Repo.kt" to
+                                """
+                                class Repo {
+                                    suspend fun fetch(): String = ""
+                                }
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()

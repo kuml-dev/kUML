@@ -89,8 +89,8 @@ internal class TraceReplayCommand : CliktCommand(name = "replay") {
 
         // Route by flavour
         when (flavour) {
-            TraceFlavour.STM -> runStmReplay(scriptResult, traceData)
-            TraceFlavour.ACTIVITY -> runActivityReplay(scriptResult, traceData)
+            TraceFlavour.STM -> runStmReplay(scriptResult = scriptResult, traceData = traceData)
+            TraceFlavour.ACTIVITY -> runActivityReplay(scriptResult = scriptResult, traceData = traceData)
             TraceFlavour.EMPTY, TraceFlavour.MIXED, TraceFlavour.AI -> {
                 System.err.println(
                     "Unsupported trace flavour '$flavour': " +
@@ -109,11 +109,11 @@ internal class TraceReplayCommand : CliktCommand(name = "replay") {
         scriptResult: ResultWithDiagnostics.Success<kotlin.script.experimental.api.EvaluationResult>,
         traceData: TraceFile,
     ) {
-        val sm = resolveStateMachine(scriptResult, script)
+        val sm = resolveStateMachine(result = scriptResult, file = script)
 
         val report =
             try {
-                TraceReplayer().replay(sm, traceData)
+                TraceReplayer().replay(model = sm, original = traceData)
             } catch (e: UnsupportedTraceFlavourException) {
                 System.err.println("Unsupported trace flavour: ${e.message}")
                 throw ProgramResult(ExitCodes.TRACE_UNSUPPORTED_FLAVOUR)
@@ -135,7 +135,7 @@ internal class TraceReplayCommand : CliktCommand(name = "replay") {
         scriptResult: ResultWithDiagnostics.Success<kotlin.script.experimental.api.EvaluationResult>,
         traceData: TraceFile,
     ) {
-        val extracted = extractDiagram(scriptResult, script)
+        val extracted = extractDiagram(result = scriptResult, file = script)
 
         // Resolve ACT diagram
         val (actDiagram, sysml2Model) =
@@ -167,7 +167,7 @@ internal class TraceReplayCommand : CliktCommand(name = "replay") {
 
         val runtime =
             try {
-                Sysml2ActivityAdapter.runtimeFor(sysml2Model, actDiagram)
+                Sysml2ActivityAdapter.runtimeFor(model = sysml2Model, diagram = actDiagram)
             } catch (ex: IllegalArgumentException) {
                 System.err.println("SysML 2 ACT adapter error: ${ex.message}")
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
@@ -268,7 +268,7 @@ internal class TraceReplayCommand : CliktCommand(name = "replay") {
     // ── script evaluation helpers ─────────────────────────────────────────────
 
     private fun evalScript(file: java.io.File): ResultWithDiagnostics.Success<kotlin.script.experimental.api.EvaluationResult> {
-        val result = KumlScriptHost.eval(file)
+        val result = KumlScriptHost.eval(file = file)
         val errors = result.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || result is ResultWithDiagnostics.Failure) {
             System.err.println("Script error:\n" + errors.joinToString("\n") { it.message })
@@ -283,9 +283,9 @@ internal class TraceReplayCommand : CliktCommand(name = "replay") {
         file: java.io.File,
     ): ExtractedDiagram =
         try {
-            DiagramExtractor.extractAny(result.value.returnValue, file)
+            DiagramExtractor.extractAny(returnValue = result.value.returnValue, input = file)
         } catch (_: Throwable) {
-            val diagram = DiagramExtractor.extract(result.value.returnValue, file)
+            val diagram = DiagramExtractor.extract(returnValue = result.value.returnValue, input = file)
             ExtractedDiagram.Uml(diagram)
         }
 
@@ -295,9 +295,9 @@ internal class TraceReplayCommand : CliktCommand(name = "replay") {
     ): UmlStateMachine {
         val extracted =
             try {
-                DiagramExtractor.extractAny(result.value.returnValue, file)
+                DiagramExtractor.extractAny(returnValue = result.value.returnValue, input = file)
             } catch (_: Throwable) {
-                val diagram = DiagramExtractor.extract(result.value.returnValue, file)
+                val diagram = DiagramExtractor.extract(returnValue = result.value.returnValue, input = file)
                 ExtractedDiagram.Uml(diagram)
             }
 
@@ -326,7 +326,7 @@ internal class TraceReplayCommand : CliktCommand(name = "replay") {
                             throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                         }
                 try {
-                    Sysml2StateMachineAdapter.toUmlStateMachine(extracted.model, stm)
+                    Sysml2StateMachineAdapter.toUmlStateMachine(model = extracted.model, diagram = stm)
                 } catch (ex: IllegalStateException) {
                     System.err.println("SysML 2 STM adapter error: ${ex.message}")
                     throw ProgramResult(ExitCodes.SCRIPT_ERROR)

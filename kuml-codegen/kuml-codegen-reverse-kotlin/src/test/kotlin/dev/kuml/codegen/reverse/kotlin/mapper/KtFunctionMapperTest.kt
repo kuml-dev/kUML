@@ -14,9 +14,10 @@ class KtFunctionMapperTest :
         test("function with params and return type maps correctly") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Calc.kt" to "class Calc { fun add(a: Int, b: Int): Int = a + b }",
-                    ),
+                    sources =
+                        mapOf(
+                            "Calc.kt" to "class Calc { fun add(a: Int, b: Int): Int = a + b }",
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()
@@ -31,14 +32,15 @@ class KtFunctionMapperTest :
         test("extension function on receiver type gets extension stereotype") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "StringExt.kt" to
-                            """
-                            class StringHelper {
-                                fun String.shout(): String = uppercase()
-                            }
-                            """.trimIndent(),
-                    ),
+                    sources =
+                        mapOf(
+                            "StringExt.kt" to
+                                """
+                                class StringHelper {
+                                    fun String.shout(): String = uppercase()
+                                }
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()

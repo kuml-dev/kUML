@@ -108,13 +108,13 @@ public class PatchValidator(
                 )
             }
 
-        val structuralErrors = StructuralPatchChecks.run(patched, warnings)
+        val structuralErrors = StructuralPatchChecks.run(model = patched, warnings = warnings)
         if (structuralErrors.isNotEmpty()) {
             return PatchValidationResult.Invalid(errors = structuralErrors, phase = ValidationPhase.STRUCTURAL)
         }
 
         // ── Phase 2: SANDBOX (only for STM patches) ────────────────────────────
-        val stm = extractStateMachine(patched, patch.diagramId)
+        val stm = extractStateMachine(model = patched, diagramId = patch.diagramId)
         if (stm != null && isSandboxRelevant(patch)) {
             val report = SandboxValidator(sandboxPolicy).validate(stm)
             if (!report.isClean) {
@@ -131,7 +131,7 @@ public class PatchValidator(
         }
 
         // ── Phase 3: TYPE_CHECK (only for expression-carrying patches) ──────────
-        val typeErrors = TypeCheckPatchChecks.run(patch, sandboxPolicy, warnings)
+        val typeErrors = TypeCheckPatchChecks.run(patch = patch, policy = sandboxPolicy, warnings = warnings)
         if (typeErrors.isNotEmpty()) {
             return PatchValidationResult.Invalid(errors = typeErrors, phase = ValidationPhase.TYPE_CHECK)
         }

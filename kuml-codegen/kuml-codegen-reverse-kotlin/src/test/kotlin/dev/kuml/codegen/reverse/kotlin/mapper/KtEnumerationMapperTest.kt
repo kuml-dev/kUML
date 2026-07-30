@@ -14,9 +14,10 @@ class KtEnumerationMapperTest :
         test("enum class becomes UmlEnumeration with correct literals") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Color.kt" to "enum class Color { RED, GREEN, BLUE }",
-                    ),
+                    sources =
+                        mapOf(
+                            "Color.kt" to "enum class Color { RED, GREEN, BLUE }",
+                        ),
                 )
             val success = TestSupport.success(result)
             val enums = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlEnumeration>()
@@ -28,17 +29,18 @@ class KtEnumerationMapperTest :
         test("enum entry with body emits REV-K-030 diagnostic") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Ops.kt" to
-                            """
-                            enum class Ops {
-                                ADD {
-                                    override fun apply(a: Int, b: Int) = a + b
-                                };
-                                abstract fun apply(a: Int, b: Int): Int
-                            }
-                            """.trimIndent(),
-                    ),
+                    sources =
+                        mapOf(
+                            "Ops.kt" to
+                                """
+                                enum class Ops {
+                                    ADD {
+                                        override fun apply(a: Int, b: Int) = a + b
+                                    };
+                                    abstract fun apply(a: Int, b: Int): Int
+                                }
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val hasK030 = success.diagnostics.any { it.code == "REV-K-030" }

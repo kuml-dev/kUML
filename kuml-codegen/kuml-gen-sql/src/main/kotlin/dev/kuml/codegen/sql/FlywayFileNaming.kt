@@ -44,7 +44,7 @@ internal object FlywayFileNaming {
         version: String,
         description: String,
     ): File {
-        validate(version, description)
+        validate(version = version, description = description)
 
         val migrationFile = File(outputDir, "V${version}__$description.sql")
 

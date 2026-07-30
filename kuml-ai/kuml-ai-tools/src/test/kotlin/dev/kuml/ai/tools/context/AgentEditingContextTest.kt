@@ -25,7 +25,7 @@ class AgentEditingContextTest :
             val ctx = AgentEditingContext.emptyUml()
             runTest {
                 val patch = makePatch("elem1")
-                ctx.applyPatch(patch) { model ->
+                ctx.applyPatch(patch = patch) { model ->
                     (model as AnyKumlModel.Uml).copy(
                         elements = model.elements + UmlClass(id = "elem1", name = "Foo"),
                     )
@@ -39,7 +39,7 @@ class AgentEditingContextTest :
             runTest {
                 val patch = makePatch("elem1")
                 val result =
-                    ctx.applyPatch(patch) { model ->
+                    ctx.applyPatch(patch = patch) { model ->
                         (model as AnyKumlModel.Uml).copy(
                             elements = model.elements + UmlClass(id = "elem1", name = "Foo"),
                         )
@@ -57,7 +57,7 @@ class AgentEditingContextTest :
                         launch {
                             val id = "class_$n"
                             val patch = makePatch(id)
-                            ctx.applyPatch(patch) { model ->
+                            ctx.applyPatch(patch = patch) { model ->
                                 (model as AnyKumlModel.Uml).copy(
                                     elements = model.elements + UmlClass(id = id, name = "Class$n"),
                                 )
@@ -93,7 +93,7 @@ class AgentEditingContextTest :
             runTest {
                 ctx.setCurrentDiagramId("diag-A")
                 val patch = makePatch("e1")
-                ctx.applyPatch(patch) { m ->
+                ctx.applyPatch(patch = patch) { m ->
                     (m as AnyKumlModel.Uml).copy(elements = m.elements + UmlClass(id = "e1", name = "Svc"))
                 }
                 val snap = ctx.snapshot()
@@ -109,7 +109,7 @@ class AgentEditingContextTest :
                 val snap = ctx.snapshot()
                 // Add something
                 val patch = makePatch("e1")
-                ctx.applyPatch(patch) { m ->
+                ctx.applyPatch(patch = patch) { m ->
                     (m as AnyKumlModel.Uml).copy(elements = m.elements + UmlClass(id = "e1", name = "Svc"))
                 }
                 (ctx.resolveModel() as AnyKumlModel.Uml).elements shouldHaveSize 1
@@ -124,7 +124,7 @@ class AgentEditingContextTest :
             val ctx = AgentEditingContext.emptyUml()
             runTest {
                 val patch = makePatch("boom")
-                ctx.applyPatch(patch) { _ -> throw RuntimeException("Simulated failure") }
+                ctx.applyPatch(patch = patch) { _ -> throw RuntimeException("Simulated failure") }
                 ctx.patches() shouldHaveSize 0
             }
         }

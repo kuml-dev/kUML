@@ -19,7 +19,7 @@ class ChainAdapterContractTest :
         "connect: returns ContractIdentity with expected address and modelHash" {
             runTest {
                 val adapter = FakeChainAdapter()
-                val identity = adapter.connect("http://localhost:8545", "0xABCDEF")
+                val identity = adapter.connect(rpcUrl = "http://localhost:8545", contractAddress = "0xABCDEF")
 
                 identity.address shouldBe "0xABCDEF"
                 identity.schemaVersion shouldBe 1
@@ -34,8 +34,8 @@ class ChainAdapterContractTest :
         "connect: ContractIdentity.equals is structural (ByteArray contentEquals)" {
             runTest {
                 val adapter = FakeChainAdapter()
-                val id1 = adapter.connect("http://localhost:8545", "0xABCDEF")
-                val id2 = adapter.connect("http://localhost:8545", "0xABCDEF")
+                val id1 = adapter.connect(rpcUrl = "http://localhost:8545", contractAddress = "0xABCDEF")
+                val id2 = adapter.connect(rpcUrl = "http://localhost:8545", contractAddress = "0xABCDEF")
                 // Two separate calls should return structurally equal identities
                 id1 shouldBe id2
             }
@@ -108,16 +108,16 @@ class ChainAdapterContractTest :
 
         "ChainEvent.equals is structural (same payloadAbi content = equal)" {
             val payload = byteArrayOf(1, 2, 3)
-            val e1 = ChainEvent("Transfer", payload.copyOf(), 100L, "0xtx1")
-            val e2 = ChainEvent("Transfer", payload.copyOf(), 100L, "0xtx1")
+            val e1 = ChainEvent(eventType = "Transfer", payloadAbi = payload.copyOf(), blockNumber = 100L, txHash = "0xtx1")
+            val e2 = ChainEvent(eventType = "Transfer", payloadAbi = payload.copyOf(), blockNumber = 100L, txHash = "0xtx1")
 
             // Must be equal even though payloadAbi is two different ByteArray instances
             e1 shouldBe e2
         }
 
         "ChainEvent.equals: different payloadAbi content = not equal" {
-            val e1 = ChainEvent("Transfer", byteArrayOf(1, 2, 3), 100L, "0xtx1")
-            val e2 = ChainEvent("Transfer", byteArrayOf(9, 9, 9), 100L, "0xtx1")
+            val e1 = ChainEvent(eventType = "Transfer", payloadAbi = byteArrayOf(1, 2, 3), blockNumber = 100L, txHash = "0xtx1")
+            val e2 = ChainEvent(eventType = "Transfer", payloadAbi = byteArrayOf(9, 9, 9), blockNumber = 100L, txHash = "0xtx1")
             (e1 == e2) shouldBe false
         }
     })
@@ -135,9 +135,9 @@ private class FakeChainAdapter : KumlChainAdapter {
 
         private val FAKE_EVENTS =
             listOf(
-                ChainEvent("OrderPlaced", byteArrayOf(0x01), blockNumber = 100L, txHash = "0xtx100"),
-                ChainEvent("OrderConfirmed", byteArrayOf(0x02), blockNumber = 101L, txHash = "0xtx101"),
-                ChainEvent("OrderShipped", byteArrayOf(0x03), blockNumber = 102L, txHash = "0xtx102"),
+                ChainEvent(eventType = "OrderPlaced", payloadAbi = byteArrayOf(0x01), blockNumber = 100L, txHash = "0xtx100"),
+                ChainEvent(eventType = "OrderConfirmed", payloadAbi = byteArrayOf(0x02), blockNumber = 101L, txHash = "0xtx101"),
+                ChainEvent(eventType = "OrderShipped", payloadAbi = byteArrayOf(0x03), blockNumber = 102L, txHash = "0xtx102"),
             )
     }
 

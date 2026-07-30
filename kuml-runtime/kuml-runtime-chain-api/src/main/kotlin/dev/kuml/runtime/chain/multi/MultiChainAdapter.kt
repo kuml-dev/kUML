@@ -76,7 +76,7 @@ public class MultiChainAdapter(
             val deferred =
                 adapters.map { (chainId, adapter) ->
                     val (rpcUrl, address) = endpoints.getValue(chainId)
-                    chainId to async { adapter.connect(rpcUrl, address) }
+                    chainId to async { adapter.connect(rpcUrl = rpcUrl, contractAddress = address) }
                 }
             // LinkedHashMap → Primary-Chain = erster Adapter-Eintrag, deterministisch.
             val identities = LinkedHashMap<String, ContractIdentity>(deferred.size)
@@ -113,26 +113,40 @@ public class MultiChainAdapter(
             val tagged: List<Flow<MergedChainEvent>> =
                 adapters.map { (chainId, adapter) ->
                     adapter.subscribe().map { ev ->
-                        MergedChainEvent(chainId, seq.getAndIncrement(), ev)
+                        MergedChainEvent(chainId = chainId, globalSequence = seq.getAndIncrement(), originalEvent = ev)
                     }
                 }
             // Konflikt-Fenster: zuletzt durchgelassene Events (klein halten).
             val recent = ArrayDeque<MergedChainEvent>()
             tagged.merge().collect { candidate ->
-                val rival = recent.firstOrNull { existing -> isConflict(existing, candidate) }
+                val rival = recent.firstOrNull { existing -> isConflict(a = existing, b = candidate) }
                 if (rival == null) {
                     emit(candidate)
-                    pushRecent(recent, candidate)
+                    pushRecent(recent = recent, ev = candidate)
                 } else {
-                    val winner = conflictResolver.resolve(rival, candidate)
+                    val winner = conflictResolver.resolve(a = rival, b = candidate)
                     if (winner !== rival) {
                         // candidate gewinnt: rival war bereits emittiert (nicht rücknehmbar).
                         // Korrektur: LOSER-Tombstone für rival emittieren, damit Downstream
                         // das ursprüngliche rival-Event als überschrieben erkennt.
                         // Dann candidate als WINNER emittieren und Fenster aktualisieren.
-                        emit(MergedChainEvent(rival.chainId, rival.globalSequence, rival.originalEvent, ConflictRole.LOSER))
-                        emit(MergedChainEvent(candidate.chainId, candidate.globalSequence, candidate.originalEvent, ConflictRole.WINNER))
-                        replaceRecent(recent, rival, candidate)
+                        emit(
+                            MergedChainEvent(
+                                chainId = rival.chainId,
+                                globalSequence = rival.globalSequence,
+                                originalEvent = rival.originalEvent,
+                                conflictRole = ConflictRole.LOSER,
+                            ),
+                        )
+                        emit(
+                            MergedChainEvent(
+                                chainId = candidate.chainId,
+                                globalSequence = candidate.globalSequence,
+                                originalEvent = candidate.originalEvent,
+                                conflictRole = ConflictRole.WINNER,
+                            ),
+                        )
+                        replaceRecent(recent = recent, old = rival, new = candidate)
                     }
                     // winner === rival → candidate ist Verlierer → still verwerfen (kein emit).
                 }
@@ -194,7 +208,7 @@ public class MultiChainAdapter(
             // 3. Sequenz NACH Sortierung vergeben → globalSequence == Ausgabe-Position.
             var s = 0L
             for ((chainId, ev) in sorted) {
-                emit(MergedChainEvent(chainId, s++, ev))
+                emit(MergedChainEvent(chainId = chainId, globalSequence = s++, originalEvent = ev))
             }
         }
 
@@ -237,7 +251,7 @@ public class MultiChainAdapter(
         new: MergedChainEvent,
     ) {
         recent.remove(old)
-        pushRecent(recent, new)
+        pushRecent(recent = recent, ev = new)
     }
 }
 

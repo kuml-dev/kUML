@@ -16,7 +16,7 @@ class CosmWasmBlockClockTest :
         beforeTest {
             server = MockRpcServer()
             server.start()
-            client = CosmWasmRpcClient(server.baseUrl())
+            client = CosmWasmRpcClient(rpcUrl = server.baseUrl())
         }
 
         afterTest { server.stop() }
@@ -29,7 +29,7 @@ class CosmWasmBlockClockTest :
 
         "refresh updates block and time from status response" {
             runTest {
-                server.onMethod("status") {
+                server.onMethod(method = "status") {
                     rpcSuccess(result = """{"sync_info":{"latest_block_height":"42","latest_block_time":"2024-06-01T12:00:00Z"}}""")
                 }
                 val clock = CosmWasmBlockClock(client)
@@ -41,7 +41,7 @@ class CosmWasmBlockClockTest :
 
         "refresh throws MalformedResponse when height missing" {
             runTest {
-                server.onMethod("status") {
+                server.onMethod(method = "status") {
                     rpcSuccess(result = """{"sync_info":{"latest_block_time":"2024-06-01T12:00:00Z"}}""")
                 }
                 val clock = CosmWasmBlockClock(client)
@@ -53,7 +53,7 @@ class CosmWasmBlockClockTest :
 
         "refresh throws MalformedResponse when time is not RFC-3339" {
             runTest {
-                server.onMethod("status") {
+                server.onMethod(method = "status") {
                     rpcSuccess(result = """{"sync_info":{"latest_block_height":"1","latest_block_time":"not-a-date"}}""")
                 }
                 val clock = CosmWasmBlockClock(client)
@@ -65,7 +65,7 @@ class CosmWasmBlockClockTest :
 
         "refresh handles nanosecond-precision RFC-3339 timestamps" {
             runTest {
-                server.onMethod("status") {
+                server.onMethod(method = "status") {
                     rpcSuccess(
                         result = """{"sync_info":{"latest_block_height":"99","latest_block_time":"2024-01-15T08:30:00.123456789Z"}}""",
                     )

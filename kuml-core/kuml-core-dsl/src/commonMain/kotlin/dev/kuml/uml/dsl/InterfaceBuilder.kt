@@ -36,8 +36,8 @@ class InterfaceBuilder internal constructor(
     /** The computed or explicitly provided ID for this interface. */
     val id: String =
         run {
-            val candidate = explicitId ?: UmlIds.child(parentId, name)
-            val resolved = UmlIds.disambiguate(candidate, takenIds)
+            val candidate = explicitId ?: UmlIds.child(parentId = parentId, name = name)
+            val resolved = UmlIds.disambiguate(candidate = candidate, taken = takenIds)
             takenIds += resolved
             resolved
         }
@@ -102,7 +102,7 @@ class InterfaceBuilder internal constructor(
         pendingGeneralizations.map { (specId, genId) ->
             val relId =
                 UmlIds.disambiguate(
-                    candidate = UmlIds.generalization(specId, genId),
+                    candidate = UmlIds.generalization(specificId = specId, generalId = genId),
                     taken = takenIds,
                 )
             takenIds += relId
@@ -113,7 +113,7 @@ class InterfaceBuilder internal constructor(
         pendingRealizations.map { (implId, ifaceId) ->
             val relId =
                 UmlIds.disambiguate(
-                    candidate = UmlIds.realization(implId, ifaceId),
+                    candidate = UmlIds.realization(implementingId = implId, interfaceId = ifaceId),
                     taken = takenIds,
                 )
             takenIds += relId

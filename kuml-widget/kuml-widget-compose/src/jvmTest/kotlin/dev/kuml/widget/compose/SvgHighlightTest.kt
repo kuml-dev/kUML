@@ -55,12 +55,12 @@ class SvgHighlightTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(300f, 200f),
+                    canvas = Size(width = 300f, height = 200f),
                     nodes =
                         mapOf(
                             NodeId("StateA") to
                                 NodeLayout(
-                                    bounds = Rect(origin = Point(20f, 30f), size = Size(120f, 60f)),
+                                    bounds = Rect(origin = Point(x = 20f, y = 30f), size = Size(width = 120f, height = 60f)),
                                 ),
                         ),
                     edges = emptyMap(),
@@ -68,7 +68,7 @@ class SvgHighlightTest :
                         mapOf(
                             GroupId("sm1") to
                                 GroupLayout(
-                                    bounds = Rect(origin = Point(0f, 0f), size = Size(300f, 200f)),
+                                    bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 300f, height = 200f)),
                                 ),
                         ),
                 )
@@ -149,16 +149,19 @@ class SvgHighlightTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(400f, 300f),
+                    canvas = Size(width = 400f, height = 300f),
                     nodes =
                         mapOf(
-                            NodeId("StateA") to NodeLayout(bounds = Rect(origin = Point(20f, 30f), size = Size(120f, 60f))),
-                            NodeId("StateB") to NodeLayout(bounds = Rect(origin = Point(200f, 30f), size = Size(120f, 60f))),
+                            NodeId("StateA") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 30f), size = Size(width = 120f, height = 60f))),
+                            NodeId("StateB") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 200f, y = 30f), size = Size(width = 120f, height = 60f))),
                         ),
                     edges = emptyMap(),
                     groups =
                         mapOf(
-                            GroupId("sm2") to GroupLayout(bounds = Rect(origin = Point(0f, 0f), size = Size(400f, 300f))),
+                            GroupId("sm2") to
+                                GroupLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 400f, height = 300f))),
                         ),
                 )
             val options =

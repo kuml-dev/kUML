@@ -47,7 +47,7 @@ public object Sysml2ActivityAdapter {
         model: Sysml2Model,
         diagram: ActDiagram,
     ): ActivityRuntime {
-        val spec = toSpec(model, diagram)
+        val spec = toSpec(model = model, diagram = diagram)
 
         // V2.0.20b — pre-parse ACT ControlFlow guards at construction time.
         // Mirrors what Sysml2StateMachineAdapter.toUmlStateMachine does for STM
@@ -57,7 +57,7 @@ public object Sysml2ActivityAdapter {
         spec.edges.forEach { edge ->
             if (!edge.guard.isNullOrBlank()) {
                 val errors = mutableListOf<dev.kuml.expr.ParseError>()
-                OclLikeExpressionParser.tryParse(edge.guard, errors)
+                OclLikeExpressionParser.tryParse(input = edge.guard, errors = errors)
                 // Parse failures are intentionally not logged to avoid noise;
                 // the legacy evaluator will handle them at runtime.
             }

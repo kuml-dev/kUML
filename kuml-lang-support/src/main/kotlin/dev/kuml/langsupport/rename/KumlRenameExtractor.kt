@@ -49,7 +49,7 @@ public object KumlRenameExtractor {
         for (match in literalRegex.findAll(maskedText)) {
             // group(1) is the name inside the quotes
             val nameOffset = match.groups[1]!!.range.first
-            results += Candidate(nameOffset, name.length, Kind.STRING_LITERAL)
+            results += Candidate(offset = nameOffset, length = name.length, kind = Kind.STRING_LITERAL)
         }
 
         // 2. Variable refs: scan text with strings masked to avoid false positives
@@ -57,7 +57,7 @@ public object KumlRenameExtractor {
         val varRefRegex = Regex("""(?<![\w$])(${Regex.escape(name)})(?![\w$])""")
         for (match in varRefRegex.findAll(maskedNoStrings)) {
             val nameOffset = match.groups[1]!!.range.first
-            results += Candidate(nameOffset, name.length, Kind.VARIABLE_REF)
+            results += Candidate(offset = nameOffset, length = name.length, kind = Kind.VARIABLE_REF)
         }
 
         return results.distinctBy { it.offset }.sortedBy { it.offset }

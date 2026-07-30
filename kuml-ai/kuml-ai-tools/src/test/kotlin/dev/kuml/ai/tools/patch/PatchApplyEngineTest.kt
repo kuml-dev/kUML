@@ -48,7 +48,7 @@ class PatchApplyEngineTest :
                 val sink = FakeAiTraceSink()
                 val ctx = AgentEditingContext.emptyUml()
                 val engine = PatchApplyEngine(context = ctx, traceSink = sink)
-                val patch = addElementPatch("cls1")
+                val patch = addElementPatch(elementId = "cls1")
                 engine.buffer(patch)
 
                 val outcome = engine.applyOne(patch.patchId)
@@ -72,12 +72,12 @@ class PatchApplyEngineTest :
                 val engine = PatchApplyEngine(context = ctx, traceSink = sink)
 
                 // Apply first patch to establish cls1 in the model
-                val patch1 = addElementPatch("cls1")
+                val patch1 = addElementPatch(elementId = "cls1")
                 engine.buffer(patch1)
                 engine.applyOne(patch1.patchId).shouldBeInstanceOf<PatchApplyOutcome.Applied>()
 
                 // Now try to apply a patch with the same elementId — should fail STRUCTURAL
-                val patch2 = addElementPatch("cls1", name = "Duplicate")
+                val patch2 = addElementPatch(elementId = "cls1", name = "Duplicate")
                 engine.buffer(patch2)
                 val outcome = engine.applyOne(patch2.patchId)
                 outcome.shouldBeInstanceOf<PatchApplyOutcome.ValidationFailed>()
@@ -107,11 +107,11 @@ class PatchApplyEngineTest :
                 val sink = FakeAiTraceSink()
                 val ctx = AgentEditingContext.emptyUml()
                 val engine = PatchApplyEngine(context = ctx, traceSink = sink)
-                val patch = addElementPatch("cls1")
+                val patch = addElementPatch(elementId = "cls1")
                 engine.buffer(patch)
 
                 val modelBefore = ctx.resolveModel()
-                engine.rejectOne(patch.patchId, reason = "test rejection")
+                engine.rejectOne(patchId = patch.patchId, reason = "test rejection")
 
                 val rejected = sink.expectEntry<AiTraceEntry.Rejected>()
                 rejected.patchId shouldBe patch.patchId
@@ -128,10 +128,10 @@ class PatchApplyEngineTest :
                 val sink = FakeAiTraceSink()
                 val ctx = AgentEditingContext.emptyUml()
                 val engine = PatchApplyEngine(context = ctx, traceSink = sink)
-                val patch = addElementPatch("cls1")
+                val patch = addElementPatch(elementId = "cls1")
                 engine.buffer(patch)
-                engine.rejectOne(patch.patchId)
-                engine.rejectOne(patch.patchId) // second call — no-op
+                engine.rejectOne(patchId = patch.patchId)
+                engine.rejectOne(patchId = patch.patchId) // second call — no-op
 
                 sink.entriesOf<AiTraceEntry.Rejected>() shouldHaveSize 1
             }
@@ -144,11 +144,11 @@ class PatchApplyEngineTest :
                 val engine = PatchApplyEngine(context = ctx, traceSink = sink)
 
                 // Apply one patch — should mutate the model
-                val patch1 = addElementPatch("cls1")
+                val patch1 = addElementPatch(elementId = "cls1")
                 engine.buffer(patch1)
                 engine.applyOne(patch1.patchId).shouldBeInstanceOf<PatchApplyOutcome.Applied>()
 
-                val patch2 = addElementPatch("cls2")
+                val patch2 = addElementPatch(elementId = "cls2")
                 engine.buffer(patch2)
                 // patch2 still pending (not applied)
 
@@ -169,15 +169,15 @@ class PatchApplyEngineTest :
                 val ctx = AgentEditingContext.emptyUml()
                 val engine = PatchApplyEngine(context = ctx, traceSink = sink)
 
-                val patch1 = addElementPatch("cls1")
-                val patch2 = addElementPatch("cls2")
-                val patch3 = addElementPatch("cls3")
+                val patch1 = addElementPatch(elementId = "cls1")
+                val patch2 = addElementPatch(elementId = "cls2")
+                val patch3 = addElementPatch(elementId = "cls3")
                 engine.buffer(patch1)
                 engine.buffer(patch2)
                 engine.buffer(patch3)
 
                 engine.applyOne(patch1.patchId)
-                engine.rejectOne(patch2.patchId)
+                engine.rejectOne(patchId = patch2.patchId)
                 // patch3 still pending
 
                 engine.rejectAll()
@@ -191,15 +191,15 @@ class PatchApplyEngineTest :
             runTest {
                 val ctx = AgentEditingContext.emptyUml()
                 val engine = PatchApplyEngine(context = ctx)
-                val patch1 = addElementPatch("cls1")
-                val patch2 = addElementPatch("cls2")
-                val patch3 = addElementPatch("cls3")
+                val patch1 = addElementPatch(elementId = "cls1")
+                val patch2 = addElementPatch(elementId = "cls2")
+                val patch3 = addElementPatch(elementId = "cls3")
                 engine.buffer(patch1)
                 engine.buffer(patch2)
                 engine.buffer(patch3)
 
                 engine.applyOne(patch1.patchId) // applied
-                engine.rejectOne(patch2.patchId) // rejected
+                engine.rejectOne(patchId = patch2.patchId) // rejected
 
                 val pending = engine.pendingPatchIds()
                 pending shouldContain patch3.patchId
@@ -212,7 +212,7 @@ class PatchApplyEngineTest :
             runTest {
                 val ctx = AgentEditingContext.emptyUml()
                 val engine = PatchApplyEngine(context = ctx)
-                val patches = (1..10).map { addElementPatch("cls$it") }
+                val patches = (1..10).map { addElementPatch(elementId = "cls$it") }
 
                 coroutineScope {
                     patches.forEach { patch ->
@@ -239,9 +239,9 @@ class PatchApplyEngineTest :
             runTest {
                 val ctx = AgentEditingContext.emptyUml()
                 val engine = PatchApplyEngine(context = ctx)
-                val patch = addElementPatch("cls1")
+                val patch = addElementPatch(elementId = "cls1")
                 engine.buffer(patch)
-                engine.rejectOne(patch.patchId)
+                engine.rejectOne(patchId = patch.patchId)
 
                 val ids1 = engine.rejectedIds()
                 ids1 shouldContain patch.patchId

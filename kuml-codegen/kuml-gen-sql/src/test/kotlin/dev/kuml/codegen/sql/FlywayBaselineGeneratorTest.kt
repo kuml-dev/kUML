@@ -34,8 +34,8 @@ class FlywayBaselineGeneratorTest :
                             UmlProperty(
                                 id = "email",
                                 name = "email",
-                                type = UmlTypeRef("String"),
-                                multiplicity = Multiplicity(1, 1),
+                                type = UmlTypeRef(name = "String"),
+                                multiplicity = Multiplicity(lower = 1, upper = 1),
                             ),
                         ),
                 )
@@ -45,7 +45,7 @@ class FlywayBaselineGeneratorTest :
         test("default options produce V1__init.sql") {
             val out = tempDir()
             try {
-                val files = FlywayBaselineGenerator().generate(simpleDiagram(), out, emptyMap())
+                val files = FlywayBaselineGenerator().generate(diagram = simpleDiagram(), outputDir = out, options = emptyMap())
                 files.size shouldBe 1
                 files.single().name shouldBe "V1__init.sql"
             } finally {
@@ -58,9 +58,9 @@ class FlywayBaselineGeneratorTest :
             try {
                 val files =
                     FlywayBaselineGenerator().generate(
-                        simpleDiagram(),
-                        out,
-                        mapOf("flyway-version" to "3", "flyway-description" to "add_orders_table"),
+                        diagram = simpleDiagram(),
+                        outputDir = out,
+                        options = mapOf("flyway-version" to "3", "flyway-description" to "add_orders_table"),
                     )
                 files.single().name shouldBe "V3__add_orders_table.sql"
             } finally {
@@ -75,8 +75,8 @@ class FlywayBaselineGeneratorTest :
                 val diagram = simpleDiagram()
                 val options = mapOf("sql-dialect" to "mysql")
 
-                val ddlFiles = SqlDdlGenerator().generate(diagram, ddlOut, options)
-                val flywayFiles = FlywayBaselineGenerator().generate(diagram, flywayOut, options)
+                val ddlFiles = SqlDdlGenerator().generate(diagram = diagram, outputDir = ddlOut, options = options)
+                val flywayFiles = FlywayBaselineGenerator().generate(diagram = diagram, outputDir = flywayOut, options = options)
 
                 flywayFiles.single().readText() shouldBe ddlFiles.single().readText()
             } finally {
@@ -95,14 +95,14 @@ class FlywayBaselineGeneratorTest :
                             UmlProperty(
                                 id = "email",
                                 name = "email",
-                                type = UmlTypeRef("String"),
-                                multiplicity = Multiplicity(1, 1),
+                                type = UmlTypeRef(name = "String"),
+                                multiplicity = Multiplicity(lower = 1, upper = 1),
                             ),
                         ),
                 )
             val rawDiagram = KumlDiagram(name = "D", elements = listOf(rawCls))
 
-            val result = UmlToExposedPsmTransformer().transform(rawDiagram, TransformContext())
+            val result = UmlToExposedPsmTransformer().transform(source = rawDiagram, ctx = TransformContext())
             val psmDiagram =
                 when (result) {
                     is TransformResult.Success -> result.output
@@ -111,7 +111,7 @@ class FlywayBaselineGeneratorTest :
 
             val out = tempDir()
             try {
-                val files = FlywayBaselineGenerator().generate(psmDiagram, out, emptyMap())
+                val files = FlywayBaselineGenerator().generate(diagram = psmDiagram, outputDir = out, options = emptyMap())
                 val sql = files.single().readText()
                 // toSnakeCase("AuthUser") -> "auth_user", pluralized -> "auth_users"
                 sql shouldContain "CREATE TABLE auth_users ("
@@ -123,7 +123,7 @@ class FlywayBaselineGeneratorTest :
         test("output dir contains only the migration file, no leftover schema.sql or scratch directory") {
             val out = tempDir()
             try {
-                FlywayBaselineGenerator().generate(simpleDiagram(), out, emptyMap())
+                FlywayBaselineGenerator().generate(diagram = simpleDiagram(), outputDir = out, options = emptyMap())
                 val names =
                     out
                         .listFiles()
@@ -141,9 +141,9 @@ class FlywayBaselineGeneratorTest :
             try {
                 shouldThrow<IllegalArgumentException> {
                     FlywayBaselineGenerator().generate(
-                        simpleDiagram(),
-                        out,
-                        mapOf("flyway-version" to "../../../../../../tmp/evil"),
+                        diagram = simpleDiagram(),
+                        outputDir = out,
+                        options = mapOf("flyway-version" to "../../../../../../tmp/evil"),
                     )
                 }
                 out.listFiles().orEmpty().map { it.name } shouldBe emptyList()
@@ -157,9 +157,9 @@ class FlywayBaselineGeneratorTest :
             try {
                 shouldThrow<IllegalArgumentException> {
                     FlywayBaselineGenerator().generate(
-                        simpleDiagram(),
-                        out,
-                        mapOf("flyway-description" to "../../../../../../tmp/evil"),
+                        diagram = simpleDiagram(),
+                        outputDir = out,
+                        options = mapOf("flyway-description" to "../../../../../../tmp/evil"),
                     )
                 }
             } finally {
@@ -172,9 +172,9 @@ class FlywayBaselineGeneratorTest :
             try {
                 shouldThrow<IllegalArgumentException> {
                     FlywayBaselineGenerator().generate(
-                        simpleDiagram(),
-                        out,
-                        mapOf("flyway-description" to "sub/evil"),
+                        diagram = simpleDiagram(),
+                        outputDir = out,
+                        options = mapOf("flyway-description" to "sub/evil"),
                     )
                 }
             } finally {
@@ -187,9 +187,9 @@ class FlywayBaselineGeneratorTest :
             try {
                 shouldThrow<IllegalArgumentException> {
                     FlywayBaselineGenerator().generate(
-                        simpleDiagram(),
-                        out,
-                        mapOf("flyway-version" to "1;rm -rf"),
+                        diagram = simpleDiagram(),
+                        outputDir = out,
+                        options = mapOf("flyway-version" to "1;rm -rf"),
                     )
                 }
             } finally {
@@ -220,7 +220,10 @@ class FlywayBaselineGeneratorTest :
 
             val out = tempDir()
             try {
-                val files = FlywayBaselineGenerator(FakeGenerator()).generate(simpleDiagram(), out, emptyMap())
+                val files =
+                    FlywayBaselineGenerator(
+                        FakeGenerator(),
+                    ).generate(diagram = simpleDiagram(), outputDir = out, options = emptyMap())
                 files.single().name shouldBe "V1__init.sql"
                 files.single().readText() shouldBe "-- fake content"
             } finally {
@@ -231,17 +234,17 @@ class FlywayBaselineGeneratorTest :
         // ── V3.4.7 — ERM-first counterpart ──────────────────────────────────────
 
         fun simpleErmModel() =
-            ermModel("D") {
-                entity("users") {
-                    id("id", ErmDataType.Integer(64))
-                    attribute("email", ErmDataType.Varchar(255), nullable = false)
+            ermModel(name = "D") {
+                entity(name = "users") {
+                    id(name = "id", type = ErmDataType.Integer(64))
+                    attribute(name = "email", type = ErmDataType.Varchar(255), nullable = false)
                 }
             }
 
         test("ERM-first: default options produce V1__init.sql") {
             val out = tempDir()
             try {
-                val files = ErmFlywayBaselineGenerator().generate(simpleErmModel(), out, emptyMap())
+                val files = ErmFlywayBaselineGenerator().generate(model = simpleErmModel(), outputDir = out, options = emptyMap())
                 files.size shouldBe 1
                 files.single().name shouldBe "V1__init.sql"
                 files.single().readText() shouldContain "CREATE TABLE users ("
@@ -255,9 +258,9 @@ class FlywayBaselineGeneratorTest :
             try {
                 val files =
                     ErmFlywayBaselineGenerator().generate(
-                        simpleErmModel(),
-                        out,
-                        mapOf("flyway-version" to "3", "flyway-description" to "add_orders_table"),
+                        model = simpleErmModel(),
+                        outputDir = out,
+                        options = mapOf("flyway-version" to "3", "flyway-description" to "add_orders_table"),
                     )
                 files.single().name shouldBe "V3__add_orders_table.sql"
             } finally {
@@ -268,7 +271,7 @@ class FlywayBaselineGeneratorTest :
         test("ERM-first: output dir contains only the migration file") {
             val out = tempDir()
             try {
-                ErmFlywayBaselineGenerator().generate(simpleErmModel(), out, emptyMap())
+                ErmFlywayBaselineGenerator().generate(model = simpleErmModel(), outputDir = out, options = emptyMap())
                 val names =
                     out
                         .listFiles()
@@ -286,9 +289,9 @@ class FlywayBaselineGeneratorTest :
             try {
                 shouldThrow<IllegalArgumentException> {
                     ErmFlywayBaselineGenerator().generate(
-                        simpleErmModel(),
-                        out,
-                        mapOf("flyway-version" to "../../../../../../tmp/evil"),
+                        model = simpleErmModel(),
+                        outputDir = out,
+                        options = mapOf("flyway-version" to "../../../../../../tmp/evil"),
                     )
                 }
                 out.listFiles().orEmpty().map { it.name } shouldBe emptyList()
@@ -302,9 +305,9 @@ class FlywayBaselineGeneratorTest :
             try {
                 shouldThrow<IllegalArgumentException> {
                     ErmFlywayBaselineGenerator().generate(
-                        simpleErmModel(),
-                        out,
-                        mapOf("flyway-description" to "sub/evil"),
+                        model = simpleErmModel(),
+                        outputDir = out,
+                        options = mapOf("flyway-description" to "sub/evil"),
                     )
                 }
             } finally {

@@ -59,7 +59,7 @@ internal class ChainConnectCommand(
     override fun help(context: Context): String = "Connect to an EVM contract and print its on-chain kUML model identity."
 
     override fun run() {
-        val identity = connectOrExit(rpc, contract)
+        val identity = connectOrExit(rpc = rpc, contract = contract)
         echo("Connected to contract ${identity.address}")
         echo("  modelUri:      ${identity.modelUri}")
         echo("  schemaVersion: ${identity.schemaVersion}")
@@ -69,7 +69,7 @@ internal class ChainConnectCommand(
     private fun connectOrExit(
         rpc: String,
         contract: String,
-    ): ContractIdentity = chainConnectOrExit(adapterFactory(), rpc, contract, this)
+    ): ContractIdentity = chainConnectOrExit(adapter = adapterFactory(), rpc = rpc, contract = contract, cmd = this)
 }
 
 // ── kuml chain verify ────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ internal class ChainVerifyCommand(
             }
         val localHash = ModelHasher.hashCanonical(ModelHasher.canonicalize(source))
 
-        val identity = chainConnectOrExit(adapterFactory(), rpc, contract, this)
+        val identity = chainConnectOrExit(adapter = adapterFactory(), rpc = rpc, contract = contract, cmd = this)
         val onChainHash = identity.modelHash
 
         echo("Local hash:    ${hex(localHash)}")
@@ -140,7 +140,7 @@ internal class ChainEventsCommand(
         // that replay() requires — creating a fresh instance from the factory would lose
         // that state between the two calls.
         val adapter = adapterFactory()
-        chainConnectOrExit(adapter, rpc, contract, this)
+        chainConnectOrExit(adapter = adapter, rpc = rpc, contract = contract, cmd = this)
 
         val events: List<ChainEvent> =
             try {
@@ -190,10 +190,10 @@ internal class ChainSignCommand : CliktCommand(name = "sign") {
             "Writes a JSON signature file. Exit ${ExitCodes.CHAIN_INVALID_SIGNATURE} on key error."
 
     override fun run() {
-        val source = readFileOrIoExit(model, this)
+        val source = readFileOrIoExit(path = model, cmd = this)
         val sig =
             try {
-                ModelSigner().sign(source, privateKey)
+                ModelSigner().sign(modelSource = source, privateKeyHex = privateKey)
             } catch (e: IllegalArgumentException) {
                 echo("Invalid private key or signing failure: ${e.message}", err = true)
                 throw ProgramResult(ExitCodes.CHAIN_INVALID_SIGNATURE)
@@ -235,9 +235,9 @@ internal class ChainVerifySigCommand : CliktCommand(name = "verify-sig") {
             "${ExitCodes.CHAIN_SIGNER_MISMATCH} if --expected-signer does not match."
 
     override fun run() {
-        val source = readFileOrIoExit(model, this)
+        val source = readFileOrIoExit(path = model, cmd = this)
         val sigPath = sigFile ?: "$model.sig"
-        val sigJson = readFileOrIoExit(sigPath, this)
+        val sigJson = readFileOrIoExit(path = sigPath, cmd = this)
         val sig =
             try {
                 ModelSignature.fromJson(sigJson)
@@ -246,7 +246,7 @@ internal class ChainVerifySigCommand : CliktCommand(name = "verify-sig") {
                 throw ProgramResult(ExitCodes.CHAIN_INVALID_SIGNATURE)
             }
 
-        val valid = Eip712Verifier().verifyModelSignature(source, sig)
+        val valid = Eip712Verifier().verifyModelSignature(modelSource = source, sig = sig)
         if (!valid) {
             echo("INVALID — signature does not verify against this model.", err = true)
             throw ProgramResult(ExitCodes.CHAIN_INVALID_SIGNATURE)
@@ -255,7 +255,7 @@ internal class ChainVerifySigCommand : CliktCommand(name = "verify-sig") {
 
         val expected = expectedSigner
         if (expected != null) {
-            val recovered = ModelSigner().recover(source, sig) // == sig.signer (already verified)
+            val recovered = ModelSigner().recover(modelSource = source, sig = sig) // == sig.signer (already verified)
             if (!recovered.equals(expected, ignoreCase = true)) {
                 echo(
                     "SIGNER MISMATCH — expected $expected but signature is from $recovered",
@@ -282,7 +282,7 @@ private fun chainConnectOrExit(
     cmd: CliktCommand,
 ): ContractIdentity =
     try {
-        runBlocking { adapter.connect(rpc, contract) }
+        runBlocking { adapter.connect(rpcUrl = rpc, contractAddress = contract) }
     } catch (e: IllegalArgumentException) {
         // blank URL / invalid address format / SSRF-blocked URL
         cmd.echo("Invalid chain connection parameters: ${e.message}", err = true)

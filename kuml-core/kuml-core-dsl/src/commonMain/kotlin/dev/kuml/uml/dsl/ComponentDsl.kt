@@ -103,7 +103,7 @@ fun UmlComponentScope.port(
 ): UmlPort {
     val resolvedId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.child(ownerId, name),
+            candidate = UmlIds.child(parentId = ownerId, name = name),
             taken = takenIds,
         )
     takenIds += resolvedId
@@ -131,7 +131,7 @@ fun UmlComponentScope.port(
     visibility: Visibility = Visibility.PUBLIC,
     id: String? = null,
     block: PortBuilder.() -> Unit = {},
-): UmlPort = port(name, typeRef(type), isConjugated, visibility, id, block)
+): UmlPort = port(name = name, type = typeRef(type), isConjugated = isConjugated, visibility = visibility, id = id, block = block)
 
 /** Port overload — type by classifier handle (class, interface, etc). */
 fun UmlComponentScope.port(
@@ -141,7 +141,7 @@ fun UmlComponentScope.port(
     visibility: Visibility = Visibility.PUBLIC,
     id: String? = null,
     block: PortBuilder.() -> Unit = {},
-): UmlPort = port(name, typeRef(type), isConjugated, visibility, id, block)
+): UmlPort = port(name = name, type = typeRef(type), isConjugated = isConjugated, visibility = visibility, id = id, block = block)
 
 /**
  * Accesses a port on a [UmlComponent] by name.
@@ -257,7 +257,7 @@ fun UmlModelScope.connectByIds(
 ): UmlConnector {
     val relId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.connector(end1Id, end2Id),
+            candidate = UmlIds.connector(end1Id = end1Id, end2Id = end2Id),
             taken = takenIds,
         )
     takenIds += relId
@@ -291,7 +291,7 @@ fun UmlComponentScope.attribute(
             ?: error("attribute() inside a component requires a ComponentBuilder scope.")
     val propId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.child(ownerId, name),
+            candidate = UmlIds.child(parentId = ownerId, name = name),
             taken = takenIds,
         )
     takenIds += propId
@@ -320,7 +320,17 @@ fun UmlComponentScope.attribute(
     isStatic: Boolean = false,
     isReadOnly: Boolean = false,
     id: String? = null,
-): UmlProperty = attribute(name, typeRef(type), visibility, multiplicity, defaultValue, isStatic, isReadOnly, id)
+): UmlProperty =
+    attribute(
+        name = name,
+        type = typeRef(type),
+        visibility = visibility,
+        multiplicity = multiplicity,
+        defaultValue = defaultValue,
+        isStatic = isStatic,
+        isReadOnly = isReadOnly,
+        id = id,
+    )
 
 /**
  * V1.1.3 — attribute() with builder block on a component, enabling stereotype calls.
@@ -342,7 +352,8 @@ fun UmlComponentScope.attribute(
     val builder =
         this as? ComponentBuilder
             ?: error("attribute() inside a component requires a ComponentBuilder scope.")
-    val attrBuilder = AttributeBuilder(name, type, ownerId, takenIds, builder.container, id)
+    val attrBuilder =
+        AttributeBuilder(name = name, type = type, ownerId = ownerId, takenIds = takenIds, container = builder.container, explicitId = id)
     attrBuilder.block()
     val prop = attrBuilder.build()
     builder.addAttribute(prop)
@@ -355,7 +366,7 @@ fun UmlComponentScope.attribute(
     type: String,
     id: String? = null,
     block: AttributeBuilder.() -> Unit,
-): UmlProperty = attribute(name, typeRef(type), id, block)
+): UmlProperty = attribute(name = name, type = typeRef(type), id = id, block = block)
 
 /**
  * V1.1.3 — operation() inside a component body.

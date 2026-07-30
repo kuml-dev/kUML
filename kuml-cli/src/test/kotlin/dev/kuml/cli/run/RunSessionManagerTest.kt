@@ -108,7 +108,7 @@ class RunSessionManagerTest :
                 migrationPolicy = MigrationPolicy.AcceptIfFingerprintMatches,
             )
             // After start, machine is in Draft
-            val result = manager.event("confirm")
+            val result = manager.event(eventName = "confirm")
             // Vertex IDs have format "ModelName::StateName"
             result.shouldBeInstanceOf<SessionResult.Ok>().activeStates.joinToString(",") shouldContain "Confirmed"
         }
@@ -123,10 +123,10 @@ class RunSessionManagerTest :
                 restoreFrom = null,
                 migrationPolicy = MigrationPolicy.AcceptIfFingerprintMatches,
             )
-            manager.event("confirm")
-            manager.event("deliver") // → Done (final)
+            manager.event(eventName = "confirm")
+            manager.event(eventName = "deliver") // → Done (final)
             // Now terminated — another event should return Terminated or Error
-            val result = manager.event("anything")
+            val result = manager.event(eventName = "anything")
             result.shouldBeInstanceOf<SessionResult.Terminated>()
         }
 
@@ -140,7 +140,7 @@ class RunSessionManagerTest :
                 restoreFrom = null,
                 migrationPolicy = MigrationPolicy.AcceptIfFingerprintMatches,
             )
-            val result = manager.patch(mapOf("priority" to 42))
+            val result = manager.patch(variables = mapOf("priority" to 42))
             result.shouldBeInstanceOf<SessionResult.Ok>()
         }
 
@@ -193,7 +193,7 @@ class RunSessionManagerTest :
                 restoreFrom = null,
                 migrationPolicy = MigrationPolicy.AcceptIfFingerprintMatches,
             )
-            manager1.event("confirm")
+            manager1.event(eventName = "confirm")
             val snapFile = Files.createTempFile("kuml-run-restore-", ".json")
             try {
                 manager1.saveSnapshot(snapFile)

@@ -46,25 +46,26 @@ internal fun renderSysml2Requirement(
         if (element.reqId.isNotEmpty()) "${element.reqId} :: ${element.name}" else element.name
     val titleText = truncateTitle(rawTitle)
     val hasText = element.text.isNotEmpty()
-    val textLines: List<String> = if (hasText) wrapWords(element.text, WRAP_WIDTH) else emptyList()
+    val textLines: List<String> = if (hasText) wrapWords(text = element.text, maxChars = WRAP_WIDTH) else emptyList()
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
+        tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
 
         var cy = 16f
 
         // Compartment 1 — `«requirement»`-Stereotyp.
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(w / 2f),
-                "y" to fmt(cy),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(w / 2f),
+                    "y" to fmt(cy),
+                    "text-anchor" to "middle",
+                ),
         ) { text("«requirement»") }
         cy += 14f
 
@@ -78,27 +79,28 @@ internal fun renderSysml2Requirement(
                 put("text-anchor", "middle")
                 if (element.isAbstract) put("font-style", "italic")
             }
-        tag("text", nameAttrs) { text(titleText) }
+        tag(name = "text", attrs = nameAttrs) { text(titleText) }
         cy += 12f
 
         // Compartment 3 — Anforderungstext (nur wenn vorhanden).
         if (hasText) {
             tag(
-                "line",
-                mapOf(
-                    "x1" to "0",
-                    "y1" to fmt(cy),
-                    "x2" to fmt(w),
-                    "y2" to fmt(cy),
-                    "class" to "kuml-divider",
-                ),
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to "0",
+                        "y1" to fmt(cy),
+                        "x2" to fmt(w),
+                        "y2" to fmt(cy),
+                        "class" to "kuml-divider",
+                    ),
             )
             cy += 14f
 
             for (line in textLines) {
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
                 ) { text(line) }
                 cy += 13f
             }

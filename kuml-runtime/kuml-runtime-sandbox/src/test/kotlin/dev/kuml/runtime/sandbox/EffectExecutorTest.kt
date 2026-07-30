@@ -11,13 +11,13 @@ class EffectExecutorTest :
 
         test("assign variable sets value in instance") {
             val instance = emptyInstance()
-            executor.execute("temperature = 21", instance, noEvent)
+            executor.execute(actionBody = "temperature = 21", instance = instance, event = noEvent)
             instance.variables["temperature"] shouldBe 21L
         }
 
         test("assign nested path creates maps") {
             val instance = emptyInstance()
-            executor.execute("sensor.value = 42", instance, noEvent)
+            executor.execute(actionBody = "sensor.value = 42", instance = instance, event = noEvent)
             @Suppress("UNCHECKED_CAST")
             val sensor = instance.variables["sensor"] as Map<String, Any?>
             sensor["value"] shouldBe 42L
@@ -27,7 +27,7 @@ class EffectExecutorTest :
             val policy2 = SandboxPolicy(allowedFunctions = setOf("log.info"))
             val exec2 = EffectExecutor(policy2)
             val instance = emptyInstance()
-            exec2.execute("log.info('hello')", instance, noEvent)
+            exec2.execute(actionBody = "log.info('hello')", instance = instance, event = noEvent)
             // log.info appends to __log__
             @Suppress("UNCHECKED_CAST")
             val log = instance.variables["__log__"] as List<*>
@@ -39,7 +39,7 @@ class EffectExecutorTest :
             val instance = emptyInstance()
             val ex =
                 shouldThrow<SandboxException.DisallowedFunction> {
-                    strictExec.execute("log.info('hello')", instance, noEvent)
+                    strictExec.execute(actionBody = "log.info('hello')", instance = instance, event = noEvent)
                 }
             ex.name shouldBe "log.info"
         }
@@ -47,7 +47,7 @@ class EffectExecutorTest :
         test("reserved variable name throws ReservedVariableName") {
             val instance = emptyInstance()
             shouldThrow<SandboxException.ReservedVariableName> {
-                executor.execute("self = 1", instance, noEvent)
+                executor.execute(actionBody = "self = 1", instance = instance, event = noEvent)
             }
         }
 
@@ -56,10 +56,10 @@ class EffectExecutorTest :
             val limitedExec = EffectExecutor(limitedPolicy)
             val instance = emptyInstance()
             // instance already starts with 0 vars after init
-            limitedExec.execute("a = 1", instance, noEvent)
-            limitedExec.execute("b = 2", instance, noEvent)
+            limitedExec.execute(actionBody = "a = 1", instance = instance, event = noEvent)
+            limitedExec.execute(actionBody = "b = 2", instance = instance, event = noEvent)
             shouldThrow<SandboxException.VariableLimitExceeded> {
-                limitedExec.execute("c = 3", instance, noEvent)
+                limitedExec.execute(actionBody = "c = 3", instance = instance, event = noEvent)
             }
         }
 
@@ -68,7 +68,7 @@ class EffectExecutorTest :
             val limitedExec = EffectExecutor(limitedPolicy)
             val instance = emptyInstance()
             shouldThrow<SandboxException.StringLengthExceeded> {
-                limitedExec.execute("msg = 'toolong'", instance, noEvent)
+                limitedExec.execute(actionBody = "msg = 'toolong'", instance = instance, event = noEvent)
             }
         }
 
@@ -77,7 +77,7 @@ class EffectExecutorTest :
             val limitedExec = EffectExecutor(limitedPolicy)
             val instance = emptyInstance()
             shouldThrow<SandboxException.TooManyEffects> {
-                limitedExec.execute("a = 1; b = 2; c = 3", instance, noEvent)
+                limitedExec.execute(actionBody = "a = 1; b = 2; c = 3", instance = instance, event = noEvent)
             }
         }
 
@@ -87,20 +87,20 @@ class EffectExecutorTest :
             val instance = emptyInstance()
             // depth(a + (b + (c + d))) = 3 levels deep → exceeds limit 2
             shouldThrow<SandboxException.ExpressionTooDeep> {
-                limitedExec.execute("x = a + (b + (c + d))", instance, noEvent)
+                limitedExec.execute(actionBody = "x = a + (b + (c + d))", instance = instance, event = noEvent)
             }
         }
 
         test("parse failure throws ParseFailure") {
             val instance = emptyInstance()
             shouldThrow<SandboxException.ParseFailure> {
-                executor.execute("@@@invalid###", instance, noEvent)
+                executor.execute(actionBody = "@@@invalid###", instance = instance, event = noEvent)
             }
         }
 
         test("blank action body is a no-op") {
             val instance = emptyInstance()
-            executor.execute("   ", instance, noEvent)
+            executor.execute(actionBody = "   ", instance = instance, event = noEvent)
             instance.variables.size shouldBe 0
         }
     })

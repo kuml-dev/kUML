@@ -31,24 +31,24 @@ internal object MarkdownRenderPipeline {
         source: String,
         virtualName: String,
     ): KumlDiagram {
-        val evalResult = KumlScriptHost.eval(source, virtualName)
+        val evalResult = KumlScriptHost.eval(code = source, fileName = virtualName)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
             val message = errors.joinToString("\n") { it.message }
-            throw ScriptEvaluationException("Script evaluation failed in '$virtualName':\n$message")
+            throw ScriptEvaluationException(message = "Script evaluation failed in '$virtualName':\n$message")
         }
         val success =
             evalResult as? ResultWithDiagnostics.Success
-                ?: throw ScriptEvaluationException("Script '$virtualName' produced no result")
+                ?: throw ScriptEvaluationException(message = "Script '$virtualName' produced no result")
         // DiagramExtractor takes a File only for error messages; use a stub file.
-        return DiagramExtractor.extract(success.value.returnValue, File(virtualName))
+        return DiagramExtractor.extract(returnValue = success.value.returnValue, input = File(virtualName))
     }
 
     /** Render [diagram] to a self-contained SVG string. */
     internal fun renderSvg(diagram: KumlDiagram): String {
-        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
-        val layoutResult = layoutEngine.layout(layoutGraph, hintsFor(diagram))
-        return KumlSvgRenderer.toSvg(diagram, layoutResult, theme)
+        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
+        val layoutResult = layoutEngine.layout(graph = layoutGraph, hints = hintsFor(diagram))
+        return KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = theme)
     }
 
     /** Render [diagram] to PNG bytes at [widthPx]. */
@@ -56,9 +56,14 @@ internal object MarkdownRenderPipeline {
         diagram: KumlDiagram,
         widthPx: Int,
     ): ByteArray {
-        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
-        val layoutResult = layoutEngine.layout(layoutGraph, hintsFor(diagram))
-        return KumlPngRenderer.toPng(diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx))
+        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
+        val layoutResult = layoutEngine.layout(graph = layoutGraph, hints = hintsFor(diagram))
+        return KumlPngRenderer.toPng(
+            diagram = diagram,
+            layoutResult = layoutResult,
+            theme = theme,
+            options = PngRenderOptions(widthPx = widthPx),
+        )
     }
 
     // V3.0.x — see RenderPipeline.kt (CLI) for the full rationale: UML sequence

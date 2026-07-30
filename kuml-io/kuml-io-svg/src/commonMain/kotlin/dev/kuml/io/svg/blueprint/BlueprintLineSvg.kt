@@ -75,16 +75,17 @@ internal fun SvgBuilder.renderBlueprintLines(
         // SEPARATOR_LABEL_OFFSET (12 px) places the baseline at mid-height of that
         // zone, well clear of both the card border (24 px above) and the line (0 px).
         tag(
-            "text",
-            mapOf(
-                "x" to f(geo.contentRight - 6),
-                "y" to f(y - BlueprintGridConstants.SEPARATOR_LABEL_OFFSET),
-                "text-anchor" to "end",
-                "class" to "kuml-body",
-                "font-size" to "10",
-                "font-style" to "italic",
-                "fill" to "#1d2968",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "x" to f(geo.contentRight - 6),
+                    "y" to f(y - BlueprintGridConstants.SEPARATOR_LABEL_OFFSET),
+                    "text-anchor" to "end",
+                    "class" to "kuml-body",
+                    "font-size" to "10",
+                    "font-style" to "italic",
+                    "fill" to "#1d2968",
+                ),
         ) { text(bd.caption) }
     }
 }

@@ -36,7 +36,7 @@ fun UmlContainerScope.actor(
 ): UmlActor {
     val resolvedId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.child(containerId, name),
+            candidate = UmlIds.child(parentId = containerId, name = name),
             taken = takenIds,
         )
     takenIds += resolvedId
@@ -76,7 +76,7 @@ fun UmlContainerScope.useCase(
 ): UmlUseCase {
     val resolvedId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.child(containerId, name),
+            candidate = UmlIds.child(parentId = containerId, name = name),
             taken = takenIds,
         )
     takenIds += resolvedId
@@ -121,7 +121,7 @@ fun UmlContainerScope.subject(
 ): UmlUseCaseSubject {
     val resolvedId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.child(containerId, name),
+            candidate = UmlIds.child(parentId = containerId, name = name),
             taken = takenIds,
         )
     takenIds += resolvedId
@@ -158,7 +158,7 @@ fun UmlModelScope.include(
     base: UmlUseCase,
     addition: UmlUseCase,
     id: String? = null,
-): UmlInclude = includeById(base.id, addition.id, id)
+): UmlInclude = includeById(baseId = base.id, additionId = addition.id, id = id)
 
 /**
  * Creates a `<<include>>` relationship between two use cases identified by ID.
@@ -174,7 +174,7 @@ fun UmlModelScope.includeById(
 ): UmlInclude {
     val relId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.include(baseId, additionId),
+            candidate = UmlIds.include(baseId = baseId, additionId = additionId),
             taken = takenIds,
         )
     takenIds += relId
@@ -204,7 +204,7 @@ fun UmlModelScope.extend(
     extension: UmlUseCase,
     at: String? = null,
     id: String? = null,
-): UmlExtend = extendById(base.id, extension.id, at, id)
+): UmlExtend = extendById(baseId = base.id, extensionId = extension.id, extensionPoint = at, id = id)
 
 /**
  * Creates an `<<extend>>` relationship between two use cases identified by ID.
@@ -222,7 +222,7 @@ fun UmlModelScope.extendById(
 ): UmlExtend {
     val relId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.extend(baseId, extensionId),
+            candidate = UmlIds.extend(baseId = baseId, extensionId = extensionId),
             taken = takenIds,
         )
     takenIds += relId

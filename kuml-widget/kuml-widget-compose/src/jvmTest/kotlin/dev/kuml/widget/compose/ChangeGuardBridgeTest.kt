@@ -62,14 +62,14 @@ class ChangeGuardBridgeTest :
             val state = buildState(EditPolicy.GuardsOnly)
             val originalModel = state.model
 
-            val outcome = state.changeGuard("t-red-green", "vars.ready")
+            val outcome = state.changeGuard(transitionId = "t-red-green", newOcl = "vars.ready")
 
             outcome shouldBe PatchOutcome.Applied
             state.model shouldNotBe originalModel
             state.model.transition("t-red-green").guard shouldBe "vars.ready"
 
             val layout = computeLayout(state.model)
-            val svg = renderStateMachineSvg(state.model, layout, emptySet())
+            val svg = renderStateMachineSvg(model = state.model, layoutResult = layout, highlightIds = emptySet())
             // Guard is rendered verbatim from the DSL (no brackets added by the
             // STATE renderer — see KumlSvgRenderer's edge-label assembly), so we
             // assert on the guard text itself rather than a `[...]`-wrapped form.
@@ -80,7 +80,7 @@ class ChangeGuardBridgeTest :
             val state = buildState(EditPolicy.None)
             val originalModel = state.model
 
-            val outcome = state.changeGuard("t-red-green", "vars.ready")
+            val outcome = state.changeGuard(transitionId = "t-red-green", newOcl = "vars.ready")
 
             outcome.shouldBeInstanceOf<PatchOutcome.Rejected>()
             outcome.message shouldContain "not permitted"
@@ -91,7 +91,7 @@ class ChangeGuardBridgeTest :
             val state = buildState(EditPolicy.GuardsOnly)
             val originalModel = state.model
 
-            val outcome = state.changeGuard("t-yellow-red", "true")
+            val outcome = state.changeGuard(transitionId = "t-yellow-red", newOcl = "true")
 
             outcome shouldBe PatchOutcome.NeedsConfirmation
             state.model shouldBe originalModel
@@ -100,7 +100,7 @@ class ChangeGuardBridgeTest :
         test("protected transition with confirmation is applied") {
             val state = buildState(EditPolicy.GuardsOnly)
 
-            val outcome = state.changeGuard("t-yellow-red", "true", confirmed = true)
+            val outcome = state.changeGuard(transitionId = "t-yellow-red", newOcl = "true", confirmed = true)
 
             outcome shouldBe PatchOutcome.Applied
             state.model.transition("t-yellow-red").guard shouldBe "true"
@@ -110,7 +110,7 @@ class ChangeGuardBridgeTest :
             val state = buildState(EditPolicy.GuardsOnly)
             val originalModel = state.model
 
-            val outcome = state.changeGuard("t-red-green", "nope > 0")
+            val outcome = state.changeGuard(transitionId = "t-red-green", newOcl = "nope > 0")
 
             outcome.shouldBeInstanceOf<PatchOutcome.Rejected>()
             state.model shouldBe originalModel
@@ -121,7 +121,7 @@ class ChangeGuardBridgeTest :
             val originalModel = state.model
             val huge = "a".repeat(5000)
 
-            val outcome = state.changeGuard("t-red-green", huge)
+            val outcome = state.changeGuard(transitionId = "t-red-green", newOcl = huge)
 
             outcome.shouldBeInstanceOf<PatchOutcome.Rejected>()
             outcome.message shouldContain "too long"
@@ -134,7 +134,7 @@ class ChangeGuardBridgeTest :
             state.scrubTo(0)
             state.isScrubbing shouldBe true
 
-            val blocked = state.changeGuard("t-red-green", "vars.ready")
+            val blocked = state.changeGuard(transitionId = "t-red-green", newOcl = "vars.ready")
             blocked.shouldBeInstanceOf<PatchOutcome.Rejected>()
             blocked.message shouldContain "scrubbing"
             state.model shouldBe originalModel
@@ -142,17 +142,17 @@ class ChangeGuardBridgeTest :
             state.scrubTo(state.trace.size)
             state.isScrubbing shouldBe false
 
-            val applied = state.changeGuard("t-red-green", "vars.ready")
+            val applied = state.changeGuard(transitionId = "t-red-green", newOcl = "vars.ready")
             applied shouldBe PatchOutcome.Applied
             state.model.transition("t-red-green").guard shouldBe "vars.ready"
         }
 
         test("clearing a guard on a guarded transition applies and results in a null guard") {
             val state = buildState(EditPolicy.GuardsOnly)
-            state.changeGuard("t-red-green", "vars.ready") shouldBe PatchOutcome.Applied
+            state.changeGuard(transitionId = "t-red-green", newOcl = "vars.ready") shouldBe PatchOutcome.Applied
             state.model.transition("t-red-green").guard shouldBe "vars.ready"
 
-            val outcome = state.changeGuard("t-red-green", "")
+            val outcome = state.changeGuard(transitionId = "t-red-green", newOcl = "")
 
             outcome shouldBe PatchOutcome.Applied
             state.model.transition("t-red-green").guard shouldBe null

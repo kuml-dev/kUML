@@ -28,51 +28,55 @@ internal fun renderC4DeploymentNode(
     val r = theme.borders.cornerRadiusPx
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         tag(
-            "rect",
-            mapOf(
-                "width" to fmt(w),
-                "height" to fmt(h),
-                "rx" to fmt(r),
-                "ry" to fmt(r),
-                "class" to "kuml-node",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "width" to fmt(w),
+                    "height" to fmt(h),
+                    "rx" to fmt(r),
+                    "ry" to fmt(r),
+                    "class" to "kuml-node",
+                ),
         )
         val tech = element.technology?.let { ":$it" } ?: ""
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(w / 2f),
-                "y" to "18",
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(w / 2f),
+                    "y" to "18",
+                    "text-anchor" to "middle",
+                ),
         ) { text("[Deployment Node$tech]") }
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-title",
-                "x" to fmt(w / 2f),
-                "y" to "36",
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-title",
+                    "x" to fmt(w / 2f),
+                    "y" to "36",
+                    "text-anchor" to "middle",
+                ),
         ) { text(element.name) }
         if (element.instances > 1) {
             tag(
-                "text",
-                mapOf(
-                    "class" to "kuml-small",
-                    "x" to fmt(w - 8f),
-                    "y" to "18",
-                    "text-anchor" to "end",
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-small",
+                        "x" to fmt(w - 8f),
+                        "y" to "18",
+                        "text-anchor" to "end",
+                    ),
             ) { text("×${element.instances}") }
         }
         element.description?.let { desc ->
-            renderWrappedDescription(this, desc, w)
+            renderWrappedDescription(builder = this, desc = desc, boxWidth = w)
         }
     }
 }

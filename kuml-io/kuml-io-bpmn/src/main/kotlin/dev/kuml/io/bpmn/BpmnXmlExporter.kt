@@ -47,9 +47,9 @@ public class BpmnXmlExporter {
             appendLine(">")
 
             // Root-level data stores (BPMN 2.0: DataStore is a RootElement under Definitions)
-            model.dataStores.forEach { ds -> appendDataStore(ds, this, indent = "  ") }
-            model.processes.forEach { process -> appendProcess(process, this) }
-            model.collaborations.forEach { collab -> appendCollaboration(collab, this) }
+            model.dataStores.forEach { ds -> appendDataStore(ds = ds, sb = this, indent = "  ") }
+            model.processes.forEach { process -> appendProcess(process = process, sb = this) }
+            model.collaborations.forEach { collab -> appendCollaboration(collab = collab, sb = this) }
 
             appendLine("</definitions>")
         }
@@ -66,9 +66,9 @@ public class BpmnXmlExporter {
         }
         sb.appendLine(">")
 
-        process.flowNodes.forEach { node -> appendFlowNode(node, sb, indent = "    ") }
-        process.sequenceFlows.forEach { flow -> appendSequenceFlow(flow, sb, indent = "    ") }
-        process.dataObjects.forEach { obj -> appendDataObject(obj, sb, indent = "    ") }
+        process.flowNodes.forEach { node -> appendFlowNode(node = node, sb = sb, indent = "    ") }
+        process.sequenceFlows.forEach { flow -> appendSequenceFlow(flow = flow, sb = sb, indent = "    ") }
+        process.dataObjects.forEach { obj -> appendDataObject(obj = obj, sb = sb, indent = "    ") }
         process.dataAssociations.forEach { da ->
             sb.append("""    <dataAssociation id=""")
             sb.append(xmlAttr(da.id))
@@ -92,11 +92,11 @@ public class BpmnXmlExporter {
         indent: String,
     ) {
         when (node) {
-            is BpmnEvent -> appendEvent(node, sb, indent)
-            is BpmnGateway -> appendGateway(node, sb, indent)
-            is BpmnTask -> appendTask(node, sb, indent)
-            is BpmnSubProcess -> appendSubProcess(node, sb, indent)
-            is BpmnCallActivity -> appendCallActivity(node, sb, indent)
+            is BpmnEvent -> appendEvent(event = node, sb = sb, indent = indent)
+            is BpmnGateway -> appendGateway(gw = node, sb = sb, indent = indent)
+            is BpmnTask -> appendTask(task = node, sb = sb, indent = indent)
+            is BpmnSubProcess -> appendSubProcess(sp = node, sb = sb, indent = indent)
+            is BpmnCallActivity -> appendCallActivity(ca = node, sb = sb, indent = indent)
         }
     }
 
@@ -221,9 +221,9 @@ public class BpmnXmlExporter {
         if (sp.triggeredByEvent) sb.append(""" triggeredByEvent="true"""")
         sb.appendLine(">")
         val inner = indent + "  "
-        sp.flowElementNodes.forEach { appendFlowNode(it, sb, inner) }
-        sp.innerSequenceFlows.forEach { appendSequenceFlow(it, sb, inner) }
-        sp.innerDataObjects.forEach { appendDataObject(it, sb, inner) }
+        sp.flowElementNodes.forEach { appendFlowNode(node = it, sb = sb, indent = inner) }
+        sp.innerSequenceFlows.forEach { appendSequenceFlow(flow = it, sb = sb, indent = inner) }
+        sp.innerDataObjects.forEach { appendDataObject(obj = it, sb = sb, indent = inner) }
         sb.appendLine("$indent</subProcess>")
     }
 
@@ -326,7 +326,7 @@ public class BpmnXmlExporter {
             }
             sb.appendLine("/>")
         }
-        collab.messageFlows.forEach { mf -> appendMessageFlow(mf, sb) }
+        collab.messageFlows.forEach { mf -> appendMessageFlow(mf = mf, sb = sb) }
         sb.appendLine("  </collaboration>")
     }
 

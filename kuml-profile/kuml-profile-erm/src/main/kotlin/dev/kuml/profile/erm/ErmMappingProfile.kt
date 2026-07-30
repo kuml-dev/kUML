@@ -26,25 +26,25 @@ import dev.kuml.profile.builder.profile
  * V3.4.6
  */
 public val ermMappingProfile: KumlProfile =
-    profile("ErmMapping") {
+    profile(name = "ErmMapping") {
         namespace = ErmProfileNames.NAMESPACE
         description = "ERM mapping overrides — table/inheritance/junction naming for UML → ERM M2M (V3.4.6)"
         version = "1.0.0"
 
         // ── Class-level ───────────────────────────────────────────────────────
 
-        stereotype(ErmProfileNames.ENTITY) {
+        stereotype(name = ErmProfileNames.ENTITY) {
             extends(UmlMetaclass.Class)
-            property<String>(ErmProfileNames.TAG_TABLE_NAME) // required — no default
-            property<String>(ErmProfileNames.TAG_SCHEMA) { default = "public" }
-            property<String>(ErmProfileNames.TAG_KOTLIN_OBJECT_NAME) { required = false } // optional override — no default
+            property<String>(name = ErmProfileNames.TAG_TABLE_NAME) // required — no default
+            property<String>(name = ErmProfileNames.TAG_SCHEMA) { default = "public" }
+            property<String>(name = ErmProfileNames.TAG_KOTLIN_OBJECT_NAME) { required = false } // optional override — no default
         }
 
-        stereotype(ErmProfileNames.INHERITANCE) {
+        stereotype(name = ErmProfileNames.INHERITANCE) {
             extends(UmlMetaclass.Class)
             // SINGLE_TABLE | JOINED | TABLE_PER_CLASS — see InheritanceStrategy in the transformer module.
-            property<String>(ErmProfileNames.TAG_STRATEGY) { default = "JOINED" }
-            property<String>(ErmProfileNames.TAG_DISCRIMINATOR_COLUMN) { default = "dtype" }
+            property<String>(name = ErmProfileNames.TAG_STRATEGY) { default = "JOINED" }
+            property<String>(name = ErmProfileNames.TAG_DISCRIMINATOR_COLUMN) { default = "dtype" }
         }
 
         // Composite (multi-column) index/unique-constraint declaration — repeatable: apply
@@ -53,59 +53,60 @@ public val ermMappingProfile: KumlProfile =
         // standalone multi-column performance index, both unrepresentable any other way from a
         // UML class diagram (the underlying ErmIndex/EntityBuilder.index() machinery already
         // supported this — only the UML-profile surface was missing it).
-        stereotype(ErmProfileNames.INDEX) {
+        stereotype(name = ErmProfileNames.INDEX) {
             extends(UmlMetaclass.Class)
-            property<List<String>>(ErmProfileNames.TAG_INDEX_COLUMNS) // required — no default; column names, not UML property names
-            property<Boolean>(ErmProfileNames.TAG_UNIQUE) { default = false }
-            property<String>(ErmProfileNames.TAG_INDEX_NAME) { required = false } // optional — no default; falls back to idx_<table>_<cols>
+            property<List<String>>(name = ErmProfileNames.TAG_INDEX_COLUMNS) // required — no default; column names, not UML property names
+            property<Boolean>(name = ErmProfileNames.TAG_UNIQUE) { default = false }
+            // optional — no default; falls back to idx_<table>_<cols>
+            property<String>(name = ErmProfileNames.TAG_INDEX_NAME) { required = false }
             // Optional partial/conditional-index predicate (e.g. Postgres/SQLite "consumed_at IS
             // NULL") — a raw, dialect-neutral SQL boolean expression emitted verbatim by
             // ErmSqlEmitter's "CREATE [UNIQUE] INDEX ... WHERE <where>" clause. No default — null
             // means an ordinary (non-partial) index.
-            property<String>(ErmProfileNames.TAG_INDEX_WHERE) { required = false }
+            property<String>(name = ErmProfileNames.TAG_INDEX_WHERE) { required = false }
         }
 
         // ── Property-level ────────────────────────────────────────────────────
 
-        stereotype(ErmProfileNames.COLUMN) {
+        stereotype(name = ErmProfileNames.COLUMN) {
             extends(UmlMetaclass.Property)
-            property<String>(ErmProfileNames.TAG_COLUMN_NAME) // required — no default
-            property<String>(ErmProfileNames.TAG_SQL_TYPE) { default = "" }
-            property<String>(ErmProfileNames.TAG_ENUM_TYPE) { required = false } // optional override — no default
+            property<String>(name = ErmProfileNames.TAG_COLUMN_NAME) // required — no default
+            property<String>(name = ErmProfileNames.TAG_SQL_TYPE) { default = "" }
+            property<String>(name = ErmProfileNames.TAG_ENUM_TYPE) { required = false } // optional override — no default
             // Pins an explicit FK target (by UML class name, and optionally a target ERM column
             // name — defaults to the target's primary key) directly on a plain attribute, bypassing
             // UmlAssociation-based FK derivation entirely. Closes the gap where the real column name
             // (e.g. "created_by") doesn't match what association-to-FK naming would derive (e.g.
             // "member_id") and there is no role-based way to override it (see UmlToErmTransformer's
             // "Known limitations" KDoc).
-            property<String>(ErmProfileNames.TAG_FK_ENTITY) { required = false } // optional — no default
-            property<String>(ErmProfileNames.TAG_FK_ATTRIBUTE) { required = false } // optional — no default
-            property<Boolean>(ErmProfileNames.TAG_NULLABLE) { default = true }
-            property<Boolean>(ErmProfileNames.TAG_UNIQUE) { default = false }
+            property<String>(name = ErmProfileNames.TAG_FK_ENTITY) { required = false } // optional — no default
+            property<String>(name = ErmProfileNames.TAG_FK_ATTRIBUTE) { required = false } // optional — no default
+            property<Boolean>(name = ErmProfileNames.TAG_NULLABLE) { default = true }
+            property<Boolean>(name = ErmProfileNames.TAG_UNIQUE) { default = false }
         }
 
-        stereotype(ErmProfileNames.ID) {
+        stereotype(name = ErmProfileNames.ID) {
             extends(UmlMetaclass.Property)
-            property<Boolean>(ErmProfileNames.TAG_AUTO_INCREMENT) { default = true }
+            property<Boolean>(name = ErmProfileNames.TAG_AUTO_INCREMENT) { default = true }
         }
 
-        stereotype(ErmProfileNames.TRANSIENT) {
+        stereotype(name = ErmProfileNames.TRANSIENT) {
             extends(UmlMetaclass.Property)
         }
 
         // ── Association-level ─────────────────────────────────────────────────
 
-        stereotype(ErmProfileNames.FK) {
+        stereotype(name = ErmProfileNames.FK) {
             extends(UmlMetaclass.Association)
-            property<String>(ErmProfileNames.TAG_CONSTRAINT_NAME) { default = "" }
-            property<String>(ErmProfileNames.TAG_ON_DELETE) { default = "NO_ACTION" }
-            property<String>(ErmProfileNames.TAG_ON_UPDATE) { default = "NO_ACTION" }
+            property<String>(name = ErmProfileNames.TAG_CONSTRAINT_NAME) { default = "" }
+            property<String>(name = ErmProfileNames.TAG_ON_DELETE) { default = "NO_ACTION" }
+            property<String>(name = ErmProfileNames.TAG_ON_UPDATE) { default = "NO_ACTION" }
         }
 
-        stereotype(ErmProfileNames.JUNCTION_TABLE) {
+        stereotype(name = ErmProfileNames.JUNCTION_TABLE) {
             extends(UmlMetaclass.Association)
-            property<String>(ErmProfileNames.TAG_TABLE_NAME) // required — no default
-            property<String>(ErmProfileNames.TAG_SOURCE_COLUMN) { default = "" }
-            property<String>(ErmProfileNames.TAG_TARGET_COLUMN) { default = "" }
+            property<String>(name = ErmProfileNames.TAG_TABLE_NAME) // required — no default
+            property<String>(name = ErmProfileNames.TAG_SOURCE_COLUMN) { default = "" }
+            property<String>(name = ErmProfileNames.TAG_TARGET_COLUMN) { default = "" }
         }
     }

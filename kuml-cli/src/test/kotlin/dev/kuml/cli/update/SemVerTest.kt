@@ -7,17 +7,17 @@ class SemVerTest :
     StringSpec({
 
         "parses a plain three-number version" {
-            SemVer.parseOrNull("0.4.0") shouldBe SemVer(0, 4, 0)
+            SemVer.parseOrNull("0.4.0") shouldBe SemVer(major = 0, minor = 4, patch = 0)
         }
 
         "strips a leading 'v' so GitHub tags work verbatim" {
-            SemVer.parseOrNull("v0.4.0") shouldBe SemVer(0, 4, 0)
-            SemVer.parseOrNull("V1.2.3") shouldBe SemVer(1, 2, 3)
+            SemVer.parseOrNull("v0.4.0") shouldBe SemVer(major = 0, minor = 4, patch = 0)
+            SemVer.parseOrNull("V1.2.3") shouldBe SemVer(major = 1, minor = 2, patch = 3)
         }
 
         "parses pre-release and build metadata" {
             SemVer.parseOrNull("1.2.3-rc.1+sha.deadbee") shouldBe
-                SemVer(1, 2, 3, preRelease = "rc.1", buildMetadata = "sha.deadbee")
+                SemVer(major = 1, minor = 2, patch = 3, preRelease = "rc.1", buildMetadata = "sha.deadbee")
         }
 
         "rejects garbage" {
@@ -28,9 +28,9 @@ class SemVerTest :
         }
 
         "core version dominates comparison" {
-            (SemVer(0, 4, 0) < SemVer(0, 5, 0)) shouldBe true
-            (SemVer(1, 0, 0) > SemVer(0, 99, 99)) shouldBe true
-            (SemVer(0, 4, 0) == SemVer(0, 4, 0)) shouldBe true
+            (SemVer(major = 0, minor = 4, patch = 0) < SemVer(major = 0, minor = 5, patch = 0)) shouldBe true
+            (SemVer(major = 1, minor = 0, patch = 0) > SemVer(major = 0, minor = 99, patch = 99)) shouldBe true
+            (SemVer(major = 0, minor = 4, patch = 0) == SemVer(major = 0, minor = 4, patch = 0)) shouldBe true
         }
 
         "stable beats pre-release at the same core" {

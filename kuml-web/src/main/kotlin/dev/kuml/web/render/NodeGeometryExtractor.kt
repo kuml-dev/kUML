@@ -72,8 +72,8 @@ internal object NodeGeometryExtractor {
         val colTolerance = (median(nodes.map { it.w }) / 2f).takeIf { it > 0f } ?: BAND_TOLERANCE_FALLBACK_PX
         val rowTolerance = (median(nodes.map { it.h }) / 2f).takeIf { it > 0f } ?: BAND_TOLERANCE_FALLBACK_PX
 
-        val cols = clusterBands(nodes.map { it.x + it.w / 2f }, colTolerance)
-        val rows = clusterBands(nodes.map { it.y + it.h / 2f }, rowTolerance)
+        val cols = clusterBands(centers = nodes.map { it.x + it.w / 2f }, tolerance = colTolerance)
+        val rows = clusterBands(centers = nodes.map { it.y + it.h / 2f }, tolerance = rowTolerance)
 
         val originX = nodes.minOf { it.x }
         val originY = nodes.minOf { it.y }

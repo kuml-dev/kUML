@@ -20,7 +20,7 @@ class PlainJsonFallbackBackendTest :
 
         test("plain json fallback round trip via temp file") {
             val backend = PlainJsonFallbackBackend(tempDir.resolve("secrets.json"))
-            backend.put("my-key", "my-secret")
+            backend.put(key = "my-key", secret = "my-secret")
             backend.get("my-key") shouldBe "my-secret"
         }
 
@@ -29,7 +29,7 @@ class PlainJsonFallbackBackendTest :
             // but we can verify the backend is always available and functional.
             val backend = PlainJsonFallbackBackend(tempDir.resolve("secrets-warn-test.json"))
             backend.isAvailable() shouldBe true
-            backend.put("warn-key", "warn-value")
+            backend.put(key = "warn-key", secret = "warn-value")
             backend.get("warn-key") shouldBe "warn-value"
             backend.delete("warn-key")
             backend.get("warn-key").shouldBeNull()

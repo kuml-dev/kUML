@@ -79,7 +79,7 @@ class SampleAssociationWorkspaceTest :
         // ── B) Scan discovers a KNOWLEDGE-mode workspace with a strict marker ──
 
         "WorkspaceScanner erkennt KNOWLEDGE-Mode mit striktem Marker" {
-            val ws = WorkspaceScanner.scan(workspaceRoot())
+            val ws = WorkspaceScanner.scan(root = workspaceRoot())
             ws.mode shouldBe WorkspaceMode.KNOWLEDGE
             ws.markerFound shouldBe true
             (ws.marker?.name != null) shouldBe true
@@ -89,7 +89,7 @@ class SampleAssociationWorkspaceTest :
         // ── C) Scanned document inventory matches the committed manifest ───────
 
         "Gescannte .md-Dateien entsprechen exakt dem _files.txt-Manifest" {
-            val ws = WorkspaceScanner.scan(workspaceRoot())
+            val ws = WorkspaceScanner.scan(root = workspaceRoot())
             val scannedPaths = ws.documents.map { it.relativePath }.toSet()
             val manifestMdPaths = manifestEntries().filter { it.endsWith(".md") }.toSet()
             scannedPaths shouldBe manifestMdPaths
@@ -99,7 +99,7 @@ class SampleAssociationWorkspaceTest :
         // ── D) Type inventory matches the expected OKF-vocabulary distribution ─
 
         "Typ-Inventar entspricht der erwarteten Verteilung (14 Dokumente, kein unbekannter Typ)" {
-            val ws = WorkspaceScanner.scan(workspaceRoot())
+            val ws = WorkspaceScanner.scan(root = workspaceRoot())
             val actualCounts = ws.documents.groupingBy { it.type }.eachCount()
             val unknownOrMissing = ws.documents.count { it.type == null }
             unknownOrMissing shouldBe 0
@@ -112,8 +112,8 @@ class SampleAssociationWorkspaceTest :
         // ── E) Strict OKF validation — zero findings ────────────────────────────
 
         "OkfValidator.validate liefert keine Findings im strikten Vokabular-Modus" {
-            val ws = WorkspaceScanner.scan(workspaceRoot())
-            val findings = OkfValidator.validate(ws, strictVocabulary = true)
+            val ws = WorkspaceScanner.scan(root = workspaceRoot())
+            val findings = OkfValidator.validate(ws = ws, strictVocabulary = true)
             withClue(findings.joinToString("\n") { "${it.code} ${it.file}:${it.line} ${it.message}" }) {
                 findings.shouldBeEmpty()
             }
@@ -122,13 +122,13 @@ class SampleAssociationWorkspaceTest :
         // ── F) All three diagram blocks render to non-empty SVG ────────────────
 
         "alle drei Diagramm-Bloecke rendern zu gueltigem SVG" {
-            val ws = WorkspaceScanner.scan(workspaceRoot())
+            val ws = WorkspaceScanner.scan(root = workspaceRoot())
             val diagramDocs = ws.documents.filter { it.type != null && it.type!!.requiresKumlBlock }
             diagramDocs.size shouldBe 3
 
             for (doc in diagramDocs) {
                 doc.kumlBlocks.size shouldBe 1
-                val result = WorkspaceExampleRenderer.render(doc.kumlBlocks.first().source)
+                val result = WorkspaceExampleRenderer.render(script = doc.kumlBlocks.first().source)
                 withClue("${doc.relativePath} — render error: ${result.error}") {
                     (result.error == null) shouldBe true
                     (result.svg != null) shouldBe true

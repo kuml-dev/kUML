@@ -26,7 +26,7 @@ class UmlEditingToolsTest :
         test("add_class appends a UmlClass and emits AddElement patch") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addClass("OrderService")
+                val result = tools.addClass(name = "OrderService")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 val model = ctx.resolveModel() as AnyKumlModel.Uml
                 model.elements shouldHaveSize 1
@@ -38,7 +38,7 @@ class UmlEditingToolsTest :
         test("add_class with explicit stereotype attaches it to the class") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addClass("UserRepo", stereotype = "repository")
+                tools.addClass(name = "UserRepo", stereotype = "repository")
                 val model = ctx.resolveModel() as AnyKumlModel.Uml
                 val cls = model.elements[0] as UmlClass
                 cls.stereotypes shouldBe listOf("repository")
@@ -49,11 +49,11 @@ class UmlEditingToolsTest :
             val (ctx, tools) = makeTools()
             runTest {
                 tools.addClass(
-                    "Product",
+                    name = "Product",
                     attributes =
                         listOf(
-                            UmlEditingTools.AttributeSpec("name", "String"),
-                            UmlEditingTools.AttributeSpec("price", "BigDecimal"),
+                            UmlEditingTools.AttributeSpec(name = "name", type = "String"),
+                            UmlEditingTools.AttributeSpec(name = "price", type = "BigDecimal"),
                         ),
                 )
                 val model = ctx.resolveModel() as AnyKumlModel.Uml
@@ -67,8 +67,8 @@ class UmlEditingToolsTest :
         test("add_class twice with the same name disambiguates ids") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addClass("Service")
-                tools.addClass("Service")
+                tools.addClass(name = "Service")
+                tools.addClass(name = "Service")
                 val model = ctx.resolveModel() as AnyKumlModel.Uml
                 model.elements shouldHaveSize 2
                 model.elements.map { it.id }.toSet() shouldHaveSize 2
@@ -78,7 +78,7 @@ class UmlEditingToolsTest :
         test("add_interface appends a UmlInterface") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addInterface("PaymentProcessor")
+                val result = tools.addInterface(name = "PaymentProcessor")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 val model = ctx.resolveModel() as AnyKumlModel.Uml
                 model.elements[0].shouldBeInstanceOf<UmlInterface>()
@@ -88,7 +88,7 @@ class UmlEditingToolsTest :
         test("add_attribute against unknown classifier returns Failure with hint") {
             val (_, tools) = makeTools()
             runTest {
-                val result = tools.addAttribute("NonExistent", "id", "String")
+                val result = tools.addAttribute(classifierIdOrName = "NonExistent", name = "id", type = "String")
                 result.shouldBeInstanceOf<PatchApplyResult.Failure>()
                 result.hint.shouldBe("Use list_elements to discover available classifier ids")
             }
@@ -97,8 +97,8 @@ class UmlEditingToolsTest :
         test("add_attribute with valid PRIVATE visibility code works") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addClass("Order")
-                val result = tools.addAttribute("Order", "total", "BigDecimal", visibility = "PRIVATE")
+                tools.addClass(name = "Order")
+                val result = tools.addAttribute(classifierIdOrName = "Order", name = "total", type = "BigDecimal", visibility = "PRIVATE")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 val cls = (ctx.resolveModel() as AnyKumlModel.Uml).elements[0] as UmlClass
                 cls.attributes shouldHaveSize 1
@@ -109,8 +109,8 @@ class UmlEditingToolsTest :
         test("add_attribute with invalid visibility code returns Failure") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addClass("Order")
-                val result = tools.addAttribute("Order", "total", "BigDecimal", visibility = "BANANA")
+                tools.addClass(name = "Order")
+                val result = tools.addAttribute(classifierIdOrName = "Order", name = "total", type = "BigDecimal", visibility = "BANANA")
                 result.shouldBeInstanceOf<PatchApplyResult.Failure>()
             }
         }
@@ -118,10 +118,10 @@ class UmlEditingToolsTest :
         test("add_operation parses parameter list correctly") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addClass("OrderService")
+                tools.addClass(name = "OrderService")
                 tools.addOperation(
-                    "OrderService",
-                    "submitOrder",
+                    classifierIdOrName = "OrderService",
+                    name = "submitOrder",
                     parameters = listOf("order: Order", "discount: BigDecimal"),
                     returnType = "Receipt",
                 )
@@ -134,9 +134,9 @@ class UmlEditingToolsTest :
         test("add_association links source and target by name") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addClass("Order")
-                tools.addClass("Customer")
-                val result = tools.addAssociation("Order", "Customer")
+                tools.addClass(name = "Order")
+                tools.addClass(name = "Customer")
+                val result = tools.addAssociation(sourceIdOrName = "Order", targetIdOrName = "Customer")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 (ctx.resolveModel() as AnyKumlModel.Uml).relationships shouldHaveSize 1
             }
@@ -145,12 +145,12 @@ class UmlEditingToolsTest :
         test("add_association links source and target by id") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addClass("Prod")
-                tools.addClass("Cat")
+                tools.addClass(name = "Prod")
+                tools.addClass(name = "Cat")
                 val model = ctx.resolveModel() as AnyKumlModel.Uml
                 val prodId = model.elements[0].id
                 val catId = model.elements[1].id
-                val result = tools.addAssociation(prodId, catId)
+                val result = tools.addAssociation(sourceIdOrName = prodId, targetIdOrName = catId)
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
             }
         }
@@ -158,8 +158,8 @@ class UmlEditingToolsTest :
         test("add_generalization rejects self-loop with hint") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addClass("Animal")
-                val result = tools.addGeneralization("Animal", "Animal")
+                tools.addClass(name = "Animal")
+                val result = tools.addGeneralization(childIdOrName = "Animal", parentIdOrName = "Animal")
                 result.shouldBeInstanceOf<PatchApplyResult.Failure>()
                 result.hint.shouldBe("Child and parent must be different classifiers")
             }
@@ -168,9 +168,9 @@ class UmlEditingToolsTest :
         test("add_generalization records AddRelationship patch") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addClass("Dog")
-                tools.addClass("Animal")
-                tools.addGeneralization("Dog", "Animal")
+                tools.addClass(name = "Dog")
+                tools.addClass(name = "Animal")
+                tools.addGeneralization(childIdOrName = "Dog", parentIdOrName = "Animal")
                 ctx.patches().last().shouldBeInstanceOf<dev.kuml.ai.tools.context.ModelPatch.AddRelationship>()
             }
         }
@@ -178,7 +178,7 @@ class UmlEditingToolsTest :
         test("remove_element returns Success and patch is recorded") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addClass("Temp")
+                tools.addClass(name = "Temp")
                 val model = ctx.resolveModel() as AnyKumlModel.Uml
                 val id = model.elements[0].id
                 val result = tools.removeElement(id)
@@ -200,10 +200,10 @@ class UmlEditingToolsTest :
         test("rename_element preserves the element id") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addClass("OldName")
+                tools.addClass(name = "OldName")
                 val model = ctx.resolveModel() as AnyKumlModel.Uml
                 val id = model.elements[0].id
-                val result = tools.renameElement(id, "NewName")
+                val result = tools.renameElement(elementId = id, newName = "NewName")
                 result.shouldBeInstanceOf<RenameResult.Success>()
                 val after = ctx.resolveModel() as AnyKumlModel.Uml
                 after.elements[0].id shouldBe id // id preserved
@@ -225,7 +225,7 @@ class UmlEditingToolsTest :
                 coroutineScope {
                     repeat(100) { n ->
                         launch {
-                            tools.addClass("Class$n")
+                            tools.addClass(name = "Class$n")
                         }
                     }
                 }

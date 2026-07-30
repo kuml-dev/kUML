@@ -67,7 +67,7 @@ class KumlEffectParserTest :
 
         test("tryParseEffects returns null for unparseable input '@@@'") {
             val errors = mutableListOf<ParseError>()
-            val result = OclLikeExpressionParser.tryParseEffects("@@@", errors)
+            val result = OclLikeExpressionParser.tryParseEffects(input = "@@@", errors = errors)
             result.shouldBeNull()
         }
 

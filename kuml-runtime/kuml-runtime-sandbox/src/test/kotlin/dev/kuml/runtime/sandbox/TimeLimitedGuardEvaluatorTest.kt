@@ -12,9 +12,9 @@ class TimeLimitedGuardEvaluatorTest :
     FunSpec({
         test("fast guard passes through delegate result") {
             val delegate = GuardEvaluator { _, _, _ -> GuardResult.True }
-            val ev = TimeLimitedGuardEvaluator(delegate, SandboxPolicy(guardTimeoutMs = 500))
+            val ev = TimeLimitedGuardEvaluator(delegate = delegate, policy = SandboxPolicy(guardTimeoutMs = 500))
             val instance = emptyInstance()
-            ev.evaluate("x > 0", instance, noEvent) shouldBe GuardResult.True
+            ev.evaluate(guard = "x > 0", instance = instance, event = noEvent) shouldBe GuardResult.True
             ev.close()
         }
 
@@ -24,9 +24,9 @@ class TimeLimitedGuardEvaluatorTest :
                     Thread.sleep(2_000) // 2 seconds — well past timeout
                     GuardResult.True
                 }
-            val ev = TimeLimitedGuardEvaluator(delegate, SandboxPolicy(guardTimeoutMs = 50))
+            val ev = TimeLimitedGuardEvaluator(delegate = delegate, policy = SandboxPolicy(guardTimeoutMs = 50))
             val instance = emptyInstance()
-            val result = ev.evaluate("slow", instance, noEvent)
+            val result = ev.evaluate(guard = "slow", instance = instance, event = noEvent)
             result.shouldBeInstanceOf<GuardResult.Failed>()
             result.message shouldContain "timed out"
             ev.close()
@@ -34,9 +34,9 @@ class TimeLimitedGuardEvaluatorTest :
 
         test("delegate GuardResult.Failed is propagated") {
             val delegate = GuardEvaluator { _, _, _ -> GuardResult.Failed("bad guard") }
-            val ev = TimeLimitedGuardEvaluator(delegate, SandboxPolicy())
+            val ev = TimeLimitedGuardEvaluator(delegate = delegate, policy = SandboxPolicy())
             val instance = emptyInstance()
-            val result = ev.evaluate("x", instance, noEvent)
+            val result = ev.evaluate(guard = "x", instance = instance, event = noEvent)
             result.shouldBeInstanceOf<GuardResult.Failed>()
             result.message shouldBe "bad guard"
             ev.close()
@@ -49,9 +49,9 @@ class TimeLimitedGuardEvaluatorTest :
                     delegateCalled = true
                     GuardResult.True
                 }
-            val ev = TimeLimitedGuardEvaluator(delegate, SandboxPolicy())
+            val ev = TimeLimitedGuardEvaluator(delegate = delegate, policy = SandboxPolicy())
             val instance = emptyInstance()
-            ev.evaluate(null, instance, noEvent) shouldBe GuardResult.True
+            ev.evaluate(guard = null, instance = instance, event = noEvent) shouldBe GuardResult.True
             delegateCalled shouldBe false
             ev.close()
         }
@@ -71,15 +71,15 @@ class TimeLimitedGuardEvaluatorTest :
         test("close shuts down executor") {
             val ev =
                 TimeLimitedGuardEvaluator(
-                    OclGuardEvaluator(),
-                    SandboxPolicy(),
+                    delegate = OclGuardEvaluator(),
+                    policy = SandboxPolicy(),
                 )
             ev.close()
             // After close, the executor is terminated
             val exec = ev
             // Evaluating after close should return Failed (RejectedExecutionException)
             val instance = emptyInstance()
-            val result = exec.evaluate("true", instance, noEvent)
+            val result = exec.evaluate(guard = "true", instance = instance, event = noEvent)
             result.shouldBeInstanceOf<GuardResult.Failed>()
         }
     })

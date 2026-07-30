@@ -18,15 +18,15 @@ class ErmSqlDdlGeneratorTest :
 
         test("generates schema.sql from an ErmModel") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("email", ErmDataType.Varchar(255), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "email", type = ErmDataType.Varchar(255), nullable = false)
                     }
                 }
             val out = Files.createTempDirectory("kuml-erm-sql-test").toFile()
             try {
-                val files = ErmSqlDdlGenerator().generate(model, out, emptyMap())
+                val files = ErmSqlDdlGenerator().generate(model = model, outputDir = out, options = emptyMap())
                 files.size shouldBe 1
                 files.single().name shouldBe "schema.sql"
                 val sql = files.single().readText()
@@ -39,14 +39,14 @@ class ErmSqlDdlGeneratorTest :
 
         test("sql-dialect option is honoured") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        attribute("id", ErmDataType.Integer(64), primaryKey = true, nullable = false, autoIncrement = true)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        attribute(name = "id", type = ErmDataType.Integer(64), primaryKey = true, nullable = false, autoIncrement = true)
                     }
                 }
             val out = Files.createTempDirectory("kuml-erm-sql-test").toFile()
             try {
-                val files = ErmSqlDdlGenerator().generate(model, out, mapOf("sql-dialect" to "mysql"))
+                val files = ErmSqlDdlGenerator().generate(model = model, outputDir = out, options = mapOf("sql-dialect" to "mysql"))
                 files.single().readText() shouldContain "AUTO_INCREMENT"
             } finally {
                 out.deleteRecursively()

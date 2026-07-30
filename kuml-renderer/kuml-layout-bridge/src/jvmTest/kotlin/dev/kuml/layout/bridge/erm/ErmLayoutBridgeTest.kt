@@ -42,7 +42,7 @@ class ErmLayoutBridgeTest :
 
         test("maps every visible entity to a LayoutNode and every relationship to a LayoutEdge") {
             val diagram = ErmDiagram(name = "Overview")
-            val graph = ErmLayoutBridge.toLayoutGraph(model, diagram)
+            val graph = ErmLayoutBridge.toLayoutGraph(model = model, diagram = diagram)
 
             graph.nodes shouldHaveSize 2
             graph.nodes.map { it.id } shouldBe listOf(NodeId("customer"), NodeId("order"))
@@ -55,13 +55,13 @@ class ErmLayoutBridgeTest :
 
         test("empty elementIds means the whole model — default projection") {
             val diagram = ErmDiagram(name = "Overview", elementIds = emptyList())
-            val graph = ErmLayoutBridge.toLayoutGraph(model, diagram)
+            val graph = ErmLayoutBridge.toLayoutGraph(model = model, diagram = diagram)
             graph.nodes shouldHaveSize 2
         }
 
         test("elementIds filters to a subset — relationships with a hidden endpoint are dropped") {
             val diagram = ErmDiagram(name = "CustomerOnly", elementIds = listOf("customer"))
-            val graph = ErmLayoutBridge.toLayoutGraph(model, diagram)
+            val graph = ErmLayoutBridge.toLayoutGraph(model = model, diagram = diagram)
 
             graph.nodes shouldHaveSize 1
             graph.nodes[0].id shouldBe NodeId("customer")
@@ -72,10 +72,10 @@ class ErmLayoutBridgeTest :
             val view = ErmView(id = "view_big", name = "big_orders", query = "SELECT * FROM \"order\"")
             val modelWithView = model.copy(views = listOf(view))
 
-            val shown = ErmLayoutBridge.toLayoutGraph(modelWithView, ErmDiagram(name = "WithViews", showViews = true))
+            val shown = ErmLayoutBridge.toLayoutGraph(model = modelWithView, diagram = ErmDiagram(name = "WithViews", showViews = true))
             shown.nodes.map { it.id } shouldBe listOf(NodeId("customer"), NodeId("order"), NodeId("view_big"))
 
-            val hidden = ErmLayoutBridge.toLayoutGraph(modelWithView, ErmDiagram(name = "NoViews", showViews = false))
+            val hidden = ErmLayoutBridge.toLayoutGraph(model = modelWithView, diagram = ErmDiagram(name = "NoViews", showViews = false))
             hidden.nodes.map { it.id } shouldBe listOf(NodeId("customer"), NodeId("order"))
         }
 
@@ -96,7 +96,7 @@ class ErmLayoutBridgeTest :
                     targetCardinality = Cardinality.ZERO_MANY,
                 )
             val selfModel = ErmModel(name = "Org", entities = listOf(employee), relationships = listOf(managerRel))
-            val graph = ErmLayoutBridge.toLayoutGraph(selfModel, ErmDiagram(name = "Org"))
+            val graph = ErmLayoutBridge.toLayoutGraph(model = selfModel, diagram = ErmDiagram(name = "Org"))
 
             graph.nodes shouldHaveSize 1
             graph.edges shouldHaveSize 1

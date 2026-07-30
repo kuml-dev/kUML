@@ -17,7 +17,7 @@ class RuntimeIntegrationTest :
             val sm = smWith(entry = "x = 42")
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue, effects = EffectInvoker.NoOp)
             val instance = rt.start(sm)
-            rt.step(instance, goEvent)
+            rt.step(instance = instance, event = goEvent)
             // NoOp: entry action text is logged but not executed → x stays absent
             instance.variables["x"] shouldBe null
         }
@@ -28,7 +28,7 @@ class RuntimeIntegrationTest :
             val invoker = SandboxEffectInvoker(executor)
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue, effects = invoker)
             val instance = rt.start(sm)
-            rt.step(instance, goEvent)
+            rt.step(instance = instance, event = goEvent)
             instance.variables["temperature"] shouldBe 21L
         }
 
@@ -39,7 +39,7 @@ class RuntimeIntegrationTest :
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue, effects = invoker)
             val instance = rt.start(sm)
             val stateBeforeStep = instance.currentVertices.map { it.id }
-            val result = rt.step(instance, goEvent)
+            val result = rt.step(instance = instance, event = goEvent)
             // Rollback: state should revert to pre-step configuration
             result.shouldBeInstanceOf<StepResult.Error>()
             instance.currentVertices.map { it.id } shouldBe stateBeforeStep
@@ -52,11 +52,11 @@ class RuntimeIntegrationTest :
                     Thread.sleep(2_000)
                     GuardResult.True
                 }
-            val tlge = TimeLimitedGuardEvaluator(slowDelegate, SandboxPolicy(guardTimeoutMs = 50))
+            val tlge = TimeLimitedGuardEvaluator(delegate = slowDelegate, policy = SandboxPolicy(guardTimeoutMs = 50))
             val rt = StateMachineRuntime(guards = tlge)
             val instance = rt.start(sm)
             // Guard times out → treated as failed → no transition → Stayed
-            val result = rt.step(instance, goEvent)
+            val result = rt.step(instance = instance, event = goEvent)
             result.shouldBeInstanceOf<StepResult.Stayed>()
             tlge.close()
         }
@@ -67,7 +67,7 @@ class RuntimeIntegrationTest :
             val invoker = SandboxEffectInvoker(executor)
             val rt = StateMachineRuntime(guards = OclGuardEvaluator(), effects = invoker)
             val instance = rt.start(sm)
-            val result = rt.step(instance, goEvent)
+            val result = rt.step(instance = instance, event = goEvent)
             result.shouldBeInstanceOf<StepResult.Transitioned>()
             instance.variables["count"] shouldBe 10L
         }

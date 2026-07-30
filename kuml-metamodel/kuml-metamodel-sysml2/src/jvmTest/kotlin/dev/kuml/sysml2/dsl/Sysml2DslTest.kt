@@ -61,37 +61,37 @@ class Sysml2DslTest :
 
         "sysml2Model builds a tiny hybrid vehicle model" {
             val model =
-                sysml2Model("HybridDemo") {
+                sysml2Model(name = "HybridDemo") {
                     // ── Attribute types (value types) ─────────────────────────
-                    val mass = attributeDef("Mass")
-                    val power = attributeDef("Power")
-                    val energy = attributeDef("Energy")
+                    val mass = attributeDef(name = "Mass")
+                    val power = attributeDef(name = "Power")
+                    val energy = attributeDef(name = "Energy")
 
                     // ── Port type ─────────────────────────────────────────────
-                    val powerPort = portDef("PowerPort")
+                    val powerPort = portDef(name = "PowerPort")
 
                     // ── Parts ─────────────────────────────────────────────────
                     val engine =
-                        partDef("Engine") {
-                            attribute("ratedPower", typeId = power.id, default = 100.kW)
-                            port("output", typeId = powerPort.id)
+                        partDef(name = "Engine") {
+                            attribute(name = "ratedPower", typeId = power.id, default = 100.kW)
+                            port(name = "output", typeId = powerPort.id)
                         }
                     val battery =
-                        partDef("Battery") {
-                            attribute("capacity", typeId = energy.id, default = 60.kWh)
-                            port("output", typeId = powerPort.id)
+                        partDef(name = "Battery") {
+                            attribute(name = "capacity", typeId = energy.id, default = 60.kWh)
+                            port(name = "output", typeId = powerPort.id)
                         }
                     val vehicle =
-                        partDef("Vehicle", isAbstract = true) {
-                            attribute("curbWeight", typeId = mass.id, default = 1500.kg)
+                        partDef(name = "Vehicle", isAbstract = true) {
+                            attribute(name = "curbWeight", typeId = mass.id, default = 1500.kg)
                         }
                     val hybrid =
-                        partDef("HybridVehicle", specializesId = vehicle.id) {
-                            part("engine", typeId = engine.id)
-                            part("battery", typeId = battery.id)
+                        partDef(name = "HybridVehicle", specializesId = vehicle.id) {
+                            part(name = "engine", typeId = engine.id)
+                            part(name = "battery", typeId = battery.id)
                         }
 
-                    bdd("Structural Overview") {
+                    bdd(name = "Structural Overview") {
                         include(vehicle)
                         include(hybrid)
                         include(engine)
@@ -125,12 +125,12 @@ class Sysml2DslTest :
 
         "DSL counts definitions correctly across kinds" {
             val model =
-                sysml2Model("Counts") {
-                    attributeDef("Mass")
-                    portDef("Inlet")
-                    partDef("Vehicle")
-                    partDef("HybridVehicle")
-                    connectionDef("PowerLine")
+                sysml2Model(name = "Counts") {
+                    attributeDef(name = "Mass")
+                    portDef(name = "Inlet")
+                    partDef(name = "Vehicle")
+                    partDef(name = "HybridVehicle")
+                    connectionDef(name = "PowerLine")
                 }
             model.definitions shouldHaveSize 5
             model.definitions.filterIsInstance<AttributeDefinition>() shouldHaveSize 1
@@ -140,10 +140,10 @@ class Sysml2DslTest :
 
         "attribute(default = unitValue) records the SysML 2 concrete-syntax form" {
             val model =
-                sysml2Model("M") {
-                    val mass = attributeDef("Mass")
-                    partDef("Vehicle") {
-                        attribute("curbWeight", typeId = mass.id, default = 1500.kg)
+                sysml2Model(name = "M") {
+                    val mass = attributeDef(name = "Mass")
+                    partDef(name = "Vehicle") {
+                        attribute(name = "curbWeight", typeId = mass.id, default = 1500.kg)
                     }
                 }
             val vehicle = model.definitions.filterIsInstance<PartDefinition>().single()
@@ -157,9 +157,9 @@ class Sysml2DslTest :
 
         "qualifiedName uses the SysML 2 `::` separator" {
             val model =
-                sysml2Model("M") {
-                    partDef("Vehicle") {
-                        attribute("curbWeight", typeId = "Mass")
+                sysml2Model(name = "M") {
+                    partDef(name = "Vehicle") {
+                        attribute(name = "curbWeight", typeId = "Mass")
                     }
                 }
             val feature =
@@ -173,9 +173,9 @@ class Sysml2DslTest :
 
         "specializesId emits a KermlSpecialization on the resulting PartDefinition" {
             val model =
-                sysml2Model("M") {
-                    val v = partDef("Vehicle", isAbstract = true)
-                    partDef("HybridVehicle", specializesId = v.id)
+                sysml2Model(name = "M") {
+                    val v = partDef(name = "Vehicle", isAbstract = true)
+                    partDef(name = "HybridVehicle", specializesId = v.id)
                 }
             val hybrid =
                 model.definitions
@@ -187,10 +187,10 @@ class Sysml2DslTest :
 
         "bdd collects definitions in insertion order" {
             val model =
-                sysml2Model("M") {
-                    val v = partDef("Vehicle")
-                    val e = partDef("Engine")
-                    bdd("Overview") {
+                sysml2Model(name = "M") {
+                    val v = partDef(name = "Vehicle")
+                    val e = partDef(name = "Engine")
+                    bdd(name = "Overview") {
                         include(v)
                         include(e)
                     }
@@ -202,9 +202,9 @@ class Sysml2DslTest :
 
         "connect records both end ids on the connection-usage" {
             val model =
-                sysml2Model("M") {
-                    val powerLine = connectionDef("PowerLine")
-                    partDef("Vehicle") {
+                sysml2Model(name = "M") {
+                    val powerLine = connectionDef(name = "PowerLine")
+                    partDef(name = "Vehicle") {
                         connect(
                             name = "engineToBattery",
                             typeId = powerLine.id,
@@ -227,9 +227,9 @@ class Sysml2DslTest :
         "DSL connection-usage shape is exposed via the builder return value" {
             var capturedSource = ""
             var capturedTarget = ""
-            sysml2Model("M") {
-                val powerLine = connectionDef("PowerLine")
-                partDef("Vehicle") {
+            sysml2Model(name = "M") {
+                val powerLine = connectionDef(name = "PowerLine")
+                partDef(name = "Vehicle") {
                     val cu: ConnectionUsage =
                         connect(
                             name = "link",
@@ -247,12 +247,12 @@ class Sysml2DslTest :
 
         "multiplicity carries through the part-usage" {
             val model =
-                sysml2Model("M") {
-                    partDef("V8Engine") {
+                sysml2Model(name = "M") {
+                    partDef(name = "V8Engine") {
                         part(
                             name = "cylinders",
                             typeId = "Cylinder",
-                            multiplicity = KermlMultiplicity(8, 8),
+                            multiplicity = KermlMultiplicity(lower = 8, upper = 8),
                         )
                     }
                 }
@@ -269,15 +269,15 @@ class Sysml2DslTest :
         "ibd projects the part-usages of its owner" {
             // V2.0.6 — empty include-block means "all part-usages of the owner".
             val model =
-                sysml2Model("M") {
-                    val engineDef = partDef("Engine")
-                    val batteryDef = partDef("Battery")
+                sysml2Model(name = "M") {
+                    val engineDef = partDef(name = "Engine")
+                    val batteryDef = partDef(name = "Battery")
                     val vehicle =
-                        partDef("Vehicle") {
-                            part("engine", typeId = engineDef.id)
-                            part("battery", typeId = batteryDef.id)
+                        partDef(name = "Vehicle") {
+                            part(name = "engine", typeId = engineDef.id)
+                            part(name = "battery", typeId = batteryDef.id)
                         }
-                    ibd("Vehicle wiring", owner = vehicle)
+                    ibd(name = "Vehicle wiring", owner = vehicle)
                 }
             val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
             ibd.name shouldBe "Vehicle wiring"
@@ -288,16 +288,16 @@ class Sysml2DslTest :
 
         "ibd with explicit include selects a subset" {
             val model =
-                sysml2Model("M") {
-                    val engineDef = partDef("Engine")
-                    val batteryDef = partDef("Battery")
+                sysml2Model(name = "M") {
+                    val engineDef = partDef(name = "Engine")
+                    val batteryDef = partDef(name = "Battery")
                     lateinit var enginePartUsage: PartUsage
                     val vehicle =
-                        partDef("Vehicle") {
-                            enginePartUsage = part("engine", typeId = engineDef.id)
-                            part("battery", typeId = batteryDef.id)
+                        partDef(name = "Vehicle") {
+                            enginePartUsage = part(name = "engine", typeId = engineDef.id)
+                            part(name = "battery", typeId = batteryDef.id)
                         }
-                    ibd("Engine-only wiring", owner = vehicle) {
+                    ibd(name = "Engine-only wiring", owner = vehicle) {
                         include(enginePartUsage)
                     }
                 }
@@ -308,13 +308,13 @@ class Sysml2DslTest :
 
         "ibd includeById accepts forward-/id-only references" {
             val model =
-                sysml2Model("M") {
-                    val engineDef = partDef("Engine")
+                sysml2Model(name = "M") {
+                    val engineDef = partDef(name = "Engine")
                     val vehicle =
-                        partDef("Vehicle") {
-                            part("engine", typeId = engineDef.id)
+                        partDef(name = "Vehicle") {
+                            part(name = "engine", typeId = engineDef.id)
                         }
-                    ibd("Vehicle wiring", owner = vehicle) {
+                    ibd(name = "Vehicle wiring", owner = vehicle) {
                         includeById("Vehicle::engine")
                     }
                 }
@@ -328,17 +328,17 @@ class Sysml2DslTest :
             // pushes every typed usage into `model.usages` alongside the feature
             // shadow on the parent definition.
             val model =
-                sysml2Model("M") {
-                    val engineDef = partDef("Engine")
-                    val batteryDef = partDef("Battery")
-                    val powerLine = connectionDef("PowerLine")
-                    val powerPort = portDef("PowerPort")
-                    val mass = attributeDef("Mass")
-                    partDef("Vehicle") {
-                        attribute("curbWeight", typeId = mass.id, default = 1500.kg)
-                        part("engine", typeId = engineDef.id)
-                        part("battery", typeId = batteryDef.id)
-                        port("output", typeId = powerPort.id)
+                sysml2Model(name = "M") {
+                    val engineDef = partDef(name = "Engine")
+                    val batteryDef = partDef(name = "Battery")
+                    val powerLine = connectionDef(name = "PowerLine")
+                    val powerPort = portDef(name = "PowerPort")
+                    val mass = attributeDef(name = "Mass")
+                    partDef(name = "Vehicle") {
+                        attribute(name = "curbWeight", typeId = mass.id, default = 1500.kg)
+                        part(name = "engine", typeId = engineDef.id)
+                        part(name = "battery", typeId = batteryDef.id)
+                        port(name = "output", typeId = powerPort.id)
                         connect(
                             name = "wiring",
                             typeId = powerLine.id,
@@ -364,24 +364,24 @@ class Sysml2DslTest :
 
         "ucDiagram captures actors, use cases, associations, includes, and extends" {
             val model =
-                sysml2Model("Library") {
-                    val reader = actorDef("Reader")
-                    val librarian = actorDef("Librarian")
-                    val borrow = useCaseDef("BorrowBook")
-                    val auth = useCaseDef("Authenticate")
-                    val returnBook = useCaseDef("ReturnBook")
-                    val payFee = useCaseDef("PayLateFee")
-                    ucDiagram("Top-level UC") {
+                sysml2Model(name = "Library") {
+                    val reader = actorDef(name = "Reader")
+                    val librarian = actorDef(name = "Librarian")
+                    val borrow = useCaseDef(name = "BorrowBook")
+                    val auth = useCaseDef(name = "Authenticate")
+                    val returnBook = useCaseDef(name = "ReturnBook")
+                    val payFee = useCaseDef(name = "PayLateFee")
+                    ucDiagram(name = "Top-level UC") {
                         include(reader)
                         include(librarian)
                         include(borrow)
                         include(auth)
                         include(returnBook)
                         include(payFee)
-                        association(reader, borrow)
-                        association(librarian, borrow)
-                        include(borrow, auth)
-                        extend(payFee, returnBook)
+                        association(actor = reader, useCase = borrow)
+                        association(actor = librarian, useCase = borrow)
+                        include(source = borrow, target = auth)
+                        extend(source = payFee, target = returnBook)
                     }
                 }
             // 2 actors + 4 use-cases = 6 definitions.
@@ -402,15 +402,15 @@ class Sysml2DslTest :
             // include(UseCaseDefinition, UseCaseDefinition). Kotlin overload
             // resolution picks the right one — assert both work in one block.
             val model =
-                sysml2Model("DisambigDemo") {
-                    val borrow = useCaseDef("BorrowBook")
-                    val auth = useCaseDef("Authenticate")
-                    ucDiagram("UC") {
+                sysml2Model(name = "DisambigDemo") {
+                    val borrow = useCaseDef(name = "BorrowBook")
+                    val auth = useCaseDef(name = "Authenticate")
+                    ucDiagram(name = "UC") {
                         // One-arg form → add use-case as a node.
                         include(borrow)
                         include(auth)
                         // Two-arg form → create the «include» relationship.
-                        include(borrow, auth)
+                        include(source = borrow, target = auth)
                     }
                 }
             val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
@@ -429,21 +429,21 @@ class Sysml2DslTest :
 
         "ucDiagram associations / includes / extends have deterministic ids" {
             val model =
-                sysml2Model("IdShape") {
-                    val reader = actorDef("Reader")
-                    val borrow = useCaseDef("BorrowBook")
-                    val auth = useCaseDef("Authenticate")
-                    val returnBook = useCaseDef("ReturnBook")
-                    val payFee = useCaseDef("PayLateFee")
-                    ucDiagram("UC") {
+                sysml2Model(name = "IdShape") {
+                    val reader = actorDef(name = "Reader")
+                    val borrow = useCaseDef(name = "BorrowBook")
+                    val auth = useCaseDef(name = "Authenticate")
+                    val returnBook = useCaseDef(name = "ReturnBook")
+                    val payFee = useCaseDef(name = "PayLateFee")
+                    ucDiagram(name = "UC") {
                         include(reader)
                         include(borrow)
                         include(auth)
                         include(returnBook)
                         include(payFee)
-                        association(reader, borrow)
-                        include(borrow, auth)
-                        extend(payFee, returnBook)
+                        association(actor = reader, useCase = borrow)
+                        include(source = borrow, target = auth)
+                        extend(source = payFee, target = returnBook)
                     }
                 }
             val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
@@ -460,17 +460,17 @@ class Sysml2DslTest :
 
         "ucDiagram supports forward references via id-only overloads" {
             val model =
-                sysml2Model("Forward") {
-                    actorDef("Reader")
-                    useCaseDef("BorrowBook")
-                    useCaseDef("Authenticate")
-                    ucDiagram("UC") {
+                sysml2Model(name = "Forward") {
+                    actorDef(name = "Reader")
+                    useCaseDef(name = "BorrowBook")
+                    useCaseDef(name = "Authenticate")
+                    ucDiagram(name = "UC") {
                         includeById("Reader")
                         includeById("BorrowBook")
                         includeById("Authenticate")
-                        associationById("Reader", "BorrowBook")
-                        includeById("BorrowBook", "Authenticate")
-                        extendById("Authenticate", "BorrowBook")
+                        associationById(actorId = "Reader", useCaseId = "BorrowBook")
+                        includeById(sourceId = "BorrowBook", targetId = "Authenticate")
+                        extendById(sourceId = "Authenticate", targetId = "BorrowBook")
                     }
                 }
             val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
@@ -490,34 +490,34 @@ class Sysml2DslTest :
 
         "reqDiagram captures requirements, satisfies, verifies, derives, contains" {
             val model =
-                sysml2Model("VehicleReqs") {
+                sysml2Model(name = "VehicleReqs") {
                     val topSpeed =
                         requirementDef(
-                            "TopSpeedRequirement",
+                            name = "TopSpeedRequirement",
                             reqId = "R-001",
                             text = "The vehicle shall reach at least 180 km/h on flat road",
                         )
                     val fuel =
                         requirementDef(
-                            "FuelEfficiencyRequirement",
+                            name = "FuelEfficiencyRequirement",
                             reqId = "R-003",
                             text = "The vehicle shall consume less than 4 l/100km combined",
                         )
-                    val emissions = requirementDef("EmissionsRequirement", reqId = "R-004")
-                    val nox = requirementDef("NOxRequirement", reqId = "R-005")
-                    val vehicle = partDef("Vehicle")
-                    val verifyTopSpeed = useCaseDef("VerifyTopSpeed")
-                    reqDiagram("Top-level") {
+                    val emissions = requirementDef(name = "EmissionsRequirement", reqId = "R-004")
+                    val nox = requirementDef(name = "NOxRequirement", reqId = "R-005")
+                    val vehicle = partDef(name = "Vehicle")
+                    val verifyTopSpeed = useCaseDef(name = "VerifyTopSpeed")
+                    reqDiagram(name = "Top-level") {
                         include(topSpeed)
                         include(fuel)
                         include(emissions)
                         include(nox)
                         include(vehicle)
                         include(verifyTopSpeed)
-                        satisfy(vehicle, topSpeed)
-                        verify(verifyTopSpeed, topSpeed)
-                        derive(topSpeed, fuel)
-                        contains(emissions, nox)
+                        satisfy(source = vehicle, requirement = topSpeed)
+                        verify(source = verifyTopSpeed, requirement = topSpeed)
+                        derive(source = topSpeed, target = fuel)
+                        contains(parent = emissions, child = nox)
                     }
                 }
             model.definitions.filterIsInstance<RequirementDefinition>() shouldHaveSize 4
@@ -541,9 +541,9 @@ class Sysml2DslTest :
 
         "RequirementDefinition stores text, reqId, and subject" {
             val model =
-                sysml2Model("M") {
+                sysml2Model(name = "M") {
                     requirementDef(
-                        "TopSpeedRequirement",
+                        name = "TopSpeedRequirement",
                         reqId = "R-001",
                         text = "The vehicle shall reach at least 180 km/h on flat road",
                         subject = "Vehicle",
@@ -557,24 +557,24 @@ class Sysml2DslTest :
 
         "reqDiagram edge ids are deterministic" {
             val model =
-                sysml2Model("IdShape") {
-                    val r1 = requirementDef("TopSpeed", reqId = "R-001")
-                    val r2 = requirementDef("Fuel", reqId = "R-003")
-                    val r3 = requirementDef("Emissions", reqId = "R-004")
-                    val r4 = requirementDef("NOx", reqId = "R-005")
-                    val vehicle = partDef("Vehicle")
-                    val verifier = useCaseDef("VerifyTopSpeed")
-                    reqDiagram("REQ") {
+                sysml2Model(name = "IdShape") {
+                    val r1 = requirementDef(name = "TopSpeed", reqId = "R-001")
+                    val r2 = requirementDef(name = "Fuel", reqId = "R-003")
+                    val r3 = requirementDef(name = "Emissions", reqId = "R-004")
+                    val r4 = requirementDef(name = "NOx", reqId = "R-005")
+                    val vehicle = partDef(name = "Vehicle")
+                    val verifier = useCaseDef(name = "VerifyTopSpeed")
+                    reqDiagram(name = "REQ") {
                         include(r1)
                         include(r2)
                         include(r3)
                         include(r4)
                         include(vehicle)
                         include(verifier)
-                        satisfy(vehicle, r1)
-                        verify(verifier, r1)
-                        derive(r1, r2)
-                        contains(r3, r4)
+                        satisfy(source = vehicle, requirement = r1)
+                        verify(source = verifier, requirement = r1)
+                        derive(source = r1, target = r2)
+                        contains(parent = r3, child = r4)
                     }
                 }
             val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
@@ -594,24 +594,24 @@ class Sysml2DslTest :
 
         "reqDiagram forward refs via includeById / *ById overloads work" {
             val model =
-                sysml2Model("Forward") {
-                    requirementDef("TopSpeed", reqId = "R-001")
-                    requirementDef("Fuel", reqId = "R-003")
-                    requirementDef("Emissions", reqId = "R-004")
-                    requirementDef("NOx", reqId = "R-005")
-                    partDef("Vehicle")
-                    useCaseDef("VerifyTopSpeed")
-                    reqDiagram("REQ") {
+                sysml2Model(name = "Forward") {
+                    requirementDef(name = "TopSpeed", reqId = "R-001")
+                    requirementDef(name = "Fuel", reqId = "R-003")
+                    requirementDef(name = "Emissions", reqId = "R-004")
+                    requirementDef(name = "NOx", reqId = "R-005")
+                    partDef(name = "Vehicle")
+                    useCaseDef(name = "VerifyTopSpeed")
+                    reqDiagram(name = "REQ") {
                         includeById("TopSpeed")
                         includeById("Fuel")
                         includeById("Emissions")
                         includeById("NOx")
                         includeById("Vehicle")
                         includeById("VerifyTopSpeed")
-                        satisfyById("Vehicle", "TopSpeed")
-                        verifyById("VerifyTopSpeed", "TopSpeed")
-                        deriveById("TopSpeed", "Fuel")
-                        containsById("Emissions", "NOx")
+                        satisfyById(sourceId = "Vehicle", requirementId = "TopSpeed")
+                        verifyById(sourceId = "VerifyTopSpeed", requirementId = "TopSpeed")
+                        deriveById(sourceRequirementId = "TopSpeed", targetRequirementId = "Fuel")
+                        containsById(parentRequirementId = "Emissions", childRequirementId = "NOx")
                     }
                 }
             val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
@@ -635,11 +635,11 @@ class Sysml2DslTest :
 
         "stateDef stores isInitial/isFinal/entry/exit/do action fields" {
             val model =
-                sysml2Model("StateFields") {
-                    stateDef("Initial", isInitial = true)
-                    stateDef("Final", isFinal = true)
+                sysml2Model(name = "StateFields") {
+                    stateDef(name = "Initial", isInitial = true)
+                    stateDef(name = "Final", isFinal = true)
                     stateDef(
-                        "Red",
+                        name = "Red",
                         entryAction = "switchLights('red')",
                         exitAction = "logTransition('red')",
                         doAction = "tickTimer()",
@@ -666,9 +666,9 @@ class Sysml2DslTest :
 
         "transition registers a TransitionUsage in model.usages with source/target/trigger/guard/effect" {
             val model =
-                sysml2Model("Lights") {
-                    val red = stateDef("Red")
-                    val green = stateDef("Green")
+                sysml2Model(name = "Lights") {
+                    val red = stateDef(name = "Red")
+                    val green = stateDef(name = "Green")
                     transition(
                         name = "redToGreen",
                         source = red,
@@ -693,16 +693,16 @@ class Sysml2DslTest :
 
         "stmDiagram captures state ids in declaration order" {
             val model =
-                sysml2Model("TrafficLights") {
-                    val initial = stateDef("Initial", isInitial = true)
-                    val red = stateDef("Red")
-                    val green = stateDef("Green")
-                    val yellow = stateDef("Yellow")
-                    transition("initial", initial, red)
-                    transition("redToGreen", red, green, trigger = "timer60s")
-                    transition("greenToYellow", green, yellow, trigger = "timer45s")
-                    transition("yellowToRed", yellow, red, trigger = "timer5s")
-                    stmDiagram("Phase cycle") {
+                sysml2Model(name = "TrafficLights") {
+                    val initial = stateDef(name = "Initial", isInitial = true)
+                    val red = stateDef(name = "Red")
+                    val green = stateDef(name = "Green")
+                    val yellow = stateDef(name = "Yellow")
+                    transition(name = "initial", source = initial, target = red)
+                    transition(name = "redToGreen", source = red, target = green, trigger = "timer60s")
+                    transition(name = "greenToYellow", source = green, target = yellow, trigger = "timer45s")
+                    transition(name = "yellowToRed", source = yellow, target = red, trigger = "timer5s")
+                    stmDiagram(name = "Phase cycle") {
                         include(initial)
                         include(red)
                         include(green)
@@ -720,16 +720,16 @@ class Sysml2DslTest :
             // Useful when replaying a state machine from an external source where
             // the StateDefinition references are not yet in scope.
             val model =
-                sysml2Model("ForwardRefSTM") {
-                    stateDef("Red")
-                    stateDef("Green")
+                sysml2Model(name = "ForwardRefSTM") {
+                    stateDef(name = "Red")
+                    stateDef(name = "Green")
                     transitionById(
                         name = "redToGreen",
                         sourceStateId = "Red",
                         targetStateId = "Green",
                         trigger = "timer60s",
                     )
-                    stmDiagram("STM") {
+                    stmDiagram(name = "STM") {
                         includeById("Red")
                         includeById("Green")
                     }
@@ -748,7 +748,7 @@ class Sysml2DslTest :
 
         "V2.0.10 actionDef stores kind + action body" {
             val model =
-                sysml2Model("ActTest") {
+                sysml2Model(name = "ActTest") {
                     actionDef(
                         name = "ValidateOrder",
                         action = "validate(order)",
@@ -763,14 +763,14 @@ class Sysml2DslTest :
 
         "V2.0.10 pseudo-node helpers produce the right ActivityNodeKind" {
             val model =
-                sysml2Model("ActTest") {
+                sysml2Model(name = "ActTest") {
                     initialNode()
                     finalNode()
                     flowFinalNode()
-                    decisionNode("Valid?")
-                    mergeNode("Done?")
-                    forkNode("Split")
-                    joinNode("Sync")
+                    decisionNode(name = "Valid?")
+                    mergeNode(name = "Done?")
+                    forkNode(name = "Split")
+                    joinNode(name = "Sync")
                 }
             val byName = model.definitions.filterIsInstance<ActionDefinition>().associateBy { it.name }
             byName.getValue("Initial").kind shouldBe ActivityNodeKind.Initial
@@ -784,9 +784,9 @@ class Sysml2DslTest :
 
         "V2.0.10 controlFlow registers a ControlFlowUsage with source/target/guard" {
             val model =
-                sysml2Model("ActTest") {
-                    val a = actionDef("A")
-                    val b = actionDef("B")
+                sysml2Model(name = "ActTest") {
+                    val a = actionDef(name = "A")
+                    val b = actionDef(name = "B")
                     controlFlow(name = "aToB", source = a, target = b, guard = "valid")
                 }
             val flow = model.usages.filterIsInstance<ControlFlowUsage>().single()
@@ -799,9 +799,9 @@ class Sysml2DslTest :
 
         "V2.0.10 objectFlow registers an ObjectFlowUsage with objectType" {
             val model =
-                sysml2Model("ActTest") {
-                    val a = actionDef("Validate")
-                    val b = actionDef("Process")
+                sysml2Model(name = "ActTest") {
+                    val a = actionDef(name = "Validate")
+                    val b = actionDef(name = "Process")
                     objectFlow(name = "carry", source = a, target = b, objectType = "Order")
                 }
             val flow = model.usages.filterIsInstance<ObjectFlowUsage>().single()
@@ -814,13 +814,13 @@ class Sysml2DslTest :
 
         "V2.0.10 actDiagram captures element ids in declaration order" {
             val model =
-                sysml2Model("ActTest") {
+                sysml2Model(name = "ActTest") {
                     val init = initialNode()
-                    val validate = actionDef("Validate")
+                    val validate = actionDef(name = "Validate")
                     val fin = finalNode()
-                    controlFlow("start", init, validate)
-                    controlFlow("end", validate, fin)
-                    actDiagram("Workflow") {
+                    controlFlow(name = "start", source = init, target = validate)
+                    controlFlow(name = "end", source = validate, target = fin)
+                    actDiagram(name = "Workflow") {
                         include(init)
                         include(validate)
                         include(fin)
@@ -837,8 +837,8 @@ class Sysml2DslTest :
 
         "V2.0.16 activityPartition produces an ActivityPartitionDefinition with represents reference" {
             val model =
-                sysml2Model("ActPartitionTest") {
-                    partDef("Customer")
+                sysml2Model(name = "ActPartitionTest") {
+                    partDef(name = "Customer")
                     activityPartition(name = "CustomerLane", id = "CustomerLane", represents = "Customer")
                 }
             val partition = model.definitions.filterIsInstance<ActivityPartitionDefinition>().single()
@@ -849,8 +849,8 @@ class Sysml2DslTest :
 
         "V2.0.16 actionDef with partition assigns partitionId" {
             val model =
-                sysml2Model("ActPartitionTest") {
-                    val customer = activityPartition("Customer")
+                sysml2Model(name = "ActPartitionTest") {
+                    val customer = activityPartition(name = "Customer")
                     actionDef(name = "PlaceOrder", partition = customer)
                 }
             val action = model.definitions.filterIsInstance<ActionDefinition>().single()
@@ -860,7 +860,7 @@ class Sysml2DslTest :
 
         "V2.0.16 actionDef with pins captures direction + typeId" {
             val model =
-                sysml2Model("ActPinTest") {
+                sysml2Model(name = "ActPinTest") {
                     actionDef(
                         name = "ValidateOrder",
                         pins =
@@ -881,16 +881,16 @@ class Sysml2DslTest :
 
         "V2.0.16 pseudo-node helpers (initialNode, finalNode, ...) accept partition" {
             val model =
-                sysml2Model("ActPseudoPartitionTest") {
-                    val customer = activityPartition("Customer")
-                    val orderSys = activityPartition("OrderSystem")
+                sysml2Model(name = "ActPseudoPartitionTest") {
+                    val customer = activityPartition(name = "Customer")
+                    val orderSys = activityPartition(name = "OrderSystem")
                     initialNode(partition = customer)
                     finalNode(partition = orderSys)
                     flowFinalNode(partition = orderSys)
-                    decisionNode("Valid?", partition = orderSys)
-                    mergeNode("Joined", partition = orderSys)
-                    forkNode("Split", partition = orderSys)
-                    joinNode("Sync", partition = orderSys)
+                    decisionNode(name = "Valid?", partition = orderSys)
+                    mergeNode(name = "Joined", partition = orderSys)
+                    forkNode(name = "Split", partition = orderSys)
+                    joinNode(name = "Sync", partition = orderSys)
                 }
             val byName = model.definitions.filterIsInstance<ActionDefinition>().associateBy { it.name }
             byName.getValue("Initial").partitionId shouldBe "Customer"
@@ -906,8 +906,8 @@ class Sysml2DslTest :
 
         "V2.0.11 lifelineDef stores represents reference" {
             val model =
-                sysml2Model("SeqTest") {
-                    partDef("Browser")
+                sysml2Model(name = "SeqTest") {
+                    partDef(name = "Browser")
                     lifelineDef(name = "browser", id = "browser", represents = "Browser")
                 }
             val lifeline = model.definitions.filterIsInstance<LifelineDefinition>().single()
@@ -918,9 +918,9 @@ class Sysml2DslTest :
 
         "V2.0.11 message registers a MessageUsage with sourceLifelineId/targetLifelineId/seqNo/messageLabel/kind" {
             val model =
-                sysml2Model("SeqTest") {
-                    val user = lifelineDef("user")
-                    val browser = lifelineDef("browser")
+                sysml2Model(name = "SeqTest") {
+                    val user = lifelineDef(name = "user")
+                    val browser = lifelineDef(name = "browser")
                     message(label = "login(user, pwd)", source = user, target = browser, seqNo = 1)
                 }
             val msg = model.usages.filterIsInstance<MessageUsage>().single()
@@ -935,12 +935,12 @@ class Sysml2DslTest :
 
         "V2.0.11 message kinds default to Sync; explicit Async / Reply are preserved" {
             val model =
-                sysml2Model("SeqTest") {
-                    val a = lifelineDef("a")
-                    val b = lifelineDef("b")
-                    message("syncCall", a, b, seqNo = 1) // default Sync
-                    message("asyncCall", a, b, seqNo = 2, kind = MessageKind.Async)
-                    message("reply", b, a, seqNo = 3, kind = MessageKind.Reply)
+                sysml2Model(name = "SeqTest") {
+                    val a = lifelineDef(name = "a")
+                    val b = lifelineDef(name = "b")
+                    message(label = "syncCall", source = a, target = b, seqNo = 1) // default Sync
+                    message(label = "asyncCall", source = a, target = b, seqNo = 2, kind = MessageKind.Async)
+                    message(label = "reply", source = b, target = a, seqNo = 3, kind = MessageKind.Reply)
                 }
             val messages = model.usages.filterIsInstance<MessageUsage>().sortedBy { it.seqNo }
             messages shouldHaveSize 3
@@ -951,13 +951,13 @@ class Sysml2DslTest :
 
         "V2.0.11 seqDiagram captures lifeline ids in declaration order" {
             val model =
-                sysml2Model("SeqTest") {
-                    val user = lifelineDef("user")
-                    val browser = lifelineDef("browser")
-                    val auth = lifelineDef("authService")
-                    message("enterCredentials", user, browser, seqNo = 1)
-                    message("login", browser, auth, seqNo = 2)
-                    seqDiagram("Login flow") {
+                sysml2Model(name = "SeqTest") {
+                    val user = lifelineDef(name = "user")
+                    val browser = lifelineDef(name = "browser")
+                    val auth = lifelineDef(name = "authService")
+                    message(label = "enterCredentials", source = user, target = browser, seqNo = 1)
+                    message(label = "login", source = browser, target = auth, seqNo = 2)
+                    seqDiagram(name = "Login flow") {
                         include(user)
                         include(browser)
                         include(auth)
@@ -972,9 +972,9 @@ class Sysml2DslTest :
 
         "V2.0.11 messageById accepts id-only endpoints for forward refs" {
             val model =
-                sysml2Model("ForwardRefSEQ") {
-                    lifelineDef("a")
-                    lifelineDef("b")
+                sysml2Model(name = "ForwardRefSEQ") {
+                    lifelineDef(name = "a")
+                    lifelineDef(name = "b")
                     messageById(
                         label = "ping",
                         sourceLifelineId = "a",
@@ -982,7 +982,7 @@ class Sysml2DslTest :
                         seqNo = 1,
                         kind = MessageKind.Async,
                     )
-                    seqDiagram("SEQ") {
+                    seqDiagram(name = "SEQ") {
                         includeById("a")
                         includeById("b")
                     }
@@ -996,15 +996,15 @@ class Sysml2DslTest :
 
         "V2.0.12 constraintDef stores expression and parameters" {
             val model =
-                sysml2Model("PARExpression") {
+                sysml2Model(name = "PARExpression") {
                     constraintDef(
-                        "NewtonsLaw",
+                        name = "NewtonsLaw",
                         expression = "F = m * a",
                         parameters =
                             listOf(
-                                ConstraintParameter("F", typeId = "Force", direction = ConstraintParameterDirection.Out),
-                                ConstraintParameter("m", typeId = "Mass", direction = ConstraintParameterDirection.In),
-                                ConstraintParameter("a", typeId = "Acceleration", direction = ConstraintParameterDirection.In),
+                                ConstraintParameter(name = "F", typeId = "Force", direction = ConstraintParameterDirection.Out),
+                                ConstraintParameter(name = "m", typeId = "Mass", direction = ConstraintParameterDirection.In),
+                                ConstraintParameter(name = "a", typeId = "Acceleration", direction = ConstraintParameterDirection.In),
                             ),
                     )
                 }
@@ -1018,32 +1018,32 @@ class Sysml2DslTest :
         }
 
         "V2.0.12 ConstraintParameter direction defaults to Inout; explicit In / Out are preserved" {
-            val pDefault = ConstraintParameter("p")
+            val pDefault = ConstraintParameter(name = "p")
             pDefault.direction shouldBe ConstraintParameterDirection.Inout
             pDefault.typeId shouldBe null
 
-            val pIn = ConstraintParameter("m", typeId = "Mass", direction = ConstraintParameterDirection.In)
+            val pIn = ConstraintParameter(name = "m", typeId = "Mass", direction = ConstraintParameterDirection.In)
             pIn.direction shouldBe ConstraintParameterDirection.In
             pIn.typeId shouldBe "Mass"
 
-            val pOut = ConstraintParameter("F", typeId = "Force", direction = ConstraintParameterDirection.Out)
+            val pOut = ConstraintParameter(name = "F", typeId = "Force", direction = ConstraintParameterDirection.Out)
             pOut.direction shouldBe ConstraintParameterDirection.Out
             pOut.typeId shouldBe "Force"
         }
 
         "V2.0.12 bind registers a BindingConnectorUsage in model.usages with both endpoint ids" {
             val model =
-                sysml2Model("PARBinding") {
-                    val mass = attributeDef("Mass")
+                sysml2Model(name = "PARBinding") {
+                    val mass = attributeDef(name = "Mass")
                     constraintDef(
-                        "NewtonsLaw",
+                        name = "NewtonsLaw",
                         expression = "F = m * a",
-                        parameters = listOf(ConstraintParameter("m", typeId = mass.id, direction = ConstraintParameterDirection.In)),
+                        parameters = listOf(ConstraintParameter(name = "m", typeId = mass.id, direction = ConstraintParameterDirection.In)),
                     )
-                    partDef("Vehicle") {
-                        attribute("mass", typeId = mass.id)
+                    partDef(name = "Vehicle") {
+                        attribute(name = "mass", typeId = mass.id)
                     }
-                    bind("bindMass", source = "NewtonsLaw::m", target = "Vehicle::mass")
+                    bind(name = "bindMass", source = "NewtonsLaw::m", target = "Vehicle::mass")
                 }
             val binding = model.usages.filterIsInstance<BindingConnectorUsage>().single()
             binding.name shouldBe "bindMass"
@@ -1055,31 +1055,31 @@ class Sysml2DslTest :
 
         "V2.0.12 parDiagram captures element ids including a mix of constraints and parts" {
             val model =
-                sysml2Model("PARMix") {
-                    val mass = attributeDef("Mass")
-                    val accel = attributeDef("Acceleration")
-                    val force = attributeDef("Force")
+                sysml2Model(name = "PARMix") {
+                    val mass = attributeDef(name = "Mass")
+                    val accel = attributeDef(name = "Acceleration")
+                    val force = attributeDef(name = "Force")
                     val newton =
                         constraintDef(
-                            "NewtonsLaw",
+                            name = "NewtonsLaw",
                             expression = "F = m * a",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("F", typeId = force.id, direction = ConstraintParameterDirection.Out),
-                                    ConstraintParameter("m", typeId = mass.id, direction = ConstraintParameterDirection.In),
-                                    ConstraintParameter("a", typeId = accel.id, direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "F", typeId = force.id, direction = ConstraintParameterDirection.Out),
+                                    ConstraintParameter(name = "m", typeId = mass.id, direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "a", typeId = accel.id, direction = ConstraintParameterDirection.In),
                                 ),
                         )
                     val vehicle =
-                        partDef("Vehicle") {
-                            attribute("mass", typeId = mass.id)
-                            attribute("acceleration", typeId = accel.id)
-                            attribute("force", typeId = force.id)
+                        partDef(name = "Vehicle") {
+                            attribute(name = "mass", typeId = mass.id)
+                            attribute(name = "acceleration", typeId = accel.id)
+                            attribute(name = "force", typeId = force.id)
                         }
-                    bind("bindMass", source = "NewtonsLaw::m", target = "Vehicle::mass")
-                    bind("bindAccel", source = "NewtonsLaw::a", target = "Vehicle::acceleration")
-                    bind("bindForce", source = "NewtonsLaw::F", target = "Vehicle::force")
-                    parDiagram("Newton — F = m·a applied to Vehicle") {
+                    bind(name = "bindMass", source = "NewtonsLaw::m", target = "Vehicle::mass")
+                    bind(name = "bindAccel", source = "NewtonsLaw::a", target = "Vehicle::acceleration")
+                    bind(name = "bindForce", source = "NewtonsLaw::F", target = "Vehicle::force")
+                    parDiagram(name = "Newton — F = m·a applied to Vehicle") {
                         include(newton)
                         include(vehicle)
                     }
@@ -1105,11 +1105,11 @@ class Sysml2DslTest :
 
         "combinedFragment with multiple operands captures operator + operands" {
             val model =
-                sysml2Model("CF") {
-                    val a = lifelineDef("a")
-                    val b = lifelineDef("b")
-                    message("ping", a, b, seqNo = 1)
-                    message("pong", b, a, seqNo = 2)
+                sysml2Model(name = "CF") {
+                    val a = lifelineDef(name = "a")
+                    val b = lifelineDef(name = "b")
+                    message(label = "ping", source = a, target = b, seqNo = 1)
+                    message(label = "pong", source = b, target = a, seqNo = 2)
                     combinedFragment(
                         name = "altBlock",
                         operator = CombinedFragmentOperator.Alt,
@@ -1119,7 +1119,7 @@ class Sysml2DslTest :
                                 CombinedFragmentOperand(guard = "fail", startSeqNo = 2, endSeqNo = 2),
                             ),
                     )
-                    seqDiagram("S") {
+                    seqDiagram(name = "S") {
                         include(a)
                         include(b)
                     }
@@ -1134,12 +1134,12 @@ class Sysml2DslTest :
 
         "combinedFragment single-operand convenience produces one Opt with no guard" {
             val model =
-                sysml2Model("CF") {
-                    val a = lifelineDef("a")
-                    val b = lifelineDef("b")
-                    message("ping", a, b, seqNo = 1)
-                    combinedFragment("optBlock", CombinedFragmentOperator.Opt, startSeqNo = 1, endSeqNo = 1)
-                    seqDiagram("S") {
+                sysml2Model(name = "CF") {
+                    val a = lifelineDef(name = "a")
+                    val b = lifelineDef(name = "b")
+                    message(label = "ping", source = a, target = b, seqNo = 1)
+                    combinedFragment(name = "optBlock", operator = CombinedFragmentOperator.Opt, startSeqNo = 1, endSeqNo = 1)
+                    seqDiagram(name = "S") {
                         include(a)
                         include(b)
                     }
@@ -1154,12 +1154,12 @@ class Sysml2DslTest :
 
         "executionSpec captures lifelineId + start/end seqNo" {
             val model =
-                sysml2Model("ES") {
-                    val a = lifelineDef("a")
-                    val b = lifelineDef("b")
-                    message("ping", a, b, seqNo = 1)
-                    executionSpec("activeA", a, startSeqNo = 1, endSeqNo = 3)
-                    seqDiagram("S") {
+                sysml2Model(name = "ES") {
+                    val a = lifelineDef(name = "a")
+                    val b = lifelineDef(name = "b")
+                    message(label = "ping", source = a, target = b, seqNo = 1)
+                    executionSpec(name = "activeA", lifeline = a, startSeqNo = 1, endSeqNo = 3)
+                    seqDiagram(name = "S") {
                         include(a)
                         include(b)
                     }
@@ -1174,14 +1174,14 @@ class Sysml2DslTest :
 
         "all Sysml2 usages register on model.usages including CombinedFragmentUsage and ExecutionSpecificationUsage" {
             val model =
-                sysml2Model("Mixed") {
-                    val a = lifelineDef("a")
-                    val b = lifelineDef("b")
-                    message("ping", a, b, seqNo = 1)
-                    message("destroyB", a, b, seqNo = 2, kind = MessageKind.Destroy)
-                    combinedFragment("loopBlock", CombinedFragmentOperator.Loop, startSeqNo = 1, endSeqNo = 2)
-                    executionSpec("activeB", b, startSeqNo = 1, endSeqNo = 2)
-                    seqDiagram("S") {
+                sysml2Model(name = "Mixed") {
+                    val a = lifelineDef(name = "a")
+                    val b = lifelineDef(name = "b")
+                    message(label = "ping", source = a, target = b, seqNo = 1)
+                    message(label = "destroyB", source = a, target = b, seqNo = 2, kind = MessageKind.Destroy)
+                    combinedFragment(name = "loopBlock", operator = CombinedFragmentOperator.Loop, startSeqNo = 1, endSeqNo = 2)
+                    executionSpec(name = "activeB", lifeline = b, startSeqNo = 1, endSeqNo = 2)
+                    seqDiagram(name = "S") {
                         include(a)
                         include(b)
                     }
@@ -1202,9 +1202,9 @@ class Sysml2DslTest :
             // result type matches the public API. The exhaustive scope check is
             // a kotlinc-level invariant.
             val model =
-                sysml2Model("Smoke") {
-                    partDef("A") {
-                        attribute("a", typeId = "Real")
+                sysml2Model(name = "Smoke") {
+                    partDef(name = "A") {
+                        attribute(name = "a", typeId = "Real")
                     }
                 }
             model.definitions.shouldContain(

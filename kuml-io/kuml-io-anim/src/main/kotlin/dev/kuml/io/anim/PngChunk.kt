@@ -90,7 +90,7 @@ internal fun parsePngChunks(png: ByteArray): List<PngChunk> {
         if (length < 0 || pos + 12 + length > png.size) break
         val type = png.copyOfRange(pos + 4, pos + 8)
         val data = if (length > 0) png.copyOfRange(pos + 8, pos + 8 + length) else ByteArray(0)
-        chunks.add(PngChunk(type, data))
+        chunks.add(PngChunk(type = type, data = data))
         pos += 12 + length
     }
     return chunks

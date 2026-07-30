@@ -24,32 +24,32 @@ internal object PropertyAccessor {
     ): Any? =
         when {
             self is BpmnElement -> {
-                val resolved = BpmnPropertyAccessor.get(self, prop)
+                val resolved = BpmnPropertyAccessor.get(self = self, prop = prop)
                 if (resolved !== BpmnPropertyAccessor.NOT_FOUND) {
                     resolved
                 } else {
-                    throw OclEvaluationException("Cannot navigate property '$prop' on ${self::class.simpleName}")
+                    throw OclEvaluationException(message = "Cannot navigate property '$prop' on ${self::class.simpleName}")
                 }
             }
             self is PartDefinition -> {
-                val resolved = Sysml2PropertyAccessor.get(self, prop)
+                val resolved = Sysml2PropertyAccessor.get(self = self, prop = prop)
                 if (resolved !== Sysml2PropertyAccessor.NOT_FOUND) {
                     resolved
                 } else {
-                    throw OclEvaluationException("Cannot navigate property '$prop' on ${self::class.simpleName}")
+                    throw OclEvaluationException(message = "Cannot navigate property '$prop' on ${self::class.simpleName}")
                 }
             }
             // KermlFeature results from a prior Sysml2PropertyAccessor navigation —
             // keep resolving through the same accessor for chained navigation
             // (e.g. `self.mass.multiplicity`).
             self is dev.kuml.kerml.KermlFeature -> {
-                val resolved = Sysml2PropertyAccessor.get(self, prop)
+                val resolved = Sysml2PropertyAccessor.get(self = self, prop = prop)
                 if (resolved !== Sysml2PropertyAccessor.NOT_FOUND) {
                     resolved
                 } else {
-                    throw OclEvaluationException("Cannot navigate property '$prop' on ${self::class.simpleName}")
+                    throw OclEvaluationException(message = "Cannot navigate property '$prop' on ${self::class.simpleName}")
                 }
             }
-            else -> UmlPropertyAccessor.get(self, prop, model)
+            else -> UmlPropertyAccessor.get(self = self, prop = prop, model = model)
         }
 }

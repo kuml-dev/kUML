@@ -49,8 +49,8 @@ class WorkerPoolTest :
                 // In-process baseline, measured at STEADY STATE: warm the
                 // scripting host once (paying the ~1.5 s one-off compiler init),
                 // then measure — this is the ~136 ms floor Welle 2 reported.
-                InProcessScriptEvaluator.evaluate(minimalUml) // warm-up, discarded
-                val inProcessMs = measureTimeMillis { InProcessScriptEvaluator.evaluate(minimalUml) }
+                InProcessScriptEvaluator.evaluate(source = minimalUml) // warm-up, discarded
+                val inProcessMs = measureTimeMillis { InProcessScriptEvaluator.evaluate(source = minimalUml) }
 
                 // Warm-pool hit: a worker is already idle, so this pays neither
                 // JVM boot nor compiler warm-up — only IPC + serialization.
@@ -69,7 +69,7 @@ class WorkerPoolTest :
                     (1..3).map { attempt ->
                         if (attempt > 1) awaitIdle(pool, 1).shouldBeTrue()
                         lateinit var result: EvaluatedScript
-                        val ms = measureTimeMillis { result = pool.evaluate(minimalUml) }
+                        val ms = measureTimeMillis { result = pool.evaluate(source = minimalUml) }
                         result.shouldBeInstanceOf<EvaluatedScript.Success>()
                         ms
                     }
@@ -99,7 +99,7 @@ class WorkerPoolTest :
                 val futures: List<Future<EvaluatedScript>> =
                     (1..n).map { i ->
                         exec.submit<EvaluatedScript> {
-                            pool.evaluate("""diagram(name = "d$i", type = DiagramType.CLASS) {}""")
+                            pool.evaluate(source = """diagram(name = "d$i", type = DiagramType.CLASS) {}""")
                         }
                     }
                 val results = futures.map { it.get(90, TimeUnit.SECONDS) }
@@ -134,7 +134,7 @@ class WorkerPoolTest :
 
                 // The pool must not hand out a dead worker; it detects the deaths,
                 // refills, and the next request succeeds on a fresh worker.
-                val result = pool.evaluate(minimalUml)
+                val result = pool.evaluate(source = minimalUml)
                 result.shouldBeInstanceOf<EvaluatedScript.Success>()
             } finally {
                 pool.close()
@@ -159,8 +159,8 @@ class WorkerPoolTest :
             val pool = WorkerPool(poolSize = 2, maxConcurrentWorkers = 4)
             try {
                 awaitIdle(pool, 1).shouldBeTrue()
-                val first = pool.evaluate(c4Script)
-                val second = pool.evaluate(c4Script)
+                val first = pool.evaluate(source = c4Script)
+                val second = pool.evaluate(source = c4Script)
                 val a = first.shouldBeInstanceOf<EvaluatedScript.Success>().diagram
                 val b = second.shouldBeInstanceOf<EvaluatedScript.Success>().diagram
 
@@ -194,7 +194,7 @@ class WorkerPoolTest :
             stillAlive.isEmpty().shouldBeTrue()
 
             // Evaluating after close fails closed (SANDBOX), never runs in-process.
-            val afterClose = pool.evaluate(minimalUml)
+            val afterClose = pool.evaluate(source = minimalUml)
             val failure = afterClose.shouldBeInstanceOf<EvaluatedScript.Failure>()
             failure.kind shouldBe FailureKind.SANDBOX
         }
@@ -211,7 +211,7 @@ class WorkerPoolTest :
                     javaBinary = "/nonexistent/java-binary-that-does-not-exist",
                 )
             try {
-                val result = pool.evaluate(minimalUml)
+                val result = pool.evaluate(source = minimalUml)
                 val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                 failure.kind shouldBe FailureKind.SANDBOX
             } finally {
@@ -223,7 +223,7 @@ class WorkerPoolTest :
             val pool = WorkerPool(poolSize = 1, maxConcurrentWorkers = 2)
             try {
                 awaitIdle(pool, 1)
-                val result = pool.evaluate("""diagram(name = "x") {}; Runtime.getRuntime().exec("id")""")
+                val result = pool.evaluate(source = """diagram(name = "x") {}; Runtime.getRuntime().exec("id")""")
                 val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                 failure.kind shouldBe FailureKind.GUARD
             } finally {

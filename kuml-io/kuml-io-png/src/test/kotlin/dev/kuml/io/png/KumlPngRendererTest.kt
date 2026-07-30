@@ -30,10 +30,10 @@ private fun minimalDiagram(): Pair<KumlDiagram, LayoutResult> {
         LayoutResult(
             engineId = LayoutEngineId("test"),
             seed = 1L,
-            canvas = Size(200f, 100f),
+            canvas = Size(width = 200f, height = 100f),
             nodes =
                 mapOf(
-                    NodeId("cls1") to NodeLayout(bounds = Rect(Point(10f, 10f), Size(100f, 60f))),
+                    NodeId("cls1") to NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 100f, height = 60f))),
                 ),
             edges = emptyMap(),
             groups = emptyMap(),
@@ -50,10 +50,10 @@ class KumlPngRendererTest :
 
         test("toPng returns valid PNG bytes (magic header)") {
             val (diagram, layout) = minimalDiagram()
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
-            val bytes = KumlPngRenderer.toPng(svg)
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
+            val bytes = KumlPngRenderer.toPng(svg = svg)
 
-            SampleOutput.write("uml/class-box-default.png", bytes)
+            SampleOutput.write(filename = "uml/class-box-default.png", bytes = bytes)
 
             // PNG-Magic-Header: 89 50 4E 47 0D 0A 1A 0A
             val expected =
@@ -64,11 +64,11 @@ class KumlPngRendererTest :
 
         test("toPng respects widthPx option") {
             val (diagram, layout) = minimalDiagram()
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
             val targetWidth = 512
-            val bytes = KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = targetWidth))
+            val bytes = KumlPngRenderer.toPng(svg = svg, options = PngRenderOptions(widthPx = targetWidth))
 
-            SampleOutput.write("uml/class-box-512px.png", bytes)
+            SampleOutput.write(filename = "uml/class-box-512px.png", bytes = bytes)
 
             val image = readImage(bytes)
             image.width shouldBe targetWidth
@@ -78,15 +78,21 @@ class KumlPngRendererTest :
             val (diagram, layout) = minimalDiagram()
             // paintCanvasBackground=false: kein SVG-eigenes Hintergrund-Rect — sonst überdeckt
             // die weiße SVG-Rect die rote Batik-Hintergrundfarbe und der Test schlägt fehl.
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme(), SvgRenderOptions(paintCanvasBackground = false))
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    diagram = diagram,
+                    layoutResult = layout,
+                    theme = PlainTheme(),
+                    options = SvgRenderOptions(paintCanvasBackground = false),
+                )
             val bgColor = KumlColor(0xFF0000) // rot
             val bytes =
                 KumlPngRenderer.toPng(
-                    svg,
-                    PngRenderOptions(backgroundColor = bgColor, transparent = false),
+                    svg = svg,
+                    options = PngRenderOptions(backgroundColor = bgColor, transparent = false),
                 )
 
-            SampleOutput.write("uml/class-box-red-bg.png", bytes)
+            SampleOutput.write(filename = "uml/class-box-red-bg.png", bytes = bytes)
 
             val image = readImage(bytes)
             // Pixel (0, 0) ist Eckpixel — garantiert Hintergrund (kein Anti-Aliasing-Rand)
@@ -101,10 +107,10 @@ class KumlPngRendererTest :
 
         test("toPng with transparent flag produces alpha-channel PNG") {
             val (diagram, layout) = minimalDiagram()
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
-            val bytes = KumlPngRenderer.toPng(svg, PngRenderOptions(transparent = true))
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
+            val bytes = KumlPngRenderer.toPng(svg = svg, options = PngRenderOptions(transparent = true))
 
-            SampleOutput.write("uml/class-box-transparent.png", bytes)
+            SampleOutput.write(filename = "uml/class-box-transparent.png", bytes = bytes)
 
             val image = readImage(bytes)
             image.colorModel.hasAlpha() shouldBe true
@@ -117,12 +123,12 @@ class KumlPngRendererTest :
 
             val viaSvg =
                 KumlPngRenderer.toPng(
-                    KumlSvgRenderer.toSvg(diagram, layout, theme),
-                    options,
+                    svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = theme),
+                    options = options,
                 )
-            val viaConvenience = KumlPngRenderer.toPng(diagram, layout, theme, options)
+            val viaConvenience = KumlPngRenderer.toPng(diagram = diagram, layoutResult = layout, theme = theme, options = options)
 
-            SampleOutput.write("uml/class-box-convenience.png", viaConvenience)
+            SampleOutput.write(filename = "uml/class-box-convenience.png", bytes = viaConvenience)
 
             // Beide Pfade müssen byte-identisch sein
             viaConvenience shouldBe viaSvg

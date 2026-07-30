@@ -33,13 +33,13 @@ class ApiKeyVaultTest :
 
         test("put then get returns stored secret") {
             val vault = ApiKeyVault(FakeKeyVaultBackend())
-            vault.put(LLMProvider.OpenAI, "sk-test-123")
+            vault.put(provider = LLMProvider.OpenAI, key = "sk-test-123")
             vault.get(LLMProvider.OpenAI) shouldBe "sk-test-123"
         }
 
         test("delete removes secret idempotently") {
             val vault = ApiKeyVault(FakeKeyVaultBackend())
-            vault.put(LLMProvider.Anthropic, "ant-key-abc")
+            vault.put(provider = LLMProvider.Anthropic, key = "ant-key-abc")
             vault.delete(LLMProvider.Anthropic)
             vault.get(LLMProvider.Anthropic).shouldBeNull()
             // Second delete is a no-op

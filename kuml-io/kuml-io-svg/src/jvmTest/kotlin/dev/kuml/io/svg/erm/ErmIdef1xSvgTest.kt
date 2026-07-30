@@ -59,15 +59,19 @@ class ErmIdef1xSvgTest :
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.IDEF1X)
             val layout =
                 layoutOf(
-                    nodes = listOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)), "item" to Rect(Point(260f, 20f), Size(180f, 90f))),
-                    edges = listOf("rel1" to EdgeRoute.Direct(Point(200f, 65f), Point(260f, 65f))),
+                    nodes =
+                        listOf(
+                            "customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)),
+                            "item" to Rect(origin = Point(x = 260f, y = 20f), size = Size(width = 180f, height = 90f)),
+                        ),
+                    edges = listOf("rel1" to EdgeRoute.Direct(source = Point(x = 200f, y = 65f), target = Point(x = 260f, y = 65f))),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "kuml-edge\""
             svg shouldContain "kuml-erm-idef1x-dot"
-            SampleOutput.write("erm/idef1x-identifying.svg", svg)
+            SampleOutput.write(filename = "erm/idef1x-identifying.svg", content = svg)
         }
 
         "NON_IDENTIFYING relationship renders a dashed line; optional parent gets a diamond" {
@@ -89,17 +93,17 @@ class ErmIdef1xSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
-                            "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                            "customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)),
+                            "order" to Rect(origin = Point(x = 260f, y = 20f), size = Size(width = 180f, height = 90f)),
                         ),
-                    edges = listOf("rel1" to EdgeRoute.Direct(Point(200f, 65f), Point(260f, 65f))),
+                    edges = listOf("rel1" to EdgeRoute.Direct(source = Point(x = 200f, y = 65f), target = Point(x = 260f, y = 65f))),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "kuml-edge-dashed"
             svg shouldContain "kuml-erm-idef1x-diamond"
-            SampleOutput.write("erm/idef1x-non-identifying-optional-parent.svg", svg)
+            SampleOutput.write(filename = "erm/idef1x-non-identifying-optional-parent.svg", content = svg)
         }
 
         "mandatory parent (min>=1) end draws no diamond" {
@@ -121,16 +125,16 @@ class ErmIdef1xSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
-                            "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                            "customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)),
+                            "order" to Rect(origin = Point(x = 260f, y = 20f), size = Size(width = 180f, height = 90f)),
                         ),
-                    edges = listOf("rel1" to EdgeRoute.Direct(Point(200f, 65f), Point(260f, 65f))),
+                    edges = listOf("rel1" to EdgeRoute.Direct(source = Point(x = 200f, y = 65f), target = Point(x = 260f, y = 65f))),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldNotContain "class=\"kuml-erm-idef1x-diamond\""
-            SampleOutput.write("erm/idef1x-mandatory-parent-no-diamond.svg", svg)
+            SampleOutput.write(filename = "erm/idef1x-mandatory-parent-no-diamond.svg", content = svg)
         }
 
         "cardinality annotation P/Z render for (1,N) and (0,1) child ends" {
@@ -166,25 +170,32 @@ class ErmIdef1xSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            "customer" to Rect(Point(20f, 20f), Size(160f, 90f)),
-                            "order" to Rect(Point(220f, 20f), Size(160f, 90f)),
-                            "profile" to Rect(Point(420f, 20f), Size(160f, 90f)),
+                            "customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 160f, height = 90f)),
+                            "order" to Rect(origin = Point(x = 220f, y = 20f), size = Size(width = 160f, height = 90f)),
+                            "profile" to Rect(origin = Point(x = 420f, y = 20f), size = Size(width = 160f, height = 90f)),
                         ),
                     edges =
                         listOf(
-                            "rel1" to EdgeRoute.Direct(Point(180f, 65f), Point(220f, 65f)),
-                            "rel2" to EdgeRoute.Direct(Point(180f, 65f), Point(420f, 65f)),
+                            "rel1" to EdgeRoute.Direct(source = Point(x = 180f, y = 65f), target = Point(x = 220f, y = 65f)),
+                            "rel2" to EdgeRoute.Direct(source = Point(x = 180f, y = 65f), target = Point(x = 420f, y = 65f)),
                         ),
                 )
 
             // Non-pretty output so the cardinality glyph's text content sits
             // directly between its tag brackets (`>P<`) for a reliable substring check.
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), SvgRenderOptions(prettyPrint = false))
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layout,
+                    theme = PlainTheme(),
+                    options = SvgRenderOptions(prettyPrint = false),
+                )
 
             svg shouldContain "kuml-erm-idef1x-card"
             svg shouldContain ">P<"
             svg shouldContain ">Z<"
-            SampleOutput.write("erm/idef1x-cardinality-annotations.svg", svg)
+            SampleOutput.write(filename = "erm/idef1x-cardinality-annotations.svg", content = svg)
         }
 
         "dependent entity (weak) renders with rounded corners; independent entity does not" {
@@ -194,11 +205,18 @@ class ErmIdef1xSvgTest :
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.IDEF1X)
             val layout =
                 layoutOf(
-                    "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
-                    "item" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                    "customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)),
+                    "item" to Rect(origin = Point(x = 260f, y = 20f), size = Size(width = 180f, height = 90f)),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), SvgRenderOptions(prettyPrint = false))
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layout,
+                    theme = PlainTheme(),
+                    options = SvgRenderOptions(prettyPrint = false),
+                )
 
             // The weak "item" entity's outer rect carries rx/ry; the independent
             // "customer" entity's does not.
@@ -210,7 +228,7 @@ class ErmIdef1xSvgTest :
             val customerGroupStart = svg.indexOf("id=\"customer\"")
             val customerRectSnippet = svg.substring(customerGroupStart, customerGroupStart + 200)
             customerRectSnippet shouldNotContain "rx="
-            SampleOutput.write("erm/idef1x-dependent-vs-independent-entity.svg", svg)
+            SampleOutput.write(filename = "erm/idef1x-dependent-vs-independent-entity.svg", content = svg)
         }
 
         "identifying relationship's target entity renders with rounded corners even when not marked weak" {
@@ -232,18 +250,25 @@ class ErmIdef1xSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
-                            "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                            "customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)),
+                            "order" to Rect(origin = Point(x = 260f, y = 20f), size = Size(width = 180f, height = 90f)),
                         ),
-                    edges = listOf("rel1" to EdgeRoute.Direct(Point(200f, 65f), Point(260f, 65f))),
+                    edges = listOf("rel1" to EdgeRoute.Direct(source = Point(x = 200f, y = 65f), target = Point(x = 260f, y = 65f))),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), SvgRenderOptions(prettyPrint = false))
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layout,
+                    theme = PlainTheme(),
+                    options = SvgRenderOptions(prettyPrint = false),
+                )
 
             val orderGroupStart = svg.indexOf("id=\"order\"")
             val orderRectSnippet = svg.substring(orderGroupStart, orderGroupStart + 200)
             orderRectSnippet shouldContain "rx="
-            SampleOutput.write("erm/idef1x-identifying-target-rounded.svg", svg)
+            SampleOutput.write(filename = "erm/idef1x-identifying-target-rounded.svg", content = svg)
         }
 
         "category renders a discriminator circle; complete gets two completeness bars" {
@@ -265,29 +290,29 @@ class ErmIdef1xSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            "party" to Rect(Point(20f, 20f), Size(160f, 60f)),
-                            circleNodeId to Rect(Point(80f, 140f), Size(24f, 24f)),
-                            "person" to Rect(Point(20f, 220f), Size(160f, 60f)),
-                            "org" to Rect(Point(220f, 220f), Size(160f, 60f)),
+                            "party" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 160f, height = 60f)),
+                            circleNodeId to Rect(origin = Point(x = 80f, y = 140f), size = Size(width = 24f, height = 24f)),
+                            "person" to Rect(origin = Point(x = 20f, y = 220f), size = Size(width = 160f, height = 60f)),
+                            "org" to Rect(origin = Point(x = 220f, y = 220f), size = Size(width = 160f, height = 60f)),
                         ),
                     edges =
                         listOf(
                             (ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUP_PREFIX + "category_0") to
-                                EdgeRoute.Direct(Point(100f, 80f), Point(92f, 140f)),
+                                EdgeRoute.Direct(source = Point(x = 100f, y = 80f), target = Point(x = 92f, y = 140f)),
                             (ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUB_PREFIX + "category_0::person") to
-                                EdgeRoute.Direct(Point(92f, 164f), Point(100f, 220f)),
+                                EdgeRoute.Direct(source = Point(x = 92f, y = 164f), target = Point(x = 100f, y = 220f)),
                             (ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUB_PREFIX + "category_0::org") to
-                                EdgeRoute.Direct(Point(92f, 164f), Point(300f, 220f)),
+                                EdgeRoute.Direct(source = Point(x = 92f, y = 164f), target = Point(x = 300f, y = 220f)),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "kuml-erm-idef1x-category"
             svg shouldContain "kuml-erm-idef1x-completeness"
             val completenessBarCount = Regex("class=\"kuml-erm-idef1x-completeness\"").findAll(svg).count()
             completenessBarCount shouldBe 2
-            SampleOutput.write("erm/idef1x-category-complete.svg", svg)
+            SampleOutput.write(filename = "erm/idef1x-category-complete.svg", content = svg)
         }
 
         "incomplete category renders a single completeness bar" {
@@ -308,47 +333,47 @@ class ErmIdef1xSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            "party" to Rect(Point(20f, 20f), Size(160f, 60f)),
-                            circleNodeId to Rect(Point(80f, 140f), Size(24f, 24f)),
-                            "person" to Rect(Point(20f, 220f), Size(160f, 60f)),
+                            "party" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 160f, height = 60f)),
+                            circleNodeId to Rect(origin = Point(x = 80f, y = 140f), size = Size(width = 24f, height = 24f)),
+                            "person" to Rect(origin = Point(x = 20f, y = 220f), size = Size(width = 160f, height = 60f)),
                         ),
                     edges =
                         listOf(
                             (ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUP_PREFIX + "category_0") to
-                                EdgeRoute.Direct(Point(100f, 80f), Point(92f, 140f)),
+                                EdgeRoute.Direct(source = Point(x = 100f, y = 80f), target = Point(x = 92f, y = 140f)),
                             (ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUB_PREFIX + "category_0::person") to
-                                EdgeRoute.Direct(Point(92f, 164f), Point(100f, 220f)),
+                                EdgeRoute.Direct(source = Point(x = 92f, y = 164f), target = Point(x = 100f, y = 220f)),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             val completenessBarCount = Regex("class=\"kuml-erm-idef1x-completeness\"").findAll(svg).count()
             completenessBarCount shouldBe 1
-            SampleOutput.write("erm/idef1x-category-incomplete.svg", svg)
+            SampleOutput.write(filename = "erm/idef1x-category-incomplete.svg", content = svg)
         }
 
         "no raw XML entities leak into rendered text" {
             val customer = ErmEntity(id = "customer", name = "Customer's Table", attributes = listOf(pk("id")))
             val model = ErmModel(name = "Shop", entities = listOf(customer))
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.IDEF1X)
-            val layout = layoutOf("customer" to Rect(Point(20f, 20f), Size(200f, 90f)))
+            val layout = layoutOf("customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 200f, height = 90f)))
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldNotContain "&amp;apos;"
             svg shouldNotContain "&amp;lt;"
-            SampleOutput.write("erm/idef1x-xml-escape-guard.svg", svg)
+            SampleOutput.write(filename = "erm/idef1x-xml-escape-guard.svg", content = svg)
         }
 
         "deterministic output — same input renders byte-identically" {
             val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
             val model = ErmModel(name = "Shop", entities = listOf(customer))
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.IDEF1X)
-            val layout = layoutOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)))
+            val layout = layoutOf("customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)))
 
-            val one = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
-            val two = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val one = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
+            val two = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             one shouldBe two
         }
 
@@ -356,9 +381,16 @@ class ErmIdef1xSvgTest :
             val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
             val model = ErmModel(name = "Shop", entities = listOf(customer))
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.MARTIN)
-            val layout = layoutOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)))
+            val layout = layoutOf("customer" to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)))
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), notation = ErmNotation.IDEF1X)
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layout,
+                    theme = PlainTheme(),
+                    notation = ErmNotation.IDEF1X,
+                )
 
             svg shouldContain "kuml-erm-entity"
         }
@@ -382,20 +414,27 @@ class ErmIdef1xSvgTest :
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.IDEF1X)
             val layout =
                 layoutOf(
-                    nodes = listOf("category" to Rect(Point(200f, 100f), Size(180f, 120f))),
+                    nodes = listOf("category" to Rect(origin = Point(x = 200f, y = 100f), size = Size(width = 180f, height = 120f))),
                     edges =
                         listOf(
                             "rel1" to
                                 EdgeRoute.OrthogonalRounded(
-                                    source = Point(200f, 140f),
-                                    target = Point(200f, 190f),
-                                    waypoints = listOf(Point(180f, 140f), Point(180f, 190f)),
+                                    source = Point(x = 200f, y = 140f),
+                                    target = Point(x = 200f, y = 190f),
+                                    waypoints = listOf(Point(x = 180f, y = 140f), Point(x = 180f, y = 190f)),
                                     cornerRadiusPx = 6f,
                                 ),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), SvgRenderOptions(prettyPrint = false))
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layout,
+                    theme = PlainTheme(),
+                    options = SvgRenderOptions(prettyPrint = false),
+                )
 
             val nameLabel = edgeLabels(svg).single { it.text == "subcategory of" }
             // V3.4.x — see ErmMartinSvgTest's matching test for the rationale:
@@ -403,13 +442,13 @@ class ErmIdef1xSvgTest :
             // outward from the node's RIGHT edge (x=380 = origin.x=200 + width=180).
             nameLabel.textAnchor shouldBe "start"
             (nameLabel.x >= 380f) shouldBe true
-            SampleOutput.write("erm/idef1x-self-loop-name-label-no-overflow.svg", svg)
+            SampleOutput.write(filename = "erm/idef1x-self-loop-name-label-no-overflow.svg", content = svg)
         }
     })
 
 private fun pk(name: String): ErmAttribute = ErmAttribute(id = name, name = name, type = ErmDataType.Uuid, primaryKey = true)
 
-private fun layoutOf(vararg nodes: Pair<String, Rect>): LayoutResult = layoutOf(nodes.toList(), emptyList())
+private fun layoutOf(vararg nodes: Pair<String, Rect>): LayoutResult = layoutOf(nodes = nodes.toList(), edges = emptyList())
 
 private fun layoutOf(
     nodes: List<Pair<String, Rect>>,
@@ -420,7 +459,7 @@ private fun layoutOf(
     return LayoutResult(
         engineId = LayoutEngineId("test"),
         seed = 1L,
-        canvas = Size(maxX + 20f, maxY + 20f),
+        canvas = Size(width = maxX + 20f, height = maxY + 20f),
         nodes = nodes.associate { (id, rect) -> NodeId(id) to NodeLayout(bounds = rect) },
         edges = edges.associate { (id, route) -> EdgeId(id) to route },
         groups = emptyMap(),

@@ -22,31 +22,31 @@ import io.kotest.matchers.string.shouldNotContain
 class BlueprintFullSvgTest :
     StringSpec({
         fun fullModel() =
-            blueprint("Service") {
-                val customer = actor("Kunde", ActorRole.CUSTOMER)
-                val staff = actor("Mitarbeiter", ActorRole.STAFF)
-                val system = actor("CRM", ActorRole.SYSTEM)
-                val partner = actor("Partner", ActorRole.PARTNER)
-                val web = channel("Web", ChannelKind.WEB)
-                val formular = touchpoint("Formular", channel = web)
-                phase("Antrag") {
-                    customer("Füllt Formular", Sentiment.NEUTRAL, touchpoints = listOf(formular))
-                    frontstage("Bestätigt Eingang", actor = staff)
-                    backstage("Prüft Angaben", actor = staff)
-                    support("Legt Datensatz an", actor = system)
+            blueprint(name = "Service") {
+                val customer = actor(name = "Kunde", role = ActorRole.CUSTOMER)
+                val staff = actor(name = "Mitarbeiter", role = ActorRole.STAFF)
+                val system = actor(name = "CRM", role = ActorRole.SYSTEM)
+                val partner = actor(name = "Partner", role = ActorRole.PARTNER)
+                val web = channel(name = "Web", kind = ChannelKind.WEB)
+                val formular = touchpoint(name = "Formular", channel = web)
+                phase(name = "Antrag") {
+                    customer(name = "Füllt Formular", sentiment = Sentiment.NEUTRAL, touchpoints = listOf(formular))
+                    frontstage(name = "Bestätigt Eingang", actor = staff)
+                    backstage(name = "Prüft Angaben", actor = staff)
+                    support(name = "Legt Datensatz an", actor = system)
                 }
-                phase("Aufnahme") {
-                    customer("Wartet", Sentiment.NEGATIVE, pain = "Dauer unklar")
-                    backstage("Beschließt Aufnahme", actor = staff)
-                    support("Weist zu", actor = partner)
+                phase(name = "Aufnahme") {
+                    customer(name = "Wartet", sentiment = Sentiment.NEGATIVE, pain = "Dauer unklar")
+                    backstage(name = "Beschließt Aufnahme", actor = staff)
+                    support(name = "Weist zu", actor = partner)
                 }
-                blueprintDiagram("Blueprint", emotionCurve = true)
+                blueprintDiagram(name = "Blueprint", emotionCurve = true)
             }
 
         fun render(): String {
             val model = fullModel()
             val diagram = model.diagrams.first() as BlueprintDiagramFull
-            return KumlSvgRenderer.toSvg(model, diagram)
+            return KumlSvgRenderer.toSvg(model = model, diagram = diagram)
         }
 
         "renders all four layer swimlane labels in Shostack order" {
@@ -79,7 +79,7 @@ class BlueprintFullSvgTest :
             val diagram =
                 (model.diagrams.first() as BlueprintDiagramFull)
                     .copy(showLines = setOf(BlueprintLine.INTERACTION))
-            val svg = KumlSvgRenderer.toSvg(model, diagram)
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram)
             svg shouldContain "Line of Interaction"
             svg shouldNotContain "Line of Visibility"
             svg shouldNotContain "Line of Internal Interaction"

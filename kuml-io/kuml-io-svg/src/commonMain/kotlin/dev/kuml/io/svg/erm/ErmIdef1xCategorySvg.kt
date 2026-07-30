@@ -39,29 +39,30 @@ internal fun renderIdef1xCategoryCircle(
     val r = minOf(cx, cy)
 
     b.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(category.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(category.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         tag(
-            "circle",
-            mapOf("cx" to fmt(cx), "cy" to fmt(cy), "r" to fmt(r), "class" to "kuml-erm-idef1x-category"),
+            name = "circle",
+            attrs = mapOf("cx" to fmt(cx), "cy" to fmt(cy), "r" to fmt(r), "class" to "kuml-erm-idef1x-category"),
         )
 
         val barWidth = r * BAR_WIDTH_FACTOR
         val barY1 = h + BAR_GAP_PX
-        drawCompletenessBar(cx, barWidth, barY1, this)
+        drawCompletenessBar(cx = cx, barWidth = barWidth, barY = barY1, b = this)
         if (category.complete) {
-            drawCompletenessBar(cx, barWidth, barY1 + BAR_SPACING_PX, this)
+            drawCompletenessBar(cx = cx, barWidth = barWidth, barY = barY1 + BAR_SPACING_PX, b = this)
         }
 
         if (discriminatorName != null) {
             tag(
-                "text",
-                mapOf(
-                    "class" to "kuml-erm-idef1x-card",
-                    "x" to fmt(w + LABEL_GAP_PX),
-                    "y" to fmt(cy + 4f),
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-erm-idef1x-card",
+                        "x" to fmt(w + LABEL_GAP_PX),
+                        "y" to fmt(cy + 4f),
+                    ),
             ) { text(discriminatorName) }
         }
     }
@@ -75,14 +76,15 @@ private fun drawCompletenessBar(
     b: SvgBuilder,
 ) {
     b.tag(
-        "line",
-        mapOf(
-            "x1" to fmt(cx - barWidth / 2f),
-            "y1" to fmt(barY),
-            "x2" to fmt(cx + barWidth / 2f),
-            "y2" to fmt(barY),
-            "class" to "kuml-erm-idef1x-completeness",
-        ),
+        name = "line",
+        attrs =
+            mapOf(
+                "x1" to fmt(cx - barWidth / 2f),
+                "y1" to fmt(barY),
+                "x2" to fmt(cx + barWidth / 2f),
+                "y2" to fmt(barY),
+                "class" to "kuml-erm-idef1x-completeness",
+            ),
     )
 }
 

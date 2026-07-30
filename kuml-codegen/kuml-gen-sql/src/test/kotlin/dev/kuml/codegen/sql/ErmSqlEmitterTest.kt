@@ -26,16 +26,16 @@ class ErmSqlEmitterTest :
             model: ErmModel,
             dialect: SqlDialect = SqlDialect.POSTGRES,
             withDrop: Boolean = false,
-        ): String = ErmSqlEmitter(dialect, SqlEmitOptions(withDrop = withDrop)).emit(model)
+        ): String = ErmSqlEmitter(dialect = dialect, options = SqlEmitOptions(withDrop = withDrop)).emit(model)
 
         test("single-column PK, NOT NULL/NULL, UNIQUE, DEFAULT render correctly") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(32))
-                        attribute("email", ErmDataType.Varchar(255), nullable = false, unique = true)
-                        attribute("nickname", ErmDataType.Varchar(255), nullable = true)
-                        attribute("credits", ErmDataType.Integer(32), nullable = false, default = "0")
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(32))
+                        attribute(name = "email", type = ErmDataType.Varchar(255), nullable = false, unique = true)
+                        attribute(name = "nickname", type = ErmDataType.Varchar(255), nullable = true)
+                        attribute(name = "credits", type = ErmDataType.Integer(32), nullable = false, default = "0")
                     }
                 }
             val sql = emit(model)
@@ -56,13 +56,13 @@ class ErmSqlEmitterTest :
             // emitter to add the quotes, or the literal comes out as a bare, invalid identifier
             // (`DEFAULT GREMIUM_QUORUM` instead of `DEFAULT 'GREMIUM_QUORUM'`).
             val model =
-                ermModel("M") {
-                    entity("widgets") {
-                        id("id", ErmDataType.Integer(32))
-                        attribute("mode", ErmDataType.Varchar(20), nullable = false, default = "GREMIUM_QUORUM")
-                        attribute("note", ErmDataType.Text, nullable = false, default = "it's fine")
-                        attribute("active", ErmDataType.Boolean, nullable = false, default = "TRUE")
-                        attribute("count", ErmDataType.Integer(32), nullable = false, default = "0")
+                ermModel(name = "M") {
+                    entity(name = "widgets") {
+                        id(name = "id", type = ErmDataType.Integer(32))
+                        attribute(name = "mode", type = ErmDataType.Varchar(20), nullable = false, default = "GREMIUM_QUORUM")
+                        attribute(name = "note", type = ErmDataType.Text, nullable = false, default = "it's fine")
+                        attribute(name = "active", type = ErmDataType.Boolean, nullable = false, default = "TRUE")
+                        attribute(name = "count", type = ErmDataType.Integer(32), nullable = false, default = "0")
                     }
                 }
             val sql = emit(model)
@@ -78,20 +78,20 @@ class ErmSqlEmitterTest :
             // the latter never sets `primaryKey = true` — junction tables need both columns to
             // be primary key AND foreign key simultaneously.
             val model =
-                ermModel("M") {
-                    val students = entity("students") { id("id", ErmDataType.Integer(64)) }
-                    val courses = entity("courses") { id("id", ErmDataType.Integer(64)) }
-                    entity("students_courses", weak = true) {
+                ermModel(name = "M") {
+                    val students = entity(name = "students") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    val courses = entity(name = "courses") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    entity(name = "students_courses", weak = true) {
                         attribute(
-                            "student_id",
-                            ErmDataType.Integer(64),
+                            name = "student_id",
+                            type = ErmDataType.Integer(64),
                             primaryKey = true,
                             nullable = false,
                             foreignKey = ErmForeignKey(targetEntityId = students, onDelete = ReferentialAction.CASCADE),
                         )
                         attribute(
-                            "course_id",
-                            ErmDataType.Integer(64),
+                            name = "course_id",
+                            type = ErmDataType.Integer(64),
                             primaryKey = true,
                             nullable = false,
                             foreignKey = ErmForeignKey(targetEntityId = courses, onDelete = ReferentialAction.CASCADE),
@@ -106,12 +106,12 @@ class ErmSqlEmitterTest :
 
         test("FK column is inline in CREATE TABLE, constraint via ALTER TABLE, ON DELETE/ON UPDATE clauses") {
             val model =
-                ermModel("M") {
-                    val users = entity("users") { id("id", ErmDataType.Integer(64)) }
-                    entity("orders") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    val users = entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    entity(name = "orders") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         foreignKey(
-                            "user_id",
+                            name = "user_id",
                             references = users,
                             onDelete = ReferentialAction.CASCADE,
                             nullable = false,
@@ -128,25 +128,25 @@ class ErmSqlEmitterTest :
 
         test("ON DELETE SET NULL and RESTRICT render their clauses; NO_ACTION renders no clause") {
             val model =
-                ermModel("M") {
-                    val a = entity("a") { id("id", ErmDataType.Integer(64)) }
-                    entity("b") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    val a = entity(name = "a") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    entity(name = "b") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "a_set_null_id",
-                            ErmDataType.Integer(64),
+                            name = "a_set_null_id",
+                            type = ErmDataType.Integer(64),
                             nullable = true,
                             foreignKey = ErmForeignKey(targetEntityId = a, onDelete = ReferentialAction.SET_NULL),
                         )
                         attribute(
-                            "a_restrict_id",
-                            ErmDataType.Integer(64),
+                            name = "a_restrict_id",
+                            type = ErmDataType.Integer(64),
                             nullable = true,
                             foreignKey = ErmForeignKey(targetEntityId = a, onUpdate = ReferentialAction.RESTRICT),
                         )
                         attribute(
-                            "a_no_action_id",
-                            ErmDataType.Integer(64),
+                            name = "a_no_action_id",
+                            type = ErmDataType.Integer(64),
                             nullable = true,
                             foreignKey = ErmForeignKey(targetEntityId = a),
                         )
@@ -160,12 +160,12 @@ class ErmSqlEmitterTest :
 
         test("index renders CREATE INDEX and CREATE UNIQUE INDEX with composite column order preserved") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("last_name", ErmDataType.Varchar(255))
-                        attribute("first_name", ErmDataType.Varchar(255))
-                        attribute("email", ErmDataType.Varchar(255))
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "last_name", type = ErmDataType.Varchar(255))
+                        attribute(name = "first_name", type = ErmDataType.Varchar(255))
+                        attribute(name = "email", type = ErmDataType.Varchar(255))
                         index("last_name", "first_name", name = "idx_users_name")
                         index("email", unique = true, name = "idx_users_email_unique")
                     }
@@ -178,10 +178,10 @@ class ErmSqlEmitterTest :
 
         test("partial/conditional unique index renders a trailing WHERE clause, verbatim") {
             val model =
-                ermModel("M") {
-                    entity("teams") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("consumed_at", ErmDataType.Timestamp(), nullable = true)
+                ermModel(name = "M") {
+                    entity(name = "teams") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "consumed_at", type = ErmDataType.Timestamp(), nullable = true)
                         index(
                             "consumed_at",
                             unique = true,
@@ -196,10 +196,10 @@ class ErmSqlEmitterTest :
 
         test("index without an explicit name gets a derived default name") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("email", ErmDataType.Varchar(255))
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "email", type = ErmDataType.Varchar(255))
                         index("email")
                     }
                 }
@@ -209,9 +209,9 @@ class ErmSqlEmitterTest :
 
         test("view renders CREATE VIEW ... AS ...") {
             val model =
-                ermModel("M") {
-                    entity("users") { id("id", ErmDataType.Integer(64)) }
-                    view("active_users", query = "SELECT * FROM users WHERE active = true")
+                ermModel(name = "M") {
+                    entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    view(name = "active_users", query = "SELECT * FROM users WHERE active = true")
                 }
             val sql = emit(model)
             sql shouldContain "-- Views"
@@ -220,12 +220,12 @@ class ErmSqlEmitterTest :
 
         test("named check constraint renders CONSTRAINT <name> CHECK, anonymous renders bare CHECK") {
             val model =
-                ermModel("M") {
-                    entity("products") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("price", ErmDataType.Decimal(10, 2))
-                        check("price > 0", name = "chk_products_price_positive")
-                        check("price < 1000000")
+                ermModel(name = "M") {
+                    entity(name = "products") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "price", type = ErmDataType.Decimal(precision = 10, scale = 2))
+                        check(expression = "price > 0", name = "chk_products_price_positive")
+                        check(expression = "price < 1000000")
                     }
                 }
             val sql = emit(model)
@@ -240,10 +240,14 @@ class ErmSqlEmitterTest :
             // matching `ErmCheckConstraint` as a side effect. Without emitter-level derivation,
             // this column was silently unconstrained VARCHAR.
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")),
+                            nullable = false,
+                        )
                     }
                 }
             val sql = emit(model)
@@ -256,11 +260,15 @@ class ErmSqlEmitterTest :
             // an explicit ErmCheckConstraint with the exact same expression shape should dedupe
             // against the auto-derived one instead of rendering the CHECK twice.
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
-                        check("status IN ('Active', 'Inactive')")
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")),
+                            nullable = false,
+                        )
+                        check(expression = "status IN ('Active', 'Inactive')")
                     }
                 }
             val sql = emit(model)
@@ -270,12 +278,12 @@ class ErmSqlEmitterTest :
 
         test("ErmDataType.Enum literal single quotes are escaped in the derived CHECK expression") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "status",
-                            ErmDataType.Enum("Status", listOf("O'Brien", "Active")),
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("O'Brien", "Active")),
                             nullable = false,
                         )
                     }
@@ -292,17 +300,17 @@ class ErmSqlEmitterTest :
             // which infers the FK column type by looking up the target entity — impossible here
             // since `users`/`entity_1` doesn't exist yet at the point `orders` is declared).
             val model =
-                ermModel("M") {
-                    entity("orders") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "orders") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "user_id",
-                            ErmDataType.Integer(64),
+                            name = "user_id",
+                            type = ErmDataType.Integer(64),
                             nullable = false,
                             foreignKey = ErmForeignKey(targetEntityId = "entity_1"),
                         )
                     }
-                    entity("users") { id("id", ErmDataType.Integer(64)) }
+                    entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) }
                 }
             val sql = emit(model)
             sql.indexOf("CREATE TABLE users (") shouldBeBefore sql.indexOf("CREATE TABLE orders (")
@@ -310,12 +318,12 @@ class ErmSqlEmitterTest :
 
         test("self-referencing FK does not break topological sort") {
             val model =
-                ermModel("M") {
-                    entity("employees") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "employees") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "manager_id",
-                            ErmDataType.Integer(64),
+                            name = "manager_id",
+                            type = ErmDataType.Integer(64),
                             nullable = true,
                             foreignKey = ErmForeignKey(targetEntityId = "entity_0"),
                         )
@@ -328,18 +336,18 @@ class ErmSqlEmitterTest :
 
         test("sql-drop=true emits DROP VIEW before DROP TABLE, tables in reverse dependency order") {
             val model =
-                ermModel("M") {
-                    entity("orders") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "orders") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "user_id",
-                            ErmDataType.Integer(64),
+                            name = "user_id",
+                            type = ErmDataType.Integer(64),
                             nullable = false,
                             foreignKey = ErmForeignKey(targetEntityId = "entity_1"),
                         )
                     }
-                    entity("users") { id("id", ErmDataType.Integer(64)) }
-                    view("v", query = "SELECT 1")
+                    entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    view(name = "v", query = "SELECT 1")
                 }
             val sql = emit(model, withDrop = true)
             val dropView = sql.indexOf("DROP VIEW IF EXISTS v;")
@@ -352,10 +360,10 @@ class ErmSqlEmitterTest :
 
         test("dialect option is honoured — mysql renders AUTO_INCREMENT/TINYINT(1)") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        attribute("id", ErmDataType.Integer(64), primaryKey = true, nullable = false, autoIncrement = true)
-                        attribute("active", ErmDataType.Boolean, nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        attribute(name = "id", type = ErmDataType.Integer(64), primaryKey = true, nullable = false, autoIncrement = true)
+                        attribute(name = "active", type = ErmDataType.Boolean, nullable = false)
                     }
                 }
             val sql = emit(model, dialect = SqlDialect.MYSQL)
@@ -365,9 +373,9 @@ class ErmSqlEmitterTest :
 
         test("unsafe identifier in an ERM-first model refuses to emit DDL") {
             val model =
-                ermModel("M") {
-                    entity("users; DROP TABLE users; --") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "users; DROP TABLE users; --") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                     }
                 }
             shouldThrow<UnsafeSqlIdentifierException> { emit(model) }
@@ -375,9 +383,9 @@ class ErmSqlEmitterTest :
 
         test("a structurally broken ERM model (non-weak entity, no primary key) refuses to emit DDL") {
             val model =
-                ermModel("M") {
-                    entity("broken") {
-                        attribute("name", ErmDataType.Varchar(255))
+                ermModel(name = "M") {
+                    entity(name = "broken") {
+                        attribute(name = "name", type = ErmDataType.Varchar(255))
                     }
                 }
             shouldThrow<CodeGenerationException> { emit(model) }
@@ -387,10 +395,10 @@ class ErmSqlEmitterTest :
 
         test("a Custom PostGIS geometry column renders the canonical type on POSTGRES") {
             val model =
-                ermModel("M") {
-                    entity("places") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("location", ErmDataType.Custom("geometry(Point,4326)"), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "places") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "location", type = ErmDataType.Custom("geometry(Point,4326)"), nullable = false)
                     }
                 }
             val sql = emit(model, dialect = SqlDialect.POSTGRES)
@@ -399,10 +407,10 @@ class ErmSqlEmitterTest :
 
         test("a Custom PostGIS geometry column is unchanged verbatim on non-Postgres dialects") {
             val model =
-                ermModel("M") {
-                    entity("places") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("location", ErmDataType.Custom("geometry(Point,4326)"), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "places") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "location", type = ErmDataType.Custom("geometry(Point,4326)"), nullable = false)
                     }
                 }
             val sql = emit(model, dialect = SqlDialect.SQLITE)
@@ -413,11 +421,11 @@ class ErmSqlEmitterTest :
 
         test("hypertable() marker emits create_hypertable after CREATE TABLE and before FKs/indexes on POSTGRES") {
             val model =
-                ermModel("M") {
-                    entity("sensor_readings") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("recorded_at", ErmDataType.Timestamp(), nullable = false)
-                        hypertable("recorded_at", "7 days")
+                ermModel(name = "M") {
+                    entity(name = "sensor_readings") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "recorded_at", type = ErmDataType.Timestamp(), nullable = false)
+                        hypertable(timeColumn = "recorded_at", chunkInterval = "7 days")
                         index("recorded_at", name = "idx_recorded_at")
                     }
                 }
@@ -433,11 +441,11 @@ class ErmSqlEmitterTest :
 
         test("hypertable() marker without chunkInterval omits the chunk_time_interval argument") {
             val model =
-                ermModel("M") {
-                    entity("sensor_readings") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("recorded_at", ErmDataType.Timestamp(), nullable = false)
-                        hypertable("recorded_at")
+                ermModel(name = "M") {
+                    entity(name = "sensor_readings") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "recorded_at", type = ErmDataType.Timestamp(), nullable = false)
+                        hypertable(timeColumn = "recorded_at")
                     }
                 }
             val sql = emit(model, dialect = SqlDialect.POSTGRES)
@@ -446,11 +454,11 @@ class ErmSqlEmitterTest :
 
         test("hypertable() marker is ignored (no create_hypertable) on non-Postgres dialects") {
             val model =
-                ermModel("M") {
-                    entity("sensor_readings") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("recorded_at", ErmDataType.Timestamp(), nullable = false)
-                        hypertable("recorded_at", "7 days")
+                ermModel(name = "M") {
+                    entity(name = "sensor_readings") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "recorded_at", type = ErmDataType.Timestamp(), nullable = false)
+                        hypertable(timeColumn = "recorded_at", chunkInterval = "7 days")
                     }
                 }
             listOf(SqlDialect.MYSQL, SqlDialect.H2, SqlDialect.SQLITE).forEach { dialect ->
@@ -460,10 +468,10 @@ class ErmSqlEmitterTest :
 
         test("no hypertable() marker produces no create_hypertable on any dialect") {
             val model =
-                ermModel("M") {
-                    entity("sensor_readings") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("recorded_at", ErmDataType.Timestamp(), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "sensor_readings") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "recorded_at", type = ErmDataType.Timestamp(), nullable = false)
                     }
                 }
             SqlDialect.entries.forEach { dialect -> emit(model, dialect = dialect) shouldNotContain "create_hypertable" }
@@ -471,10 +479,10 @@ class ErmSqlEmitterTest :
 
         test("hypertable() marker with a non-existent timeColumn refuses to emit DDL") {
             val model =
-                ermModel("M") {
-                    entity("sensor_readings") {
-                        id("id", ErmDataType.Integer(64))
-                        hypertable("does_not_exist")
+                ermModel(name = "M") {
+                    entity(name = "sensor_readings") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        hypertable(timeColumn = "does_not_exist")
                     }
                 }
             shouldThrow<CodeGenerationException> { emit(model, dialect = SqlDialect.POSTGRES) }
@@ -482,11 +490,11 @@ class ErmSqlEmitterTest :
 
         test("hypertable() marker with an injection attempt in chunkInterval refuses to emit DDL") {
             val model =
-                ermModel("M") {
-                    entity("sensor_readings") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("recorded_at", ErmDataType.Timestamp(), nullable = false)
-                        hypertable("recorded_at", "1 day'); DROP TABLE users;--")
+                ermModel(name = "M") {
+                    entity(name = "sensor_readings") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "recorded_at", type = ErmDataType.Timestamp(), nullable = false)
+                        hypertable(timeColumn = "recorded_at", chunkInterval = "1 day'); DROP TABLE users;--")
                     }
                 }
             shouldThrow<CodeGenerationException> { emit(model, dialect = SqlDialect.POSTGRES) }

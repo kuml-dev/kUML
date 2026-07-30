@@ -72,15 +72,16 @@ public object BatikFrameSampler {
             val sizeMb = svgBytes.size / (1024 * 1024)
             val maxMb = options.maxSvgBytes / (1024 * 1024)
             throw AnimEncoderException(
-                "SVG input is $sizeMb MiB, which exceeds the $maxMb MiB limit " +
-                    "(maxSvgBytes=${options.maxSvgBytes}). Reduce diagram complexity.",
+                message =
+                    "SVG input is $sizeMb MiB, which exceeds the $maxMb MiB limit " +
+                        "(maxSvgBytes=${options.maxSvgBytes}). Reduce diagram complexity.",
             )
         }
 
         val doc = parseSvgDocument(svg)
 
         // Determine natural SVG dimensions from the viewBox attribute.
-        val (naturalW, naturalH) = svgDimensions(doc, svg)
+        val (naturalW, naturalH) = svgDimensions(doc = doc, svg = svg)
         val widthPx = options.widthPx
         val heightPx = if (naturalW > 0f) (naturalH * widthPx / naturalW).toInt().coerceAtLeast(1) else widthPx
 
@@ -93,14 +94,15 @@ public object BatikFrameSampler {
             try {
                 builder.build(ctx, doc)
             } catch (e: Exception) {
-                throw AnimEncoderException("Failed to build Batik GVT tree: ${e.message}", e)
+                throw AnimEncoderException(message = "Failed to build Batik GVT tree: ${e.message}", cause = e)
             }
 
         val animEngine =
             ctx.animationEngine
                 ?: throw AnimEncoderException(
-                    "Batik SVGAnimationEngine is null after building GVT in DYNAMIC mode. " +
-                        "Ensure batik-anim is on the classpath.",
+                    message =
+                        "Batik SVGAnimationEngine is null after building GVT in DYNAMIC mode. " +
+                            "Ensure batik-anim is on the classpath.",
                 )
 
         val bgColor = resolveBackground(options)
@@ -112,7 +114,7 @@ public object BatikFrameSampler {
         return (0 until budget.frameCount).map { i ->
             val timeSec = (i.toLong() * budget.intervalMs / 1000.0).toFloat()
             animEngine.setCurrentTime(timeSec)
-            paintFrame(rootGvt, widthPx, heightPx, scale, bgColor, options)
+            paintFrame(rootGvt = rootGvt, widthPx = widthPx, heightPx = heightPx, scale = scale, bgColor = bgColor, options = options)
         }
     }
 
@@ -128,7 +130,7 @@ public object BatikFrameSampler {
         return try {
             factory.createDocument("file:///kuml-anim.svg", StringReader(svg))
         } catch (e: Exception) {
-            throw AnimEncoderException("Failed to parse SVG document: ${e.message}", e)
+            throw AnimEncoderException(message = "Failed to parse SVG document: ${e.message}", cause = e)
         }
     }
 
@@ -214,12 +216,13 @@ public object BatikFrameSampler {
         } catch (e: SizeLimitExceededException) {
             val limitMb = perFrameLimit / (1024 * 1024)
             throw AnimEncoderException(
-                "Single animation frame exceeds the $limitMb MiB per-frame limit. " +
-                    "Reduce --width or diagram complexity.",
-                e,
+                message =
+                    "Single animation frame exceeds the $limitMb MiB per-frame limit. " +
+                        "Reduce --width or diagram complexity.",
+                cause = e,
             )
         } catch (e: Exception) {
-            throw AnimEncoderException("Frame rasterisation failed: ${e.message}", e)
+            throw AnimEncoderException(message = "Frame rasterisation failed: ${e.message}", cause = e)
         }
         return out.toByteArray()
     }

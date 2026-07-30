@@ -13,14 +13,15 @@ class NestedClassTest :
         test("nested class is emitted as top-level classifier with REV-K-020 diagnostic") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Outer.kt" to
-                            """
-                            class Outer {
-                                class Inner
-                            }
-                            """.trimIndent(),
-                    ),
+                    sources =
+                        mapOf(
+                            "Outer.kt" to
+                                """
+                                class Outer {
+                                    class Inner
+                                }
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()

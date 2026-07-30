@@ -319,7 +319,7 @@ internal class ErmExposedEmitter(
         val violations = ErmConstraintChecker().check(model).filter { it.severity == ViolationSeverity.ERROR }
         if (violations.isNotEmpty()) {
             return TransformResult.Failure(
-                violations.map { TransformError("erm-to-exposed: ${it.message}", it.elementId) },
+                violations.map { TransformError(message = "erm-to-exposed: ${it.message}", elementId = it.elementId) },
             )
         }
 
@@ -337,10 +337,11 @@ internal class ErmExposedEmitter(
                 if (existing != null && existing != enumType) {
                     enumConflictErrors +=
                         TransformError(
-                            "erm-to-exposed: multiple ErmDataType.Enum instances named '${enumType.name}' declare " +
-                                "different literal sets and/or external types — refusing to emit conflicting " +
-                                "enum classes.",
-                            attr.id,
+                            message =
+                                "erm-to-exposed: multiple ErmDataType.Enum instances named '${enumType.name}' declare " +
+                                    "different literal sets and/or external types — refusing to emit conflicting " +
+                                    "enum classes.",
+                            elementId = attr.id,
                         )
                     continue
                 }
@@ -363,10 +364,10 @@ internal class ErmExposedEmitter(
             val objectName = override ?: toPascalCase(raw)
             val whatLabel = if (override != null) "kotlinObjectName override" else "entity name"
             try {
-                requireValidKotlinIdentifier(objectName, whatLabel, entity.id)
-                requireSafeRelativePath("$objectName.kt", entity.id)
+                requireValidKotlinIdentifier(name = objectName, what = whatLabel, elementId = entity.id)
+                requireSafeRelativePath(relativePath = "$objectName.kt", elementId = entity.id)
             } catch (e: InvalidIdentifierException) {
-                nameErrors += TransformError(e.message ?: "invalid entity name", entity.id)
+                nameErrors += TransformError(message = e.message ?: "invalid entity name", elementId = entity.id)
                 continue
             }
             objectNameById[entity.id] = objectName
@@ -375,9 +376,9 @@ internal class ErmExposedEmitter(
                 val rawAttrName = attr.name ?: attr.id
                 val propName = toCamelCase(rawAttrName)
                 try {
-                    requireValidKotlinIdentifier(propName, "attribute name", attr.id)
+                    requireValidKotlinIdentifier(name = propName, what = "attribute name", elementId = attr.id)
                 } catch (e: InvalidIdentifierException) {
-                    nameErrors += TransformError(e.message ?: "invalid attribute name", attr.id)
+                    nameErrors += TransformError(message = e.message ?: "invalid attribute name", elementId = attr.id)
                     continue
                 }
                 attrPropertyNameById[attr.id] = propName
@@ -395,23 +396,24 @@ internal class ErmExposedEmitter(
                 // identifier to prevent generated-code injection via a crafted import line.
                 val simpleName = externalFqName.substringAfterLast('.')
                 try {
-                    requireValidKotlinIdentifier(simpleName, "external enum type name", elementId)
+                    requireValidKotlinIdentifier(name = simpleName, what = "external enum type name", elementId = elementId)
                     externalFqName.split('.').forEach { segment ->
-                        requireValidKotlinIdentifier(segment, "external enum type package segment", elementId)
+                        requireValidKotlinIdentifier(name = segment, what = "external enum type package segment", elementId = elementId)
                     }
                 } catch (e: InvalidIdentifierException) {
-                    nameErrors += TransformError(e.message ?: "invalid external enum type", elementId)
+                    nameErrors += TransformError(message = e.message ?: "invalid external enum type", elementId = elementId)
                     continue
                 }
-                enumInfoByEnumName[enumName] = EnumRenderInfo(simpleName, emptyMap(), externalFqName = externalFqName)
+                enumInfoByEnumName[enumName] =
+                    EnumRenderInfo(objectName = simpleName, constantNameByLiteral = emptyMap(), externalFqName = externalFqName)
                 continue
             }
             val objectName = toPascalCase(enumName)
             try {
-                requireValidKotlinIdentifier(objectName, "enum name", elementId)
-                requireSafeRelativePath("$objectName.kt", elementId)
+                requireValidKotlinIdentifier(name = objectName, what = "enum name", elementId = elementId)
+                requireSafeRelativePath(relativePath = "$objectName.kt", elementId = elementId)
             } catch (e: InvalidIdentifierException) {
-                nameErrors += TransformError(e.message ?: "invalid enum name", elementId)
+                nameErrors += TransformError(message = e.message ?: "invalid enum name", elementId = elementId)
                 continue
             }
 
@@ -426,27 +428,29 @@ internal class ErmExposedEmitter(
                 if (constantName.isEmpty()) {
                     nameErrors +=
                         TransformError(
-                            "erm-to-exposed: enum literal '$value' (element $elementId) has no alphanumeric " +
-                                "characters — cannot derive a Kotlin enum-constant name, refusing to emit " +
-                                "generated code.",
-                            elementId,
+                            message =
+                                "erm-to-exposed: enum literal '$value' (element $elementId) has no alphanumeric " +
+                                    "characters — cannot derive a Kotlin enum-constant name, refusing to emit " +
+                                    "generated code.",
+                            elementId = elementId,
                         )
                     continue
                 }
                 try {
-                    requireValidKotlinIdentifier(constantName, "enum literal", elementId)
+                    requireValidKotlinIdentifier(name = constantName, what = "enum literal", elementId = elementId)
                 } catch (e: InvalidIdentifierException) {
-                    nameErrors += TransformError(e.message ?: "invalid enum literal", elementId)
+                    nameErrors += TransformError(message = e.message ?: "invalid enum literal", elementId = elementId)
                     continue
                 }
                 val priorLiteral = literalBySanitizedName[constantName]
                 if (priorLiteral != null) {
                     nameErrors +=
                         TransformError(
-                            "erm-to-exposed: enum literals '$priorLiteral' and '$value' (element $elementId) " +
-                                "both sanitize to the Kotlin constant name '$constantName' — rename one to " +
-                                "disambiguate.",
-                            elementId,
+                            message =
+                                "erm-to-exposed: enum literals '$priorLiteral' and '$value' (element $elementId) " +
+                                    "both sanitize to the Kotlin constant name '$constantName' — rename one to " +
+                                    "disambiguate.",
+                            elementId = elementId,
                         )
                     continue
                 }
@@ -454,7 +458,7 @@ internal class ErmExposedEmitter(
                 constantNameByLiteral[value] = constantName
             }
 
-            enumInfoByEnumName[enumName] = EnumRenderInfo(objectName, constantNameByLiteral)
+            enumInfoByEnumName[enumName] = EnumRenderInfo(objectName = objectName, constantNameByLiteral = constantNameByLiteral)
         }
         if (nameErrors.isNotEmpty()) return TransformResult.Failure(nameErrors)
 
@@ -471,8 +475,9 @@ internal class ErmExposedEmitter(
             return TransformResult.Failure(
                 listOf(
                     TransformError(
-                        "erm-to-exposed: multiple entities/enums map to the same Kotlin object name(s) " +
-                            "${duplicateNames.joinToString(", ")} — refusing to emit colliding files.",
+                        message =
+                            "erm-to-exposed: multiple entities/enums map to the same Kotlin object name(s) " +
+                                "${duplicateNames.joinToString(", ")} — refusing to emit colliding files.",
                     ),
                 ),
             )
@@ -486,14 +491,30 @@ internal class ErmExposedEmitter(
         for (entity in model.entities) {
             when (
                 val result =
-                    renderEntity(entity, model, objectNameById, attrPropertyNameById, enumInfoByEnumName)
+                    renderEntity(
+                        entity = entity,
+                        model = model,
+                        objectNameById = objectNameById,
+                        attrPropertyNameById = attrPropertyNameById,
+                        enumInfoByEnumName = enumInfoByEnumName,
+                    )
             ) {
                 is EntityResult.Ok -> {
                     files += result.file
-                    trace = trace.plus(TraceabilityLink(entity.id, result.file.relativePath, RULE_ENTITY_TO_TABLE))
+                    trace =
+                        trace.plus(
+                            TraceabilityLink(
+                                sourceElementId = entity.id,
+                                targetArtifactId = result.file.relativePath,
+                                ruleId = RULE_ENTITY_TO_TABLE,
+                            ),
+                        )
                     for (attr in entity.attributes) {
                         val rule = if (attr.foreignKey != null) RULE_FK_TO_REFERENCE else RULE_ATTR_TO_COLUMN
-                        trace = trace.plus(TraceabilityLink(attr.id, result.file.relativePath, rule))
+                        trace =
+                            trace.plus(
+                                TraceabilityLink(sourceElementId = attr.id, targetArtifactId = result.file.relativePath, ruleId = rule),
+                            )
                     }
                 }
                 is EntityResult.Error -> errors += result.error
@@ -505,7 +526,7 @@ internal class ErmExposedEmitter(
         for ((enumName, enumType) in enumTypesByName) {
             if (enumType.externalFqName != null) continue
             val info = enumInfoByEnumName.getValue(enumName)
-            files += renderEnumFile(enumType, info)
+            files += renderEnumFile(enumType = enumType, info = info)
         }
 
         // ADR-0016 §2.3 — one shared support file, emitted only when at least one entity
@@ -524,16 +545,17 @@ internal class ErmExposedEmitter(
                 return TransformResult.Failure(
                     listOf(
                         TransformError(
-                            "erm-to-exposed: entity/enum name '$POSTGIS_SUPPORT_FILE_OBJECT_NAME' collides with the " +
-                                "generated PostGIS geometry support file — rename it.",
+                            message =
+                                "erm-to-exposed: entity/enum name '$POSTGIS_SUPPORT_FILE_OBJECT_NAME' collides with the " +
+                                    "generated PostGIS geometry support file — rename it.",
                         ),
                     ),
                 )
             }
-            files += GeneratedFile("$POSTGIS_SUPPORT_FILE_OBJECT_NAME.kt", renderPostGisSupportFile())
+            files += GeneratedFile(relativePath = "$POSTGIS_SUPPORT_FILE_OBJECT_NAME.kt", content = renderPostGisSupportFile())
         }
 
-        return TransformResult.Success(files, trace)
+        return TransformResult.Success(output = files, trace = trace)
     }
 
     private fun renderEnumFile(
@@ -571,7 +593,7 @@ internal class ErmExposedEmitter(
             sb.appendLine("    }")
             sb.appendLine("}")
         }
-        return GeneratedFile("${info.objectName}.kt", sb.toString())
+        return GeneratedFile(relativePath = "${info.objectName}.kt", content = sb.toString())
     }
 
     private fun renderPostGisSupportFile(): String {
@@ -621,7 +643,7 @@ internal class ErmExposedEmitter(
             try {
                 kotlinStringLiteral(entity.name ?: entity.id)
             } catch (e: InvalidIdentifierException) {
-                return EntityResult.Error(TransformError(e.message ?: "invalid table name", entity.id))
+                return EntityResult.Error(TransformError(message = e.message ?: "invalid table name", elementId = entity.id))
             }
 
         val imports = sortedSetOf("org.jetbrains.exposed.v1.core.Column", "org.jetbrains.exposed.v1.core.Table")
@@ -635,11 +657,25 @@ internal class ErmExposedEmitter(
             val fk = attr.foreignKey
             val line =
                 when {
-                    fk == null -> renderBaseColumnLine(propName, attr, colLiteral, imports, enumInfoByEnumName)
+                    fk == null ->
+                        renderBaseColumnLine(
+                            propName = propName,
+                            attr = attr,
+                            colLiteral = colLiteral,
+                            imports = imports,
+                            enumInfoByEnumName = enumInfoByEnumName,
+                        )
                     fk.targetEntityId == entity.id -> {
                         // Self-referential FK — reference() cannot target the enclosing object
                         // from inside its own initializer body. Emit a plain typed column instead.
-                        val base = renderBaseColumnLine(propName, attr, colLiteral, imports, enumInfoByEnumName)
+                        val base =
+                            renderBaseColumnLine(
+                                propName = propName,
+                                attr = attr,
+                                colLiteral = colLiteral,
+                                imports = imports,
+                                enumInfoByEnumName = enumInfoByEnumName,
+                            )
                         "$base // self-referential FK (target: this entity) — reference() omitted, see KDoc"
                     }
                     else -> {
@@ -647,9 +683,10 @@ internal class ErmExposedEmitter(
                             model.entityById(fk.targetEntityId)
                                 ?: return EntityResult.Error(
                                     TransformError(
-                                        "erm-to-exposed: foreign key on attribute '$rawName' targets unknown " +
-                                            "entity '${fk.targetEntityId}'",
-                                        attr.id,
+                                        message =
+                                            "erm-to-exposed: foreign key on attribute '$rawName' targets unknown " +
+                                                "entity '${fk.targetEntityId}'",
+                                        elementId = attr.id,
                                     ),
                                 )
                         val targetObjectName = objectNameById.getValue(targetEntity.id)
@@ -658,34 +695,36 @@ internal class ErmExposedEmitter(
                                 targetEntity.attributes.firstOrNull { it.id == fk.targetAttributeId }
                                     ?: return EntityResult.Error(
                                         TransformError(
-                                            "erm-to-exposed: foreign key on attribute '$rawName' targets unknown " +
-                                                "attribute '${fk.targetAttributeId}' on entity " +
-                                                "'${targetEntity.name ?: targetEntity.id}'",
-                                            attr.id,
+                                            message =
+                                                "erm-to-exposed: foreign key on attribute '$rawName' targets unknown " +
+                                                    "attribute '${fk.targetAttributeId}' on entity " +
+                                                    "'${targetEntity.name ?: targetEntity.id}'",
+                                            elementId = attr.id,
                                         ),
                                     )
                             } else {
                                 targetEntity.primaryKey.singleOrNull()
                                     ?: return EntityResult.Error(
                                         TransformError(
-                                            "erm-to-exposed: foreign key on attribute '$rawName' targets entity " +
-                                                "'${targetEntity.name ?: targetEntity.id}' whose primary key is " +
-                                                "not a single column (composite or empty) — reference()/" +
-                                                "optReference() require an explicit targetAttributeId.",
-                                            attr.id,
+                                            message =
+                                                "erm-to-exposed: foreign key on attribute '$rawName' targets entity " +
+                                                    "'${targetEntity.name ?: targetEntity.id}' whose primary key is " +
+                                                    "not a single column (composite or empty) — reference()/" +
+                                                    "optReference() require an explicit targetAttributeId.",
+                                            elementId = attr.id,
                                         ),
                                     )
                             }
                         val targetPropName = attrPropertyNameById.getValue(targetAttr.id)
                         renderReferenceColumnLine(
-                            propName,
-                            attr,
-                            colLiteral,
-                            targetObjectName,
-                            targetPropName,
-                            fk,
-                            imports,
-                            enumInfoByEnumName,
+                            propName = propName,
+                            attr = attr,
+                            colLiteral = colLiteral,
+                            targetObjectName = targetObjectName,
+                            targetPropName = targetPropName,
+                            fk = fk,
+                            imports = imports,
+                            enumInfoByEnumName = enumInfoByEnumName,
                         )
                     }
                 }
@@ -745,7 +784,7 @@ internal class ErmExposedEmitter(
                         "comment-only.",
                 )
                 entity.indexes.filter { it.where != null }.forEach { idx ->
-                    sb.appendLine("    //   - ${indexLabelFor(idx, entity)}: WHERE ${commentSafe(idx.where!!)}")
+                    sb.appendLine("    //   - ${indexLabelFor(index = idx, entity = entity)}: WHERE ${commentSafe(idx.where!!)}")
                 }
             }
         }
@@ -772,7 +811,7 @@ internal class ErmExposedEmitter(
             )
         }
 
-        return EntityResult.Ok(GeneratedFile("$objectName.kt", sb.toString()))
+        return EntityResult.Ok(GeneratedFile(relativePath = "$objectName.kt", content = sb.toString()))
     }
 
     /** `<name>` if the index carries one, else `(<comma-separated column names>)` — matches [dev.kuml.codegen.sql.ErmSchemaDiffGenerator]'s `indexDisplayName` shape. */
@@ -791,7 +830,7 @@ internal class ErmExposedEmitter(
         imports: MutableSet<String>,
         enumInfoByEnumName: Map<String, EnumRenderInfo>,
     ): String {
-        val rendered = renderBaseColumnCall(attr.type, colLiteral, enumInfoByEnumName)
+        val rendered = renderBaseColumnCall(type = attr.type, colLiteral = colLiteral, enumInfoByEnumName = enumInfoByEnumName)
         imports += rendered.imports
 
         var call = rendered.call
@@ -818,7 +857,7 @@ internal class ErmExposedEmitter(
         imports: MutableSet<String>,
         enumInfoByEnumName: Map<String, EnumRenderInfo>,
     ): String {
-        val rendered = renderBaseColumnCall(attr.type, colLiteral, enumInfoByEnumName)
+        val rendered = renderBaseColumnCall(type = attr.type, colLiteral = colLiteral, enumInfoByEnumName = enumInfoByEnumName)
         // The Kotlin type of a reference()/optReference() column always matches the FK
         // attribute's own declared type (its underlying storage type), same as a plain column.
         imports += rendered.imports
@@ -865,24 +904,24 @@ internal class ErmExposedEmitter(
         when (type) {
             is ErmDataType.Integer ->
                 when (type.bits) {
-                    16 -> ColumnCallRendering("short(\"$colLiteral\")", "Short", emptySet())
-                    64 -> ColumnCallRendering("long(\"$colLiteral\")", "Long", emptySet())
-                    else -> ColumnCallRendering("integer(\"$colLiteral\")", "Int", emptySet())
+                    16 -> ColumnCallRendering(call = "short(\"$colLiteral\")", ktType = "Short", imports = emptySet())
+                    64 -> ColumnCallRendering(call = "long(\"$colLiteral\")", ktType = "Long", imports = emptySet())
+                    else -> ColumnCallRendering(call = "integer(\"$colLiteral\")", ktType = "Int", imports = emptySet())
                 }
             is ErmDataType.Decimal ->
                 ColumnCallRendering(
-                    "decimal(\"$colLiteral\", ${type.precision}, ${type.scale})",
-                    "BigDecimal",
-                    setOf("java.math.BigDecimal"),
+                    call = "decimal(\"$colLiteral\", ${type.precision}, ${type.scale})",
+                    ktType = "BigDecimal",
+                    imports = setOf("java.math.BigDecimal"),
                 )
             is ErmDataType.Real ->
                 if (type.double) {
-                    ColumnCallRendering("double(\"$colLiteral\")", "Double", emptySet())
+                    ColumnCallRendering(call = "double(\"$colLiteral\")", ktType = "Double", imports = emptySet())
                 } else {
-                    ColumnCallRendering("float(\"$colLiteral\")", "Float", emptySet())
+                    ColumnCallRendering(call = "float(\"$colLiteral\")", ktType = "Float", imports = emptySet())
                 }
             is ErmDataType.Varchar ->
-                ColumnCallRendering("varchar(\"$colLiteral\", ${type.length})", "String", emptySet())
+                ColumnCallRendering(call = "varchar(\"$colLiteral\", ${type.length})", ktType = "String", imports = emptySet())
             is ErmDataType.Enum -> {
                 val info = enumInfoByEnumName.getValue(type.name)
                 val call =
@@ -893,80 +932,80 @@ internal class ErmExposedEmitter(
                         "enumerationByName<${info.objectName}>(\"$colLiteral\", ${type.length})"
                     }
                 val imports = info.externalFqName?.let { setOf(it) } ?: emptySet()
-                ColumnCallRendering(call, info.objectName, imports)
+                ColumnCallRendering(call = call, ktType = info.objectName, imports = imports)
             }
-            ErmDataType.Text -> ColumnCallRendering("text(\"$colLiteral\")", "String", emptySet())
-            ErmDataType.Boolean -> ColumnCallRendering("bool(\"$colLiteral\")", "Boolean", emptySet())
+            ErmDataType.Text -> ColumnCallRendering(call = "text(\"$colLiteral\")", ktType = "String", imports = emptySet())
+            ErmDataType.Boolean -> ColumnCallRendering(call = "bool(\"$colLiteral\")", ktType = "Boolean", imports = emptySet())
             ErmDataType.Date ->
                 when (dateTimeRepresentation) {
                     DateTimeRepresentation.JAVA ->
                         ColumnCallRendering(
-                            "date(\"$colLiteral\")",
-                            "LocalDate",
-                            setOf("org.jetbrains.exposed.v1.javatime.date", "java.time.LocalDate"),
+                            call = "date(\"$colLiteral\")",
+                            ktType = "LocalDate",
+                            imports = setOf("org.jetbrains.exposed.v1.javatime.date", "java.time.LocalDate"),
                         )
                     // INSTANT falls back to the same rendering as KOTLIN — kotlin.time.Instant has
                     // no calendar-date-only equivalent to map a Date column onto (see DateTimeRepresentation.INSTANT KDoc).
                     DateTimeRepresentation.KOTLIN, DateTimeRepresentation.INSTANT ->
                         ColumnCallRendering(
-                            "date(\"$colLiteral\")",
-                            "LocalDate",
-                            setOf("org.jetbrains.exposed.v1.datetime.date", "kotlinx.datetime.LocalDate"),
+                            call = "date(\"$colLiteral\")",
+                            ktType = "LocalDate",
+                            imports = setOf("org.jetbrains.exposed.v1.datetime.date", "kotlinx.datetime.LocalDate"),
                         )
                 }
             ErmDataType.Time ->
                 ColumnCallRendering(
-                    "time(\"$colLiteral\")",
-                    "LocalTime",
-                    setOf("org.jetbrains.exposed.v1.javatime.time", "java.time.LocalTime"),
+                    call = "time(\"$colLiteral\")",
+                    ktType = "LocalTime",
+                    imports = setOf("org.jetbrains.exposed.v1.javatime.time", "java.time.LocalTime"),
                 )
             is ErmDataType.Timestamp ->
                 when (dateTimeRepresentation) {
                     DateTimeRepresentation.JAVA ->
                         ColumnCallRendering(
-                            "datetime(\"$colLiteral\")",
-                            "LocalDateTime",
-                            setOf("org.jetbrains.exposed.v1.javatime.datetime", "java.time.LocalDateTime"),
+                            call = "datetime(\"$colLiteral\")",
+                            ktType = "LocalDateTime",
+                            imports = setOf("org.jetbrains.exposed.v1.javatime.datetime", "java.time.LocalDateTime"),
                         )
                     DateTimeRepresentation.KOTLIN ->
                         ColumnCallRendering(
-                            "datetime(\"$colLiteral\")",
-                            "LocalDateTime",
-                            setOf("org.jetbrains.exposed.v1.datetime.datetime", "kotlinx.datetime.LocalDateTime"),
+                            call = "datetime(\"$colLiteral\")",
+                            ktType = "LocalDateTime",
+                            imports = setOf("org.jetbrains.exposed.v1.datetime.datetime", "kotlinx.datetime.LocalDateTime"),
                         )
                     DateTimeRepresentation.INSTANT ->
                         ColumnCallRendering(
-                            "timestamp(\"$colLiteral\")",
-                            "Instant",
-                            setOf("org.jetbrains.exposed.v1.datetime.timestamp", "kotlin.time.Instant"),
+                            call = "timestamp(\"$colLiteral\")",
+                            ktType = "Instant",
+                            imports = setOf("org.jetbrains.exposed.v1.datetime.timestamp", "kotlin.time.Instant"),
                         )
                 }
             ErmDataType.Uuid ->
                 when (uuidRepresentation) {
                     UuidRepresentation.JAVA ->
                         ColumnCallRendering(
-                            "javaUUID(\"$colLiteral\")",
-                            "UUID",
-                            setOf("java.util.UUID", "org.jetbrains.exposed.v1.core.java.javaUUID"),
+                            call = "javaUUID(\"$colLiteral\")",
+                            ktType = "UUID",
+                            imports = setOf("java.util.UUID", "org.jetbrains.exposed.v1.core.java.javaUUID"),
                         )
                     UuidRepresentation.KOTLIN ->
                         ColumnCallRendering(
-                            "uuid(\"$colLiteral\")",
-                            "Uuid",
-                            setOf("kotlin.uuid.Uuid"),
+                            call = "uuid(\"$colLiteral\")",
+                            ktType = "Uuid",
+                            imports = setOf("kotlin.uuid.Uuid"),
                         )
                 }
             ErmDataType.Blob ->
                 ColumnCallRendering(
-                    "blob(\"$colLiteral\")",
-                    "ExposedBlob",
-                    setOf("org.jetbrains.exposed.v1.core.statements.api.ExposedBlob"),
+                    call = "blob(\"$colLiteral\")",
+                    ktType = "ExposedBlob",
+                    imports = setOf("org.jetbrains.exposed.v1.core.statements.api.ExposedBlob"),
                 )
             ErmDataType.Json ->
                 ColumnCallRendering(
-                    "text(\"$colLiteral\")",
-                    "String",
-                    emptySet(),
+                    call = "text(\"$colLiteral\")",
+                    ktType = "String",
+                    imports = emptySet(),
                     trailingComment = "ErmDataType.Json fallback — Exposed's json() needs a serializer",
                 )
             is ErmDataType.Custom -> {
@@ -976,15 +1015,15 @@ internal class ErmExposedEmitter(
                     // digit-only SRID) — not user text — but it is still routed through
                     // kotlinStringLiteral for defense in depth, matching every other embedded literal.
                     ColumnCallRendering(
-                        "geometry(\"$colLiteral\", \"${kotlinStringLiteral(geo.postgresType())}\")",
-                        "String",
-                        emptySet(),
+                        call = "geometry(\"$colLiteral\", \"${kotlinStringLiteral(geo.postgresType())}\")",
+                        ktType = "String",
+                        imports = emptySet(),
                     )
                 } else {
                     ColumnCallRendering(
-                        "text(\"$colLiteral\")",
-                        "String",
-                        emptySet(),
+                        call = "text(\"$colLiteral\")",
+                        ktType = "String",
+                        imports = emptySet(),
                         trailingComment = "Custom(${commentSafe(type.raw)}) fallback",
                     )
                 }

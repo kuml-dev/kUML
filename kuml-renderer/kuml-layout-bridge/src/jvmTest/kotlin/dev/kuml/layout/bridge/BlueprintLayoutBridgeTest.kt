@@ -59,13 +59,13 @@ class BlueprintLayoutBridgeTest :
                     name = "Journey",
                     visibleLayers = setOf(BlueprintLayer.CUSTOMER_ACTIONS),
                 )
-            val layout = bridge.layout(twoPhaseModel(), diagram)
+            val layout = bridge.layout(model = twoPhaseModel(), diagram = diagram)
             layout.cells shouldHaveSize 2
         }
 
         test("BlueprintDiagramFull: 2 phases × all 4 layers = 8 cells") {
             val diagram = BlueprintDiagramFull(name = "Blueprint")
-            val layout = bridge.layout(twoPhaseModel(), diagram)
+            val layout = bridge.layout(model = twoPhaseModel(), diagram = diagram)
             // All 4 BlueprintLayer values × 2 phases
             layout.cells shouldHaveSize (BlueprintLayer.entries.size * 2)
         }
@@ -79,7 +79,7 @@ class BlueprintLayoutBridgeTest :
                     name = "Journey",
                     visibleLayers = setOf(BlueprintLayer.CUSTOMER_ACTIONS),
                 )
-            val layout = bridge.layout(twoPhaseModel(), diagram)
+            val layout = bridge.layout(model = twoPhaseModel(), diagram = diagram)
             val firstCell = layout.cells.first { it.phaseId == "p1" }
             firstCell.x shouldBe (expectedX plusOrMinus 0.001)
         }
@@ -90,7 +90,7 @@ class BlueprintLayoutBridgeTest :
                     name = "Journey",
                     visibleLayers = setOf(BlueprintLayer.CUSTOMER_ACTIONS),
                 )
-            val layout = bridge.layout(twoPhaseModel(), diagram)
+            val layout = bridge.layout(model = twoPhaseModel(), diagram = diagram)
             val cell1 = layout.cells.first { it.phaseId == "p1" }
             val cell2 = layout.cells.first { it.phaseId == "p2" }
             (cell2.x - cell1.x) shouldBe (BlueprintGridConstants.COLUMN_WIDTH plusOrMinus 0.001)
@@ -102,7 +102,7 @@ class BlueprintLayoutBridgeTest :
                     name = "Blueprint",
                     visibleLayers = setOf(BlueprintLayer.CUSTOMER_ACTIONS, BlueprintLayer.FRONTSTAGE),
                 )
-            val layout = bridge.layout(twoPhaseModel(), diagram)
+            val layout = bridge.layout(model = twoPhaseModel(), diagram = diagram)
             val row0 = layout.cells.filter { it.layer == BlueprintLayer.CUSTOMER_ACTIONS }
             val row1 = layout.cells.filter { it.layer == BlueprintLayer.FRONTSTAGE }
             val dy = row1.first().y - row0.first().y
@@ -111,7 +111,7 @@ class BlueprintLayoutBridgeTest :
 
         test("cell width equals COLUMN_WIDTH") {
             val diagram = JourneyDiagram(name = "Journey")
-            val layout = bridge.layout(twoPhaseModel(), diagram)
+            val layout = bridge.layout(model = twoPhaseModel(), diagram = diagram)
             layout.cells.forEach { cell ->
                 cell.width shouldBe (BlueprintGridConstants.COLUMN_WIDTH plusOrMinus 0.001)
             }
@@ -119,7 +119,7 @@ class BlueprintLayoutBridgeTest :
 
         test("cell height equals ROW_HEIGHT") {
             val diagram = JourneyDiagram(name = "Journey")
-            val layout = bridge.layout(twoPhaseModel(), diagram)
+            val layout = bridge.layout(model = twoPhaseModel(), diagram = diagram)
             layout.cells.forEach { cell ->
                 cell.height shouldBe (BlueprintGridConstants.ROW_HEIGHT plusOrMinus 0.001)
             }
@@ -135,7 +135,7 @@ class BlueprintLayoutBridgeTest :
                     n * BlueprintGridConstants.COLUMN_WIDTH +
                     BlueprintGridConstants.PADDING
             val diagram = JourneyDiagram(name = "Journey")
-            val layout = bridge.layout(threePhaseModel(), diagram)
+            val layout = bridge.layout(model = threePhaseModel(), diagram = diagram)
             layout.canvasWidth shouldBe (expected plusOrMinus 0.001)
         }
 
@@ -143,19 +143,19 @@ class BlueprintLayoutBridgeTest :
 
         test("JourneyDiagram with showEmotionCurve: emotionBand is not null") {
             val diagram = JourneyDiagram(name = "Journey", showEmotionCurve = true)
-            val layout = bridge.layout(twoPhaseModel(), diagram)
+            val layout = bridge.layout(model = twoPhaseModel(), diagram = diagram)
             layout.emotionBand shouldNotBe null
         }
 
         test("JourneyDiagram with showEmotionCurve=false: emotionBand is null") {
             val diagram = JourneyDiagram(name = "Journey", showEmotionCurve = false)
-            val layout = bridge.layout(twoPhaseModel(), diagram)
+            val layout = bridge.layout(model = twoPhaseModel(), diagram = diagram)
             layout.emotionBand shouldBe null
         }
 
         test("emotionBand height equals EMOTION_BAND_HEIGHT") {
             val diagram = JourneyDiagram(name = "Journey", showEmotionCurve = true)
-            val layout = bridge.layout(twoPhaseModel(), diagram)
+            val layout = bridge.layout(model = twoPhaseModel(), diagram = diagram)
             val band = layout.emotionBand!!
             (band.endInclusive - band.start) shouldBe
                 (BlueprintGridConstants.EMOTION_BAND_HEIGHT plusOrMinus 0.001)
@@ -164,8 +164,8 @@ class BlueprintLayoutBridgeTest :
         test("gridTop shifts down by EMOTION_BAND_HEIGHT when emotion curve shown") {
             val withEmotion = JourneyDiagram(name = "With", showEmotionCurve = true)
             val withoutEmotion = JourneyDiagram(name = "Without", showEmotionCurve = false)
-            val layoutWith = bridge.layout(twoPhaseModel(), withEmotion)
-            val layoutWithout = bridge.layout(twoPhaseModel(), withoutEmotion)
+            val layoutWith = bridge.layout(model = twoPhaseModel(), diagram = withEmotion)
+            val layoutWithout = bridge.layout(model = twoPhaseModel(), diagram = withoutEmotion)
             val dy = layoutWith.cells.first().y - layoutWithout.cells.first().y
             dy shouldBe (BlueprintGridConstants.EMOTION_BAND_HEIGHT plusOrMinus 0.001)
         }
@@ -174,13 +174,13 @@ class BlueprintLayoutBridgeTest :
 
         test("columnCenters count equals phase count") {
             val diagram = JourneyDiagram(name = "Journey")
-            val layout = bridge.layout(threePhaseModel(), diagram)
+            val layout = bridge.layout(model = threePhaseModel(), diagram = diagram)
             layout.columnCenters shouldHaveSize 3
         }
 
         test("first columnCenter = first cell x + COLUMN_WIDTH/2") {
             val diagram = JourneyDiagram(name = "Journey")
-            val layout = bridge.layout(twoPhaseModel(), diagram)
+            val layout = bridge.layout(model = twoPhaseModel(), diagram = diagram)
             val expectedCenter = layout.cells.first { it.phaseId == "p1" }.x + BlueprintGridConstants.COLUMN_WIDTH / 2
             layout.columnCenters.first() shouldBe (expectedCenter plusOrMinus 0.001)
         }
@@ -189,13 +189,13 @@ class BlueprintLayoutBridgeTest :
 
         test("layerOrder follows BlueprintLayer.entries declaration order") {
             val diagram = BlueprintDiagramFull(name = "Blueprint")
-            val layout = bridge.layout(twoPhaseModel(), diagram)
+            val layout = bridge.layout(model = twoPhaseModel(), diagram = diagram)
             layout.layerOrder shouldBe BlueprintLayer.entries.toList()
         }
 
         test("JourneyDiagram: layerOrder contains only CUSTOMER_ACTIONS by default") {
             val diagram = JourneyDiagram(name = "Journey")
-            val layout = bridge.layout(twoPhaseModel(), diagram)
+            val layout = bridge.layout(model = twoPhaseModel(), diagram = diagram)
             layout.layerOrder shouldBe listOf(BlueprintLayer.CUSTOMER_ACTIONS)
         }
     })

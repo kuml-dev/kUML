@@ -37,7 +37,7 @@ private fun registerConnectHandlers(
     modelUri: String,
     schemaVersion: Int,
 ) {
-    server.onMethod("eth_call") { body ->
+    server.onMethod(method = "eth_call") { body ->
         when {
             body.contains(EvmChainAdapter.SELECTOR_MODEL_HASH.removePrefix("0x")) ->
                 abiCallResult(abiBytes32(modelHashHex))
@@ -61,8 +61,8 @@ private fun registerEventsHandlers(
     logsJson: String,
 ) {
     val headHex = "\"0x${headBlock.toString(16)}\""
-    server.onMethod("eth_blockNumber") { rpcSuccess(result = headHex) }
-    server.onMethod("eth_getLogs") { rpcSuccess(result = logsJson) }
+    server.onMethod(method = "eth_blockNumber") { rpcSuccess(result = headHex) }
+    server.onMethod(method = "eth_getLogs") { rpcSuccess(result = logsJson) }
 }
 
 class ChainCommandTest :
@@ -72,7 +72,7 @@ class ChainCommandTest :
 
         "connect prints ContractIdentity fields" {
             val server = MockRpcServer()
-            registerConnectHandlers(server, "42", "ipfs://QmTest", 3)
+            registerConnectHandlers(server = server, modelHashHex = "42", modelUri = "ipfs://QmTest", schemaVersion = 3)
             server.start()
             try {
                 val result =
@@ -93,7 +93,7 @@ class ChainCommandTest :
         "connect surfaces full modelHash hex in output" {
             val server = MockRpcServer()
             val distinctHashHex = "deadbeefcafebabe0102030405060708090a0b0c0d0e0f101112131415161718"
-            registerConnectHandlers(server, distinctHashHex, "ipfs://QmAbc", 1)
+            registerConnectHandlers(server = server, modelHashHex = distinctHashHex, modelUri = "ipfs://QmAbc", schemaVersion = 1)
             server.start()
             try {
                 val result =
@@ -167,7 +167,7 @@ class ChainCommandTest :
             modelFile.writeText(modelSource)
 
             val server = MockRpcServer()
-            registerConnectHandlers(server, hashHex, "ipfs://QmMatch", 1)
+            registerConnectHandlers(server = server, modelHashHex = hashHex, modelUri = "ipfs://QmMatch", schemaVersion = 1)
             server.start()
             try {
                 val result =
@@ -196,7 +196,7 @@ class ChainCommandTest :
 
             val server = MockRpcServer()
             // Different bytes32 → mismatch guaranteed
-            registerConnectHandlers(server, "ff".repeat(32), "ipfs://QmMismatch", 1)
+            registerConnectHandlers(server = server, modelHashHex = "ff".repeat(32), modelUri = "ipfs://QmMismatch", schemaVersion = 1)
             server.start()
             try {
                 val result =
@@ -237,7 +237,7 @@ class ChainCommandTest :
             modelFile.writeText(modelSource)
 
             val server = MockRpcServer()
-            registerConnectHandlers(server, hashHex, "ipfs://QmBoth", 1)
+            registerConnectHandlers(server = server, modelHashHex = hashHex, modelUri = "ipfs://QmBoth", schemaVersion = 1)
             server.start()
             try {
                 val result =
@@ -264,9 +264,9 @@ class ChainCommandTest :
 
         "events lists events up to limit" {
             val server = MockRpcServer()
-            registerConnectHandlers(server, "00", "ipfs://QmEvents", 1)
+            registerConnectHandlers(server = server, modelHashHex = "00", modelUri = "ipfs://QmEvents", schemaVersion = 1)
             registerEventsHandlers(
-                server,
+                server = server,
                 headBlock = 10L,
                 logsJson =
                     """[
@@ -293,10 +293,10 @@ class ChainCommandTest :
 
         "events --from-block filter passed through to replay" {
             val server = MockRpcServer()
-            registerConnectHandlers(server, "00", "ipfs://QmFromBlock", 1)
+            registerConnectHandlers(server = server, modelHashHex = "00", modelUri = "ipfs://QmFromBlock", schemaVersion = 1)
             // Return only a block-5 event regardless of request (mock doesn't filter)
             registerEventsHandlers(
-                server,
+                server = server,
                 headBlock = 10L,
                 logsJson =
                     """[
@@ -319,7 +319,7 @@ class ChainCommandTest :
 
         "events --limit 0 shows no events without calling replay" {
             val server = MockRpcServer()
-            registerConnectHandlers(server, "00", "ipfs://QmZero", 1)
+            registerConnectHandlers(server = server, modelHashHex = "00", modelUri = "ipfs://QmZero", schemaVersion = 1)
             // eth_blockNumber and getLogs are NOT registered — limit 0 must short-circuit before replay
             server.start()
             try {
@@ -345,8 +345,8 @@ class ChainCommandTest :
 
         "events empty server response shows no events" {
             val server = MockRpcServer()
-            registerConnectHandlers(server, "00", "ipfs://QmEmpty", 1)
-            registerEventsHandlers(server, headBlock = 10L, logsJson = "[]")
+            registerConnectHandlers(server = server, modelHashHex = "00", modelUri = "ipfs://QmEmpty", schemaVersion = 1)
+            registerEventsHandlers(server = server, headBlock = 10L, logsJson = "[]")
             server.start()
             try {
                 val result =

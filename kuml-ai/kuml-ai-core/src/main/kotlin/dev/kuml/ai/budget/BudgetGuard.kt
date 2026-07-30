@@ -41,7 +41,7 @@ public class BudgetGuard(
     public fun checkBeforeCall() {
         val b = budgetUsd ?: return
         synchronized(lock) {
-            if (spentUsd >= b) throw KumlAiException.BudgetExceeded(spentUsd, b)
+            if (spentUsd >= b) throw KumlAiException.BudgetExceeded(spentUsd = spentUsd, budgetUsd = b)
         }
     }
 
@@ -61,11 +61,11 @@ public class BudgetGuard(
         inTok: Long,
         outTok: Long,
     ) {
-        val cost = estimator.estimate(providerId, modelId, inTok, outTok) ?: 0.0
+        val cost = estimator.estimate(providerId = providerId, modelId = modelId, inputTokens = inTok, outputTokens = outTok) ?: 0.0
         synchronized(lock) {
             spentUsd += cost
             val b = budgetUsd ?: return
-            if (spentUsd > b) throw KumlAiException.BudgetExceeded(spentUsd, b)
+            if (spentUsd > b) throw KumlAiException.BudgetExceeded(spentUsd = spentUsd, budgetUsd = b)
         }
     }
 

@@ -29,7 +29,7 @@ class CosmWasmChainAdapterTest :
             CosmWasmChainAdapter(
                 urlValidator = CosmWasmUrlValidator.NoOp,
                 pollIntervalMillis = 10L,
-                clientFactory = { CosmWasmRpcClient(server.baseUrl()) },
+                clientFactory = { CosmWasmRpcClient(rpcUrl = server.baseUrl()) },
             )
 
         fun setupSmartQueryResponse(
@@ -39,13 +39,13 @@ class CosmWasmChainAdapterTest :
         ) {
             val responseJson = """{"model_hash":"$modelHashB64","model_uri":"$modelUri","schema_version":"$schemaVersion"}"""
             // smartQuery uses LCD REST endpoint: GET /cosmwasm/wasm/v1/contract/{address}/smart/{base64query}
-            server.onGet("/cosmwasm/wasm/v1/contract/$contractAddr/smart/") {
+            server.onGet(pathPrefix = "/cosmwasm/wasm/v1/contract/$contractAddr/smart/") {
                 responseJson
             }
         }
 
         fun setupStatusResponse(height: Long) {
-            server.onMethod("status") {
+            server.onMethod(method = "status") {
                 rpcSuccess(result = """{"sync_info":{"latest_block_height":"$height","latest_block_time":"2024-01-01T00:00:00Z"}}""")
             }
         }
@@ -61,7 +61,7 @@ class CosmWasmChainAdapterTest :
                 val hashBytes = ByteArray(32) { it.toByte() }
                 setupSmartQueryResponse(Base64Codec.encode(hashBytes), "ipfs://abc", 2)
                 val adapter = makeAdapter()
-                val identity = adapter.connect(server.baseUrl(), contractAddr)
+                val identity = adapter.connect(rpcUrl = server.baseUrl(), contractAddress = contractAddr)
                 identity.address shouldBe contractAddr
                 identity.modelUri shouldBe "ipfs://abc"
                 identity.schemaVersion shouldBe 2
@@ -72,9 +72,9 @@ class CosmWasmChainAdapterTest :
         test("connect with hex model_hash") {
             runTest {
                 val responseJson = """{"model_hash":"0xdeadbeef","model_uri":"ipfs://hex","schema_version":"0"}"""
-                server.onGet("/cosmwasm/wasm/v1/contract/$contractAddr/smart/") { responseJson }
+                server.onGet(pathPrefix = "/cosmwasm/wasm/v1/contract/$contractAddr/smart/") { responseJson }
                 val adapter = makeAdapter()
-                val identity = adapter.connect(server.baseUrl(), contractAddr)
+                val identity = adapter.connect(rpcUrl = server.baseUrl(), contractAddress = contractAddr)
                 identity.modelHash shouldBe byteArrayOf(0xde.toByte(), 0xad.toByte(), 0xbe.toByte(), 0xef.toByte())
             }
         }
@@ -82,9 +82,9 @@ class CosmWasmChainAdapterTest :
         test("connect with int-array model_hash") {
             runTest {
                 val responseJson = """{"model_hash":[1,2,3,4],"model_uri":"ipfs://arr","schema_version":"0"}"""
-                server.onGet("/cosmwasm/wasm/v1/contract/$contractAddr/smart/") { responseJson }
+                server.onGet(pathPrefix = "/cosmwasm/wasm/v1/contract/$contractAddr/smart/") { responseJson }
                 val adapter = makeAdapter()
-                val identity = adapter.connect(server.baseUrl(), contractAddr)
+                val identity = adapter.connect(rpcUrl = server.baseUrl(), contractAddress = contractAddr)
                 identity.modelHash shouldBe byteArrayOf(1, 2, 3, 4)
             }
         }
@@ -93,7 +93,7 @@ class CosmWasmChainAdapterTest :
             runTest {
                 val adapter = makeAdapter()
                 shouldThrow<CosmWasmChainAdapterException.InvalidContractAddress> {
-                    adapter.connect(server.baseUrl(), "notabech32address")
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = "notabech32address")
                 }
             }
         }
@@ -103,10 +103,10 @@ class CosmWasmChainAdapterTest :
                 val adapter =
                     CosmWasmChainAdapter(
                         urlValidator = CosmWasmUrlValidator.Default,
-                        clientFactory = { CosmWasmRpcClient(server.baseUrl()) },
+                        clientFactory = { CosmWasmRpcClient(rpcUrl = server.baseUrl()) },
                     )
                 shouldThrow<CosmWasmChainAdapterException.InvalidUrlException> {
-                    adapter.connect("http://127.0.0.1:9999", contractAddr)
+                    adapter.connect(rpcUrl = "http://127.0.0.1:9999", contractAddress = contractAddr)
                 }
             }
         }
@@ -148,9 +148,9 @@ class CosmWasmChainAdapterTest :
             runTest {
                 setupSmartQueryResponse()
                 setupStatusResponse(0L)
-                server.onMethod("block_results") { emptyBlockResults() }
+                server.onMethod(method = "block_results") { emptyBlockResults() }
                 val adapter = makeAdapter()
-                adapter.connect(server.baseUrl(), contractAddr)
+                adapter.connect(rpcUrl = server.baseUrl(), contractAddress = contractAddr)
                 setupStatusResponse(0L)
                 val events = adapter.replay(1L).toList()
                 events shouldHaveSize 0
@@ -162,7 +162,7 @@ class CosmWasmChainAdapterTest :
                 setupSmartQueryResponse()
                 setupStatusResponse(5L)
                 val adapter = makeAdapter()
-                adapter.connect(server.baseUrl(), contractAddr)
+                adapter.connect(rpcUrl = server.baseUrl(), contractAddress = contractAddr)
                 shouldThrow<IllegalArgumentException> {
                     adapter.replay(-1L).toList()
                 }
@@ -175,7 +175,7 @@ class CosmWasmChainAdapterTest :
                 setupStatusResponse(3L)
 
                 val contractAddrForEvent = contractAddr
-                server.onMethod("block_results") { body ->
+                server.onMethod(method = "block_results") { body ->
                     // Return a wasm event matching our contract
                     val attrs =
                         """[{"key":"_contract_address","value":"$contractAddrForEvent"},{"key":"action","value":"transfer"}]"""
@@ -185,7 +185,7 @@ class CosmWasmChainAdapterTest :
                     )
                 }
                 val adapter = makeAdapter()
-                adapter.connect(server.baseUrl(), contractAddr)
+                adapter.connect(rpcUrl = server.baseUrl(), contractAddress = contractAddr)
                 setupStatusResponse(3L)
                 val events = adapter.replay(1L).toList()
                 // 3 blocks × 1 event each
@@ -197,9 +197,9 @@ class CosmWasmChainAdapterTest :
             runTest {
                 setupSmartQueryResponse()
                 setupStatusResponse(5L)
-                server.onMethod("block_results") { emptyBlockResults() }
+                server.onMethod(method = "block_results") { emptyBlockResults() }
                 val adapter = makeAdapter()
-                adapter.connect(server.baseUrl(), contractAddr)
+                adapter.connect(rpcUrl = server.baseUrl(), contractAddress = contractAddr)
                 setupStatusResponse(5L)
                 // subscribe() returns a cold flow — each call yields an independent
                 // flow instance so separate collections don't share state.

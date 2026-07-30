@@ -53,27 +53,27 @@ public class UmlToEmfConverter {
 
         // ── Classifier — must come first ────────────────────────────────────────
         diagram.elements.filterIsInstance<UmlClass>().forEach { cls ->
-            elementIndex[cls.id] = convertClass(cls, emfModel)
+            elementIndex[cls.id] = convertClass(cls = cls, emfModel = emfModel)
         }
         diagram.elements.filterIsInstance<UmlInterface>().forEach { iface ->
-            elementIndex[iface.id] = convertInterface(iface, emfModel)
+            elementIndex[iface.id] = convertInterface(iface = iface, emfModel = emfModel)
         }
         diagram.elements.filterIsInstance<UmlEnumeration>().forEach { enum ->
-            elementIndex[enum.id] = convertEnumeration(enum, emfModel)
+            elementIndex[enum.id] = convertEnumeration(enum = enum, emfModel = emfModel)
         }
 
         // ── Relationships — after all classifiers are indexed ──────────────────
         diagram.elements.filterIsInstance<UmlAssociation>().forEach { assoc ->
-            convertAssociation(assoc, emfModel, elementIndex)
+            convertAssociation(assoc = assoc, emfModel = emfModel, index = elementIndex)
         }
         diagram.elements.filterIsInstance<UmlGeneralization>().forEach { gen ->
-            convertGeneralization(gen, elementIndex)
+            convertGeneralization(gen = gen, index = elementIndex)
         }
         diagram.elements.filterIsInstance<UmlInterfaceRealization>().forEach { real ->
-            convertInterfaceRealization(real, elementIndex)
+            convertInterfaceRealization(real = real, index = elementIndex)
         }
         diagram.elements.filterIsInstance<UmlDependency>().forEach { dep ->
-            convertDependency(dep, emfModel, elementIndex)
+            convertDependency(dep = dep, emfModel = emfModel, index = elementIndex)
         }
 
         return emfModel
@@ -87,8 +87,8 @@ public class UmlToEmfConverter {
     ): EmfClass {
         val emfClass = emfModel.createOwnedClass(cls.name, cls.isAbstract)
         emfClass.visibility = convertVisibility(cls.visibility)
-        cls.attributes.forEach { prop -> convertProperty(prop, emfClass, emfModel) }
-        cls.operations.forEach { op -> convertOperation(op, emfClass, emfModel) }
+        cls.attributes.forEach { prop -> convertProperty(prop = prop, owner = emfClass, emfModel = emfModel) }
+        cls.operations.forEach { op -> convertOperation(op = op, owner = emfClass, emfModel = emfModel) }
         return emfClass
     }
 
@@ -98,8 +98,8 @@ public class UmlToEmfConverter {
     ): EmfInterface {
         val emfInterface = emfModel.createOwnedInterface(iface.name)
         emfInterface.visibility = convertVisibility(iface.visibility)
-        iface.attributes.forEach { prop -> convertInterfaceProperty(prop, emfInterface, emfModel) }
-        iface.operations.forEach { op -> convertInterfaceOperation(op, emfInterface, emfModel) }
+        iface.attributes.forEach { prop -> convertInterfaceProperty(prop = prop, owner = emfInterface, emfModel = emfModel) }
+        iface.operations.forEach { op -> convertInterfaceOperation(op = op, owner = emfInterface, emfModel = emfModel) }
         return emfInterface
     }
 
@@ -123,9 +123,9 @@ public class UmlToEmfConverter {
         owner: EmfClass,
         emfModel: EmfModel,
     ): Property {
-        val type = resolveOrCreatePrimitiveType(prop.type.name, emfModel)
+        val type = resolveOrCreatePrimitiveType(typeName = prop.type.name, emfModel = emfModel)
         val emfProp = owner.createOwnedAttribute(prop.name, type)
-        applyPropertyDetails(emfProp, prop)
+        applyPropertyDetails(emfProp = emfProp, prop = prop)
         return emfProp
     }
 
@@ -134,9 +134,9 @@ public class UmlToEmfConverter {
         owner: EmfInterface,
         emfModel: EmfModel,
     ): Property {
-        val type = resolveOrCreatePrimitiveType(prop.type.name, emfModel)
+        val type = resolveOrCreatePrimitiveType(typeName = prop.type.name, emfModel = emfModel)
         val emfProp = owner.createOwnedAttribute(prop.name, type)
-        applyPropertyDetails(emfProp, prop)
+        applyPropertyDetails(emfProp = emfProp, prop = prop)
         return emfProp
     }
 
@@ -145,7 +145,7 @@ public class UmlToEmfConverter {
         prop: UmlProperty,
     ) {
         emfProp.visibility = convertVisibility(prop.visibility)
-        applyMultiplicity(emfProp, prop.multiplicity)
+        applyMultiplicity(elem = emfProp, mult = prop.multiplicity)
         emfProp.setIsStatic(prop.isStatic)
         emfProp.setIsReadOnly(prop.isReadOnly)
         if (prop.defaultValue != null) {
@@ -159,7 +159,7 @@ public class UmlToEmfConverter {
         emfModel: EmfModel,
     ): Operation {
         val emfOp = owner.createOwnedOperation(op.name, null, null)
-        applyOperationDetails(emfOp, op, emfModel)
+        applyOperationDetails(emfOp = emfOp, op = op, emfModel = emfModel)
         return emfOp
     }
 
@@ -169,7 +169,7 @@ public class UmlToEmfConverter {
         emfModel: EmfModel,
     ): Operation {
         val emfOp = owner.createOwnedOperation(op.name, null, null)
-        applyOperationDetails(emfOp, op, emfModel)
+        applyOperationDetails(emfOp = emfOp, op = op, emfModel = emfModel)
         return emfOp
     }
 
@@ -185,13 +185,13 @@ public class UmlToEmfConverter {
         // Return type via createReturnResult
         val returnTypeRef = op.returnType
         if (returnTypeRef != null) {
-            val retType = resolveOrCreatePrimitiveType(returnTypeRef.name, emfModel)
+            val retType = resolveOrCreatePrimitiveType(typeName = returnTypeRef.name, emfModel = emfModel)
             emfOp.createReturnResult(null, retType)
         }
 
         // IN/OUT/INOUT parameters
         op.parameters.forEach { param ->
-            val paramType = resolveOrCreatePrimitiveType(param.type.name, emfModel)
+            val paramType = resolveOrCreatePrimitiveType(typeName = param.type.name, emfModel = emfModel)
             val emfParam = emfOp.createOwnedParameter(param.name, paramType)
             emfParam.direction = convertDirection(param.direction)
             if (param.defaultValue != null) {
@@ -236,7 +236,7 @@ public class UmlToEmfConverter {
                 emfAssoc.createOwnedEnd(end0.role ?: "", type0)
             }
         emfEnd0.aggregation = if (assoc.aggregation != AggregationKind.NONE) emfAggregation else EmfAggregationKind.NONE_LITERAL
-        applyMultiplicity(emfEnd0, end0.multiplicity)
+        applyMultiplicity(elem = emfEnd0, mult = end0.multiplicity)
 
         val emfEnd1 =
             if (end1.navigable) {
@@ -245,7 +245,7 @@ public class UmlToEmfConverter {
                 emfAssoc.createOwnedEnd(end1.role ?: "", type1)
             }
         emfEnd1.aggregation = EmfAggregationKind.NONE_LITERAL
-        applyMultiplicity(emfEnd1, end1.multiplicity)
+        applyMultiplicity(elem = emfEnd1, mult = end1.multiplicity)
     }
 
     private fun convertGeneralization(

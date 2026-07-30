@@ -57,6 +57,6 @@ internal object WorkerClassLoaderPolicy {
             val parent =
                 Thread.currentThread().contextClassLoader
                     ?: WorkerClassLoaderPolicy::class.java.classLoader
-            AllowlistClassLoader(parent)
+            AllowlistClassLoader(delegate = parent)
         }
 }

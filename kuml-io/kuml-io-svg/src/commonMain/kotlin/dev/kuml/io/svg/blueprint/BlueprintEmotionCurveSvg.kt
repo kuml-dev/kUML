@@ -67,28 +67,30 @@ internal fun SvgBuilder.renderEmotionCurve(
     // ── 2. Y-axis scale (+2 / 0 / −2) just inside the chart's left edge ──
     listOf(yTop to "+2", yMid to "0", yBottom to "−2").forEach { (y, lbl) ->
         tag(
-            "text",
-            mapOf(
-                "x" to f(axisX),
-                "y" to f(y + 3),
-                "class" to "kuml-body",
-                "font-size" to "9",
-                "fill" to "#8a94a6",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "x" to f(axisX),
+                    "y" to f(y + 3),
+                    "class" to "kuml-body",
+                    "font-size" to "9",
+                    "fill" to "#8a94a6",
+                ),
         ) { text(lbl) }
     }
 
     // ── 3. band label "Emotion" in the label column ──
     tag(
-        "text",
-        mapOf(
-            "x" to f(labelX),
-            "y" to f(bandTop + bandHeight / 2),
-            "class" to "kuml-body",
-            "font-size" to "12",
-            "font-weight" to "600",
-            "fill" to "#1d2968",
-        ),
+        name = "text",
+        attrs =
+            mapOf(
+                "x" to f(labelX),
+                "y" to f(bandTop + bandHeight / 2),
+                "class" to "kuml-body",
+                "font-size" to "12",
+                "font-weight" to "600",
+                "fill" to "#1d2968",
+            ),
     ) { text("Emotion") }
 
     // ── 4. polyline (neutral grey connector) ──

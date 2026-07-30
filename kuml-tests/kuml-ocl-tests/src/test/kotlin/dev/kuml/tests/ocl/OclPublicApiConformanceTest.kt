@@ -25,9 +25,9 @@ class OclPublicApiConformanceTest :
     FunSpec({
 
         test("OclExpressions.evaluate resolves String/Integer standard-library operation calls") {
-            OclExpressions.evaluate("'shampoo'.substring(2, 4)", self = Unit) shouldBe "ham"
-            OclExpressions.evaluate("(-7).abs()", self = Unit) shouldBe 7
-            OclExpressions.evaluate("7.mod(3)", self = Unit) shouldBe 1
+            OclExpressions.evaluate(expression = "'shampoo'.substring(2, 4)", self = Unit) shouldBe "ham"
+            OclExpressions.evaluate(expression = "(-7).abs()", self = Unit) shouldBe 7
+            OclExpressions.evaluate(expression = "7.mod(3)", self = Unit) shouldBe 1
         }
 
         test("OclExpressions.evaluate resolves collection iterators over model navigation") {
@@ -40,7 +40,7 @@ class OclPublicApiConformanceTest :
                             UmlConstraint(id = "Order::c1", name = "NameLooksReasonable", body = "self.name.size() > 0"),
                         ),
                 )
-            OclExpressions.evaluate("self.name.size() > 0", self = cls) shouldBe true
+            OclExpressions.evaluate(expression = "self.name.size() > 0", self = cls) shouldBe true
         }
 
         test("OclValidator.validateWithExpressions reports a violation for a failing standard-library constraint") {

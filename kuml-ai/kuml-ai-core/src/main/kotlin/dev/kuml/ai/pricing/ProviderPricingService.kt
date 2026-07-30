@@ -32,10 +32,10 @@ public class ProviderPricingService internal constructor(
         if (liveJson != null) {
             val doc = runCatching { json.decodeFromString<PricingDocument>(liveJson) }.getOrNull()
             if (doc != null && doc.entries.isNotEmpty()) {
-                return LoadedPricing(doc, live = true)
+                return LoadedPricing(document = doc, live = true)
             }
         }
-        return LoadedPricing(loadFallback(json), live = false)
+        return LoadedPricing(document = loadFallback(json), live = false)
     }
 
     /** Result of [load]. */
@@ -51,10 +51,10 @@ public class ProviderPricingService internal constructor(
         private val DEFAULT_JSON: Json = Json { ignoreUnknownKeys = true }
 
         /** Production factory — uses HTTPS fetcher + bundled fallback. */
-        public fun create(): ProviderPricingService = ProviderPricingService(HttpsPricingFetcher())
+        public fun create(): ProviderPricingService = ProviderPricingService(fetcher = HttpsPricingFetcher())
 
         /** Test factory — inject any [PricingFetcher] stub. */
-        public fun forTest(fetcher: PricingFetcher): ProviderPricingService = ProviderPricingService(fetcher)
+        public fun forTest(fetcher: PricingFetcher): ProviderPricingService = ProviderPricingService(fetcher = fetcher)
 
         /**
          * Load the bundled fallback document from the classpath.

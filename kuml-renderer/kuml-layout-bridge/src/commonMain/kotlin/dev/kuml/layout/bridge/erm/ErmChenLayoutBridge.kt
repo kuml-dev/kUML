@@ -127,7 +127,7 @@ public object ErmChenLayoutBridge {
             nodes.add(
                 LayoutNode(
                     id = NodeId(ENTITY_PREFIX + entity.id),
-                    intrinsicSize = sizeProvider.sizeOf(ENTITY_PREFIX + entity.id, "ErmChenEntity"),
+                    intrinsicSize = sizeProvider.sizeOf(elementId = ENTITY_PREFIX + entity.id, elementKind = "ErmChenEntity"),
                 ),
             )
 
@@ -135,7 +135,7 @@ public object ErmChenLayoutBridge {
                 nodes.add(
                     LayoutNode(
                         id = NodeId(ATTR_PREFIX + attr.id),
-                        intrinsicSize = sizeProvider.sizeOf(ATTR_PREFIX + attr.id, "ErmChenAttribute"),
+                        intrinsicSize = sizeProvider.sizeOf(elementId = ATTR_PREFIX + attr.id, elementKind = "ErmChenAttribute"),
                     ),
                 )
                 edges.add(
@@ -154,7 +154,7 @@ public object ErmChenLayoutBridge {
             nodes.add(
                 LayoutNode(
                     id = NodeId(REL_PREFIX + rel.id),
-                    intrinsicSize = sizeProvider.sizeOf(REL_PREFIX + rel.id, "ErmChenRelationship"),
+                    intrinsicSize = sizeProvider.sizeOf(elementId = REL_PREFIX + rel.id, elementKind = "ErmChenRelationship"),
                 ),
             )
             edges.add(
@@ -179,7 +179,7 @@ public object ErmChenLayoutBridge {
                 nodes.add(
                     LayoutNode(
                         id = NodeId(VIEW_PREFIX + view.id),
-                        intrinsicSize = sizeProvider.sizeOf(VIEW_PREFIX + view.id, "ErmChenView"),
+                        intrinsicSize = sizeProvider.sizeOf(elementId = VIEW_PREFIX + view.id, elementKind = "ErmChenView"),
                     ),
                 )
             }

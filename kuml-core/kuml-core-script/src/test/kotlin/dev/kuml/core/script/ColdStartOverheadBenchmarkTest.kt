@@ -34,9 +34,9 @@ class ColdStartOverheadBenchmarkTest :
         test("cold-start overhead: in-process vs child-process") {
             // Warm both paths once (JIT + first-time Kotlin compiler load) so the
             // reported numbers are steady-state cold starts, not first-ever loads.
-            InProcessScriptEvaluator.evaluate(script)
+            InProcessScriptEvaluator.evaluate(source = script)
             val child = ChildProcessScriptEvaluator(timeoutSeconds = 60)
-            child.evaluate(script)
+            child.evaluate(source = script)
 
             val runs = 3
             var inProcTotal = 0L
@@ -44,11 +44,11 @@ class ColdStartOverheadBenchmarkTest :
             repeat(runs) {
                 inProcTotal +=
                     measureTimeMillis {
-                        InProcessScriptEvaluator.evaluate(script).shouldBeInstanceOf<EvaluatedScript.Success>()
+                        InProcessScriptEvaluator.evaluate(source = script).shouldBeInstanceOf<EvaluatedScript.Success>()
                     }
                 childTotal +=
                     measureTimeMillis {
-                        child.evaluate(script).shouldBeInstanceOf<EvaluatedScript.Success>()
+                        child.evaluate(source = script).shouldBeInstanceOf<EvaluatedScript.Success>()
                     }
             }
             val inProcAvg = inProcTotal / runs

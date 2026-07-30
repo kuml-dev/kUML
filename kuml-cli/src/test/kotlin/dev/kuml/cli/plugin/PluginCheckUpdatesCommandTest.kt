@@ -49,13 +49,13 @@ class PluginCheckUpdatesCommandTest :
             name = "Plugin $id",
             version = version,
             kumlVersionRange = ">=0.1.0",
-            extensions = listOf(ExtensionEntry("theme", "test.Impl", id)),
+            extensions = listOf(ExtensionEntry(category = "theme", implementation = "test.Impl", id = id)),
         )
 
         fun registerFake(
             id: String,
             version: String,
-        ) = PluginRegistry.register(LoadedPlugin(fakeManifest(id, version), emptyList(), null))
+        ) = PluginRegistry.register(LoadedPlugin(manifest = fakeManifest(id, version), plugins = emptyList(), classLoader = null))
 
         fun fakeEntry(
             id: String,
@@ -79,7 +79,7 @@ class PluginCheckUpdatesCommandTest :
 
         fun serviceUnreachable(): UpdateCheckService =
             UpdateCheckService(
-                indexProvider = { throw PluginRegistryException("offline") },
+                indexProvider = { throw PluginRegistryException(message = "offline") },
                 installedProvider = { PluginRegistry.all() },
             )
 

@@ -54,13 +54,29 @@ public object StereotypeValidator {
 
                 if (stereotype != null) {
                     // Pass 1: required-property check
-                    violations += checkRequiredProperties(app, stereotype, elementId, elementName)
+                    violations +=
+                        checkRequiredProperties(app = app, stereotype = stereotype, elementId = elementId, elementName = elementName)
 
                     // Pass 2: target-metaclass check (defensive)
-                    violations += checkTargetMetaclass(app, stereotype, elementId, elementName, elementMetaclass)
+                    violations +=
+                        checkTargetMetaclass(
+                            app = app,
+                            stereotype = stereotype,
+                            elementId = elementId,
+                            elementName = elementName,
+                            elementMetaclass = elementMetaclass,
+                        )
 
                     // Pass 3: stereotype OCL constraints
-                    violations += checkOclConstraints(element, app, stereotype, elementId, elementName, diagram.elements)
+                    violations +=
+                        checkOclConstraints(
+                            element = element,
+                            app = app,
+                            stereotype = stereotype,
+                            elementId = elementId,
+                            elementName = elementName,
+                            model = diagram.elements,
+                        )
                 }
                 // If stereotype not found in registry, we skip silently
                 // (profile not loaded is not a model error — use kuml profile validate for that)

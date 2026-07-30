@@ -51,11 +51,12 @@ internal object ConstraintResolver {
                 if (cols.size > 1) {
                     diagnostics +=
                         ReverseDiagnostic(
-                            ReverseDiagnostic.Severity.WARN,
-                            "REV-SQL-011",
-                            "Composite foreign key on ${entity.name}(${cols.joinToString()}) is only " +
-                                "partially mapped — kUML's ErmForeignKey is single-column, the foreign " +
-                                "key is attached to the first column only.",
+                            severity = ReverseDiagnostic.Severity.WARN,
+                            code = "REV-SQL-011",
+                            message =
+                                "Composite foreign key on ${entity.name}(${cols.joinToString()}) is only " +
+                                    "partially mapped — kUML's ErmForeignKey is single-column, the foreign " +
+                                    "key is attached to the first column only.",
                             file = fileHint,
                         )
                 }
@@ -84,14 +85,14 @@ internal object ConstraintResolver {
             else -> {
                 val cols = columnNames(idx)
                 when (idx.type?.uppercase()) {
-                    "PRIMARY KEY" -> applyPrimaryKey(entity, cols)
-                    "UNIQUE" -> applyUnique(entity, cols, idx.name?.let { SqlIdentifiers.fold(it) })
+                    "PRIMARY KEY" -> applyPrimaryKey(entity = entity, colNames = cols)
+                    "UNIQUE" -> applyUnique(entity = entity, colNames = cols, name = idx.name?.let { SqlIdentifiers.fold(it) })
                     else ->
                         diagnostics +=
                             ReverseDiagnostic(
-                                ReverseDiagnostic.Severity.INFO,
-                                "REV-SQL-014",
-                                "Table constraint of type '${idx.type}' on '${entity.name}' is not supported — skipped.",
+                                severity = ReverseDiagnostic.Severity.INFO,
+                                code = "REV-SQL-014",
+                                message = "Table constraint of type '${idx.type}' on '${entity.name}' is not supported — skipped.",
                                 file = fileHint,
                             )
                 }
@@ -150,9 +151,9 @@ internal object ConstraintResolver {
         if (entity == null) {
             diagnostics +=
                 ReverseDiagnostic(
-                    ReverseDiagnostic.Severity.WARN,
-                    "REV-SQL-002",
-                    "ALTER TABLE references unknown table '$tableName' — statement skipped.",
+                    severity = ReverseDiagnostic.Severity.WARN,
+                    code = "REV-SQL-002",
+                    message = "ALTER TABLE references unknown table '$tableName' — statement skipped.",
                     file = fileHint,
                 )
             return
@@ -161,27 +162,35 @@ internal object ConstraintResolver {
             if (ae.operation != AlterOperation.ADD) {
                 diagnostics +=
                     ReverseDiagnostic(
-                        ReverseDiagnostic.Severity.INFO,
-                        "REV-SQL-014",
-                        "ALTER TABLE operation '${ae.operation}' on '$tableName' is not applied " +
-                            "(only ADD CONSTRAINT/ADD COLUMN/ADD PRIMARY KEY/ADD UNIQUE are mapped).",
+                        severity = ReverseDiagnostic.Severity.INFO,
+                        code = "REV-SQL-014",
+                        message =
+                            "ALTER TABLE operation '${ae.operation}' on '$tableName' is not applied " +
+                                "(only ADD CONSTRAINT/ADD COLUMN/ADD PRIMARY KEY/ADD UNIQUE are mapped).",
                         file = fileHint,
                     )
                 continue
             }
             when {
-                ae.pkColumns != null -> applyPrimaryKey(entity, ae.pkColumns.map { SqlIdentifiers.fold(it) })
+                ae.pkColumns != null -> applyPrimaryKey(entity = entity, colNames = ae.pkColumns.map { SqlIdentifiers.fold(it) })
                 ae.ukColumns != null ->
                     applyUnique(
-                        entity,
-                        ae.ukColumns.map { SqlIdentifiers.fold(it) },
-                        ae.ukName?.let { SqlIdentifiers.fold(it) },
+                        entity = entity,
+                        colNames = ae.ukColumns.map { SqlIdentifiers.fold(it) },
+                        name = ae.ukName?.let { SqlIdentifiers.fold(it) },
                     )
-                ae.index != null -> applyIndexConstraint(entity, ae.index, pendingForeignKeys, diagnostics, fileHint)
+                ae.index != null ->
+                    applyIndexConstraint(
+                        entity = entity,
+                        idx = ae.index,
+                        pendingForeignKeys = pendingForeignKeys,
+                        diagnostics = diagnostics,
+                        fileHint = fileHint,
+                    )
                 ae.colDataTypeList != null -> {
                     for (cdt in ae.colDataTypeList) {
                         val attrId = entity.nextAttrId()
-                        val mapped = ColumnMapper.map(cdt, attrId, diagnostics, fileHint)
+                        val mapped = ColumnMapper.map(cd = cdt, attrId = attrId, diagnostics = diagnostics, fileHint = fileHint)
                         entity.attributes += mapped.attribute
                         mapped.inlineForeignKey?.let { ref ->
                             pendingForeignKeys +=
@@ -204,9 +213,9 @@ internal object ConstraintResolver {
                 else ->
                     diagnostics +=
                         ReverseDiagnostic(
-                            ReverseDiagnostic.Severity.INFO,
-                            "REV-SQL-014",
-                            "ALTER TABLE ADD ... on '$tableName' was not recognized — skipped.",
+                            severity = ReverseDiagnostic.Severity.INFO,
+                            code = "REV-SQL-014",
+                            message = "ALTER TABLE ADD ... on '$tableName' was not recognized — skipped.",
                             file = fileHint,
                         )
             }
@@ -228,15 +237,15 @@ internal object ConstraintResolver {
             if (targetEntityId == null) {
                 diagnostics +=
                     ReverseDiagnostic(
-                        ReverseDiagnostic.Severity.WARN,
-                        "REV-SQL-012",
-                        "Foreign key '${p.sourceLabel}' references unknown table '${p.targetTableName}' — relationship skipped.",
+                        severity = ReverseDiagnostic.Severity.WARN,
+                        code = "REV-SQL-012",
+                        message = "Foreign key '${p.sourceLabel}' references unknown table '${p.targetTableName}' — relationship skipped.",
                         file = fileHint,
                     )
                 continue
             }
             val targetEntity = entities.getValue(targetEntityId)
-            val targetAttrId = resolveTargetAttributeId(p, targetEntity, diagnostics, fileHint)
+            val targetAttrId = resolveTargetAttributeId(p = p, targetEntity = targetEntity, diagnostics = diagnostics, fileHint = fileHint)
 
             val fk =
                 ErmForeignKey(
@@ -262,10 +271,11 @@ internal object ConstraintResolver {
         if (found == null) {
             diagnostics +=
                 ReverseDiagnostic(
-                    ReverseDiagnostic.Severity.WARN,
-                    "REV-SQL-012",
-                    "Foreign key '${p.sourceLabel}' references unknown column '$targetColumnName' " +
-                        "on '${targetEntity.name}' — falling back to the target's primary key.",
+                    severity = ReverseDiagnostic.Severity.WARN,
+                    code = "REV-SQL-012",
+                    message =
+                        "Foreign key '${p.sourceLabel}' references unknown column '$targetColumnName' " +
+                            "on '${targetEntity.name}' — falling back to the target's primary key.",
                     file = fileHint,
                 )
             return null
@@ -292,9 +302,9 @@ internal object ConstraintResolver {
         if (entity == null) {
             diagnostics +=
                 ReverseDiagnostic(
-                    ReverseDiagnostic.Severity.WARN,
-                    "REV-SQL-002",
-                    "CREATE INDEX references unknown table '$tableName' — skipped.",
+                    severity = ReverseDiagnostic.Severity.WARN,
+                    code = "REV-SQL-002",
+                    message = "CREATE INDEX references unknown table '$tableName' — skipped.",
                     file = fileHint,
                 )
             return
@@ -305,9 +315,9 @@ internal object ConstraintResolver {
         if (attrIds.size != colNames.size) {
             diagnostics +=
                 ReverseDiagnostic(
-                    ReverseDiagnostic.Severity.WARN,
-                    "REV-SQL-002",
-                    "CREATE INDEX '${idx.name}' on '$tableName' references unknown column(s) — partially mapped.",
+                    severity = ReverseDiagnostic.Severity.WARN,
+                    code = "REV-SQL-002",
+                    message = "CREATE INDEX '${idx.name}' on '$tableName' references unknown column(s) — partially mapped.",
                     file = fileHint,
                 )
         }
@@ -350,9 +360,9 @@ internal object ConstraintResolver {
             } else {
                 diagnostics +=
                     ReverseDiagnostic(
-                        ReverseDiagnostic.Severity.INFO,
-                        "REV-SQL-013",
-                        "View '$name' references '$t', which could not be resolved to a known entity — best-effort only.",
+                        severity = ReverseDiagnostic.Severity.INFO,
+                        code = "REV-SQL-013",
+                        message = "View '$name' references '$t', which could not be resolved to a known entity — best-effort only.",
                         file = fileHint,
                     )
             }

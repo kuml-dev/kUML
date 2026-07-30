@@ -27,7 +27,7 @@ public class CppReversePlugin : KumlReversePlugin {
         PluginDescriptor(
             id = "dev.kuml.plugins.reverse-cpp",
             name = "C++ Reverse Engine",
-            version = PluginVersion(1, 0, 0),
+            version = PluginVersion(major = 1, minor = 0, patch = 0),
             kumlVersionRange = KumlVersionRange(">=0.12.0"),
             capabilities = setOf(PluginCapability.REVERSE),
             requiredPermissions = setOf(PluginPermission.FS_READ),

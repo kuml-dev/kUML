@@ -91,11 +91,11 @@ internal class TsParser(
                     skipModifiers()
                     when {
                         atKeyword("interface") -> parseInterface(decorators)?.let { decls += it }
-                        atKeyword("class") -> parseClass(decorators, isAbstract = false)?.let { decls += it }
+                        atKeyword("class") -> parseClass(decorators = decorators, isAbstract = false)?.let { decls += it }
                         atKeyword("enum") -> parseEnum(decorators)?.let { decls += it }
                         atKeyword("abstract") && lookaheadKeyword("class") -> {
                             consumeKeyword("abstract")
-                            parseClass(decorators, isAbstract = true)?.let { decls += it }
+                            parseClass(decorators = decorators, isAbstract = true)?.let { decls += it }
                         }
                         else -> skipTopLevelStatement()
                     }

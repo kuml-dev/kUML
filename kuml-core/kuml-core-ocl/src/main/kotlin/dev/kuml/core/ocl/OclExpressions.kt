@@ -26,8 +26,8 @@ public object OclExpressions {
         env: Map<String, Any?> = emptyMap(),
     ): Any? {
         val tokens = OclLexer.tokenize(expression)
-        val expr = OclParser(tokens).parse()
+        val expr = OclParser(tokens = tokens).parse()
         val fullEnv: Map<String, Any?> = mapOf("self" to self) + env
-        return OclEvaluator(self).eval(expr, fullEnv)
+        return OclEvaluator(self = self).eval(expr = expr, env = fullEnv)
     }
 }

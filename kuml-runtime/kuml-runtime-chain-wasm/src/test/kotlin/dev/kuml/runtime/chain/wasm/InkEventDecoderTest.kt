@@ -80,7 +80,7 @@ class InkEventDecoderTest :
 
         fun makeDecoder(abiJson: String): InkEventDecoder {
             val abi = InkAbiMetadata.parse(json.parseToJsonElement(abiJson))
-            return InkEventDecoder(abi)
+            return InkEventDecoder(abi = abi)
         }
 
         // -------------------------------------------------------------------------
@@ -100,8 +100,8 @@ class InkEventDecoderTest :
 
             val result =
                 decoder.decode(
-                    listOf("0xaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd", fromTopicHex, toTopicHex),
-                    dataBlob,
+                    topicsHex = listOf("0xaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd", fromTopicHex, toTopicHex),
+                    dataScale = dataBlob,
                 )
             result.shouldNotBeNull()
             result.name shouldBe "Transfer"
@@ -118,8 +118,8 @@ class InkEventDecoderTest :
             val dataBlob = ScaleCodec.encodeU32(99L) + byteArrayOf(0x00) + byteArrayOf(0x00) // empty str
             val result =
                 decoder.decode(
-                    listOf("0xaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd", fromTopicHex, toTopicHex),
-                    dataBlob,
+                    topicsHex = listOf("0xaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd", fromTopicHex, toTopicHex),
+                    dataScale = dataBlob,
                 )
             result.shouldNotBeNull()
             result.values["from"] shouldBe fromTopicHex
@@ -153,8 +153,8 @@ class InkEventDecoderTest :
             val accountBytes = ByteArray(32) { it.toByte() }
             val result =
                 decoder.decode(
-                    listOf("0x3333333333333333333333333333333333333333333333333333333333333333"),
-                    accountBytes,
+                    topicsHex = listOf("0x3333333333333333333333333333333333333333333333333333333333333333"),
+                    dataScale = accountBytes,
                 )
             result.shouldNotBeNull()
             (result.values["account"] as ByteArray).contentEquals(accountBytes) shouldBe true
@@ -164,8 +164,8 @@ class InkEventDecoderTest :
             val decoder = makeDecoder(ABI_V5)
             val result =
                 decoder.decode(
-                    listOf("0x0000000000000000000000000000000000000000000000000000000000000000"),
-                    ByteArray(0),
+                    topicsHex = listOf("0x0000000000000000000000000000000000000000000000000000000000000000"),
+                    dataScale = ByteArray(0),
                 )
             result.shouldBeNull()
         }
@@ -175,8 +175,8 @@ class InkEventDecoderTest :
             val rawPayload = byteArrayOf(0x01, 0x02, 0x03, 0x04)
             val result =
                 decoder.decode(
-                    listOf("0x2222222222222222222222222222222222222222222222222222222222222222"),
-                    rawPayload,
+                    topicsHex = listOf("0x2222222222222222222222222222222222222222222222222222222222222222"),
+                    dataScale = rawPayload,
                 )
             result.shouldNotBeNull()
             result.name shouldBe "WithComposite"
@@ -204,8 +204,8 @@ class InkEventDecoderTest :
             val data = ByteArray(16) { it.toByte() }
             val result =
                 decoder.decode(
-                    listOf("0x4444444444444444444444444444444444444444444444444444444444444444"),
-                    data,
+                    topicsHex = listOf("0x4444444444444444444444444444444444444444444444444444444444444444"),
+                    dataScale = data,
                 )
             result.shouldNotBeNull()
             result.name shouldBe "BigSigned"
@@ -237,8 +237,8 @@ class InkEventDecoderTest :
             // discriminant 0 = None
             val result =
                 decoder.decode(
-                    listOf("0x5555555555555555555555555555555555555555555555555555555555555555"),
-                    byteArrayOf(0x00),
+                    topicsHex = listOf("0x5555555555555555555555555555555555555555555555555555555555555555"),
+                    dataScale = byteArrayOf(0x00),
                 )
             result.shouldNotBeNull()
             result.values["opt"] shouldBe "None"
@@ -253,7 +253,7 @@ class InkEventDecoderTest :
             // v4: first topic byte = 0x00 (index 0)
             val topic = "0x" + "00" + "0".repeat(62)
             val dataBlob = ScaleCodec.encodeU64(12345L)
-            val result = decoder.decode(listOf(topic), dataBlob)
+            val result = decoder.decode(topicsHex = listOf(topic), dataScale = dataBlob)
             result.shouldNotBeNull()
             result.name shouldBe "Deposited"
             result.values["amount"] shouldBe 12345L
@@ -262,13 +262,13 @@ class InkEventDecoderTest :
         test("v4 fallback: first topic byte = out of range → null") {
             val decoder = makeDecoder(ABI_V4)
             val topic = "0x" + "ff" + "0".repeat(62) // index 255, no such event
-            val result = decoder.decode(listOf(topic), ByteArray(0))
+            val result = decoder.decode(topicsHex = listOf(topic), dataScale = ByteArray(0))
             result.shouldBeNull()
         }
 
         test("empty topics list → null") {
             val decoder = makeDecoder(ABI_V5)
-            val result = decoder.decode(emptyList(), ByteArray(0))
+            val result = decoder.decode(topicsHex = emptyList(), dataScale = ByteArray(0))
             result.shouldBeNull()
         }
     })

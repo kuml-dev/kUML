@@ -29,15 +29,15 @@ internal fun renderUmlClass(
     val bo = theme.borders
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
+        tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
 
         var cy = 18f
 
         // Applied stereotypes header (V1.1)
-        val stereoAdv = StereotypeHelper.renderHeader(element, theme, this, w / 2f, cy)
+        val stereoAdv = StereotypeHelper.renderHeader(element = element, theme = theme, builder = this, cx = w / 2f, cy = cy)
         if (stereoAdv > 0f) {
             cy += stereoAdv
         }
@@ -53,55 +53,57 @@ internal fun renderUmlClass(
                 put("text-anchor", "middle")
                 if (element.isAbstract) put("font-style", "italic")
             }
-        tag("text", nameAttrs) { text(element.name) }
+        tag(name = "text", attrs = nameAttrs) { text(element.name) }
         cy += 6f
 
         // Tagged-value compartment (V1.1, opt-in)
-        val tvAdv = StereotypeHelper.renderTaggedValues(element, theme, this, w, cy)
+        val tvAdv = StereotypeHelper.renderTaggedValues(element = element, theme = theme, builder = this, w = w, cy = cy)
         cy += tvAdv
 
         if (element.attributes.isNotEmpty() || element.operations.isNotEmpty()) {
             tag(
-                "line",
-                mapOf(
-                    "x1" to "0",
-                    "y1" to fmt(cy),
-                    "x2" to fmt(w),
-                    "y2" to fmt(cy),
-                    "class" to "kuml-divider",
-                ),
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to "0",
+                        "y1" to fmt(cy),
+                        "x2" to fmt(w),
+                        "y2" to fmt(cy),
+                        "class" to "kuml-divider",
+                    ),
             )
             cy += 14f
         }
 
         for (attr in element.attributes) {
-            val stereoPrefix = StereotypeHelper.featureStereotypeTspan(attr, theme)
+            val stereoPrefix = StereotypeHelper.featureStereotypeTspan(element = attr, theme = theme)
             tag(
-                "text",
-                mapOf("class" to "kuml-body", "x" to fmt(bo.thinPx + 4f), "y" to fmt(cy)),
+                name = "text",
+                attrs = mapOf("class" to "kuml-body", "x" to fmt(bo.thinPx + 4f), "y" to fmt(cy)),
             ) { rawXml(stereoPrefix + xmlEscapeContent(attr.format())) }
             cy += 13f
         }
 
         if (element.attributes.isNotEmpty() && element.operations.isNotEmpty()) {
             tag(
-                "line",
-                mapOf(
-                    "x1" to "0",
-                    "y1" to fmt(cy),
-                    "x2" to fmt(w),
-                    "y2" to fmt(cy),
-                    "class" to "kuml-divider",
-                ),
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to "0",
+                        "y1" to fmt(cy),
+                        "x2" to fmt(w),
+                        "y2" to fmt(cy),
+                        "class" to "kuml-divider",
+                    ),
             )
             cy += 14f
         }
 
         for (op in element.operations) {
-            val stereoPrefix = StereotypeHelper.featureStereotypeTspan(op, theme)
+            val stereoPrefix = StereotypeHelper.featureStereotypeTspan(element = op, theme = theme)
             tag(
-                "text",
-                mapOf("class" to "kuml-body", "x" to fmt(bo.thinPx + 4f), "y" to fmt(cy)),
+                name = "text",
+                attrs = mapOf("class" to "kuml-body", "x" to fmt(bo.thinPx + 4f), "y" to fmt(cy)),
             ) { rawXml(stereoPrefix + xmlEscapeContent(op.format(theme))) }
             cy += 13f
         }

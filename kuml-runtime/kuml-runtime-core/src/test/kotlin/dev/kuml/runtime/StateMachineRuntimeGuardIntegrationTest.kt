@@ -13,14 +13,14 @@ class StateMachineRuntimeGuardIntegrationTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), state("B")),
+                    vertices = listOf(initial(), state(id = "A"), state(id = "B")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
+                            trans(id = "t0", from = "init", to = "A"),
                             trans(
-                                "t1",
-                                "A",
-                                "B",
+                                id = "t1",
+                                from = "A",
+                                to = "B",
                                 trigger = "pay",
                                 guard = "event.amount > 100",
                             ),
@@ -34,7 +34,7 @@ class StateMachineRuntimeGuardIntegrationTest :
                     name = "pay",
                     payload = buildJsonObject { put("amount", JsonPrimitive(150)) },
                 )
-            val result = rt.step(instance, largeEvent)
+            val result = rt.step(instance = instance, event = largeEvent)
             result.shouldBeInstanceOf<StepResult.Transitioned>()
             instance.currentVertices.first().id shouldBe "B"
         }
@@ -43,14 +43,14 @@ class StateMachineRuntimeGuardIntegrationTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), state("B")),
+                    vertices = listOf(initial(), state(id = "A"), state(id = "B")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
+                            trans(id = "t0", from = "init", to = "A"),
                             trans(
-                                "t1",
-                                "A",
-                                "B",
+                                id = "t1",
+                                from = "A",
+                                to = "B",
                                 trigger = "pay",
                                 guard = "event.amount > 100",
                             ),
@@ -63,7 +63,7 @@ class StateMachineRuntimeGuardIntegrationTest :
                     name = "pay",
                     payload = buildJsonObject { put("amount", JsonPrimitive(50)) },
                 )
-            val result = rt.step(instance, smallEvent)
+            val result = rt.step(instance = instance, event = smallEvent)
             result.shouldBeInstanceOf<StepResult.Stayed>()
             instance.currentVertices.first().id shouldBe "A"
         }
@@ -72,14 +72,14 @@ class StateMachineRuntimeGuardIntegrationTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), state("B")),
+                    vertices = listOf(initial(), state(id = "A"), state(id = "B")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
+                            trans(id = "t0", from = "init", to = "A"),
                             trans(
-                                "t1",
-                                "A",
-                                "B",
+                                id = "t1",
+                                from = "A",
+                                to = "B",
                                 trigger = "pay",
                                 guard = "[event.amount > 100]",
                             ),
@@ -88,8 +88,8 @@ class StateMachineRuntimeGuardIntegrationTest :
             val rt = StateMachineRuntime()
             val instance = rt.start(sm)
             rt.step(
-                instance,
-                Event(name = "pay", payload = buildJsonObject { put("amount", JsonPrimitive(200)) }),
+                instance = instance,
+                event = Event(name = "pay", payload = buildJsonObject { put("amount", JsonPrimitive(200)) }),
             )
             instance.currentVertices.first().id shouldBe "B"
         }

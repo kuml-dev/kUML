@@ -63,14 +63,14 @@ class BehaviourWidgetStateTest :
         test("sendEvent advances trace") {
             val state = buildState()
             val traceSizeBefore = state.trace.size
-            state.sendEvent("next")
+            state.sendEvent(eventName = "next")
             state.trace.size shouldBeGreaterThan traceSizeBefore
         }
 
         test("sendEvent changes active vertex") {
             val state = buildState()
             state.currentHighlightIds() shouldContain "Red"
-            state.sendEvent("next")
+            state.sendEvent(eventName = "next")
             state.currentHighlightIds() shouldContain "Green"
             state.currentHighlightIds() shouldNotContain "Red"
         }
@@ -78,8 +78,8 @@ class BehaviourWidgetStateTest :
         test("reset clears trace to initial") {
             val state = buildState()
             val initialTraceSize = state.trace.size
-            state.sendEvent("next")
-            state.sendEvent("next")
+            state.sendEvent(eventName = "next")
+            state.sendEvent(eventName = "next")
             // After two events trace should be larger
             state.trace.size shouldBeGreaterThan initialTraceSize
             state.reset()
@@ -92,7 +92,7 @@ class BehaviourWidgetStateTest :
 
         test("reset restores initial active vertex") {
             val state = buildState()
-            state.sendEvent("next") // Red → Green
+            state.sendEvent(eventName = "next") // Red → Green
             state.currentHighlightIds() shouldContain "Green"
             state.reset()
             state.currentHighlightIds() shouldContain "Red"
@@ -100,7 +100,7 @@ class BehaviourWidgetStateTest :
 
         test("scrubTo(0) returns initial active vertices") {
             val state = buildState()
-            state.sendEvent("next") // advance
+            state.sendEvent(eventName = "next") // advance
             state.scrubTo(0)
             // At position 0 the initial active set is used
             val atZero = state.currentHighlightIds()
@@ -116,7 +116,7 @@ class BehaviourWidgetStateTest :
 
         test("scrubTo clamps over-trace to trace.size") {
             val state = buildState()
-            state.sendEvent("next")
+            state.sendEvent(eventName = "next")
             val traceSize = state.trace.size
             state.scrubTo(traceSize + 100)
             state.tracePosition shouldBe traceSize
@@ -124,14 +124,14 @@ class BehaviourWidgetStateTest :
 
         test("isScrubbing is false at trace.size") {
             val state = buildState()
-            state.sendEvent("next")
+            state.sendEvent(eventName = "next")
             state.scrubTo(state.trace.size)
             state.isScrubbing.shouldBeFalse()
         }
 
         test("isScrubbing is true below trace.size") {
             val state = buildState()
-            state.sendEvent("next")
+            state.sendEvent(eventName = "next")
             val traceSize = state.trace.size
             if (traceSize > 0) {
                 state.scrubTo(0)
@@ -142,7 +142,7 @@ class BehaviourWidgetStateTest :
         test("currentHighlightIds changes after sendEvent") {
             val state = buildState()
             val before = state.currentHighlightIds().toSet()
-            state.sendEvent("next")
+            state.sendEvent(eventName = "next")
             val after = state.currentHighlightIds().toSet()
             // Active state changed from Red to Green
             after shouldNotBe before
@@ -150,8 +150,8 @@ class BehaviourWidgetStateTest :
 
         test("sendEvent after scrubbing forks and resumes live") {
             val state = buildState()
-            state.sendEvent("next") // Red → Green
-            state.sendEvent("next") // Green → Yellow
+            state.sendEvent(eventName = "next") // Red → Green
+            state.sendEvent(eventName = "next") // Green → Yellow
             val traceAfterTwo = state.trace.size
 
             // Scrub back to the beginning
@@ -159,7 +159,7 @@ class BehaviourWidgetStateTest :
             state.isScrubbing.shouldBeTrue()
 
             // Now send an event — this forks from position 0
-            state.sendEvent("next")
+            state.sendEvent(eventName = "next")
             // After fork+event, should be live (no longer scrubbing)
             state.isScrubbing.shouldBeFalse()
             // The trace should have been reset to the forked branch

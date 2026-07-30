@@ -60,7 +60,7 @@ internal class ValidateExpressionsCommand : CliktCommand(name = "validate-expres
 
     override fun run() {
         // 1. Evaluate script
-        val evalResult = KumlScriptHost.eval(script)
+        val evalResult = KumlScriptHost.eval(file = script)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
             echo("Script error: ${errors.joinToString("\n") { it.message }}", err = true)
@@ -76,12 +76,12 @@ internal class ValidateExpressionsCommand : CliktCommand(name = "validate-expres
         // 2. Extract diagram
         val extracted: ExtractedDiagram =
             try {
-                DiagramExtractor.extractAny(success.value.returnValue, script)
+                DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = script)
             } catch (_: Throwable) {
                 try {
                     ExtractedDiagram.Uml(
                         dev.kuml.cli.DiagramExtractor
-                            .extract(success.value.returnValue, script),
+                            .extract(returnValue = success.value.returnValue, input = script),
                     )
                 } catch (e: ScriptEvaluationException) {
                     echo("Script error: ${e.message}", err = true)
@@ -96,10 +96,10 @@ internal class ValidateExpressionsCommand : CliktCommand(name = "validate-expres
         val results =
             guards.map { (source, expression) ->
                 val parseErrors = mutableListOf<ParseError>()
-                val parsed = OclLikeExpressionParser.tryParse(expression, parseErrors)
+                val parsed = OclLikeExpressionParser.tryParse(input = expression, errors = parseErrors)
                 val inferred =
                     if (parsed != null) {
-                        ExpressionTypeChecker.infer(parsed).javaClass.simpleName
+                        ExpressionTypeChecker.infer(expr = parsed).javaClass.simpleName
                     } else {
                         null
                     }

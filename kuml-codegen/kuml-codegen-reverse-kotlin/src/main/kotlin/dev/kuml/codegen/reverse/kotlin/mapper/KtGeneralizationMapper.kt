@@ -44,8 +44,8 @@ internal class KtGeneralizationMapper(
 
                 if (superFqn == null) {
                     diagnostics.info(
-                        "REV-K-050",
-                        "Supertype '$superName' of '$fqn' not found in pool — external type, skipped.",
+                        code = "REV-K-050",
+                        message = "Supertype '$superName' of '$fqn' not found in pool — external type, skipped.",
                     )
                     continue
                 }
@@ -73,6 +73,6 @@ internal class KtGeneralizationMapper(
             }
         }
 
-        return GeneralizationResult(generalizations, realizations)
+        return GeneralizationResult(generalizations = generalizations, realizations = realizations)
     }
 }

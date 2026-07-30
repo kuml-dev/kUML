@@ -49,10 +49,10 @@ public object OkfValidator {
 
         for (doc in ws.documents) {
             findings += checkFrontmatterPresence(doc)
-            findings += checkKnownType(doc, strictVocabulary)
+            findings += checkKnownType(doc = doc, strictVocabulary = strictVocabulary)
             findings += checkDiagramBlockPresence(doc)
             findings += checkBlockCount(doc)
-            findings += checkLinks(ws.root, doc)
+            findings += checkLinks(root = ws.root, doc = doc)
         }
 
         findings += checkIndexDocument(ws)
@@ -81,7 +81,7 @@ public object OkfValidator {
         strictVocabulary: Boolean,
     ): List<OkfFinding> {
         if (doc.rawType != null && doc.type == null) {
-            val didYouMean = Levenshtein.closest(doc.rawType, OkfType.entries.map { it.id }, maxDistance = 3)
+            val didYouMean = Levenshtein.closest(target = doc.rawType, candidates = OkfType.entries.map { it.id }, maxDistance = 3)
             val suggestion =
                 buildString {
                     append("Custom types are allowed, but double-check for typos against the OKF vocabulary (ADR-0011).")

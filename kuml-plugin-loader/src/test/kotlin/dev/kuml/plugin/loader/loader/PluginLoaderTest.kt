@@ -43,7 +43,7 @@ class PluginLoaderTest :
             try {
                 val ex =
                     shouldThrow<PluginLoadException> {
-                        PluginLoader.loadJar(jar, PluginVersion(3, 0, 28))
+                        PluginLoader.loadJar(jar = jar, runtimeVersion = PluginVersion(major = 3, minor = 0, patch = 28))
                     }
                 ex.message shouldContain "kuml-plugin.json"
             } finally {
@@ -58,10 +58,10 @@ class PluginLoaderTest :
                     name = "P",
                     version = "1.0.0",
                     kumlVersionRange = ">=3.0.0, <4.0.0",
-                    extensions = listOf(ExtensionEntry("theme", "X", "x")),
+                    extensions = listOf(ExtensionEntry(category = "theme", implementation = "X", id = "x")),
                 )
             shouldNotThrowAny {
-                PluginLoader.checkVersion(manifest, PluginVersion(3, 0, 28))
+                PluginLoader.checkVersion(manifest = manifest, runtimeVersion = PluginVersion(major = 3, minor = 0, patch = 28))
             }
         }
 
@@ -72,11 +72,11 @@ class PluginLoaderTest :
                     name = "P",
                     version = "1.0.0",
                     kumlVersionRange = ">=3.0.0, <3.0.10",
-                    extensions = listOf(ExtensionEntry("theme", "X", "x")),
+                    extensions = listOf(ExtensionEntry(category = "theme", implementation = "X", id = "x")),
                 )
             val ex =
                 shouldThrow<VersionMismatchException> {
-                    PluginLoader.checkVersion(manifest, PluginVersion(4, 0, 0))
+                    PluginLoader.checkVersion(manifest = manifest, runtimeVersion = PluginVersion(major = 4, minor = 0, patch = 0))
                 }
             ex.pluginId shouldBe "p"
             ex.pluginVersionRange shouldBe ">=3.0.0, <3.0.10"
@@ -87,7 +87,7 @@ class PluginLoaderTest :
             val jar = makeJarWithManifest("not valid json")
             try {
                 shouldThrow<ManifestParseException> {
-                    PluginLoader.loadJar(jar, PluginVersion(3, 0, 28))
+                    PluginLoader.loadJar(jar = jar, runtimeVersion = PluginVersion(major = 3, minor = 0, patch = 28))
                 }
             } finally {
                 jar.delete()
@@ -109,7 +109,7 @@ class PluginLoaderTest :
             val jar = makeJarWithManifest(json)
             try {
                 shouldThrow<VersionMismatchException> {
-                    PluginLoader.loadJar(jar, PluginVersion(3, 0, 28))
+                    PluginLoader.loadJar(jar = jar, runtimeVersion = PluginVersion(major = 3, minor = 0, patch = 28))
                 }
             } finally {
                 jar.delete()
@@ -119,7 +119,7 @@ class PluginLoaderTest :
         test("loadBuiltInsViaServiceLoader runs without exception even with empty ServiceLoader") {
             // This just confirms the method runs; no built-in providers may be on the classpath here
             shouldNotThrowAny {
-                PluginLoader.load(PluginVersion(3, 0, 28))
+                PluginLoader.load(runtimeVersion = PluginVersion(major = 3, minor = 0, patch = 28))
             }
         }
     })

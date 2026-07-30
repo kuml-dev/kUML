@@ -35,15 +35,15 @@ class Sysml2IbdSvgTest :
         // Helper to build a small Vehicle/Engine/Battery model with two part-usages.
         fun vehicleModel(): Pair<Sysml2Model, IbdDiagram> {
             val model =
-                sysml2Model("M") {
-                    val engineDef = partDef("Engine")
-                    val batteryDef = partDef("Battery")
+                sysml2Model(name = "M") {
+                    val engineDef = partDef(name = "Engine")
+                    val batteryDef = partDef(name = "Battery")
                     val vehicle =
-                        partDef("Vehicle") {
-                            part("engine", typeId = engineDef.id)
-                            part("battery", typeId = batteryDef.id)
+                        partDef(name = "Vehicle") {
+                            part(name = "engine", typeId = engineDef.id)
+                            part(name = "battery", typeId = batteryDef.id)
                         }
-                    ibd("Vehicle wiring", owner = vehicle)
+                    ibd(name = "Vehicle wiring", owner = vehicle)
                 }
             val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
             return model to ibd
@@ -53,13 +53,13 @@ class Sysml2IbdSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(420f, 200f),
+                canvas = Size(width = 420f, height = 200f),
                 nodes =
                     mapOf(
                         NodeId("Vehicle::engine") to
-                            NodeLayout(bounds = Rect(Point(20f, 20f), Size(180f, 80f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 80f))),
                         NodeId("Vehicle::battery") to
-                            NodeLayout(bounds = Rect(Point(220f, 20f), Size(180f, 80f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 220f, y = 20f), size = Size(width = 180f, height = 80f))),
                     ),
                 edges = emptyMap(),
                 groups = emptyMap(),
@@ -67,48 +67,48 @@ class Sysml2IbdSvgTest :
 
         "IBD of Vehicle renders two part-usage boxes" {
             val (model, ibd) = vehicleModel()
-            val svg = KumlSvgRenderer.toSvg(model, ibd, twoBoxLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = ibd, layoutResult = twoBoxLayout(), theme = PlainTheme())
 
             svg shouldContain "«part»"
             svg shouldContain "engine : Engine"
             svg shouldContain "battery : Battery"
 
-            SampleOutput.write("sysml2-ibd/vehicle-two-parts.svg", svg)
+            SampleOutput.write(filename = "sysml2-ibd/vehicle-two-parts.svg", content = svg)
         }
 
         "IBD with multiplicity shows [n..m] suffix" {
             val model =
-                sysml2Model("M") {
-                    val cylinderDef = partDef("Cylinder")
+                sysml2Model(name = "M") {
+                    val cylinderDef = partDef(name = "Cylinder")
                     val engine =
-                        partDef("V8Engine") {
+                        partDef(name = "V8Engine") {
                             part(
                                 name = "cylinders",
                                 typeId = cylinderDef.id,
-                                multiplicity = KermlMultiplicity(8, 8),
+                                multiplicity = KermlMultiplicity(lower = 8, upper = 8),
                             )
                         }
-                    ibd("V8 internals", owner = engine)
+                    ibd(name = "V8 internals", owner = engine)
                 }
             val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
             val layout =
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(220f, 120f),
+                    canvas = Size(width = 220f, height = 120f),
                     nodes =
                         mapOf(
                             NodeId("V8Engine::cylinders") to
-                                NodeLayout(bounds = Rect(Point(10f, 10f), Size(200f, 100f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 200f, height = 100f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, ibd, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = ibd, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "cylinders : Cylinder [8]"
 
-            SampleOutput.write("sysml2-ibd/v8-cylinder-multiplicity.svg", svg)
+            SampleOutput.write(filename = "sysml2-ibd/v8-cylinder-multiplicity.svg", content = svg)
         }
 
         "deterministic output — same input renders byte-identically" {
@@ -134,37 +134,37 @@ class Sysml2IbdSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(200f, 100f),
+                    canvas = Size(width = 200f, height = 100f),
                     nodes =
                         mapOf(
                             NodeId("Vehicle::engine") to
-                                NodeLayout(bounds = Rect(Point(0f, 0f), Size(180f, 80f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 180f, height = 80f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val one = KumlSvgRenderer.toSvg(model, ibd, layout, PlainTheme())
-            val two = KumlSvgRenderer.toSvg(model, ibd, layout, PlainTheme())
+            val one = KumlSvgRenderer.toSvg(model = model, diagram = ibd, layoutResult = layout, theme = PlainTheme())
+            val two = KumlSvgRenderer.toSvg(model = model, diagram = ibd, layoutResult = layout, theme = PlainTheme())
             one shouldBe two
         }
 
         "IBD with ports renders port squares at edge attachment points" {
             val model =
-                sysml2Model("HybridSystem") {
-                    val powerLine = connectionDef("PowerLine")
-                    val dcPort = portDef("DcPort")
+                sysml2Model(name = "HybridSystem") {
+                    val powerLine = connectionDef(name = "PowerLine")
+                    val dcPort = portDef(name = "DcPort")
                     val battery =
-                        partDef("Battery") {
-                            port("dcOut", typeId = dcPort.id)
+                        partDef(name = "Battery") {
+                            port(name = "dcOut", typeId = dcPort.id)
                         }
                     val motor =
-                        partDef("ElectricMotor") {
-                            port("dcIn", typeId = dcPort.id)
+                        partDef(name = "ElectricMotor") {
+                            port(name = "dcIn", typeId = dcPort.id)
                         }
                     val hybrid =
-                        partDef("HybridVehicle") {
-                            part("battery", typeId = battery.id)
-                            part("electricMotor", typeId = motor.id)
+                        partDef(name = "HybridVehicle") {
+                            part(name = "battery", typeId = battery.id)
+                            part(name = "electricMotor", typeId = motor.id)
                             connect(
                                 name = "batteryToMotor",
                                 typeId = powerLine.id,
@@ -172,39 +172,39 @@ class Sysml2IbdSvgTest :
                                 targetEndId = "HybridVehicle::electricMotor::dcIn",
                             )
                         }
-                    ibd("HybridVehicle IBD", owner = hybrid)
+                    ibd(name = "HybridVehicle IBD", owner = hybrid)
                 }
             val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
             val layout =
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(500f, 200f),
+                    canvas = Size(width = 500f, height = 200f),
                     nodes =
                         mapOf(
                             NodeId("HybridVehicle::battery") to
-                                NodeLayout(bounds = Rect(Point(20f, 20f), Size(200f, 80f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 200f, height = 80f))),
                             NodeId("HybridVehicle::electricMotor") to
-                                NodeLayout(bounds = Rect(Point(280f, 20f), Size(200f, 80f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 280f, y = 20f), size = Size(width = 200f, height = 80f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("conn:HybridVehicle::batteryToMotor") to
                                 EdgeRoute.Direct(
-                                    source = Point(220f, 60f), // right edge of battery box
-                                    target = Point(280f, 60f), // left edge of motor box
+                                    source = Point(x = 220f, y = 60f), // right edge of battery box
+                                    target = Point(x = 280f, y = 60f), // left edge of motor box
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, ibd, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = ibd, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "kuml-port"
             svg shouldContain "dcOut"
             svg shouldContain "dcIn"
 
-            SampleOutput.write("sysml2-ibd/hybrid-with-ports.svg", svg)
+            SampleOutput.write(filename = "sysml2-ibd/hybrid-with-ports.svg", content = svg)
         }
 
         "IBD with connection emits an edge in the layout output" {
@@ -215,20 +215,20 @@ class Sysml2IbdSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(420f, 200f),
+                    canvas = Size(width = 420f, height = 200f),
                     nodes =
                         mapOf(
                             NodeId("Vehicle::engine") to
-                                NodeLayout(bounds = Rect(Point(20f, 20f), Size(180f, 80f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 80f))),
                             NodeId("Vehicle::battery") to
-                                NodeLayout(bounds = Rect(Point(220f, 20f), Size(180f, 80f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 220f, y = 20f), size = Size(width = 180f, height = 80f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("conn:Vehicle::wiring") to
                                 EdgeRoute.OrthogonalRounded(
-                                    source = Point(200f, 60f),
-                                    target = Point(220f, 60f),
+                                    source = Point(x = 200f, y = 60f),
+                                    target = Point(x = 220f, y = 60f),
                                     waypoints = emptyList(),
                                     cornerRadiusPx = 4f,
                                 ),
@@ -236,7 +236,7 @@ class Sysml2IbdSvgTest :
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, ibd, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = ibd, layoutResult = layout, theme = PlainTheme())
 
             // Both part-usage boxes still present.
             svg shouldContain "engine : Engine"
@@ -247,6 +247,6 @@ class Sysml2IbdSvgTest :
             // edge dispatcher's default emits a `<path>` element for the route.
             svg shouldContain "path"
 
-            SampleOutput.write("sysml2-ibd/vehicle-with-connection.svg", svg)
+            SampleOutput.write(filename = "sysml2-ibd/vehicle-with-connection.svg", content = svg)
         }
     })

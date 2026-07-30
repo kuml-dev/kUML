@@ -38,8 +38,8 @@ class ParameterStereotypeRenderTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(w + 20f, h + 20f),
-                nodes = mapOf(NodeId(id) to NodeLayout(bounds = Rect(Point(x, y), Size(w, h)))),
+                canvas = Size(width = w + 20f, height = h + 20f),
+                nodes = mapOf(NodeId(id) to NodeLayout(bounds = Rect(origin = Point(x = x, y = y), size = Size(width = w, height = h)))),
                 edges = emptyMap(),
                 groups = emptyMap(),
             )
@@ -57,7 +57,7 @@ class ParameterStereotypeRenderTest :
                 UmlParameter(
                     id = "p1",
                     name = "email",
-                    type = UmlTypeRef("String"),
+                    type = UmlTypeRef(name = "String"),
                     direction = ParameterDirection.IN,
                 )
             p.formatParameter(PlainTheme()) shouldBe "email: String"
@@ -70,7 +70,7 @@ class ParameterStereotypeRenderTest :
                 UmlParameter(
                     id = "p2",
                     name = "email",
-                    type = UmlTypeRef("String"),
+                    type = UmlTypeRef(name = "String"),
                     direction = ParameterDirection.IN,
                     appliedStereotypes = listOf(stereoApp("Parameter")),
                 )
@@ -84,7 +84,7 @@ class ParameterStereotypeRenderTest :
                 UmlParameter(
                     id = "p3",
                     name = "x",
-                    type = UmlTypeRef("Int"),
+                    type = UmlTypeRef(name = "Int"),
                     direction = ParameterDirection.IN,
                     appliedStereotypes = listOf(stereoApp("A"), stereoApp("B")),
                 )
@@ -105,7 +105,7 @@ class ParameterStereotypeRenderTest :
                 UmlParameter(
                     id = "p4",
                     name = "email",
-                    type = UmlTypeRef("String"),
+                    type = UmlTypeRef(name = "String"),
                     direction = ParameterDirection.IN,
                     appliedStereotypes = listOf(stereoApp("Parameter")),
                 )
@@ -123,7 +123,7 @@ class ParameterStereotypeRenderTest :
                 UmlParameter(
                     id = "param5",
                     name = "email",
-                    type = UmlTypeRef("String"),
+                    type = UmlTypeRef(name = "String"),
                     direction = ParameterDirection.IN,
                     appliedStereotypes = listOf(stereoApp("Parameter")),
                 )
@@ -137,7 +137,7 @@ class ParameterStereotypeRenderTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val layout = singleNodeLayout("cls5")
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // The parameter-level stereotype must appear inline inside the operation signature.
             svg shouldContain "«Parameter» email: String"

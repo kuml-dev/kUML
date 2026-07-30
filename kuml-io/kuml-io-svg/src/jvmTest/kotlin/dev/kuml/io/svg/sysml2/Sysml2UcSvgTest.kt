@@ -35,16 +35,16 @@ class Sysml2UcSvgTest :
         // Tiny library system: one actor + two use cases.
         fun libraryModel(): Pair<Sysml2Model, UcDiagram> {
             val model =
-                sysml2Model("Library") {
-                    val reader = actorDef("Reader")
-                    val borrow = useCaseDef("BorrowBook")
-                    val auth = useCaseDef("Authenticate")
-                    ucDiagram("UC") {
+                sysml2Model(name = "Library") {
+                    val reader = actorDef(name = "Reader")
+                    val borrow = useCaseDef(name = "BorrowBook")
+                    val auth = useCaseDef(name = "Authenticate")
+                    ucDiagram(name = "UC") {
                         include(reader)
                         include(borrow)
                         include(auth)
-                        association(reader, borrow)
-                        include(borrow, auth)
+                        association(actor = reader, useCase = borrow)
+                        include(source = borrow, target = auth)
                     }
                 }
             val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
@@ -58,29 +58,29 @@ class Sysml2UcSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(600f, 220f),
+                canvas = Size(width = 600f, height = 220f),
                 nodes =
                     mapOf(
                         NodeId("Reader") to
-                            NodeLayout(bounds = Rect(Point(20f, 60f), Size(60f, 100f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 60f), size = Size(width = 60f, height = 100f))),
                         NodeId("BorrowBook") to
-                            NodeLayout(bounds = Rect(Point(160f, 30f), Size(160f, 70f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 160f, y = 30f), size = Size(width = 160f, height = 70f))),
                         NodeId("Authenticate") to
-                            NodeLayout(bounds = Rect(Point(400f, 30f), Size(160f, 70f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 400f, y = 30f), size = Size(width = 160f, height = 70f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("assoc:Reader::BorrowBook") to
                             EdgeRoute.OrthogonalRounded(
-                                source = Point(80f, 110f),
-                                target = Point(160f, 65f),
+                                source = Point(x = 80f, y = 110f),
+                                target = Point(x = 160f, y = 65f),
                                 waypoints = emptyList(),
                                 cornerRadiusPx = 4f,
                             ),
                         EdgeId("include:BorrowBook::Authenticate") to
                             EdgeRoute.OrthogonalRounded(
-                                source = Point(320f, 65f),
-                                target = Point(400f, 65f),
+                                source = Point(x = 320f, y = 65f),
+                                target = Point(x = 400f, y = 65f),
                                 waypoints = emptyList(),
                                 cornerRadiusPx = 4f,
                             ),
@@ -93,7 +93,7 @@ class Sysml2UcSvgTest :
 
         "UC renders actor as stick figure and use case as ellipse" {
             val (model, uc) = libraryModel()
-            val svg = KumlSvgRenderer.toSvg(model, uc, layoutFor(model, uc), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = uc, layoutResult = layoutFor(model, uc), theme = PlainTheme())
 
             // Stick-figure path = actor.
             svg shouldContain "kuml-actor"
@@ -106,12 +106,12 @@ class Sysml2UcSvgTest :
             svg shouldContain "BorrowBook"
             svg shouldContain "Authenticate"
 
-            SampleOutput.write("sysml2-uc/library-uc.svg", svg)
+            SampleOutput.write(filename = "sysml2-uc/library-uc.svg", content = svg)
         }
 
         "UC with association renders an edge in the SVG output" {
             val (model, uc) = libraryModel()
-            val svg = KumlSvgRenderer.toSvg(model, uc, layoutFor(model, uc), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = uc, layoutResult = layoutFor(model, uc), theme = PlainTheme())
 
             // Edge routes lower into SVG <path> elements.
             svg shouldContain "path"
@@ -122,7 +122,7 @@ class Sysml2UcSvgTest :
 
         "UC with include relationship surfaces both endpoint nodes" {
             val (model, uc) = libraryModel()
-            val svg = KumlSvgRenderer.toSvg(model, uc, layoutFor(model, uc), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = uc, layoutResult = layoutFor(model, uc), theme = PlainTheme())
 
             // V2.0.7 MVP: include edges go through the EdgeRendererDispatcher
             // but the synthetic KumlDiagram has no UmlRelationship element for
@@ -165,19 +165,21 @@ class Sysml2UcSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("Reader") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(60f, 100f))),
-                            NodeId("BorrowBook") to NodeLayout(bounds = Rect(Point(120f, 0f), Size(160f, 70f))),
+                            NodeId("Reader") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 60f, height = 100f))),
+                            NodeId("BorrowBook") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 120f, y = 0f), size = Size(width = 160f, height = 70f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val one = KumlSvgRenderer.toSvg(model, uc, layout, PlainTheme())
-            val two = KumlSvgRenderer.toSvg(model, uc, layout, PlainTheme())
+            val one = KumlSvgRenderer.toSvg(model = model, diagram = uc, layoutResult = layout, theme = PlainTheme())
+            val two = KumlSvgRenderer.toSvg(model = model, diagram = uc, layoutResult = layout, theme = PlainTheme())
             one shouldBe two
 
-            SampleOutput.write("sysml2-uc/deterministic.svg", one)
+            SampleOutput.write(filename = "sysml2-uc/deterministic.svg", content = one)
         }
     })

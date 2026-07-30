@@ -18,37 +18,37 @@ class Sysml2ConstraintCheckerTest :
 
         test("Newton's law F = m * a with all-Real env produces no errors") {
             val model =
-                sysml2Model("NewtonCheck") {
-                    attributeDef("Force")
-                    attributeDef("Mass")
-                    attributeDef("Acceleration")
+                sysml2Model(name = "NewtonCheck") {
+                    attributeDef(name = "Force")
+                    attributeDef(name = "Mass")
+                    attributeDef(name = "Acceleration")
                     val newton =
                         constraintDef(
                             name = "NewtonsLaw",
                             expression = "F = m * a",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("F", "Force", ConstraintParameterDirection.Out),
-                                    ConstraintParameter("m", "Mass", ConstraintParameterDirection.In),
-                                    ConstraintParameter("a", "Acceleration", ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "F", typeId = "Force", direction = ConstraintParameterDirection.Out),
+                                    ConstraintParameter(name = "m", typeId = "Mass", direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "a", typeId = "Acceleration", direction = ConstraintParameterDirection.In),
                                 ),
                         )
                     val vehicle =
-                        partDef("Vehicle") {
-                            attribute("mass", "Mass")
-                            attribute("acceleration", "Acceleration")
-                            attribute("force", "Force")
+                        partDef(name = "Vehicle") {
+                            attribute(name = "mass", typeId = "Mass")
+                            attribute(name = "acceleration", typeId = "Acceleration")
+                            attribute(name = "force", typeId = "Force")
                         }
-                    bind("F_force", "NewtonsLaw::F", "Vehicle::force")
-                    bind("m_mass", "NewtonsLaw::m", "Vehicle::mass")
-                    bind("a_acc", "NewtonsLaw::a", "Vehicle::acceleration")
-                    parDiagram("Newton PAR") {
+                    bind(name = "F_force", source = "NewtonsLaw::F", target = "Vehicle::force")
+                    bind(name = "m_mass", source = "NewtonsLaw::m", target = "Vehicle::mass")
+                    bind(name = "a_acc", source = "NewtonsLaw::a", target = "Vehicle::acceleration")
+                    parDiagram(name = "Newton PAR") {
                         include(newton)
                         include(vehicle)
                     }
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ParDiagram
-            val errors = Sysml2ConstraintChecker.check(model, diagram)
+            val errors = Sysml2ConstraintChecker.check(model = model, diagram = diagram)
             errors.shouldBeEmpty()
         }
 
@@ -56,33 +56,33 @@ class Sysml2ConstraintCheckerTest :
 
         test("F = m + true produces one type error") {
             val model =
-                sysml2Model("TypeMismatch") {
-                    attributeDef("Force")
-                    attributeDef("Mass")
+                sysml2Model(name = "TypeMismatch") {
+                    attributeDef(name = "Force")
+                    attributeDef(name = "Mass")
                     val c =
                         constraintDef(
                             name = "BadConstraint",
                             expression = "F = m + true",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("F", "Force", ConstraintParameterDirection.Out),
-                                    ConstraintParameter("m", "Mass", ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "F", typeId = "Force", direction = ConstraintParameterDirection.Out),
+                                    ConstraintParameter(name = "m", typeId = "Mass", direction = ConstraintParameterDirection.In),
                                 ),
                         )
                     val part =
-                        partDef("P") {
-                            attribute("force", "Force")
-                            attribute("mass", "Mass")
+                        partDef(name = "P") {
+                            attribute(name = "force", typeId = "Force")
+                            attribute(name = "mass", typeId = "Mass")
                         }
-                    bind("F_f", "BadConstraint::F", "P::force")
-                    bind("m_m", "BadConstraint::m", "P::mass")
-                    parDiagram("BadPAR") {
+                    bind(name = "F_f", source = "BadConstraint::F", target = "P::force")
+                    bind(name = "m_m", source = "BadConstraint::m", target = "P::mass")
+                    parDiagram(name = "BadPAR") {
                         include(c)
                         include(part)
                     }
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ParDiagram
-            val errors = Sysml2ConstraintChecker.check(model, diagram)
+            val errors = Sysml2ConstraintChecker.check(model = model, diagram = diagram)
             errors shouldHaveSize 1
         }
 
@@ -90,19 +90,19 @@ class Sysml2ConstraintCheckerTest :
 
         test("unparseable expression '@@@' produces one parse error") {
             val model =
-                sysml2Model("Unparseable") {
+                sysml2Model(name = "Unparseable") {
                     val c =
                         constraintDef(
                             name = "BadExpr",
                             expression = "@@@",
                             parameters =
-                                listOf(ConstraintParameter("x", "Mass", ConstraintParameterDirection.In)),
+                                listOf(ConstraintParameter(name = "x", typeId = "Mass", direction = ConstraintParameterDirection.In)),
                         )
-                    attributeDef("Mass")
-                    parDiagram("BadExprPAR") { include(c) }
+                    attributeDef(name = "Mass")
+                    parDiagram(name = "BadExprPAR") { include(c) }
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ParDiagram
-            val errors = Sysml2ConstraintChecker.check(model, diagram)
+            val errors = Sysml2ConstraintChecker.check(model = model, diagram = diagram)
             errors shouldHaveSize 1
             errors[0].message shouldContain "failed to parse"
         }
@@ -111,12 +111,12 @@ class Sysml2ConstraintCheckerTest :
 
         test("empty constraint expression produces no errors") {
             val model =
-                sysml2Model("EmptyExpr") {
+                sysml2Model(name = "EmptyExpr") {
                     val c = constraintDef(name = "Empty", expression = "")
-                    parDiagram("EmptyPAR") { include(c) }
+                    parDiagram(name = "EmptyPAR") { include(c) }
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ParDiagram
-            val errors = Sysml2ConstraintChecker.check(model, diagram)
+            val errors = Sysml2ConstraintChecker.check(model = model, diagram = diagram)
             errors.shouldBeEmpty()
         }
 
@@ -124,21 +124,21 @@ class Sysml2ConstraintCheckerTest :
 
         test("parameter with no binding resolves to Unknown — no type error") {
             val model =
-                sysml2Model("UnknownParam") {
+                sysml2Model(name = "UnknownParam") {
                     val c =
                         constraintDef(
                             name = "Unknown",
                             expression = "x + y",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("x", null, ConstraintParameterDirection.In),
-                                    ConstraintParameter("y", null, ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "x", typeId = null, direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "y", typeId = null, direction = ConstraintParameterDirection.In),
                                 ),
                         )
-                    parDiagram("UnknownPAR") { include(c) }
+                    parDiagram(name = "UnknownPAR") { include(c) }
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ParDiagram
-            val errors = Sysml2ConstraintChecker.check(model, diagram)
+            val errors = Sysml2ConstraintChecker.check(model = model, diagram = diagram)
             // Unknown + Unknown = Unknown (not a TypeError)
             errors.shouldBeEmpty()
         }
@@ -147,37 +147,37 @@ class Sysml2ConstraintCheckerTest :
 
         test("newton-second-law-par DSL fixture produces no constraint errors") {
             val model =
-                sysml2Model("NewtonModel") {
-                    attributeDef("Mass")
-                    attributeDef("Acceleration")
-                    attributeDef("Force")
+                sysml2Model(name = "NewtonModel") {
+                    attributeDef(name = "Mass")
+                    attributeDef(name = "Acceleration")
+                    attributeDef(name = "Force")
                     val newton =
                         constraintDef(
                             name = "NewtonsLaw",
                             expression = "F = m * a",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("F", "Force", ConstraintParameterDirection.Out),
-                                    ConstraintParameter("m", "Mass", ConstraintParameterDirection.In),
-                                    ConstraintParameter("a", "Acceleration", ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "F", typeId = "Force", direction = ConstraintParameterDirection.Out),
+                                    ConstraintParameter(name = "m", typeId = "Mass", direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "a", typeId = "Acceleration", direction = ConstraintParameterDirection.In),
                                 ),
                         )
                     val vehicle =
-                        partDef("Vehicle") {
-                            attribute("mass", "Mass")
-                            attribute("acceleration", "Acceleration")
-                            attribute("force", "Force")
+                        partDef(name = "Vehicle") {
+                            attribute(name = "mass", typeId = "Mass")
+                            attribute(name = "acceleration", typeId = "Acceleration")
+                            attribute(name = "force", typeId = "Force")
                         }
-                    bind("F_to_force", "NewtonsLaw::F", "Vehicle::force")
-                    bind("m_to_mass", "NewtonsLaw::m", "Vehicle::mass")
-                    bind("a_to_acceleration", "NewtonsLaw::a", "Vehicle::acceleration")
-                    parDiagram("Newton — F = m·a applied to Vehicle") {
+                    bind(name = "F_to_force", source = "NewtonsLaw::F", target = "Vehicle::force")
+                    bind(name = "m_to_mass", source = "NewtonsLaw::m", target = "Vehicle::mass")
+                    bind(name = "a_to_acceleration", source = "NewtonsLaw::a", target = "Vehicle::acceleration")
+                    parDiagram(name = "Newton — F = m·a applied to Vehicle") {
                         include(newton)
                         include(vehicle)
                     }
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ParDiagram
-            val errors = Sysml2ConstraintChecker.check(model, diagram)
+            val errors = Sysml2ConstraintChecker.check(model = model, diagram = diagram)
             errors.shouldBeEmpty()
         }
 
@@ -185,32 +185,32 @@ class Sysml2ConstraintCheckerTest :
 
         test("two Real operands in comparison produce no errors") {
             val model =
-                sysml2Model("TwoOps") {
-                    attributeDef("Mass")
+                sysml2Model(name = "TwoOps") {
+                    attributeDef(name = "Mass")
                     val c =
                         constraintDef(
                             name = "MassCheck",
                             expression = "m1 == m2",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("m1", "Mass", ConstraintParameterDirection.In),
-                                    ConstraintParameter("m2", "Mass", ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "m1", typeId = "Mass", direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "m2", typeId = "Mass", direction = ConstraintParameterDirection.In),
                                 ),
                         )
                     val p =
-                        partDef("P") {
-                            attribute("mass1", "Mass")
-                            attribute("mass2", "Mass")
+                        partDef(name = "P") {
+                            attribute(name = "mass1", typeId = "Mass")
+                            attribute(name = "mass2", typeId = "Mass")
                         }
-                    bind("b1", "MassCheck::m1", "P::mass1")
-                    bind("b2", "MassCheck::m2", "P::mass2")
-                    parDiagram("TwoOpsPAR") {
+                    bind(name = "b1", source = "MassCheck::m1", target = "P::mass1")
+                    bind(name = "b2", source = "MassCheck::m2", target = "P::mass2")
+                    parDiagram(name = "TwoOpsPAR") {
                         include(c)
                         include(p)
                     }
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ParDiagram
-            val errors = Sysml2ConstraintChecker.check(model, diagram)
+            val errors = Sysml2ConstraintChecker.check(model = model, diagram = diagram)
             errors.shouldBeEmpty()
         }
 
@@ -218,33 +218,33 @@ class Sysml2ConstraintCheckerTest :
 
         test("mixed Real and Int comparison produces no errors (compatible types)") {
             val model =
-                sysml2Model("MixedNumeric") {
-                    attributeDef("Force")
-                    attributeDef("Count")
+                sysml2Model(name = "MixedNumeric") {
+                    attributeDef(name = "Force")
+                    attributeDef(name = "Count")
                     val c =
                         constraintDef(
                             name = "MixedCheck",
                             expression = "f > n",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("f", "Force", ConstraintParameterDirection.In),
-                                    ConstraintParameter("n", "Count", ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "f", typeId = "Force", direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "n", typeId = "Count", direction = ConstraintParameterDirection.In),
                                 ),
                         )
                     val p =
-                        partDef("P") {
-                            attribute("force", "Force")
-                            attribute("count", "Count")
+                        partDef(name = "P") {
+                            attribute(name = "force", typeId = "Force")
+                            attribute(name = "count", typeId = "Count")
                         }
-                    bind("bf", "MixedCheck::f", "P::force")
-                    bind("bn", "MixedCheck::n", "P::count")
-                    parDiagram("MixedPAR") {
+                    bind(name = "bf", source = "MixedCheck::f", target = "P::force")
+                    bind(name = "bn", source = "MixedCheck::n", target = "P::count")
+                    parDiagram(name = "MixedPAR") {
                         include(c)
                         include(p)
                     }
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ParDiagram
-            val errors = Sysml2ConstraintChecker.check(model, diagram)
+            val errors = Sysml2ConstraintChecker.check(model = model, diagram = diagram)
             // Real > Int — both numeric, so comparison is valid (type checker allows it)
             errors.shouldBeEmpty()
         }

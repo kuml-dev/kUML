@@ -67,7 +67,7 @@ internal class RunEventTool(
         // Convert optional payload to Map<String, Any>
         val payloadMap = arguments["payload"]?.jsonObject?.toKotlinMap() ?: emptyMap()
 
-        return when (val result = manager.event(sessionId, eventName, payloadMap)) {
+        return when (val result = manager.event(sessionId = sessionId, eventName = eventName, payload = payloadMap)) {
             is SessionResult.Stepped -> {
                 val json =
                     buildJsonObject {

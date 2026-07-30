@@ -16,10 +16,10 @@ class ErmModelDslPrinterTest :
 
         test("a partial index's where predicate round-trips into the printed index(...) call") {
             val model =
-                ermModel("M") {
-                    entity("teams") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("consumed_at", ErmDataType.Timestamp(), nullable = true)
+                ermModel(name = "M") {
+                    entity(name = "teams") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "consumed_at", type = ErmDataType.Timestamp(), nullable = true)
                         index("consumed_at", unique = true, name = "idx_teams_pending", where = "consumed_at IS NULL")
                     }
                 }
@@ -30,10 +30,10 @@ class ErmModelDslPrinterTest :
 
         test("a non-partial index prints without a where argument (unchanged default behaviour)") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("email", ErmDataType.Varchar(255))
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "email", type = ErmDataType.Varchar(255))
                         index("email", name = "idx_users_email")
                     }
                 }
@@ -44,10 +44,10 @@ class ErmModelDslPrinterTest :
 
         test("a where predicate containing a double quote is escaped, not left breaking the generated script") {
             val model =
-                ermModel("M") {
-                    entity("teams") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("note", ErmDataType.Varchar(255), nullable = true)
+                ermModel(name = "M") {
+                    entity(name = "teams") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "note", type = ErmDataType.Varchar(255), nullable = true)
                         index("note", where = "note = \"x\" AND active")
                     }
                 }

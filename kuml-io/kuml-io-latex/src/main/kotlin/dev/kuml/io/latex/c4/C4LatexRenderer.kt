@@ -59,12 +59,26 @@ internal object C4LatexRenderer {
         @Suppress("RedundantUnitExpression")
         val ignored: Unit =
             when (element) {
-                is C4Person -> renderPerson(element, nodeId, nodeLayout, options, out)
-                is C4SoftwareSystem -> renderSoftwareSystem(element, nodeId, nodeLayout, options, out)
-                is C4Container -> renderContainer(element, nodeId, nodeLayout, options, out)
-                is C4Component -> renderComponent(element, nodeId, nodeLayout, options, out)
-                is C4DeploymentNode -> renderDeploymentNode(element, nodeId, nodeLayout, options, out)
-                is C4CodeElement -> renderCodeElement(element, nodeId, nodeLayout, options, out)
+                is C4Person -> renderPerson(element = element, nodeId = nodeId, layout = nodeLayout, options = options, out = out)
+                is C4SoftwareSystem ->
+                    renderSoftwareSystem(
+                        element = element,
+                        nodeId = nodeId,
+                        layout = nodeLayout,
+                        options = options,
+                        out = out,
+                    )
+                is C4Container -> renderContainer(element = element, nodeId = nodeId, layout = nodeLayout, options = options, out = out)
+                is C4Component -> renderComponent(element = element, nodeId = nodeId, layout = nodeLayout, options = options, out = out)
+                is C4DeploymentNode ->
+                    renderDeploymentNode(
+                        element = element,
+                        nodeId = nodeId,
+                        layout = nodeLayout,
+                        options = options,
+                        out = out,
+                    )
+                is C4CodeElement -> renderCodeElement(element = element, nodeId = nodeId, layout = nodeLayout, options = options, out = out)
                 // C4Relationship and C4Model are structural/relational elements — not renderable as nodes.
                 is C4Relationship -> Unit
                 is C4Model -> Unit
@@ -323,7 +337,7 @@ internal object C4LatexRenderer {
         val relById = relationships.associateBy { it.id }
         for ((edgeId, route) in layoutResult.edges) {
             val rel = relById[edgeId.value]
-            renderEdge(rel, route, options, out)
+            renderEdge(relationship = rel, route = route, options = options, out = out)
         }
     }
 
@@ -341,7 +355,7 @@ internal object C4LatexRenderer {
             } else {
                 UmlEdgeLatexRenderer.Style.PLAIN
             }
-        UmlEdgeLatexRenderer.render(route, style, options, out)
+        UmlEdgeLatexRenderer.render(route = route, style = style, options = options, out = out)
 
         // Build the edge label: "label [technology]" when both are present,
         // just "label" or "[technology]" when only one is set, nothing otherwise.
@@ -371,9 +385,9 @@ internal object C4LatexRenderer {
                 mx to my
             }
             is EdgeRoute.OrthogonalRounded ->
-                midOfPolyline(route.source, route.waypoints, route.target)
+                midOfPolyline(source = route.source, waypoints = route.waypoints, target = route.target)
             is EdgeRoute.TreeRounded ->
-                midOfPolyline(route.source, route.waypoints, route.target)
+                midOfPolyline(source = route.source, waypoints = route.waypoints, target = route.target)
             is EdgeRoute.Bezier -> {
                 val mx = (route.source.x + route.target.x) / 2f
                 val my = (route.source.y + route.target.y) / 2f

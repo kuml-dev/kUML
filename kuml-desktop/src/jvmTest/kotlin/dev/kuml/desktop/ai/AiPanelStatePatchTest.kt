@@ -23,9 +23,9 @@ import java.nio.file.Files
 private fun testSettingsStore(settings: KumlAiSettings = KumlAiSettings(privacyMode = false)): KumlAiSettingsStore {
     val tmpDir = Files.createTempDirectory("kuml-patch-test")
     val settingsPath = tmpDir.resolve("ai-settings.json")
-    val store = KumlAiSettingsStore(settingsPath)
+    val store = KumlAiSettingsStore(path = settingsPath)
     store.save(settings)
-    return KumlAiSettingsStore(settingsPath)
+    return KumlAiSettingsStore(path = settingsPath)
 }
 
 private fun testVault(): ApiKeyVault {

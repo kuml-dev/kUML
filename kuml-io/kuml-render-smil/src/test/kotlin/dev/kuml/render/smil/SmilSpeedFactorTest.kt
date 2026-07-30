@@ -13,7 +13,7 @@ class SmilSpeedFactorTest :
             val speed = SpeedFactor(2.0)
             val timeline =
                 SmilTimeline(
-                    listOf(SmilAnimation.Fill("n1", "#ffd54a", beginMs = 600, durationMs = 600)),
+                    listOf(SmilAnimation.Fill(elementId = "n1", color = "#ffd54a", beginMs = 600, durationMs = 600)),
                 )
             // Speed scaling is applied via SmilTimeline.scaledBy — the emitter always emits
             // timings as-is; passing speed to the emitter would cause double-scaling.
@@ -27,7 +27,7 @@ class SmilSpeedFactorTest :
             val speed = SpeedFactor.DEFAULT
             val timeline =
                 SmilTimeline(
-                    listOf(SmilAnimation.Fill("n1", "#ffd54a", beginMs = 1200, durationMs = 800)),
+                    listOf(SmilAnimation.Fill(elementId = "n1", color = "#ffd54a", beginMs = 1200, durationMs = 800)),
                 )
             val fragment = emitter.renderElements(timeline.scaledBy(speed))
             fragment shouldContain "begin=\"1200ms\""
@@ -38,7 +38,7 @@ class SmilSpeedFactorTest :
             val speed = SpeedFactor(0.5)
             val timeline =
                 SmilTimeline(
-                    listOf(SmilAnimation.Fill("n1", "#ffd54a", beginMs = 400, durationMs = 600)),
+                    listOf(SmilAnimation.Fill(elementId = "n1", color = "#ffd54a", beginMs = 400, durationMs = 600)),
                 )
             val fragment = emitter.renderElements(timeline.scaledBy(speed))
             // 400ms / 0.5 = 800ms; 600ms / 0.5 = 1200ms
@@ -58,7 +58,7 @@ class SmilSpeedFactorTest :
             val speed = SpeedFactor(2.0)
             val timeline =
                 SmilTimeline(
-                    listOf(SmilAnimation.Fill("n1", "#ffd54a", beginMs = 600, durationMs = 600)),
+                    listOf(SmilAnimation.Fill(elementId = "n1", color = "#ffd54a", beginMs = 600, durationMs = 600)),
                 )
             val fragment = emitter.renderElements(timeline.scaledBy(speed))
             // Must be 300ms (single application), not 150ms (double application)

@@ -21,13 +21,13 @@ class MigrationPolicyTest :
                 vertices =
                     listOf(
                         initial("init"),
-                        state("A"),
-                        state("B"),
+                        state(id = "A"),
+                        state(id = "B"),
                     ),
                 transitions =
                     listOf(
-                        trans("t0", "init", "A"),
-                        trans("t1", "A", "B", trigger = "go"),
+                        trans(id = "t0", from = "init", to = "A"),
+                        trans(id = "t1", from = "A", to = "B", trigger = "go"),
                     ),
             )
 
@@ -37,15 +37,15 @@ class MigrationPolicyTest :
                 vertices =
                     listOf(
                         initial("init"),
-                        state("A"),
-                        state("B"),
-                        state("C"), // added
+                        state(id = "A"),
+                        state(id = "B"),
+                        state(id = "C"), // added
                     ),
                 transitions =
                     listOf(
-                        trans("t0", "init", "A"),
-                        trans("t1", "A", "B", trigger = "go"),
-                        trans("t2", "B", "C", trigger = "next"),
+                        trans(id = "t0", from = "init", to = "A"),
+                        trans(id = "t1", from = "A", to = "B", trigger = "go"),
+                        trans(id = "t2", from = "B", to = "C", trigger = "next"),
                     ),
             )
 
@@ -55,12 +55,12 @@ class MigrationPolicyTest :
                 vertices =
                     listOf(
                         initial("init"),
-                        state("A"),
+                        state(id = "A"),
                         // B removed
                     ),
                 transitions =
                     listOf(
-                        trans("t0", "init", "A"),
+                        trans(id = "t0", from = "init", to = "A"),
                     ),
             )
 
@@ -70,7 +70,7 @@ class MigrationPolicyTest :
             val instance = runtime.start(modelV1)
             val snap = runtime.snapshotFull(instance)
             shouldThrow<MigrationException> {
-                runtime.restoreFrom(modelV2WithAddedVertex, snap, MigrationPolicy.Reject)
+                runtime.restoreFrom(model = modelV2WithAddedVertex, snapshot = snap, policy = MigrationPolicy.Reject)
             }
         }
 
@@ -78,7 +78,7 @@ class MigrationPolicyTest :
             val instance = runtime.start(modelV1)
             val snap = runtime.snapshotFull(instance)
             // Should not throw — same model, same fingerprint
-            val restored = runtime.restoreFrom(modelV1, snap, MigrationPolicy.AcceptIfFingerprintMatches)
+            val restored = runtime.restoreFrom(model = modelV1, snapshot = snap, policy = MigrationPolicy.AcceptIfFingerprintMatches)
             restored.currentVertices.map { it.id } shouldBe instance.currentVertices.map { it.id }
         }
 
@@ -86,7 +86,7 @@ class MigrationPolicyTest :
             val instance = runtime.start(modelV1)
             val snap = runtime.snapshotFull(instance)
             shouldThrow<MigrationException> {
-                runtime.restoreFrom(modelV2WithAddedVertex, snap, MigrationPolicy.AcceptIfFingerprintMatches)
+                runtime.restoreFrom(model = modelV2WithAddedVertex, snapshot = snap, policy = MigrationPolicy.AcceptIfFingerprintMatches)
             }
         }
 
@@ -94,7 +94,12 @@ class MigrationPolicyTest :
             val instance = runtime.start(modelV1)
             val snap = runtime.snapshotFull(instance)
             // The snapshot's active vertex (A) is still present in V2 — should succeed
-            val restored = runtime.restoreFrom(modelV2WithAddedVertex, snap, MigrationPolicy.AcceptIfVerticesPresent())
+            val restored =
+                runtime.restoreFrom(
+                    model = modelV2WithAddedVertex,
+                    snapshot = snap,
+                    policy = MigrationPolicy.AcceptIfVerticesPresent(),
+                )
             restored.currentVertices.map { it.id } shouldBe instance.currentVertices.map { it.id }
         }
 
@@ -102,11 +107,11 @@ class MigrationPolicyTest :
             // Start in modelV2 where B exists, then try to restore on model without B
             val instance = runtime.start(modelV2WithAddedVertex)
             // Fire go to move to B
-            runtime.step(instance, Event.of("go"))
+            runtime.step(instance = instance, event = Event.of("go"))
             val snap = runtime.snapshotFull(instance)
             // Instance is at B, but modelV2WithRemovedVertex doesn't have B
             shouldThrow<MigrationException> {
-                runtime.restoreFrom(modelV2WithRemovedVertex, snap, MigrationPolicy.AcceptIfVerticesPresent())
+                runtime.restoreFrom(model = modelV2WithRemovedVertex, snapshot = snap, policy = MigrationPolicy.AcceptIfVerticesPresent())
             }
         }
 
@@ -119,7 +124,7 @@ class MigrationPolicyTest :
                 }
             val instance = runtime.start(modelV1)
             val snap = runtime.snapshotFull(instance)
-            runtime.restoreFrom(modelV2WithAddedVertex, snap, customPolicy)
+            runtime.restoreFrom(model = modelV2WithAddedVertex, snapshot = snap, policy = customPolicy)
             called shouldBe true
         }
     })

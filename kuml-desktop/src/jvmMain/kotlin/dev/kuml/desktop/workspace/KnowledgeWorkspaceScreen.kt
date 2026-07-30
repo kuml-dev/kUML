@@ -30,7 +30,7 @@ fun KnowledgeWorkspaceScreen(
             DefaultWorkspaceLinkHandler(
                 workspace = state.workspace,
                 currentDoc = { state.selected },
-                onNavigate = { doc -> scope.launch { state.select(doc, themeName, strings) } },
+                onNavigate = { doc -> scope.launch { state.select(doc = doc, themeName = themeName, strings = strings) } },
             )
         }
 
@@ -38,7 +38,7 @@ fun KnowledgeWorkspaceScreen(
         WorkspaceTreePane(
             documents = state.documents,
             selected = state.selected,
-            onSelect = { doc -> scope.launch { state.select(doc, themeName, strings) } },
+            onSelect = { doc -> scope.launch { state.select(doc = doc, themeName = themeName, strings = strings) } },
             strings = strings,
             modifier = Modifier.weight(1f).fillMaxHeight(),
         )
@@ -47,7 +47,7 @@ fun KnowledgeWorkspaceScreen(
             doc = state.selected,
             linkHandler = linkHandler,
             backlinks = state.selected?.let { state.graphIndex.backlinks(it) }.orEmpty(),
-            onNavigateBacklink = { doc -> scope.launch { state.select(doc, themeName, strings) } },
+            onNavigateBacklink = { doc -> scope.launch { state.select(doc = doc, themeName = themeName, strings = strings) } },
             strings = strings,
             modifier = Modifier.weight(2f).fillMaxHeight(),
         )

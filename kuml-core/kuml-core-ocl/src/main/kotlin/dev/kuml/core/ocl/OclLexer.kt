@@ -24,7 +24,7 @@ internal object OclLexer {
      * positions. Retained for callers that only need the parsed AST (the vast
      * majority — [OclParser] does not require positions to build the tree).
      */
-    internal fun tokenize(input: String): List<OclToken> = scan(input).map { it.token }
+    internal fun tokenize(input: String): List<OclToken> = scan(input = input).map { it.token }
 
     /**
      * Tokenizes [input] and returns both the token list and a parallel list of
@@ -39,7 +39,7 @@ internal object OclLexer {
      * break every such comparison across the parser.
      */
     internal fun tokenizeWithPositions(input: String): Pair<List<OclToken>, List<OclPosition>> {
-        val lexemes = scan(input)
+        val lexemes = scan(input = input)
         return lexemes.map { it.token } to lexemes.map { it.position }
     }
 
@@ -84,7 +84,7 @@ internal object OclLexer {
             end: Int,
             isError: Boolean = false,
         ) {
-            lexemes += OclLexeme(token, start, end, posAt(start), isError)
+            lexemes += OclLexeme(token = token, start = start, end = end, position = posAt(start), isError = isError)
         }
 
         while (i < input.length) {
@@ -181,7 +181,7 @@ internal object OclLexer {
                             push(OclToken.Eof, tokenStart, input.length, isError = true)
                             i = input.length
                         } else {
-                            throw OclEvaluationException("Unterminated string literal")
+                            throw OclEvaluationException(message = "Unterminated string literal")
                         }
                     } else {
                         push(OclToken.StrLit(input.substring(i + 1, end)), tokenStart, end + 1)
@@ -223,12 +223,12 @@ internal object OclLexer {
                         push(OclToken.Eof, tokenStart, tokenStart + 1, isError = true)
                         i++
                     } else {
-                        throw OclEvaluationException("Unexpected character: '${input[i]}' at position $i")
+                        throw OclEvaluationException(message = "Unexpected character: '${input[i]}' at position $i")
                     }
                 }
             }
         }
-        lexemes += OclLexeme(OclToken.Eof, input.length, input.length, posAt(i))
+        lexemes += OclLexeme(token = OclToken.Eof, start = input.length, end = input.length, position = posAt(i))
         return lexemes
     }
 }

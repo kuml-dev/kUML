@@ -3,6 +3,28 @@ plugins {
     alias(libs.plugins.intellij.platform)
 }
 
+// ── Detekt gate: intentionally EXCLUDED ──────────────────────────────────────
+// This module is listed in `kumlDetektExemptModules` in the root build.gradle.kts
+// — NOT because the rule would be silently skipped (that's kuml-wasm-playground's
+// reason), but because merely applying the `dev.detekt` 2.0.0-alpha.5 Gradle
+// plugin to a project that also applies `org.jetbrains.intellij.platform.gradle`
+// crashes even plain `compileKotlin`:
+//
+//   java.lang.AbstractMethodError: 'kotlinx.serialization.KSerializer[]
+//   kotlinx.serialization.internal.GeneratedSerializer.typeParametersSerializers()'
+//     at org.jetbrains.intellij.platform.gradle.models.IvyModule$$serializer...
+//
+// Both Gradle plugins load their own `kotlinx-serialization-core` into the same
+// buildscript classloader; whichever version loses the race leaves the IntelliJ
+// Platform plugin's own generated serializers calling a method their loaded core
+// doesn't have. Verified 2026-07-30: reproduces with a bare `:compileKotlin` (no
+// detekt task involved) the moment `dev.detekt` is applied here, and disappears
+// the moment it isn't. Root build.gradle.kts skips applying `dev.detekt` to this
+// project entirely (not just its tasks) for exactly this reason. ktlint is
+// unaffected and still applies normally. If this module's source ever grows
+// call sites needing the RequireNamedArguments gate, this needs a real fix
+// (e.g. a resolutionStrategy force on kotlinx-serialization-core, or a detekt
+// version bump past this clash) — not just removing the exemption.
 kotlin {
     jvmToolchain(21)
     // Kein explicitApi() — IntelliJ-Extension-Klassen werden über plugin.xml

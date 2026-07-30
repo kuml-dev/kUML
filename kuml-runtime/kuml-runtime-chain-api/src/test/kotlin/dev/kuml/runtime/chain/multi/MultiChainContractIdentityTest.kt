@@ -16,8 +16,8 @@ class MultiChainContractIdentityTest :
             val identity =
                 MultiChainContractIdentity.from(
                     linkedMapOf(
-                        "evm" to identity("0xEVM", hash),
-                        "sui" to identity("0xSUI", hash.copyOf()),
+                        "evm" to identity(address = "0xEVM", hash = hash),
+                        "sui" to identity(address = "0xSUI", hash = hash.copyOf()),
                     ),
                 )
             identity.consistent.shouldBeTrue()
@@ -29,8 +29,8 @@ class MultiChainContractIdentityTest :
             val identity =
                 MultiChainContractIdentity.from(
                     linkedMapOf(
-                        "evm" to identity("0xEVM", hash1),
-                        "sui" to identity("0xSUI", hash2),
+                        "evm" to identity(address = "0xEVM", hash = hash1),
+                        "sui" to identity(address = "0xSUI", hash = hash2),
                     ),
                 )
             identity.consistent.shouldBeFalse()
@@ -42,8 +42,8 @@ class MultiChainContractIdentityTest :
             val identity =
                 MultiChainContractIdentity.from(
                     linkedMapOf(
-                        "evm" to identity("0xEVM", hashEvm),
-                        "sui" to identity("0xSUI", hashSui),
+                        "evm" to identity(address = "0xEVM", hash = hashEvm),
+                        "sui" to identity(address = "0xSUI", hash = hashSui),
                     ),
                 )
             // Erste Chain ist "evm" → primaryModelHash == hashEvm

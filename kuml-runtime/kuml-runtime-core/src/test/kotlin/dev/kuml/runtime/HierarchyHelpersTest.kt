@@ -73,18 +73,18 @@ class HierarchyHelpersTest :
 
         test("lowestCommonAncestor finds common parent state") {
             val parentOf = mapOf("A" to "Outer", "B" to "Outer", "Outer" to SYNTHETIC_ROOT_ID)
-            lowestCommonAncestor("A", "B", parentOf) shouldBe "Outer"
+            lowestCommonAncestor(aId = "A", bId = "B", parentOf = parentOf) shouldBe "Outer"
         }
 
         test("lowestCommonAncestor returns synthetic root for top-level siblings") {
             val parentOf = mapOf("A" to SYNTHETIC_ROOT_ID, "B" to SYNTHETIC_ROOT_ID)
-            lowestCommonAncestor("A", "B", parentOf) shouldBe SYNTHETIC_ROOT_ID
+            lowestCommonAncestor(aId = "A", bId = "B", parentOf = parentOf) shouldBe SYNTHETIC_ROOT_ID
         }
 
         test("pathUpTo stops at given ancestor (exclusive)") {
             val parentOf =
                 mapOf("Leaf" to "Inner2", "Inner2" to "Outer", "Outer" to SYNTHETIC_ROOT_ID)
-            pathUpTo("Leaf", "Outer", parentOf) shouldBe listOf("Leaf", "Inner2")
-            pathUpTo("Outer", SYNTHETIC_ROOT_ID, parentOf) shouldBe listOf("Outer")
+            pathUpTo(vertexId = "Leaf", stopAt = "Outer", parentOf = parentOf) shouldBe listOf("Leaf", "Inner2")
+            pathUpTo(vertexId = "Outer", stopAt = SYNTHETIC_ROOT_ID, parentOf = parentOf) shouldBe listOf("Outer")
         }
     })

@@ -104,7 +104,7 @@ public object ErmLayoutBridge {
             nodes.add(
                 LayoutNode(
                     id = NodeId(entity.id),
-                    intrinsicSize = sizeProvider.sizeOf(entity.id, "ErmEntity"),
+                    intrinsicSize = sizeProvider.sizeOf(elementId = entity.id, elementKind = "ErmEntity"),
                 ),
             )
         }
@@ -115,7 +115,7 @@ public object ErmLayoutBridge {
                 nodes.add(
                     LayoutNode(
                         id = NodeId(view.id),
-                        intrinsicSize = sizeProvider.sizeOf(view.id, "ErmView"),
+                        intrinsicSize = sizeProvider.sizeOf(elementId = view.id, elementKind = "ErmView"),
                     ),
                 )
             }

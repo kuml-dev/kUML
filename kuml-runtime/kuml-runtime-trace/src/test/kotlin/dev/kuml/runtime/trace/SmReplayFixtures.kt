@@ -62,7 +62,7 @@ internal fun simulateToTraceFile(
     val instance = runtime.start(model)
     for (ev in events) {
         if (instance.isTerminated) break
-        runtime.step(instance, ev)
+        runtime.step(instance = instance, event = ev)
     }
     return TraceFile(modelId = model.id, entries = instance.trace)
 }

@@ -50,16 +50,17 @@ class KumlLatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(300f, 200f),
+                    canvas = Size(width = 300f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("cls1") to NodeLayout(bounds = Rect(Point(10f, 10f), Size(120f, 80f))),
+                            NodeId("cls1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 120f, height = 80f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(diagram, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, layoutResult = layout)
 
             tex shouldContain "\\begin{tikzpicture}"
             tex shouldContain "\\end{tikzpicture}"
@@ -70,7 +71,7 @@ class KumlLatexRendererTest :
             // Snippet mode by default — no \documentclass.
             tex shouldNotContain "\\documentclass"
 
-            SampleOutput.write("uml/single-class-snippet.tex", tex)
+            SampleOutput.write(filename = "uml/single-class-snippet.tex", content = tex)
         }
 
         "standalone mode wraps the picture in a complete document" {
@@ -83,16 +84,20 @@ class KumlLatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(300f, 200f),
-                    nodes = mapOf(NodeId("cls1") to NodeLayout(bounds = Rect(Point(10f, 10f), Size(120f, 80f)))),
+                    canvas = Size(width = 300f, height = 200f),
+                    nodes =
+                        mapOf(
+                            NodeId("cls1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 120f, height = 80f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
             val tex =
                 KumlLatexRenderer.toLatex(
-                    diagram,
-                    layout,
+                    diagram = diagram,
+                    layoutResult = layout,
                     options = LatexRenderOptions(standalone = true),
                 )
 
@@ -102,7 +107,7 @@ class KumlLatexRendererTest :
             tex shouldContain "\\begin{document}"
             tex shouldContain "\\end{document}"
 
-            SampleOutput.write("uml/single-class-standalone.tex", tex)
+            SampleOutput.write(filename = "uml/single-class-standalone.tex", content = tex)
         }
 
         "deterministic — same input yields byte-identical output" {
@@ -119,18 +124,20 @@ class KumlLatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 7L,
-                    canvas = Size(500f, 400f),
+                    canvas = Size(width = 500f, height = 400f),
                     nodes =
                         mapOf(
-                            NodeId("a") to NodeLayout(bounds = Rect(Point(10f, 10f), Size(100f, 60f))),
-                            NodeId("b") to NodeLayout(bounds = Rect(Point(150f, 10f), Size(100f, 60f))),
+                            NodeId("a") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 100f, height = 60f))),
+                            NodeId("b") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 150f, y = 10f), size = Size(width = 100f, height = 60f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val one = KumlLatexRenderer.toLatex(diagram, layout)
-            val two = KumlLatexRenderer.toLatex(diagram, layout)
+            val one = KumlLatexRenderer.toLatex(diagram = diagram, layoutResult = layout)
+            val two = KumlLatexRenderer.toLatex(diagram = diagram, layoutResult = layout)
             one shouldBe two
         }
 
@@ -145,13 +152,13 @@ class KumlLatexRendererTest :
                                 id = "orderId",
                                 name = "orderId",
                                 visibility = Visibility.PRIVATE,
-                                type = UmlTypeRef("String"),
+                                type = UmlTypeRef(name = "String"),
                             ),
                             UmlProperty(
                                 id = "total",
                                 name = "total",
                                 visibility = Visibility.PUBLIC,
-                                type = UmlTypeRef("Money"),
+                                type = UmlTypeRef(name = "Money"),
                             ),
                         ),
                     operations =
@@ -160,8 +167,8 @@ class KumlLatexRendererTest :
                                 id = "place",
                                 name = "place",
                                 visibility = Visibility.PUBLIC,
-                                parameters = listOf(UmlParameter(id = "p1", name = "customer", type = UmlTypeRef("Customer"))),
-                                returnType = UmlTypeRef("Receipt"),
+                                parameters = listOf(UmlParameter(id = "p1", name = "customer", type = UmlTypeRef(name = "Customer"))),
+                                returnType = UmlTypeRef(name = "Receipt"),
                             ),
                         ),
                 )
@@ -170,13 +177,17 @@ class KumlLatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 300f),
-                    nodes = mapOf(NodeId("Order") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(200f, 180f)))),
+                    canvas = Size(width = 400f, height = 300f),
+                    nodes =
+                        mapOf(
+                            NodeId("Order") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 200f, height = 180f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(diagram, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, layoutResult = layout)
 
             // Header name. Inside the compartmented variant the name is wrapped
             // in the tabular env, so we just check that the literal name appears
@@ -191,7 +202,7 @@ class KumlLatexRendererTest :
             val dividerCount = "\\\\draw\\[line width=0\\.4pt\\]".toRegex().findAll(tex).count()
             dividerCount shouldBe 2
 
-            SampleOutput.write("uml/class-with-attributes-and-operations.tex", tex)
+            SampleOutput.write(filename = "uml/class-with-attributes-and-operations.tex", content = tex)
         }
 
         "association edge picks the kuml-association style and direct route" {
@@ -211,25 +222,28 @@ class KumlLatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(500f, 300f),
+                    canvas = Size(width = 500f, height = 300f),
                     nodes =
                         mapOf(
-                            NodeId("A") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(80f, 60f))),
-                            NodeId("B") to NodeLayout(bounds = Rect(Point(200f, 0f), Size(80f, 60f))),
+                            NodeId(
+                                "A",
+                            ) to NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 80f, height = 60f))),
+                            NodeId("B") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 200f, y = 0f), size = Size(width = 80f, height = 60f))),
                         ),
                     edges =
                         mapOf(
-                            EdgeId("assoc1") to EdgeRoute.Direct(source = Point(80f, 30f), target = Point(200f, 30f)),
+                            EdgeId("assoc1") to EdgeRoute.Direct(source = Point(x = 80f, y = 30f), target = Point(x = 200f, y = 30f)),
                         ),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(diagram, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, layoutResult = layout)
 
             tex shouldContain "\\draw[kuml-association]"
             tex shouldContain "(80.000pt, -30.000pt) -- (200.000pt, -30.000pt)"
 
-            SampleOutput.write("uml/association.tex", tex)
+            SampleOutput.write(filename = "uml/association.tex", content = tex)
         }
 
         "generalization edge picks the kuml-generalization style with hollow triangle" {
@@ -241,18 +255,20 @@ class KumlLatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(300f, 400f),
+                    canvas = Size(width = 300f, height = 400f),
                     nodes =
                         mapOf(
-                            NodeId("Child") to NodeLayout(bounds = Rect(Point(50f, 200f), Size(80f, 50f))),
-                            NodeId("Parent") to NodeLayout(bounds = Rect(Point(50f, 50f), Size(80f, 50f))),
+                            NodeId("Child") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 50f, y = 200f), size = Size(width = 80f, height = 50f))),
+                            NodeId("Parent") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 50f, y = 50f), size = Size(width = 80f, height = 50f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("gen1") to
                                 EdgeRoute.OrthogonalRounded(
-                                    source = Point(90f, 200f),
-                                    target = Point(90f, 100f),
+                                    source = Point(x = 90f, y = 200f),
+                                    target = Point(x = 90f, y = 100f),
                                     waypoints = emptyList(),
                                     cornerRadiusPx = 4f,
                                 ),
@@ -260,12 +276,12 @@ class KumlLatexRendererTest :
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(diagram, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, layoutResult = layout)
             tex shouldContain "\\draw[kuml-generalization, rounded corners=4.000pt]"
             // Hollow triangle (open Triangle) comes from the picture-level style block.
             tex shouldContain "Triangle[length=3mm, open]"
 
-            SampleOutput.write("uml/generalization.tex", tex)
+            SampleOutput.write(filename = "uml/generalization.tex", content = tex)
         }
 
         "stereotypes survive the escape and end up in the header line" {
@@ -280,13 +296,17 @@ class KumlLatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(300f, 200f),
-                    nodes = mapOf(NodeId("Brake") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(160f, 100f)))),
+                    canvas = Size(width = 300f, height = 200f),
+                    nodes =
+                        mapOf(
+                            NodeId("Brake") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 160f, height = 100f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(diagram, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, layoutResult = layout)
 
             tex shouldContain "\\guillemotleft{}SoftwareComponent\\guillemotright{}"
             tex shouldContain "BrakeAssist"
@@ -299,13 +319,17 @@ class KumlLatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(200f, 100f),
-                    nodes = mapOf(NodeId("pkg.sub/A") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(80f, 40f)))),
+                    canvas = Size(width = 200f, height = 100f),
+                    nodes =
+                        mapOf(
+                            NodeId("pkg.sub/A") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 80f, height = 40f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(diagram, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, layoutResult = layout)
             // Node id became `n_pkg_sub_A`.
             tex shouldContain "(n_pkg_sub_A)"
             tex shouldNotContain "(n_pkg.sub/A)"
@@ -317,16 +341,21 @@ class KumlLatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(100f, 100f),
-                    nodes = mapOf(NodeId("a") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(80f, 40f)))),
+                    canvas = Size(width = 100f, height = 100f),
+                    nodes =
+                        mapOf(
+                            NodeId(
+                                "a",
+                            ) to NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 80f, height = 40f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
             val tex =
                 KumlLatexRenderer.toLatex(
-                    diagram,
-                    layout,
+                    diagram = diagram,
+                    layoutResult = layout,
                     options = LatexRenderOptions(scale = 0.5),
                 )
 

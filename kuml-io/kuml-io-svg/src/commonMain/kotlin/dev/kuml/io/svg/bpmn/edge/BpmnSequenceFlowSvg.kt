@@ -117,14 +117,15 @@ internal fun renderBpmnSequenceFlow(
             }
         }
         builder.tag(
-            "text",
-            mapOf(
-                "x" to fmtF(midX + 4f),
-                "y" to fmtF(midY - 4f),
-                "font-family" to fontFamily,
-                "font-size" to "10",
-                "fill" to labelColor,
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "x" to fmtF(midX + 4f),
+                    "y" to fmtF(midY - 4f),
+                    "font-family" to fontFamily,
+                    "font-size" to "10",
+                    "fill" to labelColor,
+                ),
         ) { text(label) }
     }
 }

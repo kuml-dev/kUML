@@ -38,8 +38,8 @@ class ExtensionEntryTest :
         }
 
         test("ExtensionEntry data class equality works") {
-            val a = ExtensionEntry("theme", "com.example.A", "a")
-            val b = ExtensionEntry("theme", "com.example.A", "a")
+            val a = ExtensionEntry(category = "theme", implementation = "com.example.A", id = "a")
+            val b = ExtensionEntry(category = "theme", implementation = "com.example.A", id = "a")
             a shouldBe b
         }
     })

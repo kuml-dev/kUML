@@ -45,7 +45,7 @@ class WebpEncoderTest :
         test("encode produces RIFF/WEBP bytes when encoder is available").config(
             enabled = EncoderBinaryLocator.isWebpAvailable(),
         ) {
-            val bytes = WebpEncoder.encode(frames, 200L)
+            val bytes = WebpEncoder.encode(frames = frames, delayMs = 200L)
             // RIFF signature: 52 49 46 46
             val riff = bytes.copyOfRange(0, 4)
             val riffStr = String(riff, Charsets.ISO_8859_1)
@@ -62,7 +62,7 @@ class WebpEncoderTest :
             if (!EncoderBinaryLocator.isWebpAvailable()) {
                 val ex =
                     shouldThrow<AnimEncoderException> {
-                        WebpEncoder.encode(frames, 200L)
+                        WebpEncoder.encode(frames = frames, delayMs = 200L)
                     }
                 ex.message shouldContain "No animated-WebP encoder found"
                 ex.message shouldContain "img2webp"

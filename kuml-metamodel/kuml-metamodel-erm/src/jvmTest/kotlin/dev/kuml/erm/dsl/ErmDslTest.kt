@@ -20,14 +20,14 @@ class ErmDslTest :
 
         "ermModel builds entities, attributes and relationships with deterministic ids" {
             val model =
-                ermModel("Shop") {
+                ermModel(name = "Shop") {
                     val customer =
-                        entity("Customer") {
+                        entity(name = "Customer") {
                             id()
                             attribute(name = "email", type = ErmDataType.Varchar(255), unique = true)
                         }
                     val order =
-                        entity("Order") {
+                        entity(name = "Order") {
                             id()
                             foreignKey(name = "customer_id", references = customer)
                         }
@@ -44,8 +44,8 @@ class ErmDslTest :
 
         "notation defaults to MARTIN and can be overridden" {
             val model =
-                ermModel("N") {
-                    entity("A") { id() }
+                ermModel(name = "N") {
+                    entity(name = "A") { id() }
                     diagram(name = "Default")
                     diagram(name = "Chen View", notation = ErmNotation.CHEN)
                 }
@@ -55,8 +55,8 @@ class ErmDslTest :
 
         "a model with no explicit diagram gets a synthesized default diagram" {
             val model =
-                ermModel("NoDiagram") {
-                    entity("A") { id() }
+                ermModel(name = "NoDiagram") {
+                    entity(name = "A") { id() }
                 }
             model.diagrams.size shouldBe 1
             model.diagrams.single().name shouldBe "NoDiagram"
@@ -65,11 +65,11 @@ class ErmDslTest :
 
         "infix oneToMany / manyToMany / oneToOne build the expected cardinalities" {
             val model =
-                ermModel("Infix") {
-                    val a = entity("A") { id() }
-                    val b = entity("B") { id() }
-                    val c = entity("C") { id() }
-                    val d = entity("D") { id() }
+                ermModel(name = "Infix") {
+                    val a = entity(name = "A") { id() }
+                    val b = entity(name = "B") { id() }
+                    val c = entity(name = "C") { id() }
+                    val d = entity(name = "D") { id() }
                     a oneToMany b
                     b manyToMany c
                     c oneToOne d
@@ -85,8 +85,8 @@ class ErmDslTest :
 
         "id() creates a not-null UUID primary key by default" {
             val model =
-                ermModel("Id") {
-                    entity("A") { id() }
+                ermModel(name = "Id") {
+                    entity(name = "A") { id() }
                 }
             val pk = model.entityById("entity_0")!!.primaryKey.single()
             pk.name shouldBe "id"
@@ -97,9 +97,9 @@ class ErmDslTest :
 
         "foreignKey() infers the column type from the target's primary key" {
             val model =
-                ermModel("Fk") {
-                    val a = entity("A") { id(type = ErmDataType.Integer()) }
-                    entity("B") { foreignKey(name = "a_id", references = a) }
+                ermModel(name = "Fk") {
+                    val a = entity(name = "A") { id(type = ErmDataType.Integer()) }
+                    entity(name = "B") { foreignKey(name = "a_id", references = a) }
                 }
             val fkAttr = model.entityById("entity_1")!!.attributeByName("a_id")!!
             fkAttr.type shouldBe ErmDataType.Integer()
@@ -108,19 +108,19 @@ class ErmDslTest :
 
         "foreignKey() falls back to Uuid when the target has no single-column primary key" {
             val model =
-                ermModel("FkFallback") {
-                    val a = entity("A") { attribute(name = "not_a_pk", type = ErmDataType.Text) }
-                    entity("B") { foreignKey(name = "a_id", references = a) }
+                ermModel(name = "FkFallback") {
+                    val a = entity(name = "A") { attribute(name = "not_a_pk", type = ErmDataType.Text) }
+                    entity(name = "B") { foreignKey(name = "a_id", references = a) }
                 }
             model.entityById("entity_1")!!.attributeByName("a_id")!!.type shouldBe ErmDataType.Uuid
         }
 
         "index() and check() land on the entity that declared them" {
             val model =
-                ermModel("IdxCheck") {
-                    entity("A") {
+                ermModel(name = "IdxCheck") {
+                    entity(name = "A") {
                         id()
-                        attribute(name = "price", type = ErmDataType.Decimal(10, 2))
+                        attribute(name = "price", type = ErmDataType.Decimal(precision = 10, scale = 2))
                         index("price", unique = false, name = "idx_price")
                         check(expression = "price > 0", name = "positive_price")
                     }
@@ -133,10 +133,10 @@ class ErmDslTest :
 
         "weak entities and identifying relationships are wired through the DSL" {
             val model =
-                ermModel("Weak") {
-                    val order = entity("Order") { id() }
+                ermModel(name = "Weak") {
+                    val order = entity(name = "Order") { id() }
                     val item =
-                        entity("OrderItem", weak = true) {
+                        entity(name = "OrderItem", weak = true) {
                             foreignKey(name = "order_id", references = order)
                         }
                     relationship(
@@ -152,8 +152,8 @@ class ErmDslTest :
 
         "view() declares a first-class view referencing entities" {
             val model =
-                ermModel("Views") {
-                    val a = entity("A") { id() }
+                ermModel(name = "Views") {
+                    val a = entity(name = "A") { id() }
                     view(name = "active_a", query = "SELECT * FROM a", references = listOf(a))
                 }
             model.views.single().name shouldBe "active_a"
@@ -162,10 +162,10 @@ class ErmDslTest :
 
         "category() declares an IDEF1X subtype cluster with a deterministic id" {
             val model =
-                ermModel("Categorized") {
-                    val party = entity("Party") { id() }
-                    val person = entity("Person") { }
-                    val org = entity("Organization") { }
+                ermModel(name = "Categorized") {
+                    val party = entity(name = "Party") { id() }
+                    val person = entity(name = "Person") { }
+                    val org = entity(name = "Organization") { }
                     category(supertype = party, subtypes = listOf(person, org), name = "PartyType", complete = true)
                 }
             val category = model.categories.single()
@@ -178,9 +178,9 @@ class ErmDslTest :
 
         "category() defaults to incomplete with no discriminator" {
             val model =
-                ermModel("Categorized") {
-                    val party = entity("Party") { id() }
-                    val person = entity("Person") { }
+                ermModel(name = "Categorized") {
+                    val party = entity(name = "Party") { id() }
+                    val person = entity(name = "Person") { }
                     category(supertype = party, subtypes = listOf(person))
                 }
             val category = model.categories.single()
@@ -192,11 +192,11 @@ class ErmDslTest :
 
         "hypertable() sets the HYPERTABLE metadata entry with timeColumn and chunkInterval" {
             val model =
-                ermModel("Sensors") {
-                    entity("sensor_readings") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("recorded_at", ErmDataType.Timestamp())
-                        hypertable("recorded_at", "7 days")
+                ermModel(name = "Sensors") {
+                    entity(name = "sensor_readings") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "recorded_at", type = ErmDataType.Timestamp())
+                        hypertable(timeColumn = "recorded_at", chunkInterval = "7 days")
                     }
                 }
             val entries = model.entityById("entity_0")!!.metadata[ErmMetadataKeys.HYPERTABLE]
@@ -210,11 +210,11 @@ class ErmDslTest :
 
         "hypertable() without a chunkInterval omits the chunkInterval entry" {
             val model =
-                ermModel("Sensors") {
-                    entity("sensor_readings") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("recorded_at", ErmDataType.Timestamp())
-                        hypertable("recorded_at")
+                ermModel(name = "Sensors") {
+                    entity(name = "sensor_readings") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "recorded_at", type = ErmDataType.Timestamp())
+                        hypertable(timeColumn = "recorded_at")
                     }
                 }
             val entries =
@@ -223,7 +223,7 @@ class ErmDslTest :
         }
 
         "an entity without hypertable() has no HYPERTABLE metadata entry" {
-            val model = ermModel("Plain") { entity("A") { id() } }
+            val model = ermModel(name = "Plain") { entity(name = "A") { id() } }
             model.entityById("entity_0")!!.metadata shouldBe emptyMap()
         }
 
@@ -231,8 +231,8 @@ class ErmDslTest :
 
         "kotlinObjectName() sets the KOTLIN_OBJECT_NAME metadata entry" {
             val model =
-                ermModel("Lapis") {
-                    entity("member") {
+                ermModel(name = "Lapis") {
+                    entity(name = "member") {
                         kotlinObjectName("MemberTable")
                         id()
                     }
@@ -242,7 +242,7 @@ class ErmDslTest :
         }
 
         "an entity without kotlinObjectName() has no KOTLIN_OBJECT_NAME metadata entry" {
-            val model = ermModel("Plain") { entity("A") { id() } }
+            val model = ermModel(name = "Plain") { entity(name = "A") { id() } }
             model.entityById("entity_0")!!.metadata shouldBe emptyMap()
         }
     })

@@ -29,10 +29,10 @@ public class SuiBlockClock(
         val cpJson = rpc.getCheckpoint(checkpoint).jsonObject
         val tsMs =
             cpJson["timestampMs"]?.jsonPrimitive?.content
-                ?: throw SuiChainAdapterException.MalformedResponse("Checkpoint missing 'timestampMs'")
+                ?: throw SuiChainAdapterException.MalformedResponse(message = "Checkpoint missing 'timestampMs'")
         val tsLong =
             tsMs.toLongOrNull()
-                ?: throw SuiChainAdapterException.MalformedResponse("timestampMs is not a valid long: '$tsMs'")
+                ?: throw SuiChainAdapterException.MalformedResponse(message = "timestampMs is not a valid long: '$tsMs'")
         cachedBlock.set(checkpoint)
         // Sui-Timestamps sind Millisekunden — ofEpochMilli (NICHT ofEpochSecond wie EVM)
         cachedTime.set(Instant.ofEpochMilli(tsLong))

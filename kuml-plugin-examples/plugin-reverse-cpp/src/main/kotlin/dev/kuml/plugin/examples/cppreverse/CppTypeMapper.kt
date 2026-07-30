@@ -10,7 +10,7 @@ package dev.kuml.plugin.examples.cppreverse
  */
 internal class CppTypeMapper {
     /** Public entry point — delegates to the depth-guarded implementation. */
-    fun map(cppType: String): String = mapInternal(cppType.trim(), depth = 0)
+    fun map(cppType: String): String = mapInternal(t = cppType.trim(), depth = 0)
 
     @Suppress("CyclomaticComplexMethod")
     private fun mapInternal(
@@ -38,8 +38,8 @@ internal class CppTypeMapper {
                 noPtr == "uint64_t" ||
                 noPtr == "int8_t" ||
                 noPtr == "uint8_t" -> "Long"
-            noPtr.startsWith("unsigned ") -> mapInternal(noPtr.removePrefix("unsigned ").trim(), depth + 1)
-            noPtr.startsWith("signed ") -> mapInternal(noPtr.removePrefix("signed ").trim(), depth + 1)
+            noPtr.startsWith("unsigned ") -> mapInternal(t = noPtr.removePrefix("unsigned ").trim(), depth = depth + 1)
+            noPtr.startsWith("signed ") -> mapInternal(t = noPtr.removePrefix("signed ").trim(), depth = depth + 1)
             noPtr == "float" || noPtr == "double" || noPtr == "long double" -> "Double"
             noPtr == "char" || noPtr == "wchar_t" || noPtr == "char16_t" || noPtr == "char32_t" -> "Char"
             noPtr == "void" -> "void"
@@ -49,19 +49,19 @@ internal class CppTypeMapper {
                 noPtr == "std::wstring" -> "String"
             noPtr.startsWith("std::vector<") && noPtr.endsWith(">") -> {
                 val inner = noPtr.drop("std::vector<".length).dropLast(1)
-                "List<${mapInternal(inner, depth + 1)}>"
+                "List<${mapInternal(t = inner, depth = depth + 1)}>"
             }
             noPtr.startsWith("vector<") && noPtr.endsWith(">") -> {
                 val inner = noPtr.drop("vector<".length).dropLast(1)
-                "List<${mapInternal(inner, depth + 1)}>"
+                "List<${mapInternal(t = inner, depth = depth + 1)}>"
             }
             noPtr.startsWith("std::list<") && noPtr.endsWith(">") -> {
                 val inner = noPtr.drop("std::list<".length).dropLast(1)
-                "List<${mapInternal(inner, depth + 1)}>"
+                "List<${mapInternal(t = inner, depth = depth + 1)}>"
             }
             noPtr.startsWith("list<") && noPtr.endsWith(">") -> {
                 val inner = noPtr.drop("list<".length).dropLast(1)
-                "List<${mapInternal(inner, depth + 1)}>"
+                "List<${mapInternal(t = inner, depth = depth + 1)}>"
             }
             noPtr.startsWith("std::map<") && noPtr.endsWith(">") -> "Map"
             noPtr.startsWith("map<") && noPtr.endsWith(">") -> "Map"
@@ -72,27 +72,27 @@ internal class CppTypeMapper {
             noPtr.startsWith("std::unordered_set<") && noPtr.endsWith(">") -> "Set"
             noPtr.startsWith("std::shared_ptr<") && noPtr.endsWith(">") -> {
                 val inner = noPtr.drop("std::shared_ptr<".length).dropLast(1)
-                mapInternal(inner, depth + 1)
+                mapInternal(t = inner, depth = depth + 1)
             }
             noPtr.startsWith("shared_ptr<") && noPtr.endsWith(">") -> {
                 val inner = noPtr.drop("shared_ptr<".length).dropLast(1)
-                mapInternal(inner, depth + 1)
+                mapInternal(t = inner, depth = depth + 1)
             }
             noPtr.startsWith("std::unique_ptr<") && noPtr.endsWith(">") -> {
                 val inner = noPtr.drop("std::unique_ptr<".length).dropLast(1)
-                mapInternal(inner, depth + 1)
+                mapInternal(t = inner, depth = depth + 1)
             }
             noPtr.startsWith("unique_ptr<") && noPtr.endsWith(">") -> {
                 val inner = noPtr.drop("unique_ptr<".length).dropLast(1)
-                mapInternal(inner, depth + 1)
+                mapInternal(t = inner, depth = depth + 1)
             }
             noPtr.startsWith("std::weak_ptr<") && noPtr.endsWith(">") -> {
                 val inner = noPtr.drop("std::weak_ptr<".length).dropLast(1)
-                mapInternal(inner, depth + 1)
+                mapInternal(t = inner, depth = depth + 1)
             }
             noPtr.startsWith("weak_ptr<") && noPtr.endsWith(">") -> {
                 val inner = noPtr.drop("weak_ptr<".length).dropLast(1)
-                mapInternal(inner, depth + 1)
+                mapInternal(t = inner, depth = depth + 1)
             }
             else -> noPtr.ifEmpty { trimmed }
         }

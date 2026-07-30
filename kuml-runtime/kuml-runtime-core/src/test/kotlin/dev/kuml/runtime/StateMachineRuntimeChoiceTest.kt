@@ -12,13 +12,13 @@ class StateMachineRuntimeChoiceTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), choice("PaymentOK?"), state("X"), state("Y")),
+                    vertices = listOf(initial(), state(id = "A"), choice("PaymentOK?"), state(id = "X"), state(id = "Y")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
-                            trans("t1", "A", "PaymentOK?", trigger = "submit"),
-                            trans("t2", "PaymentOK?", "X", guard = "[branchX]"),
-                            trans("t3", "PaymentOK?", "Y", guard = "[branchY]"),
+                            trans(id = "t0", from = "init", to = "A"),
+                            trans(id = "t1", from = "A", to = "PaymentOK?", trigger = "submit"),
+                            trans(id = "t2", from = "PaymentOK?", to = "X", guard = "[branchX]"),
+                            trans(id = "t3", from = "PaymentOK?", to = "Y", guard = "[branchY]"),
                         ),
                 )
             val onlyY =
@@ -27,7 +27,7 @@ class StateMachineRuntimeChoiceTest :
                 }
             val rt = StateMachineRuntime(guards = onlyY)
             val instance = rt.start(sm)
-            rt.step(instance, Event.of("submit"))
+            rt.step(instance = instance, event = Event.of("submit"))
             instance.currentVertices.map { it.id } shouldBe listOf("Y")
         }
 
@@ -35,19 +35,19 @@ class StateMachineRuntimeChoiceTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), choice("Dead"), state("X")),
+                    vertices = listOf(initial(), state(id = "A"), choice("Dead"), state(id = "X")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
-                            trans("t1", "A", "Dead", trigger = "submit"),
-                            trans("t2", "Dead", "X", guard = "[never]"),
+                            trans(id = "t0", from = "init", to = "A"),
+                            trans(id = "t1", from = "A", to = "Dead", trigger = "submit"),
+                            trans(id = "t2", from = "Dead", to = "X", guard = "[never]"),
                         ),
                 )
             val noBranch = GuardEvaluator { _, _, _ -> GuardResult.False }
             val rt = StateMachineRuntime(guards = noBranch)
             val instance = rt.start(sm)
             // The error propagates out of step() as a wrapped exception
-            val result = rt.step(instance, Event.of("submit"))
+            val result = rt.step(instance = instance, event = Event.of("submit"))
             // Either the runtime catches and reports Error, or it propagates — both are acceptable.
             // We assert that an error was recorded (Trace.ActionError or StepResult.Error).
             (result is StepResult.Error || instance.trace.any { it is TraceEntry.ActionError }) shouldBe true
@@ -57,17 +57,17 @@ class StateMachineRuntimeChoiceTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), history("H")),
+                    vertices = listOf(initial(), state(id = "A"), history("H")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
-                            trans("t1", "A", "H", trigger = "go"),
+                            trans(id = "t0", from = "init", to = "A"),
+                            trans(id = "t1", from = "A", to = "H", trigger = "go"),
                         ),
                 )
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)
             val instance = rt.start(sm)
             // Reaching history triggers an error inside step() which is caught and reported.
-            val result = rt.step(instance, Event.of("go"))
+            val result = rt.step(instance = instance, event = Event.of("go"))
             (result is StepResult.Error || instance.trace.any { it is TraceEntry.ActionError }) shouldBe true
         }
 
@@ -75,7 +75,7 @@ class StateMachineRuntimeChoiceTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(state("A")),
+                    vertices = listOf(state(id = "A")),
                     transitions = emptyList(),
                 )
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)

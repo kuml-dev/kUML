@@ -81,13 +81,13 @@ class WebRenderPipelineTest :
         val invalidScript = "this is not valid kUML @@@ !!!"
 
         test("UML class script renders to SVG containing <svg tag") {
-            val result = WebRenderPipeline.render(umlClassScript, "svg", null, null)
+            val result = WebRenderPipeline.render(script = umlClassScript, format = "svg", themeName = null, layoutOverride = null)
             result.shouldBeInstanceOf<WebRenderResult.Svg>()
             result.svg shouldContain "<svg"
         }
 
         test("UML class script populates node geometry and grid in the result") {
-            val result = WebRenderPipeline.render(umlClassScript, "svg", null, null)
+            val result = WebRenderPipeline.render(script = umlClassScript, format = "svg", themeName = null, layoutOverride = null)
             val svgResult = result.shouldBeInstanceOf<WebRenderResult.Svg>()
             svgResult.nodes.shouldNotBeEmpty()
             svgResult.nodes.map { it.id } shouldContainAll listOf("Alpha", "Beta")
@@ -95,19 +95,19 @@ class WebRenderPipelineTest :
         }
 
         test("C4 script does not populate a grid (feature stays UML-class-only)") {
-            val result = WebRenderPipeline.render(c4Script, "svg", null, null)
+            val result = WebRenderPipeline.render(script = c4Script, format = "svg", themeName = null, layoutOverride = null)
             val svgResult = result.shouldBeInstanceOf<WebRenderResult.Svg>()
             svgResult.grid shouldBe null
         }
 
         test("SysML2 script does not populate a grid (feature stays UML-class-only)") {
-            val result = WebRenderPipeline.render(sysml2Script, "svg", null, null)
+            val result = WebRenderPipeline.render(script = sysml2Script, format = "svg", themeName = null, layoutOverride = null)
             val svgResult = result.shouldBeInstanceOf<WebRenderResult.Svg>()
             svgResult.grid shouldBe null
         }
 
         test("UML class script renders to PNG with correct magic bytes") {
-            val result = WebRenderPipeline.render(umlClassScript, "png", null, null)
+            val result = WebRenderPipeline.render(script = umlClassScript, format = "png", themeName = null, layoutOverride = null)
             val bytes = result.shouldBeInstanceOf<WebRenderResult.Png>().pngBytes
             // PNG magic bytes: 89 50 4E 47
             bytes[0] shouldBe 0x89.toByte()
@@ -117,31 +117,31 @@ class WebRenderPipelineTest :
         }
 
         test("Invalid script returns WebRenderResult.Error") {
-            val result = WebRenderPipeline.render(invalidScript, "svg", null, null)
+            val result = WebRenderPipeline.render(script = invalidScript, format = "svg", themeName = null, layoutOverride = null)
             result.shouldBeInstanceOf<WebRenderResult.Error>()
             result.message.shouldNotBeEmpty()
         }
 
         test("C4 container script renders to SVG") {
-            val result = WebRenderPipeline.render(c4Script, "svg", null, null)
+            val result = WebRenderPipeline.render(script = c4Script, format = "svg", themeName = null, layoutOverride = null)
             result.shouldBeInstanceOf<WebRenderResult.Svg>()
             result.svg shouldContain "<svg"
         }
 
         test("SysML2 BDD script renders to SVG") {
-            val result = WebRenderPipeline.render(sysml2Script, "svg", null, null)
+            val result = WebRenderPipeline.render(script = sysml2Script, format = "svg", themeName = null, layoutOverride = null)
             result.shouldBeInstanceOf<WebRenderResult.Svg>()
             result.svg shouldContain "<svg"
         }
 
         test("ERM script renders to SVG containing <svg tag") {
-            val result = WebRenderPipeline.render(ermScript, "svg", null, null)
+            val result = WebRenderPipeline.render(script = ermScript, format = "svg", themeName = null, layoutOverride = null)
             result.shouldBeInstanceOf<WebRenderResult.Svg>()
             result.svg shouldContain "<svg"
         }
 
         test("ERM script renders to PNG with correct magic bytes") {
-            val result = WebRenderPipeline.render(ermScript, "png", null, null)
+            val result = WebRenderPipeline.render(script = ermScript, format = "png", themeName = null, layoutOverride = null)
             val bytes = result.shouldBeInstanceOf<WebRenderResult.Png>().pngBytes
             bytes[0] shouldBe 0x89.toByte()
             bytes[1] shouldBe 0x50.toByte()
@@ -150,31 +150,59 @@ class WebRenderPipelineTest :
         }
 
         test("ERM notation override to CHEN renders to SVG") {
-            val result = WebRenderPipeline.render(ermScript, "svg", null, null, notation = "chen")
+            val result =
+                WebRenderPipeline.render(
+                    script = ermScript,
+                    format = "svg",
+                    themeName = null,
+                    layoutOverride = null,
+                    notation = "chen",
+                )
             result.shouldBeInstanceOf<WebRenderResult.Svg>()
             result.svg shouldContain "<svg"
         }
 
         test("ERM notation override to BACHMAN renders to SVG") {
-            val result = WebRenderPipeline.render(ermScript, "svg", null, null, notation = "bachman")
+            val result =
+                WebRenderPipeline.render(
+                    script = ermScript,
+                    format = "svg",
+                    themeName = null,
+                    layoutOverride = null,
+                    notation = "bachman",
+                )
             result.shouldBeInstanceOf<WebRenderResult.Svg>()
             result.svg shouldContain "<svg"
         }
 
         test("ERM notation override to IDEF1X renders to SVG") {
-            val result = WebRenderPipeline.render(ermScript, "svg", null, null, notation = "idef1x")
+            val result =
+                WebRenderPipeline.render(
+                    script = ermScript,
+                    format = "svg",
+                    themeName = null,
+                    layoutOverride = null,
+                    notation = "idef1x",
+                )
             result.shouldBeInstanceOf<WebRenderResult.Svg>()
             result.svg shouldContain "<svg"
         }
 
         test("ERM invalid notation override returns WebRenderResult.Error") {
-            val result = WebRenderPipeline.render(ermScript, "svg", null, null, notation = "bogus")
+            val result =
+                WebRenderPipeline.render(
+                    script = ermScript,
+                    format = "svg",
+                    themeName = null,
+                    layoutOverride = null,
+                    notation = "bogus",
+                )
             result.shouldBeInstanceOf<WebRenderResult.Error>()
             result.message shouldContain "notation"
         }
 
         test("ERM latex format returns WebRenderResult.Error") {
-            val result = WebRenderPipeline.render(ermScript, "latex", null, null)
+            val result = WebRenderPipeline.render(script = ermScript, format = "latex", themeName = null, layoutOverride = null)
             result.shouldBeInstanceOf<WebRenderResult.Error>()
             result.message.shouldNotBeEmpty()
         }

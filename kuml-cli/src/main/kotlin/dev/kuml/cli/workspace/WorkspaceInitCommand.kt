@@ -112,17 +112,17 @@ internal object WorkspaceScaffolder {
         return when (mode) {
             "knowledge" ->
                 listOf(
-                    TemplateFile("$base/kuml-workspace.toml.tmpl", ".kuml-workspace.toml"),
-                    TemplateFile("$base/index.md.tmpl", "index.md"),
-                    TemplateFile("$base/introduction.md.tmpl", "articles/01-introduction.md"),
-                    TemplateFile("$base/domain-classes.md.tmpl", "models/domain-classes.md"),
-                    TemplateFile("$base/glossary.md.tmpl", "glossary/index.md"),
+                    TemplateFile(resourcePath = "$base/kuml-workspace.toml.tmpl", outputPath = ".kuml-workspace.toml"),
+                    TemplateFile(resourcePath = "$base/index.md.tmpl", outputPath = "index.md"),
+                    TemplateFile(resourcePath = "$base/introduction.md.tmpl", outputPath = "articles/01-introduction.md"),
+                    TemplateFile(resourcePath = "$base/domain-classes.md.tmpl", outputPath = "models/domain-classes.md"),
+                    TemplateFile(resourcePath = "$base/glossary.md.tmpl", outputPath = "glossary/index.md"),
                 )
             "engineering" ->
                 listOf(
-                    TemplateFile("$base/kuml-workspace.toml.tmpl", ".kuml-workspace.toml"),
-                    TemplateFile("$base/main.kuml.kts.tmpl", "{{slug}}.kuml.kts"),
-                    TemplateFile("$base/gitignore.tmpl", ".gitignore"),
+                    TemplateFile(resourcePath = "$base/kuml-workspace.toml.tmpl", outputPath = ".kuml-workspace.toml"),
+                    TemplateFile(resourcePath = "$base/main.kuml.kts.tmpl", outputPath = "{{slug}}.kuml.kts"),
+                    TemplateFile(resourcePath = "$base/gitignore.tmpl", outputPath = ".gitignore"),
                 )
             else -> error("Unknown workspace mode '$mode' — this is a bug in kuml-cli")
         }
@@ -140,7 +140,7 @@ internal object WorkspaceScaffolder {
         force: Boolean,
         echo: (String) -> Unit,
     ) {
-        Scaffolder.scaffold(templateFiles(spec.mode), spec.toVars(), targetDir, force, echo)
+        Scaffolder.scaffold(templates = templateFiles(spec.mode), vars = spec.toVars(), targetDir = targetDir, force = force, echo = echo)
     }
 }
 
@@ -182,13 +182,13 @@ internal class WorkspaceInitCommand : CliktCommand(name = "init") {
     override fun help(context: Context): String = "Scaffold a new OKF knowledge workspace (ADR-0011)."
 
     override fun run() {
-        val workspaceName = name ?: promptRequired("name", "Workspace name (e.g. My Club Bylaws)")
+        val workspaceName = name ?: promptRequired(optionName = "name", promptText = "Workspace name (e.g. My Club Bylaws)")
 
         val spec = WorkspaceInitSpec.from(name = workspaceName, mode = mode)
         val targetDir = (output ?: File(spec.slug)).absoluteFile
 
         try {
-            WorkspaceScaffolder.scaffold(spec, targetDir, force, ::echo)
+            WorkspaceScaffolder.scaffold(spec = spec, targetDir = targetDir, force = force, echo = ::echo)
         } catch (e: IllegalStateException) {
             echo("Error: ${e.message}", err = true)
             throw ProgramResult(ExitCodes.IO_ERROR)

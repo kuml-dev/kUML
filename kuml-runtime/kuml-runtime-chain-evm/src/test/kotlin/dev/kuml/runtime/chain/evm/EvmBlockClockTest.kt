@@ -11,15 +11,15 @@ class EvmBlockClockTest :
         "refresh reads finalized block number and timestamp" {
             runTest {
                 val server = MockRpcServer()
-                server.onMethod("eth_getBlockByNumber") {
+                server.onMethod(method = "eth_getBlockByNumber") {
                     rpcSuccess(
                         result = """{"number":"0x64","timestamp":"0x60000000","hash":"0xabc123"}""",
                     )
                 }
                 server.start()
                 try {
-                    val client = EvmJsonRpcClient(server.baseUrl())
-                    val clock = EvmBlockClock(client, finalityTag = "finalized")
+                    val client = EvmJsonRpcClient(rpcUrl = server.baseUrl())
+                    val clock = EvmBlockClock(rpc = client, finalityTag = "finalized")
                     clock.refresh()
                     clock.currentBlock() shouldBe 100L
                     clock.currentTime() shouldBe Instant.ofEpochSecond(0x60000000L)
@@ -32,13 +32,13 @@ class EvmBlockClockTest :
 
         "currentTime is Instant.EPOCH before first refresh" {
             val server = MockRpcServer()
-            server.onMethod("eth_getBlockByNumber") {
+            server.onMethod(method = "eth_getBlockByNumber") {
                 rpcSuccess(result = """{"number":"0x1","timestamp":"0x1","hash":"0x0"}""")
             }
             server.start()
             try {
-                val client = EvmJsonRpcClient(server.baseUrl())
-                val clock = EvmBlockClock(client)
+                val client = EvmJsonRpcClient(rpcUrl = server.baseUrl())
+                val clock = EvmBlockClock(rpc = client)
                 // Before any refresh
                 clock.currentTime() shouldBe Instant.EPOCH
                 clock.currentBlock() shouldBe 0L

@@ -56,7 +56,7 @@ public class ErmContentSizeProvider
         private val byId: Map<String, Size> =
             buildMap {
                 for (entity in model.entities) {
-                    put(entity.id, entitySize(entity, diagram))
+                    put(entity.id, entitySize(entity = entity, diagram = diagram))
                 }
                 if (diagram.showViews) {
                     for (view in model.views) {
@@ -68,7 +68,7 @@ public class ErmContentSizeProvider
         override fun sizeOf(
             elementId: String,
             elementKind: String,
-        ): Size = byId[elementId] ?: Size(DEFAULT_W, DEFAULT_H)
+        ): Size = byId[elementId] ?: Size(width = DEFAULT_W, height = DEFAULT_H)
 
         // ── Size computations ─────────────────────────────────────────────────
 
@@ -88,8 +88,8 @@ public class ErmContentSizeProvider
             }
             for (check in entity.checks) bodyLines.add("«check» ${check.expression}")
 
-            val titleW = estimateWidth(entity.name ?: entity.id, TITLE_CHAR_PX)
-            val bodyMaxW = bodyLines.maxOfOrNull { estimateWidth(it, BODY_CHAR_PX) } ?: 0f
+            val titleW = estimateWidth(text = entity.name ?: entity.id, charPx = TITLE_CHAR_PX)
+            val bodyMaxW = bodyLines.maxOfOrNull { estimateWidth(text = it, charPx = BODY_CHAR_PX) } ?: 0f
             val w = maxOf(DEFAULT_W, maxOf(titleW, bodyMaxW) + MARKER_COL_W + 2 * PAD_X)
 
             var h = TITLE_ROW_H
@@ -100,7 +100,7 @@ public class ErmContentSizeProvider
             h = maxOf(h, DEFAULT_H)
 
             val (wExtra, hExtra) = connectionPuffer(entity.id)
-            return Size(w + wExtra, h + hExtra)
+            return Size(width = w + wExtra, height = h + hExtra)
         }
 
         private fun attributeLine(attr: ErmAttribute): String {
@@ -110,19 +110,20 @@ public class ErmContentSizeProvider
         }
 
         private fun viewSize(view: ErmView): Size {
-            val titleW = estimateWidth("«view» ${view.name ?: view.id}", TITLE_CHAR_PX)
+            val titleW = estimateWidth(text = "«view» ${view.name ?: view.id}", charPx = TITLE_CHAR_PX)
             val previewW =
                 estimateWidth(
-                    view.query
-                        .replace("\n", " ")
-                        .trim()
-                        .take(60),
-                    SMALL_CHAR_PX,
+                    text =
+                        view.query
+                            .replace("\n", " ")
+                            .trim()
+                            .take(60),
+                    charPx = SMALL_CHAR_PX,
                 )
             val w = maxOf(DEFAULT_W, maxOf(titleW, previewW) + 2 * PAD_X)
             val h = maxOf(DEFAULT_H, TITLE_ROW_H + DIVIDER_GAP + ROW_H + BOX_BOTTOM_PAD)
             val (wExtra, hExtra) = connectionPuffer(view.id)
-            return Size(w + wExtra, h + hExtra)
+            return Size(width = w + wExtra, height = h + hExtra)
         }
 
         /**

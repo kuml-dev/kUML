@@ -41,7 +41,7 @@ class KumlLayoutPluginTest :
                     LayoutResult(
                         engineId = this.id,
                         seed = null,
-                        canvas = Size(0f, 0f),
+                        canvas = Size(width = 0f, height = 0f),
                         nodes = emptyMap(),
                         edges = emptyMap(),
                         groups = emptyMap(),
@@ -54,7 +54,7 @@ class KumlLayoutPluginTest :
                     PluginDescriptor(
                         id = "test-layout-plugin",
                         name = "Test Layout Plugin",
-                        version = PluginVersion(1, 0, 0),
+                        version = PluginVersion(major = 1, minor = 0, patch = 0),
                         kumlVersionRange = KumlVersionRange(">=3.0.27"),
                         capabilities = setOf(PluginCapability.LAYOUT),
                     )
@@ -90,7 +90,7 @@ class KumlLayoutPluginTest :
                         PluginDescriptor(
                             id = "multi-layout-plugin",
                             name = "Multi Layout Plugin",
-                            version = PluginVersion(1, 0, 0),
+                            version = PluginVersion(major = 1, minor = 0, patch = 0),
                             kumlVersionRange = KumlVersionRange.ANY,
                             capabilities = setOf(PluginCapability.LAYOUT),
                         )

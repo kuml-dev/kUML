@@ -71,7 +71,7 @@ class AptosChainAdapterTest :
         "connect reads modelHash modelUri schemaVersion from resource" {
             runTest {
                 val server = MockRestServer()
-                server.onPath(Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
+                server.onPath(pattern = Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
                 server.start()
                 try {
                     val adapter =
@@ -80,9 +80,9 @@ class AptosChainAdapterTest :
                             resourceTypeTag = TEST_RESOURCE_TYPE,
                             eventHandleStruct = TEST_HANDLE_STRUCT,
                             eventFieldName = TEST_FIELD,
-                            clientFactory = { url -> AptosRestClient(url) },
+                            clientFactory = { url -> AptosRestClient(baseUrl = url) },
                         )
-                    val identity = adapter.connect(server.baseUrl(), TEST_ADDRESS)
+                    val identity = adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_ADDRESS)
                     // modelHash "0x01020304" → [1,2,3,4]
                     identity.modelHash.toList() shouldBe listOf<Byte>(1, 2, 3, 4)
                     identity.modelUri shouldBe "ipfs://QmTest"
@@ -99,7 +99,7 @@ class AptosChainAdapterTest :
             runTest {
                 val adapter = AptosChainAdapter(urlValidator = AptosUrlValidator.NoOp)
                 shouldThrow<AptosChainAdapterException.InvalidAddressException> {
-                    adapter.connect("http://localhost:9999", "zzz")
+                    adapter.connect(rpcUrl = "http://localhost:9999", contractAddress = "zzz")
                 }
             }
         }
@@ -108,7 +108,7 @@ class AptosChainAdapterTest :
             runTest {
                 val adapter = AptosChainAdapter(urlValidator = AptosUrlValidator.Default)
                 shouldThrow<AptosChainAdapterException.InvalidUrlException> {
-                    adapter.connect("http://10.0.0.1/", TEST_ADDRESS)
+                    adapter.connect(rpcUrl = "http://10.0.0.1/", contractAddress = TEST_ADDRESS)
                 }
             }
         }
@@ -116,8 +116,8 @@ class AptosChainAdapterTest :
         "subscribe emits events from getEvents" {
             runTest {
                 val server = MockRestServer()
-                server.onPath(Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
-                server.onPath(Regex("/v1/accounts/.*/events/.*")) {
+                server.onPath(pattern = Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
+                server.onPath(pattern = Regex("/v1/accounts/.*/events/.*")) {
                     200 to eventsArray(aptosEvent(version = "5"))
                 }
                 server.start()
@@ -129,9 +129,9 @@ class AptosChainAdapterTest :
                             resourceTypeTag = TEST_RESOURCE_TYPE,
                             eventHandleStruct = TEST_HANDLE_STRUCT,
                             eventFieldName = TEST_FIELD,
-                            clientFactory = { url -> AptosRestClient(url) },
+                            clientFactory = { url -> AptosRestClient(baseUrl = url) },
                         )
-                    adapter.connect(server.baseUrl(), TEST_ADDRESS)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_ADDRESS)
                     val events = adapter.subscribe().take(1).toList()
                     events.size shouldBe 1
                     events[0].eventType shouldBe "0x1::kuml::ModelUpdated"
@@ -149,9 +149,9 @@ class AptosChainAdapterTest :
         "subscribe is a cold flow — each collection starts fresh at seq 0" {
             runTest {
                 val server = MockRestServer()
-                server.onPath(Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
+                server.onPath(pattern = Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
                 var callCount = 0
-                server.onPath(Regex("/v1/accounts/.*/events/.*")) {
+                server.onPath(pattern = Regex("/v1/accounts/.*/events/.*")) {
                     callCount++
                     200 to eventsArray(aptosEvent(version = callCount.toString()))
                 }
@@ -164,9 +164,9 @@ class AptosChainAdapterTest :
                             resourceTypeTag = TEST_RESOURCE_TYPE,
                             eventHandleStruct = TEST_HANDLE_STRUCT,
                             eventFieldName = TEST_FIELD,
-                            clientFactory = { url -> AptosRestClient(url) },
+                            clientFactory = { url -> AptosRestClient(baseUrl = url) },
                         )
-                    adapter.connect(server.baseUrl(), TEST_ADDRESS)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_ADDRESS)
                     val events1 = adapter.subscribe().take(1).toList()
                     val events2 = adapter.subscribe().take(1).toList()
                     events1[0].txHash shouldBe "1"
@@ -180,8 +180,8 @@ class AptosChainAdapterTest :
         "replay returns only events with version >= fromBlock" {
             runTest {
                 val server = MockRestServer()
-                server.onPath(Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
-                server.onPath(Regex("/v1/accounts/.*/events/.*")) {
+                server.onPath(pattern = Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
+                server.onPath(pattern = Regex("/v1/accounts/.*/events/.*")) {
                     200 to
                         eventsArray(
                             aptosEvent(version = "3"),
@@ -198,9 +198,9 @@ class AptosChainAdapterTest :
                             resourceTypeTag = TEST_RESOURCE_TYPE,
                             eventHandleStruct = TEST_HANDLE_STRUCT,
                             eventFieldName = TEST_FIELD,
-                            clientFactory = { url -> AptosRestClient(url) },
+                            clientFactory = { url -> AptosRestClient(baseUrl = url) },
                         )
-                    adapter.connect(server.baseUrl(), TEST_ADDRESS)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_ADDRESS)
                     val events = adapter.replay(fromBlock = 5L).toList()
                     events.size shouldBe 2
                     events[0].blockNumber shouldBe 5L
@@ -214,9 +214,9 @@ class AptosChainAdapterTest :
         "replay terminates on empty events array" {
             runTest {
                 val server = MockRestServer()
-                server.onPath(Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
+                server.onPath(pattern = Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
                 var callCount = 0
-                server.onPath(Regex("/v1/accounts/.*/events/.*")) {
+                server.onPath(pattern = Regex("/v1/accounts/.*/events/.*")) {
                     callCount++
                     if (callCount == 1) 200 to eventsArray(aptosEvent()) else 200 to "[]"
                 }
@@ -229,9 +229,9 @@ class AptosChainAdapterTest :
                             resourceTypeTag = TEST_RESOURCE_TYPE,
                             eventHandleStruct = TEST_HANDLE_STRUCT,
                             eventFieldName = TEST_FIELD,
-                            clientFactory = { url -> AptosRestClient(url) },
+                            clientFactory = { url -> AptosRestClient(baseUrl = url) },
                         )
-                    adapter.connect(server.baseUrl(), TEST_ADDRESS)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_ADDRESS)
                     val events = adapter.replay(fromBlock = 0L).toList()
                     events.size shouldBe 1
                 } finally {
@@ -243,9 +243,9 @@ class AptosChainAdapterTest :
         "blockClock currentBlock reflects ledger_version" {
             runTest {
                 val server = MockRestServer()
-                server.onPath(Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
-                server.onPath(Regex("^/v1/$")) { 200 to LEDGER_INFO }
-                server.onPath(Regex("/v1/blocks/by_height/.*")) { 200 to BLOCK_BY_HEIGHT }
+                server.onPath(pattern = Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
+                server.onPath(pattern = Regex("^/v1/$")) { 200 to LEDGER_INFO }
+                server.onPath(pattern = Regex("/v1/blocks/by_height/.*")) { 200 to BLOCK_BY_HEIGHT }
                 server.start()
                 try {
                     val adapter =
@@ -254,9 +254,9 @@ class AptosChainAdapterTest :
                             resourceTypeTag = TEST_RESOURCE_TYPE,
                             eventHandleStruct = TEST_HANDLE_STRUCT,
                             eventFieldName = TEST_FIELD,
-                            clientFactory = { url -> AptosRestClient(url) },
+                            clientFactory = { url -> AptosRestClient(baseUrl = url) },
                         )
-                    adapter.connect(server.baseUrl(), TEST_ADDRESS)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_ADDRESS)
                     val clock = adapter.blockClock() as AptosBlockClock
                     clock.refresh()
                     clock.currentBlock() shouldBe 99L
@@ -269,9 +269,9 @@ class AptosChainAdapterTest :
         "blockClock currentTime derived from block_timestamp microseconds" {
             runTest {
                 val server = MockRestServer()
-                server.onPath(Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
-                server.onPath(Regex("^/v1/$")) { 200 to LEDGER_INFO }
-                server.onPath(Regex("/v1/blocks/by_height/.*")) { 200 to BLOCK_BY_HEIGHT }
+                server.onPath(pattern = Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
+                server.onPath(pattern = Regex("^/v1/$")) { 200 to LEDGER_INFO }
+                server.onPath(pattern = Regex("/v1/blocks/by_height/.*")) { 200 to BLOCK_BY_HEIGHT }
                 server.start()
                 try {
                     val adapter =
@@ -280,9 +280,9 @@ class AptosChainAdapterTest :
                             resourceTypeTag = TEST_RESOURCE_TYPE,
                             eventHandleStruct = TEST_HANDLE_STRUCT,
                             eventFieldName = TEST_FIELD,
-                            clientFactory = { url -> AptosRestClient(url) },
+                            clientFactory = { url -> AptosRestClient(baseUrl = url) },
                         )
-                    adapter.connect(server.baseUrl(), TEST_ADDRESS)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_ADDRESS)
                     val clock = adapter.blockClock() as AptosBlockClock
                     clock.refresh()
                     // 1700000000000000 µs = 1700000000 seconds exactly
@@ -318,16 +318,22 @@ class AptosChainAdapterTest :
         "getEvents returns ApiError on HTTP 404" {
             runTest {
                 val server = MockRestServer()
-                server.onPath(Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
-                server.onPath(Regex("/v1/accounts/.*/events/.*")) {
+                server.onPath(pattern = Regex("/v1/accounts/.*/resource/.*")) { 200 to resourceResponse() }
+                server.onPath(pattern = Regex("/v1/accounts/.*/events/.*")) {
                     404 to """{"message":"resource not found","error_code":"resource_not_found"}"""
                 }
                 server.start()
                 try {
-                    val client = AptosRestClient(server.baseUrl())
+                    val client = AptosRestClient(baseUrl = server.baseUrl())
                     val ex =
                         shouldThrow<AptosChainAdapterException.ApiError> {
-                            client.getEvents(TEST_ADDRESS, TEST_HANDLE_STRUCT, TEST_FIELD, 0L, 10)
+                            client.getEvents(
+                                address = TEST_ADDRESS,
+                                eventHandleStruct = TEST_HANDLE_STRUCT,
+                                fieldName = TEST_FIELD,
+                                start = 0L,
+                                limit = 10,
+                            )
                         }
                     ex.httpStatus shouldBe 404
                 } finally {

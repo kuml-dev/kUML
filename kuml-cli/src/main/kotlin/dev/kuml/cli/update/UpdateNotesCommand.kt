@@ -91,7 +91,7 @@ internal class UpdateNotesCommand internal constructor(
         }
 
         // Path B: latest. Use the cache if fresh, otherwise fetch + persist.
-        if (!noCache && cached != null && cache.isFresh(cached, UpdateCache.DEFAULT_TTL)) {
+        if (!noCache && cached != null && cache.isFresh(entry = cached, ttl = UpdateCache.DEFAULT_TTL)) {
             return cached.release
         }
         if (offline) {

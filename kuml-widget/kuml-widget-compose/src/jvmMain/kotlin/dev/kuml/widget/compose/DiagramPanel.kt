@@ -38,9 +38,9 @@ internal fun computeLayout(model: UmlStateMachine): LayoutResult {
             elements = listOf(model),
             id = model.id,
         )
-    val graph = UmlLayoutBridge.toLayoutGraph(diagram, SizeProvider.constant(120f, 60f))
+    val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram, sizeProvider = SizeProvider.constant(width = 120f, height = 60f))
     val engine = ElkLayoutEngine()
-    return engine.layout(graph, LayoutHints.DEFAULT)
+    return engine.layout(graph = graph, hints = LayoutHints.DEFAULT)
 }
 
 /**

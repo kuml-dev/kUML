@@ -33,17 +33,17 @@ class ConversationDslTest :
         describe("Basic conversation example") {
             it("builds a conversation with participants, nodes, and links") {
                 val model =
-                    bpmnModel("PdV-Kommunikation") {
+                    bpmnModel(name = "PdV-Kommunikation") {
                         conversation(id = "conv1", name = "Mitglieder-Kommunikation") {
                             val mitglied = participant("Mitglied")
                             val vorstand = participant("Vorstand")
                             val netzwerk = participant("Netzwerk")
-                            val antrag = node("Mitgliedsantrag", mitglied, vorstand)
-                            val kampagne = node("Wahlkampagne", vorstand, netzwerk)
-                            link(mitglied, antrag)
-                            link(vorstand, antrag)
-                            link(vorstand, kampagne)
-                            link(netzwerk, kampagne)
+                            val antrag = node(name = "Mitgliedsantrag", mitglied, vorstand)
+                            val kampagne = node(name = "Wahlkampagne", vorstand, netzwerk)
+                            link(participantRef = mitglied, nodeRef = antrag)
+                            link(participantRef = vorstand, nodeRef = antrag)
+                            link(participantRef = vorstand, nodeRef = kampagne)
+                            link(participantRef = netzwerk, nodeRef = kampagne)
                         }
                     }
 
@@ -62,12 +62,12 @@ class ConversationDslTest :
         describe("ID determinism") {
             it("generates sequential node IDs") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("A")
                             val b = participant("B")
-                            node("Node 1", a, b)
-                            node("Node 2", a, b)
+                            node(name = "Node 1", a, b)
+                            node(name = "Node 2", a, b)
                         }
                     }
                 val conv = model.conversations[0]
@@ -77,13 +77,13 @@ class ConversationDslTest :
 
             it("generates sequential link IDs") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("A")
                             val b = participant("B")
-                            val n = node("N", a, b)
-                            link(a, n)
-                            link(b, n)
+                            val n = node(name = "N", a, b)
+                            link(participantRef = a, nodeRef = n)
+                            link(participantRef = b, nodeRef = n)
                         }
                     }
                 val conv = model.conversations[0]
@@ -93,11 +93,11 @@ class ConversationDslTest :
 
             it("auto-generates conversation ID when not specified") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation {
                             val a = participant("A")
                             val b = participant("B")
-                            node("N", a, b)
+                            node(name = "N", a, b)
                         }
                     }
                 model.conversations[0].id shouldBe "conversation_1"
@@ -105,12 +105,12 @@ class ConversationDslTest :
 
             it("conversation() returns the stable conversation ID") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         val cid =
                             conversation(id = "c1") {
                                 val a = participant("A")
                                 val b = participant("B")
-                                node("N", a, b)
+                                node(name = "N", a, b)
                             }
                         cid shouldBe "c1"
                     }
@@ -119,13 +119,13 @@ class ConversationDslTest :
 
             it("node() returns the stable node ID usable in link()") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("Alpha")
                             val b = participant("Beta")
-                            val nid = node("MyNode", a, b)
+                            val nid = node(name = "MyNode", a, b)
                             nid shouldBe "conv1_node_1"
-                            link(a, nid)
+                            link(participantRef = a, nodeRef = nid)
                         }
                     }
                 val conv = model.conversations[0]
@@ -134,13 +134,13 @@ class ConversationDslTest :
 
             it("participant() returns the participant name as ID") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val name = participant("Customer")
                             name shouldBe "Customer"
                             val b = participant("Vendor")
-                            node("Deal", name, b)
-                            link(name, "conv1_node_1")
+                            node(name = "Deal", name, b)
+                            link(participantRef = name, nodeRef = "conv1_node_1")
                         }
                     }
                 val conv = model.conversations[0]
@@ -153,12 +153,12 @@ class ConversationDslTest :
         describe("CallConversation") {
             it("stores calledCollaborationRef") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("A")
                             val b = participant("B")
                             callConversation(
-                                "External Collab",
+                                name = "External Collab",
                                 a,
                                 b,
                                 calledCollaborationRef = "extCollab1",
@@ -188,13 +188,13 @@ class ConversationDslTest :
         describe("SubConversation") {
             it("stores children from SubConversationBuilder") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("A")
                             val b = participant("B")
                             val c = participant("C")
-                            subConversation("Top", a, b) {
-                                node("Child", a, c)
+                            subConversation(name = "Top", a, b) {
+                                node(name = "Child", a, c)
                             }
                         }
                     }
@@ -206,12 +206,12 @@ class ConversationDslTest :
 
             it("supports nested sub-conversations") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("A")
                             val b = participant("B")
-                            subConversation("Outer", a, b) {
-                                subConversation("Inner", a, b)
+                            subConversation(name = "Outer", a, b) {
+                                subConversation(name = "Inner", a, b)
                             }
                         }
                     }
@@ -290,13 +290,13 @@ class ConversationDslTest :
         describe("ConversationDiagram") {
             it("without block produces empty elementIds") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("A")
                             val b = participant("B")
-                            node("N", a, b)
+                            node(name = "N", a, b)
                         }
-                        conversationDiagram("Übersicht", conversationId = "conv1")
+                        conversationDiagram(name = "Übersicht", conversationId = "conv1")
                     }
                 model.diagrams shouldHaveSize 1
                 val diag = model.diagrams[0].shouldBeInstanceOf<ConversationDiagram>()
@@ -306,13 +306,13 @@ class ConversationDslTest :
 
             it("with include() fills elementIds") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("A")
                             val b = participant("B")
-                            node("N", a, b)
+                            node(name = "N", a, b)
                         }
-                        conversationDiagram("Übersicht", conversationId = "conv1") {
+                        conversationDiagram(name = "Übersicht", conversationId = "conv1") {
                             include("A", "conv1_node_1")
                         }
                     }
@@ -322,14 +322,14 @@ class ConversationDslTest :
 
             it("multiple conversationDiagrams appear in model.diagrams") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("A")
                             val b = participant("B")
-                            node("N", a, b)
+                            node(name = "N", a, b)
                         }
-                        conversationDiagram("View A", conversationId = "conv1")
-                        conversationDiagram("View B", conversationId = "conv1")
+                        conversationDiagram(name = "View A", conversationId = "conv1")
+                        conversationDiagram(name = "View B", conversationId = "conv1")
                     }
                 model.diagrams shouldHaveSize 2
                 model.diagrams.all { it is ConversationDiagram } shouldBe true
@@ -341,11 +341,11 @@ class ConversationDslTest :
         describe("BpmnModel.elementById for conversations") {
             it("finds conversation by ID") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("A")
                             val b = participant("B")
-                            node("N", a, b)
+                            node(name = "N", a, b)
                         }
                     }
                 model.elementById("conv1").shouldNotBeNull().shouldBeInstanceOf<BpmnConversation>()
@@ -353,11 +353,11 @@ class ConversationDslTest :
 
             it("finds conversation node by ID") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("A")
                             val b = participant("B")
-                            node("N", a, b)
+                            node(name = "N", a, b)
                         }
                     }
                 model.elementById("conv1_node_1").shouldNotBeNull().shouldBeInstanceOf<ConversationNode>()
@@ -365,12 +365,12 @@ class ConversationDslTest :
 
             it("finds conversation link by ID") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("A")
                             val b = participant("B")
-                            val n = node("N", a, b)
-                            link(a, n)
+                            val n = node(name = "N", a, b)
+                            link(participantRef = a, nodeRef = n)
                         }
                     }
                 model.elementById("conv1_link_1").shouldNotBeNull().shouldBeInstanceOf<ConversationLink>()
@@ -378,12 +378,12 @@ class ConversationDslTest :
 
             it("finds child node inside SubConversation by ID") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("A")
                             val b = participant("B")
-                            subConversation("Top", a, b) {
-                                node("Child", a, b, id = "childNode1")
+                            subConversation(name = "Top", a, b) {
+                                node(name = "Child", a, b, id = "childNode1")
                             }
                         }
                     }
@@ -392,11 +392,11 @@ class ConversationDslTest :
 
             it("returns null for unknown ID") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         conversation(id = "conv1") {
                             val a = participant("A")
                             val b = participant("B")
-                            node("N", a, b)
+                            node(name = "N", a, b)
                         }
                     }
                 model.elementById("nonexistent").shouldBeNull()
@@ -474,15 +474,15 @@ class ConversationDslTest :
 
             it("round-trips full BpmnModel with conversations via JSON") {
                 val model =
-                    bpmnModel("Full Model") {
+                    bpmnModel(name = "Full Model") {
                         conversation(id = "conv1", name = "PdV-Kommunikation") {
                             val m = participant("Mitglied")
                             val v = participant("Vorstand")
-                            val n = node("Mitgliedsantrag", m, v)
-                            link(m, n)
-                            link(v, n)
+                            val n = node(name = "Mitgliedsantrag", m, v)
+                            link(participantRef = m, nodeRef = n)
+                            link(participantRef = v, nodeRef = n)
                         }
-                        conversationDiagram("Übersicht", conversationId = "conv1")
+                        conversationDiagram(name = "Übersicht", conversationId = "conv1")
                     }
 
                 val encoded = json.encodeToString(model)

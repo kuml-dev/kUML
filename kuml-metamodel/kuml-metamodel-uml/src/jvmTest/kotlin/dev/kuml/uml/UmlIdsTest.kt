@@ -123,8 +123,8 @@ class UmlIdsTest :
         }
 
         test(name = "message IDs are unique per sequence number") {
-            val msg1 = UmlIds.message("I", 1)
-            val msg2 = UmlIds.message("I", 2)
+            val msg1 = UmlIds.message(interactionId = "I", sequence = 1)
+            val msg2 = UmlIds.message(interactionId = "I", sequence = 2)
             (msg1 == msg2) shouldBe false
         }
 

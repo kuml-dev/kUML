@@ -75,7 +75,7 @@ fun FrameWindowScope.MainWindow(
 ) {
     val strings = Strings.forLanguage(state.language)
     val scope = rememberCoroutineScope()
-    val controller = remember(scope) { DesktopRenderController(state, scope) }
+    val controller = remember(scope) { DesktopRenderController(state = state, scope = scope) }
     val aiState = remember { AiPanelState(appState = state, scope = scope, vault = vault) }
     var showPluginManager by remember { mutableStateOf(false) }
     // P6, design review — About dialog (the strings already existed, the dialog didn't).
@@ -107,7 +107,7 @@ fun FrameWindowScope.MainWindow(
             WorkspaceMode.KNOWLEDGE -> state.openWorkspace = OpenWorkspace.Knowledge(WorkspaceState(workspace))
             WorkspaceMode.ENGINEERING -> {
                 val files = EngineeringFileScanner.scan(workspace.root)
-                state.openWorkspace = OpenWorkspace.Engineering(workspace.root, files)
+                state.openWorkspace = OpenWorkspace.Engineering(root = workspace.root, scriptFiles = files)
             }
             WorkspaceMode.UNKNOWN -> pendingUnknownWorkspace = workspace
         }
@@ -115,8 +115,8 @@ fun FrameWindowScope.MainWindow(
 
     fun openWorkspaceDirectory(dir: File) {
         scope.launch {
-            val workspace = withContext(Dispatchers.IO) { WorkspaceScanner.scan(dir) }
-            if (WorkspaceTrust.isTrusted(state.trustedWorkspaces, dir)) {
+            val workspace = withContext(Dispatchers.IO) { WorkspaceScanner.scan(root = dir) }
+            if (WorkspaceTrust.isTrusted(trustedPaths = state.trustedWorkspaces, root = dir)) {
                 dispatchWorkspace(workspace)
             } else {
                 pendingTrustWorkspace = workspace
@@ -127,7 +127,7 @@ fun FrameWindowScope.MainWindow(
     fun saveCurrentFile(): Boolean {
         val file = state.currentFile
         return if (file != null) {
-            FileMenu.writeScript(file, state.script)
+            FileMenu.writeScript(file = file, content = state.script)
             state.markSaved(file)
             true
         } else {
@@ -139,7 +139,7 @@ fun FrameWindowScope.MainWindow(
                     strings = strings,
                 )
             if (chosen != null) {
-                FileMenu.writeScript(chosen, state.script)
+                FileMenu.writeScript(file = chosen, content = state.script)
                 state.markSaved(chosen)
                 true
             } else {
@@ -155,7 +155,7 @@ fun FrameWindowScope.MainWindow(
         }
         val choice = FileMenu.confirmUnsaved(parent = windowHandle, strings = strings)
         val saveSucceeded = choice == UnsavedChoice.SAVE && saveCurrentFile()
-        if (FileMenu.shouldProceedAfterUnsavedChoice(choice, saveSucceeded)) {
+        if (FileMenu.shouldProceedAfterUnsavedChoice(choice = choice, saveSucceeded = saveSucceeded)) {
             action()
         }
     }
@@ -183,7 +183,7 @@ fun FrameWindowScope.MainWindow(
                             strings = strings,
                         )
                     if (file != null) {
-                        state.loadFrom(file, FileMenu.readScript(file))
+                        state.loadFrom(file = file, content = FileMenu.readScript(file))
                         state.isDirty = false
                     }
                 }
@@ -212,7 +212,7 @@ fun FrameWindowScope.MainWindow(
                         strings = strings,
                     )
                 if (chosen != null) {
-                    FileMenu.writeScript(chosen, state.script)
+                    FileMenu.writeScript(file = chosen, content = state.script)
                     state.markSaved(chosen)
                 }
             })
@@ -234,7 +234,7 @@ fun FrameWindowScope.MainWindow(
                             strings = strings,
                         )
                     if (chosen != null) {
-                        FileMenu.writeScript(chosen, state.lastSvg)
+                        FileMenu.writeScript(file = chosen, content = state.lastSvg)
                     }
                 },
             )
@@ -252,7 +252,7 @@ fun FrameWindowScope.MainWindow(
                             strings = strings,
                         )
                     if (chosen != null) {
-                        FileMenu.writeBytes(chosen, KumlPngRenderer.toPng(svg = state.lastSvg))
+                        FileMenu.writeBytes(file = chosen, bytes = KumlPngRenderer.toPng(svg = state.lastSvg))
                     }
                 },
             )
@@ -265,7 +265,7 @@ fun FrameWindowScope.MainWindow(
                         Item(File(path).name, onClick = {
                             val file = File(path)
                             if (file.exists()) {
-                                state.loadFrom(file, FileMenu.readScript(file))
+                                state.loadFrom(file = file, content = FileMenu.readScript(file))
                                 state.isDirty = false
                             }
                         })
@@ -436,7 +436,7 @@ fun FrameWindowScope.MainWindow(
             onChooseEngineering = {
                 pendingUnknownWorkspace = null
                 val files = EngineeringFileScanner.scan(workspace.root)
-                state.openWorkspace = OpenWorkspace.Engineering(workspace.root, files)
+                state.openWorkspace = OpenWorkspace.Engineering(root = workspace.root, scriptFiles = files)
             },
             onCancel = { pendingUnknownWorkspace = null },
         )

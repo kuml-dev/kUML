@@ -53,7 +53,7 @@ data class BlueprintModel(
     fun emotionCurve(): List<Pair<Phase, Sentiment?>> =
         orderedPhases().map { phase ->
             val sentiments =
-                stepsIn(phase.id, BlueprintLayer.CUSTOMER_ACTIONS).mapNotNull { it.sentiment }
+                stepsIn(phaseId = phase.id, layer = BlueprintLayer.CUSTOMER_ACTIONS).mapNotNull { it.sentiment }
             val avg =
                 if (sentiments.isEmpty()) {
                     null

@@ -31,7 +31,7 @@ class WorkspaceGraphIndexTest :
                 """.trimMargin(),
             )
 
-            val ws = WorkspaceScanner.scan(root)
+            val ws = WorkspaceScanner.scan(root = root)
             val index = WorkspaceGraphIndex.build(ws)
 
             val indexDoc = ws.documents.single { it.relativePath == "index.md" }
@@ -51,7 +51,7 @@ class WorkspaceGraphIndexTest :
             File(root, "b.md").writeText("---\ntype: Concept\n---\nAlso see [target](./target.md).\n")
             File(root, "target.md").writeText("---\ntype: Concept\n---\nBody.\n")
 
-            val ws = WorkspaceScanner.scan(root)
+            val ws = WorkspaceScanner.scan(root = root)
             val index = WorkspaceGraphIndex.build(ws)
 
             val targetDoc = ws.documents.single { it.relativePath == "target.md" }
@@ -71,7 +71,7 @@ class WorkspaceGraphIndexTest :
                 """.trimMargin(),
             )
 
-            val ws = WorkspaceScanner.scan(root)
+            val ws = WorkspaceScanner.scan(root = root)
             val index = WorkspaceGraphIndex.build(ws)
 
             val doc = ws.documents.single()
@@ -91,7 +91,7 @@ class WorkspaceGraphIndexTest :
                 """.trimMargin(),
             )
 
-            val ws = WorkspaceScanner.scan(root)
+            val ws = WorkspaceScanner.scan(root = root)
             val index = WorkspaceGraphIndex.build(ws)
 
             val doc = ws.documents.single()
@@ -111,7 +111,7 @@ class WorkspaceGraphIndexTest :
                 """.trimMargin(),
             )
 
-            val ws = WorkspaceScanner.scan(root)
+            val ws = WorkspaceScanner.scan(root = root)
             val index = WorkspaceGraphIndex.build(ws)
 
             val doc = ws.documents.single()
@@ -124,7 +124,7 @@ class WorkspaceGraphIndexTest :
             val root = tempWorkspace()
             File(root, "index.md").writeText("---\ntype: KumlWorkspace\n---\nNo links here.\n")
 
-            val ws = WorkspaceScanner.scan(root)
+            val ws = WorkspaceScanner.scan(root = root)
             val index = WorkspaceGraphIndex.build(ws)
 
             val doc = ws.documents.single()

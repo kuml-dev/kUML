@@ -33,7 +33,7 @@ class SqlDdlGeneratorTest :
         ): String {
             val out = Files.createTempDirectory("kuml-gen-sql-test").toFile()
             try {
-                val files = SqlDdlGenerator().generate(diagram, out, options)
+                val files = SqlDdlGenerator().generate(diagram = diagram, outputDir = out, options = options)
                 files.size shouldBe 1
                 return files.single().readText()
             } finally {
@@ -43,9 +43,9 @@ class SqlDdlGeneratorTest :
 
         test("generates CREATE TABLE for simple class with implicit id PK") {
             val diagram =
-                classDiagram("D") {
-                    classOf("User") {
-                        attribute("email", "String")
+                classDiagram(name = "D") {
+                    classOf(name = "User") {
+                        attribute(name = "email", type = "String")
                     }
                 }
             val sql = runGenerator(diagram)
@@ -56,12 +56,12 @@ class SqlDdlGeneratorTest :
 
         test("«Transient» attribute is excluded") {
             val diagram =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     applyProfile(ermMappingProfile)
-                    classOf("User") {
-                        attribute("name", "String")
-                        attribute("temporary", "String") {
-                            stereotype("Transient")
+                    classOf(name = "User") {
+                        attribute(name = "name", type = "String")
+                        attribute(name = "temporary", type = "String") {
+                            stereotype(name = "Transient")
                         }
                     }
                 }
@@ -72,10 +72,10 @@ class SqlDdlGeneratorTest :
 
         test("dialect=mysql uses TINYINT(1) for Boolean and CHAR(36) for UUID, BIGINT AUTO_INCREMENT for synthetic id") {
             val diagram =
-                classDiagram("D") {
-                    classOf("User") {
-                        attribute("externalId", "UUID")
-                        attribute("active", "Boolean")
+                classDiagram(name = "D") {
+                    classOf(name = "User") {
+                        attribute(name = "externalId", type = "UUID")
+                        attribute(name = "active", type = "Boolean")
                     }
                 }
             val sql = runGenerator(diagram, mapOf("sql-dialect" to "mysql"))
@@ -86,10 +86,10 @@ class SqlDdlGeneratorTest :
 
         test("«Entity»{tableName} overrides default plural name") {
             val diagram =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     applyProfile(ermMappingProfile)
-                    classOf("User") {
-                        stereotype("Entity") {
+                    classOf(name = "User") {
+                        stereotype(name = "Entity") {
                             "tableName" to "auth_users"
                         }
                     }
@@ -100,11 +100,11 @@ class SqlDdlGeneratorTest :
 
         test("«Id» property becomes PRIMARY KEY in place of implicit id") {
             val diagram =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     applyProfile(ermMappingProfile)
-                    classOf("User") {
-                        attribute("uuid", "UUID") {
-                            stereotype("Id")
+                    classOf(name = "User") {
+                        attribute(name = "uuid", type = "UUID") {
+                            stereotype(name = "Id")
                         }
                     }
                 }
@@ -115,9 +115,9 @@ class SqlDdlGeneratorTest :
 
         test("association (1)↔(0,*) generates FK inline in CREATE TABLE plus ALTER TABLE ADD CONSTRAINT") {
             val diagram =
-                classDiagram("D") {
-                    val user = classOf("User") { attribute("name", "String") }
-                    val order = classOf("Order") { attribute("total", "BigDecimal") }
+                classDiagram(name = "D") {
+                    val user = classOf(name = "User") { attribute(name = "name", type = "String") }
+                    val order = classOf(name = "Order") { attribute(name = "total", type = "BigDecimal") }
                     association(source = user, target = order, id = "assoc") {
                         source { multiplicity("1") }
                         target { multiplicity("0..*") }
@@ -135,9 +135,9 @@ class SqlDdlGeneratorTest :
 
         test("many-to-many association generates a real junction table with a composite PK") {
             val diagram =
-                classDiagram("D") {
-                    val student = classOf("Student") { attribute("name", "String") }
-                    val course = classOf("Course") { attribute("title", "String") }
+                classDiagram(name = "D") {
+                    val student = classOf(name = "Student") { attribute(name = "name", type = "String") }
+                    val course = classOf(name = "Course") { attribute(name = "title", type = "String") }
                     association(source = student, target = course) {
                         source { multiplicity("0..*") }
                         target { multiplicity("0..*") }
@@ -151,14 +151,14 @@ class SqlDdlGeneratorTest :
 
         test("Enum attribute renders as VARCHAR + CHECK constraint (no more Postgres CREATE TYPE)") {
             val diagram =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     val status =
-                        enumOf("Status") {
-                            literal("Active")
-                            literal("Inactive")
+                        enumOf(name = "Status") {
+                            literal(name = "Active")
+                            literal(name = "Inactive")
                         }
-                    classOf("User") {
-                        attribute("status", status)
+                    classOf(name = "User") {
+                        attribute(name = "status", type = status)
                     }
                 }
             val sql = runGenerator(diagram)
@@ -168,13 +168,13 @@ class SqlDdlGeneratorTest :
         }
 
         test("sql-drop=true emits DROP TABLE block") {
-            val diagram = classDiagram("D") { classOf("User") }
+            val diagram = classDiagram(name = "D") { classOf(name = "User") }
             val sql = runGenerator(diagram, mapOf("sql-drop" to "true"))
             sql shouldContain "DROP TABLE IF EXISTS users;"
         }
 
         test("default dialect is postgres and writes 'Dialect: postgres' header") {
-            val diagram = classDiagram("D") { classOf("User") }
+            val diagram = classDiagram(name = "D") { classOf(name = "User") }
             val sql = runGenerator(diagram)
             sql shouldContain "Dialect: postgres"
         }

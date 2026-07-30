@@ -80,10 +80,10 @@ private fun singleNodeLayout(
     LayoutResult(
         engineId = LayoutEngineId("test"),
         seed = 1L,
-        canvas = Size(width + 40f, height + 40f),
+        canvas = Size(width = width + 40f, height = height + 40f),
         nodes =
             mapOf(
-                NodeId(id) to NodeLayout(bounds = Rect(Point(20f, 20f), Size(width, height))),
+                NodeId(id) to NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = width, height = height))),
             ),
         edges = emptyMap(),
         groups = emptyMap(),
@@ -95,56 +95,56 @@ class Sysml2PngTest :
         // ── BDD ─────────────────────────────────────────────────────────────
         "BDD renders to valid PNG" {
             val model =
-                sysml2Model("M") {
-                    val vehicle = partDef("Vehicle")
-                    bdd("Overview") { include(vehicle) }
+                sysml2Model(name = "M") {
+                    val vehicle = partDef(name = "Vehicle")
+                    bdd(name = "Overview") { include(vehicle) }
                 }
             val bdd = model.diagrams.filterIsInstance<BdDiagram>().single()
-            val bytes = renderPng(model, bdd, singleNodeLayout("Vehicle"))
-            SampleOutput.write("sysml2/bdd-vehicle.png", bytes)
+            val bytes = renderPng(model = model, diagram = bdd, layout = singleNodeLayout(id = "Vehicle"))
+            SampleOutput.write(filename = "sysml2/bdd-vehicle.png", bytes = bytes)
             assertValidPng(bytes)
         }
 
         // ── IBD ─────────────────────────────────────────────────────────────
         "IBD renders to valid PNG" {
             val model =
-                sysml2Model("M") {
-                    val engineDef = partDef("Engine")
+                sysml2Model(name = "M") {
+                    val engineDef = partDef(name = "Engine")
                     val vehicle =
-                        partDef("Vehicle") {
-                            part("engine", typeId = engineDef.id)
+                        partDef(name = "Vehicle") {
+                            part(name = "engine", typeId = engineDef.id)
                         }
-                    ibd("Vehicle wiring", owner = vehicle)
+                    ibd(name = "Vehicle wiring", owner = vehicle)
                 }
             val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
             val layout =
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(260f, 140f),
+                    canvas = Size(width = 260f, height = 140f),
                     nodes =
                         mapOf(
                             NodeId("Vehicle::engine") to
-                                NodeLayout(bounds = Rect(Point(20f, 20f), Size(200f, 100f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 200f, height = 100f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val bytes = renderPng(model, ibd, layout)
-            SampleOutput.write("sysml2/ibd-vehicle-engine.png", bytes)
+            val bytes = renderPng(model = model, diagram = ibd, layout = layout)
+            SampleOutput.write(filename = "sysml2/ibd-vehicle-engine.png", bytes = bytes)
             assertValidPng(bytes)
         }
 
         // ── UC ──────────────────────────────────────────────────────────────
         "UC renders to valid PNG" {
             val model =
-                sysml2Model("Library") {
-                    val reader = actorDef("Reader")
-                    val borrow = useCaseDef("BorrowBook")
-                    ucDiagram("UC") {
+                sysml2Model(name = "Library") {
+                    val reader = actorDef(name = "Reader")
+                    val borrow = useCaseDef(name = "BorrowBook")
+                    ucDiagram(name = "UC") {
                         include(reader)
                         include(borrow)
-                        association(reader, borrow)
+                        association(actor = reader, useCase = borrow)
                     }
                 }
             val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
@@ -152,48 +152,51 @@ class Sysml2PngTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("Reader") to NodeLayout(bounds = Rect(Point(20f, 60f), Size(60f, 100f))),
-                            NodeId("BorrowBook") to NodeLayout(bounds = Rect(Point(160f, 60f), Size(180f, 80f))),
+                            NodeId("Reader") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 60f), size = Size(width = 60f, height = 100f))),
+                            NodeId("BorrowBook") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 160f, y = 60f), size = Size(width = 180f, height = 80f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val bytes = renderPng(model, uc, layout)
-            SampleOutput.write("sysml2/uc-library.png", bytes)
+            val bytes = renderPng(model = model, diagram = uc, layout = layout)
+            SampleOutput.write(filename = "sysml2/uc-library.png", bytes = bytes)
             assertValidPng(bytes)
         }
 
         // ── REQ ─────────────────────────────────────────────────────────────
         "REQ renders to valid PNG" {
             val model =
-                sysml2Model("VehicleReqs") {
+                sysml2Model(name = "VehicleReqs") {
                     val topSpeed =
                         requirementDef(
-                            "TopSpeedRequirement",
+                            name = "TopSpeedRequirement",
                             reqId = "R-001",
                             text = "Vehicle reaches at least 180 km/h",
                         )
-                    reqDiagram("REQ") {
+                    reqDiagram(name = "REQ") {
                         include(topSpeed)
                     }
                 }
             val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
-            val bytes = renderPng(model, req, singleNodeLayout("TopSpeedRequirement", 240f, 140f))
-            SampleOutput.write("sysml2/req-top-speed.png", bytes)
+            val bytes =
+                renderPng(model = model, diagram = req, layout = singleNodeLayout(id = "TopSpeedRequirement", width = 240f, height = 140f))
+            SampleOutput.write(filename = "sysml2/req-top-speed.png", bytes = bytes)
             assertValidPng(bytes)
         }
 
         // ── STM ─────────────────────────────────────────────────────────────
         "STM renders to valid PNG" {
             val model =
-                sysml2Model("TrafficLight") {
-                    val initial = stateDef("Initial", isInitial = true)
-                    val red = stateDef("Red", entryAction = "switchLights('red')")
-                    transition("init", initial, red)
-                    stmDiagram("Phase") {
+                sysml2Model(name = "TrafficLight") {
+                    val initial = stateDef(name = "Initial", isInitial = true)
+                    val red = stateDef(name = "Red", entryAction = "switchLights('red')")
+                    transition(name = "init", source = initial, target = red)
+                    stmDiagram(name = "Phase") {
                         include(initial)
                         include(red)
                     }
@@ -203,28 +206,30 @@ class Sysml2PngTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(320f, 160f),
+                    canvas = Size(width = 320f, height = 160f),
                     nodes =
                         mapOf(
-                            NodeId("Initial") to NodeLayout(bounds = Rect(Point(20f, 60f), Size(24f, 24f))),
-                            NodeId("Red") to NodeLayout(bounds = Rect(Point(80f, 40f), Size(180f, 80f))),
+                            NodeId("Initial") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 60f), size = Size(width = 24f, height = 24f))),
+                            NodeId("Red") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 80f, y = 40f), size = Size(width = 180f, height = 80f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val bytes = renderPng(model, stm, layout)
-            SampleOutput.write("sysml2/stm-traffic-light.png", bytes)
+            val bytes = renderPng(model = model, diagram = stm, layout = layout)
+            SampleOutput.write(filename = "sysml2/stm-traffic-light.png", bytes = bytes)
             assertValidPng(bytes)
         }
 
         // ── ACT ─────────────────────────────────────────────────────────────
         "ACT renders to valid PNG" {
             val model =
-                sysml2Model("Workflow") {
+                sysml2Model(name = "Workflow") {
                     val initial = initialNode()
-                    val validate = actionDef("Validate", action = "validate(order)")
-                    controlFlow("start", initial, validate)
-                    actDiagram("W") {
+                    val validate = actionDef(name = "Validate", action = "validate(order)")
+                    controlFlow(name = "start", source = initial, target = validate)
+                    actDiagram(name = "W") {
                         include(initial)
                         include(validate)
                     }
@@ -234,28 +239,30 @@ class Sysml2PngTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(320f, 160f),
+                    canvas = Size(width = 320f, height = 160f),
                     nodes =
                         mapOf(
-                            NodeId("Initial") to NodeLayout(bounds = Rect(Point(20f, 60f), Size(28f, 28f))),
-                            NodeId("Validate") to NodeLayout(bounds = Rect(Point(80f, 40f), Size(180f, 80f))),
+                            NodeId("Initial") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 60f), size = Size(width = 28f, height = 28f))),
+                            NodeId("Validate") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 80f, y = 40f), size = Size(width = 180f, height = 80f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val bytes = renderPng(model, act, layout)
-            SampleOutput.write("sysml2/act-workflow.png", bytes)
+            val bytes = renderPng(model = model, diagram = act, layout = layout)
+            SampleOutput.write(filename = "sysml2/act-workflow.png", bytes = bytes)
             assertValidPng(bytes)
         }
 
         // ── SEQ ─────────────────────────────────────────────────────────────
         "SEQ renders to valid PNG" {
             val model =
-                sysml2Model("LoginFlow") {
-                    val user = lifelineDef("user")
-                    val browser = lifelineDef("browser")
-                    message("login(user, pwd)", user, browser, seqNo = 0)
-                    seqDiagram("Login") {
+                sysml2Model(name = "LoginFlow") {
+                    val user = lifelineDef(name = "user")
+                    val browser = lifelineDef(name = "browser")
+                    message(label = "login(user, pwd)", source = user, target = browser, seqNo = 0)
+                    seqDiagram(name = "Login") {
                         include(user)
                         include(browser)
                     }
@@ -265,62 +272,64 @@ class Sysml2PngTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(500f, 320f),
+                    canvas = Size(width = 500f, height = 320f),
                     nodes =
                         mapOf(
-                            NodeId("user") to NodeLayout(bounds = Rect(Point(40f, 20f), Size(140f, 240f))),
-                            NodeId("browser") to NodeLayout(bounds = Rect(Point(240f, 20f), Size(140f, 240f))),
+                            NodeId("user") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 20f), size = Size(width = 140f, height = 240f))),
+                            NodeId("browser") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 240f, y = 20f), size = Size(width = 140f, height = 240f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val bytes = renderPng(model, seq, layout)
-            SampleOutput.write("sysml2/seq-login.png", bytes)
+            val bytes = renderPng(model = model, diagram = seq, layout = layout)
+            SampleOutput.write(filename = "sysml2/seq-login.png", bytes = bytes)
             assertValidPng(bytes)
         }
 
         // ── PAR ─────────────────────────────────────────────────────────────
         "PAR renders to valid PNG" {
             val model =
-                sysml2Model("NewtonModel") {
+                sysml2Model(name = "NewtonModel") {
                     val newton =
                         constraintDef(
                             name = "NewtonsLaw",
                             expression = "F = m * a",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("F", "Force", ConstraintParameterDirection.Out),
-                                    ConstraintParameter("m", "Mass", ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "F", typeId = "Force", direction = ConstraintParameterDirection.Out),
+                                    ConstraintParameter(name = "m", typeId = "Mass", direction = ConstraintParameterDirection.In),
                                 ),
                         )
-                    parDiagram("Newton") {
+                    parDiagram(name = "Newton") {
                         include(newton)
                     }
                 }
             val par = model.diagrams.filterIsInstance<ParDiagram>().single()
-            val bytes = renderPng(model, par, singleNodeLayout("NewtonsLaw", 240f, 150f))
-            SampleOutput.write("sysml2/par-newtons-law.png", bytes)
+            val bytes = renderPng(model = model, diagram = par, layout = singleNodeLayout(id = "NewtonsLaw", width = 240f, height = 150f))
+            SampleOutput.write(filename = "sysml2/par-newtons-law.png", bytes = bytes)
             assertValidPng(bytes)
         }
 
         // ── Determinism ─────────────────────────────────────────────────────
         "PNG output for identical SysML 2 input is deterministic across runs" {
             val model =
-                sysml2Model("M") {
-                    val vehicle = partDef("Vehicle")
-                    bdd("Overview") { include(vehicle) }
+                sysml2Model(name = "M") {
+                    val vehicle = partDef(name = "Vehicle")
+                    bdd(name = "Overview") { include(vehicle) }
                 }
             val bdd = model.diagrams.filterIsInstance<BdDiagram>().single()
-            val layout = singleNodeLayout("Vehicle")
+            val layout = singleNodeLayout(id = "Vehicle")
 
-            val first = renderPng(model, bdd, layout)
-            val second = renderPng(model, bdd, layout)
+            val first = renderPng(model = model, diagram = bdd, layout = layout)
+            val second = renderPng(model = model, diagram = bdd, layout = layout)
 
             // SVG-Pfad ist deterministisch; Batik mit denselben Optionen sollte
             // ebenfalls byte-identische PNGs erzeugen. Sollte das in Zukunft
             // brechen (z.B. Zeitstempel im PNG-Metadaten-Chunk), fallback auf
             // strukturelle Gleichheit der gerenderten Bildgröße.
-            SampleOutput.write("sysml2/bdd-determinism-run1.png", first)
+            SampleOutput.write(filename = "sysml2/bdd-determinism-run1.png", bytes = first)
             first.toList() shouldBe second.toList()
             // Sanity: we did render something
             first.size shouldNotBe 0

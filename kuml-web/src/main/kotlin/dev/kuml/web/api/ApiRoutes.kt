@@ -158,7 +158,7 @@ internal fun Application.configureApiRoutes(version: String = "0.6.0") {
  */
 internal fun parseUmlDiagram(script: String): KumlDiagram {
     KumlScriptGuard.validate(script)
-    val evalResult = KumlScriptHost.eval(script)
+    val evalResult = KumlScriptHost.eval(code = script)
     val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
     if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
         val msg = errors.joinToString("\n") { it.message }
@@ -168,7 +168,13 @@ internal fun parseUmlDiagram(script: String): KumlDiagram {
         evalResult as? ResultWithDiagnostics.Success
             ?: throw IllegalArgumentException("Script evaluation did not produce a result")
 
-    return when (val extracted = DiagramExtractor.extractAny(successResult.value.returnValue, File("inline.kuml.kts"))) {
+    return when (
+        val extracted =
+            DiagramExtractor.extractAny(
+                returnValue = successResult.value.returnValue,
+                input = File("inline.kuml.kts"),
+            )
+    ) {
         is ExtractedDiagram.Uml -> extracted.diagram
         else -> throw IllegalArgumentException("Only UML class diagrams support grid hints (got ${extracted::class.simpleName})")
     }

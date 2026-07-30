@@ -132,7 +132,7 @@ internal object ResourceRegistry {
                 McpResourceContents(uri = uri, mimeType = "text/x-kotlin", text = buildGranularExampleText(uri))
             uri.startsWith(URI_REFERENCE_PREFIX) ->
                 McpResourceContents(uri = uri, mimeType = "text/asciidoc", text = buildGranularReferenceText(uri))
-            else -> throw McpResourceException("Unknown resource: '$uri'")
+            else -> throw McpResourceException(message = "Unknown resource: '$uri'")
         }
 
     /**
@@ -144,7 +144,7 @@ internal object ResourceRegistry {
         val language = uri.removePrefix(URI_REFERENCE_PREFIX)
         val page =
             referencePagesByLanguage[language]
-                ?: throw McpResourceException("Unknown resource: '$uri'. No reference page for language '$language'.")
+                ?: throw McpResourceException(message = "Unknown resource: '$uri'. No reference page for language '$language'.")
         return readReferencePage(page)
     }
 
@@ -160,7 +160,7 @@ internal object ResourceRegistry {
         val matches = ExampleCatalog.find(language = language, diagramType = diagramType)
         if (matches.isEmpty()) {
             throw McpResourceException(
-                "Unknown resource: '$uri'. No example for language '$language' and diagramType '$diagramType'.",
+                message = "Unknown resource: '$uri'. No example for language '$language' and diagramType '$diagramType'.",
             )
         }
         return matches.joinToString(separator = "\n\n") { example ->
@@ -176,17 +176,17 @@ internal object ResourceRegistry {
     private fun readReferencePage(page: String): String {
         val stream =
             javaClass.getResourceAsStream("/dsl/reference/$page")
-                ?: throw McpResourceException("Missing bundled reference page: $page")
+                ?: throw McpResourceException(message = "Missing bundled reference page: $page")
         return stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
     }
 
     private fun buildExamplesText(): String {
         val exampleNames = BundledExamples.listNames()
         if (exampleNames.isEmpty()) {
-            throw McpResourceException("No bundled vault examples found under dsl/examples/")
+            throw McpResourceException(message = "No bundled vault examples found under dsl/examples/")
         }
         return exampleNames.sorted().joinToString(separator = "\n\n---\n\n") { name ->
-            BundledExamples.readRaw(name) ?: throw McpResourceException("Missing bundled example: $name")
+            BundledExamples.readRaw(name) ?: throw McpResourceException(message = "Missing bundled example: $name")
         }
     }
 

@@ -57,7 +57,7 @@ class CosmWasmEventDecoderTest :
                     ),
                 )
             val results = blockResults(evt)
-            val events = decoder.decodeWasmEvents(results, contractAddr, 10L)
+            val events = decoder.decodeWasmEvents(blockResults = results, contractAddr = contractAddr, height = 10L)
             events shouldHaveSize 1
             events[0].eventType shouldBe "transfer"
             events[0].blockNumber shouldBe 10L
@@ -72,7 +72,7 @@ class CosmWasmEventDecoderTest :
                     ),
                 )
             val results = blockResults(evt)
-            val events = decoder.decodeWasmEvents(results, contractAddr, 5L)
+            val events = decoder.decodeWasmEvents(blockResults = results, contractAddr = contractAddr, height = 5L)
             events shouldHaveSize 1
             events[0].eventType shouldBe "execute"
         }
@@ -87,7 +87,7 @@ class CosmWasmEventDecoderTest :
                     ),
                 )
             val results = blockResults(evt)
-            val events = decoder.decodeWasmEvents(results, contractAddr, 1L)
+            val events = decoder.decodeWasmEvents(blockResults = results, contractAddr = contractAddr, height = 1L)
             events.shouldBeEmpty()
         }
 
@@ -100,7 +100,7 @@ class CosmWasmEventDecoderTest :
                     }
                 }
             val results = blockResults(evt)
-            val events = decoder.decodeWasmEvents(results, contractAddr, 1L)
+            val events = decoder.decodeWasmEvents(blockResults = results, contractAddr = contractAddr, height = 1L)
             events.shouldBeEmpty()
         }
 
@@ -110,7 +110,7 @@ class CosmWasmEventDecoderTest :
                     putJsonArray("finalize_block_events") {}
                     putJsonArray("txs_results") {}
                 }
-            val events = decoder.decodeWasmEvents(results, contractAddr, 1L)
+            val events = decoder.decodeWasmEvents(blockResults = results, contractAddr = contractAddr, height = 1L)
             events.shouldBeEmpty()
         }
 
@@ -136,7 +136,7 @@ class CosmWasmEventDecoderTest :
                         )
                     }
                 }
-            val events = decoder.decodeWasmEvents(results, contractAddr, 3L)
+            val events = decoder.decodeWasmEvents(blockResults = results, contractAddr = contractAddr, height = 3L)
             events shouldHaveSize 1
             events[0].eventType shouldBe "mint"
             events[0].txHash shouldBe "TXHASH123"
@@ -153,7 +153,7 @@ class CosmWasmEventDecoderTest :
                     ),
                 )
             val results = blockResults(evt)
-            val events = decoder.decodeWasmEvents(results, contractAddr, 1L)
+            val events = decoder.decodeWasmEvents(blockResults = results, contractAddr = contractAddr, height = 1L)
             events shouldHaveSize 1
             val payload = String(events[0].payloadAbi, Charsets.UTF_8)
             payload shouldBe """{"amount":"500","recipient":"cosmos1abc"}"""

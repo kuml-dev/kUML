@@ -103,9 +103,9 @@ internal object SqlStatementCollector {
                     } catch (e: Exception) {
                         diagnostics +=
                             ReverseDiagnostic(
-                                ReverseDiagnostic.Severity.WARN,
-                                "REV-SQL-002",
-                                "Failed to read file: ${e.message ?: e.javaClass.simpleName}",
+                                severity = ReverseDiagnostic.Severity.WARN,
+                                code = "REV-SQL-002",
+                                message = "Failed to read file: ${e.message ?: e.javaClass.simpleName}",
                                 file = fileName,
                             )
                         continue
@@ -116,9 +116,9 @@ internal object SqlStatementCollector {
                 // through the WHERE-stripping per-statement path below.
                 val mightHavePartialIndex = PARTIAL_INDEX_HINT_REGEX.containsMatchIn(text)
                 if (!mightHavePartialIndex) {
-                    val whole = tryParseWhole(text, executor)
+                    val whole = tryParseWhole(text = text, executor = executor)
                     if (whole != null) {
-                        whole.forEach { result += ParsedSqlStatement(it, fileName) }
+                        whole.forEach { result += ParsedSqlStatement(statement = it, fileName = fileName) }
                         continue
                     }
                 }
@@ -128,13 +128,18 @@ internal object SqlStatementCollector {
                     if (trimmed.isEmpty()) continue
                     val (toParse, predicate) = extractPartialIndexPredicate(trimmed)
                     try {
-                        result += ParsedSqlStatement(CCJSqlParserUtil.parse(toParse, executor, null), fileName, predicate)
+                        result +=
+                            ParsedSqlStatement(
+                                statement = CCJSqlParserUtil.parse(toParse, executor, null),
+                                fileName = fileName,
+                                partialIndexPredicate = predicate,
+                            )
                     } catch (e: Exception) {
                         diagnostics +=
                             ReverseDiagnostic(
-                                ReverseDiagnostic.Severity.WARN,
-                                "REV-SQL-002",
-                                "Failed to parse statement: ${firstLine(e.message) ?: e.javaClass.simpleName}",
+                                severity = ReverseDiagnostic.Severity.WARN,
+                                code = "REV-SQL-002",
+                                message = "Failed to parse statement: ${firstLine(e.message) ?: e.javaClass.simpleName}",
                                 file = fileName,
                             )
                     }

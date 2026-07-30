@@ -19,42 +19,42 @@ public enum class ParameterIn { Path, Query, Header, Cookie, Body }
  * Reference: OpenAPI Specification 3.1
  */
 public val openApiProfile: KumlProfile =
-    profile("OpenAPI") {
+    profile(name = "OpenAPI") {
         namespace = "dev.kuml.profiles.openapi"
         description = "OpenAPI / REST resources, schemas, operations and parameters"
         version = "1.0.0"
 
         // ── REST Resources ────────────────────────────────────────────────────────
 
-        stereotype("Resource") {
+        stereotype(name = "Resource") {
             extends(UmlMetaclass.Class)
-            property<String>("path")
-            property<String>("version") { default = "v1" }
+            property<String>(name = "path")
+            property<String>(name = "version") { default = "v1" }
         }
 
         // ── Data Schemas ──────────────────────────────────────────────────────────
 
-        stereotype("Schema") {
+        stereotype(name = "Schema") {
             extends(UmlMetaclass.Class)
-            property<String>("format") { default = "json" }
-            property<String>("description") { default = "" }
+            property<String>(name = "format") { default = "json" }
+            property<String>(name = "description") { default = "" }
         }
 
         // ── Operation-Level: REST operation mapping (V1.1.2) ──────────────────────
 
-        stereotype("Operation") {
+        stereotype(name = "Operation") {
             extends(UmlMetaclass.Operation)
-            property<HttpMethod>("method") { default = HttpMethod.GET }
-            property<String>("path") { default = "/" }
-            property<String>("summary") { default = "" }
-            property<Int>("status") { default = 200 }
+            property<HttpMethod>(name = "method") { default = HttpMethod.GET }
+            property<String>(name = "path") { default = "/" }
+            property<String>(name = "summary") { default = "" }
+            property<Int>(name = "status") { default = 200 }
         }
 
         // ── Parameter-Level: REST parameter binding (V1.1.2) ──────────────────────
 
-        stereotype("Parameter") {
+        stereotype(name = "Parameter") {
             extends(UmlMetaclass.Parameter)
-            property<ParameterIn>("in") { default = ParameterIn.Query }
-            property<Boolean>("required") { default = false }
+            property<ParameterIn>(name = "in") { default = ParameterIn.Query }
+            property<Boolean>(name = "required") { default = false }
         }
     }

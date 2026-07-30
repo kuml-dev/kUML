@@ -44,41 +44,41 @@ class ModelSignerTest :
         // ── sign ─────────────────────────────────────────────────────────────
 
         "sign: signature is exactly 65 bytes" {
-            val sig = signer.sign(MODEL_SOURCE, PRIV_KEY_0, fixedTimestamp)
+            val sig = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_0, timestamp = fixedTimestamp)
             sig.signature.size shouldBe 65
         }
 
         "sign: modelHash equals hashCanonical(canonicalize(source))" {
-            val sig = signer.sign(MODEL_SOURCE, PRIV_KEY_0, fixedTimestamp)
+            val sig = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_0, timestamp = fixedTimestamp)
             val expected = ModelHasher.hashCanonical(ModelHasher.canonicalize(MODEL_SOURCE))
             sig.modelHash.contentEquals(expected) shouldBe true
         }
 
         "sign: signer is EIP-55 checksummed Ethereum address matching Account#0" {
-            val sig = signer.sign(MODEL_SOURCE, PRIV_KEY_0, fixedTimestamp)
+            val sig = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_0, timestamp = fixedTimestamp)
             sig.signer shouldMatch EIP55_ADDRESS_REGEX
             sig.signer shouldBe ADDR_0
         }
 
         "sign: signer for Account#1 key matches Account#1 address" {
-            val sig = signer.sign(MODEL_SOURCE, PRIV_KEY_1, fixedTimestamp)
+            val sig = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_1, timestamp = fixedTimestamp)
             sig.signer shouldBe ADDR_1
         }
 
         "sign: two different keys produce different signer addresses" {
-            val sig0 = signer.sign(MODEL_SOURCE, PRIV_KEY_0, fixedTimestamp)
-            val sig1 = signer.sign(MODEL_SOURCE, PRIV_KEY_1, fixedTimestamp)
+            val sig0 = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_0, timestamp = fixedTimestamp)
+            val sig1 = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_1, timestamp = fixedTimestamp)
             sig0.signer shouldNotBe sig1.signer
         }
 
         "sign: RFC 6979 determinism — same key+source+timestamp → identical signature" {
-            val sig1 = signer.sign(MODEL_SOURCE, PRIV_KEY_0, fixedTimestamp)
-            val sig2 = signer.sign(MODEL_SOURCE, PRIV_KEY_0, fixedTimestamp)
+            val sig1 = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_0, timestamp = fixedTimestamp)
+            val sig2 = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_0, timestamp = fixedTimestamp)
             sig1.signature.contentEquals(sig2.signature) shouldBe true
         }
 
         "sign: v byte is 27 or 28 (EIP recovery id convention)" {
-            val sig = signer.sign(MODEL_SOURCE, PRIV_KEY_0, fixedTimestamp)
+            val sig = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_0, timestamp = fixedTimestamp)
             val v = sig.signature[64].toInt() and 0xFF
             (v == 27 || v == 28) shouldBe true
         }
@@ -86,7 +86,7 @@ class ModelSignerTest :
         "sign: rejects invalid private key (all zeros)" {
             var threw = false
             try {
-                signer.sign(MODEL_SOURCE, "0x" + "00".repeat(32), fixedTimestamp)
+                signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = "0x" + "00".repeat(32), timestamp = fixedTimestamp)
             } catch (_: IllegalArgumentException) {
                 threw = true
             }
@@ -96,7 +96,7 @@ class ModelSignerTest :
         "sign: rejects malformed hex key" {
             var threw = false
             try {
-                signer.sign(MODEL_SOURCE, "not-a-hex-key", fixedTimestamp)
+                signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = "not-a-hex-key", timestamp = fixedTimestamp)
             } catch (_: IllegalArgumentException) {
                 threw = true
             }
@@ -106,22 +106,22 @@ class ModelSignerTest :
         // ── recover ──────────────────────────────────────────────────────────
 
         "recover: round-trip — recover(source, sign(source, key)) == signer" {
-            val sig = signer.sign(MODEL_SOURCE, PRIV_KEY_0, fixedTimestamp)
-            val recovered = signer.recover(MODEL_SOURCE, sig)
+            val sig = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_0, timestamp = fixedTimestamp)
+            val recovered = signer.recover(modelSource = MODEL_SOURCE, sig = sig)
             recovered shouldBe ADDR_0
         }
 
         "recover: Account#1 key recovers Account#1 address" {
-            val sig = signer.sign(MODEL_SOURCE, PRIV_KEY_1, fixedTimestamp)
-            val recovered = signer.recover(MODEL_SOURCE, sig)
+            val sig = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_1, timestamp = fixedTimestamp)
+            val recovered = signer.recover(modelSource = MODEL_SOURCE, sig = sig)
             recovered shouldBe ADDR_1
         }
 
         "recover: different model source than signed → throws IllegalArgumentException" {
-            val sig = signer.sign(MODEL_SOURCE, PRIV_KEY_0, fixedTimestamp)
+            val sig = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_0, timestamp = fixedTimestamp)
             var threw = false
             try {
-                signer.recover("diagram(\"other\") { }", sig)
+                signer.recover(modelSource = "diagram(\"other\") { }", sig = sig)
             } catch (_: IllegalArgumentException) {
                 threw = true
             }
@@ -131,12 +131,12 @@ class ModelSignerTest :
         // ── verifyModelSignature ──────────────────────────────────────────────
 
         "verifyModelSignature: valid sign → true" {
-            val sig = signer.sign(MODEL_SOURCE, PRIV_KEY_0, fixedTimestamp)
-            verifier.verifyModelSignature(MODEL_SOURCE, sig) shouldBe true
+            val sig = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_0, timestamp = fixedTimestamp)
+            verifier.verifyModelSignature(modelSource = MODEL_SOURCE, sig = sig) shouldBe true
         }
 
         "verifyModelSignature: manipulated modelHash in sig → false" {
-            val sig = signer.sign(MODEL_SOURCE, PRIV_KEY_0, fixedTimestamp)
+            val sig = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_0, timestamp = fixedTimestamp)
             val manipulatedHash = sig.modelHash.copyOf()
             manipulatedHash[0] = (manipulatedHash[0].toInt() xor 0xFF).toByte()
             val manipulatedSig =
@@ -146,16 +146,16 @@ class ModelSignerTest :
                     modelHash = manipulatedHash,
                     timestamp = sig.timestamp,
                 )
-            verifier.verifyModelSignature(MODEL_SOURCE, manipulatedSig) shouldBe false
+            verifier.verifyModelSignature(modelSource = MODEL_SOURCE, sig = manipulatedSig) shouldBe false
         }
 
         "verifyModelSignature: different modelSource with same sig → false" {
-            val sig = signer.sign(MODEL_SOURCE, PRIV_KEY_0, fixedTimestamp)
-            verifier.verifyModelSignature("diagram(\"tampered\") { }", sig) shouldBe false
+            val sig = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_0, timestamp = fixedTimestamp)
+            verifier.verifyModelSignature(modelSource = "diagram(\"tampered\") { }", sig = sig) shouldBe false
         }
 
         "verifyModelSignature: Account#1 sig not verified as Account#0" {
-            val sig1 = signer.sign(MODEL_SOURCE, PRIV_KEY_1, fixedTimestamp)
+            val sig1 = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_1, timestamp = fixedTimestamp)
             // sig1.signer is ADDR_1 — verify check: recovered == sig.signer (both ADDR_1) → true
             // But if we craft a sig with wrong signer field it should fail
             val wrongSignerSig =
@@ -165,11 +165,11 @@ class ModelSignerTest :
                     modelHash = sig1.modelHash,
                     timestamp = sig1.timestamp,
                 )
-            verifier.verifyModelSignature(MODEL_SOURCE, wrongSignerSig) shouldBe false
+            verifier.verifyModelSignature(modelSource = MODEL_SOURCE, sig = wrongSignerSig) shouldBe false
         }
 
         "verifyModelSignature: corrupted signature bytes → false" {
-            val sig = signer.sign(MODEL_SOURCE, PRIV_KEY_0, fixedTimestamp)
+            val sig = signer.sign(modelSource = MODEL_SOURCE, privateKeyHex = PRIV_KEY_0, timestamp = fixedTimestamp)
             val corrupted = sig.signature.copyOf()
             corrupted[0] = (corrupted[0].toInt() xor 0xFF).toByte()
             val corruptedSig =
@@ -179,6 +179,6 @@ class ModelSignerTest :
                     modelHash = sig.modelHash,
                     timestamp = sig.timestamp,
                 )
-            verifier.verifyModelSignature(MODEL_SOURCE, corruptedSig) shouldBe false
+            verifier.verifyModelSignature(modelSource = MODEL_SOURCE, sig = corruptedSig) shouldBe false
         }
     })

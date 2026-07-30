@@ -136,23 +136,23 @@ internal object ExtractedDiagramCodec {
                 )
             Variant.C4 -> {
                 val model = modelJson.decodeFromString(C4Model.serializer(), envelope.payload)
-                ExtractedDiagram.C4(model, model.diagrams.selected(envelope.diagramIndex))
+                ExtractedDiagram.C4(model = model, diagram = model.diagrams.selected(envelope.diagramIndex))
             }
             Variant.SYSML2 -> {
                 val model = modelJson.decodeFromString(Sysml2Model.serializer(), envelope.payload)
-                ExtractedDiagram.Sysml2(model, model.diagrams.selected(envelope.diagramIndex))
+                ExtractedDiagram.Sysml2(model = model, diagram = model.diagrams.selected(envelope.diagramIndex))
             }
             Variant.BPMN -> {
                 val model = modelJson.decodeFromString(BpmnModel.serializer(), envelope.payload)
-                ExtractedDiagram.Bpmn(model, model.diagrams.selected(envelope.diagramIndex))
+                ExtractedDiagram.Bpmn(model = model, diagram = model.diagrams.selected(envelope.diagramIndex))
             }
             Variant.BLUEPRINT -> {
                 val model = modelJson.decodeFromString(BlueprintModel.serializer(), envelope.payload)
-                ExtractedDiagram.Blueprint(model, model.diagrams.selected(envelope.diagramIndex))
+                ExtractedDiagram.Blueprint(model = model, diagram = model.diagrams.selected(envelope.diagramIndex))
             }
             Variant.ERM -> {
                 val model = modelJson.decodeFromString(ErmModel.serializer(), envelope.payload)
-                ExtractedDiagram.Erm(model, model.diagrams.selected(envelope.diagramIndex))
+                ExtractedDiagram.Erm(model = model, diagram = model.diagrams.selected(envelope.diagramIndex))
             }
         }
     }

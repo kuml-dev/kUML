@@ -14,9 +14,9 @@ class ActivityTraceReplayerTest :
 
         test("happy-path roundtrip linear activity — isMatch true") {
             val runtime = simpleLinearActivity()
-            val original = simulateActToTraceFile(runtime)
+            val original = simulateActToTraceFile(runtime = runtime)
 
-            val report = ActivityTraceReplayer().replay(runtime, original)
+            val report = ActivityTraceReplayer().replay(runtime = runtime, original = original)
 
             report.isMatch shouldBe true
             report.originalSize shouldBe original.entries.size
@@ -28,9 +28,9 @@ class ActivityTraceReplayerTest :
         test("happy-path roundtrip decision activity valid=true — isMatch true") {
             val runtime = decisionActivity()
             val ctx = mapOf<String, Any>("valid" to true)
-            val original = simulateActToTraceFile(runtime, ctx)
+            val original = simulateActToTraceFile(runtime = runtime, eventContext = ctx)
 
-            val report = ActivityTraceReplayer().replay(runtime, original, eventContext = ctx)
+            val report = ActivityTraceReplayer().replay(runtime = runtime, original = original, eventContext = ctx)
 
             report.isMatch shouldBe true
         }
@@ -40,13 +40,13 @@ class ActivityTraceReplayerTest :
         test("mismatch when eventContext differs from original recording") {
             val runtime = decisionActivity()
             // Record original with valid=true
-            val original = simulateActToTraceFile(runtime, mapOf("valid" to true))
+            val original = simulateActToTraceFile(runtime = runtime, eventContext = mapOf("valid" to true))
 
             // Replay with valid=false — different branch taken → different trace
             val report =
                 ActivityTraceReplayer().replay(
-                    runtime,
-                    original,
+                    runtime = runtime,
+                    original = original,
                     eventContext = mapOf("valid" to false),
                 )
 
@@ -57,10 +57,10 @@ class ActivityTraceReplayerTest :
 
         test("replay is deterministic — two calls produce identical actualTrace") {
             val runtime = simpleLinearActivity()
-            val original = simulateActToTraceFile(runtime)
+            val original = simulateActToTraceFile(runtime = runtime)
 
-            val report1 = ActivityTraceReplayer().replay(runtime, original)
-            val report2 = ActivityTraceReplayer().replay(runtime, original)
+            val report1 = ActivityTraceReplayer().replay(runtime = runtime, original = original)
+            val report2 = ActivityTraceReplayer().replay(runtime = runtime, original = original)
 
             report1.actualTrace.size shouldBe report2.actualTrace.size
             for (i in report1.actualTrace.indices) {
@@ -83,7 +83,7 @@ class ActivityTraceReplayerTest :
                 )
 
             shouldThrow<UnsupportedTraceFlavourException> {
-                ActivityTraceReplayer().replay(runtime, stmTrace)
+                ActivityTraceReplayer().replay(runtime = runtime, original = stmTrace)
             }
         }
 
@@ -101,7 +101,7 @@ class ActivityTraceReplayerTest :
                 )
 
             shouldThrow<UnsupportedTraceFlavourException> {
-                ActivityTraceReplayer().replay(runtime, mixedTrace)
+                ActivityTraceReplayer().replay(runtime = runtime, original = mixedTrace)
             }
         }
 
@@ -110,12 +110,12 @@ class ActivityTraceReplayerTest :
         test("propagates ActivityDeadlockException for infinite-loop with maxSteps=5") {
             // loopActivity loops work→work indefinitely — hits maxSteps guard which always throws
             val loopRuntime = loopActivity()
-            val fakeOriginal = simulateActToTraceFile(simpleLinearActivity()) // valid ACTIVITY trace
+            val fakeOriginal = simulateActToTraceFile(runtime = simpleLinearActivity()) // valid ACTIVITY trace
 
             shouldThrow<ActivityDeadlockException> {
                 ActivityTraceReplayer().replay(
-                    loopRuntime,
-                    fakeOriginal,
+                    runtime = loopRuntime,
+                    original = fakeOriginal,
                     maxSteps = 5,
                     failOnDeadlock = true,
                 )
@@ -128,13 +128,13 @@ class ActivityTraceReplayerTest :
             // deadlockActivity has a token stuck with no enabled transitions — "nothing fired" path
             // which respects failOnDeadlock=false
             val deadlockRuntime = deadlockActivity()
-            val fakeOriginal = simulateActToTraceFile(simpleLinearActivity())
+            val fakeOriginal = simulateActToTraceFile(runtime = simpleLinearActivity())
 
             // Should not throw despite deadlock
             val report =
                 ActivityTraceReplayer().replay(
-                    deadlockRuntime,
-                    fakeOriginal,
+                    runtime = deadlockRuntime,
+                    original = fakeOriginal,
                     maxSteps = 100,
                     failOnDeadlock = false,
                 )
@@ -147,12 +147,12 @@ class ActivityTraceReplayerTest :
 
         test("throws IllegalArgumentException on modelId mismatch") {
             val runtime = simpleLinearActivity()
-            val original = simulateActToTraceFile(runtime, modelId = "ModelA")
+            val original = simulateActToTraceFile(runtime = runtime, modelId = "ModelA")
 
             shouldThrow<IllegalArgumentException> {
                 ActivityTraceReplayer().replay(
-                    runtime,
-                    original,
+                    runtime = runtime,
+                    original = original,
                     modelId = "ModelB",
                 )
             }
@@ -162,11 +162,11 @@ class ActivityTraceReplayerTest :
 
         test("toHumanReadable verbose shows eventContext on mismatch") {
             val runtime = decisionActivity()
-            val original = simulateActToTraceFile(runtime, mapOf("valid" to true))
+            val original = simulateActToTraceFile(runtime = runtime, eventContext = mapOf("valid" to true))
             val report =
                 ActivityTraceReplayer().replay(
-                    runtime,
-                    original,
+                    runtime = runtime,
+                    original = original,
                     eventContext = mapOf("valid" to false),
                 )
 
@@ -180,9 +180,9 @@ class ActivityTraceReplayerTest :
 
         test("fork-join activity replays identically") {
             val runtime = forkJoinActivity()
-            val original = simulateActToTraceFile(runtime)
+            val original = simulateActToTraceFile(runtime = runtime)
 
-            val report = ActivityTraceReplayer().replay(runtime, original)
+            val report = ActivityTraceReplayer().replay(runtime = runtime, original = original)
 
             report.isMatch shouldBe true
         }
@@ -191,9 +191,9 @@ class ActivityTraceReplayerTest :
 
         test("startTrace is included in actualTrace — first entry is TokenPlaced for Initial node") {
             val runtime = simpleLinearActivity()
-            val original = simulateActToTraceFile(runtime)
+            val original = simulateActToTraceFile(runtime = runtime)
 
-            val report = ActivityTraceReplayer().replay(runtime, original)
+            val report = ActivityTraceReplayer().replay(runtime = runtime, original = original)
 
             val first = report.actualTrace.firstOrNull()
             (first is TraceEntry.TokenPlaced) shouldBe true

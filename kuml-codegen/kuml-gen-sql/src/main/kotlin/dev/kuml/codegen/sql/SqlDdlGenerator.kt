@@ -55,17 +55,18 @@ public class SqlDdlGenerator : KumlCodeGenerator {
         outputDir.mkdirs()
 
         val model: ErmModel =
-            when (val result = UmlToErmTransformer().transform(diagram, TransformContext(options))) {
+            when (val result = UmlToErmTransformer().transform(source = diagram, ctx = TransformContext(options))) {
                 is TransformResult.Success -> result.output
                 is TransformResult.Failure ->
                     throw CodeGenerationException(
-                        "kuml-gen-sql: UML→ERM step failed: " +
-                            result.errors.joinToString("; ") { it.message },
+                        message =
+                            "kuml-gen-sql: UML→ERM step failed: " +
+                                result.errors.joinToString("; ") { it.message },
                     )
             }
 
         val dialect = SqlDialect.from(options["sql-dialect"] ?: "postgres")
-        val ddl = ErmSqlEmitter(dialect, SqlEmitOptions.from(options)).emit(model)
+        val ddl = ErmSqlEmitter(dialect = dialect, options = SqlEmitOptions.from(options)).emit(model)
 
         val file = File(outputDir, "schema.sql")
         file.writeText(ddl)

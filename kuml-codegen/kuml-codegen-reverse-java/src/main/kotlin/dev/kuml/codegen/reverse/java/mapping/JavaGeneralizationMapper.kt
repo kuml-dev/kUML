@@ -46,6 +46,6 @@ internal object JavaGeneralizationMapper {
                 )
         }
 
-        return Result(generalizations, realizations)
+        return Result(generalizations = generalizations, realizations = realizations)
     }
 }

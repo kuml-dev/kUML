@@ -47,7 +47,7 @@ internal fun renderBpmnEvent(
             (event.attachedToRef != null || event.position == EventPosition.START)
     val dashAttr = if (nonInterrupting) """ stroke-dasharray="4,2"""" else ""
 
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(event.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(event.id))) {
         when (event.position) {
             EventPosition.START -> {
                 // "-circle" id lets SMIL fill animations target the ring directly;
@@ -79,7 +79,7 @@ internal fun renderBpmnEvent(
 
         // Symbol-Overlay: Symbol im 24×24-Normkoordinaten skalieren + zentrieren
         val throwing = event.behaviour == EventBehaviour.THROWING
-        val symbol = BpmnEventSymbols.forDefinition(event.definition, throwing)
+        val symbol = BpmnEventSymbols.forDefinition(definition = event.definition, throwing = throwing)
         if (symbol != null) {
             // Symbol soll innerhalb des Kreises bleiben: Faktor < 1.0, damit auch
             // die Ecken der 24×24-Normbox (Diagonale) den Ring nicht überragen.
@@ -97,15 +97,16 @@ internal fun renderBpmnEvent(
         val label = event.name
         if (!label.isNullOrBlank()) {
             tag(
-                "text",
-                mapOf(
-                    "x" to fmtF(cx),
-                    "y" to fmtF(y + BPMN_EVENT_SHAPE_H + 12f),
-                    "text-anchor" to "middle",
-                    "font-family" to fontFamily,
-                    "font-size" to "11",
-                    "fill" to textColor,
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "x" to fmtF(cx),
+                        "y" to fmtF(y + BPMN_EVENT_SHAPE_H + 12f),
+                        "text-anchor" to "middle",
+                        "font-family" to fontFamily,
+                        "font-size" to "11",
+                        "fill" to textColor,
+                    ),
             ) { text(label) }
         }
     }

@@ -94,11 +94,12 @@ internal object ListElementsTool : McpTool {
     }
 
     private fun evalDiagram(script: String): KumlDiagram {
-        val extracted = McpScriptEvaluator.extract(script, "list.kuml.kts")
+        val extracted = McpScriptEvaluator.extract(script = script, fileName = "list.kuml.kts")
         return (extracted as? ExtractedDiagram.Uml)?.diagram
             ?: throw ScriptEvaluationException(
-                "kuml.list_elements currently supports UML diagrams. " +
-                    "End the script with a `classDiagram { … }` / `diagram { … }` expression.",
+                message =
+                    "kuml.list_elements currently supports UML diagrams. " +
+                        "End the script with a `classDiagram { … }` / `diagram { … }` expression.",
             )
     }
 }

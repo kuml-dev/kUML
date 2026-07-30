@@ -11,15 +11,15 @@ class TraceDiffTest :
         test("equal traces match even when timestamps differ") {
             val a =
                 listOf<TraceEntry>(
-                    TraceEntry.EventReceived(0L, "ts-A", "go", JsonObject(emptyMap())),
-                    TraceEntry.StateEntered(1L, "ts-A", "A"),
+                    TraceEntry.EventReceived(seqNo = 0L, timestamp = "ts-A", eventName = "go", payload = JsonObject(emptyMap())),
+                    TraceEntry.StateEntered(seqNo = 1L, timestamp = "ts-A", vertexId = "A"),
                 )
             val b =
                 listOf<TraceEntry>(
-                    TraceEntry.EventReceived(0L, "ts-B", "go", JsonObject(emptyMap())),
-                    TraceEntry.StateEntered(1L, "ts-B", "A"),
+                    TraceEntry.EventReceived(seqNo = 0L, timestamp = "ts-B", eventName = "go", payload = JsonObject(emptyMap())),
+                    TraceEntry.StateEntered(seqNo = 1L, timestamp = "ts-B", vertexId = "A"),
                 )
-            val r = TraceDiff.compare(a, b)
+            val r = TraceDiff.compare(actual = a, expected = b)
             r.isMatch shouldBe true
             r.matched shouldBe 2
         }
@@ -27,15 +27,15 @@ class TraceDiffTest :
         test("diff at position N reports ValueDiffer") {
             val a =
                 listOf<TraceEntry>(
-                    TraceEntry.EventReceived(0L, "t", "go", JsonObject(emptyMap())),
-                    TraceEntry.StateEntered(1L, "t", "X"),
+                    TraceEntry.EventReceived(seqNo = 0L, timestamp = "t", eventName = "go", payload = JsonObject(emptyMap())),
+                    TraceEntry.StateEntered(seqNo = 1L, timestamp = "t", vertexId = "X"),
                 )
             val b =
                 listOf<TraceEntry>(
-                    TraceEntry.EventReceived(0L, "t", "go", JsonObject(emptyMap())),
-                    TraceEntry.StateEntered(1L, "t", "Y"),
+                    TraceEntry.EventReceived(seqNo = 0L, timestamp = "t", eventName = "go", payload = JsonObject(emptyMap())),
+                    TraceEntry.StateEntered(seqNo = 1L, timestamp = "t", vertexId = "Y"),
                 )
-            val r = TraceDiff.compare(a, b)
+            val r = TraceDiff.compare(actual = a, expected = b)
             r.isMatch shouldBe false
             r.mismatches.size shouldBe 1
             (r.mismatches.first() is TraceDiff.Mismatch.ValueDiffer) shouldBe true
@@ -44,39 +44,39 @@ class TraceDiffTest :
         test("extra actual entries reported") {
             val a =
                 listOf<TraceEntry>(
-                    TraceEntry.StateEntered(0L, "t", "A"),
-                    TraceEntry.StateEntered(1L, "t", "B"),
+                    TraceEntry.StateEntered(seqNo = 0L, timestamp = "t", vertexId = "A"),
+                    TraceEntry.StateEntered(seqNo = 1L, timestamp = "t", vertexId = "B"),
                 )
-            val b = listOf<TraceEntry>(TraceEntry.StateEntered(0L, "t", "A"))
-            val r = TraceDiff.compare(a, b)
+            val b = listOf<TraceEntry>(TraceEntry.StateEntered(seqNo = 0L, timestamp = "t", vertexId = "A"))
+            val r = TraceDiff.compare(actual = a, expected = b)
             r.mismatches.size shouldBe 1
             (r.mismatches.first() is TraceDiff.Mismatch.ExtraActual) shouldBe true
         }
 
         test("missing expected entries reported") {
-            val a = listOf<TraceEntry>(TraceEntry.StateEntered(0L, "t", "A"))
+            val a = listOf<TraceEntry>(TraceEntry.StateEntered(seqNo = 0L, timestamp = "t", vertexId = "A"))
             val b =
                 listOf<TraceEntry>(
-                    TraceEntry.StateEntered(0L, "t", "A"),
-                    TraceEntry.StateEntered(1L, "t", "B"),
+                    TraceEntry.StateEntered(seqNo = 0L, timestamp = "t", vertexId = "A"),
+                    TraceEntry.StateEntered(seqNo = 1L, timestamp = "t", vertexId = "B"),
                 )
-            val r = TraceDiff.compare(a, b)
+            val r = TraceDiff.compare(actual = a, expected = b)
             r.mismatches.size shouldBe 1
             (r.mismatches.first() is TraceDiff.Mismatch.MissingExpected) shouldBe true
         }
 
         test("toHumanReadable contains diff markers for mismatches") {
-            val a = listOf<TraceEntry>(TraceEntry.StateEntered(0L, "t", "X"))
-            val b = listOf<TraceEntry>(TraceEntry.StateEntered(0L, "t", "Y"))
-            val r = TraceDiff.compare(a, b)
+            val a = listOf<TraceEntry>(TraceEntry.StateEntered(seqNo = 0L, timestamp = "t", vertexId = "X"))
+            val b = listOf<TraceEntry>(TraceEntry.StateEntered(seqNo = 0L, timestamp = "t", vertexId = "Y"))
+            val r = TraceDiff.compare(actual = a, expected = b)
             val text = r.toHumanReadable()
             text shouldContain "expected:"
             text shouldContain "actual:"
         }
 
         test("toHumanReadable says 'match' on equal traces") {
-            val a = listOf<TraceEntry>(TraceEntry.StateEntered(0L, "t", "A"))
-            val r = TraceDiff.compare(a, a)
+            val a = listOf<TraceEntry>(TraceEntry.StateEntered(seqNo = 0L, timestamp = "t", vertexId = "A"))
+            val r = TraceDiff.compare(actual = a, expected = a)
             r.toHumanReadable() shouldContain "match"
         }
     })

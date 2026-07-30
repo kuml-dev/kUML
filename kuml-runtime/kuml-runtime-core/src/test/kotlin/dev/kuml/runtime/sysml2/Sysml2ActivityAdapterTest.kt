@@ -21,15 +21,15 @@ class Sysml2ActivityAdapterTest :
 
         test("single Action node returns runtime with one node and zero edges") {
             val model =
-                sysml2Model("SingleAction") {
-                    val act = actionDef("DoSomething", action = "doIt()")
-                    actDiagram("SingleAction ACT") {
+                sysml2Model(name = "SingleAction") {
+                    val act = actionDef(name = "DoSomething", action = "doIt()")
+                    actDiagram(name = "SingleAction ACT") {
                         include(act)
                     }
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ActDiagram
 
-            val spec = Sysml2ActivityAdapter.toSpec(model, diagram)
+            val spec = Sysml2ActivityAdapter.toSpec(model = model, diagram = diagram)
 
             spec.nodes.size shouldBe 1
             spec.edges shouldHaveSize 0
@@ -42,13 +42,13 @@ class Sysml2ActivityAdapterTest :
 
         test("adapter reads ControlFlowUsage guard correctly") {
             val model =
-                sysml2Model("GuardedFlow") {
+                sysml2Model(name = "GuardedFlow") {
                     val init = initialNode()
-                    val act = actionDef("A")
+                    val act = actionDef(name = "A")
                     val fin = finalNode()
-                    controlFlow("cf1", init, act, guard = "valid")
-                    controlFlow("cf2", act, fin)
-                    actDiagram("Guarded ACT") {
+                    controlFlow(name = "cf1", source = init, target = act, guard = "valid")
+                    controlFlow(name = "cf2", source = act, target = fin)
+                    actDiagram(name = "Guarded ACT") {
                         include(init)
                         include(act)
                         include(fin)
@@ -56,7 +56,7 @@ class Sysml2ActivityAdapterTest :
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ActDiagram
 
-            val spec = Sysml2ActivityAdapter.toSpec(model, diagram)
+            val spec = Sysml2ActivityAdapter.toSpec(model = model, diagram = diagram)
 
             val guardedEdge = spec.edges.first { it.guard != null }
             guardedEdge.guard shouldBe "valid"
@@ -66,18 +66,18 @@ class Sysml2ActivityAdapterTest :
 
         test("adapter reads ObjectFlowUsage objectType correctly") {
             val model =
-                sysml2Model("ObjFlow") {
-                    val a = actionDef("Source")
-                    val b = actionDef("Target")
-                    objectFlow("of1", a, b, objectType = "Order")
-                    actDiagram("ObjFlow ACT") {
+                sysml2Model(name = "ObjFlow") {
+                    val a = actionDef(name = "Source")
+                    val b = actionDef(name = "Target")
+                    objectFlow(name = "of1", source = a, target = b, objectType = "Order")
+                    actDiagram(name = "ObjFlow ACT") {
                         include(a)
                         include(b)
                     }
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ActDiagram
 
-            val spec = Sysml2ActivityAdapter.toSpec(model, diagram)
+            val spec = Sysml2ActivityAdapter.toSpec(model = model, diagram = diagram)
 
             spec.edges shouldHaveSize 1
             val edge = spec.edges.first()
@@ -89,18 +89,18 @@ class Sysml2ActivityAdapterTest :
 
         test("Initial node detected correctly by kind") {
             val model =
-                sysml2Model("WithInitial") {
+                sysml2Model(name = "WithInitial") {
                     val init = initialNode()
-                    val act = actionDef("A")
-                    controlFlow("cf1", init, act)
-                    actDiagram("WithInitial ACT") {
+                    val act = actionDef(name = "A")
+                    controlFlow(name = "cf1", source = init, target = act)
+                    actDiagram(name = "WithInitial ACT") {
                         include(init)
                         include(act)
                     }
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ActDiagram
 
-            val spec = Sysml2ActivityAdapter.toSpec(model, diagram)
+            val spec = Sysml2ActivityAdapter.toSpec(model = model, diagram = diagram)
 
             val initialNodes = spec.nodes.values.filter { it.kind == ActivityNodeKind.Initial }
             initialNodes shouldHaveSize 1
@@ -110,18 +110,18 @@ class Sysml2ActivityAdapterTest :
 
         test("edge dropped when source not in diagram elementIds") {
             val model =
-                sysml2Model("FilterSource") {
-                    val hidden = actionDef("Hidden")
-                    val visible = actionDef("Visible")
-                    controlFlow("cf1", hidden, visible)
-                    actDiagram("FilterSource ACT") {
+                sysml2Model(name = "FilterSource") {
+                    val hidden = actionDef(name = "Hidden")
+                    val visible = actionDef(name = "Visible")
+                    controlFlow(name = "cf1", source = hidden, target = visible)
+                    actDiagram(name = "FilterSource ACT") {
                         include(visible)
                         // hidden NOT included
                     }
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ActDiagram
 
-            val spec = Sysml2ActivityAdapter.toSpec(model, diagram)
+            val spec = Sysml2ActivityAdapter.toSpec(model = model, diagram = diagram)
 
             spec.edges shouldHaveSize 0
         }
@@ -130,18 +130,18 @@ class Sysml2ActivityAdapterTest :
 
         test("edge dropped when target not in diagram elementIds") {
             val model =
-                sysml2Model("FilterTarget") {
-                    val visible = actionDef("Visible")
-                    val hidden = actionDef("Hidden")
-                    controlFlow("cf1", visible, hidden)
-                    actDiagram("FilterTarget ACT") {
+                sysml2Model(name = "FilterTarget") {
+                    val visible = actionDef(name = "Visible")
+                    val hidden = actionDef(name = "Hidden")
+                    controlFlow(name = "cf1", source = visible, target = hidden)
+                    actDiagram(name = "FilterTarget ACT") {
                         include(visible)
                         // hidden NOT included
                     }
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ActDiagram
 
-            val spec = Sysml2ActivityAdapter.toSpec(model, diagram)
+            val spec = Sysml2ActivityAdapter.toSpec(model = model, diagram = diagram)
 
             spec.edges shouldHaveSize 0
         }
@@ -150,25 +150,25 @@ class Sysml2ActivityAdapterTest :
 
         test("full order-processing example produces correct node and edge counts") {
             val model =
-                sysml2Model("OrderProcessing") {
+                sysml2Model(name = "OrderProcessing") {
                     val init = initialNode()
-                    val place = actionDef("PlaceOrder", action = "submit(order)")
-                    val validate = actionDef("ValidateOrder", action = "validate(order)")
-                    val decide = decisionNode("valid?")
-                    val pay = actionDef("ProcessPayment", action = "charge(total)")
-                    val cancel = actionDef("CancelOrder", action = "notify(cancelled)")
+                    val place = actionDef(name = "PlaceOrder", action = "submit(order)")
+                    val validate = actionDef(name = "ValidateOrder", action = "validate(order)")
+                    val decide = decisionNode(name = "valid?")
+                    val pay = actionDef(name = "ProcessPayment", action = "charge(total)")
+                    val cancel = actionDef(name = "CancelOrder", action = "notify(cancelled)")
                     val fin = finalNode()
                     val ff = flowFinalNode()
 
-                    controlFlow("start", init, place)
-                    controlFlow("placed", place, validate)
-                    controlFlow("validated", validate, decide)
-                    controlFlow("yes", decide, pay, guard = "valid")
-                    controlFlow("no", decide, cancel, guard = "!valid")
-                    controlFlow("payEnd", pay, fin)
-                    controlFlow("cancelEnd", cancel, ff)
+                    controlFlow(name = "start", source = init, target = place)
+                    controlFlow(name = "placed", source = place, target = validate)
+                    controlFlow(name = "validated", source = validate, target = decide)
+                    controlFlow(name = "yes", source = decide, target = pay, guard = "valid")
+                    controlFlow(name = "no", source = decide, target = cancel, guard = "!valid")
+                    controlFlow(name = "payEnd", source = pay, target = fin)
+                    controlFlow(name = "cancelEnd", source = cancel, target = ff)
 
-                    actDiagram("Order ACT") {
+                    actDiagram(name = "Order ACT") {
                         include(init)
                         include(place)
                         include(validate)
@@ -181,7 +181,7 @@ class Sysml2ActivityAdapterTest :
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ActDiagram
 
-            val spec = Sysml2ActivityAdapter.toSpec(model, diagram)
+            val spec = Sysml2ActivityAdapter.toSpec(model = model, diagram = diagram)
 
             spec.nodes.size shouldBe 8
             spec.edges shouldHaveSize 7
@@ -191,18 +191,18 @@ class Sysml2ActivityAdapterTest :
 
         test("multi-initial model has two Initial nodes in spec") {
             val model =
-                sysml2Model("MultiInitial") {
+                sysml2Model(name = "MultiInitial") {
                     // Use unique IDs to prevent id-collision in associateBy
                     val i1 = initialNode(id = "Init1")
                     val i2 = initialNode(id = "Init2")
-                    val a = actionDef("A")
-                    val b = actionDef("B")
+                    val a = actionDef(name = "A")
+                    val b = actionDef(name = "B")
                     val fin = finalNode()
-                    controlFlow("c1", i1, a)
-                    controlFlow("c2", i2, b)
-                    controlFlow("c3", a, fin)
-                    controlFlow("c4", b, fin)
-                    actDiagram("Multi ACT") {
+                    controlFlow(name = "c1", source = i1, target = a)
+                    controlFlow(name = "c2", source = i2, target = b)
+                    controlFlow(name = "c3", source = a, target = fin)
+                    controlFlow(name = "c4", source = b, target = fin)
+                    actDiagram(name = "Multi ACT") {
                         include(i1)
                         include(i2)
                         include(a)
@@ -212,7 +212,7 @@ class Sysml2ActivityAdapterTest :
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ActDiagram
 
-            val spec = Sysml2ActivityAdapter.toSpec(model, diagram)
+            val spec = Sysml2ActivityAdapter.toSpec(model = model, diagram = diagram)
 
             val initialNodes = spec.nodes.values.filter { it.kind == ActivityNodeKind.Initial }
             initialNodes shouldHaveSize 2
@@ -222,14 +222,14 @@ class Sysml2ActivityAdapterTest :
 
         test("adapter pre-parses ControlFlow guards — parseable guard does not throw") {
             val model =
-                sysml2Model("PreParseGuard") {
+                sysml2Model(name = "PreParseGuard") {
                     val init = initialNode()
-                    val act = actionDef("A")
+                    val act = actionDef(name = "A")
                     val fin = finalNode()
                     // "valid" is a simple IDENT — parseable by OclLikeExpressionParser
-                    controlFlow("c1", init, act, guard = "valid")
-                    controlFlow("c2", act, fin)
-                    actDiagram("PreParse ACT") {
+                    controlFlow(name = "c1", source = init, target = act, guard = "valid")
+                    controlFlow(name = "c2", source = act, target = fin)
+                    actDiagram(name = "PreParse ACT") {
                         include(init)
                         include(act)
                         include(fin)
@@ -238,7 +238,7 @@ class Sysml2ActivityAdapterTest :
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ActDiagram
 
             // runtimeFor must not throw even when guards are pre-parsed
-            val runtime = Sysml2ActivityAdapter.runtimeFor(model, diagram)
+            val runtime = Sysml2ActivityAdapter.runtimeFor(model = model, diagram = diagram)
             // Spec is correctly built with the guard on the edge
             val guardedEdge = runtime.spec.edges.first { it.guard != null }
             guardedEdge.guard shouldBe "valid"
@@ -246,14 +246,14 @@ class Sysml2ActivityAdapterTest :
 
         test("adapter tolerates unparseable guard at construction — does not throw") {
             val model =
-                sysml2Model("UnparseableGuard") {
+                sysml2Model(name = "UnparseableGuard") {
                     val init = initialNode()
-                    val act = actionDef("A")
+                    val act = actionDef(name = "A")
                     val fin = finalNode()
                     // "@@@" cannot be parsed — should not throw at adapter construction time
-                    controlFlow("c1", init, act, guard = "@@@")
-                    controlFlow("c2", act, fin)
-                    actDiagram("Unparseable ACT") {
+                    controlFlow(name = "c1", source = init, target = act, guard = "@@@")
+                    controlFlow(name = "c2", source = act, target = fin)
+                    actDiagram(name = "Unparseable ACT") {
                         include(init)
                         include(act)
                         include(fin)
@@ -262,7 +262,7 @@ class Sysml2ActivityAdapterTest :
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ActDiagram
 
             // Must NOT throw — unparseable guards are silently ignored at construction
-            val runtime = Sysml2ActivityAdapter.runtimeFor(model, diagram)
+            val runtime = Sysml2ActivityAdapter.runtimeFor(model = model, diagram = diagram)
             val guardedEdge = runtime.spec.edges.first { it.guard != null }
             guardedEdge.guard shouldBe "@@@"
         }
@@ -271,13 +271,13 @@ class Sysml2ActivityAdapterTest :
 
         test("runtimeFor produces a runtime that runs order-processing to termination") {
             val model =
-                sysml2Model("RunTest") {
+                sysml2Model(name = "RunTest") {
                     val init = initialNode()
-                    val act = actionDef("Work", action = "work()")
+                    val act = actionDef(name = "Work", action = "work()")
                     val fin = finalNode()
-                    controlFlow("c1", init, act)
-                    controlFlow("c2", act, fin)
-                    actDiagram("Run ACT") {
+                    controlFlow(name = "c1", source = init, target = act)
+                    controlFlow(name = "c2", source = act, target = fin)
+                    actDiagram(name = "Run ACT") {
                         include(init)
                         include(act)
                         include(fin)
@@ -285,7 +285,7 @@ class Sysml2ActivityAdapterTest :
                 }
             val diagram = model.diagrams.first() as dev.kuml.sysml2.ActDiagram
 
-            val runtime = Sysml2ActivityAdapter.runtimeFor(model, diagram)
+            val runtime = Sysml2ActivityAdapter.runtimeFor(model = model, diagram = diagram)
             val (instance, trace) = runtime.run()
 
             instance.isTerminated shouldBe true

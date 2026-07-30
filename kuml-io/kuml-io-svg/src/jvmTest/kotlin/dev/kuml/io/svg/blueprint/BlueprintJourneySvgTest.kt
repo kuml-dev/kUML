@@ -19,28 +19,28 @@ import io.kotest.matchers.string.shouldNotContain
 class BlueprintJourneySvgTest :
     StringSpec({
         fun journeyModel() =
-            blueprint("Onboarding") {
-                val web = channel("Website", ChannelKind.WEB)
-                val social = channel("Social", ChannelKind.SOCIAL)
-                val postTp = touchpoint("Post", channel = social)
-                val pageTp = touchpoint("Seite", channel = web)
-                phase("Entdeckung") {
-                    customer("Sieht Post", Sentiment.NEUTRAL, touchpoints = listOf(postTp))
+            blueprint(name = "Onboarding") {
+                val web = channel(name = "Website", kind = ChannelKind.WEB)
+                val social = channel(name = "Social", kind = ChannelKind.SOCIAL)
+                val postTp = touchpoint(name = "Post", channel = social)
+                val pageTp = touchpoint(name = "Seite", channel = web)
+                phase(name = "Entdeckung") {
+                    customer(name = "Sieht Post", sentiment = Sentiment.NEUTRAL, touchpoints = listOf(postTp))
                 }
-                phase("Interesse") {
-                    customer("Liest Programm", Sentiment.POSITIVE, touchpoints = listOf(pageTp))
+                phase(name = "Interesse") {
+                    customer(name = "Liest Programm", sentiment = Sentiment.POSITIVE, touchpoints = listOf(pageTp))
                 }
-                phase("Wartezeit") {
-                    customer("Wartet", Sentiment.NEGATIVE, pain = "Unklar wie lange")
+                phase(name = "Wartezeit") {
+                    customer(name = "Wartet", sentiment = Sentiment.NEGATIVE, pain = "Unklar wie lange")
                 }
-                phase("Willkommen") {
-                    customer("Erhält Paket", Sentiment.VERY_POSITIVE)
+                phase(name = "Willkommen") {
+                    customer(name = "Erhält Paket", sentiment = Sentiment.VERY_POSITIVE)
                 }
-                journeyDiagram("Journey")
+                journeyDiagram(name = "Journey")
             }
 
         "phase headers appear in order" {
-            val svg = renderBlueprintJourney(journeyModel(), JourneyDiagram("J"))
+            val svg = renderBlueprintJourney(model = journeyModel(), diagram = JourneyDiagram(name = "J"))
             val iE = svg.indexOf("Entdeckung")
             val iI = svg.indexOf("Interesse")
             val iW = svg.indexOf("Willkommen")
@@ -50,7 +50,7 @@ class BlueprintJourneySvgTest :
 
         "customer step cards are rendered with titles" {
             val m = journeyModel()
-            val svg = renderBlueprintJourney(m, m.diagrams.first())
+            val svg = renderBlueprintJourney(model = m, diagram = m.diagrams.first())
             svg shouldContain "Sieht Post"
             svg shouldContain "Liest Programm"
             svg shouldContain "Erhält Paket"
@@ -58,7 +58,7 @@ class BlueprintJourneySvgTest :
 
         "emotion curve is a polyline with the right number of points" {
             val m = journeyModel()
-            val svg = renderBlueprintJourney(m, JourneyDiagram("J", showEmotionCurve = true))
+            val svg = renderBlueprintJourney(model = m, diagram = JourneyDiagram(name = "J", showEmotionCurve = true))
             svg shouldContain "<polyline"
             // 4 sentiment dots
             Regex("""class="bp-emotion-dot"""").findAll(svg).count() shouldBe 4
@@ -66,12 +66,12 @@ class BlueprintJourneySvgTest :
 
         "emotion curve y-inversion: VERY_POSITIVE is higher than VERY_NEGATIVE" {
             val m =
-                blueprint("Y") {
-                    phase("A") { customer("low", Sentiment.VERY_NEGATIVE) }
-                    phase("B") { customer("high", Sentiment.VERY_POSITIVE) }
-                    journeyDiagram("J")
+                blueprint(name = "Y") {
+                    phase(name = "A") { customer(name = "low", sentiment = Sentiment.VERY_NEGATIVE) }
+                    phase(name = "B") { customer(name = "high", sentiment = Sentiment.VERY_POSITIVE) }
+                    journeyDiagram(name = "J")
                 }
-            val svg = renderBlueprintJourney(m, JourneyDiagram("J", showEmotionCurve = true))
+            val svg = renderBlueprintJourney(model = m, diagram = JourneyDiagram(name = "J", showEmotionCurve = true))
             val ys =
                 Regex("""<circle class="bp-emotion-dot"[^>]*cy="([0-9.]+)"""")
                     .findAll(svg)
@@ -83,7 +83,7 @@ class BlueprintJourneySvgTest :
 
         "emotion curve renders Y-axis scale, neutral baseline and band label" {
             val m = journeyModel()
-            val svg = renderBlueprintJourney(m, JourneyDiagram("J", showEmotionCurve = true))
+            val svg = renderBlueprintJourney(model = m, diagram = JourneyDiagram(name = "J", showEmotionCurve = true))
             // axis ticks
             svg shouldContain ">+2<"
             svg shouldContain ">−2<"
@@ -95,12 +95,12 @@ class BlueprintJourneySvgTest :
 
         "emotion points are colour-coded by sentiment with tooltip" {
             val m =
-                blueprint("C") {
-                    phase("Tief") { customer("schlecht", Sentiment.VERY_NEGATIVE) }
-                    phase("Hoch") { customer("super", Sentiment.VERY_POSITIVE) }
-                    journeyDiagram("J")
+                blueprint(name = "C") {
+                    phase(name = "Tief") { customer(name = "schlecht", sentiment = Sentiment.VERY_NEGATIVE) }
+                    phase(name = "Hoch") { customer(name = "super", sentiment = Sentiment.VERY_POSITIVE) }
+                    journeyDiagram(name = "J")
                 }
-            val svg = renderBlueprintJourney(m, JourneyDiagram("J", showEmotionCurve = true))
+            val svg = renderBlueprintJourney(model = m, diagram = JourneyDiagram(name = "J", showEmotionCurve = true))
             svg shouldContain "#c0143c" // VERY_NEGATIVE red
             svg shouldContain "#2e9e5b" // VERY_POSITIVE green
             svg shouldContain "Tief: sehr negativ"
@@ -109,46 +109,46 @@ class BlueprintJourneySvgTest :
 
         "missing sentiment leaves a gap (point skipped)" {
             val m =
-                blueprint("G") {
-                    phase("A") { customer("x", Sentiment.POSITIVE) }
-                    phase("B") { step("no-sentiment", BlueprintLayer.CUSTOMER_ACTIONS) }
-                    phase("C") { customer("y", Sentiment.NEGATIVE) }
-                    journeyDiagram("J")
+                blueprint(name = "G") {
+                    phase(name = "A") { customer(name = "x", sentiment = Sentiment.POSITIVE) }
+                    phase(name = "B") { step(name = "no-sentiment", layer = BlueprintLayer.CUSTOMER_ACTIONS) }
+                    phase(name = "C") { customer(name = "y", sentiment = Sentiment.NEGATIVE) }
+                    journeyDiagram(name = "J")
                 }
-            val svg = renderBlueprintJourney(m, JourneyDiagram("J", showEmotionCurve = true))
+            val svg = renderBlueprintJourney(model = m, diagram = JourneyDiagram(name = "J", showEmotionCurve = true))
             Regex("""class="bp-emotion-dot"""").findAll(svg).count() shouldBe 2
         }
 
         "touchpoint symbols render channel icons" {
             val m =
-                blueprint("T") {
-                    val ph = channel("Phone", ChannelKind.PHONE)
-                    val hotlineTp = touchpoint("Hotline", channel = ph, symbol = TouchpointSymbol.DIAMOND)
-                    phase("P") {
-                        customer("Ruft an", Sentiment.NEUTRAL, touchpoints = listOf(hotlineTp))
+                blueprint(name = "T") {
+                    val ph = channel(name = "Phone", kind = ChannelKind.PHONE)
+                    val hotlineTp = touchpoint(name = "Hotline", channel = ph, symbol = TouchpointSymbol.DIAMOND)
+                    phase(name = "P") {
+                        customer(name = "Ruft an", sentiment = Sentiment.NEUTRAL, touchpoints = listOf(hotlineTp))
                     }
-                    journeyDiagram("J")
+                    journeyDiagram(name = "J")
                 }
-            val svg = renderBlueprintJourney(m, m.diagrams.first())
+            val svg = renderBlueprintJourney(model = m, diagram = m.diagrams.first())
             svg shouldContain "polygon" // diamond symbol
             svg shouldContain """<path d="M6 3c""" // phone icon path prefix
         }
 
         "pain marker is drawn on the card" {
             val m = journeyModel()
-            val svg = renderBlueprintJourney(m, m.diagrams.first())
+            val svg = renderBlueprintJourney(model = m, diagram = m.diagrams.first())
             svg shouldContain "#d00080" // pain colour
         }
 
         "swimlane layer header rendered for customer layer" {
             val m = journeyModel()
-            val svg = renderBlueprintJourney(m, m.diagrams.first())
+            val svg = renderBlueprintJourney(model = m, diagram = m.diagrams.first())
             svg shouldContain "Customer Actions"
         }
 
         "journey view hides empty non-customer layers" {
             val m = journeyModel()
-            val svg = renderBlueprintJourney(m, JourneyDiagram("J"))
+            val svg = renderBlueprintJourney(model = m, diagram = JourneyDiagram(name = "J"))
             svg shouldNotContain "Backstage"
         }
 
@@ -159,16 +159,16 @@ class BlueprintJourneySvgTest :
             lateinit var s2: String
             lateinit var s3: String
             val m =
-                blueprint("Connections") {
-                    phase("A") { s1 = customer("Step1", Sentiment.NEUTRAL) }
-                    phase("B") { s2 = customer("Step2", Sentiment.POSITIVE) }
-                    phase("C") { s3 = customer("Step3", Sentiment.NEGATIVE) }
+                blueprint(name = "Connections") {
+                    phase(name = "A") { s1 = customer(name = "Step1", sentiment = Sentiment.NEUTRAL) }
+                    phase(name = "B") { s2 = customer(name = "Step2", sentiment = Sentiment.POSITIVE) }
+                    phase(name = "C") { s3 = customer(name = "Step3", sentiment = Sentiment.NEGATIVE) }
                     // two connections → previously emitted two duplicate <defs> blocks
-                    connection(s1, s2)
-                    connection(s2, s3)
-                    journeyDiagram("J")
+                    connection(from = s1, to = s2)
+                    connection(from = s2, to = s3)
+                    journeyDiagram(name = "J")
                 }
-            val svg = renderBlueprintJourney(m, m.diagrams.first())
+            val svg = renderBlueprintJourney(model = m, diagram = m.diagrams.first())
             Regex("""id="bp-arrow"""").findAll(svg).count() shouldBe 1
         }
 
@@ -176,22 +176,23 @@ class BlueprintJourneySvgTest :
 
         "BlueprintDiagramFull renders all four Shostack layer headers" {
             val m =
-                blueprint("Full") {
-                    phase("A") {
-                        customer("Customer step", Sentiment.NEUTRAL)
-                        step("Frontstage step", BlueprintLayer.FRONTSTAGE)
-                        step("Backstage step", BlueprintLayer.BACKSTAGE)
-                        step("Support step", BlueprintLayer.SUPPORT_PROCESSES)
+                blueprint(name = "Full") {
+                    phase(name = "A") {
+                        customer(name = "Customer step", sentiment = Sentiment.NEUTRAL)
+                        step(name = "Frontstage step", layer = BlueprintLayer.FRONTSTAGE)
+                        step(name = "Backstage step", layer = BlueprintLayer.BACKSTAGE)
+                        step(name = "Support step", layer = BlueprintLayer.SUPPORT_PROCESSES)
                     }
-                    blueprintDiagram("Full view")
+                    blueprintDiagram(name = "Full view")
                 }
             val svg =
                 renderBlueprintJourney(
-                    m,
-                    BlueprintDiagramFull(
-                        "Full view",
-                        visibleLayers = BlueprintLayer.entries.toSet(),
-                    ),
+                    model = m,
+                    diagram =
+                        BlueprintDiagramFull(
+                            name = "Full view",
+                            visibleLayers = BlueprintLayer.entries.toSet(),
+                        ),
                 )
             svg shouldContain "Customer Actions"
             svg shouldContain "Frontstage"
@@ -201,22 +202,23 @@ class BlueprintJourneySvgTest :
 
         "BlueprintDiagramFull renders step content in all four layers" {
             val m =
-                blueprint("Full") {
-                    phase("A") {
-                        customer("Customer step", Sentiment.NEUTRAL)
-                        step("Frontstage step", BlueprintLayer.FRONTSTAGE)
-                        step("Backstage step", BlueprintLayer.BACKSTAGE)
-                        step("Support step", BlueprintLayer.SUPPORT_PROCESSES)
+                blueprint(name = "Full") {
+                    phase(name = "A") {
+                        customer(name = "Customer step", sentiment = Sentiment.NEUTRAL)
+                        step(name = "Frontstage step", layer = BlueprintLayer.FRONTSTAGE)
+                        step(name = "Backstage step", layer = BlueprintLayer.BACKSTAGE)
+                        step(name = "Support step", layer = BlueprintLayer.SUPPORT_PROCESSES)
                     }
-                    blueprintDiagram("Full view")
+                    blueprintDiagram(name = "Full view")
                 }
             val svg =
                 renderBlueprintJourney(
-                    m,
-                    BlueprintDiagramFull(
-                        "Full view",
-                        visibleLayers = BlueprintLayer.entries.toSet(),
-                    ),
+                    model = m,
+                    diagram =
+                        BlueprintDiagramFull(
+                            name = "Full view",
+                            visibleLayers = BlueprintLayer.entries.toSet(),
+                        ),
                 )
             svg shouldContain "Customer step"
             svg shouldContain "Frontstage step"
@@ -228,26 +230,27 @@ class BlueprintJourneySvgTest :
             lateinit var s1: String
             lateinit var s2: String
             val m =
-                blueprint("Full") {
-                    phase("A") { s1 = customer("s1", Sentiment.NEUTRAL) }
-                    phase("B") { s2 = customer("s2", Sentiment.POSITIVE) }
-                    connection(s1, s2)
-                    blueprintDiagram("Full view")
+                blueprint(name = "Full") {
+                    phase(name = "A") { s1 = customer(name = "s1", sentiment = Sentiment.NEUTRAL) }
+                    phase(name = "B") { s2 = customer(name = "s2", sentiment = Sentiment.POSITIVE) }
+                    connection(from = s1, to = s2)
+                    blueprintDiagram(name = "Full view")
                 }
             val svg =
                 renderBlueprintJourney(
-                    m,
-                    BlueprintDiagramFull(
-                        "Full view",
-                        visibleLayers = setOf(BlueprintLayer.CUSTOMER_ACTIONS),
-                    ),
+                    model = m,
+                    diagram =
+                        BlueprintDiagramFull(
+                            name = "Full view",
+                            visibleLayers = setOf(BlueprintLayer.CUSTOMER_ACTIONS),
+                        ),
                 )
             Regex("""id="bp-arrow"""").findAll(svg).count() shouldBe 1
         }
 
         "svg contains embedded style block with kuml-title and kuml-body" {
             val m = journeyModel()
-            val svg = renderBlueprintJourney(m, JourneyDiagram("J"))
+            val svg = renderBlueprintJourney(model = m, diagram = JourneyDiagram(name = "J"))
             svg shouldContain "<style>"
             svg shouldContain ".kuml-title"
             svg shouldContain ".kuml-body"
@@ -256,12 +259,12 @@ class BlueprintJourneySvgTest :
         // ── wrapText unit tests (V3.1.27) ──────────────────────────────────
 
         "wrapText: short text fits in one line" {
-            wrapText("Kurzer Text", 100.0) shouldBe listOf("Kurzer Text")
+            wrapText(text = "Kurzer Text", maxWidthPx = 100.0) shouldBe listOf("Kurzer Text")
         }
 
         "wrapText: long text wraps at word boundary" {
             // "Beschließt Aufnahme im Vorstand" @ 160 px / 6.5 ≈ 24 chars max
-            val lines = wrapText("Beschließt Aufnahme im Vorstand", 160.0)
+            val lines = wrapText(text = "Beschließt Aufnahme im Vorstand", maxWidthPx = 160.0)
             lines.size shouldBe 2
             // Each line must fit within the estimated width
             lines.forEach { line -> (line.length * 6.5) shouldBe line.length * 6.5 } // sanity
@@ -270,13 +273,13 @@ class BlueprintJourneySvgTest :
         }
 
         "wrapText: single oversized word is kept on its own line" {
-            val lines = wrapText("Superlongwordthatneverfits", 40.0)
+            val lines = wrapText(text = "Superlongwordthatneverfits", maxWidthPx = 40.0)
             lines shouldBe listOf("Superlongwordthatneverfits")
         }
 
         "wrapText: three-line wrap" {
             // 3 * 6 chars + spaces — force three lines at ~45 px (6 chars max)
-            val lines = wrapText("aa bb cc dd ee ff", 45.0)
+            val lines = wrapText(text = "aa bb cc dd ee ff", maxWidthPx = 45.0)
             lines.size shouldBe 3
         }
 
@@ -284,12 +287,12 @@ class BlueprintJourneySvgTest :
             // Customer layer is always shown in JourneyDiagram — use it
             // instead of backstage so the step is actually rendered.
             val m =
-                blueprint("Wrap Test") {
-                    phase("Phase") {
-                        customer("Beschließt Aufnahme im Vorstand", Sentiment.NEUTRAL)
+                blueprint(name = "Wrap Test") {
+                    phase(name = "Phase") {
+                        customer(name = "Beschließt Aufnahme im Vorstand", sentiment = Sentiment.NEUTRAL)
                     }
                 }
-            val svg = renderBlueprintJourney(m, JourneyDiagram("D"))
+            val svg = renderBlueprintJourney(model = m, diagram = JourneyDiagram(name = "D"))
             svg shouldContain "<tspan"
             svg shouldContain "Beschließt Aufnahme im"
             svg shouldContain "Vorstand"
@@ -297,12 +300,12 @@ class BlueprintJourneySvgTest :
 
         "short step title does not produce tspan elements in SVG" {
             val m =
-                blueprint("No Wrap Test") {
-                    phase("Phase") {
-                        customer("Kurz", Sentiment.NEUTRAL)
+                blueprint(name = "No Wrap Test") {
+                    phase(name = "Phase") {
+                        customer(name = "Kurz", sentiment = Sentiment.NEUTRAL)
                     }
                 }
-            val svg = renderBlueprintJourney(m, JourneyDiagram("D"))
+            val svg = renderBlueprintJourney(model = m, diagram = JourneyDiagram(name = "D"))
             svg shouldNotContain "<tspan"
         }
     })

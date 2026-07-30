@@ -49,7 +49,7 @@ public object AiBench {
                         user(task.userPrompt)
                     }
 
-                val response = executor.execute(koogPrompt, model)
+                val response = executor.execute(prompt = koogPrompt, model = model)
                 val latencyMs = System.currentTimeMillis() - startMs
 
                 // Koog 1.0.0: execute() returns Message.Assistant directly.
@@ -78,7 +78,7 @@ public object AiBench {
 
                 // First task connection failure → provider unreachable
                 if (firstTask && isConnectionError) {
-                    throw ProviderUnreachableException(provider, e)
+                    throw ProviderUnreachableException(providerId = provider, cause = e)
                 }
 
                 results +=
@@ -123,4 +123,4 @@ public object AiBench {
 public fun resolveModel(
     providerId: String,
     modelId: String,
-): LLModel? = ProviderRegistry.builtIns().resolveModel(providerId, modelId)
+): LLModel? = ProviderRegistry.builtIns().resolveModel(providerId = providerId, modelId = modelId)

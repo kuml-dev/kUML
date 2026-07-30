@@ -29,13 +29,13 @@ internal class KtInterfaceMapper(
         val attributes =
             ktInterface.declarations
                 .filterIsInstance<KtProperty>()
-                .map { prop -> propertyMapper.map(prop, id) }
+                .map { prop -> propertyMapper.map(prop = prop, ownerId = id) }
                 .sortedBy { it.name }
 
         val operations =
             ktInterface.declarations
                 .filterIsInstance<org.jetbrains.kotlin.psi.KtNamedFunction>()
-                .map { func -> functionMapper.map(func, id) }
+                .map { func -> functionMapper.map(func = func, ownerId = id) }
                 .sortedBy { it.name }
 
         return UmlInterface(

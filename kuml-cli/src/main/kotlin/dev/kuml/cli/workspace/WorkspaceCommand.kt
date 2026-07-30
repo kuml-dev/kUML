@@ -67,7 +67,7 @@ internal class WorkspaceInfoCommand : CliktCommand(name = "info") {
     override fun help(context: Context): String = "Show an OKF workspace's mode and document inventory."
 
     override fun run() {
-        val ws = WorkspaceScanner.scan(dir)
+        val ws = WorkspaceScanner.scan(root = dir)
         val byType =
             ws.documents
                 .groupBy { it.type?.id ?: (it.rawType ?: "(no type)") }
@@ -130,8 +130,8 @@ internal class WorkspaceValidateCommand : CliktCommand(name = "validate") {
     override fun help(context: Context): String = "Validate OKF conformance of a knowledge workspace (ADR-0011)."
 
     override fun run() {
-        val ws = WorkspaceScanner.scan(dir)
-        val findings = OkfValidator.validate(ws, strictVocabulary = strictVocabulary)
+        val ws = WorkspaceScanner.scan(root = dir)
+        val findings = OkfValidator.validate(ws = ws, strictVocabulary = strictVocabulary)
         val errorCount = findings.count { it.severity == OkfSeverity.ERROR }
 
         when (outputFormat) {
@@ -217,8 +217,8 @@ internal class WorkspaceRenderCommand : CliktCommand(name = "render") {
 
     override fun run() {
         val outputDir = outputDirOpt ?: File(dir, ".kuml-out")
-        val ws = WorkspaceScanner.scan(dir, excludeDirs = setOf(outputDir))
-        val report = WorkspaceRenderer.render(ws, outputDir = outputDir, format = format, width = width, mirror = mirror)
+        val ws = WorkspaceScanner.scan(root = dir, excludeDirs = setOf(outputDir))
+        val report = WorkspaceRenderer.render(ws = ws, outputDir = outputDir, format = format, width = width, mirror = mirror)
 
         echo("Rendered ${report.rendered.size}, skipped ${report.skipped.size}, failed ${report.failures.size}.")
         if (report.failures.isNotEmpty()) {

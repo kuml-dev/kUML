@@ -17,7 +17,7 @@ class ModelSignatureTest :
             signature: ByteArray = sampleSignature.copyOf(),
             modelHash: ByteArray = sampleModelHash.copyOf(),
             timestamp: Long = sampleTimestamp,
-        ) = ModelSignature(signer, signature, modelHash, timestamp)
+        ) = ModelSignature(signer = signer, signature = signature, modelHash = modelHash, timestamp = timestamp)
 
         "JSON roundtrip produces equal instance" {
             val original = makeSignature()

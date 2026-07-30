@@ -12,9 +12,10 @@ class ExtensionFunctionTest :
         test("top-level extension function emits REV-K-011 diagnostic and produces no extra classifier") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "StringExt.kt" to "fun String.shout(): String = uppercase()",
-                    ),
+                    sources =
+                        mapOf(
+                            "StringExt.kt" to "fun String.shout(): String = uppercase()",
+                        ),
                 )
             // The file has only a top-level function → no classifiers → Failure (no source files with classifiers)
             // OR it results in Success with no classifiers and REV-K-011 diagnostic

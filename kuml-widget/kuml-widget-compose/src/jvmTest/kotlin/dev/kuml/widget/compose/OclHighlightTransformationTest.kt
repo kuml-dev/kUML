@@ -29,20 +29,20 @@ class OclHighlightTransformationTest :
                 ?.item
 
         test(name = "blank input => empty result, no spans") {
-            val result = highlightOcl("", colors, null)
+            val result = highlightOcl(text = "", colors = colors, errorRange = null)
             result.text shouldBe ""
             result.spanStyles.shouldBeEmpty()
         }
 
         test(name = "text is never mutated by the transformation") {
             val text = "self.count > 0"
-            val transformed = OclHighlightTransformation(colors, null).filter(AnnotatedString(text))
+            val transformed = OclHighlightTransformation(colors = colors, errorRange = null).filter(AnnotatedString(text))
             transformed.text.text shouldBe text
         }
 
         test(name = "offset mapping is identity") {
             val text = "self.count > 0"
-            val transformed = OclHighlightTransformation(colors, null).filter(AnnotatedString(text))
+            val transformed = OclHighlightTransformation(colors = colors, errorRange = null).filter(AnnotatedString(text))
             transformed.offsetMapping shouldBe OffsetMapping.Identity
             for (k in listOf(0, 1, 4, text.length / 2, text.length)) {
                 transformed.offsetMapping.originalToTransformed(k) shouldBe k
@@ -52,7 +52,7 @@ class OclHighlightTransformationTest :
 
         test(name = "keyword and literal coloring on an if-expression") {
             val text = "if true then 1 else 0 endif"
-            val result = highlightOcl(text, colors, null)
+            val result = highlightOcl(text = text, colors = colors, errorRange = null)
 
             val ifStart = text.indexOf("if")
             val thenStart = text.indexOf("then")
@@ -70,7 +70,7 @@ class OclHighlightTransformationTest :
 
         test(name = "operator, paren, and ident coloring on '(a > b)'") {
             val text = "(a > b)"
-            val result = highlightOcl(text, colors, null)
+            val result = highlightOcl(text = text, colors = colors, errorRange = null)
 
             spanAt(result, 0, 1)?.color shouldBe colors.paren // (
             spanAt(result, 1, 2)?.color shouldBe colors.ident // a
@@ -80,23 +80,23 @@ class OclHighlightTransformationTest :
         }
 
         test(name = "string/int/bool literal coloring") {
-            val strResult = highlightOcl("'x'", colors, null)
+            val strResult = highlightOcl(text = "'x'", colors = colors, errorRange = null)
             spanAt(strResult, 0, 3)?.color shouldBe colors.literal
 
-            val intResult = highlightOcl("42", colors, null)
+            val intResult = highlightOcl(text = "42", colors = colors, errorRange = null)
             spanAt(intResult, 0, 2)?.color shouldBe colors.literal
 
-            val boolResult = highlightOcl("true", colors, null)
+            val boolResult = highlightOcl(text = "true", colors = colors, errorRange = null)
             spanAt(boolResult, 0, 4)?.color shouldBe colors.literal
         }
 
         test(name = "unterminated string surfaces an ERROR span") {
-            val result = highlightOcl("'oops", colors, null)
+            val result = highlightOcl(text = "'oops", colors = colors, errorRange = null)
             result.spanStyles.any { it.item.color == colors.error } shouldBe true
         }
 
         test(name = "error-range underline: inclusive-last -> exclusive-end conversion") {
-            val result = highlightOcl("ab", colors, 0..1)
+            val result = highlightOcl(text = "ab", colors = colors, errorRange = 0..1)
             val underline =
                 result.spanStyles.firstOrNull {
                     it.item.textDecoration == TextDecoration.Underline
@@ -108,12 +108,12 @@ class OclHighlightTransformationTest :
         }
 
         test(name = "out-of-bounds error range is clamped, not thrown") {
-            val result = highlightOcl("ab", colors, 5..9)
+            val result = highlightOcl(text = "ab", colors = colors, errorRange = 5..9)
             result.spanStyles.none { it.item.textDecoration == TextDecoration.Underline } shouldBe true
         }
 
         test(name = "null error range => no underline span present") {
-            val result = highlightOcl("ab", colors, null)
+            val result = highlightOcl(text = "ab", colors = colors, errorRange = null)
             result.spanStyles.none { it.item.textDecoration == TextDecoration.Underline } shouldBe true
         }
     })

@@ -24,7 +24,7 @@ class C4EditingToolsTest :
         test("add_person creates a Person and adds it to the C4 model") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addPerson("Customer", "End user of the system")
+                val result = tools.addPerson(name = "Customer", description = "End user of the system")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 val model = (ctx.resolveModel() as AnyKumlModel.C4).model
                 model.elements shouldHaveSize 1
@@ -36,7 +36,7 @@ class C4EditingToolsTest :
         test("add_software_system marks external systems with dashed border flag") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addSoftwareSystem("Payment Gateway", isExternal = true)
+                tools.addSoftwareSystem(name = "Payment Gateway", isExternal = true)
                 val model = (ctx.resolveModel() as AnyKumlModel.C4).model
                 val sys = model.elements[0] as C4SoftwareSystem
                 sys.external shouldBe true
@@ -46,8 +46,8 @@ class C4EditingToolsTest :
         test("add_container requires existing software system parent") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addSoftwareSystem("MyApp")
-                val result = tools.addContainer("MyApp", "Web API", technology = "Ktor")
+                tools.addSoftwareSystem(name = "MyApp")
+                val result = tools.addContainer(systemIdOrName = "MyApp", name = "Web API", technology = "Ktor")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
             }
         }
@@ -55,7 +55,7 @@ class C4EditingToolsTest :
         test("add_container with unknown parent returns Failure") {
             val (_, tools) = makeTools()
             runTest {
-                val result = tools.addContainer("NonExistentSystem", "Container")
+                val result = tools.addContainer(systemIdOrName = "NonExistentSystem", name = "Container")
                 result.shouldBeInstanceOf<PatchApplyResult.Failure>()
             }
         }
@@ -63,9 +63,9 @@ class C4EditingToolsTest :
         test("add_component requires existing container parent") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addSoftwareSystem("App")
-                tools.addContainer("App", "API")
-                val result = tools.addComponent("API", "OrderController")
+                tools.addSoftwareSystem(name = "App")
+                tools.addContainer(systemIdOrName = "App", name = "API")
+                val result = tools.addComponent(containerIdOrName = "API", name = "OrderController")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
             }
         }
@@ -73,9 +73,9 @@ class C4EditingToolsTest :
         test("add_component records nested parent id") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addSoftwareSystem("App")
-                tools.addContainer("App", "API")
-                tools.addComponent("API", "OrderController")
+                tools.addSoftwareSystem(name = "App")
+                tools.addContainer(systemIdOrName = "App", name = "API")
+                tools.addComponent(containerIdOrName = "API", name = "OrderController")
                 val model = (ctx.resolveModel() as AnyKumlModel.C4).model
                 val component = model.elements.filterIsInstance<C4Component>().first()
                 component.container.shouldBe(
@@ -90,9 +90,9 @@ class C4EditingToolsTest :
         test("add_relationship attaches label and technology") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addPerson("User")
-                tools.addSoftwareSystem("App")
-                val result = tools.addRelationship("User", "App", "uses", technology = "HTTPS")
+                tools.addPerson(name = "User")
+                tools.addSoftwareSystem(name = "App")
+                val result = tools.addRelationship(sourceIdOrName = "User", targetIdOrName = "App", label = "uses", technology = "HTTPS")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 val model = (ctx.resolveModel() as AnyKumlModel.C4).model
                 model.relationships shouldHaveSize 1
@@ -104,9 +104,9 @@ class C4EditingToolsTest :
         test("add_relationship between cross-parent elements works") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addSoftwareSystem("SystemA")
-                tools.addSoftwareSystem("SystemB", isExternal = true)
-                val result = tools.addRelationship("SystemA", "SystemB", "sends data to")
+                tools.addSoftwareSystem(name = "SystemA")
+                tools.addSoftwareSystem(name = "SystemB", isExternal = true)
+                val result = tools.addRelationship(sourceIdOrName = "SystemA", targetIdOrName = "SystemB", label = "sends data to")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
             }
         }
@@ -114,7 +114,7 @@ class C4EditingToolsTest :
         test("currentDiagramId defaults to agent-default-context-diagram on first add") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addPerson("Customer")
+                tools.addPerson(name = "Customer")
                 ctx.currentDiagramId shouldBe "agent-default-context-diagram"
             }
         }
@@ -123,7 +123,7 @@ class C4EditingToolsTest :
             val (ctx, tools) = makeTools()
             runTest {
                 repeat(20) { n ->
-                    tools.addPerson("Person$n")
+                    tools.addPerson(name = "Person$n")
                 }
                 ctx.patches() shouldHaveSize 20
                 (ctx.resolveModel() as AnyKumlModel.C4).model.elements shouldHaveSize 20

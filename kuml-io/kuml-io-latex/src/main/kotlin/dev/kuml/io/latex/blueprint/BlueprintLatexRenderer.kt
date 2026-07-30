@@ -130,7 +130,7 @@ internal object BlueprintLatexRenderer {
             // ── step cells ──
             layers.forEachIndexed { li, layer ->
                 phases.forEachIndexed { pi, phase ->
-                    val steps = model.stepsIn(phase.id, layer)
+                    val steps = model.stepsIn(phaseId = phase.id, layer = layer)
                     steps.forEachIndexed { si, step ->
                         // stack multiple steps slightly within the band
                         val yOff = if (steps.size > 1) (si - (steps.size - 1) / 2.0) * 0.4 else 0.0
@@ -149,13 +149,29 @@ internal object BlueprintLatexRenderer {
             if (showLines.isNotEmpty()) {
                 val contentLeft = 0.0
                 val contentRight = COL_W * phases.size
-                renderLines(this, showLines, layers, contentLeft, contentRight, ::bandTopY)
+                renderLines(sb = this, lines = showLines, layers = layers, left = contentLeft, right = contentRight, bandTopY = ::bandTopY)
             }
 
             // ── connections ──
             model.connections.forEach { conn ->
-                val src = cellCenter(model, layers, phases, conn.sourceRef, ::colX, ::bandCenterY)
-                val dst = cellCenter(model, layers, phases, conn.targetRef, ::colX, ::bandCenterY)
+                val src =
+                    cellCenter(
+                        model = model,
+                        layers = layers,
+                        phases = phases,
+                        elementId = conn.sourceRef,
+                        colX = ::colX,
+                        bandCenterY = ::bandCenterY,
+                    )
+                val dst =
+                    cellCenter(
+                        model = model,
+                        layers = layers,
+                        phases = phases,
+                        elementId = conn.targetRef,
+                        colX = ::colX,
+                        bandCenterY = ::bandCenterY,
+                    )
                 if (src != null && dst != null) {
                     val dash = if (conn.style == dev.kuml.blueprint.model.ConnectionStyle.DASHED) "[->, dashed]" else "[->]"
                     appendLine(

@@ -96,7 +96,7 @@ class BpmnLatexRendererTest :
                         ),
                     diagrams = listOf(ProcessDiagram(name = "D", processId = "p1")),
                 )
-            val tex = KumlLatexRenderer.toLatex(model)
+            val tex = KumlLatexRenderer.toLatex(model = model)
             tex shouldContain """\begin{tikzpicture}"""
             tex shouldContain """\end{tikzpicture}"""
         }
@@ -104,7 +104,7 @@ class BpmnLatexRendererTest :
         // ── 2. StartEvent NONE ────────────────────────────────────────────────
 
         "StartEvent NONE renders kuml-bpmn-start style" {
-            val tex = KumlLatexRenderer.toLatex(minimalModel(startEvent()))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(startEvent()))
             tex shouldContain "kuml-bpmn-start"
         }
 
@@ -113,7 +113,7 @@ class BpmnLatexRendererTest :
         "StartEvent MESSAGE renders kuml-bpmn-start style with bowtie symbol" {
             val tex =
                 KumlLatexRenderer.toLatex(
-                    minimalModel(startEvent(definition = EventDefinition.MESSAGE)),
+                    model = minimalModel(startEvent(definition = EventDefinition.MESSAGE)),
                 )
             tex shouldContain "kuml-bpmn-start"
             tex shouldContain """\bowtie"""
@@ -122,7 +122,7 @@ class BpmnLatexRendererTest :
         // ── 4. EndEvent NONE ──────────────────────────────────────────────────
 
         "EndEvent NONE renders kuml-bpmn-end style" {
-            val tex = KumlLatexRenderer.toLatex(minimalModel(endEvent()))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(endEvent()))
             tex shouldContain "kuml-bpmn-end"
         }
 
@@ -131,7 +131,7 @@ class BpmnLatexRendererTest :
         "EndEvent TERMINATE renders kuml-bpmn-end style with bullet symbol" {
             val tex =
                 KumlLatexRenderer.toLatex(
-                    minimalModel(endEvent(definition = EventDefinition.TERMINATE)),
+                    model = minimalModel(endEvent(definition = EventDefinition.TERMINATE)),
                 )
             tex shouldContain "kuml-bpmn-end"
             tex shouldContain """\bullet"""
@@ -140,7 +140,7 @@ class BpmnLatexRendererTest :
         // ── 6. IntermediateEvent ──────────────────────────────────────────────
 
         "IntermediateEvent renders kuml-bpmn-intermediate style" {
-            val tex = KumlLatexRenderer.toLatex(minimalModel(intermediateEvent()))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(intermediateEvent()))
             tex shouldContain "kuml-bpmn-intermediate"
         }
 
@@ -155,7 +155,7 @@ class BpmnLatexRendererTest :
                     behaviour = EventBehaviour.CATCHING,
                     attachedToRef = "task1",
                 )
-            val tex = KumlLatexRenderer.toLatex(minimalModel(boundaryEvent))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(boundaryEvent))
             tex shouldContain "kuml-bpmn-boundary"
         }
 
@@ -163,7 +163,7 @@ class BpmnLatexRendererTest :
 
         "ExclusiveGateway renders kuml-bpmn-gateway with times symbol" {
             val gw = BpmnGateway(id = "gw1", gatewayType = GatewayType.EXCLUSIVE)
-            val tex = KumlLatexRenderer.toLatex(minimalModel(gw))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(gw))
             tex shouldContain "kuml-bpmn-gateway"
             tex shouldContain """\times"""
         }
@@ -172,7 +172,7 @@ class BpmnLatexRendererTest :
 
         "ParallelGateway renders kuml-bpmn-gateway with plus symbol" {
             val gw = BpmnGateway(id = "gw2", gatewayType = GatewayType.PARALLEL)
-            val tex = KumlLatexRenderer.toLatex(minimalModel(gw))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(gw))
             tex shouldContain "kuml-bpmn-gateway"
             tex shouldContain "+"
         }
@@ -181,7 +181,7 @@ class BpmnLatexRendererTest :
 
         "InclusiveGateway renders kuml-bpmn-gateway with bigcirc symbol" {
             val gw = BpmnGateway(id = "gw3", gatewayType = GatewayType.INCLUSIVE)
-            val tex = KumlLatexRenderer.toLatex(minimalModel(gw))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(gw))
             tex shouldContain "kuml-bpmn-gateway"
             tex shouldContain """\bigcirc"""
         }
@@ -191,7 +191,7 @@ class BpmnLatexRendererTest :
         "UserTask renders kuml-bpmn-task with User type prefix" {
             val task =
                 BpmnTask(id = "task1", name = "Review", taskType = TaskType.USER)
-            val tex = KumlLatexRenderer.toLatex(minimalModel(task))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(task))
             tex shouldContain "kuml-bpmn-task"
             tex shouldContain "User"
         }
@@ -201,7 +201,7 @@ class BpmnLatexRendererTest :
         "ServiceTask renders kuml-bpmn-task with Service type prefix" {
             val task =
                 BpmnTask(id = "task2", name = "Call API", taskType = TaskType.SERVICE)
-            val tex = KumlLatexRenderer.toLatex(minimalModel(task))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(task))
             tex shouldContain "kuml-bpmn-task"
             tex shouldContain "Service"
         }
@@ -210,7 +210,7 @@ class BpmnLatexRendererTest :
 
         "Task NONE renders kuml-bpmn-task without type prefix" {
             val task = BpmnTask(id = "task3", name = "Do Something", taskType = TaskType.NONE)
-            val tex = KumlLatexRenderer.toLatex(minimalModel(task))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(task))
             tex shouldContain "kuml-bpmn-task"
             tex shouldContain "Do Something"
         }
@@ -219,7 +219,7 @@ class BpmnLatexRendererTest :
 
         "SendTask renders kuml-bpmn-task with Send type prefix" {
             val task = BpmnTask(id = "task4", name = "Send Email", taskType = TaskType.SEND)
-            val tex = KumlLatexRenderer.toLatex(minimalModel(task))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(task))
             tex shouldContain "kuml-bpmn-task"
             tex shouldContain "Send"
         }
@@ -229,7 +229,7 @@ class BpmnLatexRendererTest :
         "ScriptTask renders kuml-bpmn-task with Script type prefix" {
             val task =
                 BpmnTask(id = "task5", name = "Execute Script", taskType = TaskType.SCRIPT)
-            val tex = KumlLatexRenderer.toLatex(minimalModel(task))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(task))
             tex shouldContain "kuml-bpmn-task"
             tex shouldContain "Script"
         }
@@ -238,7 +238,7 @@ class BpmnLatexRendererTest :
 
         "SubProcess renders kuml-bpmn-subprocess with collapsed [+] marker" {
             val sp = BpmnSubProcess(id = "sp1", name = "Sub Flow")
-            val tex = KumlLatexRenderer.toLatex(minimalModel(sp))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(sp))
             tex shouldContain "kuml-bpmn-subprocess"
             tex shouldContain "[+]"
         }
@@ -247,7 +247,7 @@ class BpmnLatexRendererTest :
 
         "CallActivity renders kuml-bpmn-callactivity style" {
             val ca = BpmnCallActivity(id = "ca1", name = "Reuse Process")
-            val tex = KumlLatexRenderer.toLatex(minimalModel(ca))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(ca))
             tex shouldContain "kuml-bpmn-callactivity"
         }
 
@@ -269,7 +269,7 @@ class BpmnLatexRendererTest :
                     processes = listOf(process),
                     diagrams = listOf(ProcessDiagram(name = "D", processId = "p1")),
                 )
-            val tex = KumlLatexRenderer.toLatex(model)
+            val tex = KumlLatexRenderer.toLatex(model = model)
             tex shouldContain "kuml-bpmn-flow"
             tex shouldContain "(s1)"
             tex shouldContain "(t1)"
@@ -294,7 +294,7 @@ class BpmnLatexRendererTest :
                     processes = listOf(process),
                     diagrams = listOf(ProcessDiagram(name = "D", processId = "p2")),
                 )
-            val tex = KumlLatexRenderer.toLatex(model)
+            val tex = KumlLatexRenderer.toLatex(model = model)
             tex shouldContain "approved"
             tex shouldContain "midway"
         }
@@ -323,7 +323,7 @@ class BpmnLatexRendererTest :
                     processes = listOf(process),
                     diagrams = listOf(ProcessDiagram(name = "D", processId = "p10")),
                 )
-            val tex = KumlLatexRenderer.toLatex(model)
+            val tex = KumlLatexRenderer.toLatex(model = model)
             tex shouldContain "amount"
             tex shouldContain "near start"
         }
@@ -353,7 +353,7 @@ class BpmnLatexRendererTest :
                             ),
                         ),
                 )
-            val tex = KumlLatexRenderer.toLatex(model)
+            val tex = KumlLatexRenderer.toLatex(model = model)
             tex shouldContain "kuml-bpmn-pool"
             tex shouldContain "Customer"
             tex shouldContain "Vendor"
@@ -392,7 +392,7 @@ class BpmnLatexRendererTest :
                             ),
                         ),
                 )
-            val tex = KumlLatexRenderer.toLatex(model)
+            val tex = KumlLatexRenderer.toLatex(model = model)
             tex shouldContain "kuml-bpmn-msgflow"
         }
 
@@ -405,7 +405,7 @@ class BpmnLatexRendererTest :
                     name = "Pay & Ship_Order #1 with 100% off",
                     taskType = TaskType.NONE,
                 )
-            val tex = KumlLatexRenderer.toLatex(minimalModel(task))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(task))
             tex shouldContain """\&"""
             tex shouldContain """\_"""
             tex shouldContain """\#"""
@@ -416,7 +416,7 @@ class BpmnLatexRendererTest :
 
         "KumlLatexRenderer.toLatex(BpmnModel) dispatches to first diagram and returns non-empty result" {
             val model = minimalModel(startEvent(), endEvent())
-            val tex = KumlLatexRenderer.toLatex(model)
+            val tex = KumlLatexRenderer.toLatex(model = model)
             tex shouldContain """\begin{tikzpicture}"""
         }
 
@@ -424,7 +424,7 @@ class BpmnLatexRendererTest :
 
         "Node IDs with hyphens are sanitised to underscores in TikZ output" {
             val task = BpmnTask(id = "flow-node_1", name = "Node")
-            val tex = KumlLatexRenderer.toLatex(minimalModel(task))
+            val tex = KumlLatexRenderer.toLatex(model = minimalModel(task))
             // Hyphen replaced by underscore in the TikZ node name
             tex shouldContain "(flow_node_1)"
         }
@@ -438,7 +438,7 @@ class BpmnLatexRendererTest :
                     processes = listOf(BpmnProcess(id = "p", name = "P")),
                     diagrams = emptyList(),
                 )
-            val tex = KumlLatexRenderer.toLatex(model)
+            val tex = KumlLatexRenderer.toLatex(model = model)
             tex shouldBe ""
         }
 
@@ -451,7 +451,7 @@ class BpmnLatexRendererTest :
             val model = minimalModel(startEvent())
             // Indirectly check via BpmnLatexRenderer output that the style block exists
             val styleOut = StringBuilder()
-            BpmnLatexRenderer.appendBpmnTikzStyles(styleOut, "")
+            BpmnLatexRenderer.appendBpmnTikzStyles(sb = styleOut, indent = "")
             val styles = styleOut.toString()
             styles shouldContain "kuml-bpmn-start"
             styles shouldContain "kuml-bpmn-end"
@@ -474,7 +474,7 @@ class BpmnLatexRendererTest :
             // output in appendTikzStyles — resulting in 'undefined style' errors when
             // compiling the LaTeX output with pdflatex.
             val model = minimalModel(startEvent(), endEvent())
-            val tex = KumlLatexRenderer.toLatex(model)
+            val tex = KumlLatexRenderer.toLatex(model = model)
             tex shouldContain """\tikzset{"""
             tex shouldContain "kuml-bpmn-start"
             tex shouldContain "kuml-bpmn-end"
@@ -489,7 +489,7 @@ class BpmnLatexRendererTest :
             // available substitute (currently \\mathsf{E}).
             val tex =
                 KumlLatexRenderer.toLatex(
-                    minimalModel(startEvent(definition = EventDefinition.ERROR)),
+                    model = minimalModel(startEvent(definition = EventDefinition.ERROR)),
                 )
             tex shouldContain """\mathsf"""
             // Must NOT contain \lightning — that would require wasysym/stmaryrd.

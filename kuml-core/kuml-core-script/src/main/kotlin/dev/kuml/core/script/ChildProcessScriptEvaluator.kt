@@ -62,8 +62,8 @@ internal class ChildProcessScriptEvaluator(
             KumlScriptGuard.validate(source)
         } catch (e: ScriptSecurityException) {
             return EvaluatedScript.Failure(
-                FailureKind.GUARD,
-                e.message ?: "kUML script rejected by security guard.",
+                kind = FailureKind.GUARD,
+                message = e.message ?: "kUML script rejected by security guard.",
             )
         }
 
@@ -74,16 +74,16 @@ internal class ChildProcessScriptEvaluator(
                 // is required but unavailable this throws SandboxUnavailableException,
                 // which — like any launch failure — is a fail-closed SANDBOX error,
                 // never a fall-through to an un-caged child.
-                WorkerProcessSupport.launch(javaBinary, classpath, maxHeapMb, warm = false)
+                WorkerProcessSupport.launch(javaBinary = javaBinary, classpath = classpath, maxHeapMb = maxHeapMb, warm = false)
             } catch (e: SandboxUnavailableException) {
                 return EvaluatedScript.Failure(
-                    FailureKind.SANDBOX,
-                    "Script sandbox OS isolation unavailable: ${e.message}",
+                    kind = FailureKind.SANDBOX,
+                    message = "Script sandbox OS isolation unavailable: ${e.message}",
                 )
             } catch (e: Exception) {
                 return EvaluatedScript.Failure(
-                    FailureKind.SANDBOX,
-                    "Could not start script sandbox worker: ${e::class.simpleName}",
+                    kind = FailureKind.SANDBOX,
+                    message = "Could not start script sandbox worker: ${e::class.simpleName}",
                 )
             }
         val process = launched.process
@@ -109,7 +109,7 @@ internal class ChildProcessScriptEvaluator(
             // Write the request, then close stdin so the child's readLine() returns.
             try {
                 process.outputStream.bufferedWriter(Charsets.UTF_8).use { w ->
-                    w.write(json.encodeToString(WorkerRequest.serializer(), WorkerRequest(source, fileName)))
+                    w.write(json.encodeToString(WorkerRequest.serializer(), WorkerRequest(source = source, fileName = fileName)))
                     w.write("\n")
                 }
             } catch (_: Exception) {
@@ -132,8 +132,8 @@ internal class ChildProcessScriptEvaluator(
                 process.destroyForcibly()
                 process.waitFor(FORCE_KILL_GRACE_SECONDS, TimeUnit.SECONDS)
                 return EvaluatedScript.Failure(
-                    FailureKind.TIMEOUT,
-                    "Script evaluation timed out after ${timeoutSeconds}s and was terminated.",
+                    kind = FailureKind.TIMEOUT,
+                    message = "Script evaluation timed out after ${timeoutSeconds}s and was terminated.",
                 )
             }
 
@@ -143,11 +143,11 @@ internal class ChildProcessScriptEvaluator(
             val line =
                 responseLine
                     ?: return EvaluatedScript.Failure(
-                        FailureKind.SANDBOX,
-                        "Script sandbox worker produced no response (exit=${process.exitValue()}).",
+                        kind = FailureKind.SANDBOX,
+                        message = "Script sandbox worker produced no response (exit=${process.exitValue()}).",
                     )
 
-            parseResponse(line, process.exitValue())
+            parseResponse(line = line, exitValue = process.exitValue())
         } finally {
             if (process.isAlive) process.destroyForcibly()
             stderrDrainer.join(READER_JOIN_MILLIS)
@@ -186,8 +186,8 @@ internal class ChildProcessScriptEvaluator(
         // bounded by readBoundedLine; this is a belt-and-braces check.)
         if (line.length >= MAX_RESPONSE_LENGTH) {
             return EvaluatedScript.Failure(
-                FailureKind.SANDBOX,
-                "Script sandbox worker response exceeded the $MAX_RESPONSE_LENGTH-char limit.",
+                kind = FailureKind.SANDBOX,
+                message = "Script sandbox worker response exceeded the $MAX_RESPONSE_LENGTH-char limit.",
             )
         }
         val response =
@@ -195,8 +195,8 @@ internal class ChildProcessScriptEvaluator(
                 json.decodeFromString(WorkerResponse.serializer(), line)
             } catch (e: Exception) {
                 return EvaluatedScript.Failure(
-                    FailureKind.SANDBOX,
-                    "Script sandbox worker returned an unparseable response (${e::class.simpleName}, exit=$exitValue).",
+                    kind = FailureKind.SANDBOX,
+                    message = "Script sandbox worker returned an unparseable response (${e::class.simpleName}, exit=$exitValue).",
                 )
             }
 
@@ -205,21 +205,21 @@ internal class ChildProcessScriptEvaluator(
                 response.failureKind
                     ?.let { runCatching { FailureKind.valueOf(it) }.getOrNull() }
                     ?: FailureKind.EVALUATION
-            return EvaluatedScript.Failure(kind, response.message ?: "Script evaluation failed.")
+            return EvaluatedScript.Failure(kind = kind, message = response.message ?: "Script evaluation failed.")
         }
 
         val envelope =
             response.envelope
                 ?: return EvaluatedScript.Failure(
-                    FailureKind.SANDBOX,
-                    "Script sandbox worker reported success but returned no diagram.",
+                    kind = FailureKind.SANDBOX,
+                    message = "Script sandbox worker reported success but returned no diagram.",
                 )
         return try {
             EvaluatedScript.Success(ExtractedDiagramCodec.decode(envelope))
         } catch (e: Exception) {
             EvaluatedScript.Failure(
-                FailureKind.SANDBOX,
-                "Script sandbox worker returned an undecodable diagram (${e::class.simpleName}).",
+                kind = FailureKind.SANDBOX,
+                message = "Script sandbox worker returned an undecodable diagram (${e::class.simpleName}).",
             )
         }
     }

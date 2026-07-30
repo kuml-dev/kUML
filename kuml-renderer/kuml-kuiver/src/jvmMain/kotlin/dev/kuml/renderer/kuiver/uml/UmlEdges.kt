@@ -35,9 +35,9 @@ internal fun AssociationEdge(
     target: Offset,
     theme: KumlTheme,
 ) {
-    EdgeCanvas(source, target) {
-        drawSolidLine(source, target, theme.colors.edge, theme.borders.regular.value)
-        drawOpenArrow(source, target, theme.colors.edge, theme.borders.regular.value)
+    EdgeCanvas(source = source, target = target) {
+        drawSolidLine(source = source, target = target, color = theme.colors.edge, strokeWidth = theme.borders.regular.value)
+        drawOpenArrow(source = source, target = target, color = theme.colors.edge, strokeWidth = theme.borders.regular.value)
     }
     relationship.name?.let { label ->
         Text(text = label, style = theme.typography.small, color = theme.colors.muted)
@@ -54,9 +54,9 @@ internal fun GeneralizationEdge(
     target: Offset,
     theme: KumlTheme,
 ) {
-    EdgeCanvas(source, target) {
-        drawSolidLine(source, target, theme.colors.edge, theme.borders.regular.value)
-        drawHollowTriangle(source, target, theme.colors.edge, theme.borders.regular.value)
+    EdgeCanvas(source = source, target = target) {
+        drawSolidLine(source = source, target = target, color = theme.colors.edge, strokeWidth = theme.borders.regular.value)
+        drawHollowTriangle(source = source, target = target, color = theme.colors.edge, strokeWidth = theme.borders.regular.value)
     }
 }
 
@@ -70,9 +70,9 @@ internal fun InterfaceRealizationEdge(
     target: Offset,
     theme: KumlTheme,
 ) {
-    EdgeCanvas(source, target) {
-        drawDashedLine(source, target, theme.colors.edgeMuted, theme.borders.regular.value)
-        drawHollowTriangle(source, target, theme.colors.edgeMuted, theme.borders.regular.value)
+    EdgeCanvas(source = source, target = target) {
+        drawDashedLine(source = source, target = target, color = theme.colors.edgeMuted, strokeWidth = theme.borders.regular.value)
+        drawHollowTriangle(source = source, target = target, color = theme.colors.edgeMuted, strokeWidth = theme.borders.regular.value)
     }
 }
 
@@ -88,9 +88,9 @@ internal fun DependencyEdge(
     target: Offset,
     theme: KumlTheme,
 ) {
-    EdgeCanvas(source, target) {
-        drawDashedLine(source, target, theme.colors.edgeMuted, theme.borders.regular.value)
-        drawOpenArrow(source, target, theme.colors.edgeMuted, theme.borders.regular.value)
+    EdgeCanvas(source = source, target = target) {
+        drawDashedLine(source = source, target = target, color = theme.colors.edgeMuted, strokeWidth = theme.borders.regular.value)
+        drawOpenArrow(source = source, target = target, color = theme.colors.edgeMuted, strokeWidth = theme.borders.regular.value)
     }
     relationship.name?.let { label ->
         Text(text = label, style = theme.typography.small, color = theme.colors.muted)
@@ -109,8 +109,8 @@ internal fun ConnectorEdge(
     target: Offset,
     theme: KumlTheme,
 ) {
-    EdgeCanvas(source, target) {
-        drawSolidLine(source, target, theme.colors.edge, theme.borders.regular.value)
+    EdgeCanvas(source = source, target = target) {
+        drawSolidLine(source = source, target = target, color = theme.colors.edge, strokeWidth = theme.borders.regular.value)
     }
     relationship.name?.let { label ->
         Text(text = label, style = theme.typography.small, color = theme.colors.muted)
@@ -127,9 +127,9 @@ internal fun IncludeEdge(
     target: Offset,
     theme: KumlTheme,
 ) {
-    EdgeCanvas(source, target) {
-        drawDashedLine(source, target, theme.colors.edgeMuted, theme.borders.regular.value)
-        drawOpenArrow(source, target, theme.colors.edgeMuted, theme.borders.regular.value)
+    EdgeCanvas(source = source, target = target) {
+        drawDashedLine(source = source, target = target, color = theme.colors.edgeMuted, strokeWidth = theme.borders.regular.value)
+        drawOpenArrow(source = source, target = target, color = theme.colors.edgeMuted, strokeWidth = theme.borders.regular.value)
     }
     Text(text = "«include»", style = theme.typography.stereotype, color = theme.colors.muted)
 }
@@ -144,9 +144,9 @@ internal fun ExtendEdge(
     target: Offset,
     theme: KumlTheme,
 ) {
-    EdgeCanvas(source, target) {
-        drawDashedLine(source, target, theme.colors.edgeMuted, theme.borders.regular.value)
-        drawOpenArrow(source, target, theme.colors.edgeMuted, theme.borders.regular.value)
+    EdgeCanvas(source = source, target = target) {
+        drawDashedLine(source = source, target = target, color = theme.colors.edgeMuted, strokeWidth = theme.borders.regular.value)
+        drawOpenArrow(source = source, target = target, color = theme.colors.edgeMuted, strokeWidth = theme.borders.regular.value)
     }
     Text(text = "«extend»", style = theme.typography.stereotype, color = theme.colors.muted)
 }

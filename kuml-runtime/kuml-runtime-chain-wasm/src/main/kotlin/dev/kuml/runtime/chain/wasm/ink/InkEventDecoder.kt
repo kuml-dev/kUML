@@ -44,7 +44,7 @@ public class InkEventDecoder(
         dataScale: ByteArray,
     ): DecodedInkEvent? {
         val spec = resolveSpec(topicsHex) ?: return null
-        val reader = ScaleReader(dataScale, maxCollectionLen)
+        val reader = ScaleReader(data = dataScale, maxCollectionLen = maxCollectionLen)
 
         val values = LinkedHashMap<String, Any?>()
         // Indizierte Felder kommen aus den Topics (nach dem identifizierenden ersten Topic).
@@ -53,10 +53,10 @@ public class InkEventDecoder(
             if (field.indexed) {
                 values[field.name] = topicsHex.getOrNull(topicCursor)?.also { topicCursor++ }
             } else {
-                values[field.name] = decodeField(field, reader)
+                values[field.name] = decodeField(field = field, reader = reader)
             }
         }
-        return DecodedInkEvent(spec.label, values)
+        return DecodedInkEvent(name = spec.label, values = values)
     }
 
     private fun resolveSpec(topicsHex: List<String>): InkEventSpec? {
@@ -77,13 +77,14 @@ public class InkEventDecoder(
         reader: ScaleReader,
     ): Any? =
         when (val type = abi.typeOf(field.typeId)) {
-            is InkTypeDef.Primitive -> decodePrimitive(type.name, reader)
+            is InkTypeDef.Primitive -> decodePrimitive(name = type.name, reader = reader)
             is InkTypeDef.FixedArray -> {
                 // DoS-Schutz: ABI-kontrollierte len darf maxCollectionLen nicht ueberschreiten
                 if (type.len > maxCollectionLen) {
                     throw ScaleException(
-                        "FixedArray length ${type.len} exceeds maxCollectionLen $maxCollectionLen " +
-                            "(field '${field.name}'); possible malicious ABI",
+                        message =
+                            "FixedArray length ${type.len} exceeds maxCollectionLen $maxCollectionLen " +
+                                "(field '${field.name}'); possible malicious ABI",
                     )
                 }
                 // Spezialfall AccountId32 / H256 etc.: fixed [u8; N] → rohe Bytes
@@ -93,7 +94,7 @@ public class InkEventDecoder(
                 } else {
                     // Heterogene fixed arrays: Element fuer Element (best effort)
                     val list = ArrayList<Any?>(type.len)
-                    repeat(type.len) { list.add(decodeByTypeId(type.elementTypeId, reader)) }
+                    repeat(type.len) { list.add(decodeByTypeId(typeId = type.elementTypeId, reader = reader)) }
                     list
                 }
             }
@@ -102,7 +103,7 @@ public class InkEventDecoder(
                 if (elem is InkTypeDef.Primitive && elem.name == "u8") {
                     reader.readByteVec()
                 } else {
-                    reader.readVec { r -> decodeByTypeId(type.elementTypeId, r) }
+                    reader.readVec { r -> decodeByTypeId(typeId = type.elementTypeId, reader = r) }
                 }
             }
             is InkTypeDef.Variant -> {
@@ -128,8 +129,8 @@ public class InkEventDecoder(
         reader: ScaleReader,
     ): Any? =
         when (val t = abi.typeOf(typeId)) {
-            is InkTypeDef.Primitive -> decodePrimitive(t.name, reader)
-            else -> throw ScaleException("Nested non-primitive typeId=$typeId not supported by default decoder")
+            is InkTypeDef.Primitive -> decodePrimitive(name = t.name, reader = reader)
+            else -> throw ScaleException(message = "Nested non-primitive typeId=$typeId not supported by default decoder")
         }
 
     private fun decodePrimitive(
@@ -148,7 +149,7 @@ public class InkEventDecoder(
             "i64" -> reader.readU64() // Bit pattern identical; Kotlin Long is signed → already correct
             "u128", "i128", "u256", "i256" -> reader.readU128Hex()
             "str" -> reader.readString()
-            else -> throw ScaleException("Unknown ink! primitive type '$name'")
+            else -> throw ScaleException(message = "Unknown ink! primitive type '$name'")
         }
 }
 

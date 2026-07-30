@@ -34,18 +34,18 @@ class Sysml2ReqSvgTest :
 
         fun vehicleReqModel(): Pair<Sysml2Model, ReqDiagram> {
             val model =
-                sysml2Model("VehicleReqs") {
+                sysml2Model(name = "VehicleReqs") {
                     val topSpeed =
                         requirementDef(
-                            "TopSpeedRequirement",
+                            name = "TopSpeedRequirement",
                             reqId = "R-001",
                             text = "The vehicle shall reach at least 180 km/h on flat road",
                         )
-                    val vehicle = partDef("Vehicle")
-                    reqDiagram("REQ") {
+                    val vehicle = partDef(name = "Vehicle")
+                    reqDiagram(name = "REQ") {
                         include(topSpeed)
                         include(vehicle)
-                        satisfy(vehicle, topSpeed)
+                        satisfy(source = vehicle, requirement = topSpeed)
                     }
                 }
             val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
@@ -59,20 +59,20 @@ class Sysml2ReqSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(680f, 240f),
+                canvas = Size(width = 680f, height = 240f),
                 nodes =
                     mapOf(
                         NodeId("TopSpeedRequirement") to
-                            NodeLayout(bounds = Rect(Point(40f, 40f), Size(280f, 120f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 40f), size = Size(width = 280f, height = 120f))),
                         NodeId("Vehicle") to
-                            NodeLayout(bounds = Rect(Point(380f, 60f), Size(280f, 140f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 380f, y = 60f), size = Size(width = 280f, height = 140f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("satisfy:Vehicle::TopSpeedRequirement") to
                             EdgeRoute.OrthogonalRounded(
-                                source = Point(380f, 130f),
-                                target = Point(320f, 100f),
+                                source = Point(x = 380f, y = 130f),
+                                target = Point(x = 320f, y = 100f),
                                 waypoints = emptyList(),
                                 cornerRadiusPx = 4f,
                             ),
@@ -85,7 +85,7 @@ class Sysml2ReqSvgTest :
 
         "REQ renders requirement box with «requirement» stereotype and text" {
             val (model, req) = vehicleReqModel()
-            val svg = KumlSvgRenderer.toSvg(model, req, layoutFor(model, req), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = req, layoutResult = layoutFor(model, req), theme = PlainTheme())
 
             svg shouldContain "«requirement»"
             // Title compartment with R-NNN :: Name format.
@@ -96,7 +96,7 @@ class Sysml2ReqSvgTest :
             // Vehicle Part still renders (BDD box path).
             svg shouldContain "Vehicle"
 
-            SampleOutput.write("sysml2-req/vehicle-req.svg", svg)
+            SampleOutput.write(filename = "sysml2-req/vehicle-req.svg", content = svg)
         }
 
         "REQ requirement with empty text omits the text compartment" {
@@ -118,15 +118,16 @@ class Sysml2ReqSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(300f, 200f),
+                    canvas = Size(width = 300f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("R1") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(220f, 120f))),
+                            NodeId("R1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 220f, height = 120f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val svg = KumlSvgRenderer.toSvg(model, req, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = req, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "«requirement»"
             svg shouldContain "R-001 :: R1"
             // No divider line ⇒ no `<line ... class="kuml-divider"/>` element in
@@ -135,7 +136,7 @@ class Sysml2ReqSvgTest :
             // independent of whether any divider line is actually drawn.)
             svg shouldNotContain "class=\"kuml-divider\""
 
-            SampleOutput.write("sysml2-req/empty-text.svg", svg)
+            SampleOutput.write(filename = "sysml2-req/empty-text.svg", content = svg)
         }
 
         "REQ requirement with reqId shows R-NNN :: Name format" {
@@ -163,23 +164,25 @@ class Sysml2ReqSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(600f, 200f),
+                    canvas = Size(width = 600f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("TopSpeed") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(220f, 120f))),
-                            NodeId("NoId") to NodeLayout(bounds = Rect(Point(260f, 0f), Size(220f, 120f))),
+                            NodeId("TopSpeed") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 220f, height = 120f))),
+                            NodeId("NoId") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 260f, y = 0f), size = Size(width = 220f, height = 120f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val svg = KumlSvgRenderer.toSvg(model, req, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = req, layoutResult = layout, theme = PlainTheme())
             // With reqId set: prefixed title.
             svg shouldContain "R-042 :: TopSpeed"
             // Without reqId: bare name only — never prefixed.
             svg shouldContain "NoId"
             svg shouldNotContain " :: NoId"
 
-            SampleOutput.write("sysml2-req/with-and-without-reqId.svg", svg)
+            SampleOutput.write(filename = "sysml2-req/with-and-without-reqId.svg", content = svg)
         }
 
         "deterministic output — same input renders byte-identically" {
@@ -216,18 +219,19 @@ class Sysml2ReqSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(300f, 200f),
+                    canvas = Size(width = 300f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("R1") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(220f, 120f))),
+                            NodeId("R1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 220f, height = 120f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val one = KumlSvgRenderer.toSvg(model, req, layout, PlainTheme())
-            val two = KumlSvgRenderer.toSvg(model, req, layout, PlainTheme())
+            val one = KumlSvgRenderer.toSvg(model = model, diagram = req, layoutResult = layout, theme = PlainTheme())
+            val two = KumlSvgRenderer.toSvg(model = model, diagram = req, layoutResult = layout, theme = PlainTheme())
             one shouldBe two
 
-            SampleOutput.write("sysml2-req/deterministic.svg", one)
+            SampleOutput.write(filename = "sysml2-req/deterministic.svg", content = one)
         }
     })

@@ -139,11 +139,25 @@ class SmilEmitterTest :
             val timeline =
                 SmilTimeline(
                     listOf(
-                        SmilAnimation.Fill("n1", "#ff0000", 0, 600),
-                        SmilAnimation.Animate("n2", "opacity", "0", "1", 600, 600),
-                        SmilAnimation.AnimateTransform("n3", TransformType.TRANSLATE, "0 0", "50 0", 1200, 600),
-                        SmilAnimation.AnimateMotion("n4", "M 0 0 L 10 10", 1800, 600),
-                        SmilAnimation.Set("n5", "display", "inline", 2400, 600),
+                        SmilAnimation.Fill(elementId = "n1", color = "#ff0000", beginMs = 0, durationMs = 600),
+                        SmilAnimation.Animate(
+                            elementId = "n2",
+                            attribute = "opacity",
+                            from = "0",
+                            to = "1",
+                            beginMs = 600,
+                            durationMs = 600,
+                        ),
+                        SmilAnimation.AnimateTransform(
+                            elementId = "n3",
+                            type = TransformType.TRANSLATE,
+                            from = "0 0",
+                            to = "50 0",
+                            beginMs = 1200,
+                            durationMs = 600,
+                        ),
+                        SmilAnimation.AnimateMotion(elementId = "n4", path = "M 0 0 L 10 10", beginMs = 1800, durationMs = 600),
+                        SmilAnimation.Set(elementId = "n5", attribute = "display", to = "inline", beginMs = 2400, durationMs = 600),
                     ),
                 )
             val fragment = emitter.renderElements(timeline)
@@ -154,9 +168,9 @@ class SmilEmitterTest :
             val svg = "<svg id=\"root\"><rect id=\"n1\"/></svg>"
             val timeline =
                 singleTimeline(
-                    SmilAnimation.Fill("n1", "#ffd54a", 0, 600),
+                    SmilAnimation.Fill(elementId = "n1", color = "#ffd54a", beginMs = 0, durationMs = 600),
                 )
-            val result = emitter.inject(svg, timeline)
+            val result = emitter.inject(svg = svg, timeline = timeline)
             result shouldEndWith "</svg>"
             // The SMIL fragment should appear before </svg>
             val smilIndex = result.indexOf("<animate")
@@ -167,11 +181,11 @@ class SmilEmitterTest :
         "inject twice in ANIMATED mode accumulates animations — second call does not destroy first" {
             val svg = "<svg><rect id=\"n1\"/><rect id=\"n2\"/></svg>"
             val first =
-                singleTimeline(SmilAnimation.Fill("n1", "#ffd54a", 0, 600))
+                singleTimeline(SmilAnimation.Fill(elementId = "n1", color = "#ffd54a", beginMs = 0, durationMs = 600))
             val second =
-                singleTimeline(SmilAnimation.Fill("n2", "#ff0000", 600, 600))
-            val afterFirst = emitter.inject(svg, first)
-            val afterSecond = emitter.inject(afterFirst, second)
+                singleTimeline(SmilAnimation.Fill(elementId = "n2", color = "#ff0000", beginMs = 600, durationMs = 600))
+            val afterFirst = emitter.inject(svg = svg, timeline = first)
+            val afterSecond = emitter.inject(svg = afterFirst, timeline = second)
             // Both animations must be present — inject is additive in ANIMATED mode
             afterSecond shouldContain "xlink:href=\"#n1\""
             afterSecond shouldContain "xlink:href=\"#n2\""
@@ -180,15 +194,15 @@ class SmilEmitterTest :
 
         "inject adds xmlns:xlink namespace to svg root for browser SMIL compatibility" {
             val svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"><rect id=\"n1\"/></svg>"
-            val timeline = singleTimeline(SmilAnimation.Fill("n1", "#ffd54a", 0, 600))
-            val result = emitter.inject(svg, timeline)
+            val timeline = singleTimeline(SmilAnimation.Fill(elementId = "n1", color = "#ffd54a", beginMs = 0, durationMs = 600))
+            val result = emitter.inject(svg = svg, timeline = timeline)
             result shouldContain "xmlns:xlink=\"http://www.w3.org/1999/xlink\""
         }
 
         "inject does not duplicate xmlns:xlink if already present" {
             val svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\"><rect id=\"n1\"/></svg>"
-            val timeline = singleTimeline(SmilAnimation.Fill("n1", "#ffd54a", 0, 600))
-            val result = emitter.inject(svg, timeline)
+            val timeline = singleTimeline(SmilAnimation.Fill(elementId = "n1", color = "#ffd54a", beginMs = 0, durationMs = 600))
+            val result = emitter.inject(svg = svg, timeline = timeline)
             val count = result.split("xmlns:xlink").size - 1
             count shouldBe 1
         }
@@ -197,11 +211,25 @@ class SmilEmitterTest :
             val timeline =
                 SmilTimeline(
                     listOf(
-                        SmilAnimation.Fill("n1", "#ffd54a", 0, 600),
-                        SmilAnimation.Animate("n2", "opacity", "0", "1", 600, 600),
-                        SmilAnimation.AnimateTransform("n3", TransformType.TRANSLATE, "0 0", "50 0", 1200, 600),
-                        SmilAnimation.AnimateMotion("n4", "M 0 0 L 10 10", 1800, 600),
-                        SmilAnimation.Set("n5", "display", "inline", 2400, 600),
+                        SmilAnimation.Fill(elementId = "n1", color = "#ffd54a", beginMs = 0, durationMs = 600),
+                        SmilAnimation.Animate(
+                            elementId = "n2",
+                            attribute = "opacity",
+                            from = "0",
+                            to = "1",
+                            beginMs = 600,
+                            durationMs = 600,
+                        ),
+                        SmilAnimation.AnimateTransform(
+                            elementId = "n3",
+                            type = TransformType.TRANSLATE,
+                            from = "0 0",
+                            to = "50 0",
+                            beginMs = 1200,
+                            durationMs = 600,
+                        ),
+                        SmilAnimation.AnimateMotion(elementId = "n4", path = "M 0 0 L 10 10", beginMs = 1800, durationMs = 600),
+                        SmilAnimation.Set(elementId = "n5", attribute = "display", to = "inline", beginMs = 2400, durationMs = 600),
                     ),
                 )
             val fragment = emitter.renderElements(timeline)

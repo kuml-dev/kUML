@@ -55,18 +55,18 @@ internal fun SvgBuilder.renderErmRelationshipNameLabel(
     val a = EdgeLabelGeometry.midAnchor(route)
     val stack = stackIndex * ERM_LABEL_STACK_OFFSET_PX
     if (selfLoop) {
-        val outward = normalize(sourceDir.first + targetDir.first, sourceDir.second + targetDir.second)
+        val outward = normalize(x = sourceDir.first + targetDir.first, y = sourceDir.second + targetDir.second)
         val x = a.x + outward.first * ERM_LABEL_SIDE_OFFSET_PX
         val y = a.y + 4f - stack
         val anchor = if (outward.first < 0f) "end" else "start"
-        renderEdgeLabelWithHalo(label, x, y, anchor)
+        renderEdgeLabelWithHalo(label = label, x = x, y = y, textAnchor = anchor)
         return
     }
     when (a.direction) {
         EdgeLabelGeometry.SegmentDirection.Horizontal ->
-            renderEdgeLabelWithHalo(label, a.x, a.y - ERM_LABEL_BASE_OFFSET_PX - stack, "middle")
+            renderEdgeLabelWithHalo(label = label, x = a.x, y = a.y - ERM_LABEL_BASE_OFFSET_PX - stack, textAnchor = "middle")
         EdgeLabelGeometry.SegmentDirection.Vertical ->
-            renderEdgeLabelWithHalo(label, a.x + ERM_LABEL_SIDE_OFFSET_PX, a.y + 4f - stack, "start")
+            renderEdgeLabelWithHalo(label = label, x = a.x + ERM_LABEL_SIDE_OFFSET_PX, y = a.y + 4f - stack, textAnchor = "start")
     }
 }
 
@@ -103,11 +103,11 @@ internal fun SvgBuilder.renderErmRoleLabel(
         val side = if (px >= 0f) 1f else -1f
         val x = anchor.x + dx * ERM_ROLE_LABEL_OFFSET_PX + side * ERM_ROLE_LABEL_PERP_PX
         val y = anchor.y + dy * ERM_ROLE_LABEL_OFFSET_PX + 4f
-        renderEdgeLabelWithHalo(role, x, y, if (side < 0f) "end" else "start")
+        renderEdgeLabelWithHalo(label = role, x = x, y = y, textAnchor = if (side < 0f) "end" else "start")
     } else {
         val x = anchor.x + dx * ERM_ROLE_LABEL_OFFSET_PX
         val y = anchor.y + dy * ERM_ROLE_LABEL_OFFSET_PX + perpBias * ERM_ROLE_LABEL_PERP_PX
-        renderEdgeLabelWithHalo(role, x, y, "middle")
+        renderEdgeLabelWithHalo(label = role, x = x, y = y, textAnchor = "middle")
     }
 }
 
@@ -149,12 +149,12 @@ internal fun SvgBuilder.renderErmCardinalityLabel(
         val side = if (px >= 0f) 1f else -1f
         val x = anchor.x + dx * alongOffsetPx + side * ErmChenSizing.CARDINALITY_LABEL_PERP_PX
         val y = anchor.y + dy * alongOffsetPx + 4f
-        renderEdgeLabelWithHalo(label, x, y, if (side < 0f) "end" else "start")
+        renderEdgeLabelWithHalo(label = label, x = x, y = y, textAnchor = if (side < 0f) "end" else "start")
     } else {
         // horizontal edge -> lift above the line
         val x = anchor.x + dx * alongOffsetPx
         val y = anchor.y + dy * alongOffsetPx - ErmChenSizing.CARDINALITY_LABEL_PERP_PX
-        renderEdgeLabelWithHalo(label, x, y, "middle")
+        renderEdgeLabelWithHalo(label = label, x = x, y = y, textAnchor = "middle")
     }
 }
 

@@ -80,7 +80,7 @@ public class ProfileDiagramBuilder(
         metaclasses: List<String> = emptyList(),
         block: StereotypeScope.() -> Unit = {},
     ): UmlStereotype {
-        val id = UmlIds.disambiguate(candidate = UmlIds.child(containerId, name), taken = takenIds)
+        val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId = containerId, name = name), taken = takenIds)
         val scope = StereotypeScope(parentId = id, takenIds = takenIds)
         scope.apply(block)
         val s =
@@ -144,8 +144,8 @@ public class StereotypeScope internal constructor(
         name: String,
         type: String,
     ): UmlProperty {
-        val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId, name), taken = takenIds)
-        val p = UmlProperty(id = id, name = name, type = UmlTypeRef(type))
+        val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId = parentId, name = name), taken = takenIds)
+        val p = UmlProperty(id = id, name = name, type = UmlTypeRef(name = type))
         tags += p
         takenIds += id
         return p

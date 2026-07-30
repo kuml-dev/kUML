@@ -72,7 +72,7 @@ public class JavaSourceReverseEngine : KumlReverseEngine {
                 )
             }
 
-            val setup = JavaParserSetup(request.sourceRoots, request.classpathJars)
+            val setup = JavaParserSetup(sourceRoots = request.sourceRoots, classpathJars = request.classpathJars)
             val parseConfig = setup.buildParseConfiguration()
 
             // Parse all files in parallel — each coroutine creates its own JavaParser
@@ -117,7 +117,7 @@ public class JavaSourceReverseEngine : KumlReverseEngine {
                 }
             }
 
-            val resolver = JavaTypeResolver(setup.combinedTypeSolver, userTypeNames)
+            val resolver = JavaTypeResolver(combinedTypeSolver = setup.combinedTypeSolver, userTypeNames = userTypeNames)
             val associationDetector = JavaAssociationDetector(resolver)
 
             // Pass 2: map all classifiers and relationships
@@ -209,7 +209,7 @@ public class JavaSourceReverseEngine : KumlReverseEngine {
 
         // Enumerations
         cu.findAll(EnumDeclaration::class.java).forEach { enumDecl ->
-            enumerations += JavaEnumerationMapper.map(enumDecl, packageName)
+            enumerations += JavaEnumerationMapper.map(decl = enumDecl, packageName = packageName)
         }
 
         // Classes and interfaces (top-level and nested)
@@ -238,7 +238,7 @@ public class JavaSourceReverseEngine : KumlReverseEngine {
                         }
                     }.orElse(null)
 
-            val mapped = JavaClassMapper.map(decl, packageName, enclosingName)
+            val mapped = JavaClassMapper.map(decl = decl, packageName = packageName, enclosingName = enclosingName)
             val classId = mapped.id
 
             // Emit template diagnostic for generic types
@@ -261,7 +261,7 @@ public class JavaSourceReverseEngine : KumlReverseEngine {
             decl.fields.forEach { field ->
                 field.variables.forEach { variable ->
                     val classification =
-                        associationDetector.classify(field, variable, classId, fileName)
+                        associationDetector.classify(field = field, variable = variable, ownerClassId = classId, fileName = fileName)
                     when (classification) {
                         is JavaAssociationDetector.FieldClassification.AsAssociation ->
                             associations += classification.association
@@ -277,11 +277,11 @@ public class JavaSourceReverseEngine : KumlReverseEngine {
 
             // Map methods
             decl.methods.forEach { method ->
-                operations += JavaOperationMapper.map(method, classId)
+                operations += JavaOperationMapper.map(method = method, classId = classId)
             }
 
             // Generalization and realization
-            val genResult = JavaGeneralizationMapper.map(decl, classId, "$classId.rel")
+            val genResult = JavaGeneralizationMapper.map(decl = decl, ownId = classId, relIdPrefix = "$classId.rel")
             generalizations += genResult.generalizations
             realizations += genResult.realizations
 

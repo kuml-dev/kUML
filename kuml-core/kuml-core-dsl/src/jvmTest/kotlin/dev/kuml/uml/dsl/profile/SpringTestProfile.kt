@@ -10,13 +10,13 @@ import dev.kuml.profile.builder.profile
  * Used for ambiguity and qualified-form tests.
  */
 internal val springTestProfile: KumlProfile =
-    profile("Spring") {
+    profile(name = "Spring") {
         namespace = "dev.kuml.test.profiles.spring"
-        stereotype("Service") {
+        stereotype(name = "Service") {
             extends(UmlMetaclass.Class)
-            property<Boolean>("singleton") { default = true }
+            property<Boolean>(name = "singleton") { default = true }
         }
-        stereotype("Repository") {
+        stereotype(name = "Repository") {
             extends(UmlMetaclass.Class)
         }
     }

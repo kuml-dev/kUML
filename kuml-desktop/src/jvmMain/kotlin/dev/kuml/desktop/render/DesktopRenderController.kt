@@ -24,7 +24,7 @@ class DesktopRenderController(
                 try {
                     val result =
                         withContext(Dispatchers.IO) {
-                            DesktopRenderPipeline.render(script, state.theme)
+                            DesktopRenderPipeline.render(script = script, themeName = state.theme)
                         }
                     when (result) {
                         is DesktopRenderResult.Svg -> {

@@ -116,9 +116,9 @@ public object OclSyntax {
      */
     public fun highlight(expr: String): List<HighlightToken> =
         OclLexer
-            .scan(expr, tolerant = true)
+            .scan(input = expr, tolerant = true)
             .filter { it.isError || it.token != OclToken.Eof }
-            .map { HighlightToken(it.start, it.end, kindOf(it)) }
+            .map { HighlightToken(start = it.start, end = it.end, kind = kindOf(it)) }
 
     private fun kindOf(lexeme: OclLexeme): OclTokenKind {
         if (lexeme.isError) return OclTokenKind.ERROR
@@ -159,8 +159,8 @@ public object OclSyntax {
     ): OclCheckResult {
         if (expr.length > MAX_EXPRESSION_LENGTH) {
             return OclCheckResult.Error(
-                "expression too long (max $MAX_EXPRESSION_LENGTH chars)",
-                0 until expr.length,
+                message = "expression too long (max $MAX_EXPRESSION_LENGTH chars)",
+                range = 0 until expr.length,
             )
         }
 
@@ -168,35 +168,41 @@ public object OclSyntax {
             val ast =
                 try {
                     val (tokens, positions) = OclLexer.tokenizeWithPositions(expr)
-                    OclParser(tokens, positions).parse()
+                    OclParser(tokens = tokens, positions = positions).parse()
                 } catch (e: OclEvaluationException) {
-                    return OclCheckResult.Error(e.message ?: "syntax error", rangeFrom(e.position, expr))
+                    return OclCheckResult.Error(
+                        message = e.message ?: "syntax error",
+                        range = rangeFrom(position = e.position, expr = expr),
+                    )
                 }
 
             val (nodeCount, depth) = measure(ast)
             if (nodeCount > MAX_AST_NODES || depth > MAX_NESTING_DEPTH) {
-                return OclCheckResult.Error("expression too complex", null)
+                return OclCheckResult.Error(message = "expression too complex", range = null)
             }
 
-            val unknownVar = firstUnknownFreeVar(ast, bound = emptySet(), scope = scope)
+            val unknownVar = firstUnknownFreeVar(expr = ast, bound = emptySet(), scope = scope)
             if (unknownVar != null) {
-                return OclCheckResult.Error("unknown variable '$unknownVar'", rangeOfIdent(unknownVar, expr))
+                return OclCheckResult.Error(
+                    message = "unknown variable '$unknownVar'",
+                    range = rangeOfIdent(name = unknownVar, expr = expr),
+                )
             }
 
             if (ast is OclExpression.BinaryOp && ast.op in CHECKED_BINARY_OPS) {
-                val leftType = staticType(ast.left, scope)
-                val rightType = staticType(ast.right, scope)
-                if (typesIncompatible(leftType, rightType)) {
+                val leftType = staticType(expr = ast.left, scope = scope)
+                val rightType = staticType(expr = ast.right, scope = scope)
+                if (typesIncompatible(a = leftType, b = rightType)) {
                     return OclCheckResult.Error(
-                        "type mismatch: cannot apply '${ast.op}' to $leftType and $rightType",
-                        null,
+                        message = "type mismatch: cannot apply '${ast.op}' to $leftType and $rightType",
+                        range = null,
                     )
                 }
             }
 
             OclCheckResult.Ok
         } catch (e: StackOverflowError) {
-            OclCheckResult.Error("expression too complex", null)
+            OclCheckResult.Error(message = "expression too complex", range = null)
         }
     }
 
@@ -259,34 +265,35 @@ public object OclSyntax {
                 } else {
                     expr.name
                 }
-            is OclExpression.Navigate -> firstUnknownFreeVar(expr.receiver, bound, scope)
+            is OclExpression.Navigate -> firstUnknownFreeVar(expr = expr.receiver, bound = bound, scope = scope)
             is OclExpression.OperationCall ->
-                firstUnknownFreeVar(expr.receiver, bound, scope)
-                    ?: expr.args.firstNotNullOfOrNull { firstUnknownFreeVar(it, bound, scope) }
+                firstUnknownFreeVar(expr = expr.receiver, bound = bound, scope = scope)
+                    ?: expr.args.firstNotNullOfOrNull { firstUnknownFreeVar(expr = it, bound = bound, scope = scope) }
             is OclExpression.CollectionOp -> {
                 val innerBound = expr.bindingVar?.let { bound + it } ?: bound
-                firstUnknownFreeVar(expr.receiver, bound, scope)
-                    ?: expr.args.firstNotNullOfOrNull { firstUnknownFreeVar(it, bound, scope) }
-                    ?: expr.body?.let { firstUnknownFreeVar(it, innerBound, scope) }
+                firstUnknownFreeVar(expr = expr.receiver, bound = bound, scope = scope)
+                    ?: expr.args.firstNotNullOfOrNull { firstUnknownFreeVar(expr = it, bound = bound, scope = scope) }
+                    ?: expr.body?.let { firstUnknownFreeVar(expr = it, bound = innerBound, scope = scope) }
             }
             is OclExpression.IterateExpr -> {
                 val innerBound = bound + expr.iterVar + expr.accVar
-                firstUnknownFreeVar(expr.receiver, bound, scope)
-                    ?: firstUnknownFreeVar(expr.accInit, bound, scope)
-                    ?: firstUnknownFreeVar(expr.body, innerBound, scope)
+                firstUnknownFreeVar(expr = expr.receiver, bound = bound, scope = scope)
+                    ?: firstUnknownFreeVar(expr = expr.accInit, bound = bound, scope = scope)
+                    ?: firstUnknownFreeVar(expr = expr.body, bound = innerBound, scope = scope)
             }
             is OclExpression.LetExpr ->
-                firstUnknownFreeVar(expr.initExpr, bound, scope)
-                    ?: firstUnknownFreeVar(expr.body, bound + expr.name, scope)
+                firstUnknownFreeVar(expr = expr.initExpr, bound = bound, scope = scope)
+                    ?: firstUnknownFreeVar(expr = expr.body, bound = bound + expr.name, scope = scope)
             is OclExpression.IfExpr ->
-                firstUnknownFreeVar(expr.cond, bound, scope)
-                    ?: firstUnknownFreeVar(expr.thenExpr, bound, scope)
-                    ?: firstUnknownFreeVar(expr.elseExpr, bound, scope)
+                firstUnknownFreeVar(expr = expr.cond, bound = bound, scope = scope)
+                    ?: firstUnknownFreeVar(expr = expr.thenExpr, bound = bound, scope = scope)
+                    ?: firstUnknownFreeVar(expr = expr.elseExpr, bound = bound, scope = scope)
             is OclExpression.BinaryOp ->
-                firstUnknownFreeVar(expr.left, bound, scope) ?: firstUnknownFreeVar(expr.right, bound, scope)
-            is OclExpression.UnaryOp -> firstUnknownFreeVar(expr.operand, bound, scope)
-            is OclExpression.TypeOp -> firstUnknownFreeVar(expr.receiver, bound, scope)
-            is OclExpression.AtPre -> firstUnknownFreeVar(expr.receiver, bound, scope)
+                firstUnknownFreeVar(expr = expr.left, bound = bound, scope = scope)
+                    ?: firstUnknownFreeVar(expr = expr.right, bound = bound, scope = scope)
+            is OclExpression.UnaryOp -> firstUnknownFreeVar(expr = expr.operand, bound = bound, scope = scope)
+            is OclExpression.TypeOp -> firstUnknownFreeVar(expr = expr.receiver, bound = bound, scope = scope)
+            is OclExpression.AtPre -> firstUnknownFreeVar(expr = expr.receiver, bound = bound, scope = scope)
         }
 
     /**
@@ -341,7 +348,7 @@ public object OclSyntax {
         if (lineIndex !in starts.indices) return null
         val offset = starts[lineIndex] + position.col - 1
         if (offset < 0 || offset > expr.length) return null
-        val lexeme = OclLexer.scan(expr, tolerant = true).firstOrNull { it.start == offset && it.end > it.start }
+        val lexeme = OclLexer.scan(input = expr, tolerant = true).firstOrNull { it.start == offset && it.end > it.start }
         return when {
             lexeme != null -> lexeme.start until lexeme.end
             offset < expr.length -> offset until (offset + 1)
@@ -355,7 +362,7 @@ public object OclSyntax {
         expr: String,
     ): IntRange? {
         val lexeme =
-            OclLexer.scan(expr, tolerant = true).firstOrNull {
+            OclLexer.scan(input = expr, tolerant = true).firstOrNull {
                 val token = it.token
                 token is OclToken.Ident && token.name == name
             }

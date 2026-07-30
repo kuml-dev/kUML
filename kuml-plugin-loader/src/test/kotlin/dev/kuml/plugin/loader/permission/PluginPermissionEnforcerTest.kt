@@ -21,7 +21,7 @@ class PluginPermissionEnforcerTest :
                     PluginDescriptor(
                         id = "test.plugin",
                         name = "Test",
-                        version = PluginVersion(1, 0, 0),
+                        version = PluginVersion(major = 1, minor = 0, patch = 0),
                         kumlVersionRange = KumlVersionRange(">=0.12.0"),
                         capabilities = setOf(PluginCapability.CODEGEN),
                         requiredPermissions = permissions.toSet(),
@@ -32,22 +32,22 @@ class PluginPermissionEnforcerTest :
 
         "has() returns true when permission is declared" {
             val p = plugin(PluginPermission.FS_READ)
-            PluginPermissionEnforcer.has(p, PluginPermission.FS_READ) shouldBe true
+            PluginPermissionEnforcer.has(plugin = p, permission = PluginPermission.FS_READ) shouldBe true
         }
 
         "has() returns false when permission is not declared" {
             val p = plugin(PluginPermission.FS_READ)
-            PluginPermissionEnforcer.has(p, PluginPermission.FS_WRITE) shouldBe false
+            PluginPermissionEnforcer.has(plugin = p, permission = PluginPermission.FS_WRITE) shouldBe false
         }
 
         "has() returns false when no permissions are declared" {
             val p = plugin()
-            PluginPermissionEnforcer.has(p, PluginPermission.FS_READ) shouldBe false
+            PluginPermissionEnforcer.has(plugin = p, permission = PluginPermission.FS_READ) shouldBe false
         }
 
         "has() returns true for RENDER_READ_RESOURCES when declared" {
             val p = plugin(PluginPermission.RENDER_READ_RESOURCES)
-            PluginPermissionEnforcer.has(p, PluginPermission.RENDER_READ_RESOURCES) shouldBe true
+            PluginPermissionEnforcer.has(plugin = p, permission = PluginPermission.RENDER_READ_RESOURCES) shouldBe true
         }
 
         // ── require() ─────────────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ class PluginPermissionEnforcerTest :
         "require() passes without exception when permission is declared" {
             val p = plugin(PluginPermission.FS_WRITE)
             shouldNotThrow<PluginPermissionDeniedException> {
-                PluginPermissionEnforcer.require(p, PluginPermission.FS_WRITE)
+                PluginPermissionEnforcer.require(plugin = p, permission = PluginPermission.FS_WRITE)
             }
         }
 
@@ -63,7 +63,7 @@ class PluginPermissionEnforcerTest :
             val p = plugin(PluginPermission.FS_READ)
             val ex =
                 shouldThrow<PluginPermissionDeniedException> {
-                    PluginPermissionEnforcer.require(p, PluginPermission.FS_WRITE)
+                    PluginPermissionEnforcer.require(plugin = p, permission = PluginPermission.FS_WRITE)
                 }
             ex.pluginId shouldBe "test.plugin"
             ex.requiredPermission shouldBe PluginPermission.FS_WRITE
@@ -73,7 +73,7 @@ class PluginPermissionEnforcerTest :
             val p = plugin()
             val ex =
                 shouldThrow<PluginPermissionDeniedException> {
-                    PluginPermissionEnforcer.require(p, PluginPermission.PROCESS_EXEC)
+                    PluginPermissionEnforcer.require(plugin = p, permission = PluginPermission.PROCESS_EXEC)
                 }
             ex.message!!.contains("test.plugin") shouldBe true
             ex.message!!.contains("PROCESS_EXEC") shouldBe true
@@ -84,7 +84,7 @@ class PluginPermissionEnforcerTest :
         "withPermission() executes block when permission is declared" {
             val p = plugin(PluginPermission.NETWORK_HTTP)
             var executed = false
-            PluginPermissionEnforcer.withPermission(p, PluginPermission.NETWORK_HTTP) {
+            PluginPermissionEnforcer.withPermission(plugin = p, permission = PluginPermission.NETWORK_HTTP) {
                 executed = true
             }
             executed shouldBe true
@@ -92,14 +92,14 @@ class PluginPermissionEnforcerTest :
 
         "withPermission() returns block result when permission is declared" {
             val p = plugin(PluginPermission.FS_READ)
-            val result = PluginPermissionEnforcer.withPermission(p, PluginPermission.FS_READ) { 42 }
+            val result = PluginPermissionEnforcer.withPermission(plugin = p, permission = PluginPermission.FS_READ) { 42 }
             result shouldBe 42
         }
 
         "withPermission() throws when permission is not declared" {
             val p = plugin()
             shouldThrow<PluginPermissionDeniedException> {
-                PluginPermissionEnforcer.withPermission(p, PluginPermission.PROCESS_EXEC) { }
+                PluginPermissionEnforcer.withPermission(plugin = p, permission = PluginPermission.PROCESS_EXEC) { }
             }
         }
 
@@ -107,7 +107,7 @@ class PluginPermissionEnforcerTest :
             val p = plugin()
             var executed = false
             runCatching {
-                PluginPermissionEnforcer.withPermission(p, PluginPermission.FS_WRITE) {
+                PluginPermissionEnforcer.withPermission(plugin = p, permission = PluginPermission.FS_WRITE) {
                     executed = true
                 }
             }
@@ -118,13 +118,13 @@ class PluginPermissionEnforcerTest :
 
         "plugin with multiple permissions: all declared permissions pass has()" {
             val p = plugin(PluginPermission.FS_READ, PluginPermission.FS_WRITE)
-            PluginPermissionEnforcer.has(p, PluginPermission.FS_READ) shouldBe true
-            PluginPermissionEnforcer.has(p, PluginPermission.FS_WRITE) shouldBe true
+            PluginPermissionEnforcer.has(plugin = p, permission = PluginPermission.FS_READ) shouldBe true
+            PluginPermissionEnforcer.has(plugin = p, permission = PluginPermission.FS_WRITE) shouldBe true
         }
 
         "plugin with multiple permissions: undeclared permission still denied" {
             val p = plugin(PluginPermission.FS_READ, PluginPermission.FS_WRITE)
-            PluginPermissionEnforcer.has(p, PluginPermission.NETWORK_HTTP) shouldBe false
+            PluginPermissionEnforcer.has(plugin = p, permission = PluginPermission.NETWORK_HTTP) shouldBe false
         }
 
         "plugin with no permissions is denied all non-trivial permissions" {
@@ -135,7 +135,7 @@ class PluginPermissionEnforcerTest :
                 PluginPermission.NETWORK_HTTP,
                 PluginPermission.PROCESS_EXEC,
             ).forEach { perm ->
-                PluginPermissionEnforcer.has(p, perm) shouldBe false
+                PluginPermissionEnforcer.has(plugin = p, permission = perm) shouldBe false
             }
         }
     })

@@ -53,8 +53,11 @@ class BpmnConversationSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(w + 40f, h + 40f),
-                nodes = mapOf(NodeId(id) to NodeLayout(bounds = Rect(Point(20f, 20f), Size(w, h)))),
+                canvas = Size(width = w + 40f, height = h + 40f),
+                nodes =
+                    mapOf(
+                        NodeId(id) to NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = w, height = h))),
+                    ),
                 edges = emptyMap(),
                 groups = emptyMap(),
             )
@@ -64,8 +67,13 @@ class BpmnConversationSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(140f, 100f),
-                nodes = mapOf(NodeId(name) to NodeLayout(bounds = Rect(Point(20f, 20f), Size(100f, 60f)))),
+                canvas = Size(width = 140f, height = 100f),
+                nodes =
+                    mapOf(
+                        NodeId(
+                            name,
+                        ) to NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 100f, height = 60f))),
+                    ),
                 edges = emptyMap(),
                 groups = emptyMap(),
             )
@@ -79,18 +87,20 @@ class BpmnConversationSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(280f, 100f),
+                canvas = Size(width = 280f, height = 100f),
                 nodes =
                     mapOf(
-                        NodeId(participantName) to NodeLayout(bounds = Rect(Point(20f, 20f), Size(100f, 60f))),
-                        NodeId(nodeId) to NodeLayout(bounds = Rect(Point(180f, 28f), Size(50f, 44f))),
+                        NodeId(participantName) to
+                            NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 100f, height = 60f))),
+                        NodeId(nodeId) to
+                            NodeLayout(bounds = Rect(origin = Point(x = 180f, y = 28f), size = Size(width = 50f, height = 44f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId(linkId) to
                             EdgeRoute.Direct(
-                                source = Point(120f, 50f),
-                                target = Point(180f, 50f),
+                                source = Point(x = 120f, y = 50f),
+                                target = Point(x = 180f, y = 50f),
                             ),
                     ),
                 groups = emptyMap(),
@@ -110,7 +120,7 @@ class BpmnConversationSvgTest :
             val conv = BpmnConversation(id = "conv1", participants = listOf("A", "B"), nodes = listOf(node))
             val (model, diagram) = modelAndDiagram(conv)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleNodeLayout("n1"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleNodeLayout("n1"), theme = PlainTheme())
 
             svg shouldContain "<polygon"
             svg shouldContain "points="
@@ -121,7 +131,7 @@ class BpmnConversationSvgTest :
             val conv = BpmnConversation(id = "conv1", participants = listOf("A", "B"), nodes = listOf(node))
             val (model, diagram) = modelAndDiagram(conv)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleNodeLayout("n1"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleNodeLayout("n1"), theme = PlainTheme())
 
             // Exactly 6 point-pairs in the polygon points attribute
             val polygonMatch = Regex("""points="([^"]+)"""").find(svg)
@@ -140,7 +150,7 @@ class BpmnConversationSvgTest :
             val conv = BpmnConversation(id = "conv1", participants = listOf("A", "B"), nodes = listOf(node))
             val (model, diagram) = modelAndDiagram(conv)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleNodeLayout("n1"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleNodeLayout("n1"), theme = PlainTheme())
 
             svg shouldContain "Bestellung"
         }
@@ -151,7 +161,7 @@ class BpmnConversationSvgTest :
             val conv = BpmnConversation(id = "conv1", participants = listOf("A", "B"), nodes = listOf(node))
             val (model, diagram) = modelAndDiagram(conv)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleNodeLayout("n1"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleNodeLayout("n1"), theme = PlainTheme())
 
             val occurrences = svg.split("Bestellg").size - 1
             assert(occurrences == 1) { "Kurzes Label darf nur einmal im SVG erscheinen, gefunden: $occurrences" }
@@ -163,7 +173,7 @@ class BpmnConversationSvgTest :
             val conv = BpmnConversation(id = "conv1", participants = listOf("A", "B"), nodes = listOf(node))
             val (model, diagram) = modelAndDiagram(conv)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleNodeLayout("n1"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleNodeLayout("n1"), theme = PlainTheme())
 
             val occurrences = svg.split("Mitgliedsantrag").size - 1
             assert(occurrences == 1) {
@@ -176,7 +186,7 @@ class BpmnConversationSvgTest :
             val conv = BpmnConversation(id = "conv1", participants = listOf("A", "B"), nodes = listOf(node))
             val (model, diagram) = modelAndDiagram(conv)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleNodeLayout("n1"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleNodeLayout("n1"), theme = PlainTheme())
 
             svg shouldContain "stroke-width=\"1.5\""
         }
@@ -194,7 +204,7 @@ class BpmnConversationSvgTest :
             val conv = BpmnConversation(id = "conv1", participants = listOf("A", "B"), nodes = listOf(node))
             val (model, diagram) = modelAndDiagram(conv)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleNodeLayout("cc1"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleNodeLayout("cc1"), theme = PlainTheme())
 
             svg shouldContain "<polygon"
             svg shouldContain "stroke-width=\"3\""
@@ -207,7 +217,7 @@ class BpmnConversationSvgTest :
             val conv = BpmnConversation(id = "conv1", participants = listOf("A", "B"), nodes = listOf(node))
             val (model, diagram) = modelAndDiagram(conv)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleNodeLayout("sc1"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleNodeLayout("sc1"), theme = PlainTheme())
 
             svg shouldContain "<polygon"
             // +-Marker: horizontale und vertikale Linie
@@ -228,7 +238,7 @@ class BpmnConversationSvgTest :
             val diagram = ConversationDiagram(name = "D", conversationId = "conv1")
 
             val layout = participantLayout("Kunde")
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "<rect"
             svg shouldContain "Kunde"
@@ -245,7 +255,7 @@ class BpmnConversationSvgTest :
             val diagram = ConversationDiagram(name = "D", conversationId = "conv1")
 
             val layout = participantLayout("Partner")
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "font-weight=\"bold\""
         }
@@ -271,7 +281,7 @@ class BpmnConversationSvgTest :
             val diagram = ConversationDiagram(name = "D", conversationId = "conv1")
 
             val layout = twoNodeOneEdgeLayout("Kunde", "n1", "link1")
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // Link muss als Pfad vorhanden sein
             svg shouldContain "<path"
@@ -302,7 +312,7 @@ class BpmnConversationSvgTest :
             val diagram = ConversationDiagram(name = "D", conversationId = "conv1")
 
             val layout = twoNodeOneEdgeLayout("A", "n1", "link1")
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "Vertrag"
         }
@@ -337,26 +347,31 @@ class BpmnConversationSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(500f, 200f),
+                    canvas = Size(width = 500f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId(p1) to NodeLayout(bounds = Rect(Point(20f, 70f), Size(100f, 60f))),
-                            NodeId(p2) to NodeLayout(bounds = Rect(Point(200f, 70f), Size(100f, 60f))),
-                            NodeId(p3) to NodeLayout(bounds = Rect(Point(380f, 70f), Size(100f, 60f))),
-                            NodeId("n1") to NodeLayout(bounds = Rect(Point(100f, 78f), Size(50f, 44f))),
-                            NodeId("n2") to NodeLayout(bounds = Rect(Point(300f, 78f), Size(50f, 44f))),
+                            NodeId(p1) to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 70f), size = Size(width = 100f, height = 60f))),
+                            NodeId(p2) to
+                                NodeLayout(bounds = Rect(origin = Point(x = 200f, y = 70f), size = Size(width = 100f, height = 60f))),
+                            NodeId(p3) to
+                                NodeLayout(bounds = Rect(origin = Point(x = 380f, y = 70f), size = Size(width = 100f, height = 60f))),
+                            NodeId("n1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 100f, y = 78f), size = Size(width = 50f, height = 44f))),
+                            NodeId("n2") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 300f, y = 78f), size = Size(width = 50f, height = 44f))),
                         ),
                     edges =
                         mapOf(
-                            EdgeId("l1") to EdgeRoute.Direct(Point(70f, 100f), Point(100f, 100f)),
-                            EdgeId("l2") to EdgeRoute.Direct(Point(200f, 100f), Point(150f, 100f)),
-                            EdgeId("l3") to EdgeRoute.Direct(Point(300f, 100f), Point(350f, 100f)),
-                            EdgeId("l4") to EdgeRoute.Direct(Point(380f, 100f), Point(350f, 100f)),
+                            EdgeId("l1") to EdgeRoute.Direct(source = Point(x = 70f, y = 100f), target = Point(x = 100f, y = 100f)),
+                            EdgeId("l2") to EdgeRoute.Direct(source = Point(x = 200f, y = 100f), target = Point(x = 150f, y = 100f)),
+                            EdgeId("l3") to EdgeRoute.Direct(source = Point(x = 300f, y = 100f), target = Point(x = 350f, y = 100f)),
+                            EdgeId("l4") to EdgeRoute.Direct(source = Point(x = 380f, y = 100f), target = Point(x = 350f, y = 100f)),
                         ),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // SVG-Grundstruktur
             svg shouldContain "<svg"
@@ -376,7 +391,7 @@ class BpmnConversationSvgTest :
             svg shouldContain "PdV-Kommunikation"
 
             // PNG-Sample-Output für visuelle Inspektion
-            SampleOutput.write("bpmn/conversation-pdv-kommunikation.svg", svg)
+            SampleOutput.write(filename = "bpmn/conversation-pdv-kommunikation.svg", content = svg)
         }
 
         // ── Robustheit ────────────────────────────────────────────────────────────
@@ -389,13 +404,13 @@ class BpmnConversationSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(100f, 100f),
+                    canvas = Size(width = 100f, height = 100f),
                     nodes = emptyMap(),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "<svg"
         }

@@ -27,7 +27,7 @@ public class Eip712Verifier {
         signature: ByteArray,
         expectedAddress: String,
     ): Boolean {
-        val recovered = recoverAddress(digest, signature) ?: return false
+        val recovered = recoverAddress(digest = digest, signature = signature) ?: return false
         val expected = expectedAddress.removePrefix("0x").removePrefix("0X").lowercase()
         return recovered.removePrefix("0x") == expected
     }
@@ -39,8 +39,8 @@ public class Eip712Verifier {
         signature: ByteArray,
         expectedAddress: String,
     ): Boolean {
-        val digest = eip712Digest(domainSeparator, structHash)
-        return verify(digest, signature, expectedAddress)
+        val digest = eip712Digest(domainSeparator = domainSeparator, structHash = structHash)
+        return verify(digest = digest, signature = signature, expectedAddress = expectedAddress)
     }
 
     /**
@@ -61,7 +61,7 @@ public class Eip712Verifier {
                 28, 1 -> 1
                 else -> return null
             }
-        val pubKey = Secp256k1.ecRecover(digest, r, s, v) ?: return null
+        val pubKey = Secp256k1.ecRecover(digest = digest, r = r, s = s, recId = v) ?: return null
         return "0x" + addressFromPublicKey(pubKey)
     }
 
@@ -83,7 +83,7 @@ public class Eip712Verifier {
         sig: ModelSignature,
     ): Boolean =
         try {
-            ModelSigner().recover(modelSource, sig).equals(sig.signer, ignoreCase = true)
+            ModelSigner().recover(modelSource = modelSource, sig = sig).equals(sig.signer, ignoreCase = true)
         } catch (_: IllegalArgumentException) {
             false
         }
@@ -277,7 +277,7 @@ internal object Keccak256 {
                 bc[i] = state[i] xor state[i + 5] xor state[i + 10] xor state[i + 15] xor state[i + 20]
             }
             for (i in 0 until 5) {
-                val t = bc[(i + 4) % 5] xor rotL(bc[(i + 1) % 5], 1)
+                val t = bc[(i + 4) % 5] xor rotL(v = bc[(i + 1) % 5], n = 1)
                 for (j in 0 until 5) {
                     state[i + j * 5] = state[i + j * 5] xor t
                 }
@@ -288,7 +288,7 @@ internal object Keccak256 {
             for (i in 0 until 24) {
                 val j = PI[i]
                 val cur = state[j]
-                state[j] = rotL(last, ROT[i])
+                state[j] = rotL(v = last, n = ROT[i])
                 last = cur
             }
 
@@ -330,7 +330,7 @@ internal object Secp256k1 {
         val y: BigInteger,
     ) {
         companion object {
-            val INFINITY = Point(BigInteger.ZERO, BigInteger.ZERO)
+            val INFINITY = Point(x = BigInteger.ZERO, y = BigInteger.ZERO)
         }
 
         val isInfinity: Boolean get() = x == BigInteger.ZERO && y == BigInteger.ZERO
@@ -352,7 +352,7 @@ internal object Secp256k1 {
             val lam = num.multiply(den.modInverse(P)).mod(P)
             val rx = lam.multiply(lam).subtract(TWO.multiply(p.x)).mod(P)
             val ry = lam.multiply(p.x.subtract(rx)).subtract(p.y).mod(P)
-            return Point(rx, ry)
+            return Point(x = rx, y = ry)
         }
         // Addition: λ = (y2 - y1) / (x2 - x1) mod P
         val num = q.y.subtract(p.y).mod(P)
@@ -365,7 +365,7 @@ internal object Secp256k1 {
                 .subtract(q.x)
                 .mod(P)
         val ry = lam.multiply(p.x.subtract(rx)).subtract(p.y).mod(P)
-        return Point(rx, ry)
+        return Point(x = rx, y = ry)
     }
 
     private fun scalarMul(
@@ -376,8 +376,8 @@ internal object Secp256k1 {
         var addend = pt
         var scalar = k.mod(N)
         while (scalar > BigInteger.ZERO) {
-            if (scalar.testBit(0)) result = pointAdd(result, addend)
-            addend = pointAdd(addend, addend)
+            if (scalar.testBit(0)) result = pointAdd(p = result, q = addend)
+            addend = pointAdd(p = addend, q = addend)
             scalar = scalar.shiftRight(1)
         }
         return result
@@ -410,7 +410,7 @@ internal object Secp256k1 {
      * `internal` — used by [ModelSigner] to derive the signer address from the private key.
      */
     internal fun publicKeyPoint(d: BigInteger): Pair<BigInteger, BigInteger> {
-        val pt = scalarMul(d, Point(Gx, Gy))
+        val pt = scalarMul(k = d, pt = Point(x = Gx, y = Gy))
         return Pair(pt.x, pt.y)
     }
 
@@ -440,18 +440,18 @@ internal object Secp256k1 {
         val x = r.add(BigInteger.valueOf((recId / 2).toLong()).multiply(N))
         if (x >= P) return null
 
-        val y = yFromX(x, recId and 1) ?: return null
-        val rPoint = Point(x, y)
+        val y = yFromX(x = x, yParity = recId and 1) ?: return null
+        val rPoint = Point(x = x, y = y)
 
         val e = BigInteger(1, digest)
         val rInv = r.modInverse(N)
 
         // Q = r^-1 * (s*R - e*G)
-        val sR = scalarMul(s, rPoint)
-        val eG = scalarMul(e, Point(Gx, Gy))
+        val sR = scalarMul(k = s, pt = rPoint)
+        val eG = scalarMul(k = e, pt = Point(x = Gx, y = Gy))
         // eG negated: (eGx, P - eGy)
-        val negEG = if (eG.isInfinity) Point.INFINITY else Point(eG.x, P.subtract(eG.y))
-        val q = scalarMul(rInv, pointAdd(sR, negEG))
+        val negEG = if (eG.isInfinity) Point.INFINITY else Point(x = eG.x, y = P.subtract(eG.y))
+        val q = scalarMul(k = rInv, pt = pointAdd(p = sR, q = negEG))
 
         if (q.isInfinity) return null
 
@@ -501,11 +501,11 @@ internal object Secp256k1 {
     ): Triple<BigInteger, BigInteger, Int> {
         require(d > BigInteger.ZERO && d < N) { "private key out of range" }
         val e = BigInteger(1, digest)
-        val kGen = rfc6979KSequence(digest, d)
+        val kGen = rfc6979KSequence(digest = digest, d = d)
         while (true) {
             val k = kGen.next()
             if (k <= BigInteger.ZERO || k >= N) continue
-            val rPoint = scalarMul(k, Point(Gx, Gy))
+            val rPoint = scalarMul(k = k, pt = Point(x = Gx, y = Gy))
             val r = rPoint.x.mod(N)
             if (r == BigInteger.ZERO) continue
             var s = k.modInverse(N).multiply(e.add(d.multiply(r))).mod(N)
@@ -547,13 +547,13 @@ internal object Secp256k1 {
         var k = ByteArray(qLen) { 0x00.toByte() }
 
         // §3.2c: K = HMAC_K(V || 0x00 || int2octets(d) || bits2octets(h1))
-        k = hmacSha256(k, v, byteArrayOf(0x00), dBytes, hBytes)
+        k = hmacSha256(key = k, v, byteArrayOf(0x00), dBytes, hBytes)
         // §3.2d: V = HMAC_K(V)
-        v = hmacSha256(k, v)
+        v = hmacSha256(key = k, v)
         // §3.2e: K = HMAC_K(V || 0x01 || int2octets(d) || bits2octets(h1))
-        k = hmacSha256(k, v, byteArrayOf(0x01), dBytes, hBytes)
+        k = hmacSha256(key = k, v, byteArrayOf(0x01), dBytes, hBytes)
         // §3.2f: V = HMAC_K(V)
-        v = hmacSha256(k, v)
+        v = hmacSha256(key = k, v)
 
         return object : Iterator<BigInteger> {
             // Copies of mutable k/v captured from outer scope — updated per §3.2h
@@ -567,15 +567,15 @@ internal object Secp256k1 {
                 val t = ByteArray(qLen)
                 var tLen = 0
                 while (tLen < qLen) {
-                    vState = hmacSha256(kState, vState)
+                    vState = hmacSha256(key = kState, vState)
                     val copyLen = minOf(vState.size, qLen - tLen)
                     vState.copyInto(t, tLen, 0, copyLen)
                     tLen += copyLen
                 }
                 val candidate = BigInteger(1, t)
                 // §3.2h.3: update K and V for potential next iteration
-                kState = hmacSha256(kState, vState, byteArrayOf(0x00))
-                vState = hmacSha256(kState, vState)
+                kState = hmacSha256(key = kState, vState, byteArrayOf(0x00))
+                vState = hmacSha256(key = kState, vState)
                 return candidate
             }
         }

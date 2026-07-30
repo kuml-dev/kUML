@@ -55,7 +55,7 @@ public object ApngEncoder {
         val firstChunks = parsePngChunks(frames[0])
         val ihdr =
             firstChunks.firstOrNull { it.typeString == "IHDR" }
-                ?: throw AnimEncoderException("First frame does not contain an IHDR chunk")
+                ?: throw AnimEncoderException(message = "First frame does not contain an IHDR chunk")
         val width = ihdr.data.readInt(0)
         val height = ihdr.data.readInt(4)
 
@@ -63,18 +63,18 @@ public object ApngEncoder {
         out.write(ihdr.toBytes())
 
         // acTL — animation control chunk
-        out.write(buildActl(frames.size, numPlays))
+        out.write(buildActl(numFrames = frames.size, numPlays = numPlays))
 
         for ((i, framePng) in frames.withIndex()) {
             val chunks = if (i == 0) firstChunks else parsePngChunks(framePng)
 
             // fcTL — frame control chunk (sequence number increments for each chunk)
-            out.write(buildFctl(seqNo++, width, height, delayMs))
+            out.write(buildFctl(seqNo = seqNo++, width = width, height = height, delayMs = delayMs))
 
             // IDAT for frame 0, fdAT for frame 1+
             val idatChunks = chunks.filter { it.typeString == "IDAT" }
             if (idatChunks.isEmpty()) {
-                throw AnimEncoderException("Frame $i has no IDAT chunk")
+                throw AnimEncoderException(message = "Frame $i has no IDAT chunk")
             }
 
             if (i == 0) {
@@ -85,7 +85,7 @@ public object ApngEncoder {
             } else {
                 // Subsequent frames: wrap each IDAT payload in fdAT
                 for (idat in idatChunks) {
-                    out.write(buildFdat(seqNo++, idat.data))
+                    out.write(buildFdat(seqNo = seqNo++, idatPayload = idat.data))
                 }
             }
         }
@@ -104,7 +104,7 @@ public object ApngEncoder {
         val data = ByteArrayOutputStream(8)
         data.writeInt(numFrames)
         data.writeInt(numPlays)
-        return PngChunk(chunkType("acTL"), data.toByteArray()).toBytes()
+        return PngChunk(type = chunkType("acTL"), data = data.toByteArray()).toBytes()
     }
 
     /** Build an fcTL (frame control) chunk. delay_den=1000 so delay_num is milliseconds. */
@@ -128,7 +128,7 @@ public object ApngEncoder {
         data.write(0xE8) // delay_den low byte
         data.write(DISPOSE_OP_NONE.toInt())
         data.write(BLEND_OP_SOURCE.toInt())
-        return PngChunk(chunkType("fcTL"), data.toByteArray()).toBytes()
+        return PngChunk(type = chunkType("fcTL"), data = data.toByteArray()).toBytes()
     }
 
     /** Build an fdAT (frame data) chunk wrapping raw IDAT payload bytes. */
@@ -139,9 +139,9 @@ public object ApngEncoder {
         val data = ByteArrayOutputStream(4 + idatPayload.size)
         data.writeInt(seqNo)
         data.write(idatPayload)
-        return PngChunk(chunkType("fdAT"), data.toByteArray()).toBytes()
+        return PngChunk(type = chunkType("fdAT"), data = data.toByteArray()).toBytes()
     }
 
     /** Build an IEND chunk. */
-    private fun buildIend(): ByteArray = PngChunk(chunkType("IEND"), ByteArray(0)).toBytes()
+    private fun buildIend(): ByteArray = PngChunk(type = chunkType("IEND"), data = ByteArray(0)).toBytes()
 }

@@ -29,14 +29,14 @@ class UmlToK8sTransformerTest :
         // ── Tests ─────────────────────────────────────────────────────────────────
 
         test("single component produces one deployment.yaml file") {
-            val result = transformer.transform(diagram(component("svc", "OrderService")), ctx)
+            val result = transformer.transform(source = diagram(component("svc", "OrderService")), ctx = ctx)
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             files shouldHaveSize 1
             files[0].relativePath shouldBe "order-service/deployment.yaml"
         }
 
         test("component name is converted to kebab-case in Deployment metadata") {
-            val result = transformer.transform(diagram(component("svc", "OrderService")), ctx)
+            val result = transformer.transform(source = diagram(component("svc", "OrderService")), ctx = ctx)
             val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
             content shouldContain "  name: order-service"
             content shouldContain "    app: order-service"
@@ -44,35 +44,35 @@ class UmlToK8sTransformerTest :
 
         test("replicas option overrides default value of 1") {
             val customCtx = TransformContext(options = mapOf("replicas" to "3"))
-            val result = transformer.transform(diagram(component("svc", "OrderService")), customCtx)
+            val result = transformer.transform(source = diagram(component("svc", "OrderService")), ctx = customCtx)
             val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
             content shouldContain "  replicas: 3"
         }
 
         test("namespace option appears in Deployment and Service metadata") {
             val customCtx = TransformContext(options = mapOf("namespace" to "production"))
-            val result = transformer.transform(diagram(component("svc", "PaymentService")), customCtx)
+            val result = transformer.transform(source = diagram(component("svc", "PaymentService")), ctx = customCtx)
             val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
             content shouldContain "  namespace: production"
         }
 
         test("imageRegistry option prefixes the container image name") {
             val customCtx = TransformContext(options = mapOf("imageRegistry" to "registry.example.com"))
-            val result = transformer.transform(diagram(component("svc", "OrderService")), customCtx)
+            val result = transformer.transform(source = diagram(component("svc", "OrderService")), ctx = customCtx)
             val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
             content shouldContain "          image: registry.example.com/order-service:latest"
         }
 
         test("containerPort reflects port option") {
             val customCtx = TransformContext(options = mapOf("port" to "9090"))
-            val result = transformer.transform(diagram(component("svc", "OrderService")), customCtx)
+            val result = transformer.transform(source = diagram(component("svc", "OrderService")), ctx = customCtx)
             val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
             content shouldContain "            - containerPort: 9090"
             content shouldContain "      targetPort: 9090"
         }
 
         test("Service selector matches Deployment labels") {
-            val result = transformer.transform(diagram(component("svc", "OrderService")), ctx)
+            val result = transformer.transform(source = diagram(component("svc", "OrderService")), ctx = ctx)
             val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
             // Both Deployment matchLabels and Service selector share the same app label
             content shouldContain "      app: order-service"
@@ -91,11 +91,12 @@ class UmlToK8sTransformerTest :
         test("two-component diagram produces two separate files") {
             val result =
                 transformer.transform(
-                    diagram(
-                        component("svc1", "OrderService"),
-                        component("svc2", "PaymentService"),
-                    ),
-                    ctx,
+                    source =
+                        diagram(
+                            component("svc1", "OrderService"),
+                            component("svc2", "PaymentService"),
+                        ),
+                    ctx = ctx,
                 )
             val files = (result as TransformResult.Success<List<GeneratedFile>>).output
             files shouldHaveSize 2
@@ -104,7 +105,7 @@ class UmlToK8sTransformerTest :
         }
 
         test("empty diagram produces no files") {
-            val result = transformer.transform(KumlDiagram(name = "Empty", elements = emptyList()), ctx)
+            val result = transformer.transform(source = KumlDiagram(name = "Empty", elements = emptyList()), ctx = ctx)
             val files = (result as TransformResult.Success<List<GeneratedFile>>).output
             files shouldHaveSize 0
         }
@@ -114,7 +115,7 @@ class UmlToK8sTransformerTest :
         }
 
         test("generated YAML starts with apiVersion apps/v1") {
-            val result = transformer.transform(diagram(component("svc", "MyService")), ctx)
+            val result = transformer.transform(source = diagram(component("svc", "MyService")), ctx = ctx)
             val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
             content shouldStartWith "apiVersion: apps/v1"
         }

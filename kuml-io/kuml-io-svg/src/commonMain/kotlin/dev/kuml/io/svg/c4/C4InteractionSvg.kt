@@ -56,11 +56,11 @@ internal fun renderC4Interaction(
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     val edgeClass = if (interaction.response) "kuml-edge kuml-edge-dashed" else "kuml-edge"
-    builder.tag(tag, attrs + mapOf("class" to edgeClass))
+    builder.tag(name = tag, attrs = attrs + mapOf("class" to edgeClass))
 
     val (arrowFrom, arrowTip) = route.arrowDirection()
     val style = if (interaction.response) ArrowStyle.OPEN_MUTED else ArrowStyle.OPEN
-    renderInlineArrow(arrowFrom, arrowTip, style, theme, builder)
+    renderInlineArrow(from = arrowFrom, tip = arrowTip, style = style, theme = theme, builder = builder)
 
     val label =
         buildString {
@@ -79,7 +79,7 @@ internal fun renderC4Interaction(
     // horizontal-vs-vertikal flippen, was die Quer-Offsets durcheinander
     // bringt.
     val fraction = if (interaction.response) 0.55f else 0.45f
-    val anchor = EdgeLabelGeometry.anchorAt(route, fraction)
+    val anchor = EdgeLabelGeometry.anchorAt(route = route, fraction = fraction)
 
     // Quer-Versatz: Side-Swap nach Response-Flag.
     val (x, y, textAnchor) =
@@ -103,5 +103,5 @@ internal fun renderC4Interaction(
                     Triple(anchor.x + 10f, anchor.y + 4f, "start")
                 }
         }
-    builder.renderEdgeLabelWithHalo(label, x, y, textAnchor)
+    builder.renderEdgeLabelWithHalo(label = label, x = x, y = y, textAnchor = textAnchor)
 }

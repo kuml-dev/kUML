@@ -13,7 +13,7 @@ class ProfileBuilderTest :
 
         "profile() builds with correct name and namespace" {
             val p =
-                profile("MyProfile") {
+                profile(name = "MyProfile") {
                     namespace = "dev.example.test"
                 }
             p.name shouldBe "MyProfile"
@@ -22,12 +22,12 @@ class ProfileBuilderTest :
 
         "stereotype with extends and properties is built correctly" {
             val p =
-                profile("EntityProfile") {
+                profile(name = "EntityProfile") {
                     namespace = "dev.example.entity"
-                    stereotype("Entity") {
+                    stereotype(name = "Entity") {
                         extends(UmlMetaclass.Class)
-                        property<String>("tableName")
-                        property<Boolean>("cacheable") { default = false }
+                        property<String>(name = "tableName")
+                        property<Boolean>(name = "cacheable") { default = false }
                     }
                 }
             val s = p.stereotype("Entity")!!
@@ -40,9 +40,9 @@ class ProfileBuilderTest :
         "stereotype without extends throws clear error" {
             val ex =
                 shouldThrow<IllegalStateException> {
-                    profile("Bad") {
+                    profile(name = "Bad") {
                         namespace = "dev.example.bad"
-                        stereotype("NoTarget") {
+                        stereotype(name = "NoTarget") {
                             // no extends(...)
                         }
                     }
@@ -53,7 +53,7 @@ class ProfileBuilderTest :
         "profile without namespace throws" {
             val ex =
                 shouldThrow<IllegalArgumentException> {
-                    profile("NoNs") {
+                    profile(name = "NoNs") {
                         // namespace intentionally not set
                     }
                 }
@@ -63,10 +63,10 @@ class ProfileBuilderTest :
         "duplicate stereotype names throw" {
             val ex =
                 shouldThrow<IllegalArgumentException> {
-                    profile("Dup") {
+                    profile(name = "Dup") {
                         namespace = "dev.example.dup"
-                        stereotype("Entity") { extends(UmlMetaclass.Class) }
-                        stereotype("Entity") { extends(UmlMetaclass.Interface) }
+                        stereotype(name = "Entity") { extends(UmlMetaclass.Class) }
+                        stereotype(name = "Entity") { extends(UmlMetaclass.Interface) }
                     }
                 }
             ex.message shouldContain "duplicate stereotype names"
@@ -74,12 +74,12 @@ class ProfileBuilderTest :
 
         "profile extends another profile by object reference" {
             val base =
-                profile("Base") {
+                profile(name = "Base") {
                     namespace = "dev.example.base"
-                    stereotype("Base") { extends(UmlMetaclass.Class) }
+                    stereotype(name = "Base") { extends(UmlMetaclass.Class) }
                 }
             val child =
-                profile("Child") {
+                profile(name = "Child") {
                     namespace = "dev.example.child"
                     extends(base)
                 }
@@ -88,7 +88,7 @@ class ProfileBuilderTest :
 
         "profile extends another profile by namespace string" {
             val child =
-                profile("Child") {
+                profile(name = "Child") {
                     namespace = "dev.example.child2"
                     extends("dev.example.base")
                 }
@@ -98,9 +98,9 @@ class ProfileBuilderTest :
         "specializes without matching parent in same profile and no extends throws" {
             val ex =
                 shouldThrow<IllegalStateException> {
-                    profile("Spec") {
+                    profile(name = "Spec") {
                         namespace = "dev.example.spec"
-                        stereotype("Child") {
+                        stereotype(name = "Child") {
                             extends(UmlMetaclass.Class)
                             specializes = "NonExistentParent"
                         }
@@ -115,11 +115,11 @@ class ProfileBuilderTest :
             )
             val ex =
                 shouldThrow<IllegalArgumentException> {
-                    profile("Bad") {
+                    profile(name = "Bad") {
                         namespace = "dev.example.bad2"
-                        stereotype("Entity") {
+                        stereotype(name = "Entity") {
                             extends(UmlMetaclass.Class)
-                            property<AnyClass>("illegal")
+                            property<AnyClass>(name = "illegal")
                         }
                     }
                 }
@@ -128,9 +128,9 @@ class ProfileBuilderTest :
 
         "stereotype() returns null for unknown name" {
             val p =
-                profile("P") {
+                profile(name = "P") {
                     namespace = "dev.example.p"
-                    stereotype("A") { extends(UmlMetaclass.Class) }
+                    stereotype(name = "A") { extends(UmlMetaclass.Class) }
                 }
             p.stereotype("Unknown") shouldBe null
         }
@@ -139,9 +139,9 @@ class ProfileBuilderTest :
 
         "UmlMetaclass.Collaboration is a valid extends target for a profile stereotype" {
             val p =
-                profile("SoaML") {
+                profile(name = "SoaML") {
                     namespace = "dev.soaml.test"
-                    stereotype("ServiceContract") {
+                    stereotype(name = "ServiceContract") {
                         extends(UmlMetaclass.Collaboration)
                     }
                 }
@@ -152,11 +152,11 @@ class ProfileBuilderTest :
 
         "profile with multiple stereotypes on different metaclasses" {
             val p =
-                profile("Multi") {
+                profile(name = "Multi") {
                     namespace = "dev.example.multi"
-                    stereotype("OnClass") { extends(UmlMetaclass.Class) }
-                    stereotype("OnInterface") { extends(UmlMetaclass.Interface) }
-                    stereotype("OnOperation") { extends(UmlMetaclass.Operation) }
+                    stereotype(name = "OnClass") { extends(UmlMetaclass.Class) }
+                    stereotype(name = "OnInterface") { extends(UmlMetaclass.Interface) }
+                    stereotype(name = "OnOperation") { extends(UmlMetaclass.Operation) }
                 }
             p.stereotypes shouldHaveSize 3
             p.stereotypes.map { it.targetMetaclass } shouldContainExactlyInAnyOrder

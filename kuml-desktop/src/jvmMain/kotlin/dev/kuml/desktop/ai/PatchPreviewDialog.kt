@@ -124,8 +124,8 @@ private fun PatchPreviewCard(
             Spacer(Modifier.height(8.dp))
             // Before / After
             Row(Modifier.fillMaxWidth().height(160.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DiffBox("Vorher", view.diff.before.text, Modifier.weight(1f))
-                DiffBox("Nachher", view.diff.after.text, Modifier.weight(1f))
+                DiffBox(label = "Vorher", text = view.diff.before.text, modifier = Modifier.weight(1f))
+                DiffBox(label = "Nachher", text = view.diff.after.text, modifier = Modifier.weight(1f))
             }
             // Element changes
             if (view.diff.elementChanges.isNotEmpty()) {

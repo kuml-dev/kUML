@@ -27,35 +27,35 @@ public enum class AutosarAdaptiveKind {
  * Reference: AUTOSAR Adaptive Platform R23-11
  */
 public val autosarAdaptiveProfile: KumlProfile =
-    profile("AUTOSAR-Adaptive") {
+    profile(name = "AUTOSAR-Adaptive") {
         namespace = "dev.kuml.profiles.autosar.adaptive"
         description = "AUTOSAR Adaptive Platform Software Components, Machines, Services and Manifests"
         version = "1.0.0"
 
         // ── Adaptive Application Software Component ───────────────────────────
 
-        stereotype("AdaptiveApplication") {
+        stereotype(name = "AdaptiveApplication") {
             extends(UmlMetaclass.Component)
-            property<String>("appName") { default = "" }
+            property<String>(name = "appName") { default = "" }
         }
 
         // ── Machine Design ────────────────────────────────────────────────────
 
-        stereotype("Machine") {
+        stereotype(name = "Machine") {
             extends(UmlMetaclass.Component)
         }
 
         // ── Service Instance ──────────────────────────────────────────────────
 
-        stereotype("ServiceInstance") {
+        stereotype(name = "ServiceInstance") {
             extends(UmlMetaclass.Component)
-            property<String>("instanceId") { default = "" }
+            property<String>(name = "instanceId") { default = "" }
         }
 
         // ── Manifest (Service or Machine) ─────────────────────────────────────
 
-        stereotype("Manifest") {
+        stereotype(name = "Manifest") {
             extends(UmlMetaclass.Class)
-            property<String>("manifestKind") { default = "service" }
+            property<String>(name = "manifestKind") { default = "service" }
         }
     }

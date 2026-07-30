@@ -59,7 +59,7 @@ class ActivitySnapshotTest :
                     ),
             )
 
-        val runtimeV1 = ActivityRuntime(specV1)
+        val runtimeV1 = ActivityRuntime(spec = specV1)
 
         val modelId = "TestActivity"
 
@@ -69,8 +69,8 @@ class ActivitySnapshotTest :
             // Use an intermediate instance with tokens
             val instanceWithToken = ActivityInstance(tokenCounts = mapOf("n_action" to 1), clock = 3L)
 
-            val currentFingerprint = fingerprintActivity(specV1.nodes.keys, specV1.edges.map { it.id }.toSet())
-            val snap = runtimeV1.snapshotFull(instanceWithToken, modelId, currentFingerprint)
+            val currentFingerprint = fingerprintActivity(nodeIds = specV1.nodes.keys, edgeIds = specV1.edges.map { it.id }.toSet())
+            val snap = runtimeV1.snapshotFull(instance = instanceWithToken, modelId = modelId, modelFingerprint = currentFingerprint)
 
             snap.modelId shouldBe modelId
             snap.schemaVersion shouldBe 1
@@ -81,21 +81,21 @@ class ActivitySnapshotTest :
 
         test("restoreFrom rejects modified model under Reject policy") {
             val instanceWithToken = ActivityInstance(tokenCounts = mapOf("n_action" to 1), clock = 2L)
-            val fingerprintV1 = fingerprintActivity(specV1.nodes.keys, specV1.edges.map { it.id }.toSet())
-            val snap = runtimeV1.snapshotFull(instanceWithToken, modelId, fingerprintV1)
+            val fingerprintV1 = fingerprintActivity(nodeIds = specV1.nodes.keys, edgeIds = specV1.edges.map { it.id }.toSet())
+            val snap = runtimeV1.snapshotFull(instance = instanceWithToken, modelId = modelId, modelFingerprint = fingerprintV1)
 
-            val runtimeV2 = ActivityRuntime(specV2WithAddedNode)
+            val runtimeV2 = ActivityRuntime(spec = specV2WithAddedNode)
             shouldThrow<MigrationException> {
-                runtimeV2.restoreFrom(snap, MigrationPolicy.Reject)
+                runtimeV2.restoreFrom(snapshot = snap, policy = MigrationPolicy.Reject)
             }
         }
 
         test("restoreFrom accepts identical model") {
             val instanceWithToken = ActivityInstance(tokenCounts = mapOf("n_action" to 1), clock = 7L)
-            val currentFingerprint = fingerprintActivity(specV1.nodes.keys, specV1.edges.map { it.id }.toSet())
-            val snap = runtimeV1.snapshotFull(instanceWithToken, modelId, currentFingerprint)
+            val currentFingerprint = fingerprintActivity(nodeIds = specV1.nodes.keys, edgeIds = specV1.edges.map { it.id }.toSet())
+            val snap = runtimeV1.snapshotFull(instance = instanceWithToken, modelId = modelId, modelFingerprint = currentFingerprint)
 
-            val restored = runtimeV1.restoreFrom(snap, MigrationPolicy.Reject)
+            val restored = runtimeV1.restoreFrom(snapshot = snap, policy = MigrationPolicy.Reject)
             restored.tokenCounts shouldBe instanceWithToken.tokenCounts
             restored.clock shouldBe 7L
         }

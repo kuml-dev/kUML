@@ -200,7 +200,7 @@ public class C4ToUmlTransformer : KumlTransformer<C4Model, List<GeneratedFile>> 
             }
             sb.appendLine("    }")
             sb.appendLine()
-            trace = trace.plus(TraceabilityLink(entry.id, OUTPUT_PATH, RULE_ELEMENT_TO_CLASS))
+            trace = trace.plus(TraceabilityLink(sourceElementId = entry.id, targetArtifactId = OUTPUT_PATH, ruleId = RULE_ELEMENT_TO_CLASS))
         }
 
         // ── Relationships ─────────────────────────────────────────────────────
@@ -211,7 +211,14 @@ public class C4ToUmlTransformer : KumlTransformer<C4Model, List<GeneratedFile>> 
             val targetVar = idToVarName[rel.target]
             if (sourceVar != null && targetVar != null) {
                 emittedDeps += "    dependency(source = $sourceVar, target = $targetVar)"
-                trace = trace.plus(TraceabilityLink(rel.id, OUTPUT_PATH, RULE_RELATIONSHIP_TO_DEPENDENCY))
+                trace =
+                    trace.plus(
+                        TraceabilityLink(
+                            sourceElementId = rel.id,
+                            targetArtifactId = OUTPUT_PATH,
+                            ruleId = RULE_RELATIONSHIP_TO_DEPENDENCY,
+                        ),
+                    )
             }
             // silently skip when one end is not mapped
         }
@@ -227,9 +234,9 @@ public class C4ToUmlTransformer : KumlTransformer<C4Model, List<GeneratedFile>> 
         sb.appendLine()
 
         val content = sb.toString()
-        val file = GeneratedFile(OUTPUT_PATH, content)
+        val file = GeneratedFile(relativePath = OUTPUT_PATH, content = content)
 
-        return TransformResult.Success(listOf(file), trace)
+        return TransformResult.Success(output = listOf(file), trace = trace)
     }
 
     // ── Name conversion ───────────────────────────────────────────────────────

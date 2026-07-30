@@ -16,9 +16,9 @@ public data class PluginVersion(
         public fun parse(s: String): PluginVersion {
             val parts = s.split('.').map { it.toIntOrNull() ?: 0 }
             return PluginVersion(
-                parts.getOrElse(0) { 0 },
-                parts.getOrElse(1) { 0 },
-                parts.getOrElse(2) { 0 },
+                major = parts.getOrElse(0) { 0 },
+                minor = parts.getOrElse(1) { 0 },
+                patch = parts.getOrElse(2) { 0 },
             )
         }
     }

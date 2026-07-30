@@ -63,7 +63,7 @@ public class ArxmlAdaptiveImporter(
         val warnings = mutableListOf<String>()
         val unresolved = mutableListOf<ImportResult.UnresolvedRef>()
 
-        val detectedVersion = detectVersion(root, warnings)
+        val detectedVersion = detectVersion(root = root, warnings = warnings)
         val arNs = ArxmlSchema.arNamespace(detectedVersion)
 
         // ── PASS 1: path index ────────────────────────────────────────────────
@@ -73,7 +73,7 @@ public class ArxmlAdaptiveImporter(
                 ?: root.getChild(ArxmlSchema.ELEM_AR_PACKAGES, Namespace.NO_NAMESPACE)
 
         if (arPackagesRoot != null) {
-            indexPackages(arPackagesRoot, arNs, "/", pathIndex)
+            indexPackages(arPackagesEl = arPackagesRoot, arNs = arNs, parentPath = "/", index = pathIndex)
         } else {
             warnings.add("No AR-PACKAGES element found in root AUTOSAR Adaptive document")
         }
@@ -81,8 +81,16 @@ public class ArxmlAdaptiveImporter(
         // ── PASS 2: build SysML2 definitions ─────────────────────────────────
         val definitions = mutableListOf<PartDefinition>()
         if (arPackagesRoot != null) {
-            for (pkgEl in arPackagesRoot.getChildrenDual(ArxmlSchema.ELEM_AR_PACKAGE, arNs)) {
-                collectDefinitions(pkgEl, arNs, "/", definitions, pathIndex, warnings, unresolved)
+            for (pkgEl in arPackagesRoot.getChildrenDual(name = ArxmlSchema.ELEM_AR_PACKAGE, ns = arNs)) {
+                collectDefinitions(
+                    pkgEl = pkgEl,
+                    arNs = arNs,
+                    parentPath = "/",
+                    definitions = definitions,
+                    pathIndex = pathIndex,
+                    warnings = warnings,
+                    unresolved = unresolved,
+                )
             }
         }
 
@@ -138,9 +146,9 @@ public class ArxmlAdaptiveImporter(
         parentPath: String,
         index: MutableMap<String, Element>,
     ) {
-        for (pkgEl in arPackagesEl.getChildrenDual(ArxmlSchema.ELEM_AR_PACKAGE, arNs)) {
-            val shortName = pkgEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs) ?: continue
-            val pkgPath = ArxmlPath.append(parentPath, shortName)
+        for (pkgEl in arPackagesEl.getChildrenDual(name = ArxmlSchema.ELEM_AR_PACKAGE, ns = arNs)) {
+            val shortName = pkgEl.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs) ?: continue
+            val pkgPath = ArxmlPath.append(parentPath = parentPath, child = shortName)
             index[pkgPath] = pkgEl
 
             val elementsEl =
@@ -148,8 +156,8 @@ public class ArxmlAdaptiveImporter(
                     ?: pkgEl.getChild(ArxmlSchema.ELEM_ELEMENTS, Namespace.NO_NAMESPACE)
             if (elementsEl != null) {
                 for (child in elementsEl.children) {
-                    val childName = child.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs) ?: continue
-                    index[ArxmlPath.append(pkgPath, childName)] = child
+                    val childName = child.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs) ?: continue
+                    index[ArxmlPath.append(parentPath = pkgPath, child = childName)] = child
                 }
             }
 
@@ -157,7 +165,7 @@ public class ArxmlAdaptiveImporter(
                 pkgEl.getChild(ArxmlSchema.ELEM_AR_PACKAGES, arNs)
                     ?: pkgEl.getChild(ArxmlSchema.ELEM_AR_PACKAGES, Namespace.NO_NAMESPACE)
             if (nestedArPkgs != null) {
-                indexPackages(nestedArPkgs, arNs, pkgPath, index)
+                indexPackages(arPackagesEl = nestedArPkgs, arNs = arNs, parentPath = pkgPath, index = index)
             }
         }
     }
@@ -174,16 +182,24 @@ public class ArxmlAdaptiveImporter(
         warnings: MutableList<String>,
         unresolved: MutableList<ImportResult.UnresolvedRef>,
     ) {
-        val shortName = pkgEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs) ?: "UnnamedPackage"
-        val pkgPath = ArxmlPath.append(parentPath, shortName)
+        val shortName = pkgEl.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs) ?: "UnnamedPackage"
+        val pkgPath = ArxmlPath.append(parentPath = parentPath, child = shortName)
 
         // Recurse into sub-packages
         val nestedArPkgs =
             pkgEl.getChild(ArxmlSchema.ELEM_AR_PACKAGES, arNs)
                 ?: pkgEl.getChild(ArxmlSchema.ELEM_AR_PACKAGES, Namespace.NO_NAMESPACE)
         if (nestedArPkgs != null) {
-            for (subPkg in nestedArPkgs.getChildrenDual(ArxmlSchema.ELEM_AR_PACKAGE, arNs)) {
-                collectDefinitions(subPkg, arNs, pkgPath, definitions, pathIndex, warnings, unresolved)
+            for (subPkg in nestedArPkgs.getChildrenDual(name = ArxmlSchema.ELEM_AR_PACKAGE, ns = arNs)) {
+                collectDefinitions(
+                    pkgEl = subPkg,
+                    arNs = arNs,
+                    parentPath = pkgPath,
+                    definitions = definitions,
+                    pathIndex = pathIndex,
+                    warnings = warnings,
+                    unresolved = unresolved,
+                )
             }
         }
 
@@ -195,19 +211,19 @@ public class ArxmlAdaptiveImporter(
                 val localName = child.name
                 when (localName) {
                     ArxmlSchema.ELEM_SERVICE_INSTANCE ->
-                        definitions.add(buildServiceInstanceDefinition(child, arNs, warnings))
+                        definitions.add(buildServiceInstanceDefinition(el = child, arNs = arNs, warnings = warnings))
 
                     ArxmlSchema.ELEM_ADAPTIVE_APPLICATION_SWC ->
-                        definitions.add(buildAdaptiveApplicationDefinition(child, arNs, warnings))
+                        definitions.add(buildAdaptiveApplicationDefinition(el = child, arNs = arNs, warnings = warnings))
 
                     ArxmlSchema.ELEM_MACHINE_DESIGN ->
-                        definitions.add(buildMachineDefinition(child, arNs, warnings))
+                        definitions.add(buildMachineDefinition(el = child, arNs = arNs, warnings = warnings))
 
                     ArxmlSchema.ELEM_SERVICE_MANIFEST ->
-                        definitions.add(buildManifestDefinition(child, arNs, "service", warnings))
+                        definitions.add(buildManifestDefinition(el = child, arNs = arNs, manifestKind = "service", warnings = warnings))
 
                     ArxmlSchema.ELEM_MACHINE_MANIFEST ->
-                        definitions.add(buildManifestDefinition(child, arNs, "machine", warnings))
+                        definitions.add(buildManifestDefinition(el = child, arNs = arNs, manifestKind = "machine", warnings = warnings))
 
                     ArxmlSchema.ELEM_SHORT_NAME -> { /* handled above */ }
 
@@ -225,7 +241,7 @@ public class ArxmlAdaptiveImporter(
         arNs: Namespace,
         warnings: MutableList<String>,
     ): PartDefinition {
-        val shortName = el.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs)
+        val shortName = el.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs)
         if (shortName == null) {
             warnings.add("SERVICE-INSTANCE element missing SHORT-NAME — assigned placeholder name")
         }
@@ -247,7 +263,7 @@ public class ArxmlAdaptiveImporter(
         arNs: Namespace,
         warnings: MutableList<String>,
     ): PartDefinition {
-        val shortName = el.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs)
+        val shortName = el.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs)
         if (shortName == null) {
             warnings.add(
                 "ADAPTIVE-APPLICATION-SW-COMPONENT-TYPE element missing SHORT-NAME — assigned placeholder name",
@@ -271,7 +287,7 @@ public class ArxmlAdaptiveImporter(
         arNs: Namespace,
         warnings: MutableList<String>,
     ): PartDefinition {
-        val shortName = el.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs)
+        val shortName = el.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs)
         if (shortName == null) {
             warnings.add("MACHINE-DESIGN element missing SHORT-NAME — assigned placeholder name")
         }
@@ -294,7 +310,7 @@ public class ArxmlAdaptiveImporter(
         manifestKind: String,
         warnings: MutableList<String>,
     ): PartDefinition {
-        val shortName = el.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs)
+        val shortName = el.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs)
         if (shortName == null) {
             val elemName = if (manifestKind == "service") ArxmlSchema.ELEM_SERVICE_MANIFEST else ArxmlSchema.ELEM_MACHINE_MANIFEST
             warnings.add("$elemName element missing SHORT-NAME — assigned placeholder name")
@@ -303,7 +319,7 @@ public class ArxmlAdaptiveImporter(
 
         // Collect leaf-value elements as KermlFeatures
         val features = mutableListOf<KermlFeature>()
-        collectManifestLeaves(el, arNs, name, features)
+        collectManifestLeaves(el = el, arNs = arNs, parentName = name, features = features)
 
         return PartDefinition(
             id = UUID.randomUUID().toString(),
@@ -348,7 +364,7 @@ public class ArxmlAdaptiveImporter(
                 )
             } else if (child.children.isNotEmpty()) {
                 // Non-leaf: recurse
-                collectManifestLeaves(child, arNs, "$parentName/$childName", features)
+                collectManifestLeaves(el = child, arNs = arNs, parentName = "$parentName/$childName", features = features)
             }
         }
     }
@@ -358,7 +374,7 @@ public class ArxmlAdaptiveImporter(
         warnings: MutableList<String>,
     ): ArxmlAdaptiveVersion {
         if (version != null) return version
-        val detected = ArxmlAdaptiveVersion.detect(root, warnings)
+        val detected = ArxmlAdaptiveVersion.detect(root = root, warnings = warnings)
         if (detected == null) {
             warnings.add(
                 "Root element does not appear to be an AUTOSAR Adaptive Platform document; defaulting to R23_11",

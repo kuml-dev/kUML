@@ -54,8 +54,9 @@ internal class ErmSqlEmitter(
         val errors = ErmConstraintChecker().check(model).filter { it.severity == ViolationSeverity.ERROR }
         if (errors.isNotEmpty()) {
             throw CodeGenerationException(
-                "kuml-gen-sql: ERM model '${model.name}' failed validation — refusing to emit DDL:\n" +
-                    errors.joinToString("\n") { "  - ${it.message}" },
+                message =
+                    "kuml-gen-sql: ERM model '${model.name}' failed validation — refusing to emit DDL:\n" +
+                        errors.joinToString("\n") { "  - ${it.message}" },
             )
         }
 
@@ -69,7 +70,7 @@ internal class ErmSqlEmitter(
         }
 
         if (options.withDrop) {
-            sb.append(renderDropBlock(model, sorted))
+            sb.append(renderDropBlock(model = model, sorted = sorted))
         }
 
         for (entity in sorted) sb.append(renderCreateTable(entity))
@@ -95,7 +96,7 @@ internal class ErmSqlEmitter(
         if (model.views.isNotEmpty()) {
             sb.appendLine("-- DROP VIEWs")
             for (view in model.views) {
-                sb.appendLine("DROP VIEW IF EXISTS ${viewNameOf(view.name, view.id)};")
+                sb.appendLine("DROP VIEW IF EXISTS ${viewNameOf(name = view.name, id = view.id)};")
             }
             sb.appendLine()
         }
@@ -113,7 +114,7 @@ internal class ErmSqlEmitter(
         val tableName = tableNameOf(entity)
         val singleColumnPk = entity.primaryKey.size == 1
 
-        val lines = entity.attributes.map { renderColumn(it, singleColumnPk) } + renderTableConstraints(entity)
+        val lines = entity.attributes.map { renderColumn(attr = it, singleColumnPk = singleColumnPk) } + renderTableConstraints(entity)
 
         val sb = StringBuilder()
         sb.appendLine("CREATE TABLE $tableName (")
@@ -137,7 +138,7 @@ internal class ErmSqlEmitter(
         attr: ErmAttribute,
     ): String {
         val table = tableNameOf(entity)
-        val column = renderColumn(attr, singleColumnPk = false).trim()
+        val column = renderColumn(attr = attr, singleColumnPk = false).trim()
         return "ALTER TABLE $table ADD COLUMN $column;\n"
     }
 
@@ -146,7 +147,7 @@ internal class ErmSqlEmitter(
         singleColumnPk: Boolean,
     ): String {
         val colName = columnNameOf(attr)
-        val colType = ErmSqlTypeMapper.columnType(attr, dialect)
+        val colType = ErmSqlTypeMapper.columnType(attr = attr, dialect = dialect)
 
         val parts = mutableListOf("$colName $colType")
 
@@ -155,7 +156,7 @@ internal class ErmSqlEmitter(
         if (!attr.autoIncrement) {
             parts += if (attr.nullable) "NULL" else "NOT NULL"
             if (attr.unique && !attr.primaryKey) parts += "UNIQUE"
-            attr.default?.let { parts += "DEFAULT ${renderDefaultLiteral(it, attr.type)}" }
+            attr.default?.let { parts += "DEFAULT ${renderDefaultLiteral(raw = it, type = attr.type)}" }
         }
         if (attr.primaryKey && singleColumnPk) parts += "PRIMARY KEY"
 
@@ -215,7 +216,7 @@ internal class ErmSqlEmitter(
         val existingExpressions = entity.checks.map { it.expression }.toSet()
         return entity.attributes.mapNotNull { attr ->
             val enumType = attr.type as? ErmDataType.Enum ?: return@mapNotNull null
-            val expression = enumCheckExpression(attr, enumType)
+            val expression = enumCheckExpression(attr = attr, enumType = enumType)
             if (expression in existingExpressions) return@mapNotNull null
             "    CHECK ($expression)"
         }
@@ -237,7 +238,7 @@ internal class ErmSqlEmitter(
     }
 
     private fun checkConstraintPrefix(check: ErmCheckConstraint): String =
-        check.name?.let { "CONSTRAINT ${checkNameOf(it, check.id)} " } ?: ""
+        check.name?.let { "CONSTRAINT ${checkNameOf(name = it, id = check.id)} " } ?: ""
 
     /**
      * Emits a single `ALTER TABLE <t> ADD [CONSTRAINT <name>] CHECK (<expr>);`
@@ -294,14 +295,16 @@ internal class ErmSqlEmitter(
         val timeColName =
             (entries[ErmMetadataKeys.HT_TIME_COLUMN] as? KumlMetaValue.Text)?.value
                 ?: throw CodeGenerationException(
-                    "kuml-gen-sql: hypertable marker on entity '${entity.name ?: entity.id}' is missing " +
-                        "the required '${ErmMetadataKeys.HT_TIME_COLUMN}' entry.",
+                    message =
+                        "kuml-gen-sql: hypertable marker on entity '${entity.name ?: entity.id}' is missing " +
+                            "the required '${ErmMetadataKeys.HT_TIME_COLUMN}' entry.",
                 )
         val timeAttr =
             entity.attributeByName(timeColName)
                 ?: throw CodeGenerationException(
-                    "kuml-gen-sql: hypertable time column '$timeColName' declared on entity " +
-                        "'${entity.name ?: entity.id}' does not exist on that entity.",
+                    message =
+                        "kuml-gen-sql: hypertable time column '$timeColName' declared on entity " +
+                            "'${entity.name ?: entity.id}' does not exist on that entity.",
                 )
 
         val table = tableNameOf(entity)
@@ -309,7 +312,7 @@ internal class ErmSqlEmitter(
         val interval =
             (entries[ErmMetadataKeys.HT_CHUNK_INTERVAL] as? KumlMetaValue.Text)
                 ?.value
-                ?.let { requireSafeInterval(it, entity.id) }
+                ?.let { requireSafeInterval(interval = it, entityId = entity.id) }
 
         val chunkArg = interval?.let { ", chunk_time_interval => INTERVAL '$it'" } ?: ""
         return "SELECT create_hypertable('$table', '$col', if_not_exists => TRUE$chunkArg);\n"
@@ -327,8 +330,9 @@ internal class ErmSqlEmitter(
     ): String {
         if (!SAFE_INTERVAL_REGEX.matches(interval)) {
             throw CodeGenerationException(
-                "kuml-gen-sql: hypertable chunkInterval '$interval' (entity '$entityId') is not a safe " +
-                    "Postgres INTERVAL literal — expected e.g. '7 days', refusing to emit DDL.",
+                message =
+                    "kuml-gen-sql: hypertable chunkInterval '$interval' (entity '$entityId') is not a safe " +
+                        "Postgres INTERVAL literal — expected e.g. '7 days', refusing to emit DDL.",
             )
         }
         return interval
@@ -341,7 +345,7 @@ internal class ErmSqlEmitter(
         var any = false
         for (entity in model.entities) {
             for (attr in entity.attributes) {
-                val statement = renderForeignKeyConstraintOrNull(entity, attr, model) ?: continue
+                val statement = renderForeignKeyConstraintOrNull(entity = entity, attr = attr, model = model) ?: continue
                 if (!any) {
                     sb.appendLine("-- Foreign Keys")
                     sb.appendLine()
@@ -378,9 +382,9 @@ internal class ErmSqlEmitter(
                 ?: targetEntity.primaryKey.singleOrNull()
         val refColumn = targetAttr?.let { columnNameOf(it) } ?: "id"
 
-        val constraintName = SqlNames.requireSafe("fk_${fkTable}_$fkColumn", "FK constraint name", attr.id)
-        val onDelete = referentialClause("ON DELETE", fk.onDelete)
-        val onUpdate = referentialClause("ON UPDATE", fk.onUpdate)
+        val constraintName = SqlNames.requireSafe(name = "fk_${fkTable}_$fkColumn", what = "FK constraint name", source = attr.id)
+        val onDelete = referentialClause(keyword = "ON DELETE", action = fk.onDelete)
+        val onUpdate = referentialClause(keyword = "ON UPDATE", action = fk.onUpdate)
 
         return "ALTER TABLE $fkTable ADD CONSTRAINT $constraintName " +
             "FOREIGN KEY ($fkColumn) REFERENCES $refTable($refColumn)$onDelete$onUpdate;\n"
@@ -410,7 +414,7 @@ internal class ErmSqlEmitter(
                 sb.appendLine()
                 any = true
             }
-            for (index in entity.indexes) sb.append(renderIndexStatement(entity, index))
+            for (index in entity.indexes) sb.append(renderIndexStatement(entity = entity, index = index))
         }
         if (any) sb.appendLine()
         return sb.toString()
@@ -432,7 +436,7 @@ internal class ErmSqlEmitter(
                 .mapNotNull { attrId -> entity.attributes.firstOrNull { it.id == attrId } }
                 .map { columnNameOf(it) }
         val defaultName = "idx_${tableName}_${cols.joinToString("_")}"
-        val idxName = SqlNames.requireSafe(index.name ?: defaultName, "index name", index.id)
+        val idxName = SqlNames.requireSafe(name = index.name ?: defaultName, what = "index name", source = index.id)
         val uniqueKeyword = if (index.unique) "UNIQUE " else ""
         // index.where is a trusted, dialect-neutral raw SQL boolean predicate (same trust model as
         // ErmCheckConstraint.expression / ErmDataType.Custom.raw) — emitted verbatim, no escaping.
@@ -457,23 +461,26 @@ internal class ErmSqlEmitter(
      * [renderViews] so [ErmSchemaDiffEmitter] can emit the statement for a
      * single newly-added view without looping the whole model.
      */
-    internal fun renderViewStatement(view: ErmView): String = "CREATE VIEW ${viewNameOf(view.name, view.id)} AS ${view.query};\n\n"
+    internal fun renderViewStatement(view: ErmView): String =
+        "CREATE VIEW ${viewNameOf(name = view.name, id = view.id)} AS ${view.query};\n\n"
 
     // ── Naming / identifier safety ───────────────────────────────────────────
 
-    private fun tableNameOf(entity: ErmEntity): String = SqlNames.requireSafe(entity.name ?: entity.id, "table name", entity.id)
+    private fun tableNameOf(entity: ErmEntity): String =
+        SqlNames.requireSafe(name = entity.name ?: entity.id, what = "table name", source = entity.id)
 
-    private fun columnNameOf(attr: ErmAttribute): String = SqlNames.requireSafe(attr.name ?: attr.id, "column name", attr.id)
+    private fun columnNameOf(attr: ErmAttribute): String =
+        SqlNames.requireSafe(name = attr.name ?: attr.id, what = "column name", source = attr.id)
 
     private fun viewNameOf(
         name: String?,
         id: String,
-    ): String = SqlNames.requireSafe(name ?: id, "view name", id)
+    ): String = SqlNames.requireSafe(name = name ?: id, what = "view name", source = id)
 
     private fun checkNameOf(
         name: String,
         id: String,
-    ): String = SqlNames.requireSafe(name, "check constraint name", id)
+    ): String = SqlNames.requireSafe(name = name, what = "check constraint name", source = id)
 
     // ── Topological sort ─────────────────────────────────────────────────────
 

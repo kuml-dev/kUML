@@ -57,7 +57,7 @@ public enum class ArxmlAdaptiveVersion(
             val arPackages =
                 root.getChild(ArxmlSchema.ELEM_AR_PACKAGES, arNs)
                     ?: root.getChild(ArxmlSchema.ELEM_AR_PACKAGES, Namespace.NO_NAMESPACE)
-            if (arPackages != null && hasAdaptiveElements(arPackages, arNs)) {
+            if (arPackages != null && hasAdaptiveElements(arPackages = arPackages, arNs = arNs)) {
                 return true
             }
             return false

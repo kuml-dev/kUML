@@ -18,7 +18,7 @@ internal object Levenshtein {
         maxDistance: Int = 3,
     ): String? =
         candidates
-            .map { it to distance(target, it) }
+            .map { it to distance(a = target, b = it) }
             .filter { (_, d) -> d <= maxDistance }
             .minByOrNull { (_, d) -> d }
             ?.first

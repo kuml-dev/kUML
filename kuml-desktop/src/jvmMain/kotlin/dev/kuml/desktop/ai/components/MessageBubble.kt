@@ -26,7 +26,7 @@ fun MessageBubble(
     when (msg) {
         is ConversationMessage.User -> UserBubble(msg)
         is ConversationMessage.Assistant -> AssistantBubble(msg)
-        is ConversationMessage.ToolCall -> ToolTraceCard(msg, onInspectToolArgs)
+        is ConversationMessage.ToolCall -> ToolTraceCard(msg = msg, onInspect = onInspectToolArgs)
         is ConversationMessage.ToolResult -> ToolResultRow(msg)
         is ConversationMessage.ErrorMessage -> ErrorBubble(msg)
     }

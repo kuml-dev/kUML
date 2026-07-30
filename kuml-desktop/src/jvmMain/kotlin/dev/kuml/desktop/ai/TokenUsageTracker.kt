@@ -29,7 +29,7 @@ class TokenUsageTracker(
         lastModelId = modelId
         _tokensIn += inTok
         _tokensOut += outTok
-        _costUsd += pricing.costUsd(providerId, modelId, inTok, outTok)
+        _costUsd += pricing.costUsd(providerId = providerId, modelId = modelId, tokensIn = inTok, tokensOut = outTok)
     }
 
     fun reset() {

@@ -100,8 +100,8 @@ internal object UmlComponentContracts {
 
         val total = unboundProvides.size + unboundRequires.size
         builder.tag(
-            "g",
-            mapOf("id" to xmlEscapeAttr("contracts-${component.id}")),
+            name = "g",
+            attrs = mapOf("id" to xmlEscapeAttr("contracts-${component.id}")),
         ) {
             // V2.0.47 — Symbole werden gleichmäßig entlang der Oberkante
             //           verteilt: Slot i sitzt bei x = bx + w * (i+1) / (n+1).
@@ -110,12 +110,12 @@ internal object UmlComponentContracts {
             //           es zentriert über der Komponente.
             unboundProvides.forEachIndexed { i, ifaceId ->
                 val slotX = bx + w * (i + 1) / (total + 1)
-                renderLollipop(this, slotX, by, ifaceId)
+                renderLollipop(builder = this, x = slotX, anchorY = by, label = ifaceId)
             }
             unboundRequires.forEachIndexed { i, ifaceId ->
                 val slotIdx = unboundProvides.size + i
                 val slotX = bx + w * (slotIdx + 1) / (total + 1)
-                renderSocket(this, slotX, by, ifaceId)
+                renderSocket(builder = this, x = slotX, anchorY = by, label = ifaceId)
             }
         }
     }
@@ -133,32 +133,35 @@ internal object UmlComponentContracts {
         val cy = anchorY - STUB_PX - RADIUS_PX
         val stubTop = anchorY - STUB_PX
         builder.tag(
-            "line",
-            mapOf(
-                "x1" to fmt(x),
-                "y1" to fmt(anchorY),
-                "x2" to fmt(x),
-                "y2" to fmt(stubTop),
-                "class" to "kuml-edge",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(x),
+                    "y1" to fmt(anchorY),
+                    "x2" to fmt(x),
+                    "y2" to fmt(stubTop),
+                    "class" to "kuml-edge",
+                ),
         )
         builder.tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(x),
-                "cy" to fmt(cy),
-                "r" to fmt(RADIUS_PX),
-                "class" to "kuml-interface",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(x),
+                    "cy" to fmt(cy),
+                    "r" to fmt(RADIUS_PX),
+                    "class" to "kuml-interface",
+                ),
         )
         builder.tag(
-            "text",
-            mapOf(
-                "class" to "kuml-port-label",
-                "x" to fmt(x),
-                "y" to fmt(cy - RADIUS_PX - LABEL_GAP_PX),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-port-label",
+                    "x" to fmt(x),
+                    "y" to fmt(cy - RADIUS_PX - LABEL_GAP_PX),
+                    "text-anchor" to "middle",
+                ),
         ) { text(label) }
     }
 
@@ -181,14 +184,15 @@ internal object UmlComponentContracts {
         val cy = anchorY - STUB_PX - RADIUS_PX
         val stubTop = anchorY - STUB_PX
         builder.tag(
-            "line",
-            mapOf(
-                "x1" to fmt(x),
-                "y1" to fmt(anchorY),
-                "x2" to fmt(x),
-                "y2" to fmt(stubTop),
-                "class" to "kuml-edge",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(x),
+                    "y1" to fmt(anchorY),
+                    "x2" to fmt(x),
+                    "y2" to fmt(stubTop),
+                    "class" to "kuml-edge",
+                ),
         )
         // V2.0.48 — Sweep-Flag von 1 auf 0 geändert nach Vault-Feedback zur
         // Schale, die in V2.0.47 falsch herum gezeichnet wurde. In SVG-
@@ -204,20 +208,22 @@ internal object UmlComponentContracts {
                 "A ${fmt(RADIUS_PX)} ${fmt(RADIUS_PX)} 0 0 0 " +
                 "${fmt(x + RADIUS_PX)} ${fmt(cy)}"
         builder.tag(
-            "path",
-            mapOf(
-                "d" to pathD,
-                "class" to "kuml-actor",
-            ),
+            name = "path",
+            attrs =
+                mapOf(
+                    "d" to pathD,
+                    "class" to "kuml-actor",
+                ),
         )
         builder.tag(
-            "text",
-            mapOf(
-                "class" to "kuml-port-label",
-                "x" to fmt(x),
-                "y" to fmt(cy - RADIUS_PX - LABEL_GAP_PX),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-port-label",
+                    "x" to fmt(x),
+                    "y" to fmt(cy - RADIUS_PX - LABEL_GAP_PX),
+                    "text-anchor" to "middle",
+                ),
         ) { text(label) }
     }
 

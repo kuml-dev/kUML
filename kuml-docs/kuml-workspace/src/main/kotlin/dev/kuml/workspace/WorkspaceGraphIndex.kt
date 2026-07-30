@@ -48,7 +48,7 @@ public class WorkspaceGraphIndex private constructor(
 
             for (doc in ws.documents) {
                 for (link in doc.links) {
-                    val target = resolveTarget(doc, link.target, byPath) ?: continue
+                    val target = resolveTarget(doc = doc, rawTarget = link.target, byPath = byPath) ?: continue
                     val resolved = ResolvedLink(from = doc, to = target, line = link.line)
                     forward.getOrPut(doc.relativePath) { mutableListOf() }.add(resolved)
                     backward.getOrPut(target.relativePath) { mutableListOf() }.add(resolved)

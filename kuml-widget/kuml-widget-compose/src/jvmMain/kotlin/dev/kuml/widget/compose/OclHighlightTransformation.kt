@@ -52,5 +52,5 @@ internal class OclHighlightTransformation(
     private val errorRange: IntRange?,
 ) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText =
-        TransformedText(highlightOcl(text.text, colors, errorRange), OffsetMapping.Identity)
+        TransformedText(highlightOcl(text = text.text, colors = colors, errorRange = errorRange), OffsetMapping.Identity)
 }

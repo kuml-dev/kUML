@@ -44,18 +44,19 @@ class KumlSvgRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(300f, 200f),
+                    canvas = Size(width = 300f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("cls1") to NodeLayout(bounds = Rect(Point(10f, 10f), Size(120f, 80f))),
+                            NodeId("cls1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 120f, height = 80f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
             val theme = PlainTheme()
 
-            val svg1 = KumlSvgRenderer.toSvg(diagram, layoutResult, theme)
-            val svg2 = KumlSvgRenderer.toSvg(diagram, layoutResult, theme)
+            val svg1 = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = theme)
+            val svg2 = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = theme)
             svg1 shouldBe svg2
         }
 
@@ -80,24 +81,26 @@ class KumlSvgRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("cls1") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(120f, 80f))),
-                            NodeId("cls2") to NodeLayout(bounds = Rect(Point(200f, 40f), Size(120f, 80f))),
+                            NodeId("cls1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 120f, height = 80f))),
+                            NodeId("cls2") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 200f, y = 40f), size = Size(width = 120f, height = 80f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("assoc1") to
                                 EdgeRoute.Direct(
-                                    source = Point(140f, 80f),
-                                    target = Point(200f, 80f),
+                                    source = Point(x = 140f, y = 80f),
+                                    target = Point(x = 200f, y = 80f),
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             // Structural assertions: 2 class rects
             val classRectCount = "class=\"kuml-class\"".toRegex().findAll(svg).count()
@@ -108,7 +111,7 @@ class KumlSvgRendererTest :
             svg shouldContain "class=\"kuml-edge\""
             svg shouldContain "<path"
 
-            SampleOutput.write("uml/class-diagram-with-association.svg", svg)
+            SampleOutput.write(filename = "uml/class-diagram-with-association.svg", content = svg)
         }
 
         test("KumlSvgRenderer renders a C4 container diagram with system group and 2 containers") {
@@ -133,20 +136,23 @@ class KumlSvgRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(500f, 300f),
+                    canvas = Size(width = 500f, height = 300f),
                     nodes =
                         mapOf(
-                            NodeId("cont1") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(140f, 80f))),
-                            NodeId("cont2") to NodeLayout(bounds = Rect(Point(200f, 40f), Size(140f, 80f))),
+                            NodeId("cont1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 140f, height = 80f))),
+                            NodeId("cont2") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 200f, y = 40f), size = Size(width = 140f, height = 80f))),
                         ),
                     edges = emptyMap(),
                     groups =
                         mapOf(
-                            GroupId("sys1") to GroupLayout(bounds = Rect(Point(0f, 0f), Size(400f, 200f))),
+                            GroupId("sys1") to
+                                GroupLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 400f, height = 200f))),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, model, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, model = model, layoutResult = layoutResult, theme = PlainTheme())
 
             // System group wrapper
             svg shouldContain "id=\"system-sys1\""
@@ -155,7 +161,7 @@ class KumlSvgRendererTest :
             val containerRectCount = "class=\"kuml-container\"".toRegex().findAll(svg).count()
             containerRectCount shouldBe 2
 
-            SampleOutput.write("c4/container-diagram-with-system-group.svg", svg)
+            SampleOutput.write(filename = "c4/container-diagram-with-system-group.svg", content = svg)
         }
 
         test("KumlSvgRenderer renders a package diagram with folder tabs, names, and contained classes") {
@@ -184,26 +190,31 @@ class KumlSvgRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(600f, 400f),
+                    canvas = Size(width = 600f, height = 400f),
                     nodes =
                         mapOf(
-                            NodeId("Money") to NodeLayout(bounds = Rect(Point(40f, 40f), Size(120f, 60f))),
-                            NodeId("Customer") to NodeLayout(bounds = Rect(Point(240f, 40f), Size(120f, 60f))),
-                            NodeId("Order") to NodeLayout(bounds = Rect(Point(240f, 120f), Size(120f, 60f))),
+                            NodeId("Money") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 40f), size = Size(width = 120f, height = 60f))),
+                            NodeId("Customer") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 240f, y = 40f), size = Size(width = 120f, height = 60f))),
+                            NodeId("Order") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 240f, y = 120f), size = Size(width = 120f, height = 60f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("dep1") to
-                                EdgeRoute.Direct(source = Point(240f, 80f), target = Point(160f, 80f)),
+                                EdgeRoute.Direct(source = Point(x = 240f, y = 80f), target = Point(x = 160f, y = 80f)),
                         ),
                     groups =
                         mapOf(
-                            GroupId("shared") to GroupLayout(bounds = Rect(Point(20f, 20f), Size(180f, 120f))),
-                            GroupId("shop") to GroupLayout(bounds = Rect(Point(220f, 20f), Size(180f, 200f))),
+                            GroupId("shared") to
+                                GroupLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 120f))),
+                            GroupId("shop") to
+                                GroupLayout(bounds = Rect(origin = Point(x = 220f, y = 20f), size = Size(width = 180f, height = 200f))),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             // Folder-tab groups carry the package id and the package name as
             // a `<text class="kuml-title">` payload. Both must be present.
@@ -228,7 +239,7 @@ class KumlSvgRendererTest :
             svg shouldContain "kuml-edge-dashed"
             svg shouldContain "«import»"
 
-            SampleOutput.write("uml/package-diagram-domain-modules.svg", svg)
+            SampleOutput.write(filename = "uml/package-diagram-domain-modules.svg", content = svg)
         }
 
         test("KumlSvgRenderer routes a package dependency around an intervening package instead of through it") {
@@ -256,32 +267,37 @@ class KumlSvgRendererTest :
                 )
 
             // Vertical stack: payment (top) · shop (middle, narrower) · shared (bottom).
-            val shopRect = Rect(Point(120f, 180f), Size(160f, 100f))
+            val shopRect = Rect(origin = Point(x = 120f, y = 180f), size = Size(width = 160f, height = 100f))
             val layoutResult =
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(400f, 460f),
+                    canvas = Size(width = 400f, height = 460f),
                     nodes =
                         mapOf(
-                            NodeId("Invoice") to NodeLayout(bounds = Rect(Point(40f, 60f), Size(120f, 50f))),
-                            NodeId("Customer") to NodeLayout(bounds = Rect(Point(140f, 200f), Size(120f, 50f))),
-                            NodeId("Money") to NodeLayout(bounds = Rect(Point(40f, 380f), Size(120f, 50f))),
+                            NodeId("Invoice") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 60f), size = Size(width = 120f, height = 50f))),
+                            NodeId("Customer") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 140f, y = 200f), size = Size(width = 120f, height = 50f))),
+                            NodeId("Money") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 380f), size = Size(width = 120f, height = 50f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("dep1") to
-                                EdgeRoute.Direct(source = Point(200f, 120f), target = Point(200f, 358f)),
+                                EdgeRoute.Direct(source = Point(x = 200f, y = 120f), target = Point(x = 200f, y = 358f)),
                         ),
                     groups =
                         mapOf(
-                            GroupId("payment") to GroupLayout(bounds = Rect(Point(20f, 20f), Size(360f, 100f))),
+                            GroupId("payment") to
+                                GroupLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 360f, height = 100f))),
                             GroupId("shop") to GroupLayout(bounds = shopRect),
-                            GroupId("shared") to GroupLayout(bounds = Rect(Point(20f, 340f), Size(360f, 100f))),
+                            GroupId("shared") to
+                                GroupLayout(bounds = Rect(origin = Point(x = 20f, y = 340f), size = Size(width = 360f, height = 100f))),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             // The crossing edge must now be an orthogonal multi-segment dashed
             // path (a detour), not a single straight `<line>`.
@@ -293,7 +309,7 @@ class KumlSvgRendererTest :
             val coords =
                 Regex("""[ML]\s*(-?[\d.]+)\s+(-?[\d.]+)""")
                     .findAll(dashedPath!!.groupValues[1])
-                    .map { Point(it.groupValues[1].toFloat(), it.groupValues[2].toFloat()) }
+                    .map { Point(x = it.groupValues[1].toFloat(), y = it.groupValues[2].toFloat()) }
                     .toList()
             (coords.size >= 3) shouldBe true
 
@@ -379,27 +395,31 @@ class KumlSvgRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(600f, 600f),
+                    canvas = Size(width = 600f, height = 600f),
                     nodes =
                         mapOf(
-                            NodeId("customer") to NodeLayout(bounds = Rect(Point(20f, 20f), Size(140f, 80f))),
-                            NodeId("web") to NodeLayout(bounds = Rect(Point(220f, 20f), Size(140f, 80f))),
-                            NodeId("api") to NodeLayout(bounds = Rect(Point(220f, 160f), Size(140f, 80f))),
-                            NodeId("db") to NodeLayout(bounds = Rect(Point(220f, 320f), Size(140f, 80f))),
+                            NodeId("customer") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 140f, height = 80f))),
+                            NodeId("web") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 220f, y = 20f), size = Size(width = 140f, height = 80f))),
+                            NodeId("api") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 220f, y = 160f), size = Size(width = 140f, height = 80f))),
+                            NodeId("db") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 220f, y = 320f), size = Size(width = 140f, height = 80f))),
                         ),
                     edges =
                         mapOf(
-                            EdgeId("i1") to EdgeRoute.Direct(source = Point(160f, 60f), target = Point(220f, 60f)),
-                            EdgeId("i2") to EdgeRoute.Direct(source = Point(290f, 100f), target = Point(290f, 160f)),
-                            EdgeId("i3") to EdgeRoute.Direct(source = Point(290f, 240f), target = Point(290f, 320f)),
-                            EdgeId("i4") to EdgeRoute.Direct(source = Point(310f, 320f), target = Point(310f, 240f)),
-                            EdgeId("i5") to EdgeRoute.Direct(source = Point(310f, 160f), target = Point(310f, 100f)),
-                            EdgeId("i6") to EdgeRoute.Direct(source = Point(220f, 80f), target = Point(160f, 80f)),
+                            EdgeId("i1") to EdgeRoute.Direct(source = Point(x = 160f, y = 60f), target = Point(x = 220f, y = 60f)),
+                            EdgeId("i2") to EdgeRoute.Direct(source = Point(x = 290f, y = 100f), target = Point(x = 290f, y = 160f)),
+                            EdgeId("i3") to EdgeRoute.Direct(source = Point(x = 290f, y = 240f), target = Point(x = 290f, y = 320f)),
+                            EdgeId("i4") to EdgeRoute.Direct(source = Point(x = 310f, y = 320f), target = Point(x = 310f, y = 240f)),
+                            EdgeId("i5") to EdgeRoute.Direct(source = Point(x = 310f, y = 160f), target = Point(x = 310f, y = 100f)),
+                            EdgeId("i6") to EdgeRoute.Direct(source = Point(x = 220f, y = 80f), target = Point(x = 160f, y = 80f)),
                         ),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, model, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, model = model, layoutResult = layoutResult, theme = PlainTheme())
 
             // All 4 participants render (Person + 3 SoftwareSystems)
             svg shouldContain "id=\"customer\""
@@ -427,6 +447,6 @@ class KumlSvgRendererTest :
             svg shouldContain "[HTTPS]"
             svg shouldContain "[JDBC]"
 
-            SampleOutput.write("c4/dynamic-diagram-checkout-flow.svg", svg)
+            SampleOutput.write(filename = "c4/dynamic-diagram-checkout-flow.svg", content = svg)
         }
     })

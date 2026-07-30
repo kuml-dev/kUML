@@ -35,8 +35,8 @@ class PackageBuilder internal constructor(
     /** The computed or explicitly provided ID for this package. */
     override val containerId: String =
         run {
-            val candidate = explicitId ?: UmlIds.child(parentId, name)
-            val resolved = UmlIds.disambiguate(candidate, takenIds)
+            val candidate = explicitId ?: UmlIds.child(parentId = parentId, name = name)
+            val resolved = UmlIds.disambiguate(candidate = candidate, taken = takenIds)
             takenIds += resolved
             resolved
         }
@@ -137,4 +137,4 @@ fun UmlContainerScope.packageOf(
     name: String,
     id: String? = null,
     block: PackageBuilder.() -> Unit = {},
-): UmlPackage = `package`(name, id, block)
+): UmlPackage = `package`(name = name, id = id, block = block)

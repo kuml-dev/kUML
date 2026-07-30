@@ -21,23 +21,23 @@ class StateDiagramBuilderStereotypeTest :
 
         // Test fixture — minimal profile for state-machine stereotypes.
         val testProfile: KumlProfile =
-            profile("StateMachineTest") {
+            profile(name = "StateMachineTest") {
                 namespace = "dev.kuml.test.profiles.statemachine"
-                stereotype("BehaviorSpec") {
+                stereotype(name = "BehaviorSpec") {
                     extends(UmlMetaclass.StateMachine)
-                    property<String>("spec") { default = "unknown" }
+                    property<String>(name = "spec") { default = "unknown" }
                 }
-                stereotype("A") { extends(UmlMetaclass.StateMachine) }
-                stereotype("B") { extends(UmlMetaclass.StateMachine) }
-                stereotype("New") { extends(UmlMetaclass.StateMachine) }
+                stereotype(name = "A") { extends(UmlMetaclass.StateMachine) }
+                stereotype(name = "B") { extends(UmlMetaclass.StateMachine) }
+                stereotype(name = "New") { extends(UmlMetaclass.StateMachine) }
             }
 
         test(name = "stateMachine accepts stereotype on root scope") {
             val d =
-                stateDiagram("OrderProcessing") {
+                stateDiagram(name = "OrderProcessing") {
                     applyProfile(testProfile)
-                    stereotype("BehaviorSpec")
-                    state("Idle")
+                    stereotype(name = "BehaviorSpec")
+                    state(name = "Idle")
                 }
             val sm = d.elements.single() as UmlStateMachine
             sm.appliedStereotypes shouldHaveSize 1
@@ -46,9 +46,9 @@ class StateDiagramBuilderStereotypeTest :
 
         test(name = "stateMachine stereotype with tagged values") {
             val d =
-                stateDiagram("OrderProcessing") {
+                stateDiagram(name = "OrderProcessing") {
                     applyProfile(testProfile)
-                    stereotype("BehaviorSpec") {
+                    stereotype(name = "BehaviorSpec") {
                         "spec" to "RT-AUTOSAR-1.7"
                     }
                 }
@@ -62,10 +62,10 @@ class StateDiagramBuilderStereotypeTest :
 
         test(name = "multiple stereotypes on stateMachine accumulate") {
             val d =
-                stateDiagram("X") {
+                stateDiagram(name = "X") {
                     applyProfile(testProfile)
-                    stereotype("A")
-                    stereotype("B")
+                    stereotype(name = "A")
+                    stereotype(name = "B")
                 }
             val sm = d.elements.single() as UmlStateMachine
             sm.appliedStereotypes shouldHaveSize 2
@@ -73,17 +73,17 @@ class StateDiagramBuilderStereotypeTest :
         }
 
         test(name = "stateMachine without stereotype has empty appliedStereotypes") {
-            val d = stateDiagram("X") { state("S") }
+            val d = stateDiagram(name = "X") { state(name = "S") }
             val sm = d.elements.single() as UmlStateMachine
             sm.appliedStereotypes.shouldBeEmpty()
         }
 
         test(name = "legacy stateMachineStereotypes coexist with applied stereotypes") {
             val d =
-                stateDiagram("X") {
+                stateDiagram(name = "X") {
                     applyProfile(testProfile)
                     stateMachineStereotypes.add("legacy")
-                    stereotype("New")
+                    stereotype(name = "New")
                 }
             val sm = d.elements.single() as UmlStateMachine
             sm.stereotypes shouldBe listOf("legacy")

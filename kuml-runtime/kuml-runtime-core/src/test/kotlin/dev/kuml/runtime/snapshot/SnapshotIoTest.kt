@@ -25,15 +25,15 @@ class SnapshotIoTest :
                 vertices =
                     listOf(
                         initial("init"),
-                        state("A"),
-                        state("B"),
+                        state(id = "A"),
+                        state(id = "B"),
                         finalState("end"),
                     ),
                 transitions =
                     listOf(
-                        trans("t0", "init", "A"),
-                        trans("t1", "A", "B", trigger = "go"),
-                        trans("t2", "B", "end", trigger = "done"),
+                        trans(id = "t0", from = "init", to = "A"),
+                        trans(id = "t1", from = "A", to = "B", trigger = "go"),
+                        trans(id = "t2", from = "B", to = "end", trigger = "done"),
                     ),
             )
 
@@ -43,12 +43,12 @@ class SnapshotIoTest :
 
         test("writeSnapshot then readSnapshot is identity") {
             val instance = runtime.start(model)
-            runtime.step(instance, Event.of("go"))
+            runtime.step(instance = instance, event = Event.of("go"))
             instance.variables["x"] = 99L
 
             val snap = runtime.snapshotFull(instance)
             val file = tempFile("identity.json")
-            writeStateMachineSnapshot(snap, file)
+            writeStateMachineSnapshot(snapshot = snap, file = file)
 
             val restored = readStateMachineSnapshot(file)
             restored shouldBe snap
@@ -58,7 +58,7 @@ class SnapshotIoTest :
             val instance = runtime.start(model)
             val snap = runtime.snapshotFull(instance)
             val file = tempFile("pretty.json")
-            writeStateMachineSnapshot(snap, file)
+            writeStateMachineSnapshot(snapshot = snap, file = file)
 
             val content = file.readText()
             // Pretty-printed JSON contains newlines and indentation
@@ -71,7 +71,7 @@ class SnapshotIoTest :
             val snap = runtime.snapshotFull(instance)
             snap.schemaVersion shouldBe 1
             val file = tempFile("version.json")
-            writeStateMachineSnapshot(snap, file)
+            writeStateMachineSnapshot(snapshot = snap, file = file)
 
             // schemaVersion has a default value — readback still yields 1 (via default)
             val restored = readStateMachineSnapshot(file)
@@ -86,7 +86,7 @@ class SnapshotIoTest :
                     instance = ActivityInstance(tokenCounts = mapOf("node1" to 2), clock = 5L),
                 )
             val file = tempFile("activity-snapshot.json")
-            writeActivityInstanceSnapshot(activitySnap, file)
+            writeActivityInstanceSnapshot(snapshot = activitySnap, file = file)
 
             val restored = readActivityInstanceSnapshot(file)
             restored shouldBe activitySnap

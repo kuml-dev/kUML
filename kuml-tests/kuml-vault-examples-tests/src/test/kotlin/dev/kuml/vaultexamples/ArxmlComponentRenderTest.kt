@@ -186,10 +186,10 @@ class ArxmlComponentRenderTest :
                 )
 
             val elkEngine = ElkLayoutEngineProvider().engine()
-            val sizeProvider = UmlContentSizeProvider(diagram)
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram, sizeProvider)
-            val layout = elkEngine.layout(graph, LayoutHints.DEFAULT)
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val sizeProvider = UmlContentSizeProvider(diagram = diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram, sizeProvider = sizeProvider)
+            val layout = elkEngine.layout(graph = graph, hints = LayoutHints.DEFAULT)
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg.shouldNotBeEmpty()
             svg shouldContain "<svg"
@@ -226,10 +226,10 @@ class ArxmlComponentRenderTest :
                 )
 
             val elkEngine = ElkLayoutEngineProvider().engine()
-            val sizeProvider = UmlContentSizeProvider(diagram)
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram, sizeProvider)
-            val layout = elkEngine.layout(graph, LayoutHints.DEFAULT)
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            val sizeProvider = UmlContentSizeProvider(diagram = diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram, sizeProvider = sizeProvider)
+            val layout = elkEngine.layout(graph = graph, hints = LayoutHints.DEFAULT)
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "ISpeed"
             svg shouldContain "IDiag"

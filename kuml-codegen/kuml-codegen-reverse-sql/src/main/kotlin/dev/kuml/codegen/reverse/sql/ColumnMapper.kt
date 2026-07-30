@@ -53,10 +53,10 @@ internal object ColumnMapper {
                     "REV-SQL-015" -> "Column '$name': CHAR/CHARACTER mapped to Varchar — fixed-length padding semantics are lost."
                     else -> "Column '$name': type '${cd.colDataType.dataType}' has no direct ErmDataType equivalent — mapped to Custom."
                 }
-            diagnostics += ReverseDiagnostic(ReverseDiagnostic.Severity.INFO, code, message, file = fileHint)
+            diagnostics += ReverseDiagnostic(severity = ReverseDiagnostic.Severity.INFO, code = code, message = message, file = fileHint)
         }
 
-        val spec = parseSpecs(cd.columnSpecs.orEmpty(), diagnostics, fileHint, name)
+        val spec = parseSpecs(tokens = cd.columnSpecs.orEmpty(), diagnostics = diagnostics, fileHint = fileHint, colName = name)
 
         var autoIncrement = typeMapped.autoIncrement || spec.autoIncrement
         var default = spec.default
@@ -79,7 +79,7 @@ internal object ColumnMapper {
                 default = default,
                 autoIncrement = autoIncrement,
             )
-        return MappedColumn(attribute, spec.referencesRef, spec.checkExpression)
+        return MappedColumn(attribute = attribute, inlineForeignKey = spec.referencesRef, checkExpression = spec.checkExpression)
     }
 
     private data class Spec(
@@ -131,13 +131,13 @@ internal object ColumnMapper {
                         default = "NULL"
                         i += 2
                     } else {
-                        val (value, next) = collectDefault(tokens, i + 1)
+                        val (value, next) = collectDefault(tokens = tokens, start = i + 1)
                         default = value
                         i = next
                     }
                 }
                 tok == "REFERENCES" -> {
-                    val (ref, next) = parseInlineReferences(tokens, i + 1)
+                    val (ref, next) = parseInlineReferences(tokens = tokens, start = i + 1)
                     fkRef = ref
                     i = next
                 }
@@ -152,9 +152,9 @@ internal object ColumnMapper {
                     autoIncrement = true
                     diagnostics +=
                         ReverseDiagnostic(
-                            ReverseDiagnostic.Severity.INFO,
-                            "REV-SQL-014",
-                            "Column '$colName': GENERATED ... AS IDENTITY mapped as autoIncrement.",
+                            severity = ReverseDiagnostic.Severity.INFO,
+                            code = "REV-SQL-014",
+                            message = "Column '$colName': GENERATED ... AS IDENTITY mapped as autoIncrement.",
                             file = fileHint,
                         )
                     var j = i + 1
@@ -165,7 +165,15 @@ internal object ColumnMapper {
                 else -> i += 1
             }
         }
-        return Spec(notNull, primaryKey, unique, default, autoIncrement, fkRef, checkExpr)
+        return Spec(
+            notNull = notNull,
+            primaryKey = primaryKey,
+            unique = unique,
+            default = default,
+            autoIncrement = autoIncrement,
+            referencesRef = fkRef,
+            checkExpression = checkExpr,
+        )
     }
 
     private fun collectDefault(
@@ -202,7 +210,7 @@ internal object ColumnMapper {
             val a1u = a1?.uppercase()
             val twoWord = a1u == "NO" || a1u == "SET"
             val a2 = if (twoWord) tokens.getOrNull(next + 3) else null
-            val action = parseInlineAction(a1, a2)
+            val action = parseInlineAction(tok1 = a1, tok2 = a2)
             val consumed = 2 + (if (twoWord) 2 else 1)
             when (kind) {
                 "DELETE" -> onDelete = action
@@ -210,7 +218,8 @@ internal object ColumnMapper {
             }
             next += consumed
         }
-        return RawForeignKeyRef(targetTable, targetCol, onDelete, onUpdate) to next
+        return RawForeignKeyRef(targetTableName = targetTable, targetColumnName = targetCol, onDelete = onDelete, onUpdate = onUpdate) to
+            next
     }
 
     private fun parseInlineAction(

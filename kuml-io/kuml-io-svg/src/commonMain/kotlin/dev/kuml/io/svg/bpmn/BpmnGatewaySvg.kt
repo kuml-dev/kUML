@@ -46,7 +46,7 @@ internal fun renderBpmnGateway(
     val textColor = theme.colors.foreground.toHex()
     val fontFamily = theme.typography.body.family
 
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(gw.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(gw.id))) {
         // Raute — id on the polygon so SMIL fill animations can target it directly
         rawXml(
             """<polygon id="${xmlEscapeAttr(gw.id)}-diamond" """ +
@@ -128,15 +128,16 @@ internal fun renderBpmnGateway(
         val label = gw.name
         if (!label.isNullOrBlank()) {
             tag(
-                "text",
-                mapOf(
-                    "x" to fmtF(cx),
-                    "y" to fmtF(y + BPMN_GATEWAY_SHAPE_H + 12f),
-                    "text-anchor" to "middle",
-                    "font-family" to fontFamily,
-                    "font-size" to "11",
-                    "fill" to textColor,
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "x" to fmtF(cx),
+                        "y" to fmtF(y + BPMN_GATEWAY_SHAPE_H + 12f),
+                        "text-anchor" to "middle",
+                        "font-family" to fontFamily,
+                        "font-size" to "11",
+                        "fill" to textColor,
+                    ),
             ) { text(label) }
         }
     }

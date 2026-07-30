@@ -9,28 +9,28 @@ class DocumentStoreTest :
 
         test("update then text returns the stored text") {
             val store = DocumentStore()
-            store.update("file:///a.kuml.kts", "class Foo")
+            store.update(uri = "file:///a.kuml.kts", text = "class Foo")
             store.text("file:///a.kuml.kts") shouldBe "class Foo"
         }
 
         test("overwriting an existing uri updates the stored text") {
             val store = DocumentStore()
-            store.update("file:///a.kuml.kts", "class Foo")
-            store.update("file:///a.kuml.kts", "class Bar")
+            store.update(uri = "file:///a.kuml.kts", text = "class Foo")
+            store.update(uri = "file:///a.kuml.kts", text = "class Bar")
             store.text("file:///a.kuml.kts") shouldBe "class Bar"
         }
 
         test("remove makes text return null") {
             val store = DocumentStore()
-            store.update("file:///a.kuml.kts", "class Foo")
+            store.update(uri = "file:///a.kuml.kts", text = "class Foo")
             store.remove("file:///a.kuml.kts")
             store.text("file:///a.kuml.kts").shouldBeNull()
         }
 
         test("uris reflects current membership") {
             val store = DocumentStore()
-            store.update("file:///a.kuml.kts", "a")
-            store.update("file:///b.kuml.kts", "b")
+            store.update(uri = "file:///a.kuml.kts", text = "a")
+            store.update(uri = "file:///b.kuml.kts", text = "b")
             store.uris() shouldBe setOf("file:///a.kuml.kts", "file:///b.kuml.kts")
 
             store.remove("file:///a.kuml.kts")

@@ -149,7 +149,7 @@ public class KumlAiExecutor private constructor(
             // Build BudgetGuard from bundled pricing (no network call at construction time).
             val guard =
                 settings.costBudgetUsd?.let { budget ->
-                    BudgetGuard(budget, ProviderPricingService.bundledEstimator())
+                    BudgetGuard(budgetUsd = budget, estimator = ProviderPricingService.bundledEstimator())
                 }
 
             return KumlAiExecutor(
@@ -170,7 +170,8 @@ public class KumlAiExecutor private constructor(
             privacy: PrivacyEnforcer,
             registry: ProviderRegistry,
             budgetGuard: BudgetGuard? = null,
-        ): KumlAiExecutor = KumlAiExecutor(delegate, settings, privacy, registry, budgetGuard)
+        ): KumlAiExecutor =
+            KumlAiExecutor(delegate = delegate, settings = settings, privacy = privacy, registry = registry, budgetGuard = budgetGuard)
     }
 
     private fun resolveDefaultModel(): LLModel {
@@ -179,7 +180,7 @@ public class KumlAiExecutor private constructor(
             settings.defaultModels[providerId]
                 ?: error("No default model configured for provider '$providerId'")
 
-        return registry.resolveModel(providerId, modelId)
+        return registry.resolveModel(providerId = providerId, modelId = modelId)
             ?: error("Cannot resolve model '$modelId' for provider '$providerId'")
     }
 }

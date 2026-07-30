@@ -20,14 +20,14 @@ class ComponentDiagramBuilderTest :
     FunSpec(body = {
 
         test(name = "empty component diagram builds without error") {
-            val d = componentDiagram("Empty") {}
+            val d = componentDiagram(name = "Empty") {}
             d.name shouldBe "Empty"
             d.type shouldBe DiagramType.COMPONENT
             d.elements.shouldHaveSize(0)
         }
 
         test(name = "component is added with deterministic id") {
-            val d = componentDiagram("Arch") { component("OrderService") }
+            val d = componentDiagram(name = "Arch") { component(name = "OrderService") }
             d.elements
                 .filterIsInstance<UmlComponent>()
                 .single()
@@ -36,8 +36,8 @@ class ComponentDiagramBuilderTest :
 
         test(name = "port is created with qualified id under its component") {
             val d =
-                componentDiagram("Arch") {
-                    component("OrderService") { port("api") }
+                componentDiagram(name = "Arch") {
+                    component(name = "OrderService") { port(name = "api") }
                 }
             d.elements
                 .filterIsInstance<UmlComponent>()
@@ -49,9 +49,9 @@ class ComponentDiagramBuilderTest :
 
         test(name = "provides stores interface id on component") {
             val d =
-                componentDiagram("Arch") {
-                    val orderApi = interfaceOf("IOrderApi")
-                    component("OrderService") { provides(orderApi) }
+                componentDiagram(name = "Arch") {
+                    val orderApi = interfaceOf(name = "IOrderApi")
+                    component(name = "OrderService") { provides(iface = orderApi) }
                 }
             val comp = d.elements.filterIsInstance<UmlComponent>().single()
             comp.providedInterfaceIds shouldBe listOf("IOrderApi")
@@ -59,9 +59,9 @@ class ComponentDiagramBuilderTest :
 
         test(name = "requires stores interface id on component") {
             val d =
-                componentDiagram("Arch") {
-                    val eventBus = interfaceOf("IEventBus")
-                    component("InvoiceService") { requires(eventBus) }
+                componentDiagram(name = "Arch") {
+                    val eventBus = interfaceOf(name = "IEventBus")
+                    component(name = "InvoiceService") { requires(iface = eventBus) }
                 }
             val comp = d.elements.filterIsInstance<UmlComponent>().single()
             comp.requiredInterfaceIds shouldBe listOf("IEventBus")
@@ -69,8 +69,8 @@ class ComponentDiagramBuilderTest :
 
         test(name = "nested component is stored inside parent component") {
             val d =
-                componentDiagram("Arch") {
-                    component("OrderService") { component("OrderRepository") }
+                componentDiagram(name = "Arch") {
+                    component(name = "OrderService") { component(name = "OrderRepository") }
                 }
             val parent = d.elements.filterIsInstance<UmlComponent>().single()
             parent.nestedComponents.single().id shouldBe "OrderService::OrderRepository"
@@ -78,9 +78,9 @@ class ComponentDiagramBuilderTest :
 
         test(name = "connect by component+port-name creates UmlConnector with full port ids") {
             val d =
-                componentDiagram("Arch") {
-                    val a = component("A") { port("out") }
-                    val b = component("B") { port("in") }
+                componentDiagram(name = "Arch") {
+                    val a = component(name = "A") { port(name = "out") }
+                    val b = component(name = "B") { port(name = "in") }
                     connect(end1 = a, port1 = "out", end2 = b, port2 = "in")
                 }
             val c = d.elements.filterIsInstance<UmlConnector>().single()
@@ -89,7 +89,7 @@ class ComponentDiagramBuilderTest :
         }
 
         test(name = "diagram type is COMPONENT") {
-            componentDiagram("X") {}.type shouldBe DiagramType.COMPONENT
+            componentDiagram(name = "X") {}.type shouldBe DiagramType.COMPONENT
         }
 
         test(name = "adding UmlClass to component diagram throws") {
@@ -114,7 +114,7 @@ class ComponentDiagramBuilderTest :
         }
 
         test(name = "config is ComponentDiagramConfig with defaults") {
-            val d = componentDiagram("Config Test") {}
+            val d = componentDiagram(name = "Config Test") {}
             val config = d.config
             config.shouldBeInstanceOf<ComponentDiagramConfig>()
             config.showPortLabels shouldBe true
@@ -128,9 +128,9 @@ class ComponentDiagramBuilderTest :
         // [[03 Bereiche/kUML/Beispiele/12 UML Component – Order Architecture]]).
         test(name = "provides synthesizes a UmlInterfaceRealization when the interface is a diagram node") {
             val d =
-                componentDiagram("Order Architecture") {
-                    val orderApi = interfaceOf("IOrderApi")
-                    component("OrderService") { provides(orderApi) }
+                componentDiagram(name = "Order Architecture") {
+                    val orderApi = interfaceOf(name = "IOrderApi")
+                    component(name = "OrderService") { provides(iface = orderApi) }
                 }
             val realization = d.elements.filterIsInstance<UmlInterfaceRealization>().single()
             realization.implementingId shouldBe "OrderService"
@@ -140,9 +140,9 @@ class ComponentDiagramBuilderTest :
 
         test(name = "requires synthesizes a UmlDependency with use stereotype when interface is a node") {
             val d =
-                componentDiagram("Order Architecture") {
-                    val orderApi = interfaceOf("IOrderApi")
-                    component("InvoiceService") { requires(orderApi) }
+                componentDiagram(name = "Order Architecture") {
+                    val orderApi = interfaceOf(name = "IOrderApi")
+                    component(name = "InvoiceService") { requires(iface = orderApi) }
                 }
             val dependency = d.elements.filterIsInstance<UmlDependency>().single()
             dependency.clientId shouldBe "InvoiceService"
@@ -156,8 +156,8 @@ class ComponentDiagramBuilderTest :
             // Diagramm als Knoten erscheint → kein synthetisches Edge, sonst
             // hätten wir freischwebende Beziehungen ohne sichtbares Ziel.
             val d =
-                componentDiagram("External Reference") {
-                    component("OrderService") { providesById("com.example.IOrderApi") }
+                componentDiagram(name = "External Reference") {
+                    component(name = "OrderService") { providesById("com.example.IOrderApi") }
                 }
             d.elements.filterIsInstance<UmlInterfaceRealization>().shouldHaveSize(0)
         }

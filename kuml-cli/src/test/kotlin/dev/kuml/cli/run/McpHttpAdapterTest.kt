@@ -77,10 +77,10 @@ class McpHttpAdapterTest :
 
         test("POST /run/event returns active states") {
             val manager = makeManager()
-            val adapter = McpHttpAdapter(manager, 0)
+            val adapter = McpHttpAdapter(manager = manager, requestedPort = 0)
             val port = adapter.start()
             try {
-                val (code, body) = httpPost(port, "/run/event", """{"name":"timer60s"}""")
+                val (code, body) = httpPost(port = port, path = "/run/event", body = """{"name":"timer60s"}""")
                 code shouldBe 200
                 body shouldContain "activeStates"
                 body shouldContain "fired"
@@ -93,10 +93,10 @@ class McpHttpAdapterTest :
 
         test("GET /run/snapshot returns state info") {
             val manager = makeManager()
-            val adapter = McpHttpAdapter(manager, 0)
+            val adapter = McpHttpAdapter(manager = manager, requestedPort = 0)
             val port = adapter.start()
             try {
-                val (code, body) = httpGet(port, "/run/snapshot")
+                val (code, body) = httpGet(port = port, path = "/run/snapshot")
                 code shouldBe 200
                 body shouldContain "activeStates"
             } finally {
@@ -108,10 +108,10 @@ class McpHttpAdapterTest :
 
         test("POST /run/patch updates variables") {
             val manager = makeManager()
-            val adapter = McpHttpAdapter(manager, 0)
+            val adapter = McpHttpAdapter(manager = manager, requestedPort = 0)
             val port = adapter.start()
             try {
-                val (code, body) = httpPost(port, "/run/patch", """{"variables":{"counter":1}}""")
+                val (code, body) = httpPost(port = port, path = "/run/patch", body = """{"variables":{"counter":1}}""")
                 code shouldBe 200
                 body shouldContain "ok"
             } finally {
@@ -123,10 +123,10 @@ class McpHttpAdapterTest :
 
         test("GET /run/health returns ok") {
             val manager = makeManager()
-            val adapter = McpHttpAdapter(manager, 0)
+            val adapter = McpHttpAdapter(manager = manager, requestedPort = 0)
             val port = adapter.start()
             try {
-                val (code, body) = httpGet(port, "/run/health")
+                val (code, body) = httpGet(port = port, path = "/run/health")
                 code shouldBe 200
                 body shouldContain "ok"
                 body shouldContain "version"
@@ -139,9 +139,9 @@ class McpHttpAdapterTest :
 
         test("POST /run/stop terminates server") {
             val manager = makeManager()
-            val adapter = McpHttpAdapter(manager, 0)
+            val adapter = McpHttpAdapter(manager = manager, requestedPort = 0)
             val port = adapter.start()
-            val (code, body) = httpPost(port, "/run/stop", "")
+            val (code, body) = httpPost(port = port, path = "/run/stop", body = "")
             code shouldBe 200
             body shouldContain "totalSteps"
             // Wait briefly for the server to shut down
@@ -152,7 +152,7 @@ class McpHttpAdapterTest :
 
         test("port 0 binds random free port") {
             val manager = makeManager()
-            val adapter = McpHttpAdapter(manager, 0)
+            val adapter = McpHttpAdapter(manager = manager, requestedPort = 0)
             val port = adapter.start()
             try {
                 port shouldBeGreaterThan 0

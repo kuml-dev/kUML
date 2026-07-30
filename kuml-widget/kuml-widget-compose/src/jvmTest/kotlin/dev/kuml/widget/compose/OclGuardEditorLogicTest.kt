@@ -21,18 +21,18 @@ class OclGuardEditorLogicTest :
         }
 
         test(name = "Error => save disabled") {
-            guardSaveEnabled(OclCheckResult.Error("x", null)) shouldBe false
+            guardSaveEnabled(OclCheckResult.Error(message = "x", range = null)) shouldBe false
         }
 
         test(name = "save predicate tracks typeCheck on a realistic scope") {
             val scope = OclScope(mapOf("count" to OclType.INTEGER))
 
-            guardSaveEnabled(OclSyntax.typeCheck("count > 0", scope)) shouldBe true
-            guardSaveEnabled(OclSyntax.typeCheck("nope > 0", scope)) shouldBe false
+            guardSaveEnabled(OclSyntax.typeCheck(expr = "count > 0", scope = scope)) shouldBe true
+            guardSaveEnabled(OclSyntax.typeCheck(expr = "nope > 0", scope = scope)) shouldBe false
         }
 
         test(name = "sandbox size guard is reachable through the editor's check path") {
             val emptyScope = OclScope(emptyMap())
-            guardSaveEnabled(OclSyntax.typeCheck("a".repeat(5000), emptyScope)) shouldBe false
+            guardSaveEnabled(OclSyntax.typeCheck(expr = "a".repeat(5000), scope = emptyScope)) shouldBe false
         }
     })

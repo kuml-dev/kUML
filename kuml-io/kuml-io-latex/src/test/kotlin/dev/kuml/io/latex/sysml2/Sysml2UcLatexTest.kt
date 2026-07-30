@@ -28,16 +28,16 @@ class Sysml2UcLatexTest :
 
         "UC-TikZ enthält Actor- und UseCase-Namen im Snippet (V2.0.7 fallback)" {
             val model =
-                sysml2Model("Library") {
-                    val reader = actorDef("Reader")
-                    val borrow = useCaseDef("BorrowBook")
-                    val auth = useCaseDef("Authenticate")
-                    ucDiagram("UC") {
+                sysml2Model(name = "Library") {
+                    val reader = actorDef(name = "Reader")
+                    val borrow = useCaseDef(name = "BorrowBook")
+                    val auth = useCaseDef(name = "Authenticate")
+                    ucDiagram(name = "UC") {
                         include(reader)
                         include(borrow)
                         include(auth)
-                        association(reader, borrow)
-                        include(borrow, auth)
+                        association(actor = reader, useCase = borrow)
+                        include(source = borrow, target = auth)
                     }
                 }
             val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
@@ -45,21 +45,21 @@ class Sysml2UcLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(600f, 220f),
+                    canvas = Size(width = 600f, height = 220f),
                     nodes =
                         mapOf(
                             NodeId("Reader") to
-                                NodeLayout(bounds = Rect(Point(20f, 60f), Size(60f, 100f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 60f), size = Size(width = 60f, height = 100f))),
                             NodeId("BorrowBook") to
-                                NodeLayout(bounds = Rect(Point(160f, 30f), Size(160f, 70f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 160f, y = 30f), size = Size(width = 160f, height = 70f))),
                             NodeId("Authenticate") to
-                                NodeLayout(bounds = Rect(Point(400f, 30f), Size(160f, 70f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 400f, y = 30f), size = Size(width = 160f, height = 70f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(model, uc, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = uc, layoutResult = layout)
 
             tex shouldContain "\\begin{tikzpicture}"
             tex shouldContain "Reader"
@@ -69,18 +69,18 @@ class Sysml2UcLatexTest :
             tex shouldContain "actor def"
             tex shouldContain "use case def"
 
-            SampleOutput.write("sysml2-uc/library-uc.tex", tex)
+            SampleOutput.write(filename = "sysml2-uc/library-uc.tex", content = tex)
         }
 
         "deterministic UC output" {
             val model =
-                sysml2Model("Det") {
-                    val reader = actorDef("Reader")
-                    val borrow = useCaseDef("BorrowBook")
-                    ucDiagram("UC") {
+                sysml2Model(name = "Det") {
+                    val reader = actorDef(name = "Reader")
+                    val borrow = useCaseDef(name = "BorrowBook")
+                    ucDiagram(name = "UC") {
                         include(reader)
                         include(borrow)
-                        association(reader, borrow)
+                        association(actor = reader, useCase = borrow)
                     }
                 }
             val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
@@ -88,19 +88,19 @@ class Sysml2UcLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
                             NodeId("Reader") to
-                                NodeLayout(bounds = Rect(Point(0f, 0f), Size(60f, 100f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 60f, height = 100f))),
                             NodeId("BorrowBook") to
-                                NodeLayout(bounds = Rect(Point(120f, 0f), Size(160f, 70f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 120f, y = 0f), size = Size(width = 160f, height = 70f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val one = KumlLatexRenderer.toLatex(model, uc, layout)
-            val two = KumlLatexRenderer.toLatex(model, uc, layout)
+            val one = KumlLatexRenderer.toLatex(model = model, diagram = uc, layoutResult = layout)
+            val two = KumlLatexRenderer.toLatex(model = model, diagram = uc, layoutResult = layout)
             one shouldBe two
         }
     })

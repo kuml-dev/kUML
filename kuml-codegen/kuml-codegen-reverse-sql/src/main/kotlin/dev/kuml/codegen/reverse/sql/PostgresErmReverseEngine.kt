@@ -64,7 +64,7 @@ public class PostgresErmReverseEngine : ErmReverseEngine {
                 )
             }
 
-            val parsed = SqlStatementCollector.collect(files, diagnostics)
+            val parsed = SqlStatementCollector.collect(files = files, diagnostics = diagnostics)
             if (parsed.isEmpty()) {
                 return@withContext ErmReverseResult.Failure(
                     listOf(
@@ -86,7 +86,15 @@ public class PostgresErmReverseEngine : ErmReverseEngine {
                 val stmt = parsedStmt.statement
                 if (stmt !is CreateTable) continue
                 val entityId = "entity_$entityIx"
-                val entity = TableMapper.map(stmt, entityId, entityIx, diagnostics, pendingForeignKeys, parsedStmt.fileName)
+                val entity =
+                    TableMapper.map(
+                        ct = stmt,
+                        entityId = entityId,
+                        entityIx = entityIx,
+                        diagnostics = diagnostics,
+                        pendingForeignKeys = pendingForeignKeys,
+                        fileHint = parsedStmt.fileName,
+                    )
                 entities[entityId] = entity
                 nameIndex[SqlIdentifiers.fold(stmt.table.name)] = entityId
                 entityIx++
@@ -96,21 +104,34 @@ public class PostgresErmReverseEngine : ErmReverseEngine {
             for (parsedStmt in parsed) {
                 val stmt = parsedStmt.statement
                 if (stmt !is Alter) continue
-                ConstraintResolver.applyAlter(stmt, entities, nameIndex, pendingForeignKeys, diagnostics, parsedStmt.fileName)
+                ConstraintResolver.applyAlter(
+                    alter = stmt,
+                    entities = entities,
+                    nameIndex = nameIndex,
+                    pendingForeignKeys = pendingForeignKeys,
+                    diagnostics = diagnostics,
+                    fileHint = parsedStmt.fileName,
+                )
             }
 
-            ConstraintResolver.resolveForeignKeys(pendingForeignKeys, entities, nameIndex, diagnostics, null)
+            ConstraintResolver.resolveForeignKeys(
+                pending = pendingForeignKeys,
+                entities = entities,
+                nameIndex = nameIndex,
+                diagnostics = diagnostics,
+                fileHint = null,
+            )
 
             for (parsedStmt in parsed) {
                 val stmt = parsedStmt.statement
                 if (stmt !is CreateIndex) continue
                 ConstraintResolver.applyCreateIndex(
-                    stmt,
-                    entities,
-                    nameIndex,
-                    diagnostics,
-                    parsedStmt.fileName,
-                    parsedStmt.partialIndexPredicate,
+                    ci = stmt,
+                    entities = entities,
+                    nameIndex = nameIndex,
+                    diagnostics = diagnostics,
+                    fileHint = parsedStmt.fileName,
+                    wherePredicate = parsedStmt.partialIndexPredicate,
                 )
             }
 
@@ -119,7 +140,14 @@ public class PostgresErmReverseEngine : ErmReverseEngine {
             for (parsedStmt in parsed) {
                 val stmt = parsedStmt.statement
                 if (stmt !is CreateView) continue
-                views += ConstraintResolver.mapView(stmt, viewIx, nameIndex, diagnostics, parsedStmt.fileName)
+                views +=
+                    ConstraintResolver.mapView(
+                        cv = stmt,
+                        viewIx = viewIx,
+                        nameIndex = nameIndex,
+                        diagnostics = diagnostics,
+                        fileHint = parsedStmt.fileName,
+                    )
                 viewIx++
             }
 

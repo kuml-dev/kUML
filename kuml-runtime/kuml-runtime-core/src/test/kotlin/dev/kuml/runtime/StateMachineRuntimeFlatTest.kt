@@ -12,8 +12,8 @@ class StateMachineRuntimeFlatTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A", entry = "onA")),
-                    transitions = listOf(trans("t0", "init", "A")),
+                    vertices = listOf(initial(), state(id = "A", entry = "onA")),
+                    transitions = listOf(trans(id = "t0", from = "init", to = "A")),
                 )
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)
             val instance = rt.start(sm)
@@ -25,16 +25,16 @@ class StateMachineRuntimeFlatTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), state("B")),
+                    vertices = listOf(initial(), state(id = "A"), state(id = "B")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
-                            trans("t1", "A", "B", trigger = "go"),
+                            trans(id = "t0", from = "init", to = "A"),
+                            trans(id = "t1", from = "A", to = "B", trigger = "go"),
                         ),
                 )
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)
             val instance = rt.start(sm)
-            val result = rt.step(instance, Event.of("go"))
+            val result = rt.step(instance = instance, event = Event.of("go"))
             result.shouldBeInstanceOf<StepResult.Transitioned>()
             instance.currentVertices.map { it.id } shouldBe listOf("B")
         }
@@ -43,16 +43,16 @@ class StateMachineRuntimeFlatTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), state("B")),
+                    vertices = listOf(initial(), state(id = "A"), state(id = "B")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
-                            trans("t1", "A", "B", trigger = "go"),
+                            trans(id = "t0", from = "init", to = "A"),
+                            trans(id = "t1", from = "A", to = "B", trigger = "go"),
                         ),
                 )
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)
             val instance = rt.start(sm)
-            val result = rt.step(instance, Event.of("nope"))
+            val result = rt.step(instance = instance, event = Event.of("nope"))
             result.shouldBeInstanceOf<StepResult.Stayed>()
             instance.currentVertices.map { it.id } shouldBe listOf("A")
         }
@@ -61,16 +61,16 @@ class StateMachineRuntimeFlatTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), finalState("Done")),
+                    vertices = listOf(initial(), state(id = "A"), finalState("Done")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
-                            trans("t1", "A", "Done", trigger = "finish"),
+                            trans(id = "t0", from = "init", to = "A"),
+                            trans(id = "t1", from = "A", to = "Done", trigger = "finish"),
                         ),
                 )
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)
             val instance = rt.start(sm)
-            val result = rt.step(instance, Event.of("finish"))
+            val result = rt.step(instance = instance, event = Event.of("finish"))
             result shouldBe StepResult.Terminated
             instance.isTerminated shouldBe true
         }
@@ -79,17 +79,17 @@ class StateMachineRuntimeFlatTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), finalState("Done")),
+                    vertices = listOf(initial(), state(id = "A"), finalState("Done")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
-                            trans("t1", "A", "Done", trigger = "finish"),
+                            trans(id = "t0", from = "init", to = "A"),
+                            trans(id = "t1", from = "A", to = "Done", trigger = "finish"),
                         ),
                 )
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)
             val instance = rt.start(sm)
-            rt.step(instance, Event.of("finish"))
-            val again = rt.step(instance, Event.of("anything"))
+            rt.step(instance = instance, event = Event.of("finish"))
+            val again = rt.step(instance = instance, event = Event.of("anything"))
             again.shouldBeInstanceOf<StepResult.Stayed>()
             again.reason shouldBe "state machine terminated"
         }
@@ -98,16 +98,16 @@ class StateMachineRuntimeFlatTest :
             val sm =
                 smOf(
                     name = "M",
-                    vertices = listOf(initial(), state("A"), state("B")),
+                    vertices = listOf(initial(), state(id = "A"), state(id = "B")),
                     transitions =
                         listOf(
-                            trans("t0", "init", "A"),
-                            trans("t1", "A", "B", trigger = "pay(amount)"),
+                            trans(id = "t0", from = "init", to = "A"),
+                            trans(id = "t1", from = "A", to = "B", trigger = "pay(amount)"),
                         ),
                 )
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)
             val instance = rt.start(sm)
-            val result = rt.step(instance, Event.of("pay"))
+            val result = rt.step(instance = instance, event = Event.of("pay"))
             result.shouldBeInstanceOf<StepResult.Transitioned>()
             instance.currentVertices.map { it.id } shouldHaveSize 1
             instance.currentVertices.first().id shouldBe "B"

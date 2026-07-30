@@ -140,7 +140,7 @@ internal class PluginSearchCommand(
             results = results.filter { it.category.equals(cat, ignoreCase = true) }
         }
 
-        results = sortResults(results, sort)
+        results = sortResults(entries = results, sortBy = sort)
 
         if (results.isEmpty()) {
             echo("No plugins found.")
@@ -292,7 +292,7 @@ internal class PluginInstallCommand : CliktCommand(name = "install") {
 
         // 6. Load immediately
         try {
-            PluginLoader.loadJar(dest, runtimeVersion)
+            PluginLoader.loadJar(jar = dest, runtimeVersion = runtimeVersion)
         } catch (e: VersionMismatchException) {
             dest.delete()
             System.err.println("Version mismatch: ${e.message}")
@@ -331,7 +331,7 @@ internal class PluginRemoveCommand : CliktCommand(name = "remove") {
         val candidates =
             pluginDir
                 .listFiles { f -> f.extension == "jar" }
-                ?.filter { jar -> manifestIdMatches(jar, id) }
+                ?.filter { jar -> manifestIdMatches(jar = jar, targetId = id) }
                 ?: emptyList()
 
         for (jar in candidates) {
@@ -414,14 +414,14 @@ internal class PluginInfoCommand(
         if (entry != null) {
             echo("")
             echo("  Signing keys: ${entry.keyStatusSummary()}")
-            echo("  Rating:       ${PluginStatsFormat.ratingLine(entry.rating, entry.ratingCount)}")
+            echo("  Rating:       ${PluginStatsFormat.ratingLine(rating = entry.rating, count = entry.ratingCount)}")
             echo("  Downloads:    ${PluginStatsFormat.fullDownloads(entry.downloadCount)}")
             val recent = entry.recentReviews(3)
             if (recent.isNotEmpty()) {
                 echo("  Reviews:")
                 for (review in recent) {
                     val starStr = PluginStatsFormat.stars(review.rating.toDouble())
-                    val comment = PluginStatsFormat.truncate(review.comment)
+                    val comment = PluginStatsFormat.truncate(comment = review.comment)
                     echo("    $starStr ${review.author} (${review.date}): $comment")
                 }
                 val extra = entry.reviews.size - recent.size
@@ -490,7 +490,7 @@ internal class PluginReloadCommand : CliktCommand(name = "reload") {
 
     override fun run() {
         val runtimeVersion = parseRuntimeVersion()
-        PluginLoader.reload(runtimeVersion)
+        PluginLoader.reload(runtimeVersion = runtimeVersion)
         val count = PluginRegistry.all().size
         echo("Plugins reloaded. $count plugin(s) loaded.")
     }
@@ -511,10 +511,10 @@ internal fun readManifestFromJar(jar: File): String? =
 
 internal fun ensureLoaded() {
     if (PluginRegistry.all().isEmpty()) {
-        PluginLoader.load(parseRuntimeVersion())
+        PluginLoader.load(runtimeVersion = parseRuntimeVersion())
     }
 }
 
 internal fun parseRuntimeVersion(): PluginVersion =
     runCatching { PluginVersion.parse(KumlVersion.version) }
-        .getOrDefault(PluginVersion(0, 12, 0))
+        .getOrDefault(PluginVersion(major = 0, minor = 12, patch = 0))

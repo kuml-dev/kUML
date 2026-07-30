@@ -137,7 +137,7 @@ object FileMenu {
             if (chooser.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) {
                 return@runOnEdtBlocking null
             }
-            ensureExtension(chooser.selectedFile, extension)
+            ensureExtension(file = chooser.selectedFile, extension = extension)
         }
 
     /** Appends `.$extension` to [file] if it isn't already present (case-insensitive). */

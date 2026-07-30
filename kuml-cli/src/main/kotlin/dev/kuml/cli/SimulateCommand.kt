@@ -121,7 +121,7 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
     override fun run() {
         // Evaluate script and dispatch to the appropriate runtime
         val scriptResult = evalScript(script)
-        val extracted = extractDiagram(scriptResult, script)
+        val extracted = extractDiagram(result = scriptResult, file = script)
 
         // Check if this is an ACT diagram — route to activity runtime
         if (extracted is ExtractedDiagram.Sysml2) {
@@ -131,13 +131,13 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
                         .filterIsInstance<ActDiagram>()
                         .firstOrNull()
             if (actDiagram != null) {
-                runActivity(extracted, actDiagram)
+                runActivity(extracted = extracted, diagram = actDiagram)
                 return
             }
         }
 
         // STM / UML path (existing)
-        val sm = resolveStateMachine(extracted, script)
+        val sm = resolveStateMachine(extracted = extracted, file = script)
         val clock: () -> Instant =
             if (epochClock) {
                 val counter =
@@ -151,7 +151,7 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
         val sandboxPolicy = SandboxPolicy(guardTimeoutMs = guardTimeoutMs)
         val guardsEvaluator =
             if (sandbox) {
-                TimeLimitedGuardEvaluator(OclGuardEvaluator(), sandboxPolicy)
+                TimeLimitedGuardEvaluator(delegate = OclGuardEvaluator(), policy = sandboxPolicy)
             } else {
                 OclGuardEvaluator()
             }
@@ -165,7 +165,7 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
         val instance = runtime.start(sm)
 
         if (interactive) {
-            runInteractive(runtime, instance)
+            runInteractive(runtime = runtime, instance = instance)
         } else {
             val eventFile =
                 events ?: run {
@@ -181,11 +181,11 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
                 }
             for (ev in evs) {
                 if (instance.isTerminated) break
-                runtime.step(instance, ev)
+                runtime.step(instance = instance, event = ev)
             }
             outputTrace?.let {
                 try {
-                    writeTrace(instance.trace, it.toFile(), modelId = sm.id)
+                    writeTrace(trace = instance.trace, file = it.toFile(), modelId = sm.id)
                     echo("Wrote ${instance.trace.size} trace entries to $it")
                 } catch (e: IOException) {
                     System.err.println("I/O error: ${e.message}")
@@ -194,7 +194,7 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
             }
             expectedTrace?.let { exp ->
                 val expected = loadTrace(exp).entries
-                val report = TraceDiff.compare(instance.trace, expected)
+                val report = TraceDiff.compare(actual = instance.trace, expected = expected)
                 if (!report.isMatch) {
                     System.err.println(report.toHumanReadable())
                     throw ProgramResult(ExitCodes.TRACE_DIFF)
@@ -243,7 +243,7 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
 
         val runtime =
             try {
-                Sysml2ActivityAdapter.runtimeFor(extracted.model, diagram)
+                Sysml2ActivityAdapter.runtimeFor(model = extracted.model, diagram = diagram)
             } catch (ex: IllegalArgumentException) {
                 System.err.println("SysML 2 ACT adapter error: ${ex.message}")
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
@@ -271,7 +271,7 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
 
         outputTrace?.let {
             try {
-                writeTrace(allTrace, it.toFile(), modelId = diagram.name)
+                writeTrace(trace = allTrace, file = it.toFile(), modelId = diagram.name)
                 echo("Wrote ${allTrace.size} trace entries to $it")
             } catch (e: IOException) {
                 System.err.println("I/O error: ${e.message}")
@@ -281,7 +281,7 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
 
         expectedTrace?.let { exp ->
             val expected = loadTrace(exp).entries
-            val report = TraceDiff.compare(allTrace, expected)
+            val report = TraceDiff.compare(actual = allTrace, expected = expected)
             if (!report.isMatch) {
                 System.err.println(report.toHumanReadable())
                 throw ProgramResult(ExitCodes.TRACE_DIFF)
@@ -294,7 +294,7 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
     // ── script evaluation helpers ─────────────────────────────────────────────
 
     private fun evalScript(file: java.io.File): ResultWithDiagnostics.Success<EvaluationResult> {
-        val result = KumlScriptHost.eval(file)
+        val result = KumlScriptHost.eval(file = file)
         val errors = result.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || result is ResultWithDiagnostics.Failure) {
             System.err.println("Script error:\n" + errors.joinToString("\n") { it.message })
@@ -310,10 +310,10 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
     ): ExtractedDiagram =
         try {
             dev.kuml.core.script.DiagramExtractor
-                .extractAny(result.value.returnValue, file)
+                .extractAny(returnValue = result.value.returnValue, input = file)
         } catch (_: Throwable) {
             // Legacy UML path: older `stateMachine { … }` scripts that don't wrap in sysml2Model
-            val diagram = DiagramExtractor.extract(result.value.returnValue, file)
+            val diagram = DiagramExtractor.extract(returnValue = result.value.returnValue, input = file)
             ExtractedDiagram.Uml(diagram)
         }
 
@@ -353,7 +353,7 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
                             throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                         }
                 try {
-                    Sysml2StateMachineAdapter.toUmlStateMachine(extracted.model, stm)
+                    Sysml2StateMachineAdapter.toUmlStateMachine(model = extracted.model, diagram = stm)
                 } catch (ex: IllegalStateException) {
                     System.err.println("SysML 2 STM adapter error: ${ex.message}")
                     throw ProgramResult(ExitCodes.SCRIPT_ERROR)
@@ -405,7 +405,7 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
             if (line.isEmpty()) continue
             if (line == "quit" || line == "exit") break
             val (name, payload) = parseInteractive(line)
-            val result = runtime.step(instance, Event(name = name, payload = payload))
+            val result = runtime.step(instance = instance, event = Event(name = name, payload = payload))
             when (result) {
                 is StepResult.Transitioned ->
                     echo("─ Transitioned: ${result.fromVertexIds} → ${result.toVertexIds}")
@@ -421,7 +421,7 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
             }
         }
         outputTrace?.let {
-            writeTrace(instance.trace, it.toFile(), modelId = instance.model.id)
+            writeTrace(trace = instance.trace, file = it.toFile(), modelId = instance.model.id)
             echo("Wrote ${instance.trace.size} trace entries to $it")
         }
     }

@@ -70,7 +70,7 @@ internal object WorkspaceRenderer {
         for (doc in ws.documents) {
             if (doc.kumlBlocks.isEmpty()) {
                 skipped += doc.relativePath
-                if (mirror) mirrorDocument(outputDir, doc, imagePathsByBlockIndex = emptyList())
+                if (mirror) mirrorDocument(outputDir = outputDir, doc = doc, imagePathsByBlockIndex = emptyList())
                 continue
             }
 
@@ -86,8 +86,8 @@ internal object WorkspaceRenderer {
 
                 val tempDir = Files.createTempDirectory("kuml-okf-render").toFile()
                 try {
-                    val outFile = resolveWithin(targetDir, "$stem.$format")
-                    val tempScript = resolveWithin(tempDir, "$stem.kuml.kts")
+                    val outFile = resolveWithin(base = targetDir, childName = "$stem.$format")
+                    val tempScript = resolveWithin(base = tempDir, childName = "$stem.kuml.kts")
                     tempScript.writeText(block.source, Charsets.UTF_8)
                     RenderPipeline.run(
                         input = tempScript,
@@ -135,7 +135,7 @@ internal object WorkspaceRenderer {
                 }
             }
 
-            if (mirror) mirrorDocument(outputDir, doc, imagePaths.toList())
+            if (mirror) mirrorDocument(outputDir = outputDir, doc = doc, imagePathsByBlockIndex = imagePaths.toList())
         }
 
         return RenderReport(rendered = rendered, skipped = skipped, failures = failures)

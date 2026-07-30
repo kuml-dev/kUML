@@ -171,11 +171,11 @@ class AutosarProfileTest :
 
         test("Runnable applied via DSL stores entry in operation appliedStereotypes") {
             val diagram =
-                classDiagram("Runnable Test") {
+                classDiagram(name = "Runnable Test") {
                     applyProfile(autosarProfile)
-                    classOf("BrakeController") {
-                        operation("onCycle") {
-                            stereotype("Runnable") {
+                    classOf(name = "BrakeController") {
+                        operation(name = "onCycle") {
+                            stereotype(name = "Runnable") {
                                 "kind" to AutosarBehaviorKind.Periodic
                                 "periodMs" to 10L
                             }

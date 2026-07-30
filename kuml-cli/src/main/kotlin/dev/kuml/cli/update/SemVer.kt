@@ -37,7 +37,7 @@ internal data class SemVer(
             preRelease == null && other.preRelease == null -> 0
             preRelease == null -> 1
             other.preRelease == null -> -1
-            else -> comparePreRelease(preRelease, other.preRelease)
+            else -> comparePreRelease(a = preRelease, b = other.preRelease)
         }
     }
 

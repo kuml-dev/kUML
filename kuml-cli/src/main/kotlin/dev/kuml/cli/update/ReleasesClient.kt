@@ -86,7 +86,7 @@ internal class HttpReleasesClient(
 
     override fun fetchLatest(): ReleasesClient.Result {
         val url = "$baseUrl/repos/$repo/releases/latest"
-        return doRequest(url) { body ->
+        return doRequest(url = url) { body ->
             ReleasesClient.Result.Ok(ReleaseInfo.JSON.decodeFromString<ReleaseInfo>(body))
         }
     }
@@ -94,7 +94,7 @@ internal class HttpReleasesClient(
     override fun fetchAll(limit: Int): ReleasesClient.ListResult {
         val capped = limit.coerceIn(1, 100) // GitHub max-page-size is 100.
         val url = "$baseUrl/repos/$repo/releases?per_page=$capped"
-        return doListRequest(url) { body ->
+        return doListRequest(url = url) { body ->
             ReleasesClient.ListResult.Ok(ReleaseInfo.JSON.decodeFromString<List<ReleaseInfo>>(body))
         }
     }
@@ -108,10 +108,10 @@ internal class HttpReleasesClient(
             if (response.statusCode() in 200..299) {
                 onOk(response.body())
             } else {
-                ReleasesClient.Result.HttpError(response.statusCode(), response.body())
+                ReleasesClient.Result.HttpError(statusCode = response.statusCode(), body = response.body())
             }
         } catch (e: Exception) {
-            ReleasesClient.Result.Failure(e.message ?: e::class.simpleName ?: "unknown error", e)
+            ReleasesClient.Result.Failure(message = e.message ?: e::class.simpleName ?: "unknown error", cause = e)
         }
 
     private fun doListRequest(
@@ -123,10 +123,10 @@ internal class HttpReleasesClient(
             if (response.statusCode() in 200..299) {
                 onOk(response.body())
             } else {
-                ReleasesClient.ListResult.HttpError(response.statusCode(), response.body())
+                ReleasesClient.ListResult.HttpError(statusCode = response.statusCode(), body = response.body())
             }
         } catch (e: Exception) {
-            ReleasesClient.ListResult.Failure(e.message ?: e::class.simpleName ?: "unknown error", e)
+            ReleasesClient.ListResult.Failure(message = e.message ?: e::class.simpleName ?: "unknown error", cause = e)
         }
 
     private fun sendGet(url: String): HttpResponse<String> {

@@ -57,13 +57,13 @@ import dev.kuml.layout.bridge.SizeProvider
  */
 public object BpmnLayoutBridge {
     /** Standard-Knotengröße für BPMN-Tasks und CallActivities (Breite × Höhe in Pixeln). */
-    public val DEFAULT_TASK_SIZE: Size = Size(120f, 60f)
+    public val DEFAULT_TASK_SIZE: Size = Size(width = 120f, height = 60f)
 
     /** Standard-Knotengröße für BPMN-Gateways (Breite × Höhe). */
-    public val DEFAULT_GATEWAY_SIZE: Size = Size(50f, 70f) // 50 shape + 20 label space
+    public val DEFAULT_GATEWAY_SIZE: Size = Size(width = 50f, height = 70f) // 50 shape + 20 label space
 
     /** Standard-Knotengröße für BPMN-Events (Breite × Höhe). */
-    public val DEFAULT_EVENT_SIZE: Size = Size(36f, 56f) // 36 shape + 20 label space
+    public val DEFAULT_EVENT_SIZE: Size = Size(width = 36f, height = 56f) // 36 shape + 20 label space
 
     /** Tatsächliche Formhöhe eines Gateway-Diamonds (obere 50 px der 70 px-Bounds). */
     public const val BPMN_GATEWAY_SHAPE_H: Float = 50f
@@ -72,10 +72,10 @@ public object BpmnLayoutBridge {
     public const val BPMN_EVENT_SHAPE_H: Float = 36f
 
     /** Standard-Knotengröße für BPMN-DataObjects (Breite × Höhe). */
-    public val DEFAULT_DATA_OBJECT_SIZE: Size = Size(40f, 55f)
+    public val DEFAULT_DATA_OBJECT_SIZE: Size = Size(width = 40f, height = 55f)
 
     /** Standard-Knotengröße für BPMN-Choreography-Tasks (Breite × Höhe). */
-    public val DEFAULT_CHOREO_TASK_SIZE: Size = Size(160f, 80f)
+    public val DEFAULT_CHOREO_TASK_SIZE: Size = Size(width = 160f, height = 80f)
 
     /**
      * Übersetzt [diagram] mithilfe von [model] als Lookup-Kontext in einen [LayoutGraph].
@@ -194,7 +194,7 @@ public object BpmnLayoutBridge {
                     // BpmnContentSizeProvider but never read). Reusing the *same*
                     // taskBoxSize()-based estimate here as [LayoutGroup.minSize] floors
                     // the frame width so the title always fits.
-                    minSize = sizeProvider?.sizeOf(sp.id, "BpmnSubProcess"),
+                    minSize = sizeProvider?.sizeOf(elementId = sp.id, elementKind = "BpmnSubProcess"),
                 ),
             )
 
@@ -224,7 +224,7 @@ public object BpmnLayoutBridge {
                         is BpmnCallActivity -> DEFAULT_TASK_SIZE
                     }
                 val size =
-                    sizeProvider?.sizeOf(child.id, child::class.simpleName ?: "Unknown") ?: defaultSize
+                    sizeProvider?.sizeOf(elementId = child.id, elementKind = child::class.simpleName ?: "Unknown") ?: defaultSize
                 nodes.add(LayoutNode(id = NodeId(child.id), intrinsicSize = size, groupId = groupId))
             }
 
@@ -249,7 +249,7 @@ public object BpmnLayoutBridge {
                     is BpmnCallActivity -> DEFAULT_TASK_SIZE
                 }
             val size =
-                sizeProvider?.sizeOf(nodeId, element::class.simpleName ?: "Unknown") ?: defaultSize
+                sizeProvider?.sizeOf(elementId = nodeId, elementKind = element::class.simpleName ?: "Unknown") ?: defaultSize
             nodes.add(LayoutNode(id = NodeId(nodeId), intrinsicSize = size))
         }
 
@@ -257,7 +257,7 @@ public object BpmnLayoutBridge {
         for (dataId in allDataObjectIds) {
             dataObjectIndex[dataId] ?: continue
             val size =
-                sizeProvider?.sizeOf(dataId, "BpmnDataObject") ?: DEFAULT_DATA_OBJECT_SIZE
+                sizeProvider?.sizeOf(elementId = dataId, elementKind = "BpmnDataObject") ?: DEFAULT_DATA_OBJECT_SIZE
             nodes.add(LayoutNode(id = NodeId(dataId), intrinsicSize = size))
         }
 
@@ -315,7 +315,7 @@ public object BpmnLayoutBridge {
                 if (filterIds != null && be.id !in filterIds) continue
                 if (be.id in mutableNodeIdSet) continue // bereits hinzugefügt
                 val size =
-                    sizeProvider?.sizeOf(be.id, "BpmnEvent") ?: DEFAULT_EVENT_SIZE
+                    sizeProvider?.sizeOf(elementId = be.id, elementKind = "BpmnEvent") ?: DEFAULT_EVENT_SIZE
                 nodes.add(LayoutNode(id = NodeId(be.id), intrinsicSize = size))
                 mutableNodeIdSet.add(be.id)
 
@@ -452,7 +452,7 @@ public object BpmnLayoutBridge {
             )
 
             // Phantom node for the pool itself (as anchor for message flows targeting the pool)
-            nodes.add(LayoutNode(id = NodeId(participant.id), intrinsicSize = Size(0f, 0f), groupId = poolGroupId))
+            nodes.add(LayoutNode(id = NodeId(participant.id), intrinsicSize = Size(width = 0f, height = 0f), groupId = poolGroupId))
             addedNodeIds.add(participant.id)
 
             // Register all lanes of this pool
@@ -487,7 +487,8 @@ public object BpmnLayoutBridge {
                             is BpmnSubProcess -> DEFAULT_TASK_SIZE
                             is BpmnCallActivity -> DEFAULT_TASK_SIZE
                         }
-                    val size = sizeProvider?.sizeOf(flowNode.id, flowNode::class.simpleName ?: "Unknown") ?: defaultSize
+                    val size =
+                        sizeProvider?.sizeOf(elementId = flowNode.id, elementKind = flowNode::class.simpleName ?: "Unknown") ?: defaultSize
                     val assignedGroupId =
                         laneByFlowNode[flowNode.id]?.let { GroupId(it) } ?: poolGroupId
                     nodes.add(LayoutNode(id = NodeId(flowNode.id), intrinsicSize = size, groupId = assignedGroupId))
@@ -577,21 +578,21 @@ public object BpmnLayoutBridge {
         for (task in choreography.tasks) {
             if (filterIds != null && task.id !in filterIds) continue
             val size =
-                sizeProvider?.sizeOf(task.id, "ChoreographyTask") ?: DEFAULT_CHOREO_TASK_SIZE
+                sizeProvider?.sizeOf(elementId = task.id, elementKind = "ChoreographyTask") ?: DEFAULT_CHOREO_TASK_SIZE
             nodes.add(LayoutNode(id = NodeId(task.id), intrinsicSize = size, groupId = null))
             addedNodeIds.add(task.id)
         }
         for (gw in choreography.gateways) {
             if (filterIds != null && gw.id !in filterIds) continue
             val size =
-                sizeProvider?.sizeOf(gw.id, "ChoreographyGateway") ?: DEFAULT_GATEWAY_SIZE
+                sizeProvider?.sizeOf(elementId = gw.id, elementKind = "ChoreographyGateway") ?: DEFAULT_GATEWAY_SIZE
             nodes.add(LayoutNode(id = NodeId(gw.id), intrinsicSize = size, groupId = null))
             addedNodeIds.add(gw.id)
         }
         for (event in choreography.events) {
             if (filterIds != null && event.id !in filterIds) continue
             val size =
-                sizeProvider?.sizeOf(event.id, "ChoreographyEvent") ?: DEFAULT_EVENT_SIZE
+                sizeProvider?.sizeOf(elementId = event.id, elementKind = "ChoreographyEvent") ?: DEFAULT_EVENT_SIZE
             nodes.add(LayoutNode(id = NodeId(event.id), intrinsicSize = size, groupId = null))
             addedNodeIds.add(event.id)
         }
@@ -615,14 +616,14 @@ public object BpmnLayoutBridge {
     }
 
     /** Standard-Knotengröße für BPMN-Conversation-Participants (Rechtecke). */
-    public val DEFAULT_CONVERSATION_PARTICIPANT_SIZE: Size = Size(100f, 60f)
+    public val DEFAULT_CONVERSATION_PARTICIPANT_SIZE: Size = Size(width = 100f, height = 60f)
 
     /**
      * Standard-Knotengröße für BPMN-Konversationsknoten (Hexagons).
      *
      * 50×44: 40 px für die Hexagon-Form + 4 px Label-Reserve oben und unten.
      */
-    public val DEFAULT_CONVERSATION_NODE_SIZE: Size = Size(50f, 44f)
+    public val DEFAULT_CONVERSATION_NODE_SIZE: Size = Size(width = 50f, height = 44f)
 
     /**
      * Übersetzt ein [ConversationDiagram] + [BpmnModel] in einen [LayoutGraph].
@@ -658,7 +659,7 @@ public object BpmnLayoutBridge {
         for (participantName in conversation.participants) {
             if (filterIds != null && participantName !in filterIds) continue
             val size =
-                sizeProvider?.sizeOf(participantName, "ConversationParticipant")
+                sizeProvider?.sizeOf(elementId = participantName, elementKind = "ConversationParticipant")
                     ?: DEFAULT_CONVERSATION_PARTICIPANT_SIZE
             nodes.add(LayoutNode(id = NodeId(participantName), intrinsicSize = size, groupId = null))
             addedNodeIds.add(participantName)
@@ -674,7 +675,7 @@ public object BpmnLayoutBridge {
                     is SubConversation -> "SubConversation"
                     else -> "ConversationNode"
                 }
-            val size = sizeProvider?.sizeOf(node.id, kind) ?: DEFAULT_CONVERSATION_NODE_SIZE
+            val size = sizeProvider?.sizeOf(elementId = node.id, elementKind = kind) ?: DEFAULT_CONVERSATION_NODE_SIZE
             nodes.add(LayoutNode(id = NodeId(node.id), intrinsicSize = size, groupId = null))
             addedNodeIds.add(node.id)
         }

@@ -159,7 +159,7 @@ internal class CsharpReverseParser(
             tok.text == "using" -> skipToSemicolon()
             tok.text == "[" -> {
                 // Stray attribute bracket — skip
-                skipToClose(']', '[')
+                skipToClose(close = ']', open = '[')
             }
             else -> advance()
         }
@@ -250,7 +250,7 @@ internal class CsharpReverseParser(
         // Positional record params: record Point(int X, int Y) — skip
         if (peek().text == "(") {
             advance()
-            skipToClose(')', '(')
+            skipToClose(close = ')', open = '(')
         }
 
         // Base list: : BaseClass, IInterface1, IInterface2
@@ -440,7 +440,7 @@ internal class CsharpReverseParser(
                     if (peek().type == CsharpTokenType.IDENTIFIER) advance()
                     if (peek().text == "(") {
                         advance()
-                        skipToClose(')', '(')
+                        skipToClose(close = ')', open = '(')
                     }
                     skipOptionalBody()
                     if (peek().text == ";") advance()
@@ -456,10 +456,17 @@ internal class CsharpReverseParser(
                 tok.text == "using" || tok.text == "event" -> skipToSemicolon()
                 tok.text == "[" -> {
                     // Stray attribute not consumed — skip
-                    skipToClose(']', '[')
+                    skipToClose(close = ']', open = '[')
                 }
                 else -> {
-                    val member = parseMember(access, isStatic, isAbstract, isReadOnly, memberAttrs)
+                    val member =
+                        parseMember(
+                            access = access,
+                            isStatic = isStatic,
+                            isAbstract = isAbstract,
+                            isReadOnly = isReadOnly,
+                            attributes = memberAttrs,
+                        )
                     if (member != null) members += member
                 }
             }
@@ -519,7 +526,7 @@ internal class CsharpReverseParser(
                 // Method or constructor
                 advance() // (
                 val params = parseParamList()
-                skipToClose(')', '(')
+                skipToClose(close = ')', open = '(')
                 // Skip constraints
                 while (!atEof() && peek().text == "where") {
                     advance()
@@ -543,7 +550,7 @@ internal class CsharpReverseParser(
                 // Property: T Name { get; set; } or { get; } or auto-implemented
                 advance() // {
                 // Peek inside for get/set/init
-                skipToClose('}', '{')
+                skipToClose(close = '}', open = '{')
                 // Optional initializer: = value;
                 if (peek().text == "=") {
                     advance()
@@ -585,7 +592,7 @@ internal class CsharpReverseParser(
                 while (!atEof() && peek().text != ";" && peek().text != "}") {
                     if (peek().text == "{") {
                         advance()
-                        skipToClose('}', '{')
+                        skipToClose(close = '}', open = '{')
                     } else {
                         advance()
                     }
@@ -722,7 +729,7 @@ internal class CsharpReverseParser(
             // Skip attributes on params
             while (peek().text == "[") {
                 advance()
-                skipToClose(']', '[')
+                skipToClose(close = ']', open = '[')
             }
             // Skip param modifiers
             while (peek().text in listOf("this", "ref", "out", "in", "params")) {
@@ -745,7 +752,7 @@ internal class CsharpReverseParser(
                 while (!atEof() && peek().text != "," && peek().text != ")") {
                     if (peek().text == "{") {
                         advance()
-                        skipToClose('}', '{')
+                        skipToClose(close = '}', open = '{')
                     } else {
                         advance()
                     }
@@ -820,7 +827,7 @@ internal class CsharpReverseParser(
         // Skip positional record params
         if (peek().text == "(") {
             advance()
-            skipToClose(')', '(')
+            skipToClose(close = ')', open = '(')
         }
         // Skip base list
         if (peek().text == ":") {
@@ -829,7 +836,7 @@ internal class CsharpReverseParser(
         }
         if (peek().text == "{") {
             advance()
-            skipToClose('}', '{')
+            skipToClose(close = '}', open = '{')
         }
         if (peek().text == ";") advance()
     }
@@ -837,7 +844,7 @@ internal class CsharpReverseParser(
     private fun skipOptionalBody() {
         if (peek().text == "{") {
             advance()
-            skipToClose('}', '{')
+            skipToClose(close = '}', open = '{')
         }
     }
 
@@ -895,7 +902,7 @@ internal class CsharpReverseParser(
 
     // ── Token primitives ──────────────────────────────────────────────────────
 
-    private fun peek(): CsharpToken = tokens.getOrElse(pos) { CsharpToken(CsharpTokenType.EOF, "", 0) }
+    private fun peek(): CsharpToken = tokens.getOrElse(pos) { CsharpToken(type = CsharpTokenType.EOF, text = "", line = 0) }
 
     private fun advance(): CsharpToken {
         val t = peek()

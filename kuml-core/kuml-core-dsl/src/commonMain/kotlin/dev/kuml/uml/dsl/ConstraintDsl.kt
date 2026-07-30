@@ -37,7 +37,7 @@ public fun UmlClassifierScope.constraint(
     kind: UmlConstraintKind = UmlConstraintKind.Invariant,
     contextOperation: String? = null,
 ): UmlConstraint {
-    val id = UmlIds.disambiguate(UmlIds.child(ownerId, name), takenIds)
+    val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId = ownerId, name = name), taken = takenIds)
     takenIds += id
     val c = UmlConstraint(id = id, name = name, body = body, kind = kind, contextOperation = contextOperation)
     addConstraint(c)
@@ -52,7 +52,7 @@ public fun UmlClassifierScope.constraint(
 public fun UmlClassifierScope.invariant(
     name: String,
     body: String,
-): UmlConstraint = constraint(name, body, kind = UmlConstraintKind.Invariant)
+): UmlConstraint = constraint(name = name, body = body, kind = UmlConstraintKind.Invariant)
 
 /**
  * `def:` — a reusable named helper (attribute/operation), declared in the
@@ -71,7 +71,7 @@ public fun UmlClassifierScope.invariant(
 public fun UmlClassifierScope.definition(
     name: String,
     body: String,
-): UmlConstraint = constraint(name, body, kind = UmlConstraintKind.Definition)
+): UmlConstraint = constraint(name = name, body = body, kind = UmlConstraintKind.Definition)
 
 /**
  * `pre:` — an operation entry condition, evaluated against `self` (the
@@ -82,7 +82,7 @@ public fun UmlClassifierScope.precondition(
     name: String,
     operation: String,
     body: String,
-): UmlConstraint = constraint(name, body, kind = UmlConstraintKind.Precondition, contextOperation = operation)
+): UmlConstraint = constraint(name = name, body = body, kind = UmlConstraintKind.Precondition, contextOperation = operation)
 
 /**
  * `post:` — an operation exit condition. May reference `result` (the
@@ -94,7 +94,7 @@ public fun UmlClassifierScope.postcondition(
     name: String,
     operation: String,
     body: String,
-): UmlConstraint = constraint(name, body, kind = UmlConstraintKind.Postcondition, contextOperation = operation)
+): UmlConstraint = constraint(name = name, body = body, kind = UmlConstraintKind.Postcondition, contextOperation = operation)
 
 /**
  * `body:` — a full operation definition via its return-value expression
@@ -105,4 +105,4 @@ public fun UmlClassifierScope.body(
     name: String,
     operation: String,
     body: String,
-): UmlConstraint = constraint(name, body, kind = UmlConstraintKind.Body, contextOperation = operation)
+): UmlConstraint = constraint(name = name, body = body, kind = UmlConstraintKind.Body, contextOperation = operation)

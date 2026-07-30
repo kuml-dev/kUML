@@ -51,7 +51,7 @@ class SmilTimelineFrameSamplerTest :
   </rect>
 </svg>"""
             val timeline = SmilTimeline(emptyList()) // no timeline entries needed for strip test
-            val frame = SmilTimelineFrameSampler.buildStaticFrame(svgWithAnimation, timeline, 0L)
+            val frame = SmilTimelineFrameSampler.buildStaticFrame(svg = svgWithAnimation, timeline = timeline, tMs = 0L)
             // All <animate> elements should be stripped
             frame.contains("<animate") shouldBe false
         }
@@ -64,7 +64,7 @@ class SmilTimelineFrameSamplerTest :
   </rect>
 </svg>"""
             val timeline = SmilTimeline(emptyList())
-            val frame = SmilTimelineFrameSampler.buildStaticFrame(svgWithAnimation, timeline, 500L)
+            val frame = SmilTimelineFrameSampler.buildStaticFrame(svg = svgWithAnimation, timeline = timeline, tMs = 500L)
             frame.contains("<animateTransform") shouldBe false
         }
 
@@ -156,14 +156,14 @@ class SmilTimelineFrameSamplerTest :
                 )
             val timeline = SmilTimeline(listOf(anim))
             val opts = AnimRenderOptions(fps = 10, widthPx = 100)
-            val budget = FrameBudget.compute(timeline.totalDurationMs, opts)
-            val frames = SmilTimelineFrameSampler.sample(baseSvg, timeline, budget, opts)
+            val budget = FrameBudget.compute(totalDurationMs = timeline.totalDurationMs, options = opts)
+            val frames = SmilTimelineFrameSampler.sample(svg = baseSvg, timeline = timeline, budget = budget, options = opts)
             frames.size shouldBe budget.frameCount
         }
 
         test("buildStaticFrame output is a valid XML string") {
             val timeline = SmilTimeline(emptyList())
-            val frame = SmilTimelineFrameSampler.buildStaticFrame(baseSvg, timeline, 0L)
+            val frame = SmilTimelineFrameSampler.buildStaticFrame(svg = baseSvg, timeline = timeline, tMs = 0L)
             frame shouldContain "<svg"
             frame shouldContain "</svg>"
             frame shouldNotBe null
@@ -185,7 +185,7 @@ class SmilTimelineFrameSamplerTest :
                 )
             val timeline = SmilTimeline(listOf(anim))
             // t = 500ms → halfway → opacity 0.5 (lerp emits 4 decimals)
-            val frame = SmilTimelineFrameSampler.buildStaticFrame(baseSvg, timeline, 500L)
+            val frame = SmilTimelineFrameSampler.buildStaticFrame(svg = baseSvg, timeline = timeline, tMs = 500L)
             frame shouldContain "opacity=\"0.5000\""
         }
 
@@ -216,7 +216,7 @@ class SmilTimelineFrameSamplerTest :
                 ) // not started at t=1000ms
             val timeline = SmilTimeline(listOf(fadeIn, laterCycle))
             // At t=1000ms: fadeIn ended (freeze → 0.4); laterCycle not started → ignored.
-            val frame = SmilTimelineFrameSampler.buildStaticFrame(baseSvg, timeline, 1000L)
+            val frame = SmilTimelineFrameSampler.buildStaticFrame(svg = baseSvg, timeline = timeline, tMs = 1000L)
             frame shouldContain "opacity=\"0.4\""
         }
 
@@ -241,7 +241,7 @@ class SmilTimelineFrameSamplerTest :
                 )
             val timeline = SmilTimeline(listOf(fadeIn, fadeOut))
             // At t=700ms: fadeOut active, halfway (100/200) → 0.2 (lerp emits 4 decimals).
-            val frame = SmilTimelineFrameSampler.buildStaticFrame(baseSvg, timeline, 700L)
+            val frame = SmilTimelineFrameSampler.buildStaticFrame(svg = baseSvg, timeline = timeline, tMs = 700L)
             frame shouldContain "opacity=\"0.2000\""
         }
 
@@ -257,7 +257,7 @@ class SmilTimelineFrameSamplerTest :
                 )
             val timeline = SmilTimeline(listOf(anim))
             // At t=500ms the fill animation has not started — base fill="red" must remain.
-            val frame = SmilTimelineFrameSampler.buildStaticFrame(baseSvg, timeline, 500L)
+            val frame = SmilTimelineFrameSampler.buildStaticFrame(svg = baseSvg, timeline = timeline, tMs = 500L)
             frame shouldContain "fill=\"red\""
             frame shouldNotContain "#ffd54a"
         }

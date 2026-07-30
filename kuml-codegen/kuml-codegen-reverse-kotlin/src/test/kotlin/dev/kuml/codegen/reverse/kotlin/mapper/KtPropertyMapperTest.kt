@@ -14,9 +14,10 @@ class KtPropertyMapperTest :
         test("val property is read-only") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Foo.kt" to "class Foo { val x: Int = 0 }",
-                    ),
+                    sources =
+                        mapOf(
+                            "Foo.kt" to "class Foo { val x: Int = 0 }",
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()
@@ -28,9 +29,10 @@ class KtPropertyMapperTest :
         test("var property is writable") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Bar.kt" to "class Bar { var count: Int = 0 }",
-                    ),
+                    sources =
+                        mapOf(
+                            "Bar.kt" to "class Bar { var count: Int = 0 }",
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()
@@ -42,9 +44,10 @@ class KtPropertyMapperTest :
         test("lateinit var gets lateinit stereotype") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Service.kt" to "class Service { lateinit var name: String }",
-                    ),
+                    sources =
+                        mapOf(
+                            "Service.kt" to "class Service { lateinit var name: String }",
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()

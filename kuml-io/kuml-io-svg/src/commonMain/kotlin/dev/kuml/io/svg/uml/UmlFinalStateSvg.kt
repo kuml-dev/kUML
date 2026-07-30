@@ -26,26 +26,28 @@ internal fun renderUmlFinalState(
     val outerR = minOf(w, h) / 2f * 0.9f
     val innerR = outerR * 0.5f
 
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(element.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(element.id))) {
         tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(cx),
-                "cy" to fmt(cy),
-                "r" to fmt(outerR),
-                "class" to "kuml-class",
-                "fill" to "white",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(cx),
+                    "cy" to fmt(cy),
+                    "r" to fmt(outerR),
+                    "class" to "kuml-class",
+                    "fill" to "white",
+                ),
         )
         tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(cx),
-                "cy" to fmt(cy),
-                "r" to fmt(innerR),
-                "class" to "kuml-class",
-                "fill" to "currentColor",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(cx),
+                    "cy" to fmt(cy),
+                    "r" to fmt(innerR),
+                    "class" to "kuml-class",
+                    "fill" to "currentColor",
+                ),
         )
     }
 }

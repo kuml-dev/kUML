@@ -29,63 +29,68 @@ internal fun renderUmlPseudostate(
     val cx = x + w / 2f
     val cy = y + h / 2f
 
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(element.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(element.id))) {
         when (element.kind) {
             PseudostateKind.INITIAL -> {
                 val r = minOf(w, h) / 2f * 0.8f
                 tag(
-                    "circle",
-                    mapOf(
-                        "cx" to fmt(cx),
-                        "cy" to fmt(cy),
-                        "r" to fmt(r),
-                        "class" to "kuml-class",
-                        "fill" to "currentColor",
-                    ),
+                    name = "circle",
+                    attrs =
+                        mapOf(
+                            "cx" to fmt(cx),
+                            "cy" to fmt(cy),
+                            "r" to fmt(r),
+                            "class" to "kuml-class",
+                            "fill" to "currentColor",
+                        ),
                 )
             }
             PseudostateKind.CHOICE -> {
                 tag(
-                    "polygon",
-                    mapOf(
-                        "points" to "${fmt(cx)},${fmt(y)} ${fmt(x + w)},${fmt(cy)} ${fmt(cx)},${fmt(y + h)} ${fmt(x)},${fmt(cy)}",
-                        "class" to "kuml-class",
-                    ),
+                    name = "polygon",
+                    attrs =
+                        mapOf(
+                            "points" to "${fmt(cx)},${fmt(y)} ${fmt(x + w)},${fmt(cy)} ${fmt(cx)},${fmt(y + h)} ${fmt(x)},${fmt(cy)}",
+                            "class" to "kuml-class",
+                        ),
                 )
             }
             PseudostateKind.FORK, PseudostateKind.JOIN -> {
                 tag(
-                    "rect",
-                    mapOf(
-                        "x" to fmt(x),
-                        "y" to fmt(cy - 4f),
-                        "width" to fmt(w),
-                        "height" to "8",
-                        "class" to "kuml-class",
-                        "fill" to "currentColor",
-                    ),
+                    name = "rect",
+                    attrs =
+                        mapOf(
+                            "x" to fmt(x),
+                            "y" to fmt(cy - 4f),
+                            "width" to fmt(w),
+                            "height" to "8",
+                            "class" to "kuml-class",
+                            "fill" to "currentColor",
+                        ),
                 )
             }
             else -> {
                 // Fallback: small labeled rectangle
                 tag(
-                    "rect",
-                    mapOf(
-                        "x" to fmt(x),
-                        "y" to fmt(y),
-                        "width" to fmt(w),
-                        "height" to fmt(h),
-                        "class" to "kuml-class",
-                    ),
+                    name = "rect",
+                    attrs =
+                        mapOf(
+                            "x" to fmt(x),
+                            "y" to fmt(y),
+                            "width" to fmt(w),
+                            "height" to fmt(h),
+                            "class" to "kuml-class",
+                        ),
                 )
                 tag(
-                    "text",
-                    mapOf(
-                        "class" to "kuml-small",
-                        "x" to fmt(cx),
-                        "y" to fmt(cy + 3f),
-                        "text-anchor" to "middle",
-                    ),
+                    name = "text",
+                    attrs =
+                        mapOf(
+                            "class" to "kuml-small",
+                            "x" to fmt(cx),
+                            "y" to fmt(cy + 3f),
+                            "text-anchor" to "middle",
+                        ),
                 ) { text(element.name) }
             }
         }

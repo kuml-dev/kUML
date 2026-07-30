@@ -63,7 +63,7 @@ class CppReversePluginTest :
         // ── T6: Version range ─────────────────────────────────────────────────
 
         test("descriptor kumlVersionRange contains 0.12.0") {
-            plugin.descriptor.kumlVersionRange.contains(PluginVersion(0, 12, 0)) shouldBe true
+            plugin.descriptor.kumlVersionRange.contains(PluginVersion(major = 0, minor = 12, patch = 0)) shouldBe true
         }
 
         // ── T7: Simple class ──────────────────────────────────────────────────

@@ -134,57 +134,63 @@ internal fun renderInlineArrow(
         ArrowStyle.OPEN -> {
             // Open chevron: two stroked lines meeting at the tip.
             builder.tag(
-                "path",
-                mapOf(
-                    "d" to "M ${fa(lx)},${fa(ly)} L ${fa(tip.x)},${fa(tip.y)} L ${fa(rx)},${fa(ry)}",
-                    "style" to "stroke:$edgeColor;stroke-width:1.5;fill:none;stroke-linejoin:round;",
-                ),
+                name = "path",
+                attrs =
+                    mapOf(
+                        "d" to "M ${fa(lx)},${fa(ly)} L ${fa(tip.x)},${fa(tip.y)} L ${fa(rx)},${fa(ry)}",
+                        "style" to "stroke:$edgeColor;stroke-width:1.5;fill:none;stroke-linejoin:round;",
+                    ),
             )
         }
         ArrowStyle.OPEN_MUTED -> {
             builder.tag(
-                "path",
-                mapOf(
-                    "d" to "M ${fa(lx)},${fa(ly)} L ${fa(tip.x)},${fa(tip.y)} L ${fa(rx)},${fa(ry)}",
-                    "style" to "stroke:$mutedColor;stroke-width:1.5;fill:none;stroke-linejoin:round;",
-                ),
+                name = "path",
+                attrs =
+                    mapOf(
+                        "d" to "M ${fa(lx)},${fa(ly)} L ${fa(tip.x)},${fa(tip.y)} L ${fa(rx)},${fa(ry)}",
+                        "style" to "stroke:$mutedColor;stroke-width:1.5;fill:none;stroke-linejoin:round;",
+                    ),
             )
         }
         ArrowStyle.TRIANGLE -> {
             // Hollow triangle: background fill to "erase" the line, border stroke.
             builder.tag(
-                "polygon",
-                mapOf(
-                    "points" to "${fa(tip.x)},${fa(tip.y)} ${fa(lx)},${fa(ly)} ${fa(rx)},${fa(ry)}",
-                    "style" to "stroke:$edgeColor;stroke-width:1.5;fill:$bgColor;stroke-linejoin:round;",
-                ),
+                name = "polygon",
+                attrs =
+                    mapOf(
+                        "points" to "${fa(tip.x)},${fa(tip.y)} ${fa(lx)},${fa(ly)} ${fa(rx)},${fa(ry)}",
+                        "style" to "stroke:$edgeColor;stroke-width:1.5;fill:$bgColor;stroke-linejoin:round;",
+                    ),
             )
         }
         ArrowStyle.TRIANGLE_MUTED -> {
             builder.tag(
-                "polygon",
-                mapOf(
-                    "points" to "${fa(tip.x)},${fa(tip.y)} ${fa(lx)},${fa(ly)} ${fa(rx)},${fa(ry)}",
-                    "style" to "stroke:$mutedColor;stroke-width:1.5;fill:$bgColor;stroke-linejoin:round;",
-                ),
+                name = "polygon",
+                attrs =
+                    mapOf(
+                        "points" to "${fa(tip.x)},${fa(tip.y)} ${fa(lx)},${fa(ly)} ${fa(rx)},${fa(ry)}",
+                        "style" to "stroke:$mutedColor;stroke-width:1.5;fill:$bgColor;stroke-linejoin:round;",
+                    ),
             )
         }
         ArrowStyle.FILLED -> {
             builder.tag(
-                "polygon",
-                mapOf(
-                    "points" to "${fa(tip.x)},${fa(tip.y)} ${fa(lx)},${fa(ly)} ${fa(rx)},${fa(ry)}",
-                    "style" to "stroke:$edgeColor;stroke-width:1;fill:$edgeColor;stroke-linejoin:round;",
-                ),
+                name = "polygon",
+                attrs =
+                    mapOf(
+                        "points" to "${fa(tip.x)},${fa(tip.y)} ${fa(lx)},${fa(ly)} ${fa(rx)},${fa(ry)}",
+                        "style" to "stroke:$edgeColor;stroke-width:1;fill:$edgeColor;stroke-linejoin:round;",
+                    ),
             )
         }
         ArrowStyle.FILLED_MUTED -> {
             builder.tag(
-                "polygon",
-                mapOf(
-                    "points" to "${fa(tip.x)},${fa(tip.y)} ${fa(lx)},${fa(ly)} ${fa(rx)},${fa(ry)}",
-                    "style" to "stroke:$mutedColor;stroke-width:1;fill:$mutedColor;stroke-linejoin:round;",
-                ),
+                name = "polygon",
+                attrs =
+                    mapOf(
+                        "points" to "${fa(tip.x)},${fa(tip.y)} ${fa(lx)},${fa(ly)} ${fa(rx)},${fa(ry)}",
+                        "style" to "stroke:$mutedColor;stroke-width:1;fill:$mutedColor;stroke-linejoin:round;",
+                    ),
             )
         }
         ArrowStyle.DIAMOND, ArrowStyle.DIAMOND_FILLED -> {
@@ -199,13 +205,14 @@ internal fun renderInlineArrow(
             val mry = tip.y - ny * (DIAMOND_LEN / 2f) - py * DIAMOND_WING
             val fill = if (style == ArrowStyle.DIAMOND_FILLED) edgeColor else bgColor
             builder.tag(
-                "polygon",
-                mapOf(
-                    "points" to
-                        "${fa(tip.x)},${fa(tip.y)} ${fa(mlx)},${fa(mly)} " +
-                        "${fa(bx)},${fa(by)} ${fa(mrx)},${fa(mry)}",
-                    "style" to "stroke:$edgeColor;stroke-width:1.5;fill:$fill;stroke-linejoin:round;",
-                ),
+                name = "polygon",
+                attrs =
+                    mapOf(
+                        "points" to
+                            "${fa(tip.x)},${fa(tip.y)} ${fa(mlx)},${fa(mly)} " +
+                            "${fa(bx)},${fa(by)} ${fa(mrx)},${fa(mry)}",
+                        "style" to "stroke:$edgeColor;stroke-width:1.5;fill:$fill;stroke-linejoin:round;",
+                    ),
             )
         }
     }

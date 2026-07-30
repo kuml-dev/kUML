@@ -17,7 +17,7 @@ class DesktopRenderControllerTest :
         test("scheduleRender does not render immediately") {
             runTest {
                 val state = AppState()
-                val controller = DesktopRenderController(state, this, debounceMs = 300)
+                val controller = DesktopRenderController(state = state, scope = this, debounceMs = 300)
                 controller.scheduleRender("classDiagram(name = \"Test\") { }")
                 state.lastSvg shouldBe ""
             }
@@ -26,7 +26,7 @@ class DesktopRenderControllerTest :
         test("cancel() stops pending render") {
             runTest {
                 val state = AppState()
-                val controller = DesktopRenderController(state, this, debounceMs = 300)
+                val controller = DesktopRenderController(state = state, scope = this, debounceMs = 300)
                 controller.scheduleRender("classDiagram(name = \"Test\") { }")
                 controller.cancel()
                 advanceTimeBy(500)
@@ -39,7 +39,7 @@ class DesktopRenderControllerTest :
             // dispatches to real threads that runTest's virtual scheduler cannot advance.
             runBlocking {
                 val state = AppState()
-                val controller = DesktopRenderController(state, this, debounceMs = 50)
+                val controller = DesktopRenderController(state = state, scope = this, debounceMs = 50)
                 controller.scheduleRender("not valid kotlin @@@@")
                 // Wait for debounce + script evaluation on IO threads
                 delay(20_000)

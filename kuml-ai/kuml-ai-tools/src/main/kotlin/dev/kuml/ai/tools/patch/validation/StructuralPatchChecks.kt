@@ -36,9 +36,10 @@ internal object StructuralPatchChecks {
             is AnyKumlModel.Uml -> {
                 val allElementIds = (model.elements.map { it.id } + model.relationships.map { it.id }).toSet()
 
-                errors += checkDuplicateIds(allElementIds, model.elements.map { it.id } + model.relationships.map { it.id })
+                errors +=
+                    checkDuplicateIds(knownIds = allElementIds, allIds = model.elements.map { it.id } + model.relationships.map { it.id })
                 errors += checkCircularInheritance(model.relationships.filterIsInstance<UmlGeneralization>())
-                val (danglingErrors, danglingWarnings) = checkDanglingReferences(model, allElementIds)
+                val (danglingErrors, danglingWarnings) = checkDanglingReferences(model = model, knownIds = allElementIds)
                 // Per V2.0.31: dangling references are warnings, not errors
                 warnings.addAll(danglingWarnings)
                 errors.addAll(danglingErrors.filter { it.code != "DANGLING_REFERENCE" })
@@ -47,12 +48,12 @@ internal object StructuralPatchChecks {
             is AnyKumlModel.C4 -> {
                 // C4: check for duplicate IDs across all C4 elements
                 val ids = model.model.elements.map { it.id }
-                errors += checkDuplicateIds(ids.toSet(), ids)
+                errors += checkDuplicateIds(knownIds = ids.toSet(), allIds = ids)
             }
             is AnyKumlModel.Sysml2 -> {
                 // SysML 2: check for duplicate IDs across definitions and usages
                 val ids = model.model.definitions.map { it.id } + model.model.usages.map { it.id }
-                errors += checkDuplicateIds(ids.toSet(), ids)
+                errors += checkDuplicateIds(knownIds = ids.toSet(), allIds = ids)
             }
         }
 
@@ -86,7 +87,7 @@ internal object StructuralPatchChecks {
         val violations = mutableListOf<ValidationError>()
         val allIds = (parentMap.keys + parentMap.values).toSet()
         for (startId in allIds) {
-            if (hasCycle(startId, parentMap, mutableSetOf())) {
+            if (hasCycle(current = startId, parentMap = parentMap, visited = mutableSetOf())) {
                 violations.add(
                     ValidationError(
                         code = "CIRCULAR_INHERITANCE",
@@ -106,7 +107,7 @@ internal object StructuralPatchChecks {
     ): Boolean {
         val parent = parentMap[current] ?: return false
         if (!visited.add(current)) return true
-        return hasCycle(parent, parentMap, visited)
+        return hasCycle(current = parent, parentMap = parentMap, visited = visited)
     }
 
     // ── Check 3: Dangling references ──────────────────────────────────────────

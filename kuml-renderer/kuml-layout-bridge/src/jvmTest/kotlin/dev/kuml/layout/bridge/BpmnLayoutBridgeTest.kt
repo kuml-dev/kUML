@@ -65,7 +65,7 @@ class BpmnLayoutBridgeTest :
                 )
             val model = BpmnModel(name = "M", processes = listOf(process))
 
-            val graph = BpmnLayoutBridge.toLayoutGraph(model, diagram)
+            val graph = BpmnLayoutBridge.toLayoutGraph(model = model, diagram = diagram)
 
             // There must be exactly one LayoutGroup for the expanded SubProcess.
             graph.groups shouldHaveSize 1
@@ -134,7 +134,7 @@ class BpmnLayoutBridgeTest :
                 )
             val model = BpmnModel(name = "M", processes = listOf(process))
 
-            val graph = BpmnLayoutBridge.toLayoutGraph(model, diagram)
+            val graph = BpmnLayoutBridge.toLayoutGraph(model = model, diagram = diagram)
 
             graph.groups shouldHaveSize 0
             graph.nodes shouldHaveSize 1
@@ -160,7 +160,7 @@ class BpmnLayoutBridgeTest :
             val diagram = ProcessDiagram(name = "View", processId = "p", elementIds = emptyList())
             val model = BpmnModel(name = "M", processes = listOf(process))
 
-            val graph = BpmnLayoutBridge.toLayoutGraph(model, diagram)
+            val graph = BpmnLayoutBridge.toLayoutGraph(model = model, diagram = diagram)
 
             val nodeIds = graph.nodes.map { it.id.value }.toSet()
             nodeIds shouldBe setOf("t1", "t2")
@@ -186,7 +186,7 @@ class BpmnLayoutBridgeTest :
             val diagram = ProcessDiagram(name = "V", processId = "p", elementIds = emptyList())
             val model = BpmnModel(name = "M", processes = listOf(process))
 
-            val graph = BpmnLayoutBridge.toLayoutGraph(model, diagram)
+            val graph = BpmnLayoutBridge.toLayoutGraph(model = model, diagram = diagram)
 
             graph.groups shouldHaveSize 1
             val innerNode = graph.nodes.find { it.id == NodeId("inner") }

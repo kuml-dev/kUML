@@ -155,7 +155,7 @@ internal object HintsMapper {
 
         // Engine escape-hatch options (raw key/value strings)
         for ((key, value) in hints.engineOptions) {
-            val resolved = resolveEngineOption(key, value, root)
+            val resolved = resolveEngineOption(key = key, value = value, root = root)
             if (!resolved) {
                 warnings.add(
                     LayoutWarning(
@@ -259,7 +259,7 @@ internal object HintsMapper {
                 // spacing onto every compound node so its children honour the
                 // requested node/edge/layer gaps — otherwise transition arrows
                 // between states collapse onto each other.
-                applyCompoundSpacing(elkGroup, hints, config)
+                applyCompoundSpacing(elkGroup = elkGroup, hints = hints, config = config)
 
                 // NOTE on [LayoutGroup.minSize]: ELK's own `NODE_SIZE_CONSTRAINTS` /
                 // `NODE_SIZE_MINIMUM` properties are intentionally *not* set here.

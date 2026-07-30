@@ -30,7 +30,7 @@ class InProcessMcpTransportTest :
                     buildJsonObject {
                         put("script", "")
                     }
-                val result = transport.dispatchToolCall("kuml.validate", args)
+                val result = transport.dispatchToolCall(toolName = "kuml.validate", arguments = args)
                 // Should return some JSON (even an error/validation message) without throwing
                 result.toString().isNotBlank() shouldBe true
             }
@@ -39,7 +39,7 @@ class InProcessMcpTransportTest :
         test("unknown tool name returns JSON-RPC error") {
             val transport = InProcessMcpTransport()
             val args = JsonObject(emptyMap())
-            val result = transport.dispatchToolCall("kuml.nonexistent_tool_xyz", args)
+            val result = transport.dispatchToolCall(toolName = "kuml.nonexistent_tool_xyz", arguments = args)
             // Should return an error object (from McpToolException)
             val resultStr = result.toString()
             resultStr.isNotBlank() shouldBe true

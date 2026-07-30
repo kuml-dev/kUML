@@ -35,10 +35,10 @@ class Sysml2ParEdgeLabelSvgTest :
         // Newton-Modell mit Vehicle-Part und drei expliziten Bindings.
         fun newtonModelWithVehicle(): Pair<Sysml2Model, ParDiagram> {
             val model =
-                sysml2Model("NewtonModel") {
-                    attributeDef("Mass")
-                    attributeDef("Acceleration")
-                    attributeDef("Force")
+                sysml2Model(name = "NewtonModel") {
+                    attributeDef(name = "Mass")
+                    attributeDef(name = "Acceleration")
+                    attributeDef(name = "Force")
 
                     val newton =
                         constraintDef(
@@ -46,24 +46,24 @@ class Sysml2ParEdgeLabelSvgTest :
                             expression = "F = m * a",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("F", "Force", ConstraintParameterDirection.Out),
-                                    ConstraintParameter("m", "Mass", ConstraintParameterDirection.In),
-                                    ConstraintParameter("a", "Acceleration", ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "F", typeId = "Force", direction = ConstraintParameterDirection.Out),
+                                    ConstraintParameter(name = "m", typeId = "Mass", direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "a", typeId = "Acceleration", direction = ConstraintParameterDirection.In),
                                 ),
                         )
 
                     val vehicle =
-                        partDef("Vehicle") {
-                            attribute("mass", "Mass")
-                            attribute("acceleration", "Acceleration")
-                            attribute("force", "Force")
+                        partDef(name = "Vehicle") {
+                            attribute(name = "mass", typeId = "Mass")
+                            attribute(name = "acceleration", typeId = "Acceleration")
+                            attribute(name = "force", typeId = "Force")
                         }
 
                     bind(name = "F_to_force", source = "NewtonsLaw::F", target = "Vehicle::force")
                     bind(name = "m_to_mass", source = "NewtonsLaw::m", target = "Vehicle::mass")
                     bind(name = "a_to_acceleration", source = "NewtonsLaw::a", target = "Vehicle::acceleration")
 
-                    parDiagram("Newton — F = m·a applied to Vehicle") {
+                    parDiagram(name = "Newton — F = m·a applied to Vehicle") {
                         include(newton)
                         include(vehicle)
                     }
@@ -80,38 +80,40 @@ class Sysml2ParEdgeLabelSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(420f, 460f),
+                canvas = Size(width = 420f, height = 460f),
                 nodes =
                     mapOf(
-                        NodeId("NewtonsLaw") to NodeLayout(bounds = Rect(Point(60f, 30f), Size(300f, 150f))),
-                        NodeId("Vehicle") to NodeLayout(bounds = Rect(Point(60f, 290f), Size(300f, 140f))),
+                        NodeId("NewtonsLaw") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 60f, y = 30f), size = Size(width = 300f, height = 150f))),
+                        NodeId("Vehicle") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 60f, y = 290f), size = Size(width = 300f, height = 140f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("binding:NewtonsLaw::F::Vehicle::force") to
-                            EdgeRoute.Direct(source = Point(140f, 180f), target = Point(140f, 290f)),
+                            EdgeRoute.Direct(source = Point(x = 140f, y = 180f), target = Point(x = 140f, y = 290f)),
                         EdgeId("binding:NewtonsLaw::m::Vehicle::mass") to
-                            EdgeRoute.Direct(source = Point(220f, 180f), target = Point(220f, 290f)),
+                            EdgeRoute.Direct(source = Point(x = 220f, y = 180f), target = Point(x = 220f, y = 290f)),
                         EdgeId("binding:NewtonsLaw::a::Vehicle::acceleration") to
-                            EdgeRoute.Direct(source = Point(300f, 180f), target = Point(300f, 290f)),
+                            EdgeRoute.Direct(source = Point(x = 300f, y = 180f), target = Point(x = 300f, y = 290f)),
                     ),
                 groups = emptyMap(),
             )
 
         "all three binding names appear as edge labels" {
             val (model, par) = newtonModelWithVehicle()
-            val svg = KumlSvgRenderer.toSvg(model, par, newtonLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = par, layoutResult = newtonLayout(), theme = PlainTheme())
 
             svg shouldContain "F_to_force"
             svg shouldContain "m_to_mass"
             svg shouldContain "a_to_acceleration"
 
-            SampleOutput.write("sysml2-edge-labels/par-newton-bindings.svg", svg)
+            SampleOutput.write(filename = "sysml2-edge-labels/par-newton-bindings.svg", content = svg)
         }
 
         "binding edges are solid (no stroke-dasharray on the binding lines)" {
             val (model, par) = newtonModelWithVehicle()
-            val svg = KumlSvgRenderer.toSvg(model, par, newtonLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = par, layoutResult = newtonLayout(), theme = PlainTheme())
 
             // The PAR diagram has no dashed edges at all. The string
             // `stroke-dasharray` legitimately appears in the SVG <defs>
@@ -124,7 +126,7 @@ class Sysml2ParEdgeLabelSvgTest :
 
         "binding edges carry no stereotype" {
             val (model, par) = newtonModelWithVehicle()
-            val svg = KumlSvgRenderer.toSvg(model, par, newtonLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = par, layoutResult = newtonLayout(), theme = PlainTheme())
 
             // SysML 2 PAR bindings carry no «binding» stereotype label —
             // only the plain name slot is populated.

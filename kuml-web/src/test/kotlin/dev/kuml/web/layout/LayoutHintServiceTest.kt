@@ -30,7 +30,7 @@ class LayoutHintServiceTest :
             """.trimIndent()
 
         test("happy path drops Alpha onto (1, 0) and round-trips through the parser") {
-            val result = service.applyDrop(umlScript, "Alpha", LayoutHintWriter.GridCell(1, 0))
+            val result = service.applyDrop(script = umlScript, elementId = "Alpha", cell = LayoutHintWriter.GridCell(col = 1, row = 0))
             result.isSuccess.shouldBeTrue()
             val script = result.getOrThrow()
             script shouldContain "classOf(name = \"Alpha\""
@@ -47,8 +47,20 @@ class LayoutHintServiceTest :
         }
 
         test("applying the same drop twice is idempotent") {
-            val once = service.applyDrop(umlScript, "Alpha", LayoutHintWriter.GridCell(2, 3)).getOrThrow()
-            val twice = service.applyDrop(once, "Alpha", LayoutHintWriter.GridCell(2, 3)).getOrThrow()
+            val once =
+                service
+                    .applyDrop(
+                        script = umlScript,
+                        elementId = "Alpha",
+                        cell = LayoutHintWriter.GridCell(col = 2, row = 3),
+                    ).getOrThrow()
+            val twice =
+                service
+                    .applyDrop(
+                        script = once,
+                        elementId = "Alpha",
+                        cell = LayoutHintWriter.GridCell(col = 2, row = 3),
+                    ).getOrThrow()
             once shouldBe twice
         }
 
@@ -69,7 +81,7 @@ class LayoutHintServiceTest :
                     }
                 }
                 """.trimIndent()
-            val result = service.applyDrop(c4Script, "User", LayoutHintWriter.GridCell(0, 0))
+            val result = service.applyDrop(script = c4Script, elementId = "User", cell = LayoutHintWriter.GridCell(col = 0, row = 0))
             result.isFailure.shouldBeTrue()
             result.exceptionOrNull()?.message shouldContain "UML"
         }
@@ -82,13 +94,18 @@ class LayoutHintServiceTest :
                     state("Draft")
                 }
                 """.trimIndent()
-            val result = service.applyDrop(stateScript, "Draft", LayoutHintWriter.GridCell(0, 0))
+            val result = service.applyDrop(script = stateScript, elementId = "Draft", cell = LayoutHintWriter.GridCell(col = 0, row = 0))
             result.isFailure.shouldBeTrue()
             result.exceptionOrNull()?.message shouldContain "class diagram"
         }
 
         test("unknown element id is rejected") {
-            val result = service.applyDrop(umlScript, "DoesNotExist", LayoutHintWriter.GridCell(0, 0))
+            val result =
+                service.applyDrop(
+                    script = umlScript,
+                    elementId = "DoesNotExist",
+                    cell = LayoutHintWriter.GridCell(col = 0, row = 0),
+                )
             result.isFailure.shouldBeTrue()
             result.exceptionOrNull()?.message shouldContain "DoesNotExist"
         }
@@ -109,14 +126,25 @@ class LayoutHintServiceTest :
                     .single()
                     .id
 
-            val result = service.applyDrop(scriptWithAssociation, assocId, LayoutHintWriter.GridCell(0, 0))
+            val result =
+                service.applyDrop(
+                    script = scriptWithAssociation,
+                    elementId = assocId,
+                    cell = LayoutHintWriter.GridCell(col = 0, row = 0),
+                )
             result.isFailure.shouldBeTrue()
             result.exceptionOrNull()?.message shouldContain "relationship/edge"
         }
 
         test("dropping onto an already-occupied cell is rejected") {
-            val occupied = service.applyDrop(umlScript, "Beta", LayoutHintWriter.GridCell(1, 0)).getOrThrow()
-            val result = service.applyDrop(occupied, "Alpha", LayoutHintWriter.GridCell(1, 0))
+            val occupied =
+                service
+                    .applyDrop(
+                        script = umlScript,
+                        elementId = "Beta",
+                        cell = LayoutHintWriter.GridCell(col = 1, row = 0),
+                    ).getOrThrow()
+            val result = service.applyDrop(script = occupied, elementId = "Alpha", cell = LayoutHintWriter.GridCell(col = 1, row = 0))
             result.isFailure.shouldBeTrue()
             result.exceptionOrNull()?.message shouldContain "Beta"
         }

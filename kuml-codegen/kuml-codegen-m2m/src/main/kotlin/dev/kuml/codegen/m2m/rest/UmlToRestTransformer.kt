@@ -164,7 +164,7 @@ public class UmlToRestTransformer : KumlTransformer<KumlDiagram, List<GeneratedF
                 sb.appendLine()
             }
 
-            trace = trace.plus(TraceabilityLink(cls.id, "openapi.yaml", RULE_CLASS_TO_PATH))
+            trace = trace.plus(TraceabilityLink(sourceElementId = cls.id, targetArtifactId = "openapi.yaml", ruleId = RULE_CLASS_TO_PATH))
         }
 
         // ── Components / Schemas ──────────────────────────────────────────────
@@ -196,9 +196,9 @@ public class UmlToRestTransformer : KumlTransformer<KumlDiagram, List<GeneratedF
         }
 
         val content = sb.toString().trimEnd() + "\n"
-        val file = GeneratedFile("openapi.yaml", content)
+        val file = GeneratedFile(relativePath = "openapi.yaml", content = content)
 
-        return TransformResult.Success(listOf(file), trace)
+        return TransformResult.Success(output = listOf(file), trace = trace)
     }
 
     // ── Type mapping ──────────────────────────────────────────────────────────

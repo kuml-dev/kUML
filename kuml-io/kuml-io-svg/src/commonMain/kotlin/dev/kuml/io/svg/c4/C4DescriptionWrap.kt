@@ -59,21 +59,23 @@ internal fun renderWrappedDescription(
     if (lines.isEmpty()) return
 
     builder.tag(
-        "text",
-        mapOf(
-            "class" to "kuml-small",
-            "x" to fmtCoord(centerX),
-            "y" to fmtCoord(firstBaselineY),
-            "text-anchor" to "middle",
-        ),
+        name = "text",
+        attrs =
+            mapOf(
+                "class" to "kuml-small",
+                "x" to fmtCoord(centerX),
+                "y" to fmtCoord(firstBaselineY),
+                "text-anchor" to "middle",
+            ),
     ) {
         lines.forEachIndexed { idx, line ->
             tag(
-                "tspan",
-                mapOf(
-                    "x" to fmtCoord(centerX),
-                    "dy" to if (idx == 0) "0" else fmtCoord(C4DescriptionLayout.DESC_LINE_H),
-                ),
+                name = "tspan",
+                attrs =
+                    mapOf(
+                        "x" to fmtCoord(centerX),
+                        "dy" to if (idx == 0) "0" else fmtCoord(C4DescriptionLayout.DESC_LINE_H),
+                    ),
             ) { text(line) }
         }
     }

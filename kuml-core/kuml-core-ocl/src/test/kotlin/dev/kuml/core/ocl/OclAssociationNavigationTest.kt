@@ -17,8 +17,8 @@ private fun eval(
     model: List<Any>,
 ): Any? {
     val tokens = OclLexer.tokenize(expr)
-    val ast = OclParser(tokens).parse()
-    return OclEvaluator(self, model).eval(ast)
+    val ast = OclParser(tokens = tokens).parse()
+    return OclEvaluator(self = self, model = model).eval(expr = ast)
 }
 
 /**
@@ -38,12 +38,12 @@ class OclAssociationNavigationTest :
                     id = "Order_Customer",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Order", role = "order", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "Order", role = "order", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
             val model = listOf(order, customer, assoc)
-            val result = eval(order, "self.customer", model)
+            val result = eval(self = order, expr = "self.customer", model = model)
             (result as UmlClass).name shouldBe "Customer"
         }
 
@@ -56,12 +56,12 @@ class OclAssociationNavigationTest :
                     id = "Order_Customer",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Order", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "Order", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
             val model = listOf(order, customer, assoc)
-            val result = eval(order, "self.customer", model)
+            val result = eval(self = order, expr = "self.customer", model = model)
             (result as UmlClass).name shouldBe "Customer"
         }
 
@@ -74,12 +74,12 @@ class OclAssociationNavigationTest :
                     id = "Order_Items",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Order", role = "order", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "OrderItem", role = "items", multiplicity = Multiplicity(0, null)),
+                            UmlAssociationEnd(typeId = "Order", role = "order", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "OrderItem", role = "items", multiplicity = Multiplicity(lower = 0, upper = null)),
                         ),
                 )
             val model = listOf(order, item, assoc)
-            val result = eval(order, "self.items", model) as List<*>
+            val result = eval(self = order, expr = "self.items", model = model) as List<*>
             result.size shouldBe 1
             (result.first() as UmlClass).name shouldBe "OrderItem"
         }
@@ -94,8 +94,8 @@ class OclAssociationNavigationTest :
                     id = "Order_Customer",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Order", role = "order", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "Order", role = "order", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
             val customerAddress =
@@ -103,12 +103,12 @@ class OclAssociationNavigationTest :
                     id = "Customer_Address",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "Address", role = "address", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "Address", role = "address", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
             val model = listOf(order, customer, address, orderCustomer, customerAddress)
-            val result = eval(order, "self.customer.address", model)
+            val result = eval(self = order, expr = "self.customer.address", model = model)
             (result as UmlClass).name shouldBe "Address"
         }
 
@@ -121,13 +121,13 @@ class OclAssociationNavigationTest :
                     id = "Order_Customer",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Order", role = "orders", multiplicity = Multiplicity(0, null)),
-                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "Order", role = "orders", multiplicity = Multiplicity(lower = 0, upper = null)),
+                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
             val model = listOf(order, customer, assoc)
-            (eval(order, "self.customer", model) as UmlClass).name shouldBe "Customer"
-            val opposite = eval(customer, "self.orders", model) as List<*>
+            (eval(self = order, expr = "self.customer", model = model) as UmlClass).name shouldBe "Customer"
+            val opposite = eval(self = customer, expr = "self.orders", model = model) as List<*>
             opposite.size shouldBe 1
             (opposite.first() as UmlClass).name shouldBe "Order"
         }
@@ -135,7 +135,7 @@ class OclAssociationNavigationTest :
         // ── Unknown property still throws ───────────────────────────────────
         test("throws when neither a structural property nor an association end matches") {
             val order = UmlClass(id = "Order", name = "Order")
-            shouldThrow<OclEvaluationException> { eval(order, "self.doesNotExist", listOf(order)) }
+            shouldThrow<OclEvaluationException> { eval(self = order, expr = "self.doesNotExist", model = listOf(order)) }
         }
 
         // ── Aggregation kind does not block navigation ──────────────────────
@@ -148,12 +148,12 @@ class OclAssociationNavigationTest :
                     aggregation = AggregationKind.COMPOSITE,
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Order", role = "order", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "OrderItem", role = "items", multiplicity = Multiplicity(0, null)),
+                            UmlAssociationEnd(typeId = "Order", role = "order", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "OrderItem", role = "items", multiplicity = Multiplicity(lower = 0, upper = null)),
                         ),
                 )
             val model = listOf(order, item, assoc)
-            val result = eval(order, "self.items", model) as List<*>
+            val result = eval(self = order, expr = "self.items", model = model) as List<*>
             result.size shouldBe 1
         }
 
@@ -167,8 +167,8 @@ class OclAssociationNavigationTest :
                     id = "A_B",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "A", role = "a", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "B", role = "next", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "A", role = "a", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "B", role = "next", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
             val bc =
@@ -176,12 +176,12 @@ class OclAssociationNavigationTest :
                     id = "B_C",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "B", role = "b", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "C", role = "next", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "B", role = "b", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "C", role = "next", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
             val model = listOf(a, b, c, ab, bc)
-            val result = eval(a, "self->closure(x | x.next)", model) as List<*>
+            val result = eval(self = a, expr = "self->closure(x | x.next)", model = model) as List<*>
             result.map { (it as UmlClass).name }.toSet() shouldBe setOf("B", "C")
         }
 
@@ -194,8 +194,8 @@ class OclAssociationNavigationTest :
                     id = "A_B",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "A", role = "a", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "B", role = "next", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "A", role = "a", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "B", role = "next", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
             val ba =
@@ -203,12 +203,12 @@ class OclAssociationNavigationTest :
                     id = "B_A",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "B", role = "b", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "A", role = "next", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "B", role = "b", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "A", role = "next", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
             val model = listOf(a, b, ab, ba)
-            val result = eval(a, "self->closure(x | x.next)", model) as List<*>
+            val result = eval(self = a, expr = "self->closure(x | x.next)", model = model) as List<*>
             result.map { (it as UmlClass).name }.toSet() shouldBe setOf("A", "B")
             result.size shouldBe 2
         }
@@ -221,12 +221,12 @@ class OclAssociationNavigationTest :
                     id = "A_A",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "A", role = "a1", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "A", role = "next", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "A", role = "a1", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "A", role = "next", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
             val model = listOf(a, selfLoop)
-            val result = eval(a, "self->closure(x | x.next)", model) as List<*>
+            val result = eval(self = a, expr = "self->closure(x | x.next)", model = model) as List<*>
             result.map { (it as UmlClass).name }.toSet() shouldBe setOf("A")
             result.size shouldBe 1
         }
@@ -235,7 +235,7 @@ class OclAssociationNavigationTest :
         test("navigates a declared attribute by name to its UmlProperty") {
             val ageProp = UmlProperty(id = "Person_age", name = "age", type = UmlTypeRef(name = "Integer"))
             val person = UmlClass(id = "Person", name = "Person", attributes = listOf(ageProp))
-            val result = eval(person, "self.age", listOf(person))
+            val result = eval(self = person, expr = "self.age", model = listOf(person))
             (result as UmlProperty).name shouldBe "age"
         }
 
@@ -250,12 +250,12 @@ class OclAssociationNavigationTest :
                     id = "Order_Customer",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Order", role = "order", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "Order", role = "order", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
             val model = listOf(order, customer, assoc)
-            val result = eval(order, "self.customer", model)
+            val result = eval(self = order, expr = "self.customer", model = model)
             (result as UmlProperty).name shouldBe "customer"
         }
 
@@ -268,17 +268,17 @@ class OclAssociationNavigationTest :
                     id = "Order_Customer",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Order", role = "order", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "Order", role = "order", multiplicity = Multiplicity(lower = 1, upper = 1)),
                             UmlAssociationEnd(
                                 typeId = "Customer",
                                 role = "customer",
-                                multiplicity = Multiplicity(1, 1),
+                                multiplicity = Multiplicity(lower = 1, upper = 1),
                                 navigable = false,
                             ),
                         ),
                 )
             val model = listOf(order, customer, assoc)
-            shouldThrow<OclEvaluationException> { eval(order, "self.customer", model) }
+            shouldThrow<OclEvaluationException> { eval(self = order, expr = "self.customer", model = model) }
         }
 
         // ── Navigable end still resolves when the opposite end is not ───────
@@ -293,14 +293,14 @@ class OclAssociationNavigationTest :
                             UmlAssociationEnd(
                                 typeId = "Order",
                                 role = "orders",
-                                multiplicity = Multiplicity(0, null),
+                                multiplicity = Multiplicity(lower = 0, upper = null),
                                 navigable = false,
                             ),
-                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "Customer", role = "customer", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
             val model = listOf(order, customer, assoc)
-            (eval(order, "self.customer", model) as UmlClass).name shouldBe "Customer"
-            shouldThrow<OclEvaluationException> { eval(customer, "self.orders", model) }
+            (eval(self = order, expr = "self.customer", model = model) as UmlClass).name shouldBe "Customer"
+            shouldThrow<OclEvaluationException> { eval(self = customer, expr = "self.orders", model = model) }
         }
     })

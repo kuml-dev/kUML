@@ -15,9 +15,9 @@ class AssociationBuilderTest :
 
         test(name = "association by string ids creates UmlAssociation") {
             val model =
-                umlModel("M") {
-                    classOf("Order")
-                    classOf("Item")
+                umlModel(name = "M") {
+                    classOf(name = "Order")
+                    classOf(name = "Item")
                     association(sourceId = "Order", targetId = "Item")
                 }
             model.elements.filterIsInstance<UmlAssociation>() shouldHaveSize 1
@@ -25,7 +25,7 @@ class AssociationBuilderTest :
 
         test(name = "association by string ids has correct end type ids") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     association(sourceId = "Order", targetId = "Item")
                 }
             val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
@@ -35,7 +35,7 @@ class AssociationBuilderTest :
 
         test(name = "association id format is assoc::source-->target") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     association(sourceId = "Order", targetId = "Item")
                 }
             val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
@@ -44,7 +44,7 @@ class AssociationBuilderTest :
 
         test(name = "named association id includes name segment") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     association(sourceId = "Order", targetId = "Item") { name = "contains" }
                 }
             val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
@@ -55,9 +55,9 @@ class AssociationBuilderTest :
 
         test(name = "association by classifier handles uses handle ids") {
             val model =
-                umlModel("M") {
-                    val order = classOf("Order")
-                    val item = classOf("Item")
+                umlModel(name = "M") {
+                    val order = classOf(name = "Order")
+                    val item = classOf(name = "Item")
                     association(source = order, target = item)
                 }
             val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
@@ -67,9 +67,9 @@ class AssociationBuilderTest :
 
         test(name = "association by handle from enum uses enum id as typeId") {
             val model =
-                umlModel("M") {
-                    val status = enumOf("OrderStatus") { literal("DRAFT") }
-                    val order = classOf("Order") {}
+                umlModel(name = "M") {
+                    val status = enumOf(name = "OrderStatus") { literal(name = "DRAFT") }
+                    val order = classOf(name = "Order") {}
                     association(source = order, target = status)
                 }
             val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
@@ -80,7 +80,7 @@ class AssociationBuilderTest :
 
         test(name = "association default aggregation is NONE") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     association(sourceId = "A", targetId = "B")
                 }
             model.elements
@@ -91,7 +91,7 @@ class AssociationBuilderTest :
 
         test(name = "association aggregation COMPOSITE is stored") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     association(sourceId = "Order", targetId = "Item") {
                         aggregation = AggregationKind.COMPOSITE
                     }
@@ -104,7 +104,7 @@ class AssociationBuilderTest :
 
         test(name = "association aggregation SHARED is stored") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     association(sourceId = "Team", targetId = "Member") {
                         aggregation = AggregationKind.SHARED
                     }
@@ -154,7 +154,7 @@ class AssociationBuilderTest :
 
         test(name = "source end role is stored") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     association(sourceId = "Order", targetId = "Item") {
                         target { role = "items" }
                     }
@@ -167,7 +167,7 @@ class AssociationBuilderTest :
 
         test(name = "association without block has empty stereotypes by default") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     association(sourceId = "Order", targetId = "Item")
                 }
             val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
@@ -176,9 +176,9 @@ class AssociationBuilderTest :
 
         test(name = "association stereotypes += adds a plain display-label stereotype") {
             val model =
-                umlModel("M") {
-                    classOf("User")
-                    classOf("Address")
+                umlModel(name = "M") {
+                    classOf(name = "User")
+                    classOf(name = "Address")
                     association(sourceId = "User", targetId = "Address") {
                         stereotypes += "FK"
                     }
@@ -191,7 +191,7 @@ class AssociationBuilderTest :
 
         test(name = "association ends are navigable by default") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     association(sourceId = "A", targetId = "B")
                 }
             val assoc = model.elements.filterIsInstance<UmlAssociation>().first()

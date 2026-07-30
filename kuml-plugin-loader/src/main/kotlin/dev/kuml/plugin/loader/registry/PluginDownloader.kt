@@ -76,20 +76,20 @@ public open class PluginDownloader(
             try {
                 URI.create(url)
             } catch (e: IllegalArgumentException) {
-                throw PluginRegistryException("Invalid download URL: $url", e)
+                throw PluginRegistryException(message = "Invalid download URL: $url", cause = e)
             }
 
         val scheme = uri.scheme?.lowercase()
         if (scheme != "http" && scheme != "https") {
             throw PluginRegistryException(
-                "Download URL must use http or https scheme (got '$scheme'): $url",
+                message = "Download URL must use http or https scheme (got '$scheme'): $url",
             )
         }
 
-        val host = uri.host ?: throw PluginRegistryException("Download URL has no host: $url")
+        val host = uri.host ?: throw PluginRegistryException(message = "Download URL has no host: $url")
         if (!isHostAllowed(host)) {
             throw PluginRegistryException(
-                "Download URL points to a private/loopback host (SSRF guard): $url",
+                message = "Download URL points to a private/loopback host (SSRF guard): $url",
             )
         }
 
@@ -131,13 +131,13 @@ public open class PluginDownloader(
             try {
                 http.send(request, HttpResponse.BodyHandlers.ofInputStream())
             } catch (e: Exception) {
-                throw PluginRegistryException("Download failed for $url: ${e.message}", e)
+                throw PluginRegistryException(message = "Download failed for $url: ${e.message}", cause = e)
             }
 
         if (response.statusCode() != 200) {
             response.body().close()
             throw PluginRegistryException(
-                "Download returned HTTP ${response.statusCode()} for $url",
+                message = "Download returned HTTP ${response.statusCode()} for $url",
             )
         }
 
@@ -152,7 +152,7 @@ public open class PluginDownloader(
                 total += n
                 if (total > maxBytes) {
                     throw PluginRegistryException(
-                        "Download exceeds size limit (${maxBytes / 1024 / 1024} MiB): $url",
+                        message = "Download exceeds size limit (${maxBytes / 1024 / 1024} MiB): $url",
                     )
                 }
                 baos.write(buf, 0, n)
@@ -173,13 +173,13 @@ public open class PluginDownloader(
             try {
                 http.send(request, HttpResponse.BodyHandlers.ofInputStream())
             } catch (e: Exception) {
-                throw PluginRegistryException("Download failed for $url: ${e.message}", e)
+                throw PluginRegistryException(message = "Download failed for $url: ${e.message}", cause = e)
             }
 
         if (response.statusCode() != 200) {
             response.body().close()
             throw PluginRegistryException(
-                "Download returned HTTP ${response.statusCode()} for $url",
+                message = "Download returned HTTP ${response.statusCode()} for $url",
             )
         }
 
@@ -194,7 +194,7 @@ public open class PluginDownloader(
                 total += n
                 if (total > maxBytes) {
                     throw PluginRegistryException(
-                        "Download exceeds size limit (${maxBytes / 1024 / 1024} MiB): $url",
+                        message = "Download exceeds size limit (${maxBytes / 1024 / 1024} MiB): $url",
                     )
                 }
                 baos.write(buf, 0, n)

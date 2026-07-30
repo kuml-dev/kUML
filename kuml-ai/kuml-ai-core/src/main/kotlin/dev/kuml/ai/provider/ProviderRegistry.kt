@@ -44,7 +44,7 @@ public class ProviderRegistry private constructor(
     ): LLModel? {
         val provider = get(providerId) ?: return null
         val koog = provider.koogProvider ?: return null // custom providers not resolvable
-        return resolveModelForProvider(koog, modelId)
+        return resolveModelForProvider(koogProvider = koog, modelId = modelId)
     }
 
     public companion object {
@@ -125,7 +125,7 @@ public class ProviderRegistry private constructor(
                     else -> return null
                 }
             // Table lookup first; fall back to generic LLModel constructor for unknown ids.
-            return ModelCatalog.resolve(providerId, modelId) ?: LLModel(koogProvider, modelId)
+            return ModelCatalog.resolve(providerId = providerId, modelId = modelId) ?: LLModel(koogProvider, modelId)
         }
     }
 }
@@ -182,10 +182,10 @@ internal fun KumlLlmProviderSpi.toKumlProvider(): KumlLlmProvider {
             val options = emptyMap<String, String>()
             val baseUrl = options["baseUrl"]
             if (baseUrl != null) {
-                validateBaseUrl(baseUrl, spiRef.isLocalProvider)
+                validateBaseUrl(url = baseUrl, isLocalProvider = spiRef.isLocalProvider)
             }
             @Suppress("UNCHECKED_CAST")
-            spiRef.buildClient(key ?: "", options) as LLMClient
+            spiRef.buildClient(apiKey = key ?: "", options = options) as LLMClient
         },
         supportedModels = models,
     )

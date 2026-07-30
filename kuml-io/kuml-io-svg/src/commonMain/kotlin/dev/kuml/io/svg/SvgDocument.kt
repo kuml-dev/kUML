@@ -110,15 +110,15 @@ internal object SvgDocument {
                 "height" to fmt(canvasH),
             )
 
-        val defsBuilder = SvgBuilder(p, if (p) 2 else 0)
-        buildDefs(defsBuilder, theme)
+        val defsBuilder = SvgBuilder(pretty = p, indent = if (p) 2 else 0)
+        buildDefs(b = defsBuilder, theme = theme)
 
-        val nodesBuilder = SvgBuilder(p, if (p) 4 else 0)
-        val edgesBuilder = SvgBuilder(p, if (p) 4 else 0)
+        val nodesBuilder = SvgBuilder(pretty = p, indent = if (p) 4 else 0)
+        val edgesBuilder = SvgBuilder(pretty = p, indent = if (p) 4 else 0)
 
         // Draw outer diagram frame first (z-order: below all diagram content)
         if (!frameName.isNullOrBlank() && !frameTypeLabel.isNullOrBlank()) {
-            renderDiagramFrame(frameTypeLabel, frameName, canvasW, canvasH, nodesBuilder)
+            renderDiagramFrame(typeLabel = frameTypeLabel, name = frameName, canvasW = canvasW, canvasH = canvasH, builder = nodesBuilder)
         }
 
         populate(nodesBuilder, edgesBuilder)
@@ -430,7 +430,7 @@ internal object SvgDocument {
                 append(".kuml-erm-idef1x-completeness { stroke: ${c.border.toHex()}; stroke-width: ${bo.regularPx}; }\n")
             }
 
-        b.tag("style") {
+        b.tag(name = "style") {
             text(css)
         }
 

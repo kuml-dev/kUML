@@ -52,7 +52,7 @@ class ChoreographyGridLayoutTest :
                         ),
                 )
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "c1")
-            val result = ChoreographyGridLayout.layout(model(choreo), diagram)
+            val result = ChoreographyGridLayout.layout(model = model(choreo), diagram = diagram)
 
             val startX =
                 result.nodes
@@ -94,7 +94,7 @@ class ChoreographyGridLayoutTest :
                         ),
                 )
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "c1")
-            val result = ChoreographyGridLayout.layout(model(choreo), diagram)
+            val result = ChoreographyGridLayout.layout(model = model(choreo), diagram = diagram)
 
             val xA =
                 result.nodes
@@ -126,7 +126,7 @@ class ChoreographyGridLayoutTest :
                     sequenceFlows = listOf(ChoreographySequenceFlow(id = "sf1", sourceRef = "t1", targetRef = "t2")),
                 )
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "c1")
-            val result = ChoreographyGridLayout.layout(model(choreo), diagram)
+            val result = ChoreographyGridLayout.layout(model = model(choreo), diagram = diagram)
 
             // A=lane0, B=lane1, C=lane2. t1 spans [0,1], t2 spans [1,2].
             val t1Bounds = result.nodes.getValue(NodeId("t1")).bounds
@@ -139,7 +139,7 @@ class ChoreographyGridLayoutTest :
             val t1 = ChoreographyTask(id = "t1", initiatingParticipant = "A", participants = listOf("A", "B"))
             val choreo = BpmnChoreography(id = "c1", tasks = listOf(t1))
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "c1")
-            val result = ChoreographyGridLayout.layout(model(choreo), diagram)
+            val result = ChoreographyGridLayout.layout(model = model(choreo), diagram = diagram)
             val h =
                 result.nodes
                     .getValue(NodeId("t1"))
@@ -157,7 +157,7 @@ class ChoreographyGridLayoutTest :
                     sequenceFlows = listOf(ChoreographySequenceFlow(id = "sf1", sourceRef = "t1", targetRef = "t2")),
                 )
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "c1")
-            val result = ChoreographyGridLayout.layout(model(choreo), diagram)
+            val result = ChoreographyGridLayout.layout(model = model(choreo), diagram = diagram)
             val route = result.edges.getValue(EdgeId("sf1"))
             route.shouldBeInstanceOf<EdgeRoute.Direct>()
         }
@@ -194,7 +194,7 @@ class ChoreographyGridLayoutTest :
                         ),
                 )
             val result =
-                ChoreographyGridLayout.layout(model(choreo), ChoreographyDiagram(name = "d", choreographyId = "c1"))
+                ChoreographyGridLayout.layout(model = model(choreo), diagram = ChoreographyDiagram(name = "d", choreographyId = "c1"))
 
             // Die Route gw → lieferung (sf3) darf die nachbestellung-Box nicht durchschneiden.
             val skipRoute = result.edges.getValue(EdgeId("sf3")).shouldBeInstanceOf<EdgeRoute.OrthogonalRounded>()
@@ -236,7 +236,7 @@ class ChoreographyGridLayoutTest :
                         ),
                 )
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "c1")
-            val result = ChoreographyGridLayout.layout(model(choreo), diagram)
+            val result = ChoreographyGridLayout.layout(model = model(choreo), diagram = diagram)
             val loopRoute = result.edges.getValue(EdgeId("loop"))
             val loopY =
                 loopRoute
@@ -257,7 +257,7 @@ class ChoreographyGridLayoutTest :
             val t1 = ChoreographyTask(id = "t1", initiatingParticipant = "A", participants = listOf("A", "B"))
             val choreo = BpmnChoreography(id = "c1", tasks = listOf(t1))
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "c1")
-            val result = ChoreographyGridLayout.layout(model(choreo), diagram)
+            val result = ChoreographyGridLayout.layout(model = model(choreo), diagram = diagram)
             result.canvas.width shouldBe (ChoreographyGridLayout.MARGIN + ChoreographyGridLayout.TASK_W + ChoreographyGridLayout.MARGIN)
         }
 
@@ -271,15 +271,15 @@ class ChoreographyGridLayoutTest :
                     sequenceFlows = listOf(ChoreographySequenceFlow(id = "sf1", sourceRef = "start", targetRef = "t1")),
                 )
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "c1")
-            val r1 = ChoreographyGridLayout.layout(model(choreo), diagram)
-            val r2 = ChoreographyGridLayout.layout(model(choreo), diagram)
+            val r1 = ChoreographyGridLayout.layout(model = model(choreo), diagram = diagram)
+            val r2 = ChoreographyGridLayout.layout(model = model(choreo), diagram = diagram)
             r1 shouldBe r2
         }
 
         test("unknown choreographyId yields empty LayoutResult, no throw") {
             val choreo = BpmnChoreography(id = "c1")
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "does-not-exist")
-            val result = ChoreographyGridLayout.layout(model(choreo), diagram)
+            val result = ChoreographyGridLayout.layout(model = model(choreo), diagram = diagram)
             result.nodes.size shouldBe 0
             result.edges.size shouldBe 0
         }
@@ -294,7 +294,7 @@ class ChoreographyGridLayoutTest :
                     sequenceFlows = listOf(ChoreographySequenceFlow(id = "sf1", sourceRef = "t1", targetRef = "t2")),
                 )
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "c1", elementIds = listOf("t1"))
-            val result = ChoreographyGridLayout.layout(model(choreo), diagram)
+            val result = ChoreographyGridLayout.layout(model = model(choreo), diagram = diagram)
             result.nodes.size shouldBe 1
             result.edges.size shouldBe 0
         }
@@ -303,8 +303,8 @@ class ChoreographyGridLayoutTest :
             val t1 = ChoreographyTask(id = "t1", initiatingParticipant = "A", participants = listOf("A", "B"))
             val choreo = BpmnChoreography(id = "c1", tasks = listOf(t1))
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "c1")
-            val sizeProvider = SizeProvider { _, _ -> Size(240f, 80f) }
-            val result = ChoreographyGridLayout.layout(model(choreo), diagram, sizeProvider)
+            val sizeProvider = SizeProvider { _, _ -> Size(width = 240f, height = 80f) }
+            val result = ChoreographyGridLayout.layout(model = model(choreo), diagram = diagram, sizeProvider = sizeProvider)
             result.nodes
                 .getValue(NodeId("t1"))
                 .bounds.size.width shouldBe 240f
@@ -348,7 +348,7 @@ class ChoreographyGridLayoutTest :
                         ),
                 )
             val result =
-                ChoreographyGridLayout.layout(model(choreo), ChoreographyDiagram(name = "d", choreographyId = "c1"))
+                ChoreographyGridLayout.layout(model = model(choreo), diagram = ChoreographyDiagram(name = "d", choreographyId = "c1"))
             val b1 = result.nodes.getValue(NodeId("t1")).bounds
             val b2 = result.nodes.getValue(NodeId("t2")).bounds
             // t1 bottom envelope reaches b1.bottom + 15; t2 top envelope reaches b2.top - 15.
@@ -367,7 +367,7 @@ class ChoreographyGridLayoutTest :
                     sequenceFlows = listOf(ChoreographySequenceFlow(id = "sf1", sourceRef = "t1", targetRef = "t2")),
                 )
             val result =
-                ChoreographyGridLayout.layout(model(choreo), ChoreographyDiagram(name = "d", choreographyId = "c1"))
+                ChoreographyGridLayout.layout(model = model(choreo), diagram = ChoreographyDiagram(name = "d", choreographyId = "c1"))
             // lane1 top == MARGIN + LANE_HEIGHT exactly (no gap)
             result.nodes
                 .getValue(NodeId("t2"))
@@ -378,7 +378,7 @@ class ChoreographyGridLayoutTest :
         test("engineId and seed contract") {
             val choreo = BpmnChoreography(id = "c1")
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "c1")
-            val result = ChoreographyGridLayout.layout(model(choreo), diagram)
+            val result = ChoreographyGridLayout.layout(model = model(choreo), diagram = diagram)
             result.engineId shouldBe ChoreographyGridLayout.ENGINE_ID
             result.seed shouldBe null
         }

@@ -15,7 +15,7 @@ internal object BenchmarkValidator {
         return try {
             val result =
                 dev.kuml.core.script.KumlScriptHost
-                    .eval(tmpFile)
+                    .eval(file = tmpFile)
             val errors =
                 result.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
             if (errors.isEmpty() && result !is ResultWithDiagnostics.Failure) {

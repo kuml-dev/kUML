@@ -19,7 +19,7 @@ class OtlpExporterTest :
 
         test("root span plus one state span for each StateEntered/StateExited pair") {
             val sm = oneEventSm() // INIT → A → final
-            val traceFile = simulateToTraceFile(sm, listOf(Event.of("go")))
+            val traceFile = simulateToTraceFile(model = sm, events = listOf(Event.of("go")))
 
             val export = OtlpExporter().convert(traceFile)
             val spans =
@@ -38,14 +38,14 @@ class OtlpExporterTest :
 
         test("TransitionFired entry becomes an OtlpEvent on the enclosing span") {
             val sm = oneEventSm()
-            val traceFile = simulateToTraceFile(sm, listOf(Event.of("go")))
+            val traceFile = simulateToTraceFile(model = sm, events = listOf(Event.of("go")))
             val jsonStr = OtlpExporter().exportToJson(traceFile)
             jsonStr shouldContain "kuml.transition.fired"
         }
 
         test("GuardEvaluated entry becomes an OtlpEvent with boolValue attribute") {
             val sm = oneEventSm()
-            val traceFile = simulateToTraceFile(sm, listOf(Event.of("go")))
+            val traceFile = simulateToTraceFile(model = sm, events = listOf(Event.of("go")))
             val jsonStr = OtlpExporter().exportToJson(traceFile)
             jsonStr shouldContain "kuml.guard.evaluated"
             jsonStr shouldContain "boolValue"
@@ -53,7 +53,7 @@ class OtlpExporterTest :
 
         test("timestamps are non-empty strings (nanoseconds representation)") {
             val sm = oneEventSm()
-            val traceFile = simulateToTraceFile(sm, listOf(Event.of("go")))
+            val traceFile = simulateToTraceFile(model = sm, events = listOf(Event.of("go")))
             val export = OtlpExporter().convert(traceFile)
             val rootSpan =
                 export.resourceSpans
@@ -68,7 +68,7 @@ class OtlpExporterTest :
 
         test("resource attributes contain service.name") {
             val sm = oneEventSm()
-            val traceFile = simulateToTraceFile(sm, listOf(Event.of("go")))
+            val traceFile = simulateToTraceFile(model = sm, events = listOf(Event.of("go")))
             val export = OtlpExporter(serviceName = "my-service").convert(traceFile)
             val attrs =
                 export.resourceSpans
@@ -81,7 +81,7 @@ class OtlpExporterTest :
 
         test("resource attributes contain kuml.model.id when model has an ID") {
             val sm = oneEventSm() // id = "OneEventSm"
-            val traceFile = simulateToTraceFile(sm, listOf(Event.of("go")))
+            val traceFile = simulateToTraceFile(model = sm, events = listOf(Event.of("go")))
             val export = OtlpExporter().convert(traceFile)
             val attrs =
                 export.resourceSpans
@@ -94,7 +94,7 @@ class OtlpExporterTest :
 
         test("JSON output has no 'type' field (no classDiscriminator)") {
             val sm = oneEventSm()
-            val traceFile = simulateToTraceFile(sm, listOf(Event.of("go")))
+            val traceFile = simulateToTraceFile(model = sm, events = listOf(Event.of("go")))
             val jsonStr = OtlpExporter().exportToJson(traceFile)
             jsonStr shouldNotContain "\"type\":"
         }

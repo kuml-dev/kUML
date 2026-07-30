@@ -30,7 +30,7 @@ public class AptosBlockClock(
         val ledger = rest.getLedgerInfo()
         val version =
             ledger["ledger_version"]?.jsonPrimitive?.content?.toLongOrNull()
-                ?: throw AptosChainAdapterException.MalformedResponse("ledger info missing 'ledger_version'")
+                ?: throw AptosChainAdapterException.MalformedResponse(message = "ledger info missing 'ledger_version'")
         cachedBlock.set(version)
 
         val height =
@@ -38,7 +38,7 @@ public class AptosBlockClock(
         val block = rest.getBlockByHeight(height)
         val tsMicros =
             block["block_timestamp"]?.jsonPrimitive?.content?.toLongOrNull()
-                ?: throw AptosChainAdapterException.MalformedResponse("block missing 'block_timestamp'")
+                ?: throw AptosChainAdapterException.MalformedResponse(message = "block missing 'block_timestamp'")
         // Aptos-Timestamps sind Mikrosekunden — volle Mikro-Präzision via ofEpochSecond
         cachedTime.set(
             Instant.ofEpochSecond(tsMicros / 1_000_000L, (tsMicros % 1_000_000L) * 1_000L),

@@ -44,7 +44,7 @@ public class SubstrateWasmAdapter(
     private val urlValidator: SubstrateRpcUrlValidator = SubstrateRpcUrlValidator.Default,
     private val pollIntervalMillis: Long = 6_000L,
     private val maxBlocksPerReplayBatch: Long = 1_000L,
-    private val clientFactory: (String) -> SubstrateRpcClient = { url -> SubstrateRpcClient(url) },
+    private val clientFactory: (String) -> SubstrateRpcClient = { url -> SubstrateRpcClient(rpcUrl = url) },
     private val abiProvider: suspend (SubstrateRpcClient, String) -> InkAbiMetadata = ::resolveAbiFromChain,
 ) : KumlChainAdapter,
     AutoCloseable {
@@ -72,11 +72,11 @@ public class SubstrateWasmAdapter(
 
         val client = clientFactory(rpcUrl)
         rpcClient = client
-        blockClock = SubstrateBlockClock(client)
+        blockClock = SubstrateBlockClock(client = client)
         this.contractAddress = contractAddress
 
         val abi = abiProvider(client, contractAddress)
-        eventDecoder = InkEventDecoder(abi)
+        eventDecoder = InkEventDecoder(abi = abi)
 
         val identity = client.readRegistryIdentity(contractAddress)
         return identity
@@ -114,8 +114,8 @@ public class SubstrateWasmAdapter(
                     val capped = minOf(head, fromBlock + maxBlocksPerReplayBatch - 1)
                     var b = fromBlock
                     while (b <= capped) {
-                        for (ev in client.contractEmittedAt(b, target)) {
-                            decodeAndEmit(decoder, ev)?.let { emit(it) }
+                        for (ev in client.contractEmittedAt(block = b, contractAddress = target)) {
+                            decodeAndEmit(decoder = decoder, raw = ev)?.let { emit(it) }
                         }
                         b++
                     }
@@ -136,8 +136,8 @@ public class SubstrateWasmAdapter(
                 val batchEnd = minOf(head, b + maxBlocksPerReplayBatch - 1)
                 var cur = b
                 while (cur <= batchEnd) {
-                    for (ev in client.contractEmittedAt(cur, target)) {
-                        decodeAndEmit(decoder, ev)?.let { emit(it) }
+                    for (ev in client.contractEmittedAt(block = cur, contractAddress = target)) {
+                        decodeAndEmit(decoder = decoder, raw = ev)?.let { emit(it) }
                     }
                     cur++
                 }
@@ -161,7 +161,7 @@ public class SubstrateWasmAdapter(
         decoder: InkEventDecoder,
         raw: SubstrateRpcClient.RawContractEvent,
     ): ChainEvent? {
-        val decoded = decoder.decode(raw.topicsHex, raw.dataScale) ?: return null
+        val decoded = decoder.decode(topicsHex = raw.topicsHex, dataScale = raw.dataScale) ?: return null
         return ChainEvent(
             eventType = decoded.name,
             payloadAbi = raw.dataScale,

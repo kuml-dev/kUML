@@ -67,18 +67,18 @@ class CppCodegenPluginTest :
         }
 
         test("descriptor kumlVersionRange enthält 0.12.0") {
-            plugin.descriptor.kumlVersionRange.contains(PluginVersion(0, 12, 0)) shouldBe true
+            plugin.descriptor.kumlVersionRange.contains(PluginVersion(major = 0, minor = 12, patch = 0)) shouldBe true
         }
 
         // ── Basic generation ───────────────────────────────────────────────────
 
         test("leeres Diagram → leere Datei-Liste") {
-            generator.generate(diagram(), tempDir(), emptyMap()) shouldHaveSize 0
+            generator.generate(diagram = diagram(), outputDir = tempDir(), options = emptyMap()) shouldHaveSize 0
         }
 
         test("UmlClass erzeugt .hpp und .cpp") {
             val cls = UmlClass(id = "Order", name = "Order")
-            val files = generator.generate(diagram(cls), tempDir(), emptyMap())
+            val files = generator.generate(diagram = diagram(cls), outputDir = tempDir(), options = emptyMap())
             files shouldHaveSize 2
             files.map { it.name } shouldContain "Order.hpp"
             files.map { it.name } shouldContain "Order.cpp"
@@ -86,7 +86,7 @@ class CppCodegenPluginTest :
 
         test("generateCpp=false unterdrückt .cpp") {
             val cls = UmlClass(id = "Order", name = "Order")
-            val files = generator.generate(diagram(cls), tempDir(), mapOf("generateCpp" to "false"))
+            val files = generator.generate(diagram = diagram(cls), outputDir = tempDir(), options = mapOf("generateCpp" to "false"))
             files shouldHaveSize 1
             files.first().name shouldBe "Order.hpp"
         }
@@ -94,14 +94,14 @@ class CppCodegenPluginTest :
         test("Header enthält #pragma once") {
             val cls = UmlClass(id = "Order", name = "Order")
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Order.hpp").readText() shouldContain "#pragma once"
         }
 
         test("Header enthält class Order") {
             val cls = UmlClass(id = "Order", name = "Order")
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Order.hpp").readText() shouldContain "class Order"
         }
 
@@ -112,22 +112,22 @@ class CppCodegenPluginTest :
                     name = "Order",
                     attributes =
                         listOf(
-                            UmlProperty(id = "Order.id", name = "id", type = UmlTypeRef("String")),
-                            UmlProperty(id = "Order.total", name = "total", type = UmlTypeRef("Double")),
-                            UmlProperty(id = "Order.count", name = "count", type = UmlTypeRef("Int")),
+                            UmlProperty(id = "Order.id", name = "id", type = UmlTypeRef(name = "String")),
+                            UmlProperty(id = "Order.total", name = "total", type = UmlTypeRef(name = "Double")),
+                            UmlProperty(id = "Order.count", name = "count", type = UmlTypeRef(name = "Int")),
                         ),
                     operations =
                         listOf(
-                            UmlOperation(id = "Order.submit", name = "submit", returnType = UmlTypeRef("Void")),
+                            UmlOperation(id = "Order.submit", name = "submit", returnType = UmlTypeRef(name = "Void")),
                             UmlOperation(
                                 id = "Order.totalSum",
                                 name = "totalSum",
-                                returnType = UmlTypeRef("Double"),
+                                returnType = UmlTypeRef(name = "Double"),
                             ),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             val content = File(out, "Order.hpp").readText()
             content shouldContain "std::string id_;"
             content shouldContain "double total_;"
@@ -145,11 +145,11 @@ class CppCodegenPluginTest :
                     name = "Orderable",
                     operations =
                         listOf(
-                            UmlOperation(id = "Orderable.process", name = "process", returnType = UmlTypeRef("Void")),
+                            UmlOperation(id = "Orderable.process", name = "process", returnType = UmlTypeRef(name = "Void")),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(iface), out, emptyMap())
+            generator.generate(diagram = diagram(iface), outputDir = out, options = emptyMap())
             val content = File(out, "Orderable.hpp").readText()
             content shouldContain "class Orderable"
             content shouldContain "= 0;"
@@ -158,7 +158,7 @@ class CppCodegenPluginTest :
 
         test("Interface erzeugt keine .cpp") {
             val iface = UmlInterface(id = "Orderable", name = "Orderable")
-            val files = generator.generate(diagram(iface), tempDir(), emptyMap())
+            val files = generator.generate(diagram = diagram(iface), outputDir = tempDir(), options = emptyMap())
             files shouldHaveSize 1
             files.first().name shouldBe "Orderable.hpp"
         }
@@ -170,7 +170,7 @@ class CppCodegenPluginTest :
             val derived = UmlClass(id = "Derived", name = "Derived")
             val gen = UmlGeneralization(id = "g1", specificId = "Derived", generalId = "Base")
             val out = tempDir()
-            generator.generate(diagram(base, derived, gen), out, emptyMap())
+            generator.generate(diagram = diagram(base, derived, gen), outputDir = out, options = emptyMap())
             File(out, "Derived.hpp").readText() shouldContain "class Derived : public Base"
         }
 
@@ -184,17 +184,17 @@ class CppCodegenPluginTest :
                     id = "a1",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(1, 1), navigable = false),
+                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(lower = 1, upper = 1), navigable = false),
                             UmlAssociationEnd(
                                 typeId = "Order",
                                 role = "orders",
-                                multiplicity = Multiplicity(0, null),
+                                multiplicity = Multiplicity(lower = 0, upper = null),
                                 navigable = true,
                             ),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(customer, order, assoc), out, emptyMap())
+            generator.generate(diagram = diagram(customer, order, assoc), outputDir = out, options = emptyMap())
             File(out, "Customer.hpp").readText() shouldContain "std::vector<Order*>"
         }
 
@@ -206,17 +206,17 @@ class CppCodegenPluginTest :
                     id = "a1",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(1, 1), navigable = false),
+                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(lower = 1, upper = 1), navigable = false),
                             UmlAssociationEnd(
                                 typeId = "Order",
                                 role = "order",
-                                multiplicity = Multiplicity(0, 1),
+                                multiplicity = Multiplicity(lower = 0, upper = 1),
                                 navigable = true,
                             ),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(customer, order, assoc), out, emptyMap())
+            generator.generate(diagram = diagram(customer, order, assoc), outputDir = out, options = emptyMap())
             val content = File(out, "Customer.hpp").readText()
             content shouldContain "Order*"
         }
@@ -229,17 +229,17 @@ class CppCodegenPluginTest :
                     id = "a1",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(1, 1), navigable = false),
+                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(lower = 1, upper = 1), navigable = false),
                             UmlAssociationEnd(
                                 typeId = "Order",
                                 role = "orders",
-                                multiplicity = Multiplicity(0, null),
+                                multiplicity = Multiplicity(lower = 0, upper = null),
                                 navigable = true,
                             ),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(customer, order, assoc), out, mapOf("useSmartPointers" to "true"))
+            generator.generate(diagram = diagram(customer, order, assoc), outputDir = out, options = mapOf("useSmartPointers" to "true"))
             File(out, "Customer.hpp").readText() shouldContain "std::vector<std::shared_ptr<Order>>"
         }
 
@@ -251,20 +251,20 @@ class CppCodegenPluginTest :
                     id = "a1",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(1, 1), navigable = false),
+                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(lower = 1, upper = 1), navigable = false),
                             UmlAssociationEnd(
                                 typeId = "Order",
                                 role = "orders",
-                                multiplicity = Multiplicity(0, null),
+                                multiplicity = Multiplicity(lower = 0, upper = null),
                                 navigable = true,
                             ),
                         ),
                 )
             val out = tempDir()
             generator.generate(
-                diagram(customer, order, assoc),
-                out,
-                mapOf("useSmartPointers" to "true"),
+                diagram = diagram(customer, order, assoc),
+                outputDir = out,
+                options = mapOf("useSmartPointers" to "true"),
             )
             val content = File(out, "Customer.hpp").readText()
             content shouldContain "#include <vector>"
@@ -285,7 +285,7 @@ class CppCodegenPluginTest :
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(enum), out, emptyMap())
+            generator.generate(diagram = diagram(enum), outputDir = out, options = emptyMap())
             val content = File(out, "Status.hpp").readText()
             content shouldContain "enum class Status"
             content shouldContain "DRAFT"
@@ -333,7 +333,7 @@ class CppCodegenPluginTest :
         test("SNAKE_CASE wird NICHT auf Typnamen angewendet") {
             val cls = UmlClass(id = "OrderItem", name = "OrderItem")
             val out = tempDir()
-            generator.generate(diagram(cls), out, mapOf("naming" to "snake_case"))
+            generator.generate(diagram = diagram(cls), outputDir = out, options = mapOf("naming" to "snake_case"))
             val content = File(out, "OrderItem.hpp").readText()
             content shouldContain "class OrderItem"
         }
@@ -341,14 +341,30 @@ class CppCodegenPluginTest :
         test("Namespace nested vs flat — flat emittiert namespace a::b") {
             val cls = UmlClass(id = "Foo", name = "Foo")
             val out = tempDir()
-            generator.generate(diagram(cls), out, mapOf("namespace" to "app::model", "namespaceStyle" to "flat"))
+            generator.generate(
+                diagram = diagram(cls),
+                outputDir = out,
+                options =
+                    mapOf(
+                        "namespace" to "app::model",
+                        "namespaceStyle" to "flat",
+                    ),
+            )
             File(out, "Foo.hpp").readText() shouldContain "namespace app::model {"
         }
 
         test("Namespace nested emittiert namespace app { namespace model") {
             val cls = UmlClass(id = "Foo", name = "Foo")
             val out = tempDir()
-            generator.generate(diagram(cls), out, mapOf("namespace" to "app::model", "namespaceStyle" to "nested"))
+            generator.generate(
+                diagram = diagram(cls),
+                outputDir = out,
+                options =
+                    mapOf(
+                        "namespace" to "app::model",
+                        "namespaceStyle" to "nested",
+                    ),
+            )
             val content = File(out, "Foo.hpp").readText()
             content shouldContain "namespace app {"
             content shouldContain "namespace model {"
@@ -357,7 +373,7 @@ class CppCodegenPluginTest :
         test("kein namespaceName → kein namespace-Block") {
             val cls = UmlClass(id = "Foo", name = "Foo")
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Foo.hpp").readText() shouldNotContain "namespace"
         }
 
@@ -368,7 +384,7 @@ class CppCodegenPluginTest :
             val derived = UmlClass(id = "Derived", name = "Derived")
             val gen = UmlGeneralization(id = "g1", specificId = "Derived", generalId = "Base")
             val out = tempDir()
-            generator.generate(diagram(base, derived, gen), out, emptyMap())
+            generator.generate(diagram = diagram(base, derived, gen), outputDir = out, options = emptyMap())
             val content = File(out, "Derived.hpp").readText()
             content shouldContain "#include \"Base.hpp\""
         }
@@ -376,7 +392,7 @@ class CppCodegenPluginTest :
         test("Klasse ohne Basisklasse enthält kein Basis-Include") {
             val cls = UmlClass(id = "Solo", name = "Solo")
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Solo.hpp").readText() shouldNotContain "#include \"Solo.hpp\""
         }
 
@@ -390,17 +406,17 @@ class CppCodegenPluginTest :
                     id = "a1",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(1, 1), navigable = false),
+                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(lower = 1, upper = 1), navigable = false),
                             UmlAssociationEnd(
                                 typeId = "Order",
                                 role = "order",
-                                multiplicity = Multiplicity(0, 1),
+                                multiplicity = Multiplicity(lower = 0, upper = 1),
                                 navigable = true,
                             ),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(customer, order, assoc), out, emptyMap())
+            generator.generate(diagram = diagram(customer, order, assoc), outputDir = out, options = emptyMap())
             val content = File(out, "Customer.hpp").readText()
             content shouldContain "class Order;"
         }
@@ -413,17 +429,17 @@ class CppCodegenPluginTest :
                     id = "a1",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(1, 1), navigable = false),
+                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(lower = 1, upper = 1), navigable = false),
                             UmlAssociationEnd(
                                 typeId = "Order",
                                 role = "orders",
-                                multiplicity = Multiplicity(0, null),
+                                multiplicity = Multiplicity(lower = 0, upper = null),
                                 navigable = true,
                             ),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(customer, order, assoc), out, emptyMap())
+            generator.generate(diagram = diagram(customer, order, assoc), outputDir = out, options = emptyMap())
             val content = File(out, "Customer.hpp").readText()
             content shouldContain "#include \"Order.hpp\""
         }
@@ -438,7 +454,7 @@ class CppCodegenPluginTest :
                     members = listOf(UmlClass(id = "Foo", name = "Foo")),
                 )
             val out = tempDir()
-            generator.generate(diagram(pkg), out, mapOf("namespaceStyle" to "flat"))
+            generator.generate(diagram = diagram(pkg), outputDir = out, options = mapOf("namespaceStyle" to "flat"))
             val content = File(out, "Foo.hpp").readText()
             content shouldContain "namespace model {"
         }
@@ -452,7 +468,7 @@ class CppCodegenPluginTest :
                 )
             val outer = UmlPackage(id = "outer", name = "outer", members = listOf(inner))
             val out = tempDir()
-            generator.generate(diagram(outer), out, mapOf("namespaceStyle" to "nested"))
+            generator.generate(diagram = diagram(outer), outputDir = out, options = mapOf("namespaceStyle" to "nested"))
             val content = File(out, "Bar.hpp").readText()
             content shouldContain "namespace outer {"
             content shouldContain "namespace inner {"
@@ -464,7 +480,7 @@ class CppCodegenPluginTest :
             // A UML element named "../../evil" must NOT produce a file outside outputDir.
             val cls = UmlClass(id = "evil", name = "../../evil")
             val out = tempDir()
-            val files = generator.generate(diagram(cls), out, emptyMap())
+            val files = generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             // The generated file must be a direct child of outputDir.
             files.forEach { file ->
                 file.canonicalPath.startsWith(out.canonicalPath) shouldBe true
@@ -480,7 +496,7 @@ class CppCodegenPluginTest :
         test("Elementname mit Schrägstrich wird zu Unterstrich") {
             val cls = UmlClass(id = "myclass", name = "my/class")
             val out = tempDir()
-            val files = generator.generate(diagram(cls), out, emptyMap())
+            val files = generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             files.map { it.name } shouldContain "my_class.hpp"
         }
 
@@ -493,9 +509,9 @@ class CppCodegenPluginTest :
                 )
             val out = tempDir()
             generator.generate(
-                diagram(pkg),
-                out,
-                mapOf("namespace" to "global", "namespaceStyle" to "flat"),
+                diagram = diagram(pkg),
+                outputDir = out,
+                options = mapOf("namespace" to "global", "namespaceStyle" to "flat"),
             )
             val content = File(out, "Entity.hpp").readText()
             content shouldContain "namespace domain {"

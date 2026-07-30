@@ -94,7 +94,7 @@ internal class RunSessionManager {
                 f.deleteOnExit()
             }
 
-        val evalResult = KumlScriptHost.eval(tempScript)
+        val evalResult = KumlScriptHost.eval(file = tempScript)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
             return SessionResult.Error(
@@ -110,9 +110,9 @@ internal class RunSessionManager {
         val extracted =
             try {
                 dev.kuml.core.script.DiagramExtractor
-                    .extractAny(success.value.returnValue, tempScript)
+                    .extractAny(returnValue = success.value.returnValue, input = tempScript)
             } catch (_: Throwable) {
-                val diagram = DiagramExtractor.extract(success.value.returnValue, tempScript)
+                val diagram = DiagramExtractor.extract(returnValue = success.value.returnValue, input = tempScript)
                 ExtractedDiagram.Uml(diagram)
             }
 
@@ -124,13 +124,13 @@ internal class RunSessionManager {
                         .filterIsInstance<ActDiagram>()
                         .firstOrNull()
             if (actDiagram != null) {
-                return startActSession(extracted, actDiagram, restoreFrom, migrationPolicy)
+                return startActSession(extracted = extracted, actDiagram = actDiagram, restoreFrom = restoreFrom, policy = migrationPolicy)
             }
         }
 
         // STM / UML path
-        val sm = resolveStateMachine(extracted) ?: return SessionResult.Error("No runnable state machine found")
-        return startStmSession(sm, restoreFrom, migrationPolicy)
+        val sm = resolveStateMachine(extracted) ?: return SessionResult.Error(message = "No runnable state machine found")
+        return startStmSession(sm = sm, restoreFrom = restoreFrom, policy = migrationPolicy)
     }
 
     private fun startStmSession(
@@ -151,7 +151,7 @@ internal class RunSessionManager {
                         )
                     }
                 try {
-                    runtime.restoreFrom(sm, snapshot, policy)
+                    runtime.restoreFrom(model = sm, snapshot = snapshot, policy = policy)
                 } catch (e: MigrationException) {
                     return SessionResult.Error(
                         message = "Migration rejected: ${e.message}",
@@ -177,9 +177,9 @@ internal class RunSessionManager {
     ): SessionResult {
         val runtime =
             try {
-                Sysml2ActivityAdapter.runtimeFor(extracted.model, actDiagram)
+                Sysml2ActivityAdapter.runtimeFor(model = extracted.model, diagram = actDiagram)
             } catch (e: IllegalArgumentException) {
-                return SessionResult.Error("SysML 2 ACT adapter error: ${e.message}")
+                return SessionResult.Error(message = "SysML 2 ACT adapter error: ${e.message}")
             }
 
         val spec = runtime.spec
@@ -196,7 +196,7 @@ internal class RunSessionManager {
                         )
                     }
                 try {
-                    runtime.restoreFrom(snapshot, policy)
+                    runtime.restoreFrom(snapshot = snapshot, policy = policy)
                 } catch (e: MigrationException) {
                     return SessionResult.Error(
                         message = "Migration rejected: ${e.message}",
@@ -221,7 +221,7 @@ internal class RunSessionManager {
         eventName: String,
         payload: Map<String, Any> = emptyMap(),
     ): SessionResult {
-        val s = session ?: return SessionResult.Error("No active session")
+        val s = session ?: return SessionResult.Error(message = "No active session")
         if (isTerminated) return SessionResult.Terminated(totalSteps = stepCount())
 
         return when (s) {
@@ -238,7 +238,7 @@ internal class RunSessionManager {
                     )
                 val ev = Event(name = eventName, payload = jsonPayload)
                 val prevTraceSize = s.instance.trace.size
-                val result = s.runtime.step(s.instance, ev)
+                val result = s.runtime.step(instance = s.instance, event = ev)
                 val traceDelta = s.instance.trace.drop(prevTraceSize)
 
                 if (s.instance.isTerminated) {
@@ -267,9 +267,9 @@ internal class RunSessionManager {
                 val prevInstance = s.instance
                 val (newInstance, stepTrace) =
                     try {
-                        s.runtime.step(prevInstance, eventContext)
+                        s.runtime.step(instance = prevInstance, eventContext = eventContext)
                     } catch (e: ActivityDeadlockException) {
-                        return SessionResult.Error("Activity deadlock: ${e.message}")
+                        return SessionResult.Error(message = "Activity deadlock: ${e.message}")
                     }
                 // Update the mutable session reference
                 session = s.copy(instance = newInstance)
@@ -289,7 +289,7 @@ internal class RunSessionManager {
     // ── snapshot ─────────────────────────────────────────────────────────────
 
     fun snapshot(): SessionResult {
-        val s = session ?: return SessionResult.Error("No active session")
+        val s = session ?: return SessionResult.Error(message = "No active session")
         return when (s) {
             is RunSession.Stm ->
                 SessionResult.Ok(
@@ -315,7 +315,7 @@ internal class RunSessionManager {
         variables: Map<String, Any>,
         forceState: String? = null,
     ): SessionResult {
-        val s = session ?: return SessionResult.Error("No active session")
+        val s = session ?: return SessionResult.Error(message = "No active session")
         return when (s) {
             is RunSession.Stm -> {
                 // Apply variable patches
@@ -344,9 +344,9 @@ internal class RunSessionManager {
                         )
                     val newInstance =
                         try {
-                            s.runtime.restore(s.instance.model, newSnap)
+                            s.runtime.restore(model = s.instance.model, snapshot = newSnap)
                         } catch (e: Exception) {
-                            return SessionResult.Error("forceState failed: ${e.message}")
+                            return SessionResult.Error(message = "forceState failed: ${e.message}")
                         }
                     session = s.copy(instance = newInstance)
                     return SessionResult.Ok(
@@ -363,14 +363,14 @@ internal class RunSessionManager {
             }
 
             is RunSession.Act ->
-                SessionResult.Error("patch not supported for ACT sessions")
+                SessionResult.Error(message = "patch not supported for ACT sessions")
         }
     }
 
     // ── stop ─────────────────────────────────────────────────────────────────
 
     fun stop(): SessionResult {
-        val s = session ?: return SessionResult.Terminated(0L)
+        val s = session ?: return SessionResult.Terminated(totalSteps = 0L)
         val steps = stepCount()
         session = null
         return SessionResult.Terminated(totalSteps = steps, message = "Session stopped after $steps steps")
@@ -383,7 +383,7 @@ internal class RunSessionManager {
         when (s) {
             is RunSession.Stm -> {
                 val snap = s.runtime.snapshotFull(s.instance)
-                writeStateMachineSnapshot(snap, out.toFile())
+                writeStateMachineSnapshot(snapshot = snap, file = out.toFile())
             }
 
             is RunSession.Act -> {
@@ -397,13 +397,13 @@ internal class RunSessionManager {
                     )
                 val snap =
                     s.runtime.snapshotFull(
-                        s.instance,
+                        instance = s.instance,
                         modelId =
                             s.spec.nodes.keys
                                 .first(),
                         modelFingerprint = fp,
                     )
-                writeActivityInstanceSnapshot(snap, out.toFile())
+                writeActivityInstanceSnapshot(snapshot = snap, file = out.toFile())
             }
         }
     }
@@ -417,10 +417,10 @@ internal class RunSessionManager {
         val s = session ?: return
         when (s) {
             is RunSession.Stm ->
-                writeTrace(s.instance.trace, out.toFile(), modelId = modelId ?: s.instance.model.id)
+                writeTrace(trace = s.instance.trace, file = out.toFile(), modelId = modelId ?: s.instance.model.id)
 
             is RunSession.Act ->
-                writeTrace(emptyList(), out.toFile(), modelId = modelId)
+                writeTrace(trace = emptyList(), file = out.toFile(), modelId = modelId)
         }
     }
 
@@ -446,7 +446,7 @@ internal class RunSessionManager {
                             .firstOrNull()
                         ?: return null
                 try {
-                    Sysml2StateMachineAdapter.toUmlStateMachine(extracted.model, stm)
+                    Sysml2StateMachineAdapter.toUmlStateMachine(model = extracted.model, diagram = stm)
                 } catch (_: Exception) {
                     null
                 }

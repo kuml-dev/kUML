@@ -100,7 +100,7 @@ public abstract class KumlGenerateTask
                     continue
                 }
                 val diagram = (extracted as ExtractedDiagram.Uml).diagram
-                val written = gen.generate(diagram, out, opts)
+                val written = gen.generate(diagram = diagram, outputDir = out, options = opts)
                 totalFiles += written.size
                 logger.lifecycle("kumlGenerate: ${script.name} -> ${written.size} file(s)")
             }

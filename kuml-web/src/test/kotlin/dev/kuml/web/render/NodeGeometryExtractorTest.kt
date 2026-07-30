@@ -15,7 +15,7 @@ private fun layoutResultOf(nodes: Map<String, Rect>): LayoutResult =
     LayoutResult(
         engineId = LayoutEngineId("test"),
         seed = 1L,
-        canvas = Size(1000f, 1000f),
+        canvas = Size(width = 1000f, height = 1000f),
         nodes = nodes.mapKeys { (id, _) -> NodeId(id) }.mapValues { (_, rect) -> NodeLayout(bounds = rect) },
         edges = emptyMap(),
         groups = emptyMap(),
@@ -26,7 +26,7 @@ private fun rect(
     y: Float,
     w: Float,
     h: Float,
-): Rect = Rect(origin = Point(x, y), size = Size(w, h))
+): Rect = Rect(origin = Point(x = x, y = y), size = Size(width = w, height = h))
 
 class NodeGeometryExtractorTest :
     FunSpec({
@@ -35,11 +35,11 @@ class NodeGeometryExtractorTest :
             val layout =
                 layoutResultOf(
                     mapOf(
-                        "Alpha" to rect(0f, 0f, 100f, 50f),
-                        "Beta" to rect(200f, 0f, 100f, 50f),
+                        "Alpha" to rect(x = 0f, y = 0f, w = 100f, h = 50f),
+                        "Beta" to rect(x = 200f, y = 0f, w = 100f, h = 50f),
                     ),
                 )
-            val geometry = NodeGeometryExtractor.extract(DiagramType.CLASS, layout, paddingPx = 16f)
+            val geometry = NodeGeometryExtractor.extract(diagramType = DiagramType.CLASS, layoutResult = layout, paddingPx = 16f)
 
             geometry.nodes.map { it.id } shouldBe listOf("Alpha", "Beta")
             val alpha = geometry.nodes.first { it.id == "Alpha" }
@@ -56,11 +56,11 @@ class NodeGeometryExtractorTest :
             val layout =
                 layoutResultOf(
                     mapOf(
-                        "Alpha" to rect(0f, 0f, 100f, 50f),
-                        "Beta" to rect(300f, 0f, 100f, 50f),
+                        "Alpha" to rect(x = 0f, y = 0f, w = 100f, h = 50f),
+                        "Beta" to rect(x = 300f, y = 0f, w = 100f, h = 50f),
                     ),
                 )
-            val geometry = NodeGeometryExtractor.extract(DiagramType.CLASS, layout)
+            val geometry = NodeGeometryExtractor.extract(diagramType = DiagramType.CLASS, layoutResult = layout)
 
             val grid = requireNotNull(geometry.grid)
             grid.cols shouldBe 2
@@ -71,13 +71,13 @@ class NodeGeometryExtractorTest :
             val layout =
                 layoutResultOf(
                     mapOf(
-                        "A" to rect(0f, 0f, 100f, 50f),
-                        "B" to rect(300f, 0f, 100f, 50f),
-                        "C" to rect(0f, 200f, 100f, 50f),
-                        "D" to rect(300f, 200f, 100f, 50f),
+                        "A" to rect(x = 0f, y = 0f, w = 100f, h = 50f),
+                        "B" to rect(x = 300f, y = 0f, w = 100f, h = 50f),
+                        "C" to rect(x = 0f, y = 200f, w = 100f, h = 50f),
+                        "D" to rect(x = 300f, y = 200f, w = 100f, h = 50f),
                     ),
                 )
-            val geometry = NodeGeometryExtractor.extract(DiagramType.CLASS, layout, paddingPx = 0f)
+            val geometry = NodeGeometryExtractor.extract(diagramType = DiagramType.CLASS, layoutResult = layout, paddingPx = 0f)
 
             val grid = requireNotNull(geometry.grid)
             grid.cols shouldBe 2
@@ -89,8 +89,8 @@ class NodeGeometryExtractorTest :
         }
 
         test("single node - grid is 1x1 and cellW/cellH fall back to the node's own size") {
-            val layout = layoutResultOf(mapOf("Solo" to rect(10f, 10f, 120f, 80f)))
-            val geometry = NodeGeometryExtractor.extract(DiagramType.CLASS, layout, paddingPx = 0f)
+            val layout = layoutResultOf(mapOf("Solo" to rect(x = 10f, y = 10f, w = 120f, h = 80f)))
+            val geometry = NodeGeometryExtractor.extract(diagramType = DiagramType.CLASS, layoutResult = layout, paddingPx = 0f)
 
             val grid = requireNotNull(geometry.grid)
             grid.cols shouldBe 1
@@ -100,8 +100,8 @@ class NodeGeometryExtractorTest :
         }
 
         test("non-CLASS diagram type - nodes populated but grid is null") {
-            val layout = layoutResultOf(mapOf("S1" to rect(0f, 0f, 24f, 24f)))
-            val geometry = NodeGeometryExtractor.extract(DiagramType.STATE, layout)
+            val layout = layoutResultOf(mapOf("S1" to rect(x = 0f, y = 0f, w = 24f, h = 24f)))
+            val geometry = NodeGeometryExtractor.extract(diagramType = DiagramType.STATE, layoutResult = layout)
 
             geometry.nodes.size shouldBe 1
             geometry.grid shouldBe null
@@ -109,7 +109,7 @@ class NodeGeometryExtractorTest :
 
         test("empty layout - nodes and grid are both empty/null") {
             val layout = layoutResultOf(emptyMap())
-            val geometry = NodeGeometryExtractor.extract(DiagramType.CLASS, layout)
+            val geometry = NodeGeometryExtractor.extract(diagramType = DiagramType.CLASS, layoutResult = layout)
 
             geometry.nodes shouldBe emptyList()
             geometry.grid shouldBe null

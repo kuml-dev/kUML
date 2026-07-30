@@ -54,7 +54,7 @@ internal class WarmScriptWorker(
     val isDead: Boolean get() = state == State.DEAD
 
     private val launched: WorkerProcessSupport.LaunchedWorker =
-        WorkerProcessSupport.launch(javaBinary, classpath, maxHeapMb, warm = true)
+        WorkerProcessSupport.launch(javaBinary = javaBinary, classpath = classpath, maxHeapMb = maxHeapMb, warm = true)
     private val process: Process = launched.process
     private val reader = process.inputStream.bufferedReader(Charsets.UTF_8)
     private val readyLatch = CountDownLatch(1)
@@ -130,7 +130,7 @@ internal class WarmScriptWorker(
             // Write the request, then close stdin so the child's readLine() returns.
             try {
                 process.outputStream.bufferedWriter(Charsets.UTF_8).use { w ->
-                    w.write(json.encodeToString(WorkerRequest.serializer(), WorkerRequest(source, fileName)))
+                    w.write(json.encodeToString(WorkerRequest.serializer(), WorkerRequest(source = source, fileName = fileName)))
                     w.write("\n")
                 }
             } catch (_: Exception) {
@@ -147,18 +147,18 @@ internal class WarmScriptWorker(
             if (!finished) {
                 destroy()
                 return EvaluatedScript.Failure(
-                    FailureKind.TIMEOUT,
-                    "Script evaluation timed out after ${timeoutSeconds}s and was terminated.",
+                    kind = FailureKind.TIMEOUT,
+                    message = "Script evaluation timed out after ${timeoutSeconds}s and was terminated.",
                 )
             }
             readerThread.join(READER_JOIN_MILLIS)
 
             val line =
                 responseLine ?: return EvaluatedScript.Failure(
-                    FailureKind.SANDBOX,
-                    "Script sandbox worker produced no response (exit=${process.exitValue()}).",
+                    kind = FailureKind.SANDBOX,
+                    message = "Script sandbox worker produced no response (exit=${process.exitValue()}).",
                 )
-            parseResponse(line, process.exitValue())
+            parseResponse(line = line, exitValue = process.exitValue())
         } finally {
             // The worker has served its one request; it must not be reused.
             if (process.isAlive) process.destroyForcibly()
@@ -172,8 +172,8 @@ internal class WarmScriptWorker(
     ): EvaluatedScript {
         if (line.length >= WorkerProcessSupport.MAX_RESPONSE_LENGTH) {
             return EvaluatedScript.Failure(
-                FailureKind.SANDBOX,
-                "Script sandbox worker response exceeded the ${WorkerProcessSupport.MAX_RESPONSE_LENGTH}-char limit.",
+                kind = FailureKind.SANDBOX,
+                message = "Script sandbox worker response exceeded the ${WorkerProcessSupport.MAX_RESPONSE_LENGTH}-char limit.",
             )
         }
         val response =
@@ -181,8 +181,8 @@ internal class WarmScriptWorker(
                 json.decodeFromString(WorkerResponse.serializer(), line)
             } catch (e: Exception) {
                 return EvaluatedScript.Failure(
-                    FailureKind.SANDBOX,
-                    "Script sandbox worker returned an unparseable response (${e::class.simpleName}, exit=$exitValue).",
+                    kind = FailureKind.SANDBOX,
+                    message = "Script sandbox worker returned an unparseable response (${e::class.simpleName}, exit=$exitValue).",
                 )
             }
 
@@ -191,20 +191,20 @@ internal class WarmScriptWorker(
                 response.failureKind
                     ?.let { runCatching { FailureKind.valueOf(it) }.getOrNull() }
                     ?: FailureKind.EVALUATION
-            return EvaluatedScript.Failure(kind, response.message ?: "Script evaluation failed.")
+            return EvaluatedScript.Failure(kind = kind, message = response.message ?: "Script evaluation failed.")
         }
 
         val envelope =
             response.envelope ?: return EvaluatedScript.Failure(
-                FailureKind.SANDBOX,
-                "Script sandbox worker reported success but returned no diagram.",
+                kind = FailureKind.SANDBOX,
+                message = "Script sandbox worker reported success but returned no diagram.",
             )
         return try {
             EvaluatedScript.Success(ExtractedDiagramCodec.decode(envelope))
         } catch (e: Exception) {
             EvaluatedScript.Failure(
-                FailureKind.SANDBOX,
-                "Script sandbox worker returned an undecodable diagram (${e::class.simpleName}).",
+                kind = FailureKind.SANDBOX,
+                message = "Script sandbox worker returned an undecodable diagram (${e::class.simpleName}).",
             )
         }
     }

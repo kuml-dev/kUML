@@ -43,19 +43,19 @@ public fun interface AptosUrlValidator {
                     URI(baseUrl)
                 } catch (e: Exception) {
                     throw AptosChainAdapterException.InvalidUrlException(
-                        "baseUrl is not a valid URI: '$baseUrl'",
-                        e,
+                        message = "baseUrl is not a valid URI: '$baseUrl'",
+                        cause = e,
                     )
                 }
             if (uri.scheme !in ALLOWED_SCHEMES) {
                 throw AptosChainAdapterException.InvalidUrlException(
-                    "baseUrl must use http or https, got '${uri.scheme}'",
+                    message = "baseUrl must use http or https, got '${uri.scheme}'",
                 )
             }
             val host =
                 uri.host
                     ?: throw AptosChainAdapterException.InvalidUrlException(
-                        "baseUrl has no host: '$baseUrl'",
+                        message = "baseUrl has no host: '$baseUrl'",
                     )
             if (looksLikeIpLiteral(host)) {
                 val addr =
@@ -63,13 +63,13 @@ public fun interface AptosUrlValidator {
                         InetAddress.getByName(host)
                     } catch (e: Exception) {
                         throw AptosChainAdapterException.InvalidUrlException(
-                            "baseUrl host is not resolvable as IP: '$host'",
-                            e,
+                            message = "baseUrl host is not resolvable as IP: '$host'",
+                            cause = e,
                         )
                     }
                 if (isPrivateOrLoopback(addr)) {
                     throw AptosChainAdapterException.InvalidUrlException(
-                        "baseUrl must not address private/loopback/link-local IP ranges (SSRF protection)",
+                        message = "baseUrl must not address private/loopback/link-local IP ranges (SSRF protection)",
                     )
                 }
             }

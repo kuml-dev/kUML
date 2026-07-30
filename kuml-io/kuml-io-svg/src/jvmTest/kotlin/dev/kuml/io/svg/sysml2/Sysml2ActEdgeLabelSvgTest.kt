@@ -60,31 +60,34 @@ class Sysml2ActEdgeLabelSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(600f, 200f),
+                canvas = Size(width = 600f, height = 200f),
                 nodes =
                     mapOf(
-                        NodeId("Start") to NodeLayout(bounds = Rect(Point(40f, 80f), Size(30f, 30f))),
-                        NodeId("Validate") to NodeLayout(bounds = Rect(Point(160f, 60f), Size(140f, 60f))),
-                        NodeId("Ship") to NodeLayout(bounds = Rect(Point(380f, 60f), Size(140f, 60f))),
+                        NodeId("Start") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 80f), size = Size(width = 30f, height = 30f))),
+                        NodeId("Validate") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 160f, y = 60f), size = Size(width = 140f, height = 60f))),
+                        NodeId("Ship") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 380f, y = 60f), size = Size(width = 140f, height = 60f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("controlFlow:Start::Validate") to
-                            EdgeRoute.Direct(source = Point(70f, 95f), target = Point(160f, 90f)),
+                            EdgeRoute.Direct(source = Point(x = 70f, y = 95f), target = Point(x = 160f, y = 90f)),
                         EdgeId("objectFlow:Validate::Ship") to
-                            EdgeRoute.Direct(source = Point(300f, 90f), target = Point(380f, 90f)),
+                            EdgeRoute.Direct(source = Point(x = 300f, y = 90f), target = Point(x = 380f, y = 90f)),
                     ),
                 groups = emptyMap(),
             )
 
         "ControlFlow [guard] label appears in SVG" {
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "[ready]"
-            SampleOutput.write("sysml2-edge-labels/act-flows.svg", svg)
+            SampleOutput.write(filename = "sysml2-edge-labels/act-flows.svg", content = svg)
         }
 
         "ObjectFlow [Order] label appears in SVG" {
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "[Order]"
         }
     })

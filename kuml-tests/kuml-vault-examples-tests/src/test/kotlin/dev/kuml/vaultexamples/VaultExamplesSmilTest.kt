@@ -69,21 +69,21 @@ class VaultExamplesSmilTest :
             timeline: SmilTimeline,
         ) {
             val apngOptions = AnimRenderOptions(format = AnimFormat.APNG, widthPx = 1024)
-            val apngBytes = KumlAnimRenderer.toAnimated(svg, timeline, apngOptions)
-            SampleOutput.writeBytes("$baseName.apng", apngBytes)
+            val apngBytes = KumlAnimRenderer.toAnimated(animatedSvg = svg, timeline = timeline, options = apngOptions)
+            SampleOutput.writeBytes(filename = "$baseName.apng", content = apngBytes)
 
             val webpOptions = AnimRenderOptions(format = AnimFormat.WEBP, widthPx = 1024)
             try {
-                val webpBytes = KumlAnimRenderer.toAnimated(svg, timeline, webpOptions)
-                SampleOutput.writeBytes("$baseName.webp", webpBytes)
+                val webpBytes = KumlAnimRenderer.toAnimated(animatedSvg = svg, timeline = timeline, options = webpOptions)
+                SampleOutput.writeBytes(filename = "$baseName.webp", content = webpBytes)
             } catch (e: AnimEncoderException) {
                 println("[sample-output] WebP skipped (ffmpeg not available): ${e.message}")
             }
 
             val mp4Options = AnimRenderOptions(format = AnimFormat.MP4, widthPx = 1024, transparent = false)
             try {
-                val mp4Bytes = KumlAnimRenderer.toAnimated(svg, timeline, mp4Options)
-                SampleOutput.writeBytes("$baseName.mp4", mp4Bytes)
+                val mp4Bytes = KumlAnimRenderer.toAnimated(animatedSvg = svg, timeline = timeline, options = mp4Options)
+                SampleOutput.writeBytes(filename = "$baseName.mp4", content = mp4Bytes)
             } catch (e: AnimEncoderException) {
                 println("[sample-output] MP4 skipped (ffmpeg not available): ${e.message}")
             }
@@ -102,7 +102,7 @@ class VaultExamplesSmilTest :
             val kumlScript = extractKumlScript(mdContent)
             val traceJson = extractTraceJson(mdContent)
 
-            val result = AnimatedExampleRenderer.renderBpmn(kumlScript, traceJson)
+            val result = AnimatedExampleRenderer.renderBpmn(script = kumlScript, traceJson = traceJson)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "<animateMotion"
@@ -110,8 +110,8 @@ class VaultExamplesSmilTest :
 
             // Write animated SVG to smil/ output dir
             SampleOutput.write(
-                "$smilOutputDir/07_BPMN_animiert_PdV_Mitgliedsantrag.svg",
-                result.svg,
+                filename = "$smilOutputDir/07_BPMN_animiert_PdV_Mitgliedsantrag.svg",
+                content = result.svg,
             )
 
             // Write animated APNG + WebP
@@ -122,10 +122,10 @@ class VaultExamplesSmilTest :
             )
 
             // Static snapshot via re-render with trace=null for byte-identical output
-            val staticResult = AnimatedExampleRenderer.renderBpmn(kumlScript, traceJson = EMPTY_TRACE_JSON)
+            val staticResult = AnimatedExampleRenderer.renderBpmn(script = kumlScript, traceJson = EMPTY_TRACE_JSON)
             SampleOutput.write(
-                "vault-examples/elegant/07_BPMN_animiert_PdV_Mitgliedsantrag.svg",
-                staticResult.svg,
+                filename = "vault-examples/elegant/07_BPMN_animiert_PdV_Mitgliedsantrag.svg",
+                content = staticResult.svg,
             )
 
             println("[smil-test] BPMN SMIL: hasAnimation=${result.hasAnimation}, svg.length=${result.svg.length}")
@@ -140,7 +140,7 @@ class VaultExamplesSmilTest :
             val kumlScript = extractKumlScript(mdContent)
             val traceJson = extractTraceJson(mdContent)
 
-            val result = AnimatedExampleRenderer.renderStm(kumlScript, traceJson)
+            val result = AnimatedExampleRenderer.renderStm(script = kumlScript, traceJson = traceJson)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "<animate"
@@ -148,8 +148,8 @@ class VaultExamplesSmilTest :
 
             // Write animated SVG to smil/ output dir
             SampleOutput.write(
-                "$smilOutputDir/08_STM_animiert_Traffic_Light.svg",
-                result.svg,
+                filename = "$smilOutputDir/08_STM_animiert_Traffic_Light.svg",
+                content = result.svg,
             )
 
             // Write animated APNG + WebP
@@ -160,10 +160,10 @@ class VaultExamplesSmilTest :
             )
 
             // Static snapshot
-            val staticResult = AnimatedExampleRenderer.renderStm(kumlScript, traceJson = EMPTY_TRACE_JSON)
+            val staticResult = AnimatedExampleRenderer.renderStm(script = kumlScript, traceJson = EMPTY_TRACE_JSON)
             SampleOutput.write(
-                "vault-examples/elegant/08_STM_animiert_Traffic_Light.svg",
-                staticResult.svg,
+                filename = "vault-examples/elegant/08_STM_animiert_Traffic_Light.svg",
+                content = staticResult.svg,
             )
 
             println("[smil-test] STM SMIL: hasAnimation=${result.hasAnimation}, svg.length=${result.svg.length}")
@@ -176,7 +176,7 @@ class VaultExamplesSmilTest :
             val kumlScript = extractKumlScript(mdContent)
             val traceJson = extractTraceJson(mdContent)
 
-            val result = AnimatedExampleRenderer.renderBpmn(kumlScript, traceJson)
+            val result = AnimatedExampleRenderer.renderBpmn(script = kumlScript, traceJson = traceJson)
             result.hasAnimation.shouldBeTrue()
 
             val stripped = AnimatedExampleRenderer.stripSmil(result.svg)
@@ -191,7 +191,7 @@ class VaultExamplesSmilTest :
             val kumlScript = extractKumlScript(mdContent)
             val traceJson = extractTraceJson(mdContent)
 
-            val result = AnimatedExampleRenderer.renderStm(kumlScript, traceJson)
+            val result = AnimatedExampleRenderer.renderStm(script = kumlScript, traceJson = traceJson)
             result.hasAnimation.shouldBeTrue()
 
             val stripped = AnimatedExampleRenderer.stripSmil(result.svg)
@@ -210,7 +210,7 @@ class VaultExamplesSmilTest :
             val kumlScript = extractKumlScript(mdContent)
             val traceJson = extractTraceJson(mdContent)
 
-            val result = AnimatedExampleRenderer.renderSequence(kumlScript, traceJson)
+            val result = AnimatedExampleRenderer.renderSequence(script = kumlScript, traceJson = traceJson)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "<animateMotion"
@@ -218,8 +218,8 @@ class VaultExamplesSmilTest :
             result.svg shouldContain "</svg>"
 
             SampleOutput.write(
-                "$smilOutputDir/19_UML_Sequence_animiert_API_Submit.svg",
-                result.svg,
+                filename = "$smilOutputDir/19_UML_Sequence_animiert_API_Submit.svg",
+                content = result.svg,
             )
 
             // Write animated APNG + WebP
@@ -229,10 +229,10 @@ class VaultExamplesSmilTest :
                 result.timeline,
             )
 
-            val staticResult = AnimatedExampleRenderer.renderSequence(kumlScript, traceJson = EMPTY_TRACE_JSON)
+            val staticResult = AnimatedExampleRenderer.renderSequence(script = kumlScript, traceJson = EMPTY_TRACE_JSON)
             SampleOutput.write(
-                "vault-examples/elegant/19_UML_Sequence_animiert_API_Submit.svg",
-                staticResult.svg,
+                filename = "vault-examples/elegant/19_UML_Sequence_animiert_API_Submit.svg",
+                content = staticResult.svg,
             )
 
             println("[smil-test] SEQ SMIL: hasAnimation=${result.hasAnimation}, svg.length=${result.svg.length}")
@@ -248,8 +248,8 @@ class VaultExamplesSmilTest :
             val seqContext = SequenceAnimationContext(loopCount = 1)
             val result =
                 AnimatedExampleRenderer.renderSequence(
-                    kumlScript,
-                    traceJson,
+                    script = kumlScript,
+                    traceJson = traceJson,
                     context = seqContext,
                 )
             result.hasAnimation.shouldBeTrue()

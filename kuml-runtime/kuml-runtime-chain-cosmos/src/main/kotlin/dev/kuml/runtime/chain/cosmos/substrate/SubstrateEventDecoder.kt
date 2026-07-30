@@ -161,7 +161,7 @@ public class SubstrateEventDecoder(
      */
     public fun decodeIdentity(resultHex: String): IdentityResult {
         if (resultHex.isEmpty()) {
-            throw SubstrateChainAdapterException.MalformedResponse("contracts_call returned empty result")
+            throw SubstrateChainAdapterException.MalformedResponse(message = "contracts_call returned empty result")
         }
         val bytes = hexToBytes(resultHex)
         val reader = ScaleReader(bytes)
@@ -170,7 +170,7 @@ public class SubstrateEventDecoder(
         val discriminant = reader.readByte()
         if (discriminant != 0) {
             throw SubstrateChainAdapterException.MalformedResponse(
-                "contracts_call returned Err discriminant: $discriminant",
+                message = "contracts_call returned Err discriminant: $discriminant",
             )
         }
 
@@ -185,7 +185,7 @@ public class SubstrateEventDecoder(
         // schema_version: u32 LE
         val schemaVersion = reader.readU32LE()
 
-        return IdentityResult(modelHash, modelUri, schemaVersion)
+        return IdentityResult(modelHash = modelHash, modelUri = modelUri, schemaVersion = schemaVersion)
     }
 
     /** Gibt zurück ob der Pallet-Index noch auf dem Default-Wert steht. */
@@ -199,14 +199,14 @@ public class SubstrateEventDecoder(
         val clean = hex.removePrefix("0x").removePrefix("0X")
         if (clean.isEmpty()) return ByteArray(0)
         if (clean.length % 2 != 0) {
-            throw SubstrateChainAdapterException.MalformedResponse("Hex string has odd length: '$hex'")
+            throw SubstrateChainAdapterException.MalformedResponse(message = "Hex string has odd length: '$hex'")
         }
         return try {
             ByteArray(clean.length / 2) { i ->
                 clean.substring(i * 2, i * 2 + 2).toInt(16).toByte()
             }
         } catch (e: NumberFormatException) {
-            throw SubstrateChainAdapterException.MalformedResponse("Invalid hex string: '$hex'", e)
+            throw SubstrateChainAdapterException.MalformedResponse(message = "Invalid hex string: '$hex'", cause = e)
         }
     }
 
@@ -261,14 +261,14 @@ internal class ScaleReader(
     private var pos = 0
 
     fun readByte(): Int {
-        if (pos >= data.size) throw SubstrateChainAdapterException.MalformedResponse("SCALE buffer underflow at pos $pos")
+        if (pos >= data.size) throw SubstrateChainAdapterException.MalformedResponse(message = "SCALE buffer underflow at pos $pos")
         return data[pos++].toInt() and 0xFF
     }
 
     fun readBytes(count: Int): ByteArray {
         if (pos + count > data.size) {
             throw SubstrateChainAdapterException.MalformedResponse(
-                "SCALE buffer underflow: need $count bytes at pos $pos, have ${data.size - pos}",
+                message = "SCALE buffer underflow: need $count bytes at pos $pos, have ${data.size - pos}",
             )
         }
         val result = data.copyOfRange(pos, pos + count)
@@ -279,7 +279,7 @@ internal class ScaleReader(
     fun skipBytes(count: Int) {
         if (pos + count > data.size) {
             throw SubstrateChainAdapterException.MalformedResponse(
-                "SCALE skip overflow: need $count bytes at pos $pos",
+                message = "SCALE skip overflow: need $count bytes at pos $pos",
             )
         }
         pos += count
@@ -315,7 +315,7 @@ internal class ScaleReader(
                 // for any realistic on-chain data (and are guarded by the 10 MB response cap).
                 if (result > Int.MAX_VALUE.toLong()) {
                     throw SubstrateChainAdapterException.MalformedResponse(
-                        "SCALE compact big-integer value $result exceeds Int.MAX_VALUE — likely malformed data",
+                        message = "SCALE compact big-integer value $result exceeds Int.MAX_VALUE — likely malformed data",
                     )
                 }
                 result.toInt()

@@ -44,7 +44,7 @@ public fun interface ConflictResolver {
          * (dann txHash). Vollständig deterministisch und symmetrie-konsistent.
          */
         public val EarliestBlock: ConflictResolver =
-            ConflictResolver { a, b -> earliestBlockTieBreak(a, b) }
+            ConflictResolver { a, b -> earliestBlockTieBreak(a = a, b = b) }
 
         /**
          * Das zuerst beobachtete Event (kleinerer globalSequence) gewinnt.
@@ -57,7 +57,7 @@ public fun interface ConflictResolver {
                 when {
                     bySeq < 0 -> a
                     bySeq > 0 -> b
-                    else -> earliestBlockTieBreak(a, b)
+                    else -> earliestBlockTieBreak(a = a, b = b)
                 }
             }
     }
@@ -88,7 +88,7 @@ public fun interface ConflictResolver {
             return when {
                 ra < rb -> a
                 rb < ra -> b
-                else -> earliestBlockTieBreak(a, b) // gleicher Rang → Fallback
+                else -> earliestBlockTieBreak(a = a, b = b) // gleicher Rang → Fallback
             }
         }
 

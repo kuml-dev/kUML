@@ -69,18 +69,18 @@ class CsharpCodegenPluginTest :
         }
 
         test("descriptor kumlVersionRange enthält 0.12.0") {
-            plugin.descriptor.kumlVersionRange.contains(PluginVersion(0, 12, 0)) shouldBe true
+            plugin.descriptor.kumlVersionRange.contains(PluginVersion(major = 0, minor = 12, patch = 0)) shouldBe true
         }
 
         // ── Basic generation ───────────────────────────────────────────────────
 
         test("leeres Diagram → leere Datei-Liste") {
-            generator.generate(diagram(), tempDir(), emptyMap()) shouldHaveSize 0
+            generator.generate(diagram = diagram(), outputDir = tempDir(), options = emptyMap()) shouldHaveSize 0
         }
 
         test("UmlClass erzeugt genau eine .cs Datei") {
             val cls = UmlClass(id = "Order", name = "Order")
-            val files = generator.generate(diagram(cls), tempDir(), emptyMap())
+            val files = generator.generate(diagram = diagram(cls), outputDir = tempDir(), options = emptyMap())
             files shouldHaveSize 1
             files.first().name shouldBe "Order.cs"
         }
@@ -92,11 +92,11 @@ class CsharpCodegenPluginTest :
                     name = "Order",
                     attributes =
                         listOf(
-                            UmlProperty(id = "Order.name", name = "Name", type = UmlTypeRef("String")),
+                            UmlProperty(id = "Order.name", name = "Name", type = UmlTypeRef(name = "String")),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Order.cs").readText() shouldContain "public string Name { get; set; }"
         }
 
@@ -107,13 +107,13 @@ class CsharpCodegenPluginTest :
                     name = "Order",
                     attributes =
                         listOf(
-                            UmlProperty(id = "p1", name = "id", type = UmlTypeRef("String")),
-                            UmlProperty(id = "p2", name = "total", type = UmlTypeRef("Double")),
-                            UmlProperty(id = "p3", name = "count", type = UmlTypeRef("Int")),
+                            UmlProperty(id = "p1", name = "id", type = UmlTypeRef(name = "String")),
+                            UmlProperty(id = "p2", name = "total", type = UmlTypeRef(name = "Double")),
+                            UmlProperty(id = "p3", name = "count", type = UmlTypeRef(name = "Int")),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             val content = File(out, "Order.cs").readText()
             content shouldContain "public string id { get; set; }"
             content shouldContain "public double total { get; set; }"
@@ -127,11 +127,11 @@ class CsharpCodegenPluginTest :
                     name = "Order",
                     operations =
                         listOf(
-                            UmlOperation(id = "op1", name = "submit", returnType = UmlTypeRef("Void")),
+                            UmlOperation(id = "op1", name = "submit", returnType = UmlTypeRef(name = "Void")),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Order.cs").readText() shouldContain "public void submit("
         }
 
@@ -140,7 +140,7 @@ class CsharpCodegenPluginTest :
         test("UmlInterface erzeugt interface IFoo") {
             val iface = UmlInterface(id = "Orderable", name = "Orderable")
             val out = tempDir()
-            val files = generator.generate(diagram(iface), out, emptyMap())
+            val files = generator.generate(diagram = diagram(iface), outputDir = out, options = emptyMap())
             files shouldHaveSize 1
             files.first().name shouldBe "IOrderable.cs"
             File(out, "IOrderable.cs").readText() shouldContain "public interface IOrderable"
@@ -153,11 +153,11 @@ class CsharpCodegenPluginTest :
                     name = "Repo",
                     operations =
                         listOf(
-                            UmlOperation(id = "op1", name = "save", returnType = UmlTypeRef("Void")),
+                            UmlOperation(id = "op1", name = "save", returnType = UmlTypeRef(name = "Void")),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(iface), out, emptyMap())
+            generator.generate(diagram = diagram(iface), outputDir = out, options = emptyMap())
             val content = File(out, "IRepo.cs").readText()
             content shouldContain "void save();"
             content shouldNotContain "{ }"
@@ -168,7 +168,7 @@ class CsharpCodegenPluginTest :
         test("abstrakte Klasse erzeugt 'public abstract class'") {
             val cls = UmlClass(id = "Base", name = "Base", isAbstract = true)
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Base.cs").readText() shouldContain "public abstract class Base"
         }
 
@@ -179,7 +179,7 @@ class CsharpCodegenPluginTest :
             val derived = UmlClass(id = "Derived", name = "Derived")
             val gen = UmlGeneralization(id = "g1", specificId = "Derived", generalId = "Base")
             val out = tempDir()
-            generator.generate(diagram(base, derived, gen), out, emptyMap())
+            generator.generate(diagram = diagram(base, derived, gen), outputDir = out, options = emptyMap())
             File(out, "Derived.cs").readText() shouldContain "class Derived : Base"
         }
 
@@ -188,7 +188,7 @@ class CsharpCodegenPluginTest :
             val cls = UmlClass(id = "Service", name = "Service")
             val real = UmlInterfaceRealization(id = "r1", implementingId = "Service", interfaceId = "IRepo")
             val out = tempDir()
-            generator.generate(diagram(iface, cls, real), out, emptyMap())
+            generator.generate(diagram = diagram(iface, cls, real), outputDir = out, options = emptyMap())
             File(out, "Service.cs").readText() shouldContain ": IRepo"
         }
 
@@ -199,7 +199,7 @@ class CsharpCodegenPluginTest :
             val realA = UmlInterfaceRealization(id = "r1", implementingId = "Service", interfaceId = "RepoA")
             val realB = UmlInterfaceRealization(id = "r2", implementingId = "Service", interfaceId = "RepoB")
             val out = tempDir()
-            generator.generate(diagram(ifaceA, ifaceB, cls, realA, realB), out, emptyMap())
+            generator.generate(diagram = diagram(ifaceA, ifaceB, cls, realA, realB), outputDir = out, options = emptyMap())
             File(out, "Service.cs").readText() shouldContain ": IRepoA, IRepoB"
         }
 
@@ -210,7 +210,7 @@ class CsharpCodegenPluginTest :
             val gen = UmlGeneralization(id = "g1", specificId = "Impl", generalId = "Base")
             val real = UmlInterfaceRealization(id = "r1", implementingId = "Impl", interfaceId = "Repo")
             val out = tempDir()
-            generator.generate(diagram(base, iface, cls, gen, real), out, emptyMap())
+            generator.generate(diagram = diagram(base, iface, cls, gen, real), outputDir = out, options = emptyMap())
             File(out, "Impl.cs").readText() shouldContain ": Base, IRepo"
         }
 
@@ -226,13 +226,13 @@ class CsharpCodegenPluginTest :
                             UmlProperty(
                                 id = "p1",
                                 name = "note",
-                                type = UmlTypeRef("String"),
-                                multiplicity = Multiplicity(0, 1),
+                                type = UmlTypeRef(name = "String"),
+                                multiplicity = Multiplicity(lower = 0, upper = 1),
                             ),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Order.cs").readText() shouldContain "string? note"
         }
 
@@ -246,13 +246,13 @@ class CsharpCodegenPluginTest :
                             UmlProperty(
                                 id = "p1",
                                 name = "name",
-                                type = UmlTypeRef("String"),
-                                multiplicity = Multiplicity(1, 1),
+                                type = UmlTypeRef(name = "String"),
+                                multiplicity = Multiplicity(lower = 1, upper = 1),
                             ),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Order.cs").readText() shouldNotContain "string?"
         }
 
@@ -266,13 +266,13 @@ class CsharpCodegenPluginTest :
                             UmlProperty(
                                 id = "p1",
                                 name = "count",
-                                type = UmlTypeRef("Int"),
-                                multiplicity = Multiplicity(0, 1),
+                                type = UmlTypeRef(name = "Int"),
+                                multiplicity = Multiplicity(lower = 0, upper = 1),
                             ),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             // 'int?' is Nullable<int> — not a valid NRT annotation; value types must not get '?'
             File(out, "Order.cs").readText() shouldNotContain "int?"
         }
@@ -287,13 +287,13 @@ class CsharpCodegenPluginTest :
                             UmlProperty(
                                 id = "p1",
                                 name = "active",
-                                type = UmlTypeRef("Boolean"),
-                                multiplicity = Multiplicity(0, 1),
+                                type = UmlTypeRef(name = "Boolean"),
+                                multiplicity = Multiplicity(lower = 0, upper = 1),
                             ),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Order.cs").readText() shouldNotContain "bool?"
         }
 
@@ -307,20 +307,20 @@ class CsharpCodegenPluginTest :
                             UmlProperty(
                                 id = "p1",
                                 name = "note",
-                                type = UmlTypeRef("String"),
-                                multiplicity = Multiplicity(0, 1),
+                                type = UmlTypeRef(name = "String"),
+                                multiplicity = Multiplicity(lower = 0, upper = 1),
                             ),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(cls), out, mapOf("useNullableReferenceTypes" to "false"))
+            generator.generate(diagram = diagram(cls), outputDir = out, options = mapOf("useNullableReferenceTypes" to "false"))
             File(out, "Order.cs").readText() shouldNotContain "?"
         }
 
         test("useNullableReferenceTypes=true erzeugt #nullable enable Direktive") {
             val cls = UmlClass(id = "Order", name = "Order")
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Order.cs").readText() shouldContain "#nullable enable"
         }
 
@@ -329,7 +329,7 @@ class CsharpCodegenPluginTest :
         test("namespace block umschließt Klasse") {
             val cls = UmlClass(id = "Foo", name = "Foo")
             val out = tempDir()
-            generator.generate(diagram(cls), out, mapOf("namespace" to "App.Model"))
+            generator.generate(diagram = diagram(cls), outputDir = out, options = mapOf("namespace" to "App.Model"))
             val content = File(out, "Foo.cs").readText()
             content shouldContain "namespace App.Model"
             content shouldContain "    public"
@@ -338,7 +338,7 @@ class CsharpCodegenPluginTest :
         test("kein namespace → kein namespace-Block") {
             val cls = UmlClass(id = "Foo", name = "Foo")
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Foo.cs").readText() shouldNotContain "namespace"
         }
 
@@ -350,7 +350,7 @@ class CsharpCodegenPluginTest :
                     members = listOf(UmlClass(id = "Foo", name = "Foo")),
                 )
             val out = tempDir()
-            generator.generate(diagram(pkg), out, emptyMap())
+            generator.generate(diagram = diagram(pkg), outputDir = out, options = emptyMap())
             File(out, "Foo.cs").readText() shouldContain "namespace model"
         }
 
@@ -363,7 +363,7 @@ class CsharpCodegenPluginTest :
                 )
             val outer = UmlPackage(id = "outer", name = "outer", members = listOf(inner))
             val out = tempDir()
-            generator.generate(diagram(outer), out, emptyMap())
+            generator.generate(diagram = diagram(outer), outputDir = out, options = emptyMap())
             File(out, "Bar.cs").readText() shouldContain "namespace outer.inner"
         }
 
@@ -376,11 +376,11 @@ class CsharpCodegenPluginTest :
                     name = "Order",
                     attributes =
                         listOf(
-                            UmlProperty(id = "p1", name = "id", type = UmlTypeRef("UUID")),
+                            UmlProperty(id = "p1", name = "id", type = UmlTypeRef(name = "UUID")),
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Order.cs").readText() shouldContain "using System;"
         }
 
@@ -398,7 +398,7 @@ class CsharpCodegenPluginTest :
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(enum), out, emptyMap())
+            generator.generate(diagram = diagram(enum), outputDir = out, options = emptyMap())
             val content = File(out, "Status.cs").readText()
             content shouldContain "enum Status"
             content shouldContain "DRAFT"
@@ -410,7 +410,7 @@ class CsharpCodegenPluginTest :
         test("Pfad-Traversal-Name wird sanitisiert (kein Schreiben außerhalb outputDir)") {
             val cls = UmlClass(id = "evil", name = "../../evil")
             val out = tempDir()
-            val files = generator.generate(diagram(cls), out, emptyMap())
+            val files = generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             files.forEach { file ->
                 file.canonicalPath.startsWith(out.canonicalPath) shouldBe true
             }

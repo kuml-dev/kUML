@@ -83,10 +83,10 @@ internal object ExamplesTool : McpTool {
     override fun call(arguments: JsonObject): List<McpContent> {
         val language =
             arguments["language"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
-                ?: throw McpToolException(missingLanguageError())
+                ?: throw McpToolException(message = missingLanguageError())
 
         if (language !in ExampleCatalog.languages()) {
-            throw McpToolException(unknownLanguageError(language))
+            throw McpToolException(message = unknownLanguageError(language))
         }
 
         val diagramType = arguments["diagramType"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
@@ -97,9 +97,9 @@ internal object ExamplesTool : McpTool {
             } else {
                 val matches = ExampleCatalog.find(language = language, diagramType = diagramType)
                 if (matches.isEmpty()) {
-                    throw McpToolException(unknownDiagramTypeError(language, diagramType))
+                    throw McpToolException(message = unknownDiagramTypeError(language = language, diagramType = diagramType))
                 }
-                retrievalResult(language, diagramType, matches)
+                retrievalResult(language = language, diagramType = diagramType, matches = matches)
             }
 
         return listOf(McpContent(type = "text", text = json.encodeToString(resultJson)))

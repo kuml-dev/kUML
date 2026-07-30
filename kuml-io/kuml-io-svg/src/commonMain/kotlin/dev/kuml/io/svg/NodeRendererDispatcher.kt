@@ -111,44 +111,50 @@ internal object NodeRendererDispatcher {
         builder: SvgBuilder,
     ) {
         when (element) {
-            is UmlClass -> renderUmlClass(element, layout, theme, builder)
-            is UmlComment -> renderUmlComment(element, layout, theme, builder)
-            is UmlInterface -> renderUmlInterface(element, layout, theme, builder)
-            is UmlEnumeration -> renderUmlEnum(element, layout, theme, builder)
-            is UmlComponent -> renderUmlComponent(element, layout, theme, builder)
-            is UmlActor -> renderUmlActor(element, layout, theme, builder)
-            is UmlUseCase -> renderUmlUseCase(element, layout, theme, builder)
-            is UmlCollaboration -> renderUmlCollaboration(element, layout, theme, builder)
-            is UmlStateMachine -> renderUmlStateMachine(element, layout, theme, builder)
-            is UmlState -> renderUmlState(element, layout, theme, builder)
-            is UmlPseudostate -> renderUmlPseudostate(element, layout, theme, builder)
-            is UmlFinalState -> renderUmlFinalState(element, layout, theme, builder)
-            is UmlInstanceSpecification -> renderUmlInstance(element, layout, theme, builder)
-            is UmlNode -> renderUmlNode(element, layout, theme, builder)
-            is UmlArtifact -> renderUmlArtifact(element, layout, theme, builder)
-            is UmlStereotype -> renderUmlStereotype(element, layout, theme, builder)
-            is UmlActivityNode -> renderUmlActivityNode(element, layout, theme, builder)
-            is UmlTimingLifeline -> renderUmlTimingLifeline(element, layout, theme, builder)
-            is UmlLifeline -> renderUmlLifelineHead(element, layout, theme, builder)
-            is UmlInteractionOverviewFrame -> renderUmlInteractionOverviewFrame(element, layout, theme, builder)
-            is C4Person -> renderC4Person(element, layout, theme, builder)
-            is C4SoftwareSystem -> renderC4SoftwareSystem(element, layout, theme, builder)
-            is C4Container -> renderC4Container(element, layout, theme, builder)
-            is C4Component -> renderC4Component(element, layout, theme, builder)
-            is C4DeploymentNode -> renderC4DeploymentNode(element, layout, theme, builder)
-            is Sysml2Definition -> renderSysml2Definition(element, layout, theme, builder)
-            is Sysml2Usage -> renderSysml2Usage(element, layout, theme, builder)
+            is UmlClass -> renderUmlClass(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlComment -> renderUmlComment(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlInterface -> renderUmlInterface(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlEnumeration -> renderUmlEnum(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlComponent -> renderUmlComponent(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlActor -> renderUmlActor(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlUseCase -> renderUmlUseCase(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlCollaboration -> renderUmlCollaboration(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlStateMachine -> renderUmlStateMachine(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlState -> renderUmlState(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlPseudostate -> renderUmlPseudostate(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlFinalState -> renderUmlFinalState(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlInstanceSpecification -> renderUmlInstance(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlNode -> renderUmlNode(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlArtifact -> renderUmlArtifact(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlStereotype -> renderUmlStereotype(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlActivityNode -> renderUmlActivityNode(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlTimingLifeline -> renderUmlTimingLifeline(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlLifeline -> renderUmlLifelineHead(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlInteractionOverviewFrame ->
+                renderUmlInteractionOverviewFrame(
+                    element = element,
+                    layout = layout,
+                    theme = theme,
+                    builder = builder,
+                )
+            is C4Person -> renderC4Person(element = element, layout = layout, theme = theme, builder = builder)
+            is C4SoftwareSystem -> renderC4SoftwareSystem(element = element, layout = layout, theme = theme, builder = builder)
+            is C4Container -> renderC4Container(element = element, layout = layout, theme = theme, builder = builder)
+            is C4Component -> renderC4Component(element = element, layout = layout, theme = theme, builder = builder)
+            is C4DeploymentNode -> renderC4DeploymentNode(element = element, layout = layout, theme = theme, builder = builder)
+            is Sysml2Definition -> renderSysml2Definition(element = element, layout = layout, theme = theme, builder = builder)
+            is Sysml2Usage -> renderSysml2Usage(element = element, layout = layout, theme = theme, builder = builder)
             // BPMN — V3.1.3
-            is BpmnEvent -> renderBpmnEvent(element, layout, theme, builder)
-            is BpmnGateway -> renderBpmnGateway(element, layout, theme, builder)
-            is BpmnTask -> renderBpmnTask(element, layout, theme, builder)
-            is BpmnSubProcess -> renderBpmnSubProcess(element, layout, theme, builder)
-            is BpmnCallActivity -> renderBpmnCallActivity(element, layout, theme, builder)
-            is BpmnDataObject -> renderBpmnDataObject(element, layout, theme, builder)
+            is BpmnEvent -> renderBpmnEvent(event = element, layout = layout, theme = theme, builder = builder)
+            is BpmnGateway -> renderBpmnGateway(gw = element, layout = layout, theme = theme, builder = builder)
+            is BpmnTask -> renderBpmnTask(task = element, layout = layout, theme = theme, builder = builder)
+            is BpmnSubProcess -> renderBpmnSubProcess(sp = element, layout = layout, theme = theme, builder = builder)
+            is BpmnCallActivity -> renderBpmnCallActivity(ca = element, layout = layout, theme = theme, builder = builder)
+            is BpmnDataObject -> renderBpmnDataObject(data = element, layout = layout, theme = theme, builder = builder)
             // BPMN — V3.1.4 Collaboration
-            is BpmnParticipant -> renderBpmnParticipant(element, layout, theme, builder)
-            is BpmnLane -> renderBpmnLane(element, layout, horizontal = true, theme, builder)
-            else -> renderFallbackNode(element, layout, builder)
+            is BpmnParticipant -> renderBpmnParticipant(participant = element, layout = layout, theme = theme, builder = builder)
+            is BpmnLane -> renderBpmnLane(lane = element, layout = layout, horizontal = true, theme = theme, builder = builder)
+            else -> renderFallbackNode(element = element, layout = layout, builder = builder)
         }
     }
 
@@ -162,13 +168,13 @@ internal object NodeRendererDispatcher {
         val w = layout.bounds.size.width
         val h = layout.bounds.size.height
         builder.tag(
-            "g",
-            mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+            name = "g",
+            attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
         ) {
-            tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
+            tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
             tag(
-                "text",
-                mapOf("class" to "kuml-body", "x" to fmt(w / 2f), "y" to "20", "text-anchor" to "middle"),
+                name = "text",
+                attrs = mapOf("class" to "kuml-body", "x" to fmt(w / 2f), "y" to "20", "text-anchor" to "middle"),
             ) {
                 text(element.id)
             }

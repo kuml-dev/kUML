@@ -15,7 +15,7 @@ class DebouncerTest :
                 val counter = AtomicInteger(0)
                 val latch = CountDownLatch(1)
                 repeat(5) {
-                    debouncer.submit("key") {
+                    debouncer.submit(key = "key") {
                         counter.incrementAndGet()
                         latch.countDown()
                     }
@@ -34,8 +34,8 @@ class DebouncerTest :
             try {
                 val latchA = CountDownLatch(1)
                 val latchB = CountDownLatch(1)
-                debouncer.submit("a") { latchA.countDown() }
-                debouncer.submit("b") { latchB.countDown() }
+                debouncer.submit(key = "a") { latchA.countDown() }
+                debouncer.submit(key = "b") { latchB.countDown() }
                 latchA.await(5, TimeUnit.SECONDS) shouldBe true
                 latchB.await(5, TimeUnit.SECONDS) shouldBe true
             } finally {
@@ -47,7 +47,7 @@ class DebouncerTest :
             val debouncer = Debouncer(delayMs = 200)
             try {
                 val ran = AtomicInteger(0)
-                debouncer.submit("key") { ran.incrementAndGet() }
+                debouncer.submit(key = "key") { ran.incrementAndGet() }
                 debouncer.cancel("key")
                 Thread.sleep(400)
                 ran.get() shouldBe 0

@@ -43,7 +43,7 @@ internal fun renderErmMartinRelationship(
     val (tagName, attrs) = EdgePathBuilder.build(route)
     val dashed = rel.kind == RelationshipKind.NON_IDENTIFYING
     val cssClass = if (dashed) "kuml-edge-dashed" else "kuml-edge"
-    b.tag(tagName, attrs + mapOf("class" to cssClass))
+    b.tag(name = tagName, attrs = attrs + mapOf("class" to cssClass))
 
     // Tangent pointing FROM the source node INTO the edge (away from the box).
     val sourceDir = EdgeLabelGeometry.sourceSegmentTangent(route)
@@ -53,20 +53,27 @@ internal fun renderErmMartinRelationship(
     val targetIntoNode = EdgeLabelGeometry.targetSegmentTangent(route)
     val targetDir = -targetIntoNode.first to -targetIntoNode.second
 
-    renderCardinalityGlyph(route.source, sourceDir, rel.sourceCardinality, theme, b)
-    renderCardinalityGlyph(route.target, targetDir, rel.targetCardinality, theme, b)
+    renderCardinalityGlyph(anchor = route.source, dir = sourceDir, cardinality = rel.sourceCardinality, theme = theme, b = b)
+    renderCardinalityGlyph(anchor = route.target, dir = targetDir, cardinality = rel.targetCardinality, theme = theme, b = b)
 
     val selfLoop = rel.sourceEntityId == rel.targetEntityId
     val relName = rel.name
     if (!relName.isNullOrBlank()) {
-        b.renderErmRelationshipNameLabel(relName, route, labelStackIndex, selfLoop, sourceDir, targetDir)
+        b.renderErmRelationshipNameLabel(
+            label = relName,
+            route = route,
+            stackIndex = labelStackIndex,
+            selfLoop = selfLoop,
+            sourceDir = sourceDir,
+            targetDir = targetDir,
+        )
     }
 
     rel.sourceRole?.let { role ->
-        b.renderErmRoleLabel(route.source, sourceDir, role)
+        b.renderErmRoleLabel(anchor = route.source, dir = sourceDir, role = role)
     }
     rel.targetRole?.let { role ->
-        b.renderErmRoleLabel(route.target, targetDir, role, perpBias = if (selfLoop) 1f else -1f)
+        b.renderErmRoleLabel(anchor = route.target, dir = targetDir, role = role, perpBias = if (selfLoop) 1f else -1f)
     }
 }
 
@@ -112,14 +119,15 @@ private fun renderCardinalityGlyph(
         val rightX = anchor.x - px * CROWFOOT_SPREAD_PX
         val rightY = anchor.y - py * CROWFOOT_SPREAD_PX
         b.tag(
-            "path",
-            mapOf(
-                "class" to "kuml-erm-crowfoot",
-                "d" to
-                    "M ${fmt(apexX)} ${fmt(apexY)} L ${fmt(anchor.x)} ${fmt(anchor.y)} " +
-                    "M ${fmt(apexX)} ${fmt(apexY)} L ${fmt(leftX)} ${fmt(leftY)} " +
-                    "M ${fmt(apexX)} ${fmt(apexY)} L ${fmt(rightX)} ${fmt(rightY)}",
-            ),
+            name = "path",
+            attrs =
+                mapOf(
+                    "class" to "kuml-erm-crowfoot",
+                    "d" to
+                        "M ${fmt(apexX)} ${fmt(apexY)} L ${fmt(anchor.x)} ${fmt(anchor.y)} " +
+                        "M ${fmt(apexX)} ${fmt(apexY)} L ${fmt(leftX)} ${fmt(leftY)} " +
+                        "M ${fmt(apexX)} ${fmt(apexY)} L ${fmt(rightX)} ${fmt(rightY)}",
+                ),
         )
         innerOffset = CROWFOOT_LEN_PX
     }
@@ -132,13 +140,14 @@ private fun renderCardinalityGlyph(
         val circleCx = markerX + dx * CIRCLE_RADIUS_PX
         val circleCy = markerY + dy * CIRCLE_RADIUS_PX
         b.tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(circleCx),
-                "cy" to fmt(circleCy),
-                "r" to fmt(CIRCLE_RADIUS_PX),
-                "class" to "kuml-erm-optional-marker",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(circleCx),
+                    "cy" to fmt(circleCy),
+                    "r" to fmt(CIRCLE_RADIUS_PX),
+                    "class" to "kuml-erm-optional-marker",
+                ),
         )
     } else {
         val barX1 = markerX + px * BAR_HALF_PX
@@ -146,14 +155,15 @@ private fun renderCardinalityGlyph(
         val barX2 = markerX - px * BAR_HALF_PX
         val barY2 = markerY - py * BAR_HALF_PX
         b.tag(
-            "line",
-            mapOf(
-                "x1" to fmt(barX1),
-                "y1" to fmt(barY1),
-                "x2" to fmt(barX2),
-                "y2" to fmt(barY2),
-                "class" to "kuml-erm-mandatory-marker",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(barX1),
+                    "y1" to fmt(barY1),
+                    "x2" to fmt(barX2),
+                    "y2" to fmt(barY2),
+                    "class" to "kuml-erm-mandatory-marker",
+                ),
         )
     }
 }

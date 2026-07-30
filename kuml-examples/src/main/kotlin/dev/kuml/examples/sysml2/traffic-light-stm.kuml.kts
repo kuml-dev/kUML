@@ -86,7 +86,7 @@ sysml2Model(name = "TrafficLight") {
     )
 
     // ── State Transition Diagram ─────────────────────────────────────────
-    stmDiagram("TrafficLight — phase cycle") {
+    stmDiagram(name = "TrafficLight — phase cycle") {
         include(initial)
         include(red)
         include(green)

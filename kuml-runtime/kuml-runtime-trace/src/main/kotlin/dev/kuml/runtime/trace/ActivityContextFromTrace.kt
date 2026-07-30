@@ -40,10 +40,10 @@ public object ActivityContextFromTrace {
         val sorted = entries.sortedBy { it.seqNo }
         val decisions =
             sorted.filterIsInstance<TraceEntry.DecisionTaken>().map {
-                DecisionRecord(it.nodeId, it.chosenEdgeId, it.guard, it.clock)
+                DecisionRecord(nodeId = it.nodeId, chosenEdgeId = it.chosenEdgeId, guard = it.guard, clock = it.clock)
             }
         val terminated = sorted.any { it is TraceEntry.ActivityTerminated }
         val finalClock = sorted.filterIsInstance<TraceEntry.ActivityTerminated>().lastOrNull()?.clock
-        return Report(decisions, terminated, finalClock)
+        return Report(decisions = decisions, terminated = terminated, finalClock = finalClock)
     }
 }

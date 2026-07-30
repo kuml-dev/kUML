@@ -22,21 +22,21 @@ class StereotypeValidatorTest :
         val testNamespace = "dev.kuml.test.profiles.stereotype-validator-test"
 
         val entityProfile =
-            profile("TestJavaEE") {
+            profile(name = "TestJavaEE") {
                 namespace = testNamespace
                 description = "Test profile"
                 version = "1.0.0"
 
-                stereotype("Entity") {
+                stereotype(name = "Entity") {
                     extends(UmlMetaclass.Class)
-                    property<String>("tableName") // required — no default
-                    property<String>("schema") { default = "public" }
+                    property<String>(name = "tableName") // required — no default
+                    property<String>(name = "schema") { default = "public" }
                 }
 
-                stereotype("Service") {
+                stereotype(name = "Service") {
                     extends(UmlMetaclass.Class)
-                    property<Boolean>("transactional") { default = true }
-                    constraint("has-ops") {
+                    property<Boolean>(name = "transactional") { default = true }
+                    constraint(name = "has-ops") {
                         ocl("self.operations->notEmpty()")
                     }
                 }

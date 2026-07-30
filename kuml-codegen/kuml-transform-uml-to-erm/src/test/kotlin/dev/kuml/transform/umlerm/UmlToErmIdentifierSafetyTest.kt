@@ -17,12 +17,12 @@ class UmlToErmIdentifierSafetyTest :
 
         test("a class name containing SQL metacharacters fails the transform instead of being silently mangled") {
             val diagram =
-                classDiagram("Unsafe") {
-                    classOf("""Bad Name; DROP TABLE x;--""") {
-                        attribute("id", "UUID")
+                classDiagram(name = "Unsafe") {
+                    classOf(name = """Bad Name; DROP TABLE x;--""") {
+                        attribute(name = "id", type = "UUID")
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             result.shouldBeInstanceOf<TransformResult.Failure>()
             result.errors.shouldNotBeEmpty()
             result.errors.first().message shouldContain "not a safe SQL identifier"
@@ -30,13 +30,13 @@ class UmlToErmIdentifierSafetyTest :
 
         test("an attribute name containing SQL metacharacters fails the transform") {
             val diagram =
-                classDiagram("Unsafe") {
-                    classOf("Customer") {
-                        attribute("id", "UUID")
-                        attribute("""bad col;name""", "String")
+                classDiagram(name = "Unsafe") {
+                    classOf(name = "Customer") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = """bad col;name""", type = "String")
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             result.shouldBeInstanceOf<TransformResult.Failure>()
         }
     })

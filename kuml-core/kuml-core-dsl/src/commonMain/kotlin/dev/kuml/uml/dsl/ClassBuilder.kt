@@ -54,7 +54,7 @@ class AttributeBuilder internal constructor(
     internal fun build(): UmlProperty {
         val propId =
             explicitId ?: UmlIds.disambiguate(
-                candidate = UmlIds.child(ownerId, name),
+                candidate = UmlIds.child(parentId = ownerId, name = name),
                 taken = takenIds,
             )
         takenIds += propId
@@ -94,8 +94,8 @@ class ClassBuilder internal constructor(
     /** The computed or explicitly provided ID for this class. */
     val id: String =
         run {
-            val candidate = explicitId ?: UmlIds.child(parentId, name)
-            val resolved = UmlIds.disambiguate(candidate, takenIds)
+            val candidate = explicitId ?: UmlIds.child(parentId = parentId, name = name)
+            val resolved = UmlIds.disambiguate(candidate = candidate, taken = takenIds)
             takenIds += resolved
             resolved
         }
@@ -162,7 +162,7 @@ class ClassBuilder internal constructor(
         pendingGeneralizations.map { (specId, genId) ->
             val relId =
                 UmlIds.disambiguate(
-                    candidate = UmlIds.generalization(specId, genId),
+                    candidate = UmlIds.generalization(specificId = specId, generalId = genId),
                     taken = takenIds,
                 )
             takenIds += relId
@@ -173,7 +173,7 @@ class ClassBuilder internal constructor(
         pendingRealizations.map { (implId, ifaceId) ->
             val relId =
                 UmlIds.disambiguate(
-                    candidate = UmlIds.realization(implId, ifaceId),
+                    candidate = UmlIds.realization(implementingId = implId, interfaceId = ifaceId),
                     taken = takenIds,
                 )
             takenIds += relId
@@ -209,7 +209,7 @@ fun UmlClassifierScope.attribute(
 ): UmlProperty {
     val propId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.child(ownerId, name),
+            candidate = UmlIds.child(parentId = ownerId, name = name),
             taken = takenIds,
         )
     takenIds += propId
@@ -238,7 +238,17 @@ fun UmlClassifierScope.attribute(
     isStatic: Boolean = false,
     isReadOnly: Boolean = false,
     id: String? = null,
-): UmlProperty = attribute(name, typeRef(type), visibility, multiplicity, defaultValue, isStatic, isReadOnly, id)
+): UmlProperty =
+    attribute(
+        name = name,
+        type = typeRef(type),
+        visibility = visibility,
+        multiplicity = multiplicity,
+        defaultValue = defaultValue,
+        isStatic = isStatic,
+        isReadOnly = isReadOnly,
+        id = id,
+    )
 
 /** Convenience overload — type by classifier handle. */
 fun UmlClassifierScope.attribute(
@@ -250,7 +260,17 @@ fun UmlClassifierScope.attribute(
     isStatic: Boolean = false,
     isReadOnly: Boolean = false,
     id: String? = null,
-): UmlProperty = attribute(name, typeRef(type), visibility, multiplicity, defaultValue, isStatic, isReadOnly, id)
+): UmlProperty =
+    attribute(
+        name = name,
+        type = typeRef(type),
+        visibility = visibility,
+        multiplicity = multiplicity,
+        defaultValue = defaultValue,
+        isStatic = isStatic,
+        isReadOnly = isReadOnly,
+        id = id,
+    )
 
 // ── Block-based attribute() overloads (stereotype support, D1/D2) ─────────────
 
@@ -275,7 +295,7 @@ fun UmlClassifierScope.attribute(
     id: String? = null,
     block: AttributeBuilder.() -> Unit,
 ): UmlProperty {
-    val builder = AttributeBuilder(name, type, ownerId, takenIds, container, id)
+    val builder = AttributeBuilder(name = name, type = type, ownerId = ownerId, takenIds = takenIds, container = container, explicitId = id)
     builder.block()
     val prop = builder.build()
     addAttribute(prop)
@@ -288,7 +308,7 @@ fun UmlClassifierScope.attribute(
     type: String,
     id: String? = null,
     block: AttributeBuilder.() -> Unit,
-): UmlProperty = attribute(name, typeRef(type), id, block)
+): UmlProperty = attribute(name = name, type = typeRef(type), id = id, block = block)
 
 /** Block overload — type by classifier handle. */
 fun UmlClassifierScope.attribute(
@@ -296,7 +316,7 @@ fun UmlClassifierScope.attribute(
     type: UmlClassifier,
     id: String? = null,
     block: AttributeBuilder.() -> Unit,
-): UmlProperty = attribute(name, typeRef(type), id, block)
+): UmlProperty = attribute(name = name, type = typeRef(type), id = id, block = block)
 
 /**
  * Declares that this class extends (inherits from) [generalId].
@@ -310,7 +330,7 @@ fun UmlClassifierScope.attribute(
  * @param generalId Qualified ID of the parent class.
  */
 fun UmlClassifierScope.extends(generalId: String) {
-    addPendingGeneralization(ownerId, generalId)
+    addPendingGeneralization(specificId = ownerId, generalId = generalId)
 }
 
 /** Overload — parent class via builder handle. */
@@ -325,7 +345,7 @@ fun UmlClassifierScope.extends(general: UmlClassifier) = extends(general.id)
  * @param interfaceId Qualified ID of the realised interface.
  */
 fun UmlClassifierScope.implements(interfaceId: String) {
-    addPendingRealization(ownerId, interfaceId)
+    addPendingRealization(implementingId = ownerId, interfaceId = interfaceId)
 }
 
 /** Overload — interface via builder handle. */

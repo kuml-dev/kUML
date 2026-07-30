@@ -26,24 +26,24 @@ class StateMachineSnapshotRoundtripTest :
                 vertices =
                     listOf(
                         initial("init"),
-                        state("A"),
-                        state("B"),
+                        state(id = "A"),
+                        state(id = "B"),
                         finalState("end"),
                     ),
                 transitions =
                     listOf(
-                        trans("t0", "init", "A"),
-                        trans("t1", "A", "B", trigger = "go"),
-                        trans("t2", "B", "end", trigger = "done"),
+                        trans(id = "t0", from = "init", to = "A"),
+                        trans(id = "t1", from = "A", to = "B", trigger = "go"),
+                        trans(id = "t2", from = "B", to = "end", trigger = "done"),
                     ),
             )
         val runtime = StateMachineRuntime()
 
         test("roundtrip preserves currentVertexIds") {
             val instance = runtime.start(model)
-            runtime.step(instance, Event.of("go"))
+            runtime.step(instance = instance, event = Event.of("go"))
             val snap = runtime.snapshotFull(instance)
-            val restored = runtime.restoreFrom(model, snap)
+            val restored = runtime.restoreFrom(model = model, snapshot = snap)
             restored.currentVertices.map { it.id } shouldBe instance.currentVertices.map { it.id }
         }
 
@@ -52,7 +52,7 @@ class StateMachineSnapshotRoundtripTest :
             instance.variables["score"] = 42L
             instance.variables["active"] = true
             val snap = runtime.snapshotFull(instance)
-            val restored = runtime.restoreFrom(model, snap)
+            val restored = runtime.restoreFrom(model = model, snapshot = snap)
             restored.variables["score"] shouldBe 42L
             restored.variables["active"] shouldBe true
         }
@@ -62,35 +62,35 @@ class StateMachineSnapshotRoundtripTest :
             // Directly add to internal queue to test preservation
             instance.mutInternalQueue.add(Event.of("queued-event"))
             val snap = runtime.snapshotFull(instance)
-            val restored = runtime.restoreFrom(model, snap)
+            val restored = runtime.restoreFrom(model = model, snapshot = snap)
             restored.mutInternalQueue shouldHaveSize 1
             restored.mutInternalQueue.first().name shouldBe "queued-event"
         }
 
         test("roundtrip preserves trace") {
             val instance = runtime.start(model)
-            runtime.step(instance, Event.of("go"))
+            runtime.step(instance = instance, event = Event.of("go"))
             val traceSize = instance.mutTrace.size
             val snap = runtime.snapshotFull(instance)
-            val restored = runtime.restoreFrom(model, snap)
+            val restored = runtime.restoreFrom(model = model, snapshot = snap)
             restored.mutTrace shouldHaveSize traceSize
         }
 
         test("roundtrip preserves seqCounter") {
             val instance = runtime.start(model)
-            runtime.step(instance, Event.of("go"))
+            runtime.step(instance = instance, event = Event.of("go"))
             val snap = runtime.snapshotFull(instance)
-            val restored = runtime.restoreFrom(model, snap)
+            val restored = runtime.restoreFrom(model = model, snapshot = snap)
             restored.seqCounter shouldBe snap.seqCounter
         }
 
         test("roundtrip preserves isTerminated flag") {
             val instance = runtime.start(model)
-            runtime.step(instance, Event.of("go"))
-            runtime.step(instance, Event.of("done"))
+            runtime.step(instance = instance, event = Event.of("go"))
+            runtime.step(instance = instance, event = Event.of("done"))
             instance.isTerminated.shouldBeTrue()
             val snap = runtime.snapshotFull(instance)
-            val restored = runtime.restoreFrom(model, snap)
+            val restored = runtime.restoreFrom(model = model, snapshot = snap)
             restored.isTerminated.shouldBeTrue()
         }
 
@@ -105,8 +105,8 @@ class StateMachineSnapshotRoundtripTest :
 
         test("snapshot of terminated instance") {
             val instance = runtime.start(model)
-            runtime.step(instance, Event.of("go"))
-            runtime.step(instance, Event.of("done"))
+            runtime.step(instance = instance, event = Event.of("go"))
+            runtime.step(instance = instance, event = Event.of("done"))
             val snap = runtime.snapshotFull(instance)
             snap.isTerminated.shouldBeTrue()
             snap.modelId shouldBe model.id

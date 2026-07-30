@@ -40,7 +40,7 @@ public object CosmosAddress {
             if (v == -1) return false
             values[i] = v
         }
-        return verifyChecksum(hrp, values)
+        return verifyChecksum(hrp = hrp, data = values)
     }
 
     /**

@@ -12,7 +12,7 @@ class SmilTimelineTest :
             elementId: String,
             beginMs: Long,
             durationMs: Long,
-        ) = SmilAnimation.Fill(elementId, "#ff0000", beginMs, durationMs)
+        ) = SmilAnimation.Fill(elementId = elementId, color = "#ff0000", beginMs = beginMs, durationMs = durationMs)
 
         // ── totalDurationMs ───────────────────────────────────────────────────
 
@@ -96,18 +96,25 @@ class SmilTimelineTest :
             val original =
                 SmilTimeline(
                     listOf(
-                        SmilAnimation.Animate("el1", "opacity", "0", "1", beginMs = 0L, durationMs = 300L),
+                        SmilAnimation.Animate(
+                            elementId = "el1",
+                            attribute = "opacity",
+                            from = "0",
+                            to = "1",
+                            beginMs = 0L,
+                            durationMs = 300L,
+                        ),
                         SmilAnimation.AnimateTransform(
-                            "t1",
-                            TransformType.TRANSLATE,
-                            "0 0",
-                            "50 0",
+                            elementId = "t1",
+                            type = TransformType.TRANSLATE,
+                            from = "0 0",
+                            to = "50 0",
                             beginMs = 300L,
                             durationMs = 300L,
                         ),
-                        SmilAnimation.AnimateMotion("tok1", "M 0 0 L 10 10", beginMs = 600L, durationMs = 300L),
-                        SmilAnimation.Set("el2", "visibility", "visible", beginMs = 900L, durationMs = 300L),
-                        SmilAnimation.Fill("n1", "#ff0000", beginMs = 1200L, durationMs = 300L),
+                        SmilAnimation.AnimateMotion(elementId = "tok1", path = "M 0 0 L 10 10", beginMs = 600L, durationMs = 300L),
+                        SmilAnimation.Set(elementId = "el2", attribute = "visibility", to = "visible", beginMs = 900L, durationMs = 300L),
+                        SmilAnimation.Fill(elementId = "n1", color = "#ff0000", beginMs = 1200L, durationMs = 300L),
                     ),
                 )
             val shifted = original.shiftedBy(100L)
@@ -155,10 +162,10 @@ class SmilTimelineTest :
                 SmilTimeline(
                     listOf(
                         SmilAnimation.AnimateTransform(
-                            "t1",
-                            TransformType.SCALE,
-                            "1 1",
-                            "1.15 1.15",
+                            elementId = "t1",
+                            type = TransformType.SCALE,
+                            from = "1 1",
+                            to = "1.15 1.15",
                             beginMs = 600L,
                             durationMs = 600L,
                         ),

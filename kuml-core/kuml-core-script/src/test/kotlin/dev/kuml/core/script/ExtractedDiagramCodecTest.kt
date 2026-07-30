@@ -16,7 +16,7 @@ class ExtractedDiagramCodecTest :
     FunSpec({
 
         fun roundTrip(source: String): ExtractedDiagram {
-            val evaluated = InProcessScriptEvaluator.evaluate(source)
+            val evaluated = InProcessScriptEvaluator.evaluate(source = source)
             val success = evaluated.shouldBeInstanceOf<EvaluatedScript.Success>()
             return ExtractedDiagramCodec.decode(ExtractedDiagramCodec.encode(success.diagram))
         }

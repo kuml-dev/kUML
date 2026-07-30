@@ -112,11 +112,13 @@ public class AgentEditingContext(
 
     public companion object {
         /** Convenience: fresh context seeded with an empty UML model. */
-        public fun emptyUml(modelName: String = "AgentModel"): AgentEditingContext = AgentEditingContext(AnyKumlModel.emptyUml(modelName))
+        public fun emptyUml(modelName: String = "AgentModel"): AgentEditingContext =
+            AgentEditingContext(initialModel = AnyKumlModel.emptyUml(modelName))
 
-        public fun emptyC4(modelName: String = "AgentC4"): AgentEditingContext = AgentEditingContext(AnyKumlModel.emptyC4(modelName))
+        public fun emptyC4(modelName: String = "AgentC4"): AgentEditingContext =
+            AgentEditingContext(initialModel = AnyKumlModel.emptyC4(modelName))
 
         public fun emptySysml2(modelName: String = "AgentSysml2"): AgentEditingContext =
-            AgentEditingContext(AnyKumlModel.emptySysml2(modelName))
+            AgentEditingContext(initialModel = AnyKumlModel.emptySysml2(modelName))
     }
 }

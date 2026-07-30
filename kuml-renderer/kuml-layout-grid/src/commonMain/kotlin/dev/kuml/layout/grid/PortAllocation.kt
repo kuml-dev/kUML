@@ -31,7 +31,7 @@ internal fun endpointPoint(
             ?: error("EndpointRef references unknown node '${endpoint.nodeId.value}'")
     val portCoord = endpoint.portId?.let { nl.ports[it] }
     if (portCoord != null) return portCoord
-    return edgeIntersection(nl.bounds, counterpartCenter)
+    return edgeIntersection(box = nl.bounds, target = counterpartCenter)
 }
 
 /**
@@ -51,7 +51,7 @@ internal fun edgeIntersection(
     val cy = box.origin.y + box.size.height / 2f
     val dx = target.x - cx
     val dy = target.y - cy
-    if (dx == 0f && dy == 0f) return Point(cx, cy)
+    if (dx == 0f && dy == 0f) return Point(x = cx, y = cy)
     val left = box.origin.x
     val right = box.origin.x + box.size.width
     val top = box.origin.y
@@ -72,8 +72,8 @@ internal fun edgeIntersection(
     } else if (dy < 0f) {
         consider((top - cy) / dy)
     }
-    if (tMin == Float.POSITIVE_INFINITY) return Point(cx, cy)
-    return Point(cx + tMin * dx, cy + tMin * dy)
+    if (tMin == Float.POSITIVE_INFINITY) return Point(x = cx, y = cy)
+    return Point(x = cx + tMin * dx, y = cy + tMin * dy)
 }
 
 /**
@@ -96,10 +96,10 @@ internal fun allocatePorts(
         val ratio = (withinSide + 1).toFloat() / (perSide + 1).toFloat()
         result[id] =
             when (side) {
-                0 -> Point(bounds.origin.x + bounds.size.width * ratio, bounds.origin.y)
-                1 -> Point(bounds.origin.x + bounds.size.width, bounds.origin.y + bounds.size.height * ratio)
-                2 -> Point(bounds.origin.x + bounds.size.width * (1f - ratio), bounds.origin.y + bounds.size.height)
-                else -> Point(bounds.origin.x, bounds.origin.y + bounds.size.height * (1f - ratio))
+                0 -> Point(x = bounds.origin.x + bounds.size.width * ratio, y = bounds.origin.y)
+                1 -> Point(x = bounds.origin.x + bounds.size.width, y = bounds.origin.y + bounds.size.height * ratio)
+                2 -> Point(x = bounds.origin.x + bounds.size.width * (1f - ratio), y = bounds.origin.y + bounds.size.height)
+                else -> Point(x = bounds.origin.x, y = bounds.origin.y + bounds.size.height * (1f - ratio))
             }
     }
     return result

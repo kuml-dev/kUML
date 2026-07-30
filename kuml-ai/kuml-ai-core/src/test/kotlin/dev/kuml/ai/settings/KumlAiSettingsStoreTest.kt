@@ -58,7 +58,7 @@ class KumlAiSettingsStoreTest :
                         "defaultModels" to JsonObject(emptyMap()),
                     ),
                 )
-            val migrated = store.migrate(0, v0Json)
+            val migrated = store.migrate(rawSchemaVersion = 0, raw = v0Json)
             migrated.privacyMode.shouldBeTrue()
             migrated.schemaVersion shouldBe 1
         }

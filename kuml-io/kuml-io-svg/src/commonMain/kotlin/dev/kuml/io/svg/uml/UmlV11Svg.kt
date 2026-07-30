@@ -33,33 +33,36 @@ internal fun renderUmlNode(
     val h = layout.bounds.size.height
     val depth = 8f
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         // 3D cube illusion: a slanted parallelogram on top + right + front rectangle.
         tag(
-            "polygon",
-            mapOf(
-                "points" to "0,$depth $depth,0 ${fmt(w)},0 ${fmt(w - depth)},$depth",
-                "class" to "kuml-node-top",
-            ),
+            name = "polygon",
+            attrs =
+                mapOf(
+                    "points" to "0,$depth $depth,0 ${fmt(w)},0 ${fmt(w - depth)},$depth",
+                    "class" to "kuml-node-top",
+                ),
         )
         tag(
-            "polygon",
-            mapOf(
-                "points" to "${fmt(w - depth)},$depth ${fmt(w)},0 ${fmt(w)},${fmt(h - depth)} ${fmt(w - depth)},${fmt(h)}",
-                "class" to "kuml-node-side",
-            ),
+            name = "polygon",
+            attrs =
+                mapOf(
+                    "points" to "${fmt(w - depth)},$depth ${fmt(w)},0 ${fmt(w)},${fmt(h - depth)} ${fmt(w - depth)},${fmt(h)}",
+                    "class" to "kuml-node-side",
+                ),
         )
         tag(
-            "rect",
-            mapOf(
-                "x" to "0",
-                "y" to fmt(depth),
-                "width" to fmt(w - depth),
-                "height" to fmt(h - depth),
-                "class" to "kuml-node",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to "0",
+                    "y" to fmt(depth),
+                    "width" to fmt(w - depth),
+                    "height" to fmt(h - depth),
+                    "class" to "kuml-node",
+                ),
         )
         val stereotype =
             when (element.nodeKind) {
@@ -70,14 +73,14 @@ internal fun renderUmlNode(
         var cy = depth + 16f
         stereotype?.let {
             tag(
-                "text",
-                mapOf("class" to "kuml-stereotype", "x" to fmt((w - depth) / 2f), "y" to fmt(cy), "text-anchor" to "middle"),
+                name = "text",
+                attrs = mapOf("class" to "kuml-stereotype", "x" to fmt((w - depth) / 2f), "y" to fmt(cy), "text-anchor" to "middle"),
             ) { text(it) }
             cy += 14f
         }
         tag(
-            "text",
-            mapOf("class" to "kuml-title", "x" to fmt((w - depth) / 2f), "y" to fmt(cy), "text-anchor" to "middle"),
+            name = "text",
+            attrs = mapOf("class" to "kuml-title", "x" to fmt((w - depth) / 2f), "y" to fmt(cy), "text-anchor" to "middle"),
         ) { text(element.name) }
     }
 }
@@ -94,28 +97,29 @@ internal fun renderUmlArtifact(
     val h = layout.bounds.size.height
     val ear = 10f
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         // Rectangle with a dog-eared top-right corner.
         tag(
-            "polygon",
-            mapOf(
-                "points" to "0,0 ${fmt(w - ear)},0 ${fmt(w)},$ear ${fmt(w)},${fmt(h)} 0,${fmt(h)}",
-                "class" to "kuml-artifact",
-            ),
+            name = "polygon",
+            attrs =
+                mapOf(
+                    "points" to "0,0 ${fmt(w - ear)},0 ${fmt(w)},$ear ${fmt(w)},${fmt(h)} 0,${fmt(h)}",
+                    "class" to "kuml-artifact",
+                ),
         )
         tag(
-            "polygon",
-            mapOf("points" to "${fmt(w - ear)},0 ${fmt(w - ear)},$ear ${fmt(w)},$ear", "class" to "kuml-artifact-ear"),
+            name = "polygon",
+            attrs = mapOf("points" to "${fmt(w - ear)},0 ${fmt(w - ear)},$ear ${fmt(w)},$ear", "class" to "kuml-artifact-ear"),
         )
         tag(
-            "text",
-            mapOf("class" to "kuml-stereotype", "x" to fmt(w / 2f), "y" to "20", "text-anchor" to "middle"),
+            name = "text",
+            attrs = mapOf("class" to "kuml-stereotype", "x" to fmt(w / 2f), "y" to "20", "text-anchor" to "middle"),
         ) { text("«artifact»") }
         tag(
-            "text",
-            mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to "36", "text-anchor" to "middle"),
+            name = "text",
+            attrs = mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to "36", "text-anchor" to "middle"),
         ) { text(element.name) }
     }
 }
@@ -131,17 +135,17 @@ internal fun renderUmlStereotype(
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-stereotype-box"))
+        tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-stereotype-box"))
         tag(
-            "text",
-            mapOf("class" to "kuml-stereotype", "x" to fmt(w / 2f), "y" to "18", "text-anchor" to "middle"),
+            name = "text",
+            attrs = mapOf("class" to "kuml-stereotype", "x" to fmt(w / 2f), "y" to "18", "text-anchor" to "middle"),
         ) { text("«stereotype»") }
         tag(
-            "text",
-            mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to "34", "text-anchor" to "middle"),
+            name = "text",
+            attrs = mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to "34", "text-anchor" to "middle"),
         ) { text(element.name) }
     }
 }
@@ -157,81 +161,84 @@ internal fun renderUmlActivityNode(
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         when (element.kind) {
             UmlActivityNodeKind.ACTION -> {
                 tag(
-                    "rect",
-                    mapOf("width" to fmt(w), "height" to fmt(h), "rx" to "12", "ry" to "12", "class" to "kuml-action"),
+                    name = "rect",
+                    attrs = mapOf("width" to fmt(w), "height" to fmt(h), "rx" to "12", "ry" to "12", "class" to "kuml-action"),
                 )
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to fmt(h / 2f + 5f), "text-anchor" to "middle"),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to fmt(h / 2f + 5f), "text-anchor" to "middle"),
                 ) { text(element.name) }
             }
             UmlActivityNodeKind.INITIAL ->
                 tag(
-                    "circle",
-                    mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "10", "class" to "kuml-pseudostate"),
+                    name = "circle",
+                    attrs = mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "10", "class" to "kuml-pseudostate"),
                 )
             UmlActivityNodeKind.ACTIVITY_FINAL -> {
                 tag(
-                    "circle",
-                    mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "12", "class" to "kuml-final-outer"),
+                    name = "circle",
+                    attrs = mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "12", "class" to "kuml-final-outer"),
                 )
                 tag(
-                    "circle",
-                    mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "6", "class" to "kuml-pseudostate"),
+                    name = "circle",
+                    attrs = mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "6", "class" to "kuml-pseudostate"),
                 )
             }
             UmlActivityNodeKind.FLOW_FINAL -> {
                 tag(
-                    "circle",
-                    mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "10", "class" to "kuml-final-outer"),
+                    name = "circle",
+                    attrs = mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "10", "class" to "kuml-final-outer"),
                 )
                 tag(
-                    "line",
-                    mapOf(
-                        "x1" to fmt(w / 2f - 6f),
-                        "y1" to fmt(h / 2f - 6f),
-                        "x2" to fmt(w / 2f + 6f),
-                        "y2" to fmt(h / 2f + 6f),
-                        "class" to "kuml-edge",
-                    ),
+                    name = "line",
+                    attrs =
+                        mapOf(
+                            "x1" to fmt(w / 2f - 6f),
+                            "y1" to fmt(h / 2f - 6f),
+                            "x2" to fmt(w / 2f + 6f),
+                            "y2" to fmt(h / 2f + 6f),
+                            "class" to "kuml-edge",
+                        ),
                 )
                 tag(
-                    "line",
-                    mapOf(
-                        "x1" to fmt(w / 2f - 6f),
-                        "y1" to fmt(h / 2f + 6f),
-                        "x2" to fmt(w / 2f + 6f),
-                        "y2" to fmt(h / 2f - 6f),
-                        "class" to "kuml-edge",
-                    ),
+                    name = "line",
+                    attrs =
+                        mapOf(
+                            "x1" to fmt(w / 2f - 6f),
+                            "y1" to fmt(h / 2f + 6f),
+                            "x2" to fmt(w / 2f + 6f),
+                            "y2" to fmt(h / 2f - 6f),
+                            "class" to "kuml-edge",
+                        ),
                 )
             }
             UmlActivityNodeKind.DECISION, UmlActivityNodeKind.MERGE -> {
                 tag(
-                    "polygon",
-                    mapOf(
-                        "points" to "${fmt(w / 2f)},0 ${fmt(w)},${fmt(h / 2f)} ${fmt(w / 2f)},${fmt(h)} 0,${fmt(h / 2f)}",
-                        "class" to "kuml-decision",
-                    ),
+                    name = "polygon",
+                    attrs =
+                        mapOf(
+                            "points" to "${fmt(w / 2f)},0 ${fmt(w)},${fmt(h / 2f)} ${fmt(w / 2f)},${fmt(h)} 0,${fmt(h / 2f)}",
+                            "class" to "kuml-decision",
+                        ),
                 )
             }
             UmlActivityNodeKind.FORK, UmlActivityNodeKind.JOIN -> {
                 tag(
-                    "rect",
-                    mapOf("x" to "0", "y" to fmt(h / 2f - 4f), "width" to fmt(w), "height" to "8", "class" to "kuml-fork-bar"),
+                    name = "rect",
+                    attrs = mapOf("x" to "0", "y" to fmt(h / 2f - 4f), "width" to fmt(w), "height" to "8", "class" to "kuml-fork-bar"),
                 )
             }
             UmlActivityNodeKind.OBJECT -> {
-                tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
+                tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to fmt(h / 2f + 5f), "text-anchor" to "middle"),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to fmt(h / 2f + 5f), "text-anchor" to "middle"),
                 ) { text(element.name) }
             }
         }
@@ -256,24 +263,24 @@ internal fun renderUmlTimingLifeline(
     val axisH = 20f // reserved height at the bottom for the X (time) axis
     val rowH = (h - 20f - axisH) / stateCount
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-timing-frame"))
+        tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-timing-frame"))
 
         // Y-axis: state labels
         for ((i, state) in element.states.withIndex()) {
             val cy = 20f + i * rowH + rowH / 2f + 4f
             tag(
-                "text",
-                mapOf("class" to "kuml-body", "x" to fmt(labelW - 4f), "y" to fmt(cy), "text-anchor" to "end"),
+                name = "text",
+                attrs = mapOf("class" to "kuml-body", "x" to fmt(labelW - 4f), "y" to fmt(cy), "text-anchor" to "end"),
             ) { text(state) }
         }
 
         // Title
         tag(
-            "text",
-            mapOf("class" to "kuml-title", "x" to fmt(labelW / 2f), "y" to "14", "text-anchor" to "middle"),
+            name = "text",
+            attrs = mapOf("class" to "kuml-title", "x" to fmt(labelW / 2f), "y" to "14", "text-anchor" to "middle"),
         ) { text(element.name) }
 
         // Step-line through ticks + X-axis
@@ -299,19 +306,20 @@ internal fun renderUmlTimingLifeline(
                     val unused = prev
                 }
             }
-            tag("path", mapOf("d" to path.toString(), "class" to "kuml-timing-line"))
+            tag(name = "path", attrs = mapOf("d" to path.toString(), "class" to "kuml-timing-line"))
 
             // X-axis: horizontal separator line + per-tick marks and labels
             val axisY = h - axisH
             tag(
-                "line",
-                mapOf(
-                    "x1" to fmt(plotX),
-                    "y1" to fmt(axisY),
-                    "x2" to fmt(w),
-                    "y2" to fmt(axisY),
-                    "class" to "kuml-edge",
-                ),
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to fmt(plotX),
+                        "y1" to fmt(axisY),
+                        "x2" to fmt(w),
+                        "y2" to fmt(axisY),
+                        "class" to "kuml-edge",
+                    ),
             )
             val tValues =
                 element.timeline
@@ -321,25 +329,27 @@ internal fun renderUmlTimingLifeline(
             tValues.forEachIndexed { idx, t ->
                 val px = sx(t)
                 tag(
-                    "line",
-                    mapOf(
-                        "x1" to fmt(px),
-                        "y1" to fmt(axisY),
-                        "x2" to fmt(px),
-                        "y2" to fmt(axisY + 4f),
-                        "class" to "kuml-edge",
-                    ),
+                    name = "line",
+                    attrs =
+                        mapOf(
+                            "x1" to fmt(px),
+                            "y1" to fmt(axisY),
+                            "x2" to fmt(px),
+                            "y2" to fmt(axisY + 4f),
+                            "class" to "kuml-edge",
+                        ),
                 )
                 // Shift anchor to "end" for the rightmost tick so label stays inside frame
                 val anchor = if (idx == tValues.lastIndex) "end" else "middle"
                 tag(
-                    "text",
-                    mapOf(
-                        "class" to "kuml-small",
-                        "x" to fmt(px),
-                        "y" to fmt(h - 4f),
-                        "text-anchor" to anchor,
-                    ),
+                    name = "text",
+                    attrs =
+                        mapOf(
+                            "class" to "kuml-small",
+                            "x" to fmt(px),
+                            "y" to fmt(h - 4f),
+                            "text-anchor" to anchor,
+                        ),
                 ) { text("$t") }
             }
         }
@@ -357,46 +367,47 @@ internal fun renderUmlInteractionOverviewFrame(
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         when (element.kind) {
             UmlInteractionFrameKind.INTERACTION_REF -> {
                 tag(
-                    "rect",
-                    mapOf("width" to fmt(w), "height" to fmt(h), "rx" to "6", "ry" to "6", "class" to "kuml-frame"),
+                    name = "rect",
+                    attrs = mapOf("width" to fmt(w), "height" to fmt(h), "rx" to "6", "ry" to "6", "class" to "kuml-frame"),
                 )
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-small", "x" to "8", "y" to "16"),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-small", "x" to "8", "y" to "16"),
                 ) { text("ref") }
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to fmt(h / 2f + 5f), "text-anchor" to "middle"),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to fmt(h / 2f + 5f), "text-anchor" to "middle"),
                 ) { text(element.name) }
             }
             UmlInteractionFrameKind.INITIAL ->
                 tag(
-                    "circle",
-                    mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "10", "class" to "kuml-pseudostate"),
+                    name = "circle",
+                    attrs = mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "10", "class" to "kuml-pseudostate"),
                 )
             UmlInteractionFrameKind.FINAL -> {
                 tag(
-                    "circle",
-                    mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "12", "class" to "kuml-final-outer"),
+                    name = "circle",
+                    attrs = mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "12", "class" to "kuml-final-outer"),
                 )
                 tag(
-                    "circle",
-                    mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "6", "class" to "kuml-pseudostate"),
+                    name = "circle",
+                    attrs = mapOf("cx" to fmt(w / 2f), "cy" to fmt(h / 2f), "r" to "6", "class" to "kuml-pseudostate"),
                 )
             }
             UmlInteractionFrameKind.DECISION, UmlInteractionFrameKind.MERGE ->
                 tag(
-                    "polygon",
-                    mapOf(
-                        "points" to "${fmt(w / 2f)},0 ${fmt(w)},${fmt(h / 2f)} ${fmt(w / 2f)},${fmt(h)} 0,${fmt(h / 2f)}",
-                        "class" to "kuml-decision",
-                    ),
+                    name = "polygon",
+                    attrs =
+                        mapOf(
+                            "points" to "${fmt(w / 2f)},0 ${fmt(w)},${fmt(h / 2f)} ${fmt(w / 2f)},${fmt(h)} 0,${fmt(h / 2f)}",
+                            "class" to "kuml-decision",
+                        ),
                 )
         }
     }

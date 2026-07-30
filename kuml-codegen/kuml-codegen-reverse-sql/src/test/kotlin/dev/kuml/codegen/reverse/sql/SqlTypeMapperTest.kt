@@ -61,13 +61,13 @@ class SqlTypeMapperTest :
         }
 
         test("NUMERIC/DECIMAL with precision and scale") {
-            SqlTypeMapper.map(cols.getValue("j").colDataType).type shouldBe ErmDataType.Decimal(10, 2)
-            SqlTypeMapper.map(cols.getValue("k").colDataType).type shouldBe ErmDataType.Decimal(5, 0)
+            SqlTypeMapper.map(cols.getValue("j").colDataType).type shouldBe ErmDataType.Decimal(precision = 10, scale = 2)
+            SqlTypeMapper.map(cols.getValue("k").colDataType).type shouldBe ErmDataType.Decimal(precision = 5, scale = 0)
         }
 
         test("bare NUMERIC without precision falls back to Decimal(38,0) with a diagnostic code") {
             val mapped = SqlTypeMapper.map(cols.getValue("l").colDataType)
-            mapped.type shouldBe ErmDataType.Decimal(38, 0)
+            mapped.type shouldBe ErmDataType.Decimal(precision = 38, scale = 0)
             mapped.diagnosticCode shouldBe "REV-SQL-010"
         }
 

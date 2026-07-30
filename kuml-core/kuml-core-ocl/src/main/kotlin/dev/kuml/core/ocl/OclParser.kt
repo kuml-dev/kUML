@@ -52,7 +52,7 @@ internal class OclParser(
         recursionDepth++
         if (recursionDepth > OclSyntax.MAX_NESTING_DEPTH) {
             throw OclEvaluationException(
-                "expression too complex (nesting exceeds ${OclSyntax.MAX_NESTING_DEPTH} levels)",
+                message = "expression too complex (nesting exceeds ${OclSyntax.MAX_NESTING_DEPTH} levels)",
                 position = currentPosition(),
             )
         }
@@ -67,7 +67,7 @@ internal class OclParser(
         val at = currentPosition()
         val t = consume()
         if (t != token) {
-            throw OclEvaluationException("Expected $token but got $t at position ${pos - 1}", position = at)
+            throw OclEvaluationException(message = "Expected $token but got $t at position ${pos - 1}", position = at)
         }
     }
 
@@ -77,7 +77,7 @@ internal class OclParser(
         parseExpr().also {
             if (peek() != OclToken.Eof) {
                 throw OclEvaluationException(
-                    "Unexpected token after expression: ${peek()}",
+                    message = "Unexpected token after expression: ${peek()}",
                     position = currentPosition(),
                 )
             }
@@ -102,46 +102,46 @@ internal class OclParser(
         val identPos = currentPosition()
         val name =
             (consume() as? OclToken.Ident)?.name
-                ?: throw OclEvaluationException("Expected identifier after 'let'", position = identPos)
+                ?: throw OclEvaluationException(message = "Expected identifier after 'let'", position = identPos)
         val op = peek()
         if (op !is OclToken.Op || op.sym != "=") {
-            throw OclEvaluationException("Expected '=' in let-expression but got $op", position = currentPosition())
+            throw OclEvaluationException(message = "Expected '=' in let-expression but got $op", position = currentPosition())
         }
         consume()
         val initExpr = parseExpr()
         if (!matchIdent("in")) {
-            throw OclEvaluationException("Expected 'in' in let-expression but got ${peek()}", position = currentPosition())
+            throw OclEvaluationException(message = "Expected 'in' in let-expression but got ${peek()}", position = currentPosition())
         }
         consume()
         val body = parseExpr()
-        return OclExpression.LetExpr(name, initExpr, body)
+        return OclExpression.LetExpr(name = name, initExpr = initExpr, body = body)
     }
 
     private fun parseIf(): OclExpression {
         consume() // 'if'
         val cond = parseExpr()
         if (!matchIdent("then")) {
-            throw OclEvaluationException("Expected 'then' but got ${peek()}", position = currentPosition())
+            throw OclEvaluationException(message = "Expected 'then' but got ${peek()}", position = currentPosition())
         }
         consume()
         val thenExpr = parseExpr()
         if (!matchIdent("else")) {
-            throw OclEvaluationException("Expected 'else' but got ${peek()}", position = currentPosition())
+            throw OclEvaluationException(message = "Expected 'else' but got ${peek()}", position = currentPosition())
         }
         consume()
         val elseExpr = parseExpr()
         if (!matchIdent("endif")) {
-            throw OclEvaluationException("Expected 'endif' but got ${peek()}", position = currentPosition())
+            throw OclEvaluationException(message = "Expected 'endif' but got ${peek()}", position = currentPosition())
         }
         consume()
-        return OclExpression.IfExpr(cond, thenExpr, elseExpr)
+        return OclExpression.IfExpr(cond = cond, thenExpr = thenExpr, elseExpr = elseExpr)
     }
 
     private fun parseImplies(): OclExpression {
         var left = parseOr()
         if (matchIdent("implies")) {
             consume()
-            left = OclExpression.BinaryOp("implies", left, parseOr())
+            left = OclExpression.BinaryOp(op = "implies", left = left, right = parseOr())
         }
         return left
     }
@@ -150,7 +150,7 @@ internal class OclParser(
         var left = parseAnd()
         while (matchIdent("or")) {
             consume()
-            left = OclExpression.BinaryOp("or", left, parseAnd())
+            left = OclExpression.BinaryOp(op = "or", left = left, right = parseAnd())
         }
         return left
     }
@@ -159,7 +159,7 @@ internal class OclParser(
         var left = parseNot()
         while (matchIdent("and")) {
             consume()
-            left = OclExpression.BinaryOp("and", left, parseNot())
+            left = OclExpression.BinaryOp(op = "and", left = left, right = parseNot())
         }
         return left
     }
@@ -168,7 +168,7 @@ internal class OclParser(
         guardedRecursion {
             if (matchIdent("not")) {
                 consume()
-                OclExpression.UnaryOp("not", parseNot())
+                OclExpression.UnaryOp(op = "not", operand = parseNot())
             } else {
                 parseCompare()
             }
@@ -179,7 +179,7 @@ internal class OclParser(
         val op = peek()
         if (op is OclToken.Op && op.sym in setOf("=", "<>", "<", ">", "<=", ">=")) {
             consume()
-            return OclExpression.BinaryOp(op.sym, left, parseAdd())
+            return OclExpression.BinaryOp(op = op.sym, left = left, right = parseAdd())
         }
         return left
     }
@@ -188,7 +188,7 @@ internal class OclParser(
         var left = parseMul()
         while (peek() is OclToken.Op && (peek() as OclToken.Op).sym in setOf("+", "-")) {
             val op = (consume() as OclToken.Op).sym
-            left = OclExpression.BinaryOp(op, left, parseMul())
+            left = OclExpression.BinaryOp(op = op, left = left, right = parseMul())
         }
         return left
     }
@@ -197,7 +197,7 @@ internal class OclParser(
         var left = parseUnary()
         while (peek() is OclToken.Op && (peek() as OclToken.Op).sym in setOf("*", "/")) {
             val op = (consume() as OclToken.Op).sym
-            left = OclExpression.BinaryOp(op, left, parseUnary())
+            left = OclExpression.BinaryOp(op = op, left = left, right = parseUnary())
         }
         return left
     }
@@ -206,7 +206,7 @@ internal class OclParser(
         guardedRecursion {
             if (peek() is OclToken.Op && (peek() as OclToken.Op).sym == "-") {
                 consume()
-                OclExpression.UnaryOp("-", parseUnary())
+                OclExpression.UnaryOp(op = "-", operand = parseUnary())
             } else {
                 parsePostfix()
             }
@@ -230,13 +230,13 @@ internal class OclParser(
                         val name =
                             (consume() as? OclToken.Ident)?.name
                                 ?: throw OclEvaluationException(
-                                    "Expected property name after '.'",
+                                    message = "Expected property name after '.'",
                                     position = propPos,
                                 )
                         when {
-                            name in typeOpNames -> parseTypeOp(expr, name)
-                            peek() == OclToken.LParen -> parseOperationCall(expr, name)
-                            else -> OclExpression.Navigate(expr, name)
+                            name in typeOpNames -> parseTypeOp(receiver = expr, op = name)
+                            peek() == OclToken.LParen -> parseOperationCall(receiver = expr, name = name)
+                            else -> OclExpression.Navigate(receiver = expr, prop = name)
                         }
                     }
                     peek() == OclToken.Arrow -> {
@@ -245,11 +245,11 @@ internal class OclParser(
                         val op =
                             (consume() as? OclToken.Ident)?.name
                                 ?: throw OclEvaluationException(
-                                    "Expected collection op name after '->'",
+                                    message = "Expected collection op name after '->'",
                                     position = opPos,
                                 )
                         expect(OclToken.LParen)
-                        parseCollectionOp(expr, op)
+                        parseCollectionOp(receiver = expr, op = op)
                     }
                     peek() == OclToken.AtPre -> {
                         consume()
@@ -271,7 +271,7 @@ internal class OclParser(
         consume() // '('
         if (peek() == OclToken.RParen) {
             consume()
-            return OclExpression.OperationCall(receiver, name)
+            return OclExpression.OperationCall(receiver = receiver, name = name)
         }
         val args = mutableListOf(parseExpr())
         while (peek() == OclToken.Comma) {
@@ -279,7 +279,7 @@ internal class OclParser(
             args += parseExpr()
         }
         expect(OclToken.RParen)
-        return OclExpression.OperationCall(receiver, name, args)
+        return OclExpression.OperationCall(receiver = receiver, name = name, args = args)
     }
 
     private fun parseTypeOp(
@@ -291,12 +291,12 @@ internal class OclParser(
             if (op in typeOpsWithArg) {
                 val typeNamePos = currentPosition()
                 (consume() as? OclToken.Ident)?.name
-                    ?: throw OclEvaluationException("Expected type name in '$op(...)'", position = typeNamePos)
+                    ?: throw OclEvaluationException(message = "Expected type name in '$op(...)'", position = typeNamePos)
             } else {
                 null
             }
         expect(OclToken.RParen)
-        return OclExpression.TypeOp(receiver, op, typeName)
+        return OclExpression.TypeOp(receiver = receiver, op = op, typeName = typeName)
     }
 
     private fun parseCollectionOp(
@@ -308,7 +308,7 @@ internal class OclParser(
         // Check for empty arg list
         if (peek() == OclToken.RParen) {
             consume()
-            return OclExpression.CollectionOp(receiver, op)
+            return OclExpression.CollectionOp(receiver = receiver, op = op)
         }
         // Check for lambda arg: IDENT '|' expr
         if (peek() is OclToken.Ident && tokens.getOrElse(pos + 1) { OclToken.Eof } == OclToken.Pipe) {
@@ -316,7 +316,7 @@ internal class OclParser(
             consume() // consume '|'
             val body = parseExpr()
             expect(OclToken.RParen)
-            return OclExpression.CollectionOp(receiver, op, bindingVar = varName, body = body)
+            return OclExpression.CollectionOp(receiver = receiver, op = op, bindingVar = varName, body = body)
         }
         // Regular arg
         val arg = parseExpr()
@@ -326,7 +326,7 @@ internal class OclParser(
             args += parseExpr()
         }
         expect(OclToken.RParen)
-        return OclExpression.CollectionOp(receiver, op, args = args)
+        return OclExpression.CollectionOp(receiver = receiver, op = op, args = args)
     }
 
     private fun parseIterate(receiver: OclExpression): OclExpression {
@@ -334,7 +334,7 @@ internal class OclParser(
         val iterVar =
             (consume() as? OclToken.Ident)?.name
                 ?: throw OclEvaluationException(
-                    "Expected iterator variable in iterate(...)",
+                    message = "Expected iterator variable in iterate(...)",
                     position = iterVarPos,
                 )
         expect(OclToken.Semicolon)
@@ -342,13 +342,13 @@ internal class OclParser(
         val accVar =
             (consume() as? OclToken.Ident)?.name
                 ?: throw OclEvaluationException(
-                    "Expected accumulator variable in iterate(...)",
+                    message = "Expected accumulator variable in iterate(...)",
                     position = accVarPos,
                 )
         val eqOp = peek()
         if (eqOp !is OclToken.Op || eqOp.sym != "=") {
             throw OclEvaluationException(
-                "Expected '=' after accumulator variable in iterate(...) but got $eqOp",
+                message = "Expected '=' after accumulator variable in iterate(...) but got $eqOp",
                 position = currentPosition(),
             )
         }
@@ -357,7 +357,7 @@ internal class OclParser(
         expect(OclToken.Pipe)
         val body = parseExpr()
         expect(OclToken.RParen)
-        return OclExpression.IterateExpr(receiver, iterVar, accVar, accInit, body)
+        return OclExpression.IterateExpr(receiver = receiver, iterVar = iterVar, accVar = accVar, accInit = accInit, body = body)
     }
 
     private fun parsePrimary(): OclExpression =
@@ -400,6 +400,6 @@ internal class OclParser(
                 expect(OclToken.RParen)
                 e
             }
-            else -> throw OclEvaluationException("Unexpected token in primary: $t", position = currentPosition())
+            else -> throw OclEvaluationException(message = "Unexpected token in primary: $t", position = currentPosition())
         }
 }

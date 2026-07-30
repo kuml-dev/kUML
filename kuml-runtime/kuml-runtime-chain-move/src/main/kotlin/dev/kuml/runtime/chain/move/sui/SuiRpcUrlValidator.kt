@@ -43,19 +43,19 @@ public fun interface SuiRpcUrlValidator {
                     URI(rpcUrl)
                 } catch (e: Exception) {
                     throw SuiChainAdapterException.InvalidUrlException(
-                        "rpcUrl is not a valid URI: '$rpcUrl'",
-                        e,
+                        message = "rpcUrl is not a valid URI: '$rpcUrl'",
+                        cause = e,
                     )
                 }
             if (uri.scheme !in ALLOWED_SCHEMES) {
                 throw SuiChainAdapterException.InvalidUrlException(
-                    "rpcUrl must use http or https, got '${uri.scheme}'",
+                    message = "rpcUrl must use http or https, got '${uri.scheme}'",
                 )
             }
             val host =
                 uri.host
                     ?: throw SuiChainAdapterException.InvalidUrlException(
-                        "rpcUrl has no host: '$rpcUrl'",
+                        message = "rpcUrl has no host: '$rpcUrl'",
                     )
             if (looksLikeIpLiteral(host)) {
                 val addr =
@@ -63,13 +63,13 @@ public fun interface SuiRpcUrlValidator {
                         InetAddress.getByName(host)
                     } catch (e: Exception) {
                         throw SuiChainAdapterException.InvalidUrlException(
-                            "rpcUrl host is not resolvable as IP: '$host'",
-                            e,
+                            message = "rpcUrl host is not resolvable as IP: '$host'",
+                            cause = e,
                         )
                     }
                 if (isPrivateOrLoopback(addr)) {
                     throw SuiChainAdapterException.InvalidUrlException(
-                        "rpcUrl must not address private/loopback/link-local IP ranges (SSRF protection)",
+                        message = "rpcUrl must not address private/loopback/link-local IP ranges (SSRF protection)",
                     )
                 }
             }

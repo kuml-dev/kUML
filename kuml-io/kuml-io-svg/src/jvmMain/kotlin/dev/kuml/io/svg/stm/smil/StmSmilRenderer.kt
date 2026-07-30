@@ -67,7 +67,7 @@ public object StmSmilRenderer {
         context: StmAnimationContext = StmAnimationContext.DEFAULT,
     ): AnimatedStmRenderResult {
         // Always render the static base SVG first
-        val baseSvg = KumlSvgRenderer.toSvg(diagram, layoutResult, theme, options)
+        val baseSvg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
 
         // Static path: null trace
         if (trace == null) return AnimatedStmRenderResult(svg = baseSvg, hasAnimation = false)
@@ -82,7 +82,7 @@ public object StmSmilRenderer {
                 val b = nodeLayout.bounds
                 nodeId.value to
                     Rect(
-                        origin = dev.kuml.layout.Point(b.origin.x + padding, b.origin.y + padding),
+                        origin = dev.kuml.layout.Point(x = b.origin.x + padding, y = b.origin.y + padding),
                         size = b.size,
                     )
             }
@@ -109,10 +109,10 @@ public object StmSmilRenderer {
         if (timeline.animations.isEmpty()) return AnimatedStmRenderResult(svg = baseSvg, hasAnimation = false)
 
         // Inject overlay elements before </svg>
-        val svgWithOverlays = injectOverlays(baseSvg, stateOverlays, transitionOverlays)
+        val svgWithOverlays = injectOverlays(svg = baseSvg, stateOverlays = stateOverlays, transitionOverlays = transitionOverlays)
 
         // Inject SMIL animations
-        val animatedSvg = SmilEmitter().inject(svgWithOverlays, timeline)
+        val animatedSvg = SmilEmitter().inject(svg = svgWithOverlays, timeline = timeline)
 
         return AnimatedStmRenderResult(svg = animatedSvg, hasAnimation = true, timeline = timeline)
     }
@@ -149,7 +149,7 @@ public object StmSmilRenderer {
                 val b = nodeLayout.bounds
                 nodeId.value to
                     Rect(
-                        origin = dev.kuml.layout.Point(b.origin.x + padding, b.origin.y + padding),
+                        origin = dev.kuml.layout.Point(x = b.origin.x + padding, y = b.origin.y + padding),
                         size = b.size,
                     )
             }
@@ -172,8 +172,8 @@ public object StmSmilRenderer {
 
         if (timeline.animations.isEmpty()) return AnimatedStmRenderResult(svg = baseSvg, hasAnimation = false)
 
-        val svgWithOverlays = injectOverlays(baseSvg, stateOverlays, transitionOverlays)
-        val animatedSvg = SmilEmitter().inject(svgWithOverlays, timeline)
+        val svgWithOverlays = injectOverlays(svg = baseSvg, stateOverlays = stateOverlays, transitionOverlays = transitionOverlays)
+        val animatedSvg = SmilEmitter().inject(svg = svgWithOverlays, timeline = timeline)
         return AnimatedStmRenderResult(svg = animatedSvg, hasAnimation = true, timeline = timeline)
     }
 

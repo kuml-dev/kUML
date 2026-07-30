@@ -154,18 +154,18 @@ class OpenApiProfileTest :
 
         test("Operation and Parameter applied via DSL store appliedStereotypes correctly") {
             val diagram =
-                classDiagram("OpenAPI DSL Test") {
+                classDiagram(name = "OpenAPI DSL Test") {
                     applyProfile(openApiProfile)
-                    classOf("UserResource") {
-                        stereotype("Resource") { "path" to "/users" }
-                        operation("getUser") {
-                            stereotype("Operation") {
+                    classOf(name = "UserResource") {
+                        stereotype(name = "Resource") { "path" to "/users" }
+                        operation(name = "getUser") {
+                            stereotype(name = "Operation") {
                                 "method" to HttpMethod.GET
                                 "path" to "/users/{id}"
                                 "summary" to "Get user by ID"
                             }
-                            parameter("id", "Long") {
-                                stereotype("Parameter") {
+                            parameter(name = "id", type = "Long") {
+                                stereotype(name = "Parameter") {
                                     "in" to ParameterIn.Path
                                     "required" to true
                                 }

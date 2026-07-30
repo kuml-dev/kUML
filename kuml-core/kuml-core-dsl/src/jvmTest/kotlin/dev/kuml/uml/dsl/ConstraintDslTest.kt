@@ -16,8 +16,8 @@ class ConstraintDslTest :
             val cls =
                 umlModel(name = "M") {
                     classOf(name = "Order") {
-                        constraint("hasAttr", "self.attributes->size() > 0")
-                        attribute("id", "UUID")
+                        constraint(name = "hasAttr", body = "self.attributes->size() > 0")
+                        attribute(name = "id", type = "UUID")
                     }
                 }.elements
                     .filterIsInstance<UmlClass>()
@@ -32,8 +32,8 @@ class ConstraintDslTest :
             val cls =
                 umlModel(name = "M") {
                     classOf(name = "Order") {
-                        constraint("check", "self.attributes->size() > 0")
-                        constraint("check", "self.operations->notEmpty()")
+                        constraint(name = "check", body = "self.attributes->size() > 0")
+                        constraint(name = "check", body = "self.operations->notEmpty()")
                     }
                 }.elements
                     .filterIsInstance<UmlClass>()
@@ -51,7 +51,7 @@ class ConstraintDslTest :
             val cls =
                 umlModel(name = "M") {
                     classOf(name = "Order") {
-                        constraint("check", "self.attributes->size() > 0")
+                        constraint(name = "check", body = "self.attributes->size() > 0")
                     }
                 }.elements
                     .filterIsInstance<UmlClass>()
@@ -65,7 +65,7 @@ class ConstraintDslTest :
             val cls =
                 umlModel(name = "M") {
                     classOf(name = "Order") {
-                        invariant("check", "self.attributes->size() > 0")
+                        invariant(name = "check", body = "self.attributes->size() > 0")
                     }
                 }.elements
                     .filterIsInstance<UmlClass>()
@@ -78,7 +78,7 @@ class ConstraintDslTest :
             val cls =
                 umlModel(name = "M") {
                     classOf(name = "Order") {
-                        definition("isPaid", "self.attributes->notEmpty()")
+                        definition(name = "isPaid", body = "self.attributes->notEmpty()")
                     }
                 }.elements
                     .filterIsInstance<UmlClass>()
@@ -92,8 +92,8 @@ class ConstraintDslTest :
             val cls =
                 umlModel(name = "M") {
                     classOf(name = "Order") {
-                        operation("confirm")
-                        precondition("confirmPre", operation = "confirm", body = "self.operations->notEmpty()")
+                        operation(name = "confirm")
+                        precondition(name = "confirmPre", operation = "confirm", body = "self.operations->notEmpty()")
                     }
                 }.elements
                     .filterIsInstance<UmlClass>()
@@ -107,8 +107,8 @@ class ConstraintDslTest :
             val cls =
                 umlModel(name = "M") {
                     classOf(name = "Order") {
-                        operation("confirm")
-                        postcondition("confirmPost", operation = "confirm", body = "result.oclIsUndefined()")
+                        operation(name = "confirm")
+                        postcondition(name = "confirmPost", operation = "confirm", body = "result.oclIsUndefined()")
                     }
                 }.elements
                     .filterIsInstance<UmlClass>()
@@ -122,8 +122,8 @@ class ConstraintDslTest :
             val cls =
                 umlModel(name = "M") {
                     classOf(name = "Order") {
-                        operation("total")
-                        body("totalBody", operation = "total", body = "result.oclIsUndefined()")
+                        operation(name = "total")
+                        body(name = "totalBody", operation = "total", body = "result.oclIsUndefined()")
                     }
                 }.elements
                     .filterIsInstance<UmlClass>()

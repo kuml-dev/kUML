@@ -23,13 +23,13 @@ class UpdateCheckServiceTest :
             name = "Test Plugin $id",
             version = version,
             kumlVersionRange = ">=0.1.0",
-            extensions = listOf(ExtensionEntry("theme", "test.Impl", id)),
+            extensions = listOf(ExtensionEntry(category = "theme", implementation = "test.Impl", id = id)),
         )
 
         fun fakeLoaded(
             id: String,
             version: String,
-        ) = LoadedPlugin(fakeManifest(id, version), emptyList(), null)
+        ) = LoadedPlugin(manifest = fakeManifest(id, version), plugins = emptyList(), classLoader = null)
 
         fun fakeEntry(
             id: String,
@@ -66,7 +66,7 @@ class UpdateCheckServiceTest :
             result.updateCount shouldBe 1
             result.hasUpdates shouldBe true
             result.plugins.single().status shouldBe PluginUpdateState.UPDATE_AVAILABLE
-            result.plugins.single().latest shouldBe PluginVersion(1, 2, 0)
+            result.plugins.single().latest shouldBe PluginVersion(major = 1, minor = 2, patch = 0)
         }
 
         test("up-to-date when installed and registry versions match") {
@@ -109,7 +109,7 @@ class UpdateCheckServiceTest :
             val svc =
                 serviceWith(
                     installed = listOf(fakeLoaded("plugin.x", "1.0.0")),
-                    indexFn = { throw PluginRegistryException("Connection refused") },
+                    indexFn = { throw PluginRegistryException(message = "Connection refused") },
                 )
             val result = svc.check()
             result.registryReachable shouldBe false
@@ -130,7 +130,7 @@ class UpdateCheckServiceTest :
                 )
             val result = svc.check()
             // 0.0.1 > 0.0.0 → update available
-            result.plugins.single().installed shouldBe PluginVersion(0, 0, 0)
+            result.plugins.single().installed shouldBe PluginVersion(major = 0, minor = 0, patch = 0)
             result.plugins.single().status shouldBe PluginUpdateState.UPDATE_AVAILABLE
         }
 

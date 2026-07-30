@@ -42,7 +42,7 @@ internal class CsharpUmlMapper(
             for (decl in ast.declarations) {
                 if (decl is CsharpClassDecl && decl.kind == CsharpDeclKind.INTERFACE) {
                     knownInterfaceNames += decl.name
-                    val qid = qualifiedId(decl.namespace, decl.name)
+                    val qid = qualifiedId(namespace = decl.namespace, name = decl.name)
                     knownInterfaceNames += qid
                 }
             }
@@ -51,7 +51,7 @@ internal class CsharpUmlMapper(
         // Second pass: build elements
         for (ast in fileAsts) {
             for (decl in ast.declarations) {
-                val id = qualifiedId(decl.namespace, decl.name)
+                val id = qualifiedId(namespace = decl.namespace, name = decl.name)
                 when (decl) {
                     is CsharpClassDecl -> {
                         if (id in knownIds) {
@@ -71,7 +71,7 @@ internal class CsharpUmlMapper(
                         } else {
                             elements += buildClass(decl)
                         }
-                        relationships += buildBaseRelationships(decl, knownInterfaceNames)
+                        relationships += buildBaseRelationships(decl = decl, knownInterfaceNames = knownInterfaceNames)
                     }
                     is CsharpEnumDecl -> {
                         if (id in knownIds) {
@@ -97,15 +97,15 @@ internal class CsharpUmlMapper(
     // ── Class ─────────────────────────────────────────────────────────────────
 
     private fun buildClass(decl: CsharpClassDecl): UmlClass {
-        val id = qualifiedId(decl.namespace, decl.name)
+        val id = qualifiedId(namespace = decl.namespace, name = decl.name)
         val attrs =
             decl.members
                 .filter { it.kind == CsharpMemberKind.FIELD || it.kind == CsharpMemberKind.PROPERTY }
-                .map { buildProperty(it, id) }
+                .map { buildProperty(member = it, ownerId = id) }
         val ops =
             decl.members
                 .filter { it.kind == CsharpMemberKind.METHOD }
-                .map { buildOperation(it, id) }
+                .map { buildOperation(member = it, ownerId = id) }
         // Determine isAbstract: explicit abstract modifier OR all members abstract
         val isAbstract =
             decl.isAbstract ||
@@ -124,15 +124,15 @@ internal class CsharpUmlMapper(
     // ── Interface ─────────────────────────────────────────────────────────────
 
     private fun buildInterface(decl: CsharpClassDecl): UmlInterface {
-        val id = qualifiedId(decl.namespace, decl.name)
+        val id = qualifiedId(namespace = decl.namespace, name = decl.name)
         val attrs =
             decl.members
                 .filter { it.kind == CsharpMemberKind.FIELD || it.kind == CsharpMemberKind.PROPERTY }
-                .map { buildProperty(it, id) }
+                .map { buildProperty(member = it, ownerId = id) }
         val ops =
             decl.members
                 .filter { it.kind == CsharpMemberKind.METHOD }
-                .map { buildOperation(it, id) }
+                .map { buildOperation(member = it, ownerId = id) }
         return UmlInterface(
             id = id,
             name = decl.name,
@@ -145,7 +145,7 @@ internal class CsharpUmlMapper(
     // ── Enum ──────────────────────────────────────────────────────────────────
 
     private fun buildEnum(decl: CsharpEnumDecl): UmlEnumeration {
-        val id = qualifiedId(decl.namespace, decl.name)
+        val id = qualifiedId(namespace = decl.namespace, name = decl.name)
         val literals = decl.literals.map { UmlEnumerationLiteral(id = "$id::$it", name = it) }
         return UmlEnumeration(id = id, name = decl.name, literals = literals)
     }
@@ -156,10 +156,10 @@ internal class CsharpUmlMapper(
         decl: CsharpClassDecl,
         knownInterfaceNames: Set<String>,
     ): List<KumlElement> {
-        val childId = qualifiedId(decl.namespace, decl.name)
+        val childId = qualifiedId(namespace = decl.namespace, name = decl.name)
         return decl.bases.mapIndexed { i, base ->
-            val baseId = resolveBaseId(base.name, decl.namespace)
-            if (isInterface(base.name, knownInterfaceNames)) {
+            val baseId = resolveBaseId(baseName = base.name, currentNamespace = decl.namespace)
+            if (isInterface(baseName = base.name, knownInterfaceNames = knownInterfaceNames)) {
                 UmlInterfaceRealization(
                     id = "cs::real::${decl.name}::${base.name}::$i",
                     implementingId = childId,
@@ -202,7 +202,7 @@ internal class CsharpUmlMapper(
         return if (baseName.contains('.')) {
             "cs::$baseName"
         } else {
-            qualifiedId(currentNamespace, baseName)
+            qualifiedId(namespace = currentNamespace, name = baseName)
         }
     }
 

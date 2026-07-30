@@ -55,7 +55,7 @@ internal object ValidateTool : McpTool {
         // this tool's response contract doesn't need a second result type. Any
         // other diagram kind (C4, Blueprint) has no constraint concept at all and
         // validates trivially.
-        val extracted = McpScriptEvaluator.extract(script, "validate.kuml.kts")
+        val extracted = McpScriptEvaluator.extract(script = script, fileName = "validate.kuml.kts")
         val result: KumlValidationResult =
             when (extracted) {
                 is ExtractedDiagram.Uml -> OclValidator.validate(extracted.diagram)

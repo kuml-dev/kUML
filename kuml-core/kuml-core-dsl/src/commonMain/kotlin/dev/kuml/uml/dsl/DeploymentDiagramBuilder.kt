@@ -92,7 +92,7 @@ public class DeploymentDiagramBuilder(
         kind: String,
         block: NodeScope.() -> Unit,
     ): UmlNode {
-        val id = UmlIds.disambiguate(candidate = UmlIds.child(containerId, name), taken = takenIds)
+        val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId = containerId, name = name), taken = takenIds)
         val scope = NodeScope(takenIds = takenIds, parentId = id)
         scope.apply(block)
         val n =
@@ -111,7 +111,7 @@ public class DeploymentDiagramBuilder(
         name: String,
         fileName: String? = null,
     ): UmlArtifact {
-        val id = UmlIds.disambiguate(candidate = UmlIds.child(containerId, name), taken = takenIds)
+        val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId = containerId, name = name), taken = takenIds)
         val a = UmlArtifact(id = id, name = name, fileName = fileName)
         addNamedElement(a)
         return a
@@ -169,7 +169,7 @@ public class NodeScope internal constructor(
         name: String,
         fileName: String? = null,
     ): UmlArtifact {
-        val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId, name), taken = takenIds)
+        val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId = parentId, name = name), taken = takenIds)
         val a = UmlArtifact(id = id, name = name, fileName = fileName)
         artifacts += a
         takenIds += id
@@ -180,7 +180,7 @@ public class NodeScope internal constructor(
         name: String,
         block: NodeScope.() -> Unit = {},
     ): UmlNode {
-        val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId, name), taken = takenIds)
+        val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId = parentId, name = name), taken = takenIds)
         val nested = NodeScope(takenIds = takenIds, parentId = id)
         nested.apply(block)
         val n =

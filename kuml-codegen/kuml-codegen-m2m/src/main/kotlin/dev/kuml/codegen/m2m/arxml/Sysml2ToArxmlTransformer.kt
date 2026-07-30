@@ -142,7 +142,7 @@ public class Sysml2ToArxmlTransformer : KumlTransformer<Sysml2Model, KumlModel> 
                 name = source.name,
             )
 
-        return TransformResult.Success(kumlModel, trace)
+        return TransformResult.Success(output = kumlModel, trace = trace)
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

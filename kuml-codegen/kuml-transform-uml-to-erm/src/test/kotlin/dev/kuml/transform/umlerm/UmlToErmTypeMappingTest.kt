@@ -53,9 +53,9 @@ class UmlToErmTypeMappingTest :
         }
 
         test("decimal/bigdecimal/money map to Decimal(19,2)") {
-            UmlErmTypeMapper.map("decimal") shouldBe ErmDataType.Decimal(19, 2)
-            UmlErmTypeMapper.map("BigDecimal") shouldBe ErmDataType.Decimal(19, 2)
-            UmlErmTypeMapper.map("money") shouldBe ErmDataType.Decimal(19, 2)
+            UmlErmTypeMapper.map("decimal") shouldBe ErmDataType.Decimal(precision = 19, scale = 2)
+            UmlErmTypeMapper.map("BigDecimal") shouldBe ErmDataType.Decimal(precision = 19, scale = 2)
+            UmlErmTypeMapper.map("money") shouldBe ErmDataType.Decimal(precision = 19, scale = 2)
         }
 
         test("uuid maps to Uuid") {
@@ -113,18 +113,18 @@ class UmlToErmTypeMappingTest :
         test("UML enum attribute maps to ErmDataType.Enum plus a matching CHECK constraint") {
             val transformer = UmlToErmTransformer()
             val diagram =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     val status =
-                        enumOf("Status") {
-                            literal("Active")
-                            literal("Inactive")
+                        enumOf(name = "Status") {
+                            literal(name = "Active")
+                            literal(name = "Inactive")
                         }
-                    classOf("User") {
-                        attribute("id", "UUID")
-                        attribute("status", status)
+                    classOf(name = "User") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "status", type = status)
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             val model = (result as TransformResult.Success).output
             val entity = model.entities.first()
             val statusCol = entity.attributeByName("status")!!
@@ -138,24 +138,24 @@ class UmlToErmTypeMappingTest :
         test("«Column».enumType sets ErmDataType.Enum.externalFqName") {
             val transformer = UmlToErmTransformer()
             val diagram =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     applyProfile(ermMappingProfile)
                     val status =
-                        enumOf("MemberStatus") {
-                            literal("Active")
-                            literal("Inactive")
+                        enumOf(name = "MemberStatus") {
+                            literal(name = "Active")
+                            literal(name = "Inactive")
                         }
-                    classOf("Member") {
-                        attribute("id", "UUID")
-                        attribute("status", status) {
-                            stereotype("Column") {
+                    classOf(name = "Member") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "status", type = status) {
+                            stereotype(name = "Column") {
                                 "columnName" to "status"
                                 "enumType" to "network.lapis.cloud.shared.domain.MemberStatus"
                             }
                         }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             val model = (result as TransformResult.Success).output
             val entity = model.entities.first()
             val statusCol = entity.attributeByName("status")!!
@@ -181,48 +181,48 @@ class UmlToErmTypeMappingTest :
         test("«Column».sqlType = VARCHAR(n) maps the column to ErmDataType.Varchar(n)") {
             val transformer = UmlToErmTransformer()
             val diagram =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     applyProfile(ermMappingProfile)
-                    classOf("Customer") {
-                        attribute("id", "UUID")
-                        attribute("nickname", "String") {
-                            stereotype("Column") {
+                    classOf(name = "Customer") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "nickname", type = "String") {
+                            stereotype(name = "Column") {
                                 "columnName" to "nickname"
                                 "sqlType" to "VARCHAR(120)"
                             }
                         }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             val model = (result as TransformResult.Success).output
             val col = model.entities.first().attributeByName("nickname")!!
             col.type shouldBe ErmDataType.Varchar(120)
         }
 
         test("mapOverride recognises DECIMAL(p,s) and maps to ErmDataType.Decimal(p,s)") {
-            UmlErmTypeMapper.mapOverride("DECIMAL(18,2)") shouldBe ErmDataType.Decimal(18, 2)
-            UmlErmTypeMapper.mapOverride("decimal( 12 , 2 )") shouldBe ErmDataType.Decimal(12, 2)
-            UmlErmTypeMapper.mapOverride("decimal") shouldBe ErmDataType.Decimal(19, 2)
+            UmlErmTypeMapper.mapOverride("DECIMAL(18,2)") shouldBe ErmDataType.Decimal(precision = 18, scale = 2)
+            UmlErmTypeMapper.mapOverride("decimal( 12 , 2 )") shouldBe ErmDataType.Decimal(precision = 12, scale = 2)
+            UmlErmTypeMapper.mapOverride("decimal") shouldBe ErmDataType.Decimal(precision = 19, scale = 2)
         }
 
         test("«Column».sqlType = DECIMAL(p,s) maps the column to ErmDataType.Decimal(p,s)") {
             val transformer = UmlToErmTransformer()
             val diagram =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     applyProfile(ermMappingProfile)
-                    classOf("Order") {
-                        attribute("id", "UUID")
-                        attribute("total", "BigDecimal") {
-                            stereotype("Column") {
+                    classOf(name = "Order") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "total", type = "BigDecimal") {
+                            stereotype(name = "Column") {
                                 "columnName" to "total"
                                 "sqlType" to "DECIMAL(18,2)"
                             }
                         }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             val model = (result as TransformResult.Success).output
             val col = model.entities.first().attributeByName("total")!!
-            col.type shouldBe ErmDataType.Decimal(18, 2)
+            col.type shouldBe ErmDataType.Decimal(precision = 18, scale = 2)
         }
     })

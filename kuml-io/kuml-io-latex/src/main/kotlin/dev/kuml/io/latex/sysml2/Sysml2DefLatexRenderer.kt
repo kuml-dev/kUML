@@ -120,7 +120,7 @@ internal object Sysml2DefLatexRenderer {
                 // V2.x-Deferred-Vermerk.
                 is ActivityPartitionDefinition -> "activity partition"
             }
-        renderBox(definition, stereotype, nodeId, layout, options, out)
+        renderBox(definition = definition, stereotype = stereotype, nodeId = nodeId, layout = layout, options = options, out = out)
     }
 
     private fun renderBox(

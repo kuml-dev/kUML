@@ -102,30 +102,34 @@ class BpmnSmilRendererTest :
             return LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(500f, 200f),
+                canvas = Size(width = 500f, height = 200f),
                 nodes =
                     mapOf(
-                        NodeId("start1") to NodeLayout(Rect(Point(10f, 80f), Size(36f, 36f))),
-                        NodeId("task1") to NodeLayout(Rect(Point(80f, 65f), Size(120f, 60f))),
-                        NodeId("gw1") to NodeLayout(Rect(Point(240f, 73f), Size(50f, 50f))),
-                        NodeId("end1") to NodeLayout(Rect(Point(340f, 80f), Size(36f, 36f))),
+                        NodeId("start1") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 80f), size = Size(width = 36f, height = 36f))),
+                        NodeId("task1") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 80f, y = 65f), size = Size(width = 120f, height = 60f))),
+                        NodeId("gw1") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 240f, y = 73f), size = Size(width = 50f, height = 50f))),
+                        NodeId("end1") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 340f, y = 80f), size = Size(width = 36f, height = 36f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("flow1") to
                             EdgeRoute.Direct(
-                                source = Point(46f - padding, 98f - padding),
-                                target = Point(80f - padding, 95f - padding),
+                                source = Point(x = 46f - padding, y = 98f - padding),
+                                target = Point(x = 80f - padding, y = 95f - padding),
                             ),
                         EdgeId("flow2") to
                             EdgeRoute.Direct(
-                                source = Point(200f - padding, 95f - padding),
-                                target = Point(240f - padding, 98f - padding),
+                                source = Point(x = 200f - padding, y = 95f - padding),
+                                target = Point(x = 240f - padding, y = 98f - padding),
                             ),
                         EdgeId("flow3") to
                             EdgeRoute.Direct(
-                                source = Point(290f - padding, 98f - padding),
-                                target = Point(340f - padding, 98f - padding),
+                                source = Point(x = 290f - padding, y = 98f - padding),
+                                target = Point(x = 340f - padding, y = 98f - padding),
                             ),
                     ),
                 groups = emptyMap(),
@@ -150,8 +154,14 @@ class BpmnSmilRendererTest :
         // ── (1) Static mode: null trace → byte-identical to KumlSvgRenderer.toSvg ──
 
         test("static mode: null trace produces output identical to KumlSvgRenderer.toSvg") {
-            val expected = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme(), SvgRenderOptions.DEFAULT)
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = null)
+            val expected =
+                KumlSvgRenderer.toSvg(
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = PlainTheme(),
+                    options = SvgRenderOptions.DEFAULT,
+                )
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = null)
 
             result.hasAnimation.shouldBeFalse()
             result.svg shouldBe expected
@@ -160,9 +170,15 @@ class BpmnSmilRendererTest :
         // ── (2) Static mode: empty trace → byte-identical ──
 
         test("static mode: empty trace (no entries) is identical to static") {
-            val expected = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme(), SvgRenderOptions.DEFAULT)
+            val expected =
+                KumlSvgRenderer.toSvg(
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = PlainTheme(),
+                    options = SvgRenderOptions.DEFAULT,
+                )
             val emptyTrace = TraceFile(entries = emptyList())
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = emptyTrace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = emptyTrace)
 
             result.hasAnimation.shouldBeFalse()
             result.svg shouldBe expected
@@ -172,7 +188,7 @@ class BpmnSmilRendererTest :
 
         test("animated svg contains <animateMotion>") {
             val trace = simpleTrace("start1", "task1", "gw1", "end1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "<animateMotion"
@@ -189,7 +205,7 @@ class BpmnSmilRendererTest :
                     padding = padding,
                 )
             val trace = simpleTrace("start1", "task1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             // The flow1 path should be embedded in the animateMotion path attribute
@@ -202,7 +218,7 @@ class BpmnSmilRendererTest :
 
         test("token circle element injected with configured tokenColor") {
             val trace = simpleTrace("start1", "task1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "fill=\"#2962ff\""
@@ -212,7 +228,7 @@ class BpmnSmilRendererTest :
 
         test("gateway activation emits animate fill targeting gateway id, never animateColor") {
             val trace = simpleTrace("start1", "task1", "gw1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "attributeName=\"fill\""
@@ -224,7 +240,7 @@ class BpmnSmilRendererTest :
 
         test("task execution emits stroke-width pulse animate on overlay rect") {
             val trace = simpleTrace("start1", "task1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "attributeName=\"stroke-width\""
@@ -243,7 +259,7 @@ class BpmnSmilRendererTest :
 
         test("start event emits opacity animate") {
             val trace = simpleTrace("start1", "task1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "attributeName=\"opacity\""
@@ -254,7 +270,7 @@ class BpmnSmilRendererTest :
 
         test("end event emits opacity animate") {
             val trace = simpleTrace("start1", "task1", "gw1", "end1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "attributeName=\"opacity\""
@@ -268,8 +284,8 @@ class BpmnSmilRendererTest :
             val ctx1x = BpmnAnimationContext(speedFactor = SpeedFactor(1.0))
             val ctx2x = BpmnAnimationContext(speedFactor = SpeedFactor(2.0))
 
-            val result1x = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx1x)
-            val result2x = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx2x)
+            val result1x = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace, context = ctx1x)
+            val result2x = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace, context = ctx2x)
 
             result1x.hasAnimation.shouldBeTrue()
             result2x.hasAnimation.shouldBeTrue()
@@ -317,7 +333,7 @@ class BpmnSmilRendererTest :
         test("highlightColor override appears in gateway fill to value") {
             val ctx = BpmnAnimationContext(highlightColor = "#ff0000")
             val trace = simpleTrace("start1", "task1", "gw1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace, context = ctx)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "#ff0000"
@@ -327,7 +343,13 @@ class BpmnSmilRendererTest :
 
         test("two adjacent token steps produce two animateMotion with increasing begin times") {
             val trace = simpleTrace("start1", "task1", "gw1", "end1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = BpmnAnimationContext(loopCount = 1))
+            val result =
+                BpmnSmilRenderer.render(
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    trace = trace,
+                    context = BpmnAnimationContext(loopCount = 1),
+                )
 
             result.hasAnimation.shouldBeTrue()
             val motionBeginTimes =
@@ -345,7 +367,7 @@ class BpmnSmilRendererTest :
         test("loopCount=3 triples the number of animateMotion elements") {
             val trace = simpleTrace("start1", "task1", "gw1", "end1")
             val ctx = BpmnAnimationContext(loopCount = 3)
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace, context = ctx)
 
             result.hasAnimation.shouldBeTrue()
             val motionCount = Regex("""<animateMotion""").findAll(result.svg).count()
@@ -357,7 +379,7 @@ class BpmnSmilRendererTest :
         test("gateway activation emits both highlight and reset fill animations") {
             val trace = simpleTrace("start1", "task1", "gw1")
             val ctx = BpmnAnimationContext(loopCount = 1)
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace, context = ctx)
 
             result.hasAnimation.shouldBeTrue()
             // Should contain 2 fill animations on gw1-diamond: highlight + reset
@@ -373,7 +395,7 @@ class BpmnSmilRendererTest :
         test("trace nodeId pair with no connecting SequenceFlow is skipped (no motion, no crash)") {
             // "start1" -> "end1" has no direct SequenceFlow
             val trace = simpleTrace("start1", "end1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             // No motion animation produced because no flow connects start1 directly to end1.
             // The result may still have node-visit animations (opacity on start/end events),
@@ -399,11 +421,11 @@ class BpmnSmilRendererTest :
                             ),
                         ),
                 )
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeFalse()
             // Static path: svg is identical to base
-            val expected = KumlSvgRenderer.toSvg(diagram, layoutResult)
+            val expected = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult)
             result.svg shouldBe expected
         }
 
@@ -411,7 +433,7 @@ class BpmnSmilRendererTest :
 
         test("injected SMIL sits before final </svg>") {
             val trace = simpleTrace("start1", "task1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             val lastSvgClose = result.svg.lastIndexOf("</svg>")
@@ -428,7 +450,7 @@ class BpmnSmilRendererTest :
 
         test("output is well-formed: single root svg tag and exactly one closing svg") {
             val trace = simpleTrace("start1", "task1", "gw1", "end1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             val svgOpenCount = Regex("<svg[\\s>]").findAll(result.svg).count()
@@ -461,7 +483,7 @@ class BpmnSmilRendererTest :
             val oversizedTrace = TraceFile(entries = tooManyEntries)
 
             shouldThrow<IllegalArgumentException> {
-                BpmnSmilRenderer.render(diagram, layoutResult, trace = oversizedTrace)
+                BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = oversizedTrace)
             }
         }
 
@@ -483,10 +505,10 @@ class BpmnSmilRendererTest :
                             TraceEntry.StateEntered(seqNo = 2, timestamp = "2026-01-01T00:00:02Z", vertexId = "stateB"),
                         ),
                 )
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = stmTrace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = stmTrace)
 
             result.hasAnimation.shouldBeFalse()
-            val expected = KumlSvgRenderer.toSvg(diagram, layoutResult)
+            val expected = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult)
             result.svg shouldBe expected
         }
 
@@ -494,7 +516,7 @@ class BpmnSmilRendererTest :
 
         test("AnimatedBpmnRenderResult.hasAnimation is true for valid token trace") {
             val trace = simpleTrace("start1", "task1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
         }
@@ -521,7 +543,7 @@ class BpmnSmilRendererTest :
                             TraceEntry.TokenPlaced(seqNo = 3, timestamp = "T3", nodeId = "task1", clock = 3),
                         ),
                 )
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             // Find all token-circle ids (prefix "kuml-token-circle-"); event rings also carry
@@ -557,7 +579,7 @@ class BpmnSmilRendererTest :
                             TraceEntry.TokenPlaced(seqNo = 3, timestamp = "T3", nodeId = "end1", clock = 3),
                         ),
                 )
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             // Gateway highlight fill must be present
@@ -584,7 +606,7 @@ class BpmnSmilRendererTest :
                             ),
                         ),
                 )
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "attributeName=\"fill\""
@@ -595,7 +617,7 @@ class BpmnSmilRendererTest :
 
         test("BpmnFlowPathResolver buildEdgePaths returns paths for all flows with layout entries") {
             val padding = SvgRenderOptions.DEFAULT.paddingPx
-            val edgePaths = BpmnFlowPathResolver.buildEdgePaths(process, layoutResult, padding)
+            val edgePaths = BpmnFlowPathResolver.buildEdgePaths(process = process, layoutResult = layoutResult, padding = padding)
 
             edgePaths.keys shouldBe setOf("flow1", "flow2", "flow3")
             edgePaths.values.forEach { path ->
@@ -605,12 +627,12 @@ class BpmnSmilRendererTest :
         }
 
         test("BpmnFlowPathResolver nodeToFlow finds direct SequenceFlow between adjacent nodes") {
-            val found = BpmnFlowPathResolver.nodeToFlow(process, "task1", "gw1")
+            val found = BpmnFlowPathResolver.nodeToFlow(process = process, fromId = "task1", toId = "gw1")
             found?.id shouldBe "flow2"
         }
 
         test("BpmnFlowPathResolver nodeToFlow returns null for non-adjacent pair") {
-            val found = BpmnFlowPathResolver.nodeToFlow(process, "start1", "end1")
+            val found = BpmnFlowPathResolver.nodeToFlow(process = process, fromId = "start1", toId = "end1")
             found shouldBe null
         }
 
@@ -642,23 +664,23 @@ class BpmnSmilRendererTest :
         // ── bpmnFlowPathD: path geometry ──
 
         test("bpmnFlowPathD for Direct route produces M ... L ... path") {
-            val route = EdgeRoute.Direct(source = Point(10f, 20f), target = Point(100f, 20f))
+            val route = EdgeRoute.Direct(source = Point(x = 10f, y = 20f), target = Point(x = 100f, y = 20f))
             val pathD = BpmnFlowPathResolver.bpmnFlowPathD(route)
             pathD shouldBe "M 10 20 L 100 20"
         }
 
         test("token circle has opacity=0 initially so it is invisible before animation") {
             val trace = simpleTrace("start1", "task1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "opacity=\"0\""
         }
 
         test("result svg contains more content than base svg when animated") {
-            val baseSvg = KumlSvgRenderer.toSvg(diagram, layoutResult)
+            val baseSvg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult)
             val trace = simpleTrace("start1", "task1", "gw1", "end1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             result.svg.length shouldBeGreaterThan baseSvg.length
@@ -670,7 +692,7 @@ class BpmnSmilRendererTest :
             val trace = simpleTrace("start1", "task1")
             // loopCount=1 to count exactly 2 fill animations (fill-on + fill-off per pass)
             val ctx = BpmnAnimationContext(loopCount = 1)
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace, context = ctx)
 
             result.hasAnimation.shouldBeTrue()
             // Default taskHighlightColor is #e3f2fd — must appear as a fill to/from value
@@ -689,7 +711,7 @@ class BpmnSmilRendererTest :
         test("start event emits fill highlight with startEventColor") {
             val trace = simpleTrace("start1", "task1")
             val ctx = BpmnAnimationContext(loopCount = 1)
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace, context = ctx)
 
             result.hasAnimation.shouldBeTrue()
             // Default startEventColor is #e8f5e9
@@ -707,7 +729,7 @@ class BpmnSmilRendererTest :
         test("end event emits fill highlight with endEventColor") {
             val trace = simpleTrace("start1", "task1", "gw1", "end1")
             val ctx = BpmnAnimationContext(loopCount = 1)
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace, context = ctx)
 
             result.hasAnimation.shouldBeTrue()
             // Default endEventColor is #ffebee
@@ -725,7 +747,7 @@ class BpmnSmilRendererTest :
         test("taskHighlightColor override appears in task fill animation") {
             val ctx = BpmnAnimationContext(taskHighlightColor = "#bbdefb")
             val trace = simpleTrace("start1", "task1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace, context = ctx)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "#bbdefb"
@@ -736,7 +758,7 @@ class BpmnSmilRendererTest :
         test("startEventColor and endEventColor overrides appear in event fill animations") {
             val ctx = BpmnAnimationContext(startEventColor = "#c8e6c9", endEventColor = "#ffcdd2")
             val trace = simpleTrace("start1", "task1", "gw1", "end1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace, context = ctx)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "#c8e6c9"
@@ -748,7 +770,7 @@ class BpmnSmilRendererTest :
         test("LOOP_INFINITE tiles LOOP_PRACTICAL_MAX times (not Int.MAX_VALUE)") {
             val trace = simpleTrace("start1", "task1", "gw1", "end1")
             val ctx = BpmnAnimationContext(loopCount = BpmnAnimationContext.LOOP_INFINITE)
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+            val result = BpmnSmilRenderer.render(diagram = diagram, layoutResult = layoutResult, trace = trace, context = ctx)
 
             result.hasAnimation.shouldBeTrue()
             val motionCount = Regex("""<animateMotion""").findAll(result.svg).count()

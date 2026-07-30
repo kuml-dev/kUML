@@ -110,58 +110,62 @@ internal fun renderLifelineHead(
     val h = layout.bounds.size.height
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         // 1. Lifeline-Kopf-Box — bei Create-Targets um `createOffsetY` nach
         //    unten verschoben, damit der Pfeil der Create-Nachricht (gezeichnet
         //    bei `srcHeadBottom + (createSeqNo + 1) * ROW`) genau die untere
         //    Ecke der Kopf-Box trifft.
         tag(
-            "rect",
-            mapOf(
-                "y" to fmt(createOffsetY),
-                "width" to fmt(w),
-                "height" to fmt(SEQ_RENDERER_HEAD_HEIGHT),
-                "class" to "kuml-class",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "y" to fmt(createOffsetY),
+                    "width" to fmt(w),
+                    "height" to fmt(SEQ_RENDERER_HEAD_HEIGHT),
+                    "class" to "kuml-class",
+                ),
         )
 
         // 2. Stereotyp-Zeile — wandert mit dem Kopf nach unten.
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(w / 2f),
-                "y" to fmt(14f + createOffsetY),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(w / 2f),
+                    "y" to fmt(14f + createOffsetY),
+                    "text-anchor" to "middle",
+                ),
         ) { text("«lifeline»") }
 
         // 3. Name-Zeile — wandert mit dem Kopf nach unten.
         val nameClass = if (element.isAbstract) "kuml-title kuml-title-abstract" else "kuml-title"
         tag(
-            "text",
-            mapOf(
-                "class" to nameClass,
-                "x" to fmt(w / 2f),
-                "y" to fmt(30f + createOffsetY),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to nameClass,
+                    "x" to fmt(w / 2f),
+                    "y" to fmt(30f + createOffsetY),
+                    "text-anchor" to "middle",
+                ),
         ) { text(element.name) }
 
         // 4. Vertikale gestrichelte Zeit-Achse — beginnt am unteren Rand der
         //    (ggf. verschobenen) Kopf-Box und endet am unteren Bounds-Rand.
         tag(
-            "line",
-            mapOf(
-                "x1" to fmt(w / 2f),
-                "y1" to fmt(SEQ_RENDERER_HEAD_HEIGHT + createOffsetY),
-                "x2" to fmt(w / 2f),
-                "y2" to fmt(h),
-                "class" to "kuml-divider",
-                "stroke-dasharray" to "4 4",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(w / 2f),
+                    "y1" to fmt(SEQ_RENDERER_HEAD_HEIGHT + createOffsetY),
+                    "x2" to fmt(w / 2f),
+                    "y2" to fmt(h),
+                    "class" to "kuml-divider",
+                    "stroke-dasharray" to "4 4",
+                ),
         )
     }
 }
@@ -205,8 +209,8 @@ internal fun renderSysml2SeqMessages(
     for (msg in visible) {
         val srcLayout = nodeLayouts[NodeId(msg.sourceLifelineId)] ?: continue
         val tgtLayout = nodeLayouts[NodeId(msg.targetLifelineId)] ?: continue
-        val rowOffset = sysml2SeqRowOffset(msg.seqNo, operandStartSeqs)
-        renderMessage(msg, srcLayout, tgtLayout, builder, rowOffset)
+        val rowOffset = sysml2SeqRowOffset(seqNo = msg.seqNo, operandStartSeqs = operandStartSeqs)
+        renderMessage(msg = msg, srcLayout = srcLayout, tgtLayout = tgtLayout, builder = builder, rowOffset = rowOffset)
     }
 }
 
@@ -253,18 +257,18 @@ internal fun renderMessage(
     val isSelfCall = msg.sourceLifelineId == msg.targetLifelineId
 
     if (isSelfCall) {
-        renderSelfCall(msg, srcCx, y, builder)
+        renderSelfCall(msg = msg, cx = srcCx, y = y, builder = builder)
         return
     }
 
     // V2.0.15: lifecycle messages need their own visual treatment.
     when (msg.kind) {
         MessageKind.Create -> {
-            renderCreateMessage(msg, srcCx, tgtCx, tgtLayout, y, builder)
+            renderCreateMessage(msg = msg, srcCx = srcCx, tgtCx = tgtCx, tgtLayout = tgtLayout, y = y, builder = builder)
             return
         }
         MessageKind.Destroy -> {
-            renderDestroyMessage(msg, srcCx, tgtCx, tgtLayout, y, builder)
+            renderDestroyMessage(msg = msg, srcCx = srcCx, tgtCx = tgtCx, tgtLayout = tgtLayout, y = y, builder = builder)
             return
         }
         else -> Unit
@@ -277,19 +281,20 @@ internal fun renderMessage(
     val arrowDx = if (tgtCx >= srcCx) -8f else 8f // Pfeilbasis liegt 8px vor target
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(msg.id)),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(msg.id)),
     ) {
         // 1. Pfeil-Schaft.
         tag(
-            "line",
-            mapOf(
-                "x1" to fmt(srcCx),
-                "y1" to fmt(y),
-                "x2" to fmt(tgtCx),
-                "y2" to fmt(y),
-                "class" to strokeClass,
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(srcCx),
+                    "y1" to fmt(y),
+                    "x2" to fmt(tgtCx),
+                    "y2" to fmt(y),
+                    "class" to strokeClass,
+                ),
         )
 
         // 2. Label über dem Pfeil — VOR der Pfeilspitze zeichnen, damit die
@@ -308,10 +313,10 @@ internal fun renderMessage(
 
         // 3. Pfeilspitze am Target-Ende — nach dem Label, damit sie oben liegt.
         when (msg.kind) {
-            MessageKind.Sync -> renderFilledArrowhead(tgtCx, y, arrowDx, this)
+            MessageKind.Sync -> renderFilledArrowhead(tipX = tgtCx, y = y, baseDx = arrowDx, builder = this)
             MessageKind.Async,
             MessageKind.Reply,
-            -> renderOpenArrowhead(tgtCx, y, arrowDx, this)
+            -> renderOpenArrowhead(tipX = tgtCx, y = y, baseDx = arrowDx, builder = this)
             // Already handled above — the early-return for Create/Destroy
             // means these branches are unreachable; the exhaustive `when`
             // keeps the compiler happy when MessageKind grows again.
@@ -365,15 +370,16 @@ private fun drawSeqLabelWithWhiteBackground(
     // Baseline gezeichnet) NICHT zu überdecken.
     val bgY = y - BODY_TEXT_ASCENT
     builder.tag(
-        "rect",
-        mapOf(
-            "x" to fmt(bgX),
-            "y" to fmt(bgY),
-            "width" to fmt(bgW),
-            "height" to fmt(bgH),
-            "fill" to "white",
-            "stroke" to "none",
-        ),
+        name = "rect",
+        attrs =
+            mapOf(
+                "x" to fmt(bgX),
+                "y" to fmt(bgY),
+                "width" to fmt(bgW),
+                "height" to fmt(bgH),
+                "fill" to "white",
+                "stroke" to "none",
+            ),
     )
     val baseAttrs =
         if (anchor == "start") {
@@ -389,7 +395,7 @@ private fun drawSeqLabelWithWhiteBackground(
         } else {
             baseAttrs
         }
-    builder.tag("text", attrs) { text(label) }
+    builder.tag(name = "text", attrs = attrs) { text(label) }
 }
 
 /**
@@ -429,34 +435,36 @@ private fun renderCreateMessage(
     val arrowDx = if (tgtCx >= srcCx) -8f else 8f
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(msg.id)),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(msg.id)),
     ) {
         // 1. Arrow shaft — dashed (UML convention: «create» arrows are dashed).
         tag(
-            "line",
-            mapOf(
-                "x1" to fmt(srcCx),
-                "y1" to fmt(y),
-                "x2" to fmt(arrowEndX),
-                "y2" to fmt(y),
-                "class" to "kuml-edge-dashed",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(srcCx),
+                    "y1" to fmt(y),
+                    "x2" to fmt(arrowEndX),
+                    "y2" to fmt(y),
+                    "class" to "kuml-edge-dashed",
+                ),
         )
 
         // 2. Open arrowhead at the target box edge.
-        renderOpenArrowhead(arrowEndX, y, arrowDx, this)
+        renderOpenArrowhead(tipX = arrowEndX, y = y, baseDx = arrowDx, builder = this)
 
         // 3. Stereotype + label above the arrow.
         val labelX = (srcCx + arrowEndX) / 2f
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(labelX),
-                "y" to fmt(y - 16f),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(labelX),
+                    "y" to fmt(y - 16f),
+                    "text-anchor" to "middle",
+                ),
         ) { text("«create»") }
         drawSeqLabelWithWhiteBackground(
             label = msg.messageLabel,
@@ -494,59 +502,63 @@ private fun renderDestroyMessage(
 ) {
     val arrowDx = if (tgtCx >= srcCx) -8f else 8f
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(msg.id)),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(msg.id)),
     ) {
         // 1. Arrow shaft.
         tag(
-            "line",
-            mapOf(
-                "x1" to fmt(srcCx),
-                "y1" to fmt(y),
-                "x2" to fmt(tgtCx),
-                "y2" to fmt(y),
-                "class" to "kuml-edge",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(srcCx),
+                    "y1" to fmt(y),
+                    "x2" to fmt(tgtCx),
+                    "y2" to fmt(y),
+                    "class" to "kuml-edge",
+                ),
         )
 
         // 2. Filled arrowhead.
-        renderFilledArrowhead(tgtCx, y, arrowDx, this)
+        renderFilledArrowhead(tipX = tgtCx, y = y, baseDx = arrowDx, builder = this)
 
         // 3. X marker on the target lifeline — two crossing diagonals,
         //    centred on (tgtCx, y + DESTROY_X_OFFSET).
         val xCy = y + DESTROY_X_OFFSET
         val half = DESTROY_X_SIZE / 2f
         tag(
-            "line",
-            mapOf(
-                "x1" to fmt(tgtCx - half),
-                "y1" to fmt(xCy - half),
-                "x2" to fmt(tgtCx + half),
-                "y2" to fmt(xCy + half),
-                "class" to "kuml-edge",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(tgtCx - half),
+                    "y1" to fmt(xCy - half),
+                    "x2" to fmt(tgtCx + half),
+                    "y2" to fmt(xCy + half),
+                    "class" to "kuml-edge",
+                ),
         )
         tag(
-            "line",
-            mapOf(
-                "x1" to fmt(tgtCx + half),
-                "y1" to fmt(xCy - half),
-                "x2" to fmt(tgtCx - half),
-                "y2" to fmt(xCy + half),
-                "class" to "kuml-edge",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(tgtCx + half),
+                    "y1" to fmt(xCy - half),
+                    "x2" to fmt(tgtCx - half),
+                    "y2" to fmt(xCy + half),
+                    "class" to "kuml-edge",
+                ),
         )
 
         // 4. Stereotype + label above the arrow.
         val labelX = (srcCx + tgtCx) / 2f
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(labelX),
-                "y" to fmt(y - 16f),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(labelX),
+                    "y" to fmt(y - 16f),
+                    "text-anchor" to "middle",
+                ),
         ) { text("«destroy»") }
         drawSeqLabelWithWhiteBackground(
             label = msg.messageLabel,
@@ -584,27 +596,28 @@ internal fun renderExecutionSpec(
     // bar stays aligned with the message arrows that start/end it.
     val yStart =
         headBottom + (execSpec.startSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-            sysml2SeqRowOffset(execSpec.startSeqNo, operandStartSeqs)
+            sysml2SeqRowOffset(seqNo = execSpec.startSeqNo, operandStartSeqs = operandStartSeqs)
     val yEnd =
         headBottom + (execSpec.endSeqNo + 1.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-            sysml2SeqRowOffset(execSpec.endSeqNo, operandStartSeqs)
+            sysml2SeqRowOffset(seqNo = execSpec.endSeqNo, operandStartSeqs = operandStartSeqs)
     val w = EXEC_SPEC_WIDTH
     val h = (yEnd - yStart).coerceAtLeast(SEQ_RENDERER_MESSAGE_ROW_HEIGHT / 2f)
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(execSpec.id)),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(execSpec.id)),
     ) {
         tag(
-            "rect",
-            mapOf(
-                "x" to fmt(cx - w / 2f),
-                "y" to fmt(yStart),
-                "width" to fmt(w),
-                "height" to fmt(h),
-                "class" to "kuml-class",
-                "fill" to "white",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmt(cx - w / 2f),
+                    "y" to fmt(yStart),
+                    "width" to fmt(w),
+                    "height" to fmt(h),
+                    "class" to "kuml-class",
+                    "fill" to "white",
+                ),
         )
     }
 }
@@ -661,30 +674,31 @@ internal fun renderCombinedFragment(
     // pentagon/guard row and that first arrow.
     val firstMsgY =
         headBottom + (minStartSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-            sysml2SeqRowOffset(minStartSeqNo, operandStartSeqs)
+            sysml2SeqRowOffset(seqNo = minStartSeqNo, operandStartSeqs = operandStartSeqs)
     val lastMsgY =
         headBottom + (maxEndSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-            sysml2SeqRowOffset(maxEndSeqNo, operandStartSeqs)
+            sysml2SeqRowOffset(seqNo = maxEndSeqNo, operandStartSeqs = operandStartSeqs)
     val frameY = firstMsgY - SYSML2_FRAGMENT_HEADER_BAND - 13f
     val frameBottom = lastMsgY + FRAGMENT_BOTTOM_OUTSET
     val frameH = frameBottom - frameY
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(fragment.id)),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(fragment.id)),
     ) {
         // 1. Dashed frame rectangle.
         tag(
-            "rect",
-            mapOf(
-                "x" to fmt(frameX),
-                "y" to fmt(frameY),
-                "width" to fmt(frameW),
-                "height" to fmt(frameH),
-                "class" to "kuml-class",
-                "fill" to "none",
-                "stroke-dasharray" to "6 4",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmt(frameX),
+                    "y" to fmt(frameY),
+                    "width" to fmt(frameW),
+                    "height" to fmt(frameH),
+                    "class" to "kuml-class",
+                    "fill" to "none",
+                    "stroke-dasharray" to "6 4",
+                ),
         )
 
         // 2. Operator-tag pentagon in the top-left corner. Five points: a
@@ -702,21 +716,23 @@ internal fun renderCombinedFragment(
                 "${fmt(tagX + tagW - notch)},${fmt(tagY + tagH)} " +
                 "${fmt(tagX)},${fmt(tagY + tagH)}"
         tag(
-            "polygon",
-            mapOf(
-                "points" to pentagonPoints,
-                "class" to "kuml-class",
-                "fill" to "white",
-            ),
+            name = "polygon",
+            attrs =
+                mapOf(
+                    "points" to pentagonPoints,
+                    "class" to "kuml-class",
+                    "fill" to "white",
+                ),
         )
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(tagX + tagW / 2f),
-                "y" to fmt(tagY + tagH / 2f + 4f),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(tagX + tagW / 2f),
+                    "y" to fmt(tagY + tagH / 2f + 4f),
+                    "text-anchor" to "middle",
+                ),
         ) { text(fragment.operator.name.uppercase()) }
 
         // 3. Operand guards — one per operand, in the top-left of each
@@ -746,22 +762,23 @@ internal fun renderCombinedFragment(
                 // reused) never collide with it.
                 val opFirstMsgY =
                     headBottom + (operand.startSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-                        sysml2SeqRowOffset(operand.startSeqNo, operandStartSeqs)
+                        sysml2SeqRowOffset(seqNo = operand.startSeqNo, operandStartSeqs = operandStartSeqs)
                 val prevBottomY =
                     headBottom + (prevEndSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-                        sysml2SeqRowOffset(prevEndSeqNo, operandStartSeqs) + FRAGMENT_BOTTOM_OUTSET
+                        sysml2SeqRowOffset(seqNo = prevEndSeqNo, operandStartSeqs = operandStartSeqs) + FRAGMENT_BOTTOM_OUTSET
                 val naturalSepY = opFirstMsgY - SYSML2_FRAGMENT_HEADER_BAND - 12f
                 val sepY = maxOf(naturalSepY, prevBottomY + 8f)
                 tag(
-                    "line",
-                    mapOf(
-                        "x1" to fmt(frameX),
-                        "y1" to fmt(sepY),
-                        "x2" to fmt(frameX + frameW),
-                        "y2" to fmt(sepY),
-                        "class" to "kuml-divider",
-                        "stroke-dasharray" to "6 4",
-                    ),
+                    name = "line",
+                    attrs =
+                        mapOf(
+                            "x1" to fmt(frameX),
+                            "y1" to fmt(sepY),
+                            "x2" to fmt(frameX + frameW),
+                            "y2" to fmt(sepY),
+                            "class" to "kuml-divider",
+                            "stroke-dasharray" to "6 4",
+                        ),
                 )
                 operandY = sepY + 12f
             }
@@ -823,31 +840,32 @@ private fun renderSelfCall(
     val strokeClass = if (isReply) "kuml-edge-dashed" else "kuml-edge"
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(msg.id)),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(msg.id)),
     ) {
         // Drei Linien: rechts, runter, zurück.
         tag(
-            "path",
-            mapOf(
-                "d" to "M ${fmt(cx)} ${fmt(y)} L ${fmt(cx + w)} ${fmt(y)} L ${fmt(cx + w)} ${fmt(y + h)} L ${fmt(cx)} ${fmt(y + h)}",
-                "class" to strokeClass,
-                "fill" to "none",
-            ),
+            name = "path",
+            attrs =
+                mapOf(
+                    "d" to "M ${fmt(cx)} ${fmt(y)} L ${fmt(cx + w)} ${fmt(y)} L ${fmt(cx + w)} ${fmt(y + h)} L ${fmt(cx)} ${fmt(y + h)}",
+                    "class" to strokeClass,
+                    "fill" to "none",
+                ),
         )
 
         // Pfeilspitze am Ende (zeigt nach links auf die Lifeline).
         when (msg.kind) {
-            MessageKind.Sync -> renderFilledArrowhead(cx, y + h, +8f, this)
+            MessageKind.Sync -> renderFilledArrowhead(tipX = cx, y = y + h, baseDx = +8f, builder = this)
             MessageKind.Async,
             MessageKind.Reply,
-            -> renderOpenArrowhead(cx, y + h, +8f, this)
+            -> renderOpenArrowhead(tipX = cx, y = y + h, baseDx = +8f, builder = this)
             // Self-calls of kind Create / Destroy are conceptually unusual
             // (a lifeline destroying itself); we fall back to an open
             // arrowhead so the U-shape still looks coherent.
             MessageKind.Create,
             MessageKind.Destroy,
-            -> renderOpenArrowhead(cx, y + h, +8f, this)
+            -> renderOpenArrowhead(tipX = cx, y = y + h, baseDx = +8f, builder = this)
         }
 
         // V2.0.44: Label positioned LEFT of the self-call brace (text-anchor="end")
@@ -884,11 +902,12 @@ private fun renderFilledArrowhead(
     // higher CSS specificity than the `fill="currentColor"` presentation attribute and
     // would override it, causing the arrowhead to appear hollow.
     builder.tag(
-        "polygon",
-        mapOf(
-            "points" to points,
-            "class" to "kuml-seq-arrow-filled",
-        ),
+        name = "polygon",
+        attrs =
+            mapOf(
+                "points" to points,
+                "class" to "kuml-seq-arrow-filled",
+            ),
     )
 }
 
@@ -904,12 +923,13 @@ private fun renderOpenArrowhead(
 ) {
     val baseX = tipX + baseDx
     builder.tag(
-        "path",
-        mapOf(
-            "d" to "M ${fmt(baseX)} ${fmt(y - 4f)} L ${fmt(tipX)} ${fmt(y)} L ${fmt(baseX)} ${fmt(y + 4f)}",
-            "class" to "kuml-edge",
-            "fill" to "none",
-        ),
+        name = "path",
+        attrs =
+            mapOf(
+                "d" to "M ${fmt(baseX)} ${fmt(y - 4f)} L ${fmt(tipX)} ${fmt(y)} L ${fmt(baseX)} ${fmt(y + 4f)}",
+                "class" to "kuml-edge",
+                "fill" to "none",
+            ),
     )
 }
 

@@ -55,60 +55,64 @@ internal fun renderConstraintDefinition(
     val hasParameters = element.parameters.isNotEmpty()
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
+        tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
 
         var cy = 16f
 
         // Compartment 1 — `«constraint»`-Stereotyp.
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(w / 2f),
-                "y" to fmt(cy),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(w / 2f),
+                    "y" to fmt(cy),
+                    "text-anchor" to "middle",
+                ),
         ) { text("«constraint»") }
         cy += 14f
 
         // Compartment 1 — Name (fett, zentriert). Abstract → italic-via-style hint.
         val nameClass = if (element.isAbstract) "kuml-title kuml-title-abstract" else "kuml-title"
         tag(
-            "text",
-            mapOf(
-                "class" to nameClass,
-                "x" to fmt(w / 2f),
-                "y" to fmt(cy),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to nameClass,
+                    "x" to fmt(w / 2f),
+                    "y" to fmt(cy),
+                    "text-anchor" to "middle",
+                ),
         ) { text(element.name) }
         cy += 12f
 
         // Compartment 2 — Expression-Body (monospaced, ggf. ellipsis-trunkiert).
         if (hasExpression) {
             tag(
-                "line",
-                mapOf(
-                    "x1" to "0",
-                    "y1" to fmt(cy),
-                    "x2" to fmt(w),
-                    "y2" to fmt(cy),
-                    "class" to "kuml-divider",
-                ),
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to "0",
+                        "y1" to fmt(cy),
+                        "x2" to fmt(w),
+                        "y2" to fmt(cy),
+                        "class" to "kuml-divider",
+                    ),
             )
             cy += 14f
             tag(
-                "text",
-                mapOf(
-                    "class" to "kuml-body",
-                    "x" to fmt(w / 2f),
-                    "y" to fmt(cy),
-                    "text-anchor" to "middle",
-                    "font-family" to "monospace",
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-body",
+                        "x" to fmt(w / 2f),
+                        "y" to fmt(cy),
+                        "text-anchor" to "middle",
+                        "font-family" to "monospace",
+                    ),
             ) { text(expressionText) }
             cy += 13f
         }
@@ -116,20 +120,21 @@ internal fun renderConstraintDefinition(
         // Compartment 3 — Parameter-Liste.
         if (hasParameters) {
             tag(
-                "line",
-                mapOf(
-                    "x1" to "0",
-                    "y1" to fmt(cy),
-                    "x2" to fmt(w),
-                    "y2" to fmt(cy),
-                    "class" to "kuml-divider",
-                ),
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to "0",
+                        "y1" to fmt(cy),
+                        "x2" to fmt(w),
+                        "y2" to fmt(cy),
+                        "class" to "kuml-divider",
+                    ),
             )
             cy += 14f
             for (parameter in element.parameters) {
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
                 ) { text(parameter.formatParameterLine()) }
                 cy += 13f
             }

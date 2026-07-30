@@ -63,11 +63,11 @@ class BehaviourWidgetStateModelChangeTest :
             // "true" (rather than an unresolved "vars.ready") so the transition still
             // actually fires below — the point of this test is reset()'s effect on the
             // *model*, not on guard evaluation.
-            state.changeGuard("t-red-green", "true") shouldBe PatchOutcome.Applied
+            state.changeGuard(transitionId = "t-red-green", newOcl = "true") shouldBe PatchOutcome.Applied
             state.model.transition("t-red-green").guard shouldBe "true"
 
             // Advance the live simulation so reset() has something to actually roll back.
-            state.sendEvent("next")
+            state.sendEvent(eventName = "next")
             state.currentHighlightIds() shouldContain "Green"
 
             state.reset()
@@ -81,12 +81,12 @@ class BehaviourWidgetStateModelChangeTest :
 
         test("trace stays consistent (re-synced, live) immediately after a successful guard edit") {
             val state = buildState()
-            state.sendEvent("next") // Red -> Green, so there is a non-trivial trace to preserve
+            state.sendEvent(eventName = "next") // Red -> Green, so there is a non-trivial trace to preserve
 
             val traceBefore = state.trace
             val positionBefore = state.tracePosition
 
-            val outcome = state.changeGuard("t-green-yellow", "true")
+            val outcome = state.changeGuard(transitionId = "t-green-yellow", newOcl = "true")
 
             outcome shouldBe PatchOutcome.Applied
             // syncTrace() re-derives trace/tracePosition from the (rebuilt) live instance —
@@ -99,7 +99,7 @@ class BehaviourWidgetStateModelChangeTest :
 
             // The live simulation is still fully functional after the edit: sending
             // another event advances the (now guard-patched) machine as expected.
-            state.sendEvent("next")
+            state.sendEvent(eventName = "next")
             state.currentHighlightIds() shouldContain "Yellow"
         }
     })

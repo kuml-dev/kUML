@@ -48,43 +48,57 @@ class BpmnContentSizeProviderTest :
         val provider = BpmnContentSizeProvider(model)
 
         test("long task label widens the box beyond the 120 px default") {
-            (provider.sizeOf("long", "BpmnTask").width > BpmnLayoutBridge.DEFAULT_TASK_SIZE.width) shouldBe true
+            (provider.sizeOf(elementId = "long", elementKind = "BpmnTask").width > BpmnLayoutBridge.DEFAULT_TASK_SIZE.width) shouldBe true
         }
 
         test("short task label keeps the 120 px floor") {
-            provider.sizeOf("short", "BpmnTask").width shouldBe 120f
+            provider.sizeOf(elementId = "short", elementKind = "BpmnTask").width shouldBe 120f
         }
 
         test("null-named task keeps the 120 px floor") {
-            provider.sizeOf("null-name", "BpmnTask").width shouldBe 120f
+            provider.sizeOf(elementId = "null-name", elementKind = "BpmnTask").width shouldBe 120f
         }
 
         test("pathologically long label is capped at MAX_TASK_WIDTH") {
-            provider.sizeOf("pathological", "BpmnTask").width shouldBe BpmnContentSizeProvider.MAX_TASK_WIDTH
+            provider.sizeOf(elementId = "pathological", elementKind = "BpmnTask").width shouldBe BpmnContentSizeProvider.MAX_TASK_WIDTH
         }
 
         test("activity height stays fixed at 60 px regardless of label length") {
-            provider.sizeOf("long", "BpmnTask").height shouldBe BpmnLayoutBridge.DEFAULT_TASK_SIZE.height
-            provider.sizeOf("pathological", "BpmnTask").height shouldBe BpmnLayoutBridge.DEFAULT_TASK_SIZE.height
+            provider.sizeOf(elementId = "long", elementKind = "BpmnTask").height shouldBe BpmnLayoutBridge.DEFAULT_TASK_SIZE.height
+            provider.sizeOf(elementId = "pathological", elementKind = "BpmnTask").height shouldBe BpmnLayoutBridge.DEFAULT_TASK_SIZE.height
         }
 
         test("collapsed SubProcess with a long name also widens") {
-            (provider.sizeOf("sp-long", "BpmnSubProcess").width > BpmnLayoutBridge.DEFAULT_TASK_SIZE.width) shouldBe true
+            (
+                provider
+                    .sizeOf(
+                        elementId = "sp-long",
+                        elementKind = "BpmnSubProcess",
+                    ).width > BpmnLayoutBridge.DEFAULT_TASK_SIZE.width
+            ) shouldBe
+                true
         }
 
         test("CallActivity with a long name also widens") {
-            (provider.sizeOf("ca-long", "BpmnCallActivity").width > BpmnLayoutBridge.DEFAULT_TASK_SIZE.width) shouldBe true
+            (
+                provider
+                    .sizeOf(
+                        elementId = "ca-long",
+                        elementKind = "BpmnCallActivity",
+                    ).width > BpmnLayoutBridge.DEFAULT_TASK_SIZE.width
+            ) shouldBe
+                true
         }
 
         test("gateway keeps the untouched default size — label renders outside the shape") {
-            provider.sizeOf("gw1", "BpmnGateway") shouldBe BpmnLayoutBridge.DEFAULT_GATEWAY_SIZE
+            provider.sizeOf(elementId = "gw1", elementKind = "BpmnGateway") shouldBe BpmnLayoutBridge.DEFAULT_GATEWAY_SIZE
         }
 
         test("event keeps the untouched default size — label renders outside the shape") {
-            provider.sizeOf("ev1", "BpmnEvent") shouldBe BpmnLayoutBridge.DEFAULT_EVENT_SIZE
+            provider.sizeOf(elementId = "ev1", elementKind = "BpmnEvent") shouldBe BpmnLayoutBridge.DEFAULT_EVENT_SIZE
         }
 
         test("unknown id + unknown kind falls back to the default task size") {
-            provider.sizeOf("does-not-exist", "SomethingElse") shouldBe BpmnLayoutBridge.DEFAULT_TASK_SIZE
+            provider.sizeOf(elementId = "does-not-exist", elementKind = "SomethingElse") shouldBe BpmnLayoutBridge.DEFAULT_TASK_SIZE
         }
     })

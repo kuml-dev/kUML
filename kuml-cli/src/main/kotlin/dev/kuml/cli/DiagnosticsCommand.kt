@@ -41,7 +41,7 @@ internal class DiagnosticsCommand : CliktCommand(name = "diagnostics") {
     override fun help(context: Context): String = "Emit script compile/eval diagnostics (with line/column) as TSV for IDE integration."
 
     override fun run() {
-        val result = KumlScriptHost.eval(input)
+        val result = KumlScriptHost.eval(file = input)
         result.reports
             .filter { it.severity >= ScriptDiagnostic.Severity.WARNING }
             .forEach { d ->

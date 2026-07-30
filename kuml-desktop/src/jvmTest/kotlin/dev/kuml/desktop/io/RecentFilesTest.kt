@@ -12,14 +12,14 @@ class RecentFilesTest :
     FunSpec({
 
         test("add-new inserts path at the front") {
-            val result = RecentFiles.add(listOf("/a.kts", "/b.kts"), "/c.kts")
+            val result = RecentFiles.add(list = listOf("/a.kts", "/b.kts"), path = "/c.kts")
             result[0] shouldBe "/c.kts"
             result shouldContain "/a.kts"
             result shouldContain "/b.kts"
         }
 
         test("promote-existing moves path to front without duplicates") {
-            val result = RecentFiles.add(listOf("/a.kts", "/b.kts", "/c.kts"), "/b.kts")
+            val result = RecentFiles.add(list = listOf("/a.kts", "/b.kts", "/c.kts"), path = "/b.kts")
             result[0] shouldBe "/b.kts"
             result shouldHaveSize 3
             result.count { it == "/b.kts" } shouldBe 1
@@ -27,7 +27,7 @@ class RecentFilesTest :
 
         test("add caps list at max=10") {
             val existing = (1..10).map { "/file$it.kts" }
-            val result = RecentFiles.add(existing, "/new.kts", max = 10)
+            val result = RecentFiles.add(list = existing, path = "/new.kts", max = 10)
             result shouldHaveSize 10
             result[0] shouldBe "/new.kts"
             result shouldNotContain "/file10.kts"
@@ -49,7 +49,7 @@ class RecentFilesTest :
         }
 
         test("remove eliminates specified path") {
-            val result = RecentFiles.remove(listOf("/a.kts", "/b.kts", "/c.kts"), "/b.kts")
+            val result = RecentFiles.remove(list = listOf("/a.kts", "/b.kts", "/c.kts"), path = "/b.kts")
             result shouldNotContain "/b.kts"
             result shouldContain "/a.kts"
             result shouldContain "/c.kts"

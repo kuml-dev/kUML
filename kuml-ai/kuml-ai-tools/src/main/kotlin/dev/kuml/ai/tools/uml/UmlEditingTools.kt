@@ -45,20 +45,20 @@ public class UmlEditingTools(
         ) isAbstract: Boolean = false,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure("Context is not a UML model")
+        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure(reason = "Context is not a UML model")
         val takenIds = uml.elements.map { it.id }.toSet()
-        val classId = IdHelpers.uniqueId(name, takenIds)
+        val classId = IdHelpers.uniqueId(name = name, takenIds = takenIds)
 
         // Build attribute list
         val attrTaken = (takenIds + classId).toMutableSet()
         val umlAttrs =
             attributes.map { spec ->
-                val attrId = IdHelpers.uniqueId(spec.name, attrTaken, "attr")
+                val attrId = IdHelpers.uniqueId(name = spec.name, takenIds = attrTaken, prefix = "attr")
                 attrTaken += attrId
                 dev.kuml.uml.UmlProperty(
                     id = attrId,
                     name = spec.name,
-                    type = dev.kuml.uml.UmlTypeRef(spec.type),
+                    type = dev.kuml.uml.UmlTypeRef(name = spec.type),
                     visibility = EnumCoercion.toVisibility(spec.visibility) ?: Visibility.PRIVATE,
                     defaultValue = spec.defaultValue,
                 )
@@ -79,9 +79,16 @@ public class UmlEditingTools(
                     },
             )
 
-        return ctx.applyPatch(patch) { m ->
+        return ctx.applyPatch(patch = patch) { m ->
             val u = m as AnyKumlModel.Uml
-            UmlPatchOps.addClass(u, classId, name, stereotype, isAbstract, umlAttrs)
+            UmlPatchOps.addClass(
+                model = u,
+                id = classId,
+                name = name,
+                stereotype = stereotype,
+                isAbstract = isAbstract,
+                attributes = umlAttrs,
+            )
         }
     }
 
@@ -94,9 +101,9 @@ public class UmlEditingTools(
         ) operations: List<String> = emptyList(),
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure("Context is not a UML model")
+        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure(reason = "Context is not a UML model")
         val takenIds = uml.elements.map { it.id }.toSet()
-        val ifaceId = IdHelpers.uniqueId(name, takenIds)
+        val ifaceId = IdHelpers.uniqueId(name = name, takenIds = takenIds)
 
         val patch =
             ModelPatch.AddElement(
@@ -108,9 +115,9 @@ public class UmlEditingTools(
                 name = name,
             )
 
-        return ctx.applyPatch(patch) { m ->
+        return ctx.applyPatch(patch = patch) { m ->
             val u = m as AnyKumlModel.Uml
-            UmlPatchOps.addInterface(u, ifaceId, name)
+            UmlPatchOps.addInterface(model = u, id = ifaceId, name = name)
         }
     }
 
@@ -130,9 +137,9 @@ public class UmlEditingTools(
         ) defaultValue: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure("Context is not a UML model")
+        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure(reason = "Context is not a UML model")
         val classifier =
-            UmlPatchOps.resolveClassifier(uml, classifierIdOrName)
+            UmlPatchOps.resolveClassifier(model = uml, idOrName = classifierIdOrName)
                 ?: return PatchApplyResult.Failure(
                     reason = "Classifier '$classifierIdOrName' not found",
                     hint = "Use list_elements to discover available classifier ids",
@@ -142,11 +149,11 @@ public class UmlEditingTools(
             try {
                 EnumCoercion.toVisibility(visibility) ?: Visibility.PRIVATE
             } catch (e: IllegalArgumentException) {
-                return PatchApplyResult.Failure(e.message ?: "Invalid visibility")
+                return PatchApplyResult.Failure(reason = e.message ?: "Invalid visibility")
             }
 
         val takenIds = uml.elements.map { it.id }.toSet()
-        val attrId = IdHelpers.uniqueId(name, takenIds, "attr")
+        val attrId = IdHelpers.uniqueId(name = name, takenIds = takenIds, prefix = "attr")
 
         val patch =
             ModelPatch.UpdateAttribute(
@@ -159,9 +166,17 @@ public class UmlEditingTools(
                 newValue = "$name: $type",
             )
 
-        return ctx.applyPatch(patch) { m ->
+        return ctx.applyPatch(patch = patch) { m ->
             val u = m as AnyKumlModel.Uml
-            UmlPatchOps.addAttribute(u, classifier.id, attrId, name, type, vis, defaultValue)
+            UmlPatchOps.addAttribute(
+                model = u,
+                classifierId = classifier.id,
+                attrId = attrId,
+                attrName = name,
+                typeName = type,
+                visibility = vis,
+                defaultValue = defaultValue,
+            )
                 ?: throw IllegalArgumentException("Classifier '${classifier.id}' not found after patch")
         }
     }
@@ -178,9 +193,9 @@ public class UmlEditingTools(
         ) visibility: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure("Context is not a UML model")
+        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure(reason = "Context is not a UML model")
         val classifier =
-            UmlPatchOps.resolveClassifier(uml, classifierIdOrName)
+            UmlPatchOps.resolveClassifier(model = uml, idOrName = classifierIdOrName)
                 ?: return PatchApplyResult.Failure(
                     reason = "Classifier '$classifierIdOrName' not found",
                     hint = "Use list_elements to discover available classifier ids",
@@ -190,16 +205,16 @@ public class UmlEditingTools(
             try {
                 EnumCoercion.toVisibility(visibility) ?: Visibility.PUBLIC
             } catch (e: IllegalArgumentException) {
-                return PatchApplyResult.Failure(e.message ?: "Invalid visibility")
+                return PatchApplyResult.Failure(reason = e.message ?: "Invalid visibility")
             }
 
         val takenIds = uml.elements.map { it.id }.toSet()
-        val opId = IdHelpers.uniqueId(name, takenIds, "op")
-        val umlParams = UmlPatchOps.parseParameters(parameters, takenIds + opId)
+        val opId = IdHelpers.uniqueId(name = name, takenIds = takenIds, prefix = "op")
+        val umlParams = UmlPatchOps.parseParameters(params = parameters, takenIds = takenIds + opId)
         val retType =
             when {
                 returnType.isNullOrBlank() || returnType == "void" || returnType == "Unit" -> null
-                else -> dev.kuml.uml.UmlTypeRef(returnType)
+                else -> dev.kuml.uml.UmlTypeRef(name = returnType)
             }
 
         val patch =
@@ -213,9 +228,17 @@ public class UmlEditingTools(
                 newValue = name,
             )
 
-        return ctx.applyPatch(patch) { m ->
+        return ctx.applyPatch(patch = patch) { m ->
             val u = m as AnyKumlModel.Uml
-            UmlPatchOps.addOperation(u, classifier.id, opId, name, umlParams, retType, vis)
+            UmlPatchOps.addOperation(
+                model = u,
+                classifierId = classifier.id,
+                opId = opId,
+                opName = name,
+                parameters = umlParams,
+                returnType = retType,
+                visibility = vis,
+            )
                 ?: throw IllegalArgumentException("Classifier '${classifier.id}' not found after patch")
         }
     }
@@ -230,21 +253,21 @@ public class UmlEditingTools(
         @LLMDescription("Optional association name shown on the edge.") name: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure("Context is not a UML model")
+        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure(reason = "Context is not a UML model")
 
         val source =
-            UmlPatchOps.resolveClassifier(uml, sourceIdOrName)
+            UmlPatchOps.resolveClassifier(model = uml, idOrName = sourceIdOrName)
                 ?: return PatchApplyResult.Failure(
                     reason = "Source classifier '$sourceIdOrName' not found",
                 )
         val target =
-            UmlPatchOps.resolveClassifier(uml, targetIdOrName)
+            UmlPatchOps.resolveClassifier(model = uml, idOrName = targetIdOrName)
                 ?: return PatchApplyResult.Failure(
                     reason = "Target classifier '$targetIdOrName' not found",
                 )
 
         val takenIds = (uml.elements.map { it.id } + uml.relationships.map { it.id }).toSet()
-        val assocId = IdHelpers.uniqueId("${source.name}_${target.name}", takenIds, "assoc")
+        val assocId = IdHelpers.uniqueId(name = "${source.name}_${target.name}", takenIds = takenIds, prefix = "assoc")
         val srcMult = UmlPatchOps.parseMultiplicity(sourceMultiplicity)
         val tgtMult = UmlPatchOps.parseMultiplicity(targetMultiplicity)
 
@@ -259,9 +282,17 @@ public class UmlEditingTools(
                 targetId = target.id,
             )
 
-        return ctx.applyPatch(patch) { m ->
+        return ctx.applyPatch(patch = patch) { m ->
             val u = m as AnyKumlModel.Uml
-            UmlPatchOps.addAssociation(u, assocId, source.id, target.id, name, srcMult, tgtMult)
+            UmlPatchOps.addAssociation(
+                model = u,
+                assocId = assocId,
+                sourceId = source.id,
+                targetId = target.id,
+                name = name,
+                sourceMultiplicity = srcMult,
+                targetMultiplicity = tgtMult,
+            )
         }
     }
 
@@ -272,15 +303,15 @@ public class UmlEditingTools(
         @LLMDescription("Parent classifier id or name.") parentIdOrName: String,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure("Context is not a UML model")
+        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure(reason = "Context is not a UML model")
 
         val child =
-            UmlPatchOps.resolveClassifier(uml, childIdOrName)
+            UmlPatchOps.resolveClassifier(model = uml, idOrName = childIdOrName)
                 ?: return PatchApplyResult.Failure(
                     reason = "Child classifier '$childIdOrName' not found",
                 )
         val parent =
-            UmlPatchOps.resolveClassifier(uml, parentIdOrName)
+            UmlPatchOps.resolveClassifier(model = uml, idOrName = parentIdOrName)
                 ?: return PatchApplyResult.Failure(
                     reason = "Parent classifier '$parentIdOrName' not found",
                 )
@@ -292,7 +323,7 @@ public class UmlEditingTools(
         }
 
         val takenIds = (uml.elements.map { it.id } + uml.relationships.map { it.id }).toSet()
-        val genId = IdHelpers.uniqueId("${child.name}_extends_${parent.name}", takenIds, "gen")
+        val genId = IdHelpers.uniqueId(name = "${child.name}_extends_${parent.name}", takenIds = takenIds, prefix = "gen")
 
         val patch =
             ModelPatch.AddRelationship(
@@ -305,9 +336,9 @@ public class UmlEditingTools(
                 targetId = parent.id,
             )
 
-        return ctx.applyPatch(patch) { m ->
+        return ctx.applyPatch(patch = patch) { m ->
             val u = m as AnyKumlModel.Uml
-            UmlPatchOps.addGeneralization(u, genId, child.id, parent.id)
+            UmlPatchOps.addGeneralization(model = u, genId = genId, childId = child.id, parentId = parent.id)
         }
     }
 
@@ -333,9 +364,9 @@ public class UmlEditingTools(
             )
 
         val result =
-            ctx.applyPatch(patch) { m ->
+            ctx.applyPatch(patch = patch) { m ->
                 val u = m as AnyKumlModel.Uml
-                UmlPatchOps.removeElement(u, elementId)
+                UmlPatchOps.removeElement(model = u, elementId = elementId)
                     ?: throw IllegalArgumentException("Element '$elementId' disappeared during patch")
             }
 
@@ -371,10 +402,10 @@ public class UmlEditingTools(
             )
 
         val result =
-            ctx.applyPatch(patch) { m ->
+            ctx.applyPatch(patch = patch) { m ->
                 val u = m as AnyKumlModel.Uml
                 val (renamed, _) =
-                    UmlPatchOps.renameElement(u, elementId, newName)
+                    UmlPatchOps.renameElement(model = u, elementId = elementId, newName = newName)
                         ?: throw IllegalArgumentException("Element '$elementId' not found during rename")
                 renamed
             }

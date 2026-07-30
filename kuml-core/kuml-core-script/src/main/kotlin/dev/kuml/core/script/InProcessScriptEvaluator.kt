@@ -17,5 +17,5 @@ internal object InProcessScriptEvaluator : ScriptEvaluator {
     override fun evaluate(
         source: String,
         fileName: String,
-    ): EvaluatedScript = ScriptEvaluationCore.evaluateAndExtract(source, fileName)
+    ): EvaluatedScript = ScriptEvaluationCore.evaluateAndExtract(source = source, fileName = fileName)
 }

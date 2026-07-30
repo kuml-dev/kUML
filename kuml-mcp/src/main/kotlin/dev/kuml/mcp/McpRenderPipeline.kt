@@ -30,26 +30,32 @@ internal object McpRenderPipeline {
         format: String,
         widthPx: Int = 1024,
     ): RenderResult {
-        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
+        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
         // V3.0.x — see CLI's RenderPipeline.kt for the full rationale: UML sequence
         // diagrams are the one diagram type where declaration order is semantically
         // meaningful, so pin it via LayoutHints.preserveNodeOrder.
         val hints = LayoutHints.DEFAULT.copy(preserveNodeOrder = diagram.type == DiagramType.SEQUENCE)
-        val layoutResult = layoutEngine.layout(layoutGraph, hints)
+        val layoutResult = layoutEngine.layout(graph = layoutGraph, hints = hints)
         val theme = PlainTheme()
 
         return when (format) {
             "svg" -> {
                 val tmp = Files.createTempFile("kuml-mcp-", ".svg")
                 try {
-                    KumlSvgRenderer.toSvgFile(diagram, layoutResult, tmp, theme)
+                    KumlSvgRenderer.toSvgFile(diagram = diagram, layoutResult = layoutResult, out = tmp, theme = theme)
                     RenderResult.Svg(tmp.toFile().readText())
                 } finally {
                     tmp.toFile().delete()
                 }
             }
             "png" -> {
-                val bytes = KumlPngRenderer.toPng(diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx))
+                val bytes =
+                    KumlPngRenderer.toPng(
+                        diagram = diagram,
+                        layoutResult = layoutResult,
+                        theme = theme,
+                        options = PngRenderOptions(widthPx = widthPx),
+                    )
                 RenderResult.Png(bytes)
             }
             else -> throw IllegalArgumentException("Unsupported format: $format")

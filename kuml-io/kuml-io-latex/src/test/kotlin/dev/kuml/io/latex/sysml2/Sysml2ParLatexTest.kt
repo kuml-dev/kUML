@@ -31,19 +31,19 @@ class Sysml2ParLatexTest :
 
         "PAR-TikZ enthält Constraint-Namen und «constraint»-Stereotyp (V2.0.12 fallback)" {
             val model =
-                sysml2Model("NewtonModel") {
+                sysml2Model(name = "NewtonModel") {
                     val newton =
                         constraintDef(
                             name = "NewtonsLaw",
                             expression = "F = m * a",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("F", "Force", ConstraintParameterDirection.Out),
-                                    ConstraintParameter("m", "Mass", ConstraintParameterDirection.In),
-                                    ConstraintParameter("a", "Acceleration", ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "F", typeId = "Force", direction = ConstraintParameterDirection.Out),
+                                    ConstraintParameter(name = "m", typeId = "Mass", direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "a", typeId = "Acceleration", direction = ConstraintParameterDirection.In),
                                 ),
                         )
-                    parDiagram("Newton") {
+                    parDiagram(name = "Newton") {
                         include(newton)
                     }
                 }
@@ -52,38 +52,39 @@ class Sysml2ParLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("NewtonsLaw") to NodeLayout(bounds = Rect(Point(20f, 20f), Size(220f, 150f))),
+                            NodeId("NewtonsLaw") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 220f, height = 150f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(model, par, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = par, layoutResult = layout)
             tex shouldContain "\\begin{tikzpicture}"
             tex shouldContain "NewtonsLaw"
             // V2.0.12-Fallback emittiert das `«constraint»`-Stereotyp.
             tex shouldContain "constraint"
 
-            SampleOutput.write("sysml2-par/newton-law-par.tex", tex)
+            SampleOutput.write(filename = "sysml2-par/newton-law-par.tex", content = tex)
         }
 
         "deterministic PAR output" {
             val model =
-                sysml2Model("Det") {
+                sysml2Model(name = "Det") {
                     val c =
                         constraintDef(
                             name = "C",
                             expression = "y = x",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("x", "Real", ConstraintParameterDirection.In),
-                                    ConstraintParameter("y", "Real", ConstraintParameterDirection.Out),
+                                    ConstraintParameter(name = "x", typeId = "Real", direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "y", typeId = "Real", direction = ConstraintParameterDirection.Out),
                                 ),
                         )
-                    parDiagram("P") {
+                    parDiagram(name = "P") {
                         include(c)
                     }
                 }
@@ -92,16 +93,17 @@ class Sysml2ParLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("C") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(200f, 150f))),
+                            NodeId("C") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 200f, height = 150f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val one = KumlLatexRenderer.toLatex(model, par, layout)
-            val two = KumlLatexRenderer.toLatex(model, par, layout)
+            val one = KumlLatexRenderer.toLatex(model = model, diagram = par, layoutResult = layout)
+            val two = KumlLatexRenderer.toLatex(model = model, diagram = par, layoutResult = layout)
             one shouldBe two
         }
     })

@@ -35,7 +35,7 @@ internal class SvgBuilder(
             appendLine("<$name$attrStr/>")
         } else {
             appendLine("<$name$attrStr>")
-            val child = SvgBuilder(pretty, indent + 2)
+            val child = SvgBuilder(pretty = pretty, indent = indent + 2)
             child.block()
             sb.append(child.toString())
             appendLine("</$name>")

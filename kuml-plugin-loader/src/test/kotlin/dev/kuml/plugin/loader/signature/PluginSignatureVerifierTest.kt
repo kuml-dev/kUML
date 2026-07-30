@@ -35,7 +35,7 @@ class PluginSignatureVerifierTest :
 
         "verify: valid signature returns Valid with fingerprint" {
             val sig = signBytes(jarBytes)
-            val result = PluginSignatureVerifier.verify(jarBytes, sig, pubKeyBase64)
+            val result = PluginSignatureVerifier.verify(jarBytes = jarBytes, signatureBase64 = sig, publicKeyBase64 = pubKeyBase64)
             val valid = result.shouldBeInstanceOf<SignatureVerificationResult.Valid>()
             valid.publicKeyFingerprint.contains(":") shouldBe true
         }
@@ -43,28 +43,33 @@ class PluginSignatureVerifierTest :
         "verify: tampered bytes returns Invalid" {
             val sig = signBytes(jarBytes)
             val tamperedBytes = "different content".toByteArray()
-            val result = PluginSignatureVerifier.verify(tamperedBytes, sig, pubKeyBase64)
+            val result = PluginSignatureVerifier.verify(jarBytes = tamperedBytes, signatureBase64 = sig, publicKeyBase64 = pubKeyBase64)
             result.shouldBeInstanceOf<SignatureVerificationResult.Invalid>()
         }
 
         "verify: null signature returns Unsigned" {
-            val result = PluginSignatureVerifier.verify(jarBytes, null, pubKeyBase64)
+            val result = PluginSignatureVerifier.verify(jarBytes = jarBytes, signatureBase64 = null, publicKeyBase64 = pubKeyBase64)
             result shouldBe SignatureVerificationResult.Unsigned
         }
 
         "verify: blank signature returns Unsigned" {
-            val result = PluginSignatureVerifier.verify(jarBytes, "  ", pubKeyBase64)
+            val result = PluginSignatureVerifier.verify(jarBytes = jarBytes, signatureBase64 = "  ", publicKeyBase64 = pubKeyBase64)
             result shouldBe SignatureVerificationResult.Unsigned
         }
 
         "verify: null public key returns Unsigned" {
             val sig = signBytes(jarBytes)
-            val result = PluginSignatureVerifier.verify(jarBytes, sig, null)
+            val result = PluginSignatureVerifier.verify(jarBytes = jarBytes, signatureBase64 = sig, publicKeyBase64 = null)
             result shouldBe SignatureVerificationResult.Unsigned
         }
 
         "verify: invalid base64 returns Invalid" {
-            val result = PluginSignatureVerifier.verify(jarBytes, "not-base64!!", pubKeyBase64)
+            val result =
+                PluginSignatureVerifier.verify(
+                    jarBytes = jarBytes,
+                    signatureBase64 = "not-base64!!",
+                    publicKeyBase64 = pubKeyBase64,
+                )
             result.shouldBeInstanceOf<SignatureVerificationResult.Invalid>()
         }
 
@@ -72,7 +77,7 @@ class PluginSignatureVerifierTest :
             val otherKeyPair = KeyPairGenerator.getInstance("Ed25519").genKeyPair()
             val wrongPubKey = Base64.getEncoder().encodeToString(otherKeyPair.public.encoded)
             val sig = signBytes(jarBytes)
-            val result = PluginSignatureVerifier.verify(jarBytes, sig, wrongPubKey)
+            val result = PluginSignatureVerifier.verify(jarBytes = jarBytes, signatureBase64 = sig, publicKeyBase64 = wrongPubKey)
             result.shouldBeInstanceOf<SignatureVerificationResult.Invalid>()
         }
 
@@ -106,7 +111,13 @@ class PluginSignatureVerifierTest :
         "verifyWithKeys: single ACTIVE key, valid signature returns Valid with keyId" {
             val sig = signBytes(jarBytes)
             val keys = listOf(activeKey(keyId = "2026-primary"))
-            val result = PluginSignatureVerifier.verifyWithKeys(jarBytes, sig, keys, today)
+            val result =
+                PluginSignatureVerifier.verifyWithKeys(
+                    jarBytes = jarBytes,
+                    signatureBase64 = sig,
+                    signingKeys = keys,
+                    today = today,
+                )
             val valid = result.shouldBeInstanceOf<SignatureVerificationResult.Valid>()
             valid.keyId shouldBe "2026-primary"
         }
@@ -116,7 +127,13 @@ class PluginSignatureVerifierTest :
             val kpB = KeyPairGenerator.getInstance("Ed25519").genKeyPair()
             val sig = signBytes(jarBytes, kpA)
             val keys = listOf(activeKey(kpA, "key-A"), activeKey(kpB, "key-B"))
-            val result = PluginSignatureVerifier.verifyWithKeys(jarBytes, sig, keys, today)
+            val result =
+                PluginSignatureVerifier.verifyWithKeys(
+                    jarBytes = jarBytes,
+                    signatureBase64 = sig,
+                    signingKeys = keys,
+                    today = today,
+                )
             val valid = result.shouldBeInstanceOf<SignatureVerificationResult.Valid>()
             valid.keyId shouldBe "key-A"
         }
@@ -126,7 +143,13 @@ class PluginSignatureVerifierTest :
             val kpB = KeyPairGenerator.getInstance("Ed25519").genKeyPair()
             val sig = signBytes(jarBytes, kpB)
             val keys = listOf(activeKey(kpA, "key-A"), activeKey(kpB, "key-B"))
-            val result = PluginSignatureVerifier.verifyWithKeys(jarBytes, sig, keys, today)
+            val result =
+                PluginSignatureVerifier.verifyWithKeys(
+                    jarBytes = jarBytes,
+                    signatureBase64 = sig,
+                    signingKeys = keys,
+                    today = today,
+                )
             val valid = result.shouldBeInstanceOf<SignatureVerificationResult.Valid>()
             valid.keyId shouldBe "key-B"
         }
@@ -140,7 +163,13 @@ class PluginSignatureVerifierTest :
                     validFrom = "2025-01-01",
                     status = KeyStatus.REVOKED,
                 )
-            val result = PluginSignatureVerifier.verifyWithKeys(jarBytes, sig, listOf(revokedKey), today)
+            val result =
+                PluginSignatureVerifier.verifyWithKeys(
+                    jarBytes = jarBytes,
+                    signatureBase64 = sig,
+                    signingKeys = listOf(revokedKey),
+                    today = today,
+                )
             result.shouldBeInstanceOf<SignatureVerificationResult.Invalid>()
         }
 
@@ -154,13 +183,25 @@ class PluginSignatureVerifierTest :
                     validUntil = "2025-12-31", // expired relative to today = 2026-06-23
                     status = KeyStatus.ACTIVE,
                 )
-            val result = PluginSignatureVerifier.verifyWithKeys(jarBytes, sig, listOf(expiredKey), today)
+            val result =
+                PluginSignatureVerifier.verifyWithKeys(
+                    jarBytes = jarBytes,
+                    signatureBase64 = sig,
+                    signingKeys = listOf(expiredKey),
+                    today = today,
+                )
             result.shouldBeInstanceOf<SignatureVerificationResult.Invalid>()
         }
 
         "verifyWithKeys: empty key list returns Invalid with descriptive message" {
             val sig = signBytes(jarBytes)
-            val result = PluginSignatureVerifier.verifyWithKeys(jarBytes, sig, emptyList(), today)
+            val result =
+                PluginSignatureVerifier.verifyWithKeys(
+                    jarBytes = jarBytes,
+                    signatureBase64 = sig,
+                    signingKeys = emptyList(),
+                    today = today,
+                )
             val invalid = result.shouldBeInstanceOf<SignatureVerificationResult.Invalid>()
             invalid.reason shouldBe "No active signing key available"
         }
@@ -174,15 +215,21 @@ class PluginSignatureVerifierTest :
                     validFrom = "2023-01-01",
                     status = KeyStatus.EXPIRED,
                 )
-            val result = PluginSignatureVerifier.verifyWithKeys(jarBytes, sig, listOf(expiredStatusKey), today)
+            val result =
+                PluginSignatureVerifier.verifyWithKeys(
+                    jarBytes = jarBytes,
+                    signatureBase64 = sig,
+                    signingKeys = listOf(expiredStatusKey),
+                    today = today,
+                )
             result.shouldBeInstanceOf<SignatureVerificationResult.Invalid>()
         }
 
         "verifyWithKeys: null/blank signature returns Unsigned regardless of keys" {
             val keys = listOf(activeKey())
-            PluginSignatureVerifier.verifyWithKeys(jarBytes, null, keys, today) shouldBe
+            PluginSignatureVerifier.verifyWithKeys(jarBytes = jarBytes, signatureBase64 = null, signingKeys = keys, today = today) shouldBe
                 SignatureVerificationResult.Unsigned
-            PluginSignatureVerifier.verifyWithKeys(jarBytes, "  ", keys, today) shouldBe
+            PluginSignatureVerifier.verifyWithKeys(jarBytes = jarBytes, signatureBase64 = "  ", signingKeys = keys, today = today) shouldBe
                 SignatureVerificationResult.Unsigned
         }
     })

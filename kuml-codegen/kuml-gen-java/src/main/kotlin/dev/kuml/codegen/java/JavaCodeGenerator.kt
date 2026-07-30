@@ -43,9 +43,9 @@ public class JavaCodeGenerator : KumlCodeGenerator {
         for (element in diagram.elements) {
             val file: File? =
                 when (element) {
-                    is UmlClass -> renderClass(element, packageDir, pkg, style)
-                    is UmlInterface -> renderInterface(element, packageDir, pkg)
-                    is UmlEnumeration -> renderEnum(element, packageDir, pkg)
+                    is UmlClass -> renderClass(cls = element, packageDir = packageDir, pkg = pkg, style = style)
+                    is UmlInterface -> renderInterface(iface = element, packageDir = packageDir, pkg = pkg)
+                    is UmlEnumeration -> renderEnum(en = element, packageDir = packageDir, pkg = pkg)
                     else -> null
                 }
             if (file != null) written += file
@@ -86,19 +86,19 @@ public class JavaCodeGenerator : KumlCodeGenerator {
             // (we keep behavior simple and still emit a record — abstract is rare for value types).
             val params =
                 visibleAttrs.joinToString(", ") {
-                    "${JavaTypeMapper.toJavaType(it.type, it.multiplicity)} ${it.name}"
+                    "${JavaTypeMapper.toJavaType(typeRef = it.type, multiplicity = it.multiplicity)} ${it.name}"
                 }
             sb.appendLine("public record ${cls.name}($params) {}")
         } else {
             sb.append("public ${abstractMod}class ${cls.name}")
             sb.appendLine(" {").appendLine()
             when (style) {
-                JavaStyle.POJO -> renderPojoBody(sb, cls, visibleAttrs)
-                JavaStyle.LOMBOK -> renderLombokBody(sb, visibleAttrs)
+                JavaStyle.POJO -> renderPojoBody(sb = sb, cls = cls, attrs = visibleAttrs)
+                JavaStyle.LOMBOK -> renderLombokBody(sb = sb, attrs = visibleAttrs)
                 JavaStyle.RECORDS -> Unit // already emitted above
             }
             // Operations as TODO method stubs
-            renderOperations(sb, cls.operations)
+            renderOperations(sb = sb, operations = cls.operations)
             sb.appendLine("}")
         }
 
@@ -116,7 +116,7 @@ public class JavaCodeGenerator : KumlCodeGenerator {
             for (stereo in attr.appliedStereotypes) {
                 JavaStereotypeMapper.toAnnotation(stereo)?.let { sb.appendLine("    $it") }
             }
-            val type = JavaTypeMapper.toJavaType(attr.type, attr.multiplicity)
+            val type = JavaTypeMapper.toJavaType(typeRef = attr.type, multiplicity = attr.multiplicity)
             sb.appendLine("    private $type ${attr.name};")
         }
         sb.appendLine()
@@ -128,7 +128,7 @@ public class JavaCodeGenerator : KumlCodeGenerator {
         if (attrs.isNotEmpty()) {
             val params =
                 attrs.joinToString(", ") {
-                    "${JavaTypeMapper.toJavaType(it.type, it.multiplicity)} ${it.name}"
+                    "${JavaTypeMapper.toJavaType(typeRef = it.type, multiplicity = it.multiplicity)} ${it.name}"
                 }
             sb.appendLine("    public ${cls.name}($params) {")
             for (a in attrs) sb.appendLine("        this.${a.name} = ${a.name};")
@@ -137,7 +137,7 @@ public class JavaCodeGenerator : KumlCodeGenerator {
 
         // Getters / Setters
         for (attr in attrs) {
-            val type = JavaTypeMapper.toJavaType(attr.type, attr.multiplicity)
+            val type = JavaTypeMapper.toJavaType(typeRef = attr.type, multiplicity = attr.multiplicity)
             val cap = attr.name.replaceFirstChar { it.uppercaseChar() }
             sb.appendLine("    public $type get$cap() { return ${attr.name}; }")
             sb.appendLine("    public void set$cap($type ${attr.name}) { this.${attr.name} = ${attr.name}; }")
@@ -154,7 +154,7 @@ public class JavaCodeGenerator : KumlCodeGenerator {
             for (stereo in attr.appliedStereotypes) {
                 JavaStereotypeMapper.toAnnotation(stereo)?.let { sb.appendLine("    $it") }
             }
-            val type = JavaTypeMapper.toJavaType(attr.type, attr.multiplicity)
+            val type = JavaTypeMapper.toJavaType(typeRef = attr.type, multiplicity = attr.multiplicity)
             sb.appendLine("    private $type ${attr.name};")
         }
         sb.appendLine()
@@ -171,15 +171,18 @@ public class JavaCodeGenerator : KumlCodeGenerator {
                     "void"
                 } else {
                     JavaTypeMapper.toJavaType(
-                        op.returnType!!,
-                        dev.kuml.uml.Multiplicity(1, 1),
+                        typeRef = op.returnType!!,
+                        multiplicity = dev.kuml.uml.Multiplicity(lower = 1, upper = 1),
                     )
                 }
             val params =
                 op.parameters
                     .filter { it.direction != dev.kuml.uml.ParameterDirection.RETURN }
                     .joinToString(", ") {
-                        "${JavaTypeMapper.toJavaType(it.type, dev.kuml.uml.Multiplicity(1, 1))} ${it.name}"
+                        "${JavaTypeMapper.toJavaType(
+                            typeRef = it.type,
+                            multiplicity = dev.kuml.uml.Multiplicity(lower = 1, upper = 1),
+                        )} ${it.name}"
                     }
             sb.appendLine("    $visibility $returnType ${op.name}($params) {")
             sb.appendLine("        throw new UnsupportedOperationException(\"Not implemented yet\");")
@@ -208,15 +211,18 @@ public class JavaCodeGenerator : KumlCodeGenerator {
                     "void"
                 } else {
                     JavaTypeMapper.toJavaType(
-                        op.returnType!!,
-                        dev.kuml.uml.Multiplicity(1, 1),
+                        typeRef = op.returnType!!,
+                        multiplicity = dev.kuml.uml.Multiplicity(lower = 1, upper = 1),
                     )
                 }
             val params =
                 op.parameters
                     .filter { it.direction != dev.kuml.uml.ParameterDirection.RETURN }
                     .joinToString(", ") {
-                        "${JavaTypeMapper.toJavaType(it.type, dev.kuml.uml.Multiplicity(1, 1))} ${it.name}"
+                        "${JavaTypeMapper.toJavaType(
+                            typeRef = it.type,
+                            multiplicity = dev.kuml.uml.Multiplicity(lower = 1, upper = 1),
+                        )} ${it.name}"
                     }
             sb.appendLine("    $returnType ${op.name}($params);")
         }

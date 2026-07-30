@@ -50,7 +50,7 @@ class AllowlistScriptEvaluationTest :
             result is ResultWithDiagnostics.Failure ||
                 result.reports.any { it.severity == ScriptDiagnostic.Severity.ERROR }
 
-        fun allowlistLoader(): ClassLoader = AllowlistClassLoader(AllowlistScriptEvaluationTest::class.java.classLoader)
+        fun allowlistLoader(): ClassLoader = AllowlistClassLoader(delegate = AllowlistScriptEvaluationTest::class.java.classLoader)
 
         val legitScript =
             """
@@ -73,12 +73,12 @@ class AllowlistScriptEvaluationTest :
             // This is the single most important acceptance test of Welle 7: the
             // allowlist must not break real scripts. If dev.kuml.* / kotlin.* /
             // kotlinx.serialization.* were incompletely allowed, this would fail.
-            val result = KumlScriptHost.eval(writeScript(legitScript), allowlistLoader())
+            val result = KumlScriptHost.eval(file = writeScript(legitScript), evaluationClassLoader = allowlistLoader())
             hasErrors(result).shouldBeFalse()
         }
 
         test("a script referencing a NON-curated classpath class is blocked (unresolved reference)") {
-            val result = KumlScriptHost.eval(writeScript(deniedClassScript), allowlistLoader())
+            val result = KumlScriptHost.eval(file = writeScript(deniedClassScript), evaluationClassLoader = allowlistLoader())
             hasErrors(result).shouldBeTrue()
         }
 
@@ -86,7 +86,7 @@ class AllowlistScriptEvaluationTest :
             // Proves the failure above is the curated classpath hiding com.sun.jna,
             // not a syntax error in the script itself. With wholeClasspath=true JNA
             // resolves and the script compiles/runs to completion.
-            val result = KumlScriptHost.eval(writeScript(deniedClassScript), evaluationClassLoader = null)
+            val result = KumlScriptHost.eval(file = writeScript(deniedClassScript), evaluationClassLoader = null)
             hasErrors(result).shouldBeFalse()
         }
 
@@ -119,7 +119,7 @@ class AllowlistScriptEvaluationTest :
 
             families.forEach { (name, src) ->
                 test("[$name] renders under the allowlist without a false-positive block") {
-                    val result = KumlScriptHost.eval(writeScript(src), allowlistLoader())
+                    val result = KumlScriptHost.eval(file = writeScript(src), evaluationClassLoader = allowlistLoader())
                     hasErrors(result).shouldBeFalse()
                 }
             }

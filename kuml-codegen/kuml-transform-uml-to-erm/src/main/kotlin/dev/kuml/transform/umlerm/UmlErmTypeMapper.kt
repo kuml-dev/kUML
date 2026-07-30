@@ -77,7 +77,7 @@ internal object UmlErmTypeMapper {
             val precision = match.groupValues[1].toIntOrNull()
             val scale = match.groupValues[2].toIntOrNull()
             if (precision != null && precision > 0 && scale != null && scale >= 0 && scale <= precision) {
-                return ErmDataType.Decimal(precision, scale)
+                return ErmDataType.Decimal(precision = precision, scale = scale)
             }
         }
         val mapped = map(trimmed)

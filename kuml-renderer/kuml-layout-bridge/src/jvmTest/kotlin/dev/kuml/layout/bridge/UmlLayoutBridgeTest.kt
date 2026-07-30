@@ -46,7 +46,7 @@ class UmlLayoutBridgeTest :
                     elements = listOf(classA, classB, assoc),
                 )
 
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             graph.nodes shouldHaveSize 2
             graph.edges shouldHaveSize 1
@@ -75,7 +75,7 @@ class UmlLayoutBridgeTest :
                     elements = listOf(pkg),
                 )
 
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             graph.groups shouldHaveSize 1
             graph.groups[0].id shouldBe GroupId("pkg1")
@@ -96,7 +96,7 @@ class UmlLayoutBridgeTest :
                     elements = listOf(parent, child, gen),
                 )
 
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             graph.edges shouldHaveSize 1
             val edge = graph.edges[0]
@@ -137,7 +137,7 @@ class UmlLayoutBridgeTest :
                     elements = listOf(order, broker, connector),
                 )
 
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             // Exactly two nodes — ports must NOT be promoted to sub-nodes.
             graph.nodes shouldHaveSize 2
@@ -192,7 +192,7 @@ class UmlLayoutBridgeTest :
             val diagram =
                 KumlDiagram(name = "Nested", elements = listOf(outer, db, connector))
 
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             // The connector must NOT appear as a LayoutEdge — OrderRepository is a nested
             // part that never becomes an ELK node. Only the two top-level nodes appear.
@@ -212,7 +212,7 @@ class UmlLayoutBridgeTest :
                 )
             val diagram = KumlDiagram(name = "Free", elements = listOf(a, b, connector))
 
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             graph.edges shouldHaveSize 1
             val edge = graph.edges[0]
@@ -251,7 +251,7 @@ class UmlLayoutBridgeTest :
                     elements = listOf(service, boundaryConnector),
                 )
 
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             // The connector must NOT appear as a LayoutEdge — the SVG renderer
             // handles it internally. Only the top-level node is expected.
@@ -297,7 +297,7 @@ class UmlLayoutBridgeTest :
                     elements = listOf(service, delegationConnector),
                 )
 
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             // Only the top-level OrderService node must appear; Validator is a nested part.
             // The delegation connector must NOT appear as a LayoutEdge — the SVG renderer
@@ -347,7 +347,7 @@ class UmlLayoutBridgeTest :
                     elements = listOf(flatService, boundaryConnector),
                 )
 
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             // Only the single flat node, zero edges — the connector must NOT become
             // an ELK self-edge (it is unsupported on flat components and silently dropped).
@@ -363,7 +363,7 @@ class UmlLayoutBridgeTest :
             val db = UmlNode(id = "db", name = "DB", nodeKind = "device")
             val diagram = KumlDiagram(name = "Deploy", elements = listOf(server, db))
 
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             // Leaf nodes → flat LayoutNodes (no groups)
             graph.nodes.map { it.id } shouldBe listOf(NodeId("server"), NodeId("db"))
@@ -388,7 +388,7 @@ class UmlLayoutBridgeTest :
                 )
             val diagram = KumlDiagram(name = "Deploy", elements = listOf(cluster))
 
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             // cluster → LayoutGroup
             graph.groups.map { it.id } shouldBe listOf(GroupId("cluster"), GroupId("pod"))
@@ -422,7 +422,7 @@ class UmlLayoutBridgeTest :
                         ),
                 )
             val diagram = KumlDiagram(name = "D", elements = listOf(sm))
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             // One SM group, two vertex nodes, one edge
             graph.groups shouldHaveSize 1
@@ -454,7 +454,7 @@ class UmlLayoutBridgeTest :
                         ),
                 )
             val diagram = KumlDiagram(name = "D", elements = listOf(sm))
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             // Expected groups: SM frame + one composite group for "processing"
             graph.groups shouldHaveSize 2
@@ -503,7 +503,7 @@ class UmlLayoutBridgeTest :
                 )
             val diagram = KumlDiagram(name = "Bad", elements = listOf(comp, other, connector))
 
-            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
 
             val edge = graph.edges.single()
             edge.source.nodeId shouldBe NodeId("OrderService::notAPort")

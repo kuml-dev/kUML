@@ -52,7 +52,7 @@ internal class AiPricingCommand : CliktCommand(name = "pricing") {
 
         when (format) {
             "json" -> renderJson(loaded.document)
-            else -> renderText(rows, loaded)
+            else -> renderText(rows = rows, loaded = loaded)
         }
     }
 

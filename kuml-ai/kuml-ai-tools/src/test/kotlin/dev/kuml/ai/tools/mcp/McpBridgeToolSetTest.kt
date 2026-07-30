@@ -29,13 +29,13 @@ class McpBridgeToolSetTest :
         test("executeTool propagates bridge call result as string") {
             val bridge = McpBridgeToolSet.create()
             val args = buildJsonObject { put("script", "") }
-            val result = bridge.executeTool("kuml.validate", args)
+            val result = bridge.executeTool(toolName = "kuml.validate", arguments = args)
             result.isNotBlank() shouldBe true
         }
 
         test("executeTool with unknown tool returns error JSON") {
             val bridge = McpBridgeToolSet.create()
-            val result = bridge.executeTool("kuml.unknown_xyz", buildJsonObject {})
+            val result = bridge.executeTool(toolName = "kuml.unknown_xyz", arguments = buildJsonObject {})
             result.isNotBlank() shouldBe true
             result.contains("error") shouldBe true
         }

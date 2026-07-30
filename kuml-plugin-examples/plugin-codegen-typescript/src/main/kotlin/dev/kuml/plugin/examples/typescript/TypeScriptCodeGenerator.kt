@@ -29,9 +29,9 @@ public class TypeScriptCodeGenerator : KumlCodeGenerator {
         val generated = mutableListOf<File>()
         for (element in diagram.elements) {
             when (element) {
-                is UmlClass -> generated += generateClass(element, outputDir)
-                is UmlInterface -> generated += generateInterface(element, outputDir)
-                is UmlEnumeration -> generated += generateEnum(element, outputDir)
+                is UmlClass -> generated += generateClass(cls = element, outputDir = outputDir)
+                is UmlInterface -> generated += generateInterface(iface = element, outputDir = outputDir)
+                is UmlEnumeration -> generated += generateEnum(enum = element, outputDir = outputDir)
                 else -> { /* skip non-classifier elements */ }
             }
         }

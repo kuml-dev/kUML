@@ -25,17 +25,17 @@ class KumlRendererPluginTest :
             )
 
         test("RendererCapabilities.canRender returns true for declared format and type") {
-            pdfCapabilities.canRender("uml-class", "pdf") shouldBe true
+            pdfCapabilities.canRender(diagramType = "uml-class", format = "pdf") shouldBe true
         }
 
         test("RendererCapabilities with wildcard diagram type accepts any diagram type") {
-            wildcardCapabilities.canRender("uml-class", "pdf") shouldBe true
-            wildcardCapabilities.canRender("c4-context", "pdf") shouldBe true
-            wildcardCapabilities.canRender("sysml2-bdd", "pdf") shouldBe true
+            wildcardCapabilities.canRender(diagramType = "uml-class", format = "pdf") shouldBe true
+            wildcardCapabilities.canRender(diagramType = "c4-context", format = "pdf") shouldBe true
+            wildcardCapabilities.canRender(diagramType = "sysml2-bdd", format = "pdf") shouldBe true
         }
 
         test("RendererCapabilities.canRender returns false for undeclared format") {
-            pdfCapabilities.canRender("uml-class", "png") shouldBe false
+            pdfCapabilities.canRender(diagramType = "uml-class", format = "png") shouldBe false
         }
 
         test("minimal KumlRendererPlugin implementation with stubbed render") {
@@ -43,7 +43,7 @@ class KumlRendererPluginTest :
                 PluginDescriptor(
                     id = "stub-pdf-renderer",
                     name = "Stub PDF Renderer",
-                    version = PluginVersion(1, 0, 0),
+                    version = PluginVersion(major = 1, minor = 0, patch = 0),
                     kumlVersionRange = KumlVersionRange(">=3.0.27"),
                     capabilities = setOf(PluginCapability.RENDERER),
                 )
@@ -69,7 +69,7 @@ class KumlRendererPluginTest :
                 PluginDescriptor(
                     id = "test-renderer",
                     name = "Test Renderer",
-                    version = PluginVersion(1, 0, 0),
+                    version = PluginVersion(major = 1, minor = 0, patch = 0),
                     kumlVersionRange = KumlVersionRange(">=3.0.27"),
                     capabilities = setOf(PluginCapability.RENDERER),
                 )

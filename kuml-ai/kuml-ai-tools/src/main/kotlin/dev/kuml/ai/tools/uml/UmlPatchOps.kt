@@ -73,7 +73,7 @@ internal object UmlPatchOps {
             UmlProperty(
                 id = attrId,
                 name = attrName,
-                type = UmlTypeRef(typeName),
+                type = UmlTypeRef(name = typeName),
                 visibility = visibility,
                 defaultValue = defaultValue,
             )
@@ -220,19 +220,19 @@ internal object UmlPatchOps {
     internal fun parseMultiplicity(s: String?): Multiplicity {
         if (s.isNullOrBlank()) return Multiplicity()
         return when (s.trim()) {
-            "1" -> Multiplicity(1, 1)
-            "*", "0..*" -> Multiplicity(0, null)
-            "1..*" -> Multiplicity(1, null)
-            "0..1" -> Multiplicity(0, 1)
+            "1" -> Multiplicity(lower = 1, upper = 1)
+            "*", "0..*" -> Multiplicity(lower = 0, upper = null)
+            "1..*" -> Multiplicity(lower = 1, upper = null)
+            "0..1" -> Multiplicity(lower = 0, upper = 1)
             else -> {
                 if (s.contains("..")) {
                     val parts = s.split("..")
                     val lower = parts[0].trim().toIntOrNull() ?: 1
                     val upper = parts[1].trim().let { if (it == "*") null else it.toIntOrNull() }
-                    Multiplicity(lower, upper)
+                    Multiplicity(lower = lower, upper = upper)
                 } else {
                     val n = s.trim().toIntOrNull() ?: 1
-                    Multiplicity(n, n)
+                    Multiplicity(lower = n, upper = n)
                 }
             }
         }
@@ -250,15 +250,15 @@ internal object UmlPatchOps {
             val colon = trimmed.indexOf(':')
             if (colon < 0) {
                 // No type annotation — use String as default
-                val id = IdHelpers.uniqueId(trimmed, taken, "param")
+                val id = IdHelpers.uniqueId(name = trimmed, takenIds = taken, prefix = "param")
                 taken += id
-                UmlParameter(id = id, name = trimmed, type = UmlTypeRef("Any"))
+                UmlParameter(id = id, name = trimmed, type = UmlTypeRef(name = "Any"))
             } else {
                 val paramName = trimmed.substring(0, colon).trim()
                 val typeName = trimmed.substring(colon + 1).trim()
-                val id = IdHelpers.uniqueId(paramName, taken, "param")
+                val id = IdHelpers.uniqueId(name = paramName, takenIds = taken, prefix = "param")
                 taken += id
-                UmlParameter(id = id, name = paramName, type = UmlTypeRef(typeName))
+                UmlParameter(id = id, name = paramName, type = UmlTypeRef(name = typeName))
             }
         }
     }

@@ -34,7 +34,7 @@ class UmlToExposedTransformerTest :
         ) = UmlProperty(
             id = id,
             name = name,
-            type = UmlTypeRef(type),
+            type = UmlTypeRef(name = type),
             stereotypes = stereotypes,
         )
 
@@ -59,7 +59,7 @@ class UmlToExposedTransformerTest :
                         prop("p-email", "email", "String"),
                     ),
                 )
-            val result = transformer.transform(diagram(userClass), ctx)
+            val result = transformer.transform(source = diagram(userClass), ctx = ctx)
 
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             files shouldHaveSize 1
@@ -72,7 +72,7 @@ class UmlToExposedTransformerTest :
 
         test("class without 'id' attribute gets synthetic primary key") {
             val productClass = cls("product", "Product", listOf(prop("p-name", "name", "String")))
-            val result = transformer.transform(diagram(productClass), ctx)
+            val result = transformer.transform(source = diagram(productClass), ctx = ctx)
 
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "Synthetic primary key"
@@ -90,7 +90,7 @@ class UmlToExposedTransformerTest :
                         prop("p-total", "total", "Double"),
                     ),
                 )
-            val result = transformer.transform(diagram(orderClass), ctx)
+            val result = transformer.transform(source = diagram(orderClass), ctx = ctx)
 
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "val orderId: Column<Long> = long(\"order_id\").autoIncrement()"
@@ -111,7 +111,7 @@ class UmlToExposedTransformerTest :
                         prop("p-d", "score", "Double"),
                     ),
                 )
-            val result = transformer.transform(diagram(entityClass), ctx)
+            val result = transformer.transform(source = diagram(entityClass), ctx = ctx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "val label: Column<String> = varchar(\"label\", 255)"
             content shouldContain "val count: Column<Int> = integer(\"count\")"
@@ -127,11 +127,11 @@ class UmlToExposedTransformerTest :
                     id = "assoc-1",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "address", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "address", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
-            val result = transformer.transform(diagram(userClass, addressClass, assoc), ctx)
+            val result = transformer.transform(source = diagram(userClass, addressClass, assoc), ctx = ctx)
 
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             val userFile = files.first { it.relativePath == "Users.kt" }
@@ -146,11 +146,11 @@ class UmlToExposedTransformerTest :
                     id = "assoc-2",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "post", multiplicity = Multiplicity(0, null)),
+                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "post", multiplicity = Multiplicity(lower = 0, upper = null)),
                         ),
                 )
-            val result = transformer.transform(diagram(userClass, postClass, assoc), ctx)
+            val result = transformer.transform(source = diagram(userClass, postClass, assoc), ctx = ctx)
 
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             val userFile = files.first { it.relativePath == "Users.kt" }
@@ -160,7 +160,7 @@ class UmlToExposedTransformerTest :
 
         test("table name snake_case + pluralization: OrderItem -> order_items") {
             val orderItemClass = cls("oi", "OrderItem", listOf(prop("p-id", "id", "Long")))
-            val result = transformer.transform(diagram(orderItemClass), ctx)
+            val result = transformer.transform(source = diagram(orderItemClass), ctx = ctx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "public object OrderItems : Table(\"order_items\")"
         }
@@ -175,7 +175,7 @@ class UmlToExposedTransformerTest :
                         prop("p-fn", "firstName", "String"),
                     ),
                 )
-            val result = transformer.transform(diagram(personClass), ctx)
+            val result = transformer.transform(source = diagram(personClass), ctx = ctx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "varchar(\"first_name\", 255)"
         }
@@ -190,7 +190,7 @@ class UmlToExposedTransformerTest :
                         prop("p-tmp", "tmpData", "String", stereotypes = listOf("transient")),
                     ),
                 )
-            val result = transformer.transform(diagram(cachedClass), ctx)
+            val result = transformer.transform(source = diagram(cachedClass), ctx = ctx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldNotContain "val tmpData: Column"
             content shouldContain "'tmpData' is «transient» — skipped"
@@ -199,7 +199,7 @@ class UmlToExposedTransformerTest :
         test("package option overrides default package name") {
             val thingClass = cls("thing", "Thing", listOf(prop("p-id", "id", "Long")))
             val customCtx = TransformContext(options = mapOf("package" to "org.myapp.tables"))
-            val result = transformer.transform(diagram(thingClass), customCtx)
+            val result = transformer.transform(source = diagram(thingClass), ctx = customCtx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "package org.myapp.tables"
         }
@@ -212,11 +212,11 @@ class UmlToExposedTransformerTest :
                     id = "assoc-ab",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "author", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "book", multiplicity = Multiplicity(0, null)),
+                            UmlAssociationEnd(typeId = "author", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "book", multiplicity = Multiplicity(lower = 0, upper = null)),
                         ),
                 )
-            val result = transformer.transform(diagram(authorClass, bookClass, assoc), ctx)
+            val result = transformer.transform(source = diagram(authorClass, bookClass, assoc), ctx = ctx)
 
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             files shouldHaveSize 2
@@ -226,7 +226,7 @@ class UmlToExposedTransformerTest :
 
         test("empty class generates minimal table with synthetic id") {
             val emptyClass = UmlClass(id = "empty", name = "Empty")
-            val result = transformer.transform(diagram(emptyClass), ctx)
+            val result = transformer.transform(source = diagram(emptyClass), ctx = ctx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "public object Empties : Table(\"empties\")"
             content shouldContain "PrimaryKey(id)"
@@ -239,11 +239,11 @@ class UmlToExposedTransformerTest :
                     id = "assoc-self",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "employee", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "employee", multiplicity = Multiplicity(0, 1)),
+                            UmlAssociationEnd(typeId = "employee", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "employee", multiplicity = Multiplicity(lower = 0, upper = 1)),
                         ),
                 )
-            val result = transformer.transform(diagram(employeeClass, assoc), ctx)
+            val result = transformer.transform(source = diagram(employeeClass, assoc), ctx = ctx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldNotContain "reference(\"employee_id\", Employees)"
             content shouldContain "self-referential association(s) skipped"
@@ -265,7 +265,7 @@ class UmlToExposedTransformerTest :
                         ),
                     ),
                 )
-            val result = transformer.transform(diagram(evilClass), ctx)
+            val result = transformer.transform(source = diagram(evilClass), ctx = ctx)
             result.shouldBeInstanceOf<TransformResult.Failure>()
         }
 
@@ -279,7 +279,7 @@ class UmlToExposedTransformerTest :
                         prop("p-y", "\${System.getenv(\"SECRET\")}", "String"),
                     ),
                 )
-            val result = transformer.transform(diagram(evilClass), ctx)
+            val result = transformer.transform(source = diagram(evilClass), ctx = ctx)
             result.shouldBeInstanceOf<TransformResult.Failure>()
         }
 
@@ -293,19 +293,19 @@ class UmlToExposedTransformerTest :
                         prop("p-z", "a\\nb\nval hacked = true", "String"),
                     ),
                 )
-            val result = transformer.transform(diagram(evilClass), ctx)
+            val result = transformer.transform(source = diagram(evilClass), ctx = ctx)
             result.shouldBeInstanceOf<TransformResult.Failure>()
         }
 
         test("class name with path-traversal sequence fails the transform, never escapes output dir") {
             val evilClass = cls("evil4", "../../../../tmp/evil", listOf(prop("p-id", "id", "Long")))
-            val result = transformer.transform(diagram(evilClass), ctx)
+            val result = transformer.transform(source = diagram(evilClass), ctx = ctx)
             result.shouldBeInstanceOf<TransformResult.Failure>()
         }
 
         test("class name that is a Kotlin hard keyword fails the transform") {
             val evilClass = cls("evil5", "object", listOf(prop("p-id", "id", "Long")))
-            val result = transformer.transform(diagram(evilClass), ctx)
+            val result = transformer.transform(source = diagram(evilClass), ctx = ctx)
             result.shouldBeInstanceOf<TransformResult.Failure>()
         }
 
@@ -319,7 +319,7 @@ class UmlToExposedTransformerTest :
                         prop("p-kw", "class", "String"),
                     ),
                 )
-            val result = transformer.transform(diagram(evilClass), ctx)
+            val result = transformer.transform(source = diagram(evilClass), ctx = ctx)
             result.shouldBeInstanceOf<TransformResult.Failure>()
         }
 
@@ -332,11 +332,11 @@ class UmlToExposedTransformerTest :
                     id = "assoc-evil",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "evilTarget", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "evilTarget", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
-            val result = transformer.transform(diagram(userClass, evilTarget, assoc), ctx)
+            val result = transformer.transform(source = diagram(userClass, evilTarget, assoc), ctx = ctx)
             result.shouldBeInstanceOf<TransformResult.Failure>()
         }
 
@@ -356,7 +356,7 @@ class UmlToExposedTransformerTest :
                         prop("p-columns", "columns", "String"),
                     ),
                 )
-            val result = transformer.transform(diagram(collidingClass), ctx)
+            val result = transformer.transform(source = diagram(collidingClass), ctx = ctx)
             val content = (result as TransformResult.Success).output[0].content
             content shouldContain "val columns: Column<String>"
         }

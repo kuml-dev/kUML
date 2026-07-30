@@ -78,13 +78,13 @@ public class InkAbiMetadata private constructor(
 
             val spec =
                 obj["spec"]?.jsonObject
-                    ?: throw InkAbiException("ink metadata missing 'spec' object")
+                    ?: throw InkAbiException(message = "ink metadata missing 'spec' object")
 
             val events = parseEvents(spec["events"]?.asArrayOr("'spec.events' must be an array") ?: JsonArray(emptyList()))
             val messages =
                 parseMessages(spec["messages"]?.asArrayOr("'spec.messages' must be an array") ?: JsonArray(emptyList()))
 
-            return InkAbiMetadata(version, events, messages, types)
+            return InkAbiMetadata(version = version, events = events, messages = messages, types = types)
         }
 
         private fun parseTypes(arr: JsonArray): Map<Int, InkTypeDef> {
@@ -93,7 +93,7 @@ public class InkAbiMetadata private constructor(
                 val e = entry.jsonObject
                 val id = e["id"]?.jsonPrimitive?.intOrNull ?: continue
                 val typeNode = e["type"]?.jsonObject ?: continue
-                out[id] = resolveTypeDef(id, typeNode)
+                out[id] = resolveTypeDef(id = id, typeNode = typeNode)
             }
             return out
         }
@@ -106,27 +106,27 @@ public class InkAbiMetadata private constructor(
             return when {
                 def.containsKey("primitive") -> {
                     val prim = def["primitive"]?.jsonPrimitive?.contentOrNull ?: "unknown"
-                    InkTypeDef.Primitive(id, prim)
+                    InkTypeDef.Primitive(id = id, name = prim)
                 }
                 def.containsKey("array") -> {
                     val a = def["array"]!!.jsonObject
                     val len = a["len"]?.jsonPrimitive?.intOrNull ?: 0
                     val elem = a["type"]?.jsonPrimitive?.intOrNull ?: 0
-                    InkTypeDef.FixedArray(id, len, elem)
+                    InkTypeDef.FixedArray(id = id, len = len, elementTypeId = elem)
                 }
                 def.containsKey("sequence") -> {
                     val s = def["sequence"]!!.jsonObject
                     val elem = s["type"]?.jsonPrimitive?.intOrNull ?: 0
-                    InkTypeDef.Sequence(id, elem)
+                    InkTypeDef.Sequence(id = id, elementTypeId = elem)
                 }
                 def.containsKey("composite") -> {
                     val fields =
                         def["composite"]!!.jsonObject["fields"]?.jsonArray?.mapNotNull { f ->
                             val fo = f.jsonObject
                             val ft = fo["type"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
-                            InkCompositeField(fo["name"]?.jsonPrimitive?.contentOrNull, ft)
+                            InkCompositeField(name = fo["name"]?.jsonPrimitive?.contentOrNull, typeId = ft)
                         } ?: emptyList()
-                    InkTypeDef.Composite(id, fields)
+                    InkTypeDef.Composite(id = id, fields = fields)
                 }
                 def.containsKey("variant") -> {
                     val variantsMap = LinkedHashMap<Int, String>()
@@ -136,12 +136,12 @@ public class InkAbiMetadata private constructor(
                         val label = vo["name"]?.jsonPrimitive?.contentOrNull ?: return@forEach
                         variantsMap[discriminant] = label
                     }
-                    InkTypeDef.Variant(id, variantsMap)
+                    InkTypeDef.Variant(id = id, variants = variantsMap)
                 }
                 def.containsKey("tuple") -> {
                     val members =
                         def["tuple"]!!.jsonArray.mapNotNull { it.jsonPrimitive.intOrNull }
-                    InkTypeDef.Tuple(id, members)
+                    InkTypeDef.Tuple(id = id, memberTypeIds = members)
                 }
                 else -> InkTypeDef.Unknown(id)
             }
@@ -152,7 +152,7 @@ public class InkAbiMetadata private constructor(
                 val e = entry.jsonObject
                 val label =
                     e["label"]?.jsonPrimitive?.contentOrNull
-                        ?: throw InkAbiException("event[$idx] missing 'label'")
+                        ?: throw InkAbiException(message = "event[$idx] missing 'label'")
                 val signatureTopic = e["signature_topic"]?.jsonPrimitive?.contentOrNull
                 // ink! v5 uses "args"; ink! v4 used "fields". Check both for backward compatibility
                 // so older ink! v4 contracts are not silently parsed as having no event fields.
@@ -169,10 +169,10 @@ public class InkAbiMetadata private constructor(
                                 ?.jsonPrimitive
                                 ?.intOrNull
                                 ?: f["type"]?.jsonPrimitive?.intOrNull
-                                ?: throw InkAbiException("event '$label' arg '$fLabel' missing type id")
-                        InkEventField(fLabel, typeId, indexed)
+                                ?: throw InkAbiException(message = "event '$label' arg '$fLabel' missing type id")
+                        InkEventField(name = fLabel, typeId = typeId, indexed = indexed)
                     } ?: emptyList()
-                InkEventSpec(label, idx, signatureTopic, fields)
+                InkEventSpec(label = label, index = idx, signatureTopic = signatureTopic, fields = fields)
             }
 
         private fun parseMessages(arr: JsonArray): List<InkMessageSpec> =
@@ -181,12 +181,12 @@ public class InkAbiMetadata private constructor(
                 val label = m["label"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
                 val selector = m["selector"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
                 val mutates = m["mutates"]?.jsonPrimitive?.booleanOrNull ?: false
-                InkMessageSpec(label, selector, mutates)
+                InkMessageSpec(label = label, selector = selector, mutates = mutates)
             }
 
-        private fun JsonElement.asObjectOr(msg: String): JsonObject = this as? JsonObject ?: throw InkAbiException(msg)
+        private fun JsonElement.asObjectOr(msg: String): JsonObject = this as? JsonObject ?: throw InkAbiException(message = msg)
 
-        private fun JsonElement.asArrayOr(msg: String): JsonArray = this as? JsonArray ?: throw InkAbiException(msg)
+        private fun JsonElement.asArrayOr(msg: String): JsonArray = this as? JsonArray ?: throw InkAbiException(message = msg)
     }
 }
 

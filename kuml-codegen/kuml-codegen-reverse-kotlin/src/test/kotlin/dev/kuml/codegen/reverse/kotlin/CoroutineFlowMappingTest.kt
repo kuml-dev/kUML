@@ -13,14 +13,15 @@ class CoroutineFlowMappingTest :
         test("Flow property type maps to multiplicity 0..*") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Stream.kt" to
-                            """
-                            class Stream {
-                                val events: List<Int> = emptyList()
-                            }
-                            """.trimIndent(),
-                    ),
+                    sources =
+                        mapOf(
+                            "Stream.kt" to
+                                """
+                                class Stream {
+                                    val events: List<Int> = emptyList()
+                                }
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()

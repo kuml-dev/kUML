@@ -16,9 +16,9 @@ class ProfileRegistryTest :
 
         "register and lookup by namespace" {
             val p =
-                profile("P") {
+                profile(name = "P") {
                     namespace = "dev.example.p"
-                    stereotype("S") { extends(UmlMetaclass.Class) }
+                    stereotype(name = "S") { extends(UmlMetaclass.Class) }
                 }
             ProfileRegistry.register(p)
             ProfileRegistry.get("dev.example.p") shouldBe p
@@ -29,8 +29,8 @@ class ProfileRegistryTest :
         }
 
         "all() returns all registered profiles" {
-            val p1 = profile("P1") { namespace = "dev.example.p1" }
-            val p2 = profile("P2") { namespace = "dev.example.p2" }
+            val p1 = profile(name = "P1") { namespace = "dev.example.p1" }
+            val p2 = profile(name = "P2") { namespace = "dev.example.p2" }
             ProfileRegistry.register(p1)
             ProfileRegistry.register(p2)
             val all = ProfileRegistry.all()
@@ -40,7 +40,7 @@ class ProfileRegistryTest :
         }
 
         "clear() empties the registry" {
-            val p = profile("P") { namespace = "dev.example.p" }
+            val p = profile(name = "P") { namespace = "dev.example.p" }
             ProfileRegistry.register(p)
             ProfileRegistry.clear()
             ProfileRegistry.all() shouldHaveSize 0
@@ -57,10 +57,10 @@ class ProfileRegistryTest :
 
         "validateClosure detects unresolved specializes across profiles" {
             val profile =
-                profile("Broken") {
+                profile(name = "Broken") {
                     namespace = "dev.example.broken"
                     extends("dev.example.base") // referenced but not registered
-                    stereotype("Child") {
+                    stereotype(name = "Child") {
                         extends(UmlMetaclass.Class)
                         specializes = "NonExistentParent"
                     }
@@ -76,10 +76,10 @@ class ProfileRegistryTest :
 
         "register multiple stereotypes in one profile and look them up" {
             val p =
-                profile("Multi") {
+                profile(name = "Multi") {
                     namespace = "dev.example.multi"
-                    stereotype("A") { extends(UmlMetaclass.Class) }
-                    stereotype("B") { extends(UmlMetaclass.Interface) }
+                    stereotype(name = "A") { extends(UmlMetaclass.Class) }
+                    stereotype(name = "B") { extends(UmlMetaclass.Interface) }
                 }
             ProfileRegistry.register(p)
             val found = ProfileRegistry.get("dev.example.multi")!!

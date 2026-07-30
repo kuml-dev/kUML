@@ -40,7 +40,7 @@ internal object StructurizrDslParser {
                 when {
                     line[i].isWhitespace() -> i++
                     line[i] == '"' -> {
-                        val (str, end) = readQuoted(line, i)
+                        val (str, end) = readQuoted(line = line, start = i)
                         result += Token.Quoted(str)
                         i = end
                     }
@@ -57,7 +57,7 @@ internal object StructurizrDslParser {
                         i += 2
                     }
                     else -> {
-                        val (word, end) = readWord(line, i)
+                        val (word, end) = readWord(line = line, start = i)
                         result += Token.Word(word)
                         i = end
                     }
@@ -200,7 +200,7 @@ internal object StructurizrDslParser {
             if (workspaceName == "Workspace") workspaceName = s else workspaceDesc = s
         }
 
-        var model = StructurizrModel(emptyList(), emptyList())
+        var model = StructurizrModel(elements = emptyList(), relationships = emptyList())
         var views = StructurizrViews()
 
         if (cursor.isAtOpenBrace()) {
@@ -239,10 +239,10 @@ internal object StructurizrDslParser {
         val relationships = mutableListOf<StructurizrRelationship>()
 
         while (cursor.hasMore() && !cursor.isAtCloseBrace()) {
-            parseModelStatement(cursor, elements, relationships, parentSystemId = null)
+            parseModelStatement(cursor = cursor, elements = elements, relationships = relationships, parentSystemId = null)
         }
         cursor.consumeCloseBrace()
-        return StructurizrModel(elements, relationships)
+        return StructurizrModel(elements = elements, relationships = relationships)
     }
 
     /**
@@ -287,7 +287,14 @@ internal object StructurizrDslParser {
             cursor.next() // consume '='
             val identifier = first
             val typeKw = cursor.nextString() ?: return
-            parseElementByKeyword(typeKw, identifier, cursor, elements, relationships, parentSystemId)
+            parseElementByKeyword(
+                keyword = typeKw,
+                identifier = identifier,
+                cursor = cursor,
+                elements = elements,
+                relationships = relationships,
+                parentSystemId = parentSystemId,
+            )
             return
         }
 
@@ -318,7 +325,14 @@ internal object StructurizrDslParser {
         }
 
         // Plain element without assignment
-        parseElementByKeyword(first, null, cursor, elements, relationships, parentSystemId)
+        parseElementByKeyword(
+            keyword = first,
+            identifier = null,
+            cursor = cursor,
+            elements = elements,
+            relationships = relationships,
+            parentSystemId = parentSystemId,
+        )
     }
 
     private fun parseElementByKeyword(
@@ -331,25 +345,26 @@ internal object StructurizrDslParser {
     ) {
         when (keyword.lowercase()) {
             "person" -> {
-                val elem = parsePerson(identifier, cursor)
+                val elem = parsePerson(identifier = identifier, cursor = cursor)
                 elements += elem
             }
             "softwaresystem" -> {
-                val elem = parseSoftwareSystem(identifier, cursor, relationships)
+                val elem = parseSoftwareSystem(identifier = identifier, cursor = cursor, relationships = relationships)
                 elements += elem
             }
             "container" -> {
                 // Container at model level (with !identifiers hierarchical, identifiers use dots)
                 // We handle this when we encounter it; parentSystemId should be non-null normally
-                val elem = parseContainer(identifier, cursor, parentSystemId, relationships)
+                val elem =
+                    parseContainer(identifier = identifier, cursor = cursor, parentSystemId = parentSystemId, relationships = relationships)
                 elements += elem
             }
             "component" -> {
-                val elem = parseComponent(identifier, cursor, parentContainerId = null)
+                val elem = parseComponent(identifier = identifier, cursor = cursor, parentContainerId = null)
                 elements += elem
             }
             "deploymentnode" -> {
-                val elem = parseDeploymentNode(identifier, cursor, environment = null)
+                val elem = parseDeploymentNode(identifier = identifier, cursor = cursor, environment = null)
                 elements += elem
             }
             "group", "enterprise" -> {
@@ -359,7 +374,12 @@ internal object StructurizrDslParser {
                 if (cursor.isAtOpenBrace()) {
                     cursor.next() // consume '{'
                     while (cursor.hasMore() && !cursor.isAtCloseBrace()) {
-                        parseModelStatement(cursor, elements, relationships, parentSystemId)
+                        parseModelStatement(
+                            cursor = cursor,
+                            elements = elements,
+                            relationships = relationships,
+                            parentSystemId = parentSystemId,
+                        )
                     }
                     cursor.consumeCloseBrace()
                 }
@@ -416,7 +436,12 @@ internal object StructurizrDslParser {
             }
             cursor.consumeCloseBrace()
         }
-        return StructurizrElement.Person(identifier, name, description?.ifBlank { null }, external)
+        return StructurizrElement.Person(
+            identifier = identifier,
+            name = name,
+            description = description?.ifBlank { null },
+            external = external,
+        )
     }
 
     private fun parseSoftwareSystem(
@@ -445,7 +470,8 @@ internal object StructurizrDslParser {
                         if (t != null && t.contains("External", ignoreCase = true)) external = true
                     }
                     "container" -> {
-                        val container = parseContainer(null, cursor, identifier, relationships)
+                        val container =
+                            parseContainer(identifier = null, cursor = cursor, parentSystemId = identifier, relationships = relationships)
                         containers += container
                     }
                     else -> {
@@ -459,7 +485,13 @@ internal object StructurizrDslParser {
                                     continue
                                 }
                             if (typeKw.lowercase() == "container") {
-                                val container = parseContainer(kw, cursor, identifier, relationships)
+                                val container =
+                                    parseContainer(
+                                        identifier = kw,
+                                        cursor = cursor,
+                                        parentSystemId = identifier,
+                                        relationships = relationships,
+                                    )
                                 containers += container
                             } else if (cursor.isAtOpenBrace()) {
                                 cursor.skipBlock()
@@ -479,7 +511,16 @@ internal object StructurizrDslParser {
                             // Only consume quoted trailing tags (bare Words are the next statement)
                             while (cursor.peek() is Token.Quoted) cursor.next()
                             if (cursor.isAtOpenBrace()) cursor.skipBlock()
-                            relationships += StructurizrRelationship(kw, target, relDesc?.ifBlank { null }, relTech?.ifBlank { null })
+                            relationships +=
+                                StructurizrRelationship(
+                                    sourceIdentifier = kw,
+                                    targetIdentifier = target,
+                                    description =
+                                        relDesc?.ifBlank {
+                                            null
+                                        },
+                                    technology = relTech?.ifBlank { null },
+                                )
                         }
                         // else: unknown keyword after reading, skip silently
                     }
@@ -488,7 +529,16 @@ internal object StructurizrDslParser {
             cursor.consumeCloseBrace()
         }
 
-        return StructurizrElement.SoftwareSystem(identifier, name, description?.ifBlank { null }, external, containers)
+        return StructurizrElement.SoftwareSystem(
+            identifier = identifier,
+            name = name,
+            description =
+                description?.ifBlank {
+                    null
+                },
+            external = external,
+            containers = containers,
+        )
     }
 
     private fun parseContainer(
@@ -514,7 +564,7 @@ internal object StructurizrDslParser {
                     }
                 when (kw.lowercase()) {
                     "component" -> {
-                        val comp = parseComponent(null, cursor, identifier)
+                        val comp = parseComponent(identifier = null, cursor = cursor, parentContainerId = identifier)
                         components += comp
                     }
                     "tags", "description", "url", "technology", "properties", "perspectives" -> {
@@ -535,7 +585,7 @@ internal object StructurizrDslParser {
                                     continue
                                 }
                             if (typeKw.lowercase() == "component") {
-                                components += parseComponent(kw, cursor, identifier)
+                                components += parseComponent(identifier = kw, cursor = cursor, parentContainerId = identifier)
                             } else if (cursor.isAtOpenBrace()) {
                                 cursor.skipBlock()
                             }
@@ -551,7 +601,16 @@ internal object StructurizrDslParser {
                             // Only consume quoted trailing tags (bare Words are the next statement)
                             while (cursor.peek() is Token.Quoted) cursor.next()
                             if (cursor.isAtOpenBrace()) cursor.skipBlock()
-                            relationships += StructurizrRelationship(kw, target, relDesc?.ifBlank { null }, relTech?.ifBlank { null })
+                            relationships +=
+                                StructurizrRelationship(
+                                    sourceIdentifier = kw,
+                                    targetIdentifier = target,
+                                    description =
+                                        relDesc?.ifBlank {
+                                            null
+                                        },
+                                    technology = relTech?.ifBlank { null },
+                                )
                         } else if (cursor.isAtOpenBrace()) {
                             cursor.skipBlock()
                         }
@@ -610,7 +669,7 @@ internal object StructurizrDslParser {
                     }
                 when (kw.lowercase()) {
                     "deploymentnode" -> {
-                        children += parseDeploymentNode(null, cursor, environment)
+                        children += parseDeploymentNode(identifier = null, cursor = cursor, environment = environment)
                     }
                     else -> if (cursor.isAtOpenBrace()) cursor.skipBlock() else cursor.next()
                 }
@@ -619,14 +678,15 @@ internal object StructurizrDslParser {
         }
 
         return StructurizrElement.DeploymentNode(
-            identifier,
-            name,
-            description?.ifBlank {
-                null
-            },
-            technology?.ifBlank { null },
-            environment,
-            children,
+            identifier = identifier,
+            name = name,
+            description =
+                description?.ifBlank {
+                    null
+                },
+            technology = technology?.ifBlank { null },
+            environment = environment,
+            children = children,
         )
     }
 
@@ -678,7 +738,7 @@ internal object StructurizrDslParser {
         val key = readOptionalString(cursor)
         val description = readOptionalString(cursor)
         if (cursor.isAtOpenBrace()) cursor.skipBlock()
-        return StructurizrView.SystemContext(systemId, key, description?.ifBlank { null })
+        return StructurizrView.SystemContext(systemIdentifier = systemId, key = key, description = description?.ifBlank { null })
     }
 
     private fun parseContainerView(cursor: TokenCursor): StructurizrView.Container {
@@ -686,7 +746,7 @@ internal object StructurizrDslParser {
         val key = readOptionalString(cursor)
         val description = readOptionalString(cursor)
         if (cursor.isAtOpenBrace()) cursor.skipBlock()
-        return StructurizrView.Container(systemId, key, description?.ifBlank { null })
+        return StructurizrView.Container(systemIdentifier = systemId, key = key, description = description?.ifBlank { null })
     }
 
     private fun parseComponentView(cursor: TokenCursor): StructurizrView.Component {
@@ -694,7 +754,7 @@ internal object StructurizrDslParser {
         val key = readOptionalString(cursor)
         val description = readOptionalString(cursor)
         if (cursor.isAtOpenBrace()) cursor.skipBlock()
-        return StructurizrView.Component(containerId, key, description?.ifBlank { null })
+        return StructurizrView.Component(containerIdentifier = containerId, key = key, description = description?.ifBlank { null })
     }
 
     private fun parseDeploymentView(cursor: TokenCursor): StructurizrView.Deployment {
@@ -706,14 +766,14 @@ internal object StructurizrDslParser {
         if (cursor.isAtOpenBrace()) cursor.skipBlock()
         // environment is second positional if first is "*", otherwise first
         val env = if (first == "*") second else first
-        return StructurizrView.Deployment(env, key, description?.ifBlank { null })
+        return StructurizrView.Deployment(environment = env, key = key, description = description?.ifBlank { null })
     }
 
     private fun parseSystemLandscapeView(cursor: TokenCursor): StructurizrView.SystemLandscape {
         val key = readOptionalString(cursor)
         val description = readOptionalString(cursor)
         if (cursor.isAtOpenBrace()) cursor.skipBlock()
-        return StructurizrView.SystemLandscape(key, description?.ifBlank { null })
+        return StructurizrView.SystemLandscape(key = key, description = description?.ifBlank { null })
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────

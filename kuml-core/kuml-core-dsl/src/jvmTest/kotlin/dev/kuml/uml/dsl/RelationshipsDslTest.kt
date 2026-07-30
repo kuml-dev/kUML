@@ -14,9 +14,9 @@ class RelationshipsDslTest :
 
         test(name = "top-level generalization creates UmlGeneralization") {
             val model =
-                umlModel("M") {
-                    classOf("Dog")
-                    classOf("Animal")
+                umlModel(name = "M") {
+                    classOf(name = "Dog")
+                    classOf(name = "Animal")
                     generalization(specificId = "Dog", generalId = "Animal")
                 }
             model.elements.filterIsInstance<UmlGeneralization>() shouldHaveSize 1
@@ -24,7 +24,7 @@ class RelationshipsDslTest :
 
         test(name = "generalization id uses gen:: prefix with -|> notation") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     generalization(specificId = "Dog", generalId = "Animal")
                 }
             model.elements
@@ -35,7 +35,7 @@ class RelationshipsDslTest :
 
         test(name = "generalization stores specific and general ids") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     generalization(specificId = "Dog", generalId = "Animal")
                 }
             val gen = model.elements.filterIsInstance<UmlGeneralization>().first()
@@ -45,9 +45,9 @@ class RelationshipsDslTest :
 
         test(name = "generalization by classifier handles uses handle ids") {
             val model =
-                umlModel("M") {
-                    val animal = classOf("Animal")
-                    val dog = classOf("Dog")
+                umlModel(name = "M") {
+                    val animal = classOf(name = "Animal")
+                    val dog = classOf(name = "Dog")
                     generalization(specific = dog, general = animal)
                 }
             val gen = model.elements.filterIsInstance<UmlGeneralization>().first()
@@ -59,9 +59,9 @@ class RelationshipsDslTest :
 
         test(name = "top-level realization creates UmlInterfaceRealization") {
             val model =
-                umlModel("M") {
-                    interfaceOf("IOrderSvc")
-                    classOf("OrderSvc")
+                umlModel(name = "M") {
+                    interfaceOf(name = "IOrderSvc")
+                    classOf(name = "OrderSvc")
                     realization(implementingId = "OrderSvc", interfaceId = "IOrderSvc")
                 }
             model.elements.filterIsInstance<UmlInterfaceRealization>() shouldHaveSize 1
@@ -69,7 +69,7 @@ class RelationshipsDslTest :
 
         test(name = "realization id uses real:: prefix with ..|> notation") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     realization(implementingId = "OrderSvc", interfaceId = "IOrderSvc")
                 }
             model.elements
@@ -81,9 +81,9 @@ class RelationshipsDslTest :
 
         test(name = "realization by handles uses handle ids") {
             val model =
-                umlModel("M") {
-                    val iface = interfaceOf("IRepo")
-                    val cls = classOf("OrderRepo")
+                umlModel(name = "M") {
+                    val iface = interfaceOf(name = "IRepo")
+                    val cls = classOf(name = "OrderRepo")
                     realization(implementing = cls, iface = iface)
                 }
             val real = model.elements.filterIsInstance<UmlInterfaceRealization>().first()
@@ -95,9 +95,9 @@ class RelationshipsDslTest :
 
         test(name = "top-level dependency creates UmlDependency") {
             val model =
-                umlModel("M") {
-                    classOf("Order")
-                    classOf("OrderStatus")
+                umlModel(name = "M") {
+                    classOf(name = "Order")
+                    classOf(name = "OrderStatus")
                     dependency(clientId = "Order", supplierId = "OrderStatus")
                 }
             model.elements.filterIsInstance<UmlDependency>() shouldHaveSize 1
@@ -105,7 +105,7 @@ class RelationshipsDslTest :
 
         test(name = "dependency id uses dep:: prefix with ..> notation") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     dependency(clientId = "Order", supplierId = "OrderStatus")
                 }
             model.elements
@@ -116,7 +116,7 @@ class RelationshipsDslTest :
 
         test(name = "dependency with name label stores it") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     dependency(clientId = "A", supplierId = "B", name = "<<use>>")
                 }
             model.elements
@@ -127,9 +127,9 @@ class RelationshipsDslTest :
 
         test(name = "dependency by handles uses handle ids") {
             val model =
-                umlModel("M") {
-                    val order = classOf("Order")
-                    val status = enumOf("OrderStatus") { literal("DRAFT") }
+                umlModel(name = "M") {
+                    val order = classOf(name = "Order")
+                    val status = enumOf(name = "OrderStatus") { literal(name = "DRAFT") }
                     dependency(client = order, supplier = status)
                 }
             val dep = model.elements.filterIsInstance<UmlDependency>().first()

@@ -14,16 +14,17 @@ class KtMultiplicityInferrerTest :
         test("Int maps to 1..1, Int? to 0..1, List<Int> to 0..*") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Props.kt" to
-                            """
-                            class Props {
-                                val single: Int = 0
-                                val optional: Int? = null
-                                val many: List<Int> = emptyList()
-                            }
-                            """.trimIndent(),
-                    ),
+                    sources =
+                        mapOf(
+                            "Props.kt" to
+                                """
+                                class Props {
+                                    val single: Int = 0
+                                    val optional: Int? = null
+                                    val many: List<Int> = emptyList()
+                                }
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()

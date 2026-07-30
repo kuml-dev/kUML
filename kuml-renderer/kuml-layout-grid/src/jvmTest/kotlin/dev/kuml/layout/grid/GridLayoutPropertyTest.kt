@@ -57,13 +57,13 @@ class GridLayoutPropertyTest :
             checkAll(config, Arb.list(Arb.float(min = 20f, max = 200f), 2..30)) { widths ->
                 val nodes =
                     widths.mapIndexed { idx, w ->
-                        LayoutNode(NodeId("n$idx"), Size(w, w * 0.6f))
+                        LayoutNode(id = NodeId("n$idx"), intrinsicSize = Size(width = w, height = w * 0.6f))
                     }
-                val result = engine.layout(LayoutGraph(nodes, emptyList()))
+                val result = engine.layout(graph = LayoutGraph(nodes = nodes, edges = emptyList()))
                 val bounds = result.nodes.values.map { it.bounds }
                 for (i in bounds.indices) {
                     for (j in i + 1 until bounds.size) {
-                        overlaps(bounds[i], bounds[j]) shouldBe false
+                        overlaps(a = bounds[i], b = bounds[j]) shouldBe false
                     }
                 }
             }
@@ -71,8 +71,8 @@ class GridLayoutPropertyTest :
 
         test("every input node is present in the layout result") {
             checkAll(config, Arb.int(0..50)) { count ->
-                val nodes = (0 until count).map { LayoutNode(NodeId("n$it"), Size(80f, 40f)) }
-                val result = engine.layout(LayoutGraph(nodes, emptyList()))
+                val nodes = (0 until count).map { LayoutNode(id = NodeId("n$it"), intrinsicSize = Size(width = 80f, height = 40f)) }
+                val result = engine.layout(graph = LayoutGraph(nodes = nodes, edges = emptyList()))
                 result.nodes.size shouldBe count
                 for (n in nodes) {
                     (n.id in result.nodes) shouldBe true
@@ -82,8 +82,8 @@ class GridLayoutPropertyTest :
 
         test("every node bound lies within the canvas") {
             checkAll(config, Arb.int(1..40)) { count ->
-                val nodes = (0 until count).map { LayoutNode(NodeId("n$it"), Size(80f, 40f)) }
-                val result = engine.layout(LayoutGraph(nodes, emptyList()))
+                val nodes = (0 until count).map { LayoutNode(id = NodeId("n$it"), intrinsicSize = Size(width = 80f, height = 40f)) }
+                val result = engine.layout(graph = LayoutGraph(nodes = nodes, edges = emptyList()))
                 val canvasW = result.canvas.width
                 val canvasH = result.canvas.height
                 for ((_, layout) in result.nodes) {
@@ -98,11 +98,11 @@ class GridLayoutPropertyTest :
 
         test("seed-respecting determinism: same seed yields equal results across two runs") {
             checkAll(config, Arb.int(2..20)) { count ->
-                val nodes = (0 until count).map { LayoutNode(NodeId("n$it"), Size(80f, 40f)) }
-                val graph = LayoutGraph(nodes, emptyList())
+                val nodes = (0 until count).map { LayoutNode(id = NodeId("n$it"), intrinsicSize = Size(width = 80f, height = 40f)) }
+                val graph = LayoutGraph(nodes = nodes, edges = emptyList())
                 val hints = LayoutHints(deterministicSeed = 7L)
-                val r1 = engine.layout(graph, hints)
-                val r2 = engine.layout(graph, hints)
+                val r1 = engine.layout(graph = graph, hints = hints)
+                val r2 = engine.layout(graph = graph, hints = hints)
                 r1 shouldBe r2
             }
         }

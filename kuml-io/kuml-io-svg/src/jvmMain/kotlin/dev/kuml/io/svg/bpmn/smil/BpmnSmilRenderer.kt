@@ -79,7 +79,7 @@ public object BpmnSmilRenderer {
         context: BpmnAnimationContext = BpmnAnimationContext.DEFAULT,
     ): AnimatedBpmnRenderResult {
         // Render the static base SVG (always needed)
-        val baseSvg = KumlSvgRenderer.toSvg(diagram, layoutResult, theme, options)
+        val baseSvg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
 
         // Static path: null trace → byte-identical output
         if (trace == null) {
@@ -132,10 +132,10 @@ public object BpmnSmilRenderer {
         }
 
         // Inject token circle elements before </svg>
-        val svgWithCircles = injectCircles(baseSvg, circles)
+        val svgWithCircles = injectCircles(svg = baseSvg, circles = circles)
 
         // Inject SMIL animations via SmilEmitter
-        val animatedSvg = SmilEmitter().inject(svgWithCircles, timeline)
+        val animatedSvg = SmilEmitter().inject(svg = svgWithCircles, timeline = timeline)
 
         return AnimatedBpmnRenderResult(svg = animatedSvg, hasAnimation = true, timeline = timeline)
     }

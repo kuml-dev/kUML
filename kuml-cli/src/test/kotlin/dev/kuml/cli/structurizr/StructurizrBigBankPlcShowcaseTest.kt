@@ -151,22 +151,22 @@ class StructurizrBigBankPlcShowcaseTest :
         // ── 6. KumlDslGenerator roundtrip ─────────────────────────────────────
 
         test("KumlDslGenerator produces a non-empty output") {
-            val kumlDsl = KumlDslGenerator.generate(workspace, sourceFileName = "bigbankplc.dsl")
+            val kumlDsl = KumlDslGenerator.generate(workspace = workspace, sourceFileName = "bigbankplc.dsl")
             kumlDsl.isNotBlank() shouldBe true
         }
 
         test("generated kUML DSL contains c4Model entry point") {
-            val kumlDsl = KumlDslGenerator.generate(workspace, sourceFileName = "bigbankplc.dsl")
+            val kumlDsl = KumlDslGenerator.generate(workspace = workspace, sourceFileName = "bigbankplc.dsl")
             kumlDsl shouldContain "c4Model"
         }
 
         test("generated kUML DSL contains Internet Banking System reference") {
-            val kumlDsl = KumlDslGenerator.generate(workspace, sourceFileName = "bigbankplc.dsl")
+            val kumlDsl = KumlDslGenerator.generate(workspace = workspace, sourceFileName = "bigbankplc.dsl")
             kumlDsl shouldContain "Internet Banking System"
         }
 
         test("generated kUML DSL does not contain the Structurizr-specific 'workspace' keyword") {
-            val kumlDsl = KumlDslGenerator.generate(workspace, sourceFileName = "bigbankplc.dsl")
+            val kumlDsl = KumlDslGenerator.generate(workspace = workspace, sourceFileName = "bigbankplc.dsl")
             // 'workspace' is the Structurizr top-level block; kUML uses 'c4Model'.
             // 'softwareSystem' and 'systemContext' are shared vocabulary in both DSLs.
             kumlDsl shouldNotContain "\nworkspace"

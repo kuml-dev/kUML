@@ -37,7 +37,7 @@ internal object StmTransitionPathResolver {
         val result = mutableMapOf<String, String>()
         for (transition in transitions) {
             val route = layoutResult.edges[EdgeId(transition.id)] ?: continue
-            val shifted = shiftRoute(route, padding)
+            val shifted = shiftRoute(route = route, padding = padding)
             result[transition.id] = edgePathD(shifted)
         }
         return result
@@ -62,7 +62,7 @@ internal object StmTransitionPathResolver {
                 buildPolyline(pts)
             }
 
-            is EdgeRoute.Bezier -> buildBezierPath(src, tgt, route.controlPoints)
+            is EdgeRoute.Bezier -> buildBezierPath(src = src, tgt = tgt, controlPoints = route.controlPoints)
         }
     }
 
@@ -102,7 +102,7 @@ internal object StmTransitionPathResolver {
         route: EdgeRoute,
         padding: Float,
     ): EdgeRoute {
-        fun Point.shift() = Point(x + padding, y + padding)
+        fun Point.shift() = Point(x = x + padding, y = y + padding)
         return when (route) {
             is EdgeRoute.Direct ->
                 route.copy(source = route.source.shift(), target = route.target.shift())

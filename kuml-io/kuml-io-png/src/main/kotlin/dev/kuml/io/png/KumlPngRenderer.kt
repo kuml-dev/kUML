@@ -54,7 +54,7 @@ public object KumlPngRenderer {
     public fun toPng(
         svg: String,
         options: PngRenderOptions = PngRenderOptions.DEFAULT,
-    ): ByteArray = transcoder.transcode(svg, options)
+    ): ByteArray = transcoder.transcode(svg = svg, options = options)
 
     /**
      * Convenience-Overload: Rendert ein UML-Diagramm direkt zu PNG.
@@ -77,8 +77,8 @@ public object KumlPngRenderer {
         options: PngRenderOptions = PngRenderOptions.DEFAULT,
         svgOptions: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): ByteArray {
-        val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, theme, svgOptions)
-        return toPng(svg, options)
+        val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = theme, options = svgOptions)
+        return toPng(svg = svg, options = options)
     }
 
     /**
@@ -103,8 +103,8 @@ public object KumlPngRenderer {
         options: PngRenderOptions = PngRenderOptions.DEFAULT,
         svgOptions: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): ByteArray {
-        val svg = KumlSvgRenderer.toSvg(diagram, model, layoutResult, theme, svgOptions)
-        return toPng(svg, options)
+        val svg = KumlSvgRenderer.toSvg(diagram = diagram, model = model, layoutResult = layoutResult, theme = theme, options = svgOptions)
+        return toPng(svg = svg, options = options)
     }
 
     /**
@@ -151,16 +151,72 @@ public object KumlPngRenderer {
     ): ByteArray {
         val svg =
             when (diagram) {
-                is BdDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
-                is IbdDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
-                is UcDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
-                is ReqDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
-                is StmDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
-                is ActDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
-                is SeqDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
-                is ParDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
+                is BdDiagram ->
+                    KumlSvgRenderer.toSvg(
+                        model = model,
+                        diagram = diagram,
+                        layoutResult = layoutResult,
+                        theme = theme,
+                        options = svgOptions,
+                    )
+                is IbdDiagram ->
+                    KumlSvgRenderer.toSvg(
+                        model = model,
+                        diagram = diagram,
+                        layoutResult = layoutResult,
+                        theme = theme,
+                        options = svgOptions,
+                    )
+                is UcDiagram ->
+                    KumlSvgRenderer.toSvg(
+                        model = model,
+                        diagram = diagram,
+                        layoutResult = layoutResult,
+                        theme = theme,
+                        options = svgOptions,
+                    )
+                is ReqDiagram ->
+                    KumlSvgRenderer.toSvg(
+                        model = model,
+                        diagram = diagram,
+                        layoutResult = layoutResult,
+                        theme = theme,
+                        options = svgOptions,
+                    )
+                is StmDiagram ->
+                    KumlSvgRenderer.toSvg(
+                        model = model,
+                        diagram = diagram,
+                        layoutResult = layoutResult,
+                        theme = theme,
+                        options = svgOptions,
+                    )
+                is ActDiagram ->
+                    KumlSvgRenderer.toSvg(
+                        model = model,
+                        diagram = diagram,
+                        layoutResult = layoutResult,
+                        theme = theme,
+                        options = svgOptions,
+                    )
+                is SeqDiagram ->
+                    KumlSvgRenderer.toSvg(
+                        model = model,
+                        diagram = diagram,
+                        layoutResult = layoutResult,
+                        theme = theme,
+                        options = svgOptions,
+                    )
+                is ParDiagram ->
+                    KumlSvgRenderer.toSvg(
+                        model = model,
+                        diagram = diagram,
+                        layoutResult = layoutResult,
+                        theme = theme,
+                        options = svgOptions,
+                    )
             }
-        return toPng(svg, options)
+        return toPng(svg = svg, options = options)
     }
 
     /**
@@ -191,7 +247,8 @@ public object KumlPngRenderer {
         options: PngRenderOptions = PngRenderOptions.DEFAULT,
         svgOptions: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): File {
-        val bytes = toPng(model, diagram, layoutResult, theme, options, svgOptions)
+        val bytes =
+            toPng(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options, svgOptions = svgOptions)
         val file = out.toFile()
         file.parentFile?.mkdirs()
         file.writeBytes(bytes)
@@ -217,7 +274,7 @@ public object KumlPngRenderer {
         out: Path,
         options: PngRenderOptions = PngRenderOptions.DEFAULT,
     ): File {
-        val bytes = toPng(svg, options)
+        val bytes = toPng(svg = svg, options = options)
         val file = out.toFile()
         file.parentFile?.mkdirs()
         file.writeBytes(bytes)

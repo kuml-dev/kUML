@@ -41,9 +41,9 @@ class PersistentPatchStoreTest :
             val sessionId = "SES-TEST-001"
             val clock = fixedClock(1_000_000L)
 
-            PersistentPatchStore.open(sessionId, dir, clock).use { store ->
+            PersistentPatchStore.open(sessionId = sessionId, dir = dir, clock = clock).use { store ->
                 val patch = addPatch("elem-001")
-                val result = store.insert(patch, "alice", PatchStatus.APPLIED)
+                val result = store.insert(patch = patch, ownerId = "alice", status = PatchStatus.APPLIED)
                 result.shouldBeInstanceOf<InsertResult.Inserted>()
                 result.patchId shouldBe patch.patchId
 
@@ -64,18 +64,18 @@ class PersistentPatchStoreTest :
             val sessionId = "SES-CONFLICT-001"
             val t0 = 1_000_000L
 
-            PersistentPatchStore.open(sessionId, dir, fixedClock(t0)).use { storeT0 ->
+            PersistentPatchStore.open(sessionId = sessionId, dir = dir, clock = fixedClock(t0)).use { storeT0 ->
                 val patch1 = addPatch("elem-X")
                 storeT0
-                    .insert(patch1, "alice", PatchStatus.APPLIED)
+                    .insert(patch = patch1, ownerId = "alice", status = PatchStatus.APPLIED)
                     .shouldBeInstanceOf<InsertResult.Inserted>()
             }
 
             // Same element, 2 seconds later — within the 5s window
             val t1 = t0 + 2_000L
-            PersistentPatchStore.open(sessionId, dir, fixedClock(t1)).use { storeT1 ->
+            PersistentPatchStore.open(sessionId = sessionId, dir = dir, clock = fixedClock(t1)).use { storeT1 ->
                 val patch2 = addPatch("elem-X")
-                val result = storeT1.insert(patch2, "alice", PatchStatus.APPLIED)
+                val result = storeT1.insert(patch = patch2, ownerId = "alice", status = PatchStatus.APPLIED)
                 val conflict = result.shouldBeInstanceOf<InsertResult.ConflictDetected>()
                 conflict.patchId shouldBe patch2.patchId
                 conflict.windowMs shouldBe CONFLICT_WINDOW_MS
@@ -87,18 +87,18 @@ class PersistentPatchStoreTest :
             val sessionId = "SES-NOCONFLICT-001"
             val t0 = 1_000_000L
 
-            PersistentPatchStore.open(sessionId, dir, fixedClock(t0)).use { storeT0 ->
+            PersistentPatchStore.open(sessionId = sessionId, dir = dir, clock = fixedClock(t0)).use { storeT0 ->
                 val patch1 = addPatch("elem-Y")
                 storeT0
-                    .insert(patch1, "alice", PatchStatus.APPLIED)
+                    .insert(patch = patch1, ownerId = "alice", status = PatchStatus.APPLIED)
                     .shouldBeInstanceOf<InsertResult.Inserted>()
             }
 
             // 6 seconds later — outside the 5s window
             val t1 = t0 + 6_001L
-            PersistentPatchStore.open(sessionId, dir, fixedClock(t1)).use { storeT1 ->
+            PersistentPatchStore.open(sessionId = sessionId, dir = dir, clock = fixedClock(t1)).use { storeT1 ->
                 val patch2 = addPatch("elem-Y")
-                val result = storeT1.insert(patch2, "alice", PatchStatus.APPLIED)
+                val result = storeT1.insert(patch = patch2, ownerId = "alice", status = PatchStatus.APPLIED)
                 result.shouldBeInstanceOf<InsertResult.Inserted>()
             }
         }
@@ -109,15 +109,15 @@ class PersistentPatchStoreTest :
             val dir = tempDir()
             val sessionId = "SES-STATUS-001"
 
-            PersistentPatchStore.open(sessionId, dir).use { store ->
+            PersistentPatchStore.open(sessionId = sessionId, dir = dir).use { store ->
                 val patch = addPatch("elem-status")
-                val insertResult = store.insert(patch, "alice", PatchStatus.PENDING)
+                val insertResult = store.insert(patch = patch, ownerId = "alice", status = PatchStatus.PENDING)
                 insertResult.shouldBeInstanceOf<InsertResult.Inserted>()
 
-                store.updateStatus(patch.patchId, PatchStatus.APPLIED)
+                store.updateStatus(patchId = patch.patchId, status = PatchStatus.APPLIED)
                 store.findBySession(sessionId)[0].status shouldBe PatchStatus.APPLIED
 
-                store.updateStatus(patch.patchId, PatchStatus.SUPERSEDED)
+                store.updateStatus(patchId = patch.patchId, status = PatchStatus.SUPERSEDED)
                 store.findBySession(sessionId)[0].status shouldBe PatchStatus.SUPERSEDED
             }
         }
@@ -130,13 +130,13 @@ class PersistentPatchStoreTest :
             val patchId = ModelPatch.newId()
 
             // Write in first instance
-            PersistentPatchStore.open(sessionId, dir).use { store ->
-                val r = store.insert(addPatch("elem-persist", patchId), "alice", PatchStatus.APPLIED)
+            PersistentPatchStore.open(sessionId = sessionId, dir = dir).use { store ->
+                val r = store.insert(patch = addPatch("elem-persist", patchId), ownerId = "alice", status = PatchStatus.APPLIED)
                 r.shouldBeInstanceOf<InsertResult.Inserted>()
             }
 
             // Read in second instance
-            PersistentPatchStore.open(sessionId, dir).use { store ->
+            PersistentPatchStore.open(sessionId = sessionId, dir = dir).use { store ->
                 val rows = store.findBySession(sessionId)
                 rows shouldHaveSize 1
                 rows[0].patchId shouldBe patchId
@@ -149,8 +149,8 @@ class PersistentPatchStoreTest :
         test("DB file is created at <dir>/<sessionId>.db") {
             val dir = tempDir()
             val sessionId = "SES-LOC-001"
-            PersistentPatchStore.open(sessionId, dir).use { store ->
-                store.insert(addPatch("elem-loc"), "alice", PatchStatus.APPLIED)
+            PersistentPatchStore.open(sessionId = sessionId, dir = dir).use { store ->
+                store.insert(patch = addPatch("elem-loc"), ownerId = "alice", status = PatchStatus.APPLIED)
             }
             Files.exists(dir.resolve("$sessionId.db")) shouldBe true
         }
@@ -162,7 +162,7 @@ class PersistentPatchStoreTest :
             val sessionId = "SES-INJECT-001"
             val sqlInjectionPatchId = "'; DROP TABLE patches;--"
 
-            PersistentPatchStore.open(sessionId, dir).use { store ->
+            PersistentPatchStore.open(sessionId = sessionId, dir = dir).use { store ->
                 // The patchId field goes through a PreparedStatement parameter — never
                 // concatenated into SQL. The table must survive this insert.
                 val patch =
@@ -174,7 +174,7 @@ class PersistentPatchStoreTest :
                         elementId = "elem-inject",
                         name = "InjectionTarget",
                     )
-                val result = store.insert(patch, "attacker", PatchStatus.APPLIED)
+                val result = store.insert(patch = patch, ownerId = "attacker", status = PatchStatus.APPLIED)
                 result.shouldBeInstanceOf<InsertResult.Inserted>()
 
                 // Table must still exist and return the row
@@ -191,13 +191,13 @@ class PersistentPatchStoreTest :
             val sessionId = "SES-NOXCONFLICT-001"
             val t0 = 1_000_000L
 
-            PersistentPatchStore.open(sessionId, dir, fixedClock(t0)).use { store ->
+            PersistentPatchStore.open(sessionId = sessionId, dir = dir, clock = fixedClock(t0)).use { store ->
                 val patchA = addPatch("elem-A")
                 val patchB = addPatch("elem-B")
-                val rA = store.insert(patchA, "alice", PatchStatus.APPLIED)
+                val rA = store.insert(patch = patchA, ownerId = "alice", status = PatchStatus.APPLIED)
                 rA.shouldBeInstanceOf<InsertResult.Inserted>()
                 // elem-B is a different element — should not conflict
-                val rB = store.insert(patchB, "alice", PatchStatus.APPLIED)
+                val rB = store.insert(patch = patchB, ownerId = "alice", status = PatchStatus.APPLIED)
                 rB.shouldBeInstanceOf<InsertResult.Inserted>()
             }
         }

@@ -159,7 +159,7 @@ internal class CppReverseParser(
 
         // Parse members
         val defaultAccess = if (isStruct) "public" else "private"
-        val members = parseMemberList(defaultAccess, name)
+        val members = parseMemberList(defaultAccess = defaultAccess, className = name)
 
         // Expect closing brace
         if (peek().text == "}") advance()
@@ -268,7 +268,7 @@ internal class CppReverseParser(
                     skipToSemicolon()
                 }
                 else -> {
-                    val member = parseMember(currentAccess, className)
+                    val member = parseMember(access = currentAccess, className = className)
                     if (member != null) members += member
                 }
             }
@@ -309,7 +309,7 @@ internal class CppReverseParser(
                         // contract: skipToClose returns when it sees ')' at depth 0,
                         // meaning the opener was already consumed by the caller.
                         // Works correctly for ~Foo(), ~Foo(void), and ~Foo(T x) alike.
-                        skipToClose(')', '(')
+                        skipToClose(close = ')', open = '(')
                     }
                     skipOptionalBody()
                     skipToSemicolonOrBrace()
@@ -354,7 +354,7 @@ internal class CppReverseParser(
                 // Method
                 advance() // (
                 val params = parseParamList()
-                skipToClose(')', '(')
+                skipToClose(close = ')', open = '(')
                 // Post-method qualifiers
                 loop@ while (true) {
                     when (peek().text) {
@@ -393,7 +393,7 @@ internal class CppReverseParser(
                 while (!atEof() && peek().text != ";" && peek().text != "}") {
                     if (peek().text == "{") {
                         advance()
-                        skipToClose('}', '{')
+                        skipToClose(close = '}', open = '{')
                     } else {
                         advance()
                     }
@@ -678,7 +678,7 @@ internal class CppReverseParser(
         }
         if (peek().text == "{") {
             advance()
-            skipToClose('}', '{')
+            skipToClose(close = '}', open = '{')
         }
         if (peek().type == CppTokenType.IDENTIFIER) advance()
         if (peek().text == ";") advance()
@@ -694,7 +694,7 @@ internal class CppReverseParser(
         }
         if (peek().text == "{") {
             advance()
-            skipToClose('}', '{')
+            skipToClose(close = '}', open = '{')
         }
         if (peek().text == ";") advance()
     }
@@ -702,7 +702,7 @@ internal class CppReverseParser(
     private fun skipOptionalBody() {
         if (peek().text == "{") {
             advance()
-            skipToClose('}', '{')
+            skipToClose(close = '}', open = '{')
         }
     }
 
@@ -772,9 +772,9 @@ internal class CppReverseParser(
 
     // ── Token primitives ──────────────────────────────────────────────────────
 
-    private fun peek(): CppToken = tokens.getOrElse(pos) { CppToken(CppTokenType.EOF, "", 0) }
+    private fun peek(): CppToken = tokens.getOrElse(pos) { CppToken(type = CppTokenType.EOF, text = "", line = 0) }
 
-    private fun peekAt(offset: Int): CppToken = tokens.getOrElse(pos + offset) { CppToken(CppTokenType.EOF, "", 0) }
+    private fun peekAt(offset: Int): CppToken = tokens.getOrElse(pos + offset) { CppToken(type = CppTokenType.EOF, text = "", line = 0) }
 
     private fun advance(): CppToken {
         val t = peek()

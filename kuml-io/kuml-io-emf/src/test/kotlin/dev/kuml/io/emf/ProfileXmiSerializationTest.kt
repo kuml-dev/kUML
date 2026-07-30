@@ -34,7 +34,7 @@ class ProfileXmiSerializationTest :
         test("re-reading exported file via raw EMF ResourceSet yields a Profile instance") {
             val tmpFile = createTempFile("serial-smoke-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
 
             // Direct EMF ResourceSet read — Eclipse UML2 compatibility smoke test
             val resourceSet = ResourceSetImpl()
@@ -65,7 +65,7 @@ class ProfileXmiSerializationTest :
         test("full round-trip via file produces identical stereotype count") {
             val tmpFile = createTempFile("serial-rt-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             imported.stereotypes.size shouldBe autosarProfile.stereotypes.size
         }

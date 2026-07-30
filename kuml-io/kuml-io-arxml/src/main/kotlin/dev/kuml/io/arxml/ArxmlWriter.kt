@@ -65,7 +65,7 @@ public class ArxmlWriter(
         val arNs = ArxmlSchema.arNamespace(version)
         val xsiNs = Namespace.getNamespace("xsi", ArxmlSchema.XSI_NS)
 
-        val root = el(ArxmlSchema.ELEM_AUTOSAR, arNs)
+        val root = el(name = ArxmlSchema.ELEM_AUTOSAR, ns = arNs)
         root.addNamespaceDeclaration(xsiNs)
         root.setAttribute(
             "schemaLocation",
@@ -73,13 +73,13 @@ public class ArxmlWriter(
             xsiNs,
         )
 
-        val arPackages = el(ArxmlSchema.ELEM_AR_PACKAGES, arNs)
+        val arPackages = el(name = ArxmlSchema.ELEM_AR_PACKAGES, ns = arNs)
         root.addContent(arPackages)
 
         // Emit top-level packages from the rootPackage's members
         for (member in rootPackage.members) {
             if (member is UmlPackage) {
-                arPackages.addContent(buildPackageElement(member, arNs))
+                arPackages.addContent(buildPackageElement(pkg = member, arNs = arNs))
             }
         }
 
@@ -90,23 +90,23 @@ public class ArxmlWriter(
         pkg: UmlPackage,
         arNs: Namespace,
     ): Element {
-        val pkgEl = el(ArxmlSchema.ELEM_AR_PACKAGE, arNs)
-        pkgEl.addContent(el(ArxmlSchema.ELEM_SHORT_NAME, arNs).also { it.text = pkg.name })
+        val pkgEl = el(name = ArxmlSchema.ELEM_AR_PACKAGE, ns = arNs)
+        pkgEl.addContent(el(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs).also { it.text = pkg.name })
 
         val nestedPkgs = pkg.members.filterIsInstance<UmlPackage>()
         if (nestedPkgs.isNotEmpty()) {
-            val nestedArPkgs = el(ArxmlSchema.ELEM_AR_PACKAGES, arNs)
+            val nestedArPkgs = el(name = ArxmlSchema.ELEM_AR_PACKAGES, ns = arNs)
             for (nested in nestedPkgs) {
-                nestedArPkgs.addContent(buildPackageElement(nested, arNs))
+                nestedArPkgs.addContent(buildPackageElement(pkg = nested, arNs = arNs))
             }
             pkgEl.addContent(nestedArPkgs)
         }
 
         val elements = pkg.members.filter { it !is UmlPackage }
         if (elements.isNotEmpty()) {
-            val elementsEl = el(ArxmlSchema.ELEM_ELEMENTS, arNs)
+            val elementsEl = el(name = ArxmlSchema.ELEM_ELEMENTS, ns = arNs)
             for (member in elements) {
-                val childEl = buildMemberElement(member, arNs)
+                val childEl = buildMemberElement(member = member, arNs = arNs)
                 if (childEl != null) elementsEl.addContent(childEl)
             }
             pkgEl.addContent(elementsEl)
@@ -120,8 +120,8 @@ public class ArxmlWriter(
         arNs: Namespace,
     ): Element? =
         when (member) {
-            is UmlComponent -> buildComponentElement(member, arNs)
-            is UmlInterface -> buildInterfaceElement(member, arNs)
+            is UmlComponent -> buildComponentElement(component = member, arNs = arNs)
+            is UmlInterface -> buildInterfaceElement(iface = member, arNs = arNs)
             else -> null
         }
 
@@ -136,13 +136,13 @@ public class ArxmlWriter(
             } else {
                 ArxmlSchema.ELEM_APPLICATION_SWC
             }
-        val compEl = el(tagName, arNs)
-        compEl.addContent(el(ArxmlSchema.ELEM_SHORT_NAME, arNs).also { it.text = component.name })
+        val compEl = el(name = tagName, ns = arNs)
+        compEl.addContent(el(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs).also { it.text = component.name })
 
         if (component.ports.isNotEmpty()) {
-            val portsEl = el(ArxmlSchema.ELEM_PORTS, arNs)
+            val portsEl = el(name = ArxmlSchema.ELEM_PORTS, ns = arNs)
             for (port in component.ports) {
-                portsEl.addContent(buildPortElement(port, arNs))
+                portsEl.addContent(buildPortElement(port = port, arNs = arNs))
             }
             compEl.addContent(portsEl)
         }
@@ -150,14 +150,14 @@ public class ArxmlWriter(
         // INTERNAL-BEHAVIORS → emit RUNNABLE-ENTITY elements for operations with "Runnable" stereotype
         val runnables = component.operations.filter { ArxmlSchema.STEREOTYPE_RUNNABLE in it.stereotypes }
         if (runnables.isNotEmpty()) {
-            val behaviorsEl = el(ArxmlSchema.ELEM_INTERNAL_BEHAVIORS, arNs)
-            val behaviorEl = el(ArxmlSchema.ELEM_SWC_INTERNAL_BEHAVIOR, arNs)
+            val behaviorsEl = el(name = ArxmlSchema.ELEM_INTERNAL_BEHAVIORS, ns = arNs)
+            val behaviorEl = el(name = ArxmlSchema.ELEM_SWC_INTERNAL_BEHAVIOR, ns = arNs)
             behaviorEl.addContent(
-                el(ArxmlSchema.ELEM_SHORT_NAME, arNs).also { it.text = "${component.name}_InternalBehavior" },
+                el(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs).also { it.text = "${component.name}_InternalBehavior" },
             )
-            val runnablesEl = el(ArxmlSchema.ELEM_RUNNABLES, arNs)
+            val runnablesEl = el(name = ArxmlSchema.ELEM_RUNNABLES, ns = arNs)
             for (runnable in runnables) {
-                runnablesEl.addContent(buildRunnableElement(runnable, arNs))
+                runnablesEl.addContent(buildRunnableElement(operation = runnable, arNs = arNs))
             }
             behaviorEl.addContent(runnablesEl)
             behaviorsEl.addContent(behaviorEl)
@@ -171,8 +171,8 @@ public class ArxmlWriter(
         operation: UmlOperation,
         arNs: Namespace,
     ): Element {
-        val runnableEl = el(ArxmlSchema.ELEM_RUNNABLE_ENTITY, arNs)
-        runnableEl.addContent(el(ArxmlSchema.ELEM_SHORT_NAME, arNs).also { it.text = operation.name })
+        val runnableEl = el(name = ArxmlSchema.ELEM_RUNNABLE_ENTITY, ns = arNs)
+        runnableEl.addContent(el(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs).also { it.text = operation.name })
         return runnableEl
     }
 
@@ -187,8 +187,8 @@ public class ArxmlWriter(
             } else {
                 ArxmlSchema.ELEM_P_PORT_PROTOTYPE
             }
-        val portEl = el(tagName, arNs)
-        portEl.addContent(el(ArxmlSchema.ELEM_SHORT_NAME, arNs).also { it.text = port.name })
+        val portEl = el(name = tagName, ns = arNs)
+        portEl.addContent(el(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs).also { it.text = port.name })
         return portEl
     }
 
@@ -203,8 +203,8 @@ public class ArxmlWriter(
             } else {
                 ArxmlSchema.ELEM_SENDER_RECEIVER_INTERFACE
             }
-        val ifaceEl = el(tagName, arNs)
-        ifaceEl.addContent(el(ArxmlSchema.ELEM_SHORT_NAME, arNs).also { it.text = iface.name })
+        val ifaceEl = el(name = tagName, ns = arNs)
+        ifaceEl.addContent(el(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs).also { it.text = iface.name })
         return ifaceEl
     }
 

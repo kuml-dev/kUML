@@ -41,7 +41,7 @@ internal object DesktopRenderPipeline {
     ): DesktopRenderResult {
         DesktopEngineInit.ensure()
         return try {
-            val evalResult = KumlScriptHost.eval(script)
+            val evalResult = KumlScriptHost.eval(code = script)
             val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
             if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
                 val msg = errors.joinToString("\n") { it.message }
@@ -53,8 +53,8 @@ internal object DesktopRenderPipeline {
 
             val extracted =
                 DiagramExtractor.extractAny(
-                    success.value.returnValue,
-                    File("inline.kuml.kts"),
+                    returnValue = success.value.returnValue,
+                    input = File("inline.kuml.kts"),
                 )
 
             val theme =
@@ -69,19 +69,24 @@ internal object DesktopRenderPipeline {
             val svg =
                 when (extracted) {
                     is ExtractedDiagram.Uml -> {
-                        val graph = UmlLayoutBridge.toLayoutGraph(extracted.diagram)
+                        val graph = UmlLayoutBridge.toLayoutGraph(diagram = extracted.diagram)
                         // V3.0.x — see CLI's RenderPipeline.kt for the full rationale: UML
                         // sequence diagrams are the one diagram type where declaration order
                         // is semantically meaningful, so pin it via LayoutHints.preserveNodeOrder.
                         val hints = LayoutHints.DEFAULT.copy(preserveNodeOrder = extracted.diagram.type == DiagramType.SEQUENCE)
-                        val layout = elkEngine.layout(graph, hints)
-                        KumlSvgRenderer.toSvg(extracted.diagram, layout, theme)
+                        val layout = elkEngine.layout(graph = graph, hints = hints)
+                        KumlSvgRenderer.toSvg(diagram = extracted.diagram, layoutResult = layout, theme = theme)
                     }
                     is ExtractedDiagram.C4 -> {
-                        val sizeProvider = C4ContentSizeProvider(extracted.model)
-                        val graph = C4LayoutBridge.toLayoutGraph(extracted.diagram, extracted.model, sizeProvider)
-                        val layout = elkEngine.layout(graph, LayoutHints.DEFAULT)
-                        KumlSvgRenderer.toSvg(extracted.diagram, extracted.model, layout, theme)
+                        val sizeProvider = C4ContentSizeProvider(model = extracted.model)
+                        val graph =
+                            C4LayoutBridge.toLayoutGraph(
+                                diagram = extracted.diagram,
+                                model = extracted.model,
+                                sizeProvider = sizeProvider,
+                            )
+                        val layout = elkEngine.layout(graph = graph, hints = LayoutHints.DEFAULT)
+                        KumlSvgRenderer.toSvg(diagram = extracted.diagram, model = extracted.model, layoutResult = layout, theme = theme)
                     }
                     is ExtractedDiagram.Sysml2 -> {
                         val model = extracted.model
@@ -89,61 +94,93 @@ internal object DesktopRenderPipeline {
                         when (val diagram = extracted.diagram) {
                             is BdDiagram ->
                                 KumlSvgRenderer.toSvg(
-                                    model,
-                                    diagram,
-                                    elkEngine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT),
-                                    theme,
+                                    model = model,
+                                    diagram = diagram,
+                                    layoutResult =
+                                        elkEngine.layout(
+                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                                            hints = LayoutHints.DEFAULT,
+                                        ),
+                                    theme = theme,
                                 )
                             is IbdDiagram ->
                                 KumlSvgRenderer.toSvg(
-                                    model,
-                                    diagram,
-                                    elkEngine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT),
-                                    theme,
+                                    model = model,
+                                    diagram = diagram,
+                                    layoutResult =
+                                        elkEngine.layout(
+                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                                            hints = LayoutHints.DEFAULT,
+                                        ),
+                                    theme = theme,
                                 )
                             is UcDiagram ->
                                 KumlSvgRenderer.toSvg(
-                                    model,
-                                    diagram,
-                                    elkEngine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT),
-                                    theme,
+                                    model = model,
+                                    diagram = diagram,
+                                    layoutResult =
+                                        elkEngine.layout(
+                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                                            hints = LayoutHints.DEFAULT,
+                                        ),
+                                    theme = theme,
                                 )
                             is ReqDiagram ->
                                 KumlSvgRenderer.toSvg(
-                                    model,
-                                    diagram,
-                                    elkEngine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT),
-                                    theme,
+                                    model = model,
+                                    diagram = diagram,
+                                    layoutResult =
+                                        elkEngine.layout(
+                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                                            hints = LayoutHints.DEFAULT,
+                                        ),
+                                    theme = theme,
                                 )
                             is StmDiagram ->
                                 KumlSvgRenderer.toSvg(
-                                    model,
-                                    diagram,
-                                    elkEngine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT),
-                                    theme,
-                                    paddingOpts,
+                                    model = model,
+                                    diagram = diagram,
+                                    layoutResult =
+                                        elkEngine.layout(
+                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                                            hints = LayoutHints.DEFAULT,
+                                        ),
+                                    theme = theme,
+                                    options = paddingOpts,
                                 )
                             is ActDiagram ->
                                 KumlSvgRenderer.toSvg(
-                                    model,
-                                    diagram,
-                                    elkEngine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT),
-                                    theme,
-                                    paddingOpts,
+                                    model = model,
+                                    diagram = diagram,
+                                    layoutResult =
+                                        elkEngine.layout(
+                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                                            hints = LayoutHints.DEFAULT,
+                                        ),
+                                    theme = theme,
+                                    options = paddingOpts,
                                 )
                             is SeqDiagram ->
                                 KumlSvgRenderer.toSvg(
-                                    model,
-                                    diagram,
-                                    elkEngine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT),
-                                    theme,
+                                    model = model,
+                                    diagram = diagram,
+                                    layoutResult =
+                                        elkEngine.layout(
+                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                                            hints = LayoutHints.DEFAULT,
+                                        ),
+                                    theme = theme,
                                 )
                             is ParDiagram ->
                                 KumlSvgRenderer.toSvg(
-                                    model,
-                                    diagram,
-                                    elkEngine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT),
-                                    theme,
+                                    model = model,
+                                    diagram = diagram,
+                                    layoutResult =
+                                        elkEngine.layout(
+                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                                            hints = LayoutHints.DEFAULT,
+                                        ),
+                                    theme = theme,
                                 )
                         }
                     }
@@ -167,39 +204,54 @@ internal object DesktopRenderPipeline {
                                 val sizeProvider = BpmnContentSizeProvider(extracted.model)
                                 val layout =
                                     elkEngine.layout(
-                                        BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, sizeProvider),
-                                        LayoutHints.DEFAULT,
+                                        graph =
+                                            BpmnLayoutBridge.toLayoutGraph(
+                                                model = extracted.model,
+                                                diagram = diagram,
+                                                sizeProvider = sizeProvider,
+                                            ),
+                                        hints = LayoutHints.DEFAULT,
                                     )
-                                KumlSvgRenderer.toSvg(kumlDiagram, layout, theme)
+                                KumlSvgRenderer.toSvg(diagram = kumlDiagram, layoutResult = layout, theme = theme)
                             }
                             is CollaborationDiagram -> {
                                 val sizeProvider = BpmnContentSizeProvider(extracted.model)
                                 val layout =
                                     elkEngine.layout(
-                                        BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, sizeProvider),
-                                        LayoutHints.DEFAULT,
+                                        graph =
+                                            BpmnLayoutBridge.toLayoutGraph(
+                                                model = extracted.model,
+                                                diagram = diagram,
+                                                sizeProvider = sizeProvider,
+                                            ),
+                                        hints = LayoutHints.DEFAULT,
                                     )
-                                KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                                KumlSvgRenderer.toSvg(model = extracted.model, diagram = diagram, layoutResult = layout, theme = theme)
                             }
                             is ChoreographyDiagram -> {
                                 // V3.2.2 — Choreography bypasses ELK entirely: deterministic custom grid layout.
-                                val layout = ChoreographyGridLayout.layout(extracted.model, diagram)
-                                KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                                val layout = ChoreographyGridLayout.layout(model = extracted.model, diagram = diagram)
+                                KumlSvgRenderer.toSvg(model = extracted.model, diagram = diagram, layoutResult = layout, theme = theme)
                             }
                             is ConversationDiagram -> {
                                 val sizeProvider = BpmnContentSizeProvider(extracted.model)
                                 val layout =
                                     elkEngine.layout(
-                                        BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, sizeProvider),
-                                        LayoutHints.DEFAULT,
+                                        graph =
+                                            BpmnLayoutBridge.toLayoutGraph(
+                                                model = extracted.model,
+                                                diagram = diagram,
+                                                sizeProvider = sizeProvider,
+                                            ),
+                                        hints = LayoutHints.DEFAULT,
                                     )
-                                KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                                KumlSvgRenderer.toSvg(model = extracted.model, diagram = diagram, layoutResult = layout, theme = theme)
                             }
                         }
                     }
                     // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
                     is ExtractedDiagram.Blueprint ->
-                        KumlSvgRenderer.toSvg(extracted.model, extracted.diagram)
+                        KumlSvgRenderer.toSvg(model = extracted.model, diagram = extracted.diagram)
                     // V3.4.1: ERM rendering is out of scope — planned for V3.4.2.
                     is ExtractedDiagram.Erm ->
                         return DesktopRenderResult.Error(

@@ -75,56 +75,60 @@ internal fun renderUmlState(
     val h = layout.bounds.size.height
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         tag(
-            "rect",
-            mapOf(
-                "width" to fmt(w),
-                "height" to fmt(h),
-                "rx" to "12",
-                "ry" to "12",
-                "class" to "kuml-state",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "width" to fmt(w),
+                    "height" to fmt(h),
+                    "rx" to "12",
+                    "ry" to "12",
+                    "class" to "kuml-state",
+                ),
         )
         if (element.substates.isNotEmpty()) {
             // Composite state: name at top, horizontal divider below
             tag(
-                "text",
-                mapOf(
-                    "class" to "kuml-body",
-                    "x" to fmt(w / 2f),
-                    "y" to "18",
-                    "text-anchor" to "middle",
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-body",
+                        "x" to fmt(w / 2f),
+                        "y" to "18",
+                        "text-anchor" to "middle",
+                    ),
             ) { text(element.name) }
             tag(
-                "line",
-                mapOf(
-                    "x1" to "0",
-                    "y1" to "28",
-                    "x2" to fmt(w),
-                    "y2" to "28",
-                    "class" to "kuml-divider",
-                ),
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to "0",
+                        "y1" to "28",
+                        "x2" to fmt(w),
+                        "y2" to "28",
+                        "class" to "kuml-divider",
+                    ),
             )
         } else {
             // Simple state: name word-wrapped and vertically centered. A
             // single-line name reduces to exactly the old firstLineY = h/2+4,
             // so short names render byte-identical to before.
-            val lines = wrapStateName(element.name, w.toDouble() - H_PADDING_PX)
+            val lines = wrapStateName(text = element.name, maxWidthPx = w.toDouble() - H_PADDING_PX)
             val blockOffset = (lines.size - 1) * LINE_HEIGHT_PX / 2f
             val firstLineY = h / 2f - blockOffset + 4f
             if (lines.size <= 1) {
                 tag(
-                    "text",
-                    mapOf(
-                        "class" to "kuml-body",
-                        "x" to fmt(w / 2f),
-                        "y" to fmt(firstLineY),
-                        "text-anchor" to "middle",
-                    ),
+                    name = "text",
+                    attrs =
+                        mapOf(
+                            "class" to "kuml-body",
+                            "x" to fmt(w / 2f),
+                            "y" to fmt(firstLineY),
+                            "text-anchor" to "middle",
+                        ),
                 ) { text(lines.firstOrNull() ?: element.name) }
             } else {
                 rawXml(

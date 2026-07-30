@@ -76,7 +76,7 @@ internal class StdinAdapter(
 
                 else -> {
                     val (eventName, payload) = parseLine(line)
-                    val result = manager.event(eventName, payload)
+                    val result = manager.event(eventName = eventName, payload = payload)
                     when (result) {
                         is SessionResult.Ok -> {
                             output.println("→ ${result.message ?: "ok"}")

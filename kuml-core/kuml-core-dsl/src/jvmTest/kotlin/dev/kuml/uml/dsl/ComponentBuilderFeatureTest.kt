@@ -18,18 +18,18 @@ class ComponentBuilderFeatureTest :
     FunSpec(body = {
 
         val componentProfile: KumlProfile =
-            profile("ComponentFeatures") {
+            profile(name = "ComponentFeatures") {
                 namespace = "dev.kuml.test.profiles.componentfeatures"
-                stereotype("Runnable") {
+                stereotype(name = "Runnable") {
                     extends(UmlMetaclass.Operation)
-                    property<Int>("period_ms") { default = 100 }
+                    property<Int>(name = "period_ms") { default = 100 }
                 }
-                stereotype("InPort") { extends(UmlMetaclass.Parameter) }
-                stereotype("Persistent") { extends(UmlMetaclass.Property) }
+                stereotype(name = "InPort") { extends(UmlMetaclass.Parameter) }
+                stereotype(name = "Persistent") { extends(UmlMetaclass.Property) }
             }
 
         test(name = "component without features compiles and builds empty") {
-            val d = componentDiagram("Arch") { component("X") }
+            val d = componentDiagram(name = "Arch") { component(name = "X") }
             val cmp = d.elements.filterIsInstance<UmlComponent>().single()
             cmp.attributes.shouldBeEmpty()
             cmp.operations.shouldBeEmpty()
@@ -37,9 +37,9 @@ class ComponentBuilderFeatureTest :
 
         test(name = "component with single attribute") {
             val d =
-                componentDiagram("Arch") {
-                    component("X") {
-                        attribute("a", "Int")
+                componentDiagram(name = "Arch") {
+                    component(name = "X") {
+                        attribute(name = "a", type = "Int")
                     }
                 }
             val cmp = d.elements.filterIsInstance<UmlComponent>().single()
@@ -52,9 +52,9 @@ class ComponentBuilderFeatureTest :
 
         test(name = "component with single operation") {
             val d =
-                componentDiagram("Arch") {
-                    component("X") {
-                        operation("doIt")
+                componentDiagram(name = "Arch") {
+                    component(name = "X") {
+                        operation(name = "doIt")
                     }
                 }
             val cmp = d.elements.filterIsInstance<UmlComponent>().single()
@@ -64,11 +64,11 @@ class ComponentBuilderFeatureTest :
 
         test(name = "component with multiple features in mixed order preserves entry order") {
             val d =
-                componentDiagram("Arch") {
-                    component("X") {
-                        attribute("a1", "Int")
-                        operation("op1")
-                        attribute("a2", "String")
+                componentDiagram(name = "Arch") {
+                    component(name = "X") {
+                        attribute(name = "a1", type = "Int")
+                        operation(name = "op1")
+                        attribute(name = "a2", type = "String")
                     }
                 }
             val cmp = d.elements.filterIsInstance<UmlComponent>().single()
@@ -80,11 +80,11 @@ class ComponentBuilderFeatureTest :
 
         test(name = "component attribute with stereotype") {
             val d =
-                componentDiagram("Arch") {
+                componentDiagram(name = "Arch") {
                     applyProfile(componentProfile)
-                    component("X") {
-                        attribute("data", "Double") {
-                            stereotype("Persistent")
+                    component(name = "X") {
+                        attribute(name = "data", type = "Double") {
+                            stereotype(name = "Persistent")
                         }
                     }
                 }
@@ -100,12 +100,12 @@ class ComponentBuilderFeatureTest :
 
         test(name = "component operation with stereotype and parameter stereotype") {
             val d =
-                componentDiagram("Arch") {
+                componentDiagram(name = "Arch") {
                     applyProfile(componentProfile)
-                    component("SteeringControlSWC") {
-                        operation("computeSteeringAngle") {
-                            stereotype("Runnable") { "period_ms" to 10 }
-                            parameter("rawInput", "Double") { stereotype("InPort") }
+                    component(name = "SteeringControlSWC") {
+                        operation(name = "computeSteeringAngle") {
+                            stereotype(name = "Runnable") { "period_ms" to 10 }
+                            parameter(name = "rawInput", type = "Double") { stereotype(name = "InPort") }
                         }
                     }
                 }
@@ -126,9 +126,9 @@ class ComponentBuilderFeatureTest :
         test(name = "existing component without features remains unchanged (backward-compat)") {
             // No attributes/operations declared → both lists empty.
             val d =
-                componentDiagram("Arch") {
-                    component("X") {
-                        port("api")
+                componentDiagram(name = "Arch") {
+                    component(name = "X") {
+                        port(name = "api")
                     }
                 }
             val cmp = d.elements.filterIsInstance<UmlComponent>().single()

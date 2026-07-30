@@ -38,7 +38,7 @@ class KumlExpressionParserTest :
 
         test("foo(1, 2) → FunctionCall(foo, [LiteralInt(1), LiteralInt(2)])") {
             OclLikeExpressionParser.parse("foo(1, 2)") shouldBe
-                FunctionCall("foo", listOf(LiteralInt(1), LiteralInt(2)))
+                FunctionCall(name = "foo", args = listOf(LiteralInt(1), LiteralInt(2)))
         }
 
         test("a && b || c → OR(AND(a, b), c) — AND binds tighter than OR") {
@@ -46,29 +46,29 @@ class KumlExpressionParserTest :
             // Expected: (a && b) || c
             result shouldBe
                 BinaryOp(
-                    BinaryOperator.OR,
-                    BinaryOp(BinaryOperator.AND, AttributeRef(listOf("a")), AttributeRef(listOf("b"))),
-                    AttributeRef(listOf("c")),
+                    op = BinaryOperator.OR,
+                    left = BinaryOp(op = BinaryOperator.AND, left = AttributeRef(listOf("a")), right = AttributeRef(listOf("b"))),
+                    right = AttributeRef(listOf("c")),
                 )
         }
 
         test("!a → UnaryOp(NOT, AttributeRef)") {
             OclLikeExpressionParser.parse("!a") shouldBe
-                UnaryOp(UnaryOperator.NOT, AttributeRef(listOf("a")))
+                UnaryOp(op = UnaryOperator.NOT, operand = AttributeRef(listOf("a")))
         }
 
         test("-1 → UnaryOp(NEG, LiteralInt(1))") {
             OclLikeExpressionParser.parse("-1") shouldBe
-                UnaryOp(UnaryOperator.NEG, LiteralInt(1))
+                UnaryOp(op = UnaryOperator.NEG, operand = LiteralInt(1))
         }
 
         test("a < b - 1 → BinaryOp(LT, a, BinaryOp(SUB, b, 1))") {
             val result = OclLikeExpressionParser.parse("a < b - 1")
             result shouldBe
                 BinaryOp(
-                    BinaryOperator.LT,
-                    AttributeRef(listOf("a")),
-                    BinaryOp(BinaryOperator.SUB, AttributeRef(listOf("b")), LiteralInt(1)),
+                    op = BinaryOperator.LT,
+                    left = AttributeRef(listOf("a")),
+                    right = BinaryOp(op = BinaryOperator.SUB, left = AttributeRef(listOf("b")), right = LiteralInt(1)),
                 )
         }
 
@@ -76,29 +76,29 @@ class KumlExpressionParserTest :
             val result = OclLikeExpressionParser.parse("(a + b) * c")
             result shouldBe
                 BinaryOp(
-                    BinaryOperator.MUL,
-                    BinaryOp(BinaryOperator.ADD, AttributeRef(listOf("a")), AttributeRef(listOf("b"))),
-                    AttributeRef(listOf("c")),
+                    op = BinaryOperator.MUL,
+                    left = BinaryOp(op = BinaryOperator.ADD, left = AttributeRef(listOf("a")), right = AttributeRef(listOf("b"))),
+                    right = AttributeRef(listOf("c")),
                 )
         }
 
         test("unbalanced '(' → tryParse returns null (no throw)") {
             val errors = mutableListOf<ParseError>()
-            val result = OclLikeExpressionParser.tryParse("(a + b", errors)
+            val result = OclLikeExpressionParser.tryParse(input = "(a + b", errors = errors)
             result shouldBe null
             errors.isNotEmpty() shouldBe true
         }
 
         test("unknown token '@foo' → tryParse returns null") {
             val errors = mutableListOf<ParseError>()
-            val result = OclLikeExpressionParser.tryParse("@foo", errors)
+            val result = OclLikeExpressionParser.tryParse(input = "@foo", errors = errors)
             result shouldBe null
             errors.isNotEmpty() shouldBe true
         }
 
         test("empty string → tryParse returns null") {
             val errors = mutableListOf<ParseError>()
-            val result = OclLikeExpressionParser.tryParse("", errors)
+            val result = OclLikeExpressionParser.tryParse(input = "", errors = errors)
             result shouldBe null
         }
 
@@ -117,9 +117,9 @@ class KumlExpressionParserTest :
             op.left shouldBe AttributeRef(listOf("event", "temperature"))
             op.right shouldBe
                 BinaryOp(
-                    BinaryOperator.SUB,
-                    AttributeRef(listOf("event", "targetTemperature")),
-                    LiteralInt(1),
+                    op = BinaryOperator.SUB,
+                    left = AttributeRef(listOf("event", "targetTemperature")),
+                    right = LiteralInt(1),
                 )
         }
 
@@ -138,7 +138,7 @@ class KumlExpressionParserTest :
         test("20,000 nested parens → tryParse() returns null, does not throw") {
             val pathological = "(".repeat(20_000) + "1" + ")".repeat(20_000)
             val errors = mutableListOf<ParseError>()
-            val result = OclLikeExpressionParser.tryParse(pathological, errors)
+            val result = OclLikeExpressionParser.tryParse(input = pathological, errors = errors)
             result shouldBe null
             errors.isNotEmpty() shouldBe true
         }
@@ -146,7 +146,7 @@ class KumlExpressionParserTest :
         test("20,000 chained '!' → tryParse() returns null, does not throw") {
             val pathological = "!".repeat(20_000) + "true"
             val errors = mutableListOf<ParseError>()
-            val result = OclLikeExpressionParser.tryParse(pathological, errors)
+            val result = OclLikeExpressionParser.tryParse(input = pathological, errors = errors)
             result shouldBe null
             errors.isNotEmpty() shouldBe true
         }
@@ -154,7 +154,7 @@ class KumlExpressionParserTest :
         test("20,000 chained unary '-' → tryParse() returns null, does not throw") {
             val pathological = "-".repeat(20_000) + "1"
             val errors = mutableListOf<ParseError>()
-            val result = OclLikeExpressionParser.tryParse(pathological, errors)
+            val result = OclLikeExpressionParser.tryParse(input = pathological, errors = errors)
             result shouldBe null
             errors.isNotEmpty() shouldBe true
         }
@@ -162,7 +162,7 @@ class KumlExpressionParserTest :
         test("20,000-deep nested function calls → tryParseEffects() returns null, does not throw") {
             val pathological = "f(".repeat(20_000) + "1" + ")".repeat(20_000)
             val errors = mutableListOf<ParseError>()
-            val result = OclLikeExpressionParser.tryParseEffects(pathological, errors)
+            val result = OclLikeExpressionParser.tryParseEffects(input = pathological, errors = errors)
             result shouldBe null
             errors.isNotEmpty() shouldBe true
         }

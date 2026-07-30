@@ -34,11 +34,11 @@ fun ConversationPane(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         items(messages, key = { it.id }) { msg ->
-            MessageBubble(msg, onInspectToolArgs = { inspectArgs = it })
+            MessageBubble(msg = msg, onInspectToolArgs = { inspectArgs = it })
         }
     }
 
     inspectArgs?.let { args ->
-        ToolArgsInspector(args, onDismiss = { inspectArgs = null })
+        ToolArgsInspector(argsJson = args, onDismiss = { inspectArgs = null })
     }
 }

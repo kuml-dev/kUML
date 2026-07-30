@@ -35,19 +35,19 @@ class Sysml2ParSvgTest :
         // als In-Parametern.
         fun newtonModel(): Pair<Sysml2Model, ParDiagram> {
             val model =
-                sysml2Model("NewtonModel") {
+                sysml2Model(name = "NewtonModel") {
                     val newton =
                         constraintDef(
                             name = "NewtonsLaw",
                             expression = "F = m * a",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("F", "Force", ConstraintParameterDirection.Out),
-                                    ConstraintParameter("m", "Mass", ConstraintParameterDirection.In),
-                                    ConstraintParameter("a", "Acceleration", ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "F", typeId = "Force", direction = ConstraintParameterDirection.Out),
+                                    ConstraintParameter(name = "m", typeId = "Mass", direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "a", typeId = "Acceleration", direction = ConstraintParameterDirection.In),
                                 ),
                         )
-                    parDiagram("Newton") {
+                    parDiagram(name = "Newton") {
                         include(newton)
                     }
                 }
@@ -59,10 +59,11 @@ class Sysml2ParSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(300f, 200f),
+                canvas = Size(width = 300f, height = 200f),
                 nodes =
                     mapOf(
-                        NodeId(nodeId) to NodeLayout(bounds = Rect(Point(20f, 20f), Size(220f, 150f))),
+                        NodeId(nodeId) to
+                            NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 220f, height = 150f))),
                     ),
                 edges = emptyMap(),
                 groups = emptyMap(),
@@ -70,7 +71,7 @@ class Sysml2ParSvgTest :
 
         "PAR renders constraint with «constraint» stereotype and expression body" {
             val (model, par) = newtonModel()
-            val svg = KumlSvgRenderer.toSvg(model, par, fakeLayout("NewtonsLaw"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = par, layoutResult = fakeLayout("NewtonsLaw"), theme = PlainTheme())
 
             svg shouldContain "id=\"NewtonsLaw\""
             svg shouldContain "«constraint»"
@@ -79,24 +80,24 @@ class Sysml2ParSvgTest :
             // The expression body is rendered in monospace.
             svg shouldContain "font-family=\"monospace\""
 
-            SampleOutput.write("sysml2-par/constraint-with-expression.svg", svg)
+            SampleOutput.write(filename = "sysml2-par/constraint-with-expression.svg", content = svg)
         }
 
         "PAR constraint with no parameters omits the parameter compartment" {
             val model =
-                sysml2Model("BareConstraint") {
+                sysml2Model(name = "BareConstraint") {
                     val c =
                         constraintDef(
                             name = "Idle",
                             expression = "x = x",
                             parameters = emptyList(),
                         )
-                    parDiagram("Idle") {
+                    parDiagram(name = "Idle") {
                         include(c)
                     }
                 }
             val par = model.diagrams.filterIsInstance<ParDiagram>().single()
-            val svg = KumlSvgRenderer.toSvg(model, par, fakeLayout("Idle"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = par, layoutResult = fakeLayout("Idle"), theme = PlainTheme())
 
             svg shouldContain "Idle"
             svg shouldContain "x = x"
@@ -105,60 +106,60 @@ class Sysml2ParSvgTest :
             svg shouldNotContain "«out»"
             svg shouldNotContain "«inout»"
 
-            SampleOutput.write("sysml2-par/constraint-without-parameters.svg", svg)
+            SampleOutput.write(filename = "sysml2-par/constraint-without-parameters.svg", content = svg)
         }
 
         "PAR constraint with parameters shows direction stereotypes («in» / «out» / «inout»)" {
             val model =
-                sysml2Model("MixedDirections") {
+                sysml2Model(name = "MixedDirections") {
                     val c =
                         constraintDef(
                             name = "Mixed",
                             expression = "y = f(x)",
                             parameters =
                                 listOf(
-                                    ConstraintParameter("x", "Real", ConstraintParameterDirection.In),
-                                    ConstraintParameter("y", "Real", ConstraintParameterDirection.Out),
-                                    ConstraintParameter("k", "Real", ConstraintParameterDirection.Inout),
+                                    ConstraintParameter(name = "x", typeId = "Real", direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter(name = "y", typeId = "Real", direction = ConstraintParameterDirection.Out),
+                                    ConstraintParameter(name = "k", typeId = "Real", direction = ConstraintParameterDirection.Inout),
                                 ),
                         )
-                    parDiagram("Mixed") {
+                    parDiagram(name = "Mixed") {
                         include(c)
                     }
                 }
             val par = model.diagrams.filterIsInstance<ParDiagram>().single()
-            val svg = KumlSvgRenderer.toSvg(model, par, fakeLayout("Mixed"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = par, layoutResult = fakeLayout("Mixed"), theme = PlainTheme())
 
             svg shouldContain "«in» x : Real"
             svg shouldContain "«out» y : Real"
             svg shouldContain "«inout» k : Real"
 
-            SampleOutput.write("sysml2-par/parameter-directions.svg", svg)
+            SampleOutput.write(filename = "sysml2-par/parameter-directions.svg", content = svg)
         }
 
         "PAR long expression is truncated with ellipsis" {
             val longExpr = "F = m * a + b * c + d * e + f * g + h * i + j * k"
             val model =
-                sysml2Model("LongExpr") {
+                sysml2Model(name = "LongExpr") {
                     val c =
                         constraintDef(
                             name = "Long",
                             expression = longExpr,
                             parameters = emptyList(),
                         )
-                    parDiagram("Long") {
+                    parDiagram(name = "Long") {
                         include(c)
                     }
                 }
             val par = model.diagrams.filterIsInstance<ParDiagram>().single()
-            val svg = KumlSvgRenderer.toSvg(model, par, fakeLayout("Long"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = par, layoutResult = fakeLayout("Long"), theme = PlainTheme())
 
             // The expression is longer than the truncation threshold so the SVG
             // must contain the ellipsis suffix but not the full text.
             svg shouldContain "…"
             svg shouldNotContain longExpr
 
-            SampleOutput.write("sysml2-par/long-expression-truncated.svg", svg)
+            SampleOutput.write(filename = "sysml2-par/long-expression-truncated.svg", content = svg)
         }
 
         "deterministic output — same input renders byte-identically" {
@@ -166,8 +167,8 @@ class Sysml2ParSvgTest :
             val theme = PlainTheme()
             val layout = fakeLayout("NewtonsLaw")
 
-            val svgA = KumlSvgRenderer.toSvg(model, par, layout, theme)
-            val svgB = KumlSvgRenderer.toSvg(model, par, layout, theme)
+            val svgA = KumlSvgRenderer.toSvg(model = model, diagram = par, layoutResult = layout, theme = theme)
+            val svgB = KumlSvgRenderer.toSvg(model = model, diagram = par, layoutResult = layout, theme = theme)
             svgA shouldBe svgB
         }
     })

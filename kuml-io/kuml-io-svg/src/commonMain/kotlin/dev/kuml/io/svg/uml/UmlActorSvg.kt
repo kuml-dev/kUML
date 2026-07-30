@@ -21,38 +21,41 @@ internal fun renderUmlActor(
     val w = layout.bounds.size.width
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         val cx = w / 2f
         // Head
         tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(cx),
-                "cy" to "10",
-                "r" to "8",
-                "class" to "kuml-actor",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(cx),
+                    "cy" to "10",
+                    "r" to "8",
+                    "class" to "kuml-actor",
+                ),
         )
         // Body + arms + legs
         tag(
-            "path",
-            mapOf(
-                "d" to "M ${fmt(cx)} 18 L ${fmt(cx)} 38 M ${fmt(cx - 12f)} 26 L ${fmt(cx + 12f)} 26 " +
-                    "M ${fmt(cx)} 38 L ${fmt(cx - 10f)} 52 M ${fmt(cx)} 38 L ${fmt(cx + 10f)} 52",
-                "class" to "kuml-actor",
-            ),
+            name = "path",
+            attrs =
+                mapOf(
+                    "d" to "M ${fmt(cx)} 18 L ${fmt(cx)} 38 M ${fmt(cx - 12f)} 26 L ${fmt(cx + 12f)} 26 " +
+                        "M ${fmt(cx)} 38 L ${fmt(cx - 10f)} 52 M ${fmt(cx)} 38 L ${fmt(cx + 10f)} 52",
+                    "class" to "kuml-actor",
+                ),
         )
         // Name
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-body",
-                "x" to fmt(cx),
-                "y" to "65",
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-body",
+                    "x" to fmt(cx),
+                    "y" to "65",
+                    "text-anchor" to "middle",
+                ),
         ) { text(element.name) }
     }
 }

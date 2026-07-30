@@ -37,8 +37,8 @@ internal fun renderUmlComment(
     val ear = UmlCommentLayout.DOG_EAR_SIZE
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         // Note body: rectangle with the top-right corner cut off, outline only
         // (the folded triangle below draws the "flap" so the cut looks folded,
@@ -52,7 +52,7 @@ internal fun renderUmlComment(
                 "L 0 $h",
                 "Z",
             ).joinToString(" ")
-        tag("path", mapOf("d" to path, "class" to "kuml-comment"))
+        tag(name = "path", attrs = mapOf("d" to path, "class" to "kuml-comment"))
 
         // Folded corner ("dog-ear") — small triangle drawn with a distinct
         // stroke so the fold reads visually as paper folded over, not just a
@@ -63,25 +63,27 @@ internal fun renderUmlComment(
                 "L ${fmt(w - ear)} ${fmt(ear)}",
                 "L $w ${fmt(ear)}",
             ).joinToString(" ")
-        tag("path", mapOf("d" to earPath, "class" to "kuml-comment-fold"))
+        tag(name = "path", attrs = mapOf("d" to earPath, "class" to "kuml-comment-fold"))
 
-        val lines = UmlCommentLayout.wrapBody(element.body)
+        val lines = UmlCommentLayout.wrapBody(body = element.body)
         val startY = UmlCommentLayout.V_PADDING / 2f + UmlCommentLayout.LINE_H * 0.7f
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-body",
-                "x" to fmt(UmlCommentLayout.H_PADDING / 2f),
-                "y" to fmt(startY),
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-body",
+                    "x" to fmt(UmlCommentLayout.H_PADDING / 2f),
+                    "y" to fmt(startY),
+                ),
         ) {
             lines.forEachIndexed { idx, line ->
                 tag(
-                    "tspan",
-                    mapOf(
-                        "x" to fmt(UmlCommentLayout.H_PADDING / 2f),
-                        "dy" to if (idx == 0) "0" else fmt(UmlCommentLayout.LINE_H),
-                    ),
+                    name = "tspan",
+                    attrs =
+                        mapOf(
+                            "x" to fmt(UmlCommentLayout.H_PADDING / 2f),
+                            "dy" to if (idx == 0) "0" else fmt(UmlCommentLayout.LINE_H),
+                        ),
                 ) { text(line) }
             }
         }

@@ -14,11 +14,11 @@ class OclSyntaxTest :
             test("classifies a navigation + comparison expression") {
                 OclSyntax.highlight("self.count > 3") shouldBe
                     listOf(
-                        HighlightToken(0, 4, OclTokenKind.KEYWORD), // self
-                        HighlightToken(4, 5, OclTokenKind.OPERATOR), // .
-                        HighlightToken(5, 10, OclTokenKind.IDENT), // count
-                        HighlightToken(11, 12, OclTokenKind.OPERATOR), // >
-                        HighlightToken(13, 14, OclTokenKind.LITERAL), // 3
+                        HighlightToken(start = 0, end = 4, kind = OclTokenKind.KEYWORD), // self
+                        HighlightToken(start = 4, end = 5, kind = OclTokenKind.OPERATOR), // .
+                        HighlightToken(start = 5, end = 10, kind = OclTokenKind.IDENT), // count
+                        HighlightToken(start = 11, end = 12, kind = OclTokenKind.OPERATOR), // >
+                        HighlightToken(start = 13, end = 14, kind = OclTokenKind.LITERAL), // 3
                     )
             }
 
@@ -29,39 +29,39 @@ class OclSyntaxTest :
             }
 
             test("colors true/false/null/int/real/string as LITERAL") {
-                OclSyntax.highlight("true") shouldBe listOf(HighlightToken(0, 4, OclTokenKind.LITERAL))
-                OclSyntax.highlight("false") shouldBe listOf(HighlightToken(0, 5, OclTokenKind.LITERAL))
-                OclSyntax.highlight("null") shouldBe listOf(HighlightToken(0, 4, OclTokenKind.LITERAL))
-                OclSyntax.highlight("3.14") shouldBe listOf(HighlightToken(0, 4, OclTokenKind.LITERAL))
+                OclSyntax.highlight("true") shouldBe listOf(HighlightToken(start = 0, end = 4, kind = OclTokenKind.LITERAL))
+                OclSyntax.highlight("false") shouldBe listOf(HighlightToken(start = 0, end = 5, kind = OclTokenKind.LITERAL))
+                OclSyntax.highlight("null") shouldBe listOf(HighlightToken(start = 0, end = 4, kind = OclTokenKind.LITERAL))
+                OclSyntax.highlight("3.14") shouldBe listOf(HighlightToken(start = 0, end = 4, kind = OclTokenKind.LITERAL))
                 // String literal span includes the surrounding quotes.
-                OclSyntax.highlight("'abc'") shouldBe listOf(HighlightToken(0, 5, OclTokenKind.LITERAL))
+                OclSyntax.highlight("'abc'") shouldBe listOf(HighlightToken(start = 0, end = 5, kind = OclTokenKind.LITERAL))
             }
 
             test("colors parens as PAREN") {
                 OclSyntax.highlight("(a)") shouldBe
                     listOf(
-                        HighlightToken(0, 1, OclTokenKind.PAREN),
-                        HighlightToken(1, 2, OclTokenKind.IDENT),
-                        HighlightToken(2, 3, OclTokenKind.PAREN),
+                        HighlightToken(start = 0, end = 1, kind = OclTokenKind.PAREN),
+                        HighlightToken(start = 1, end = 2, kind = OclTokenKind.IDENT),
+                        HighlightToken(start = 2, end = 3, kind = OclTokenKind.PAREN),
                     )
             }
 
             test("colors arrow + collection op name + parens") {
                 OclSyntax.highlight("c->size()") shouldBe
                     listOf(
-                        HighlightToken(0, 1, OclTokenKind.IDENT), // c
-                        HighlightToken(1, 3, OclTokenKind.OPERATOR), // ->
-                        HighlightToken(3, 7, OclTokenKind.IDENT), // size (navigated op name, not a keyword)
-                        HighlightToken(7, 8, OclTokenKind.PAREN),
-                        HighlightToken(8, 9, OclTokenKind.PAREN),
+                        HighlightToken(start = 0, end = 1, kind = OclTokenKind.IDENT), // c
+                        HighlightToken(start = 1, end = 3, kind = OclTokenKind.OPERATOR), // ->
+                        HighlightToken(start = 3, end = 7, kind = OclTokenKind.IDENT), // size (navigated op name, not a keyword)
+                        HighlightToken(start = 7, end = 8, kind = OclTokenKind.PAREN),
+                        HighlightToken(start = 8, end = 9, kind = OclTokenKind.PAREN),
                     )
             }
 
             test("colors @pre as KEYWORD") {
                 OclSyntax.highlight("x@pre") shouldBe
                     listOf(
-                        HighlightToken(0, 1, OclTokenKind.IDENT),
-                        HighlightToken(1, 5, OclTokenKind.KEYWORD),
+                        HighlightToken(start = 0, end = 1, kind = OclTokenKind.IDENT),
+                        HighlightToken(start = 1, end = 5, kind = OclTokenKind.KEYWORD),
                     )
             }
 
@@ -73,76 +73,76 @@ class OclSyntaxTest :
             test("tolerates an unexpected character without throwing, and keeps highlighting after it") {
                 OclSyntax.highlight("a # b") shouldBe
                     listOf(
-                        HighlightToken(0, 1, OclTokenKind.IDENT),
-                        HighlightToken(2, 3, OclTokenKind.ERROR),
-                        HighlightToken(4, 5, OclTokenKind.IDENT),
+                        HighlightToken(start = 0, end = 1, kind = OclTokenKind.IDENT),
+                        HighlightToken(start = 2, end = 3, kind = OclTokenKind.ERROR),
+                        HighlightToken(start = 4, end = 5, kind = OclTokenKind.IDENT),
                     )
             }
 
             test("tolerates an unterminated string literal without throwing") {
                 OclSyntax.highlight("'unterminated") shouldBe
-                    listOf(HighlightToken(0, 13, OclTokenKind.ERROR))
+                    listOf(HighlightToken(start = 0, end = 13, kind = OclTokenKind.ERROR))
             }
         }
 
         context("typeCheck") {
             test("accepts a valid navigation comparison") {
                 OclSyntax.typeCheck(
-                    "self.count > 3",
-                    OclScope(mapOf("count" to OclType.INTEGER)),
+                    expr = "self.count > 3",
+                    scope = OclScope(mapOf("count" to OclType.INTEGER)),
                 ) shouldBe OclCheckResult.Ok
             }
 
             test("accepts a valid scope-variable comparison") {
                 OclSyntax.typeCheck(
-                    "event > 1",
-                    OclScope(mapOf("event" to OclType.INTEGER)),
+                    expr = "event > 1",
+                    scope = OclScope(mapOf("event" to OclType.INTEGER)),
                 ) shouldBe OclCheckResult.Ok
             }
 
             test("reports a syntax error with a non-null range") {
-                val result = OclSyntax.typeCheck("self.", OclScope(emptyMap()))
+                val result = OclSyntax.typeCheck(expr = "self.", scope = OclScope(emptyMap()))
                 val error = result.shouldBeInstanceOf<OclCheckResult.Error>()
                 error.range.shouldNotBeNull()
                 error.message.shouldNotBeNull()
             }
 
             test("reports a syntax error for a dangling operator") {
-                OclSyntax.typeCheck("1 +", OclScope(emptyMap())).shouldBeInstanceOf<OclCheckResult.Error>()
+                OclSyntax.typeCheck(expr = "1 +", scope = OclScope(emptyMap())).shouldBeInstanceOf<OclCheckResult.Error>()
             }
 
             test("reports an unknown variable, with a range covering it") {
-                val result = OclSyntax.typeCheck("foo > 1", OclScope(emptyMap()))
+                val result = OclSyntax.typeCheck(expr = "foo > 1", scope = OclScope(emptyMap()))
                 val error = result.shouldBeInstanceOf<OclCheckResult.Error>()
                 error.message shouldContain "foo"
                 error.range.shouldNotBeNull()
             }
 
             test("reports an unknown variable even when a known variable is referenced first") {
-                val result = OclSyntax.typeCheck("a > b", OclScope(mapOf("a" to OclType.INTEGER)))
+                val result = OclSyntax.typeCheck(expr = "a > b", scope = OclScope(mapOf("a" to OclType.INTEGER)))
                 val error = result.shouldBeInstanceOf<OclCheckResult.Error>()
                 error.message shouldContain "b"
                 error.range.shouldNotBeNull()
             }
 
             test("never flags self as an unknown variable") {
-                OclSyntax.typeCheck("self.x", OclScope(emptyMap())) shouldBe OclCheckResult.Ok
+                OclSyntax.typeCheck(expr = "self.x", scope = OclScope(emptyMap())) shouldBe OclCheckResult.Ok
             }
 
             test("does not flag a forAll lambda's bound variable") {
                 OclSyntax.typeCheck(
-                    "coll->forAll(x | x > 0)",
-                    OclScope(mapOf("coll" to OclType.COLLECTION)),
+                    expr = "coll->forAll(x | x > 0)",
+                    scope = OclScope(mapOf("coll" to OclType.COLLECTION)),
                 ) shouldBe OclCheckResult.Ok
             }
 
             test("does not flag a let-bound variable") {
-                OclSyntax.typeCheck("let y = 1 in y > 0", OclScope(emptyMap())) shouldBe OclCheckResult.Ok
+                OclSyntax.typeCheck(expr = "let y = 1 in y > 0", scope = OclScope(emptyMap())) shouldBe OclCheckResult.Ok
             }
 
             test("rejects an expression longer than the size guard") {
                 val expr = "1 " + "+ 1 ".repeat(2000)
-                val result = OclSyntax.typeCheck(expr, OclScope(emptyMap()))
+                val result = OclSyntax.typeCheck(expr = expr, scope = OclScope(emptyMap()))
                 val error = result.shouldBeInstanceOf<OclCheckResult.Error>()
                 error.message shouldContain "too long"
             }
@@ -152,7 +152,7 @@ class OclSyntaxTest :
                 // depth must come from a construct that actually nests in the AST —
                 // a chain of unary minuses does, one UnaryOp per '-'.
                 val expr = "-".repeat(80) + "1"
-                val result = OclSyntax.typeCheck(expr, OclScope(emptyMap()))
+                val result = OclSyntax.typeCheck(expr = expr, scope = OclScope(emptyMap()))
                 val error = result.shouldBeInstanceOf<OclCheckResult.Error>()
                 error.message shouldContain "too complex"
             }
@@ -165,7 +165,7 @@ class OclSyntaxTest :
                 // under MAX_EXPRESSION_LENGTH (4096 chars) so the length guard
                 // does not mask what this test is actually checking.
                 val expr = "(".repeat(2000) + "1" + ")".repeat(2000)
-                val result = OclSyntax.typeCheck(expr, OclScope(emptyMap()))
+                val result = OclSyntax.typeCheck(expr = expr, scope = OclScope(emptyMap()))
                 val error = result.shouldBeInstanceOf<OclCheckResult.Error>()
                 error.message shouldContain "too complex"
             }
@@ -174,27 +174,27 @@ class OclSyntaxTest :
                 // "not " is 4 chars; keep the total under MAX_EXPRESSION_LENGTH
                 // (4096) so the length guard doesn't mask the recursion guard.
                 val expr = "not ".repeat(1000) + "true"
-                val result = OclSyntax.typeCheck(expr, OclScope(emptyMap()))
+                val result = OclSyntax.typeCheck(expr = expr, scope = OclScope(emptyMap()))
                 val error = result.shouldBeInstanceOf<OclCheckResult.Error>()
                 error.message shouldContain "too complex"
             }
 
             test("flags a sound literal type mismatch") {
-                val result = OclSyntax.typeCheck("'a' > 3", OclScope(emptyMap()))
+                val result = OclSyntax.typeCheck(expr = "'a' > 3", scope = OclScope(emptyMap()))
                 val error = result.shouldBeInstanceOf<OclCheckResult.Error>()
                 error.message shouldContain "mismatch"
             }
 
             test("does not false-positive a type mismatch on an unresolved navigation") {
-                val result = OclSyntax.typeCheck("self.a > 3", OclScope(emptyMap()))
+                val result = OclSyntax.typeCheck(expr = "self.a > 3", scope = OclScope(emptyMap()))
                 if (result is OclCheckResult.Error) {
                     result.message shouldNotContain "mismatch"
                 }
             }
 
             test("is deterministic for the same input") {
-                val first = OclSyntax.typeCheck("self.count > 3", OclScope(mapOf("count" to OclType.INTEGER)))
-                val second = OclSyntax.typeCheck("self.count > 3", OclScope(mapOf("count" to OclType.INTEGER)))
+                val first = OclSyntax.typeCheck(expr = "self.count > 3", scope = OclScope(mapOf("count" to OclType.INTEGER)))
+                val second = OclSyntax.typeCheck(expr = "self.count > 3", scope = OclScope(mapOf("count" to OclType.INTEGER)))
                 first shouldBe second
             }
         }

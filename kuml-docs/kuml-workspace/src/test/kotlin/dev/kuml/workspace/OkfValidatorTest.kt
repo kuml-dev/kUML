@@ -27,8 +27,8 @@ class OkfValidatorTest :
                 """.trimMargin(),
             )
 
-            val ws = WorkspaceScanner.scan(root)
-            val findings = OkfValidator.validate(ws)
+            val ws = WorkspaceScanner.scan(root = root)
+            val findings = OkfValidator.validate(ws = ws)
             findings.map { it.code } shouldNotContain "OKF-E-003"
 
             root.deleteRecursively()
@@ -45,8 +45,8 @@ class OkfValidatorTest :
                 """.trimMargin(),
             )
 
-            val ws = WorkspaceScanner.scan(root)
-            val findings = OkfValidator.validate(ws)
+            val ws = WorkspaceScanner.scan(root = root)
+            val findings = OkfValidator.validate(ws = ws)
             findings.map { it.code } shouldBe listOf("OKF-E-003", "OKF-W-006")
 
             root.deleteRecursively()
@@ -63,9 +63,9 @@ class OkfValidatorTest :
                 """.trimMargin(),
             )
 
-            val ws = WorkspaceScanner.scan(root)
-            val lenient = OkfValidator.validate(ws, strictVocabulary = false)
-            val strict = OkfValidator.validate(ws, strictVocabulary = true)
+            val ws = WorkspaceScanner.scan(root = root)
+            val lenient = OkfValidator.validate(ws = ws, strictVocabulary = false)
+            val strict = OkfValidator.validate(ws = ws, strictVocabulary = true)
 
             val lenientFinding = lenient.single { it.code == "OKF-W-002" }
             val strictFinding = strict.single { it.code == "OKF-W-002" }
@@ -85,8 +85,8 @@ class OkfValidatorTest :
                 """.trimMargin(),
             )
 
-            val ws = WorkspaceScanner.scan(root)
-            val findings = OkfValidator.validate(ws)
+            val ws = WorkspaceScanner.scan(root = root)
+            val findings = OkfValidator.validate(ws = ws)
             findings.map { it.code } shouldNotContain "OKF-E-005"
 
             root.deleteRecursively()
@@ -101,8 +101,8 @@ class OkfValidatorTest :
                 """.trimMargin(),
             )
 
-            val ws = WorkspaceScanner.scan(root)
-            val findings = OkfValidator.validate(ws)
+            val ws = WorkspaceScanner.scan(root = root)
+            val findings = OkfValidator.validate(ws = ws)
             findings.map { it.code } shouldContain "OKF-E-005"
 
             root.deleteRecursively()
@@ -119,8 +119,8 @@ class OkfValidatorTest :
                 """.trimMargin(),
             )
 
-            val ws = WorkspaceScanner.scan(root)
-            val finding = OkfValidator.validate(ws).single { it.code == "OKF-W-002" }
+            val ws = WorkspaceScanner.scan(root = root)
+            val finding = OkfValidator.validate(ws = ws).single { it.code == "OKF-W-002" }
             finding.suggestion?.contains("Did you mean 'UmlClassDiagram'?") shouldBe true
 
             root.deleteRecursively()

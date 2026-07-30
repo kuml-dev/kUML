@@ -19,7 +19,7 @@ class StateDiagramBuilderTest :
     FunSpec(body = {
 
         test(name = "empty state diagram builds with empty state machine") {
-            val d = stateDiagram("Empty")
+            val d = stateDiagram(name = "Empty")
             val sm = d.elements.single() as UmlStateMachine
             sm.vertices.shouldBeEmpty()
             sm.transitions.shouldBeEmpty()
@@ -27,8 +27,8 @@ class StateDiagramBuilderTest :
 
         test(name = "state has deterministic id and stores entry/exit/doActivity") {
             val d =
-                stateDiagram("OrderSM") {
-                    state("Draft") {
+                stateDiagram(name = "OrderSM") {
+                    state(name = "Draft") {
                         entry = "validate()"
                         exit = "cleanup()"
                         doActivity = "notify()"
@@ -42,13 +42,13 @@ class StateDiagramBuilderTest :
         }
 
         test(name = "initialState creates pseudostate of kind INITIAL") {
-            val d = stateDiagram("X") { initialState() }
+            val d = stateDiagram(name = "X") { initialState() }
             val ps = (d.elements.single() as UmlStateMachine).vertices.single() as UmlPseudostate
             ps.kind shouldBe PseudostateKind.INITIAL
         }
 
         test(name = "finalState creates UmlFinalState") {
-            val d = stateDiagram("X") { finalState("Done") }
+            val d = stateDiagram(name = "X") { finalState(name = "Done") }
             val fs = (d.elements.single() as UmlStateMachine).vertices.single()
             fs.shouldBeInstanceOf<UmlFinalState>()
             fs.name shouldBe "Done"
@@ -56,7 +56,7 @@ class StateDiagramBuilderTest :
         }
 
         test(name = "choice creates pseudostate of kind CHOICE") {
-            val d = stateDiagram("X") { choice("PaymentOK?") }
+            val d = stateDiagram(name = "X") { choice(name = "PaymentOK?") }
             val ps = (d.elements.single() as UmlStateMachine).vertices.single() as UmlPseudostate
             ps.kind shouldBe PseudostateKind.CHOICE
             ps.id shouldBe "X::PaymentOK?"
@@ -64,10 +64,10 @@ class StateDiagramBuilderTest :
 
         test(name = "transition between two states has correct ids and labels") {
             val d =
-                stateDiagram("OrderSM") {
-                    val draft = state("Draft")
-                    val confirmed = state("Confirmed")
-                    transition(draft, confirmed) {
+                stateDiagram(name = "OrderSM") {
+                    val draft = state(name = "Draft")
+                    val confirmed = state(name = "Confirmed")
+                    transition(source = draft, target = confirmed) {
                         trigger = "confirm()"
                         guard = "[valid]"
                         effect = "log()"
@@ -85,11 +85,11 @@ class StateDiagramBuilderTest :
 
         test(name = "two transitions with same endpoints get disambiguated ids") {
             val d =
-                stateDiagram("X") {
-                    val a = state("A")
-                    val b = state("B")
-                    transition(a, b) { trigger = "ev1" }
-                    transition(a, b) { trigger = "ev2" }
+                stateDiagram(name = "X") {
+                    val a = state(name = "A")
+                    val b = state(name = "B")
+                    transition(source = a, target = b) { trigger = "ev1" }
+                    transition(source = a, target = b) { trigger = "ev2" }
                 }
             val ids = (d.elements.single() as UmlStateMachine).transitions.map { it.id }
             ids shouldContainExactly listOf("X::t::A->B", "X::t::A->B~2")
@@ -97,10 +97,10 @@ class StateDiagramBuilderTest :
 
         test(name = "composite state stores substates under its own id") {
             val d =
-                stateDiagram("OrderSM") {
-                    compositeState("Processing") {
-                        state("Picking")
-                        state("Packing")
+                stateDiagram(name = "OrderSM") {
+                    compositeState(name = "Processing") {
+                        state(name = "Picking")
+                        state(name = "Packing")
                     }
                 }
             val composite = (d.elements.single() as UmlStateMachine).vertices.single() as UmlState
@@ -114,15 +114,15 @@ class StateDiagramBuilderTest :
 
         test(name = "transition between substates of a composite is registered on the state machine") {
             val d =
-                stateDiagram("X") {
+                stateDiagram(name = "X") {
                     val composite =
-                        compositeState("Group") {
-                            state("A")
-                            state("B")
+                        compositeState(name = "Group") {
+                            state(name = "A")
+                            state(name = "B")
                         }
                     val a = composite.substates[0]
                     val b = composite.substates[1]
-                    transition(a, b) { trigger = "next" }
+                    transition(source = a, target = b) { trigger = "next" }
                 }
             val sm = d.elements.single() as UmlStateMachine
             sm.transitions.single().id shouldBe "X::t::A->B"
@@ -130,21 +130,21 @@ class StateDiagramBuilderTest :
         }
 
         test(name = "diagram type is STATE and config is StateDiagramConfig") {
-            val d = stateDiagram("X") { showGuards = false }
+            val d = stateDiagram(name = "X") { showGuards = false }
             d.type shouldBe DiagramType.STATE
             (d.config as StateDiagramConfig).showGuards shouldBe false
         }
 
         test(name = "state machine name equals diagram name") {
-            val d = stateDiagram("OrderLifecycle")
+            val d = stateDiagram(name = "OrderLifecycle")
             (d.elements.single() as UmlStateMachine).name shouldBe "OrderLifecycle"
         }
 
         test(name = "fork and join create pseudostates of correct kind") {
             val d =
-                stateDiagram("X") {
-                    fork("split")
-                    join("merge")
+                stateDiagram(name = "X") {
+                    fork(name = "split")
+                    join(name = "merge")
                 }
             val sm = d.elements.single() as UmlStateMachine
             val vertices = sm.vertices

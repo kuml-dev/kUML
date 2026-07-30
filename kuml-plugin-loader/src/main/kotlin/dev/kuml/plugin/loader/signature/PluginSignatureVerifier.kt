@@ -73,7 +73,7 @@ public object PluginSignatureVerifier {
                         .digest(pubKeyBytes)
                         .take(8)
                         .joinToString(":") { "%02X".format(it) }
-                SignatureVerificationResult.Valid(fingerprint)
+                SignatureVerificationResult.Valid(publicKeyFingerprint = fingerprint)
             } else {
                 SignatureVerificationResult.Invalid("Signature does not match JAR content")
             }
@@ -119,9 +119,9 @@ public object PluginSignatureVerifier {
 
         var lastInvalid: SignatureVerificationResult.Invalid? = null
         for (key in usable) {
-            when (val result = verify(jarBytes, signatureBase64, key.publicKey)) {
+            when (val result = verify(jarBytes = jarBytes, signatureBase64 = signatureBase64, publicKeyBase64 = key.publicKey)) {
                 is SignatureVerificationResult.Valid ->
-                    return SignatureVerificationResult.Valid(result.publicKeyFingerprint, key.keyId)
+                    return SignatureVerificationResult.Valid(publicKeyFingerprint = result.publicKeyFingerprint, keyId = key.keyId)
                 is SignatureVerificationResult.Invalid -> lastInvalid = result
                 SignatureVerificationResult.Unsigned -> { /* unreachable: sig non-blank */ }
             }

@@ -43,7 +43,7 @@ public class MarkdownProcessor {
         baseName: String = "diagram",
     ): MarkdownProcessResult {
         val blocks = CodeBlockExtractor.extract(input)
-        if (blocks.isEmpty()) return MarkdownProcessResult(input)
+        if (blocks.isEmpty()) return MarkdownProcessResult(output = input)
 
         val assets = mutableListOf<File>()
         val lines = input.split('\n').toMutableList()
@@ -51,7 +51,7 @@ public class MarkdownProcessor {
         // Process in reverse so line indices stay valid while we substitute.
         blocks.withIndex().reversed().forEach { (idx, block) ->
             val virtualName = block.name?.let { "$it.kuml.kts" } ?: "$baseName-${idx + 1}.kuml.kts"
-            val diagram = MarkdownRenderPipeline.evaluate(block.source, virtualName)
+            val diagram = MarkdownRenderPipeline.evaluate(source = block.source, virtualName = virtualName)
 
             val replacement: List<String> =
                 when (mode) {
@@ -72,7 +72,7 @@ public class MarkdownProcessor {
                         val stem = block.name ?: "$baseName-${idx + 1}"
                         val width = block.width ?: mode.widthPx
                         val file = File(mode.assetsDir, "$stem.png")
-                        file.writeBytes(MarkdownRenderPipeline.renderPng(diagram, width))
+                        file.writeBytes(MarkdownRenderPipeline.renderPng(diagram = diagram, widthPx = width))
                         assets.add(file)
                         listOf("![${diagram.name}](${relativize(file)})")
                     }

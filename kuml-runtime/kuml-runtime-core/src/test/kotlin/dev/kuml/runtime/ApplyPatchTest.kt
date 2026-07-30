@@ -36,11 +36,11 @@ class ApplyPatchTest :
         val model =
             smOf(
                 name = "PatchSM",
-                vertices = listOf(initial("init"), state("A"), finalState("B")),
+                vertices = listOf(initial("init"), state(id = "A"), finalState("B")),
                 transitions =
                     listOf(
-                        trans("t0", "init", "A"),
-                        trans("t1", "A", "B", trigger = "e", guard = "false"),
+                        trans(id = "t0", from = "init", to = "A"),
+                        trans(id = "t1", from = "A", to = "B", trigger = "e", guard = "false"),
                         protectedTransition,
                     ),
             )
@@ -49,7 +49,7 @@ class ApplyPatchTest :
 
         test("happy path — valid guard edit on non-protected transition is applied") {
             val instance = runtime.start(model)
-            val result = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", "true"))
+            val result = runtime.applyPatch(instance = instance, patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = "true"))
 
             result.shouldBeInstanceOf<PatchResult.Applied>()
             result.model.transitions
@@ -67,7 +67,7 @@ class ApplyPatchTest :
                 instance.model.transitions
                     .first { it.id == "t1" }
                     .guard
-            val result = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", "true"))
+            val result = runtime.applyPatch(instance = instance, patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = "true"))
 
             result.shouldBeInstanceOf<PatchResult.Applied>()
             instance.model.transitions
@@ -79,14 +79,14 @@ class ApplyPatchTest :
         test("blank guard normalizes to null (clears the guard)") {
             val instance = runtime.start(model)
 
-            val resultEmpty = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", ""))
+            val resultEmpty = runtime.applyPatch(instance = instance, patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = ""))
             resultEmpty.shouldBeInstanceOf<PatchResult.Applied>()
             resultEmpty.model.transitions
                 .first { it.id == "t1" }
                 .guard
                 .shouldBeNull()
 
-            val resultBlank = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", "   "))
+            val resultBlank = runtime.applyPatch(instance = instance, patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = "   "))
             resultBlank.shouldBeInstanceOf<PatchResult.Applied>()
             resultBlank.model.transitions
                 .first { it.id == "t1" }
@@ -101,7 +101,11 @@ class ApplyPatchTest :
                     .first { it.id == "t1" }
                     .guard
 
-            val result = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", "vars.count >"))
+            val result =
+                runtime.applyPatch(
+                    instance = instance,
+                    patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = "vars.count >"),
+                )
 
             result.shouldBeInstanceOf<PatchResult.Rejected.InvalidOcl>()
             result.error.range.shouldNotBeNull()
@@ -114,7 +118,7 @@ class ApplyPatchTest :
             val instance = runtime.start(model)
             val huge = "1" + "+1".repeat(3000)
 
-            val result = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", huge))
+            val result = runtime.applyPatch(instance = instance, patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = huge))
 
             result.shouldBeInstanceOf<PatchResult.Rejected.InvalidOcl>()
             result.error.message shouldContain "too long"
@@ -122,7 +126,7 @@ class ApplyPatchTest :
 
         test("unknown transition id is rejected") {
             val instance = runtime.start(model)
-            val result = runtime.applyPatch(instance, ModelPatch.ChangeGuard("nope", "true"))
+            val result = runtime.applyPatch(instance = instance, patch = ModelPatch.ChangeGuard(transitionId = "nope", newOcl = "true"))
             result.shouldBeInstanceOf<PatchResult.Rejected.TransitionNotFound>()
             result.transitionId shouldBe "nope"
         }
@@ -134,7 +138,12 @@ class ApplyPatchTest :
                     .first { it.id == "p1" }
                     .guard
 
-            val result = runtime.applyPatch(instance, ModelPatch.ChangeGuard("p1", "true"), confirmed = false)
+            val result =
+                runtime.applyPatch(
+                    instance = instance,
+                    patch = ModelPatch.ChangeGuard(transitionId = "p1", newOcl = "true"),
+                    confirmed = false,
+                )
 
             result.shouldBeInstanceOf<PatchResult.Rejected.ProtectedNotConfirmed>()
             instance.model.transitions
@@ -144,7 +153,12 @@ class ApplyPatchTest :
 
         test("protected transition with confirmation is applied") {
             val instance = runtime.start(model)
-            val result = runtime.applyPatch(instance, ModelPatch.ChangeGuard("p1", "true"), confirmed = true)
+            val result =
+                runtime.applyPatch(
+                    instance = instance,
+                    patch = ModelPatch.ChangeGuard(transitionId = "p1", newOcl = "true"),
+                    confirmed = true,
+                )
 
             result.shouldBeInstanceOf<PatchResult.Applied>()
             result.model.transitions
@@ -154,37 +168,47 @@ class ApplyPatchTest :
 
         test("non-protected transition ignores confirmed=false") {
             val instance = runtime.start(model)
-            val result = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", "true"), confirmed = false)
+            val result =
+                runtime.applyPatch(
+                    instance = instance,
+                    patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = "true"),
+                    confirmed = false,
+                )
             result.shouldBeInstanceOf<PatchResult.Applied>()
         }
 
         test("default policy (Reject) permits a guard-only edit") {
             val instance = runtime.start(model)
             // Default policy argument is MigrationPolicy.Reject; not passed explicitly to pin the default.
-            val result = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", "true"))
+            val result = runtime.applyPatch(instance = instance, patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = "true"))
             result.shouldBeInstanceOf<PatchResult.Applied>()
         }
 
         test("explicit MigrationPolicy.Reject also permits a guard-only edit") {
             val instance = runtime.start(model)
-            val result = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", "true"), policy = MigrationPolicy.Reject)
+            val result =
+                runtime.applyPatch(
+                    instance = instance,
+                    patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = "true"),
+                    policy = MigrationPolicy.Reject,
+                )
             result.shouldBeInstanceOf<PatchResult.Applied>()
         }
 
         test("a patched guard is live — flipping false to true makes the transition fire") {
             val instance = runtime.start(model)
             // Guard starts as "false" — event 'e' should not transition.
-            val stayed = runtime.step(instance, Event.of("e"))
+            val stayed = runtime.step(instance = instance, event = Event.of("e"))
             stayed.shouldBeInstanceOf<StepResult.Stayed>()
 
-            val result = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", "true"))
+            val result = runtime.applyPatch(instance = instance, patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = "true"))
             result.shouldBeInstanceOf<PatchResult.Applied>()
             val newInstance = result.instance
 
             // B is a final state — firing t1 terminates the machine (Rule 9), so the
             // live-ness of the patched guard is observed via isTerminated + currentVertexIds
             // rather than StepResult.Transitioned.
-            val stepResult = runtime.step(newInstance, Event.of("e"))
+            val stepResult = runtime.step(instance = newInstance, event = Event.of("e"))
             stepResult.shouldBeInstanceOf<StepResult.Terminated>()
             newInstance.currentVertexIds shouldBe listOf("B")
             newInstance.isTerminated shouldBe true
@@ -199,20 +223,28 @@ class ApplyPatchTest :
             val instance = runtime.start(model)
 
             // "vars.ready" only type-checks because "vars" is in defaultGuardScope() ...
-            OclSyntax.typeCheck("vars.ready", defaultGuardScope()).shouldBeInstanceOf<OclCheckResult.Ok>()
-            val accepted = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", "vars.ready"))
+            OclSyntax.typeCheck(expr = "vars.ready", scope = defaultGuardScope()).shouldBeInstanceOf<OclCheckResult.Ok>()
+            val accepted =
+                runtime.applyPatch(
+                    instance = instance,
+                    patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = "vars.ready"),
+                )
             accepted.shouldBeInstanceOf<PatchResult.Applied>()
 
             // ... while "nope.ready" fails under defaultGuardScope() because "nope" isn't a scope variable.
-            OclSyntax.typeCheck("nope.ready", defaultGuardScope()).shouldBeInstanceOf<OclCheckResult.Error>()
-            val rejected = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", "nope.ready"))
+            OclSyntax.typeCheck(expr = "nope.ready", scope = defaultGuardScope()).shouldBeInstanceOf<OclCheckResult.Error>()
+            val rejected =
+                runtime.applyPatch(
+                    instance = instance,
+                    patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = "nope.ready"),
+                )
             rejected.shouldBeInstanceOf<PatchResult.Rejected.InvalidOcl>()
         }
 
         test("guard edits are fingerprint-transparent") {
             val instance = runtime.start(model)
             val before = fingerprint(instance.model)
-            val result = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", "true"))
+            val result = runtime.applyPatch(instance = instance, patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = "true"))
             result.shouldBeInstanceOf<PatchResult.Applied>()
             val after = fingerprint(result.model)
             after shouldBe before

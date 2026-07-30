@@ -47,7 +47,7 @@ class ArxmlClassicExporterTest :
                     metadata = mapOf("kind" to KumlMetaValue.Text("application")),
                 )
             val pkg = UmlPackage(id = "p1", name = "Comps", members = listOf(compositionComp, applicationComp))
-            val xml = exporter.export(buildModel(ArxmlVersion.R22_11, pkg))
+            val xml = exporter.export(buildModel(version = ArxmlVersion.R22_11, pkg))
             xml shouldContain ArxmlSchema.ELEM_COMPOSITION_SWC
             xml shouldContain ArxmlSchema.ELEM_APPLICATION_SWC
             xml shouldContain "CompositionSWC"
@@ -78,7 +78,7 @@ class ArxmlClassicExporterTest :
                     ports = listOf(pPort, rPort),
                 )
             val pkg = UmlPackage(id = "p1", name = "Comps", members = listOf(comp))
-            val xml = exporter.export(buildModel(ArxmlVersion.R22_11, pkg))
+            val xml = exporter.export(buildModel(version = ArxmlVersion.R22_11, pkg))
             xml shouldContain ArxmlSchema.ELEM_P_PORT_PROTOTYPE
             xml shouldContain ArxmlSchema.ELEM_R_PORT_PROTOTYPE
             xml shouldContain "BrakeOut"
@@ -106,7 +106,7 @@ class ArxmlClassicExporterTest :
                     ports = listOf(pPort),
                 )
             val pkg = UmlPackage(id = "p1", name = "Comps", members = listOf(comp))
-            val xml = exporter.export(buildModel(ArxmlVersion.R22_11, pkg))
+            val xml = exporter.export(buildModel(version = ArxmlVersion.R22_11, pkg))
             xml shouldContain ArxmlSchema.ELEM_PROVIDED_INTERFACE_TREF
             xml shouldContain "/Interfaces/IBrake"
         }
@@ -128,7 +128,7 @@ class ArxmlClassicExporterTest :
                     operations = listOf(runnable),
                 )
             val pkg = UmlPackage(id = "p1", name = "Comps", members = listOf(comp))
-            val xml = exporter.export(buildModel(ArxmlVersion.R22_11, pkg))
+            val xml = exporter.export(buildModel(version = ArxmlVersion.R22_11, pkg))
             xml shouldContain ArxmlSchema.ELEM_RUNNABLE_ENTITY
             xml shouldContain "Cyclic10ms"
             xml shouldContain ArxmlSchema.ELEM_EVENTS
@@ -152,7 +152,7 @@ class ArxmlClassicExporterTest :
                         ),
                 )
             val pkg = UmlPackage(id = "p1", name = "Comps", members = listOf(comp))
-            val xml = exporter.export(buildModel(ArxmlVersion.R22_11, pkg))
+            val xml = exporter.export(buildModel(version = ArxmlVersion.R22_11, pkg))
             xml shouldContain ArxmlSchema.ELEM_BEHAVIOR_SPEC
             xml shouldContain "SafetyStateMachine"
             xml shouldContain ArxmlSchema.ELEM_INTERNAL_BEHAVIORS
@@ -178,7 +178,7 @@ class ArxmlClassicExporterTest :
                     operations = listOf(runnable),
                 )
             val pkg = UmlPackage(id = "p1", name = "Comps", members = listOf(comp))
-            val xml = exporter.export(buildModel(ArxmlVersion.R22_11, pkg))
+            val xml = exporter.export(buildModel(version = ArxmlVersion.R22_11, pkg))
             xml shouldContain ArxmlSchema.ELEM_RUNNABLE_ENTITY
             xml shouldContain ArxmlSchema.ELEM_BEHAVIOR_SPEC
             xml shouldContain "SafetyStateMachine"
@@ -230,7 +230,7 @@ class ArxmlClassicExporterTest :
                 )
             val ifacePkg = UmlPackage(id = "p2", name = "Interfaces", members = listOf(srInterface, csInterface))
             val compPkg = UmlPackage(id = "p1", name = "Comps", members = listOf(comp))
-            val xml = exporter.export(buildModel(ArxmlVersion.R22_11, ifacePkg, compPkg))
+            val xml = exporter.export(buildModel(version = ArxmlVersion.R22_11, ifacePkg, compPkg))
             // SR interface ref must carry DEST="SENDER-RECEIVER-INTERFACE"
             xml shouldContain """DEST="${ArxmlSchema.ELEM_SENDER_RECEIVER_INTERFACE}""""
             // CS interface ref must carry DEST="CLIENT-SERVER-INTERFACE"
@@ -286,7 +286,7 @@ class ArxmlClassicExporterTest :
                     ports = listOf(portA, portB),
                 )
             val compPkg = UmlPackage(id = "pc", name = "Comps", members = listOf(comp))
-            val xml = exporter.export(buildModel(ArxmlVersion.R22_11, pkgA, pkgB, compPkg))
+            val xml = exporter.export(buildModel(version = ArxmlVersion.R22_11, pkgA, pkgB, compPkg))
             // SR interface (PackageA/IData) must use SENDER-RECEIVER-INTERFACE DEST
             xml shouldContain """DEST="${ArxmlSchema.ELEM_SENDER_RECEIVER_INTERFACE}""""
             // CS interface (PackageB/IData, isService=true) must use CLIENT-SERVER-INTERFACE DEST
@@ -318,7 +318,7 @@ class ArxmlClassicExporterTest :
                 )
             val pkg = UmlPackage(id = "p1", name = "Manifests", members = listOf(serviceManifest, machineManifest))
             val adaptiveExporter = ArxmlClassicExporter(version = ArxmlVersion.R22_11, emitAdaptiveManifests = true)
-            val xml = adaptiveExporter.export(buildModel(ArxmlVersion.R22_11, pkg))
+            val xml = adaptiveExporter.export(buildModel(version = ArxmlVersion.R22_11, pkg))
             xml shouldContain ArxmlSchema.ELEM_SERVICE_MANIFEST
             xml shouldContain "MyServiceManifest"
             xml shouldContain ArxmlSchema.ELEM_MACHINE_MANIFEST
@@ -341,7 +341,7 @@ class ArxmlClassicExporterTest :
                 )
             val pkg = UmlPackage(id = "p1", name = "Manifests", members = listOf(manifestNoKind))
             val adaptiveExporter = ArxmlClassicExporter(version = ArxmlVersion.R22_11, emitAdaptiveManifests = true)
-            val xml = adaptiveExporter.export(buildModel(ArxmlVersion.R22_11, pkg))
+            val xml = adaptiveExporter.export(buildModel(version = ArxmlVersion.R22_11, pkg))
             xml shouldContain ArxmlSchema.ELEM_SERVICE_MANIFEST
             xml shouldContain "DefaultManifest"
         }
@@ -349,7 +349,7 @@ class ArxmlClassicExporterTest :
         test("AR-PACKAGE nesting matches UmlPackage hierarchy, xmlns and xsi:schemaLocation match version") {
             val inner = UmlPackage(id = "p2", name = "InnerPkg", members = emptyList())
             val outer = UmlPackage(id = "p1", name = "OuterPkg", members = listOf(inner))
-            val xml = exporter.export(buildModel(ArxmlVersion.R22_11, outer))
+            val xml = exporter.export(buildModel(version = ArxmlVersion.R22_11, outer))
             xml shouldContain ArxmlVersion.R22_11.namespaceUri
             xml shouldContain ArxmlVersion.R22_11.schemaLabel
             xml shouldContain "OuterPkg"

@@ -105,7 +105,7 @@ class Sysml2ModelBuilder(
                 qualifiedName = name,
                 isAbstract = isAbstract,
                 features = builder.features(),
-                specializations = specializesId?.let { listOf(KermlSpecialization(id, it)) }.orEmpty(),
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
                 constraints = builder.constraints(),
             )
         definitions += def
@@ -1186,7 +1186,7 @@ class DefinitionBuilder internal constructor(
                 multiplicity = multiplicity,
                 defaultExpression = default?.toSpecForm(),
             )
-        collected += toFeature(usage, typeId)
+        collected += toFeature(usage = usage, typeId = typeId)
         modelBuilder.registerUsage(usage)
         return usage
     }
@@ -1206,7 +1206,7 @@ class DefinitionBuilder internal constructor(
                 definitionId = typeId,
                 multiplicity = multiplicity,
             )
-        collected += toFeature(usage, typeId)
+        collected += toFeature(usage = usage, typeId = typeId)
         modelBuilder.registerUsage(usage)
         return usage
     }
@@ -1226,7 +1226,7 @@ class DefinitionBuilder internal constructor(
                 definitionId = typeId,
                 multiplicity = multiplicity,
             )
-        collected += toFeature(usage, typeId)
+        collected += toFeature(usage = usage, typeId = typeId)
         modelBuilder.registerUsage(usage)
         return usage
     }
@@ -1250,7 +1250,7 @@ class DefinitionBuilder internal constructor(
                 sourceEndId = sourceEndId,
                 targetEndId = targetEndId,
             )
-        collected += toFeature(usage, typeId)
+        collected += toFeature(usage = usage, typeId = typeId)
         modelBuilder.registerUsage(usage)
         return usage
     }
@@ -1398,7 +1398,7 @@ class UcDiagramBuilder internal constructor() {
         actor: ActorDefinition,
         useCase: UseCaseDefinition,
     ): UcAssociation {
-        val assoc = associationById(actor.id, useCase.id)
+        val assoc = associationById(actorId = actor.id, useCaseId = useCase.id)
         return assoc
     }
 
@@ -1423,7 +1423,7 @@ class UcDiagramBuilder internal constructor() {
     fun include(
         source: UseCaseDefinition,
         target: UseCaseDefinition,
-    ): UcInclude = includeById(source.id, target.id)
+    ): UcInclude = includeById(sourceId = source.id, targetId = target.id)
 
     /** Id-only variant of the include-relationship form — for forward refs. */
     fun includeById(
@@ -1442,7 +1442,7 @@ class UcDiagramBuilder internal constructor() {
     fun extend(
         source: UseCaseDefinition,
         target: UseCaseDefinition,
-    ): UcExtend = extendById(source.id, target.id)
+    ): UcExtend = extendById(sourceId = source.id, targetId = target.id)
 
     /** Id-only variant of the extend-relationship form — for forward refs. */
     fun extendById(
@@ -1509,7 +1509,7 @@ class ReqDiagramBuilder internal constructor() {
     fun satisfy(
         source: Sysml2Definition,
         requirement: RequirementDefinition,
-    ): ReqSatisfy = satisfyById(source.id, requirement.id)
+    ): ReqSatisfy = satisfyById(sourceId = source.id, requirementId = requirement.id)
 
     /** Id-only variant of [satisfy] — for forward refs. */
     fun satisfyById(
@@ -1533,7 +1533,7 @@ class ReqDiagramBuilder internal constructor() {
     fun verify(
         source: Sysml2Definition,
         requirement: RequirementDefinition,
-    ): ReqVerify = verifyById(source.id, requirement.id)
+    ): ReqVerify = verifyById(sourceId = source.id, requirementId = requirement.id)
 
     /** Id-only variant of [verify] — for forward refs. */
     fun verifyById(
@@ -1557,7 +1557,7 @@ class ReqDiagramBuilder internal constructor() {
     fun derive(
         source: RequirementDefinition,
         target: RequirementDefinition,
-    ): ReqDerive = deriveById(source.id, target.id)
+    ): ReqDerive = deriveById(sourceRequirementId = source.id, targetRequirementId = target.id)
 
     /** Id-only variant of [derive] — for forward refs. */
     fun deriveById(
@@ -1581,7 +1581,7 @@ class ReqDiagramBuilder internal constructor() {
     fun contains(
         parent: RequirementDefinition,
         child: RequirementDefinition,
-    ): ReqContains = containsById(parent.id, child.id)
+    ): ReqContains = containsById(parentRequirementId = parent.id, childRequirementId = child.id)
 
     /** Id-only variant of [contains] — for forward refs. */
     fun containsById(

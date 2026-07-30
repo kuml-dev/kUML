@@ -63,7 +63,7 @@ public class TraceReplayer(
         val events = EventsFromTrace.extract(original)
         for (event in events) {
             if (instance.isTerminated) break
-            runtime.step(instance, event)
+            runtime.step(instance = instance, event = event)
         }
 
         val actualTrace = instance.trace

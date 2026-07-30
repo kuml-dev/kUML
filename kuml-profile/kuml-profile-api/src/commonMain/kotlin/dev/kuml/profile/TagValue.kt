@@ -20,8 +20,8 @@ public fun Any?.toTagValue(): TagValue =
         is Boolean -> TagValue.BoolVal(this)
         is Enum<*> ->
             TagValue.EnumVal(
-                this::class.qualifiedOrSimpleName() ?: "?",
-                this.name,
+                typeName = this::class.qualifiedOrSimpleName() ?: "?",
+                valueName = this.name,
             )
         is List<*> -> TagValue.ListVal(this.map { it.toTagValue() })
         else -> TagValue.StringVal(this.toString())

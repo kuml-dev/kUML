@@ -40,11 +40,11 @@ class UmlStateMachineSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(280f, 200f),
+                canvas = Size(width = 280f, height = 200f),
                 nodes =
                     mapOf(
                         NodeId(id) to
-                            NodeLayout(bounds = Rect(Point(10f, 10f), Size(240f, 140f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 240f, height = 140f))),
                     ),
                 edges = emptyMap(),
                 groups = emptyMap(),
@@ -59,7 +59,7 @@ class UmlStateMachineSvgTest :
         test("stateMachine without stereotype renders frame with label and name") {
             val sm = UmlStateMachine(id = "sm1", name = "OrderProcessing")
             val diagram = KumlDiagram(name = "D", elements = listOf(sm))
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("sm1"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("sm1"), theme = PlainTheme())
 
             svg shouldContain "class=\"kuml-frame\""
             svg shouldContain "stateMachine"
@@ -74,7 +74,7 @@ class UmlStateMachineSvgTest :
                     appliedStereotypes = listOf(stereoApp("BehaviorSpec")),
                 )
             val diagram = KumlDiagram(name = "D", elements = listOf(sm))
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("sm2"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("sm2"), theme = PlainTheme())
 
             svg shouldContain "«BehaviorSpec»"
             svg shouldContain "OrderProcessing"
@@ -94,7 +94,7 @@ class UmlStateMachineSvgTest :
                         listOf(stereoApp("A"), stereoApp("B")),
                 )
             val diagram = KumlDiagram(name = "D", elements = listOf(sm))
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("sm3"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("sm3"), theme = PlainTheme())
 
             // Default joinSeparator is ", "
             svg shouldContain "«A, B»"
@@ -105,7 +105,7 @@ class UmlStateMachineSvgTest :
             // The frame renderer uses class="kuml-frame" and prints the element name.
             val sm = UmlStateMachine(id = "sm4", name = "DispatchTarget")
             val diagram = KumlDiagram(name = "D", elements = listOf(sm))
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("sm4"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("sm4"), theme = PlainTheme())
 
             svg shouldContain "class=\"kuml-frame\""
             // The frame renderer prints the friendly name, not the bare ID.
@@ -115,7 +115,7 @@ class UmlStateMachineSvgTest :
         test("stateMachine frame label is 'stateMachine' (top-left)") {
             val sm = UmlStateMachine(id = "sm5", name = "X")
             val diagram = KumlDiagram(name = "D", elements = listOf(sm))
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("sm5"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("sm5"), theme = PlainTheme())
 
             // The pretty-printer breaks the label across lines, so check the
             // attributes and the inner text independently.
@@ -129,9 +129,9 @@ class UmlStateMachineSvgTest :
 
         test("simple state renders name vertically centered") {
             val state = UmlState(id = "s1", name = "Draft")
-            val layout = NodeLayout(bounds = Rect(Point(0f, 0f), Size(120f, 40f)))
+            val layout = NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 120f, height = 40f)))
             val builder = SvgBuilder(pretty = false)
-            renderUmlState(state, layout, PlainTheme(), builder)
+            renderUmlState(element = state, layout = layout, theme = PlainTheme(), builder = builder)
             val svg = builder.toString()
 
             svg shouldContain "Draft"
@@ -144,9 +144,9 @@ class UmlStateMachineSvgTest :
         test("composite state renders name at top with divider line") {
             val sub = UmlState(id = "sub", name = "Sub")
             val composite = UmlState(id = "comp", name = "Processing", substates = listOf(sub))
-            val layout = NodeLayout(bounds = Rect(Point(0f, 0f), Size(160f, 100f)))
+            val layout = NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 160f, height = 100f)))
             val builder = SvgBuilder(pretty = false)
-            renderUmlState(composite, layout, PlainTheme(), builder)
+            renderUmlState(element = composite, layout = layout, theme = PlainTheme(), builder = builder)
             val svg = builder.toString()
 
             svg shouldContain "Processing"
@@ -180,22 +180,27 @@ class UmlStateMachineSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(400f, 400f),
+                    canvas = Size(width = 400f, height = 400f),
                     groups =
                         mapOf(
-                            GroupId("sm6") to GroupLayout(bounds = Rect(Point(10f, 10f), Size(360f, 360f))),
-                            GroupId("processing") to GroupLayout(bounds = Rect(Point(50f, 100f), Size(260f, 200f))),
+                            GroupId("sm6") to
+                                GroupLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 360f, height = 360f))),
+                            GroupId("processing") to
+                                GroupLayout(bounds = Rect(origin = Point(x = 50f, y = 100f), size = Size(width = 260f, height = 200f))),
                         ),
                     nodes =
                         mapOf(
-                            NodeId("start") to NodeLayout(bounds = Rect(Point(180f, 30f), Size(24f, 24f))),
-                            NodeId("picking") to NodeLayout(bounds = Rect(Point(60f, 140f), Size(100f, 40f))),
-                            NodeId("packing") to NodeLayout(bounds = Rect(Point(180f, 140f), Size(100f, 40f))),
+                            NodeId("start") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 180f, y = 30f), size = Size(width = 24f, height = 24f))),
+                            NodeId("picking") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 60f, y = 140f), size = Size(width = 100f, height = 40f))),
+                            NodeId("packing") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 180f, y = 140f), size = Size(width = 100f, height = 40f))),
                         ),
                     edges = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             // State machine frame
             svg shouldContain "stateMachine"
@@ -242,22 +247,29 @@ class UmlStateMachineSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(300f, 300f),
-                    groups = mapOf(GroupId("sm7") to GroupLayout(bounds = Rect(Point(10f, 10f), Size(200f, 280f)))),
+                    canvas = Size(width = 300f, height = 300f),
+                    groups =
+                        mapOf(
+                            GroupId("sm7") to
+                                GroupLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 200f, height = 280f))),
+                        ),
                     nodes =
                         mapOf(
-                            NodeId("start") to NodeLayout(bounds = Rect(Point(100f, 20f), Size(24f, 24f))),
-                            NodeId("ruhend") to NodeLayout(bounds = Rect(Point(60f, 100f), Size(120f, 60f))),
-                            NodeId("ausgeschieden") to NodeLayout(bounds = Rect(Point(30f, 240f), Size(28f, 28f))),
+                            NodeId("start") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 100f, y = 20f), size = Size(width = 24f, height = 24f))),
+                            NodeId("ruhend") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 60f, y = 100f), size = Size(width = 120f, height = 60f))),
+                            NodeId("ausgeschieden") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 30f, y = 240f), size = Size(width = 28f, height = 28f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("t1") to
-                                EdgeRoute.Direct(source = Point(30f, 160f), target = Point(30f, 240f)),
+                                EdgeRoute.Direct(source = Point(x = 30f, y = 160f), target = Point(x = 30f, y = 240f)),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             val frameMatch = Regex("""<rect width="([\d.]+)" height="[\d.]+" rx="8" ry="8" class="kuml-frame"/>""").find(svg)
             frameMatch shouldNotBe null

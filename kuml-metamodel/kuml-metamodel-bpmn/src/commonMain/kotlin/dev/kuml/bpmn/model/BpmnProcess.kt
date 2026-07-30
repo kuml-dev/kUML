@@ -73,7 +73,7 @@ data class BpmnProcess(
         flowNodes
             .filterIsInstance<BpmnSubProcess>()
             .filter { it.expanded }
-            .forEach { collectExpandedSubProcess(it, acc) }
+            .forEach { collectExpandedSubProcess(sp = it, acc = acc) }
         return acc
     }
 
@@ -87,6 +87,6 @@ data class BpmnProcess(
         sp.flowElementNodes
             .filterIsInstance<BpmnSubProcess>()
             .filter { it.expanded }
-            .forEach { collectExpandedSubProcess(it, acc) }
+            .forEach { collectExpandedSubProcess(sp = it, acc = acc) }
     }
 }

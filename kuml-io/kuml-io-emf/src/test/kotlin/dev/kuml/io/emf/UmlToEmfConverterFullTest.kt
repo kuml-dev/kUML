@@ -108,7 +108,13 @@ class UmlToEmfConverterFullTest :
         // ── Property ──────────────────────────────────────────────────────────
 
         test("UmlProperty mit Multiplicity 0..* → EMF upper=-1") {
-            val prop = UmlProperty(id = "cls.items", name = "items", type = UmlTypeRef("String"), multiplicity = Multiplicity(0, null))
+            val prop =
+                UmlProperty(
+                    id = "cls.items",
+                    name = "items",
+                    type = UmlTypeRef(name = "String"),
+                    multiplicity = Multiplicity(lower = 0, upper = null),
+                )
             val cls = UmlClass(id = "Order", name = "Order", attributes = listOf(prop))
             val emfModel = converter.convert(kumlModel(cls))
             val emfCls = emfModel.ownedTypes.filterIsInstance<EmfClass>().first()
@@ -118,7 +124,7 @@ class UmlToEmfConverterFullTest :
         }
 
         test("UmlProperty isStatic=true → EMF isStatic=true") {
-            val prop = UmlProperty(id = "Counter.count", name = "count", type = UmlTypeRef("Int"), isStatic = true)
+            val prop = UmlProperty(id = "Counter.count", name = "count", type = UmlTypeRef(name = "Int"), isStatic = true)
             val cls = UmlClass(id = "Counter", name = "Counter", attributes = listOf(prop))
             val emfModel = converter.convert(kumlModel(cls))
             val emfProp =
@@ -131,7 +137,7 @@ class UmlToEmfConverterFullTest :
         }
 
         test("UmlProperty isReadOnly=true → EMF isReadOnly=true") {
-            val prop = UmlProperty(id = "Config.version", name = "version", type = UmlTypeRef("String"), isReadOnly = true)
+            val prop = UmlProperty(id = "Config.version", name = "version", type = UmlTypeRef(name = "String"), isReadOnly = true)
             val cls = UmlClass(id = "Config", name = "Config", attributes = listOf(prop))
             val emfModel = converter.convert(kumlModel(cls))
             val emfProp =
@@ -146,7 +152,7 @@ class UmlToEmfConverterFullTest :
         // ── Operation ─────────────────────────────────────────────────────────
 
         test("UmlOperation mit returnType → EMF Operation mit return Parameter") {
-            val op = UmlOperation(id = "Calculator.compute", name = "compute", returnType = UmlTypeRef("Double"))
+            val op = UmlOperation(id = "Calculator.compute", name = "compute", returnType = UmlTypeRef(name = "Double"))
             val cls = UmlClass(id = "Calculator", name = "Calculator", operations = listOf(op))
             val emfModel = converter.convert(kumlModel(cls))
             val emfOp =
@@ -161,7 +167,7 @@ class UmlToEmfConverterFullTest :
         }
 
         test("UmlOperation mit IN-Parameter → EMF Parameter mit IN direction") {
-            val param = UmlParameter(id = "add.x", name = "x", type = UmlTypeRef("Int"), direction = ParameterDirection.IN)
+            val param = UmlParameter(id = "add.x", name = "x", type = UmlTypeRef(name = "Int"), direction = ParameterDirection.IN)
             val op = UmlOperation(id = "Calculator.add", name = "add", parameters = listOf(param))
             val cls = UmlClass(id = "Calculator", name = "Calculator", operations = listOf(op))
             val emfModel = converter.convert(kumlModel(cls))

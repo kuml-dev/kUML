@@ -52,23 +52,25 @@ class Sysml2StmEdgeLabelSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(500f, 200f),
+                canvas = Size(width = 500f, height = 200f),
                 nodes =
                     mapOf(
-                        NodeId("Off") to NodeLayout(bounds = Rect(Point(40f, 60f), Size(120f, 60f))),
-                        NodeId("On") to NodeLayout(bounds = Rect(Point(300f, 60f), Size(120f, 60f))),
+                        NodeId("Off") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 60f), size = Size(width = 120f, height = 60f))),
+                        NodeId("On") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 300f, y = 60f), size = Size(width = 120f, height = 60f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("transition:Off::On") to
-                            EdgeRoute.Direct(source = Point(160f, 90f), target = Point(300f, 90f)),
+                            EdgeRoute.Direct(source = Point(x = 160f, y = 90f), target = Point(x = 300f, y = 90f)),
                     ),
                 groups = emptyMap(),
             )
 
         "STM transition label trigger [guard] / effect appears in SVG" {
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "powerOn [ready] / boot()"
-            SampleOutput.write("sysml2-edge-labels/stm-transition.svg", svg)
+            SampleOutput.write(filename = "sysml2-edge-labels/stm-transition.svg", content = svg)
         }
     })

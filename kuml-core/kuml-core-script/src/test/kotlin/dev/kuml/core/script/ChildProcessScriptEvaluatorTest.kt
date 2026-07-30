@@ -34,7 +34,7 @@ class ChildProcessScriptEvaluatorTest :
             val evaluator = ChildProcessScriptEvaluator(timeoutSeconds = 3)
 
             lateinit var result: EvaluatedScript
-            val elapsed = measureTimeMillis { result = evaluator.evaluate(infiniteLoop) }
+            val elapsed = measureTimeMillis { result = evaluator.evaluate(source = infiniteLoop) }
 
             val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
             failure.kind shouldBe FailureKind.TIMEOUT
@@ -47,13 +47,13 @@ class ChildProcessScriptEvaluatorTest :
         test("parent stays responsive after a timeout — next evaluation succeeds") {
             // First: a runaway child that will be killed at 3 s.
             val strict = ChildProcessScriptEvaluator(timeoutSeconds = 3)
-            strict.evaluate("""diagram(name = "loop", type = DiagramType.CLASS) {}; while (true) {}""")
+            strict.evaluate(source = """diagram(name = "loop", type = DiagramType.CLASS) {}; while (true) {}""")
             // Then: a well-behaved evaluation must succeed — the parent was not
             // damaged by killing the child. Uses a generous timeout so the
             // assertion is about *parent survival*, not about cold-start timing.
             val ok =
                 ChildProcessScriptEvaluator(timeoutSeconds = 60)
-                    .evaluate("""diagram(name = "ok", type = DiagramType.CLASS) {}""")
+                    .evaluate(source = """diagram(name = "ok", type = DiagramType.CLASS) {}""")
             ok.shouldBeInstanceOf<EvaluatedScript.Success>()
         }
 
@@ -66,7 +66,7 @@ class ChildProcessScriptEvaluatorTest :
                     timeoutSeconds = 5,
                     javaBinary = "/nonexistent/java-binary-that-does-not-exist",
                 )
-            val result = evaluator.evaluate("""diagram(name = "x", type = DiagramType.CLASS) {}""")
+            val result = evaluator.evaluate(source = """diagram(name = "x", type = DiagramType.CLASS) {}""")
             val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
             failure.kind shouldBe FailureKind.SANDBOX
         }
@@ -78,7 +78,7 @@ class ChildProcessScriptEvaluatorTest :
             val echo = listOf("/bin/echo", "/usr/bin/echo").firstOrNull { java.io.File(it).canExecute() }
             if (echo != null) {
                 val evaluator = ChildProcessScriptEvaluator(timeoutSeconds = 10, javaBinary = echo)
-                val result = evaluator.evaluate("""diagram(name = "x", type = DiagramType.CLASS) {}""")
+                val result = evaluator.evaluate(source = """diagram(name = "x", type = DiagramType.CLASS) {}""")
                 val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
                 failure.kind shouldBe FailureKind.SANDBOX
             }
@@ -89,7 +89,7 @@ class ChildProcessScriptEvaluatorTest :
             // spending a JVM launch.
             val evaluator = ChildProcessScriptEvaluator(timeoutSeconds = 30)
             val result =
-                evaluator.evaluate("""diagram(name = "x") {}; Runtime.getRuntime().exec("id")""")
+                evaluator.evaluate(source = """diagram(name = "x") {}; Runtime.getRuntime().exec("id")""")
             val failure = result.shouldBeInstanceOf<EvaluatedScript.Failure>()
             failure.kind shouldBe FailureKind.GUARD
         }

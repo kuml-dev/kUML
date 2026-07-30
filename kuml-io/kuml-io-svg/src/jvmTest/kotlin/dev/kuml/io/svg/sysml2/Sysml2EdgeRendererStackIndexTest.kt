@@ -31,7 +31,7 @@ class Sysml2EdgeRendererStackIndexTest :
         ): Triple<EdgeId, EdgeRoute, String?> =
             Triple(
                 EdgeId(id),
-                EdgeRoute.Direct(source = Point(x, y1), target = Point(x, y2)),
+                EdgeRoute.Direct(source = Point(x = x, y = y1), target = Point(x = x, y = y2)),
                 null,
             )
 
@@ -44,7 +44,7 @@ class Sysml2EdgeRendererStackIndexTest :
         ): Triple<EdgeId, EdgeRoute, String?> =
             Triple(
                 EdgeId(id),
-                EdgeRoute.Direct(source = Point(x, y1), target = Point(x, y2)),
+                EdgeRoute.Direct(source = Point(x = x, y = y1), target = Point(x = x, y = y2)),
                 label,
             )
 

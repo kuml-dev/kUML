@@ -194,11 +194,11 @@ internal class RunCommand : CliktCommand(name = "run") {
                             System.err.println("--events <file> is required for --adapter batch")
                             throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                         }
-                    BatchAdapter(manager, eventsFile, outputTrace).run()
+                    BatchAdapter(manager = manager, eventsFile = eventsFile, traceOut = outputTrace).run()
                 }
 
                 "mcp" -> {
-                    val httpAdapter = McpHttpAdapter(manager, port)
+                    val httpAdapter = McpHttpAdapter(manager = manager, requestedPort = port)
                     val boundPort =
                         try {
                             httpAdapter.start()
@@ -211,7 +211,7 @@ internal class RunCommand : CliktCommand(name = "run") {
                     0
                 }
 
-                else -> StdinAdapter(manager).run()
+                else -> StdinAdapter(manager = manager).run()
             }
 
         snapshotOut?.let {

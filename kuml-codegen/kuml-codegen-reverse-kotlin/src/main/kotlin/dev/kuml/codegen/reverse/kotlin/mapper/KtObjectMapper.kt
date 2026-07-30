@@ -26,8 +26,8 @@ internal class KtObjectMapper(
     ): UmlClass? {
         if (obj.isObjectLiteral()) {
             diagnostics.info(
-                "REV-K-021",
-                "Anonymous object literal skipped — not representable in UML class diagram.",
+                code = "REV-K-021",
+                message = "Anonymous object literal skipped — not representable in UML class diagram.",
                 file = obj.containingFile.name,
             )
             return null
@@ -45,13 +45,13 @@ internal class KtObjectMapper(
         val attributes =
             obj.declarations
                 .filterIsInstance<KtProperty>()
-                .map { prop -> propertyMapper.map(prop, id) }
+                .map { prop -> propertyMapper.map(prop = prop, ownerId = id) }
                 .sortedBy { it.name }
 
         val operations =
             obj.declarations
                 .filterIsInstance<org.jetbrains.kotlin.psi.KtNamedFunction>()
-                .map { func -> functionMapper.map(func, id) }
+                .map { func -> functionMapper.map(func = func, ownerId = id) }
                 .sortedBy { it.name }
 
         return UmlClass(

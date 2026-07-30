@@ -43,7 +43,7 @@ internal object ToolRegistry {
     ): List<McpContent> {
         val tool =
             tools.firstOrNull { it.descriptor.name == name }
-                ?: throw McpToolException("Unknown tool: '$name'")
+                ?: throw McpToolException(message = "Unknown tool: '$name'")
         return tool.call(arguments)
     }
 }

@@ -18,25 +18,25 @@ class SubstrateRpcClientTest :
         beforeTest {
             server = MockRpcServer()
             server.start()
-            client = SubstrateRpcClient(server.baseUrl())
+            client = SubstrateRpcClient(rpcUrl = server.baseUrl())
         }
 
         afterTest { server.stop() }
 
         test("call returns result on success") {
             runTest {
-                server.onMethod("chain_getFinalizedHead") { rpcSuccess(result = "\"0xabc123\"") }
-                val result = client.call("chain_getFinalizedHead", buildJsonArray {})
+                server.onMethod(method = "chain_getFinalizedHead") { rpcSuccess(result = "\"0xabc123\"") }
+                val result = client.call(method = "chain_getFinalizedHead", params = buildJsonArray {})
                 result.toString() shouldContain "abc123"
             }
         }
 
         test("call throws RpcError on error response") {
             runTest {
-                server.onMethod("chain_getFinalizedHead") { rpcError(code = -32000, message = "chain error") }
+                server.onMethod(method = "chain_getFinalizedHead") { rpcError(code = -32000, message = "chain error") }
                 val ex =
                     shouldThrow<SubstrateChainAdapterException.RpcError> {
-                        client.call("chain_getFinalizedHead", buildJsonArray {})
+                        client.call(method = "chain_getFinalizedHead", params = buildJsonArray {})
                     }
                 ex.code shouldBe -32000
                 ex.rpcMessage shouldBe "chain error"
@@ -48,25 +48,25 @@ class SubstrateRpcClientTest :
                 val deadServer = MockRpcServer()
                 deadServer.start()
                 deadServer.stop()
-                val deadClient = SubstrateRpcClient(deadServer.baseUrl())
+                val deadClient = SubstrateRpcClient(rpcUrl = deadServer.baseUrl())
                 shouldThrow<SubstrateChainAdapterException.NetworkError> {
-                    deadClient.call("any_method", buildJsonArray {})
+                    deadClient.call(method = "any_method", params = buildJsonArray {})
                 }
             }
         }
 
         test("getFinalizedHeight parses hex number from header") {
             runTest {
-                server.onMethod("chain_getFinalizedHead") { rpcSuccess(result = "\"0xhashvalue\"") }
-                server.onMethod("chain_getHeader") { rpcSuccess(result = """{"number":"0x2A"}""") }
+                server.onMethod(method = "chain_getFinalizedHead") { rpcSuccess(result = "\"0xhashvalue\"") }
+                server.onMethod(method = "chain_getHeader") { rpcSuccess(result = """{"number":"0x2A"}""") }
                 client.getFinalizedHeight() shouldBe 42L
             }
         }
 
         test("getFinalizedHeight throws MalformedResponse when number missing") {
             runTest {
-                server.onMethod("chain_getFinalizedHead") { rpcSuccess(result = "\"0xhash\"") }
-                server.onMethod("chain_getHeader") { rpcSuccess(result = "{}") }
+                server.onMethod(method = "chain_getFinalizedHead") { rpcSuccess(result = "\"0xhash\"") }
+                server.onMethod(method = "chain_getHeader") { rpcSuccess(result = "{}") }
                 shouldThrow<SubstrateChainAdapterException.MalformedResponse> {
                     client.getFinalizedHeight()
                 }
@@ -75,7 +75,7 @@ class SubstrateRpcClientTest :
 
         test("getBlockHash returns hex string") {
             runTest {
-                server.onMethod("chain_getBlockHash") { body ->
+                server.onMethod(method = "chain_getBlockHash") { body ->
                     body shouldContain "100"
                     rpcSuccess(result = "\"0xblockhash\"")
                 }
@@ -85,7 +85,7 @@ class SubstrateRpcClientTest :
 
         test("getBlockHash throws MalformedResponse on null result") {
             runTest {
-                server.onMethod("chain_getBlockHash") { rpcSuccess(result = "null") }
+                server.onMethod(method = "chain_getBlockHash") { rpcSuccess(result = "null") }
                 shouldThrow<SubstrateChainAdapterException.MalformedResponse> {
                     client.getBlockHash(999L)
                 }
@@ -94,21 +94,21 @@ class SubstrateRpcClientTest :
 
         test("getSystemEvents returns empty string on null") {
             runTest {
-                server.onMethod("state_getStorage") { rpcSuccess(result = "null") }
+                server.onMethod(method = "state_getStorage") { rpcSuccess(result = "null") }
                 client.getSystemEvents("0xhash") shouldBe ""
             }
         }
 
         test("getSystemEvents returns hex string") {
             runTest {
-                server.onMethod("state_getStorage") { rpcSuccess(result = "\"0xdeadbeef\"") }
+                server.onMethod(method = "state_getStorage") { rpcSuccess(result = "\"0xdeadbeef\"") }
                 client.getSystemEvents("0xhash") shouldBe "0xdeadbeef"
             }
         }
 
         test("getTimestampNowHex returns empty string on null") {
             runTest {
-                server.onMethod("state_getStorage") { rpcSuccess(result = "null") }
+                server.onMethod(method = "state_getStorage") { rpcSuccess(result = "null") }
                 client.getTimestampNowHex() shouldBe ""
             }
         }
@@ -117,10 +117,10 @@ class SubstrateRpcClientTest :
             runTest {
                 // Alice's full SS58 address for a valid base58Decode
                 val aliceAddr = "5GrwvaEFyWSMkHMtFEEWBFVuQ8bMm9Q6wn9AKTjrMN2n3JGN"
-                server.onMethod("state_call") {
+                server.onMethod(method = "state_call") {
                     rpcSuccess(result = """{"result":{"Ok":{"data":"0xdeadbeef"}}}""")
                 }
-                client.contractsCall(aliceAddr, "0x9bae9d5e") shouldBe "0xdeadbeef"
+                client.contractsCall(contractAddress = aliceAddr, selectorHex = "0x9bae9d5e") shouldBe "0xdeadbeef"
             }
         }
 
@@ -130,19 +130,19 @@ class SubstrateRpcClientTest :
                 // not a nested object. This is the real-world form — the test above covers
                 // RPC-proxy wrappers.
                 val aliceAddr = "5GrwvaEFyWSMkHMtFEEWBFVuQ8bMm9Q6wn9AKTjrMN2n3JGN"
-                server.onMethod("state_call") {
+                server.onMethod(method = "state_call") {
                     rpcSuccess(result = "\"0xcafebabe\"")
                 }
-                client.contractsCall(aliceAddr, "0x9bae9d5e") shouldBe "0xcafebabe"
+                client.contractsCall(contractAddress = aliceAddr, selectorHex = "0x9bae9d5e") shouldBe "0xcafebabe"
             }
         }
 
         test("contractsCall throws MalformedResponse when data missing") {
             runTest {
                 val aliceAddr = "5GrwvaEFyWSMkHMtFEEWBFVuQ8bMm9Q6wn9AKTjrMN2n3JGN"
-                server.onMethod("state_call") { rpcSuccess(result = "{}") }
+                server.onMethod(method = "state_call") { rpcSuccess(result = "{}") }
                 shouldThrow<SubstrateChainAdapterException.MalformedResponse> {
-                    client.contractsCall(aliceAddr, "0x9bae9d5e")
+                    client.contractsCall(contractAddress = aliceAddr, selectorHex = "0x9bae9d5e")
                 }
             }
         }
@@ -178,13 +178,13 @@ class SubstrateRpcClientTest :
 
         test("readLimited returns content within limit") {
             val data = "substrate data".byteInputStream()
-            SubstrateRpcClient.readLimited(data, 100L) shouldBe "substrate data"
+            SubstrateRpcClient.readLimited(stream = data, limit = 100L) shouldBe "substrate data"
         }
 
         test("readLimited throws NetworkError when limit exceeded") {
             val data = "too much data here".byteInputStream()
             shouldThrow<SubstrateChainAdapterException.NetworkError> {
-                SubstrateRpcClient.readLimited(data, 5L)
+                SubstrateRpcClient.readLimited(stream = data, limit = 5L)
             }
         }
     })

@@ -62,9 +62,9 @@ public class BpmnConstraintChecker {
      */
     public fun check(model: BpmnModel): List<ConstraintViolation> =
         buildList {
-            model.processes.forEach { process -> checkProcess(process, this) }
-            model.collaborations.forEach { collab -> checkCollaboration(collab, model, this) }
-            model.choreographies.forEach { choreography -> checkChoreography(choreography, this) }
+            model.processes.forEach { process -> checkProcess(process = process, violations = this) }
+            model.collaborations.forEach { collab -> checkCollaboration(collab = collab, model = model, violations = this) }
+            model.choreographies.forEach { choreography -> checkChoreography(choreography = choreography, violations = this) }
         }
 
     private fun checkProcess(

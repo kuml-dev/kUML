@@ -30,8 +30,8 @@ internal class KtEnumerationMapper(
                     // REV-K-030: enum entry with body
                     if (entry.body != null) {
                         diagnostics.info(
-                            "REV-K-030",
-                            "Enum entry '$entryName' in '$name' has a body — body members not modeled.",
+                            code = "REV-K-030",
+                            message = "Enum entry '$entryName' in '$name' has a body — body members not modeled.",
                             file = ktEnum.containingFile.name,
                         )
                     }

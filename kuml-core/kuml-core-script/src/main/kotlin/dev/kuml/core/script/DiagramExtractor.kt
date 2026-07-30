@@ -152,8 +152,9 @@ object DiagramExtractor {
         }
 
         throw ScriptEvaluationException(
-            "Script '${input.name}' did not produce a KumlDiagram. " +
-                "Ensure the script ends with a `diagram { }` expression.",
+            message =
+                "Script '${input.name}' did not produce a KumlDiagram. " +
+                    "Ensure the script ends with a `diagram { }` expression.",
         )
     }
 
@@ -185,91 +186,100 @@ object DiagramExtractor {
             if (value is KumlDiagram) return ExtractedDiagram.Uml(value)
             if (value is C4Model) {
                 value.firstDiagramOrNull()?.let {
-                    return ExtractedDiagram.C4(value, it)
+                    return ExtractedDiagram.C4(model = value, diagram = it)
                 }
             }
             if (value is C4Diagram) {
                 // A bare C4Diagram has no parent model — not renderable.
                 throw ScriptEvaluationException(
-                    "Script '${input.name}' returned a bare C4Diagram. " +
-                        "Wrap it inside `c4Model(name = \"…\") { systemContextDiagram(name = \"…\") { … } }` " +
-                        "so the renderer has access to the surrounding C4Model.",
+                    message =
+                        "Script '${input.name}' returned a bare C4Diagram. " +
+                            "Wrap it inside `c4Model(name = \"…\") { systemContextDiagram(name = \"…\") { … } }` " +
+                            "so the renderer has access to the surrounding C4Model.",
                 )
             }
             if (value is Sysml2Model) {
                 value.firstDiagramOrNull()?.let {
-                    return ExtractedDiagram.Sysml2(value, it)
+                    return ExtractedDiagram.Sysml2(model = value, diagram = it)
                 }
             }
             if (value is BdDiagram) {
                 throw ScriptEvaluationException(
-                    "Script '${input.name}' returned a bare BdDiagram. " +
-                        "Wrap it inside `sysml2Model(\"…\") { bdd(\"…\") { … } }` " +
-                        "so the renderer has access to the surrounding Sysml2Model.",
+                    message =
+                        "Script '${input.name}' returned a bare BdDiagram. " +
+                            "Wrap it inside `sysml2Model(\"…\") { bdd(\"…\") { … } }` " +
+                            "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
             if (value is IbdDiagram) {
                 throw ScriptEvaluationException(
-                    "Script '${input.name}' returned a bare IbdDiagram. " +
-                        "Wrap it inside `sysml2Model(\"…\") { ibd(\"…\", owner = …) { … } }` " +
-                        "so the renderer has access to the surrounding Sysml2Model.",
+                    message =
+                        "Script '${input.name}' returned a bare IbdDiagram. " +
+                            "Wrap it inside `sysml2Model(\"…\") { ibd(\"…\", owner = …) { … } }` " +
+                            "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
             if (value is UcDiagram) {
                 throw ScriptEvaluationException(
-                    "Script '${input.name}' returned a bare UcDiagram. " +
-                        "Wrap it inside `sysml2Model(\"…\") { ucDiagram(\"…\") { … } }` " +
-                        "so the renderer has access to the surrounding Sysml2Model.",
+                    message =
+                        "Script '${input.name}' returned a bare UcDiagram. " +
+                            "Wrap it inside `sysml2Model(\"…\") { ucDiagram(\"…\") { … } }` " +
+                            "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
             if (value is ReqDiagram) {
                 throw ScriptEvaluationException(
-                    "Script '${input.name}' returned a bare ReqDiagram. " +
-                        "Wrap it inside `sysml2Model(\"…\") { reqDiagram(\"…\") { … } }` " +
-                        "so the renderer has access to the surrounding Sysml2Model.",
+                    message =
+                        "Script '${input.name}' returned a bare ReqDiagram. " +
+                            "Wrap it inside `sysml2Model(\"…\") { reqDiagram(\"…\") { … } }` " +
+                            "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
             if (value is StmDiagram) {
                 throw ScriptEvaluationException(
-                    "Script '${input.name}' returned a bare StmDiagram. " +
-                        "Wrap it inside `sysml2Model(\"…\") { stmDiagram(\"…\") { … } }` " +
-                        "so the renderer has access to the surrounding Sysml2Model.",
+                    message =
+                        "Script '${input.name}' returned a bare StmDiagram. " +
+                            "Wrap it inside `sysml2Model(\"…\") { stmDiagram(\"…\") { … } }` " +
+                            "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
             if (value is ActDiagram) {
                 throw ScriptEvaluationException(
-                    "Script '${input.name}' returned a bare ActDiagram. " +
-                        "Wrap it inside `sysml2Model(\"…\") { actDiagram(\"…\") { … } }` " +
-                        "so the renderer has access to the surrounding Sysml2Model.",
+                    message =
+                        "Script '${input.name}' returned a bare ActDiagram. " +
+                            "Wrap it inside `sysml2Model(\"…\") { actDiagram(\"…\") { … } }` " +
+                            "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
             if (value is SeqDiagram) {
                 throw ScriptEvaluationException(
-                    "Script '${input.name}' returned a bare SeqDiagram. " +
-                        "Wrap it inside `sysml2Model(\"…\") { seqDiagram(\"…\") { … } }` " +
-                        "so the renderer has access to the surrounding Sysml2Model.",
+                    message =
+                        "Script '${input.name}' returned a bare SeqDiagram. " +
+                            "Wrap it inside `sysml2Model(\"…\") { seqDiagram(\"…\") { … } }` " +
+                            "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
             if (value is ParDiagram) {
                 throw ScriptEvaluationException(
-                    "Script '${input.name}' returned a bare ParDiagram. " +
-                        "Wrap it inside `sysml2Model(\"…\") { parDiagram(\"…\") { … } }` " +
-                        "so the renderer has access to the surrounding Sysml2Model.",
+                    message =
+                        "Script '${input.name}' returned a bare ParDiagram. " +
+                            "Wrap it inside `sysml2Model(\"…\") { parDiagram(\"…\") { … } }` " +
+                            "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
             if (value is BpmnModel) {
                 value.firstDiagramOrNull()?.let {
-                    return ExtractedDiagram.Bpmn(value, it)
+                    return ExtractedDiagram.Bpmn(model = value, diagram = it)
                 }
             }
             if (value is BlueprintModel) {
                 value.firstDiagramOrNull()?.let {
-                    return ExtractedDiagram.Blueprint(value, it)
+                    return ExtractedDiagram.Blueprint(model = value, diagram = it)
                 }
             }
             if (value is ErmModel) {
                 value.firstDiagramOrNull()?.let {
-                    return ExtractedDiagram.Erm(value, it)
+                    return ExtractedDiagram.Erm(model = value, diagram = it)
                 }
             }
         }
@@ -308,7 +318,7 @@ object DiagramExtractor {
                 }?.let { prop ->
                     @Suppress("UNCHECKED_CAST")
                     val model = prop.get(instance) as C4Model
-                    return ExtractedDiagram.C4(model, model.firstDiagramOrNull()!!)
+                    return ExtractedDiagram.C4(model = model, diagram = model.firstDiagramOrNull()!!)
                 }
 
             // Sysml2Model property with at least one diagram (BDD or IBD).
@@ -323,7 +333,7 @@ object DiagramExtractor {
                 }?.let { prop ->
                     @Suppress("UNCHECKED_CAST")
                     val model = prop.get(instance) as Sysml2Model
-                    return ExtractedDiagram.Sysml2(model, model.firstDiagramOrNull()!!)
+                    return ExtractedDiagram.Sysml2(model = model, diagram = model.firstDiagramOrNull()!!)
                 }
 
             // BpmnModel property with at least one diagram (V3.1.6).
@@ -338,7 +348,7 @@ object DiagramExtractor {
                 }?.let { prop ->
                     @Suppress("UNCHECKED_CAST")
                     val model = prop.get(instance) as BpmnModel
-                    return ExtractedDiagram.Bpmn(model, model.firstDiagramOrNull()!!)
+                    return ExtractedDiagram.Bpmn(model = model, diagram = model.firstDiagramOrNull()!!)
                 }
 
             // BlueprintModel property with at least one diagram (V3.1.24).
@@ -353,7 +363,7 @@ object DiagramExtractor {
                 }?.let { prop ->
                     @Suppress("UNCHECKED_CAST")
                     val model = prop.get(instance) as BlueprintModel
-                    return ExtractedDiagram.Blueprint(model, model.firstDiagramOrNull()!!)
+                    return ExtractedDiagram.Blueprint(model = model, diagram = model.firstDiagramOrNull()!!)
                 }
 
             // ErmModel property with at least one diagram (V3.4.1).
@@ -368,21 +378,22 @@ object DiagramExtractor {
                 }?.let { prop ->
                     @Suppress("UNCHECKED_CAST")
                     val model = prop.get(instance) as ErmModel
-                    return ExtractedDiagram.Erm(model, model.firstDiagramOrNull()!!)
+                    return ExtractedDiagram.Erm(model = model, diagram = model.firstDiagramOrNull()!!)
                 }
         }
 
         throw ScriptEvaluationException(
-            "Script '${input.name}' did not produce a renderable diagram. " +
-                "End the script with a `classDiagram { … }` (UML), " +
-                "a `c4Model(name = \"…\") { systemContextDiagram(name = \"…\") { … } }` (C4), " +
-                "a `sysml2Model(\"…\") { bdd(\"…\") { … } }` (SysML 2 BDD) / " +
-                "`sysml2Model(\"…\") { ibd(\"…\", owner = …) { … } }` (SysML 2 IBD) / " +
-                "`sysml2Model(\"…\") { stmDiagram(\"…\") { … } }` (SysML 2 STM) / " +
-                "`sysml2Model(\"…\") { actDiagram(\"…\") { … } }` (SysML 2 ACT), " +
-                "a `bpmnModel(\"…\") { process(…) { … }; diagram(\"…\", processId = \"…\") }` (BPMN), " +
-                "a `blueprint(\"…\") { … ; journeyDiagram(\"…\") }` (Blueprint / Journey Map), " +
-                "or an `ermModel(\"…\") { entity(\"…\") { … }; diagram(\"…\") }` (ERM) expression.",
+            message =
+                "Script '${input.name}' did not produce a renderable diagram. " +
+                    "End the script with a `classDiagram { … }` (UML), " +
+                    "a `c4Model(name = \"…\") { systemContextDiagram(name = \"…\") { … } }` (C4), " +
+                    "a `sysml2Model(\"…\") { bdd(\"…\") { … } }` (SysML 2 BDD) / " +
+                    "`sysml2Model(\"…\") { ibd(\"…\", owner = …) { … } }` (SysML 2 IBD) / " +
+                    "`sysml2Model(\"…\") { stmDiagram(\"…\") { … } }` (SysML 2 STM) / " +
+                    "`sysml2Model(\"…\") { actDiagram(\"…\") { … } }` (SysML 2 ACT), " +
+                    "a `bpmnModel(\"…\") { process(…) { … }; diagram(\"…\", processId = \"…\") }` (BPMN), " +
+                    "a `blueprint(\"…\") { … ; journeyDiagram(\"…\") }` (Blueprint / Journey Map), " +
+                    "or an `ermModel(\"…\") { entity(\"…\") { … }; diagram(\"…\") }` (ERM) expression.",
         )
     }
 

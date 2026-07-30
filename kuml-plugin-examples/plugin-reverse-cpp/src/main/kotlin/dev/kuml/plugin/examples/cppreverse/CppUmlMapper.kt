@@ -48,7 +48,7 @@ internal class CppUmlMapper(
         // (ensures that if a forward decl appears after a full def, we still get the def)
         for (ast in fileAsts) {
             for (decl in ast.declarations) {
-                val id = qualifiedId(decl.namespace, decl.name)
+                val id = qualifiedId(namespace = decl.namespace, name = decl.name)
                 when (decl) {
                     is CppClassDecl -> {
                         if (decl.isForwardDecl) {
@@ -99,9 +99,9 @@ internal class CppUmlMapper(
     // ── Class ─────────────────────────────────────────────────────────────────
 
     private fun buildClass(decl: CppClassDecl): UmlClass {
-        val id = qualifiedId(decl.namespace, decl.name)
-        val attrs = decl.members.filter { !it.isMethod }.map { buildProperty(it, id) }
-        val ops = decl.members.filter { it.isMethod }.map { buildOperation(it, id) }
+        val id = qualifiedId(namespace = decl.namespace, name = decl.name)
+        val attrs = decl.members.filter { !it.isMethod }.map { buildProperty(member = it, ownerId = id) }
+        val ops = decl.members.filter { it.isMethod }.map { buildOperation(member = it, ownerId = id) }
         return UmlClass(
             id = id,
             name = decl.name,
@@ -115,7 +115,7 @@ internal class CppUmlMapper(
     // ── Enum ──────────────────────────────────────────────────────────────────
 
     private fun buildEnum(decl: CppEnumDecl): UmlEnumeration {
-        val id = qualifiedId(decl.namespace, decl.name)
+        val id = qualifiedId(namespace = decl.namespace, name = decl.name)
         val literals =
             decl.literals.map { lit ->
                 UmlEnumerationLiteral(id = "$id::$lit", name = lit)
@@ -130,7 +130,7 @@ internal class CppUmlMapper(
     // ── Relationships ─────────────────────────────────────────────────────────
 
     private fun buildGeneralizations(decl: CppClassDecl): List<KumlElement> {
-        val childId = qualifiedId(decl.namespace, decl.name)
+        val childId = qualifiedId(namespace = decl.namespace, name = decl.name)
         return decl.bases.mapIndexed { i, base ->
             // base.name may be a qualified name like "ns2::Base" (from the parser's
             // parseQualifiedName()). Split off the last segment as the simple name and
@@ -146,7 +146,7 @@ internal class CppUmlMapper(
             UmlGeneralization(
                 id = "cpp::gen::${decl.name}::${base.name}::$i",
                 specificId = childId,
-                generalId = qualifiedId(baseNs, baseName),
+                generalId = qualifiedId(namespace = baseNs, name = baseName),
             )
         }
     }

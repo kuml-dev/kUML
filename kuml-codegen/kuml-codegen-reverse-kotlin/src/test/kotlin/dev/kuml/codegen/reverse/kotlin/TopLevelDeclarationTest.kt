@@ -11,13 +11,14 @@ class TopLevelDeclarationTest :
         test("top-level val property emits REV-K-012 info diagnostic") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Config.kt" to
-                            """
-                            const val MAX_RETRIES = 3
-                            class Service
-                            """.trimIndent(),
-                    ),
+                    sources =
+                        mapOf(
+                            "Config.kt" to
+                                """
+                                const val MAX_RETRIES = 3
+                                class Service
+                                """.trimIndent(),
+                        ),
                 )
             // Service class should be there; top-level const should emit REV-K-012
             val success = TestSupport.success(result)

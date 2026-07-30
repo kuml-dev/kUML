@@ -276,13 +276,13 @@ class BpmnConstraintCheckerTest :
 
         test("fully valid model with start, end, and sequence flow produces no violations") {
             val model =
-                bpmnModel("HappyPath") {
+                bpmnModel(name = "HappyPath") {
                     process(id = "p1", name = "Simple") {
-                        val s = startEvent("Start")
-                        val e = endEvent("End")
-                        sequenceFlow(s, e)
+                        val s = startEvent(name = "Start")
+                        val e = endEvent(name = "End")
+                        sequenceFlow(from = s, to = e)
                     }
-                    diagram("Simple", "p1")
+                    diagram(name = "Simple", processId = "p1")
                 }
             val violations = checker.check(model)
             violations.shouldBeEmpty()
@@ -337,23 +337,23 @@ class BpmnConstraintCheckerTest :
 
         test("order fulfillment model built via DSL has no constraint errors") {
             val model =
-                bpmnModel("OrderFulfillment") {
+                bpmnModel(name = "OrderFulfillment") {
                     process(id = "order_proc", name = "Order Process") {
-                        val s = startEvent("Received")
-                        val check = task("Check Stock")
-                        val gw = gateway(GatewayType.EXCLUSIVE, "In Stock?")
-                        val ship = task("Ship")
-                        val reject = task("Reject")
-                        val eOk = endEvent("Shipped")
-                        val eFail = endEvent("Rejected")
-                        sequenceFlow(s, check)
-                        sequenceFlow(check, gw)
-                        sequenceFlow(gw, ship, condition = "stock > 0")
-                        sequenceFlow(gw, reject, condition = "stock == 0")
-                        sequenceFlow(ship, eOk)
-                        sequenceFlow(reject, eFail)
+                        val s = startEvent(name = "Received")
+                        val check = task(name = "Check Stock")
+                        val gw = gateway(type = GatewayType.EXCLUSIVE, name = "In Stock?")
+                        val ship = task(name = "Ship")
+                        val reject = task(name = "Reject")
+                        val eOk = endEvent(name = "Shipped")
+                        val eFail = endEvent(name = "Rejected")
+                        sequenceFlow(from = s, to = check)
+                        sequenceFlow(from = check, to = gw)
+                        sequenceFlow(from = gw, to = ship, condition = "stock > 0")
+                        sequenceFlow(from = gw, to = reject, condition = "stock == 0")
+                        sequenceFlow(from = ship, to = eOk)
+                        sequenceFlow(from = reject, to = eFail)
                     }
-                    diagram("Order", "order_proc")
+                    diagram(name = "Order", processId = "order_proc")
                 }
             val violations = checker.check(model)
             // XOR gateway has 2 outgoing but no defaultFlow → 1 WARNING only

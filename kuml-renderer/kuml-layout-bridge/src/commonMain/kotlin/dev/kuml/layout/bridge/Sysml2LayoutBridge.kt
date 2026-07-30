@@ -92,7 +92,7 @@ public object Sysml2LayoutBridge {
             nodes +=
                 LayoutNode(
                     id = NodeId(def.id),
-                    intrinsicSize = sizeProvider.sizeOf(def.id, def::class.simpleName ?: "Sysml2Definition"),
+                    intrinsicSize = sizeProvider.sizeOf(elementId = def.id, elementKind = def::class.simpleName ?: "Sysml2Definition"),
                 )
         }
 
@@ -399,7 +399,7 @@ public object Sysml2LayoutBridge {
                     "${feat.name} : ${feat.typeId ?: "?"}$multSuffix".length * BDD_BODY_CHAR_PX
                 } ?: 0f
             val contentW = maxOf(stereoW, nameW, bodyMax) + 2 * IBD_H_PAD
-            dev.kuml.layout.Size(maxOf(contentW, DEFAULT_WIDTH), maxOf(h, 70f))
+            dev.kuml.layout.Size(width = maxOf(contentW, DEFAULT_WIDTH), height = maxOf(h, 70f))
         }
 
     /**
@@ -458,7 +458,7 @@ public object Sysml2LayoutBridge {
                     val contentW = maxOf(stereoW, titleW) + 2 * IBD_H_PAD
                     maxOf(contentW, IBD_DEFAULT_WIDTH)
                 }
-            dev.kuml.layout.Size(w, maxOf(h, 50f))
+            dev.kuml.layout.Size(width = w, height = maxOf(h, 50f))
         }
 
     /**
@@ -474,7 +474,7 @@ public object Sysml2LayoutBridge {
      * verwendet jene.
      */
     public fun stmContentAwareSizeProvider(model: Sysml2Model): SizeProvider =
-        stmContentAwareSizeProvider(model, diagram = null, layoutDirection = LayoutDirection.TopToBottom)
+        stmContentAwareSizeProvider(model = model, diagram = null, layoutDirection = LayoutDirection.TopToBottom)
 
     /**
      * Content-aware [SizeProvider] for STM nodes, **with edge-fan awareness**.
@@ -552,7 +552,7 @@ public object Sysml2LayoutBridge {
                 kindHint.contains("Pseudo") ||
                     kindHint.contains("Initial") ||
                     kindHint.contains("Final") ->
-                    dev.kuml.layout.Size(STM_PSEUDO_SIZE, STM_PSEUDO_SIZE)
+                    dev.kuml.layout.Size(width = STM_PSEUDO_SIZE, height = STM_PSEUDO_SIZE)
                 else -> {
                     val def = model.definitions.firstOrNull { it.id == id } as? StateDefinition
                     val actionCount =
@@ -562,10 +562,14 @@ public object Sysml2LayoutBridge {
                         NAME_LINE_H +
                             (if (actionCount > 0) DIVIDER_GAP + actionCount * ACTION_LINE_H else 0f) +
                             BOX_V_PADDING
-                    val (wExtra, hExtra) = stmConnectionPuffer(connectionsById[id] ?: 0, layoutDirection)
+                    val (wExtra, hExtra) =
+                        stmConnectionPuffer(
+                            transitionCount = connectionsById[id] ?: 0,
+                            layoutDirection = layoutDirection,
+                        )
                     dev.kuml.layout.Size(
-                        STM_STATE_WIDTH + wExtra,
-                        maxOf(baseH, 44f) + hExtra,
+                        width = STM_STATE_WIDTH + wExtra,
+                        height = maxOf(baseH, 44f) + hExtra,
                     )
                 }
             }
@@ -605,21 +609,21 @@ public object Sysml2LayoutBridge {
                 "RequirementDefinition" -> {
                     val req = model.definitions.firstOrNull { it.id == id } as? RequirementDefinition
                     val reqText = req?.text?.takeIf { it.isNotEmpty() }
-                    val textLineCount = reqText?.let { reqWrappedLineCount(it, REQ_WRAP_CHARS_PER_LINE) } ?: 0
+                    val textLineCount = reqText?.let { reqWrappedLineCount(text = it, maxChars = REQ_WRAP_CHARS_PER_LINE) } ?: 0
                     val h =
                         STEREOTYPE_LINE_H + NAME_LINE_H +
                             (if (textLineCount > 0) DIVIDER_GAP + textLineCount * WRAP_LINE_H else 0f) +
                             BOX_V_PADDING
-                    dev.kuml.layout.Size(REQ_DEFAULT_WIDTH, maxOf(h, 70f))
+                    dev.kuml.layout.Size(width = REQ_DEFAULT_WIDTH, height = maxOf(h, 70f))
                 }
-                "ActorDefinition" -> dev.kuml.layout.Size(UC_ACTOR_WIDTH, UC_ACTOR_HEIGHT)
+                "ActorDefinition" -> dev.kuml.layout.Size(width = UC_ACTOR_WIDTH, height = UC_ACTOR_HEIGHT)
                 "UseCaseDefinition" -> {
                     val uc = model.definitions.firstOrNull { it.id == id } as? UseCaseDefinition
                     val nameW = (uc?.name?.length ?: 0) * BDD_BODY_CHAR_PX
                     val contentW = nameW + 2 * UC_ELLIPSE_H_PAD
-                    dev.kuml.layout.Size(maxOf(contentW, UC_USECASE_WIDTH), UC_USECASE_HEIGHT)
+                    dev.kuml.layout.Size(width = maxOf(contentW, UC_USECASE_WIDTH), height = UC_USECASE_HEIGHT)
                 }
-                else -> dev.kuml.layout.Size(REQ_DEFAULT_WIDTH, REQ_DEFAULT_HEIGHT)
+                else -> dev.kuml.layout.Size(width = REQ_DEFAULT_WIDTH, height = REQ_DEFAULT_HEIGHT)
             }
         }
 
@@ -736,7 +740,7 @@ public object Sysml2LayoutBridge {
             visibleFeatures.map { feature ->
                 LayoutNode(
                     id = NodeId(feature.id),
-                    intrinsicSize = sizeProvider.sizeOf(feature.id, "PartUsage"),
+                    intrinsicSize = sizeProvider.sizeOf(elementId = feature.id, elementKind = "PartUsage"),
                 )
             }
         val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
@@ -751,8 +755,8 @@ public object Sysml2LayoutBridge {
 
         val edges = mutableListOf<LayoutEdge>()
         for (connection in ownerConnections) {
-            val srcNode = longestPrefixNodeId(connection.sourceEndId, visibleNodeIds) ?: continue
-            val tgtNode = longestPrefixNodeId(connection.targetEndId, visibleNodeIds) ?: continue
+            val srcNode = longestPrefixNodeId(endpointId = connection.sourceEndId, visibleNodeIds = visibleNodeIds) ?: continue
+            val tgtNode = longestPrefixNodeId(endpointId = connection.targetEndId, visibleNodeIds = visibleNodeIds) ?: continue
             edges +=
                 LayoutEdge(
                     id = EdgeId("conn:${connection.id}"),
@@ -813,7 +817,7 @@ public object Sysml2LayoutBridge {
             nodes +=
                 LayoutNode(
                     id = NodeId(def.id),
-                    intrinsicSize = sizeProvider.sizeOf(def.id, kind),
+                    intrinsicSize = sizeProvider.sizeOf(elementId = def.id, elementKind = kind),
                 )
         }
         val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
@@ -912,7 +916,7 @@ public object Sysml2LayoutBridge {
             nodes +=
                 LayoutNode(
                     id = NodeId(def.id),
-                    intrinsicSize = sizeProvider.sizeOf(def.id, kind),
+                    intrinsicSize = sizeProvider.sizeOf(elementId = def.id, elementKind = kind),
                 )
         }
         val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
@@ -1009,7 +1013,7 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: StmDiagram,
-        sizeProvider: SizeProvider = stmContentAwareSizeProvider(model, diagram),
+        sizeProvider: SizeProvider = stmContentAwareSizeProvider(model = model, diagram = diagram),
     ): LayoutGraph {
         val nodes = mutableListOf<LayoutNode>()
         for (id in diagram.elementIds) {
@@ -1026,7 +1030,7 @@ public object Sysml2LayoutBridge {
             nodes +=
                 LayoutNode(
                     id = NodeId(def.id),
-                    intrinsicSize = sizeProvider.sizeOf(def.id, kindHint),
+                    intrinsicSize = sizeProvider.sizeOf(elementId = def.id, elementKind = kindHint),
                 )
         }
         val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
@@ -1171,7 +1175,7 @@ public object Sysml2LayoutBridge {
             nodes +=
                 LayoutNode(
                     id = NodeId(def.id),
-                    intrinsicSize = sizeProvider.sizeOf(def.id, kindHint),
+                    intrinsicSize = sizeProvider.sizeOf(elementId = def.id, elementKind = kindHint),
                     groupId = nodeGroupId,
                 )
         }
@@ -1376,10 +1380,10 @@ public object Sysml2LayoutBridge {
         //    Höhe von der Vorausberechnung (überschreibt SizeProvider-Höhe).
         val nodes =
             visibleLifelines.map { lifeline ->
-                val baseSize = sizeProvider.sizeOf(lifeline.id, "LifelineDefinition")
+                val baseSize = sizeProvider.sizeOf(elementId = lifeline.id, elementKind = "LifelineDefinition")
                 LayoutNode(
                     id = NodeId(lifeline.id),
-                    intrinsicSize = dev.kuml.layout.Size(baseSize.width, lifelineHeight),
+                    intrinsicSize = dev.kuml.layout.Size(width = baseSize.width, height = lifelineHeight),
                 )
             }
 
@@ -1403,8 +1407,8 @@ public object Sysml2LayoutBridge {
     public fun seqDefaultSizeProvider(): SizeProvider =
         SizeProvider { _, kindHint ->
             when (kindHint) {
-                "LifelineDefinition" -> dev.kuml.layout.Size(SEQ_LIFELINE_WIDTH, SEQ_LIFELINE_HEAD_HEIGHT)
-                else -> dev.kuml.layout.Size(SEQ_LIFELINE_WIDTH, SEQ_LIFELINE_HEAD_HEIGHT)
+                "LifelineDefinition" -> dev.kuml.layout.Size(width = SEQ_LIFELINE_WIDTH, height = SEQ_LIFELINE_HEAD_HEIGHT)
+                else -> dev.kuml.layout.Size(width = SEQ_LIFELINE_WIDTH, height = SEQ_LIFELINE_HEAD_HEIGHT)
             }
         }
 
@@ -1425,21 +1429,21 @@ public object Sysml2LayoutBridge {
         SizeProvider { _, kindHint ->
             when (kindHint) {
                 ActivityNodeKind.Action.name ->
-                    dev.kuml.layout.Size(ACT_ACTION_WIDTH, ACT_ACTION_HEIGHT)
+                    dev.kuml.layout.Size(width = ACT_ACTION_WIDTH, height = ACT_ACTION_HEIGHT)
                 ActivityNodeKind.Initial.name,
                 ActivityNodeKind.Final.name,
                 ActivityNodeKind.FlowFinal.name,
                 ->
-                    dev.kuml.layout.Size(ACT_PSEUDO_SIZE, ACT_PSEUDO_SIZE)
+                    dev.kuml.layout.Size(width = ACT_PSEUDO_SIZE, height = ACT_PSEUDO_SIZE)
                 ActivityNodeKind.Decision.name,
                 ActivityNodeKind.Merge.name,
                 ->
-                    dev.kuml.layout.Size(ACT_DIAMOND_WIDTH, ACT_DIAMOND_HEIGHT)
+                    dev.kuml.layout.Size(width = ACT_DIAMOND_WIDTH, height = ACT_DIAMOND_HEIGHT)
                 ActivityNodeKind.Fork.name,
                 ActivityNodeKind.Join.name,
                 ->
-                    dev.kuml.layout.Size(ACT_BAR_WIDTH, ACT_BAR_HEIGHT)
-                else -> dev.kuml.layout.Size(ACT_ACTION_WIDTH, ACT_ACTION_HEIGHT)
+                    dev.kuml.layout.Size(width = ACT_BAR_WIDTH, height = ACT_BAR_HEIGHT)
+                else -> dev.kuml.layout.Size(width = ACT_ACTION_WIDTH, height = ACT_ACTION_HEIGHT)
             }
         }
 
@@ -1455,9 +1459,9 @@ public object Sysml2LayoutBridge {
         SizeProvider { _, kindHint ->
             when (kindHint) {
                 "InitialPseudoState", "FinalPseudoState" ->
-                    dev.kuml.layout.Size(STM_PSEUDO_SIZE, STM_PSEUDO_SIZE)
-                "StateDefinition" -> dev.kuml.layout.Size(STM_STATE_WIDTH, STM_STATE_HEIGHT)
-                else -> dev.kuml.layout.Size(STM_STATE_WIDTH, STM_STATE_HEIGHT)
+                    dev.kuml.layout.Size(width = STM_PSEUDO_SIZE, height = STM_PSEUDO_SIZE)
+                "StateDefinition" -> dev.kuml.layout.Size(width = STM_STATE_WIDTH, height = STM_STATE_HEIGHT)
+                else -> dev.kuml.layout.Size(width = STM_STATE_WIDTH, height = STM_STATE_HEIGHT)
             }
         }
 
@@ -1471,11 +1475,11 @@ public object Sysml2LayoutBridge {
     public fun reqDefaultSizeProvider(): SizeProvider =
         SizeProvider { _, kindHint ->
             when (kindHint) {
-                "RequirementDefinition" -> dev.kuml.layout.Size(REQ_DEFAULT_WIDTH, REQ_DEFAULT_HEIGHT)
-                "ActorDefinition" -> dev.kuml.layout.Size(UC_ACTOR_WIDTH, UC_ACTOR_HEIGHT)
-                "UseCaseDefinition" -> dev.kuml.layout.Size(UC_USECASE_WIDTH, UC_USECASE_HEIGHT)
-                "PartDefinition" -> dev.kuml.layout.Size(DEFAULT_WIDTH, DEFAULT_HEIGHT)
-                else -> dev.kuml.layout.Size(REQ_DEFAULT_WIDTH, REQ_DEFAULT_HEIGHT)
+                "RequirementDefinition" -> dev.kuml.layout.Size(width = REQ_DEFAULT_WIDTH, height = REQ_DEFAULT_HEIGHT)
+                "ActorDefinition" -> dev.kuml.layout.Size(width = UC_ACTOR_WIDTH, height = UC_ACTOR_HEIGHT)
+                "UseCaseDefinition" -> dev.kuml.layout.Size(width = UC_USECASE_WIDTH, height = UC_USECASE_HEIGHT)
+                "PartDefinition" -> dev.kuml.layout.Size(width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT)
+                else -> dev.kuml.layout.Size(width = REQ_DEFAULT_WIDTH, height = REQ_DEFAULT_HEIGHT)
             }
         }
 
@@ -1488,9 +1492,9 @@ public object Sysml2LayoutBridge {
     public fun ucDefaultSizeProvider(): SizeProvider =
         SizeProvider { _, kindHint ->
             when (kindHint) {
-                "ActorDefinition" -> dev.kuml.layout.Size(UC_ACTOR_WIDTH, UC_ACTOR_HEIGHT)
-                "UseCaseDefinition" -> dev.kuml.layout.Size(UC_USECASE_WIDTH, UC_USECASE_HEIGHT)
-                else -> dev.kuml.layout.Size(UC_USECASE_WIDTH, UC_USECASE_HEIGHT)
+                "ActorDefinition" -> dev.kuml.layout.Size(width = UC_ACTOR_WIDTH, height = UC_ACTOR_HEIGHT)
+                "UseCaseDefinition" -> dev.kuml.layout.Size(width = UC_USECASE_WIDTH, height = UC_USECASE_HEIGHT)
+                else -> dev.kuml.layout.Size(width = UC_USECASE_WIDTH, height = UC_USECASE_HEIGHT)
             }
         }
 
@@ -1563,7 +1567,7 @@ public object Sysml2LayoutBridge {
             nodes +=
                 LayoutNode(
                     id = NodeId(def.id),
-                    intrinsicSize = sizeProvider.sizeOf(def.id, kind),
+                    intrinsicSize = sizeProvider.sizeOf(elementId = def.id, elementKind = kind),
                 )
         }
         val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
@@ -1574,8 +1578,8 @@ public object Sysml2LayoutBridge {
         // sonst stillschweigend übersprungen.
         val edges = mutableListOf<LayoutEdge>()
         for (binding in model.usages.filterIsInstance<BindingConnectorUsage>()) {
-            val srcNode = longestPrefixNodeId(binding.sourceEndId, visibleNodeIds) ?: continue
-            val tgtNode = longestPrefixNodeId(binding.targetEndId, visibleNodeIds) ?: continue
+            val srcNode = longestPrefixNodeId(endpointId = binding.sourceEndId, visibleNodeIds = visibleNodeIds) ?: continue
+            val tgtNode = longestPrefixNodeId(endpointId = binding.targetEndId, visibleNodeIds = visibleNodeIds) ?: continue
             edges +=
                 LayoutEdge(
                     id = EdgeId(binding.id),
@@ -1600,9 +1604,9 @@ public object Sysml2LayoutBridge {
     public fun parDefaultSizeProvider(): SizeProvider =
         SizeProvider { _, kindHint ->
             when (kindHint) {
-                "ConstraintDefinition" -> dev.kuml.layout.Size(PAR_CONSTRAINT_WIDTH, PAR_CONSTRAINT_HEIGHT)
-                "PartDefinition" -> dev.kuml.layout.Size(DEFAULT_WIDTH, DEFAULT_HEIGHT)
-                else -> dev.kuml.layout.Size(PAR_CONSTRAINT_WIDTH, PAR_CONSTRAINT_HEIGHT)
+                "ConstraintDefinition" -> dev.kuml.layout.Size(width = PAR_CONSTRAINT_WIDTH, height = PAR_CONSTRAINT_HEIGHT)
+                "PartDefinition" -> dev.kuml.layout.Size(width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT)
+                else -> dev.kuml.layout.Size(width = PAR_CONSTRAINT_WIDTH, height = PAR_CONSTRAINT_HEIGHT)
             }
         }
 
@@ -1636,10 +1640,10 @@ public object Sysml2LayoutBridge {
                             (if (hasExpression) DIVIDER_GAP + FEATURE_LINE_H else 0f) +
                             (if (paramCount > 0) DIVIDER_GAP + paramCount * FEATURE_LINE_H else 0f) +
                             BOX_V_PADDING
-                    dev.kuml.layout.Size(PAR_CONSTRAINT_WIDTH, maxOf(h, 70f))
+                    dev.kuml.layout.Size(width = PAR_CONSTRAINT_WIDTH, height = maxOf(h, 70f))
                 }
-                "PartDefinition" -> bdd.sizeOf(id, kindHint)
-                else -> dev.kuml.layout.Size(PAR_CONSTRAINT_WIDTH, PAR_CONSTRAINT_HEIGHT)
+                "PartDefinition" -> bdd.sizeOf(elementId = id, elementKind = kindHint)
+                else -> dev.kuml.layout.Size(width = PAR_CONSTRAINT_WIDTH, height = PAR_CONSTRAINT_HEIGHT)
             }
         }
     }
@@ -1689,13 +1693,13 @@ public object Sysml2LayoutBridge {
             val route = layoutResult.edges[EdgeId("conn:${conn.id}")] ?: continue
 
             // Source port
-            val srcNodeId = longestPrefixNodeId(conn.sourceEndId, visibleNodeIds)
+            val srcNodeId = longestPrefixNodeId(endpointId = conn.sourceEndId, visibleNodeIds = visibleNodeIds)
             if (srcNodeId != null) {
                 val portName = conn.sourceEndId.removePrefix("$srcNodeId::")
                 if (portName.isNotEmpty() && portName != conn.sourceEndId) {
                     val origin = layoutResult.nodes[NodeId(srcNodeId)]?.bounds?.origin
                     if (origin != null) {
-                        val local = Point(route.source.x - origin.x, route.source.y - origin.y)
+                        val local = Point(x = route.source.x - origin.x, y = route.source.y - origin.y)
                         portPositions
                             .getOrPut(NodeId(srcNodeId)) { mutableMapOf() }
                             .let { map -> if (PortId(portName) !in map) map[PortId(portName)] = local }
@@ -1704,13 +1708,13 @@ public object Sysml2LayoutBridge {
             }
 
             // Target port
-            val tgtNodeId = longestPrefixNodeId(conn.targetEndId, visibleNodeIds)
+            val tgtNodeId = longestPrefixNodeId(endpointId = conn.targetEndId, visibleNodeIds = visibleNodeIds)
             if (tgtNodeId != null) {
                 val portName = conn.targetEndId.removePrefix("$tgtNodeId::")
                 if (portName.isNotEmpty() && portName != conn.targetEndId) {
                     val origin = layoutResult.nodes[NodeId(tgtNodeId)]?.bounds?.origin
                     if (origin != null) {
-                        val local = Point(route.target.x - origin.x, route.target.y - origin.y)
+                        val local = Point(x = route.target.x - origin.x, y = route.target.y - origin.y)
                         portPositions
                             .getOrPut(NodeId(tgtNodeId)) { mutableMapOf() }
                             .let { map -> if (PortId(portName) !in map) map[PortId(portName)] = local }

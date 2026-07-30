@@ -31,8 +31,8 @@ class CollaborationBuilderTest :
 
         test("empty collaboration builds with no roles") {
             val model =
-                umlModel("M") {
-                    collaboration("OrderPlacement")
+                umlModel(name = "M") {
+                    collaboration(name = "OrderPlacement")
                 }
             val collabs = model.elements.filterIsInstance<UmlCollaboration>()
             collabs shouldHaveSize 1
@@ -45,10 +45,10 @@ class CollaborationBuilderTest :
 
         test("collaboration with two roles stores roles in order") {
             val model =
-                umlModel("M") {
-                    collaboration("OrderPlacement") {
-                        role("buyer", type = "Customer")
-                        role("seller", type = "Merchant")
+                umlModel(name = "M") {
+                    collaboration(name = "OrderPlacement") {
+                        role(name = "buyer", type = "Customer")
+                        role(name = "seller", type = "Merchant")
                     }
                 }
             val collab = model.elements.filterIsInstance<UmlCollaboration>().single()
@@ -63,10 +63,10 @@ class CollaborationBuilderTest :
 
         test("role stores custom multiplicity") {
             val model =
-                umlModel("M") {
-                    collaboration("Fulfillment") {
+                umlModel(name = "M") {
+                    collaboration(name = "Fulfillment") {
                         role(
-                            "warehouse",
+                            name = "warehouse",
                             type = "Warehouse",
                             multiplicity = Multiplicity(lower = 1, upper = null),
                         )
@@ -81,19 +81,19 @@ class CollaborationBuilderTest :
 
         test("stereotype can be applied to a collaboration") {
             val soamlProfile =
-                profile("SoaML") {
+                profile(name = "SoaML") {
                     namespace = "dev.kuml.test.soaml"
-                    stereotype("ServiceContract") {
+                    stereotype(name = "ServiceContract") {
                         extends(UmlMetaclass.Collaboration)
                     }
                 }
             ProfileRegistry.register(soamlProfile)
 
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(soamlProfile)
-                    collaboration("TradeExecution") {
-                        stereotype("ServiceContract")
+                    collaboration(name = "TradeExecution") {
+                        stereotype(name = "ServiceContract")
                     }
                 }
             val collab = model.elements.filterIsInstance<UmlCollaboration>().single()
@@ -107,20 +107,20 @@ class CollaborationBuilderTest :
 
         test("stereotype can be applied to a collaboration role") {
             val roleProfile =
-                profile("Roles") {
+                profile(name = "Roles") {
                     namespace = "dev.kuml.test.roles"
-                    stereotype("Initiator") {
+                    stereotype(name = "Initiator") {
                         extends(UmlMetaclass.Property)
                     }
                 }
             ProfileRegistry.register(roleProfile)
 
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(roleProfile)
-                    collaboration("OrderPlacement") {
-                        role("buyer", type = "Customer") {
-                            stereotype("Initiator")
+                    collaboration(name = "OrderPlacement") {
+                        role(name = "buyer", type = "Customer") {
+                            stereotype(name = "Initiator")
                         }
                     }
                 }
@@ -135,9 +135,9 @@ class CollaborationBuilderTest :
 
         test("collaboration is accepted in a class diagram") {
             val d =
-                classDiagram("CD") {
-                    collaboration("PaymentProtocol") {
-                        role("payer", type = "Customer")
+                classDiagram(name = "CD") {
+                    collaboration(name = "PaymentProtocol") {
+                        role(name = "payer", type = "Customer")
                     }
                 }
             val collab = d.elements.filterIsInstance<UmlCollaboration>().single()
@@ -148,8 +148,8 @@ class CollaborationBuilderTest :
 
         test("collaboration is accepted in a composite-structure diagram") {
             val d =
-                compositeStructureDiagram("CS") {
-                    collaboration("PaymentProtocol")
+                compositeStructureDiagram(name = "CS") {
+                    collaboration(name = "PaymentProtocol")
                 }
             d.elements.filterIsInstance<UmlCollaboration>() shouldHaveSize 1
         }
@@ -158,9 +158,9 @@ class CollaborationBuilderTest :
 
         test("generated IDs are stable and unique within the model") {
             val model =
-                umlModel("M") {
-                    collaboration("A")
-                    collaboration("B")
+                umlModel(name = "M") {
+                    collaboration(name = "A")
+                    collaboration(name = "B")
                 }
             val collabs = model.elements.filterIsInstance<UmlCollaboration>()
             collabs shouldHaveSize 2

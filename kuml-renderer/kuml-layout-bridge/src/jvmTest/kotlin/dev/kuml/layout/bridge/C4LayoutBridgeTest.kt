@@ -47,7 +47,7 @@ class C4LayoutBridgeTest :
                     relationships = listOf("rel1"),
                 )
 
-            val graph = C4LayoutBridge.toLayoutGraph(diagram, model)
+            val graph = C4LayoutBridge.toLayoutGraph(diagram = diagram, model = model)
 
             // 1 Group (system)
             graph.groups shouldHaveSize 1
@@ -96,7 +96,7 @@ class C4LayoutBridgeTest :
                 )
 
             // Should not throw — just silently skip the bad relationship
-            val graph = C4LayoutBridge.toLayoutGraph(diagram, model)
+            val graph = C4LayoutBridge.toLayoutGraph(diagram = diagram, model = model)
 
             graph.edges shouldHaveSize 0
         }
@@ -127,7 +127,7 @@ class C4LayoutBridgeTest :
                     elements = listOf("customer", "web", "api"),
                 )
 
-            val graph = C4LayoutBridge.toLayoutGraph(diagram, model)
+            val graph = C4LayoutBridge.toLayoutGraph(diagram = diagram, model = model)
 
             graph.nodes shouldHaveSize 3
             graph.edges shouldHaveSize 3
@@ -165,7 +165,7 @@ class C4LayoutBridgeTest :
                     elements = listOf("cA", "cB"),
                 )
 
-            val graph = C4LayoutBridge.toLayoutGraph(diagram, model)
+            val graph = C4LayoutBridge.toLayoutGraph(diagram = diagram, model = model)
 
             graph.groups shouldHaveSize 1
             val systemGroup = graph.groups[0]
@@ -203,7 +203,7 @@ class C4LayoutBridgeTest :
                     elements = listOf("compA", "compB"),
                 )
 
-            val graph = C4LayoutBridge.toLayoutGraph(diagram, model)
+            val graph = C4LayoutBridge.toLayoutGraph(diagram = diagram, model = model)
 
             graph.groups shouldHaveSize 1
             val containerGroup = graph.groups[0]
@@ -231,7 +231,7 @@ class C4LayoutBridgeTest :
                     elements = listOf("customer", "web"),
                 )
 
-            val graph = C4LayoutBridge.toLayoutGraph(diagram, model)
+            val graph = C4LayoutBridge.toLayoutGraph(diagram = diagram, model = model)
 
             // Only the good interaction makes it into the edge list — the bad
             // one is silently dropped (analogous to the relationship branch).

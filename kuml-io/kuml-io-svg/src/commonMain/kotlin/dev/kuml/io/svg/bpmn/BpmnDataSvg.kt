@@ -32,7 +32,7 @@ internal fun renderBpmnDataObject(
     val textColor = theme.colors.foreground.toHex()
     val fontFamily = theme.typography.body.family
 
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(data.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(data.id))) {
         // Dokumenten-Pfad mit geknickter oberer rechter Ecke
         rawXml(
             """<path d="M${fmtF(x)},${fmtF(y)} L${fmtF(x + w - foldSize)},${fmtF(y)} """ +
@@ -63,15 +63,16 @@ internal fun renderBpmnDataObject(
         val label = data.name
         if (!label.isNullOrBlank()) {
             tag(
-                "text",
-                mapOf(
-                    "x" to fmtF(x + w / 2f),
-                    "y" to fmtF(y + h + 12f),
-                    "text-anchor" to "middle",
-                    "font-family" to fontFamily,
-                    "font-size" to "10",
-                    "fill" to textColor,
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "x" to fmtF(x + w / 2f),
+                        "y" to fmtF(y + h + 12f),
+                        "text-anchor" to "middle",
+                        "font-family" to fontFamily,
+                        "font-size" to "10",
+                        "fill" to textColor,
+                    ),
             ) { text(label) }
         }
     }

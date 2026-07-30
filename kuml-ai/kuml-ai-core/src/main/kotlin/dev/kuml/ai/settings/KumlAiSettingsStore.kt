@@ -31,10 +31,10 @@ public class KumlAiSettingsStore(
                 val text = Files.readString(path, StandardCharsets.UTF_8)
                 json.parseToJsonElement(text).jsonObject
             } catch (e: Exception) {
-                throw KumlAiException.SettingsCorrupted("Cannot parse settings file at $path: ${e.message}", e)
+                throw KumlAiException.SettingsCorrupted(message = "Cannot parse settings file at $path: ${e.message}", cause = e)
             }
         val rawSchemaVersion = raw["schemaVersion"]?.jsonPrimitive?.int ?: 0
-        return migrate(rawSchemaVersion, raw)
+        return migrate(rawSchemaVersion = rawSchemaVersion, raw = raw)
     }
 
     /**
@@ -81,8 +81,9 @@ public class KumlAiSettingsStore(
             }
             1 -> json.decodeFromJsonElement(KumlAiSettings.serializer(), raw)
             else -> throw KumlAiException.SettingsCorrupted(
-                "Unsupported schema version: $rawSchemaVersion " +
-                    "(max known: ${KumlAiSettings.CURRENT_SCHEMA_VERSION})",
+                message =
+                    "Unsupported schema version: $rawSchemaVersion " +
+                        "(max known: ${KumlAiSettings.CURRENT_SCHEMA_VERSION})",
             )
         }
 

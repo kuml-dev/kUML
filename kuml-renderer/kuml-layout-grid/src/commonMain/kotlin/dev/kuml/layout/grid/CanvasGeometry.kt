@@ -42,7 +42,7 @@ internal data class CanvasGeometry(
         // bei colSpan>1 / rowSpan>1 und sieht auch bei einzelnen Zellen gut aus.
         val x = cellLeft + (cellW - nodeSize.width) / 2f
         val y = cellTop + (cellH - nodeSize.height) / 2f
-        return Rect(origin = Point(x, y), size = nodeSize)
+        return Rect(origin = Point(x = x, y = y), size = nodeSize)
     }
 }
 

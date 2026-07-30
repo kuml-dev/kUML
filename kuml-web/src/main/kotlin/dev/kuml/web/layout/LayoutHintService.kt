@@ -74,13 +74,13 @@ internal class LayoutHintService(
             )
         }
 
-        val updated = LayoutHintWriter.writeGridHints(diagram, mapOf(elementId to cell))
+        val updated = LayoutHintWriter.writeGridHints(diagram = diagram, placements = mapOf(elementId to cell))
         return runCatching { print(updated) }
     }
 
     private fun UmlNamedElement.gridCellOrNull(): LayoutHintWriter.GridCell? {
         val col = (metadata[LayoutMetadataKeys.GRID_COL] as? KumlMetaValue.Integer)?.value?.toInt() ?: return null
         val row = (metadata[LayoutMetadataKeys.GRID_ROW] as? KumlMetaValue.Integer)?.value?.toInt() ?: return null
-        return LayoutHintWriter.GridCell(col, row)
+        return LayoutHintWriter.GridCell(col = col, row = row)
     }
 }

@@ -38,11 +38,11 @@ public data class BpmnAnimationContext(
     val loopGapMs: Long = 2_000L,
 ) {
     init {
-        requireSafeCssColor(tokenColor, "tokenColor")
-        requireSafeCssColor(highlightColor, "highlightColor")
-        requireSafeCssColor(taskHighlightColor, "taskHighlightColor")
-        requireSafeCssColor(startEventColor, "startEventColor")
-        requireSafeCssColor(endEventColor, "endEventColor")
+        requireSafeCssColor(value = tokenColor, paramName = "tokenColor")
+        requireSafeCssColor(value = highlightColor, paramName = "highlightColor")
+        requireSafeCssColor(value = taskHighlightColor, paramName = "taskHighlightColor")
+        requireSafeCssColor(value = startEventColor, paramName = "startEventColor")
+        requireSafeCssColor(value = endEventColor, paramName = "endEventColor")
         require(loopCount >= 1) { "loopCount must be >= 1, got: $loopCount" }
         require(loopGapMs >= 0) { "loopGapMs must be >= 0, got: $loopGapMs" }
     }

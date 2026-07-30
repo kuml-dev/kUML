@@ -17,7 +17,7 @@ class ProfileXmiExporterTest :
         test("export writes a non-empty .profile.uml file") {
             val tmpFile = createTempFile("exporter-test-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
             tmpFile.exists() shouldBe true
             (tmpFile.length() > 0L) shouldBe true
         }
@@ -56,7 +56,7 @@ class ProfileXmiExporterTest :
             baseDir.delete()
             val nestedFile = baseDir.resolve("nested/test.profile.uml")
             try {
-                exporter.export(autosarProfile, nestedFile)
+                exporter.export(profile = autosarProfile, outputFile = nestedFile)
                 nestedFile.exists() shouldBe true
             } finally {
                 nestedFile.parentFile?.deleteRecursively()

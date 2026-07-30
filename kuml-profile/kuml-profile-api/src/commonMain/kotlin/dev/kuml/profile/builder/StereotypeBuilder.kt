@@ -27,7 +27,7 @@ public class StereotypeBuilder internal constructor(
         name: String,
         block: PropertyBuilder<T>.() -> Unit = {},
     ) {
-        addProperty(PropertyBuilder(name, T::class).apply(block).build())
+        addProperty(PropertyBuilder(name = name, type = T::class).apply(block).build())
     }
 
     @PublishedApi
@@ -48,6 +48,13 @@ public class StereotypeBuilder internal constructor(
             target ?: error(
                 "Stereotype '$name' must declare extends(UmlMetaclass.X)",
             )
-        return KumlStereotype(name, t, props.toList(), cons.toList(), icon, specializes)
+        return KumlStereotype(
+            name = name,
+            targetMetaclass = t,
+            properties = props.toList(),
+            constraints = cons.toList(),
+            icon = icon,
+            specializes = specializes,
+        )
     }
 }

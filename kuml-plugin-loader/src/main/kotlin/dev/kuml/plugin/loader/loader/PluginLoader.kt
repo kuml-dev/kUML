@@ -62,7 +62,7 @@ public object PluginLoader {
         val scanDirs = PluginScanPath.defaults() + extraPaths
         for (dir in scanDirs) {
             for (jar in PluginScanPath.jarsIn(dir)) {
-                loadJar(jar, runtimeVersion)
+                loadJar(jar = jar, runtimeVersion = runtimeVersion)
             }
         }
     }
@@ -79,15 +79,15 @@ public object PluginLoader {
     ) {
         val manifestJson =
             readManifestFromJar(jar)
-                ?: throw PluginLoadException("No $MANIFEST_ENTRY found in ${jar.name}")
+                ?: throw PluginLoadException(message = "No $MANIFEST_ENTRY found in ${jar.name}")
 
         val manifest = PluginManifestParser.parse(manifestJson)
-        checkVersion(manifest, runtimeVersion)
+        checkVersion(manifest = manifest, runtimeVersion = runtimeVersion)
 
         val classLoader = PluginClassLoader.forJar(jar)
-        val instances = instantiateExtensions(manifest, classLoader)
+        val instances = instantiateExtensions(manifest = manifest, classLoader = classLoader)
 
-        val loaded = LoadedPlugin(manifest, instances, classLoader)
+        val loaded = LoadedPlugin(manifest = manifest, plugins = instances, classLoader = classLoader)
         PluginRegistry.register(loaded)
         wireToRegistries(loaded)
     }
@@ -98,7 +98,7 @@ public object PluginLoader {
         extraPaths: List<Path> = emptyList(),
     ) {
         PluginRegistry.all().forEach { PluginRegistry.unload(it.manifest.id) }
-        load(runtimeVersion, extraPaths)
+        load(runtimeVersion = runtimeVersion, extraPaths = extraPaths)
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────────
@@ -119,9 +119,9 @@ public object PluginLoader {
         val range = KumlVersionRange(manifest.kumlVersionRange)
         if (!range.contains(runtimeVersion)) {
             throw VersionMismatchException(
-                manifest.id,
-                manifest.kumlVersionRange,
-                runtimeVersion.toString(),
+                pluginId = manifest.id,
+                pluginVersionRange = manifest.kumlVersionRange,
+                runtimeVersion = runtimeVersion.toString(),
             )
         }
     }
@@ -135,19 +135,19 @@ public object PluginLoader {
                 val clazz = classLoader.loadClass(ext.implementation)
                 clazz.getDeclaredConstructor().newInstance() as? KumlPlugin
                     ?: throw PluginLoadException(
-                        "Class '${ext.implementation}' in plugin '${manifest.id}' does not implement KumlPlugin",
+                        message = "Class '${ext.implementation}' in plugin '${manifest.id}' does not implement KumlPlugin",
                     )
             } catch (e: ClassNotFoundException) {
                 throw PluginLoadException(
-                    "Class '${ext.implementation}' not found in plugin '${manifest.id}'",
-                    e,
+                    message = "Class '${ext.implementation}' not found in plugin '${manifest.id}'",
+                    cause = e,
                 )
             } catch (e: PluginLoadException) {
                 throw e
             } catch (e: Exception) {
                 throw PluginLoadException(
-                    "Failed to instantiate '${ext.implementation}' in plugin '${manifest.id}'",
-                    e,
+                    message = "Failed to instantiate '${ext.implementation}' in plugin '${manifest.id}'",
+                    cause = e,
                 )
             }
         }

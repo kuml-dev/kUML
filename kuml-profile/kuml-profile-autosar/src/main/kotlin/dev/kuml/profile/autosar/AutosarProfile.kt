@@ -26,46 +26,46 @@ public enum class AutosarBehaviorKind { Periodic, EventTriggered, OnInit, OnShut
  * Reference: AUTOSAR Classic Platform R22-11
  */
 public val autosarProfile: KumlProfile =
-    profile("AUTOSAR") {
+    profile(name = "AUTOSAR") {
         namespace = "dev.kuml.profiles.autosar"
         description = "AUTOSAR Software Components, Communication, Runnables and Behavior"
         version = "1.0.0"
 
         // ── Software Components ───────────────────────────────────────────────────
 
-        stereotype("SoftwareComponent") {
+        stereotype(name = "SoftwareComponent") {
             extends(UmlMetaclass.Component)
-            property<AutosarSwcKind>("kind") { default = AutosarSwcKind.Application }
-            property<String>("packageName") { default = "" }
+            property<AutosarSwcKind>(name = "kind") { default = AutosarSwcKind.Application }
+            property<String>(name = "packageName") { default = "" }
         }
 
         // ── Communication Interfaces ──────────────────────────────────────────────
 
-        stereotype("ComInterface") {
+        stereotype(name = "ComInterface") {
             extends(UmlMetaclass.Interface)
-            property<String>("version") { default = "1.0" }
-            property<Boolean>("isService") { default = false }
+            property<String>(name = "version") { default = "1.0" }
+            property<Boolean>(name = "isService") { default = false }
         }
 
         // ── Ports (D17: named AutosarPort to avoid metaclass name conflict) ───────
 
-        stereotype("AutosarPort") {
+        stereotype(name = "AutosarPort") {
             extends(UmlMetaclass.Port)
-            property<AutosarPortDirection>("direction") { default = AutosarPortDirection.Provided }
+            property<AutosarPortDirection>(name = "direction") { default = AutosarPortDirection.Provided }
         }
 
         // ── Operation-Level: runnable entity (V1.1.2) ─────────────────────────────
 
-        stereotype("Runnable") {
+        stereotype(name = "Runnable") {
             extends(UmlMetaclass.Operation)
-            property<AutosarBehaviorKind>("kind") { default = AutosarBehaviorKind.EventTriggered }
-            property<Long>("periodMs") { default = 0L } // 0 = non-periodic
+            property<AutosarBehaviorKind>(name = "kind") { default = AutosarBehaviorKind.EventTriggered }
+            property<Long>(name = "periodMs") { default = 0L } // 0 = non-periodic
         }
 
         // ── StateMachine-Level: behavior specification (V1.1.2) ───────────────────
 
-        stereotype("BehaviorSpec") {
+        stereotype(name = "BehaviorSpec") {
             extends(UmlMetaclass.StateMachine)
-            property<String>("specName") { default = "" }
+            property<String>(name = "specName") { default = "" }
         }
     }

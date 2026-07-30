@@ -23,22 +23,22 @@ class ErmConstraintCheckerTest :
         val checker = ErmConstraintChecker()
 
         fun validEcommerceSchema(): ErmModel =
-            ermModel("ECommerce") {
+            ermModel(name = "ECommerce") {
                 val customer =
-                    entity("Customer") {
+                    entity(name = "Customer") {
                         id()
                         attribute(name = "email", type = ErmDataType.Varchar(255), unique = true)
                         index("email", unique = true, name = "idx_customer_email")
                     }
                 val order =
-                    entity("Order") {
+                    entity(name = "Order") {
                         id()
                         foreignKey(name = "customer_id", references = customer)
-                        attribute(name = "total", type = ErmDataType.Decimal(10, 2))
+                        attribute(name = "total", type = ErmDataType.Decimal(precision = 10, scale = 2))
                         check(expression = "total >= 0", name = "non_negative_total")
                     }
                 val item =
-                    entity("OrderItem", weak = true) {
+                    entity(name = "OrderItem", weak = true) {
                         foreignKey(name = "order_id", references = order)
                         attribute(name = "quantity", type = ErmDataType.Integer())
                     }
@@ -61,7 +61,7 @@ class ErmConstraintCheckerTest :
             errors(ErmModel(name = "x")).any { it.message.contains("no entities") }.shouldBeTrue()
         }
         "at least one entity → no rule-1 error" {
-            val m = ermModel("x") { entity("A") { id() } }
+            val m = ermModel(name = "x") { entity(name = "A") { id() } }
             errors(m).none { it.message.contains("no entities") }.shouldBeTrue()
         }
 
@@ -71,17 +71,17 @@ class ErmConstraintCheckerTest :
             warnings(m).any { it.message.contains("no attributes") }.shouldBeTrue()
         }
         "entity with attributes → no rule-2 warning" {
-            val m = ermModel("x") { entity("A") { id() } }
+            val m = ermModel(name = "x") { entity(name = "A") { id() } }
             warnings(m).none { it.message.contains("no attributes") }.shouldBeTrue()
         }
 
         // ── 3. non-weak entity needs a primary key / weak entity needs identifying relationship ──
         "non-weak entity with no primary key → error" {
-            val m = ermModel("x") { entity("A") { attribute(name = "x", type = ErmDataType.Text) } }
+            val m = ermModel(name = "x") { entity(name = "A") { attribute(name = "x", type = ErmDataType.Text) } }
             errors(m).any { it.message.contains("no primary key") }.shouldBeTrue()
         }
         "weak entity without identifying relationship → error" {
-            val m = ermModel("x") { entity("A", weak = true) { attribute(name = "x", type = ErmDataType.Text) } }
+            val m = ermModel(name = "x") { entity(name = "A", weak = true) { attribute(name = "x", type = ErmDataType.Text) } }
             errors(m).any { it.message.contains("not the target of an identifying relationship") }.shouldBeTrue()
         }
         "weak entity with identifying relationship → no rule-3 error" {
@@ -94,8 +94,8 @@ class ErmConstraintCheckerTest :
         // ── 4. unique attribute names within an entity ──
         "duplicate attribute name within entity → error" {
             val m =
-                ermModel("x") {
-                    entity("A") {
+                ermModel(name = "x") {
+                    entity(name = "A") {
                         attribute(name = "dup", type = ErmDataType.Text)
                         attribute(name = "dup", type = ErmDataType.Text)
                     }
@@ -109,9 +109,9 @@ class ErmConstraintCheckerTest :
         // ── 5. unique entity names ──
         "duplicate entity name → error" {
             val m =
-                ermModel("x") {
-                    entity("Dup") { id() }
-                    entity("Dup") { id() }
+                ermModel(name = "x") {
+                    entity(name = "Dup") { id() }
+                    entity(name = "Dup") { id() }
                 }
             errors(m).any { it.message.contains("used more than once in model") }.shouldBeTrue()
         }
@@ -132,9 +132,9 @@ class ErmConstraintCheckerTest :
                                 attributes =
                                     listOf(
                                         dev.kuml.erm.model.ErmAttribute(
-                                            "a0",
-                                            "fk",
-                                            ErmDataType.Uuid,
+                                            id = "a0",
+                                            name = "fk",
+                                            type = ErmDataType.Uuid,
                                             foreignKey = ErmForeignKey(targetEntityId = "does-not-exist"),
                                         ),
                                     ),
@@ -150,9 +150,9 @@ class ErmConstraintCheckerTest :
         // ── 7. FK type compatibility ──
         "FK type mismatch with target PK → error" {
             val m =
-                ermModel("x") {
-                    val a = entity("A") { id(type = ErmDataType.Integer()) }
-                    entity("B") {
+                ermModel(name = "x") {
+                    val a = entity(name = "A") { id(type = ErmDataType.Integer()) }
+                    entity(name = "B") {
                         attribute(
                             name = "a_id",
                             type = ErmDataType.Text,
@@ -164,9 +164,9 @@ class ErmConstraintCheckerTest :
         }
         "FK type mismatch where either side is Custom → warning only" {
             val m =
-                ermModel("x") {
-                    val a = entity("A") { id(type = ErmDataType.Custom("SERIAL")) }
-                    entity("B") {
+                ermModel(name = "x") {
+                    val a = entity(name = "A") { id(type = ErmDataType.Custom("SERIAL")) }
+                    entity(name = "B") {
                         attribute(
                             name = "a_id",
                             type = ErmDataType.Integer(),
@@ -209,9 +209,9 @@ class ErmConstraintCheckerTest :
         // ── 9. identifying relationship should target a weak entity (best practice) ──
         "identifying relationship targeting a non-weak entity → warning" {
             val m =
-                ermModel("x") {
-                    val a = entity("A") { id() }
-                    val b = entity("B") { id() }
+                ermModel(name = "x") {
+                    val a = entity(name = "A") { id() }
+                    val b = entity(name = "B") { id() }
                     relationship(from = a, to = b, kind = RelationshipKind.IDENTIFYING)
                 }
             warnings(m).any { it.message.contains("is not marked as weak") }.shouldBeTrue()
@@ -223,8 +223,8 @@ class ErmConstraintCheckerTest :
         // ── 10. index attribute references ──
         "index with no attributes → error" {
             val m =
-                ermModel("x") {
-                    entity("A") {
+                ermModel(name = "x") {
+                    entity(name = "A") {
                         id()
                         index()
                     }
@@ -244,12 +244,12 @@ class ErmConstraintCheckerTest :
                                 attributes =
                                     listOf(
                                         dev.kuml.erm.model
-                                            .ErmAttribute("a1", "col", ErmDataType.Text),
+                                            .ErmAttribute(id = "a1", name = "col", type = ErmDataType.Text),
                                     ),
                                 indexes =
                                     listOf(
                                         dev.kuml.erm.model
-                                            .ErmIndex("i0", "bad", listOf("not-mine")),
+                                            .ErmIndex(id = "i0", name = "bad", attributeIds = listOf("not-mine")),
                                     ),
                             ),
                         ),
@@ -265,16 +265,16 @@ class ErmConstraintCheckerTest :
         // ── 11. view query non-blank / referenced entities exist ──
         "view with blank query → error" {
             val m =
-                ermModel("x") {
-                    entity("A") { id() }
+                ermModel(name = "x") {
+                    entity(name = "A") { id() }
                     view(name = "v", query = "")
                 }
             errors(m).any { it.message.contains("empty query") }.shouldBeTrue()
         }
         "view referencing unknown entity → warning" {
             val m =
-                ermModel("x") {
-                    entity("A") { id() }
+                ermModel(name = "x") {
+                    entity(name = "A") { id() }
                     view(name = "v", query = "SELECT 1", references = listOf("nope"))
                 }
             warnings(m).any { it.message.contains("references unknown entity") }.shouldBeTrue()
@@ -305,9 +305,9 @@ class ErmConstraintCheckerTest :
         // ── 13. many-to-many identifying relationship ──
         "many-to-many identifying relationship → warning" {
             val m =
-                ermModel("x") {
-                    val a = entity("A") { id() }
-                    val b = entity("B", weak = true) { id() }
+                ermModel(name = "x") {
+                    val a = entity(name = "A") { id() }
+                    val b = entity(name = "B", weak = true) { id() }
                     relationship(
                         from = a,
                         to = b,
@@ -335,7 +335,7 @@ class ErmConstraintCheckerTest :
                                 attributes =
                                     listOf(
                                         dev.kuml.erm.model
-                                            .ErmAttribute("a0", "col", ErmDataType.Text),
+                                            .ErmAttribute(id = "a0", name = "col", type = ErmDataType.Text),
                                     ),
                                 checks =
                                     listOf(
@@ -354,15 +354,15 @@ class ErmConstraintCheckerTest :
         // ── 14. autoIncrement only on Integer columns ──
         "autoIncrement on a non-integer column → warning" {
             val m =
-                ermModel("x") {
-                    entity("A") { attribute(name = "x", type = ErmDataType.Text, autoIncrement = true) }
+                ermModel(name = "x") {
+                    entity(name = "A") { attribute(name = "x", type = ErmDataType.Text, autoIncrement = true) }
                 }
             warnings(m).any { it.message.contains("is autoIncrement but has non-integer type") }.shouldBeTrue()
         }
         "autoIncrement on an Integer column → no rule-14 warning" {
             val m =
-                ermModel("x") {
-                    entity("A") { attribute(name = "x", type = ErmDataType.Integer(), primaryKey = true, autoIncrement = true) }
+                ermModel(name = "x") {
+                    entity(name = "A") { attribute(name = "x", type = ErmDataType.Integer(), primaryKey = true, autoIncrement = true) }
                 }
             warnings(m).none { it.message.contains("is autoIncrement but has non-integer type") }.shouldBeTrue()
         }
@@ -370,17 +370,17 @@ class ErmConstraintCheckerTest :
         // ── 16. category supertype resolves ──
         "category with unknown supertype → error" {
             val m =
-                ermModel("x") {
-                    val person = entity("Person") { id() }
+                ermModel(name = "x") {
+                    val person = entity(name = "Person") { id() }
                     category(supertype = "nope", subtypes = listOf(person))
                 }
             errors(m).any { it.message.contains("supertypeEntityId") && it.message.contains("not found") }.shouldBeTrue()
         }
         "category with resolvable supertype → no rule-16 error" {
             val m =
-                ermModel("x") {
-                    val party = entity("Party") { id() }
-                    val person = entity("Person") { }
+                ermModel(name = "x") {
+                    val party = entity(name = "Party") { id() }
+                    val person = entity(name = "Person") { }
                     category(supertype = party, subtypes = listOf(person))
                 }
             errors(m).none { it.message.contains("supertypeEntityId") }.shouldBeTrue()
@@ -389,25 +389,25 @@ class ErmConstraintCheckerTest :
         // ── 17. category subtypes resolve and non-empty ──
         "category with empty subtypes → error" {
             val m =
-                ermModel("x") {
-                    val party = entity("Party") { id() }
+                ermModel(name = "x") {
+                    val party = entity(name = "Party") { id() }
                     category(supertype = party, subtypes = emptyList())
                 }
             errors(m).any { it.message.contains("has no subtype entities") }.shouldBeTrue()
         }
         "category with unknown subtype entity → error" {
             val m =
-                ermModel("x") {
-                    val party = entity("Party") { id() }
+                ermModel(name = "x") {
+                    val party = entity(name = "Party") { id() }
                     category(supertype = party, subtypes = listOf("nope"))
                 }
             errors(m).any { it.message.contains("subtype entity 'nope' not found") }.shouldBeTrue()
         }
         "category with resolvable, non-empty subtypes → no rule-17 error" {
             val m =
-                ermModel("x") {
-                    val party = entity("Party") { id() }
-                    val person = entity("Person") { }
+                ermModel(name = "x") {
+                    val party = entity(name = "Party") { id() }
+                    val person = entity(name = "Person") { }
                     category(supertype = party, subtypes = listOf(person))
                 }
             errors(m).none { it.message.contains("has no subtype entities") || it.message.contains("subtype entity") }.shouldBeTrue()
@@ -416,17 +416,17 @@ class ErmConstraintCheckerTest :
         // ── 18. supertype not among its own subtypes ──
         "category listing its own supertype as a subtype → error" {
             val m =
-                ermModel("x") {
-                    val party = entity("Party") { id() }
+                ermModel(name = "x") {
+                    val party = entity(name = "Party") { id() }
                     category(supertype = party, subtypes = listOf(party))
                 }
             errors(m).any { it.message.contains("listed as one of its own subtypes") }.shouldBeTrue()
         }
         "category without a self-referencing subtype → no rule-18 error" {
             val m =
-                ermModel("x") {
-                    val party = entity("Party") { id() }
-                    val person = entity("Person") { }
+                ermModel(name = "x") {
+                    val party = entity(name = "Party") { id() }
+                    val person = entity(name = "Person") { }
                     category(supertype = party, subtypes = listOf(person))
                 }
             errors(m).none { it.message.contains("listed as one of its own subtypes") }.shouldBeTrue()
@@ -435,9 +435,9 @@ class ErmConstraintCheckerTest :
         // ── 19. discriminator attribute belongs to the supertype ──
         "category discriminator not an attribute of the supertype → error" {
             val m =
-                ermModel("x") {
-                    val party = entity("Party") { id() }
-                    val person = entity("Person") { }
+                ermModel(name = "x") {
+                    val party = entity(name = "Party") { id() }
+                    val person = entity(name = "Person") { }
                     category(supertype = party, subtypes = listOf(person), discriminator = "not-an-attr")
                 }
             errors(m)
@@ -447,13 +447,13 @@ class ErmConstraintCheckerTest :
         }
         "category discriminator resolving on the supertype → no rule-19 error" {
             val m =
-                ermModel("x") {
+                ermModel(name = "x") {
                     val party =
-                        entity("Party") {
+                        entity(name = "Party") {
                             id()
                             attribute(name = "party_type", type = ErmDataType.Varchar(20))
                         }
-                    val person = entity("Person") { }
+                    val person = entity(name = "Person") { }
                     val discriminatorId = entityById(party)!!.attributeByName("party_type")!!.id
                     category(supertype = party, subtypes = listOf(person), discriminator = discriminatorId)
                 }
@@ -463,16 +463,16 @@ class ErmConstraintCheckerTest :
         // ── 20. enum type must have at least one literal value ──
         "enum type with no literal values → error" {
             val m =
-                ermModel("x") {
-                    entity("A") { attribute(name = "status", type = ErmDataType.Enum("Status", emptyList())) }
+                ermModel(name = "x") {
+                    entity(name = "A") { attribute(name = "status", type = ErmDataType.Enum(name = "Status", values = emptyList())) }
                 }
             errors(m).any { it.message.contains("no literal values") }.shouldBeTrue()
         }
         "enum type with literal values → no rule-20 error" {
             val m =
-                ermModel("x") {
-                    entity("A") {
-                        attribute(name = "status", type = ErmDataType.Enum("Status", listOf("Active", "Inactive")))
+                ermModel(name = "x") {
+                    entity(name = "A") {
+                        attribute(name = "status", type = ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")))
                     }
                 }
             errors(m).none { it.message.contains("no literal values") }.shouldBeTrue()
@@ -481,18 +481,18 @@ class ErmConstraintCheckerTest :
         // ── 21. enum type must not have duplicate literal values ──
         "enum type with duplicate literal values → error" {
             val m =
-                ermModel("x") {
-                    entity("A") {
-                        attribute(name = "status", type = ErmDataType.Enum("Status", listOf("Active", "Active")))
+                ermModel(name = "x") {
+                    entity(name = "A") {
+                        attribute(name = "status", type = ErmDataType.Enum(name = "Status", values = listOf("Active", "Active")))
                     }
                 }
             errors(m).any { it.message.contains("duplicate literal values") }.shouldBeTrue()
         }
         "enum type without duplicate literal values → no rule-21 error" {
             val m =
-                ermModel("x") {
-                    entity("A") {
-                        attribute(name = "status", type = ErmDataType.Enum("Status", listOf("Active", "Inactive")))
+                ermModel(name = "x") {
+                    entity(name = "A") {
+                        attribute(name = "status", type = ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")))
                     }
                 }
             errors(m).none { it.message.contains("duplicate literal values") }.shouldBeTrue()
@@ -501,9 +501,9 @@ class ErmConstraintCheckerTest :
         // ── category subtypes are exempt from rule 3's primary-key requirement ──
         "category subtype without its own primary key → no rule-3 error" {
             val m =
-                ermModel("x") {
-                    val party = entity("Party") { id() }
-                    val person = entity("Person") { attribute(name = "first_name", type = ErmDataType.Text) }
+                ermModel(name = "x") {
+                    val party = entity(name = "Party") { id() }
+                    val person = entity(name = "Person") { attribute(name = "first_name", type = ErmDataType.Text) }
                     category(supertype = party, subtypes = listOf(person))
                 }
             errors(m).none { it.message.contains("has no primary key") }.shouldBeTrue()

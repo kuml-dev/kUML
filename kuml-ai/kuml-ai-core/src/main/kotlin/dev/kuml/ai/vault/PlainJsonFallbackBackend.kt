@@ -96,8 +96,8 @@ public class PlainJsonFallbackBackend(
             restrictToOwnerOnly(storagePath)
         } catch (e: Exception) {
             throw KumlAiException.VaultUnavailable(
-                "Cannot write plain JSON secrets to $storagePath: ${e.message}",
-                e,
+                message = "Cannot write plain JSON secrets to $storagePath: ${e.message}",
+                cause = e,
             )
         }
     }

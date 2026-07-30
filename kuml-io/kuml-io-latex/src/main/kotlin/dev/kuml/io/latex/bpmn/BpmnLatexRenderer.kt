@@ -57,7 +57,7 @@ internal object BpmnLatexRenderer {
             val nodeIds = process.flowNodes.map { it.id }
             process.flowNodes.forEachIndexed { idx, node ->
                 val prevId = if (idx == 0) null else nodeIds[idx - 1]
-                appendFlowNode(node, prevId)
+                appendFlowNode(node = node, prevId = prevId)
             }
 
             if (process.sequenceFlows.isNotEmpty()) {
@@ -145,11 +145,11 @@ internal object BpmnLatexRenderer {
         val pos = if (prevId != null) "right of=${sanitizeTikzId(prevId)}" else "at (0,0)"
 
         when (node) {
-            is BpmnEvent -> appendEvent(node, nodeId, label, pos)
-            is BpmnGateway -> appendGateway(node, nodeId, label, pos)
-            is BpmnTask -> appendTask(node, nodeId, label, pos)
-            is BpmnSubProcess -> appendSubProcess(node, nodeId, label, pos)
-            is BpmnCallActivity -> appendCallActivity(node, nodeId, label, pos)
+            is BpmnEvent -> appendEvent(event = node, nodeId = nodeId, label = label, pos = pos)
+            is BpmnGateway -> appendGateway(gw = node, nodeId = nodeId, label = label, pos = pos)
+            is BpmnTask -> appendTask(task = node, nodeId = nodeId, label = label, pos = pos)
+            is BpmnSubProcess -> appendSubProcess(sp = node, nodeId = nodeId, label = label, pos = pos)
+            is BpmnCallActivity -> appendCallActivity(ca = node, nodeId = nodeId, label = label, pos = pos)
         }
     }
 

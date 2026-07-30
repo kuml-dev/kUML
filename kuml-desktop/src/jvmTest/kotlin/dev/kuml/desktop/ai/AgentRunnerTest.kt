@@ -24,7 +24,7 @@ private fun stubExecutor(settings: KumlAiSettings = KumlAiSettings(privacyMode =
     // Use the "plain" backend override so no OS keychain is needed in tests
     System.setProperty("kuml.ai.vault.backend", "plain")
     val vault = ApiKeyVault.detect()
-    return KumlAiExecutor.fromSettings(settings, vault)
+    return KumlAiExecutor.fromSettings(settings = settings, vault = vault)
 }
 
 class AgentRunnerTest :
@@ -40,7 +40,7 @@ class AgentRunnerTest :
                         assistantMsg("Hello from LLM")
                     },
                 )
-            val history = listOf(ConversationMessage.User("u1", 1000L, "Hi"))
+            val history = listOf(ConversationMessage.User(id = "u1", timestamp = 1000L, text = "Hi"))
             val events = runner.runConversation(history).toList()
             val deltas = events.filterIsInstance<AgentEvent.AssistantDelta>()
             deltas.isNotEmpty() shouldBe true
@@ -132,7 +132,7 @@ class AgentRunnerTest :
                     },
                 )
 
-            val history = listOf(ConversationMessage.User("u1", 1L, "Add a UML class"))
+            val history = listOf(ConversationMessage.User(id = "u1", timestamp = 1L, text = "Add a UML class"))
             val events = runner.runConversation(history).toList()
 
             // OrchestratorRouted must appear

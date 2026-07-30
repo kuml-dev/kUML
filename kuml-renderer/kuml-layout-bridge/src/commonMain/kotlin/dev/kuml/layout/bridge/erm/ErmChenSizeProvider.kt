@@ -62,40 +62,41 @@ public class ErmChenSizeProvider(
     override fun sizeOf(
         elementId: String,
         elementKind: String,
-    ): Size = byId[elementId] ?: Size(DEFAULT_W, DEFAULT_H)
+    ): Size = byId[elementId] ?: Size(width = DEFAULT_W, height = DEFAULT_H)
 
     // ── Size computations ─────────────────────────────────────────────────
 
     private fun entitySize(name: String): Size {
-        val w = maxOf(ENTITY_MIN_W, estimateWidth(name, TITLE_CHAR_PX) + ENTITY_W_PAD)
-        return Size(w, ENTITY_H)
+        val w = maxOf(ENTITY_MIN_W, estimateWidth(text = name, charPx = TITLE_CHAR_PX) + ENTITY_W_PAD)
+        return Size(width = w, height = ENTITY_H)
     }
 
     private fun ovalSize(name: String): Size {
-        val w = maxOf(OVAL_MIN_W, estimateWidth(name, BODY_CHAR_PX) + OVAL_PAD_X)
-        return Size(w, OVAL_H)
+        val w = maxOf(OVAL_MIN_W, estimateWidth(text = name, charPx = BODY_CHAR_PX) + OVAL_PAD_X)
+        return Size(width = w, height = OVAL_H)
     }
 
     private fun diamondSize(name: String): Size {
         // A rhombus needs roughly twice the plain text width to keep the
         // label clear of the shape's slanted edges — see ErmChenSizing's
         // KDoc for the matching renderer-side geometry.
-        val w = maxOf(DIAMOND_MIN_W, estimateWidth(name, BODY_CHAR_PX) * 2f + DIAMOND_PAD)
-        return Size(w, DIAMOND_H)
+        val w = maxOf(DIAMOND_MIN_W, estimateWidth(text = name, charPx = BODY_CHAR_PX) * 2f + DIAMOND_PAD)
+        return Size(width = w, height = DIAMOND_H)
     }
 
     private fun viewSize(view: ErmView): Size {
-        val titleW = estimateWidth("«view» ${view.name ?: view.id}", TITLE_CHAR_PX)
+        val titleW = estimateWidth(text = "«view» ${view.name ?: view.id}", charPx = TITLE_CHAR_PX)
         val previewW =
             estimateWidth(
-                view.query
-                    .replace("\n", " ")
-                    .trim()
-                    .take(60),
-                BODY_CHAR_PX,
+                text =
+                    view.query
+                        .replace("\n", " ")
+                        .trim()
+                        .take(60),
+                charPx = BODY_CHAR_PX,
             )
         val w = maxOf(ENTITY_MIN_W, maxOf(titleW, previewW) + ENTITY_W_PAD)
-        return Size(w, VIEW_H)
+        return Size(width = w, height = VIEW_H)
     }
 
     private fun estimateWidth(

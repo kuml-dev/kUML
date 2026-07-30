@@ -11,7 +11,7 @@ class JavaEnumerationMapperTest :
         test("enum Color RED GREEN BLUE produces UmlEnumeration with three literals") {
             val cu = StaticJavaParser.parse("package colors; public enum Color { RED, GREEN, BLUE }")
             val decl = cu.findAll(EnumDeclaration::class.java).first()
-            val result = JavaEnumerationMapper.map(decl, "colors")
+            val result = JavaEnumerationMapper.map(decl = decl, packageName = "colors")
             result.name shouldBe "Color"
             result.id shouldBe "colors.Color"
             result.literals.size shouldBe 3
@@ -41,7 +41,7 @@ class JavaEnumerationMapperTest :
                 """.trimIndent()
             val cu = StaticJavaParser.parse(src)
             val decl = cu.findAll(EnumDeclaration::class.java).first()
-            val result = JavaEnumerationMapper.map(decl, "")
+            val result = JavaEnumerationMapper.map(decl = decl, packageName = "")
             result.name shouldBe "Planet"
             result.literals.size shouldBe 2
             result.literals.map { it.name } shouldBe listOf("MERCURY", "VENUS")

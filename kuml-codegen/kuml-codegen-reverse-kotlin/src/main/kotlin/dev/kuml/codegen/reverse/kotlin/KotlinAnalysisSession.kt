@@ -84,10 +84,10 @@ internal class KotlinAnalysisSession(
             when {
                 severity.isError -> {
                     hasErrors = true
-                    diagnostics.warn("REV-K-099", "Kotlin compiler: $message", file, line)
+                    diagnostics.warn(code = "REV-K-099", message = "Kotlin compiler: $message", file = file, line = line)
                 }
                 severity == CompilerMessageSeverity.WARNING -> {
-                    diagnostics.info("REV-K-099", "Kotlin compiler warning: $message", file, line)
+                    diagnostics.info(code = "REV-K-099", message = "Kotlin compiler warning: $message", file = file, line = line)
                 }
                 else -> {
                     // INFO and lower — swallow to keep diagnostic output clean

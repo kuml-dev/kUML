@@ -59,8 +59,8 @@ class C4LatexRendererTest :
         ) = LayoutResult(
             engineId = LayoutEngineId("test"),
             seed = 1L,
-            canvas = Size(400f, 300f),
-            nodes = mapOf(NodeId(nodeId) to NodeLayout(bounds = Rect(Point(x, y), Size(w, h)))),
+            canvas = Size(width = 400f, height = 300f),
+            nodes = mapOf(NodeId(nodeId) to NodeLayout(bounds = Rect(origin = Point(x = x, y = y), size = Size(width = w, height = h)))),
             edges = emptyMap(),
             groups = emptyMap(),
         )
@@ -85,7 +85,7 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("user")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "\\begin{tikzpicture}"
             tex shouldContain "\\end{tikzpicture}"
@@ -95,7 +95,7 @@ class C4LatexRendererTest :
             // Snippet mode by default.
             tex shouldNotContain "\\documentclass"
 
-            SampleOutput.write("c4/system-context-person.tex", tex)
+            SampleOutput.write(filename = "c4/system-context-person.tex", content = tex)
         }
 
         "System Context diagram — external SoftwareSystem gets external stereotype" {
@@ -115,13 +115,13 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("ext")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "kuml-c4-system"
             tex shouldContain "external software system"
             tex shouldContain "External Payment Gateway"
 
-            SampleOutput.write("c4/external-software-system.tex", tex)
+            SampleOutput.write(filename = "c4/external-software-system.tex", content = tex)
         }
 
         // ─── Container diagram ────────────────────────────────────────────────
@@ -150,13 +150,13 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("api")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "kuml-c4-container"
             tex shouldContain "REST API"
             tex shouldContain "container: Spring Boot"
 
-            SampleOutput.write("c4/container-diagram.tex", tex)
+            SampleOutput.write(filename = "c4/container-diagram.tex", content = tex)
         }
 
         // ─── Component diagram ────────────────────────────────────────────────
@@ -185,13 +185,13 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("svc")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "kuml-c4-component"
             tex shouldContain "OrderService"
             tex shouldContain "component: Kotlin"
 
-            SampleOutput.write("c4/component-diagram.tex", tex)
+            SampleOutput.write(filename = "c4/component-diagram.tex", content = tex)
         }
 
         // ─── Deployment diagram ───────────────────────────────────────────────
@@ -213,7 +213,7 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("k8s")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "kuml-c4-node"
             tex shouldContain "Kubernetes Cluster"
@@ -221,7 +221,7 @@ class C4LatexRendererTest :
             // Dashed border is baked into the kuml-c4-node TikZ style definition.
             tex shouldContain "dashed"
 
-            SampleOutput.write("c4/deployment-node.tex", tex)
+            SampleOutput.write(filename = "c4/deployment-node.tex", content = tex)
         }
 
         // ─── Standalone mode ──────────────────────────────────────────────────
@@ -240,9 +240,9 @@ class C4LatexRendererTest :
 
             val tex =
                 KumlLatexRenderer.toLatex(
-                    diagram,
-                    model,
-                    layout,
+                    diagram = diagram,
+                    model = model,
+                    layoutResult = layout,
                     options = LatexRenderOptions(standalone = true),
                 )
 
@@ -253,7 +253,7 @@ class C4LatexRendererTest :
             tex shouldContain "\\end{document}"
             tex shouldContain "kuml-c4-person"
 
-            SampleOutput.write("c4/system-context-standalone.tex", tex)
+            SampleOutput.write(filename = "c4/system-context-standalone.tex", content = tex)
         }
 
         // ─── Determinism ──────────────────────────────────────────────────────
@@ -280,28 +280,30 @@ class C4LatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 42L,
-                    canvas = Size(500f, 300f),
+                    canvas = Size(width = 500f, height = 300f),
                     nodes =
                         mapOf(
-                            NodeId("u") to NodeLayout(bounds = Rect(Point(20f, 20f), Size(160f, 100f))),
-                            NodeId("sys") to NodeLayout(bounds = Rect(Point(260f, 20f), Size(200f, 100f))),
+                            NodeId("u") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 160f, height = 100f))),
+                            NodeId("sys") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 260f, y = 20f), size = Size(width = 200f, height = 100f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("rel1") to
                                 EdgeRoute.Direct(
-                                    source = Point(180f, 70f),
-                                    target = Point(260f, 70f),
+                                    source = Point(x = 180f, y = 70f),
+                                    target = Point(x = 260f, y = 70f),
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val one = KumlLatexRenderer.toLatex(diagram, model, layout)
-            val two = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val one = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
+            val two = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
             one shouldBe two
 
-            SampleOutput.write("c4/determinism-check.tex", one)
+            SampleOutput.write(filename = "c4/determinism-check.tex", content = one)
         }
 
         // ─── LaTeX escaping ───────────────────────────────────────────────────
@@ -323,7 +325,7 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("s")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             // '&' must be escaped to '\&'
             tex shouldContain "Order \\& Payment System"
@@ -332,7 +334,7 @@ class C4LatexRendererTest :
             // Raw '&' or '%' must not appear in node label context.
             tex shouldNotContain "Order & Payment"
 
-            SampleOutput.write("c4/latex-escaping.tex", tex)
+            SampleOutput.write(filename = "c4/latex-escaping.tex", content = tex)
         }
 
         // ─── Relationship edge rendering ──────────────────────────────────────
@@ -366,24 +368,26 @@ class C4LatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(500f, 200f),
+                    canvas = Size(width = 500f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("user") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(160f, 100f))),
-                            NodeId("sys") to NodeLayout(bounds = Rect(Point(300f, 40f), Size(180f, 100f))),
+                            NodeId("user") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 160f, height = 100f))),
+                            NodeId("sys") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 300f, y = 40f), size = Size(width = 180f, height = 100f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("rel1") to
                                 EdgeRoute.Direct(
-                                    source = Point(180f, 90f),
-                                    target = Point(300f, 90f),
+                                    source = Point(x = 180f, y = 90f),
+                                    target = Point(x = 300f, y = 90f),
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             // An edge draw command must be present.
             tex shouldContain "\\draw["
@@ -394,7 +398,7 @@ class C4LatexRendererTest :
             // The combined label format "Browses [HTTPS]" must be present.
             tex shouldContain "Browses [HTTPS]"
 
-            SampleOutput.write("c4/relationship-edge.tex", tex)
+            SampleOutput.write(filename = "c4/relationship-edge.tex", content = tex)
         }
 
         // ─── Bidirectional relationship ────────────────────────────────────────
@@ -429,24 +433,26 @@ class C4LatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(500f, 200f),
+                    canvas = Size(width = 500f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("client") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(160f, 100f))),
-                            NodeId("server") to NodeLayout(bounds = Rect(Point(300f, 40f), Size(180f, 100f))),
+                            NodeId("client") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 160f, height = 100f))),
+                            NodeId("server") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 300f, y = 40f), size = Size(width = 180f, height = 100f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("bidi1") to
                                 EdgeRoute.Direct(
-                                    source = Point(180f, 90f),
-                                    target = Point(300f, 90f),
+                                    source = Point(x = 180f, y = 90f),
+                                    target = Point(x = 300f, y = 90f),
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             // A draw command must be present.
             tex shouldContain "\\draw["
@@ -457,7 +463,7 @@ class C4LatexRendererTest :
             // The label must still appear.
             tex shouldContain "Syncs [WebSocket]"
 
-            SampleOutput.write("c4/relationship-edge-bidi.tex", tex)
+            SampleOutput.write(filename = "c4/relationship-edge-bidi.tex", content = tex)
         }
 
         // ─── C4CodeElement ─────────────────────────────────────────────────────
@@ -482,7 +488,7 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("orderSvcClass")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "kuml-c4-code"
             tex shouldContain "OrderService"
@@ -491,7 +497,7 @@ class C4LatexRendererTest :
             // Description must appear in the node body.
             tex shouldContain "Handles order lifecycle"
 
-            SampleOutput.write("c4/code-element.tex", tex)
+            SampleOutput.write(filename = "c4/code-element.tex", content = tex)
         }
 
         // ─── External C4Person stereotype ────────────────────────────────────
@@ -513,14 +519,14 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("ext-user")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "kuml-c4-person"
             tex shouldContain "External Auditor"
             tex shouldContain "external person"
             tex shouldNotContain "\\guillemotleft{}person\\guillemotright{}"
 
-            SampleOutput.write("c4/external-person.tex", tex)
+            SampleOutput.write(filename = "c4/external-person.tex", content = tex)
         }
 
         // ─── Technology-absent Container/Component stereotypes ────────────────
@@ -544,14 +550,14 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("db")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "kuml-c4-container"
             tex shouldContain "Database"
             tex shouldContain "\\guillemotleft{}container\\guillemotright{}"
             tex shouldNotContain "container:"
 
-            SampleOutput.write("c4/container-no-technology.tex", tex)
+            SampleOutput.write(filename = "c4/container-no-technology.tex", content = tex)
         }
 
         "Component diagram — Component without technology uses plain component stereotype" {
@@ -573,14 +579,14 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("repo")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "kuml-c4-component"
             tex shouldContain "OrderRepository"
             tex shouldContain "\\guillemotleft{}component\\guillemotright{}"
             tex shouldNotContain "component:"
 
-            SampleOutput.write("c4/component-no-technology.tex", tex)
+            SampleOutput.write(filename = "c4/component-no-technology.tex", content = tex)
         }
 
         // ─── Edge label: blank label + technology only ────────────────────────
@@ -615,24 +621,26 @@ class C4LatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("u") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(120f, 80f))),
-                            NodeId("s") to NodeLayout(bounds = Rect(Point(260f, 40f), Size(120f, 80f))),
+                            NodeId("u") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 120f, height = 80f))),
+                            NodeId("s") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 260f, y = 40f), size = Size(width = 120f, height = 80f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("rel1") to
                                 EdgeRoute.Direct(
-                                    source = Point(140f, 80f),
-                                    target = Point(260f, 80f),
+                                    source = Point(x = 140f, y = 80f),
+                                    target = Point(x = 260f, y = 80f),
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             // Composite label must be "[gRPC]" — no leading space before the bracket.
             // The label node wraps in \small{…}, so we check the exact escapeLatex output.
@@ -647,7 +655,7 @@ class C4LatexRendererTest :
             // i.e. the compositeLabel must not start with a space: check via curly-brace context.
             tex shouldNotContain "\\small  [gRPC]"
 
-            SampleOutput.write("c4/edge-blank-label-technology-only.tex", tex)
+            SampleOutput.write(filename = "c4/edge-blank-label-technology-only.tex", content = tex)
         }
 
         // ─── DeploymentNode with instances > 1 ───────────────────────────────
@@ -670,14 +678,14 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("vm")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "kuml-c4-node"
             tex shouldContain "App Server"
             // instances > 1 must emit the ×N detail line using LaTeX math
             tex shouldContain "\$\\times\$3"
 
-            SampleOutput.write("c4/deployment-node-instances.tex", tex)
+            SampleOutput.write(filename = "c4/deployment-node-instances.tex", content = tex)
         }
 
         // ─── SystemLandscapeDiagram smoke test ────────────────────────────────
@@ -711,25 +719,28 @@ class C4LatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(600f, 300f),
+                    canvas = Size(width = 600f, height = 300f),
                     nodes =
                         mapOf(
-                            NodeId("crm") to NodeLayout(bounds = Rect(Point(20f, 80f), Size(160f, 100f))),
-                            NodeId("erp") to NodeLayout(bounds = Rect(Point(420f, 80f), Size(160f, 100f))),
-                            NodeId("staff") to NodeLayout(bounds = Rect(Point(220f, 80f), Size(160f, 100f))),
+                            NodeId("crm") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 80f), size = Size(width = 160f, height = 100f))),
+                            NodeId("erp") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 420f, y = 80f), size = Size(width = 160f, height = 100f))),
+                            NodeId("staff") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 220f, y = 80f), size = Size(width = 160f, height = 100f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("r1") to
                                 EdgeRoute.Direct(
-                                    source = Point(380f, 130f),
-                                    target = Point(420f, 130f),
+                                    source = Point(x = 380f, y = 130f),
+                                    target = Point(x = 420f, y = 130f),
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "\\begin{tikzpicture}"
             tex shouldContain "\\end{tikzpicture}"
@@ -738,7 +749,7 @@ class C4LatexRendererTest :
             tex shouldContain "Staff Member"
             tex shouldContain "Uses"
 
-            SampleOutput.write("c4/system-landscape.tex", tex)
+            SampleOutput.write(filename = "c4/system-landscape.tex", content = tex)
         }
 
         // ─── DynamicDiagram smoke test ────────────────────────────────────────
@@ -782,24 +793,26 @@ class C4LatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(500f, 200f),
+                    canvas = Size(width = 500f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("browser") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(160f, 100f))),
-                            NodeId("api") to NodeLayout(bounds = Rect(Point(320f, 40f), Size(160f, 100f))),
+                            NodeId("browser") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 160f, height = 100f))),
+                            NodeId("api") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 320f, y = 40f), size = Size(width = 160f, height = 100f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("rel1") to
                                 EdgeRoute.Direct(
-                                    source = Point(180f, 90f),
-                                    target = Point(320f, 90f),
+                                    source = Point(x = 180f, y = 90f),
+                                    target = Point(x = 320f, y = 90f),
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "\\begin{tikzpicture}"
             tex shouldContain "\\end{tikzpicture}"
@@ -808,7 +821,7 @@ class C4LatexRendererTest :
             // The edge label from the relationship must appear
             tex shouldContain "GET /orders"
 
-            SampleOutput.write("c4/dynamic-diagram.tex", tex)
+            SampleOutput.write(filename = "c4/dynamic-diagram.tex", content = tex)
         }
 
         // ─── TikZ styles preamble ─────────────────────────────────────────────
@@ -825,7 +838,7 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("u")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "kuml-c4-person/.style"
             tex shouldContain "kuml-c4-system/.style"
@@ -854,7 +867,7 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("s")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             // All LaTeX special chars must be escaped to their safe forms.
             tex shouldContain "\\textbackslash{}"
@@ -866,7 +879,7 @@ class C4LatexRendererTest :
             // (i.e. the name must not be emitted without escaping the backslash).
             tex shouldNotContain "Sys\\Name"
 
-            SampleOutput.write("c4/injection-name-description.tex", tex)
+            SampleOutput.write(filename = "c4/injection-name-description.tex", content = tex)
         }
 
         "Dollar sign in SoftwareSystem name is escaped to backslash-dollar" {
@@ -888,13 +901,13 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("s2")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             // The $ must be escaped to \$ in the output.
             tex shouldContain "Pay \\\$100"
             tex shouldContain "Budget \\\$50"
 
-            SampleOutput.write("c4/dollar-in-name.tex", tex)
+            SampleOutput.write(filename = "c4/dollar-in-name.tex", content = tex)
         }
 
         // ─── LaTeX injection: technology field in Container ───────────────────
@@ -918,7 +931,7 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("c")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "\\textbackslash{}"
             tex shouldContain "\\$"
@@ -929,7 +942,7 @@ class C4LatexRendererTest :
             // Raw injection must not survive into the stereotype text.
             tex shouldNotContain "Spring\\Boot"
 
-            SampleOutput.write("c4/injection-container-technology.tex", tex)
+            SampleOutput.write(filename = "c4/injection-container-technology.tex", content = tex)
         }
 
         // ─── LaTeX injection: technology field in Component ───────────────────
@@ -953,7 +966,7 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("cmp")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "\\&"
             tex shouldContain "\\$"
@@ -961,7 +974,7 @@ class C4LatexRendererTest :
             tex shouldContain "\\#"
             tex shouldNotContain "Kotlin&JVM"
 
-            SampleOutput.write("c4/injection-component-technology.tex", tex)
+            SampleOutput.write(filename = "c4/injection-component-technology.tex", content = tex)
         }
 
         // ─── LaTeX injection: technology field in DeploymentNode ─────────────
@@ -983,7 +996,7 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("n")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "\\textbackslash{}"
             tex shouldContain "\\$"
@@ -991,7 +1004,7 @@ class C4LatexRendererTest :
             tex shouldContain "\\#"
             tex shouldNotContain "AWS\\EKS"
 
-            SampleOutput.write("c4/injection-deploymentnode-technology.tex", tex)
+            SampleOutput.write(filename = "c4/injection-deploymentnode-technology.tex", content = tex)
         }
 
         // ─── LaTeX injection: technology field in CodeElement ─────────────────
@@ -1015,7 +1028,7 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("ce")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "\\textbackslash{}"
             tex shouldContain "\\$"
@@ -1023,7 +1036,7 @@ class C4LatexRendererTest :
             tex shouldContain "\\#"
             tex shouldNotContain "Go\\1_21"
 
-            SampleOutput.write("c4/injection-codeelement-technology.tex", tex)
+            SampleOutput.write(filename = "c4/injection-codeelement-technology.tex", content = tex)
         }
 
         // ─── LaTeX injection: C4Relationship label and technology ─────────────
@@ -1056,24 +1069,26 @@ class C4LatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("u") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(120f, 80f))),
-                            NodeId("s") to NodeLayout(bounds = Rect(Point(260f, 40f), Size(120f, 80f))),
+                            NodeId("u") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 120f, height = 80f))),
+                            NodeId("s") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 260f, y = 40f), size = Size(width = 120f, height = 80f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("r") to
                                 EdgeRoute.Direct(
-                                    source = Point(140f, 80f),
-                                    target = Point(260f, 80f),
+                                    source = Point(x = 140f, y = 80f),
+                                    target = Point(x = 260f, y = 80f),
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "\\textbackslash{}"
             tex shouldContain "\\$"
@@ -1081,7 +1096,7 @@ class C4LatexRendererTest :
             tex shouldContain "\\#"
             tex shouldNotContain "Uses\\API"
 
-            SampleOutput.write("c4/injection-relationship-label.tex", tex)
+            SampleOutput.write(filename = "c4/injection-relationship-label.tex", content = tex)
         }
 
         "LaTeX injection chars in C4Relationship technology are escaped" {
@@ -1113,24 +1128,26 @@ class C4LatexRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("u") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(120f, 80f))),
-                            NodeId("s") to NodeLayout(bounds = Rect(Point(260f, 40f), Size(120f, 80f))),
+                            NodeId("u") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 120f, height = 80f))),
+                            NodeId("s") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 260f, y = 40f), size = Size(width = 120f, height = 80f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("r") to
                                 EdgeRoute.Direct(
-                                    source = Point(140f, 80f),
-                                    target = Point(260f, 80f),
+                                    source = Point(x = 140f, y = 80f),
+                                    target = Point(x = 260f, y = 80f),
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             tex shouldContain "\\textbackslash{}"
             tex shouldContain "\\$"
@@ -1140,7 +1157,7 @@ class C4LatexRendererTest :
             tex shouldContain "\\textasciitilde{}"
             tex shouldNotContain "REST\\HTTP"
 
-            SampleOutput.write("c4/injection-relationship-technology.tex", tex)
+            SampleOutput.write(filename = "c4/injection-relationship-technology.tex", content = tex)
         }
 
         // ─── Description length cap ───────────────────────────────────────────
@@ -1163,13 +1180,13 @@ class C4LatexRendererTest :
                 )
             val layout = singleNodeLayout("s")
 
-            val tex = KumlLatexRenderer.toLatex(diagram, model, layout)
+            val tex = KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
 
             // The full 250-char string must NOT appear verbatim.
             tex shouldNotContain longDesc
             // The truncated 200-char prefix must appear followed by the ellipsis character.
             tex shouldContain "A".repeat(200) + "…"
 
-            SampleOutput.write("c4/description-truncation.tex", tex)
+            SampleOutput.write(filename = "c4/description-truncation.tex", content = tex)
         }
     })

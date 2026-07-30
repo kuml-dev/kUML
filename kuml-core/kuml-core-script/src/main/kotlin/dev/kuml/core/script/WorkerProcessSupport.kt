@@ -107,7 +107,7 @@ internal object WorkerProcessSupport {
 
         val command =
             try {
-                OsSandbox.wrap(bareCommand, workDir)
+                OsSandbox.wrap(command = bareCommand, workDir = workDir)
             } catch (e: SandboxUnavailableException) {
                 runCatching { workDir.deleteRecursively() }
                 throw e
@@ -143,14 +143,14 @@ internal object WorkerProcessSupport {
         // un-caged worker ever survives.
         val cage =
             try {
-                OsSandbox.applyPostStart(process, workDir)
+                OsSandbox.applyPostStart(process = process, workDir = workDir)
             } catch (e: SandboxUnavailableException) {
                 runCatching { process.destroyForcibly() }
                 runCatching { workDir.deleteRecursively() }
                 throw e
             }
 
-        return LaunchedWorker(process, workDir, cage)
+        return LaunchedWorker(process = process, workDir = workDir, cage = cage)
     }
 
     /**

@@ -37,14 +37,14 @@ internal object McpScriptEvaluator {
         script: String,
         fileName: String = "script.kuml.kts",
     ): ExtractedDiagram =
-        when (val result = evaluator.evaluate(script, fileName)) {
+        when (val result = evaluator.evaluate(source = script, fileName = fileName)) {
             is EvaluatedScript.Success -> result.diagram
             is EvaluatedScript.Failure ->
                 when (result.kind) {
                     dev.kuml.core.script.FailureKind.GUARD ->
                         throw ScriptSecurityException(result.message)
                     else ->
-                        throw ScriptEvaluationException(result.message)
+                        throw ScriptEvaluationException(message = result.message)
                 }
         }
 
@@ -56,5 +56,5 @@ internal object McpScriptEvaluator {
     internal fun evaluate(
         script: String,
         fileName: String = "script.kuml.kts",
-    ): EvaluatedScript = evaluator.evaluate(script, fileName)
+    ): EvaluatedScript = evaluator.evaluate(source = script, fileName = fileName)
 }

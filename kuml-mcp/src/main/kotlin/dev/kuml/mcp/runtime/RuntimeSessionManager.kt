@@ -82,18 +82,18 @@ internal class RuntimeSessionManager(
         val scriptText = readSourceOrInline(source)
 
         val extracted =
-            when (val result = McpScriptEvaluator.evaluate(scriptText, "run.kuml.kts")) {
+            when (val result = McpScriptEvaluator.evaluate(script = scriptText, fileName = "run.kuml.kts")) {
                 is EvaluatedScript.Success -> result.diagram
                 is EvaluatedScript.Failure -> return SessionResult.Error(result.message)
             }
 
         val sessionId = "rs-${UUID.randomUUID().toString().take(8)}"
-        val effectiveKind = resolveKind(extracted, kind, elementName)
+        val effectiveKind = resolveKind(extracted = extracted, hint = kind, elementName = elementName)
 
         val session =
             when (effectiveKind) {
-                "stm" -> buildStmSession(sessionId, extracted, elementName)
-                "act" -> buildActSession(sessionId, extracted, elementName)
+                "stm" -> buildStmSession(sessionId = sessionId, extracted = extracted, elementName = elementName)
+                "act" -> buildActSession(sessionId = sessionId, extracted = extracted, elementName = elementName)
                 else -> return SessionResult.Error("Unknown kind '$effectiveKind'; expected 'stm' or 'act'")
             }
 
@@ -123,7 +123,7 @@ internal class RuntimeSessionManager(
                         payload.entries.associate { (k, v) -> k to v.anyToJsonElement() },
                     )
                 val ev = Event(name = eventName, payload = jsonPayload)
-                val result = session.runtime.step(session.instance, ev)
+                val result = session.runtime.step(instance = session.instance, event = ev)
                 session.stepCount++
 
                 val fullTrace = session.instance.trace
@@ -218,7 +218,7 @@ internal class RuntimeSessionManager(
                                 session.instance.trace.size
                                     .toLong(),
                         )
-                    val newInstance = session.runtime.restore(model, patchedSnapshot)
+                    val newInstance = session.runtime.restore(model = model, snapshot = patchedSnapshot)
                     // Re-apply patched variables (restore uses the snapshot vars)
                     variables.forEach { (k, v) -> newInstance.variables[k] = v }
                     session.replaceInstance(newInstance)
@@ -337,7 +337,7 @@ internal class RuntimeSessionManager(
                                 .firstOrNull()
                                 ?: error("No StmDiagram found in script")
                         }
-                    Sysml2StateMachineAdapter.toUmlStateMachine(extracted.model, diagram)
+                    Sysml2StateMachineAdapter.toUmlStateMachine(model = extracted.model, diagram = diagram)
                 }
                 is ExtractedDiagram.C4 -> error("C4 diagrams cannot be simulated as STM")
                 is ExtractedDiagram.Bpmn -> error("BPMN diagrams cannot be simulated as STM")
@@ -376,7 +376,7 @@ internal class RuntimeSessionManager(
                     ?: error("No ActDiagram found in script")
             }
 
-        val actRuntime = Sysml2ActivityAdapter.runtimeFor(extracted.model, diagram)
+        val actRuntime = Sysml2ActivityAdapter.runtimeFor(model = extracted.model, diagram = diagram)
         val (initialInstance, startTrace) = actRuntime.start()
 
         val (finalInstance, runTrace) =

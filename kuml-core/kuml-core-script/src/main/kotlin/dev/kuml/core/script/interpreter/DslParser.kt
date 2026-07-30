@@ -53,11 +53,11 @@ internal object DslParser {
             try {
                 DslLexer.tokenize(src)
             } catch (e: DslLexException) {
-                throw DslParseException(e.message, e.line)
+                throw DslParseException(message = e.message, line = e.line)
             }
-        val parser = Parser(tokens, maxDepth)
+        val parser = Parser(tokens = tokens, maxDepth = maxDepth)
         val root = parser.parseCall()
-        parser.expect(DslTokenKind.EOF, "Expected end of script after top-level diagram call")
+        parser.expect(kind = DslTokenKind.EOF, msg = "Expected end of script after top-level diagram call")
         return DslScript(root)
     }
 
@@ -79,8 +79,8 @@ internal object DslParser {
         private inline fun <T> nested(body: () -> T): T {
             if (++depth > maxDepth) {
                 throw DslParseException(
-                    "Maximum nesting depth of $maxDepth exceeded — input is too deeply nested.",
-                    peek().line,
+                    message = "Maximum nesting depth of $maxDepth exceeded — input is too deeply nested.",
+                    line = peek().line,
                 )
             }
             try {
@@ -102,7 +102,7 @@ internal object DslParser {
         ): DslToken {
             if (!check(kind)) {
                 val t = peek()
-                throw DslParseException("$msg (got '${t.text}')", t.line)
+                throw DslParseException(message = "$msg (got '${t.text}')", line = t.line)
             }
             return advance()
         }
@@ -120,7 +120,7 @@ internal object DslParser {
             }
 
         private fun parseCallInner(): DslCall {
-            val nameTok = expect(DslTokenKind.IDENT, "Expected a builder name")
+            val nameTok = expect(kind = DslTokenKind.IDENT, msg = "Expected a builder name")
             val name = nameTok.text
             val args = mutableListOf<DslArg>()
             if (check(DslTokenKind.LPAREN)) {
@@ -133,11 +133,11 @@ internal object DslParser {
                         args += parseArg()
                     }
                 }
-                expect(DslTokenKind.RPAREN, "Expected ')' to close arguments of '$name'")
+                expect(kind = DslTokenKind.RPAREN, msg = "Expected ')' to close arguments of '$name'")
             } else if (!check(DslTokenKind.LBRACE)) {
                 // No '(' and no trailing lambda → not a call at all.
                 val t = peek()
-                throw DslParseException("Expected '(' or '{' after '$name' (got '${t.text}')", t.line)
+                throw DslParseException(message = "Expected '(' or '{' after '$name' (got '${t.text}')", line = t.line)
             }
 
             val body =
@@ -171,12 +171,12 @@ internal object DslParser {
             }
 
         private fun parseBlockInner(): List<DslStatement> {
-            expect(DslTokenKind.LBRACE, "Expected '{'")
+            expect(kind = DslTokenKind.LBRACE, msg = "Expected '{'")
             val stmts = mutableListOf<DslStatement>()
             while (!check(DslTokenKind.RBRACE) && !check(DslTokenKind.EOF)) {
                 stmts += parseStatement()
             }
-            expect(DslTokenKind.RBRACE, "Expected '}' to close block")
+            expect(kind = DslTokenKind.RBRACE, msg = "Expected '}' to close block")
             return stmts
         }
 
@@ -188,8 +188,8 @@ internal object DslParser {
         private fun parseStatementInner(): DslStatement {
             if (check(DslTokenKind.KEYWORD_VAL)) {
                 val valTok = advance()
-                val nameTok = expect(DslTokenKind.IDENT, "Expected identifier after 'val'")
-                expect(DslTokenKind.ASSIGN, "Expected '=' after 'val ${nameTok.text}'")
+                val nameTok = expect(kind = DslTokenKind.IDENT, msg = "Expected identifier after 'val'")
+                expect(kind = DslTokenKind.ASSIGN, msg = "Expected '=' after 'val ${nameTok.text}'")
                 val call = parseCall()
                 return DslValBinding(name = nameTok.text, value = call, line = valTok.line)
             }
@@ -208,7 +208,10 @@ internal object DslParser {
             }
 
             val t = peek()
-            throw DslParseException("Unexpected token '${t.text}' — expected 'val', a property assignment, or a builder call", t.line)
+            throw DslParseException(
+                message = "Unexpected token '${t.text}' — expected 'val', a property assignment, or a builder call",
+                line = t.line,
+            )
         }
 
         /** expr ::= literal | memberRef | identifier | call */
@@ -228,7 +231,7 @@ internal object DslParser {
                     advance()
                     DslInt(
                         t.text.toLongOrNull()
-                            ?: throw DslParseException("Invalid integer literal '${t.text}'", t.line),
+                            ?: throw DslParseException(message = "Invalid integer literal '${t.text}'", line = t.line),
                     )
                 }
                 DslTokenKind.TRUE -> {
@@ -248,13 +251,14 @@ internal object DslParser {
                     if (pos + 1 < tokens.size && tokens[pos + 1].kind == DslTokenKind.DOT) {
                         val qualTok = advance() // qualifier
                         advance() // '.'
-                        val memberTok = expect(DslTokenKind.IDENT, "Expected member name after '${qualTok.text}.'")
+                        val memberTok = expect(kind = DslTokenKind.IDENT, msg = "Expected member name after '${qualTok.text}.'")
                         // Reject further dotting — no `A.B.C`, no `x.foo()` method chains.
                         if (check(DslTokenKind.DOT) || check(DslTokenKind.LPAREN)) {
                             throw DslParseException(
-                                "Chained member access / method calls are not part of the interpreter DSL grammar " +
-                                    "(only enum member references like 'Visibility.PUBLIC' are allowed)",
-                                peek().line,
+                                message =
+                                    "Chained member access / method calls are not part of the interpreter DSL grammar " +
+                                        "(only enum member references like 'Visibility.PUBLIC' are allowed)",
+                                line = peek().line,
                             )
                         }
                         return DslMemberRef(qualifier = qualTok.text, member = memberTok.text, line = qualTok.line)
@@ -262,7 +266,7 @@ internal object DslParser {
                     val idTok = advance()
                     DslIdentifier(name = idTok.text, line = idTok.line)
                 }
-                else -> throw DslParseException("Unexpected token '${t.text}' in argument position", t.line)
+                else -> throw DslParseException(message = "Unexpected token '${t.text}' in argument position", line = t.line)
             }
         }
     }

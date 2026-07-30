@@ -73,5 +73,5 @@ public class RuleBuilder<S, T>(
     }
 
     internal fun build(): TransformerRule<S, T> =
-        TransformerRule(id, matchFn, guardFn, produceFn ?: error("Rule '$id' missing produce block"))
+        TransformerRule(id = id, matches = matchFn, guard = guardFn, produce = produceFn ?: error("Rule '$id' missing produce block"))
 }

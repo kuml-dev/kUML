@@ -10,11 +10,11 @@ class SubstrateEventDecoderTest :
         val decoder = SubstrateEventDecoder()
 
         "decodeContractEmitted returns empty for empty hex" {
-            decoder.decodeContractEmitted("", "5GrwvaEF", 1L, "0xhash").shouldBeEmpty()
+            decoder.decodeContractEmitted(eventsHex = "", contractAddr = "5GrwvaEF", height = 1L, blockHash = "0xhash").shouldBeEmpty()
         }
 
         "decodeContractEmitted returns empty for 0x empty" {
-            decoder.decodeContractEmitted("0x", "5GrwvaEF", 1L, "0xhash").shouldBeEmpty()
+            decoder.decodeContractEmitted(eventsHex = "0x", contractAddr = "5GrwvaEF", height = 1L, blockHash = "0xhash").shouldBeEmpty()
         }
 
         "hexToBytes converts valid hex" {
@@ -109,7 +109,7 @@ class SubstrateEventDecoderTest :
         "decodeContractEmitted returns empty for malformed SCALE" {
             // Random bytes that don't form valid SCALE
             val garbage = "0x" + "ff".repeat(4)
-            val result = decoder.decodeContractEmitted(garbage, "5GrwvaEF", 1L, "0xhash")
+            val result = decoder.decodeContractEmitted(eventsHex = garbage, contractAddr = "5GrwvaEF", height = 1L, blockHash = "0xhash")
             result.shouldBeEmpty()
         }
 

@@ -12,9 +12,10 @@ class GenericTypeParameterTest :
         test("generic class is mapped as UmlClass with raw name (no UML template params in V1)") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Box.kt" to "class Box<T>(val value: T)",
-                    ),
+                    sources =
+                        mapOf(
+                            "Box.kt" to "class Box<T>(val value: T)",
+                        ),
                 )
             val success = TestSupport.success(result)
             val classes = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlClass>()

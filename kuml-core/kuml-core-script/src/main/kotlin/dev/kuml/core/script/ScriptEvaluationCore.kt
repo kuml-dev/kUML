@@ -35,8 +35,8 @@ internal object ScriptEvaluationCore {
             KumlScriptGuard.validate(source)
         } catch (e: ScriptSecurityException) {
             return EvaluatedScript.Failure(
-                FailureKind.GUARD,
-                e.message ?: "kUML script rejected by security guard.",
+                kind = FailureKind.GUARD,
+                message = e.message ?: "kUML script rejected by security guard.",
             )
         }
 
@@ -48,25 +48,34 @@ internal object ScriptEvaluationCore {
             // resolve through it — a reference to a denied class (java.net.Socket,
             // ProcessBuilder, …) fails to link before the script body runs. The
             // in-process trusted path passes null → no filtering (unchanged).
-            val evalResult = KumlScriptHost.eval(tmp, evaluationClassLoader)
+            val evalResult = KumlScriptHost.eval(file = tmp, evaluationClassLoader = evaluationClassLoader)
             val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
             if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
                 return EvaluatedScript.Failure(
-                    FailureKind.EVALUATION,
-                    "Script evaluation failed:\n${sanitiseDiagnostics(errors.map { it.message }, tmp, fileName)}",
+                    kind = FailureKind.EVALUATION,
+                    message = "Script evaluation failed:\n${sanitiseDiagnostics(
+                        messages = errors.map { it.message },
+                        tmp = tmp,
+                        fileName = fileName,
+                    )}",
                 )
             }
             val success =
                 evalResult as? ResultWithDiagnostics.Success
-                    ?: return EvaluatedScript.Failure(FailureKind.EVALUATION, "Script evaluation produced no result")
+                    ?: return EvaluatedScript.Failure(kind = FailureKind.EVALUATION, message = "Script evaluation produced no result")
 
             val extracted =
                 try {
-                    DiagramExtractor.extractAny(success.value.returnValue, tmp)
+                    DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = tmp)
                 } catch (e: ScriptEvaluationException) {
                     return EvaluatedScript.Failure(
-                        FailureKind.EVALUATION,
-                        sanitiseMessage(e.message ?: "Script did not produce a renderable diagram.", tmp, fileName),
+                        kind = FailureKind.EVALUATION,
+                        message =
+                            sanitiseMessage(
+                                message = e.message ?: "Script did not produce a renderable diagram.",
+                                tmp = tmp,
+                                fileName = fileName,
+                            ),
                     )
                 }
             EvaluatedScript.Success(extracted)
@@ -74,8 +83,13 @@ internal object ScriptEvaluationCore {
             // Any other exception (e.g. an exception thrown *inside* the script
             // body at runtime) — classify as evaluation, sanitise the message.
             EvaluatedScript.Failure(
-                FailureKind.EVALUATION,
-                sanitiseMessage(e.message ?: e::class.simpleName ?: "Unknown script error", tmp, fileName),
+                kind = FailureKind.EVALUATION,
+                message =
+                    sanitiseMessage(
+                        message = e.message ?: e::class.simpleName ?: "Unknown script error",
+                        tmp = tmp,
+                        fileName = fileName,
+                    ),
             )
         } finally {
             tmp.delete()
@@ -99,5 +113,5 @@ internal object ScriptEvaluationCore {
         messages: List<String>,
         tmp: File,
         fileName: String,
-    ): String = messages.joinToString("\n") { sanitiseMessage(it, tmp, fileName) }
+    ): String = messages.joinToString("\n") { sanitiseMessage(message = it, tmp = tmp, fileName = fileName) }
 }

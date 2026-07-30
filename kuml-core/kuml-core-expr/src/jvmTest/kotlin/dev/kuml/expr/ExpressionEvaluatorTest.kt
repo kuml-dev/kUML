@@ -10,7 +10,7 @@ class ExpressionEvaluatorTest :
         fun eval(
             s: String,
             context: Map<String, Any?> = emptyMap(),
-        ) = ExpressionEvaluator.evaluate(OclLikeExpressionParser.parse(s), context)
+        ) = ExpressionEvaluator.evaluate(expr = OclLikeExpressionParser.parse(s), context = context)
 
         test("1 + 2 = 3L") {
             eval("1 + 2") shouldBe 3L

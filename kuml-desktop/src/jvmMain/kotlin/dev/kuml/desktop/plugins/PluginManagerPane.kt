@@ -257,7 +257,7 @@ private fun RegistryEntryCard(
                             PluginStatsFormat.clampStars(review.rating).toDouble(),
                         )
                     Text(
-                        text = "$stars ${review.author} (${review.date}): ${PluginStatsFormat.truncate(review.comment)}",
+                        text = "$stars ${review.author} (${review.date}): ${PluginStatsFormat.truncate(comment = review.comment)}",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -356,7 +356,8 @@ private fun PluginSection(
 
 // ── Loader-Funktionen (internal für Testbarkeit) ───────────────────────────
 
-internal fun loadThemes(): List<PluginEntry> = ThemeRegistry.names().map { name -> PluginEntry(name, "Theme", name) }
+internal fun loadThemes(): List<PluginEntry> =
+    ThemeRegistry.names().map { name -> PluginEntry(id = name, kind = "Theme", description = name) }
 
 /**
  * Lädt alle Transformer aus dem [TransformerRegistry].
@@ -366,7 +367,7 @@ internal fun loadTransformers(): List<PluginEntry> =
     try {
         val descriptions = TransformerRegistry.descriptions()
         TransformerRegistry.ids().map { id ->
-            PluginEntry(id, "Transformer", descriptions[id] ?: id)
+            PluginEntry(id = id, kind = "Transformer", description = descriptions[id] ?: id)
         }
     } catch (_: Exception) {
         emptyList()
@@ -386,7 +387,7 @@ internal fun loadReverseEngines(): List<PluginEntry> =
         engines.mapNotNull { e ->
             val idField = e?.javaClass?.getDeclaredField("id")?.also { it.isAccessible = true }
             val id = idField?.get(e) as? String ?: return@mapNotNull null
-            PluginEntry(id, "Reverse-Engine", id)
+            PluginEntry(id = id, kind = "Reverse-Engine", description = id)
         }
     } catch (_: Exception) {
         emptyList()
@@ -406,7 +407,7 @@ internal fun loadReverseEngines(): List<PluginEntry> =
  */
 internal fun registryCardSubtitle(entry: PluginRegistryEntry): String {
     val stars = PluginStatsFormat.stars(entry.rating)
-    val ratingText = PluginStatsFormat.ratingLine(entry.rating, entry.ratingCount)
+    val ratingText = PluginStatsFormat.ratingLine(rating = entry.rating, count = entry.ratingCount)
     return "$stars  $ratingText"
 }
 
@@ -447,7 +448,7 @@ private fun SigningKeysRow(entry: PluginRegistryEntry) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         items(entry.signingKeys) { key ->
-            val (emoji, keyId) = signingKeyBadge(key, today)
+            val (emoji, keyId) = signingKeyBadge(key = key, today = today)
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = MaterialTheme.shapes.small,
@@ -539,7 +540,7 @@ internal fun screenshotAbsoluteUrl(
         } else {
             "$SCREENSHOT_BASE_URL/${raw.removePrefix("/")}"
         }
-    return if (validateScreenshotUrl(resolved, resolveHost)) resolved else null
+    return if (validateScreenshotUrl(url = resolved, resolveHost = resolveHost)) resolved else null
 }
 
 @Composable
@@ -553,7 +554,7 @@ private fun ScreenshotGallery(
     Spacer(Modifier.height(6.dp))
     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         items(thumbs) { raw ->
-            val url = screenshotAbsoluteUrl(raw) ?: return@items
+            val url = screenshotAbsoluteUrl(raw = raw) ?: return@items
             Box(
                 modifier =
                     Modifier

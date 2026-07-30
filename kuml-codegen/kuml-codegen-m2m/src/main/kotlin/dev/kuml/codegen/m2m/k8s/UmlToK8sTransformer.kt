@@ -64,11 +64,14 @@ public class UmlToK8sTransformer : KumlTransformer<KumlDiagram, List<GeneratedFi
                     port = port,
                 )
             val relativePath = "$kebabName/deployment.yaml"
-            files += GeneratedFile(relativePath, content)
-            trace = trace.plus(TraceabilityLink(component.id, relativePath, RULE_COMPONENT_TO_K8S))
+            files += GeneratedFile(relativePath = relativePath, content = content)
+            trace =
+                trace.plus(
+                    TraceabilityLink(sourceElementId = component.id, targetArtifactId = relativePath, ruleId = RULE_COMPONENT_TO_K8S),
+                )
         }
 
-        return TransformResult.Success(files, trace)
+        return TransformResult.Success(output = files, trace = trace)
     }
 
     // ── Manifest generation ───────────────────────────────────────────────────

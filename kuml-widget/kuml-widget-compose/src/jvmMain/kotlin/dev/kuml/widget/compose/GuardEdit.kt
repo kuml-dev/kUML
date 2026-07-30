@@ -68,7 +68,7 @@ public fun BehaviourWidgetState.changeGuard(
     val result =
         runtime.applyPatch(
             instance = runningInstance,
-            patch = ModelPatch.ChangeGuard(transitionId, newOcl),
+            patch = ModelPatch.ChangeGuard(transitionId = transitionId, newOcl = newOcl),
             policy = MigrationPolicy.Reject,
             confirmed = confirmed,
         )

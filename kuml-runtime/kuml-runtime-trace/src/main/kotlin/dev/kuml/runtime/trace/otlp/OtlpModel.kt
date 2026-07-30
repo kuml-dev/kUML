@@ -82,14 +82,14 @@ public object OtlpAnyValues {
 public fun kv(
     key: String,
     value: String,
-): OtlpKeyValue = OtlpKeyValue(key, OtlpAnyValues.str(value))
+): OtlpKeyValue = OtlpKeyValue(key = key, value = OtlpAnyValues.str(value))
 
 public fun kv(
     key: String,
     value: Boolean,
-): OtlpKeyValue = OtlpKeyValue(key, OtlpAnyValues.bool(value))
+): OtlpKeyValue = OtlpKeyValue(key = key, value = OtlpAnyValues.bool(value))
 
 public fun kv(
     key: String,
     value: Long,
-): OtlpKeyValue = OtlpKeyValue(key, OtlpAnyValues.int(value))
+): OtlpKeyValue = OtlpKeyValue(key = key, value = OtlpAnyValues.int(value))

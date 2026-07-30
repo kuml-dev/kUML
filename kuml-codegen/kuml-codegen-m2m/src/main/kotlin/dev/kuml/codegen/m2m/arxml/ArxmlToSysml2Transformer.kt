@@ -59,11 +59,11 @@ public class ArxmlToSysml2Transformer : KumlTransformer<KumlModel, Sysml2Model> 
             source.root as? UmlPackage ?: return TransformResult.Failure(
                 listOf(
                     dev.kuml.codegen.m2m
-                        .TransformError("Model root must be a UmlPackage"),
+                        .TransformError(message = "Model root must be a UmlPackage"),
                 ),
             )
 
-        collectFromPackage(rootPackage, definitions, portDefinitions) { link ->
+        collectFromPackage(pkg = rootPackage, definitions = definitions, portDefinitions = portDefinitions) { link ->
             trace = trace.plus(link)
         }
 
@@ -89,7 +89,7 @@ public class ArxmlToSysml2Transformer : KumlTransformer<KumlModel, Sysml2Model> 
                 diagrams = listOf(diagram),
             )
 
-        return TransformResult.Success(sysml2Model, trace)
+        return TransformResult.Success(output = sysml2Model, trace = trace)
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -102,9 +102,21 @@ public class ArxmlToSysml2Transformer : KumlTransformer<KumlModel, Sysml2Model> 
     ) {
         for (member in pkg.members) {
             when (member) {
-                is UmlPackage -> collectFromPackage(member, definitions, portDefinitions, addLink)
-                is UmlComponent -> mapComponent(member, definitions, portDefinitions, addLink)
-                is UmlInterface -> mapInterface(member, definitions, addLink)
+                is UmlPackage ->
+                    collectFromPackage(
+                        pkg = member,
+                        definitions = definitions,
+                        portDefinitions = portDefinitions,
+                        addLink = addLink,
+                    )
+                is UmlComponent ->
+                    mapComponent(
+                        component = member,
+                        definitions = definitions,
+                        portDefinitions = portDefinitions,
+                        addLink = addLink,
+                    )
+                is UmlInterface -> mapInterface(iface = member, definitions = definitions, addLink = addLink)
                 else -> { /* skip other element types */ }
             }
         }

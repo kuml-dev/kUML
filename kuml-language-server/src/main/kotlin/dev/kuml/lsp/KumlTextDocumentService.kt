@@ -49,7 +49,7 @@ class KumlTextDocumentService(
 
     override fun didOpen(params: DidOpenTextDocumentParams) {
         val doc = params.textDocument
-        documents.update(doc.uri, doc.text)
+        documents.update(uri = doc.uri, text = doc.text)
         scheduleValidation(doc.uri)
     }
 
@@ -57,7 +57,7 @@ class KumlTextDocumentService(
         // Full sync (advertised in capabilities): the single change event carries
         // the entire new document text.
         val text = params.contentChanges.lastOrNull()?.text ?: return
-        documents.update(params.textDocument.uri, text)
+        documents.update(uri = params.textDocument.uri, text = text)
         scheduleValidation(params.textDocument.uri)
     }
 
@@ -66,7 +66,7 @@ class KumlTextDocumentService(
         debouncer.cancel(uri)
         documents.remove(uri)
         // Clear any diagnostics the editor is showing for a now-closed file.
-        publish(uri, emptyList())
+        publish(uri = uri, diagnostics = emptyList())
     }
 
     override fun didSave(params: DidSaveTextDocumentParams) {
@@ -88,19 +88,19 @@ class KumlTextDocumentService(
 
     /** Debounced entry point: coalesces rapid didChange/didSave bursts into one CLI run. */
     private fun scheduleValidation(uri: String) {
-        debouncer.submit(uri) { runAndPublish(uri) }
+        debouncer.submit(key = uri) { runAndPublish(uri) }
     }
 
     private fun runAndPublish(uri: String) {
         if (!config.diagnosticsEnabled) {
-            publish(uri, emptyList())
+            publish(uri = uri, diagnostics = emptyList())
             return
         }
         val text = documents.text(uri) ?: return // doc closed mid-flight
 
         val cli = resolveCli(uri)
         if (cli == null) {
-            publish(uri, emptyList())
+            publish(uri = uri, diagnostics = emptyList())
             if (cliMissingWarned.compareAndSet(false, true)) {
                 server.client?.showMessage(
                     MessageParams(
@@ -112,8 +112,8 @@ class KumlTextDocumentService(
             return
         }
 
-        val diagnostics = DiagnosticsRunner.run(text, cli, DIAGNOSTICS_TIMEOUT_MS)
-        publish(uri, diagnostics.map { toLspDiagnostic(it, text) })
+        val diagnostics = DiagnosticsRunner.run(text = text, cliPath = cli, timeoutMs = DIAGNOSTICS_TIMEOUT_MS)
+        publish(uri = uri, diagnostics = diagnostics.map { toLspDiagnostic(d = it, text = text) })
     }
 
     private fun resolveCli(uri: String): File? {
@@ -131,7 +131,7 @@ class KumlTextDocumentService(
         d: KumlDiagnostic,
         text: String,
     ): Diagnostic =
-        Diagnostic(RangeMapping.toLspRange(d, text), d.message).apply {
+        Diagnostic(RangeMapping.toLspRange(d = d, docText = text), d.message).apply {
             source = "kuml"
             severity = mapSeverity(d.severity)
         }

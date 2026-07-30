@@ -23,8 +23,15 @@ class PluginUpdateBadgeTest :
             val plugins =
                 (1..maxOf(updateCount, 1))
                     .map { i ->
-                        val installed = PluginVersion(1, 0, 0)
-                        val latest = if (i <= updateCount) PluginVersion(2, 0, 0) else PluginVersion(1, 0, 0)
+                        val installed = PluginVersion(major = 1, minor = 0, patch = 0)
+                        val latest =
+                            if (i <=
+                                updateCount
+                            ) {
+                                PluginVersion(major = 2, minor = 0, patch = 0)
+                            } else {
+                                PluginVersion(major = 1, minor = 0, patch = 0)
+                            }
                         val entry =
                             if (reachable) {
                                 PluginRegistryEntry(
@@ -50,8 +57,8 @@ class PluginUpdateBadgeTest :
                             listOf(
                                 PluginUpdateInfo(
                                     id = "p1",
-                                    installed = PluginVersion(1, 0, 0),
-                                    latest = PluginVersion(1, 0, 0),
+                                    installed = PluginVersion(major = 1, minor = 0, patch = 0),
+                                    latest = PluginVersion(major = 1, minor = 0, patch = 0),
                                     registryEntry =
                                         PluginRegistryEntry(
                                             id = "p1",

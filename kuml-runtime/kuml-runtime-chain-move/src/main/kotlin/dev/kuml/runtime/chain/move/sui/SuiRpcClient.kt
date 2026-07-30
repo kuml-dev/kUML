@@ -77,16 +77,16 @@ public class SuiRpcClient(
                     val response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream())
                     if (response.statusCode() !in 200..299) {
                         throw SuiChainAdapterException.NetworkError(
-                            "HTTP ${response.statusCode()} from ${sanitizeUrl(rpcUrl)}",
+                            message = "HTTP ${response.statusCode()} from ${sanitizeUrl(rpcUrl)}",
                         )
                     }
-                    readLimited(response.body(), maxResponseBytes)
+                    readLimited(stream = response.body(), limit = maxResponseBytes)
                 } catch (e: SuiChainAdapterException) {
                     throw e
                 } catch (e: Exception) {
                     throw SuiChainAdapterException.NetworkError(
-                        "IO error calling ${sanitizeUrl(rpcUrl)}: ${e.message}",
-                        e,
+                        message = "IO error calling ${sanitizeUrl(rpcUrl)}: ${e.message}",
+                        cause = e,
                     )
                 }
             }
@@ -96,30 +96,30 @@ public class SuiRpcClient(
                 json.parseToJsonElement(responseBody)
             } catch (e: Exception) {
                 throw SuiChainAdapterException.MalformedResponse(
-                    "Could not parse JSON-RPC response: ${e.message}",
-                    e,
+                    message = "Could not parse JSON-RPC response: ${e.message}",
+                    cause = e,
                 )
             }
 
         val obj =
             parsed as? JsonObject
-                ?: throw SuiChainAdapterException.MalformedResponse("JSON-RPC response is not an object")
+                ?: throw SuiChainAdapterException.MalformedResponse(message = "JSON-RPC response is not an object")
 
         val errorObj = obj["error"]
         if (errorObj != null && errorObj !is JsonNull) {
             val errObj =
                 errorObj as? JsonObject
-                    ?: throw SuiChainAdapterException.MalformedResponse("JSON-RPC error field is not an object")
+                    ?: throw SuiChainAdapterException.MalformedResponse(message = "JSON-RPC error field is not an object")
             val code =
                 errObj["code"]?.jsonPrimitive?.int
-                    ?: throw SuiChainAdapterException.MalformedResponse("JSON-RPC error missing code")
+                    ?: throw SuiChainAdapterException.MalformedResponse(message = "JSON-RPC error missing code")
             val message = errObj["message"]?.jsonPrimitive?.content ?: "unknown"
             val data = errObj["data"]?.jsonPrimitive?.content
-            throw SuiChainAdapterException.RpcError(code, message, data)
+            throw SuiChainAdapterException.RpcError(code = code, rpcMessage = message, rpcData = data)
         }
 
         return obj["result"]
-            ?: throw SuiChainAdapterException.MalformedResponse("JSON-RPC response missing 'result' field")
+            ?: throw SuiChainAdapterException.MalformedResponse(message = "JSON-RPC response missing 'result' field")
     }
 
     /**
@@ -127,7 +127,7 @@ public class SuiRpcClient(
      * Sui-Quantities sind dezimale Strings (nicht 0x-Hex wie EVM).
      */
     public suspend fun getLatestCheckpointSequenceNumber(): Long {
-        val result = call("suix_getLatestCheckpointSequenceNumber", buildJsonArray {})
+        val result = call(method = "suix_getLatestCheckpointSequenceNumber", params = buildJsonArray {})
         val s = result.jsonPrimitive.content
         return parseDecimalQuantity(s)
     }
@@ -137,7 +137,7 @@ public class SuiRpcClient(
      */
     public suspend fun getCheckpoint(checkpointId: Long): JsonElement {
         val params = buildJsonArray { add(JsonPrimitive(checkpointId.toString())) }
-        return call("sui_getCheckpoint", params)
+        return call(method = "sui_getCheckpoint", params = params)
     }
 
     /**
@@ -174,7 +174,7 @@ public class SuiRpcClient(
                 add(JsonPrimitive(limit))
                 add(JsonPrimitive(descending))
             }
-        return call("suix_queryEvents", params)
+        return call(method = "suix_queryEvents", params = params)
     }
 
     /**
@@ -186,7 +186,7 @@ public class SuiRpcClient(
                 add(JsonPrimitive(objectId))
                 add(buildJsonObject { put("showContent", true) })
             }
-        return call("sui_getObject", params)
+        return call(method = "sui_getObject", params = params)
     }
 
     public companion object {
@@ -208,7 +208,7 @@ public class SuiRpcClient(
          */
         public fun parseDecimalQuantity(s: String): Long =
             s.toLongOrNull()
-                ?: throw SuiChainAdapterException.MalformedResponse("Not a valid decimal quantity: '$s'")
+                ?: throw SuiChainAdapterException.MalformedResponse(message = "Not a valid decimal quantity: '$s'")
 
         /**
          * Entfernt Credentials (userinfo) aus einer URL, bevor sie in Exception-Messages
@@ -239,7 +239,7 @@ public class SuiRpcClient(
                     totalRead += n
                     if (totalRead > limit) {
                         throw SuiChainAdapterException.NetworkError(
-                            "RPC response exceeds maximum allowed size of $limit bytes",
+                            message = "RPC response exceeds maximum allowed size of $limit bytes",
                         )
                     }
                     sb.append(String(buffer, 0, n, Charsets.UTF_8))

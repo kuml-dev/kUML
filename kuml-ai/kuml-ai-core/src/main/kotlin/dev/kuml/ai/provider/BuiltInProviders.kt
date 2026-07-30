@@ -84,7 +84,7 @@ public object BuiltInProviders {
             displayName = "OpenAI",
             koogProvider = LLMProvider.OpenAI,
             isLocal = false,
-            clientFactory = { key -> reflectiveClientWithKey(OPENAI_CLIENT_FQCN, key) },
+            clientFactory = { key -> reflectiveClientWithKey(fqcn = OPENAI_CLIENT_FQCN, apiKey = key) },
             supportedModels = ModelCatalog.descriptorsFor("openai"),
         )
 
@@ -94,7 +94,7 @@ public object BuiltInProviders {
             displayName = "Anthropic",
             koogProvider = LLMProvider.Anthropic,
             isLocal = false,
-            clientFactory = { key -> reflectiveClientWithKey(ANTHROPIC_CLIENT_FQCN, key) },
+            clientFactory = { key -> reflectiveClientWithKey(fqcn = ANTHROPIC_CLIENT_FQCN, apiKey = key) },
             supportedModels = ModelCatalog.descriptorsFor("anthropic"),
         )
 
@@ -104,7 +104,7 @@ public object BuiltInProviders {
             displayName = "Google Gemini",
             koogProvider = LLMProvider.Google,
             isLocal = false,
-            clientFactory = { key -> reflectiveClientWithKey(GOOGLE_CLIENT_FQCN, key) },
+            clientFactory = { key -> reflectiveClientWithKey(fqcn = GOOGLE_CLIENT_FQCN, apiKey = key) },
             supportedModels = ModelCatalog.descriptorsFor("google"),
         )
 

@@ -64,7 +64,7 @@ internal class BatchAdapter(
 
         traceOut?.let { out ->
             try {
-                manager.writeSessionTrace(out)
+                manager.writeSessionTrace(out = out)
                 println("Wrote trace to $out")
             } catch (e: Exception) {
                 System.err.println("Failed to write trace: ${e.message}")

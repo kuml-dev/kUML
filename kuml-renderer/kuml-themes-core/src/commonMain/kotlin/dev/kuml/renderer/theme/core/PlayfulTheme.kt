@@ -46,11 +46,11 @@ public fun PlayfulTheme(): KumlTheme {
         )
     val typography =
         KumlTypography(
-            title = KumlFont(PLAYFUL_FONT_STACK, sizePt = 15f, weight = 700),
-            subtitle = KumlFont(PLAYFUL_FONT_STACK, sizePt = 13f, weight = 600),
-            body = KumlFont(PLAYFUL_FONT_STACK, sizePt = 12f, weight = 500),
-            small = KumlFont(PLAYFUL_FONT_STACK, sizePt = 10f, weight = 500),
-            stereotype = KumlFont(PLAYFUL_FONT_STACK, sizePt = 11f, italic = true),
+            title = KumlFont(family = PLAYFUL_FONT_STACK, sizePt = 15f, weight = 700),
+            subtitle = KumlFont(family = PLAYFUL_FONT_STACK, sizePt = 13f, weight = 600),
+            body = KumlFont(family = PLAYFUL_FONT_STACK, sizePt = 12f, weight = 500),
+            small = KumlFont(family = PLAYFUL_FONT_STACK, sizePt = 10f, weight = 500),
+            stereotype = KumlFont(family = PLAYFUL_FONT_STACK, sizePt = 11f, italic = true),
         )
     val borders =
         KumlBorders(

@@ -82,40 +82,45 @@ class Sysml2ReqEdgeLabelSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(900f, 400f),
+                canvas = Size(width = 900f, height = 400f),
                 nodes =
                     mapOf(
-                        NodeId("Vehicle") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(120f, 80f))),
-                        NodeId("TopSpeedTest") to NodeLayout(bounds = Rect(Point(20f, 160f), Size(160f, 70f))),
-                        NodeId("TopSpeedReq") to NodeLayout(bounds = Rect(Point(300f, 40f), Size(180f, 100f))),
-                        NodeId("SafetyReq") to NodeLayout(bounds = Rect(Point(600f, 40f), Size(180f, 100f))),
-                        NodeId("BrakingReq") to NodeLayout(bounds = Rect(Point(600f, 200f), Size(180f, 100f))),
+                        NodeId("Vehicle") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 120f, height = 80f))),
+                        NodeId("TopSpeedTest") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 160f), size = Size(width = 160f, height = 70f))),
+                        NodeId("TopSpeedReq") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 300f, y = 40f), size = Size(width = 180f, height = 100f))),
+                        NodeId("SafetyReq") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 600f, y = 40f), size = Size(width = 180f, height = 100f))),
+                        NodeId("BrakingReq") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 600f, y = 200f), size = Size(width = 180f, height = 100f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("satisfy:Vehicle::TopSpeedReq") to
-                            EdgeRoute.Direct(source = Point(140f, 80f), target = Point(300f, 80f)),
+                            EdgeRoute.Direct(source = Point(x = 140f, y = 80f), target = Point(x = 300f, y = 80f)),
                         EdgeId("verify:TopSpeedTest::TopSpeedReq") to
-                            EdgeRoute.Direct(source = Point(180f, 195f), target = Point(330f, 140f)),
+                            EdgeRoute.Direct(source = Point(x = 180f, y = 195f), target = Point(x = 330f, y = 140f)),
                         EdgeId("derive:BrakingReq::SafetyReq") to
-                            EdgeRoute.Direct(source = Point(690f, 200f), target = Point(690f, 140f)),
+                            EdgeRoute.Direct(source = Point(x = 690f, y = 200f), target = Point(x = 690f, y = 140f)),
                         EdgeId("contains:SafetyReq::BrakingReq") to
-                            EdgeRoute.Direct(source = Point(720f, 140f), target = Point(720f, 200f)),
+                            EdgeRoute.Direct(source = Point(x = 720f, y = 140f), target = Point(x = 720f, y = 200f)),
                     ),
                 groups = emptyMap(),
             )
 
         "all four REQ stereotypes appear in the SVG output" {
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "«satisfy»"
             svg shouldContain "«verify»"
             svg shouldContain "«deriveReqt»"
             svg shouldContain "«containment»"
-            SampleOutput.write("sysml2-edge-labels/req-traceability.svg", svg)
+            SampleOutput.write(filename = "sysml2-edge-labels/req-traceability.svg", content = svg)
         }
 
         "REQ edges are styled dashed" {
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "stroke-dasharray"
         }
     })

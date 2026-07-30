@@ -13,28 +13,28 @@ import io.kotest.matchers.shouldBe
 class BlueprintLayerShortcutsTest :
     StringSpec({
         "frontstage shortcut sets the FRONTSTAGE layer" {
-            val m = blueprint("X") { phase("P") { frontstage("F") } }
+            val m = blueprint(name = "X") { phase(name = "P") { frontstage(name = "F") } }
             m.steps.single().layer shouldBe BlueprintLayer.FRONTSTAGE
         }
 
         "backstage shortcut sets the BACKSTAGE layer" {
-            val m = blueprint("X") { phase("P") { backstage("B") } }
+            val m = blueprint(name = "X") { phase(name = "P") { backstage(name = "B") } }
             m.steps.single().layer shouldBe BlueprintLayer.BACKSTAGE
         }
 
         "support shortcut sets the SUPPORT_PROCESSES layer" {
-            val m = blueprint("X") { phase("P") { support("S") } }
+            val m = blueprint(name = "X") { phase(name = "P") { support(name = "S") } }
             m.steps.single().layer shouldBe BlueprintLayer.SUPPORT_PROCESSES
         }
 
         "all four layers can coexist in one phase" {
             val m =
-                blueprint("X") {
-                    phase("P") {
-                        customer("C", dev.kuml.blueprint.model.Sentiment.NEUTRAL)
-                        frontstage("F")
-                        backstage("B")
-                        support("S")
+                blueprint(name = "X") {
+                    phase(name = "P") {
+                        customer(name = "C", sentiment = dev.kuml.blueprint.model.Sentiment.NEUTRAL)
+                        frontstage(name = "F")
+                        backstage(name = "B")
+                        support(name = "S")
                     }
                 }
             m.steps.map { it.layer } shouldContainExactly
@@ -49,9 +49,9 @@ class BlueprintLayerShortcutsTest :
 
         "shortcuts carry the actor reference" {
             val m =
-                blueprint("X") {
-                    val staff = actor("Staff", ActorRole.STAFF)
-                    phase("P") { backstage("B", actor = staff) }
+                blueprint(name = "X") {
+                    val staff = actor(name = "Staff", role = ActorRole.STAFF)
+                    phase(name = "P") { backstage(name = "B", actor = staff) }
                 }
             m.steps.single().actorRef shouldBe m.actors.single().id
         }

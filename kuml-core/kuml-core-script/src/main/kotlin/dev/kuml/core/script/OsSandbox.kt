@@ -225,7 +225,7 @@ internal object OsSandbox {
     }
 
     /** Resolved isolation mode from the environment, with a platform-sensitive default. */
-    fun mode(): Mode = modeFrom(System.getenv(ENV_OS_ISOLATION), platform)
+    fun mode(): Mode = modeFrom(raw = System.getenv(ENV_OS_ISOLATION), platform = platform)
 
     /**
      * Testable resolver. Default is `required` **only on macOS** (where the OS
@@ -314,8 +314,8 @@ internal object OsSandbox {
         val canonicalWorkDir = runCatching { workDir.canonicalPath }.getOrDefault(workDir.absolutePath)
 
         return when (platform) {
-            Platform.MAC -> wrapMac(command, canonicalWorkDir, mode)
-            Platform.LINUX -> wrapLinux(command, canonicalWorkDir, mode)
+            Platform.MAC -> wrapMac(command = command, canonicalWorkDir = canonicalWorkDir, mode = mode)
+            Platform.LINUX -> wrapLinux(command = command, canonicalWorkDir = canonicalWorkDir, mode = mode)
             Platform.WINDOWS -> {
                 // The Job-Object cage is applied post-start (see applyPostStart),
                 // not as a command prefix. Return the command unchanged; do NOT
@@ -485,7 +485,7 @@ internal object OsSandbox {
             logBwrapSmokeTestFailureOnce(bwrap)
             return command
         }
-        return bwrapCommandFor(bwrap, command, canonicalWorkDir)
+        return bwrapCommandFor(bwrapPath = bwrap, command = command, canonicalWorkDir = canonicalWorkDir)
     }
 
     @Volatile private var cachedBwrapWorks: Boolean? = null

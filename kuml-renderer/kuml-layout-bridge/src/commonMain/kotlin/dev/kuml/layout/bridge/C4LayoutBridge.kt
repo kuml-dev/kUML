@@ -142,7 +142,7 @@ public object C4LayoutBridge {
             // Determine group membership: element belongs to the group anchor if applicable
             val nodeGroupId: GroupId? =
                 when {
-                    groupId != null && isChildOfGroup(diagram, element) -> groupId
+                    groupId != null && isChildOfGroup(diagram = diagram, element = element) -> groupId
                     else -> null
                 }
 
@@ -151,8 +151,8 @@ public object C4LayoutBridge {
                     id = NodeId(element.id),
                     intrinsicSize =
                         sizeProvider.sizeOf(
-                            element.id,
-                            element::class.simpleName ?: "Unknown",
+                            elementId = element.id,
+                            elementKind = element::class.simpleName ?: "Unknown",
                         ),
                     hints = HintsReader.read(element.metadata),
                     groupId = nodeGroupId,

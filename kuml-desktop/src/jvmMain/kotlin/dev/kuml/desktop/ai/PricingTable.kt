@@ -54,17 +54,21 @@ class PricingTable private constructor(
                     .getResourceAsStream("/dev/kuml/desktop/ai/pricing.json")
                     ?.bufferedReader()
                     ?.readText()
-                    ?: return PricingTable(PricingSchema(1, emptyList()))
+                    ?: return PricingTable(PricingSchema(schemaVersion = 1, providers = emptyList()))
             return PricingTable(json.decodeFromString(text))
         }
 
         fun forTest(vararg entries: Pair<String, List<String>>): PricingTable =
             PricingTable(
                 PricingSchema(
-                    1,
-                    entries.map { (p, ms) ->
-                        ProviderPricing(p, ms.map { ModelPrice(it, 0.001, 0.002) })
-                    },
+                    schemaVersion = 1,
+                    providers =
+                        entries.map { (p, ms) ->
+                            ProviderPricing(
+                                id = p,
+                                models = ms.map { ModelPrice(id = it, inputPer1kTokens = 0.001, outputPer1kTokens = 0.002) },
+                            )
+                        },
                 ),
             )
     }

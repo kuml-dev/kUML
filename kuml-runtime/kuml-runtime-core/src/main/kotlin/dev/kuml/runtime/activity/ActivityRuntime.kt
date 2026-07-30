@@ -77,11 +77,11 @@ public class ActivityRuntime(
         // Place tokens on all Initial nodes (not via edges, so no join-tracking needed)
         for (node in initialNodes.sortedBy { it.id }) {
             instance = instance.withTokenAt(node.id)
-            trace += mkTokenPlaced(node.id, instance.clock)
+            trace += mkTokenPlaced(nodeId = node.id, clock = instance.clock)
         }
 
         // Immediately fire Initial nodes (they are transient)
-        val (stepped, stepTrace) = step(instance, eventContext)
+        val (stepped, stepTrace) = step(instance = instance, eventContext = eventContext)
         instance = stepped
         trace += stepTrace
 
@@ -111,8 +111,8 @@ public class ActivityRuntime(
             if (current.isTerminated) break
             val nodeSpec = spec.nodes[nodeId] ?: continue
             // Re-check readiness after each firing (tokens may have changed)
-            if (!isReady(current, nodeId)) continue
-            val (fired, nodeTrace) = fireNode(current, nodeSpec, eventContext)
+            if (!isReady(instance = current, nodeId = nodeId)) continue
+            val (fired, nodeTrace) = fireNode(instance = current, node = nodeSpec, eventContext = eventContext)
             current = fired
             trace += nodeTrace
         }
@@ -141,7 +141,7 @@ public class ActivityRuntime(
         var steps = 0
 
         while (!instance.isTerminated && steps < maxSteps) {
-            val (stepped, stepTrace) = step(instance, eventContext)
+            val (stepped, stepTrace) = step(instance = instance, eventContext = eventContext)
             if (stepTrace.isEmpty() && !stepped.isTerminated) {
                 // Nothing fired — deadlock
                 if (failOnDeadlock) {
@@ -224,7 +224,7 @@ public class ActivityRuntime(
 
     /** Find all node ids that are currently ready to fire. */
     private fun findReadyNodes(instance: ActivityInstance): List<String> =
-        instance.tokenCounts.keys.filter { nodeId -> isReady(instance, nodeId) }
+        instance.tokenCounts.keys.filter { nodeId -> isReady(instance = instance, nodeId = nodeId) }
 
     /**
      * A node is ready if it has at least one token AND (for Join) all incoming
@@ -237,7 +237,7 @@ public class ActivityRuntime(
         if ((instance.tokenCounts[nodeId] ?: 0) < 1) return false
         val nodeSpec = spec.nodes[nodeId] ?: return false
         return when (nodeSpec.kind) {
-            ActivityNodeKind.Join -> isJoinReady(instance, nodeId)
+            ActivityNodeKind.Join -> isJoinReady(instance = instance, joinId = nodeId)
             else -> true
         }
     }
@@ -270,7 +270,7 @@ public class ActivityRuntime(
         val sourceId = edge.sourceNodeId
         val targetKind = spec.nodes[targetId]?.kind
         var updated = inst.withTokenAt(targetId)
-        trace += mkTokenPlaced(targetId, inst.clock)
+        trace += mkTokenPlaced(nodeId = targetId, clock = inst.clock)
 
         // If target is a Join, record the source contribution
         if (targetKind == ActivityNodeKind.Join) {
@@ -294,15 +294,15 @@ public class ActivityRuntime(
         when (node.kind) {
             ActivityNodeKind.Initial -> {
                 inst = inst.withoutTokenAt(node.id)
-                trace += mkTokenConsumed(node.id, clock)
+                trace += mkTokenConsumed(nodeId = node.id, clock = clock)
                 for (edge in outgoingEdges(node.id)) {
-                    inst = placeTokenViaEdge(inst, edge, trace)
+                    inst = placeTokenViaEdge(inst = inst, edge = edge, trace = trace)
                 }
             }
 
             ActivityNodeKind.Action -> {
                 inst = inst.withoutTokenAt(node.id)
-                trace += mkTokenConsumed(node.id, clock)
+                trace += mkTokenConsumed(nodeId = node.id, clock = clock)
                 trace +=
                     TraceEntry.ActivityActionInvoked(
                         seqNo = clock,
@@ -312,13 +312,13 @@ public class ActivityRuntime(
                         clock = clock,
                     )
                 for (edge in outgoingEdges(node.id)) {
-                    inst = placeTokenViaEdge(inst, edge, trace)
+                    inst = placeTokenViaEdge(inst = inst, edge = edge, trace = trace)
                 }
             }
 
             ActivityNodeKind.Decision -> {
                 inst = inst.withoutTokenAt(node.id)
-                trace += mkTokenConsumed(node.id, clock)
+                trace += mkTokenConsumed(nodeId = node.id, clock = clock)
                 val outEdges = outgoingEdges(node.id)
                 val chosenEdge =
                     outEdges.firstOrNull { edge ->
@@ -326,7 +326,7 @@ public class ActivityRuntime(
                         if (g.isNullOrBlank()) {
                             true
                         } else {
-                            evaluateGuard(g, eventContext) == GuardResult.True
+                            evaluateGuard(guard = g, eventContext = eventContext) == GuardResult.True
                         }
                     }
                 if (chosenEdge != null) {
@@ -339,7 +339,7 @@ public class ActivityRuntime(
                             guard = chosenEdge.guard,
                             clock = clock,
                         )
-                    inst = placeTokenViaEdge(inst, chosenEdge, trace)
+                    inst = placeTokenViaEdge(inst = inst, edge = chosenEdge, trace = trace)
                 }
                 // If no branch matches: token consumed, no new token placed
                 // (model error — not thrown in MVP per plan)
@@ -348,15 +348,15 @@ public class ActivityRuntime(
             ActivityNodeKind.Merge -> {
                 // Pass-through: consume, forward to all outgoing
                 inst = inst.withoutTokenAt(node.id)
-                trace += mkTokenConsumed(node.id, clock)
+                trace += mkTokenConsumed(nodeId = node.id, clock = clock)
                 for (edge in outgoingEdges(node.id)) {
-                    inst = placeTokenViaEdge(inst, edge, trace)
+                    inst = placeTokenViaEdge(inst = inst, edge = edge, trace = trace)
                 }
             }
 
             ActivityNodeKind.Fork -> {
                 inst = inst.withoutTokenAt(node.id)
-                trace += mkTokenConsumed(node.id, clock)
+                trace += mkTokenConsumed(nodeId = node.id, clock = clock)
                 val outEdges = outgoingEdges(node.id)
                 val targetIds = outEdges.map { it.targetNodeId }
                 trace +=
@@ -368,7 +368,7 @@ public class ActivityRuntime(
                         clock = clock,
                     )
                 for (edge in outEdges) {
-                    inst = placeTokenViaEdge(inst, edge, trace)
+                    inst = placeTokenViaEdge(inst = inst, edge = edge, trace = trace)
                 }
             }
 
@@ -385,7 +385,7 @@ public class ActivityRuntime(
                 val newJoinTracking = updated.joinTokensReceived - node.id
                 inst = updated.copy(joinTokensReceived = newJoinTracking)
 
-                trace += mkTokenConsumed(node.id, clock)
+                trace += mkTokenConsumed(nodeId = node.id, clock = clock)
 
                 val awaitingEdgeIds = incomingEdges(node.id).map { it.id }
                 trace +=
@@ -399,13 +399,13 @@ public class ActivityRuntime(
                     )
 
                 for (edge in outgoingEdges(node.id)) {
-                    inst = placeTokenViaEdge(inst, edge, trace)
+                    inst = placeTokenViaEdge(inst = inst, edge = edge, trace = trace)
                 }
             }
 
             ActivityNodeKind.FlowFinal -> {
                 inst = inst.withoutTokenAt(node.id)
-                trace += mkTokenConsumed(node.id, clock)
+                trace += mkTokenConsumed(nodeId = node.id, clock = clock)
                 trace +=
                     TraceEntry.FlowFinalConsumed(
                         seqNo = clock,
@@ -417,7 +417,7 @@ public class ActivityRuntime(
             }
 
             ActivityNodeKind.Final -> {
-                trace += mkTokenConsumed(node.id, clock)
+                trace += mkTokenConsumed(nodeId = node.id, clock = clock)
                 // Consume all tokens (terminate the activity)
                 inst = inst.copy(tokenCounts = emptyMap(), isTerminated = true, joinTokensReceived = emptyMap())
                 trace +=
@@ -466,7 +466,7 @@ public class ActivityRuntime(
                         "event" to eventContext,
                         "vars" to eventContext,
                     )
-            val raw = OclExpressions.evaluate(cleaned, self = syntheticInstance, env = env)
+            val raw = OclExpressions.evaluate(expression = cleaned, self = syntheticInstance, env = env)
             when (raw) {
                 true -> GuardResult.True
                 false -> GuardResult.False

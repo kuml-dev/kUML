@@ -196,7 +196,7 @@ public object InterpreterUmlModelDslPrinter {
         val nextSuffixForBase = mutableMapOf<String, Int>()
         val identOf = mutableMapOf<String, String>()
         (enums.asSequence() + ifaces.asSequence() + classes.asSequence()).forEach { classifier ->
-            identOf[classifier.id] = identifierFor(classifier.name, used, nextSuffixForBase)
+            identOf[classifier.id] = identifierFor(name = classifier.name, used = used, nextSuffixForBase = nextSuffixForBase)
         }
 
         // Pass 1 — declare every classifier as a `val`, unconditionally.
@@ -205,25 +205,25 @@ public object InterpreterUmlModelDslPrinter {
         // reference (must fall back to a plain string type name).
         val declaredSoFar = mutableSetOf<String>()
         enums.forEach { e ->
-            printEnum(sb, e, identOf.getValue(e.id))
+            printEnum(sb = sb, e = e, ident = identOf.getValue(e.id))
             declaredSoFar += e.id
         }
         ifaces.forEach { i ->
-            printInterface(sb, i, identOf.getValue(i.id), identOf, declaredSoFar)
+            printInterface(sb = sb, i = i, ident = identOf.getValue(i.id), identOf = identOf, declaredSoFar = declaredSoFar)
             declaredSoFar += i.id
         }
         classes.forEach { c ->
-            printClass(sb, c, identOf.getValue(c.id), identOf, declaredSoFar)
+            printClass(sb = sb, c = c, ident = identOf.getValue(c.id), identOf = identOf, declaredSoFar = declaredSoFar)
             declaredSoFar += c.id
         }
-        elements.filterIsInstance<UmlPackage>().forEach { pkg -> printPackageTodo(sb, pkg) }
+        elements.filterIsInstance<UmlPackage>().forEach { pkg -> printPackageTodo(sb = sb, pkg = pkg) }
 
         // Pass 2 — relationships + comments, referencing the vals from pass 1.
-        elements.filterIsInstance<UmlGeneralization>().forEach { g -> printGeneralization(sb, g, identOf) }
-        elements.filterIsInstance<UmlInterfaceRealization>().forEach { r -> printRealization(sb, r, identOf) }
-        elements.filterIsInstance<UmlAssociation>().forEach { a -> printAssociation(sb, a, identOf) }
-        elements.filterIsInstance<UmlDependency>().forEach { d -> printDependency(sb, d, identOf) }
-        printComments(sb, elements, identOf)
+        elements.filterIsInstance<UmlGeneralization>().forEach { g -> printGeneralization(sb = sb, g = g, identOf = identOf) }
+        elements.filterIsInstance<UmlInterfaceRealization>().forEach { r -> printRealization(sb = sb, r = r, identOf = identOf) }
+        elements.filterIsInstance<UmlAssociation>().forEach { a -> printAssociation(sb = sb, a = a, identOf = identOf) }
+        elements.filterIsInstance<UmlDependency>().forEach { d -> printDependency(sb = sb, d = d, identOf = identOf) }
+        printComments(sb = sb, elements = elements, identOf = identOf)
 
         sb.appendLine("}")
         return sb.toString()
@@ -263,9 +263,9 @@ public object InterpreterUmlModelDslPrinter {
         declaredSoFar: Set<String>,
     ) {
         sb.appendLine("    val $ident = interfaceOf(name = ${quote(i.name)}, id = ${quote(i.id)}) {")
-        i.attributes.forEach { printAttribute(sb, it, "        ", identOf, declaredSoFar) }
-        i.operations.forEach { printOperation(sb, it, "        ") }
-        i.constraints.forEach { printConstraint(sb, it, "        ") }
+        i.attributes.forEach { printAttribute(sb = sb, p = it, indent = "        ", identOf = identOf, declaredSoFar = declaredSoFar) }
+        i.operations.forEach { printOperation(sb = sb, o = it, indent = "        ") }
+        i.constraints.forEach { printConstraint(sb = sb, c = it, indent = "        ") }
         sb.appendLine("    }")
     }
 
@@ -279,9 +279,9 @@ public object InterpreterUmlModelDslPrinter {
         sb.appendLine("    val $ident = classOf(name = ${quote(c.name)}, id = ${quote(c.id)}) {")
         if (c.visibility != Visibility.PUBLIC) sb.appendLine("        visibility = Visibility.${c.visibility.name}")
         if (c.isAbstract) sb.appendLine("        isAbstract = true")
-        c.attributes.forEach { printAttribute(sb, it, "        ", identOf, declaredSoFar) }
-        c.operations.forEach { printOperation(sb, it, "        ") }
-        c.constraints.forEach { printConstraint(sb, it, "        ") }
+        c.attributes.forEach { printAttribute(sb = sb, p = it, indent = "        ", identOf = identOf, declaredSoFar = declaredSoFar) }
+        c.operations.forEach { printOperation(sb = sb, o = it, indent = "        ") }
+        c.constraints.forEach { printConstraint(sb = sb, c = it, indent = "        ") }
         sb.appendLine("    }")
     }
 
@@ -353,7 +353,7 @@ public object InterpreterUmlModelDslPrinter {
         val args =
             mutableListOf(
                 "name = ${quote(p.name)}",
-                "type = ${attributeTypeArg(p.type, identOf, declaredSoFar)}",
+                "type = ${attributeTypeArg(t = p.type, identOf = identOf, declaredSoFar = declaredSoFar)}",
             )
         visArg?.let { args += it }
         multExpr?.let { args += "multiplicity = $it" }
@@ -389,7 +389,7 @@ public object InterpreterUmlModelDslPrinter {
             visArg?.let { sb.appendLine("$indent    $it") }
             if (o.isStatic) sb.appendLine("$indent    isStatic = true")
             if (o.isAbstract) sb.appendLine("$indent    isAbstract = true")
-            o.parameters.forEach { printParameter(sb, it, "$indent   ") }
+            o.parameters.forEach { printParameter(sb = sb, p = it, indent = "$indent   ") }
             o.returnType?.let { sb.appendLine("$indent    returns(typeName = ${quote(it.name)})") }
             sb.appendLine("$indent }")
         }

@@ -95,8 +95,8 @@ class ChainEvmRunCommandTest :
         test("valid rpc connects and consumes events via subscribe") {
             val events =
                 listOf(
-                    ChainEvent("OrderPlaced", ByteArray(0), 100L, "0xabc"),
-                    ChainEvent("OrderShipped", ByteArray(0), 101L, "0xdef"),
+                    ChainEvent(eventType = "OrderPlaced", payloadAbi = ByteArray(0), blockNumber = 100L, txHash = "0xabc"),
+                    ChainEvent(eventType = "OrderShipped", payloadAbi = ByteArray(0), blockNumber = 101L, txHash = "0xdef"),
                 )
             val fake = FakeChainAdapter(events = events)
             val manager = RunSessionManager()
@@ -180,7 +180,7 @@ class ChainEvmRunCommandTest :
         test("connection failure produces friendly error without stacktrace") {
             val fake =
                 FakeChainAdapter(
-                    connectThrows = EvmChainAdapterException.NetworkError("Connection refused"),
+                    connectThrows = EvmChainAdapterException.NetworkError(message = "Connection refused"),
                 )
             val manager = RunSessionManager()
             val (outBuf, errBuf) = captureStreams()

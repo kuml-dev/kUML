@@ -35,11 +35,11 @@ class VaultExamplesRenderTest :
 
                         // ── SVG + PNG: einmal pro Theme, in theme-spezifischem Unterverzeichnis ──
                         for (themeName in themes) {
-                            val result = VaultExampleRenderer.render(example.kumlScript, themeName)
+                            val result = VaultExampleRenderer.render(script = example.kumlScript, themeName = themeName)
                             val baseName = "vault-examples/$themeName/${example.sanitizedName}"
 
                             if (result.svg != null) {
-                                SampleOutput.write("$baseName.svg", result.svg)
+                                SampleOutput.write(filename = "$baseName.svg", content = result.svg)
                                 atLeastOneSvg = true
                             }
 
@@ -51,11 +51,11 @@ class VaultExamplesRenderTest :
                         }
 
                         // ── LaTeX: theme-unabhängig, einmalig unter vault-examples/latex/ ──
-                        val latexResult = VaultExampleRenderer.render(example.kumlScript, themes.first())
+                        val latexResult = VaultExampleRenderer.render(script = example.kumlScript, themeName = themes.first())
                         if (latexResult.latex != null) {
                             SampleOutput.write(
-                                "vault-examples/latex/${example.sanitizedName}.tex",
-                                latexResult.latex,
+                                filename = "vault-examples/latex/${example.sanitizedName}.tex",
+                                content = latexResult.latex,
                             )
                         }
 
@@ -69,7 +69,7 @@ class VaultExamplesRenderTest :
 
             // ── Index generation ─────────────────────────────────────────────
             afterSpec {
-                writeVaultExamplesIndex(examples, themes)
+                writeVaultExamplesIndex(examples = examples, themes = themes)
             }
         }
     })

@@ -40,7 +40,7 @@ internal class KtAssociationDetector(
                         name = attr.name,
                         ends =
                             listOf(
-                                UmlAssociationEnd(typeId = cls.id, role = null, multiplicity = Multiplicity(1, 1)),
+                                UmlAssociationEnd(typeId = cls.id, role = null, multiplicity = Multiplicity(lower = 1, upper = 1)),
                                 UmlAssociationEnd(typeId = targetId, role = attr.name, multiplicity = attr.multiplicity),
                             ),
                         aggregation = AggregationKind.NONE,
@@ -61,7 +61,7 @@ internal class KtAssociationDetector(
                         name = attr.name,
                         ends =
                             listOf(
-                                UmlAssociationEnd(typeId = iface.id, role = null, multiplicity = Multiplicity(1, 1)),
+                                UmlAssociationEnd(typeId = iface.id, role = null, multiplicity = Multiplicity(lower = 1, upper = 1)),
                                 UmlAssociationEnd(typeId = targetId, role = attr.name, multiplicity = attr.multiplicity),
                             ),
                         aggregation = AggregationKind.NONE,

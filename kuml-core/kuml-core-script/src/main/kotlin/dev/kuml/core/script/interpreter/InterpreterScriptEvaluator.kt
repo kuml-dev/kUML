@@ -78,7 +78,7 @@ public object InterpreterScriptEvaluator : ScriptEvaluator {
     override fun evaluate(
         source: String,
         fileName: String,
-    ): EvaluatedScript = evaluate(source, fileName, InterpreterLimits.DEFAULT)
+    ): EvaluatedScript = evaluate(source = source, fileName = fileName, limits = InterpreterLimits.DEFAULT)
 
     /**
      * Overload that lets callers (and tests) pass explicit resource [limits].
@@ -92,9 +92,10 @@ public object InterpreterScriptEvaluator : ScriptEvaluator {
         // input never even allocates a token list.
         if (source.length > limits.maxSourceChars) {
             return EvaluatedScript.Failure(
-                FailureKind.EVALUATION,
-                "Interpreter input too large: ${source.length} characters exceeds the " +
-                    "limit of ${limits.maxSourceChars}.",
+                kind = FailureKind.EVALUATION,
+                message =
+                    "Interpreter input too large: ${source.length} characters exceeds the " +
+                        "limit of ${limits.maxSourceChars}.",
             )
         }
 
@@ -103,8 +104,8 @@ public object InterpreterScriptEvaluator : ScriptEvaluator {
             KumlScriptGuard.validate(source)
         } catch (e: ScriptSecurityException) {
             return EvaluatedScript.Failure(
-                FailureKind.GUARD,
-                e.message ?: "kUML script rejected by security guard.",
+                kind = FailureKind.GUARD,
+                message = e.message ?: "kUML script rejected by security guard.",
             )
         }
 
@@ -115,15 +116,15 @@ public object InterpreterScriptEvaluator : ScriptEvaluator {
         try {
             val future =
                 executor.submit(
-                    Callable { evaluateBounded(source, limits) },
+                    Callable { evaluateBounded(source = source, limits = limits) },
                 )
             return try {
                 future.get(limits.timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
             } catch (e: TimeoutException) {
                 future.cancel(true)
                 EvaluatedScript.Failure(
-                    FailureKind.TIMEOUT,
-                    "Interpreter exceeded the time budget of ${limits.timeout}.",
+                    kind = FailureKind.TIMEOUT,
+                    message = "Interpreter exceeded the time budget of ${limits.timeout}.",
                 )
             } catch (e: ExecutionException) {
                 // evaluateBounded is written not to throw for ordinary errors, but
@@ -132,13 +133,13 @@ public object InterpreterScriptEvaluator : ScriptEvaluator {
                 when (val cause = e.cause) {
                     is StackOverflowError ->
                         EvaluatedScript.Failure(
-                            FailureKind.EVALUATION,
-                            "Interpreter aborted: input nesting overflowed the parser stack.",
+                            kind = FailureKind.EVALUATION,
+                            message = "Interpreter aborted: input nesting overflowed the parser stack.",
                         )
                     else ->
                         EvaluatedScript.Failure(
-                            FailureKind.EVALUATION,
-                            "Interpreter failed unexpectedly: ${cause?.message ?: e.message ?: "unknown error"}",
+                            kind = FailureKind.EVALUATION,
+                            message = "Interpreter failed unexpectedly: ${cause?.message ?: e.message ?: "unknown error"}",
                         )
                 }
             }
@@ -162,21 +163,21 @@ public object InterpreterScriptEvaluator : ScriptEvaluator {
     ): EvaluatedScript {
         val script =
             try {
-                DslParser.parse(source, limits.maxNestingDepth)
+                DslParser.parse(src = source, maxDepth = limits.maxNestingDepth)
             } catch (e: DslParseException) {
                 return EvaluatedScript.Failure(
-                    FailureKind.EVALUATION,
-                    "Interpreter parse error (line ${e.line}): ${e.message}",
+                    kind = FailureKind.EVALUATION,
+                    message = "Interpreter parse error (line ${e.line}): ${e.message}",
                 )
             } catch (e: DslLexException) {
                 return EvaluatedScript.Failure(
-                    FailureKind.EVALUATION,
-                    "Interpreter lex error (line ${e.line}): ${e.message}",
+                    kind = FailureKind.EVALUATION,
+                    message = "Interpreter lex error (line ${e.line}): ${e.message}",
                 )
             } catch (e: StackOverflowError) {
                 return EvaluatedScript.Failure(
-                    FailureKind.EVALUATION,
-                    "Interpreter aborted: input nesting overflowed the parser stack.",
+                    kind = FailureKind.EVALUATION,
+                    message = "Interpreter aborted: input nesting overflowed the parser stack.",
                 )
             }
 
@@ -185,15 +186,15 @@ public object InterpreterScriptEvaluator : ScriptEvaluator {
                 DslInterpreter.interpret(script)
             } catch (e: DslInterpretException) {
                 return EvaluatedScript.Failure(
-                    FailureKind.EVALUATION,
-                    "Interpreter error (line ${e.line}): ${e.message}",
+                    kind = FailureKind.EVALUATION,
+                    message = "Interpreter error (line ${e.line}): ${e.message}",
                 )
             } catch (e: IllegalArgumentException) {
                 // Real builders throw IllegalArgumentException for invalid models
                 // (e.g. a behavioural element rejected by ClassDiagramBuilder).
                 return EvaluatedScript.Failure(
-                    FailureKind.EVALUATION,
-                    "Interpreter rejected the model: ${e.message}",
+                    kind = FailureKind.EVALUATION,
+                    message = "Interpreter rejected the model: ${e.message}",
                 )
             }
 

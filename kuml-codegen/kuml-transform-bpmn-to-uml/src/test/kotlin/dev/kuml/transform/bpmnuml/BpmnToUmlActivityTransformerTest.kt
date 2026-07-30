@@ -22,20 +22,20 @@ class BpmnToUmlActivityTransformerTest :
         val ctx = TransformContext()
 
         fun sampleProcess() =
-            bpmnModel("Test") {
+            bpmnModel(name = "Test") {
                 process(id = "proc1", name = "My Process") {
-                    val start = startEvent("Start")
-                    val t1 = task("Task One")
-                    val gw = gateway(GatewayType.EXCLUSIVE, name = "Decision")
-                    val t2 = task("Task Two")
-                    val t3 = task("Task Three")
-                    val end = endEvent("End")
-                    sequenceFlow(start, t1)
-                    sequenceFlow(t1, gw)
-                    sequenceFlow(gw, t2, condition = "condA")
-                    sequenceFlow(gw, t3, condition = "condB")
-                    sequenceFlow(t2, end)
-                    sequenceFlow(t3, end)
+                    val start = startEvent(name = "Start")
+                    val t1 = task(name = "Task One")
+                    val gw = gateway(type = GatewayType.EXCLUSIVE, name = "Decision")
+                    val t2 = task(name = "Task Two")
+                    val t3 = task(name = "Task Three")
+                    val end = endEvent(name = "End")
+                    sequenceFlow(from = start, to = t1)
+                    sequenceFlow(from = t1, to = gw)
+                    sequenceFlow(from = gw, to = t2, condition = "condA")
+                    sequenceFlow(from = gw, to = t3, condition = "condB")
+                    sequenceFlow(from = t2, to = end)
+                    sequenceFlow(from = t3, to = end)
                 }
             }.processes.first()
 
@@ -80,20 +80,20 @@ class BpmnToUmlActivityTransformerTest :
 
         test("parallel gateway maps to FORK and JOIN") {
             val proc =
-                bpmnModel("ParTest") {
+                bpmnModel(name = "ParTest") {
                     process(id = "p2", name = "Parallel") {
                         val start = startEvent()
-                        val fork = gateway(GatewayType.PARALLEL)
-                        val ta = task("A")
-                        val tb = task("B")
-                        val join = gateway(GatewayType.PARALLEL)
+                        val fork = gateway(type = GatewayType.PARALLEL)
+                        val ta = task(name = "A")
+                        val tb = task(name = "B")
+                        val join = gateway(type = GatewayType.PARALLEL)
                         val end = endEvent()
-                        sequenceFlow(start, fork)
-                        sequenceFlow(fork, ta)
-                        sequenceFlow(fork, tb)
-                        sequenceFlow(ta, join)
-                        sequenceFlow(tb, join)
-                        sequenceFlow(join, end)
+                        sequenceFlow(from = start, to = fork)
+                        sequenceFlow(from = fork, to = ta)
+                        sequenceFlow(from = fork, to = tb)
+                        sequenceFlow(from = ta, to = join)
+                        sequenceFlow(from = tb, to = join)
+                        sequenceFlow(from = join, to = end)
                     }
                 }.processes.first()
             val model = BpmnToUmlActivityMapper.map(proc)
@@ -103,18 +103,18 @@ class BpmnToUmlActivityTransformerTest :
 
         test("inclusive gateway maps to DECISION with inclusive metadata") {
             val proc =
-                bpmnModel("InclusiveTest") {
+                bpmnModel(name = "InclusiveTest") {
                     process(id = "p3", name = "Inclusive") {
                         val start = startEvent()
-                        val gw = gateway(GatewayType.INCLUSIVE)
-                        val ta = task("A")
-                        val tb = task("B")
+                        val gw = gateway(type = GatewayType.INCLUSIVE)
+                        val ta = task(name = "A")
+                        val tb = task(name = "B")
                         val end = endEvent()
-                        sequenceFlow(start, gw)
-                        sequenceFlow(gw, ta)
-                        sequenceFlow(gw, tb)
-                        sequenceFlow(ta, end)
-                        sequenceFlow(tb, end)
+                        sequenceFlow(from = start, to = gw)
+                        sequenceFlow(from = gw, to = ta)
+                        sequenceFlow(from = gw, to = tb)
+                        sequenceFlow(from = ta, to = end)
+                        sequenceFlow(from = tb, to = end)
                     }
                 }.processes.first()
             val model = BpmnToUmlActivityMapper.map(proc)
@@ -125,7 +125,7 @@ class BpmnToUmlActivityTransformerTest :
 
         test("emitted script is non-empty and contains activityDiagram(") {
             val proc = sampleProcess()
-            val result = transformer.transform(proc, ctx)
+            val result = transformer.transform(source = proc, ctx = ctx)
             (result is TransformResult.Success) shouldBe true
             val success = result as TransformResult.Success
             val content = success.output.first().content
@@ -134,18 +134,18 @@ class BpmnToUmlActivityTransformerTest :
 
         test("XOR gateway that both splits AND joins is split into DECISION and MERGE nodes") {
             val proc =
-                bpmnModel("MixedGW") {
+                bpmnModel(name = "MixedGW") {
                     process(id = "p4", name = "Mixed") {
                         val s1 = startEvent()
                         val s2 = startEvent()
-                        val gw = gateway(GatewayType.EXCLUSIVE, name = "XOR Mixed")
-                        val ta = task("A")
-                        val tb = task("B")
+                        val gw = gateway(type = GatewayType.EXCLUSIVE, name = "XOR Mixed")
+                        val ta = task(name = "A")
+                        val tb = task(name = "B")
                         // gw has 2 incoming and 2 outgoing → MIXED
-                        sequenceFlow(s1, gw)
-                        sequenceFlow(s2, gw)
-                        sequenceFlow(gw, ta)
-                        sequenceFlow(gw, tb)
+                        sequenceFlow(from = s1, to = gw)
+                        sequenceFlow(from = s2, to = gw)
+                        sequenceFlow(from = gw, to = ta)
+                        sequenceFlow(from = gw, to = tb)
                     }
                 }.processes.first()
             val model = BpmnToUmlActivityMapper.map(proc)
@@ -163,7 +163,7 @@ class BpmnToUmlActivityTransformerTest :
 
         test("transform returns Success with TransformTrace links for every node") {
             val proc = sampleProcess()
-            val result = transformer.transform(proc, ctx)
+            val result = transformer.transform(source = proc, ctx = ctx)
             (result is TransformResult.Success) shouldBe true
             val success = result as TransformResult.Success
             // Trace should have at least one link per non-trivial node
@@ -176,15 +176,15 @@ class BpmnToUmlActivityTransformerTest :
             var reviewTaskId = ""
             var approveTaskId = ""
             val proc =
-                bpmnModel("LaneTest") {
+                bpmnModel(name = "LaneTest") {
                     process(id = "laneProc", name = "Lane Process") {
-                        val start = startEvent("Start")
-                        val t1 = task("Review").also { reviewTaskId = it }
-                        val t2 = task("Approve").also { approveTaskId = it }
-                        val end = endEvent("End")
-                        sequenceFlow(start, t1)
-                        sequenceFlow(t1, t2)
-                        sequenceFlow(t2, end)
+                        val start = startEvent(name = "Start")
+                        val t1 = task(name = "Review").also { reviewTaskId = it }
+                        val t2 = task(name = "Approve").also { approveTaskId = it }
+                        val end = endEvent(name = "End")
+                        sequenceFlow(from = start, to = t1)
+                        sequenceFlow(from = t1, to = t2)
+                        sequenceFlow(from = t2, to = end)
                     }
                 }.processes.first()
 
@@ -202,7 +202,7 @@ class BpmnToUmlActivityTransformerTest :
                     flowNodeRefs = listOf(approveTaskId),
                 )
 
-            val model = BpmnToUmlActivityMapper.map(proc, listOf(lane1, lane2))
+            val model = BpmnToUmlActivityMapper.map(process = proc, lanes = listOf(lane1, lane2))
 
             val reviewNode = model.nodes.first { it.id == reviewTaskId }
             val approveNode = model.nodes.first { it.id == approveTaskId }
@@ -214,7 +214,7 @@ class BpmnToUmlActivityTransformerTest :
         test("nodes without lane assignment have no uml.partition metadata") {
             val proc = sampleProcess()
             // No lanes supplied → no uml.partition entries
-            val model = BpmnToUmlActivityMapper.map(proc, emptyList())
+            val model = BpmnToUmlActivityMapper.map(process = proc, lanes = emptyList())
             model.nodes.forEach { node ->
                 node.metadata["uml.partition"] shouldBe null
             }
@@ -223,13 +223,13 @@ class BpmnToUmlActivityTransformerTest :
         test("nested child lane membership is recorded (innermost lane name wins)") {
             var subTaskId = ""
             val proc =
-                bpmnModel("NestedLaneTest") {
+                bpmnModel(name = "NestedLaneTest") {
                     process(id = "nlProc", name = "Nested Lane Process") {
-                        val start = startEvent("Start")
-                        val t1 = task("Sub Task").also { subTaskId = it }
-                        val end = endEvent("End")
-                        sequenceFlow(start, t1)
-                        sequenceFlow(t1, end)
+                        val start = startEvent(name = "Start")
+                        val t1 = task(name = "Sub Task").also { subTaskId = it }
+                        val end = endEvent(name = "End")
+                        sequenceFlow(from = start, to = t1)
+                        sequenceFlow(from = t1, to = end)
                     }
                 }.processes.first()
 
@@ -247,7 +247,7 @@ class BpmnToUmlActivityTransformerTest :
                     childLanes = listOf(childLane),
                 )
 
-            val model = BpmnToUmlActivityMapper.map(proc, listOf(parentLane))
+            val model = BpmnToUmlActivityMapper.map(process = proc, lanes = listOf(parentLane))
 
             val subTaskNode = model.nodes.first { it.id == subTaskId }
             // innermost lane (child) wins
@@ -257,17 +257,17 @@ class BpmnToUmlActivityTransformerTest :
         test("intermediate event maps to ACTION with bpmn.eventPosition metadata") {
             var intermediateId = ""
             val proc =
-                bpmnModel("IntermediateTest") {
+                bpmnModel(name = "IntermediateTest") {
                     process(id = "iProc", name = "Intermediate") {
-                        val start = startEvent("Start")
+                        val start = startEvent(name = "Start")
                         val intermediate =
                             intermediateEvent(
-                                "Receive Payment",
+                                name = "Receive Payment",
                                 definition = EventDefinition.MESSAGE,
                             ).also { intermediateId = it }
-                        val end = endEvent("End")
-                        sequenceFlow(start, intermediate)
-                        sequenceFlow(intermediate, end)
+                        val end = endEvent(name = "End")
+                        sequenceFlow(from = start, to = intermediate)
+                        sequenceFlow(from = intermediate, to = end)
                     }
                 }.processes.first()
 
@@ -282,13 +282,13 @@ class BpmnToUmlActivityTransformerTest :
         test("terminate end event maps to ACTIVITY_FINAL") {
             var terminateEndId = ""
             val proc =
-                bpmnModel("TerminateTest") {
+                bpmnModel(name = "TerminateTest") {
                     process(id = "tProc", name = "Terminate") {
-                        val start = startEvent("Start")
+                        val start = startEvent(name = "Start")
                         val terminateEnd =
-                            endEvent("Terminate", definition = EventDefinition.TERMINATE)
+                            endEvent(name = "Terminate", definition = EventDefinition.TERMINATE)
                                 .also { terminateEndId = it }
-                        sequenceFlow(start, terminateEnd)
+                        sequenceFlow(from = start, to = terminateEnd)
                     }
                 }.processes.first()
 
@@ -301,13 +301,13 @@ class BpmnToUmlActivityTransformerTest :
         test("typed end event (non-terminate, non-none) maps to FLOW_FINAL") {
             var msgEndId = ""
             val proc =
-                bpmnModel("FlowFinalTest") {
+                bpmnModel(name = "FlowFinalTest") {
                     process(id = "ffProc", name = "FlowFinal") {
-                        val start = startEvent("Start")
+                        val start = startEvent(name = "Start")
                         val msgEnd =
-                            endEvent("Send Notification", definition = EventDefinition.MESSAGE)
+                            endEvent(name = "Send Notification", definition = EventDefinition.MESSAGE)
                                 .also { msgEndId = it }
-                        sequenceFlow(start, msgEnd)
+                        sequenceFlow(from = start, to = msgEnd)
                     }
                 }.processes.first()
 

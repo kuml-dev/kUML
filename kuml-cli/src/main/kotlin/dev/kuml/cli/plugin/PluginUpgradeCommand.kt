@@ -100,7 +100,7 @@ internal class PluginUpgradeCommand(
 
         for (info in targets) {
             try {
-                upgradeOne(info, downloader, runtimeVersion)
+                upgradeOne(info = info, downloader = downloader, runtimeVersion = runtimeVersion)
                 upgraded++
             } catch (e: PluginUpgradeException) {
                 System.err.println("Failed to upgrade ${info.id}: ${e.message}")
@@ -146,7 +146,7 @@ internal class PluginUpgradeCommand(
         downloader: PluginDownloader,
         runtimeVersion: PluginVersion,
     ) {
-        val entry = info.registryEntry ?: throw PluginUpgradeException("No registry entry for ${info.id}")
+        val entry = info.registryEntry ?: throw PluginUpgradeException(message = "No registry entry for ${info.id}")
 
         echo("Upgrading ${info.id}: v${info.installed} → v${info.latest} …")
 
@@ -155,27 +155,28 @@ internal class PluginUpgradeCommand(
             try {
                 downloader.download(entry.downloads)
             } catch (e: PluginRegistryException) {
-                throw PluginUpgradeException("Download failed: ${e.message}", e)
+                throw PluginUpgradeException(message = "Download failed: ${e.message}", cause = e)
             }
 
         try {
             // 2. Parse new manifest
             val newManifestJson =
                 readManifestFromJar(downloaded.jar.toFile())
-                    ?: throw PluginUpgradeException("Downloaded JAR has no kuml-plugin.json manifest")
+                    ?: throw PluginUpgradeException(message = "Downloaded JAR has no kuml-plugin.json manifest")
 
             val newManifest: PluginManifest =
                 try {
                     PluginManifestParser.parse(newManifestJson)
                 } catch (e: ManifestParseException) {
-                    throw PluginUpgradeException("Invalid manifest in downloaded JAR: ${e.message}", e)
+                    throw PluginUpgradeException(message = "Invalid manifest in downloaded JAR: ${e.message}", cause = e)
                 }
 
             // 3. Version compatibility check
             if (!KumlVersionRange(newManifest.kumlVersionRange).contains(runtimeVersion)) {
                 throw PluginUpgradeException(
-                    "New version ${newManifest.version} of '${info.id}' requires " +
-                        "kUML ${newManifest.kumlVersionRange} but this is kUML $runtimeVersion",
+                    message =
+                        "New version ${newManifest.version} of '${info.id}' requires " +
+                            "kUML ${newManifest.kumlVersionRange} but this is kUML $runtimeVersion",
                 )
             }
 
@@ -187,7 +188,7 @@ internal class PluginUpgradeCommand(
                     err = true,
                 )
             } else {
-                verifySignature(downloaded, newManifest, entry.signingKeys)
+                verifySignature(downloaded = downloaded, manifest = newManifest, signingKeys = entry.signingKeys)
             }
 
             // 5. New-permission consent gate
@@ -212,7 +213,7 @@ internal class PluginUpgradeCommand(
             val oldJars =
                 pluginDir
                     .listFiles { f -> f.extension == "jar" }
-                    ?.filter { jar -> manifestIdMatchesForUpgrade(jar, info.id) }
+                    ?.filter { jar -> manifestIdMatchesForUpgrade(jar = jar, targetId = info.id) }
                     ?: emptyList()
             for (jar in oldJars) jar.delete()
 
@@ -223,18 +224,18 @@ internal class PluginUpgradeCommand(
             try {
                 downloaded.jar.toFile().copyTo(dest, overwrite = true)
             } catch (e: IOException) {
-                throw PluginUpgradeException("Failed to copy new JAR: ${e.message}", e)
+                throw PluginUpgradeException(message = "Failed to copy new JAR: ${e.message}", cause = e)
             }
 
             // 9. Load new version
             try {
-                PluginLoader.loadJar(dest, runtimeVersion)
+                PluginLoader.loadJar(jar = dest, runtimeVersion = runtimeVersion)
             } catch (e: VersionMismatchException) {
                 dest.delete()
-                throw PluginUpgradeException("Version mismatch after copy: ${e.message}", e)
+                throw PluginUpgradeException(message = "Version mismatch after copy: ${e.message}", cause = e)
             } catch (e: PluginLoadException) {
                 dest.delete()
-                throw PluginUpgradeException("Failed to load new plugin: ${e.message}", e)
+                throw PluginUpgradeException(message = "Failed to load new plugin: ${e.message}", cause = e)
             }
 
             echo("  Upgraded to v${newManifest.version} (${info.id})")
@@ -264,9 +265,10 @@ internal class PluginUpgradeCommand(
         val activeKeys = signingKeys.filter { it.isUsable() }
         if (activeKeys.isEmpty()) {
             throw PluginUpgradeException(
-                "Registry entry for '${manifest.id}' has no active signing keys — " +
-                    "cannot verify authenticity. Use --skip-signature-check to bypass " +
-                    "(not recommended).",
+                message =
+                    "Registry entry for '${manifest.id}' has no active signing keys — " +
+                        "cannot verify authenticity. Use --skip-signature-check to bypass " +
+                        "(not recommended).",
             )
         }
         val sigContent = downloaded.sig
@@ -281,8 +283,9 @@ internal class PluginUpgradeCommand(
             when (result) {
                 is SignatureVerificationResult.Invalid ->
                     throw PluginUpgradeException(
-                        "Signature verification FAILED for '${manifest.id}': ${result.reason}. " +
-                            "Use --skip-signature-check to install anyway (not recommended).",
+                        message =
+                            "Signature verification FAILED for '${manifest.id}': ${result.reason}. " +
+                                "Use --skip-signature-check to install anyway (not recommended).",
                     )
                 is SignatureVerificationResult.Valid ->
                     echo("  Signature verified (key: ${result.keyId ?: result.publicKeyFingerprint})")

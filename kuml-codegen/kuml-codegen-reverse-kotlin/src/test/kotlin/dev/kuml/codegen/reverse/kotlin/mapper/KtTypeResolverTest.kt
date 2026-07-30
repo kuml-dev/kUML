@@ -13,13 +13,14 @@ class KtTypeResolverTest :
         test("internal classifier reference resolves to internal id") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Domain.kt" to
-                            """
-                            class Address(val street: String)
-                            class Person(val address: Address)
-                            """.trimIndent(),
-                    ),
+                    sources =
+                        mapOf(
+                            "Domain.kt" to
+                                """
+                                class Address(val street: String)
+                                class Person(val address: Address)
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val diagram = success.model.root as KumlDiagram
@@ -35,9 +36,10 @@ class KtTypeResolverTest :
         test("nullable type results in nullable name with question mark") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Nullable.kt" to "class Nullable { val x: String? = null }",
-                    ),
+                    sources =
+                        mapOf(
+                            "Nullable.kt" to "class Nullable { val x: String? = null }",
+                        ),
                 )
             val success = TestSupport.success(result)
             val diagram = success.model.root as KumlDiagram

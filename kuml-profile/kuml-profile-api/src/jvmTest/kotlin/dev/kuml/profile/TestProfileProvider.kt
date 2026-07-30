@@ -4,8 +4,8 @@ import dev.kuml.profile.builder.profile
 
 internal class TestProfileProvider : KumlProfileProvider {
     override val profile: KumlProfile =
-        profile("TestProfile") {
+        profile(name = "TestProfile") {
             namespace = "dev.kuml.test.profile"
-            stereotype("TestStereotype") { extends(UmlMetaclass.Class) }
+            stereotype(name = "TestStereotype") { extends(UmlMetaclass.Class) }
         }
 }

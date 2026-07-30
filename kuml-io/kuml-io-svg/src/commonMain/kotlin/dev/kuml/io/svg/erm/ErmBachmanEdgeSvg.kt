@@ -43,7 +43,7 @@ internal fun renderErmBachmanRelationship(
     val (tagName, attrs) = EdgePathBuilder.build(route)
     val dashed = rel.kind == RelationshipKind.NON_IDENTIFYING
     val cssClass = if (dashed) "kuml-edge-dashed" else "kuml-edge"
-    b.tag(tagName, attrs + mapOf("class" to cssClass))
+    b.tag(name = tagName, attrs = attrs + mapOf("class" to cssClass))
 
     // Tangent pointing FROM the source node INTO the edge (away from the box).
     val sourceDir = EdgeLabelGeometry.sourceSegmentTangent(route)
@@ -53,20 +53,27 @@ internal fun renderErmBachmanRelationship(
     val targetIntoNode = EdgeLabelGeometry.targetSegmentTangent(route)
     val targetDir = -targetIntoNode.first to -targetIntoNode.second
 
-    renderBachmanCardinalityGlyph(route.source, sourceDir, rel.sourceCardinality, b)
-    renderBachmanCardinalityGlyph(route.target, targetDir, rel.targetCardinality, b)
+    renderBachmanCardinalityGlyph(anchor = route.source, dir = sourceDir, cardinality = rel.sourceCardinality, b = b)
+    renderBachmanCardinalityGlyph(anchor = route.target, dir = targetDir, cardinality = rel.targetCardinality, b = b)
 
     val selfLoop = rel.sourceEntityId == rel.targetEntityId
     val relName = rel.name
     if (!relName.isNullOrBlank()) {
-        b.renderErmRelationshipNameLabel(relName, route, labelStackIndex, selfLoop, sourceDir, targetDir)
+        b.renderErmRelationshipNameLabel(
+            label = relName,
+            route = route,
+            stackIndex = labelStackIndex,
+            selfLoop = selfLoop,
+            sourceDir = sourceDir,
+            targetDir = targetDir,
+        )
     }
 
     rel.sourceRole?.let { role ->
-        b.renderErmRoleLabel(route.source, sourceDir, role)
+        b.renderErmRoleLabel(anchor = route.source, dir = sourceDir, role = role)
     }
     rel.targetRole?.let { role ->
-        b.renderErmRoleLabel(route.target, targetDir, role, perpBias = if (selfLoop) 1f else -1f)
+        b.renderErmRoleLabel(anchor = route.target, dir = targetDir, role = role, perpBias = if (selfLoop) 1f else -1f)
     }
 }
 
@@ -112,13 +119,14 @@ private fun renderBachmanCardinalityGlyph(
         val rightX = baseX - px * ARROW_HALF_PX
         val rightY = baseY - py * ARROW_HALF_PX
         b.tag(
-            "path",
-            mapOf(
-                "class" to "kuml-erm-bachman-arrow",
-                "d" to
-                    "M ${fmt(anchor.x)} ${fmt(anchor.y)} L ${fmt(leftX)} ${fmt(leftY)} " +
-                    "L ${fmt(rightX)} ${fmt(rightY)} Z",
-            ),
+            name = "path",
+            attrs =
+                mapOf(
+                    "class" to "kuml-erm-bachman-arrow",
+                    "d" to
+                        "M ${fmt(anchor.x)} ${fmt(anchor.y)} L ${fmt(leftX)} ${fmt(leftY)} " +
+                        "L ${fmt(rightX)} ${fmt(rightY)} Z",
+                ),
         )
         innerOffset = ARROW_LEN_PX
     }
@@ -129,23 +137,25 @@ private fun renderBachmanCardinalityGlyph(
 
     if (cardinality.optional) {
         b.tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(circleCx),
-                "cy" to fmt(circleCy),
-                "r" to fmt(CIRCLE_RADIUS_PX),
-                "class" to "kuml-erm-optional-marker",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(circleCx),
+                    "cy" to fmt(circleCy),
+                    "r" to fmt(CIRCLE_RADIUS_PX),
+                    "class" to "kuml-erm-optional-marker",
+                ),
         )
     } else {
         b.tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(circleCx),
-                "cy" to fmt(circleCy),
-                "r" to fmt(CIRCLE_RADIUS_PX),
-                "class" to "kuml-erm-bachman-mandatory",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(circleCx),
+                    "cy" to fmt(circleCy),
+                    "r" to fmt(CIRCLE_RADIUS_PX),
+                    "class" to "kuml-erm-bachman-mandatory",
+                ),
         )
     }
 }

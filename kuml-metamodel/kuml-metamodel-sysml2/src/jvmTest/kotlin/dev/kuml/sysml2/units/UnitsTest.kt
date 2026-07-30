@@ -24,8 +24,8 @@ class UnitsTest :
         }
 
         "UnitValue renders SysML 2 concrete syntax with brackets" {
-            UnitValue(1500.0, Unit.KILOGRAM).toSpecForm() shouldBe "1500.0[kg]"
-            UnitValue(120.0, Unit.KMPH).toSpecForm() shouldBe "120.0[km/h]"
+            UnitValue(value = 1500.0, unit = Unit.KILOGRAM).toSpecForm() shouldBe "1500.0[kg]"
+            UnitValue(value = 120.0, unit = Unit.KMPH).toSpecForm() shouldBe "120.0[km/h]"
         }
 
         "Number-extension sugar turns 1500.kg into a UnitValue" {

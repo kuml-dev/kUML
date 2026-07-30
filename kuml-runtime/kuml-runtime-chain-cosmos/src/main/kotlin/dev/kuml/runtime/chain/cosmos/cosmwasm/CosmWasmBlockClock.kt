@@ -28,18 +28,18 @@ public class CosmWasmBlockClock(
         val header = rpc.getLatestBlockHeader()
         val heightStr =
             header["height"]?.jsonPrimitive?.content
-                ?: throw CosmWasmChainAdapterException.MalformedResponse("block header missing 'height'")
+                ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "block header missing 'height'")
         val height =
             heightStr.toLongOrNull()
-                ?: throw CosmWasmChainAdapterException.MalformedResponse("block height is not a long: '$heightStr'")
+                ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "block height is not a long: '$heightStr'")
         val timeStr =
             header["time"]?.jsonPrimitive?.content
-                ?: throw CosmWasmChainAdapterException.MalformedResponse("block header missing 'time'")
+                ?: throw CosmWasmChainAdapterException.MalformedResponse(message = "block header missing 'time'")
         val instant =
             try {
                 Instant.parse(timeStr)
             } catch (e: DateTimeParseException) {
-                throw CosmWasmChainAdapterException.MalformedResponse("block time is not RFC-3339: '$timeStr'", e)
+                throw CosmWasmChainAdapterException.MalformedResponse(message = "block time is not RFC-3339: '$timeStr'", cause = e)
             }
         cachedBlock.set(height)
         cachedTime.set(instant)

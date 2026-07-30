@@ -17,7 +17,7 @@ class KumlThemePluginTest :
             PluginDescriptor(
                 id = "test-theme-plugin",
                 name = "Test Theme Plugin",
-                version = PluginVersion(1, 0, 0),
+                version = PluginVersion(major = 1, minor = 0, patch = 0),
                 kumlVersionRange = KumlVersionRange(">=3.0.27"),
                 capabilities = setOf(PluginCapability.THEME),
             )

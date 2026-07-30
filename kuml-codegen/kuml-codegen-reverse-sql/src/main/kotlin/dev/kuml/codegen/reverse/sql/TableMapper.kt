@@ -78,7 +78,7 @@ internal object TableMapper {
 
         for (cd in ct.columnDefinitions.orEmpty()) {
             val attrId = entity.nextAttrId()
-            val mapped = ColumnMapper.map(cd, attrId, diagnostics, fileHint)
+            val mapped = ColumnMapper.map(cd = cd, attrId = attrId, diagnostics = diagnostics, fileHint = fileHint)
             entity.attributes += mapped.attribute
             mapped.inlineForeignKey?.let { ref ->
                 pendingForeignKeys +=
@@ -103,7 +103,13 @@ internal object TableMapper {
         }
 
         for (idx in ct.indexes.orEmpty()) {
-            ConstraintResolver.applyIndexConstraint(entity, idx, pendingForeignKeys, diagnostics, fileHint)
+            ConstraintResolver.applyIndexConstraint(
+                entity = entity,
+                idx = idx,
+                pendingForeignKeys = pendingForeignKeys,
+                diagnostics = diagnostics,
+                fileHint = fileHint,
+            )
         }
 
         return entity

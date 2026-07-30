@@ -103,7 +103,7 @@ internal class RenderCommand : CliktCommand(name = "render") {
 
     override fun run() {
         try {
-            val resolvedFormat = FormatResolver.resolve(format, output, input)
+            val resolvedFormat = FormatResolver.resolve(format = format, output = output, input = input)
             // --animated is required for apng/webp/mp4, and only valid for svg/apng/webp/mp4
             val animFormats = setOf("svg", "apng", "webp", "mp4")
             if (animated && resolvedFormat !in animFormats) {
@@ -155,18 +155,18 @@ internal class RenderCommand : CliktCommand(name = "render") {
             if (latexStandalone && resolvedFormat != "latex" && resolvedFormat != "tex") {
                 throw UsageError("--latex-standalone is only valid with --format=latex (current format: $resolvedFormat)")
             }
-            val resolvedOutput = output ?: FormatResolver.defaultOutput(input, resolvedFormat)
+            val resolvedOutput = output ?: FormatResolver.defaultOutput(input = input, format = resolvedFormat)
             val config: KumlConfig = ConfigLoader.load(configFile)
             val layoutOverride = layoutEngine.takeUnless { it == "auto" }
             RenderPipeline.run(
-                input,
-                resolvedOutput,
-                resolvedFormat,
-                width,
-                themeName,
-                config,
-                layoutOverride,
-                latexStandalone,
+                input = input,
+                output = resolvedOutput,
+                format = resolvedFormat,
+                width = width,
+                themeName = themeName,
+                config = config,
+                layoutEngineOverride = layoutOverride,
+                latexStandalone = latexStandalone,
                 animated = animated,
                 traceFile = traceFile,
                 speed = speed,

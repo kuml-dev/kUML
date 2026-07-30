@@ -17,15 +17,15 @@ class BpmnUmlRoundTripTest :
     FunSpec({
 
         fun simpleProcess() =
-            bpmnModel("RoundTrip") {
+            bpmnModel(name = "RoundTrip") {
                 process(id = "rt", name = "RoundTripProcess") {
-                    val start = startEvent("Begin")
-                    val t1 = task("Step One")
-                    val t2 = task("Step Two")
-                    val end = endEvent("Done")
-                    sequenceFlow(start, t1)
-                    sequenceFlow(t1, t2)
-                    sequenceFlow(t2, end)
+                    val start = startEvent(name = "Begin")
+                    val t1 = task(name = "Step One")
+                    val t2 = task(name = "Step Two")
+                    val end = endEvent(name = "Done")
+                    sequenceFlow(from = start, to = t1)
+                    sequenceFlow(from = t1, to = t2)
+                    sequenceFlow(from = t2, to = end)
                 }
             }.processes.first()
 
@@ -72,20 +72,20 @@ class BpmnUmlRoundTripTest :
 
         test("round trip preserves XOR gateway via bpmn.sourceId collapse") {
             val proc =
-                bpmnModel("XorRT") {
+                bpmnModel(name = "XorRT") {
                     process(id = "xorrt", name = "XorRT") {
                         val start = startEvent()
-                        val t1 = task("T1")
-                        val gw = gateway(GatewayType.EXCLUSIVE)
-                        val t2 = task("T2")
-                        val t3 = task("T3")
+                        val t1 = task(name = "T1")
+                        val gw = gateway(type = GatewayType.EXCLUSIVE)
+                        val t2 = task(name = "T2")
+                        val t3 = task(name = "T3")
                         val end = endEvent()
-                        sequenceFlow(start, t1)
-                        sequenceFlow(t1, gw)
-                        sequenceFlow(gw, t2, condition = "condA")
-                        sequenceFlow(gw, t3, condition = "condB")
-                        sequenceFlow(t2, end)
-                        sequenceFlow(t3, end)
+                        sequenceFlow(from = start, to = t1)
+                        sequenceFlow(from = t1, to = gw)
+                        sequenceFlow(from = gw, to = t2, condition = "condA")
+                        sequenceFlow(from = gw, to = t3, condition = "condB")
+                        sequenceFlow(from = t2, to = end)
+                        sequenceFlow(from = t3, to = end)
                     }
                 }.processes.first()
 
@@ -107,20 +107,20 @@ class BpmnUmlRoundTripTest :
 
         test("round trip preserves parallel gateway as single PARALLEL gateway") {
             val proc =
-                bpmnModel("ParRT") {
+                bpmnModel(name = "ParRT") {
                     process(id = "parrt", name = "ParRT") {
                         val start = startEvent()
-                        val fork = gateway(GatewayType.PARALLEL)
-                        val ta = task("A")
-                        val tb = task("B")
-                        val join = gateway(GatewayType.PARALLEL)
+                        val fork = gateway(type = GatewayType.PARALLEL)
+                        val ta = task(name = "A")
+                        val tb = task(name = "B")
+                        val join = gateway(type = GatewayType.PARALLEL)
                         val end = endEvent()
-                        sequenceFlow(start, fork)
-                        sequenceFlow(fork, ta)
-                        sequenceFlow(fork, tb)
-                        sequenceFlow(ta, join)
-                        sequenceFlow(tb, join)
-                        sequenceFlow(join, end)
+                        sequenceFlow(from = start, to = fork)
+                        sequenceFlow(from = fork, to = ta)
+                        sequenceFlow(from = fork, to = tb)
+                        sequenceFlow(from = ta, to = join)
+                        sequenceFlow(from = tb, to = join)
+                        sequenceFlow(from = join, to = end)
                     }
                 }.processes.first()
 
@@ -159,11 +159,11 @@ class BpmnUmlRoundTripTest :
 
         test("BPMN Message end event round-trips with MESSAGE definition preserved") {
             val proc =
-                bpmnModel("MsgEndRT") {
+                bpmnModel(name = "MsgEndRT") {
                     process(id = "msgrt", name = "MsgEndRT") {
-                        val start = startEvent("Start")
-                        val msgEnd = endEvent("Notify", definition = EventDefinition.MESSAGE)
-                        sequenceFlow(start, msgEnd)
+                        val start = startEvent(name = "Start")
+                        val msgEnd = endEvent(name = "Notify", definition = EventDefinition.MESSAGE)
+                        sequenceFlow(from = start, to = msgEnd)
                     }
                 }.processes.first()
 
@@ -182,11 +182,11 @@ class BpmnUmlRoundTripTest :
 
         test("BPMN Signal end event round-trips with SIGNAL definition preserved") {
             val proc =
-                bpmnModel("SigEndRT") {
+                bpmnModel(name = "SigEndRT") {
                     process(id = "sigrt", name = "SigEndRT") {
-                        val start = startEvent("Start")
-                        val sigEnd = endEvent("Broadcast", definition = EventDefinition.SIGNAL)
-                        sequenceFlow(start, sigEnd)
+                        val start = startEvent(name = "Start")
+                        val sigEnd = endEvent(name = "Broadcast", definition = EventDefinition.SIGNAL)
+                        sequenceFlow(from = start, to = sigEnd)
                     }
                 }.processes.first()
 
@@ -205,11 +205,11 @@ class BpmnUmlRoundTripTest :
 
         test("BPMN Error end event round-trips with ERROR definition preserved") {
             val proc =
-                bpmnModel("ErrEndRT") {
+                bpmnModel(name = "ErrEndRT") {
                     process(id = "errrt", name = "ErrEndRT") {
-                        val start = startEvent("Start")
-                        val errEnd = endEvent("Fail", definition = EventDefinition.ERROR)
-                        sequenceFlow(start, errEnd)
+                        val start = startEvent(name = "Start")
+                        val errEnd = endEvent(name = "Fail", definition = EventDefinition.ERROR)
+                        sequenceFlow(from = start, to = errEnd)
                     }
                 }.processes.first()
 
@@ -228,17 +228,17 @@ class BpmnUmlRoundTripTest :
 
         test("mixed process: NONE end stays ACTIVITY_FINAL and Message end stays FLOW_FINAL after round-trip") {
             val proc =
-                bpmnModel("MixedEndsRT") {
+                bpmnModel(name = "MixedEndsRT") {
                     process(id = "mixedrt", name = "MixedEndsRT") {
-                        val start = startEvent("Start")
-                        val t = task("Work")
-                        val gw = gateway(GatewayType.EXCLUSIVE)
-                        val noneEnd = endEvent("Done")
-                        val msgEnd = endEvent("Notify", definition = EventDefinition.MESSAGE)
-                        sequenceFlow(start, t)
-                        sequenceFlow(t, gw)
-                        sequenceFlow(gw, noneEnd, condition = "ok")
-                        sequenceFlow(gw, msgEnd, condition = "error")
+                        val start = startEvent(name = "Start")
+                        val t = task(name = "Work")
+                        val gw = gateway(type = GatewayType.EXCLUSIVE)
+                        val noneEnd = endEvent(name = "Done")
+                        val msgEnd = endEvent(name = "Notify", definition = EventDefinition.MESSAGE)
+                        sequenceFlow(from = start, to = t)
+                        sequenceFlow(from = t, to = gw)
+                        sequenceFlow(from = gw, to = noneEnd, condition = "ok")
+                        sequenceFlow(from = gw, to = msgEnd, condition = "error")
                     }
                 }.processes.first()
 

@@ -39,7 +39,7 @@ private fun runStdin(
     val inStream = ByteArrayInputStream(input.toByteArray())
     val outBuffer = ByteArrayOutputStream()
     val out = PrintStream(outBuffer)
-    val adapter = StdinAdapter(manager, inStream, out)
+    val adapter = StdinAdapter(manager = manager, input = inStream, output = out)
     val exitCode = adapter.run()
     return exitCode to outBuffer.toString()
 }
@@ -51,7 +51,7 @@ class StdinAdapterTest :
 
         test("processes quit command and returns 0") {
             val manager = makeManager()
-            val (exitCode, _) = runStdin(manager, "quit\n")
+            val (exitCode, _) = runStdin(manager = manager, input = "quit\n")
             exitCode shouldBe 0
         }
 
@@ -59,7 +59,7 @@ class StdinAdapterTest :
 
         test("processes event by name") {
             val manager = makeManager()
-            val (exitCode, output) = runStdin(manager, "confirm\nquit\n")
+            val (exitCode, output) = runStdin(manager = manager, input = "confirm\nquit\n")
             exitCode shouldBe 0
             output shouldContain "Confirmed"
         }
@@ -68,7 +68,7 @@ class StdinAdapterTest :
 
         test("snapshot command outputs JSON") {
             val manager = makeManager()
-            val (exitCode, output) = runStdin(manager, "snapshot\nquit\n")
+            val (exitCode, output) = runStdin(manager = manager, input = "snapshot\nquit\n")
             exitCode shouldBe 0
             output shouldContain "activeStates"
         }
@@ -77,7 +77,7 @@ class StdinAdapterTest :
 
         test("status command outputs active states") {
             val manager = makeManager()
-            val (exitCode, output) = runStdin(manager, "status\nquit\n")
+            val (exitCode, output) = runStdin(manager = manager, input = "status\nquit\n")
             exitCode shouldBe 0
             output shouldContain "Active states:"
         }

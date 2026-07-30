@@ -53,7 +53,7 @@ internal object StructuralValidator {
 
         violations += checkDuplicateIds(diagram)
         violations += checkCircularInheritance(diagram)
-        violations += checkDanglingReferences(diagram, knownIds)
+        violations += checkDanglingReferences(diagram = diagram, knownIds = knownIds)
         violations += checkMissingRequiredStereotypeProperties(diagram)
 
         return violations
@@ -102,7 +102,7 @@ internal object StructuralValidator {
                 .toSet()
 
         for (startId in allClassifierIds) {
-            if (hasCycle(startId, parentMap, mutableSetOf())) {
+            if (hasCycle(current = startId, parentMap = parentMap, visited = mutableSetOf())) {
                 violations.add(
                     StructuralViolation(
                         id = "CIRCULAR_INHERITANCE",
@@ -130,7 +130,7 @@ internal object StructuralValidator {
     ): Boolean {
         val parent = parentMap[current] ?: return false
         if (!visited.add(current)) return true
-        return hasCycle(parent, parentMap, visited)
+        return hasCycle(current = parent, parentMap = parentMap, visited = visited)
     }
 
     // ── Check 3: Dangling references ─────────────────────────────────────────

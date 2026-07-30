@@ -75,26 +75,26 @@ class ScreenshotGalleryTest :
         // ── screenshotAbsoluteUrl() ────────────────────────────────────────────
 
         test("screenshotAbsoluteUrl: relative path without leading slash is prefixed with base URL") {
-            screenshotAbsoluteUrl("screenshots/x/1.png").shouldNotBeNull() shouldBe
+            screenshotAbsoluteUrl(raw = "screenshots/x/1.png").shouldNotBeNull() shouldBe
                 "https://plugins.kuml.dev/screenshots/x/1.png"
         }
 
         test("screenshotAbsoluteUrl: relative path with leading slash normalizes correctly") {
-            screenshotAbsoluteUrl("/screenshots/x/1.png").shouldNotBeNull() shouldBe
+            screenshotAbsoluteUrl(raw = "/screenshots/x/1.png").shouldNotBeNull() shouldBe
                 "https://plugins.kuml.dev/screenshots/x/1.png"
         }
 
         test("screenshotAbsoluteUrl: absolute https URL to public host is returned") {
             val url = "https://cdn.example.com/screenshot.png"
-            screenshotAbsoluteUrl(url, publicHostResolver).shouldNotBeNull()
+            screenshotAbsoluteUrl(raw = url, resolveHost = publicHostResolver).shouldNotBeNull()
         }
 
         test("screenshotAbsoluteUrl: absolute http URL pointing to localhost is blocked (returns null)") {
-            screenshotAbsoluteUrl("http://localhost/screenshot.png").shouldBeNull()
+            screenshotAbsoluteUrl(raw = "http://localhost/screenshot.png").shouldBeNull()
         }
 
         test("screenshotAbsoluteUrl: valid external https URL is returned unchanged") {
-            screenshotAbsoluteUrl("https://cdn.example.com/screenshot.png", publicHostResolver).shouldNotBeNull()
+            screenshotAbsoluteUrl(raw = "https://cdn.example.com/screenshot.png", resolveHost = publicHostResolver).shouldNotBeNull()
         }
 
         test("SCREENSHOT_BASE_URL is https://plugins.kuml.dev") {
@@ -104,39 +104,39 @@ class ScreenshotGalleryTest :
         // ── validateScreenshotUrl() ────────────────────────────────────────────
 
         test("validateScreenshotUrl: valid external https URL is allowed") {
-            validateScreenshotUrl("https://cdn.example.com/screenshot.png", publicHostResolver) shouldBe true
+            validateScreenshotUrl(url = "https://cdn.example.com/screenshot.png", resolveHost = publicHostResolver) shouldBe true
         }
 
         test("validateScreenshotUrl: localhost is blocked") {
-            validateScreenshotUrl("http://localhost/admin") shouldBe false
+            validateScreenshotUrl(url = "http://localhost/admin") shouldBe false
         }
 
         test("validateScreenshotUrl: 127.0.0.1 loopback is blocked") {
-            validateScreenshotUrl("http://127.0.0.1/secret") shouldBe false
+            validateScreenshotUrl(url = "http://127.0.0.1/secret") shouldBe false
         }
 
         test("validateScreenshotUrl: RFC1918 10.x address is blocked") {
-            validateScreenshotUrl("http://10.0.0.1/admin") shouldBe false
+            validateScreenshotUrl(url = "http://10.0.0.1/admin") shouldBe false
         }
 
         test("validateScreenshotUrl: RFC1918 192.168.x address is blocked") {
-            validateScreenshotUrl("http://192.168.1.1/admin") shouldBe false
+            validateScreenshotUrl(url = "http://192.168.1.1/admin") shouldBe false
         }
 
         test("validateScreenshotUrl: RFC1918 172.16.x address is blocked") {
-            validateScreenshotUrl("http://172.16.0.1/admin") shouldBe false
+            validateScreenshotUrl(url = "http://172.16.0.1/admin") shouldBe false
         }
 
         test("validateScreenshotUrl: link-local 169.254.x address is blocked") {
-            validateScreenshotUrl("http://169.254.1.1/metadata") shouldBe false
+            validateScreenshotUrl(url = "http://169.254.1.1/metadata") shouldBe false
         }
 
         test("validateScreenshotUrl: non-http scheme is blocked") {
-            validateScreenshotUrl("ftp://cdn.example.com/file.png") shouldBe false
+            validateScreenshotUrl(url = "ftp://cdn.example.com/file.png") shouldBe false
         }
 
         test("validateScreenshotUrl: file scheme is blocked") {
-            validateScreenshotUrl("file:///etc/passwd") shouldBe false
+            validateScreenshotUrl(url = "file:///etc/passwd") shouldBe false
         }
 
         // ── screenshotCacheDir() ───────────────────────────────────────────────

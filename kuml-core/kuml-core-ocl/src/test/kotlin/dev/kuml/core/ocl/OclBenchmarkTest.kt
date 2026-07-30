@@ -34,7 +34,7 @@ class OclBenchmarkTest :
                 name = "Bench",
                 attributes =
                     (1..count).map { i ->
-                        UmlProperty(id = "Bench::attr$i", name = "attr$i", type = UmlTypeRef("String"), isStatic = i % 3 == 0)
+                        UmlProperty(id = "Bench::attr$i", name = "attr$i", type = UmlTypeRef(name = "String"), isStatic = i % 3 == 0)
                     },
             )
 
@@ -44,12 +44,12 @@ class OclBenchmarkTest :
             iterations: Int,
         ): kotlin.time.Duration {
             val tokens = OclLexer.tokenize(expr)
-            val ast = OclParser(tokens).parse()
-            val evaluator = OclEvaluator(self)
+            val ast = OclParser(tokens = tokens).parse()
+            val evaluator = OclEvaluator(self = self)
             // Warm-up: let the JIT compile the hot evaluator/parser paths before measuring.
-            repeat(iterations / 4) { evaluator.eval(ast) }
+            repeat(iterations / 4) { evaluator.eval(expr = ast) }
             return measureTime {
-                repeat(iterations) { evaluator.eval(ast) }
+                repeat(iterations) { evaluator.eval(expr = ast) }
             }
         }
 

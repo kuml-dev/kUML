@@ -76,7 +76,7 @@ internal fun ControlPanel(
             Button(
                 onClick = {
                     if (eventName.isNotBlank()) {
-                        state.sendEvent(eventName, payloadJson)
+                        state.sendEvent(eventName = eventName, payloadJson = payloadJson)
                         eventName = ""
                     }
                 },
@@ -125,14 +125,14 @@ private fun TransitionsSection(state: BehaviourWidgetState) {
         newOcl: String,
         confirmed: Boolean,
     ) {
-        when (val outcome = state.changeGuard(transitionId, newOcl, confirmed)) {
+        when (val outcome = state.changeGuard(transitionId = transitionId, newOcl = newOcl, confirmed = confirmed)) {
             PatchOutcome.Applied -> {
                 editing = null
                 lastError = null
             }
             // Defensive: the confirmation dialog should already have been shown
             // before we ever get here with confirmed = true.
-            PatchOutcome.NeedsConfirmation -> pendingConfirm = PendingGuardEdit(transitionId, newOcl)
+            PatchOutcome.NeedsConfirmation -> pendingConfirm = PendingGuardEdit(transitionId = transitionId, newOcl = newOcl)
             is PatchOutcome.Rejected -> lastError = outcome.message
         }
     }
@@ -145,9 +145,9 @@ private fun TransitionsSection(state: BehaviourWidgetState) {
             initial = currentEditing.guard.orEmpty(),
             scope = defaultGuardScope(),
             onSave = { newOcl ->
-                when (resolveGuardEditAction(state.editPolicy, currentEditing)) {
+                when (resolveGuardEditAction(policy = state.editPolicy, transition = currentEditing)) {
                     GuardEditAction.Apply -> apply(currentEditing.id, newOcl, confirmed = false)
-                    GuardEditAction.Confirm -> pendingConfirm = PendingGuardEdit(currentEditing.id, newOcl)
+                    GuardEditAction.Confirm -> pendingConfirm = PendingGuardEdit(transitionId = currentEditing.id, newOcl = newOcl)
                     GuardEditAction.Denied -> Unit // unreachable: entry point below is itself gated
                 }
             },

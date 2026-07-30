@@ -25,8 +25,8 @@ class KumlLanguageServer :
     /** Shared, thread-safe settings holder — single source of truth for both services. */
     val config = ServerConfig()
 
-    private val textDocumentService = KumlTextDocumentService(this, config)
-    private val workspaceService = KumlWorkspaceService(config, textDocumentService)
+    private val textDocumentService = KumlTextDocumentService(server = this, config = config)
+    private val workspaceService = KumlWorkspaceService(config = config, docService = textDocumentService)
 
     override fun connect(client: LanguageClient) {
         this.client = client

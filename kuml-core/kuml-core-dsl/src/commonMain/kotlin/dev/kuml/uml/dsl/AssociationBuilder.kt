@@ -95,7 +95,7 @@ class AssociationBuilder internal constructor(
         val assocId =
             explicitId
                 ?: UmlIds.disambiguate(
-                    candidate = UmlIds.association(srcId, tgtId, name),
+                    candidate = UmlIds.association(sourceId = srcId, targetId = tgtId, name = name),
                     taken = takenIds,
                 )
         takenIds += assocId
@@ -124,7 +124,7 @@ fun UmlModelScope.association(
     id: String? = null,
     block: AssociationBuilder.() -> Unit = {},
 ): UmlAssociation {
-    val builder = AssociationBuilder(source, target, takenIds, id)
+    val builder = AssociationBuilder(sourceTypeRef = source, targetTypeRef = target, takenIds = takenIds, explicitId = id)
     builder.block()
     val assoc = builder.build()
     addRelationship(assoc)
@@ -147,7 +147,7 @@ fun UmlModelScope.association(
     targetId: String,
     id: String? = null,
     block: AssociationBuilder.() -> Unit = {},
-): UmlAssociation = association(typeRef(sourceId), typeRef(targetId), id, block)
+): UmlAssociation = association(source = typeRef(sourceId), target = typeRef(targetId), id = id, block = block)
 
 /**
  * Adds a [UmlAssociation] between two classifiers via builder handles.
@@ -165,4 +165,4 @@ fun UmlModelScope.association(
     target: UmlClassifier,
     id: String? = null,
     block: AssociationBuilder.() -> Unit = {},
-): UmlAssociation = association(typeRef(source), typeRef(target), id, block)
+): UmlAssociation = association(source = typeRef(source), target = typeRef(target), id = id, block = block)

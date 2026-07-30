@@ -51,11 +51,11 @@ public fun ElegantTheme(): KumlTheme {
         )
     val typography =
         KumlTypography(
-            title = KumlFont(ELEGANT_FONT_STACK, sizePt = 15f, weight = 500),
-            subtitle = KumlFont(ELEGANT_FONT_STACK, sizePt = 12f, weight = 400),
-            body = KumlFont(ELEGANT_FONT_STACK, sizePt = 11f, weight = 400),
-            small = KumlFont(ELEGANT_FONT_STACK, sizePt = 9f, weight = 400),
-            stereotype = KumlFont(ELEGANT_FONT_STACK, sizePt = 10f, weight = 400, italic = true),
+            title = KumlFont(family = ELEGANT_FONT_STACK, sizePt = 15f, weight = 500),
+            subtitle = KumlFont(family = ELEGANT_FONT_STACK, sizePt = 12f, weight = 400),
+            body = KumlFont(family = ELEGANT_FONT_STACK, sizePt = 11f, weight = 400),
+            small = KumlFont(family = ELEGANT_FONT_STACK, sizePt = 9f, weight = 400),
+            stereotype = KumlFont(family = ELEGANT_FONT_STACK, sizePt = 10f, weight = 400, italic = true),
         )
     val borders =
         KumlBorders(

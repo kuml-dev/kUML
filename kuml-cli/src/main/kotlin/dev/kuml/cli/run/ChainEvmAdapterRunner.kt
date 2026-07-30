@@ -65,7 +65,7 @@ internal class ChainEvmAdapterRunner(
         // Step 1: Connect
         val identity =
             try {
-                runBlocking { adapter.connect(options.rpcUrl, options.contractAddress) }
+                runBlocking { adapter.connect(rpcUrl = options.rpcUrl, contractAddress = options.contractAddress) }
             } catch (e: IllegalArgumentException) {
                 errOut.println("chain-evm: invalid argument — ${e.message}")
                 return ExitCodes.CHAIN_CONNECT_ERROR
@@ -119,7 +119,7 @@ internal class ChainEvmAdapterRunner(
                                                 "txHash" to ev.txHash,
                                                 "blockNumber" to ev.blockNumber,
                                             )
-                                        val result = manager.event(ev.eventType, payload)
+                                        val result = manager.event(eventName = ev.eventType, payload = payload)
                                         when (result) {
                                             is SessionResult.Ok ->
                                                 output.println(

@@ -53,7 +53,7 @@ class CollaborationBuilder(
         block: PoolBuilder.() -> Unit = {},
     ): String {
         val pid = id ?: "pool_${participants.size + 1}"
-        val builder = PoolBuilder(pid, name, horizontal).apply(block)
+        val builder = PoolBuilder(id = pid, name = name, horizontal = horizontal).apply(block)
         participants += builder.build()
         return pid
     }
@@ -132,7 +132,7 @@ class PoolBuilder(
         block: LaneBuilder.() -> Unit = {},
     ): String {
         val laneId = "${id}_lane_${++laneCounter}"
-        val builder = LaneBuilder(laneId, name).apply(block)
+        val builder = LaneBuilder(id = laneId, name = name).apply(block)
         lanes += builder.build()
         return laneId
     }
@@ -189,7 +189,7 @@ class LaneBuilder(
         block: LaneBuilder.() -> Unit = {},
     ): String {
         val childId = "${id}_child_${++childCounter}"
-        childLanes += LaneBuilder(childId, name).apply(block).build()
+        childLanes += LaneBuilder(id = childId, name = name).apply(block).build()
         return childId
     }
 

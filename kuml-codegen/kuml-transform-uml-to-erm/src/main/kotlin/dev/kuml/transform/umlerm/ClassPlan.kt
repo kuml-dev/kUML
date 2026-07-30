@@ -70,7 +70,7 @@ internal fun planInheritance(
         if (!plan.isInHierarchy) continue
         val rootId = rootIdOf(cls.id)
         val rootCls = classById[rootId] ?: continue
-        plan.strategy = resolveStrategy(rootCls, ctx)
+        plan.strategy = resolveStrategy(rootCls = rootCls, ctx = ctx)
     }
 
     for (cls in classes) {

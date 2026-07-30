@@ -16,25 +16,25 @@ class StateMachineRuntimeHierarchyTest :
          */
         fun compositeMachine(): UmlStateMachine {
             val procInitial = initial("procInit")
-            val picking = state("Picking", entry = "startPick", exit = "stopPick")
-            val packing = state("Packing", entry = "startPack")
+            val picking = state(id = "Picking", entry = "startPick", exit = "stopPick")
+            val packing = state(id = "Packing", entry = "startPack")
             val processing =
                 state(
-                    "Processing",
+                    id = "Processing",
                     entry = "startProc",
                     exit = "stopProc",
                     substates = listOf(procInitial, picking, packing),
                 )
-            val draft = state("Draft")
+            val draft = state(id = "Draft")
             return smOf(
                 name = "M",
                 vertices = listOf(initial("rootInit"), draft, processing),
                 transitions =
                     listOf(
-                        trans("t0", "rootInit", "Processing"),
-                        trans("tProcInit", "procInit", "Picking"),
-                        trans("tDone", "Picking", "Packing", trigger = "done"),
-                        trans("tCancel", "Processing", "Draft", trigger = "cancel"),
+                        trans(id = "t0", from = "rootInit", to = "Processing"),
+                        trans(id = "tProcInit", from = "procInit", to = "Picking"),
+                        trans(id = "tDone", from = "Picking", to = "Packing", trigger = "done"),
+                        trans(id = "tCancel", from = "Processing", to = "Draft", trigger = "cancel"),
                     ),
             )
         }
@@ -59,7 +59,7 @@ class StateMachineRuntimeHierarchyTest :
         test("transition between substates of same composite keeps composite active") {
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)
             val instance = rt.start(compositeMachine())
-            rt.step(instance, Event.of("done"))
+            rt.step(instance = instance, event = Event.of("done"))
             instance.currentVertices.map { it.id } shouldBe listOf("Processing", "Packing")
             // Processing.exit must NOT appear
             instance.trace
@@ -70,7 +70,7 @@ class StateMachineRuntimeHierarchyTest :
         test("exit actions fire bottom-up to LCA when leaving composite") {
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)
             val instance = rt.start(compositeMachine())
-            rt.step(instance, Event.of("cancel"))
+            rt.step(instance = instance, event = Event.of("cancel"))
             val exits =
                 instance.trace
                     .filterIsInstance<TraceEntry.ActionInvoked>()
@@ -84,29 +84,29 @@ class StateMachineRuntimeHierarchyTest :
         test("deepest source wins when multiple transitions are enabled (Regel 2b)") {
             // Two transitions trigger "go": one from Picking (deeper) → X, one from Processing (shallower) → Y.
             val procInitial = initial("procInit")
-            val picking = state("Picking")
+            val picking = state(id = "Picking")
             val processing =
                 state(
-                    "Processing",
+                    id = "Processing",
                     substates = listOf(procInitial, picking),
                 )
-            val x = state("X")
-            val y = state("Y")
+            val x = state(id = "X")
+            val y = state(id = "Y")
             val sm =
                 smOf(
                     name = "M",
                     vertices = listOf(initial("rootInit"), processing, x, y),
                     transitions =
                         listOf(
-                            trans("t0", "rootInit", "Processing"),
-                            trans("tProcInit", "procInit", "Picking"),
-                            trans("tShallow", "Processing", "Y", trigger = "go"),
-                            trans("tDeep", "Picking", "X", trigger = "go"),
+                            trans(id = "t0", from = "rootInit", to = "Processing"),
+                            trans(id = "tProcInit", from = "procInit", to = "Picking"),
+                            trans(id = "tShallow", from = "Processing", to = "Y", trigger = "go"),
+                            trans(id = "tDeep", from = "Picking", to = "X", trigger = "go"),
                         ),
                 )
             val rt = StateMachineRuntime(guards = GuardEvaluator.AlwaysTrue)
             val instance = rt.start(sm)
-            rt.step(instance, Event.of("go"))
+            rt.step(instance = instance, event = Event.of("go"))
             instance.currentVertices.map { it.id } shouldHaveSize 1
             instance.currentVertices.first().id shouldBe "X"
         }

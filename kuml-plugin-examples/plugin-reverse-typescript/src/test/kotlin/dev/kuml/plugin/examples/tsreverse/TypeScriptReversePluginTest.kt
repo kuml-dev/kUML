@@ -52,7 +52,7 @@ class TypeScriptReversePluginTest :
         }
 
         test("descriptor kumlVersionRange enthält 0.12.0") {
-            plugin.descriptor.kumlVersionRange.contains(PluginVersion(0, 12, 0)) shouldBe true
+            plugin.descriptor.kumlVersionRange.contains(PluginVersion(major = 0, minor = 12, patch = 0)) shouldBe true
         }
 
         // ── Interface parsing ──────────────────────────────────────────────────

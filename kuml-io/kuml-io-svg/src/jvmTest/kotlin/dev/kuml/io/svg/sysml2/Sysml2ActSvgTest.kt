@@ -37,30 +37,30 @@ class Sysml2ActSvgTest :
         // Used by most tests; each test only asserts the shape of one node kind.
         fun orderModel(): Pair<Sysml2Model, ActDiagram> {
             val model =
-                sysml2Model("OrderProcessing") {
+                sysml2Model(name = "OrderProcessing") {
                     val initial = initialNode()
-                    val validate = actionDef("Validate", action = "validate(order)")
-                    val decide = decisionNode("Valid?")
-                    val fork = forkNode("Split")
-                    val pay = actionDef("ProcessPayment")
-                    val reserve = actionDef("ReserveInventory")
-                    val join = joinNode("Sync")
-                    val ship = actionDef("ShipOrder")
+                    val validate = actionDef(name = "Validate", action = "validate(order)")
+                    val decide = decisionNode(name = "Valid?")
+                    val fork = forkNode(name = "Split")
+                    val pay = actionDef(name = "ProcessPayment")
+                    val reserve = actionDef(name = "ReserveInventory")
+                    val join = joinNode(name = "Sync")
+                    val ship = actionDef(name = "ShipOrder")
                     val finalN = finalNode()
-                    val cancel = actionDef("CancelOrder")
+                    val cancel = actionDef(name = "CancelOrder")
                     val ff = flowFinalNode()
-                    controlFlow("start", initial, validate)
-                    controlFlow("vToD", validate, decide)
-                    controlFlow("yes", decide, fork, guard = "valid")
-                    controlFlow("fToP", fork, pay)
-                    controlFlow("fToR", fork, reserve)
-                    controlFlow("pToJ", pay, join)
-                    controlFlow("rToJ", reserve, join)
-                    controlFlow("jToS", join, ship)
-                    controlFlow("end", ship, finalN)
-                    controlFlow("no", decide, cancel, guard = "!valid")
-                    controlFlow("cancelEnd", cancel, ff)
-                    actDiagram("Workflow") {
+                    controlFlow(name = "start", source = initial, target = validate)
+                    controlFlow(name = "vToD", source = validate, target = decide)
+                    controlFlow(name = "yes", source = decide, target = fork, guard = "valid")
+                    controlFlow(name = "fToP", source = fork, target = pay)
+                    controlFlow(name = "fToR", source = fork, target = reserve)
+                    controlFlow(name = "pToJ", source = pay, target = join)
+                    controlFlow(name = "rToJ", source = reserve, target = join)
+                    controlFlow(name = "jToS", source = join, target = ship)
+                    controlFlow(name = "end", source = ship, target = finalN)
+                    controlFlow(name = "no", source = decide, target = cancel, guard = "!valid")
+                    controlFlow(name = "cancelEnd", source = cancel, target = ff)
+                    actDiagram(name = "Workflow") {
                         include(initial)
                         include(validate)
                         include(decide)
@@ -85,77 +85,88 @@ class Sysml2ActSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(1200f, 400f),
+                canvas = Size(width = 1200f, height = 400f),
                 nodes =
                     mapOf(
-                        NodeId("Initial") to NodeLayout(bounds = Rect(Point(20f, 180f), Size(28f, 28f))),
-                        NodeId("Validate") to NodeLayout(bounds = Rect(Point(80f, 160f), Size(160f, 60f))),
-                        NodeId("Valid?") to NodeLayout(bounds = Rect(Point(280f, 170f), Size(50f, 50f))),
-                        NodeId("Split") to NodeLayout(bounds = Rect(Point(380f, 180f), Size(120f, 10f))),
-                        NodeId("ProcessPayment") to NodeLayout(bounds = Rect(Point(540f, 100f), Size(160f, 60f))),
-                        NodeId("ReserveInventory") to NodeLayout(bounds = Rect(Point(540f, 240f), Size(160f, 60f))),
-                        NodeId("Sync") to NodeLayout(bounds = Rect(Point(740f, 180f), Size(120f, 10f))),
-                        NodeId("ShipOrder") to NodeLayout(bounds = Rect(Point(900f, 160f), Size(160f, 60f))),
-                        NodeId("Final") to NodeLayout(bounds = Rect(Point(1100f, 180f), Size(28f, 28f))),
-                        NodeId("CancelOrder") to NodeLayout(bounds = Rect(Point(380f, 320f), Size(160f, 60f))),
-                        NodeId("FlowFinal") to NodeLayout(bounds = Rect(Point(580f, 340f), Size(28f, 28f))),
+                        NodeId("Initial") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 180f), size = Size(width = 28f, height = 28f))),
+                        NodeId("Validate") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 80f, y = 160f), size = Size(width = 160f, height = 60f))),
+                        NodeId("Valid?") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 280f, y = 170f), size = Size(width = 50f, height = 50f))),
+                        NodeId("Split") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 380f, y = 180f), size = Size(width = 120f, height = 10f))),
+                        NodeId("ProcessPayment") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 540f, y = 100f), size = Size(width = 160f, height = 60f))),
+                        NodeId("ReserveInventory") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 540f, y = 240f), size = Size(width = 160f, height = 60f))),
+                        NodeId("Sync") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 740f, y = 180f), size = Size(width = 120f, height = 10f))),
+                        NodeId("ShipOrder") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 900f, y = 160f), size = Size(width = 160f, height = 60f))),
+                        NodeId("Final") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 1100f, y = 180f), size = Size(width = 28f, height = 28f))),
+                        NodeId("CancelOrder") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 380f, y = 320f), size = Size(width = 160f, height = 60f))),
+                        NodeId("FlowFinal") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 580f, y = 340f), size = Size(width = 28f, height = 28f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("start") to
                             EdgeRoute.Direct(
-                                source = Point(48f, 194f),
-                                target = Point(80f, 190f),
+                                source = Point(x = 48f, y = 194f),
+                                target = Point(x = 80f, y = 190f),
                             ),
                         EdgeId("vToD") to
                             EdgeRoute.Direct(
-                                source = Point(240f, 190f),
-                                target = Point(280f, 195f),
+                                source = Point(x = 240f, y = 190f),
+                                target = Point(x = 280f, y = 195f),
                             ),
                         EdgeId("yes") to
                             EdgeRoute.Direct(
-                                source = Point(330f, 195f),
-                                target = Point(380f, 185f),
+                                source = Point(x = 330f, y = 195f),
+                                target = Point(x = 380f, y = 185f),
                             ),
                         EdgeId("fToP") to
                             EdgeRoute.Direct(
-                                source = Point(500f, 182f),
-                                target = Point(540f, 130f),
+                                source = Point(x = 500f, y = 182f),
+                                target = Point(x = 540f, y = 130f),
                             ),
                         EdgeId("fToR") to
                             EdgeRoute.Direct(
-                                source = Point(500f, 188f),
-                                target = Point(540f, 270f),
+                                source = Point(x = 500f, y = 188f),
+                                target = Point(x = 540f, y = 270f),
                             ),
                         EdgeId("pToJ") to
                             EdgeRoute.Direct(
-                                source = Point(700f, 130f),
-                                target = Point(740f, 183f),
+                                source = Point(x = 700f, y = 130f),
+                                target = Point(x = 740f, y = 183f),
                             ),
                         EdgeId("rToJ") to
                             EdgeRoute.Direct(
-                                source = Point(700f, 270f),
-                                target = Point(740f, 187f),
+                                source = Point(x = 700f, y = 270f),
+                                target = Point(x = 740f, y = 187f),
                             ),
                         EdgeId("jToS") to
                             EdgeRoute.Direct(
-                                source = Point(860f, 185f),
-                                target = Point(900f, 190f),
+                                source = Point(x = 860f, y = 185f),
+                                target = Point(x = 900f, y = 190f),
                             ),
                         EdgeId("end") to
                             EdgeRoute.Direct(
-                                source = Point(1060f, 190f),
-                                target = Point(1100f, 194f),
+                                source = Point(x = 1060f, y = 190f),
+                                target = Point(x = 1100f, y = 194f),
                             ),
                         EdgeId("no") to
                             EdgeRoute.Direct(
-                                source = Point(305f, 220f),
-                                target = Point(380f, 350f),
+                                source = Point(x = 305f, y = 220f),
+                                target = Point(x = 380f, y = 350f),
                             ),
                         EdgeId("cancelEnd") to
                             EdgeRoute.Direct(
-                                source = Point(540f, 350f),
-                                target = Point(580f, 354f),
+                                source = Point(x = 540f, y = 350f),
+                                target = Point(x = 580f, y = 354f),
                             ),
                     ),
                 groups = emptyMap(),
@@ -163,7 +174,7 @@ class Sysml2ActSvgTest :
 
         "ACT renders regular Action as rounded rect with body text" {
             val (model, act) = orderModel()
-            val svg = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = fakeLayout(), theme = PlainTheme())
 
             svg shouldContain "id=\"Validate\""
             svg shouldContain "<rect"
@@ -172,35 +183,35 @@ class Sysml2ActSvgTest :
             // Body text appears as a second line.
             svg shouldContain "validate(order)"
 
-            SampleOutput.write("sysml2-act/order-action.svg", svg)
+            SampleOutput.write(filename = "sysml2-act/order-action.svg", content = svg)
         }
 
         "ACT renders Initial pseudo-node as filled circle" {
             val (model, act) = orderModel()
-            val svg = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = fakeLayout(), theme = PlainTheme())
 
             svg shouldContain "id=\"Initial\""
             svg shouldContain "<circle"
             // The fill="currentColor" attribute marks the initial pseudo-node.
             svg shouldContain "currentColor"
 
-            SampleOutput.write("sysml2-act/order-initial.svg", svg)
+            SampleOutput.write(filename = "sysml2-act/order-initial.svg", content = svg)
         }
 
         "ACT renders Final pseudo-node as a donut (two concentric circles)" {
             val (model, act) = orderModel()
-            val svg = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = fakeLayout(), theme = PlainTheme())
 
             svg shouldContain "id=\"Final\""
             // Donut: outer ring (white fill) + inner filled disc (currentColor).
             svg shouldContain "fill=\"white\""
 
-            SampleOutput.write("sysml2-act/order-final.svg", svg)
+            SampleOutput.write(filename = "sysml2-act/order-final.svg", content = svg)
         }
 
         "ACT renders FlowFinal as a circle with diagonal X lines inside" {
             val (model, act) = orderModel()
-            val svg = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = fakeLayout(), theme = PlainTheme())
 
             svg shouldContain "id=\"FlowFinal\""
             // X-form: two diagonal line elements in the FlowFinal group.
@@ -211,23 +222,23 @@ class Sysml2ActSvgTest :
             val ffBlock = svg.substring(ffIdx, ffEnd)
             ffBlock shouldContain "<line"
 
-            SampleOutput.write("sysml2-act/order-flowfinal.svg", svg)
+            SampleOutput.write(filename = "sysml2-act/order-flowfinal.svg", content = svg)
         }
 
         "ACT renders Decision/Merge node as a diamond polygon" {
             val (model, act) = orderModel()
-            val svg = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = fakeLayout(), theme = PlainTheme())
 
             svg shouldContain "id=\"Valid?\""
             // Diamond emitted as a polygon with four points.
             svg shouldContain "<polygon"
 
-            SampleOutput.write("sysml2-act/order-decision.svg", svg)
+            SampleOutput.write(filename = "sysml2-act/order-decision.svg", content = svg)
         }
 
         "ACT renders Fork/Join as a filled bar (thick rect with currentColor fill)" {
             val (model, act) = orderModel()
-            val svg = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = fakeLayout(), theme = PlainTheme())
 
             svg shouldContain "id=\"Split\""
             svg shouldContain "id=\"Sync\""
@@ -238,19 +249,19 @@ class Sysml2ActSvgTest :
             splitBlock shouldContain "<rect"
             splitBlock shouldContain "currentColor"
 
-            SampleOutput.write("sysml2-act/order-fork.svg", svg)
+            SampleOutput.write(filename = "sysml2-act/order-fork.svg", content = svg)
         }
 
         "ACT is deterministic — same input renders byte-identically" {
             val (model, act) = orderModel()
-            val svg1 = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
-            val svg2 = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
+            val svg1 = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = fakeLayout(), theme = PlainTheme())
+            val svg2 = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = fakeLayout(), theme = PlainTheme())
             svg1 shouldBe svg2
         }
 
         "ACT control-flow edges surface as rendered paths in the SVG output" {
             val (model, act) = orderModel()
-            val svg = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = fakeLayout(), theme = PlainTheme())
             // fakeLayout has direct-route control-flow edges; each lowers to a <line>
             // with the kuml-edge CSS class applied.
             svg shouldContain "<line"
@@ -264,29 +275,29 @@ class Sysml2ActSvgTest :
         // ProcessPayment.
         fun partitionedModel(): Pair<Sysml2Model, ActDiagram> {
             val model =
-                sysml2Model("OrderProcessingPartitions") {
-                    val customer = activityPartition("Customer")
-                    val orderSys = activityPartition("OrderSystem")
+                sysml2Model(name = "OrderProcessingPartitions") {
+                    val customer = activityPartition(name = "Customer")
+                    val orderSys = activityPartition(name = "OrderSystem")
                     val place =
                         actionDef(
-                            "PlaceOrder",
+                            name = "PlaceOrder",
                             partition = customer,
-                            pins = listOf(ActionPin("orderDetails", direction = PinDirection.Output)),
+                            pins = listOf(ActionPin(name = "orderDetails", direction = PinDirection.Output)),
                         )
                     val validate =
                         actionDef(
-                            "ValidateOrder",
+                            name = "ValidateOrder",
                             partition = orderSys,
                             pins =
                                 listOf(
-                                    ActionPin("orderDetails", direction = PinDirection.Input),
-                                    ActionPin("validation", direction = PinDirection.Output),
+                                    ActionPin(name = "orderDetails", direction = PinDirection.Input),
+                                    ActionPin(name = "validation", direction = PinDirection.Output),
                                 ),
                         )
-                    val pay = actionDef("ProcessPayment", partition = orderSys)
-                    controlFlow("p2v", place, validate)
-                    controlFlow("v2p", validate, pay)
-                    actDiagram("Partitioned Workflow") {
+                    val pay = actionDef(name = "ProcessPayment", partition = orderSys)
+                    controlFlow(name = "p2v", source = place, target = validate)
+                    controlFlow(name = "v2p", source = validate, target = pay)
+                    actDiagram(name = "Partitioned Workflow") {
                         include(place)
                         include(validate)
                         include(pay)
@@ -303,36 +314,41 @@ class Sysml2ActSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(600f, 400f),
+                canvas = Size(width = 600f, height = 400f),
                 nodes =
                     mapOf(
-                        NodeId("PlaceOrder") to NodeLayout(bounds = Rect(Point(40f, 80f), Size(160f, 60f))),
-                        NodeId("ValidateOrder") to NodeLayout(bounds = Rect(Point(280f, 80f), Size(160f, 60f))),
-                        NodeId("ProcessPayment") to NodeLayout(bounds = Rect(Point(280f, 200f), Size(160f, 60f))),
+                        NodeId("PlaceOrder") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 80f), size = Size(width = 160f, height = 60f))),
+                        NodeId("ValidateOrder") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 280f, y = 80f), size = Size(width = 160f, height = 60f))),
+                        NodeId("ProcessPayment") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 280f, y = 200f), size = Size(width = 160f, height = 60f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("p2v") to
                             EdgeRoute.Direct(
-                                source = Point(200f, 110f),
-                                target = Point(280f, 110f),
+                                source = Point(x = 200f, y = 110f),
+                                target = Point(x = 280f, y = 110f),
                             ),
                         EdgeId("v2p") to
                             EdgeRoute.Direct(
-                                source = Point(360f, 140f),
-                                target = Point(360f, 200f),
+                                source = Point(x = 360f, y = 140f),
+                                target = Point(x = 360f, y = 200f),
                             ),
                     ),
                 groups =
                     mapOf(
-                        GroupId("Customer") to GroupLayout(bounds = Rect(Point(20f, 20f), Size(220f, 340f))),
-                        GroupId("OrderSystem") to GroupLayout(bounds = Rect(Point(260f, 20f), Size(220f, 340f))),
+                        GroupId("Customer") to
+                            GroupLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 220f, height = 340f))),
+                        GroupId("OrderSystem") to
+                            GroupLayout(bounds = Rect(origin = Point(x = 260f, y = 20f), size = Size(width = 220f, height = 340f))),
                     ),
             )
 
         "ACT partition renders as dashed vertical lane with header containing the partition name" {
             val (model, act) = partitionedModel()
-            val svg = KumlSvgRenderer.toSvg(model, act, partitionedLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = partitionedLayout(), theme = PlainTheme())
 
             // One <g id="activityPartition:Customer"> group element with a
             // dashed outer rectangle (stroke-dasharray) + header text.
@@ -344,12 +360,12 @@ class Sysml2ActSvgTest :
             svg shouldContain "Customer"
             svg shouldContain "OrderSystem"
 
-            SampleOutput.write("sysml2-act/order-partitions.svg", svg)
+            SampleOutput.write(filename = "sysml2-act/order-partitions.svg", content = svg)
         }
 
         "ACT actions in different partitions appear in different lane bounds" {
             val (model, act) = partitionedModel()
-            val svg = KumlSvgRenderer.toSvg(model, act, partitionedLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = partitionedLayout(), theme = PlainTheme())
 
             // PlaceOrder's group translate-X is around 20 + padding,
             // OrderSystem's around 260 + padding. Assert relative X by
@@ -374,7 +390,7 @@ class Sysml2ActSvgTest :
 
         "ACT action with pins renders small squares with pin names" {
             val (model, act) = partitionedModel()
-            val svg = KumlSvgRenderer.toSvg(model, act, partitionedLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = partitionedLayout(), theme = PlainTheme())
 
             // ValidateOrder has both an Input and an Output pin — find its
             // <g> block and assert both pin labels surface inside it.
@@ -388,12 +404,12 @@ class Sysml2ActSvgTest :
             vBlock shouldContain "orderDetails"
             vBlock shouldContain "validation"
 
-            SampleOutput.write("sysml2-act/order-pins.svg", svg)
+            SampleOutput.write(filename = "sysml2-act/order-pins.svg", content = svg)
         }
 
         "ACT action without pins is unchanged from V2.0.10 (regression guard)" {
             val (model, act) = orderModel()
-            val svg = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = fakeLayout(), theme = PlainTheme())
 
             // Validate has no pins — its <g> block must not contain a
             // 10×10 pin rect (the action box itself is 160×60).
@@ -406,8 +422,8 @@ class Sysml2ActSvgTest :
 
         "ACT partitioned output is deterministic — same input renders byte-identically" {
             val (model, act) = partitionedModel()
-            val svg1 = KumlSvgRenderer.toSvg(model, act, partitionedLayout(), PlainTheme())
-            val svg2 = KumlSvgRenderer.toSvg(model, act, partitionedLayout(), PlainTheme())
+            val svg1 = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = partitionedLayout(), theme = PlainTheme())
+            val svg2 = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = partitionedLayout(), theme = PlainTheme())
             svg1 shouldBe svg2
         }
     })

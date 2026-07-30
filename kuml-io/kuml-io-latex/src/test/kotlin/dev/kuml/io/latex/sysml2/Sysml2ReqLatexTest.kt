@@ -28,18 +28,18 @@ class Sysml2ReqLatexTest :
 
         "REQ-TikZ enthält Requirement-Name und «requirement»-Stereotyp (V2.0.8 fallback)" {
             val model =
-                sysml2Model("VehicleReqs") {
+                sysml2Model(name = "VehicleReqs") {
                     val topSpeed =
                         requirementDef(
-                            "TopSpeedRequirement",
+                            name = "TopSpeedRequirement",
                             reqId = "R-001",
                             text = "≥180 km/h",
                         )
-                    val vehicle = partDef("Vehicle")
-                    reqDiagram("REQ") {
+                    val vehicle = partDef(name = "Vehicle")
+                    reqDiagram(name = "REQ") {
                         include(topSpeed)
                         include(vehicle)
-                        satisfy(vehicle, topSpeed)
+                        satisfy(source = vehicle, requirement = topSpeed)
                     }
                 }
             val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
@@ -47,33 +47,33 @@ class Sysml2ReqLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(600f, 240f),
+                    canvas = Size(width = 600f, height = 240f),
                     nodes =
                         mapOf(
                             NodeId("TopSpeedRequirement") to
-                                NodeLayout(bounds = Rect(Point(40f, 40f), Size(220f, 120f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 40f), size = Size(width = 220f, height = 120f))),
                             NodeId("Vehicle") to
-                                NodeLayout(bounds = Rect(Point(340f, 60f), Size(220f, 140f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 340f, y = 60f), size = Size(width = 220f, height = 140f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(model, req, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = req, layoutResult = layout)
             tex shouldContain "\\begin{tikzpicture}"
             tex shouldContain "TopSpeedRequirement"
             tex shouldContain "Vehicle"
             // V2.0.8-Fallback emittiert den `«requirement»`-Stereotyp-Header.
             tex shouldContain "requirement"
 
-            SampleOutput.write("sysml2-req/vehicle-req.tex", tex)
+            SampleOutput.write(filename = "sysml2-req/vehicle-req.tex", content = tex)
         }
 
         "deterministic REQ output" {
             val model =
-                sysml2Model("Det") {
-                    val r = requirementDef("R1", reqId = "R-001")
-                    reqDiagram("REQ") {
+                sysml2Model(name = "Det") {
+                    val r = requirementDef(name = "R1", reqId = "R-001")
+                    reqDiagram(name = "REQ") {
                         include(r)
                     }
                 }
@@ -82,16 +82,17 @@ class Sysml2ReqLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(300f, 200f),
+                    canvas = Size(width = 300f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("R1") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(220f, 120f))),
+                            NodeId("R1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 220f, height = 120f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val one = KumlLatexRenderer.toLatex(model, req, layout)
-            val two = KumlLatexRenderer.toLatex(model, req, layout)
+            val one = KumlLatexRenderer.toLatex(model = model, diagram = req, layoutResult = layout)
+            val two = KumlLatexRenderer.toLatex(model = model, diagram = req, layoutResult = layout)
             one shouldBe two
         }
     })

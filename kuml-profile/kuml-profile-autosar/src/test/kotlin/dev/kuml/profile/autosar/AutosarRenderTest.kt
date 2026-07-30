@@ -36,24 +36,24 @@ class AutosarRenderTest :
 
         // Engine Control AUTOSAR diagram
         val diagram =
-            classDiagram("Engine Control AUTOSAR") {
+            classDiagram(name = "Engine Control AUTOSAR") {
                 applyProfile(autosarProfile)
 
-                component("EngineController") {
-                    stereotype("SoftwareComponent") {
+                component(name = "EngineController") {
+                    stereotype(name = "SoftwareComponent") {
                         "kind" to AutosarSwcKind.Application
                         "packageName" to "powertrain"
                     }
-                    port("rpmSensor") {
-                        stereotype("AutosarPort") { "direction" to AutosarPortDirection.Required }
+                    port(name = "rpmSensor") {
+                        stereotype(name = "AutosarPort") { "direction" to AutosarPortDirection.Required }
                     }
-                    port("throttle") {
-                        stereotype("AutosarPort") { "direction" to AutosarPortDirection.Provided }
+                    port(name = "throttle") {
+                        stereotype(name = "AutosarPort") { "direction" to AutosarPortDirection.Provided }
                     }
                 }
 
-                interfaceOf("ThrottleControl") {
-                    stereotype("ComInterface") {
+                interfaceOf(name = "ThrottleControl") {
+                    stereotype(name = "ComInterface") {
                         "version" to "2.1"
                         "isService" to true
                     }
@@ -92,7 +92,7 @@ class AutosarRenderTest :
         // ── Test 1: EngineController renders «SoftwareComponent» with component shape
 
         test("SVG contains SoftwareComponent stereotype label for EngineController") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "«SoftwareComponent»"
             svg shouldContain "EngineController"
         }
@@ -100,7 +100,7 @@ class AutosarRenderTest :
         // ── Test 2: ThrottleControl renders «ComInterface» with interface shape ──
 
         test("SVG contains ComInterface stereotype label for ThrottleControl") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "«ComInterface»"
             svg shouldContain "ThrottleControl"
         }
@@ -108,14 +108,14 @@ class AutosarRenderTest :
         // ── Test 3: Component shape marker present (kuml-component CSS class) ────
 
         test("SVG contains kuml-component CSS class for EngineController") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "kuml-component"
         }
 
         // ── Test 4: Interface shape marker present (kuml-interface CSS class) ────
 
         test("SVG contains kuml-interface CSS class for ThrottleControl") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "kuml-interface"
         }
 

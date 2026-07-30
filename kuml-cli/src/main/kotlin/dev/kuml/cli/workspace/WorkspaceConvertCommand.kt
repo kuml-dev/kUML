@@ -104,13 +104,13 @@ internal class WorkspaceConvertCommand : CliktCommand(name = "convert") {
             throw ProgramResult(ExitCodes.USAGE)
         }
 
-        val outputDir = outputDirOpt ?: defaultOutputDir(src, to)
+        val outputDir = outputDirOpt ?: defaultOutputDir(src = src, to = to)
         outputDir.mkdirs()
 
         val report =
             when (to) {
-                "okf" -> convertToOkf(src, outputDir, strict, force)
-                "kts" -> convertToKts(src, outputDir, strict, force)
+                "okf" -> convertToOkf(src = src, outputDir = outputDir, strict = strict, force = force)
+                "kts" -> convertToKts(src = src, outputDir = outputDir, strict = strict, force = force)
                 else -> error("Unreachable: Clikt already restricted --to to 'okf'/'kts'")
             }
 
@@ -161,7 +161,7 @@ internal class WorkspaceConvertCommand : CliktCommand(name = "convert") {
         val skipped = mutableListOf<String>()
         val findings = mutableListOf<OkfFinding>()
         val scanRoot = if (src.isDirectory) src else (src.absoluteFile.parentFile ?: File("."))
-        val scripts = if (src.isDirectory) findKumlScripts(src, excludeDirs = setOf(outputDir)) else listOf(src)
+        val scripts = if (src.isDirectory) findKumlScripts(root = src, excludeDirs = setOf(outputDir)) else listOf(src)
 
         for (script in scripts) {
             val relativePath = script.relativeTo(scanRoot).path.replace(File.separatorChar, '/')
@@ -185,9 +185,9 @@ internal class WorkspaceConvertCommand : CliktCommand(name = "convert") {
                             suggestion = "Add a vocabulary entry for this diagram kind, or accept the custom type.",
                         )
                 }
-                val title = OkfTypeMapper.titleOf(extracted, fallback = stem)
+                val title = OkfTypeMapper.titleOf(extracted = extracted, fallback = stem)
                 val note = OkfConverter.wrapAsOkf(dslSource = script.readText(Charsets.UTF_8), typeId = typeId, title = title)
-                val outFile = resolveWithin(targetDir, "$stem.md")
+                val outFile = resolveWithin(base = targetDir, childName = "$stem.md")
                 if (!outFile.exists() || force) {
                     outFile.writeText(note, Charsets.UTF_8)
                     converted += outFile.relativeTo(outputDir).path.replace(File.separatorChar, '/')
@@ -195,11 +195,11 @@ internal class WorkspaceConvertCommand : CliktCommand(name = "convert") {
                     skipped += relativePath
                 }
             } catch (e: ScriptEvaluationException) {
-                findings += evalFailureFinding(relativePath, "Failed to evaluate script: ${e.message}")
+                findings += evalFailureFinding(relativePath = relativePath, message = "Failed to evaluate script: ${e.message}")
             } catch (e: IOException) {
-                findings += evalFailureFinding(relativePath, "I/O error while converting script: ${e.message}")
+                findings += evalFailureFinding(relativePath = relativePath, message = "I/O error while converting script: ${e.message}")
             } catch (e: IllegalArgumentException) {
-                findings += evalFailureFinding(relativePath, "Refusing to write converted note: ${e.message}")
+                findings += evalFailureFinding(relativePath = relativePath, message = "Refusing to write converted note: ${e.message}")
             }
         }
 
@@ -212,17 +212,17 @@ internal class WorkspaceConvertCommand : CliktCommand(name = "convert") {
      * `RenderPipeline` does not expose eval+extract as a standalone call.
      */
     private fun evalAndExtract(script: File): ExtractedDiagram {
-        val evalResult = KumlScriptHost.eval(script)
+        val evalResult = KumlScriptHost.eval(file = script)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
             throw ScriptEvaluationException(
-                "Script evaluation failed:\n${errors.joinToString("\n") { it.message }}",
+                message = "Script evaluation failed:\n${errors.joinToString("\n") { it.message }}",
             )
         }
         val successResult =
             evalResult as? ResultWithDiagnostics.Success
-                ?: throw ScriptEvaluationException("Script evaluation did not produce a result")
-        return DiagramExtractor.extractAny(successResult.value.returnValue, script)
+                ?: throw ScriptEvaluationException(message = "Script evaluation did not produce a result")
+        return DiagramExtractor.extractAny(returnValue = successResult.value.returnValue, input = script)
     }
 
     /** `hello.kuml.kts` → `"hello"` (plain `nameWithoutExtension` would only strip `.kts`). */
@@ -260,7 +260,7 @@ internal class WorkspaceConvertCommand : CliktCommand(name = "convert") {
         val skipped = mutableListOf<String>()
         val findings = mutableListOf<OkfFinding>()
         val scanRoot = if (src.isDirectory) src else (src.absoluteFile.parentFile ?: File("."))
-        val ws = WorkspaceScanner.scan(scanRoot, excludeDirs = setOf(outputDir))
+        val ws = WorkspaceScanner.scan(root = scanRoot, excludeDirs = setOf(outputDir))
         val documents: List<OkfDocument> =
             if (src.isDirectory) ws.documents else ws.documents.filter { it.file.absoluteFile == src.absoluteFile }
 
@@ -288,7 +288,7 @@ internal class WorkspaceConvertCommand : CliktCommand(name = "convert") {
 
             for (script in scripts) {
                 try {
-                    val outFile = resolveWithin(targetDir, "${script.stem}.kuml.kts")
+                    val outFile = resolveWithin(base = targetDir, childName = "${script.stem}.kuml.kts")
                     if (!outFile.exists() || force) {
                         outFile.writeText(script.dslSource, Charsets.UTF_8)
                         converted += outFile.relativeTo(outputDir).path.replace(File.separatorChar, '/')
@@ -296,9 +296,14 @@ internal class WorkspaceConvertCommand : CliktCommand(name = "convert") {
                         skipped += doc.relativePath
                     }
                 } catch (e: IOException) {
-                    findings += evalFailureFinding(doc.relativePath, "I/O error while writing extracted script: ${e.message}")
+                    findings +=
+                        evalFailureFinding(
+                            relativePath = doc.relativePath,
+                            message = "I/O error while writing extracted script: ${e.message}",
+                        )
                 } catch (e: IllegalArgumentException) {
-                    findings += evalFailureFinding(doc.relativePath, "Refusing to write extracted script: ${e.message}")
+                    findings +=
+                        evalFailureFinding(relativePath = doc.relativePath, message = "Refusing to write extracted script: ${e.message}")
                 }
             }
         }

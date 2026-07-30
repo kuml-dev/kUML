@@ -55,20 +55,20 @@ public class CodeGenAiTools(
         ) fields: List<FieldSpec> = emptyList(),
     ): PatchApplyResult {
         val model = ctx.resolveModel()
-        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure("Context is not a UML model")
+        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure(reason = "Context is not a UML model")
 
         val takenIds = uml.elements.map { it.id }.toSet()
-        val classId = IdHelpers.uniqueId(className, takenIds)
+        val classId = IdHelpers.uniqueId(name = className, takenIds = takenIds)
 
         val attrTaken = (takenIds + classId).toMutableSet()
         val umlAttrs =
             fields.map { spec ->
-                val attrId = IdHelpers.uniqueId(spec.name, attrTaken, "attr")
+                val attrId = IdHelpers.uniqueId(name = spec.name, takenIds = attrTaken, prefix = "attr")
                 attrTaken += attrId
                 UmlProperty(
                     id = attrId,
                     name = spec.name,
-                    type = UmlTypeRef(spec.type),
+                    type = UmlTypeRef(name = spec.type),
                     visibility = EnumCoercion.toVisibility(spec.visibility) ?: Visibility.PRIVATE,
                     defaultValue = spec.defaultValue,
                 )
@@ -89,9 +89,16 @@ public class CodeGenAiTools(
                     },
             )
 
-        return ctx.applyPatch(patch) { m ->
+        return ctx.applyPatch(patch = patch) { m ->
             val u = m as AnyKumlModel.Uml
-            UmlPatchOps.addClass(u, classId, className, "entity", false, umlAttrs)
+            UmlPatchOps.addClass(
+                model = u,
+                id = classId,
+                name = className,
+                stereotype = "entity",
+                isAbstract = false,
+                attributes = umlAttrs,
+            )
         }
     }
 
@@ -124,12 +131,12 @@ public class CodeGenAiTools(
         }
 
         val model = ctx.resolveModel()
-        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure("Context is not a UML model")
+        val uml = model as? AnyKumlModel.Uml ?: return PatchApplyResult.Failure(reason = "Context is not a UML model")
 
         // Validate all dependencies before touching the model
         val resolvedDeps =
             dependencies.map { depName ->
-                UmlPatchOps.resolveClassifier(uml, depName)
+                UmlPatchOps.resolveClassifier(model = uml, idOrName = depName)
                     ?: return PatchApplyResult.Failure(
                         reason = "Dependency '$depName' not found in model",
                         hint = "Use list_elements to discover available classifier ids",
@@ -137,7 +144,7 @@ public class CodeGenAiTools(
             }
 
         val takenIds = uml.elements.map { it.id }.toSet()
-        val beanId = IdHelpers.uniqueId(className, takenIds)
+        val beanId = IdHelpers.uniqueId(name = className, takenIds = takenIds)
 
         // One AddElement patch for the bean class itself
         val beanPatch =
@@ -152,15 +159,15 @@ public class CodeGenAiTools(
             )
 
         var result =
-            ctx.applyPatch(beanPatch) { m ->
+            ctx.applyPatch(patch = beanPatch) { m ->
                 val u = m as AnyKumlModel.Uml
-                UmlPatchOps.addClass(u, beanId, className, normalizedType, false)
+                UmlPatchOps.addClass(model = u, id = beanId, name = className, stereotype = normalizedType, isAbstract = false)
             }
         if (result is PatchApplyResult.Failure) return result
 
         // One AddRelationship patch per dependency
         for (dep in resolvedDeps) {
-            val assocId = IdHelpers.uniqueId("${beanId}_uses_${dep.id}", emptySet())
+            val assocId = IdHelpers.uniqueId(name = "${beanId}_uses_${dep.id}", takenIds = emptySet())
             val assocPatch =
                 ModelPatch.AddRelationship(
                     patchId = ModelPatch.newId(),
@@ -173,9 +180,17 @@ public class CodeGenAiTools(
                     payload = mapOf("name" to "uses"),
                 )
             result =
-                ctx.applyPatch(assocPatch) { m ->
+                ctx.applyPatch(patch = assocPatch) { m ->
                     val u = m as AnyKumlModel.Uml
-                    UmlPatchOps.addAssociation(u, assocId, beanId, dep.id, "uses", Multiplicity(1, 1), Multiplicity(1, 1))
+                    UmlPatchOps.addAssociation(
+                        model = u,
+                        assocId = assocId,
+                        sourceId = beanId,
+                        targetId = dep.id,
+                        name = "uses",
+                        sourceMultiplicity = Multiplicity(lower = 1, upper = 1),
+                        targetMultiplicity = Multiplicity(lower = 1, upper = 1),
+                    )
                 }
             if (result is PatchApplyResult.Failure) return result
         }
@@ -254,7 +269,7 @@ public class CodeGenAiTools(
         // ── Generation ────────────────────────────────────────────────────────
         val outputDir = normalizedPath.toFile()
         return try {
-            val generated = generator.generate(kumlDiagram, outputDir, emptyMap())
+            val generated = generator.generate(diagram = kumlDiagram, outputDir = outputDir, options = emptyMap())
             CodeGenResult.Success(
                 generatedFiles = generated.map { it.absolutePath },
                 generatorId = generator.id,

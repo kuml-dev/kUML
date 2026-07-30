@@ -111,7 +111,7 @@ public class ArxmlReader(
                 .getChildren(ArxmlSchema.ELEM_AR_PACKAGE, arNs)
                 .ifEmpty { arPackages.getChildren(ArxmlSchema.ELEM_AR_PACKAGE, Namespace.NO_NAMESPACE) }
             ) {
-                members.add(parsePackage(pkgEl, arNs, warnings))
+                members.add(parsePackage(pkgEl = pkgEl, arNs = arNs, warnings = warnings))
             }
         } else {
             warnings.add("No AR-PACKAGES element found in root AUTOSAR document")
@@ -148,7 +148,7 @@ public class ArxmlReader(
                 .getChildren(ArxmlSchema.ELEM_AR_PACKAGE, arNs)
                 .ifEmpty { nestedArPackages.getChildren(ArxmlSchema.ELEM_AR_PACKAGE, Namespace.NO_NAMESPACE) }
             ) {
-                members.add(parsePackage(subPkgEl, arNs, warnings))
+                members.add(parsePackage(pkgEl = subPkgEl, arNs = arNs, warnings = warnings))
             }
         }
 
@@ -161,16 +161,16 @@ public class ArxmlReader(
                 val localName = child.name
                 when (localName) {
                     ArxmlSchema.ELEM_COMPOSITION_SWC ->
-                        members.add(parseSoftwareComponent(child, arNs, "composition"))
+                        members.add(parseSoftwareComponent(el = child, arNs = arNs, kind = "composition"))
 
                     ArxmlSchema.ELEM_APPLICATION_SWC ->
-                        members.add(parseSoftwareComponent(child, arNs, "application"))
+                        members.add(parseSoftwareComponent(el = child, arNs = arNs, kind = "application"))
 
                     ArxmlSchema.ELEM_SENDER_RECEIVER_INTERFACE ->
-                        members.add(parseInterface(child, arNs, isService = false))
+                        members.add(parseInterface(el = child, arNs = arNs, isService = false))
 
                     ArxmlSchema.ELEM_CLIENT_SERVER_INTERFACE ->
-                        members.add(parseInterface(child, arNs, isService = true))
+                        members.add(parseInterface(el = child, arNs = arNs, isService = true))
 
                     ArxmlSchema.ELEM_SHORT_NAME -> { /* already handled above */ }
 
@@ -208,10 +208,10 @@ public class ArxmlReader(
             for (portEl in portsEl.children) {
                 when (portEl.name) {
                     ArxmlSchema.ELEM_P_PORT_PROTOTYPE ->
-                        ports.add(parsePort(portEl, arNs, direction = "provided"))
+                        ports.add(parsePort(el = portEl, arNs = arNs, direction = "provided"))
 
                     ArxmlSchema.ELEM_R_PORT_PROTOTYPE ->
-                        ports.add(parsePort(portEl, arNs, direction = "required"))
+                        ports.add(parsePort(el = portEl, arNs = arNs, direction = "required"))
                 }
             }
         }
@@ -233,7 +233,7 @@ public class ArxmlReader(
                     .getChildren(ArxmlSchema.ELEM_RUNNABLE_ENTITY, arNs)
                     .ifEmpty { runnableSource.getChildren(ArxmlSchema.ELEM_RUNNABLE_ENTITY, Namespace.NO_NAMESPACE) }
                 ) {
-                    operations.add(parseRunnable(runnableEl, arNs))
+                    operations.add(parseRunnable(el = runnableEl, arNs = arNs))
                 }
             }
         }

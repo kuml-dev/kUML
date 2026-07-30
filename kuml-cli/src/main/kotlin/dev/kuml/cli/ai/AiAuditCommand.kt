@@ -101,7 +101,7 @@ internal class AiAuditCommand : CliktCommand(name = "audit") {
 
         when (outputFormat) {
             "json" -> renderJson(filtered)
-            else -> renderText(filtered, effectiveDate, logFile.toString())
+            else -> renderText(events = filtered, date = effectiveDate, logPath = logFile.toString())
         }
     }
 

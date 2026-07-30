@@ -26,10 +26,11 @@ class MultiChainAdapterTest :
             runTest {
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to FakeChainAdapter(modelSource = MODEL_A),
-                            "sui" to FakeChainAdapter(modelSource = MODEL_A),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to FakeChainAdapter(modelSource = MODEL_A),
+                                "sui" to FakeChainAdapter(modelSource = MODEL_A),
+                            ),
                     )
                 val identity =
                     adapter.connectAll(
@@ -47,10 +48,11 @@ class MultiChainAdapterTest :
             runTest {
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to FakeChainAdapter(modelSource = MODEL_A),
-                            "sui" to FakeChainAdapter(modelSource = MODEL_A),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to FakeChainAdapter(modelSource = MODEL_A),
+                                "sui" to FakeChainAdapter(modelSource = MODEL_A),
+                            ),
                     )
                 val identity =
                     adapter.connectAll(
@@ -67,10 +69,11 @@ class MultiChainAdapterTest :
             runTest {
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to FakeChainAdapter(modelSource = MODEL_A),
-                            "sui" to FakeChainAdapter(modelSource = MODEL_B),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to FakeChainAdapter(modelSource = MODEL_A),
+                                "sui" to FakeChainAdapter(modelSource = MODEL_B),
+                            ),
                     )
                 val identity =
                     adapter.connectAll(
@@ -87,10 +90,11 @@ class MultiChainAdapterTest :
             runTest {
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to FakeChainAdapter(modelSource = MODEL_A),
-                            "sui" to FakeChainAdapter(modelSource = MODEL_A),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to FakeChainAdapter(modelSource = MODEL_A),
+                                "sui" to FakeChainAdapter(modelSource = MODEL_A),
+                            ),
                     )
                 io.kotest.assertions.throwables.shouldThrow<IllegalArgumentException> {
                     adapter.connectAll(
@@ -104,10 +108,11 @@ class MultiChainAdapterTest :
             runTest {
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to FakeChainAdapter(modelSource = MODEL_A),
-                            "sui" to FakeChainAdapter(modelSource = MODEL_A),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to FakeChainAdapter(modelSource = MODEL_A),
+                                "sui" to FakeChainAdapter(modelSource = MODEL_A),
+                            ),
                     )
                 io.kotest.assertions.throwables.shouldThrow<IllegalArgumentException> {
                     adapter.connectAll(
@@ -128,24 +133,45 @@ class MultiChainAdapterTest :
                 // Unterschiedliche eventTypes → kein Konflikt → alle Events emittiert
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to
-                                FakeChainAdapter(
-                                    events =
-                                        listOf(
-                                            ChainEvent("EvmEvt", byteArrayOf(0x01), 100L, "0xevm-tx1"),
-                                            ChainEvent("EvmEvt", byteArrayOf(0x02), 101L, "0xevm-tx2"),
-                                        ),
-                                ),
-                            "sui" to
-                                FakeChainAdapter(
-                                    events =
-                                        listOf(
-                                            ChainEvent("SuiEvt", byteArrayOf(0x03), 100L, "0xsui-tx1"),
-                                            ChainEvent("SuiEvt", byteArrayOf(0x04), 101L, "0xsui-tx2"),
-                                        ),
-                                ),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to
+                                    FakeChainAdapter(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "EvmEvt",
+                                                    payloadAbi = byteArrayOf(0x01),
+                                                    blockNumber = 100L,
+                                                    txHash = "0xevm-tx1",
+                                                ),
+                                                ChainEvent(
+                                                    eventType = "EvmEvt",
+                                                    payloadAbi = byteArrayOf(0x02),
+                                                    blockNumber = 101L,
+                                                    txHash = "0xevm-tx2",
+                                                ),
+                                            ),
+                                    ),
+                                "sui" to
+                                    FakeChainAdapter(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "SuiEvt",
+                                                    payloadAbi = byteArrayOf(0x03),
+                                                    blockNumber = 100L,
+                                                    txHash = "0xsui-tx1",
+                                                ),
+                                                ChainEvent(
+                                                    eventType = "SuiEvt",
+                                                    payloadAbi = byteArrayOf(0x04),
+                                                    blockNumber = 101L,
+                                                    txHash = "0xsui-tx2",
+                                                ),
+                                            ),
+                                    ),
+                            ),
                     )
                 val events = adapter.subscribeAll().take(4).toList()
                 events.size shouldBe 4
@@ -157,26 +183,57 @@ class MultiChainAdapterTest :
                 // Unterschiedliche eventTypes → kein Konflikt → alle Events emittiert
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to
-                                FakeChainAdapter(
-                                    events =
-                                        listOf(
-                                            ChainEvent("EvmEvt", byteArrayOf(0x01), 100L, "0xevm-tx1"),
-                                            ChainEvent("EvmEvt", byteArrayOf(0x02), 101L, "0xevm-tx2"),
-                                            ChainEvent("EvmEvt", byteArrayOf(0x03), 102L, "0xevm-tx3"),
-                                        ),
-                                ),
-                            "sui" to
-                                FakeChainAdapter(
-                                    events =
-                                        listOf(
-                                            ChainEvent("SuiEvt", byteArrayOf(0x04), 100L, "0xsui-tx1"),
-                                            ChainEvent("SuiEvt", byteArrayOf(0x05), 101L, "0xsui-tx2"),
-                                            ChainEvent("SuiEvt", byteArrayOf(0x06), 102L, "0xsui-tx3"),
-                                        ),
-                                ),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to
+                                    FakeChainAdapter(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "EvmEvt",
+                                                    payloadAbi = byteArrayOf(0x01),
+                                                    blockNumber = 100L,
+                                                    txHash = "0xevm-tx1",
+                                                ),
+                                                ChainEvent(
+                                                    eventType = "EvmEvt",
+                                                    payloadAbi = byteArrayOf(0x02),
+                                                    blockNumber = 101L,
+                                                    txHash = "0xevm-tx2",
+                                                ),
+                                                ChainEvent(
+                                                    eventType = "EvmEvt",
+                                                    payloadAbi = byteArrayOf(0x03),
+                                                    blockNumber = 102L,
+                                                    txHash = "0xevm-tx3",
+                                                ),
+                                            ),
+                                    ),
+                                "sui" to
+                                    FakeChainAdapter(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "SuiEvt",
+                                                    payloadAbi = byteArrayOf(0x04),
+                                                    blockNumber = 100L,
+                                                    txHash = "0xsui-tx1",
+                                                ),
+                                                ChainEvent(
+                                                    eventType = "SuiEvt",
+                                                    payloadAbi = byteArrayOf(0x05),
+                                                    blockNumber = 101L,
+                                                    txHash = "0xsui-tx2",
+                                                ),
+                                                ChainEvent(
+                                                    eventType = "SuiEvt",
+                                                    payloadAbi = byteArrayOf(0x06),
+                                                    blockNumber = 102L,
+                                                    txHash = "0xsui-tx3",
+                                                ),
+                                            ),
+                                    ),
+                            ),
                     )
                 val events = adapter.subscribeAll().take(6).toList()
                 val monoton =
@@ -192,16 +249,33 @@ class MultiChainAdapterTest :
                 // unabhängig vom Scheduling-Verhalten des TestDispatchers.
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to
-                                FakeChainAdapterFinite(
-                                    listOf(ChainEvent("EvmEvt", byteArrayOf(0x01), 100L, "0xevm-tx1")),
-                                ),
-                            "sui" to
-                                FakeChainAdapterFinite(
-                                    listOf(ChainEvent("SuiEvt", byteArrayOf(0x02), 101L, "0xsui-tx1")),
-                                ),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to
+                                    FakeChainAdapterFinite(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "EvmEvt",
+                                                    payloadAbi = byteArrayOf(0x01),
+                                                    blockNumber = 100L,
+                                                    txHash = "0xevm-tx1",
+                                                ),
+                                            ),
+                                    ),
+                                "sui" to
+                                    FakeChainAdapterFinite(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "SuiEvt",
+                                                    payloadAbi = byteArrayOf(0x02),
+                                                    blockNumber = 101L,
+                                                    txHash = "0xsui-tx1",
+                                                ),
+                                            ),
+                                    ),
+                            ),
                     )
                 val events = adapter.subscribeAll().toList()
                 val chainIds = events.map { it.chainId }.toSet()
@@ -229,16 +303,33 @@ class MultiChainAdapterTest :
                 // kommt (LinkedHashMap-Reihenfolge bestimmt Merge-Startreihenfolge).
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to
-                                FakeChainAdapterFinite(
-                                    listOf(ChainEvent("Transfer", byteArrayOf(0x01), 100L, "0xevm-tx")),
-                                ),
-                            "sui" to
-                                FakeChainAdapterFinite(
-                                    listOf(ChainEvent("Transfer", byteArrayOf(0x02), 99L, "0xsui-tx")),
-                                ),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to
+                                    FakeChainAdapterFinite(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "Transfer",
+                                                    payloadAbi = byteArrayOf(0x01),
+                                                    blockNumber = 100L,
+                                                    txHash = "0xevm-tx",
+                                                ),
+                                            ),
+                                    ),
+                                "sui" to
+                                    FakeChainAdapterFinite(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "Transfer",
+                                                    payloadAbi = byteArrayOf(0x02),
+                                                    blockNumber = 99L,
+                                                    txHash = "0xsui-tx",
+                                                ),
+                                            ),
+                                    ),
+                            ),
                         conflictResolver = ConflictResolver.EarliestBlock,
                     )
                 val events = adapter.subscribeAll().toList()
@@ -258,16 +349,33 @@ class MultiChainAdapterTest :
                 // |100 - 95| = 5 > CONFLICT_WINDOW_BLOCKS=2 → kein Konflikt
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to
-                                FakeChainAdapterFinite(
-                                    listOf(ChainEvent("Transfer", byteArrayOf(0x01), 100L, "0xevm-tx")),
-                                ),
-                            "sui" to
-                                FakeChainAdapterFinite(
-                                    listOf(ChainEvent("Transfer", byteArrayOf(0x02), 95L, "0xsui-tx")),
-                                ),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to
+                                    FakeChainAdapterFinite(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "Transfer",
+                                                    payloadAbi = byteArrayOf(0x01),
+                                                    blockNumber = 100L,
+                                                    txHash = "0xevm-tx",
+                                                ),
+                                            ),
+                                    ),
+                                "sui" to
+                                    FakeChainAdapterFinite(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "Transfer",
+                                                    payloadAbi = byteArrayOf(0x02),
+                                                    blockNumber = 95L,
+                                                    txHash = "0xsui-tx",
+                                                ),
+                                            ),
+                                    ),
+                            ),
                     )
                 val events = adapter.subscribeAll().toList()
                 events.size shouldBe 2
@@ -283,16 +391,33 @@ class MultiChainAdapterTest :
                 // mit je 1 Event und prüfen die Rollen unabhängig von der Reihenfolge.
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to
-                                FakeChainAdapterFinite(
-                                    listOf(ChainEvent("Transfer", byteArrayOf(0x01), 100L, "0xevm-tx")),
-                                ),
-                            "sui" to
-                                FakeChainAdapterFinite(
-                                    listOf(ChainEvent("Transfer", byteArrayOf(0x02), 100L, "0xsui-tx")),
-                                ),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to
+                                    FakeChainAdapterFinite(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "Transfer",
+                                                    payloadAbi = byteArrayOf(0x01),
+                                                    blockNumber = 100L,
+                                                    txHash = "0xevm-tx",
+                                                ),
+                                            ),
+                                    ),
+                                "sui" to
+                                    FakeChainAdapterFinite(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "Transfer",
+                                                    payloadAbi = byteArrayOf(0x02),
+                                                    blockNumber = 100L,
+                                                    txHash = "0xsui-tx",
+                                                ),
+                                            ),
+                                    ),
+                            ),
                         conflictResolver = ConflictResolver.PriorityChain(listOf("evm", "sui")),
                     )
                 val events = adapter.subscribeAll().toList()
@@ -318,16 +443,33 @@ class MultiChainAdapterTest :
                 // Ergebnis: genau 1 Event im Stream — NONE(evm@100). SUI erscheint gar nicht.
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to
-                                FakeChainAdapterFinite(
-                                    listOf(ChainEvent("Transfer", byteArrayOf(0x01), 100L, "0xevm-tx")),
-                                ),
-                            "sui" to
-                                FakeChainAdapterFinite(
-                                    listOf(ChainEvent("Transfer", byteArrayOf(0x02), 102L, "0xsui-tx")),
-                                ),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to
+                                    FakeChainAdapterFinite(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "Transfer",
+                                                    payloadAbi = byteArrayOf(0x01),
+                                                    blockNumber = 100L,
+                                                    txHash = "0xevm-tx",
+                                                ),
+                                            ),
+                                    ),
+                                "sui" to
+                                    FakeChainAdapterFinite(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "Transfer",
+                                                    payloadAbi = byteArrayOf(0x02),
+                                                    blockNumber = 102L,
+                                                    txHash = "0xsui-tx",
+                                                ),
+                                            ),
+                                    ),
+                            ),
                         conflictResolver = ConflictResolver.EarliestBlock,
                     )
                 val events = adapter.subscribeAll().toList()
@@ -344,24 +486,45 @@ class MultiChainAdapterTest :
             runTest {
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to
-                                FakeChainAdapter(
-                                    events =
-                                        listOf(
-                                            ChainEvent("Transfer", byteArrayOf(1), 100L, "0xtx-evm-100"),
-                                            ChainEvent("Transfer", byteArrayOf(2), 102L, "0xtx-evm-102"),
-                                        ),
-                                ),
-                            "sui" to
-                                FakeChainAdapter(
-                                    events =
-                                        listOf(
-                                            ChainEvent("Transfer", byteArrayOf(3), 101L, "0xtx-sui-101"),
-                                            ChainEvent("Transfer", byteArrayOf(4), 103L, "0xtx-sui-103"),
-                                        ),
-                                ),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to
+                                    FakeChainAdapter(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "Transfer",
+                                                    payloadAbi = byteArrayOf(1),
+                                                    blockNumber = 100L,
+                                                    txHash = "0xtx-evm-100",
+                                                ),
+                                                ChainEvent(
+                                                    eventType = "Transfer",
+                                                    payloadAbi = byteArrayOf(2),
+                                                    blockNumber = 102L,
+                                                    txHash = "0xtx-evm-102",
+                                                ),
+                                            ),
+                                    ),
+                                "sui" to
+                                    FakeChainAdapter(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "Transfer",
+                                                    payloadAbi = byteArrayOf(3),
+                                                    blockNumber = 101L,
+                                                    txHash = "0xtx-sui-101",
+                                                ),
+                                                ChainEvent(
+                                                    eventType = "Transfer",
+                                                    payloadAbi = byteArrayOf(4),
+                                                    blockNumber = 103L,
+                                                    txHash = "0xtx-sui-103",
+                                                ),
+                                            ),
+                                    ),
+                            ),
                     )
                 val events = adapter.replayAll(fromBlock = 0L).toList()
                 val sorted =
@@ -374,19 +537,20 @@ class MultiChainAdapterTest :
             runTest {
                 val eventsEvm =
                     listOf(
-                        ChainEvent("E1", byteArrayOf(1), 100L, "0xevm-tx1"),
-                        ChainEvent("E2", byteArrayOf(2), 101L, "0xevm-tx2"),
+                        ChainEvent(eventType = "E1", payloadAbi = byteArrayOf(1), blockNumber = 100L, txHash = "0xevm-tx1"),
+                        ChainEvent(eventType = "E2", payloadAbi = byteArrayOf(2), blockNumber = 101L, txHash = "0xevm-tx2"),
                     )
                 val eventsSui =
                     listOf(
-                        ChainEvent("S1", byteArrayOf(3), 100L, "0xsui-tx1"),
+                        ChainEvent(eventType = "S1", payloadAbi = byteArrayOf(3), blockNumber = 100L, txHash = "0xsui-tx1"),
                     )
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to FakeChainAdapter(events = eventsEvm),
-                            "sui" to FakeChainAdapter(events = eventsSui),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to FakeChainAdapter(events = eventsEvm),
+                                "sui" to FakeChainAdapter(events = eventsSui),
+                            ),
                     )
                 val result = adapter.replayAll(fromBlock = 0L).toList()
                 result.size shouldBe eventsEvm.size + eventsSui.size
@@ -398,22 +562,33 @@ class MultiChainAdapterTest :
                 val sharedBlock = 100L
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to
-                                FakeChainAdapter(
-                                    events =
-                                        listOf(
-                                            ChainEvent("Evt", byteArrayOf(1), sharedBlock, "0xtx-evm"),
-                                        ),
-                                ),
-                            "aptos" to
-                                FakeChainAdapter(
-                                    events =
-                                        listOf(
-                                            ChainEvent("Evt", byteArrayOf(2), sharedBlock, "0xtx-aptos"),
-                                        ),
-                                ),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to
+                                    FakeChainAdapter(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "Evt",
+                                                    payloadAbi = byteArrayOf(1),
+                                                    blockNumber = sharedBlock,
+                                                    txHash = "0xtx-evm",
+                                                ),
+                                            ),
+                                    ),
+                                "aptos" to
+                                    FakeChainAdapter(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "Evt",
+                                                    payloadAbi = byteArrayOf(2),
+                                                    blockNumber = sharedBlock,
+                                                    txHash = "0xtx-aptos",
+                                                ),
+                                            ),
+                                    ),
+                            ),
                     )
                 // "aptos" < "evm" lexikografisch → aptos-Event kommt zuerst
                 val result1 = adapter.replayAll(fromBlock = 0L).toList()
@@ -428,23 +603,39 @@ class MultiChainAdapterTest :
                 // 3 Events total (2 evm + 1 sui), Limit auf 2 → Exception beim 3. Event
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to
-                                FakeChainAdapter(
-                                    events =
-                                        listOf(
-                                            ChainEvent("E1", byteArrayOf(1), 100L, "0xevm-tx1"),
-                                            ChainEvent("E2", byteArrayOf(2), 101L, "0xevm-tx2"),
-                                        ),
-                                ),
-                            "sui" to
-                                FakeChainAdapter(
-                                    events =
-                                        listOf(
-                                            ChainEvent("S1", byteArrayOf(3), 102L, "0xsui-tx1"),
-                                        ),
-                                ),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to
+                                    FakeChainAdapter(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "E1",
+                                                    payloadAbi = byteArrayOf(1),
+                                                    blockNumber = 100L,
+                                                    txHash = "0xevm-tx1",
+                                                ),
+                                                ChainEvent(
+                                                    eventType = "E2",
+                                                    payloadAbi = byteArrayOf(2),
+                                                    blockNumber = 101L,
+                                                    txHash = "0xevm-tx2",
+                                                ),
+                                            ),
+                                    ),
+                                "sui" to
+                                    FakeChainAdapter(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "S1",
+                                                    payloadAbi = byteArrayOf(3),
+                                                    blockNumber = 102L,
+                                                    txHash = "0xsui-tx1",
+                                                ),
+                                            ),
+                                    ),
+                            ),
                     )
                 io.kotest.assertions.throwables.shouldThrow<IllegalStateException> {
                     adapter.replayAll(fromBlock = 0L, maxEvents = 2L).toList()
@@ -457,22 +648,33 @@ class MultiChainAdapterTest :
                 // Exakt 2 Events, Limit auf 2 → kein Fehler
                 val adapter =
                     MultiChainAdapter(
-                        linkedMapOf(
-                            "evm" to
-                                FakeChainAdapter(
-                                    events =
-                                        listOf(
-                                            ChainEvent("E1", byteArrayOf(1), 100L, "0xevm-tx1"),
-                                        ),
-                                ),
-                            "sui" to
-                                FakeChainAdapter(
-                                    events =
-                                        listOf(
-                                            ChainEvent("S1", byteArrayOf(2), 101L, "0xsui-tx1"),
-                                        ),
-                                ),
-                        ),
+                        adapters =
+                            linkedMapOf(
+                                "evm" to
+                                    FakeChainAdapter(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "E1",
+                                                    payloadAbi = byteArrayOf(1),
+                                                    blockNumber = 100L,
+                                                    txHash = "0xevm-tx1",
+                                                ),
+                                            ),
+                                    ),
+                                "sui" to
+                                    FakeChainAdapter(
+                                        events =
+                                            listOf(
+                                                ChainEvent(
+                                                    eventType = "S1",
+                                                    payloadAbi = byteArrayOf(2),
+                                                    blockNumber = 101L,
+                                                    txHash = "0xsui-tx1",
+                                                ),
+                                            ),
+                                    ),
+                            ),
                     )
                 val result = adapter.replayAll(fromBlock = 0L, maxEvents = 2L).toList()
                 result.size shouldBe 2
@@ -487,9 +689,9 @@ private const val MODEL_B = "model {\n    state(\"X\")\n    state(\"Y\")\n}\n"
 
 private val DEFAULT_EVENTS =
     listOf(
-        ChainEvent("OrderPlaced", byteArrayOf(0x01), blockNumber = 100L, txHash = "0xtx100"),
-        ChainEvent("OrderConfirmed", byteArrayOf(0x02), blockNumber = 101L, txHash = "0xtx101"),
-        ChainEvent("OrderShipped", byteArrayOf(0x03), blockNumber = 102L, txHash = "0xtx102"),
+        ChainEvent(eventType = "OrderPlaced", payloadAbi = byteArrayOf(0x01), blockNumber = 100L, txHash = "0xtx100"),
+        ChainEvent(eventType = "OrderConfirmed", payloadAbi = byteArrayOf(0x02), blockNumber = 101L, txHash = "0xtx101"),
+        ChainEvent(eventType = "OrderShipped", payloadAbi = byteArrayOf(0x03), blockNumber = 102L, txHash = "0xtx102"),
     )
 
 // ── FakeChainAdapter (test-lokal, parametrisierbar) ────────────────────────────

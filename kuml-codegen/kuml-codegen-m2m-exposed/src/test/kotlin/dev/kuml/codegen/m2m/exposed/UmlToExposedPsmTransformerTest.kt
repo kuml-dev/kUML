@@ -41,7 +41,7 @@ class UmlToExposedPsmTransformerTest :
         ) = UmlProperty(
             id = id,
             name = name,
-            type = UmlTypeRef(type),
+            type = UmlTypeRef(name = type),
             stereotypes = stereotypes,
         )
 
@@ -69,7 +69,7 @@ class UmlToExposedPsmTransformerTest :
                     "User",
                     listOf(prop("p-id", "id", "Long"), prop("p-name", "name", "String")),
                 )
-            val result = transformer.transform(diagram(userClass), ctx)
+            val result = transformer.transform(source = diagram(userClass), ctx = ctx)
             val output = result.shouldBeInstanceOf<TransformResult.Success<KumlDiagram>>().output
             val outCls = output.elements.filterIsInstance<UmlClass>().first()
 
@@ -91,7 +91,7 @@ class UmlToExposedPsmTransformerTest :
                     "User",
                     listOf(prop("p-id", "id", "Long"), prop("p-email", "emailAddress", "String")),
                 )
-            val result = transformer.transform(diagram(userClass), ctx)
+            val result = transformer.transform(source = diagram(userClass), ctx = ctx)
             val output = (result as TransformResult.Success).output
             val outCls = output.elements.filterIsInstance<UmlClass>().first()
             val emailAttr = outCls.attributes.first { it.name == "emailAddress" }
@@ -106,7 +106,7 @@ class UmlToExposedPsmTransformerTest :
         // (c)
         test("id attribute gets Id stereotype, not Column") {
             val userClass = cls("user", "User", listOf(prop("p-id", "id", "Long")))
-            val result = transformer.transform(diagram(userClass), ctx)
+            val result = transformer.transform(source = diagram(userClass), ctx = ctx)
             val output = (result as TransformResult.Success).output
             val outCls = output.elements.filterIsInstance<UmlClass>().first()
             val idAttr = outCls.attributes.first { it.name == "id" }
@@ -117,7 +117,7 @@ class UmlToExposedPsmTransformerTest :
 
         test("case-insensitive ID attribute also gets Id stereotype, not Column") {
             val userClass = cls("user2", "User2", listOf(prop("p-id", "ID", "Long")))
-            val result = transformer.transform(diagram(userClass), ctx)
+            val result = transformer.transform(source = diagram(userClass), ctx = ctx)
             val output = (result as TransformResult.Success).output
             val outCls = output.elements.filterIsInstance<UmlClass>().first()
             val idAttr = outCls.attributes.first { it.name == "ID" }
@@ -137,7 +137,7 @@ class UmlToExposedPsmTransformerTest :
                         prop("p-tmp", "tmpData", "String", stereotypes = listOf("transient")),
                     ),
                 )
-            val result = transformer.transform(diagram(cachedClass), ctx)
+            val result = transformer.transform(source = diagram(cachedClass), ctx = ctx)
             val output = (result as TransformResult.Success).output
             val outCls = output.elements.filterIsInstance<UmlClass>().first()
             val tmpAttr = outCls.attributes.first { it.name == "tmpData" }
@@ -154,11 +154,11 @@ class UmlToExposedPsmTransformerTest :
                     id = "assoc-1",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "address", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "address", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
-            val result = transformer.transform(diagram(userClass, addressClass, assoc), ctx)
+            val result = transformer.transform(source = diagram(userClass, addressClass, assoc), ctx = ctx)
             val output = (result as TransformResult.Success).output
             val outAssoc = output.elements.filterIsInstance<UmlAssociation>().first()
 
@@ -176,12 +176,12 @@ class UmlToExposedPsmTransformerTest :
                     "User",
                     listOf(prop("p-id", "id", "Long"), prop("p-name", "name", "String")),
                 )
-            val result = transformer.transform(diagram(userClass), ctx)
+            val result = transformer.transform(source = diagram(userClass), ctx = ctx)
             val psm = (result as TransformResult.Success).output
 
             val out = Files.createTempDirectory("kuml-psm-sql-test").toFile()
             try {
-                val files = SqlDdlGenerator().generate(psm, out, emptyMap())
+                val files = SqlDdlGenerator().generate(diagram = psm, outputDir = out, options = emptyMap())
                 val content = files.single().readText()
                 content shouldContain "CREATE TABLE users ("
                 content shouldContain "name VARCHAR(255)"
@@ -200,12 +200,12 @@ class UmlToExposedPsmTransformerTest :
                 )
             val chain =
                 TransformChain<KumlDiagram, KumlDiagram, List<GeneratedFile>>(
-                    UmlToExposedPsmTransformer(),
-                    UmlToExposedTransformer(),
+                    first = UmlToExposedPsmTransformer(),
+                    second = UmlToExposedTransformer(),
                 )
             chain.id shouldBe "uml-to-exposed-psm+uml-to-exposed"
 
-            val result = chain.transform(diagram(userClass), ctx)
+            val result = chain.transform(source = diagram(userClass), ctx = ctx)
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             val content = files.first { it.relativePath == "Users.kt" }.content
 
@@ -222,11 +222,11 @@ class UmlToExposedPsmTransformerTest :
                     id = "assoc-1",
                     ends =
                         listOf(
-                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(1, 1)),
-                            UmlAssociationEnd(typeId = "address", multiplicity = Multiplicity(1, 1)),
+                            UmlAssociationEnd(typeId = "user", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                            UmlAssociationEnd(typeId = "address", multiplicity = Multiplicity(lower = 1, upper = 1)),
                         ),
                 )
-            val result = transformer.transform(diagram(userClass, addressClass, assoc), ctx)
+            val result = transformer.transform(source = diagram(userClass, addressClass, assoc), ctx = ctx)
             val output = (result as TransformResult.Success).output
             val outClasses = output.elements.filterIsInstance<UmlClass>()
 
@@ -257,7 +257,7 @@ class UmlToExposedPsmTransformerTest :
                     listOf(prop("p-id", "id", "Long")),
                 )
             shouldThrow<UnsafeUmlNameException> {
-                transformer.transform(diagram(maliciousClass), ctx)
+                transformer.transform(source = diagram(maliciousClass), ctx = ctx)
             }
         }
 
@@ -272,7 +272,7 @@ class UmlToExposedPsmTransformerTest :
                     ),
                 )
             shouldThrow<UnsafeUmlNameException> {
-                transformer.transform(diagram(maliciousClass), ctx)
+                transformer.transform(source = diagram(maliciousClass), ctx = ctx)
             }
         }
 
@@ -288,7 +288,7 @@ class UmlToExposedPsmTransformerTest :
             // handed to SqlDdlGenerator. (kuml-gen-sql's own independent guard — SqlNamesTest —
             // covers layer 2, in case a malicious tag reaches it via some other producer.)
             shouldThrow<UnsafeUmlNameException> {
-                transformer.transform(diagram(maliciousClass), ctx)
+                transformer.transform(source = diagram(maliciousClass), ctx = ctx)
             }
         }
 

@@ -24,10 +24,10 @@ data class Cardinality(
     val many: Boolean get() = max == -1 || max > 1
 
     companion object {
-        val ZERO_ONE = Cardinality(0, 1)
-        val ONE = Cardinality(1, 1)
-        val ZERO_MANY = Cardinality(0, -1)
-        val ONE_MANY = Cardinality(1, -1)
+        val ZERO_ONE = Cardinality(min = 0, max = 1)
+        val ONE = Cardinality(min = 1, max = 1)
+        val ZERO_MANY = Cardinality(min = 0, max = -1)
+        val ONE_MANY = Cardinality(min = 1, max = -1)
     }
 }
 

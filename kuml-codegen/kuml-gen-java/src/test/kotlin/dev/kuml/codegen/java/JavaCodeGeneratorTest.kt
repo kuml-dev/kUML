@@ -36,21 +36,21 @@ class JavaCodeGeneratorTest :
                             UmlProperty(
                                 id = "id",
                                 name = "id",
-                                type = UmlTypeRef("UUID"),
-                                multiplicity = Multiplicity(1, 1),
+                                type = UmlTypeRef(name = "UUID"),
+                                multiplicity = Multiplicity(lower = 1, upper = 1),
                             ),
                             UmlProperty(
                                 id = "email",
                                 name = "email",
-                                type = UmlTypeRef("String"),
-                                multiplicity = Multiplicity(1, 1),
+                                type = UmlTypeRef(name = "String"),
+                                multiplicity = Multiplicity(lower = 1, upper = 1),
                             ),
                         ),
                 )
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val out = Files.createTempDirectory("kuml-gen-java-test").toFile()
             try {
-                val files = JavaCodeGenerator().generate(diagram, out, emptyMap())
+                val files = JavaCodeGenerator().generate(diagram = diagram, outputDir = out, options = emptyMap())
                 files.size shouldBe 1
                 val content = files.single().readText()
                 content shouldContain "public class User"
@@ -72,9 +72,9 @@ class JavaCodeGeneratorTest :
             try {
                 val files =
                     JavaCodeGenerator().generate(
-                        diagram,
-                        out,
-                        mapOf("package" to "com.example.domain"),
+                        diagram = diagram,
+                        outputDir = out,
+                        options = mapOf("package" to "com.example.domain"),
                     )
                 files.size shouldBe 1
                 val file = files.single()
@@ -102,7 +102,7 @@ class JavaCodeGeneratorTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val out = Files.createTempDirectory("kuml-gen-java-test").toFile()
             try {
-                val content = JavaCodeGenerator().generate(diagram, out, emptyMap()).single().readText()
+                val content = JavaCodeGenerator().generate(diagram = diagram, outputDir = out, options = emptyMap()).single().readText()
                 content shouldContain "@jakarta.persistence.Entity(name = \"users\")"
                 content shouldContain "public class User"
             } finally {
@@ -120,14 +120,14 @@ class JavaCodeGeneratorTest :
                             UmlProperty(
                                 id = "id",
                                 name = "id",
-                                type = UmlTypeRef("Long"),
-                                multiplicity = Multiplicity(1, 1),
+                                type = UmlTypeRef(name = "Long"),
+                                multiplicity = Multiplicity(lower = 1, upper = 1),
                             ),
                             UmlProperty(
                                 id = "tmp",
                                 name = "temporary",
-                                type = UmlTypeRef("String"),
-                                multiplicity = Multiplicity(0, 1),
+                                type = UmlTypeRef(name = "String"),
+                                multiplicity = Multiplicity(lower = 0, upper = 1),
                                 appliedStereotypes = listOf(TestStereo(stereotypeName = "Transient")),
                             ),
                         ),
@@ -135,7 +135,7 @@ class JavaCodeGeneratorTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val out = Files.createTempDirectory("kuml-gen-java-test").toFile()
             try {
-                val content = JavaCodeGenerator().generate(diagram, out, emptyMap()).single().readText()
+                val content = JavaCodeGenerator().generate(diagram = diagram, outputDir = out, options = emptyMap()).single().readText()
                 content shouldContain "private long id;"
                 content shouldNotContain "temporary"
             } finally {
@@ -150,13 +150,13 @@ class JavaCodeGeneratorTest :
                     name = "Repository",
                     operations =
                         listOf(
-                            UmlOperation(id = "op", name = "findAll", returnType = UmlTypeRef("List")),
+                            UmlOperation(id = "op", name = "findAll", returnType = UmlTypeRef(name = "List")),
                         ),
                 )
             val diagram = KumlDiagram(name = "D", elements = listOf(iface))
             val out = Files.createTempDirectory("kuml-gen-java-test").toFile()
             try {
-                val content = JavaCodeGenerator().generate(diagram, out, emptyMap()).single().readText()
+                val content = JavaCodeGenerator().generate(diagram = diagram, outputDir = out, options = emptyMap()).single().readText()
                 content shouldContain "public interface Repository"
                 content shouldContain "findAll();"
                 content shouldNotContain "private "
@@ -175,14 +175,14 @@ class JavaCodeGeneratorTest :
                             UmlProperty(
                                 id = "x",
                                 name = "x",
-                                type = UmlTypeRef("Double"),
-                                multiplicity = Multiplicity(1, 1),
+                                type = UmlTypeRef(name = "Double"),
+                                multiplicity = Multiplicity(lower = 1, upper = 1),
                             ),
                             UmlProperty(
                                 id = "y",
                                 name = "y",
-                                type = UmlTypeRef("Double"),
-                                multiplicity = Multiplicity(1, 1),
+                                type = UmlTypeRef(name = "Double"),
+                                multiplicity = Multiplicity(lower = 1, upper = 1),
                             ),
                         ),
                 )
@@ -190,7 +190,13 @@ class JavaCodeGeneratorTest :
             val out = Files.createTempDirectory("kuml-gen-java-test").toFile()
             try {
                 val content =
-                    JavaCodeGenerator().generate(diagram, out, mapOf("java-style" to "records")).single().readText()
+                    JavaCodeGenerator()
+                        .generate(
+                            diagram = diagram,
+                            outputDir = out,
+                            options = mapOf("java-style" to "records"),
+                        ).single()
+                        .readText()
                 content shouldContain "public record Point(double x, double y) {}"
             } finally {
                 out.deleteRecursively()
@@ -207,8 +213,8 @@ class JavaCodeGeneratorTest :
                             UmlProperty(
                                 id = "n",
                                 name = "name",
-                                type = UmlTypeRef("String"),
-                                multiplicity = Multiplicity(1, 1),
+                                type = UmlTypeRef(name = "String"),
+                                multiplicity = Multiplicity(lower = 1, upper = 1),
                             ),
                         ),
                 )
@@ -216,7 +222,13 @@ class JavaCodeGeneratorTest :
             val out = Files.createTempDirectory("kuml-gen-java-test").toFile()
             try {
                 val content =
-                    JavaCodeGenerator().generate(diagram, out, mapOf("java-style" to "lombok")).single().readText()
+                    JavaCodeGenerator()
+                        .generate(
+                            diagram = diagram,
+                            outputDir = out,
+                            options = mapOf("java-style" to "lombok"),
+                        ).single()
+                        .readText()
                 content shouldContain "@lombok.Data"
                 content shouldContain "@lombok.NoArgsConstructor"
                 content shouldContain "@lombok.AllArgsConstructor"
@@ -241,7 +253,7 @@ class JavaCodeGeneratorTest :
             val diagram = KumlDiagram(name = "D", elements = listOf(en))
             val out = Files.createTempDirectory("kuml-gen-java-test").toFile()
             try {
-                val content = JavaCodeGenerator().generate(diagram, out, emptyMap()).single().readText()
+                val content = JavaCodeGenerator().generate(diagram = diagram, outputDir = out, options = emptyMap()).single().readText()
                 content shouldContain "public enum Status"
                 content shouldContain "Active"
                 content shouldContain "Inactive"
@@ -260,15 +272,15 @@ class JavaCodeGeneratorTest :
                             UmlProperty(
                                 id = "r",
                                 name = "roles",
-                                type = UmlTypeRef("String"),
-                                multiplicity = Multiplicity(0, null),
+                                type = UmlTypeRef(name = "String"),
+                                multiplicity = Multiplicity(lower = 0, upper = null),
                             ),
                         ),
                 )
             val diagram = KumlDiagram(name = "D", elements = listOf(cls))
             val out = Files.createTempDirectory("kuml-gen-java-test").toFile()
             try {
-                val content = JavaCodeGenerator().generate(diagram, out, emptyMap()).single().readText()
+                val content = JavaCodeGenerator().generate(diagram = diagram, outputDir = out, options = emptyMap()).single().readText()
                 content shouldContain "private java.util.List<String> roles;"
             } finally {
                 out.deleteRecursively()

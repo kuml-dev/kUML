@@ -44,7 +44,7 @@ public class UmlActivityToBpmnTransformer : KumlTransformer<KumlDiagram, List<Ge
         val process =
             UmlActivityToBpmnMapper.map(source)
                 ?: return TransformResult.Failure(
-                    listOf(TransformError("Failed to map UML Activity diagram '${source.name}' to BpmnProcess")),
+                    listOf(TransformError(message = "Failed to map UML Activity diagram '${source.name}' to BpmnProcess")),
                 )
 
         val content = BpmnProcessScriptRenderer.render(process)
@@ -59,14 +59,14 @@ public class UmlActivityToBpmnTransformer : KumlTransformer<KumlDiagram, List<Ge
 
         var trace = TransformTrace()
         for (node in process.flowNodes) {
-            trace = trace.plus(TraceabilityLink(node.id, outputPath, RULE_NODE))
+            trace = trace.plus(TraceabilityLink(sourceElementId = node.id, targetArtifactId = outputPath, ruleId = RULE_NODE))
         }
         for (flow in process.sequenceFlows) {
-            trace = trace.plus(TraceabilityLink(flow.id, outputPath, RULE_FLOW))
+            trace = trace.plus(TraceabilityLink(sourceElementId = flow.id, targetArtifactId = outputPath, ruleId = RULE_FLOW))
         }
 
-        val file = GeneratedFile(outputPath, content)
-        return TransformResult.Success(listOf(file), trace)
+        val file = GeneratedFile(relativePath = outputPath, content = content)
+        return TransformResult.Success(output = listOf(file), trace = trace)
     }
 
     private companion object {

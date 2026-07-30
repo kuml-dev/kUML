@@ -52,7 +52,7 @@ class PluginCommandTest :
             name = name,
             version = version,
             kumlVersionRange = ">=0.1.0",
-            extensions = listOf(ExtensionEntry(category, "test.Impl", id)),
+            extensions = listOf(ExtensionEntry(category = category, implementation = "test.Impl", id = id)),
             permissions = permissions,
         )
 
@@ -63,7 +63,7 @@ class PluginCommandTest :
             permissions: List<String> = emptyList(),
             category: String = "theme",
         ) = PluginRegistry.register(
-            LoadedPlugin(fakeManifest(id, name, version, permissions, category), emptyList(), null),
+            LoadedPlugin(manifest = fakeManifest(id, name, version, permissions, category), plugins = emptyList(), classLoader = null),
         )
 
         // ── kuml plugin list ──────────────────────────────────────────────────────
@@ -127,17 +127,18 @@ class PluginCommandTest :
         "info: shows maintainer when set" {
             PluginRegistry.register(
                 LoadedPlugin(
-                    PluginManifest(
-                        schemaVersion = 1,
-                        id = "maintainer-test",
-                        name = "Maintainer Test",
-                        version = "1.0.0",
-                        kumlVersionRange = ">=0.1.0",
-                        extensions = listOf(ExtensionEntry("theme", "test.Impl", "maintainer-test")),
-                        maintainer = "Test Author <test@example.com>",
-                    ),
-                    emptyList(),
-                    null,
+                    manifest =
+                        PluginManifest(
+                            schemaVersion = 1,
+                            id = "maintainer-test",
+                            name = "Maintainer Test",
+                            version = "1.0.0",
+                            kumlVersionRange = ">=0.1.0",
+                            extensions = listOf(ExtensionEntry(category = "theme", implementation = "test.Impl", id = "maintainer-test")),
+                            maintainer = "Test Author <test@example.com>",
+                        ),
+                    plugins = emptyList(),
+                    classLoader = null,
                 ),
             )
             val result = PluginInfoCommand().test("maintainer-test")
@@ -231,7 +232,7 @@ class PluginCommandTest :
         "search: lists all plugins when no query given" {
             val (server, port) = startMockRegistry(MOCK_INDEX_JSON)
             try {
-                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val cmd = PluginSearchCommand(PluginRegistryClient(baseUrl = "http://localhost:$port"))
                 val result = cmd.test("")
                 result.statusCode shouldBe 0
                 result.output shouldContain "Available plugins (2)"
@@ -245,7 +246,7 @@ class PluginCommandTest :
         "search: filters by query substring (case-insensitive)" {
             val (server, port) = startMockRegistry(MOCK_INDEX_JSON)
             try {
-                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val cmd = PluginSearchCommand(PluginRegistryClient(baseUrl = "http://localhost:$port"))
                 val result = cmd.test("elk")
                 result.statusCode shouldBe 0
                 result.output shouldContain "Matching plugins (1)"
@@ -259,7 +260,7 @@ class PluginCommandTest :
         "search: --category filter shows only matching category" {
             val (server, port) = startMockRegistry(MOCK_INDEX_JSON)
             try {
-                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val cmd = PluginSearchCommand(PluginRegistryClient(baseUrl = "http://localhost:$port"))
                 val result = cmd.test("--category theme")
                 result.statusCode shouldBe 0
                 result.output shouldContain "Matching plugins (1)"
@@ -273,7 +274,7 @@ class PluginCommandTest :
         "search: no results prints hint to broaden query" {
             val (server, port) = startMockRegistry(MOCK_INDEX_JSON)
             try {
-                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val cmd = PluginSearchCommand(PluginRegistryClient(baseUrl = "http://localhost:$port"))
                 val result = cmd.test("zzz-no-match")
                 result.statusCode shouldBe 0
                 result.output shouldContain "No plugins found"
@@ -286,7 +287,7 @@ class PluginCommandTest :
         "search: shows kumlVersionRange when present" {
             val (server, port) = startMockRegistry(MOCK_INDEX_JSON)
             try {
-                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val cmd = PluginSearchCommand(PluginRegistryClient(baseUrl = "http://localhost:$port"))
                 val result = cmd.test("pdv")
                 result.statusCode shouldBe 0
                 result.output shouldContain ">=0.13.0"
@@ -297,7 +298,7 @@ class PluginCommandTest :
 
         "search: registry unreachable exits with ONLINE_ERROR (1)" {
             // Port 1 is privileged and never open → connection refused immediately
-            val cmd = PluginSearchCommand(PluginRegistryClient("http://127.0.0.1:1", timeoutSeconds = 2))
+            val cmd = PluginSearchCommand(PluginRegistryClient(baseUrl = "http://127.0.0.1:1", timeoutSeconds = 2))
             val result = cmd.test("")
             result.statusCode shouldBe 1
         }
@@ -333,7 +334,7 @@ class PluginCommandTest :
             val (server, port) = startMockRegistry(indexWithStats)
             try {
                 registerFake(id = "dev.kuml.plugin.info-stats", name = "Info Stats Plugin", version = "1.0.0")
-                val cmd = PluginInfoCommand(PluginRegistryClient("http://localhost:$port"))
+                val cmd = PluginInfoCommand(PluginRegistryClient(baseUrl = "http://localhost:$port"))
                 val result = cmd.test("dev.kuml.plugin.info-stats")
                 result.statusCode shouldBe 0
                 result.output shouldContain "4.3/5.0"
@@ -348,7 +349,7 @@ class PluginCommandTest :
         "info: registry unreachable still prints local info (graceful degradation)" {
             // No mock server — client will fail immediately
             registerFake(id = "dev.kuml.plugin.offline-test", name = "Offline Test", version = "2.0.0")
-            val cmd = PluginInfoCommand(PluginRegistryClient("http://127.0.0.1:1", timeoutSeconds = 2))
+            val cmd = PluginInfoCommand(PluginRegistryClient(baseUrl = "http://127.0.0.1:1", timeoutSeconds = 2))
             val result = cmd.test("dev.kuml.plugin.offline-test")
             result.statusCode shouldBe 0
             result.output shouldContain "Offline Test"
@@ -363,7 +364,7 @@ class PluginCommandTest :
             val (server, port) = startMockRegistry(emptyIndex)
             try {
                 registerFake(id = "dev.kuml.plugin.not-listed", name = "Not Listed", version = "1.0.0")
-                val cmd = PluginInfoCommand(PluginRegistryClient("http://localhost:$port"))
+                val cmd = PluginInfoCommand(PluginRegistryClient(baseUrl = "http://localhost:$port"))
                 val result = cmd.test("dev.kuml.plugin.not-listed")
                 result.statusCode shouldBe 0
                 result.output shouldContain "Not Listed"
@@ -379,7 +380,7 @@ class PluginCommandTest :
         "search --sort=downloads orders by download count descending" {
             val (server, port) = startMockRegistry(MOCK_INDEX_WITH_STATS_JSON)
             try {
-                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val cmd = PluginSearchCommand(PluginRegistryClient(baseUrl = "http://localhost:$port"))
                 val result = cmd.test("--sort downloads")
                 result.statusCode shouldBe 0
                 // elk-layout has 5000 downloads vs pdv-theme 1847 → elk appears first
@@ -394,7 +395,7 @@ class PluginCommandTest :
         "search --sort=rating orders highest rating first" {
             val (server, port) = startMockRegistry(MOCK_INDEX_WITH_STATS_JSON)
             try {
-                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val cmd = PluginSearchCommand(PluginRegistryClient(baseUrl = "http://localhost:$port"))
                 val result = cmd.test("--sort rating")
                 result.statusCode shouldBe 0
                 // pdv-theme rating=4.8 > elk-layout rating=4.2 → pdv appears first
@@ -409,7 +410,7 @@ class PluginCommandTest :
         "search --sort=name (default) orders alphabetically by name" {
             val (server, port) = startMockRegistry(MOCK_INDEX_WITH_STATS_JSON)
             try {
-                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val cmd = PluginSearchCommand(PluginRegistryClient(baseUrl = "http://localhost:$port"))
                 val result = cmd.test("--sort name")
                 result.statusCode shouldBe 0
                 // "ELK Layout Engine" < "PdV Branding Theme" alphabetically → elk first
@@ -424,7 +425,7 @@ class PluginCommandTest :
         "search shows stars and download count in output" {
             val (server, port) = startMockRegistry(MOCK_INDEX_WITH_STATS_JSON)
             try {
-                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val cmd = PluginSearchCommand(PluginRegistryClient(baseUrl = "http://localhost:$port"))
                 val result = cmd.test("")
                 result.statusCode shouldBe 0
                 // Should show star glyphs and the download arrow

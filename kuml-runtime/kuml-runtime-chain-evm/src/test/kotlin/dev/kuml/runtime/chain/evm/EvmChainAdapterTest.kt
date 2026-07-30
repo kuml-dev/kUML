@@ -37,17 +37,17 @@ class EvmChainAdapterTest :
             runTest {
                 val adapter = EvmChainAdapter(urlValidator = RpcUrlValidator.NoOp)
                 shouldThrow<IllegalArgumentException> {
-                    adapter.connect("", "0xabc")
+                    adapter.connect(rpcUrl = "", contractAddress = "0xabc")
                 }
                 shouldThrow<IllegalArgumentException> {
-                    adapter.connect("http://localhost:8545", "")
+                    adapter.connect(rpcUrl = "http://localhost:8545", contractAddress = "")
                 }
                 // Ungültige Adressformate (kein 0x+40-Hex) müssen abgelehnt werden
                 shouldThrow<IllegalArgumentException> {
-                    adapter.connect("http://localhost:8545", "0xabc")
+                    adapter.connect(rpcUrl = "http://localhost:8545", contractAddress = "0xabc")
                 }
                 shouldThrow<IllegalArgumentException> {
-                    adapter.connect("http://localhost:8545", "not-an-address")
+                    adapter.connect(rpcUrl = "http://localhost:8545", contractAddress = "not-an-address")
                 }
             }
         }
@@ -60,7 +60,7 @@ class EvmChainAdapterTest :
                 val modelUriHex = abiString("ipfs://QmTest")
                 val schemaVersionHex = abiUint(3)
 
-                server.onMethod("eth_call") { body ->
+                server.onMethod(method = "eth_call") { body ->
                     when {
                         body.contains(EvmChainAdapter.SELECTOR_MODEL_HASH.removePrefix("0x")) ->
                             abiCallResult(modelHashHex)
@@ -75,10 +75,10 @@ class EvmChainAdapterTest :
                 try {
                     val adapter =
                         EvmChainAdapter(
-                            clientFactory = { url -> EvmJsonRpcClient(url) },
+                            clientFactory = { url -> EvmJsonRpcClient(rpcUrl = url) },
                             urlValidator = RpcUrlValidator.NoOp,
                         )
-                    val identity = adapter.connect(server.baseUrl(), TEST_CONTRACT)
+                    val identity = adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_CONTRACT)
                     identity.address shouldBe TEST_CONTRACT
                     identity.modelHash[31] shouldBe 0x42.toByte()
                     identity.modelUri shouldBe "ipfs://QmTest"
@@ -93,7 +93,7 @@ class EvmChainAdapterTest :
             runTest {
                 val server = MockRpcServer()
 
-                server.onMethod("eth_call") { body ->
+                server.onMethod(method = "eth_call") { body ->
                     when {
                         body.contains(EvmChainAdapter.SELECTOR_MODEL_URI.removePrefix("0x")) ->
                             abiCallResult(abiString("ipfs://stub"))
@@ -103,9 +103,9 @@ class EvmChainAdapterTest :
                     }
                 }
 
-                server.onMethod("eth_blockNumber") { rpcSuccess(result = "\"0x5\"") }
+                server.onMethod(method = "eth_blockNumber") { rpcSuccess(result = "\"0x5\"") }
 
-                server.onMethod("eth_getLogs") {
+                server.onMethod(method = "eth_getLogs") {
                     rpcSuccess(
                         result =
                             """[
@@ -120,10 +120,10 @@ class EvmChainAdapterTest :
                     val adapter =
                         EvmChainAdapter(
                             logPageSize = 10L,
-                            clientFactory = { url -> EvmJsonRpcClient(url) },
+                            clientFactory = { url -> EvmJsonRpcClient(rpcUrl = url) },
                             urlValidator = RpcUrlValidator.NoOp,
                         )
-                    adapter.connect(server.baseUrl(), TEST_CONTRACT)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_CONTRACT)
 
                     val events = adapter.replay(fromBlock = 0L).toList()
                     events.size shouldBe 2
@@ -141,7 +141,7 @@ class EvmChainAdapterTest :
                 var blockNumberCallCount = 0
                 var getBlockByNumberCallCount = 0
 
-                server.onMethod("eth_call") { body ->
+                server.onMethod(method = "eth_call") { body ->
                     when {
                         body.contains(EvmChainAdapter.SELECTOR_MODEL_URI.removePrefix("0x")) ->
                             abiCallResult(abiString("ipfs://stub"))
@@ -151,7 +151,7 @@ class EvmChainAdapterTest :
                     }
                 }
 
-                server.onMethod("eth_blockNumber") {
+                server.onMethod(method = "eth_blockNumber") {
                     blockNumberCallCount++
                     when (blockNumberCallCount) {
                         1 -> rpcSuccess(result = "\"0x2\"")
@@ -159,7 +159,7 @@ class EvmChainAdapterTest :
                     }
                 }
 
-                server.onMethod("eth_getBlockByNumber") {
+                server.onMethod(method = "eth_getBlockByNumber") {
                     getBlockByNumberCallCount++
                     when (getBlockByNumberCallCount) {
                         1 ->
@@ -173,17 +173,17 @@ class EvmChainAdapterTest :
                     }
                 }
 
-                server.onMethod("eth_getLogs") { rpcSuccess(result = "[]") }
+                server.onMethod(method = "eth_getLogs") { rpcSuccess(result = "[]") }
 
                 server.start()
                 try {
                     val adapter =
                         EvmChainAdapter(
                             pollIntervalMillis = 1L,
-                            clientFactory = { url -> EvmJsonRpcClient(url) },
+                            clientFactory = { url -> EvmJsonRpcClient(rpcUrl = url) },
                             urlValidator = RpcUrlValidator.NoOp,
                         )
-                    adapter.connect(server.baseUrl(), TEST_CONTRACT)
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = TEST_CONTRACT)
 
                     val ex =
                         shouldThrow<EvmChainAdapterException.ReorgDetected> {

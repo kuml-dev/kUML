@@ -13,7 +13,7 @@ class JavaInterfaceMapperTest :
         test("interface becomes UmlInterface with public visibility") {
             val cu = StaticJavaParser.parse("package svc; public interface Runnable {}")
             val decl = cu.findAll(ClassOrInterfaceDeclaration::class.java).first()
-            val result = JavaClassMapper.map(decl, "svc")
+            val result = JavaClassMapper.map(decl = decl, packageName = "svc")
             val umlInterface = result.umlInterface.shouldNotBeNull()
             umlInterface.visibility shouldBe Visibility.PUBLIC
             umlInterface.name shouldBe "Runnable"
@@ -22,7 +22,7 @@ class JavaInterfaceMapperTest :
         test("interface extends another interface emits UmlGeneralization") {
             val cu = StaticJavaParser.parse("interface Child extends Parent {}")
             val decl = cu.findAll(ClassOrInterfaceDeclaration::class.java).first { it.nameAsString == "Child" }
-            val genResult = JavaGeneralizationMapper.map(decl, "Child", "Child.rel")
+            val genResult = JavaGeneralizationMapper.map(decl = decl, ownId = "Child", relIdPrefix = "Child.rel")
             genResult.generalizations.size shouldBe 1
             genResult.generalizations.first().specificId shouldBe "Child"
             genResult.generalizations.first().generalId shouldBe "Parent"

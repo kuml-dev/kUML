@@ -134,10 +134,10 @@ class KumlAgentOrchestrator(
 
                 // ── Step 1: Routing ────────────────────────────────────────────────
                 val routingPrompt = buildRoutingPrompt(history)
-                val routingResponse = executeStep(routingPrompt, model)
+                val routingResponse = executeStep(koogPrompt = routingPrompt, model = model)
 
                 val (domain, routingReason) = extractDomain(routingResponse)
-                emit(AgentEvent.OrchestratorRouted(domain.id, routingReason))
+                emit(AgentEvent.OrchestratorRouted(domain = domain.id, reason = routingReason))
 
                 // ── Step 2: Specialist ─────────────────────────────────────────────
                 emit(AgentEvent.SpecialistStarted(domain.id))
@@ -154,7 +154,7 @@ class KumlAgentOrchestrator(
                         decoder = decoder,
                         executorFn = executorFn,
                     )
-                val specialistResult = specialist.run(history) { emit(it) }
+                val specialistResult = specialist.run(history = history) { emit(it) }
 
                 // ── Step 3: Synthesis ──────────────────────────────────────────────
                 val synthesisPrompt =
@@ -164,12 +164,12 @@ class KumlAgentOrchestrator(
                         specialistText = specialistResult.assistantText,
                         patchKinds = specialistResult.bufferedPatchKinds,
                     )
-                val synthesisResponse = executeStep(synthesisPrompt, model)
+                val synthesisResponse = executeStep(koogPrompt = synthesisPrompt, model = model)
 
                 // Koog 1.0.0: textContent() aggregates all text parts.
                 val synthText = synthesisResponse.textContent()
                 if (synthText.isNotBlank()) {
-                    emit(AgentEvent.AssistantDelta(synthText, providerId, modelId))
+                    emit(AgentEvent.AssistantDelta(delta = synthText, providerId = providerId, modelId = modelId))
                 }
 
                 emit(AgentEvent.Done)
@@ -189,10 +189,10 @@ class KumlAgentOrchestrator(
         if (executorFn != null) {
             executorFn.invoke(koogPrompt, model)
         } else {
-            executor.execute(koogPrompt, model)
+            executor.execute(prompt = koogPrompt, model = model)
         }
 
-    private fun resolveModel(): LLModel? = registry.resolveModel(providerId, modelId)
+    private fun resolveModel(): LLModel? = registry.resolveModel(providerId = providerId, modelId = modelId)
 
     /**
      * Builds the routing prompt.

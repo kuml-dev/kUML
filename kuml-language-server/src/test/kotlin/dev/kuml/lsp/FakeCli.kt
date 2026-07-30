@@ -21,7 +21,15 @@ internal object FakeCli {
         sleepMs: Long = 0,
     ): File? {
         val dir = Files.createTempDirectory("kuml-lsp-fakecli").toFile()
-        return if (isWindows()) writeBat(dir, tsvLines, sleepMs) else writeSh(dir, tsvLines, sleepMs)
+        return if (isWindows()) {
+            writeBat(
+                dir = dir,
+                tsvLines = tsvLines,
+                sleepMs = sleepMs,
+            )
+        } else {
+            writeSh(dir = dir, tsvLines = tsvLines, sleepMs = sleepMs)
+        }
     }
 
     private fun writeSh(

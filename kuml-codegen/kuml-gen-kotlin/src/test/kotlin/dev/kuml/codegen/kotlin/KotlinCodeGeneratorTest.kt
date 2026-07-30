@@ -30,14 +30,14 @@ class KotlinCodeGeneratorTest :
                                         UmlProperty(
                                             id = "prop-id",
                                             name = "id",
-                                            type = UmlTypeRef("UUID"),
-                                            multiplicity = Multiplicity(1, 1),
+                                            type = UmlTypeRef(name = "UUID"),
+                                            multiplicity = Multiplicity(lower = 1, upper = 1),
                                         ),
                                         UmlProperty(
                                             id = "prop-amount",
                                             name = "amount",
-                                            type = UmlTypeRef("Double"),
-                                            multiplicity = Multiplicity(1, 1),
+                                            type = UmlTypeRef(name = "Double"),
+                                            multiplicity = Multiplicity(lower = 1, upper = 1),
                                         ),
                                     ),
                             ),
@@ -46,7 +46,7 @@ class KotlinCodeGeneratorTest :
 
             val tmpDir = Files.createTempDirectory("kuml-gen-test").toFile()
             try {
-                val files = KotlinCodeGenerator().generate(diagram, tmpDir, emptyMap())
+                val files = KotlinCodeGenerator().generate(diagram = diagram, outputDir = tmpDir, options = emptyMap())
                 val content = files.single().readText()
                 content shouldContain "data class Order"
                 content shouldContain "val id: java.util.UUID"
@@ -70,7 +70,7 @@ class KotlinCodeGeneratorTest :
                                         UmlOperation(
                                             id = "op-id",
                                             name = "findById",
-                                            returnType = UmlTypeRef("Order"),
+                                            returnType = UmlTypeRef(name = "Order"),
                                         ),
                                     ),
                             ),
@@ -79,7 +79,7 @@ class KotlinCodeGeneratorTest :
 
             val tmpDir = Files.createTempDirectory("kuml-gen-test").toFile()
             try {
-                val files = KotlinCodeGenerator().generate(diagram, tmpDir, emptyMap())
+                val files = KotlinCodeGenerator().generate(diagram = diagram, outputDir = tmpDir, options = emptyMap())
                 val content = files.single().readText()
                 content shouldContain "interface OrderRepository"
                 content shouldContain "fun findById"
@@ -108,7 +108,7 @@ class KotlinCodeGeneratorTest :
 
             val tmpDir = Files.createTempDirectory("kuml-gen-test").toFile()
             try {
-                val files = KotlinCodeGenerator().generate(diagram, tmpDir, emptyMap())
+                val files = KotlinCodeGenerator().generate(diagram = diagram, outputDir = tmpDir, options = emptyMap())
                 val content = files.single().readText()
                 content shouldContain "enum class OrderStatus"
                 content shouldContain "DRAFT"
@@ -132,8 +132,8 @@ class KotlinCodeGeneratorTest :
                                         UmlProperty(
                                             id = "prop-name",
                                             name = "name",
-                                            type = UmlTypeRef("String"),
-                                            multiplicity = Multiplicity(1, 1),
+                                            type = UmlTypeRef(name = "String"),
+                                            multiplicity = Multiplicity(lower = 1, upper = 1),
                                         ),
                                     ),
                             ),
@@ -142,7 +142,12 @@ class KotlinCodeGeneratorTest :
 
             val tmpDir = Files.createTempDirectory("kuml-gen-test").toFile()
             try {
-                val files = KotlinCodeGenerator().generate(diagram, tmpDir, mapOf("package" to "com.example"))
+                val files =
+                    KotlinCodeGenerator().generate(
+                        diagram = diagram,
+                        outputDir = tmpDir,
+                        options = mapOf("package" to "com.example"),
+                    )
                 val content = files.single().readText()
                 content shouldContain "package com.example"
             } finally {

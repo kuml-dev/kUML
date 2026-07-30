@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.toList
 private fun stubExecutor(): KumlAiExecutor {
     System.setProperty("kuml.ai.vault.backend", "plain")
     val vault = ApiKeyVault.detect()
-    return KumlAiExecutor.fromSettings(KumlAiSettings(privacyMode = false), vault)
+    return KumlAiExecutor.fromSettings(settings = KumlAiSettings(privacyMode = false), vault = vault)
 }
 
 // Koog 1.0.0: AssistantMessageBuilder uses addText() (not .content())
@@ -65,14 +65,14 @@ class KumlAgentOrchestratorTest :
     FunSpec({
 
         test("routing emits OrchestratorRouted then SpecialistStarted") {
-            val history = listOf(ConversationMessage.User("u1", 1L, "Add a container to my C4 diagram"))
+            val history = listOf(ConversationMessage.User(id = "u1", timestamp = 1L, text = "Add a container to my C4 diagram"))
 
             val executorFn =
                 threeStepExecutor(
                     routingResponse =
                         assistantWithToolCall(
-                            "route_to_specialist",
-                            """{"domain":"c4","reason":"C4 container request"}""",
+                            tool = "route_to_specialist",
+                            argsJson = """{"domain":"c4","reason":"C4 container request"}""",
                         ),
                     specialistResponse = assistantMsg("Added container."),
                     synthesisResponse = assistantMsg("Done! A container was added to your C4 diagram."),
@@ -102,16 +102,16 @@ class KumlAgentOrchestratorTest :
         }
 
         test("specialist buffers a UML patch — add_class emits PatchBuffered") {
-            val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
+            val ctx = AgentEditingContext(initialModel = AnyKumlModel.emptyUml())
             val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
-            val history = listOf(ConversationMessage.User("u1", 1L, "Add class Order to the UML diagram"))
+            val history = listOf(ConversationMessage.User(id = "u1", timestamp = 1L, text = "Add class Order to the UML diagram"))
 
             val executorFn =
                 threeStepExecutor(
                     routingResponse =
                         assistantWithToolCall(
-                            "route_to_specialist",
-                            """{"domain":"uml","reason":"UML class request"}""",
+                            tool = "route_to_specialist",
+                            argsJson = """{"domain":"uml","reason":"UML class request"}""",
                         ),
                     specialistResponse =
                         AssistantMessageBuilder()
@@ -140,19 +140,19 @@ class KumlAgentOrchestratorTest :
         }
 
         test("domain allow-list filters foreign tools — add_class ignored when routed to c4") {
-            val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
+            val ctx = AgentEditingContext(initialModel = AnyKumlModel.emptyUml())
             val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
-            val history = listOf(ConversationMessage.User("u1", 1L, "Add something"))
+            val history = listOf(ConversationMessage.User(id = "u1", timestamp = 1L, text = "Add something"))
 
             val executorFn =
                 threeStepExecutor(
                     routingResponse =
                         assistantWithToolCall(
-                            "route_to_specialist",
-                            """{"domain":"c4","reason":"architecture"}""",
+                            tool = "route_to_specialist",
+                            argsJson = """{"domain":"c4","reason":"architecture"}""",
                         ),
                     // specialist returns a UML tool call — should be filtered out
-                    specialistResponse = assistantWithToolCall("add_class", """{"name":"ShouldBeFiltered"}"""),
+                    specialistResponse = assistantWithToolCall(tool = "add_class", argsJson = """{"name":"ShouldBeFiltered"}"""),
                     synthesisResponse = assistantMsg("Done."),
                 )
 
@@ -175,14 +175,14 @@ class KumlAgentOrchestratorTest :
         }
 
         test("synthesis text appears as AssistantDelta and sequence ends with Done") {
-            val history = listOf(ConversationMessage.User("u1", 1L, "Summarise my diagram"))
+            val history = listOf(ConversationMessage.User(id = "u1", timestamp = 1L, text = "Summarise my diagram"))
 
             val executorFn =
                 threeStepExecutor(
                     routingResponse =
                         assistantWithToolCall(
-                            "route_to_specialist",
-                            """{"domain":"uml","reason":"uml question"}""",
+                            tool = "route_to_specialist",
+                            argsJson = """{"domain":"uml","reason":"uml question"}""",
                         ),
                     specialistResponse = assistantMsg("The diagram has 3 classes."),
                     synthesisResponse = assistantMsg("Your UML diagram contains 3 classes."),
@@ -204,7 +204,7 @@ class KumlAgentOrchestratorTest :
         }
 
         test("routing fallback — no tool call, no parseable domain, routes to MIXED") {
-            val history = listOf(ConversationMessage.User("u1", 1L, "Help me with my diagram"))
+            val history = listOf(ConversationMessage.User(id = "u1", timestamp = 1L, text = "Help me with my diagram"))
 
             val executorFn =
                 threeStepExecutor(
@@ -230,7 +230,7 @@ class KumlAgentOrchestratorTest :
         }
 
         test("error in routing step emits single AgentEvent.Error with message preserved") {
-            val history = listOf(ConversationMessage.User("u1", 1L, "Add something"))
+            val history = listOf(ConversationMessage.User(id = "u1", timestamp = 1L, text = "Add something"))
 
             var step = 0
             val executorFn: suspend (Prompt, LLModel) -> Message.Assistant = { _, _ ->
@@ -252,7 +252,7 @@ class KumlAgentOrchestratorTest :
         }
 
         test("cancellation rethrows CancellationException cleanly") {
-            val history = listOf(ConversationMessage.User("u1", 1L, "Add something"))
+            val history = listOf(ConversationMessage.User(id = "u1", timestamp = 1L, text = "Add something"))
 
             val executorFn: suspend (Prompt, LLModel) -> Message.Assistant = { _, _ ->
                 throw kotlinx.coroutines.CancellationException("test cancel")

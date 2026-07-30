@@ -44,7 +44,7 @@ public fun KumlSvgRenderer.toSvgFile(
     theme: KumlTheme = PlainTheme(),
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
 ): File {
-    val svg = toSvg(diagram, layoutResult, theme, options)
+    val svg = toSvg(diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)
@@ -59,7 +59,7 @@ public fun KumlSvgRenderer.toSvgFile(
     theme: KumlTheme = PlainTheme(),
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
 ): File {
-    val svg = toSvg(model, diagram, layoutResult, theme, options)
+    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)
@@ -74,7 +74,7 @@ public fun KumlSvgRenderer.toSvgFile(
     theme: KumlTheme = PlainTheme(),
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
 ): File {
-    val svg = toSvg(model, diagram, layoutResult, theme, options)
+    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)
@@ -89,7 +89,7 @@ public fun KumlSvgRenderer.toSvgFile(
     theme: KumlTheme = PlainTheme(),
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
 ): File {
-    val svg = toSvg(model, diagram, layoutResult, theme, options)
+    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)
@@ -104,7 +104,7 @@ public fun KumlSvgRenderer.toSvgFile(
     theme: KumlTheme = PlainTheme(),
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
 ): File {
-    val svg = toSvg(model, diagram, layoutResult, theme, options)
+    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)
@@ -119,7 +119,7 @@ public fun KumlSvgRenderer.toSvgFile(
     theme: KumlTheme = PlainTheme(),
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
 ): File {
-    val svg = toSvg(model, diagram, layoutResult, theme, options)
+    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)
@@ -134,7 +134,7 @@ public fun KumlSvgRenderer.toSvgFile(
     theme: KumlTheme = PlainTheme(),
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
 ): File {
-    val svg = toSvg(model, diagram, layoutResult, theme, options)
+    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)
@@ -149,7 +149,7 @@ public fun KumlSvgRenderer.toSvgFile(
     theme: KumlTheme = PlainTheme(),
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
 ): File {
-    val svg = toSvg(model, diagram, layoutResult, theme, options)
+    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)
@@ -164,7 +164,7 @@ public fun KumlSvgRenderer.toSvgFile(
     theme: KumlTheme = PlainTheme(),
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
 ): File {
-    val svg = toSvg(model, diagram, layoutResult, theme, options)
+    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)
@@ -177,7 +177,7 @@ public fun KumlSvgRenderer.toSvgFile(
     out: Path,
     theme: KumlTheme = PlainTheme(),
 ): File {
-    val svg = toSvg(model, diagram, theme)
+    val svg = toSvg(model = model, diagram = diagram, theme = theme)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)
@@ -194,7 +194,7 @@ public fun KumlSvgRenderer.toSvgFile(
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     notation: ErmNotation = diagram.notation,
 ): File {
-    val svg = toSvg(model, diagram, layoutResult, theme, options, notation)
+    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options, notation = notation)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)
@@ -209,7 +209,7 @@ public fun KumlSvgRenderer.toSvgFile(
     theme: KumlTheme = PlainTheme(),
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
 ): File {
-    val svg = toSvg(model, diagram, layoutResult, theme, options)
+    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)
@@ -224,7 +224,7 @@ public fun KumlSvgRenderer.toSvgFile(
     theme: KumlTheme = PlainTheme(),
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
 ): File {
-    val svg = toSvg(model, diagram, layoutResult, theme, options)
+    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)
@@ -239,7 +239,7 @@ public fun KumlSvgRenderer.toSvgFile(
     theme: KumlTheme = PlainTheme(),
     options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
 ): File {
-    val svg = toSvg(model, diagram, layoutResult, theme, options)
+    val svg = toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)

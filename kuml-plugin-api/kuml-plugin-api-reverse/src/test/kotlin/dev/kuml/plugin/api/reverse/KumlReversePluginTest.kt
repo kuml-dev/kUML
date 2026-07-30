@@ -28,7 +28,7 @@ class KumlReversePluginTest :
             PluginDescriptor(
                 id = "test-reverse-plugin",
                 name = "Test Reverse Plugin",
-                version = PluginVersion(1, 0, 0),
+                version = PluginVersion(major = 1, minor = 0, patch = 0),
                 kumlVersionRange = KumlVersionRange(">=3.0.27"),
                 capabilities = setOf(PluginCapability.REVERSE),
                 requiredPermissions = setOf(PluginPermission.FS_READ),

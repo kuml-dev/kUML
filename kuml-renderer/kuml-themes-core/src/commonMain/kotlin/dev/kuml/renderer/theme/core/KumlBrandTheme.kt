@@ -52,11 +52,11 @@ public fun KumlBrandTheme(): KumlTheme {
         )
     val typography =
         KumlTypography(
-            title = KumlFont(BRAND_FONT_STACK, sizePt = 14f, weight = 700),
-            subtitle = KumlFont(BRAND_FONT_STACK, sizePt = 12f, weight = 600),
-            body = KumlFont(BRAND_FONT_STACK, sizePt = 11f),
-            small = KumlFont(BRAND_FONT_STACK, sizePt = 9f),
-            stereotype = KumlFont(BRAND_FONT_STACK, sizePt = 10f, italic = true),
+            title = KumlFont(family = BRAND_FONT_STACK, sizePt = 14f, weight = 700),
+            subtitle = KumlFont(family = BRAND_FONT_STACK, sizePt = 12f, weight = 600),
+            body = KumlFont(family = BRAND_FONT_STACK, sizePt = 11f),
+            small = KumlFont(family = BRAND_FONT_STACK, sizePt = 9f),
+            stereotype = KumlFont(family = BRAND_FONT_STACK, sizePt = 10f, italic = true),
         )
     val borders =
         KumlBorders(

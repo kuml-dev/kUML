@@ -78,7 +78,7 @@ internal class McpHttpAdapter(
 
     private fun handleEvent(exchange: HttpExchange) {
         if (exchange.requestMethod != "POST") {
-            sendJson(exchange, 405, """{"error":"method not allowed"}""")
+            sendJson(exchange = exchange, statusCode = 405, body = """{"error":"method not allowed"}""")
             return
         }
         val body = exchange.requestBody.bufferedReader().readText()
@@ -90,16 +90,16 @@ internal class McpHttpAdapter(
                 val payloadMap = jsonObjectToMap(payloadObj)
                 name to payloadMap
             } catch (e: Exception) {
-                sendJson(exchange, 400, """{"error":"invalid JSON: ${e.message?.replace("\"", "\\\"")}"}""")
+                sendJson(exchange = exchange, statusCode = 400, body = """{"error":"invalid JSON: ${e.message?.replace("\"", "\\\"")}"}""")
                 return
             }
 
         if (eventName.isEmpty()) {
-            sendJson(exchange, 400, """{"error":"'name' field is required"}""")
+            sendJson(exchange = exchange, statusCode = 400, body = """{"error":"'name' field is required"}""")
             return
         }
 
-        val result = manager.event(eventName, payload)
+        val result = manager.event(eventName = eventName, payload = payload)
         val responseBody =
             when (result) {
                 is SessionResult.Ok ->
@@ -114,12 +114,12 @@ internal class McpHttpAdapter(
                     """{"error":${jsonString(result.message)}}"""
             }
         val code = if (result is SessionResult.Error) 422 else 200
-        sendJson(exchange, code, responseBody)
+        sendJson(exchange = exchange, statusCode = code, body = responseBody)
     }
 
     private fun handleSnapshot(exchange: HttpExchange) {
         if (exchange.requestMethod != "GET") {
-            sendJson(exchange, 405, """{"error":"method not allowed"}""")
+            sendJson(exchange = exchange, statusCode = 405, body = """{"error":"method not allowed"}""")
             return
         }
         val result = manager.snapshot()
@@ -134,12 +134,12 @@ internal class McpHttpAdapter(
                 is SessionResult.Error ->
                     """{"error":${jsonString(result.message)}}"""
             }
-        sendJson(exchange, 200, responseBody)
+        sendJson(exchange = exchange, statusCode = 200, body = responseBody)
     }
 
     private fun handlePatch(exchange: HttpExchange) {
         if (exchange.requestMethod != "POST") {
-            sendJson(exchange, 405, """{"error":"method not allowed"}""")
+            sendJson(exchange = exchange, statusCode = 405, body = """{"error":"method not allowed"}""")
             return
         }
         val body = exchange.requestBody.bufferedReader().readText()
@@ -150,11 +150,11 @@ internal class McpHttpAdapter(
                 val fs = obj["forceState"]?.jsonPrimitive?.content
                 vars to fs
             } catch (e: Exception) {
-                sendJson(exchange, 400, """{"error":"invalid JSON: ${e.message?.replace("\"", "\\\"")}"}""")
+                sendJson(exchange = exchange, statusCode = 400, body = """{"error":"invalid JSON: ${e.message?.replace("\"", "\\\"")}"}""")
                 return
             }
 
-        val result = manager.patch(variables, forceState)
+        val result = manager.patch(variables = variables, forceState = forceState)
         val responseBody =
             when (result) {
                 is SessionResult.Ok ->
@@ -167,12 +167,12 @@ internal class McpHttpAdapter(
                     """{"ok":false,"error":${jsonString(result.message)}}"""
             }
         val code = if (result is SessionResult.Error) 422 else 200
-        sendJson(exchange, code, responseBody)
+        sendJson(exchange = exchange, statusCode = code, body = responseBody)
     }
 
     private fun handleStop(exchange: HttpExchange) {
         if (exchange.requestMethod != "POST") {
-            sendJson(exchange, 405, """{"error":"method not allowed"}""")
+            sendJson(exchange = exchange, statusCode = 405, body = """{"error":"method not allowed"}""")
             return
         }
         val result = manager.stop()
@@ -181,7 +181,7 @@ internal class McpHttpAdapter(
                 is SessionResult.Terminated -> result.totalSteps
                 else -> 0L
             }
-        sendJson(exchange, 200, """{"totalSteps":$totalSteps}""")
+        sendJson(exchange = exchange, statusCode = 200, body = """{"totalSteps":$totalSteps}""")
         // Shutdown server on a separate thread to allow the response to be flushed
         Thread {
             Thread.sleep(100)
@@ -191,7 +191,7 @@ internal class McpHttpAdapter(
 
     private fun handleHealth(exchange: HttpExchange) {
         if (exchange.requestMethod != "GET") {
-            sendJson(exchange, 405, """{"error":"method not allowed"}""")
+            sendJson(exchange = exchange, statusCode = 405, body = """{"error":"method not allowed"}""")
             return
         }
         val kind =
@@ -201,9 +201,9 @@ internal class McpHttpAdapter(
                 null -> "none"
             }
         sendJson(
-            exchange,
-            200,
-            """{"status":"ok","kind":"$kind","version":${jsonString(KumlVersion.version)}}""",
+            exchange = exchange,
+            statusCode = 200,
+            body = """{"status":"ok","kind":"$kind","version":${jsonString(KumlVersion.version)}}""",
         )
     }
 

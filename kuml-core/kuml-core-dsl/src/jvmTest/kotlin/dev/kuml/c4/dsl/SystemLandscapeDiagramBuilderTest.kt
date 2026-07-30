@@ -14,13 +14,13 @@ class SystemLandscapeDiagramBuilderTest :
     FunSpec(body = {
         test(name = "includes all systems and persons by default") {
             val model =
-                c4Model("Test") {
-                    person("P1")
-                    person("P2")
-                    softwareSystem("S1")
-                    softwareSystem("S2")
+                c4Model(name = "Test") {
+                    person(name = "P1")
+                    person(name = "P2")
+                    softwareSystem(name = "S1")
+                    softwareSystem(name = "S2")
 
-                    systemLandscapeDiagram("Landscape")
+                    systemLandscapeDiagram(name = "Landscape")
                 }
             model.diagrams shouldHaveSize 1
             val diag = model.diagrams[0].shouldBeInstanceOf<SystemLandscapeDiagram>()
@@ -30,12 +30,12 @@ class SystemLandscapeDiagramBuilderTest :
 
         test(name = "can exclude systems") {
             val model =
-                c4Model("Test") {
-                    val p = person("Person")
-                    val s1 = softwareSystem("System 1")
-                    val s2 = softwareSystem("System 2")
+                c4Model(name = "Test") {
+                    val p = person(name = "Person")
+                    val s1 = softwareSystem(name = "System 1")
+                    val s2 = softwareSystem(name = "System 2")
 
-                    systemLandscapeDiagram("Landscape") {
+                    systemLandscapeDiagram(name = "Landscape") {
                         exclude(s2)
                     }
                 }
@@ -47,12 +47,12 @@ class SystemLandscapeDiagramBuilderTest :
 
         test(name = "can exclude persons") {
             val model =
-                c4Model("Test") {
-                    val p1 = person("Person1")
-                    val p2 = person("Person2")
-                    val s = softwareSystem("System")
+                c4Model(name = "Test") {
+                    val p1 = person(name = "Person1")
+                    val p2 = person(name = "Person2")
+                    val s = softwareSystem(name = "System")
 
-                    systemLandscapeDiagram("Landscape") {
+                    systemLandscapeDiagram(name = "Landscape") {
                         exclude(p2)
                     }
                 }
@@ -64,12 +64,12 @@ class SystemLandscapeDiagramBuilderTest :
 
         test(name = "relationships between systems are included") {
             val model =
-                c4Model("Test") {
-                    val s1 = softwareSystem("S1")
-                    val s2 = softwareSystem("S2")
-                    relationship(s1, s2)
+                c4Model(name = "Test") {
+                    val s1 = softwareSystem(name = "S1")
+                    val s2 = softwareSystem(name = "S2")
+                    relationship(source = s1, target = s2)
 
-                    systemLandscapeDiagram("Landscape")
+                    systemLandscapeDiagram(name = "Landscape")
                 }
             model.diagrams shouldHaveSize 1
             val diag = model.diagrams[0].shouldBeInstanceOf<SystemLandscapeDiagram>()
@@ -78,12 +78,12 @@ class SystemLandscapeDiagramBuilderTest :
 
         test(name = "relationships between persons and systems are included") {
             val model =
-                c4Model("Test") {
-                    val p = person("Person")
-                    val s = softwareSystem("System")
-                    relationship(p, s)
+                c4Model(name = "Test") {
+                    val p = person(name = "Person")
+                    val s = softwareSystem(name = "System")
+                    relationship(source = p, target = s)
 
-                    systemLandscapeDiagram("Landscape")
+                    systemLandscapeDiagram(name = "Landscape")
                 }
             model.diagrams shouldHaveSize 1
             val diag = model.diagrams[0].shouldBeInstanceOf<SystemLandscapeDiagram>()
@@ -92,14 +92,14 @@ class SystemLandscapeDiagramBuilderTest :
 
         test(name = "containers and components are not included") {
             val model =
-                c4Model("Test") {
-                    val p = person("Person")
+                c4Model(name = "Test") {
+                    val p = person(name = "Person")
                     val s =
-                        softwareSystem("System") {
-                            container("Container")
+                        softwareSystem(name = "System") {
+                            container(name = "Container")
                         }
 
-                    systemLandscapeDiagram("Landscape")
+                    systemLandscapeDiagram(name = "Landscape")
                 }
             model.diagrams shouldHaveSize 1
             val diag = model.diagrams[0].shouldBeInstanceOf<SystemLandscapeDiagram>()
@@ -109,13 +109,13 @@ class SystemLandscapeDiagramBuilderTest :
 
         test(name = "can include specific elements") {
             val model =
-                c4Model("Test") {
-                    val p1 = person("Person1")
-                    val p2 = person("Person2")
-                    val s1 = softwareSystem("System 1")
-                    val s2 = softwareSystem("System 2")
+                c4Model(name = "Test") {
+                    val p1 = person(name = "Person1")
+                    val p2 = person(name = "Person2")
+                    val s1 = softwareSystem(name = "System 1")
+                    val s2 = softwareSystem(name = "System 2")
 
-                    systemLandscapeDiagram("Landscape") {
+                    systemLandscapeDiagram(name = "Landscape") {
                         includeAllSystems = false
                         includeAllPersons = false
                         include(p1, s1)
@@ -128,14 +128,14 @@ class SystemLandscapeDiagramBuilderTest :
 
         test(name = "excludes elements from relationships when not included") {
             val model =
-                c4Model("Test") {
-                    val s1 = softwareSystem("S1")
-                    val s2 = softwareSystem("S2")
-                    val s3 = softwareSystem("S3")
-                    relationship(s1, s2)
-                    relationship(s2, s3)
+                c4Model(name = "Test") {
+                    val s1 = softwareSystem(name = "S1")
+                    val s2 = softwareSystem(name = "S2")
+                    val s3 = softwareSystem(name = "S3")
+                    relationship(source = s1, target = s2)
+                    relationship(source = s2, target = s3)
 
-                    systemLandscapeDiagram("Landscape") {
+                    systemLandscapeDiagram(name = "Landscape") {
                         exclude(s3)
                     }
                 }
@@ -147,12 +147,12 @@ class SystemLandscapeDiagramBuilderTest :
 
         test(name = "can disable auto-include of systems") {
             val model =
-                c4Model("Test") {
-                    val p = person("Person")
-                    val s1 = softwareSystem("System 1")
-                    val s2 = softwareSystem("System 2")
+                c4Model(name = "Test") {
+                    val p = person(name = "Person")
+                    val s1 = softwareSystem(name = "System 1")
+                    val s2 = softwareSystem(name = "System 2")
 
-                    systemLandscapeDiagram("Landscape") {
+                    systemLandscapeDiagram(name = "Landscape") {
                         includeAllSystems = false
                         include(s1)
                     }
@@ -165,12 +165,12 @@ class SystemLandscapeDiagramBuilderTest :
 
         test(name = "can disable auto-include of persons") {
             val model =
-                c4Model("Test") {
-                    val p1 = person("Person1")
-                    val p2 = person("Person2")
-                    val s = softwareSystem("System")
+                c4Model(name = "Test") {
+                    val p1 = person(name = "Person1")
+                    val p2 = person(name = "Person2")
+                    val s = softwareSystem(name = "System")
 
-                    systemLandscapeDiagram("Landscape") {
+                    systemLandscapeDiagram(name = "Landscape") {
                         includeAllPersons = false
                         include(p1)
                     }
@@ -183,11 +183,11 @@ class SystemLandscapeDiagramBuilderTest :
 
         test(name = "serialization round-trip works") {
             val model =
-                c4Model("Test") {
-                    person("P")
-                    softwareSystem("S")
+                c4Model(name = "Test") {
+                    person(name = "P")
+                    softwareSystem(name = "S")
 
-                    systemLandscapeDiagram("Landscape")
+                    systemLandscapeDiagram(name = "Landscape")
                 }
 
             val json = Json.encodeToString(model)
@@ -199,11 +199,11 @@ class SystemLandscapeDiagramBuilderTest :
 
         test(name = "diagram name and description are set correctly") {
             val model =
-                c4Model("Test") {
-                    person("P")
-                    softwareSystem("S")
+                c4Model(name = "Test") {
+                    person(name = "P")
+                    softwareSystem(name = "S")
 
-                    systemLandscapeDiagram("My Landscape", "Enterprise overview") {
+                    systemLandscapeDiagram(name = "My Landscape", description = "Enterprise overview") {
                         // No custom configuration
                     }
                 }
@@ -215,8 +215,8 @@ class SystemLandscapeDiagramBuilderTest :
 
         test(name = "empty model produces empty diagram") {
             val model =
-                c4Model("Test") {
-                    systemLandscapeDiagram("Empty Landscape")
+                c4Model(name = "Test") {
+                    systemLandscapeDiagram(name = "Empty Landscape")
                 }
             model.diagrams shouldHaveSize 1
             val diag = model.diagrams[0].shouldBeInstanceOf<SystemLandscapeDiagram>()

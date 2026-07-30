@@ -122,7 +122,7 @@ public object KumlLatexRenderer {
 
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
                 val element = nodesById[nodeId.value] ?: continue
-                renderNode(element, nodeId, nodeLayout, options)
+                renderNode(element = element, nodeId = nodeId, nodeLayout = nodeLayout, options = options)
             }
 
             // Edges
@@ -131,7 +131,7 @@ public object KumlLatexRenderer {
 
             for ((edgeId, route) in layoutResult.edges) {
                 val rel = relationshipsById[edgeId.value]
-                renderEdge(rel, route, options)
+                renderEdge(relationship = rel, route = route, options = options)
             }
 
             appendPictureClose()
@@ -174,7 +174,7 @@ public object KumlLatexRenderer {
             val nodesById: Map<String, KumlElement> = synthetic.elements.associateBy { it.id }
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
                 val element = nodesById[nodeId.value] ?: continue
-                renderNode(element, nodeId, nodeLayout, options)
+                renderNode(element = element, nodeId = nodeId, nodeLayout = nodeLayout, options = options)
             }
 
             val relationshipsById: Map<String, UmlRelationship> =
@@ -183,16 +183,16 @@ public object KumlLatexRenderer {
             for ((edgeId, route) in layoutResult.edges) {
                 val rel = relationshipsById[edgeId.value]
                 if (rel != null) {
-                    renderEdge(rel, route, options)
+                    renderEdge(relationship = rel, route = route, options = options)
                     continue
                 }
                 val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
                 if (meta != null) {
-                    Sysml2EdgeLatexRenderer.render(route, meta, options, this)
+                    Sysml2EdgeLatexRenderer.render(route = route, metadata = meta, options = options, out = this)
                 } else {
                     // V2.0.7–12 fallback: plain solid line. Reached only if
                     // the adapter doesn't claim the edge.
-                    renderEdge(null, route, options)
+                    renderEdge(relationship = null, route = route, options = options)
                 }
             }
 
@@ -212,7 +212,14 @@ public object KumlLatexRenderer {
         options: LatexRenderOptions,
     ) {
         when (element) {
-            is Sysml2Definition -> Sysml2DefLatexRenderer.render(element, nodeId, nodeLayout, options, this)
+            is Sysml2Definition ->
+                Sysml2DefLatexRenderer.render(
+                    definition = element,
+                    nodeId = nodeId,
+                    layout = nodeLayout,
+                    options = options,
+                    out = this,
+                )
             // V2.x: full IBD-styled TikZ for usages (stereotype band + content
             // line, matching the SVG renderer's two-line layout). V2.0.6
             // shipped with the rectangle-with-label fallback for usages —
@@ -221,17 +228,45 @@ public object KumlLatexRenderer {
             // IBD pipeline to round-trip end-to-end through CLI / docs.
             is PartUsage ->
                 UmlClassLatexRenderer.renderFallback(
-                    nodeId,
-                    nodeLayout,
-                    options,
-                    this,
+                    nodeId = nodeId,
+                    layout = nodeLayout,
+                    options = options,
+                    out = this,
                     label = "${element.name} : ${element.definitionId}",
                 )
-            is UmlClassifier -> UmlClassLatexRenderer.render(element, nodeId, nodeLayout, options, this)
-            is UmlNamedElement -> UmlClassLatexRenderer.renderFallback(nodeId, nodeLayout, options, this, label = element.name)
+            is UmlClassifier ->
+                UmlClassLatexRenderer.render(
+                    classifier = element,
+                    nodeId = nodeId,
+                    layout = nodeLayout,
+                    options = options,
+                    out = this,
+                )
+            is UmlNamedElement ->
+                UmlClassLatexRenderer.renderFallback(
+                    nodeId = nodeId,
+                    layout = nodeLayout,
+                    options = options,
+                    out = this,
+                    label = element.name,
+                )
             // C4 elements dispatched via the dedicated C4 LaTeX renderer.
-            is C4Element -> C4LatexRenderer.renderNode(element, nodeId, nodeLayout, options, this)
-            else -> UmlClassLatexRenderer.renderFallback(nodeId, nodeLayout, options, this, label = element.id)
+            is C4Element ->
+                C4LatexRenderer.renderNode(
+                    element = element,
+                    nodeId = nodeId,
+                    nodeLayout = nodeLayout,
+                    options = options,
+                    out = this,
+                )
+            else ->
+                UmlClassLatexRenderer.renderFallback(
+                    nodeId = nodeId,
+                    layout = nodeLayout,
+                    options = options,
+                    out = this,
+                    label = element.id,
+                )
         }
     }
 
@@ -256,7 +291,12 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, options, BddEdgeAdapter(model, diagram))
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            layoutResult = layoutResult,
+            options = options,
+            sysml2EdgeAdapter = BddEdgeAdapter(model = model, diagram = diagram),
+        )
     }
 
     /**
@@ -293,7 +333,12 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = visible,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, options, IbdEdgeAdapter(model, diagram))
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            layoutResult = layoutResult,
+            options = options,
+            sysml2EdgeAdapter = IbdEdgeAdapter(model = model, diagram = diagram),
+        )
     }
 
     /**
@@ -326,7 +371,12 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, options, UcEdgeAdapter(diagram))
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            layoutResult = layoutResult,
+            options = options,
+            sysml2EdgeAdapter = UcEdgeAdapter(diagram),
+        )
     }
 
     /**
@@ -366,7 +416,12 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, options, ReqEdgeAdapter(diagram))
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            layoutResult = layoutResult,
+            options = options,
+            sysml2EdgeAdapter = ReqEdgeAdapter(diagram),
+        )
     }
 
     /**
@@ -401,7 +456,12 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, options, StmEdgeAdapter(model, diagram))
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            layoutResult = layoutResult,
+            options = options,
+            sysml2EdgeAdapter = StmEdgeAdapter(model = model, diagram = diagram),
+        )
     }
 
     /**
@@ -451,7 +511,12 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, options, ActEdgeAdapter(model, diagram))
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            layoutResult = layoutResult,
+            options = options,
+            sysml2EdgeAdapter = ActEdgeAdapter(model = model, diagram = diagram),
+        )
     }
 
     /**
@@ -492,7 +557,7 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toLatex(synthetic, layoutResult, options)
+        return toLatex(diagram = synthetic, layoutResult = layoutResult, options = options)
     }
 
     /**
@@ -528,7 +593,12 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, options, ParEdgeAdapter(model, diagram))
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            layoutResult = layoutResult,
+            options = options,
+            sysml2EdgeAdapter = ParEdgeAdapter(model = model, diagram = diagram),
+        )
     }
 
     /**
@@ -581,13 +651,13 @@ public object KumlLatexRenderer {
                 val element = elementIndex[nodeId.value] ?: continue
                 // renderNode dispatches C4Element to C4LatexRenderer via the
                 // is C4Element branch added in the renderNode when-expression.
-                renderNode(element, nodeId, nodeLayout, options)
+                renderNode(element = element, nodeId = nodeId, nodeLayout = nodeLayout, options = options)
             }
 
             // Edges — C4 relationships as plain solid arrows with mid-point labels.
             val visibleRelationships: List<C4Relationship> =
                 diagram.relationships.mapNotNull { relId -> relationshipIndex[relId] }
-            C4LatexRenderer.renderEdges(visibleRelationships, layoutResult, options, this)
+            C4LatexRenderer.renderEdges(relationships = visibleRelationships, layoutResult = layoutResult, options = options, out = this)
 
             appendPictureClose()
 
@@ -614,7 +684,7 @@ public object KumlLatexRenderer {
                 is UmlAssociation -> UmlEdgeLatexRenderer.Style.ASSOCIATION
                 else -> UmlEdgeLatexRenderer.Style.PLAIN
             }
-        UmlEdgeLatexRenderer.render(route, style, options, this)
+        UmlEdgeLatexRenderer.render(route = route, style = style, options = options, out = this)
     }
 
     // ─── Preamble + skeleton ─────────────────────────────────────────────────
@@ -721,10 +791,10 @@ public object KumlLatexRenderer {
         // Injected via BpmnLatexRenderer.appendBpmnTikzStyles to keep the style block
         // co-located with the BPMN renderer.
         appendLine("$indent  % ── BPMN styles ─────────────────────────────────────────────────────────")
-        BpmnLatexRenderer.appendBpmnTikzStyles(this, indent)
+        BpmnLatexRenderer.appendBpmnTikzStyles(sb = this, indent = indent)
         // V3.1.26 — Blueprint / Journey TikZ styles (bands, steps, lines, emotion).
         appendLine("$indent  % ── Blueprint styles ────────────────────────────────────────────────────")
-        BlueprintLatexRenderer.appendBlueprintTikzStyles(this, indent)
+        BlueprintLatexRenderer.appendBlueprintTikzStyles(sb = this, indent = indent)
         appendLine("$indent}")
     }
 
@@ -745,7 +815,7 @@ public object KumlLatexRenderer {
         model: BlueprintModel,
         diagram: BlueprintDiagram,
         options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
-    ): String = renderBlueprint(options) { BlueprintLatexRenderer.render(model, diagram) }
+    ): String = renderBlueprint(options = options) { BlueprintLatexRenderer.render(model = model, diagram = diagram) }
 
     /**
      * Render a Blueprint model's first diagram as TikZ source (V3.1.26).
@@ -757,7 +827,7 @@ public object KumlLatexRenderer {
     ): String =
         when (val first = model.diagrams.firstOrNull()) {
             null -> ""
-            else -> toLatex(model, first, options)
+            else -> toLatex(model = model, diagram = first, options = options)
         }
 
     /**
@@ -803,7 +873,7 @@ public object KumlLatexRenderer {
         model: BpmnModel,
         diagram: ProcessDiagram,
         options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
-    ): String = renderBpmn(options) { BpmnLatexRenderer.render(model, diagram) }
+    ): String = renderBpmn(options = options) { BpmnLatexRenderer.render(model = model, diagram = diagram) }
 
     /**
      * Render a BPMN [CollaborationDiagram] as TikZ source (V3.1.8).
@@ -824,7 +894,7 @@ public object KumlLatexRenderer {
         model: BpmnModel,
         diagram: CollaborationDiagram,
         options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
-    ): String = renderBpmn(options) { BpmnLatexRenderer.render(model, diagram) }
+    ): String = renderBpmn(options = options) { BpmnLatexRenderer.render(model = model, diagram = diagram) }
 
     /**
      * Render a BPMN model's first diagram as TikZ source (V3.1.8).
@@ -846,8 +916,8 @@ public object KumlLatexRenderer {
         options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
     ): String =
         when (val first = model.diagrams.firstOrNull()) {
-            is ProcessDiagram -> toLatex(model, first, options)
-            is CollaborationDiagram -> toLatex(model, first, options)
+            is ProcessDiagram -> toLatex(model = model, diagram = first, options = options)
+            is CollaborationDiagram -> toLatex(model = model, diagram = first, options = options)
             is ChoreographyDiagram -> "" // LaTeX rendering for choreography diagrams is not yet implemented
             is ConversationDiagram -> "" // LaTeX rendering for conversation diagrams is not yet implemented
             null -> ""

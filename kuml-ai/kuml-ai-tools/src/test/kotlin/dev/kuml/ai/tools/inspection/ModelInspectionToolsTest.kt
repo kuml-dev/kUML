@@ -26,8 +26,8 @@ class ModelInspectionToolsTest :
             val umlTools = UmlEditingTools(ctx)
             val tools = ModelInspectionTools(ctx)
             runTest {
-                umlTools.addClass("OrderService")
-                umlTools.addClass("Customer")
+                umlTools.addClass(name = "OrderService")
+                umlTools.addClass(name = "Customer")
                 val elements = tools.listElements()
                 elements shouldHaveSize 2
                 elements.map { it.id }.toSet() shouldHaveSize 2
@@ -39,9 +39,9 @@ class ModelInspectionToolsTest :
             val umlTools = UmlEditingTools(ctx)
             val tools = ModelInspectionTools(ctx)
             runTest {
-                umlTools.addClass("Order")
-                umlTools.addInterface("Repository")
-                umlTools.addAssociation("Order", "Repository")
+                umlTools.addClass(name = "Order")
+                umlTools.addInterface(name = "Repository")
+                umlTools.addAssociation(sourceIdOrName = "Order", targetIdOrName = "Repository")
                 val elements = tools.listElements()
                 elements.map { it.kind }.toSet() shouldBe setOf("uml.class", "uml.interface", "uml.association")
             }
@@ -52,9 +52,9 @@ class ModelInspectionToolsTest :
             val umlTools = UmlEditingTools(ctx)
             val tools = ModelInspectionTools(ctx)
             runTest {
-                umlTools.addClass("Order")
-                umlTools.addAttribute("Order", "total", "BigDecimal")
-                umlTools.addOperation("Order", "submit", returnType = "Boolean")
+                umlTools.addClass(name = "Order")
+                umlTools.addAttribute(classifierIdOrName = "Order", name = "total", type = "BigDecimal")
+                umlTools.addOperation(classifierIdOrName = "Order", name = "submit", returnType = "Boolean")
                 val elements = tools.listElements()
                 val orderId = elements.first { it.kind == "uml.class" }.id
                 val details = tools.getElementDetails(orderId)
@@ -77,10 +77,10 @@ class ModelInspectionToolsTest :
             val umlTools = UmlEditingTools(ctx)
             val tools = ModelInspectionTools(ctx)
             runTest {
-                umlTools.addClass("Connected")
-                umlTools.addClass("Isolated")
-                umlTools.addClass("AlsoConnected")
-                umlTools.addAssociation("Connected", "AlsoConnected")
+                umlTools.addClass(name = "Connected")
+                umlTools.addClass(name = "Isolated")
+                umlTools.addClass(name = "AlsoConnected")
+                umlTools.addAssociation(sourceIdOrName = "Connected", targetIdOrName = "AlsoConnected")
                 val report = tools.findUnusedElements()
                 report.unusedElementIds shouldHaveSize 1
                 // Isolated should be flagged
@@ -94,7 +94,7 @@ class ModelInspectionToolsTest :
             val umlTools = UmlEditingTools(ctx)
             val tools = ModelInspectionTools(ctx)
             runTest {
-                umlTools.addClass("OrphanClass")
+                umlTools.addClass(name = "OrphanClass")
                 val report = tools.findUnusedElements()
                 report.rationale shouldContain "OrphanClass"
             }
@@ -105,9 +105,9 @@ class ModelInspectionToolsTest :
             val umlTools = UmlEditingTools(ctx)
             val tools = ModelInspectionTools(ctx)
             runTest {
-                umlTools.addClass("ServiceA")
-                umlTools.addClass("ServiceB")
-                umlTools.addGeneralization("ServiceA", "ServiceB")
+                umlTools.addClass(name = "ServiceA")
+                umlTools.addClass(name = "ServiceB")
+                umlTools.addGeneralization(childIdOrName = "ServiceA", parentIdOrName = "ServiceB")
                 val report = tools.findUnusedElements()
                 // Both are connected via generalization
                 report.unusedElementIds shouldHaveSize 0

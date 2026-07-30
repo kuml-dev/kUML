@@ -29,8 +29,8 @@ class KumlConfigScriptHostTest :
             val success = result as ResultWithDiagnostics.Success
             val cfg =
                 ConfigExtractor.extract(
-                    success.value.returnValue,
-                    java.io.File("inline.kuml.config.kts"),
+                    returnValue = success.value.returnValue,
+                    file = java.io.File("inline.kuml.config.kts"),
                 )
             cfg.render.themeName shouldBe "kuml"
         }
@@ -43,8 +43,8 @@ class KumlConfigScriptHostTest :
             val ex =
                 shouldThrow<IllegalStateException> {
                     ConfigExtractor.extract(
-                        success.value.returnValue,
-                        java.io.File("inline.kuml.config.kts"),
+                        returnValue = success.value.returnValue,
+                        file = java.io.File("inline.kuml.config.kts"),
                     )
                 }
             ex.message!! shouldContain "kumlConfig"
@@ -73,8 +73,8 @@ class KumlConfigScriptHostTest :
             val success = result as ResultWithDiagnostics.Success
             val cfg =
                 ConfigExtractor.extract(
-                    success.value.returnValue,
-                    java.io.File("inline.kuml.config.kts"),
+                    returnValue = success.value.returnValue,
+                    file = java.io.File("inline.kuml.config.kts"),
                 )
             val overrides = cfg.render.stereotypeOverrides!!
             overrides.showFeatureStereotypes shouldBe false

@@ -16,7 +16,7 @@ class SubstrateBlockClockTest :
         beforeTest {
             server = MockRpcServer()
             server.start()
-            client = SubstrateRpcClient(server.baseUrl())
+            client = SubstrateRpcClient(rpcUrl = server.baseUrl())
         }
 
         afterTest { server.stop() }
@@ -29,10 +29,10 @@ class SubstrateBlockClockTest :
 
         "refresh updates block height and timestamp from Timestamp.Now" {
             runTest {
-                server.onMethod("chain_getFinalizedHead") { rpcSuccess(result = "\"0xhash\"") }
-                server.onMethod("chain_getHeader") { rpcSuccess(result = """{"number":"0x5"}""") }
+                server.onMethod(method = "chain_getFinalizedHead") { rpcSuccess(result = "\"0xhash\"") }
+                server.onMethod(method = "chain_getHeader") { rpcSuccess(result = """{"number":"0x5"}""") }
                 // Timestamp.Now: 1000ms = 0xe8030000_00000000 in LE u64
-                server.onMethod("state_getStorage") { rpcSuccess(result = "\"0xe803000000000000\"") }
+                server.onMethod(method = "state_getStorage") { rpcSuccess(result = "\"0xe803000000000000\"") }
                 val clock = SubstrateBlockClock(client)
                 clock.refresh()
                 clock.currentBlock() shouldBe 5L

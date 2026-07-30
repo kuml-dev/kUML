@@ -102,7 +102,7 @@ internal object ArxmlModelMerge {
                 if (existingIdx != null) {
                     // Merge the new package's members into the existing one.
                     val existing = result[existingIdx] as UmlPackage
-                    val merged = mergePackages(existing, member)
+                    val merged = mergePackages(base = existing, additional = member)
                     result[existingIdx] = merged
                 } else {
                     pkgIndex[member.name] = result.size

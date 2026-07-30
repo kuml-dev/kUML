@@ -24,7 +24,7 @@ class PluginRegistryTest :
                         name = "Test Plugin $id",
                         version = "1.0.0",
                         kumlVersionRange = ">=3.0.0",
-                        extensions = listOf(ExtensionEntry("theme", "com.example.ThemePlugin", "$id-ext")),
+                        extensions = listOf(ExtensionEntry(category = "theme", implementation = "com.example.ThemePlugin", id = "$id-ext")),
                     ),
                 plugins = emptyList(),
                 classLoader = null,

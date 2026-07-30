@@ -47,8 +47,11 @@ class BpmnChoreographySvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(200f, 120f),
-                nodes = mapOf(NodeId(id) to NodeLayout(bounds = Rect(Point(20f, 20f), Size(160f, 80f)))),
+                canvas = Size(width = 200f, height = 120f),
+                nodes =
+                    mapOf(
+                        NodeId(id) to NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 160f, height = 80f))),
+                    ),
                 edges = emptyMap(),
                 groups = emptyMap(),
             )
@@ -64,18 +67,18 @@ class BpmnChoreographySvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(440f, 120f),
+                canvas = Size(width = 440f, height = 120f),
                 nodes =
                     mapOf(
-                        NodeId(id1) to NodeLayout(bounds = Rect(Point(20f, 20f), Size(w, h))),
-                        NodeId(id2) to NodeLayout(bounds = Rect(Point(260f, 20f), Size(w, h))),
+                        NodeId(id1) to NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = w, height = h))),
+                        NodeId(id2) to NodeLayout(bounds = Rect(origin = Point(x = 260f, y = 20f), size = Size(width = w, height = h))),
                     ),
                 edges =
                     mapOf(
                         EdgeId(edgeId) to
                             EdgeRoute.Direct(
-                                source = Point(180f, 60f),
-                                target = Point(260f, 60f),
+                                source = Point(x = 180f, y = 60f),
+                                target = Point(x = 260f, y = 60f),
                             ),
                     ),
                 groups = emptyMap(),
@@ -101,7 +104,7 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleTaskLayout("ct1"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleTaskLayout("ct1"), theme = PlainTheme())
 
             // Äußere Box muss rx=8 haben (BPMN 2.0 §10.4.2 schreibt abgerundete Ecken vor)
             svg shouldContain "rx=\"8\""
@@ -118,7 +121,7 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleTaskLayout("ct2"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleTaskLayout("ct2"), theme = PlainTheme())
 
             // Innerer Doppelrahmen muss rx=6 haben
             svg shouldContain "rx=\"6\""
@@ -137,7 +140,7 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleTaskLayout("ct3"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleTaskLayout("ct3"), theme = PlainTheme())
 
             // Mindestens 2 rect-Elemente: äußere Box + innerer Doppelrahmen
             // Plus 2 Bänder-Rects (oberes initiierendes + unteres empfangendes Band)
@@ -156,7 +159,7 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleTaskLayout("ct4"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleTaskLayout("ct4"), theme = PlainTheme())
 
             // Initiierender Teilnehmer im oberen Band sichtbar
             svg shouldContain "Vendor"
@@ -175,7 +178,7 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleTaskLayout("ct5"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleTaskLayout("ct5"), theme = PlainTheme())
 
             svg shouldContain "Confirm Shipment"
         }
@@ -191,7 +194,7 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleTaskLayout("ct6"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleTaskLayout("ct6"), theme = PlainTheme())
 
             // Initiierendes Band hat BPMN-Choreography-Konvention: Aureolin-Gelb
             svg shouldContain "#FFED00"
@@ -209,7 +212,7 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleTaskLayout("ct7"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleTaskLayout("ct7"), theme = PlainTheme())
 
             // STANDARD-Loop: Pfeil-Kreis (path mit Arc)
             svg shouldContain "<path"
@@ -229,7 +232,7 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleTaskLayout("ct8"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleTaskLayout("ct8"), theme = PlainTheme())
 
             // MI_PARALLEL: drei vertikale Striche
             val lineCount = svg.split("<line").size - 1
@@ -247,7 +250,7 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, singleTaskLayout("ct9"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = singleTaskLayout("ct9"), theme = PlainTheme())
 
             // Kein leerer text-Node für null-Name (font-size=12 ist der Task-Name-Text)
             // Das SVG darf font-size=10 (Band-Labels) enthalten, aber kein leeres <text>
@@ -284,7 +287,7 @@ class BpmnChoreographySvgTest :
             val (model, diagram) = modelAndDiagram(choreo)
 
             val layout = twoNodeOneEdgeLayout("task1", "task2", "sf1")
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // Doppelter Rahmen: rx=8 (äußerer Rect) muss im SVG vorhanden sein
             svg shouldContain "rx=\"8\""
@@ -314,13 +317,17 @@ class BpmnChoreographySvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(90f, 90f),
-                    nodes = mapOf(NodeId("gw1") to NodeLayout(bounds = Rect(Point(20f, 20f), Size(50f, 50f)))),
+                    canvas = Size(width = 90f, height = 90f),
+                    nodes =
+                        mapOf(
+                            NodeId("gw1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 50f, height = 50f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "<polygon"
             val lineCount = svg.split("<line").size - 1
@@ -336,13 +343,17 @@ class BpmnChoreographySvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(90f, 90f),
-                    nodes = mapOf(NodeId("gw2") to NodeLayout(bounds = Rect(Point(20f, 20f), Size(50f, 50f)))),
+                    canvas = Size(width = 90f, height = 90f),
+                    nodes =
+                        mapOf(
+                            NodeId("gw2") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 50f, height = 50f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "<polygon"
             val lineCount = svg.split("<line").size - 1
@@ -360,13 +371,17 @@ class BpmnChoreographySvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(80f, 80f),
-                    nodes = mapOf(NodeId("ev1") to NodeLayout(bounds = Rect(Point(20f, 20f), Size(36f, 36f)))),
+                    canvas = Size(width = 80f, height = 80f),
+                    nodes =
+                        mapOf(
+                            NodeId("ev1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 36f, height = 36f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "<circle"
             svg shouldContain "stroke-width=\"1.5\""
@@ -381,13 +396,17 @@ class BpmnChoreographySvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(80f, 80f),
-                    nodes = mapOf(NodeId("ev2") to NodeLayout(bounds = Rect(Point(20f, 20f), Size(36f, 36f)))),
+                    canvas = Size(width = 80f, height = 80f),
+                    nodes =
+                        mapOf(
+                            NodeId("ev2") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 36f, height = 36f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "<circle"
             svg shouldContain "stroke-width=\"3\""
@@ -402,13 +421,17 @@ class BpmnChoreographySvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(80f, 80f),
-                    nodes = mapOf(NodeId("ev3") to NodeLayout(bounds = Rect(Point(20f, 20f), Size(36f, 36f)))),
+                    canvas = Size(width = 80f, height = 80f),
+                    nodes =
+                        mapOf(
+                            NodeId("ev3") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 36f, height = 36f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             // INTERMEDIATE: äußerer + innerer Kreis = Doppelring
             val circleCount = svg.split("<circle").size - 1
@@ -437,7 +460,13 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task, task2), sequenceFlows = listOf(flow))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, twoNodeOneEdgeLayout("t1", "t2", "sf1"), PlainTheme())
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = twoNodeOneEdgeLayout("t1", "t2", "sf1"),
+                    theme = PlainTheme(),
+                )
 
             svg shouldContain "<marker"
             svg shouldContain "marker-end"
@@ -469,7 +498,13 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task, task2), sequenceFlows = listOf(flow))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, twoNodeOneEdgeLayout("t1", "t2", "sf1"), PlainTheme())
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = twoNodeOneEdgeLayout("t1", "t2", "sf1"),
+                    theme = PlainTheme(),
+                )
 
             svg shouldContain "amount &gt; 1000"
         }
@@ -484,13 +519,13 @@ class BpmnChoreographySvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(100f, 100f),
+                    canvas = Size(width = 100f, height = 100f),
                     nodes = emptyMap(),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "<svg"
         }
@@ -509,8 +544,8 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val layout = ChoreographyGridLayout.layout(model, diagram)
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val layout = ChoreographyGridLayout.layout(model = model, diagram = diagram)
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "fill=\"none\""
             svg shouldContain "#FFED00"
@@ -545,8 +580,8 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val layout = ChoreographyGridLayout.layout(model, diagram)
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val layout = ChoreographyGridLayout.layout(model = model, diagram = diagram)
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "#DDDDDD"
             svg shouldContain "stroke-dasharray"
@@ -587,8 +622,8 @@ class BpmnChoreographySvgTest :
                 )
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val layout = ChoreographyGridLayout.layout(model, diagram)
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val layout = ChoreographyGridLayout.layout(model = model, diagram = diagram)
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             val envelopeRectRegex =
                 Regex("""<rect x="[^"]*" y="(-?[\d.]+)" width="16(?:\.0+)?" height="10(?:\.0+)?"""")
@@ -625,8 +660,8 @@ class BpmnChoreographySvgTest :
             val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val layout = ChoreographyGridLayout.layout(model, diagram)
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val layout = ChoreographyGridLayout.layout(model = model, diagram = diagram)
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "<svg"
             svg shouldContain "Wiederholte Pruefung"
@@ -657,8 +692,8 @@ class BpmnChoreographySvgTest :
                 )
             val (model, diagram) = modelAndDiagram(choreo)
 
-            val layout = ChoreographyGridLayout.layout(model, diagram)
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val layout = ChoreographyGridLayout.layout(model = model, diagram = diagram)
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "<polygon"
             svg shouldContain "<circle"

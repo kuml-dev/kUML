@@ -91,7 +91,7 @@ sysml2Model(name = "HybridVehicle") {
             part(
                 name = "auxiliaryFans",
                 typeId = electricMotor.id,
-                multiplicity = KermlMultiplicity(0, 2),
+                multiplicity = KermlMultiplicity(lower = 0, upper = 2),
             )
 
             // Power-flow connections — wire ports up explicitly. SourceEnd/TargetEnd

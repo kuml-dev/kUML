@@ -31,7 +31,7 @@ class GridLayoutEngineProviderTest :
 
         test("pickFor routes a UmlClass diagram to the Grid engine when it's the only one registered") {
             LayoutEngineRegistry.loadFromClasspath()
-            val engine = LayoutEngineRegistry.pickFor(DiagramKind.UmlClass)
+            val engine = LayoutEngineRegistry.pickFor(kind = DiagramKind.UmlClass)
             engine?.id shouldBe LayoutEngineId("kuml.grid")
         }
     })

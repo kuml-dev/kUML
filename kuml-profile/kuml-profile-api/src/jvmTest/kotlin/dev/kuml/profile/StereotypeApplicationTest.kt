@@ -29,8 +29,8 @@ class StereotypeApplicationTest :
 
         "data-class equality for two applications with same tags" {
             val tags = mapOf<String, TagValue>("x" to TagValue.IntVal(42))
-            val a1 = KumlStereotypeApplication("ns", "St", tags)
-            val a2 = KumlStereotypeApplication("ns", "St", tags)
+            val a1 = KumlStereotypeApplication(profileNamespace = "ns", stereotypeName = "St", tags = tags)
+            val a2 = KumlStereotypeApplication(profileNamespace = "ns", stereotypeName = "St", tags = tags)
             a1 shouldBe a2
         }
 

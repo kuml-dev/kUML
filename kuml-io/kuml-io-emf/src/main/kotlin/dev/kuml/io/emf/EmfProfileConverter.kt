@@ -128,7 +128,7 @@ public class EmfProfileConverter {
         EmfBootstrap.init()
         val profile = factory.createProfile().also { it.name = profileName }
         for (stereo in stereotypes) {
-            convertStereotypeToEmf(stereo, profile)
+            convertStereotypeToEmf(stereotype = stereo, profile = profile)
         }
         return profile
     }

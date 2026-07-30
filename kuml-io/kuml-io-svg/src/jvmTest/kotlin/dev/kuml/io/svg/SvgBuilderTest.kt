@@ -13,11 +13,11 @@ class SvgBuilderTest :
         test("SvgBuilder produces valid well-formed XML") {
             val b = SvgBuilder(pretty = false)
             b.tag(
-                "svg",
-                mapOf("xmlns" to "http://www.w3.org/2000/svg", "width" to "100", "height" to "100"),
+                name = "svg",
+                attrs = mapOf("xmlns" to "http://www.w3.org/2000/svg", "width" to "100", "height" to "100"),
             ) {
-                tag("rect", mapOf("width" to "50", "height" to "50"))
-                tag("text", mapOf("x" to "10", "y" to "20")) {
+                tag(name = "rect", attrs = mapOf("width" to "50", "height" to "50"))
+                tag(name = "text", attrs = mapOf("x" to "10", "y" to "20")) {
                     text("Hello")
                 }
             }
@@ -32,7 +32,7 @@ class SvgBuilderTest :
 
         test("SvgBuilder escapes special characters in text content") {
             val b = SvgBuilder(pretty = false)
-            b.tag("text") {
+            b.tag(name = "text") {
                 text("<>&\"'")
             }
             val xml = b.toString()

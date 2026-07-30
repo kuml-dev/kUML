@@ -48,16 +48,16 @@ class WorkspaceInitCommandTest :
         context("WorkspaceScaffolder.templateFiles") {
             test("knowledge template resources all load from the classpath") {
                 val tmpDir = tempDir("kuml-ws-templates-knowledge")
-                val spec = WorkspaceInitSpec.from("Test", "knowledge")
-                WorkspaceScaffolder.scaffold(spec, tmpDir, force = true, echo = {})
+                val spec = WorkspaceInitSpec.from(name = "Test", mode = "knowledge")
+                WorkspaceScaffolder.scaffold(spec = spec, targetDir = tmpDir, force = true, echo = {})
                 WorkspaceScaffolder.templateFiles("knowledge").size shouldBe 5
                 tmpDir.deleteRecursively()
             }
 
             test("engineering template resources all load from the classpath") {
                 val tmpDir = tempDir("kuml-ws-templates-engineering")
-                val spec = WorkspaceInitSpec.from("Test", "engineering")
-                WorkspaceScaffolder.scaffold(spec, tmpDir, force = true, echo = {})
+                val spec = WorkspaceInitSpec.from(name = "Test", mode = "engineering")
+                WorkspaceScaffolder.scaffold(spec = spec, targetDir = tmpDir, force = true, echo = {})
                 WorkspaceScaffolder.templateFiles("engineering").size shouldBe 3
                 tmpDir.deleteRecursively()
             }
@@ -154,11 +154,11 @@ class WorkspaceInitCommandTest :
                         )
                     initResult.statusCode shouldBe 0
 
-                    val ws = WorkspaceScanner.scan(outputDir)
+                    val ws = WorkspaceScanner.scan(root = outputDir)
                     ws.mode shouldBe WorkspaceMode.KNOWLEDGE
                     ws.documents.size shouldBe 4
 
-                    val findings = OkfValidator.validate(ws)
+                    val findings = OkfValidator.validate(ws = ws)
                     findings shouldBe emptyList()
 
                     val validateResult =
@@ -196,8 +196,8 @@ class WorkspaceInitCommandTest :
                         )
                     initResult.statusCode shouldBe 0
 
-                    val ws = WorkspaceScanner.scan(outputDir)
-                    val findings = OkfValidator.validate(ws)
+                    val ws = WorkspaceScanner.scan(root = outputDir)
+                    val findings = OkfValidator.validate(ws = ws)
                     findings shouldBe emptyList()
 
                     val renderResult =

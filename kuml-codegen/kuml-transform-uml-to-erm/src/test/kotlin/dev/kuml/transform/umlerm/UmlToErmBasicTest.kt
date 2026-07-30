@@ -24,14 +24,14 @@ class UmlToErmBasicTest :
 
         test("class with own id attribute maps to one entity with a single primary key") {
             val diagram =
-                classDiagram("Simple") {
-                    classOf("Customer") {
-                        attribute("id", "UUID")
-                        attribute("name", "String")
-                        attribute("email", "String", multiplicity = Multiplicity(0, 1))
+                classDiagram(name = "Simple") {
+                    classOf(name = "Customer") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "name", type = "String")
+                        attribute(name = "email", type = "String", multiplicity = Multiplicity(lower = 0, upper = 1))
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             val model = (result as TransformResult.Success).output
 
             model.entities.size shouldBe 1
@@ -52,12 +52,12 @@ class UmlToErmBasicTest :
 
         test("class without an id attribute gets a synthetic bigint primary key") {
             val diagram =
-                classDiagram("Simple") {
-                    classOf("Product") {
-                        attribute("name", "String")
+                classDiagram(name = "Simple") {
+                    classOf(name = "Product") {
+                        attribute(name = "name", type = "String")
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val entity = result.output.entities.first()
             entity.primaryKey.size shouldBe 1
             val pk = entity.primaryKey.first()
@@ -68,12 +68,16 @@ class UmlToErmBasicTest :
 
         test("idType=uuid option synthesizes a UUID primary key") {
             val diagram =
-                classDiagram("Simple") {
-                    classOf("Product") {
-                        attribute("name", "String")
+                classDiagram(name = "Simple") {
+                    classOf(name = "Product") {
+                        attribute(name = "name", type = "String")
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext(options = mapOf("idType" to "uuid"))) as TransformResult.Success
+            val result =
+                transformer.transform(
+                    source = diagram,
+                    ctx = TransformContext(options = mapOf("idType" to "uuid")),
+                ) as TransformResult.Success
             val pk =
                 result.output.entities
                     .first()
@@ -85,12 +89,12 @@ class UmlToErmBasicTest :
 
         test("class name is snake_cased and pluralised for the table name") {
             val diagram =
-                classDiagram("Simple") {
-                    classOf("OrderItem") {
-                        attribute("id", "UUID")
+                classDiagram(name = "Simple") {
+                    classOf(name = "OrderItem") {
+                        attribute(name = "id", type = "UUID")
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             result.output.entities
                 .first()
                 .name shouldBe "order_items"
@@ -98,16 +102,16 @@ class UmlToErmBasicTest :
 
         test("«Entity».tableName overrides the derived table name") {
             val diagram =
-                classDiagram("Simple") {
+                classDiagram(name = "Simple") {
                     applyProfile(ermMappingProfile)
-                    classOf("Customer") {
-                        stereotype("Entity") {
+                    classOf(name = "Customer") {
+                        stereotype(name = "Entity") {
                             "tableName" to "crm_customers"
                         }
-                        attribute("id", "UUID")
+                        attribute(name = "id", type = "UUID")
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             result.output.entities
                 .first()
                 .name shouldBe "crm_customers"
@@ -115,17 +119,17 @@ class UmlToErmBasicTest :
 
         test("«Entity».kotlinObjectName sets the KOTLIN_OBJECT_NAME entity metadata") {
             val diagram =
-                classDiagram("Simple") {
+                classDiagram(name = "Simple") {
                     applyProfile(ermMappingProfile)
-                    classOf("Member") {
-                        stereotype("Entity") {
+                    classOf(name = "Member") {
+                        stereotype(name = "Entity") {
                             "tableName" to "members"
                             "kotlinObjectName" to "MemberTable"
                         }
-                        attribute("id", "UUID")
+                        attribute(name = "id", type = "UUID")
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val entity = result.output.entities.first()
             val override = entity.metadata[ErmMetadataKeys.KOTLIN_OBJECT_NAME]
             override.shouldBeInstanceOf<KumlMetaValue.Text>()
@@ -134,10 +138,10 @@ class UmlToErmBasicTest :
 
         test("Entity without kotlinObjectName override has no KOTLIN_OBJECT_NAME metadata") {
             val diagram =
-                classDiagram("Simple") {
-                    classOf("Product") { attribute("id", "UUID") }
+                classDiagram(name = "Simple") {
+                    classOf(name = "Product") { attribute(name = "id", type = "UUID") }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             result.output.entities
                 .first()
                 .metadata shouldBe emptyMap()
@@ -145,18 +149,18 @@ class UmlToErmBasicTest :
 
         test("«Column».columnName overrides the derived column name") {
             val diagram =
-                classDiagram("Simple") {
+                classDiagram(name = "Simple") {
                     applyProfile(ermMappingProfile)
-                    classOf("Customer") {
-                        attribute("id", "UUID")
-                        attribute("fullName", "String") {
-                            stereotype("Column") {
+                    classOf(name = "Customer") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "fullName", type = "String") {
+                            stereotype(name = "Column") {
                                 "columnName" to "full_name_override"
                             }
                         }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val entity = result.output.entities.first()
             entity.attributeByName("full_name_override") shouldNotBe null
             entity.attributeByName("full_name") shouldBe null
@@ -164,32 +168,32 @@ class UmlToErmBasicTest :
 
         test("«Transient» skips the attribute entirely") {
             val diagram =
-                classDiagram("Simple") {
+                classDiagram(name = "Simple") {
                     applyProfile(ermMappingProfile)
-                    classOf("Customer") {
-                        attribute("id", "UUID")
-                        attribute("cachedScore", "Double") {
-                            stereotype("Transient")
+                    classOf(name = "Customer") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "cachedScore", type = "Double") {
+                            stereotype(name = "Transient")
                         }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val entity = result.output.entities.first()
             entity.attributes.map { it.name } shouldBe listOf("id")
         }
 
         test("«Id» stereotype marks a non-'id'-named attribute as the primary key") {
             val diagram =
-                classDiagram("Simple") {
+                classDiagram(name = "Simple") {
                     applyProfile(ermMappingProfile)
-                    classOf("Customer") {
-                        attribute("customerNumber", "Long") {
-                            stereotype("Id")
+                    classOf(name = "Customer") {
+                        attribute(name = "customerNumber", type = "Long") {
+                            stereotype(name = "Id")
                         }
-                        attribute("name", "String")
+                        attribute(name = "name", type = "String")
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val entity = result.output.entities.first()
             entity.primaryKey.size shouldBe 1
             entity.primaryKey.first().name shouldBe "customer_number"
@@ -197,12 +201,12 @@ class UmlToErmBasicTest :
 
         test("«Column».nullable/unique/sqlType overrides are honoured") {
             val diagram =
-                classDiagram("Simple") {
+                classDiagram(name = "Simple") {
                     applyProfile(ermMappingProfile)
-                    classOf("Customer") {
-                        attribute("id", "UUID")
-                        attribute("email", "String") {
-                            stereotype("Column") {
+                    classOf(name = "Customer") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "email", type = "String") {
+                            stereotype(name = "Column") {
                                 "columnName" to "email"
                                 "nullable" to false
                                 "unique" to true
@@ -211,7 +215,7 @@ class UmlToErmBasicTest :
                         }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val col =
                 result.output.entities
                     .first()
@@ -223,13 +227,13 @@ class UmlToErmBasicTest :
 
         test("model-level result passes ErmConstraintChecker with zero errors") {
             val diagram =
-                classDiagram("Simple") {
-                    classOf("Customer") {
-                        attribute("id", "UUID")
-                        attribute("name", "String")
+                classDiagram(name = "Simple") {
+                    classOf(name = "Customer") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "name", type = "String")
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             result.shouldBeInstanceOf<TransformResult.Success<*>>()
         }
     })

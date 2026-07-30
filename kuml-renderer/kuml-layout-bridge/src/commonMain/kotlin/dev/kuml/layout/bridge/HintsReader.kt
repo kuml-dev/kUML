@@ -19,7 +19,14 @@ internal object HintsReader {
         val gridRowSpan = metadata.intOrNull(BridgeLayoutKeys.GRID_ROW_SPAN) ?: 1
         val pinned = metadata.flagOrFalse(BridgeLayoutKeys.PINNED)
         val relative = metadata.relativeList(BridgeLayoutKeys.RELATIVE)
-        return NodeHints(gridCol, gridRow, gridColSpan, gridRowSpan, pinned, relative)
+        return NodeHints(
+            gridCol = gridCol,
+            gridRow = gridRow,
+            gridColSpan = gridColSpan,
+            gridRowSpan = gridRowSpan,
+            pinned = pinned,
+            relative = relative,
+        )
     }
 
     private fun Map<String, KumlMetaValue>.intOrNull(key: String): Int? = (this[key] as? KumlMetaValue.Integer)?.value?.toInt()

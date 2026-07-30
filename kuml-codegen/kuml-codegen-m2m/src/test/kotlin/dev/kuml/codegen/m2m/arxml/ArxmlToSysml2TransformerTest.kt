@@ -83,7 +83,7 @@ class ArxmlToSysml2TransformerTest :
         test("SoftwareComponent maps to a PartDefinition") {
             val comp = makeComponent("BrakeController")
             val model = kumlModel(comp)
-            val result = transformer.transform(model, ctx)
+            val result = transformer.transform(source = model, ctx = ctx)
             val success = result.shouldBeInstanceOf<TransformResult.Success<*>>()
             val sysml2 = success.output as dev.kuml.sysml2.Sysml2Model
             val blocks =
@@ -98,7 +98,7 @@ class ArxmlToSysml2TransformerTest :
             val portRequired = makePort("SensorPort", "required")
             val comp = makeComponent("BrakeController", portProvided, portRequired)
             val model = kumlModel(comp)
-            val result = transformer.transform(model, ctx) as TransformResult.Success<*>
+            val result = transformer.transform(source = model, ctx = ctx) as TransformResult.Success<*>
             val sysml2 = result.output as dev.kuml.sysml2.Sysml2Model
             // PartDefinitions with portDefinition=true represent port types
             val portDefs =
@@ -118,7 +118,7 @@ class ArxmlToSysml2TransformerTest :
         test("ComInterface maps to an interfaceBlock-flagged PartDefinition") {
             val iface = makeInterface("IBrake")
             val model = kumlModel(iface)
-            val result = transformer.transform(model, ctx) as TransformResult.Success<*>
+            val result = transformer.transform(source = model, ctx = ctx) as TransformResult.Success<*>
             val sysml2 = result.output as dev.kuml.sysml2.Sysml2Model
             val interfaceBlock =
                 sysml2.definitions
@@ -132,7 +132,7 @@ class ArxmlToSysml2TransformerTest :
             val comp = makeComponent("Comp1")
             val iface = makeInterface("IFace1")
             val model = kumlModel(comp, iface)
-            val result = transformer.transform(model, ctx) as TransformResult.Success<*>
+            val result = transformer.transform(source = model, ctx = ctx) as TransformResult.Success<*>
             val sysml2 = result.output as dev.kuml.sysml2.Sysml2Model
             val diagram = sysml2.diagrams.filterIsInstance<BdDiagram>().firstOrNull()
             diagram.shouldNotBeNull()
@@ -142,14 +142,14 @@ class ArxmlToSysml2TransformerTest :
         test("TransformResult.Success carries a non-empty TransformTrace") {
             val comp = makeComponent("Comp1")
             val model = kumlModel(comp)
-            val result = transformer.transform(model, ctx) as TransformResult.Success<*>
+            val result = transformer.transform(source = model, ctx = ctx) as TransformResult.Success<*>
             result.trace.links.shouldNotBeEmpty()
         }
 
         test("trace contains swc-to-block link for SoftwareComponent") {
             val comp = makeComponent("MyComp")
             val model = kumlModel(comp)
-            val result = transformer.transform(model, ctx) as TransformResult.Success<*>
+            val result = transformer.transform(source = model, ctx = ctx) as TransformResult.Success<*>
             result.trace.links
                 .any { it.ruleId == "swc-to-block" }
                 .shouldBeTrue()

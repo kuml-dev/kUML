@@ -38,8 +38,8 @@ class PluginManagerPaneTest :
         }
 
         test("PluginEntry equals und hashCode sind strukturell korrekt (data class)") {
-            val a = PluginEntry("id1", "Theme", "desc")
-            val b = PluginEntry("id1", "Theme", "desc")
+            val a = PluginEntry(id = "id1", kind = "Theme", description = "desc")
+            val b = PluginEntry(id = "id1", kind = "Theme", description = "desc")
             a shouldBe b
             a.hashCode() shouldBe b.hashCode()
         }

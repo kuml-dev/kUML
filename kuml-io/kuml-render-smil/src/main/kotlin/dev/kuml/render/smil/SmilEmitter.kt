@@ -103,42 +103,42 @@ public class SmilEmitter {
     private fun renderElement(anim: SmilAnimation): String {
         val begin = anim.beginMs
         val dur = anim.durationMs
-        val href = SmilXml.attr("xlink:href", "#${anim.elementId}")
-        val beginAttr = SmilXml.attr("begin", "${begin}ms")
-        val durAttr = SmilXml.attr("dur", "${dur}ms")
-        val fillAttr = SmilXml.attr("fill", FILL_FREEZE)
+        val href = SmilXml.attr(name = "xlink:href", value = "#${anim.elementId}")
+        val beginAttr = SmilXml.attr(name = "begin", value = "${begin}ms")
+        val durAttr = SmilXml.attr(name = "dur", value = "${dur}ms")
+        val fillAttr = SmilXml.attr(name = "fill", value = FILL_FREEZE)
 
         return when (anim) {
             is SmilAnimation.Animate -> {
-                val attrName = SmilXml.attr("attributeName", anim.attribute)
-                val from = SmilXml.attr("from", anim.from)
-                val to = SmilXml.attr("to", anim.to)
+                val attrName = SmilXml.attr(name = "attributeName", value = anim.attribute)
+                val from = SmilXml.attr(name = "from", value = anim.from)
+                val to = SmilXml.attr(name = "to", value = anim.to)
                 val repeatAttr = repeatCountAttr(anim.repeatCount)
                 "<animate $href $attrName $from $to $beginAttr $durAttr$repeatAttr $fillAttr/>"
             }
             is SmilAnimation.AnimateTransform -> {
-                val attrName = SmilXml.attr("attributeName", "transform")
-                val type = SmilXml.attr("type", anim.type.svgToken)
-                val from = SmilXml.attr("from", anim.from)
-                val to = SmilXml.attr("to", anim.to)
+                val attrName = SmilXml.attr(name = "attributeName", value = "transform")
+                val type = SmilXml.attr(name = "type", value = anim.type.svgToken)
+                val from = SmilXml.attr(name = "from", value = anim.from)
+                val to = SmilXml.attr(name = "to", value = anim.to)
                 val repeatAttr = repeatCountAttr(anim.repeatCount)
                 "<animateTransform $href $attrName $type $from $to $beginAttr $durAttr$repeatAttr $fillAttr/>"
             }
             is SmilAnimation.AnimateMotion -> {
-                val path = SmilXml.attr("path", anim.path)
+                val path = SmilXml.attr(name = "path", value = anim.path)
                 val repeatAttr = repeatCountAttr(anim.repeatCount)
                 "<animateMotion $href $path $beginAttr $durAttr$repeatAttr $fillAttr/>"
             }
             is SmilAnimation.Set -> {
-                val attrName = SmilXml.attr("attributeName", anim.attribute)
-                val to = SmilXml.attr("to", anim.to)
+                val attrName = SmilXml.attr(name = "attributeName", value = anim.attribute)
+                val to = SmilXml.attr(name = "to", value = anim.to)
                 "<set $href $attrName $to $beginAttr $durAttr/>"
             }
             is SmilAnimation.Fill -> {
                 // ADR-0014: emit <animate attributeName="fill"> — NEVER <animateColor>
-                val attrName = SmilXml.attr("attributeName", "fill")
-                val from = anim.fromColor?.let { SmilXml.attr("from", it) + " " } ?: ""
-                val to = SmilXml.attr("to", anim.color)
+                val attrName = SmilXml.attr(name = "attributeName", value = "fill")
+                val from = anim.fromColor?.let { SmilXml.attr(name = "from", value = it) + " " } ?: ""
+                val to = SmilXml.attr(name = "to", value = anim.color)
                 "<animate $href $attrName ${from}$to $beginAttr $durAttr $fillAttr/>"
             }
         }
@@ -155,8 +155,8 @@ public class SmilEmitter {
      */
     private fun repeatCountAttr(count: Int): String =
         when {
-            count == SmilAnimation.REPEAT_INDEFINITE -> " " + SmilXml.attr("repeatCount", "indefinite")
-            count > SmilAnimation.REPEAT_ONCE -> " " + SmilXml.attr("repeatCount", count.toString())
+            count == SmilAnimation.REPEAT_INDEFINITE -> " " + SmilXml.attr(name = "repeatCount", value = "indefinite")
+            count > SmilAnimation.REPEAT_ONCE -> " " + SmilXml.attr(name = "repeatCount", value = count.toString())
             else -> "" // REPEAT_ONCE: omit attribute (browser default)
         }
 

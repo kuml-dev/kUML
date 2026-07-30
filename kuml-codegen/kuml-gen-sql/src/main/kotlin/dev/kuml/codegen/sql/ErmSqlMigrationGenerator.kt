@@ -50,30 +50,36 @@ public class ErmSqlMigrationGenerator {
         requireValid(new)
 
         val diff =
-            when (val outcome = ErmSchemaDiffGenerator.diff(old, new)) {
+            when (val outcome = ErmSchemaDiffGenerator.diff(old = old, new = new)) {
                 is DiffOutcome.Refused ->
                     throw CodeGenerationException(
-                        "kuml-gen-sql: refusing to generate an additive migration from '${old.name}' to " +
-                            "'${new.name}' — destructive or ambiguous changes detected:\n" +
-                            outcome.reasons.joinToString("\n") { "  - $it" },
+                        message =
+                            "kuml-gen-sql: refusing to generate an additive migration from '${old.name}' to " +
+                                "'${new.name}' — destructive or ambiguous changes detected:\n" +
+                                outcome.reasons.joinToString("\n") { "  - $it" },
                     )
                 is DiffOutcome.Ok -> outcome.diff
             }
 
         if (diff.isEmpty) {
             throw CodeGenerationException(
-                "kuml-gen-sql: no additive changes detected between '${old.name}' and '${new.name}' — " +
-                    "refusing to write an empty migration.",
+                message =
+                    "kuml-gen-sql: no additive changes detected between '${old.name}' and '${new.name}' — " +
+                        "refusing to write an empty migration.",
             )
         }
 
         val dialect = SqlDialect.from(options["sql-dialect"] ?: "postgres")
-        val sql = ErmSchemaDiffEmitter(dialect, SqlEmitOptions.from(options)).emit(old, new, diff)
+        val sql =
+            ErmSchemaDiffEmitter(
+                dialect = dialect,
+                options = SqlEmitOptions.from(options),
+            ).emit(oldModel = old, newModel = new, diff = diff)
 
         // Nothing filesystem-visible happens above this line — a refused/empty diff (or a
         // model failing validation) never creates outputDir, let alone a migration file.
         outputDir.mkdirs()
-        val migrationFile = FlywayFileNaming.resolveMigrationFile(outputDir, version, description)
+        val migrationFile = FlywayFileNaming.resolveMigrationFile(outputDir = outputDir, version = version, description = description)
         migrationFile.writeText(sql)
         return migrationFile
     }
@@ -82,8 +88,9 @@ public class ErmSqlMigrationGenerator {
         val errors = ErmConstraintChecker().check(model).filter { it.severity == ViolationSeverity.ERROR }
         if (errors.isNotEmpty()) {
             throw CodeGenerationException(
-                "kuml-gen-sql: ERM model '${model.name}' failed validation — refusing to compute a migration diff:\n" +
-                    errors.joinToString("\n") { "  - ${it.message}" },
+                message =
+                    "kuml-gen-sql: ERM model '${model.name}' failed validation — refusing to compute a migration diff:\n" +
+                        errors.joinToString("\n") { "  - ${it.message}" },
             )
         }
     }

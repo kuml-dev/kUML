@@ -49,6 +49,6 @@ internal object ShellOut {
             )
         }
 
-        return Result(process.exitValue(), stdout.trim(), stderr.trim())
+        return Result(exitCode = process.exitValue(), stdout = stdout.trim(), stderr = stderr.trim())
     }
 }

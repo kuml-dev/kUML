@@ -59,7 +59,7 @@ internal class MarkdownCommand : CliktCommand(name = "markdown") {
                 when (mode) {
                     "inline" -> MarkdownOutputMode.InlineSvg
                     "linked-svg" -> MarkdownOutputMode.LinkedSvg(resolveAssetsDir())
-                    "linked-png" -> MarkdownOutputMode.LinkedPng(resolveAssetsDir(), width)
+                    "linked-png" -> MarkdownOutputMode.LinkedPng(assetsDir = resolveAssetsDir(), widthPx = width)
                     else -> error("Unsupported mode $mode")
                 }
             val processor = MarkdownProcessor()

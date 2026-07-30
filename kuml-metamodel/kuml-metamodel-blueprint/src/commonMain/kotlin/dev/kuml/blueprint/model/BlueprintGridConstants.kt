@@ -172,7 +172,7 @@ public object BlueprintGridConstants {
                 val textWidth =
                     COLUMN_WIDTH - 2 * CARD_MARGIN_SIDE -
                         (if (step.actorRef != null) ACTOR_ICON_RESERVE_PX else 0.0)
-                wrappedLineCount(step.name ?: step.id, textWidth)
+                wrappedLineCount(text = step.name ?: step.id, maxWidthPx = textWidth)
             } ?: 1
         val hasPain = model.steps.any { it.painPoint != null }
         val bottomClearance = BOTTOM_TEXT_CLEARANCE + (if (hasPain) PAIN_TEXT_RESERVE else 0.0)
@@ -254,9 +254,9 @@ public object BlueprintGridConstants {
         contentWidth: Double,
         visibleLayers: Set<BlueprintLayer>,
     ): Double {
-        val entries = legendEntries(model, visibleLayers)
+        val entries = legendEntries(model = model, visibleLayers = visibleLayers)
         if (entries.isEmpty()) return 0.0
-        val rows = wrapLegendEntries(entries, contentWidth)
+        val rows = wrapLegendEntries(entries = entries, contentWidth = contentWidth)
         return LEGEND_TOP_PADDING + rows.size * LEGEND_ROW_HEIGHT
     }
 }

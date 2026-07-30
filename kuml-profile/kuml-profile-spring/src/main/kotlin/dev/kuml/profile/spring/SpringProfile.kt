@@ -16,7 +16,7 @@ import dev.kuml.profile.javaee.javaEeProfile
  * Reference: Spring Framework 6.x / Spring Data 3.x
  */
 public val springProfile: KumlProfile =
-    profile("Spring") {
+    profile(name = "Spring") {
         namespace = "dev.kuml.profiles.spring"
         description = "Spring Framework — REST, Repository-Spezialisierungen, Scheduling"
         version = "1.0.0"
@@ -24,27 +24,27 @@ public val springProfile: KumlProfile =
 
         // ── Web Layer ─────────────────────────────────────────────────────────────
 
-        stereotype("RestController") {
+        stereotype(name = "RestController") {
             extends(UmlMetaclass.Class)
             specializes = "Controller" // D12: Stereotyp-Spezialisierung
-            property<String>("produces") { default = "application/json" }
-            property<String>("consumes") { default = "application/json" }
+            property<String>(name = "produces") { default = "application/json" }
+            property<String>(name = "consumes") { default = "application/json" }
         }
 
         // ── Data Layer ────────────────────────────────────────────────────────────
 
-        stereotype("SpringData") {
+        stereotype(name = "SpringData") {
             extends(UmlMetaclass.Class)
             specializes = "Repository"
-            property<Boolean>("readOnly") { default = false }
+            property<Boolean>(name = "readOnly") { default = false }
         }
 
         // ── Operation-Level: scheduled task annotation (V1.1.2) ──────────────────
 
-        stereotype("Scheduled") {
+        stereotype(name = "Scheduled") {
             extends(UmlMetaclass.Operation)
-            property<String>("cron") { default = "" }
-            property<Long>("fixedRate") { default = 0L }
-            property<Long>("initialDelay") { default = 0L }
+            property<String>(name = "cron") { default = "" }
+            property<Long>(name = "fixedRate") { default = 0L }
+            property<Long>(name = "initialDelay") { default = 0L }
         }
     }

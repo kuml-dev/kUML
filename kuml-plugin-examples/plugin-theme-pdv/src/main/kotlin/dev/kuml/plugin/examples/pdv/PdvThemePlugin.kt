@@ -27,7 +27,7 @@ public class PdvThemePlugin : KumlThemePlugin {
         PluginDescriptor(
             id = "dev.kuml.plugin.theme.pdv",
             name = "PdV Branding Theme",
-            version = PluginVersion(1, 0, 0),
+            version = PluginVersion(major = 1, minor = 0, patch = 0),
             kumlVersionRange = KumlVersionRange(">=0.12.0"),
             capabilities = setOf(PluginCapability.THEME),
             maintainer = "Partei der Vernunft",
@@ -63,11 +63,11 @@ public class PdvThemePlugin : KumlThemePlugin {
                     ),
                 typography =
                     KumlTypography(
-                        title = KumlFont("Inter", sizePt = 14f, weight = 700),
-                        subtitle = KumlFont("Inter", sizePt = 12f, weight = 600),
-                        body = KumlFont("Inter", sizePt = 11f, weight = 400),
-                        small = KumlFont("Inter", sizePt = 9f, weight = 400),
-                        stereotype = KumlFont("Inter", sizePt = 9f, weight = 400, italic = true),
+                        title = KumlFont(family = "Inter", sizePt = 14f, weight = 700),
+                        subtitle = KumlFont(family = "Inter", sizePt = 12f, weight = 600),
+                        body = KumlFont(family = "Inter", sizePt = 11f, weight = 400),
+                        small = KumlFont(family = "Inter", sizePt = 9f, weight = 400),
+                        stereotype = KumlFont(family = "Inter", sizePt = 9f, weight = 400, italic = true),
                     ),
                 borders = KumlBorders(thinPx = 1f, regularPx = 1.5f, thickPx = 2.5f, cornerRadiusPx = 3f),
             )
@@ -87,11 +87,11 @@ public class PdvThemePlugin : KumlThemePlugin {
                     ),
                 typography =
                     KumlTypography(
-                        title = KumlFont("Inter", sizePt = 14f, weight = 700),
-                        subtitle = KumlFont("Inter", sizePt = 12f, weight = 600),
-                        body = KumlFont("Inter", sizePt = 11f, weight = 400),
-                        small = KumlFont("Inter", sizePt = 9f, weight = 400),
-                        stereotype = KumlFont("Inter", sizePt = 9f, weight = 400, italic = true),
+                        title = KumlFont(family = "Inter", sizePt = 14f, weight = 700),
+                        subtitle = KumlFont(family = "Inter", sizePt = 12f, weight = 600),
+                        body = KumlFont(family = "Inter", sizePt = 11f, weight = 400),
+                        small = KumlFont(family = "Inter", sizePt = 9f, weight = 400),
+                        stereotype = KumlFont(family = "Inter", sizePt = 9f, weight = 400, italic = true),
                     ),
                 borders = KumlBorders(thinPx = 1f, regularPx = 1.5f, thickPx = 2.5f, cornerRadiusPx = 3f),
             )

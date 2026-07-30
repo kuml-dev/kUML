@@ -121,7 +121,7 @@ public class UmlToExposedPsmTransformer : KumlTransformer<KumlDiagram, KumlDiagr
                         annotated
                     }
                     is UmlAssociation -> {
-                        val (annotated, link) = annotateAssociation(element, classById)
+                        val (annotated, link) = annotateAssociation(assoc = element, classById = classById)
                         if (link != null) trace = trace.plus(link)
                         annotated
                     }
@@ -129,13 +129,13 @@ public class UmlToExposedPsmTransformer : KumlTransformer<KumlDiagram, KumlDiagr
                 }
             }
 
-        return TransformResult.Success(source.copy(elements = newElements), trace)
+        return TransformResult.Success(output = source.copy(elements = newElements), trace = trace)
     }
 
     // ── Class annotation: dual-apply Table + Entity ─────────────────────────
 
     private fun annotateClass(cls: UmlClass): Pair<UmlClass, List<TraceabilityLink>> {
-        val tableName = requireSafeSqlIdentifier(toSnakeCase(cls.name).toPlural(), "table name", cls.id)
+        val tableName = requireSafeSqlIdentifier(name = toSnakeCase(cls.name).toPlural(), what = "table name", elementId = cls.id)
 
         val tableStereotype =
             KumlStereotypeApplication(
@@ -162,7 +162,7 @@ public class UmlToExposedPsmTransformer : KumlTransformer<KumlDiagram, KumlDiagr
                 appliedStereotypes = cls.appliedStereotypes + tableStereotype + entityStereotype,
             )
 
-        val links = listOf(TraceabilityLink(cls.id, tableName, RULE_CLASS_TO_TABLE))
+        val links = listOf(TraceabilityLink(sourceElementId = cls.id, targetArtifactId = tableName, ruleId = RULE_CLASS_TO_TABLE))
         return newClass to links
     }
 
@@ -193,7 +193,7 @@ public class UmlToExposedPsmTransformer : KumlTransformer<KumlDiagram, KumlDiagr
                 attr
             }
             else -> {
-                val colName = requireSafeSqlIdentifier(toSnakeCase(attr.name), "column name", attr.id)
+                val colName = requireSafeSqlIdentifier(name = toSnakeCase(attr.name), what = "column name", elementId = attr.id)
                 val columnType = exposedColumnTypeName(attr.type.name)
                 attr.copy(
                     appliedStereotypes =
@@ -232,7 +232,7 @@ public class UmlToExposedPsmTransformer : KumlTransformer<KumlDiagram, KumlDiagr
         if (sourceClass.id == targetClass.id) return assoc to null // self-referential — cosmetic only, skip
 
         val targetTableName =
-            requireSafeSqlIdentifier(toSnakeCase(targetClass.name).toPlural(), "FK target table name", assoc.id)
+            requireSafeSqlIdentifier(name = toSnakeCase(targetClass.name).toPlural(), what = "FK target table name", elementId = assoc.id)
 
         val fkStereotype =
             KumlStereotypeApplication(
@@ -241,7 +241,7 @@ public class UmlToExposedPsmTransformer : KumlTransformer<KumlDiagram, KumlDiagr
                 tags = mapOf("targetTable" to targetTableName).mapValues { it.value.toTagValue() },
             )
         val annotated = assoc.copy(appliedStereotypes = assoc.appliedStereotypes + fkStereotype)
-        return annotated to TraceabilityLink(assoc.id, targetTableName, RULE_ASSOC_TO_FK)
+        return annotated to TraceabilityLink(sourceElementId = assoc.id, targetArtifactId = targetTableName, ruleId = RULE_ASSOC_TO_FK)
     }
 
     // ── Shared name/type helpers (duplicated intentionally — see class KDoc) ──

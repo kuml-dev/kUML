@@ -73,7 +73,7 @@ internal object Blake2b512 {
                     blockSize.toLong()
                 }
 
-            compress(h, blockData, bytesCompressed, isLast)
+            compress(h = h, block = blockData, counter = bytesCompressed, isLast = isLast)
         }
 
         // Serialize state as little-endian 64-byte output
@@ -110,14 +110,14 @@ internal object Blake2b512 {
         // 12 rounds of G mixing
         for (round in 0 until 12) {
             val s = SIGMA[round]
-            g(v, 0, 4, 8, 12, m[s[0]], m[s[1]])
-            g(v, 1, 5, 9, 13, m[s[2]], m[s[3]])
-            g(v, 2, 6, 10, 14, m[s[4]], m[s[5]])
-            g(v, 3, 7, 11, 15, m[s[6]], m[s[7]])
-            g(v, 0, 5, 10, 15, m[s[8]], m[s[9]])
-            g(v, 1, 6, 11, 12, m[s[10]], m[s[11]])
-            g(v, 2, 7, 8, 13, m[s[12]], m[s[13]])
-            g(v, 3, 4, 9, 14, m[s[14]], m[s[15]])
+            g(v = v, a = 0, b = 4, c = 8, d = 12, x = m[s[0]], y = m[s[1]])
+            g(v = v, a = 1, b = 5, c = 9, d = 13, x = m[s[2]], y = m[s[3]])
+            g(v = v, a = 2, b = 6, c = 10, d = 14, x = m[s[4]], y = m[s[5]])
+            g(v = v, a = 3, b = 7, c = 11, d = 15, x = m[s[6]], y = m[s[7]])
+            g(v = v, a = 0, b = 5, c = 10, d = 15, x = m[s[8]], y = m[s[9]])
+            g(v = v, a = 1, b = 6, c = 11, d = 12, x = m[s[10]], y = m[s[11]])
+            g(v = v, a = 2, b = 7, c = 8, d = 13, x = m[s[12]], y = m[s[13]])
+            g(v = v, a = 3, b = 4, c = 9, d = 14, x = m[s[14]], y = m[s[15]])
         }
 
         // Finalize
@@ -134,13 +134,13 @@ internal object Blake2b512 {
         y: Long,
     ) {
         v[a] = v[a] + v[b] + x
-        v[d] = rotr64(v[d] xor v[a], 32)
+        v[d] = rotr64(x = v[d] xor v[a], n = 32)
         v[c] = v[c] + v[d]
-        v[b] = rotr64(v[b] xor v[c], 24)
+        v[b] = rotr64(x = v[b] xor v[c], n = 24)
         v[a] = v[a] + v[b] + y
-        v[d] = rotr64(v[d] xor v[a], 16)
+        v[d] = rotr64(x = v[d] xor v[a], n = 16)
         v[c] = v[c] + v[d]
-        v[b] = rotr64(v[b] xor v[c], 63)
+        v[b] = rotr64(x = v[b] xor v[c], n = 63)
     }
 
     private fun rotr64(

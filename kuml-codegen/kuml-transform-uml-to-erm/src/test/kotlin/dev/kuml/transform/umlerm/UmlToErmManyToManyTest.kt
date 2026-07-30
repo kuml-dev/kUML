@@ -32,9 +32,9 @@ class UmlToErmManyToManyTest :
         val transformer = UmlToErmTransformer()
 
         fun studentCourseDiagram() =
-            classDiagram("Enrollment") {
-                val student = classOf("Student") { attribute("id", "UUID") }
-                val course = classOf("Course") { attribute("id", "UUID") }
+            classDiagram(name = "Enrollment") {
+                val student = classOf(name = "Student") { attribute(name = "id", type = "UUID") }
+                val course = classOf(name = "Course") { attribute(name = "id", type = "UUID") }
                 association(source = student, target = course) {
                     source { multiplicity("0..*") }
                     target { multiplicity("0..*") }
@@ -42,7 +42,7 @@ class UmlToErmManyToManyTest :
             }
 
         test("many-to-many association resolves to a junction entity with a composite PK") {
-            val result = transformer.transform(studentCourseDiagram(), TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = studentCourseDiagram(), ctx = TransformContext()) as TransformResult.Success
             val model = result.output
 
             model.entities shouldHaveSize 3
@@ -56,7 +56,7 @@ class UmlToErmManyToManyTest :
         }
 
         test("many-to-many resolution creates two IDENTIFYING relationships, no plain M:N relationship") {
-            val result = transformer.transform(studentCourseDiagram(), TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = studentCourseDiagram(), ctx = TransformContext()) as TransformResult.Success
             val rels = result.output.relationships
             rels shouldHaveSize 2
             rels.forEach { it.kind shouldBe RelationshipKind.IDENTIFYING }
@@ -71,7 +71,7 @@ class UmlToErmManyToManyTest :
                         tags = mapOf(ErmProfileNames.TAG_TABLE_NAME to "enrollments").mapValues { it.value.toTagValue() },
                     ),
                 )
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             result.output.entities.map { it.name } shouldBe listOf("students", "courses", "enrollments")
         }
 
@@ -88,14 +88,14 @@ class UmlToErmManyToManyTest :
                             ).mapValues { it.value.toTagValue() },
                     ),
                 )
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val junction = result.output.entities.first { it.name == "students_courses" }
             junction.attributeByName("learner_id") shouldNotBe null
             junction.attributeByName("class_id") shouldNotBe null
         }
 
         test("resolved M:N model produces zero ErmConstraintChecker violations (ERROR or WARNING)") {
-            val result = transformer.transform(studentCourseDiagram(), TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = studentCourseDiagram(), ctx = TransformContext()) as TransformResult.Success
             ErmConstraintChecker().check(result.output) shouldBe emptyList()
         }
     })

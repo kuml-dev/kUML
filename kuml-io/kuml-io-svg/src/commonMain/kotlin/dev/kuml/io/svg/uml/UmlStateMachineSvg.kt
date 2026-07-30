@@ -38,48 +38,52 @@ internal fun renderUmlStateMachine(
     val cx = w / 2f
 
     builder.tag(
-        "g",
-        mapOf(
-            "id" to xmlEscapeAttr(element.id),
-            "transform" to "translate(${fmt(x)},${fmt(y)})",
-        ),
+        name = "g",
+        attrs =
+            mapOf(
+                "id" to xmlEscapeAttr(element.id),
+                "transform" to "translate(${fmt(x)},${fmt(y)})",
+            ),
     ) {
         // 1. Frame: rounded rectangle
         tag(
-            "rect",
-            mapOf(
-                "width" to fmt(w),
-                "height" to fmt(h),
-                "rx" to "8",
-                "ry" to "8",
-                "class" to "kuml-frame",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "width" to fmt(w),
+                    "height" to fmt(h),
+                    "rx" to "8",
+                    "ry" to "8",
+                    "class" to "kuml-frame",
+                ),
         )
 
         // 2. Label "stateMachine" top-left (small)
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-small",
-                "x" to "8",
-                "y" to "16",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-small",
+                    "x" to "8",
+                    "y" to "16",
+                ),
         ) { text("stateMachine") }
 
         // 3. Optional stereotype header centered (via StereotypeHelper)
         var cy = 32f
-        val stereoAdv = StereotypeHelper.renderHeader(element, theme, this, cx, cy)
+        val stereoAdv = StereotypeHelper.renderHeader(element = element, theme = theme, builder = this, cx = cx, cy = cy)
         cy += stereoAdv
 
         // 4. Name centered below the stereotype header (or near top if none)
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-title",
-                "x" to fmt(cx),
-                "y" to fmt(cy + 14f),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-title",
+                    "x" to fmt(cx),
+                    "y" to fmt(cy + 14f),
+                    "text-anchor" to "middle",
+                ),
         ) { text(element.name) }
     }
 }

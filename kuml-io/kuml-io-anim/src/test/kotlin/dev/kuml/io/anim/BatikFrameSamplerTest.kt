@@ -51,16 +51,16 @@ class BatikFrameSamplerTest :
 
         test("frame count matches budget") {
             val opts = AnimRenderOptions(fps = 10, widthPx = 100)
-            val budget = FrameBudget.compute(timeline.totalDurationMs, opts)
-            val frames = BatikFrameSampler.sample(animatedSvg, timeline, budget, opts)
+            val budget = FrameBudget.compute(totalDurationMs = timeline.totalDurationMs, options = opts)
+            val frames = BatikFrameSampler.sample(svg = animatedSvg, timeline = timeline, budget = budget, options = opts)
             frames.size shouldBe budget.frameCount
             frames.size shouldBeGreaterThanOrEqualTo 1
         }
 
         test("each frame is a valid PNG (starts with PNG signature)") {
             val opts = AnimRenderOptions(fps = 5, widthPx = 100)
-            val budget = FrameBudget.compute(timeline.totalDurationMs, opts)
-            val frames = BatikFrameSampler.sample(animatedSvg, timeline, budget, opts)
+            val budget = FrameBudget.compute(totalDurationMs = timeline.totalDurationMs, options = opts)
+            val frames = BatikFrameSampler.sample(svg = animatedSvg, timeline = timeline, budget = budget, options = opts)
             for (frame in frames) {
                 val sig = frame.copyOfRange(0, 8)
                 sig.contentEquals(PNG_SIGNATURE) shouldBe true
@@ -69,8 +69,8 @@ class BatikFrameSamplerTest :
 
         test("mid frame PNG bytes differ from first frame (animation clock advanced)") {
             val opts = AnimRenderOptions(fps = 10, widthPx = 100)
-            val budget = FrameBudget.compute(timeline.totalDurationMs, opts)
-            val frames = BatikFrameSampler.sample(animatedSvg, timeline, budget, opts)
+            val budget = FrameBudget.compute(totalDurationMs = timeline.totalDurationMs, options = opts)
+            val frames = BatikFrameSampler.sample(svg = animatedSvg, timeline = timeline, budget = budget, options = opts)
             if (frames.size >= 2) {
                 val firstFrame = frames.first()
                 val midFrame = frames[frames.size / 2]
@@ -95,8 +95,8 @@ class BatikFrameSamplerTest :
 
         test("frame sampler handles transparent background") {
             val opts = AnimRenderOptions(fps = 5, widthPx = 100, transparent = true)
-            val budget = FrameBudget.compute(timeline.totalDurationMs, opts)
-            val frames = BatikFrameSampler.sample(animatedSvg, timeline, budget, opts)
+            val budget = FrameBudget.compute(totalDurationMs = timeline.totalDurationMs, options = opts)
+            val frames = BatikFrameSampler.sample(svg = animatedSvg, timeline = timeline, budget = budget, options = opts)
             frames shouldNotBe null
             frames.size shouldBeGreaterThanOrEqualTo 1
         }

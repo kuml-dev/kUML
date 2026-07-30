@@ -76,8 +76,8 @@ class OclConformanceTest :
             expr: String,
         ): Any? {
             val tokens = OclLexer.tokenize(expr)
-            val ast = OclParser(tokens).parse()
-            return OclEvaluator(self).eval(ast)
+            val ast = OclParser(tokens = tokens).parse()
+            return OclEvaluator(self = self).eval(expr = ast)
         }
 
         val dummySelf = UmlClass(id = "Dummy", name = "Dummy")
@@ -179,7 +179,7 @@ class OclConformanceTest :
                 UmlClass(
                     id = "C",
                     name = "C",
-                    attributes = names.map { UmlProperty(id = "C::$it", name = it, type = UmlTypeRef("String")) },
+                    attributes = names.map { UmlProperty(id = "C::$it", name = it, type = UmlTypeRef(name = "String")) },
                 )
 
             test("Collection->size() counts elements") {

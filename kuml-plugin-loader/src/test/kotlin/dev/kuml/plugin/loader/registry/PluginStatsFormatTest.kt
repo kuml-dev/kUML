@@ -72,19 +72,19 @@ class PluginStatsFormatTest :
         // ── ratingLine ─────────────────────────────────────────────────────────
 
         "ratingLine: null rating returns 'no ratings yet'" {
-            PluginStatsFormat.ratingLine(null, 0) shouldBe "no ratings yet"
+            PluginStatsFormat.ratingLine(rating = null, count = 0) shouldBe "no ratings yet"
         }
 
         "ratingLine: 4.3 with 12 ratings" {
-            PluginStatsFormat.ratingLine(4.3, 12) shouldBe "4.3/5.0 (12 ratings)"
+            PluginStatsFormat.ratingLine(rating = 4.3, count = 12) shouldBe "4.3/5.0 (12 ratings)"
         }
 
         "ratingLine: 5.0 with 1 rating (singular form)" {
-            PluginStatsFormat.ratingLine(5.0, 1) shouldBe "5.0/5.0 (1 rating)"
+            PluginStatsFormat.ratingLine(rating = 5.0, count = 1) shouldBe "5.0/5.0 (1 rating)"
         }
 
         "ratingLine: 0.0 with 0 ratings (explicitly set to zero)" {
-            PluginStatsFormat.ratingLine(0.0, 0) shouldBe "0.0/5.0 (0 ratings)"
+            PluginStatsFormat.ratingLine(rating = 0.0, count = 0) shouldBe "0.0/5.0 (0 ratings)"
         }
 
         // ── stars ──────────────────────────────────────────────────────────────
@@ -149,17 +149,17 @@ class PluginStatsFormatTest :
         // ── truncate ───────────────────────────────────────────────────────────
 
         "truncate: short comment unchanged" {
-            PluginStatsFormat.truncate("Hello", 80) shouldBe "Hello"
+            PluginStatsFormat.truncate(comment = "Hello", maxLen = 80) shouldBe "Hello"
         }
 
         "truncate: exactly maxLen chars unchanged" {
             val s = "x".repeat(80)
-            PluginStatsFormat.truncate(s, 80) shouldBe s
+            PluginStatsFormat.truncate(comment = s, maxLen = 80) shouldBe s
         }
 
         "truncate: longer than maxLen appends ellipsis" {
             val s = "a".repeat(81)
-            val result = PluginStatsFormat.truncate(s, 80)
+            val result = PluginStatsFormat.truncate(comment = s, maxLen = 80)
             result shouldBe "a".repeat(80) + "…"
         }
     })

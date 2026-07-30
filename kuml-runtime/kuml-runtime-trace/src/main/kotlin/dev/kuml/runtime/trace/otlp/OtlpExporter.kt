@@ -57,9 +57,9 @@ public class OtlpExporter(
         // Resource attributes
         val resourceAttrs =
             buildList {
-                add(kv("service.name", serviceName))
-                traceFile.modelId?.let { add(kv("kuml.model.id", it)) }
-                add(kv("kuml.trace.schema", traceFile.schema))
+                add(kv(key = "service.name", value = serviceName))
+                traceFile.modelId?.let { add(kv(key = "kuml.model.id", value = it)) }
+                add(kv(key = "kuml.trace.schema", value = traceFile.schema))
             }
 
         // Mutable root span events / status
@@ -102,7 +102,7 @@ public class OtlpExporter(
             when (entry) {
                 is TraceEntry.StateEntered -> {
                     val parentId = spanStack.lastOrNull()?.spanId ?: rootSpanId
-                    val spanId = OtlpIds.spanId(modelId, entry.vertexId, entry.seqNo)
+                    val spanId = OtlpIds.spanId(modelId = modelId, vertexId = entry.vertexId, enterSeqNo = entry.seqNo)
                     spanStack.add(
                         OpenSpan(
                             spanId = spanId,
@@ -253,7 +253,7 @@ public class OtlpExporter(
             )
 
         // AI-lifecycle entries live in their own kuml.ai resource span (V3.0.25).
-        val aiResourceSpans = buildAiOtlpResourceSpans(traceFile, aiEntries)
+        val aiResourceSpans = buildAiOtlpResourceSpans(traceFile = traceFile, aiEntries = aiEntries)
 
         return OtlpExport(
             resourceSpans =
@@ -293,8 +293,8 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
                 name = "kuml.event.received",
                 attributes =
                     listOf(
-                        kv("event.name", eventName),
-                        kv("event.payload", payload.toString()),
+                        kv(key = "event.name", value = eventName),
+                        kv(key = "event.payload", value = payload.toString()),
                     ),
             )
 
@@ -304,9 +304,9 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
                 name = "kuml.transition.fired",
                 attributes =
                     listOf(
-                        kv("transition.id", transitionId),
-                        kv("from.vertex.id", fromVertexId),
-                        kv("to.vertex.id", toVertexId),
+                        kv(key = "transition.id", value = transitionId),
+                        kv(key = "from.vertex.id", value = fromVertexId),
+                        kv(key = "to.vertex.id", value = toVertexId),
                     ),
             )
 
@@ -316,9 +316,9 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
                 name = "kuml.guard.evaluated",
                 attributes =
                     listOf(
-                        kv("transition.id", transitionId),
-                        kv("guard", guard),
-                        kv("result", result),
+                        kv(key = "transition.id", value = transitionId),
+                        kv(key = "guard", value = guard),
+                        kv(key = "result", value = result),
                     ),
             )
 
@@ -328,20 +328,20 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
                 name = "kuml.guard.warning",
                 attributes =
                     listOf(
-                        kv("transition.id", transitionId),
-                        kv("guard", guard),
-                        kv("message", message),
+                        kv(key = "transition.id", value = transitionId),
+                        kv(key = "guard", value = guard),
+                        kv(key = "message", value = message),
                     ),
             )
 
         is TraceEntry.ActionInvoked -> {
             val attrs =
                 mutableListOf(
-                    kv("phase", phase.name),
-                    kv("action", action),
+                    kv(key = "phase", value = phase.name),
+                    kv(key = "action", value = action),
                 )
-            vertexId?.let { attrs.add(kv("vertex.id", it)) }
-            transitionId?.let { attrs.add(kv("transition.id", it)) }
+            vertexId?.let { attrs.add(kv(key = "vertex.id", value = it)) }
+            transitionId?.let { attrs.add(kv(key = "transition.id", value = it)) }
             OtlpEvent(
                 timeUnixNano = timeUnixNano.toString(),
                 name = "kuml.action.invoked",
@@ -355,7 +355,7 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
                 name = "kuml.action.error",
                 attributes =
                     listOf(
-                        kv("message", message),
+                        kv(key = "message", value = message),
                     ),
             )
 
@@ -365,7 +365,7 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
                 name = "kuml.stayed",
                 attributes =
                     listOf(
-                        kv("reason", reason),
+                        kv(key = "reason", value = reason),
                     ),
             )
 
@@ -375,7 +375,7 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
                 name = "kuml.terminated",
                 attributes =
                     listOf(
-                        kv("final.vertex.id", finalVertexId),
+                        kv(key = "final.vertex.id", value = finalVertexId),
                     ),
             )
 
@@ -385,9 +385,9 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
                 name = "kuml.activity.decision",
                 attributes =
                     buildList {
-                        add(kv("node.id", nodeId))
-                        add(kv("chosen.edge.id", chosenEdgeId))
-                        guard?.let { add(kv("guard", it)) }
+                        add(kv(key = "node.id", value = nodeId))
+                        add(kv(key = "chosen.edge.id", value = chosenEdgeId))
+                        guard?.let { add(kv(key = "guard", value = it)) }
                     },
             )
 
@@ -397,8 +397,8 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
                 name = "kuml.activity.fork",
                 attributes =
                     listOf(
-                        kv("node.id", nodeId),
-                        kv("target.node.ids", targetNodeIds.joinToString(",")),
+                        kv(key = "node.id", value = nodeId),
+                        kv(key = "target.node.ids", value = targetNodeIds.joinToString(",")),
                     ),
             )
 
@@ -408,8 +408,8 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
                 name = "kuml.activity.join",
                 attributes =
                     listOf(
-                        kv("node.id", nodeId),
-                        kv("is.ready", isReady),
+                        kv(key = "node.id", value = nodeId),
+                        kv(key = "is.ready", value = isReady),
                     ),
             )
 
@@ -419,8 +419,8 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
                 name = "kuml.activity.action",
                 attributes =
                     buildList {
-                        add(kv("node.id", nodeId))
-                        body?.let { add(kv("body", it)) }
+                        add(kv(key = "node.id", value = nodeId))
+                        body?.let { add(kv(key = "body", value = it)) }
                     },
             )
 
@@ -428,14 +428,14 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
             OtlpEvent(
                 timeUnixNano = timeUnixNano.toString(),
                 name = "kuml.activity.flow.final",
-                attributes = listOf(kv("node.id", nodeId)),
+                attributes = listOf(kv(key = "node.id", value = nodeId)),
             )
 
         is TraceEntry.ActivityTerminated ->
             OtlpEvent(
                 timeUnixNano = timeUnixNano.toString(),
                 name = "kuml.activity.terminated",
-                attributes = listOf(kv("clock", clock)),
+                attributes = listOf(kv(key = "clock", value = clock)),
             )
 
         // StateEntered and StateExited are handled as span boundaries — not events

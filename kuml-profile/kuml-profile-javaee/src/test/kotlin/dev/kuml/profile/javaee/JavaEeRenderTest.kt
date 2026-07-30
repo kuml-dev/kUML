@@ -32,11 +32,11 @@ class JavaEeRenderTest :
     FunSpec({
 
         val diagram =
-            classDiagram("User Domain") {
+            classDiagram(name = "User Domain") {
                 applyProfile(javaEeProfile)
 
-                classOf("User") {
-                    stereotype("Entity") {
+                classOf(name = "User") {
+                    stereotype(name = "Entity") {
                         "tableName" to "users"
                         "schema" to "auth"
                         "cacheable" to true
@@ -46,19 +46,19 @@ class JavaEeRenderTest :
                     attribute(name = "name", type = "String")
                 }
 
-                classOf("UserRepository") {
-                    stereotype("Repository") { "dataSource" to "userDb" }
+                classOf(name = "UserRepository") {
+                    stereotype(name = "Repository") { "dataSource" to "userDb" }
                     operation(name = "findById") { returns("User") }
                     operation(name = "save") { returns("User") }
                 }
 
-                classOf("UserService") {
-                    stereotype("Service") { "transactional" to true }
+                classOf(name = "UserService") {
+                    stereotype(name = "Service") { "transactional" to true }
                     operation(name = "register") { returns("User") }
                 }
 
-                classOf("UserController") {
-                    stereotype("Controller") { "requestMapping" to "/api/users" }
+                classOf(name = "UserController") {
+                    stereotype(name = "Controller") { "requestMapping" to "/api/users" }
                     operation(name = "list") { returns("List<User>") }
                 }
             }
@@ -95,28 +95,28 @@ class JavaEeRenderTest :
         // ── Test 1: SVG contains «Entity» stereotype header ───────────────────────
 
         test("SVG contains Entity stereotype label") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "«Entity»"
         }
 
         // ── Test 2: SVG contains «Repository» stereotype header ───────────────────
 
         test("SVG contains Repository stereotype label") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "«Repository»"
         }
 
         // ── Test 3: SVG contains «Service» stereotype header ──────────────────────
 
         test("SVG contains Service stereotype label") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "«Service»"
         }
 
         // ── Test 4: SVG contains «Controller» stereotype header ───────────────────
 
         test("SVG contains Controller stereotype label") {
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = PlainTheme())
             svg shouldContain "«Controller»"
         }
 
@@ -127,7 +127,7 @@ class JavaEeRenderTest :
                 PlainTheme().copy(
                     stereotypes = StereotypeTheme(showTaggedValues = true),
                 )
-            val svg = KumlSvgRenderer.toSvg(diagram, buildLayout(), themeWithTV)
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = buildLayout(), theme = themeWithTV)
             svg shouldContain "{tableName = users}"
             svg shouldContain "{cacheable = true}"
             svg shouldContain "kuml-tagged-value"

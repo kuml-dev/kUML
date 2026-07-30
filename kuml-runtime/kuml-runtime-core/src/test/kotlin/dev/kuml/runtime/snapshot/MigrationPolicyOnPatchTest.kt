@@ -17,14 +17,14 @@ class MigrationPolicyOnPatchTest :
 
         test("Reject.onPatch does not throw when the patch preserves all active vertices") {
             shouldNotThrowAny {
-                MigrationPolicy.Reject.onPatch(patch, activeVertexIds = listOf("A"), patchedVertexIds = setOf("A", "B"))
+                MigrationPolicy.Reject.onPatch(patch = patch, activeVertexIds = listOf("A"), patchedVertexIds = setOf("A", "B"))
             }
         }
 
         test("Reject.onPatch throws when the patch would remove an active vertex") {
             val ex =
                 shouldThrow<MigrationException> {
-                    MigrationPolicy.Reject.onPatch(patch, activeVertexIds = listOf("A"), patchedVertexIds = setOf("B"))
+                    MigrationPolicy.Reject.onPatch(patch = patch, activeVertexIds = listOf("A"), patchedVertexIds = setOf("B"))
                 }
             ex.reason shouldBe "patch would remove active vertices"
         }
@@ -32,10 +32,10 @@ class MigrationPolicyOnPatchTest :
         test("AcceptIfVerticesPresent.onPatch inherits the default structural check") {
             val policy = MigrationPolicy.AcceptIfVerticesPresent()
             shouldNotThrowAny {
-                policy.onPatch(patch, activeVertexIds = listOf("A"), patchedVertexIds = setOf("A"))
+                policy.onPatch(patch = patch, activeVertexIds = listOf("A"), patchedVertexIds = setOf("A"))
             }
             shouldThrow<MigrationException> {
-                policy.onPatch(patch, activeVertexIds = listOf("A"), patchedVertexIds = setOf("B"))
+                policy.onPatch(patch = patch, activeVertexIds = listOf("A"), patchedVertexIds = setOf("B"))
             }
         }
 
@@ -43,10 +43,10 @@ class MigrationPolicyOnPatchTest :
             // The predicate would accept everything via check() — onPatch is unaffected.
             val policy = MigrationPolicy.Custom { _, _, _, _ -> }
             shouldNotThrowAny {
-                policy.onPatch(patch, activeVertexIds = listOf("A"), patchedVertexIds = setOf("A"))
+                policy.onPatch(patch = patch, activeVertexIds = listOf("A"), patchedVertexIds = setOf("A"))
             }
             shouldThrow<MigrationException> {
-                policy.onPatch(patch, activeVertexIds = listOf("A"), patchedVertexIds = setOf("B"))
+                policy.onPatch(patch = patch, activeVertexIds = listOf("A"), patchedVertexIds = setOf("B"))
             }
         }
     })

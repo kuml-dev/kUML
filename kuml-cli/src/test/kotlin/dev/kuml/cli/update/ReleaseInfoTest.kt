@@ -59,7 +59,7 @@ class ReleaseInfoTest :
 
         "exposes a parsed SemVer for known-good tags" {
             val info = ReleaseInfo.JSON.decodeFromString<ReleaseInfo>(singleReleaseFixture)
-            info.semver shouldBe SemVer(0, 4, 0)
+            info.semver shouldBe SemVer(major = 0, minor = 4, patch = 0)
         }
 
         "returns null SemVer for non-semver tags (no crash, the caller decides)" {

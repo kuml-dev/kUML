@@ -54,8 +54,11 @@ class BpmnSvgRendererTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(w + 20f, h + 20f),
-                nodes = mapOf(NodeId(id) to NodeLayout(bounds = Rect(Point(10f, 10f), Size(w, h)))),
+                canvas = Size(width = w + 20f, height = h + 20f),
+                nodes =
+                    mapOf(
+                        NodeId(id) to NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = w, height = h))),
+                    ),
                 edges = emptyMap(),
                 groups = emptyMap(),
             )
@@ -72,18 +75,18 @@ class BpmnSvgRendererTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(300f, 100f),
+                canvas = Size(width = 300f, height = 100f),
                 nodes =
                     mapOf(
-                        NodeId(id1) to NodeLayout(bounds = Rect(Point(10f, 30f), Size(36f, 36f))),
-                        NodeId(id2) to NodeLayout(bounds = Rect(Point(200f, 30f), Size(36f, 36f))),
+                        NodeId(id1) to NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 30f), size = Size(width = 36f, height = 36f))),
+                        NodeId(id2) to NodeLayout(bounds = Rect(origin = Point(x = 200f, y = 30f), size = Size(width = 36f, height = 36f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId(edgeId) to
                             EdgeRoute.Direct(
-                                source = Point(46f, 48f),
-                                target = Point(200f, 48f),
+                                source = Point(x = 46f, y = 48f),
+                                target = Point(x = 200f, y = 48f),
                             ),
                     ),
                 groups = emptyMap(),
@@ -102,7 +105,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("e1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("e1"), theme = PlainTheme())
 
             svg shouldContain "<circle"
             svg shouldContain "stroke-width=\"1.5\""
@@ -121,7 +124,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("e2"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("e2"), theme = PlainTheme())
 
             svg shouldContain "<circle"
             // MESSAGE-Symbol enthält rect (Umschlag-Rahmen)
@@ -141,7 +144,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("e3"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("e3"), theme = PlainTheme())
 
             // Muss zwei circle-Elemente enthalten (äußerer + innerer Ring)
             val circleCount = svg.split("<circle").size - 1
@@ -159,7 +162,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("e4"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("e4"), theme = PlainTheme())
 
             // Throwing MESSAGE: gefülltes Rect
             svg shouldContain "fill=\"currentColor\""
@@ -176,7 +179,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("e5"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("e5"), theme = PlainTheme())
 
             svg shouldContain "stroke-width=\"3\""
         }
@@ -192,7 +195,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("e6"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("e6"), theme = PlainTheme())
 
             svg shouldContain "stroke-width=\"3\""
             // TERMINATE-Symbol ist ein gefüllter Kreis
@@ -212,7 +215,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("e7"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("e7"), theme = PlainTheme())
 
             svg shouldContain "stroke-dasharray"
         }
@@ -228,7 +231,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("et1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("et1"), theme = PlainTheme())
 
             svg shouldContain "<circle"
             // TIMER symbol: clock face circle + two clock-hand lines
@@ -247,7 +250,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("ee1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("ee1"), theme = PlainTheme())
 
             // ERROR symbol: filled lightning bolt polyline
             svg shouldContain "<polyline"
@@ -265,7 +268,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("ee2"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("ee2"), theme = PlainTheme())
 
             // ESCALATION: filled upward-arrow polygon
             svg shouldContain "<polygon"
@@ -292,10 +295,10 @@ class BpmnSvgRendererTest :
 
             val catchingSvg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(catchingDiagram, eventLayout("es_c"), PlainTheme())
+                    .toSvg(diagram = catchingDiagram, layoutResult = eventLayout("es_c"), theme = PlainTheme())
             val throwingSvg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(throwingDiagram, eventLayout("es_t"), PlainTheme())
+                    .toSvg(diagram = throwingDiagram, layoutResult = eventLayout("es_t"), theme = PlainTheme())
 
             // Catching SIGNAL: outlined triangle (fill="none")
             catchingSvg shouldContain "<polygon"
@@ -316,7 +319,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("ec1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("ec1"), theme = PlainTheme())
 
             // COMPENSATION: two filled left-pointing triangles
             val polygonCount = svg.split("<polygon").size - 1
@@ -334,7 +337,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("ecd1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("ecd1"), theme = PlainTheme())
 
             // CONDITIONAL: document rect + three horizontal lines
             svg shouldContain "<rect"
@@ -353,7 +356,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("el1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("el1"), theme = PlainTheme())
 
             // LINK: right-arrow polygon with fill
             svg shouldContain "<polygon"
@@ -371,7 +374,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("ecn1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("ecn1"), theme = PlainTheme())
 
             // CANCEL: two crossing lines forming an X
             val lineCount = svg.split("<line").size - 1
@@ -389,7 +392,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("em1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("em1"), theme = PlainTheme())
 
             // MULTIPLE: pentagon polygon with 5 points
             svg shouldContain "<polygon"
@@ -408,7 +411,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(event))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, eventLayout("epm1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = eventLayout("epm1"), theme = PlainTheme())
 
             // PARALLEL_MULTIPLE: two lines forming a + cross
             val lineCount = svg.split("<line").size - 1
@@ -437,12 +440,12 @@ class BpmnSvgRendererTest :
                 LayoutResult(
                     engineId = dev.kuml.layout.LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(300f, 200f),
+                    canvas = Size(width = 300f, height = 200f),
                     nodes =
                         mapOf(
                             NodeId("inner-task") to
                                 NodeLayout(
-                                    bounds = Rect(Point(60f, 60f), Size(120f, 60f)),
+                                    bounds = Rect(origin = Point(x = 60f, y = 60f), size = Size(width = 120f, height = 60f)),
                                 ),
                         ),
                     edges = emptyMap(),
@@ -450,13 +453,13 @@ class BpmnSvgRendererTest :
                         mapOf(
                             dev.kuml.layout.GroupId("sp-expanded") to
                                 dev.kuml.layout.GroupLayout(
-                                    bounds = Rect(Point(20f, 20f), Size(260f, 160f)),
+                                    bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 260f, height = 160f)),
                                 ),
                         ),
                 )
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, layoutResult, PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             // SubProcess outer frame must be present
             svg shouldContain "<rect"
@@ -479,7 +482,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(gw))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, gatewayLayout("gw1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = gatewayLayout("gw1"), theme = PlainTheme())
 
             svg shouldContain "<polygon"
             // X: zwei gekreuzte Linien
@@ -492,7 +495,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(gw))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, gatewayLayout("gw2"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = gatewayLayout("gw2"), theme = PlainTheme())
 
             svg shouldContain "<polygon"
             val lineCount = svg.split("<line").size - 1
@@ -504,7 +507,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(gw))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, gatewayLayout("gw3"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = gatewayLayout("gw3"), theme = PlainTheme())
 
             svg shouldContain "<polygon"
             svg shouldContain "<circle"
@@ -516,7 +519,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(gw))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, gatewayLayout("gw4"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = gatewayLayout("gw4"), theme = PlainTheme())
 
             svg shouldContain "<polygon"
             // Mindestens 2 Kreise (Doppelkreis) plus das Pentagon-Polygon (= 2 polygons)
@@ -529,7 +532,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(gw))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, gatewayLayout("gw5"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = gatewayLayout("gw5"), theme = PlainTheme())
 
             svg shouldContain "<polygon"
             // Asterisk: 3 Linien
@@ -544,7 +547,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(task))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, singleNodeLayout("t1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = singleNodeLayout("t1"), theme = PlainTheme())
 
             svg shouldContain "<rect"
             svg shouldContain "rx=\"6\""
@@ -559,7 +562,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(task))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, singleNodeLayout("t1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = singleNodeLayout("t1"), theme = PlainTheme())
 
             svg shouldContain "id=\"t1-box-pulse\""
             svg shouldContain "stroke-width=\"0\""
@@ -571,7 +574,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(task))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, singleNodeLayout("t2"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = singleNodeLayout("t2"), theme = PlainTheme())
 
             svg shouldContain "<rect"
             svg shouldContain "Call API"
@@ -589,7 +592,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(task))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, singleNodeLayout("t3"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = singleNodeLayout("t3"), theme = PlainTheme())
 
             // Loop-Marker: Pfad-Kreis ↻
             svg shouldContain "<path"
@@ -606,7 +609,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(task))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, singleNodeLayout("t4"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = singleNodeLayout("t4"), theme = PlainTheme())
 
             // Drei vertikale Striche ‖ als line-Elemente
             val lineCount = svg.split("<line").size - 1
@@ -623,7 +626,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(task))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, singleNodeLayout("t5"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = singleNodeLayout("t5"), theme = PlainTheme())
 
             val lineCount = svg.split("<line").size - 1
             assert(lineCount >= 3) { "Sequential MI must have at least 3 horizontal lines, found $lineCount" }
@@ -636,7 +639,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(sp))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, singleNodeLayout("sp1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = singleNodeLayout("sp1"), theme = PlainTheme())
 
             svg shouldContain "<rect"
             // + Symbol: kleines rect + zwei lines
@@ -649,7 +652,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(sp))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, singleNodeLayout("sp2"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = singleNodeLayout("sp2"), theme = PlainTheme())
 
             // Äußeres Rect + inneres Rect (doppelter Rahmen)
             val rectCount = svg.split("<rect").size - 1
@@ -663,7 +666,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(ca))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, singleNodeLayout("ca1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = singleNodeLayout("ca1"), theme = PlainTheme())
 
             svg shouldContain "stroke-width=\"3\""
             svg shouldContain "Call OrderService"
@@ -676,7 +679,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(data))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, singleNodeLayout("d1", 40f, 55f), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = singleNodeLayout("d1", 40f, 55f), theme = PlainTheme())
 
             // Dokumenten-Pfad mit M/L
             svg shouldContain "<path"
@@ -690,7 +693,7 @@ class BpmnSvgRendererTest :
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(data))
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, singleNodeLayout("d2", 40f, 55f), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = singleNodeLayout("d2", 40f, 55f), theme = PlainTheme())
 
             // Collection-Marker: 3 vertikale Striche
             val lineCount = svg.split("<line").size - 1
@@ -712,7 +715,7 @@ class BpmnSvgRendererTest :
                 )
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, twoNodeLayout("se1", "ee1", "sf1"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = twoNodeLayout("se1", "ee1", "sf1"), theme = PlainTheme())
 
             // Pfeilkopf-Marker
             svg shouldContain "<marker"
@@ -735,7 +738,7 @@ class BpmnSvgRendererTest :
                 )
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, twoNodeLayout("se2", "ee2", "sf2"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = twoNodeLayout("se2", "ee2", "sf2"), theme = PlainTheme())
 
             // Default-Flow: Schrägstrich als <line>
             svg shouldContain "<line"
@@ -754,7 +757,7 @@ class BpmnSvgRendererTest :
                 )
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, twoNodeLayout("se3", "ee3", "sf3"), PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = twoNodeLayout("se3", "ee3", "sf3"), theme = PlainTheme())
 
             svg shouldContain "Approved"
         }
@@ -831,31 +834,37 @@ class BpmnSvgRendererTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(600f, 200f),
+                    canvas = Size(width = 600f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("start") to NodeLayout(bounds = Rect(Point(10f, 80f), Size(36f, 36f))),
-                            NodeId("review") to NodeLayout(bounds = Rect(Point(80f, 70f), Size(120f, 60f))),
-                            NodeId("gw") to NodeLayout(bounds = Rect(Point(240f, 75f), Size(50f, 50f))),
-                            NodeId("process") to NodeLayout(bounds = Rect(Point(330f, 40f), Size(120f, 60f))),
-                            NodeId("reject") to NodeLayout(bounds = Rect(Point(330f, 120f), Size(120f, 60f))),
-                            NodeId("end") to NodeLayout(bounds = Rect(Point(490f, 80f), Size(36f, 36f))),
+                            NodeId("start") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 80f), size = Size(width = 36f, height = 36f))),
+                            NodeId("review") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 80f, y = 70f), size = Size(width = 120f, height = 60f))),
+                            NodeId("gw") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 240f, y = 75f), size = Size(width = 50f, height = 50f))),
+                            NodeId("process") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 330f, y = 40f), size = Size(width = 120f, height = 60f))),
+                            NodeId("reject") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 330f, y = 120f), size = Size(width = 120f, height = 60f))),
+                            NodeId("end") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 490f, y = 80f), size = Size(width = 36f, height = 36f))),
                         ),
                     edges =
                         mapOf(
-                            EdgeId("flow1") to EdgeRoute.Direct(Point(46f, 98f), Point(80f, 98f)),
-                            EdgeId("flow2") to EdgeRoute.Direct(Point(200f, 98f), Point(240f, 98f)),
-                            EdgeId("flow3") to EdgeRoute.Direct(Point(290f, 90f), Point(330f, 65f)),
-                            EdgeId("flow4") to EdgeRoute.Direct(Point(290f, 105f), Point(330f, 145f)),
-                            EdgeId("flow5") to EdgeRoute.Direct(Point(450f, 65f), Point(490f, 95f)),
-                            EdgeId("flow6") to EdgeRoute.Direct(Point(450f, 145f), Point(490f, 100f)),
+                            EdgeId("flow1") to EdgeRoute.Direct(source = Point(x = 46f, y = 98f), target = Point(x = 80f, y = 98f)),
+                            EdgeId("flow2") to EdgeRoute.Direct(source = Point(x = 200f, y = 98f), target = Point(x = 240f, y = 98f)),
+                            EdgeId("flow3") to EdgeRoute.Direct(source = Point(x = 290f, y = 90f), target = Point(x = 330f, y = 65f)),
+                            EdgeId("flow4") to EdgeRoute.Direct(source = Point(x = 290f, y = 105f), target = Point(x = 330f, y = 145f)),
+                            EdgeId("flow5") to EdgeRoute.Direct(source = Point(x = 450f, y = 65f), target = Point(x = 490f, y = 95f)),
+                            EdgeId("flow6") to EdgeRoute.Direct(source = Point(x = 450f, y = 145f), target = Point(x = 490f, y = 100f)),
                         ),
                     groups = emptyMap(),
                 )
 
             val svg =
                 dev.kuml.io.svg.KumlSvgRenderer
-                    .toSvg(diagram, layoutResult, PlainTheme())
+                    .toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             // Alle Knoten müssen im SVG vorhanden sein
             svg shouldContain "Order Received"

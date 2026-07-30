@@ -60,21 +60,21 @@ class TypeScriptCodegenPluginTest :
         test("descriptor kumlVersionRange enthält 0.12.0") {
             plugin.descriptor.kumlVersionRange.contains(
                 dev.kuml.plugin.api.core
-                    .PluginVersion(0, 12, 0),
+                    .PluginVersion(major = 0, minor = 12, patch = 0),
             ) shouldBe true
         }
 
         // ── UmlClass generation ────────────────────────────────────────────────
 
         test("generate() mit leerem Diagram gibt leere Datei-Liste zurück") {
-            val files = generator.generate(diagram(), tempDir(), emptyMap())
+            val files = generator.generate(diagram = diagram(), outputDir = tempDir(), options = emptyMap())
             files shouldHaveSize 0
         }
 
         test("generate() mit UmlClass erstellt .ts-Datei") {
             val cls = UmlClass(id = "Order", name = "Order")
             val out = tempDir()
-            val files = generator.generate(diagram(cls), out, emptyMap())
+            val files = generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             files shouldHaveSize 1
             files.first().name shouldBe "Order.ts"
         }
@@ -82,22 +82,22 @@ class TypeScriptCodegenPluginTest :
         test("generierter Inhalt für UmlClass enthält 'export class'") {
             val cls = UmlClass(id = "Order", name = "Order")
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Order.ts").readText() shouldContain "export class Order"
         }
 
         test("abstrakte UmlClass erzeugt 'export abstract class'") {
             val cls = UmlClass(id = "Base", name = "Base", isAbstract = true)
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Base.ts").readText() shouldContain "export abstract class Base"
         }
 
         test("UmlClass mit Attribut erzeugt Property-Zeile") {
-            val attr = UmlProperty(id = "Order.id", name = "id", type = UmlTypeRef("String"))
+            val attr = UmlProperty(id = "Order.id", name = "id", type = UmlTypeRef(name = "String"))
             val cls = UmlClass(id = "Order", name = "Order", attributes = listOf(attr))
             val out = tempDir()
-            generator.generate(diagram(cls), out, emptyMap())
+            generator.generate(diagram = diagram(cls), outputDir = out, options = emptyMap())
             File(out, "Order.ts").readText() shouldContain "id: string;"
         }
 
@@ -106,7 +106,7 @@ class TypeScriptCodegenPluginTest :
         test("UmlInterface erzeugt 'export interface'") {
             val iface = UmlInterface(id = "Orderable", name = "Orderable")
             val out = tempDir()
-            generator.generate(diagram(iface), out, emptyMap())
+            generator.generate(diagram = diagram(iface), outputDir = out, options = emptyMap())
             File(out, "Orderable.ts").readText() shouldContain "export interface Orderable"
         }
 
@@ -124,7 +124,7 @@ class TypeScriptCodegenPluginTest :
                         ),
                 )
             val out = tempDir()
-            generator.generate(diagram(enum), out, emptyMap())
+            generator.generate(diagram = diagram(enum), outputDir = out, options = emptyMap())
             val content = File(out, "Status.ts").readText()
             content shouldContain "export enum Status"
             content shouldContain "DRAFT"

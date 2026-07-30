@@ -90,8 +90,8 @@ public fun buildAiOtlpResourceSpans(
                         name = "ai.session.started",
                         attributes =
                             listOf(
-                                kv(SESSION_ID, entry.sessionId),
-                                kv(BASE_FINGERPRINT, entry.baseModelFingerprint),
+                                kv(key = SESSION_ID, value = entry.sessionId),
+                                kv(key = BASE_FINGERPRINT, value = entry.baseModelFingerprint),
                             ),
                     ),
                 )
@@ -119,10 +119,10 @@ public fun buildAiOtlpResourceSpans(
                             endTimeUnixNano = ts.toString(),
                             attributes =
                                 listOf(
-                                    kv(PATCH_ID, entry.patchId),
-                                    kv(PATCH_KIND, entry.patchKind),
-                                    kv(PATCH_PHASE, entry.phase),
-                                    kv(PATCH_ERR_COUNT, entry.errorCount.toLong()),
+                                    kv(key = PATCH_ID, value = entry.patchId),
+                                    kv(key = PATCH_KIND, value = entry.patchKind),
+                                    kv(key = PATCH_PHASE, value = entry.phase),
+                                    kv(key = PATCH_ERR_COUNT, value = entry.errorCount.toLong()),
                                 ),
                             status = OtlpStatus(code = 2, message = "Validation failed: phase=${entry.phase}"),
                         ),
@@ -144,9 +144,9 @@ public fun buildAiOtlpResourceSpans(
                         endTimeUnixNano = ts.toString(),
                         attributes =
                             listOf(
-                                kv(PATCH_ID, entry.patchId),
-                                kv(PATCH_KIND, entry.patchKind),
-                                kv(PATCH_PHASE, "OK"),
+                                kv(key = PATCH_ID, value = entry.patchId),
+                                kv(key = PATCH_KIND, value = entry.patchKind),
+                                kv(key = PATCH_PHASE, value = "OK"),
                             ),
                         events = (open?.events ?: mutableListOf()).toList(),
                         status = OtlpStatus(code = 1), // OK
@@ -161,9 +161,9 @@ public fun buildAiOtlpResourceSpans(
                 val startNanos = open?.startNanos ?: ts
                 val attrs =
                     buildList {
-                        add(kv(PATCH_ID, entry.patchId))
-                        add(kv(PATCH_REJECTED, true))
-                        entry.reason?.let { add(kv("kuml.ai.patch.reject.reason", it)) }
+                        add(kv(key = PATCH_ID, value = entry.patchId))
+                        add(kv(key = PATCH_REJECTED, value = true))
+                        entry.reason?.let { add(kv(key = "kuml.ai.patch.reject.reason", value = it)) }
                     }
                 finishedSpans.add(
                     OtlpSpan(
@@ -187,9 +187,9 @@ public fun buildAiOtlpResourceSpans(
                         name = "ai.session.aborted",
                         attributes =
                             buildList {
-                                add(kv(SESSION_ID, entry.sessionId))
-                                add(kv(REJECTED_COUNT, entry.rejectedPatchIds.size.toLong()))
-                                entry.reason?.let { add(kv("kuml.ai.session.abort.reason", it)) }
+                                add(kv(key = SESSION_ID, value = entry.sessionId))
+                                add(kv(key = REJECTED_COUNT, value = entry.rejectedPatchIds.size.toLong()))
+                                entry.reason?.let { add(kv(key = "kuml.ai.session.abort.reason", value = it)) }
                             },
                     ),
                 )
@@ -223,8 +223,8 @@ public fun buildAiOtlpResourceSpans(
             endTimeUnixNano = lastNanos.toString(),
             attributes =
                 buildList {
-                    add(kv(SESSION_ID, sessionId))
-                    traceFile.modelId?.let { add(kv("kuml.model.id", it)) }
+                    add(kv(key = SESSION_ID, value = sessionId))
+                    traceFile.modelId?.let { add(kv(key = "kuml.model.id", value = it)) }
                 },
             events = rootEvents,
             status = rootStatus,
@@ -233,7 +233,7 @@ public fun buildAiOtlpResourceSpans(
     val allSpans = listOf(rootSpan) + finishedSpans
 
     return OtlpResourceSpans(
-        resource = OtlpResource(attributes = listOf(kv("service.name", serviceName))),
+        resource = OtlpResource(attributes = listOf(kv(key = "service.name", value = serviceName))),
         scopeSpans =
             listOf(
                 OtlpScopeSpans(

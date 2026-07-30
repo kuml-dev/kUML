@@ -85,7 +85,7 @@ internal class JavaAssociationDetector(
                                 UmlAssociationEnd(
                                     typeId = ownerClassId,
                                     role = null,
-                                    multiplicity = Multiplicity(1, 1),
+                                    multiplicity = Multiplicity(lower = 1, upper = 1),
                                     navigable = false,
                                 ),
                                 UmlAssociationEnd(
@@ -100,7 +100,16 @@ internal class JavaAssociationDetector(
             }
 
             is JavaTypeResolver.ResolvedTypeKind.Jre ->
-                FieldClassification.AsProperty(buildProperty(field, variable, elementTypeName, multiplicity, ownerClassId))
+                FieldClassification.AsProperty(
+                    property =
+                        buildProperty(
+                            field = field,
+                            variable = variable,
+                            elementTypeName = elementTypeName,
+                            multiplicity = multiplicity,
+                            ownerClassId = ownerClassId,
+                        ),
+                )
 
             JavaTypeResolver.ResolvedTypeKind.External -> {
                 // Unresolved type — fallback property + REV-J-002 WARN
@@ -115,7 +124,14 @@ internal class JavaAssociationDetector(
                         line = lineNr,
                     )
                 FieldClassification.AsProperty(
-                    property = buildProperty(field, variable, elementTypeName, multiplicity, ownerClassId),
+                    property =
+                        buildProperty(
+                            field = field,
+                            variable = variable,
+                            elementTypeName = elementTypeName,
+                            multiplicity = multiplicity,
+                            ownerClassId = ownerClassId,
+                        ),
                     diagnostic = diag,
                 )
             }

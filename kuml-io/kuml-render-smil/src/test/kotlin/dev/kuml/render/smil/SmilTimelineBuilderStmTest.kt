@@ -22,7 +22,7 @@ class SmilTimelineBuilderStmTest :
                             TraceEntry.StateEntered(seqNo = 0, timestamp = ts, vertexId = "S1"),
                         ),
                 )
-            val timeline = builder.build(trace)
+            val timeline = builder.build(traceFile = trace)
             timeline.animations shouldHaveSize 1
             val anim = timeline.animations[0].shouldBeInstanceOf<SmilAnimation.Fill>()
             anim.elementId shouldBe "S1"
@@ -43,7 +43,7 @@ class SmilTimelineBuilderStmTest :
                             ),
                         ),
                 )
-            val timeline = builder.build(trace)
+            val timeline = builder.build(traceFile = trace)
             // TransitionFired emits an opacity pulse (dim 1→0.3, restore 0.3→1) not a scale transform.
             // Scale transforms on SVG path/line elements are visually ineffective; opacity is correct.
             timeline.animations shouldHaveSize 2
@@ -74,7 +74,7 @@ class SmilTimelineBuilderStmTest :
                             ),
                         ),
                 )
-            val timeline = builder.build(trace, options)
+            val timeline = builder.build(traceFile = trace, options = options)
             timeline.animations shouldHaveSize 2
             val dim = timeline.animations[0]
             val restore = timeline.animations[1]
@@ -101,7 +101,7 @@ class SmilTimelineBuilderStmTest :
                             TraceEntry.StateEntered(seqNo = 2, timestamp = ts, vertexId = "S2"),
                         ),
                 )
-            val timeline = builder.build(trace, options)
+            val timeline = builder.build(traceFile = trace, options = options)
             // StateEntered(0)=1 Fill, TransitionFired(1)=2 Animate, StateEntered(2)=1 Fill → 4 total
             timeline.animations shouldHaveSize 4
             timeline.animations[0].beginMs shouldBe 0L // StateEntered S1
@@ -119,7 +119,7 @@ class SmilTimelineBuilderStmTest :
                             TraceEntry.StateEntered(seqNo = 0, timestamp = ts, vertexId = "S1"),
                         ),
                 )
-            val timeline = builder.build(trace, options)
+            val timeline = builder.build(traceFile = trace, options = options)
             timeline.animations shouldHaveSize 1
             timeline.animations[0].durationMs shouldBe 750L
         }
@@ -139,14 +139,14 @@ class SmilTimelineBuilderStmTest :
                             ),
                         ),
                 )
-            val timeline = builder.build(trace, options)
+            val timeline = builder.build(traceFile = trace, options = options)
             timeline.animations shouldHaveSize 2
             timeline.animations.forEach { it.durationMs shouldBe 400L }
         }
 
         "empty trace yields SmilTimeline.EMPTY" {
             val trace = TraceFile(entries = emptyList())
-            val timeline = builder.build(trace)
+            val timeline = builder.build(traceFile = trace)
             timeline shouldBe SmilTimeline.EMPTY
             timeline.animations.shouldBeEmpty()
         }

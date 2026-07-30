@@ -64,7 +64,7 @@ public object ActivitySmilRenderer {
         context: ActivityAnimationContext = ActivityAnimationContext.DEFAULT,
     ): AnimatedActivityRenderResult {
         // Always render the static base SVG first
-        val baseSvg = KumlSvgRenderer.toSvg(diagram, layoutResult, theme, options)
+        val baseSvg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = theme, options = options)
 
         // Static path: null trace
         if (trace == null) return AnimatedActivityRenderResult(svg = baseSvg, hasAnimation = false)
@@ -95,10 +95,10 @@ public object ActivitySmilRenderer {
         if (timeline.animations.isEmpty()) return AnimatedActivityRenderResult(svg = baseSvg, hasAnimation = false)
 
         // Inject token circle elements before </svg>
-        val svgWithCircles = injectCircles(baseSvg, circles)
+        val svgWithCircles = injectCircles(svg = baseSvg, circles = circles)
 
         // Inject SMIL animations
-        val animatedSvg = SmilEmitter().inject(svgWithCircles, timeline)
+        val animatedSvg = SmilEmitter().inject(svg = svgWithCircles, timeline = timeline)
 
         return AnimatedActivityRenderResult(svg = animatedSvg, hasAnimation = true, timeline = timeline)
     }
@@ -147,8 +147,8 @@ public object ActivitySmilRenderer {
 
         if (timeline.animations.isEmpty()) return AnimatedActivityRenderResult(svg = baseSvg, hasAnimation = false)
 
-        val svgWithCircles = injectCircles(baseSvg, circles)
-        val animatedSvg = SmilEmitter().inject(svgWithCircles, timeline)
+        val svgWithCircles = injectCircles(svg = baseSvg, circles = circles)
+        val animatedSvg = SmilEmitter().inject(svg = svgWithCircles, timeline = timeline)
         return AnimatedActivityRenderResult(svg = animatedSvg, hasAnimation = true, timeline = timeline)
     }
 

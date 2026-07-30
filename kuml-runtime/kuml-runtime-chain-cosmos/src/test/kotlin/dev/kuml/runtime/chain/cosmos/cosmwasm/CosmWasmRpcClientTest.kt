@@ -18,7 +18,7 @@ class CosmWasmRpcClientTest :
         beforeTest {
             server = MockRpcServer()
             server.start()
-            client = CosmWasmRpcClient(server.baseUrl())
+            client = CosmWasmRpcClient(rpcUrl = server.baseUrl())
         }
 
         afterTest {
@@ -27,20 +27,20 @@ class CosmWasmRpcClientTest :
 
         test("call returns result on success") {
             runTest {
-                server.onMethod("status") {
+                server.onMethod(method = "status") {
                     rpcSuccess(result = """{"sync_info":{"latest_block_height":"100","latest_block_time":"2024-01-01T00:00:00Z"}}""")
                 }
-                val result = client.call("status", buildJsonArray {})
+                val result = client.call(method = "status", params = buildJsonArray {})
                 result.toString() shouldContain "sync_info"
             }
         }
 
         test("call throws RpcError on error response") {
             runTest {
-                server.onMethod("status") { rpcError(code = -32600, message = "invalid request") }
+                server.onMethod(method = "status") { rpcError(code = -32600, message = "invalid request") }
                 val ex =
                     shouldThrow<CosmWasmChainAdapterException.RpcError> {
-                        client.call("status", buildJsonArray {})
+                        client.call(method = "status", params = buildJsonArray {})
                     }
                 ex.code shouldBe -32600
                 ex.rpcMessage shouldBe "invalid request"
@@ -55,42 +55,42 @@ class CosmWasmRpcClientTest :
                 // Hack: register handler that causes a 500 by using a custom server
                 // We'll use a client pointing to a closed port instead
                 server500.stop()
-                val clientBroken = CosmWasmRpcClient(server500.baseUrl())
+                val clientBroken = CosmWasmRpcClient(rpcUrl = server500.baseUrl())
                 shouldThrow<CosmWasmChainAdapterException.NetworkError> {
-                    clientBroken.call("status", buildJsonArray {})
+                    clientBroken.call(method = "status", params = buildJsonArray {})
                 }
             }
         }
 
         test("call throws NetworkError when response exceeds maxResponseBytes") {
             runTest {
-                server.onMethod("bigmethod") {
+                server.onMethod(method = "bigmethod") {
                     val huge = "x".repeat(100)
                     rpcSuccess(result = "\"$huge\"")
                 }
-                val smallClient = CosmWasmRpcClient(server.baseUrl(), maxResponseBytes = 50L)
+                val smallClient = CosmWasmRpcClient(rpcUrl = server.baseUrl(), maxResponseBytes = 50L)
                 shouldThrow<CosmWasmChainAdapterException.NetworkError> {
-                    smallClient.call("bigmethod", buildJsonArray {})
+                    smallClient.call(method = "bigmethod", params = buildJsonArray {})
                 }
             }
         }
 
         test("readLimited returns content within limit") {
             val data = "hello world".byteInputStream()
-            val result = CosmWasmRpcClient.readLimited(data, 100L)
+            val result = CosmWasmRpcClient.readLimited(stream = data, limit = 100L)
             result shouldBe "hello world"
         }
 
         test("readLimited throws NetworkError when limit exceeded") {
             val data = "hello world longer text".byteInputStream()
             shouldThrow<CosmWasmChainAdapterException.NetworkError> {
-                CosmWasmRpcClient.readLimited(data, 5L)
+                CosmWasmRpcClient.readLimited(stream = data, limit = 5L)
             }
         }
 
         test("getLatestBlockHeight parses sync_info correctly") {
             runTest {
-                server.onMethod("status") {
+                server.onMethod(method = "status") {
                     rpcSuccess(result = """{"sync_info":{"latest_block_height":"42","latest_block_time":"2024-01-01T00:00:00Z"}}""")
                 }
                 client.getLatestBlockHeight() shouldBe 42L
@@ -99,7 +99,7 @@ class CosmWasmRpcClientTest :
 
         test("getLatestBlockHeight throws MalformedResponse when sync_info missing") {
             runTest {
-                server.onMethod("status") { rpcSuccess(result = "{}") }
+                server.onMethod(method = "status") { rpcSuccess(result = "{}") }
                 shouldThrow<CosmWasmChainAdapterException.MalformedResponse> {
                     client.getLatestBlockHeight()
                 }
@@ -108,7 +108,7 @@ class CosmWasmRpcClientTest :
 
         test("getLatestBlockHeight throws MalformedResponse when height missing") {
             runTest {
-                server.onMethod("status") { rpcSuccess(result = """{"sync_info":{}}""") }
+                server.onMethod(method = "status") { rpcSuccess(result = """{"sync_info":{}}""") }
                 shouldThrow<CosmWasmChainAdapterException.MalformedResponse> {
                     client.getLatestBlockHeight()
                 }
@@ -117,7 +117,7 @@ class CosmWasmRpcClientTest :
 
         test("getLatestBlockHeader returns height and time") {
             runTest {
-                server.onMethod("status") {
+                server.onMethod(method = "status") {
                     rpcSuccess(result = """{"sync_info":{"latest_block_height":"7","latest_block_time":"2024-06-01T12:00:00Z"}}""")
                 }
                 val header = client.getLatestBlockHeader()
@@ -128,7 +128,7 @@ class CosmWasmRpcClientTest :
 
         test("getBlockResults passes height as string param") {
             runTest {
-                server.onMethod("block_results") { body ->
+                server.onMethod(method = "block_results") { body ->
                     body shouldContain "\"99\""
                     rpcSuccess(result = """{"txs_results":[],"finalize_block_events":[]}""")
                 }
@@ -139,10 +139,10 @@ class CosmWasmRpcClientTest :
         test("smartQuery calls LCD endpoint and parses JSON response") {
             runTest {
                 val responseJson = """{"model_hash":"AAEC","model_uri":"ipfs://test","schema_version":"1"}"""
-                server.onGet("/cosmwasm/wasm/v1/contract/cosmos1address/smart/") {
+                server.onGet(pathPrefix = "/cosmwasm/wasm/v1/contract/cosmos1address/smart/") {
                     responseJson
                 }
-                val result = client.smartQuery("cosmos1address", """{"kuml_identity":{}}""")
+                val result = client.smartQuery(contractAddress = "cosmos1address", queryJson = """{"kuml_identity":{}}""")
                 result.toString() shouldContain "model_uri"
             }
         }
@@ -154,9 +154,9 @@ class CosmWasmRpcClientTest :
                 val stopped = MockRpcServer()
                 stopped.start()
                 stopped.stop()
-                val brokenClient = CosmWasmRpcClient(stopped.baseUrl())
+                val brokenClient = CosmWasmRpcClient(rpcUrl = stopped.baseUrl())
                 shouldThrow<CosmWasmChainAdapterException.NetworkError> {
-                    brokenClient.smartQuery("cosmos1address", "{}")
+                    brokenClient.smartQuery(contractAddress = "cosmos1address", queryJson = "{}")
                 }
             }
         }
@@ -167,10 +167,10 @@ class CosmWasmRpcClientTest :
                 // Register catch-all GET handler under /cosmwasm/ prefix
                 val freshServer = MockRpcServer()
                 freshServer.start()
-                freshServer.onGet("/cosmwasm/") { responseJson }
-                val freshClient = CosmWasmRpcClient(freshServer.baseUrl())
+                freshServer.onGet(pathPrefix = "/cosmwasm/") { responseJson }
+                val freshClient = CosmWasmRpcClient(rpcUrl = freshServer.baseUrl())
                 try {
-                    val result = freshClient.smartQuery("cosmos1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqnrql8a", "{}")
+                    val result = freshClient.smartQuery(contractAddress = "cosmos1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqnrql8a", queryJson = "{}")
                     result.toString() shouldContain "model_uri"
                 } finally {
                     freshServer.stop()

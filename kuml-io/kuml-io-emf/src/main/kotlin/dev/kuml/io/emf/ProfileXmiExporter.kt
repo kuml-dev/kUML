@@ -56,7 +56,7 @@ public class ProfileXmiExporter {
                 .createTempFile("kuml-profile-", ".profile.uml")
                 .toFile()
         tmpFile.deleteOnExit()
-        export(profile, tmpFile)
+        export(profile = profile, outputFile = tmpFile)
         return tmpFile.readText(Charsets.UTF_8)
     }
 }

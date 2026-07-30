@@ -27,7 +27,7 @@ class UmlToRestTransformerTest :
         ) = UmlProperty(
             id = id,
             name = name,
-            type = UmlTypeRef(type),
+            type = UmlTypeRef(name = type),
         )
 
         fun cls(
@@ -51,7 +51,7 @@ class UmlToRestTransformerTest :
                         prop("p-email", "email", "String"),
                     ),
                 )
-            val result = transformer.transform(diagram(userClass), ctx)
+            val result = transformer.transform(source = diagram(userClass), ctx = ctx)
 
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             files shouldHaveSize 1
@@ -70,69 +70,69 @@ class UmlToRestTransformerTest :
 
         test("type mapping: String → type: string, no format") {
             val c = cls("x", "X", listOf(prop("p", "label", "String")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain "          type: string"
             content shouldNotContain "          format:"
         }
 
         test("type mapping: Long → type: integer, format: int64") {
             val c = cls("x", "X", listOf(prop("p", "count", "Long")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain "          type: integer"
             content shouldContain "          format: int64"
         }
 
         test("type mapping: Integer → type: integer, format: int64") {
             val c = cls("x", "X", listOf(prop("p", "age", "Integer")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain "          type: integer"
             content shouldContain "          format: int64"
         }
 
         test("type mapping: Boolean → type: boolean, no format") {
             val c = cls("x", "X", listOf(prop("p", "active", "Boolean")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain "          type: boolean"
             content shouldNotContain "          format:"
         }
 
         test("type mapping: Double → type: number, format: double") {
             val c = cls("x", "X", listOf(prop("p", "score", "Double")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain "          type: number"
             content shouldContain "          format: double"
         }
 
         test("type mapping: UUID → type: string, format: uuid") {
             val c = cls("x", "X", listOf(prop("p", "id", "UUID")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain "          type: string"
             content shouldContain "          format: uuid"
         }
 
         test("type mapping: LocalDate → type: string, format: date") {
             val c = cls("x", "X", listOf(prop("p", "createdAt", "LocalDate")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain "          type: string"
             content shouldContain "          format: date"
         }
 
         test("resource path is kebab-case plural: OrderItem → /order-items") {
             val c = cls("oi", "OrderItem", listOf(prop("p-id", "id", "Long")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain "/api/v1/order-items:"
             content shouldContain "/api/v1/order-items/{id}:"
         }
 
         test("resource path is kebab-case plural: User → /users") {
             val c = cls("u", "User", listOf(prop("p-id", "id", "UUID")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain "/api/v1/users:"
         }
 
         test("five CRUD endpoints are generated per class") {
             val c = cls("u", "User", listOf(prop("p-id", "id", "UUID")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             // GET list and POST under /users
             content shouldContain "    get:"
             content shouldContain "    post:"
@@ -144,7 +144,7 @@ class UmlToRestTransformerTest :
 
         test("GET /resources/{id} has a path parameter named id") {
             val c = cls("u", "User", listOf(prop("p-id", "id", "UUID")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain "        - name: id"
             content shouldContain "          in: path"
             content shouldContain "          required: true"
@@ -152,21 +152,21 @@ class UmlToRestTransformerTest :
 
         test("POST /resources has a requestBody") {
             val c = cls("u", "User", listOf(prop("p-id", "id", "UUID")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain "      requestBody:"
             content shouldContain "        required: true"
         }
 
         test("DELETE /resources/{id} returns 204 No Content") {
             val c = cls("u", "User", listOf(prop("p-id", "id", "UUID")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain """"204":"""
             content shouldContain "          description: No Content"
         }
 
         test("operationId follows listXs/getX/createX/updateX/deleteX convention") {
             val c = cls("u", "User", listOf(prop("p-id", "id", "UUID")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain "operationId: listUsers"
             content shouldContain "operationId: createUser"
             content shouldContain "operationId: getUser"
@@ -177,7 +177,7 @@ class UmlToRestTransformerTest :
         test("basePath option overrides default /api/v1") {
             val c = cls("u", "User", listOf(prop("p-id", "id", "UUID")))
             val customCtx = TransformContext(options = mapOf("basePath" to "/v2"))
-            val content = (transformer.transform(diagram(c), customCtx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = customCtx) as TransformResult.Success).output[0].content
             content shouldContain "/v2/users:"
             content shouldNotContain "/api/v1/users:"
         }
@@ -185,7 +185,7 @@ class UmlToRestTransformerTest :
         test("title and version options are applied to info block") {
             val c = cls("u", "User", listOf(prop("p-id", "id", "UUID")))
             val customCtx = TransformContext(options = mapOf("title" to "My Blog API", "version" to "2.5.0"))
-            val content = (transformer.transform(diagram(c), customCtx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = customCtx) as TransformResult.Success).output[0].content
             content shouldContain "  title: My Blog API"
             content shouldContain """  version: "2.5.0""""
         }
@@ -201,7 +201,7 @@ class UmlToRestTransformerTest :
                         prop("p-email", "email", "String"),
                     ),
                 )
-            val content = (transformer.transform(diagram(userClass), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(userClass), ctx = ctx) as TransformResult.Success).output[0].content
             // Key structural assertions that must hold regardless of exact whitespace
             content shouldContain "  /api/v1/users:"
             content shouldContain "  /api/v1/users/{id}:"
@@ -215,7 +215,7 @@ class UmlToRestTransformerTest :
         test("two-class model produces two schemas entries") {
             val userClass = cls("user", "User", listOf(prop("p-id", "id", "UUID")))
             val postClass = cls("post", "Post", listOf(prop("p-id", "id", "UUID")))
-            val result = transformer.transform(diagram(userClass, postClass), ctx)
+            val result = transformer.transform(source = diagram(userClass, postClass), ctx = ctx)
 
             val content = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output[0].content
             content shouldContain "    User:"
@@ -226,14 +226,14 @@ class UmlToRestTransformerTest :
 
         test("output is a single file named openapi.yaml") {
             val c = cls("u", "User", listOf(prop("p-id", "id", "UUID")))
-            val result = transformer.transform(diagram(c), ctx) as TransformResult.Success
+            val result = transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success
             result.output shouldHaveSize 1
             result.output[0].relativePath shouldBe "openapi.yaml"
         }
 
         test("openapi header version is 3.0.3") {
             val c = cls("u", "User", listOf(prop("p-id", "id", "UUID")))
-            val content = (transformer.transform(diagram(c), ctx) as TransformResult.Success).output[0].content
+            val content = (transformer.transform(source = diagram(c), ctx = ctx) as TransformResult.Success).output[0].content
             content shouldContain """openapi: "3.0.3""""
         }
     })

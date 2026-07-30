@@ -92,7 +92,7 @@ class AppStateTest :
             try {
                 val state = AppState()
                 state.isDirty = true
-                state.loadFrom(file, "classDiagram {}")
+                state.loadFrom(file = file, content = "classDiagram {}")
                 state.script shouldBe "classDiagram {}"
                 state.currentFile shouldBe file
                 state.isDirty shouldBe false

@@ -18,11 +18,11 @@ class ErmModelTest :
                     name = "Customer",
                     attributes =
                         listOf(
-                            ErmAttribute("attr_0_0", "id", ErmDataType.Uuid, primaryKey = true, nullable = false),
-                            ErmAttribute("attr_0_1", "email", ErmDataType.Varchar(255), unique = true),
+                            ErmAttribute(id = "attr_0_0", name = "id", type = ErmDataType.Uuid, primaryKey = true, nullable = false),
+                            ErmAttribute(id = "attr_0_1", name = "email", type = ErmDataType.Varchar(255), unique = true),
                         ),
-                    indexes = listOf(ErmIndex("idx_0_0", "idx_email", listOf("attr_0_1"), unique = true)),
-                    checks = listOf(ErmCheckConstraint("check_0_0", "email_not_empty", "email <> ''")),
+                    indexes = listOf(ErmIndex(id = "idx_0_0", name = "idx_email", attributeIds = listOf("attr_0_1"), unique = true)),
+                    checks = listOf(ErmCheckConstraint(id = "check_0_0", name = "email_not_empty", expression = "email <> ''")),
                 )
             val order =
                 ErmEntity(
@@ -30,11 +30,11 @@ class ErmModelTest :
                     name = "Order",
                     attributes =
                         listOf(
-                            ErmAttribute("attr_1_0", "id", ErmDataType.Uuid, primaryKey = true, nullable = false),
+                            ErmAttribute(id = "attr_1_0", name = "id", type = ErmDataType.Uuid, primaryKey = true, nullable = false),
                             ErmAttribute(
-                                "attr_1_1",
-                                "customer_id",
-                                ErmDataType.Uuid,
+                                id = "attr_1_1",
+                                name = "customer_id",
+                                type = ErmDataType.Uuid,
                                 foreignKey = ErmForeignKey(targetEntityId = "entity_0"),
                             ),
                         ),
@@ -147,7 +147,7 @@ class ErmModelTest :
 
         "ErmDataType.render produces human-readable SQL-ish labels" {
             ErmDataType.Varchar(255).render() shouldBe "VARCHAR(255)"
-            ErmDataType.Decimal(10, 2).render() shouldBe "DECIMAL(10,2)"
+            ErmDataType.Decimal(precision = 10, scale = 2).render() shouldBe "DECIMAL(10,2)"
             ErmDataType.Integer().render() shouldBe "INT"
             ErmDataType.Integer(16).render() shouldBe "SMALLINT"
             ErmDataType.Integer(64).render() shouldBe "BIGINT"
@@ -163,17 +163,17 @@ class ErmModelTest :
             ErmDataType.Blob.render() shouldBe "BLOB"
             ErmDataType.Json.render() shouldBe "JSON"
             ErmDataType.Custom("TSVECTOR").render() shouldBe "TSVECTOR"
-            ErmDataType.Enum("Status", listOf("Active", "Inactive")).render() shouldBe "ENUM(Status)"
+            ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")).render() shouldBe "ENUM(Status)"
         }
 
         "ErmDataType.Enum.length is the longest literal, floored at 1" {
-            ErmDataType.Enum("Status", listOf("Active", "Inactive")).length shouldBe 8
-            ErmDataType.Enum("Single", listOf("A")).length shouldBe 1
-            ErmDataType.Enum("Mixed", listOf("A", "BB", "CCC")).length shouldBe 3
+            ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")).length shouldBe 8
+            ErmDataType.Enum(name = "Single", values = listOf("A")).length shouldBe 1
+            ErmDataType.Enum(name = "Mixed", values = listOf("A", "BB", "CCC")).length shouldBe 3
             // Duplicates don't affect the length calculation.
-            ErmDataType.Enum("Dup", listOf("Same", "Same")).length shouldBe 4
+            ErmDataType.Enum(name = "Dup", values = listOf("Same", "Same")).length shouldBe 4
             // Empty literal list floors to 1 (structurally invalid — caught separately by
             // ErmConstraintChecker rule 20 — but length itself must never be 0/negative).
-            ErmDataType.Enum("Empty", emptyList()).length shouldBe 1
+            ErmDataType.Enum(name = "Empty", values = emptyList()).length shouldBe 1
         }
     })

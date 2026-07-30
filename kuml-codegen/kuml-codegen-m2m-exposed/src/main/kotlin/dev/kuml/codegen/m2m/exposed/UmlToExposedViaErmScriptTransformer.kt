@@ -40,12 +40,12 @@ public class UmlToExposedViaErmScriptTransformer : KumlTransformer<KumlDiagram, 
     override val description: String =
         "UML class diagram → ERM → Kotlin Exposed Table objects (chained uml-to-erm + erm-to-exposed)"
 
-    private val chain = TransformChain(UmlToErmTransformer(), ErmToExposedTransformer())
+    private val chain = TransformChain(first = UmlToErmTransformer(), second = ErmToExposedTransformer())
 
     override fun transform(
         source: KumlDiagram,
         ctx: TransformContext,
-    ): TransformResult<List<GeneratedFile>> = chain.transform(source, ctx)
+    ): TransformResult<List<GeneratedFile>> = chain.transform(source = source, ctx = ctx)
 }
 
 /** ServiceLoader provider for [UmlToExposedViaErmScriptTransformer]. */

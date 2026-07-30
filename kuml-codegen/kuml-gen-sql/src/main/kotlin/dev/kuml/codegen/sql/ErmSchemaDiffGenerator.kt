@@ -57,17 +57,33 @@ internal object ErmSchemaDiffGenerator {
                 newEntities += newEntity
                 continue
             }
-            val addedAttributeNames = diffAttributes(key, oldEntity, newEntity, reasons, newAttributes)
-            diffIndexes(key, oldEntity, newEntity, reasons, newIndexes)
-            diffChecks(key, oldEntity, newEntity, addedAttributeNames, reasons, newChecks)
+            val addedAttributeNames =
+                diffAttributes(entityKey = key, old = oldEntity, new = newEntity, reasons = reasons, out = newAttributes)
+            diffIndexes(entityKey = key, old = oldEntity, new = newEntity, reasons = reasons, out = newIndexes)
+            diffChecks(
+                entityKey = key,
+                old = oldEntity,
+                new = newEntity,
+                addedAttributeNames = addedAttributeNames,
+                reasons = reasons,
+                out = newChecks,
+            )
         }
 
-        val newViews = diffViews(old, new, reasons)
+        val newViews = diffViews(old = old, new = new, reasons = reasons)
 
         return if (reasons.isNotEmpty()) {
             DiffOutcome.Refused(reasons)
         } else {
-            DiffOutcome.Ok(ErmSchemaDiff(newEntities, newAttributes, newIndexes, newViews, newChecks))
+            DiffOutcome.Ok(
+                ErmSchemaDiff(
+                    newEntities = newEntities,
+                    newAttributes = newAttributes,
+                    newIndexes = newIndexes,
+                    newViews = newViews,
+                    newChecks = newChecks,
+                ),
+            )
         }
     }
 
@@ -99,7 +115,7 @@ internal object ErmSchemaDiffGenerator {
                         "new column '$entityKey.$key' is NOT NULL without a DEFAULT — adding it to a populated " +
                         "table fails; make it nullable or add a default"
                 } else {
-                    out += AddedAttribute(new, newAttr)
+                    out += AddedAttribute(entity = new, attribute = newAttr)
                     addedNames += key
                 }
                 continue
@@ -131,27 +147,30 @@ internal object ErmSchemaDiffGenerator {
         reasons: MutableList<String>,
         out: MutableList<AddedIndex>,
     ) {
-        val oldByKey = old.indexes.associateBy { indexKey(old, it) }
-        val newByKey = new.indexes.associateBy { indexKey(new, it) }
+        val oldByKey = old.indexes.associateBy { indexKey(entity = old, index = it) }
+        val newByKey = new.indexes.associateBy { indexKey(entity = new, index = it) }
 
         for ((key, oldIndex) in oldByKey) {
             if (key !in newByKey) {
                 reasons +=
-                    "index '${indexDisplayName(old, oldIndex)}' on '$entityKey' was removed — dropping an index is destructive"
+                    "index '${indexDisplayName(
+                        entity = old,
+                        index = oldIndex,
+                    )}' on '$entityKey' was removed — dropping an index is destructive"
             }
         }
 
         for ((key, newIndex) in newByKey) {
             val oldIndex = oldByKey[key]
             if (oldIndex == null) {
-                out += AddedIndex(new, newIndex)
+                out += AddedIndex(entity = new, index = newIndex)
                 continue
             }
-            val oldCols = indexColumnNames(old, oldIndex)
-            val newCols = indexColumnNames(new, newIndex)
+            val oldCols = indexColumnNames(entity = old, index = oldIndex)
+            val newCols = indexColumnNames(entity = new, index = newIndex)
             if (oldCols != newCols || oldIndex.unique != newIndex.unique || oldIndex.where != newIndex.where) {
                 reasons +=
-                    "index '${indexDisplayName(new, newIndex)}' on '$entityKey' changed (columns, uniqueness, or " +
+                    "index '${indexDisplayName(entity = new, index = newIndex)}' on '$entityKey' changed (columns, uniqueness, or " +
                     "predicate) — modifications require a hand-authored migration"
             }
         }
@@ -160,7 +179,7 @@ internal object ErmSchemaDiffGenerator {
     private fun indexDisplayName(
         entity: ErmEntity,
         index: ErmIndex,
-    ): String = index.name ?: "(${indexColumnNames(entity, index).joinToString(", ")})"
+    ): String = index.name ?: "(${indexColumnNames(entity = entity, index = index).joinToString(", ")})"
 
     private fun indexColumnNames(
         entity: ErmEntity,
@@ -199,7 +218,7 @@ internal object ErmSchemaDiffGenerator {
                         "(${referencedExistingColumns.joinToString(", ")}) — may fail against existing data; " +
                         "author manually"
                 } else {
-                    out += AddedCheck(new, newCheck)
+                    out += AddedCheck(entity = new, check = newCheck)
                 }
                 continue
             }
@@ -268,7 +287,8 @@ internal object ErmSchemaDiffGenerator {
     private fun indexKey(
         entity: ErmEntity,
         index: ErmIndex,
-    ): String = index.name?.let { "name:$it" } ?: "sig:${index.unique}|${indexColumnNames(entity, index).joinToString(",")}"
+    ): String =
+        index.name?.let { "name:$it" } ?: "sig:${index.unique}|${indexColumnNames(entity = entity, index = index).joinToString(",")}"
 
     private val IDENTIFIER_REGEX = Regex("[A-Za-z_][A-Za-z0-9_]*")
 }

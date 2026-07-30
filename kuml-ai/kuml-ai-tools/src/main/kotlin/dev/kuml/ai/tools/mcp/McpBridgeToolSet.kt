@@ -70,7 +70,7 @@ public class McpBridgeToolSet private constructor(
         toolName: String,
         arguments: JsonObject,
     ): String {
-        val result: JsonElement = transport.dispatchToolCall(toolName, arguments)
+        val result: JsonElement = transport.dispatchToolCall(toolName = toolName, arguments = arguments)
         return result.toString()
     }
 

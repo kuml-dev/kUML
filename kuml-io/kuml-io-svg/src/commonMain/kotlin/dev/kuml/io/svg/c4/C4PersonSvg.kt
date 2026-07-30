@@ -26,19 +26,20 @@ internal fun renderC4Person(
     val w = layout.bounds.size.width
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         val cx = w / 2f
         // Stick figure
-        tag("circle", mapOf("cx" to fmt(cx), "cy" to "10", "r" to "8", "class" to "kuml-actor"))
+        tag(name = "circle", attrs = mapOf("cx" to fmt(cx), "cy" to "10", "r" to "8", "class" to "kuml-actor"))
         tag(
-            "path",
-            mapOf(
-                "d" to "M ${fmt(cx)} 18 L ${fmt(cx)} 38 M ${fmt(cx - 12f)} 26 L ${fmt(cx + 12f)} 26 " +
-                    "M ${fmt(cx)} 38 L ${fmt(cx - 10f)} 52 M ${fmt(cx)} 38 L ${fmt(cx + 10f)} 52",
-                "class" to "kuml-actor",
-            ),
+            name = "path",
+            attrs =
+                mapOf(
+                    "d" to "M ${fmt(cx)} 18 L ${fmt(cx)} 38 M ${fmt(cx - 12f)} 26 L ${fmt(cx + 12f)} 26 " +
+                        "M ${fmt(cx)} 38 L ${fmt(cx - 10f)} 52 M ${fmt(cx)} 38 L ${fmt(cx + 10f)} 52",
+                    "class" to "kuml-actor",
+                ),
         )
 
         // Label box — wraps the description so long lines no longer overflow.
@@ -46,7 +47,7 @@ internal fun renderC4Person(
         val descMaxWidth = w - 8f - 2f * C4DescriptionLayout.H_PAD // rect inset (x=4, w-8) minus internal padding
         val descLines =
             element.description?.let {
-                TextWrap.wrapToWidth(it, descMaxWidth, C4DescriptionLayout.DESC_CHAR_PX)
+                TextWrap.wrapToWidth(text = it, maxWidthPx = descMaxWidth, charPx = C4DescriptionLayout.DESC_CHAR_PX)
             } ?: emptyList()
         val boxH =
             if (descLines.isEmpty()) {
@@ -57,42 +58,46 @@ internal fun renderC4Person(
                 18f + 16f + (descLines.size - 1) * C4DescriptionLayout.DESC_LINE_H + 10f
             }
         tag(
-            "rect",
-            mapOf(
-                "x" to "4",
-                "y" to fmt(boxY),
-                "width" to fmt(w - 8f),
-                "height" to fmt(boxH),
-                "class" to "kuml-class",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to "4",
+                    "y" to fmt(boxY),
+                    "width" to fmt(w - 8f),
+                    "height" to fmt(boxH),
+                    "class" to "kuml-class",
+                ),
         )
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-title",
-                "x" to fmt(cx),
-                "y" to fmt(boxY + 18f),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-title",
+                    "x" to fmt(cx),
+                    "y" to fmt(boxY + 18f),
+                    "text-anchor" to "middle",
+                ),
         ) { text(element.name) }
 
         if (descLines.isNotEmpty()) {
             tag(
-                "text",
-                mapOf(
-                    "class" to "kuml-stereotype",
-                    "x" to fmt(cx),
-                    "y" to fmt(boxY + 34f),
-                    "text-anchor" to "middle",
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-stereotype",
+                        "x" to fmt(cx),
+                        "y" to fmt(boxY + 34f),
+                        "text-anchor" to "middle",
+                    ),
             ) {
                 descLines.forEachIndexed { idx, line ->
                     tag(
-                        "tspan",
-                        mapOf(
-                            "x" to fmt(cx),
-                            "dy" to if (idx == 0) "0" else fmt(C4DescriptionLayout.DESC_LINE_H),
-                        ),
+                        name = "tspan",
+                        attrs =
+                            mapOf(
+                                "x" to fmt(cx),
+                                "dy" to if (idx == 0) "0" else fmt(C4DescriptionLayout.DESC_LINE_H),
+                            ),
                     ) { text(line) }
                 }
             }

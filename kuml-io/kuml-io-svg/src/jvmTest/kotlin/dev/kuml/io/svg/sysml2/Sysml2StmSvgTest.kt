@@ -33,23 +33,23 @@ class Sysml2StmSvgTest :
         // Tiny traffic-light model: initial + Red + Green + Yellow + final.
         fun trafficLightModel(): Pair<Sysml2Model, StmDiagram> {
             val model =
-                sysml2Model("TrafficLight") {
-                    val initial = stateDef("Initial", isInitial = true)
+                sysml2Model(name = "TrafficLight") {
+                    val initial = stateDef(name = "Initial", isInitial = true)
                     val red =
                         stateDef(
-                            "Red",
+                            name = "Red",
                             entryAction = "switchLights('red')",
                             exitAction = "logTransition('red')",
                         )
-                    val green = stateDef("Green", entryAction = "switchLights('green')")
-                    val yellow = stateDef("Yellow")
-                    val final = stateDef("Final", isFinal = true)
-                    transition("init", initial, red)
-                    transition("redToGreen", red, green, trigger = "timer60s")
-                    transition("greenToYellow", green, yellow, trigger = "timer45s")
-                    transition("yellowToRed", yellow, red, trigger = "timer5s")
-                    transition("powerOff", red, final, trigger = "powerOff")
-                    stmDiagram("Phase cycle") {
+                    val green = stateDef(name = "Green", entryAction = "switchLights('green')")
+                    val yellow = stateDef(name = "Yellow")
+                    val final = stateDef(name = "Final", isFinal = true)
+                    transition(name = "init", source = initial, target = red)
+                    transition(name = "redToGreen", source = red, target = green, trigger = "timer60s")
+                    transition(name = "greenToYellow", source = green, target = yellow, trigger = "timer45s")
+                    transition(name = "yellowToRed", source = yellow, target = red, trigger = "timer5s")
+                    transition(name = "powerOff", source = red, target = final, trigger = "powerOff")
+                    stmDiagram(name = "Phase cycle") {
                         include(initial)
                         include(red)
                         include(green)
@@ -65,28 +65,33 @@ class Sysml2StmSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(900f, 320f),
+                canvas = Size(width = 900f, height = 320f),
                 nodes =
                     mapOf(
-                        NodeId("Initial") to NodeLayout(bounds = Rect(Point(20f, 130f), Size(24f, 24f))),
-                        NodeId("Red") to NodeLayout(bounds = Rect(Point(80f, 110f), Size(180f, 80f))),
-                        NodeId("Green") to NodeLayout(bounds = Rect(Point(320f, 110f), Size(180f, 80f))),
-                        NodeId("Yellow") to NodeLayout(bounds = Rect(Point(560f, 110f), Size(180f, 80f))),
-                        NodeId("Final") to NodeLayout(bounds = Rect(Point(800f, 130f), Size(24f, 24f))),
+                        NodeId("Initial") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 130f), size = Size(width = 24f, height = 24f))),
+                        NodeId("Red") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 80f, y = 110f), size = Size(width = 180f, height = 80f))),
+                        NodeId("Green") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 320f, y = 110f), size = Size(width = 180f, height = 80f))),
+                        NodeId("Yellow") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 560f, y = 110f), size = Size(width = 180f, height = 80f))),
+                        NodeId("Final") to
+                            NodeLayout(bounds = Rect(origin = Point(x = 800f, y = 130f), size = Size(width = 24f, height = 24f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("transition:Initial::Red") to
                             EdgeRoute.OrthogonalRounded(
-                                source = Point(44f, 150f),
-                                target = Point(80f, 150f),
+                                source = Point(x = 44f, y = 150f),
+                                target = Point(x = 80f, y = 150f),
                                 waypoints = emptyList(),
                                 cornerRadiusPx = 4f,
                             ),
                         EdgeId("transition:Red::Green") to
                             EdgeRoute.OrthogonalRounded(
-                                source = Point(260f, 150f),
-                                target = Point(320f, 150f),
+                                source = Point(x = 260f, y = 150f),
+                                target = Point(x = 320f, y = 150f),
                                 waypoints = emptyList(),
                                 cornerRadiusPx = 4f,
                             ),
@@ -96,7 +101,7 @@ class Sysml2StmSvgTest :
 
         "STM renders initial pseudo-state as a filled circle" {
             val (model, stm) = trafficLightModel()
-            val svg = KumlSvgRenderer.toSvg(model, stm, layoutFor(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = stm, layoutResult = layoutFor(), theme = PlainTheme())
 
             // The g-element for the Initial node carries a circle with currentColor fill.
             svg shouldContain "id=\"Initial\""
@@ -104,12 +109,12 @@ class Sysml2StmSvgTest :
             // The fill="currentColor" attribute marks the initial pseudo-state.
             svg shouldContain "currentColor"
 
-            SampleOutput.write("sysml2-stm/traffic-light-initial.svg", svg)
+            SampleOutput.write(filename = "sysml2-stm/traffic-light-initial.svg", content = svg)
         }
 
         "STM renders final pseudo-state as a donut (two concentric circles)" {
             val (model, stm) = trafficLightModel()
-            val svg = KumlSvgRenderer.toSvg(model, stm, layoutFor(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = stm, layoutResult = layoutFor(), theme = PlainTheme())
 
             // Final node has two circle elements (outer ring + inner disc).
             svg shouldContain "id=\"Final\""
@@ -121,7 +126,7 @@ class Sysml2StmSvgTest :
 
         "STM renders regular state as rounded rectangle with name and entry/exit actions" {
             val (model, stm) = trafficLightModel()
-            val svg = KumlSvgRenderer.toSvg(model, stm, layoutFor(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = stm, layoutResult = layoutFor(), theme = PlainTheme())
 
             // Regular state Red: rounded rect (rx="12" ry="12") + name + action lines.
             svg shouldContain "rx=\"12\""
@@ -133,12 +138,12 @@ class Sysml2StmSvgTest :
             svg shouldContain "entry / switchLights"
             svg shouldContain "exit / logTransition"
 
-            SampleOutput.write("sysml2-stm/traffic-light-states.svg", svg)
+            SampleOutput.write(filename = "sysml2-stm/traffic-light-states.svg", content = svg)
         }
 
         "STM transition routes lower into SVG path elements" {
             val (model, stm) = trafficLightModel()
-            val svg = KumlSvgRenderer.toSvg(model, stm, layoutFor(), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = stm, layoutResult = layoutFor(), theme = PlainTheme())
 
             // Edge routes lower into <path> elements (transitions present).
             svg shouldContain "path"
@@ -163,20 +168,22 @@ class Sysml2StmSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("Red") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(180f, 80f))),
-                            NodeId("Green") to NodeLayout(bounds = Rect(Point(220f, 0f), Size(180f, 80f))),
+                            NodeId("Red") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 180f, height = 80f))),
+                            NodeId("Green") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 220f, y = 0f), size = Size(width = 180f, height = 80f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val one = KumlSvgRenderer.toSvg(model, stm, layout, PlainTheme())
-            val two = KumlSvgRenderer.toSvg(model, stm, layout, PlainTheme())
+            val one = KumlSvgRenderer.toSvg(model = model, diagram = stm, layoutResult = layout, theme = PlainTheme())
+            val two = KumlSvgRenderer.toSvg(model = model, diagram = stm, layoutResult = layout, theme = PlainTheme())
             one shouldBe two
 
-            SampleOutput.write("sysml2-stm/deterministic.svg", one)
+            SampleOutput.write(filename = "sysml2-stm/deterministic.svg", content = one)
         }
     })

@@ -54,11 +54,11 @@ public object OclLikeExpressionParser {
     public fun parse(input: String): KumlExpression {
         val preprocessed = stripComments(input)
         val tokens = tokenize(preprocessed)
-        val parser = Parser(tokens, preprocessed)
+        val parser = Parser(tokens = tokens, src = preprocessed)
         val expr = parser.parseExpr()
         if (!parser.isAtEnd()) {
             val tok = parser.peek()
-            throw ParseException(ParseError("Unexpected token '${tok.text}' at column ${tok.column}", tok.column))
+            throw ParseException(ParseError(message = "Unexpected token '${tok.text}' at column ${tok.column}", column = tok.column))
         }
         return expr
     }
@@ -73,7 +73,7 @@ public object OclLikeExpressionParser {
     ): KumlExpression? =
         try {
             if (input.isBlank()) {
-                errors += ParseError("Empty expression", 0)
+                errors += ParseError(message = "Empty expression", column = 0)
                 null
             } else {
                 parse(input)
@@ -82,7 +82,7 @@ public object OclLikeExpressionParser {
             errors += e.error
             null
         } catch (_: Exception) {
-            errors += ParseError("Internal parse error", 0)
+            errors += ParseError(message = "Internal parse error", column = 0)
             null
         }
 
@@ -122,7 +122,7 @@ public object OclLikeExpressionParser {
             errors += e.error
             null
         } catch (_: Exception) {
-            errors += ParseError("Internal parse error in effects", 0)
+            errors += ParseError(message = "Internal parse error in effects", column = 0)
             null
         }
 
@@ -152,7 +152,7 @@ public object OclLikeExpressionParser {
             val lhsPath = extractDottedPath(lhsText)
             if (lhsPath != null && lhsPath.isNotEmpty()) {
                 val rhsExpr = parse(rhsText)
-                return AssignEffect(lhsPath, rhsExpr)
+                return AssignEffect(target = lhsPath, value = rhsExpr)
             }
             // LHS was not a simple dotted path → fall through
         }
@@ -171,13 +171,13 @@ public object OclLikeExpressionParser {
                 } else {
                     parseArgList(argsText)
                 }
-            return CallEffect(receiverPath, args)
+            return CallEffect(receiver = receiverPath, args = args)
         }
 
         // ── 3. / 4. Parse as expression, lift FunctionCall ───────────────────
         val expr = parse(segment)
         return when (expr) {
-            is FunctionCall -> CallEffect(listOf(expr.name), expr.args)
+            is FunctionCall -> CallEffect(receiver = listOf(expr.name), args = expr.args)
             else -> ExpressionEffect(expr)
         }
     }
@@ -358,72 +358,72 @@ public object OclLikeExpressionParser {
             when {
                 // Two-char operators
                 i + 1 < src.length && c == '&' && src[i + 1] == '&' -> {
-                    tokens += Token(TokenKind.AND, "&&", col())
+                    tokens += Token(kind = TokenKind.AND, text = "&&", column = col())
                     i += 2
                 }
                 i + 1 < src.length && c == '|' && src[i + 1] == '|' -> {
-                    tokens += Token(TokenKind.OR, "||", col())
+                    tokens += Token(kind = TokenKind.OR, text = "||", column = col())
                     i += 2
                 }
                 i + 1 < src.length && c == '=' && src[i + 1] == '=' -> {
-                    tokens += Token(TokenKind.EQ, "==", col())
+                    tokens += Token(kind = TokenKind.EQ, text = "==", column = col())
                     i += 2
                 }
                 i + 1 < src.length && c == '!' && src[i + 1] == '=' -> {
-                    tokens += Token(TokenKind.NEQ, "!=", col())
+                    tokens += Token(kind = TokenKind.NEQ, text = "!=", column = col())
                     i += 2
                 }
                 i + 1 < src.length && c == '<' && src[i + 1] == '=' -> {
-                    tokens += Token(TokenKind.LTE, "<=", col())
+                    tokens += Token(kind = TokenKind.LTE, text = "<=", column = col())
                     i += 2
                 }
                 i + 1 < src.length && c == '>' && src[i + 1] == '=' -> {
-                    tokens += Token(TokenKind.GTE, ">=", col())
+                    tokens += Token(kind = TokenKind.GTE, text = ">=", column = col())
                     i += 2
                 }
                 // Single-char operators
                 c == '<' -> {
-                    tokens += Token(TokenKind.LT, "<", col())
+                    tokens += Token(kind = TokenKind.LT, text = "<", column = col())
                     i++
                 }
                 c == '>' -> {
-                    tokens += Token(TokenKind.GT, ">", col())
+                    tokens += Token(kind = TokenKind.GT, text = ">", column = col())
                     i++
                 }
                 c == '+' -> {
-                    tokens += Token(TokenKind.PLUS, "+", col())
+                    tokens += Token(kind = TokenKind.PLUS, text = "+", column = col())
                     i++
                 }
                 c == '-' -> {
-                    tokens += Token(TokenKind.MINUS, "-", col())
+                    tokens += Token(kind = TokenKind.MINUS, text = "-", column = col())
                     i++
                 }
                 c == '*' -> {
-                    tokens += Token(TokenKind.STAR, "*", col())
+                    tokens += Token(kind = TokenKind.STAR, text = "*", column = col())
                     i++
                 }
                 c == '/' -> {
-                    tokens += Token(TokenKind.SLASH, "/", col())
+                    tokens += Token(kind = TokenKind.SLASH, text = "/", column = col())
                     i++
                 }
                 c == '!' -> {
-                    tokens += Token(TokenKind.BANG, "!", col())
+                    tokens += Token(kind = TokenKind.BANG, text = "!", column = col())
                     i++
                 }
                 c == '(' -> {
-                    tokens += Token(TokenKind.LPAREN, "(", col())
+                    tokens += Token(kind = TokenKind.LPAREN, text = "(", column = col())
                     i++
                 }
                 c == ')' -> {
-                    tokens += Token(TokenKind.RPAREN, ")", col())
+                    tokens += Token(kind = TokenKind.RPAREN, text = ")", column = col())
                     i++
                 }
                 c == ',' -> {
-                    tokens += Token(TokenKind.COMMA, ",", col())
+                    tokens += Token(kind = TokenKind.COMMA, text = ",", column = col())
                     i++
                 }
                 c == '.' -> {
-                    tokens += Token(TokenKind.DOT, ".", col())
+                    tokens += Token(kind = TokenKind.DOT, text = ".", column = col())
                     i++
                 }
                 // String literals — single or double quote
@@ -451,10 +451,10 @@ public object OclLikeExpressionParser {
                         }
                     }
                     if (i >= src.length) {
-                        throw ParseException(ParseError("Unterminated string literal", startCol))
+                        throw ParseException(ParseError(message = "Unterminated string literal", column = startCol))
                     }
                     i++ // closing quote
-                    tokens += Token(TokenKind.STRING, sb.toString(), startCol)
+                    tokens += Token(kind = TokenKind.STRING, text = sb.toString(), column = startCol)
                 }
                 // Numeric literals
                 c.isDigit() -> {
@@ -473,9 +473,9 @@ public object OclLikeExpressionParser {
                             if (src[i] != '_') sb.append(src[i])
                             i++
                         }
-                        tokens += Token(TokenKind.REAL, sb.toString(), startCol)
+                        tokens += Token(kind = TokenKind.REAL, text = sb.toString(), column = startCol)
                     } else {
-                        tokens += Token(TokenKind.INT, sb.toString(), startCol)
+                        tokens += Token(kind = TokenKind.INT, text = sb.toString(), column = startCol)
                     }
                 }
                 // Identifiers & keywords
@@ -493,14 +493,14 @@ public object OclLikeExpressionParser {
                             "null" -> TokenKind.NULL
                             else -> TokenKind.IDENT
                         }
-                    tokens += Token(kind, text, startCol)
+                    tokens += Token(kind = kind, text = text, column = startCol)
                 }
                 else -> {
-                    throw ParseException(ParseError("Unexpected character '$c'", col()))
+                    throw ParseException(ParseError(message = "Unexpected character '$c'", column = col()))
                 }
             }
         }
-        tokens += Token(TokenKind.EOF, "<EOF>", src.length + 1)
+        tokens += Token(kind = TokenKind.EOF, text = "<EOF>", column = src.length + 1)
         return tokens
     }
 
@@ -526,7 +526,7 @@ public object OclLikeExpressionParser {
             depth++
             if (depth > MAX_NESTING_DEPTH) {
                 throw ParseException(
-                    ParseError("Expression nesting exceeds maximum depth of $MAX_NESTING_DEPTH", column),
+                    ParseError(message = "Expression nesting exceeds maximum depth of $MAX_NESTING_DEPTH", column = column),
                 )
             }
             try {
@@ -558,7 +558,7 @@ public object OclLikeExpressionParser {
         ): Token {
             if (!check(kind)) {
                 val tok = peek()
-                throw ParseException(ParseError("$msg (got '${tok.text}')", tok.column))
+                throw ParseException(ParseError(message = "$msg (got '${tok.text}')", column = tok.column))
             }
             return advance()
         }
@@ -570,7 +570,7 @@ public object OclLikeExpressionParser {
             while (check(TokenKind.OR)) {
                 advance()
                 val right = parseAnd()
-                left = BinaryOp(BinaryOperator.OR, left, right)
+                left = BinaryOp(op = BinaryOperator.OR, left = left, right = right)
             }
             return left
         }
@@ -580,7 +580,7 @@ public object OclLikeExpressionParser {
             while (check(TokenKind.AND)) {
                 advance()
                 val right = parseNot()
-                left = BinaryOp(BinaryOperator.AND, left, right)
+                left = BinaryOp(op = BinaryOperator.AND, left = left, right = right)
             }
             return left
         }
@@ -588,7 +588,7 @@ public object OclLikeExpressionParser {
         private fun parseNot(): KumlExpression {
             if (check(TokenKind.BANG)) {
                 val tok = advance()
-                return nested(tok.column) { UnaryOp(UnaryOperator.NOT, parseNot()) }
+                return nested(column = tok.column) { UnaryOp(op = UnaryOperator.NOT, operand = parseNot()) }
             }
             return parseCompare()
         }
@@ -608,7 +608,7 @@ public object OclLikeExpressionParser {
                 }
             advance()
             val right = parseAdd()
-            return BinaryOp(op, left, right)
+            return BinaryOp(op = op, left = left, right = right)
         }
 
         private fun parseAdd(): KumlExpression {
@@ -616,7 +616,7 @@ public object OclLikeExpressionParser {
             while (check(TokenKind.PLUS) || check(TokenKind.MINUS)) {
                 val op = if (advance().kind == TokenKind.PLUS) BinaryOperator.ADD else BinaryOperator.SUB
                 val right = parseMul()
-                left = BinaryOp(op, left, right)
+                left = BinaryOp(op = op, left = left, right = right)
             }
             return left
         }
@@ -626,7 +626,7 @@ public object OclLikeExpressionParser {
             while (check(TokenKind.STAR) || check(TokenKind.SLASH)) {
                 val op = if (advance().kind == TokenKind.STAR) BinaryOperator.MUL else BinaryOperator.DIV
                 val right = parseUnary()
-                left = BinaryOp(op, left, right)
+                left = BinaryOp(op = op, left = left, right = right)
             }
             return left
         }
@@ -634,7 +634,7 @@ public object OclLikeExpressionParser {
         private fun parseUnary(): KumlExpression {
             if (check(TokenKind.MINUS)) {
                 val tok = advance()
-                return nested(tok.column) { UnaryOp(UnaryOperator.NEG, parseUnary()) }
+                return nested(column = tok.column) { UnaryOp(op = UnaryOperator.NEG, operand = parseUnary()) }
             }
             return parsePrimary()
         }
@@ -656,12 +656,16 @@ public object OclLikeExpressionParser {
                 }
                 TokenKind.INT -> {
                     advance()
-                    LiteralInt(tok.text.toLongOrNull() ?: throw ParseException(ParseError("Invalid int literal '${tok.text}'", tok.column)))
+                    LiteralInt(
+                        tok.text.toLongOrNull()
+                            ?: throw ParseException(ParseError(message = "Invalid int literal '${tok.text}'", column = tok.column)),
+                    )
                 }
                 TokenKind.REAL -> {
                     advance()
                     LiteralReal(
-                        tok.text.toDoubleOrNull() ?: throw ParseException(ParseError("Invalid real literal '${tok.text}'", tok.column)),
+                        tok.text.toDoubleOrNull()
+                            ?: throw ParseException(ParseError(message = "Invalid real literal '${tok.text}'", column = tok.column)),
                     )
                 }
                 TokenKind.STRING -> {
@@ -674,7 +678,7 @@ public object OclLikeExpressionParser {
                     // Check for function call: IDENT '('
                     if (check(TokenKind.LPAREN)) {
                         val lparen = advance() // consume '('
-                        nested(lparen.column) {
+                        nested(column = lparen.column) {
                             val args = mutableListOf<KumlExpression>()
                             if (!check(TokenKind.RPAREN)) {
                                 args += parseExpr()
@@ -683,14 +687,14 @@ public object OclLikeExpressionParser {
                                     args += parseExpr()
                                 }
                             }
-                            consume(TokenKind.RPAREN, "Expected ')' after function arguments")
-                            FunctionCall(tok.text, args)
+                            consume(kind = TokenKind.RPAREN, msg = "Expected ')' after function arguments")
+                            FunctionCall(name = tok.text, args = args)
                         }
                     } else {
                         // attrRef: IDENT ('.' IDENT)*
                         while (check(TokenKind.DOT)) {
                             advance()
-                            val next = consume(TokenKind.IDENT, "Expected identifier after '.'")
+                            val next = consume(kind = TokenKind.IDENT, msg = "Expected identifier after '.'")
                             parts += next.text
                         }
                         AttributeRef(parts)
@@ -698,13 +702,13 @@ public object OclLikeExpressionParser {
                 }
                 TokenKind.LPAREN -> {
                     val lparen = advance()
-                    nested(lparen.column) {
+                    nested(column = lparen.column) {
                         val inner = parseExpr()
-                        consume(TokenKind.RPAREN, "Expected closing ')'")
+                        consume(kind = TokenKind.RPAREN, msg = "Expected closing ')'")
                         inner
                     }
                 }
-                else -> throw ParseException(ParseError("Unexpected token '${tok.text}'", tok.column))
+                else -> throw ParseException(ParseError(message = "Unexpected token '${tok.text}'", column = tok.column))
             }
         }
     }

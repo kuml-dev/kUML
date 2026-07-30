@@ -23,9 +23,9 @@ internal object ErmSqlTypeMapper {
     ): String {
         val type = attr.type
         return if (attr.autoIncrement && type is ErmDataType.Integer) {
-            autoIncrementType(type, dialect)
+            autoIncrementType(type = type, dialect = dialect)
         } else {
-            baseType(type, dialect)
+            baseType(type = type, dialect = dialect)
         }
     }
 
@@ -40,7 +40,7 @@ internal object ErmSqlTypeMapper {
                     64 -> "BIGSERIAL"
                     else -> "SERIAL"
                 }
-            SqlDialect.MYSQL, SqlDialect.H2 -> "${baseType(type, dialect)} AUTO_INCREMENT"
+            SqlDialect.MYSQL, SqlDialect.H2 -> "${baseType(type = type, dialect = dialect)} AUTO_INCREMENT"
             // SQLite: AUTOINCREMENT is only legal on a single-column INTEGER PK and is
             // never required for rowid semantics — emit the bare type and let SQLite's
             // implicit rowid-aliasing provide the auto-increment behaviour.

@@ -50,27 +50,27 @@ internal class OclEvaluator(
             is OclExpression.VarRef -> env[expr.name]
             is OclExpression.Navigate -> {
                 val recv =
-                    eval(expr.receiver, env)
-                        ?: throw OclEvaluationException("Cannot navigate '${expr.prop}' on null")
-                PropertyAccessor.get(recv, expr.prop, model)
+                    eval(expr = expr.receiver, env = env)
+                        ?: throw OclEvaluationException(message = "Cannot navigate '${expr.prop}' on null")
+                PropertyAccessor.get(self = recv, prop = expr.prop, model = model)
             }
-            is OclExpression.OperationCall -> evalOperationCall(expr, env)
-            is OclExpression.CollectionOp -> evalCollectionOp(expr, env)
-            is OclExpression.IterateExpr -> evalIterate(expr, env)
+            is OclExpression.OperationCall -> evalOperationCall(expr = expr, env = env)
+            is OclExpression.CollectionOp -> evalCollectionOp(expr = expr, env = env)
+            is OclExpression.IterateExpr -> evalIterate(expr = expr, env = env)
             is OclExpression.LetExpr -> {
-                val value = eval(expr.initExpr, env)
-                eval(expr.body, env + mapOf(expr.name to value))
+                val value = eval(expr = expr.initExpr, env = env)
+                eval(expr = expr.body, env = env + mapOf(expr.name to value))
             }
             is OclExpression.IfExpr -> {
                 val cond =
-                    eval(expr.cond, env) as? Boolean
-                        ?: throw OclEvaluationException("'if' condition requires Boolean")
-                if (cond) eval(expr.thenExpr, env) else eval(expr.elseExpr, env)
+                    eval(expr = expr.cond, env = env) as? Boolean
+                        ?: throw OclEvaluationException(message = "'if' condition requires Boolean")
+                if (cond) eval(expr = expr.thenExpr, env = env) else eval(expr = expr.elseExpr, env = env)
             }
-            is OclExpression.BinaryOp -> evalBinaryOp(expr, env)
-            is OclExpression.UnaryOp -> evalUnaryOp(expr, env)
-            is OclExpression.TypeOp -> evalTypeOp(expr, env)
-            is OclExpression.AtPre -> eval(expr.receiver, preSnapshot ?: env)
+            is OclExpression.BinaryOp -> evalBinaryOp(expr = expr, env = env)
+            is OclExpression.UnaryOp -> evalUnaryOp(expr = expr, env = env)
+            is OclExpression.TypeOp -> evalTypeOp(expr = expr, env = env)
+            is OclExpression.AtPre -> eval(expr = expr.receiver, env = preSnapshot ?: env)
         }
 
     // ── OCL standard-library String/Real/Integer operations (V3.2.24) ──────
@@ -94,18 +94,18 @@ internal class OclEvaluator(
         env: Map<String, Any?>,
     ): Any? {
         val receiverValue =
-            eval(expr.receiver, env)
-                ?: throw OclEvaluationException("Cannot call '${expr.name}' on null")
+            eval(expr = expr.receiver, env = env)
+                ?: throw OclEvaluationException(message = "Cannot call '${expr.name}' on null")
 
-        fun arg(i: Int): Any? = eval(expr.args[i], env)
+        fun arg(i: Int): Any? = eval(expr = expr.args[i], env = env)
 
         if (receiverValue is String) {
-            evalStringOp(receiverValue, expr.name, expr.args, ::arg)?.let { return it.value }
+            evalStringOp(receiver = receiverValue, name = expr.name, args = expr.args, arg = ::arg)?.let { return it.value }
         }
         if (isNumeric(receiverValue)) {
-            evalNumberOp(receiverValue, expr.name, expr.args, ::arg)?.let { return it.value }
+            evalNumberOp(receiver = receiverValue, name = expr.name, args = expr.args, arg = ::arg)?.let { return it.value }
         }
-        return PropertyAccessor.get(receiverValue, expr.name, model)
+        return PropertyAccessor.get(self = receiverValue, prop = expr.name, model = model)
     }
 
     /** Wraps a possibly-`null` standard-library result so "no matching op" can be told apart from a `null` result. */
@@ -128,25 +128,25 @@ internal class OclEvaluator(
             "size" -> OpResult(receiver.length)
             "toUpper" -> OpResult(receiver.uppercase())
             "toLower" -> OpResult(receiver.lowercase())
-            "concat" -> OpResult(receiver + requireString(arg(0), "concat"))
+            "concat" -> OpResult(receiver + requireString(v = arg(0), op = "concat"))
             "substring" -> {
-                val from = requireInt(arg(0), "substring")
-                val to = requireInt(arg(1), "substring")
+                val from = requireInt(v = arg(0), op = "substring")
+                val to = requireInt(v = arg(1), op = "substring")
                 if (from < 1 || to > receiver.length || from > to + 1) {
                     throw OclEvaluationException(
-                        "'substring($from, $to)' out of bounds for a string of length ${receiver.length}",
+                        message = "'substring($from, $to)' out of bounds for a string of length ${receiver.length}",
                     )
                 }
                 OpResult(receiver.substring(from - 1, to))
             }
-            "indexOf" -> OpResult(receiver.indexOf(requireString(arg(0), "indexOf")) + 1)
-            "equalsIgnoreCase" -> OpResult(receiver.equals(requireString(arg(0), "equalsIgnoreCase"), ignoreCase = true))
+            "indexOf" -> OpResult(receiver.indexOf(requireString(v = arg(0), op = "indexOf")) + 1)
+            "equalsIgnoreCase" -> OpResult(receiver.equals(requireString(v = arg(0), op = "equalsIgnoreCase"), ignoreCase = true))
             "isEmpty" -> OpResult(receiver.isEmpty())
             "notEmpty" -> OpResult(receiver.isNotEmpty())
             "at" -> {
-                val i = requireInt(arg(0), "at")
+                val i = requireInt(v = arg(0), op = "at")
                 if (i < 1 || i > receiver.length) {
-                    throw OclEvaluationException("'at($i)' out of bounds for a string of length ${receiver.length}")
+                    throw OclEvaluationException(message = "'at($i)' out of bounds for a string of length ${receiver.length}")
                 }
                 OpResult(receiver[i - 1].toString())
             }
@@ -175,21 +175,21 @@ internal class OclEvaluator(
             "round" -> OpResult(kotlin.math.floor(toNumeric(receiver) + 0.5).toInt())
             "max" -> {
                 val other = arg(0)
-                OpResult(arithResult(receiver, other, kotlin.math.max(toNumeric(receiver), toNumeric(other))))
+                OpResult(arithResult(l = receiver, r = other, result = kotlin.math.max(toNumeric(receiver), toNumeric(other))))
             }
             "min" -> {
                 val other = arg(0)
-                OpResult(arithResult(receiver, other, kotlin.math.min(toNumeric(receiver), toNumeric(other))))
+                OpResult(arithResult(l = receiver, r = other, result = kotlin.math.min(toNumeric(receiver), toNumeric(other))))
             }
             "mod" -> {
-                val divisor = requireInt(arg(0), "mod")
-                if (divisor == 0) throw OclEvaluationException("'mod' by zero")
-                OpResult(requireInt(receiver, "mod") % divisor)
+                val divisor = requireInt(v = arg(0), op = "mod")
+                if (divisor == 0) throw OclEvaluationException(message = "'mod' by zero")
+                OpResult(requireInt(v = receiver, op = "mod") % divisor)
             }
             "div" -> {
-                val divisor = requireInt(arg(0), "div")
-                if (divisor == 0) throw OclEvaluationException("'div' by zero")
-                OpResult(Math.floorDiv(requireInt(receiver, "div"), divisor))
+                val divisor = requireInt(v = arg(0), op = "div")
+                if (divisor == 0) throw OclEvaluationException(message = "'div' by zero")
+                OpResult(Math.floorDiv(requireInt(v = receiver, op = "div"), divisor))
             }
             else -> null
         }
@@ -197,12 +197,12 @@ internal class OclEvaluator(
     private fun requireString(
         v: Any?,
         op: String,
-    ): String = v as? String ?: throw OclEvaluationException("'$op' requires a String argument, got $v")
+    ): String = v as? String ?: throw OclEvaluationException(message = "'$op' requires a String argument, got $v")
 
     private fun requireInt(
         v: Any?,
         op: String,
-    ): Int = v as? Int ?: throw OclEvaluationException("'$op' requires an Integer argument, got $v")
+    ): Int = v as? Int ?: throw OclEvaluationException(message = "'$op' requires an Integer argument, got $v")
 
     // ── OCL type operations (V3.2.22) ───────────────────────────────────────
 
@@ -210,28 +210,28 @@ internal class OclEvaluator(
         expr: OclExpression.TypeOp,
         env: Map<String, Any?>,
     ): Any? {
-        val receiverValue = eval(expr.receiver, env)
+        val receiverValue = eval(expr = expr.receiver, env = env)
         return when (expr.op) {
             "oclIsUndefined" -> receiverValue == null
             "oclIsInvalid" -> false // this subset has no distinct "invalid" (error) value from "undefined" (null)
             "oclIsTypeOf" -> receiverValue != null && classifierNameOf(receiverValue) == requireTypeName(expr)
-            "oclIsKindOf" -> receiverValue != null && isKindOf(receiverValue, requireTypeName(expr))
+            "oclIsKindOf" -> receiverValue != null && isKindOf(value = receiverValue, typeName = requireTypeName(expr))
             "oclAsType" -> {
                 val typeName = requireTypeName(expr)
-                if (receiverValue != null && isKindOf(receiverValue, typeName)) {
+                if (receiverValue != null && isKindOf(value = receiverValue, typeName = typeName)) {
                     receiverValue
                 } else {
                     throw OclEvaluationException(
-                        "'oclAsType($typeName)' failed: receiver is not a kind of '$typeName'",
+                        message = "'oclAsType($typeName)' failed: receiver is not a kind of '$typeName'",
                     )
                 }
             }
-            else -> throw OclEvaluationException("Unknown type operation: ${expr.op}")
+            else -> throw OclEvaluationException(message = "Unknown type operation: ${expr.op}")
         }
     }
 
     private fun requireTypeName(expr: OclExpression.TypeOp): String =
-        expr.typeName ?: throw OclEvaluationException("'${expr.op}' requires a type name argument")
+        expr.typeName ?: throw OclEvaluationException(message = "'${expr.op}' requires a type name argument")
 
     /** The declared classifier name of [value] — its own metamodel type name, not a Kotlin class name. */
     private fun classifierNameOf(value: Any?): String? = (value as? UmlClassifier)?.name
@@ -268,7 +268,7 @@ internal class OclEvaluator(
         expr: OclExpression.CollectionOp,
         env: Map<String, Any?>,
     ): Any? {
-        val receiverValue = eval(expr.receiver, env)
+        val receiverValue = eval(expr = expr.receiver, env = env)
         // `closure` is defined on Collection in the OCL standard library, but
         // this subset has no collection-literal syntax (see OclEvaluatorTest),
         // so a single non-collection receiver (e.g. bare `self`) is treated as
@@ -283,7 +283,7 @@ internal class OclEvaluator(
 
         fun bodyOf(item: Any?): Any? {
             val newEnv = env + mapOf((expr.bindingVar ?: "") to item)
-            return eval(expr.body!!, newEnv)
+            return eval(expr = expr.body!!, env = newEnv)
         }
 
         fun boolBodyOf(item: Any?): Boolean = bodyOf(item) as? Boolean ?: false
@@ -292,8 +292,8 @@ internal class OclEvaluator(
             "size" -> coll.size
             "isEmpty" -> coll.isEmpty()
             "notEmpty" -> coll.isNotEmpty()
-            "includes" -> coll.contains(eval(expr.args.first(), env))
-            "excludes" -> !coll.contains(eval(expr.args.first(), env))
+            "includes" -> coll.contains(eval(expr = expr.args.first(), env = env))
+            "excludes" -> !coll.contains(eval(expr = expr.args.first(), env = env))
             "forAll" -> coll.all { boolBodyOf(it) }
             "exists" -> coll.any { boolBodyOf(it) }
             "select" -> if (expr.body != null) coll.filter { boolBodyOf(it) } else coll
@@ -317,7 +317,7 @@ internal class OclEvaluator(
                         val v = bodyOf(item)
                         @Suppress("UNCHECKED_CAST")
                         (v as? Comparable<Any?>)
-                            ?: throw OclEvaluationException("'sortedBy' body must evaluate to a Comparable, got $v")
+                            ?: throw OclEvaluationException(message = "'sortedBy' body must evaluate to a Comparable, got $v")
                     },
                 )
             "sum" -> {
@@ -325,20 +325,20 @@ internal class OclEvaluator(
                 val total = values.fold(0.0) { acc, v -> acc + toNumeric(v) }
                 if (values.all { numericIsInt(it) }) total.toInt() else total
             }
-            "count" -> coll.count { it == eval(expr.args.first(), env) }
-            "including" -> coll + eval(expr.args.first(), env)
-            "excluding" -> coll.filterNot { it == eval(expr.args.first(), env) }
-            "union" -> coll + ((eval(expr.args.first(), env) as? List<*>) ?: emptyList<Any?>())
+            "count" -> coll.count { it == eval(expr = expr.args.first(), env = env) }
+            "including" -> coll + eval(expr = expr.args.first(), env = env)
+            "excluding" -> coll.filterNot { it == eval(expr = expr.args.first(), env = env) }
+            "union" -> coll + ((eval(expr = expr.args.first(), env = env) as? List<*>) ?: emptyList<Any?>())
             "intersection" -> {
-                val other = (eval(expr.args.first(), env) as? List<*>) ?: emptyList<Any?>()
+                val other = (eval(expr = expr.args.first(), env = env) as? List<*>) ?: emptyList<Any?>()
                 coll.filter { other.contains(it) }
             }
-            "first" -> coll.firstOrNull() ?: throw OclEvaluationException("'first' called on empty collection")
-            "last" -> coll.lastOrNull() ?: throw OclEvaluationException("'last' called on empty collection")
+            "first" -> coll.firstOrNull() ?: throw OclEvaluationException(message = "'first' called on empty collection")
+            "last" -> coll.lastOrNull() ?: throw OclEvaluationException(message = "'last' called on empty collection")
             "asSet" -> coll.distinct()
             "asSequence" -> coll
-            "closure" -> evalClosure(coll, expr)
-            else -> throw OclEvaluationException("Unknown collection operation: ${expr.op}")
+            "closure" -> evalClosure(coll = coll, expr = expr)
+            else -> throw OclEvaluationException(message = "Unknown collection operation: ${expr.op}")
         }
     }
 
@@ -365,8 +365,8 @@ internal class OclEvaluator(
         coll: List<*>,
         expr: OclExpression.CollectionOp,
     ): List<Any?> {
-        val body = expr.body ?: throw OclEvaluationException("'closure' requires a navigation body")
-        val bindingVar = expr.bindingVar ?: throw OclEvaluationException("'closure' requires a binding variable")
+        val body = expr.body ?: throw OclEvaluationException(message = "'closure' requires a navigation body")
+        val bindingVar = expr.bindingVar ?: throw OclEvaluationException(message = "'closure' requires a binding variable")
         val visited = LinkedHashSet<Any?>(coll)
         val result = LinkedHashSet<Any?>()
         val frontier = ArrayDeque(coll)
@@ -374,7 +374,7 @@ internal class OclEvaluator(
             val item = frontier.removeFirst()
             val next =
                 try {
-                    eval(body, mapOf(bindingVar to item, "self" to self))
+                    eval(expr = body, env = mapOf(bindingVar to item, "self" to self))
                 } catch (_: OclEvaluationException) {
                     null
                 }
@@ -396,11 +396,11 @@ internal class OclEvaluator(
         expr: OclExpression.IterateExpr,
         env: Map<String, Any?>,
     ): Any? {
-        val coll = eval(expr.receiver, env) as? List<*> ?: emptyList<Any?>()
-        var acc = eval(expr.accInit, env)
+        val coll = eval(expr = expr.receiver, env = env) as? List<*> ?: emptyList<Any?>()
+        var acc = eval(expr = expr.accInit, env = env)
         for (item in coll) {
             val newEnv = env + mapOf(expr.iterVar to item, expr.accVar to acc)
-            acc = eval(expr.body, newEnv)
+            acc = eval(expr = expr.body, env = newEnv)
         }
         return acc
     }
@@ -411,44 +411,44 @@ internal class OclEvaluator(
         expr: OclExpression.BinaryOp,
         env: Map<String, Any?>,
     ): Any? {
-        val l = eval(expr.left, env)
-        val r = eval(expr.right, env)
+        val l = eval(expr = expr.left, env = env)
+        val r = eval(expr = expr.right, env = env)
         return when (expr.op) {
             "=" -> l == r
             "<>" -> l != r
-            "<" -> compareValues(l, r) < 0
-            ">" -> compareValues(l, r) > 0
-            "<=" -> compareValues(l, r) <= 0
-            ">=" -> compareValues(l, r) >= 0
+            "<" -> compareValues(l = l, r = r) < 0
+            ">" -> compareValues(l = l, r = r) > 0
+            "<=" -> compareValues(l = l, r = r) <= 0
+            ">=" -> compareValues(l = l, r = r) >= 0
             "and" -> (l as? Boolean == true) && (r as? Boolean == true)
             "or" -> (l as? Boolean == true) || (r as? Boolean == true)
             "implies" -> !(l as? Boolean == true) || (r as? Boolean == true)
             "+" ->
                 when {
                     l is String && r is String -> l + r
-                    isNumeric(l) && isNumeric(r) -> arithResult(l, r, toNumeric(l) + toNumeric(r))
-                    else -> throw OclEvaluationException("Cannot apply '+' to $l and $r")
+                    isNumeric(l) && isNumeric(r) -> arithResult(l = l, r = r, result = toNumeric(l) + toNumeric(r))
+                    else -> throw OclEvaluationException(message = "Cannot apply '+' to $l and $r")
                 }
             "-" ->
                 when {
-                    isNumeric(l) && isNumeric(r) -> arithResult(l, r, toNumeric(l) - toNumeric(r))
-                    else -> throw OclEvaluationException("Cannot apply '-' to $l and $r")
+                    isNumeric(l) && isNumeric(r) -> arithResult(l = l, r = r, result = toNumeric(l) - toNumeric(r))
+                    else -> throw OclEvaluationException(message = "Cannot apply '-' to $l and $r")
                 }
             "*" ->
                 when {
-                    isNumeric(l) && isNumeric(r) -> arithResult(l, r, toNumeric(l) * toNumeric(r))
-                    else -> throw OclEvaluationException("Cannot apply '*' to $l and $r")
+                    isNumeric(l) && isNumeric(r) -> arithResult(l = l, r = r, result = toNumeric(l) * toNumeric(r))
+                    else -> throw OclEvaluationException(message = "Cannot apply '*' to $l and $r")
                 }
             "/" -> {
                 if (!isNumeric(l) || !isNumeric(r)) {
-                    throw OclEvaluationException("'/' requires numeric operands, got $l and $r")
+                    throw OclEvaluationException(message = "'/' requires numeric operands, got $l and $r")
                 }
                 val divisor = toNumeric(r)
-                if (divisor == 0.0) throw OclEvaluationException("Division by zero")
+                if (divisor == 0.0) throw OclEvaluationException(message = "Division by zero")
                 // OCL '/' is always real division, regardless of operand types.
                 toNumeric(l) / divisor
             }
-            else -> throw OclEvaluationException("Unknown binary op: ${expr.op}")
+            else -> throw OclEvaluationException(message = "Unknown binary op: ${expr.op}")
         }
     }
 
@@ -458,7 +458,7 @@ internal class OclEvaluator(
         when (v) {
             is Int -> v.toDouble()
             is Double -> v
-            else -> throw OclEvaluationException("Expected numeric value, got $v")
+            else -> throw OclEvaluationException(message = "Expected numeric value, got $v")
         }
 
     /**
@@ -477,23 +477,23 @@ internal class OclEvaluator(
     ): Int {
         if (isNumeric(l) && isNumeric(r)) return toNumeric(l).compareTo(toNumeric(r))
         if (l is String && r is String) return l.compareTo(r)
-        throw OclEvaluationException("Cannot compare $l and $r")
+        throw OclEvaluationException(message = "Cannot compare $l and $r")
     }
 
     private fun evalUnaryOp(
         expr: OclExpression.UnaryOp,
         env: Map<String, Any?>,
     ): Any? {
-        val operand = eval(expr.operand, env)
+        val operand = eval(expr = expr.operand, env = env)
         return when (expr.op) {
-            "not" -> !(operand as? Boolean ?: throw OclEvaluationException("'not' requires Boolean"))
+            "not" -> !(operand as? Boolean ?: throw OclEvaluationException(message = "'not' requires Boolean"))
             "-" ->
                 when (operand) {
                     is Int -> -operand
                     is Double -> -operand
-                    else -> throw OclEvaluationException("unary '-' requires a numeric operand")
+                    else -> throw OclEvaluationException(message = "unary '-' requires a numeric operand")
                 }
-            else -> throw OclEvaluationException("Unknown unary op: ${expr.op}")
+            else -> throw OclEvaluationException(message = "Unknown unary op: ${expr.op}")
         }
     }
 }

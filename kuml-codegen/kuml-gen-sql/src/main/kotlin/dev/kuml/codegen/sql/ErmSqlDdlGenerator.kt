@@ -31,7 +31,7 @@ public class ErmSqlDdlGenerator : ErmCodeGenerator {
     ): List<File> {
         outputDir.mkdirs()
         val dialect = SqlDialect.from(options["sql-dialect"] ?: "postgres")
-        val ddl = ErmSqlEmitter(dialect, SqlEmitOptions.from(options)).emit(model)
+        val ddl = ErmSqlEmitter(dialect = dialect, options = SqlEmitOptions.from(options)).emit(model)
 
         val file = File(outputDir, "schema.sql")
         file.writeText(ddl)

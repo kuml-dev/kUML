@@ -45,7 +45,7 @@ internal fun renderErmIdef1xRelationship(
     val (tagName, attrs) = EdgePathBuilder.build(route)
     val dashed = rel.kind == RelationshipKind.NON_IDENTIFYING
     val cssClass = if (dashed) "kuml-edge-dashed" else "kuml-edge"
-    b.tag(tagName, attrs + mapOf("class" to cssClass))
+    b.tag(name = tagName, attrs = attrs + mapOf("class" to cssClass))
 
     // Tangent pointing FROM the source node INTO the edge (away from the box).
     val sourceDir = EdgeLabelGeometry.sourceSegmentTangent(route)
@@ -56,24 +56,31 @@ internal fun renderErmIdef1xRelationship(
     val targetDir = -targetIntoNode.first to -targetIntoNode.second
 
     if (rel.sourceCardinality.optional) {
-        renderParentDiamond(route.source, sourceDir, b)
+        renderParentDiamond(anchor = route.source, dir = sourceDir, b = b)
     }
-    renderChildDot(route.target, targetDir, b)
+    renderChildDot(anchor = route.target, dir = targetDir, b = b)
     idef1xCardinalityLabel(rel.targetCardinality)?.let { label ->
-        renderCardinalityLabel(route.target, targetDir, label, b)
+        renderCardinalityLabel(anchor = route.target, dir = targetDir, label = label, b = b)
     }
 
     val selfLoop = rel.sourceEntityId == rel.targetEntityId
     val relName = rel.name
     if (!relName.isNullOrBlank()) {
-        b.renderErmRelationshipNameLabel(relName, route, labelStackIndex, selfLoop, sourceDir, targetDir)
+        b.renderErmRelationshipNameLabel(
+            label = relName,
+            route = route,
+            stackIndex = labelStackIndex,
+            selfLoop = selfLoop,
+            sourceDir = sourceDir,
+            targetDir = targetDir,
+        )
     }
 
     rel.sourceRole?.let { role ->
-        b.renderErmRoleLabel(route.source, sourceDir, role)
+        b.renderErmRoleLabel(anchor = route.source, dir = sourceDir, role = role)
     }
     rel.targetRole?.let { role ->
-        b.renderErmRoleLabel(route.target, targetDir, role, perpBias = if (selfLoop) 1f else -1f)
+        b.renderErmRoleLabel(anchor = route.target, dir = targetDir, role = role, perpBias = if (selfLoop) 1f else -1f)
     }
 }
 
@@ -96,8 +103,8 @@ private fun renderChildDot(
     val cx = anchor.x + dx * DOT_RADIUS_PX
     val cy = anchor.y + dy * DOT_RADIUS_PX
     b.tag(
-        "circle",
-        mapOf("cx" to fmt(cx), "cy" to fmt(cy), "r" to fmt(DOT_RADIUS_PX), "class" to "kuml-erm-idef1x-dot"),
+        name = "circle",
+        attrs = mapOf("cx" to fmt(cx), "cy" to fmt(cy), "r" to fmt(DOT_RADIUS_PX), "class" to "kuml-erm-idef1x-dot"),
     )
 }
 
@@ -123,13 +130,14 @@ private fun renderParentDiamond(
     val rightY = midY - py * DIAMOND_HALF_PX
 
     b.tag(
-        "polygon",
-        mapOf(
-            "points" to
-                "${fmt(apexX)},${fmt(apexY)} ${fmt(leftX)},${fmt(leftY)} " +
-                "${fmt(farX)},${fmt(farY)} ${fmt(rightX)},${fmt(rightY)}",
-            "class" to "kuml-erm-idef1x-diamond",
-        ),
+        name = "polygon",
+        attrs =
+            mapOf(
+                "points" to
+                    "${fmt(apexX)},${fmt(apexY)} ${fmt(leftX)},${fmt(leftY)} " +
+                    "${fmt(farX)},${fmt(farY)} ${fmt(rightX)},${fmt(rightY)}",
+                "class" to "kuml-erm-idef1x-diamond",
+            ),
     )
 }
 
@@ -144,8 +152,8 @@ private fun renderCardinalityLabel(
     val x = anchor.x + dx * offset
     val y = anchor.y + dy * offset
     b.tag(
-        "text",
-        mapOf("class" to "kuml-erm-idef1x-card", "x" to fmt(x), "y" to fmt(y), "text-anchor" to "middle"),
+        name = "text",
+        attrs = mapOf("class" to "kuml-erm-idef1x-card", "x" to fmt(x), "y" to fmt(y), "text-anchor" to "middle"),
     ) { text(label) }
 }
 

@@ -60,16 +60,16 @@ internal fun renderActionDefinition(
     builder: SvgBuilder,
 ) {
     when (element.kind) {
-        ActivityNodeKind.Action -> renderRegularAction(element, layout, builder)
-        ActivityNodeKind.Initial -> renderInitialNode(element, layout, builder)
-        ActivityNodeKind.Final -> renderFinalNode(element, layout, builder)
-        ActivityNodeKind.FlowFinal -> renderFlowFinalNode(element, layout, builder)
+        ActivityNodeKind.Action -> renderRegularAction(element = element, layout = layout, builder = builder)
+        ActivityNodeKind.Initial -> renderInitialNode(element = element, layout = layout, builder = builder)
+        ActivityNodeKind.Final -> renderFinalNode(element = element, layout = layout, builder = builder)
+        ActivityNodeKind.FlowFinal -> renderFlowFinalNode(element = element, layout = layout, builder = builder)
         ActivityNodeKind.Decision,
         ActivityNodeKind.Merge,
-        -> renderDiamond(element, layout, builder)
+        -> renderDiamond(element = element, layout = layout, builder = builder)
         ActivityNodeKind.Fork,
         ActivityNodeKind.Join,
-        -> renderBar(element, layout, builder)
+        -> renderBar(element = element, layout = layout, builder = builder)
     }
 }
 
@@ -90,18 +90,19 @@ private fun renderRegularAction(
     val h = layout.bounds.size.height
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         tag(
-            "rect",
-            mapOf(
-                "width" to fmt(w),
-                "height" to fmt(h),
-                "rx" to "14",
-                "ry" to "14",
-                "class" to "kuml-class",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "width" to fmt(w),
+                    "height" to fmt(h),
+                    "rx" to "14",
+                    "ry" to "14",
+                    "class" to "kuml-class",
+                ),
         )
 
         val hasAction = !element.action.isNullOrEmpty()
@@ -115,18 +116,19 @@ private fun renderRegularAction(
                 put("text-anchor", "middle")
                 if (element.isAbstract) put("font-style", "italic")
             }
-        tag("text", nameAttrs) { text(element.name) }
+        tag(name = "text", attrs = nameAttrs) { text(element.name) }
 
         if (hasAction) {
-            val truncated = truncate(element.action!!, ACT_BODY_MAX_LEN)
+            val truncated = truncate(s = element.action!!, max = ACT_BODY_MAX_LEN)
             tag(
-                "text",
-                mapOf(
-                    "class" to "kuml-body",
-                    "x" to fmt(w / 2f),
-                    "y" to fmt(h / 2f + 14f),
-                    "text-anchor" to "middle",
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-body",
+                        "x" to fmt(w / 2f),
+                        "y" to fmt(h / 2f + 14f),
+                        "text-anchor" to "middle",
+                    ),
             ) { text(truncated) }
         }
 
@@ -136,7 +138,7 @@ private fun renderRegularAction(
         // surfaces as a small text label adjacent to the square (outside
         // for inputs, outside-right for outputs) so the label does not
         // collide with the action name / body.
-        renderActionPins(element.pins, w, h)
+        renderActionPins(pins = element.pins, w = w, h = h)
     }
 }
 
@@ -172,10 +174,10 @@ private fun SvgBuilder.renderActionPins(
     val inputs = pins.filter { it.direction == PinDirection.Input }
     val outputs = pins.filter { it.direction == PinDirection.Output }
     // Input pins: label OUTSIDE the box to the LEFT (text-anchor="end")
-    renderPinColumn(inputs, edgeX = -PIN_SIZE / 2f, h = h, labelOffsetX = -(PIN_SIZE / 2f + 4f), anchor = "end")
+    renderPinColumn(pins = inputs, edgeX = -PIN_SIZE / 2f, h = h, labelOffsetX = -(PIN_SIZE / 2f + 4f), anchor = "end")
     // Output pins: label OUTSIDE the box to the RIGHT (text-anchor="start")
     renderPinColumn(
-        outputs,
+        pins = outputs,
         edgeX = w - PIN_SIZE / 2f,
         h = h,
         labelOffsetX = PIN_SIZE / 2f + 4f,
@@ -205,31 +207,33 @@ private fun SvgBuilder.renderPinColumn(
                 PIN_VERTICAL_PAD + step * i - PIN_SIZE / 2f
             }
         tag(
-            "rect",
-            mapOf(
-                "x" to fmt(edgeX),
-                "y" to fmt(py),
-                "width" to fmt(PIN_SIZE),
-                "height" to fmt(PIN_SIZE),
-                // SysML v2 zeichnet Parameter (directed features) als ABGERUNDETE
-                // Quadrate auf der Aktionskante — nicht scharfkantig wie ein UML-Pin.
-                "rx" to fmt(PIN_CORNER_RADIUS),
-                "ry" to fmt(PIN_CORNER_RADIUS),
-                "class" to "kuml-class",
-                "fill" to "white",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmt(edgeX),
+                    "y" to fmt(py),
+                    "width" to fmt(PIN_SIZE),
+                    "height" to fmt(PIN_SIZE),
+                    // SysML v2 zeichnet Parameter (directed features) als ABGERUNDETE
+                    // Quadrate auf der Aktionskante — nicht scharfkantig wie ein UML-Pin.
+                    "rx" to fmt(PIN_CORNER_RADIUS),
+                    "ry" to fmt(PIN_CORNER_RADIUS),
+                    "class" to "kuml-class",
+                    "fill" to "white",
+                ),
         )
         // Pin name as a small label adjacent to the square. The label
         // sits at the vertical centre of the square so it lines up with
         // the action's body text.
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-body",
-                "x" to fmt(edgeX + PIN_SIZE / 2f + labelOffsetX),
-                "y" to fmt(py + PIN_SIZE / 2f + 3f),
-                "text-anchor" to anchor,
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-body",
+                    "x" to fmt(edgeX + PIN_SIZE / 2f + labelOffsetX),
+                    "y" to fmt(py + PIN_SIZE / 2f + 3f),
+                    "text-anchor" to anchor,
+                ),
         ) { text(pin.name) }
     }
 }
@@ -271,18 +275,19 @@ private fun renderInitialNode(
     val r = minOf(w, h) * 0.4f
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(cx),
-                "cy" to fmt(cy),
-                "r" to fmt(r),
-                "class" to "kuml-class",
-                "fill" to "currentColor",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(cx),
+                    "cy" to fmt(cy),
+                    "r" to fmt(r),
+                    "class" to "kuml-class",
+                    "fill" to "currentColor",
+                ),
         )
     }
 }
@@ -307,28 +312,30 @@ private fun renderFinalNode(
     val innerR = outerR * 0.5f
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(cx),
-                "cy" to fmt(cy),
-                "r" to fmt(outerR),
-                "class" to "kuml-class",
-                "fill" to "white",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(cx),
+                    "cy" to fmt(cy),
+                    "r" to fmt(outerR),
+                    "class" to "kuml-class",
+                    "fill" to "white",
+                ),
         )
         tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(cx),
-                "cy" to fmt(cy),
-                "r" to fmt(innerR),
-                "class" to "kuml-class",
-                "fill" to "currentColor",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(cx),
+                    "cy" to fmt(cy),
+                    "r" to fmt(innerR),
+                    "class" to "kuml-class",
+                    "fill" to "currentColor",
+                ),
         )
     }
 }
@@ -354,39 +361,42 @@ private fun renderFlowFinalNode(
     val xArm = r * 0.6f
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         tag(
-            "circle",
-            mapOf(
-                "cx" to fmt(cx),
-                "cy" to fmt(cy),
-                "r" to fmt(r),
-                "class" to "kuml-class",
-                "fill" to "white",
-            ),
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(cx),
+                    "cy" to fmt(cy),
+                    "r" to fmt(r),
+                    "class" to "kuml-class",
+                    "fill" to "white",
+                ),
         )
         // X-Form: zwei diagonale Linien.
         tag(
-            "line",
-            mapOf(
-                "x1" to fmt(cx - xArm),
-                "y1" to fmt(cy - xArm),
-                "x2" to fmt(cx + xArm),
-                "y2" to fmt(cy + xArm),
-                "class" to "kuml-class",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(cx - xArm),
+                    "y1" to fmt(cy - xArm),
+                    "x2" to fmt(cx + xArm),
+                    "y2" to fmt(cy + xArm),
+                    "class" to "kuml-class",
+                ),
         )
         tag(
-            "line",
-            mapOf(
-                "x1" to fmt(cx + xArm),
-                "y1" to fmt(cy - xArm),
-                "x2" to fmt(cx - xArm),
-                "y2" to fmt(cy + xArm),
-                "class" to "kuml-class",
-            ),
+            name = "line",
+            attrs =
+                mapOf(
+                    "x1" to fmt(cx + xArm),
+                    "y1" to fmt(cy - xArm),
+                    "x2" to fmt(cx - xArm),
+                    "y2" to fmt(cy + xArm),
+                    "class" to "kuml-class",
+                ),
         )
     }
 }
@@ -415,15 +425,16 @@ private fun renderDiamond(
             "${fmt(0f)},${fmt(cy)}"
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         tag(
-            "polygon",
-            mapOf(
-                "points" to points,
-                "class" to "kuml-class",
-            ),
+            name = "polygon",
+            attrs =
+                mapOf(
+                    "points" to points,
+                    "class" to "kuml-class",
+                ),
         )
     }
 }
@@ -444,17 +455,18 @@ private fun renderBar(
     val h = layout.bounds.size.height
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         tag(
-            "rect",
-            mapOf(
-                "width" to fmt(w),
-                "height" to fmt(h),
-                "class" to "kuml-class",
-                "fill" to "currentColor",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "width" to fmt(w),
+                    "height" to fmt(h),
+                    "class" to "kuml-class",
+                    "fill" to "currentColor",
+                ),
         )
     }
 }

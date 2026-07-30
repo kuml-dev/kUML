@@ -74,7 +74,7 @@ public class ArxmlClassicImporter(
         val unresolved = mutableListOf<ImportResult.UnresolvedRef>()
 
         // Detect AUTOSAR version
-        val detectedVersion = detectVersion(root, warnings)
+        val detectedVersion = detectVersion(root = root, warnings = warnings)
         val arNs = ArxmlSchema.arNamespace(detectedVersion)
 
         // ── PASS 1: build path index ──────────────────────────────────────────
@@ -84,7 +84,7 @@ public class ArxmlClassicImporter(
                 ?: root.getChild(ArxmlSchema.ELEM_AR_PACKAGES, Namespace.NO_NAMESPACE)
 
         if (arPackagesRoot != null) {
-            indexPackages(arPackagesRoot, arNs, "/", pathIndex)
+            indexPackages(arPackagesEl = arPackagesRoot, arNs = arNs, parentPath = "/", index = pathIndex)
         } else {
             warnings.add("No AR-PACKAGES element found in root AUTOSAR document")
         }
@@ -92,8 +92,17 @@ public class ArxmlClassicImporter(
         // ── PASS 2: build UML tree with cross-ref resolution ─────────────────
         val members = mutableListOf<UmlNamedElement>()
         if (arPackagesRoot != null) {
-            for (pkgEl in arPackagesRoot.getChildrenDual(ArxmlSchema.ELEM_AR_PACKAGE, arNs)) {
-                members.add(buildPackage(pkgEl, arNs, "/", pathIndex, warnings, unresolved))
+            for (pkgEl in arPackagesRoot.getChildrenDual(name = ArxmlSchema.ELEM_AR_PACKAGE, ns = arNs)) {
+                members.add(
+                    buildPackage(
+                        pkgEl = pkgEl,
+                        arNs = arNs,
+                        parentPath = "/",
+                        pathIndex = pathIndex,
+                        warnings = warnings,
+                        unresolved = unresolved,
+                    ),
+                )
             }
         }
 
@@ -121,9 +130,9 @@ public class ArxmlClassicImporter(
         parentPath: String,
         index: MutableMap<String, Element>,
     ) {
-        for (pkgEl in arPackagesEl.getChildrenDual(ArxmlSchema.ELEM_AR_PACKAGE, arNs)) {
-            val shortName = pkgEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs) ?: continue
-            val pkgPath = ArxmlPath.append(parentPath, shortName)
+        for (pkgEl in arPackagesEl.getChildrenDual(name = ArxmlSchema.ELEM_AR_PACKAGE, ns = arNs)) {
+            val shortName = pkgEl.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs) ?: continue
+            val pkgPath = ArxmlPath.append(parentPath = parentPath, child = shortName)
             index[pkgPath] = pkgEl
 
             // Index ELEMENTS members
@@ -132,8 +141,8 @@ public class ArxmlClassicImporter(
                     ?: pkgEl.getChild(ArxmlSchema.ELEM_ELEMENTS, Namespace.NO_NAMESPACE)
             if (elementsEl != null) {
                 for (child in elementsEl.children) {
-                    val childShortName = child.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs) ?: continue
-                    val childPath = ArxmlPath.append(pkgPath, childShortName)
+                    val childShortName = child.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs) ?: continue
+                    val childPath = ArxmlPath.append(parentPath = pkgPath, child = childShortName)
                     index[childPath] = child
 
                     // Index ports
@@ -142,8 +151,8 @@ public class ArxmlClassicImporter(
                             ?: child.getChild(ArxmlSchema.ELEM_PORTS, Namespace.NO_NAMESPACE)
                     if (portsEl != null) {
                         for (portEl in portsEl.children) {
-                            val portName = portEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs) ?: continue
-                            index[ArxmlPath.append(childPath, portName)] = portEl
+                            val portName = portEl.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs) ?: continue
+                            index[ArxmlPath.append(parentPath = childPath, child = portName)] = portEl
                         }
                     }
 
@@ -153,17 +162,17 @@ public class ArxmlClassicImporter(
                             ?: child.getChild(ArxmlSchema.ELEM_INTERNAL_BEHAVIORS, Namespace.NO_NAMESPACE)
                     if (behaviorsEl != null) {
                         for (behaviorEl in behaviorsEl.children) {
-                            val behaviorName = behaviorEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs) ?: continue
-                            val behaviorPath = ArxmlPath.append(childPath, behaviorName)
+                            val behaviorName = behaviorEl.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs) ?: continue
+                            val behaviorPath = ArxmlPath.append(parentPath = childPath, child = behaviorName)
                             index[behaviorPath] = behaviorEl
 
                             val runnablesContainer =
                                 behaviorEl.getChild(ArxmlSchema.ELEM_RUNNABLES, arNs)
                                     ?: behaviorEl.getChild(ArxmlSchema.ELEM_RUNNABLES, Namespace.NO_NAMESPACE)
                             if (runnablesContainer != null) {
-                                for (runnableEl in runnablesContainer.getChildrenDual(ArxmlSchema.ELEM_RUNNABLE_ENTITY, arNs)) {
-                                    val runnableName = runnableEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs) ?: continue
-                                    index[ArxmlPath.append(behaviorPath, runnableName)] = runnableEl
+                                for (runnableEl in runnablesContainer.getChildrenDual(name = ArxmlSchema.ELEM_RUNNABLE_ENTITY, ns = arNs)) {
+                                    val runnableName = runnableEl.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs) ?: continue
+                                    index[ArxmlPath.append(parentPath = behaviorPath, child = runnableName)] = runnableEl
                                 }
                             }
                         }
@@ -176,7 +185,7 @@ public class ArxmlClassicImporter(
                 pkgEl.getChild(ArxmlSchema.ELEM_AR_PACKAGES, arNs)
                     ?: pkgEl.getChild(ArxmlSchema.ELEM_AR_PACKAGES, Namespace.NO_NAMESPACE)
             if (nestedArPkgs != null) {
-                indexPackages(nestedArPkgs, arNs, pkgPath, index)
+                indexPackages(arPackagesEl = nestedArPkgs, arNs = arNs, parentPath = pkgPath, index = index)
             }
         }
     }
@@ -191,8 +200,8 @@ public class ArxmlClassicImporter(
         warnings: MutableList<String>,
         unresolved: MutableList<ImportResult.UnresolvedRef>,
     ): UmlPackage {
-        val shortName = pkgEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs) ?: "UnnamedPackage"
-        val pkgPath = ArxmlPath.append(parentPath, shortName)
+        val shortName = pkgEl.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs) ?: "UnnamedPackage"
+        val pkgPath = ArxmlPath.append(parentPath = parentPath, child = shortName)
 
         val members = mutableListOf<UmlNamedElement>()
 
@@ -201,8 +210,17 @@ public class ArxmlClassicImporter(
             pkgEl.getChild(ArxmlSchema.ELEM_AR_PACKAGES, arNs)
                 ?: pkgEl.getChild(ArxmlSchema.ELEM_AR_PACKAGES, Namespace.NO_NAMESPACE)
         if (nestedArPkgs != null) {
-            for (subPkgEl in nestedArPkgs.getChildrenDual(ArxmlSchema.ELEM_AR_PACKAGE, arNs)) {
-                members.add(buildPackage(subPkgEl, arNs, pkgPath, pathIndex, warnings, unresolved))
+            for (subPkgEl in nestedArPkgs.getChildrenDual(name = ArxmlSchema.ELEM_AR_PACKAGE, ns = arNs)) {
+                members.add(
+                    buildPackage(
+                        pkgEl = subPkgEl,
+                        arNs = arNs,
+                        parentPath = pkgPath,
+                        pathIndex = pathIndex,
+                        warnings = warnings,
+                        unresolved = unresolved,
+                    ),
+                )
             }
         }
 
@@ -215,16 +233,36 @@ public class ArxmlClassicImporter(
                 val localName = child.name
                 when (localName) {
                     ArxmlSchema.ELEM_COMPOSITION_SWC ->
-                        members.add(buildSoftwareComponent(child, arNs, "composition", pkgPath, pathIndex, warnings, unresolved))
+                        members.add(
+                            buildSoftwareComponent(
+                                el = child,
+                                arNs = arNs,
+                                kind = "composition",
+                                pkgPath = pkgPath,
+                                pathIndex = pathIndex,
+                                warnings = warnings,
+                                unresolved = unresolved,
+                            ),
+                        )
 
                     ArxmlSchema.ELEM_APPLICATION_SWC ->
-                        members.add(buildSoftwareComponent(child, arNs, "application", pkgPath, pathIndex, warnings, unresolved))
+                        members.add(
+                            buildSoftwareComponent(
+                                el = child,
+                                arNs = arNs,
+                                kind = "application",
+                                pkgPath = pkgPath,
+                                pathIndex = pathIndex,
+                                warnings = warnings,
+                                unresolved = unresolved,
+                            ),
+                        )
 
                     ArxmlSchema.ELEM_SENDER_RECEIVER_INTERFACE ->
-                        members.add(buildInterface(child, arNs, isService = false))
+                        members.add(buildInterface(el = child, arNs = arNs, isService = false))
 
                     ArxmlSchema.ELEM_CLIENT_SERVER_INTERFACE ->
-                        members.add(buildInterface(child, arNs, isService = true))
+                        members.add(buildInterface(el = child, arNs = arNs, isService = true))
 
                     ArxmlSchema.ELEM_SHORT_NAME -> { /* already handled */ }
 
@@ -251,8 +289,8 @@ public class ArxmlClassicImporter(
         warnings: MutableList<String>,
         unresolved: MutableList<ImportResult.UnresolvedRef>,
     ): UmlComponent {
-        val shortName = el.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs) ?: "UnnamedSWC"
-        val swcPath = ArxmlPath.append(pkgPath, shortName)
+        val shortName = el.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs) ?: "UnnamedSWC"
+        val swcPath = ArxmlPath.append(parentPath = pkgPath, child = shortName)
 
         // Build ports — resolve interface TREFs
         val ports = mutableListOf<UmlPort>()
@@ -263,10 +301,28 @@ public class ArxmlClassicImporter(
             for (portEl in portsEl.children) {
                 when (portEl.name) {
                     ArxmlSchema.ELEM_P_PORT_PROTOTYPE ->
-                        ports.add(buildPort(portEl, arNs, "provided", swcPath, pathIndex, unresolved))
+                        ports.add(
+                            buildPort(
+                                portEl = portEl,
+                                arNs = arNs,
+                                direction = "provided",
+                                swcPath = swcPath,
+                                pathIndex = pathIndex,
+                                unresolved = unresolved,
+                            ),
+                        )
 
                     ArxmlSchema.ELEM_R_PORT_PROTOTYPE ->
-                        ports.add(buildPort(portEl, arNs, "required", swcPath, pathIndex, unresolved))
+                        ports.add(
+                            buildPort(
+                                portEl = portEl,
+                                arNs = arNs,
+                                direction = "required",
+                                swcPath = swcPath,
+                                pathIndex = pathIndex,
+                                unresolved = unresolved,
+                            ),
+                        )
                 }
             }
         }
@@ -285,18 +341,18 @@ public class ArxmlClassicImporter(
         if (behaviorsEl != null) {
             for (behaviorEl in behaviorsEl.children) {
                 val behaviorName =
-                    behaviorEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs)
+                    behaviorEl.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs)
                         ?: "${shortName}_InternalBehavior"
                 // Capture the first internal-behavior name encountered so the exporter can
                 // reproduce the original SHORT-NAME instead of synthesising a new one.
                 if (internalBehaviorName == null) {
                     internalBehaviorName = behaviorName
                 }
-                val behaviorPath = ArxmlPath.append(swcPath, behaviorName)
+                val behaviorPath = ArxmlPath.append(parentPath = swcPath, child = behaviorName)
 
                 // Build a trigger map: runnablePath → RunnableTrigger
                 // from the EVENTS block (two-pass join)
-                val triggerMap = buildTriggerMap(behaviorEl, arNs, behaviorPath)
+                val triggerMap = buildTriggerMap(behaviorEl = behaviorEl, arNs = arNs, behaviorPath = behaviorPath)
 
                 val runnablesContainer =
                     behaviorEl.getChild(ArxmlSchema.ELEM_RUNNABLES, arNs)
@@ -305,10 +361,10 @@ public class ArxmlClassicImporter(
 
                 for (
                 runnableEl in runnableSource
-                    .getChildrenDual(ArxmlSchema.ELEM_RUNNABLE_ENTITY, arNs)
+                    .getChildrenDual(name = ArxmlSchema.ELEM_RUNNABLE_ENTITY, ns = arNs)
                 ) {
-                    val runnableName = runnableEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs) ?: "UnnamedRunnable"
-                    val runnablePath = ArxmlPath.append(behaviorPath, runnableName)
+                    val runnableName = runnableEl.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs) ?: "UnnamedRunnable"
+                    val runnablePath = ArxmlPath.append(parentPath = behaviorPath, child = runnableName)
                     val trigger = triggerMap[runnablePath]
                     val metadata =
                         if (trigger != null && trigger != RunnableTrigger.UNKNOWN) {
@@ -334,7 +390,7 @@ public class ArxmlClassicImporter(
                             ?: behaviorEl.getChild(ArxmlSchema.ELEM_BEHAVIOR_SPEC, Namespace.NO_NAMESPACE)
                     if (behaviorSpecEl != null) {
                         behaviorSpecName =
-                            behaviorSpecEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs)
+                            behaviorSpecEl.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs)
                                 ?: "${shortName}_BehaviorSpec"
                     }
                 }
@@ -404,8 +460,8 @@ public class ArxmlClassicImporter(
         pathIndex: Map<String, Element>,
         unresolved: MutableList<ImportResult.UnresolvedRef>,
     ): UmlPort {
-        val portName = portEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs) ?: "UnnamedPort"
-        val portPath = ArxmlPath.append(swcPath, portName)
+        val portName = portEl.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs) ?: "UnnamedPort"
+        val portPath = ArxmlPath.append(parentPath = swcPath, child = portName)
 
         val trefElemName =
             if (direction == "provided") {
@@ -453,7 +509,7 @@ public class ArxmlClassicImporter(
         arNs: Namespace,
         isService: Boolean,
     ): UmlInterface {
-        val shortName = el.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs) ?: "UnnamedInterface"
+        val shortName = el.getTextDual(name = ArxmlSchema.ELEM_SHORT_NAME, ns = arNs) ?: "UnnamedInterface"
         return UmlInterface(
             id = UUID.randomUUID().toString(),
             name = shortName,

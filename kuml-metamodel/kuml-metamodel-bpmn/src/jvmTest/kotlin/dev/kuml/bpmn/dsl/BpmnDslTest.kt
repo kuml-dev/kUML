@@ -32,12 +32,12 @@ class BpmnDslTest :
         describe("bpmnModel top-level builder") {
             it("produces correct BpmnModel structure with process and diagram") {
                 val model =
-                    bpmnModel("Order Management") {
+                    bpmnModel(name = "Order Management") {
                         process(id = "orderProcess", name = "Order Process") {
-                            startEvent("Start")
-                            endEvent("End")
+                            startEvent(name = "Start")
+                            endEvent(name = "End")
                         }
-                        diagram("Happy Path", processId = "orderProcess")
+                        diagram(name = "Happy Path", processId = "orderProcess")
                     }
 
                 model.name shouldBe "Order Management"
@@ -50,7 +50,7 @@ class BpmnDslTest :
 
             it("supports multiple processes in one model") {
                 val model =
-                    bpmnModel("Multi-Process") {
+                    bpmnModel(name = "Multi-Process") {
                         process(id = "proc1", name = "First") { startEvent() }
                         process(id = "proc2", name = "Second") { startEvent() }
                     }
@@ -63,9 +63,9 @@ class BpmnDslTest :
         describe("startEvent()") {
             it("produces BpmnEvent with position=START and behaviour=CATCHING") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            startEvent("Order received", definition = EventDefinition.MESSAGE)
+                            startEvent(name = "Order received", definition = EventDefinition.MESSAGE)
                         }
                     }
                 val event = model.processes[0].flowNodes[0].shouldBeInstanceOf<BpmnEvent>()
@@ -79,9 +79,9 @@ class BpmnDslTest :
         describe("endEvent()") {
             it("produces BpmnEvent with position=END and behaviour=THROWING") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            endEvent("Done", definition = EventDefinition.TERMINATE)
+                            endEvent(name = "Done", definition = EventDefinition.TERMINATE)
                         }
                     }
                 val event = model.processes[0].flowNodes[0].shouldBeInstanceOf<BpmnEvent>()
@@ -94,8 +94,8 @@ class BpmnDslTest :
         describe("intermediateEvent()") {
             it("produces CATCHING when throwing=false") {
                 val model =
-                    bpmnModel("M") {
-                        process(id = "p") { intermediateEvent("Wait", throwing = false) }
+                    bpmnModel(name = "M") {
+                        process(id = "p") { intermediateEvent(name = "Wait", throwing = false) }
                     }
                 val event = model.processes[0].flowNodes[0].shouldBeInstanceOf<BpmnEvent>()
                 event.position shouldBe EventPosition.INTERMEDIATE
@@ -104,8 +104,8 @@ class BpmnDslTest :
 
             it("produces THROWING when throwing=true") {
                 val model =
-                    bpmnModel("M") {
-                        process(id = "p") { intermediateEvent("Signal", definition = EventDefinition.SIGNAL, throwing = true) }
+                    bpmnModel(name = "M") {
+                        process(id = "p") { intermediateEvent(name = "Signal", definition = EventDefinition.SIGNAL, throwing = true) }
                     }
                 val event = model.processes[0].flowNodes[0].shouldBeInstanceOf<BpmnEvent>()
                 event.behaviour shouldBe EventBehaviour.THROWING
@@ -114,23 +114,23 @@ class BpmnDslTest :
 
         describe("task()") {
             it("produces BpmnTask with TaskType.NONE by default") {
-                val model = bpmnModel("M") { process(id = "p") { task("Review") } }
+                val model = bpmnModel(name = "M") { process(id = "p") { task(name = "Review") } }
                 val t = model.processes[0].flowNodes[0].shouldBeInstanceOf<BpmnTask>()
                 t.taskType shouldBe TaskType.NONE
                 t.name shouldBe "Review"
             }
 
             it("produces BpmnTask with TaskType.SERVICE") {
-                val model = bpmnModel("M") { process(id = "p") { task("Call API", type = TaskType.SERVICE) } }
+                val model = bpmnModel(name = "M") { process(id = "p") { task(name = "Call API", type = TaskType.SERVICE) } }
                 val t = model.processes[0].flowNodes[0].shouldBeInstanceOf<BpmnTask>()
                 t.taskType shouldBe TaskType.SERVICE
             }
 
             it("attaches StandardLoop via standardLoop { }") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            task("Retry") {
+                            task(name = "Retry") {
                                 standardLoop(testBefore = true, condition = "\${retries < 3}")
                             }
                         }
@@ -143,9 +143,9 @@ class BpmnDslTest :
 
             it("attaches MultiInstanceLoop via multiInstance { sequential = true }") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            task("Notify each customer") {
+                            task(name = "Notify each customer") {
                                 multiInstance(sequential = true, cardinality = "10")
                             }
                         }
@@ -159,14 +159,14 @@ class BpmnDslTest :
 
         describe("gateway()") {
             it("produces BpmnGateway with GatewayType.EXCLUSIVE") {
-                val model = bpmnModel("M") { process(id = "p") { gateway(GatewayType.EXCLUSIVE, name = "Check") } }
+                val model = bpmnModel(name = "M") { process(id = "p") { gateway(type = GatewayType.EXCLUSIVE, name = "Check") } }
                 val gw = model.processes[0].flowNodes[0].shouldBeInstanceOf<BpmnGateway>()
                 gw.gatewayType shouldBe GatewayType.EXCLUSIVE
                 gw.name shouldBe "Check"
             }
 
             it("produces BpmnGateway with GatewayType.PARALLEL") {
-                val model = bpmnModel("M") { process(id = "p") { gateway(GatewayType.PARALLEL) } }
+                val model = bpmnModel(name = "M") { process(id = "p") { gateway(type = GatewayType.PARALLEL) } }
                 val gw = model.processes[0].flowNodes[0].shouldBeInstanceOf<BpmnGateway>()
                 gw.gatewayType shouldBe GatewayType.PARALLEL
             }
@@ -174,7 +174,7 @@ class BpmnDslTest :
 
         describe("subProcess()") {
             it("produces collapsed (expanded=false) BpmnSubProcess") {
-                val model = bpmnModel("M") { process(id = "p") { subProcess("Inner", expanded = false) } }
+                val model = bpmnModel(name = "M") { process(id = "p") { subProcess(name = "Inner", expanded = false) } }
                 val sp = model.processes[0].flowNodes[0].shouldBeInstanceOf<BpmnSubProcess>()
                 sp.expanded.shouldBeFalse()
                 sp.flowElements.shouldBeEmpty()
@@ -182,11 +182,11 @@ class BpmnDslTest :
 
             it("produces expanded BpmnSubProcess with inner flowElements") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            subProcess("Inner", expanded = true) {
-                                startEvent("Inner start")
-                                endEvent("Inner end")
+                            subProcess(name = "Inner", expanded = true) {
+                                startEvent(name = "Inner start")
+                                endEvent(name = "Inner end")
                             }
                         }
                     }
@@ -196,13 +196,13 @@ class BpmnDslTest :
             }
 
             it("sets triggeredByEvent=true correctly") {
-                val model = bpmnModel("M") { process(id = "p") { subProcess("Event Sub", triggeredByEvent = true) } }
+                val model = bpmnModel(name = "M") { process(id = "p") { subProcess(name = "Event Sub", triggeredByEvent = true) } }
                 val sp = model.processes[0].flowNodes[0].shouldBeInstanceOf<BpmnSubProcess>()
                 sp.triggeredByEvent.shouldBeTrue()
             }
 
             it("sets transactional=true correctly") {
-                val model = bpmnModel("M") { process(id = "p") { subProcess("Transactional", transactional = true) } }
+                val model = bpmnModel(name = "M") { process(id = "p") { subProcess(name = "Transactional", transactional = true) } }
                 val sp = model.processes[0].flowNodes[0].shouldBeInstanceOf<BpmnSubProcess>()
                 sp.transactional.shouldBeTrue()
             }
@@ -210,7 +210,8 @@ class BpmnDslTest :
 
         describe("callActivity()") {
             it("produces BpmnCallActivity with calledElement") {
-                val model = bpmnModel("M") { process(id = "p") { callActivity("Notify", calledElement = "NotificationProcess") } }
+                val model =
+                    bpmnModel(name = "M") { process(id = "p") { callActivity(name = "Notify", calledElement = "NotificationProcess") } }
                 val ca = model.processes[0].flowNodes[0].shouldBeInstanceOf<BpmnCallActivity>()
                 ca.calledElement shouldBe "NotificationProcess"
                 ca.name shouldBe "Notify"
@@ -219,7 +220,7 @@ class BpmnDslTest :
 
         describe("dataObject()") {
             it("produces BpmnDataObject with collection=true") {
-                val model = bpmnModel("M") { process(id = "p") { dataObject("Orders", collection = true) } }
+                val model = bpmnModel(name = "M") { process(id = "p") { dataObject(name = "Orders", collection = true) } }
                 val dataObj = model.processes[0].dataObjects[0]
                 dataObj.collection.shouldBeTrue()
                 dataObj.name shouldBe "Orders"
@@ -229,9 +230,9 @@ class BpmnDslTest :
         describe("boundaryEvent()") {
             it("produces INTERMEDIATE CATCHING event with attachedToRef set") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            val taskId = task("Review")
+                            val taskId = task(name = "Review")
                             boundaryEvent(attachedTo = taskId, definition = EventDefinition.TIMER)
                         }
                     }
@@ -247,11 +248,11 @@ class BpmnDslTest :
         describe("sequenceFlow()") {
             it("creates SequenceFlow with correct source and target") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
                             val s = startEvent()
                             val e = endEvent()
-                            sequenceFlow(s, e)
+                            sequenceFlow(from = s, to = e)
                         }
                     }
                 val proc = model.processes[0]
@@ -262,11 +263,11 @@ class BpmnDslTest :
 
             it("creates SequenceFlow with conditionExpression") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            val gw = gateway(GatewayType.EXCLUSIVE)
-                            val t = task("Execute")
-                            sequenceFlow(gw, t, condition = "\${approved}")
+                            val gw = gateway(type = GatewayType.EXCLUSIVE)
+                            val t = task(name = "Execute")
+                            sequenceFlow(from = gw, to = t, condition = "\${approved}")
                         }
                     }
                 val flow = model.processes[0].sequenceFlows[0]
@@ -279,12 +280,12 @@ class BpmnDslTest :
         describe("Auto-ID uniqueness") {
             it("all nodes in a process have distinct IDs") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
                             startEvent()
-                            task("A")
-                            task("B")
-                            gateway(GatewayType.EXCLUSIVE)
+                            task(name = "A")
+                            task(name = "B")
+                            gateway(type = GatewayType.EXCLUSIVE)
                             endEvent()
                         }
                     }
@@ -294,9 +295,9 @@ class BpmnDslTest :
 
             it("two separate processes have distinct element IDs") {
                 val model =
-                    bpmnModel("M") {
-                        process(id = "proc1") { task("T1") }
-                        process(id = "proc2") { task("T2") }
+                    bpmnModel(name = "M") {
+                        process(id = "proc1") { task(name = "T1") }
+                        process(id = "proc2") { task(name = "T2") }
                     }
                 val allIds =
                     model.processes.flatMap { p ->
@@ -307,10 +308,10 @@ class BpmnDslTest :
 
             it("IDs are deterministic — building the same model twice yields identical IDs") {
                 fun buildModel() =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
                             val s = startEvent()
-                            val t = task("Task")
+                            val t = task(name = "Task")
                             val e = endEvent()
                             s flowsTo t flowsTo e
                         }
@@ -324,11 +325,11 @@ class BpmnDslTest :
 
             it("SequenceFlow IDs are unique within a process") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
                             val s = startEvent()
-                            val t1 = task("T1")
-                            val t2 = task("T2")
+                            val t1 = task(name = "T1")
+                            val t2 = task(name = "T2")
                             val e = endEvent()
                             s flowsTo t1 flowsTo t2 flowsTo e
                         }
@@ -339,11 +340,11 @@ class BpmnDslTest :
 
             it("node IDs contain their type prefix") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "myProc") {
                             startEvent()
-                            task("T")
-                            gateway(GatewayType.PARALLEL)
+                            task(name = "T")
+                            gateway(type = GatewayType.PARALLEL)
                             endEvent()
                         }
                     }
@@ -360,10 +361,10 @@ class BpmnDslTest :
         describe("infix flowsTo") {
             it("chain start flowsTo task flowsTo end creates 2 SequenceFlows") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
                             val s = startEvent()
-                            val t = task("Step")
+                            val t = task(name = "Step")
                             val e = endEvent()
                             s flowsTo t flowsTo e
                         }
@@ -374,10 +375,10 @@ class BpmnDslTest :
             it("flowsTo returns the target ID for chaining") {
                 var capturedReturn: String? = null
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
                             val s = startEvent()
-                            val t = task("T")
+                            val t = task(name = "T")
                             capturedReturn = s flowsTo t
                             endEvent()
                         }
@@ -387,7 +388,7 @@ class BpmnDslTest :
 
             it("flowsTo creates SequenceFlow without condition") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
                             val s = startEvent()
                             val e = endEvent()
@@ -402,14 +403,14 @@ class BpmnDslTest :
 
             it("mixing sequenceFlow() and flowsTo in the same process works") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
                             val s = startEvent()
-                            val t = task("T")
-                            val gw = gateway(GatewayType.EXCLUSIVE)
+                            val t = task(name = "T")
+                            val gw = gateway(type = GatewayType.EXCLUSIVE)
                             val e = endEvent()
                             s flowsTo t
-                            sequenceFlow(t, gw, condition = "\${ok}")
+                            sequenceFlow(from = t, to = gw, condition = "\${ok}")
                             gw flowsTo e
                         }
                     }
@@ -423,12 +424,12 @@ class BpmnDslTest :
         describe("nested subProcess { }") {
             it("nested subProcess has its own flowNodes") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            subProcess("Inner", expanded = true) {
-                                startEvent("Inner start")
-                                task("Inner task")
-                                endEvent("Inner end")
+                            subProcess(name = "Inner", expanded = true) {
+                                startEvent(name = "Inner start")
+                                task(name = "Inner task")
+                                endEvent(name = "Inner end")
                             }
                         }
                     }
@@ -438,11 +439,11 @@ class BpmnDslTest :
 
             it("nested subProcess IDs are independent from parent process") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "parent") {
-                            task("Outer Task")
-                            subProcess("Inner", expanded = true) {
-                                task("Inner Task")
+                            task(name = "Outer Task")
+                            subProcess(name = "Inner", expanded = true) {
+                                task(name = "Inner Task")
                             }
                         }
                     }
@@ -458,9 +459,9 @@ class BpmnDslTest :
 
             it("expanded=true includes inner element IDs in flowElements") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            subProcess("Inner", expanded = true) {
+                            subProcess(name = "Inner", expanded = true) {
                                 startEvent()
                                 endEvent()
                             }
@@ -473,9 +474,9 @@ class BpmnDslTest :
 
             it("triggeredByEvent=true and transactional=true on nested subProcess are preserved") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            subProcess("Special", triggeredByEvent = true, transactional = true)
+                            subProcess(name = "Special", triggeredByEvent = true, transactional = true)
                         }
                     }
                 val sp = model.processes[0].flowNodes[0].shouldBeInstanceOf<BpmnSubProcess>()
@@ -489,10 +490,10 @@ class BpmnDslTest :
         describe("dataAssociation()") {
             it("produces DataAssociation in process.dataAssociations with correct sourceRef and targetRef") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            val taskId = task("Process Data")
-                            val doId = dataObject("Order")
+                            val taskId = task(name = "Process Data")
+                            val doId = dataObject(name = "Order")
                             dataAssociation(from = taskId, to = doId)
                         }
                     }
@@ -506,12 +507,12 @@ class BpmnDslTest :
 
             it("dataAssociation ID uses independent data counter, not node counter") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            val t = task("T")
-                            val d = dataObject("D")
-                            dataAssociation(t, d)
-                            endEvent("End")
+                            val t = task(name = "T")
+                            val d = dataObject(name = "D")
+                            dataAssociation(from = t, to = d)
+                            endEvent(name = "End")
                         }
                     }
                 val proc = model.processes[0]
@@ -530,11 +531,11 @@ class BpmnDslTest :
         describe("BpmnProcess.elementById() with expanded subProcess") {
             it("resolves inner flow node via elementById on parent process") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "parent") {
-                            subProcess("Inner", expanded = true) {
-                                startEvent("Inner start")
-                                task("Inner task")
+                            subProcess(name = "Inner", expanded = true) {
+                                startEvent(name = "Inner start")
+                                task(name = "Inner task")
                             }
                         }
                     }
@@ -548,11 +549,11 @@ class BpmnDslTest :
 
             it("flowElementNodes on BpmnSubProcess contains actual BpmnFlowNode objects") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            subProcess("Inner", expanded = true) {
-                                startEvent("S")
-                                endEvent("E")
+                            subProcess(name = "Inner", expanded = true) {
+                                startEvent(name = "S")
+                                endEvent(name = "E")
                             }
                         }
                     }
@@ -564,9 +565,9 @@ class BpmnDslTest :
 
             it("inner sequence flows are stored on BpmnSubProcess for expanded=true") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            subProcess("Inner", expanded = true) {
+                            subProcess(name = "Inner", expanded = true) {
                                 val s = startEvent()
                                 val e = endEvent()
                                 s flowsTo e
@@ -579,9 +580,9 @@ class BpmnDslTest :
 
             it("collapsed subProcess has empty flowElementNodes and innerSequenceFlows") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            subProcess("Collapsed", expanded = false) {
+                            subProcess(name = "Collapsed", expanded = false) {
                                 startEvent()
                                 endEvent()
                             }
@@ -598,7 +599,7 @@ class BpmnDslTest :
         describe("dataStore()") {
             it("produces BpmnDataStore in model.dataStores with auto-generated id") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         dataStore(name = "Customer DB")
                     }
                 model.dataStores shouldHaveSize 1
@@ -610,7 +611,7 @@ class BpmnDslTest :
 
             it("supports explicit id and unlimited=true") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         dataStore(id = "myDs", name = "Archive", unlimited = true)
                     }
                 val ds = model.dataStores[0]
@@ -620,7 +621,7 @@ class BpmnDslTest :
 
             it("multiple dataStores get distinct auto-generated ids") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         dataStore(name = "DS1")
                         dataStore(name = "DS2")
                     }
@@ -631,7 +632,7 @@ class BpmnDslTest :
 
             it("dataStore is accessible via BpmnModel.elementById") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         dataStore(id = "ds1", name = "Orders")
                     }
                 model.elementById("ds1").shouldNotBeNull()
@@ -643,9 +644,9 @@ class BpmnDslTest :
         describe("CANCEL boundary event") {
             it("allows CANCEL definition on INTERMEDIATE boundary event attached to a transactional sub-process") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
-                            val txSubId = subProcess("Payment", transactional = true)
+                            val txSubId = subProcess(name = "Payment", transactional = true)
                             boundaryEvent(
                                 attachedTo = txSubId,
                                 definition = EventDefinition.CANCEL,
@@ -677,9 +678,9 @@ class BpmnDslTest :
         describe("diagram builder") {
             it("diagram() produces ProcessDiagram with correct processId") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "myProc") { startEvent() }
-                        diagram("Overview", processId = "myProc")
+                        diagram(name = "Overview", processId = "myProc")
                     }
                 val diag = model.diagrams[0].shouldBeInstanceOf<ProcessDiagram>()
                 diag.processId shouldBe "myProc"
@@ -690,13 +691,13 @@ class BpmnDslTest :
                 var startId = ""
                 var endId = ""
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") {
                             startId = startEvent()
                             endId = endEvent()
                             startId flowsTo endId
                         }
-                        diagram("Partial", processId = "p") {
+                        diagram(name = "Partial", processId = "p") {
                             include(startId, endId)
                         }
                     }
@@ -706,9 +707,9 @@ class BpmnDslTest :
 
             it("diagram without block has empty elementIds") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p") { startEvent() }
-                        diagram("All", processId = "p")
+                        diagram(name = "All", processId = "p")
                     }
                 val diag = model.diagrams[0].shouldBeInstanceOf<ProcessDiagram>()
                 diag.elementIds.shouldBeEmpty()
@@ -716,10 +717,10 @@ class BpmnDslTest :
 
             it("BpmnModel with multiple processes and one diagram") {
                 val model =
-                    bpmnModel("M") {
+                    bpmnModel(name = "M") {
                         process(id = "p1") { startEvent() }
                         process(id = "p2") { endEvent() }
-                        diagram("P1 View", processId = "p1")
+                        diagram(name = "P1 View", processId = "p1")
                     }
                 model.processes shouldHaveSize 2
                 model.diagrams shouldHaveSize 1

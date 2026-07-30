@@ -71,10 +71,10 @@ internal fun renderConversationNode(
             else -> "1.5"
         }
 
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(node.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(node.id))) {
         // 1. Hexagon-Shape
         rawXml(
-            """<polygon points="${hexagonPoints(cx, cy, w, CONV_HEX_SHAPE_H)}" """ +
+            """<polygon points="${hexagonPoints(cx = cx, cy = cy, w = w, h = CONV_HEX_SHAPE_H)}" """ +
                 """fill="$nodeFill" stroke="$borderColor" stroke-width="$strokeWidth"/>""",
         )
 
@@ -103,29 +103,31 @@ internal fun renderConversationNode(
         if (!label.isNullOrBlank() && label.length <= 8) {
             // Kurzes Label: intern in der Hexagon-Mitte
             tag(
-                "text",
-                mapOf(
-                    "x" to fmtF(cx),
-                    "y" to fmtF(cy + 1f),
-                    "text-anchor" to "middle",
-                    "dominant-baseline" to "middle",
-                    "font-family" to fontFamily,
-                    "font-size" to "10",
-                    "fill" to textColor,
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "x" to fmtF(cx),
+                        "y" to fmtF(cy + 1f),
+                        "text-anchor" to "middle",
+                        "dominant-baseline" to "middle",
+                        "font-family" to fontFamily,
+                        "font-size" to "10",
+                        "fill" to textColor,
+                    ),
             ) { text(label) }
         } else if (!label.isNullOrBlank()) {
             // Langes Label (> 8 Zeichen): nur als Untertitel unterhalb des Hexagons
             tag(
-                "text",
-                mapOf(
-                    "x" to fmtF(cx),
-                    "y" to fmtF(y + h + 11f),
-                    "text-anchor" to "middle",
-                    "font-family" to fontFamily,
-                    "font-size" to "10",
-                    "fill" to textColor,
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "x" to fmtF(cx),
+                        "y" to fmtF(y + h + 11f),
+                        "text-anchor" to "middle",
+                        "font-family" to fontFamily,
+                        "font-size" to "10",
+                        "fill" to textColor,
+                    ),
             ) { text(label) }
         }
     }
@@ -159,7 +161,7 @@ internal fun renderConversationParticipant(
     val fontFamily = theme.typography.body.family
 
     val safeId = participantName.replace(Regex("[^a-zA-Z0-9]"), "_")
-    builder.tag("g", mapOf("id" to "conv-participant-$safeId")) {
+    builder.tag(name = "g", attrs = mapOf("id" to "conv-participant-$safeId")) {
         // Participant-Rechteck (rx=3 für leichte Abrundung, analog Pool-Stil)
         rawXml(
             """<rect x="${fmtF(x)}" y="${fmtF(y)}" width="${fmtF(w)}" height="${fmtF(h)}" """ +
@@ -167,17 +169,18 @@ internal fun renderConversationParticipant(
         )
         // Name zentriert, fett (Participants sind prominente Elemente)
         tag(
-            "text",
-            mapOf(
-                "x" to fmtF(x + w / 2f),
-                "y" to fmtF(y + h / 2f + 1f),
-                "text-anchor" to "middle",
-                "dominant-baseline" to "middle",
-                "font-family" to fontFamily,
-                "font-size" to "12",
-                "font-weight" to "bold",
-                "fill" to textColor,
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "x" to fmtF(x + w / 2f),
+                    "y" to fmtF(y + h / 2f + 1f),
+                    "text-anchor" to "middle",
+                    "dominant-baseline" to "middle",
+                    "font-family" to fontFamily,
+                    "font-size" to "12",
+                    "font-weight" to "bold",
+                    "fill" to textColor,
+                ),
         ) { text(participantName) }
     }
 }
@@ -256,14 +259,15 @@ internal fun renderConversationLink(
             }
         }
         builder.tag(
-            "text",
-            mapOf(
-                "x" to fmtF(midX + 4f),
-                "y" to fmtF(midY - 4f),
-                "font-family" to fontFamily,
-                "font-size" to "10",
-                "fill" to labelColor,
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "x" to fmtF(midX + 4f),
+                    "y" to fmtF(midY - 4f),
+                    "font-family" to fontFamily,
+                    "font-size" to "10",
+                    "fill" to labelColor,
+                ),
         ) { text(label) }
     }
 }

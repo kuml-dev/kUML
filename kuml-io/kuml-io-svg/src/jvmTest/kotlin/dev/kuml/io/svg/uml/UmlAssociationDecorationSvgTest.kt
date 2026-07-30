@@ -67,19 +67,21 @@ class UmlAssociationDecorationSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = null,
-                    canvas = Size(400f, 360f),
+                    canvas = Size(width = 400f, height = 360f),
                     nodes =
                         mapOf(
-                            NodeId("Order") to NodeLayout(bounds = Rect(Point(120f, 40f), Size(160f, 80f))),
-                            NodeId("OrderItem") to NodeLayout(bounds = Rect(Point(120f, 240f), Size(160f, 80f))),
+                            NodeId("Order") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 120f, y = 40f), size = Size(width = 160f, height = 80f))),
+                            NodeId("OrderItem") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 120f, y = 240f), size = Size(width = 160f, height = 80f))),
                         ),
                     edges =
                         mapOf(
-                            EdgeId("assoc1") to EdgeRoute.Direct(source = Point(200f, 120f), target = Point(200f, 240f)),
+                            EdgeId("assoc1") to EdgeRoute.Direct(source = Point(x = 200f, y = 120f), target = Point(x = 200f, y = 240f)),
                         ),
                     groups = emptyMap(),
                 )
-            return KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            return KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layout, theme = PlainTheme())
         }
 
         /** Extracts the `fill:` and `stroke:` colours of the first `<polygon>` style. */

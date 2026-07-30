@@ -22,15 +22,15 @@ class BpmnParticipantToUmlActivityTransformerTest :
             var reviewTaskId = ""
             var approveTaskId = ""
             val model =
-                bpmnModel("Collab") {
+                bpmnModel(name = "Collab") {
                     process(id = "proc1", name = "Approval Process") {
-                        val start = startEvent("Start")
-                        val t1 = task("Review").also { reviewTaskId = it }
-                        val t2 = task("Approve").also { approveTaskId = it }
-                        val end = endEvent("End")
-                        sequenceFlow(start, t1)
-                        sequenceFlow(t1, t2)
-                        sequenceFlow(t2, end)
+                        val start = startEvent(name = "Start")
+                        val t1 = task(name = "Review").also { reviewTaskId = it }
+                        val t2 = task(name = "Approve").also { approveTaskId = it }
+                        val end = endEvent(name = "End")
+                        sequenceFlow(from = start, to = t1)
+                        sequenceFlow(from = t1, to = t2)
+                        sequenceFlow(from = t2, to = end)
                     }
                 }
 
@@ -47,10 +47,10 @@ class BpmnParticipantToUmlActivityTransformerTest :
                     process = fullModel.processes.first(),
                 )
 
-            val result = transformer.transform(bundle, ctx)
+            val result = transformer.transform(source = bundle, ctx = ctx)
             (result is TransformResult.Success) shouldBe true
             val success = result as TransformResult.Success
-            val umlModel = BpmnToUmlActivityMapper.map(fullModel.processes.first(), listOf(lane1, lane2))
+            val umlModel = BpmnToUmlActivityMapper.map(process = fullModel.processes.first(), lanes = listOf(lane1, lane2))
 
             val reviewNode = umlModel.nodes.first { it.id == reviewTaskId }
             val approveNode = umlModel.nodes.first { it.id == approveTaskId }
@@ -65,17 +65,17 @@ class BpmnParticipantToUmlActivityTransformerTest :
         test("participant with no processRef returns Failure") {
             val participant = BpmnParticipant(id = "blackbox", name = "Black Box Pool", processRef = null)
             val bundle = BpmnParticipantBundle(participant = participant, process = null)
-            val result = transformer.transform(bundle, ctx)
+            val result = transformer.transform(source = bundle, ctx = ctx)
             (result is TransformResult.Failure) shouldBe true
         }
 
         test("BpmnParticipantBundle.from resolves participant and process from BpmnModel") {
             val model =
-                bpmnModel("ColRes") {
+                bpmnModel(name = "ColRes") {
                     process(id = "procR", name = "Resolved Process") {
-                        val start = startEvent("Start")
-                        val end = endEvent("End")
-                        sequenceFlow(start, end)
+                        val start = startEvent(name = "Start")
+                        val end = endEvent(name = "End")
+                        sequenceFlow(from = start, to = end)
                     }
                 }
 
@@ -83,7 +83,7 @@ class BpmnParticipantToUmlActivityTransformerTest :
             val collaboration = BpmnCollaboration(id = "c_res", participants = listOf(participant))
             val fullModel = BpmnModel(name = "ColRes", processes = model.processes, collaborations = listOf(collaboration))
 
-            val bundle = BpmnParticipantBundle.from(fullModel, "p_res")
+            val bundle = BpmnParticipantBundle.from(model = fullModel, participantId = "p_res")
             bundle shouldNotBe null
             bundle!!.participant.id shouldBe "p_res"
             bundle.process shouldNotBe null
@@ -92,16 +92,16 @@ class BpmnParticipantToUmlActivityTransformerTest :
 
         test("BpmnParticipantBundle.allFrom returns bundles for all participants") {
             val model =
-                bpmnModel("AllBundles") {
+                bpmnModel(name = "AllBundles") {
                     process(id = "proc_a", name = "Process A") {
-                        val start = startEvent("Start A")
-                        val end = endEvent("End A")
-                        sequenceFlow(start, end)
+                        val start = startEvent(name = "Start A")
+                        val end = endEvent(name = "End A")
+                        sequenceFlow(from = start, to = end)
                     }
                     process(id = "proc_b", name = "Process B") {
-                        val start = startEvent("Start B")
-                        val end = endEvent("End B")
-                        sequenceFlow(start, end)
+                        val start = startEvent(name = "Start B")
+                        val end = endEvent(name = "End B")
+                        sequenceFlow(from = start, to = end)
                     }
                 }
             val pA = BpmnParticipant(id = "pa", processRef = "proc_a")
@@ -117,20 +117,20 @@ class BpmnParticipantToUmlActivityTransformerTest :
         test("lane membership is recorded in generated script as comment") {
             var taskId = ""
             val model =
-                bpmnModel("CommentCheck") {
+                bpmnModel(name = "CommentCheck") {
                     process(id = "proc_c", name = "Comment Check") {
-                        val start = startEvent("Start")
-                        val t = task("Do Work").also { taskId = it }
-                        val end = endEvent("End")
-                        sequenceFlow(start, t)
-                        sequenceFlow(t, end)
+                        val start = startEvent(name = "Start")
+                        val t = task(name = "Do Work").also { taskId = it }
+                        val end = endEvent(name = "End")
+                        sequenceFlow(from = start, to = t)
+                        sequenceFlow(from = t, to = end)
                     }
                 }
             val lane = BpmnLane(id = "l1", name = "Team Alpha", flowNodeRefs = listOf(taskId))
             val participant = BpmnParticipant(id = "pp1", name = "Alpha Pool", processRef = "proc_c", lanes = listOf(lane))
             val bundle = BpmnParticipantBundle(participant = participant, process = model.processes.first())
 
-            val result = transformer.transform(bundle, ctx)
+            val result = transformer.transform(source = bundle, ctx = ctx)
             (result is TransformResult.Success) shouldBe true
             val content = (result as TransformResult.Success).output.first().content
             // The script renderer emits lane names as comments

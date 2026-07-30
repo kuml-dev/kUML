@@ -27,22 +27,22 @@ class UmlToErmColumnFkTest :
 
         test("«Column».fkEntity pins an FK to the target's primary key when fkAttribute is absent") {
             val diagram =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     applyProfile(ermMappingProfile)
-                    classOf("Member") {
-                        attribute("id", "UUID")
+                    classOf(name = "Member") {
+                        attribute(name = "id", type = "UUID")
                     }
-                    classOf("Document") {
-                        attribute("id", "UUID")
-                        attribute("createdBy", "UUID") {
-                            stereotype("Column") {
+                    classOf(name = "Document") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "createdBy", type = "UUID") {
+                            stereotype(name = "Column") {
                                 "columnName" to "created_by"
                                 "fkEntity" to "Member"
                             }
                         }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val documentEntity = result.output.entities.first { it.name == "documents" }
             val memberEntity = result.output.entities.first { it.name == "members" }
             val createdBy = documentEntity.attributeByName("created_by")
@@ -54,21 +54,21 @@ class UmlToErmColumnFkTest :
 
         test("«Column».fkAttribute pins an FK to a specific, non-primary-key target column") {
             val diagram =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     applyProfile(ermMappingProfile)
-                    classOf("Member") {
-                        attribute("id", "UUID")
-                        attribute("email", "String") {
-                            stereotype("Column") {
+                    classOf(name = "Member") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "email", type = "String") {
+                            stereotype(name = "Column") {
                                 "columnName" to "email"
                                 "unique" to true
                             }
                         }
                     }
-                    classOf("Invite") {
-                        attribute("id", "UUID")
-                        attribute("invitedEmail", "String") {
-                            stereotype("Column") {
+                    classOf(name = "Invite") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "invitedEmail", type = "String") {
+                            stereotype(name = "Column") {
                                 "columnName" to "invited_email"
                                 "fkEntity" to "Member"
                                 "fkAttribute" to "email"
@@ -76,7 +76,7 @@ class UmlToErmColumnFkTest :
                         }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val inviteEntity = result.output.entities.first { it.name == "invites" }
             val memberEntity = result.output.entities.first { it.name == "members" }
             val invitedEmail = inviteEntity.attributeByName("invited_email")
@@ -86,23 +86,23 @@ class UmlToErmColumnFkTest :
 
         test("«Column».fkEntity resolves regardless of declaration order (forward reference)") {
             val diagram =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     applyProfile(ermMappingProfile)
                     // Document is declared BEFORE Member — proves resolution can't be inline.
-                    classOf("Document") {
-                        attribute("id", "UUID")
-                        attribute("createdBy", "UUID") {
-                            stereotype("Column") {
+                    classOf(name = "Document") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "createdBy", type = "UUID") {
+                            stereotype(name = "Column") {
                                 "columnName" to "created_by"
                                 "fkEntity" to "Member"
                             }
                         }
                     }
-                    classOf("Member") {
-                        attribute("id", "UUID")
+                    classOf(name = "Member") {
+                        attribute(name = "id", type = "UUID")
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val result = transformer.transform(source = diagram, ctx = TransformContext()) as TransformResult.Success
             val documentEntity = result.output.entities.first { it.name == "documents" }
             val memberEntity = result.output.entities.first { it.name == "members" }
             documentEntity.attributeByName("created_by")!!.foreignKey!!.targetEntityId shouldBe memberEntity.id
@@ -110,33 +110,33 @@ class UmlToErmColumnFkTest :
 
         test("unresolvable «Column».fkEntity fails the transform") {
             val diagram =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     applyProfile(ermMappingProfile)
-                    classOf("Document") {
-                        attribute("id", "UUID")
-                        attribute("createdBy", "UUID") {
-                            stereotype("Column") {
+                    classOf(name = "Document") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "createdBy", type = "UUID") {
+                            stereotype(name = "Column") {
                                 "columnName" to "created_by"
                                 "fkEntity" to "NoSuchClass"
                             }
                         }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             result.shouldBeFailure()
         }
 
         test("unresolvable «Column».fkAttribute fails the transform") {
             val diagram =
-                classDiagram("D") {
+                classDiagram(name = "D") {
                     applyProfile(ermMappingProfile)
-                    classOf("Member") {
-                        attribute("id", "UUID")
+                    classOf(name = "Member") {
+                        attribute(name = "id", type = "UUID")
                     }
-                    classOf("Document") {
-                        attribute("id", "UUID")
-                        attribute("createdBy", "UUID") {
-                            stereotype("Column") {
+                    classOf(name = "Document") {
+                        attribute(name = "id", type = "UUID")
+                        attribute(name = "createdBy", type = "UUID") {
+                            stereotype(name = "Column") {
                                 "columnName" to "created_by"
                                 "fkEntity" to "Member"
                                 "fkAttribute" to "noSuchColumn"
@@ -144,7 +144,7 @@ class UmlToErmColumnFkTest :
                         }
                     }
                 }
-            val result = transformer.transform(diagram, TransformContext())
+            val result = transformer.transform(source = diagram, ctx = TransformContext())
             result.shouldBeFailure()
         }
     })

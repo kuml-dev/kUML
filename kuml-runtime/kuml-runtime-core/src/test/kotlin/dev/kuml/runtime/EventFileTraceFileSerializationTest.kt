@@ -34,11 +34,17 @@ class EventFileTraceFileSerializationTest :
                     modelId = "sm-1",
                     entries =
                         listOf(
-                            TraceEntry.EventReceived(0L, "t0", "go", JsonObject(emptyMap())),
-                            TraceEntry.StateEntered(1L, "t1", "A"),
-                            TraceEntry.TransitionFired(2L, "t2", "tr0", "init", "A"),
-                            TraceEntry.GuardEvaluated(3L, "t3", "tr0", "(null)", true),
-                            TraceEntry.Terminated(4L, "t4", "Done"),
+                            TraceEntry.EventReceived(seqNo = 0L, timestamp = "t0", eventName = "go", payload = JsonObject(emptyMap())),
+                            TraceEntry.StateEntered(seqNo = 1L, timestamp = "t1", vertexId = "A"),
+                            TraceEntry.TransitionFired(
+                                seqNo = 2L,
+                                timestamp = "t2",
+                                transitionId = "tr0",
+                                fromVertexId = "init",
+                                toVertexId = "A",
+                            ),
+                            TraceEntry.GuardEvaluated(seqNo = 3L, timestamp = "t3", transitionId = "tr0", guard = "(null)", result = true),
+                            TraceEntry.Terminated(seqNo = 4L, timestamp = "t4", finalVertexId = "Done"),
                         ),
                 )
             val encoded = KumlRuntimeJson.encodeToString(TraceFile.serializer(), original)
@@ -66,11 +72,11 @@ class EventFileTraceFileSerializationTest :
 
                 val tr =
                     listOf<TraceEntry>(
-                        TraceEntry.EventReceived(0L, "t", "confirm", JsonObject(emptyMap())),
-                        TraceEntry.StateEntered(1L, "t", "A"),
+                        TraceEntry.EventReceived(seqNo = 0L, timestamp = "t", eventName = "confirm", payload = JsonObject(emptyMap())),
+                        TraceEntry.StateEntered(seqNo = 1L, timestamp = "t", vertexId = "A"),
                     )
                 val tf = tmpDir.resolve("trace.json")
-                writeTrace(tr, tf, modelId = "M")
+                writeTrace(trace = tr, file = tf, modelId = "M")
                 loadTrace(tf).entries shouldBe tr
                 loadTrace(tf).modelId shouldBe "M"
             } finally {

@@ -153,11 +153,11 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
         try {
             Session(ctx).run(source)
         } catch (e: UnsafeUmlNameException) {
-            TransformResult.Failure(listOf(TransformError(e.message ?: "unsafe identifier", null)))
+            TransformResult.Failure(listOf(TransformError(message = e.message ?: "unsafe identifier", elementId = null)))
         } catch (e: UnresolvedColumnForeignKeyException) {
-            TransformResult.Failure(listOf(TransformError(e.message ?: "unresolved column-level FK", null)))
+            TransformResult.Failure(listOf(TransformError(message = e.message ?: "unresolved column-level FK", elementId = null)))
         } catch (e: UnresolvedIndexException) {
-            TransformResult.Failure(listOf(TransformError(e.message ?: "unresolved index", null)))
+            TransformResult.Failure(listOf(TransformError(message = e.message ?: "unresolved index", elementId = null)))
         }
 
     /** Per-call mutable state — a fresh instance is created for every [transform] invocation. */
@@ -202,38 +202,38 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                 childrenOf.getOrPut(gen.generalId) { mutableListOf() }.add(gen.specificId)
             }
 
-            val plans = planInheritance(classes, classById, parentOf, childrenOf, ctx)
+            val plans = planInheritance(classes = classes, classById = classById, parentOf = parentOf, childrenOf = childrenOf, ctx = ctx)
 
             // 1. Build entities for every table-owning class.
             for (cls in classes) {
                 val plan = plans.getValue(cls.id)
                 if (!plan.hasOwnTable) continue
-                buildEntityForClass(cls, plan, classById, enumsByName, plans)
+                buildEntityForClass(cls = cls, plan = plan, classById = classById, enumsByName = enumsByName, plans = plans)
             }
 
             // 2. SINGLE_TABLE — merge descendant columns + discriminator into the root entity.
-            applySingleTableMerges(classes, classById, plans, enumsByName)
+            applySingleTableMerges(classes = classes, classById = classById, plans = plans, enumsByName = enumsByName)
 
             // 3. JOINED — add the PK/FK column + identifying relationship linking each subtype to its parent.
-            applyJoinedLinks(classes, plans)
+            applyJoinedLinks(classes = classes, plans = plans)
 
             // 4. IDEF1X categories for JOINED hierarchies (best-effort, non-blocking if skipped).
-            applyCategories(classes, plans)
+            applyCategories(classes = classes, plans = plans)
 
             // 4.5. «Column».fkEntity/fkAttribute overrides — resolved only now that every entity
             // (including SINGLE_TABLE/JOINED-materialised columns) exists; see resolveColumnLevelForeignKeys.
-            resolveColumnLevelForeignKeys(classesByName, plans)
+            resolveColumnLevelForeignKeys(classesByName = classesByName, plans = plans)
 
             // 5. Associations → FK column or M:N junction entity.
             for (assoc in associations) {
-                mapAssociation(assoc, classById, plans)
+                mapAssociation(assoc = assoc, classById = classById, plans = plans)
             }
 
             // 5.5. «Index» applications — resolved only now that every entity's final attribute set
             // exists, including association-derived FK columns from step 5 (e.g. an «Index» naming
             // a column that only exists because an association-to-FK default happened to match the
             // real schema, like contribution.member_id) — see resolveIndexes.
-            resolveIndexes(classes, plans)
+            resolveIndexes(classes = classes, plans = plans)
 
             val model =
                 ErmModel(
@@ -247,9 +247,9 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
 
             val errors = ErmConstraintChecker().check(model).filter { it.severity == ViolationSeverity.ERROR }
             if (errors.isNotEmpty()) {
-                return TransformResult.Failure(errors.map { TransformError(it.message, it.elementId) })
+                return TransformResult.Failure(errors.map { TransformError(message = it.message, elementId = it.elementId) })
             }
-            return TransformResult.Success(model, trace)
+            return TransformResult.Success(output = model, trace = trace)
         }
 
         // ── Entity construction ──────────────────────────────────────────────
@@ -266,16 +266,26 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             entityCounter++
             entities[entity.id] = entity
             entityIdByClassId[cls.id] = entity.id
-            trace = trace.plus(TraceabilityLink(cls.id, entity.id, RULE_CLASS_TO_ENTITY))
+            trace = trace.plus(TraceabilityLink(sourceElementId = cls.id, targetArtifactId = entity.id, ruleId = RULE_CLASS_TO_ENTITY))
 
             deriveKotlinObjectNameOverride(cls)?.let { override ->
                 entity.metadata = entity.metadata + (ErmMetadataKeys.KOTLIN_OBJECT_NAME to KumlMetaValue.Text(override))
             }
 
-            val ownTemplates = cls.attributes.mapNotNull { mapAttributeToColumn(it, enumsByName) }
+            val ownTemplates = cls.attributes.mapNotNull { mapAttributeToColumn(attr = it, enumsByName = enumsByName) }
             val ancestorTemplates =
                 if (plan.strategy == InheritanceStrategy.TABLE_PER_CLASS) {
-                    collectAncestorTemplates(cls, classById, plans, enumsByName, ownTemplates.map { it.name }.toSet())
+                    collectAncestorTemplates(
+                        cls = cls,
+                        classById = classById,
+                        plans = plans,
+                        enumsByName = enumsByName,
+                        excludeNames =
+                            ownTemplates
+                                .map {
+                                    it.name
+                                }.toSet(),
+                    )
                 } else {
                     emptyList()
                 }
@@ -285,12 +295,12 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             if (isJoinedSubtype) {
                 // Own PK delegated to the parent — see applyJoinedLinks. Any own attribute that
                 // mapAttributeToColumn already flagged as PK (e.g. an explicit "id") is dropped here.
-                allTemplates.filterNot { it.primaryKey }.forEach { addColumn(entity, it) }
+                allTemplates.filterNot { it.primaryKey }.forEach { addColumn(entity = entity, template = it) }
             } else {
                 if (allTemplates.none { it.primaryKey }) {
-                    addColumn(entity, syntheticPkTemplate(cls))
+                    addColumn(entity = entity, template = syntheticPkTemplate(cls))
                 }
-                allTemplates.forEach { addColumn(entity, it) }
+                allTemplates.forEach { addColumn(entity = entity, template = it) }
             }
         }
 
@@ -313,7 +323,7 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             val result = mutableListOf<ColumnTemplate>()
             for (ancestor in chain) {
                 for (attr in ancestor.attributes) {
-                    val template = mapAttributeToColumn(attr, enumsByName) ?: continue
+                    val template = mapAttributeToColumn(attr = attr, enumsByName = enumsByName) ?: continue
                     if (!seen.add(template.name)) continue
                     result += template
                 }
@@ -337,7 +347,10 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                     default = template.default,
                     autoIncrement = template.autoIncrement,
                 )
-            trace = trace.plus(TraceabilityLink(template.sourceAttrId, attrId, RULE_PROPERTY_TO_COLUMN))
+            trace =
+                trace.plus(
+                    TraceabilityLink(sourceElementId = template.sourceAttrId, targetArtifactId = attrId, ruleId = RULE_PROPERTY_TO_COLUMN),
+                )
             template.checkExpression?.let { expr ->
                 entity.checks += ErmCheckConstraint(id = entity.nextCheckId(), name = null, expression = expr)
             }
@@ -366,10 +379,11 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
 
             val columnName =
                 SqlIdentifiers.requireSafe(
-                    columnStereo?.stringTag(ErmProfileNames.TAG_COLUMN_NAME)?.takeIf { it.isNotBlank() }
-                        ?: SqlIdentifiers.toSnakeCase(attr.name),
-                    "column name",
-                    attr.id,
+                    name =
+                        columnStereo?.stringTag(ErmProfileNames.TAG_COLUMN_NAME)?.takeIf { it.isNotBlank() }
+                            ?: SqlIdentifiers.toSnakeCase(attr.name),
+                    what = "column name",
+                    elementId = attr.id,
                 )
 
             val sqlTypeOverride = columnStereo?.stringTag(ErmProfileNames.TAG_SQL_TYPE)?.takeIf { it.isNotBlank() }
@@ -443,7 +457,7 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             val entityStereo = cls.appliedStereotypes.ermStereotype(ErmProfileNames.ENTITY)
             val override = entityStereo?.stringTag(ErmProfileNames.TAG_TABLE_NAME)?.takeIf { it.isNotBlank() }
             val name = override ?: SqlIdentifiers.toSnakeCase(cls.name).toPlural()
-            return SqlIdentifiers.requireSafe(name, "table name", cls.id)
+            return SqlIdentifiers.requireSafe(name = name, what = "table name", elementId = cls.id)
         }
 
         /**
@@ -487,26 +501,39 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
 
                 for (descendant in descendants) {
                     for (attr in descendant.attributes) {
-                        val template = mapAttributeToColumn(attr, enumsByName)?.asNullableNonKey() ?: continue
-                        addColumn(rootEntity, template)
+                        val template = mapAttributeToColumn(attr = attr, enumsByName = enumsByName)?.asNullableNonKey() ?: continue
+                        addColumn(entity = rootEntity, template = template)
                     }
-                    trace = trace.plus(TraceabilityLink(descendant.id, rootEntityId, RULE_SINGLE_TABLE_MERGE))
+                    trace =
+                        trace.plus(
+                            TraceabilityLink(
+                                sourceElementId = descendant.id,
+                                targetArtifactId = rootEntityId,
+                                ruleId = RULE_SINGLE_TABLE_MERGE,
+                            ),
+                        )
                 }
 
-                val discriminatorColumn = SqlIdentifiers.requireSafe(discriminatorColumnNameOf(root), "discriminator column", root.id)
+                val discriminatorColumn =
+                    SqlIdentifiers.requireSafe(
+                        name = discriminatorColumnNameOf(root),
+                        what = "discriminator column",
+                        elementId = root.id,
+                    )
                 if (!rootEntity.hasAttributeNamed(discriminatorColumn)) {
                     addColumn(
-                        rootEntity,
-                        ColumnTemplate(
-                            name = discriminatorColumn,
-                            type = ErmDataType.Varchar(255),
-                            primaryKey = false,
-                            nullable = false,
-                            unique = false,
-                            default = null,
-                            autoIncrement = false,
-                            sourceAttrId = root.id,
-                        ),
+                        entity = rootEntity,
+                        template =
+                            ColumnTemplate(
+                                name = discriminatorColumn,
+                                type = ErmDataType.Varchar(255),
+                                primaryKey = false,
+                                nullable = false,
+                                unique = false,
+                                default = null,
+                                autoIncrement = false,
+                                sourceAttrId = root.id,
+                            ),
                     )
                 }
             }
@@ -522,14 +549,14 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             // depth (root = 0) guarantees each class is visited only after its ancestors, regardless
             // of the declaration order of `classes` (see V3.4.6 review: declaration order broke
             // 3+-level JOINED hierarchies where an intermediate subtype was declared after its child).
-            val ordered = classes.sortedBy { depthOf(it.id, plans) }
+            val ordered = classes.sortedBy { depthOf(classId = it.id, plans = plans) }
             for (cls in ordered) {
                 val plan = plans.getValue(cls.id)
                 val parentId = plan.parentId ?: continue
                 if (plan.strategy != InheritanceStrategy.JOINED || !plan.hasOwnTable) continue
 
                 val childEntityId = entityIdByClassId[cls.id] ?: continue
-                val parentEntityId = physicalEntityIdOf(parentId, plans) ?: continue
+                val parentEntityId = physicalEntityIdOf(classId = parentId, plans = plans) ?: continue
                 val childEntity = entities.getValue(childEntityId)
                 val parentEntity = entities.getValue(parentEntityId)
                 val parentPk = parentEntity.primaryKey.singleOrNull() ?: continue
@@ -559,7 +586,10 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                         targetCardinality = Cardinality.ZERO_ONE,
                         kind = RelationshipKind.IDENTIFYING,
                     )
-                trace = trace.plus(TraceabilityLink(cls.id, relId, RULE_GENERALIZATION_TO_IDENTIFYING))
+                trace =
+                    trace.plus(
+                        TraceabilityLink(sourceElementId = cls.id, targetArtifactId = relId, ruleId = RULE_GENERALIZATION_TO_IDENTIFYING),
+                    )
             }
         }
 
@@ -645,7 +675,7 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                                 "does not name a class in this diagram.",
                         )
                 val targetEntityId =
-                    physicalEntityIdOf(targetClass.id, plans)
+                    physicalEntityIdOf(classId = targetClass.id, plans = plans)
                         ?: throw UnresolvedColumnForeignKeyException(
                             "uml-to-erm: «Column».fkEntity '${pending.fkEntityName}' (element ${pending.sourceAttrId}) " +
                                 "resolves to a class with no table of its own.",
@@ -699,7 +729,7 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                 val indexApps = cls.appliedStereotypes.ermStereotypes(ErmProfileNames.INDEX)
                 if (indexApps.isEmpty()) continue
                 val entityId =
-                    physicalEntityIdOf(cls.id, plans)
+                    physicalEntityIdOf(classId = cls.id, plans = plans)
                         ?: throw UnresolvedIndexException(
                             "uml-to-erm: «Index» on '${cls.name}' (element ${cls.id}) resolves to a class with no table of its own.",
                         )
@@ -747,14 +777,43 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             val targetMany = targetEnd.multiplicity.upper == null || targetEnd.multiplicity.upper!! > 1
 
             when {
-                sourceMany && targetMany -> resolveManyToMany(assoc, sourceClass, targetClass, sourceEnd, targetEnd, plans)
+                sourceMany && targetMany ->
+                    resolveManyToMany(
+                        assoc = assoc,
+                        sourceClass = sourceClass,
+                        targetClass = targetClass,
+                        sourceEnd = sourceEnd,
+                        targetEnd = targetEnd,
+                        plans = plans,
+                    )
                 targetMany && !sourceMany ->
-                    addForeignKey(assoc, fkClass = targetClass, fkEnd = targetEnd, refClass = sourceClass, refEnd = sourceEnd, plans)
+                    addForeignKey(
+                        assoc = assoc,
+                        fkClass = targetClass,
+                        fkEnd = targetEnd,
+                        refClass = sourceClass,
+                        refEnd = sourceEnd,
+                        plans = plans,
+                    )
                 sourceMany && !targetMany ->
-                    addForeignKey(assoc, fkClass = sourceClass, fkEnd = sourceEnd, refClass = targetClass, refEnd = targetEnd, plans)
+                    addForeignKey(
+                        assoc = assoc,
+                        fkClass = sourceClass,
+                        fkEnd = sourceEnd,
+                        refClass = targetClass,
+                        refEnd = targetEnd,
+                        plans = plans,
+                    )
                 else ->
                     // 1:1 — put the FK on the target end referencing the source end, by convention.
-                    addForeignKey(assoc, fkClass = targetClass, fkEnd = targetEnd, refClass = sourceClass, refEnd = sourceEnd, plans)
+                    addForeignKey(
+                        assoc = assoc,
+                        fkClass = targetClass,
+                        fkEnd = targetEnd,
+                        refClass = sourceClass,
+                        refEnd = sourceEnd,
+                        plans = plans,
+                    )
             }
         }
 
@@ -767,8 +826,8 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             plans: Map<String, ClassPlan>,
         ) {
             if (fkClass.id == refClass.id) return // self-referential — cosmetic only, out of V3.4.6 scope
-            val fkEntityId = physicalEntityIdOf(fkClass.id, plans) ?: return
-            val refEntityId = physicalEntityIdOf(refClass.id, plans) ?: return
+            val fkEntityId = physicalEntityIdOf(classId = fkClass.id, plans = plans) ?: return
+            val refEntityId = physicalEntityIdOf(classId = refClass.id, plans = plans) ?: return
             val fkEntity = entities.getValue(fkEntityId)
             val refEntity = entities.getValue(refEntityId)
             val refPk = refEntity.primaryKey.singleOrNull() ?: return
@@ -791,7 +850,7 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                 } else {
                     defaultBaseName
                 }
-            val columnName = SqlIdentifiers.requireSafe(baseName, "FK column name", assoc.id)
+            val columnName = SqlIdentifiers.requireSafe(name = baseName, what = "FK column name", elementId = assoc.id)
 
             val attrId = fkEntity.nextAttrId()
             fkEntity.attributes +=
@@ -803,7 +862,7 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                     nullable = refEnd.multiplicity.lower == 0,
                     foreignKey = ErmForeignKey(targetEntityId = refEntityId, onDelete = onDelete, onUpdate = onUpdate),
                 )
-            trace = trace.plus(TraceabilityLink(assoc.id, attrId, RULE_ASSOC_TO_FK))
+            trace = trace.plus(TraceabilityLink(sourceElementId = assoc.id, targetArtifactId = attrId, ruleId = RULE_ASSOC_TO_FK))
 
             val relId = "rel_${relCounter++}"
             relationships +=
@@ -832,8 +891,8 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             targetEnd: UmlAssociationEnd,
             plans: Map<String, ClassPlan>,
         ) {
-            val sourceEntityId = physicalEntityIdOf(sourceClass.id, plans) ?: return
-            val targetEntityId = physicalEntityIdOf(targetClass.id, plans) ?: return
+            val sourceEntityId = physicalEntityIdOf(classId = sourceClass.id, plans = plans) ?: return
+            val targetEntityId = physicalEntityIdOf(classId = targetClass.id, plans = plans) ?: return
             val sourceEntity = entities.getValue(sourceEntityId)
             val targetEntity = entities.getValue(targetEntityId)
             val sourcePk = sourceEntity.primaryKey.singleOrNull() ?: return
@@ -844,16 +903,19 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                 "${SqlIdentifiers.toSnakeCase(sourceClass.name).toPlural()}_${SqlIdentifiers.toSnakeCase(targetClass.name).toPlural()}"
             val tableName =
                 SqlIdentifiers.requireSafe(
-                    junctionStereo?.stringTag(ErmProfileNames.TAG_TABLE_NAME)?.takeIf { it.isNotBlank() } ?: defaultTableName,
-                    "junction table name",
-                    assoc.id,
+                    name = junctionStereo?.stringTag(ErmProfileNames.TAG_TABLE_NAME)?.takeIf { it.isNotBlank() } ?: defaultTableName,
+                    what = "junction table name",
+                    elementId = assoc.id,
                 )
 
             val junctionEntity = MutableErmEntity(id = "entity_$entityCounter", ix = entityCounter, name = tableName)
             entityCounter++
             junctionEntity.weak = true
             entities[junctionEntity.id] = junctionEntity
-            trace = trace.plus(TraceabilityLink(assoc.id, junctionEntity.id, RULE_ASSOC_TO_JUNCTION))
+            trace =
+                trace.plus(
+                    TraceabilityLink(sourceElementId = assoc.id, targetArtifactId = junctionEntity.id, ruleId = RULE_ASSOC_TO_JUNCTION),
+                )
 
             var sourceColName =
                 junctionStereo?.stringTag(ErmProfileNames.TAG_SOURCE_COLUMN)?.takeIf { it.isNotBlank() }
@@ -866,8 +928,8 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                 sourceColName = sourceEnd.role?.let { SqlIdentifiers.toSnakeCase(it) } ?: "${sourceColName}_source"
                 targetColName = targetEnd.role?.let { SqlIdentifiers.toSnakeCase(it) } ?: "${targetColName}_target"
             }
-            sourceColName = SqlIdentifiers.requireSafe(sourceColName, "junction source column name", assoc.id)
-            targetColName = SqlIdentifiers.requireSafe(targetColName, "junction target column name", assoc.id)
+            sourceColName = SqlIdentifiers.requireSafe(name = sourceColName, what = "junction source column name", elementId = assoc.id)
+            targetColName = SqlIdentifiers.requireSafe(name = targetColName, what = "junction target column name", elementId = assoc.id)
 
             val sourceAttrId = junctionEntity.nextAttrId()
             junctionEntity.attributes +=

@@ -28,7 +28,7 @@ class SubstrateChainAdapterTest :
             SubstrateChainAdapter(
                 urlValidator = SubstrateUrlValidator.NoOp,
                 pollIntervalMillis = 10L,
-                clientFactory = { SubstrateRpcClient(server.baseUrl()) },
+                clientFactory = { SubstrateRpcClient(rpcUrl = server.baseUrl()) },
             )
 
         fun setupIdentityResponse(
@@ -44,22 +44,22 @@ class SubstrateChainAdapterTest :
                     byteArrayOf(uriCompact) + uriBytes +
                     byteArrayOf(schemaVersion.toByte(), 0, 0, 0)
             val hex = "0x" + bytes.joinToString("") { "%02x".format(it) }
-            server.onMethod("state_call") {
+            server.onMethod(method = "state_call") {
                 rpcSuccess(result = """{"result":{"Ok":{"data":"$hex"}}}""")
             }
         }
 
         fun setupFinalizedHeight(height: Long) {
-            server.onMethod("chain_getFinalizedHead") { rpcSuccess(result = "\"0xhash\"") }
-            server.onMethod("chain_getHeader") { rpcSuccess(result = """{"number":"0x${height.toString(16)}"}""") }
+            server.onMethod(method = "chain_getFinalizedHead") { rpcSuccess(result = "\"0xhash\"") }
+            server.onMethod(method = "chain_getHeader") { rpcSuccess(result = """{"number":"0x${height.toString(16)}"}""") }
         }
 
         fun setupBlockHash(hash: String = "0xblockhash") {
-            server.onMethod("chain_getBlockHash") { rpcSuccess(result = "\"$hash\"") }
+            server.onMethod(method = "chain_getBlockHash") { rpcSuccess(result = "\"$hash\"") }
         }
 
         fun setupSystemEvents(hex: String = "") {
-            server.onMethod("state_getStorage") { rpcSuccess(result = if (hex.isEmpty()) "null" else "\"$hex\"") }
+            server.onMethod(method = "state_getStorage") { rpcSuccess(result = if (hex.isEmpty()) "null" else "\"$hex\"") }
         }
 
         test("connect returns ContractIdentity with correct fields") {
@@ -67,7 +67,7 @@ class SubstrateChainAdapterTest :
                 val modelHash = byteArrayOf(1, 2, 3, 4)
                 setupIdentityResponse(modelHash, "ipfs://abc", 2)
                 val adapter = makeAdapter()
-                val identity = adapter.connect(server.baseUrl(), contractAddr)
+                val identity = adapter.connect(rpcUrl = server.baseUrl(), contractAddress = contractAddr)
                 identity.address shouldBe contractAddr
                 identity.modelUri shouldBe "ipfs://abc"
                 identity.schemaVersion shouldBe 2
@@ -79,7 +79,7 @@ class SubstrateChainAdapterTest :
             runTest {
                 val adapter = makeAdapter()
                 shouldThrow<SubstrateChainAdapterException.InvalidContractAddress> {
-                    adapter.connect(server.baseUrl(), "notanss58address")
+                    adapter.connect(rpcUrl = server.baseUrl(), contractAddress = "notanss58address")
                 }
             }
         }
@@ -89,10 +89,10 @@ class SubstrateChainAdapterTest :
                 val adapter =
                     SubstrateChainAdapter(
                         urlValidator = SubstrateUrlValidator.Default,
-                        clientFactory = { SubstrateRpcClient(server.baseUrl()) },
+                        clientFactory = { SubstrateRpcClient(rpcUrl = server.baseUrl()) },
                     )
                 shouldThrow<SubstrateChainAdapterException.InvalidUrlException> {
-                    adapter.connect("http://127.0.0.1:9999", contractAddr)
+                    adapter.connect(rpcUrl = "http://127.0.0.1:9999", contractAddress = contractAddr)
                 }
             }
         }
@@ -111,7 +111,7 @@ class SubstrateChainAdapterTest :
                 setupIdentityResponse()
                 setupFinalizedHeight(5L)
                 val adapter = makeAdapter()
-                adapter.connect(server.baseUrl(), contractAddr)
+                adapter.connect(rpcUrl = server.baseUrl(), contractAddress = contractAddr)
                 shouldThrow<IllegalArgumentException> {
                     adapter.replay(-1L).toList()
                 }
@@ -123,7 +123,7 @@ class SubstrateChainAdapterTest :
                 setupIdentityResponse()
                 setupFinalizedHeight(0L)
                 val adapter = makeAdapter()
-                adapter.connect(server.baseUrl(), contractAddr)
+                adapter.connect(rpcUrl = server.baseUrl(), contractAddress = contractAddr)
                 setupFinalizedHeight(0L)
                 val events = adapter.replay(1L).toList()
                 events shouldHaveSize 0
@@ -135,7 +135,7 @@ class SubstrateChainAdapterTest :
                 setupIdentityResponse()
                 setupFinalizedHeight(3L)
                 val adapter = makeAdapter()
-                adapter.connect(server.baseUrl(), contractAddr)
+                adapter.connect(rpcUrl = server.baseUrl(), contractAddress = contractAddr)
                 setupFinalizedHeight(3L)
                 setupBlockHash()
                 setupSystemEvents()
@@ -149,7 +149,7 @@ class SubstrateChainAdapterTest :
                 setupIdentityResponse()
                 setupFinalizedHeight(5L)
                 val adapter = makeAdapter()
-                adapter.connect(server.baseUrl(), contractAddr)
+                adapter.connect(rpcUrl = server.baseUrl(), contractAddress = contractAddr)
                 setupFinalizedHeight(5L)
                 setupBlockHash()
                 setupSystemEvents()

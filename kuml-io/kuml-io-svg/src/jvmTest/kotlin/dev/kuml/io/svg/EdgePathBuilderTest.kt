@@ -11,8 +11,8 @@ class EdgePathBuilderTest :
         test("EdgePathBuilder generates straight line for Direct route") {
             val route =
                 EdgeRoute.Direct(
-                    source = Point(10f, 20f),
-                    target = Point(100f, 80f),
+                    source = Point(x = 10f, y = 20f),
+                    target = Point(x = 100f, y = 80f),
                 )
             val pathData = EdgePathBuilder.buildPathData(route)
 
@@ -24,9 +24,9 @@ class EdgePathBuilderTest :
         test("EdgePathBuilder generates path with rounded corners for OrthogonalRounded") {
             val route =
                 EdgeRoute.OrthogonalRounded(
-                    source = Point(10f, 20f),
-                    target = Point(100f, 80f),
-                    waypoints = listOf(Point(10f, 80f)),
+                    source = Point(x = 10f, y = 20f),
+                    target = Point(x = 100f, y = 80f),
+                    waypoints = listOf(Point(x = 10f, y = 80f)),
                     cornerRadiusPx = 4f,
                 )
             val pathData = EdgePathBuilder.buildPathData(route)
@@ -38,9 +38,9 @@ class EdgePathBuilderTest :
         test("EdgePathBuilder generates cubic bezier for Bezier route") {
             val route =
                 EdgeRoute.Bezier(
-                    source = Point(10f, 20f),
-                    target = Point(100f, 80f),
-                    controlPoints = listOf(Point(30f, 10f), Point(80f, 90f)),
+                    source = Point(x = 10f, y = 20f),
+                    target = Point(x = 100f, y = 80f),
+                    controlPoints = listOf(Point(x = 30f, y = 10f), Point(x = 80f, y = 90f)),
                 )
             val pathData = EdgePathBuilder.buildPathData(route)
 

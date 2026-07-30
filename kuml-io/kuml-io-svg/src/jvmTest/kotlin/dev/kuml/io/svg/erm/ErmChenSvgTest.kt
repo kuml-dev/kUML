@@ -51,14 +51,18 @@ class ErmChenSvgTest :
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.CHEN)
             val layout =
                 layoutOf(
-                    nodes = listOf(NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer") to Rect(Point(20f, 20f), Size(160f, 44f))),
+                    nodes =
+                        listOf(
+                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer") to
+                                Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 160f, height = 44f)),
+                        ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "Customer"
             svg shouldContain "kuml-erm-entity"
-            SampleOutput.write("erm/chen-entity-title-only.svg", svg)
+            SampleOutput.write(filename = "erm/chen-entity-title-only.svg", content = svg)
         }
 
         "attribute renders as an ellipse; primary key gets an underline" {
@@ -70,22 +74,24 @@ class ErmChenSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer") to Rect(Point(20f, 20f), Size(160f, 44f)),
-                            NodeId(ErmChenLayoutBridge.ATTR_PREFIX + "id") to Rect(Point(20f, 100f), Size(100f, 40f)),
+                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer") to
+                                Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 160f, height = 44f)),
+                            NodeId(ErmChenLayoutBridge.ATTR_PREFIX + "id") to
+                                Rect(origin = Point(x = 20f, y = 100f), size = Size(width = 100f, height = 40f)),
                         ),
                     edges =
                         listOf(
                             EdgeId(ErmChenLayoutBridge.ATTR_EDGE_PREFIX + "customer::id") to
-                                EdgeRoute.Direct(Point(70f, 64f), Point(70f, 100f)),
+                                EdgeRoute.Direct(source = Point(x = 70f, y = 64f), target = Point(x = 70f, y = 100f)),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "<ellipse"
             svg shouldContain "kuml-erm-chen-attribute"
             svg shouldContain "kuml-erm-pk-underline"
-            SampleOutput.write("erm/chen-attribute-oval-pk.svg", svg)
+            SampleOutput.write(filename = "erm/chen-attribute-oval-pk.svg", content = svg)
         }
 
         "relationship renders as a diamond (polygon)" {
@@ -106,27 +112,30 @@ class ErmChenSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer") to Rect(Point(20f, 20f), Size(160f, 44f)),
-                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "order") to Rect(Point(300f, 20f), Size(160f, 44f)),
-                            NodeId(ErmChenLayoutBridge.REL_PREFIX + "rel1") to Rect(Point(160f, 120f), Size(110f, 60f)),
+                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer") to
+                                Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 160f, height = 44f)),
+                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "order") to
+                                Rect(origin = Point(x = 300f, y = 20f), size = Size(width = 160f, height = 44f)),
+                            NodeId(ErmChenLayoutBridge.REL_PREFIX + "rel1") to
+                                Rect(origin = Point(x = 160f, y = 120f), size = Size(width = 110f, height = 60f)),
                         ),
                     edges =
                         listOf(
                             // Bug-fix V3.4.6: sourceEntity -> diamond (entity is this
                             // route's source, diamond is its target).
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX + "rel1") to
-                                EdgeRoute.Direct(Point(100f, 64f), Point(215f, 150f)),
+                                EdgeRoute.Direct(source = Point(x = 100f, y = 64f), target = Point(x = 215f, y = 150f)),
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX + "rel1") to
-                                EdgeRoute.Direct(Point(215f, 150f), Point(380f, 64f)),
+                                EdgeRoute.Direct(source = Point(x = 215f, y = 150f), target = Point(x = 380f, y = 64f)),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "<polygon"
             svg shouldContain "kuml-erm-chen-relationship\""
             svg shouldContain "places"
-            SampleOutput.write("erm/chen-relationship-diamond.svg", svg)
+            SampleOutput.write(filename = "erm/chen-relationship-diamond.svg", content = svg)
         }
 
         "IDENTIFYING relationship draws an inner diamond (double border)" {
@@ -148,25 +157,28 @@ class ErmChenSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "order") to Rect(Point(20f, 20f), Size(160f, 44f)),
-                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "item") to Rect(Point(300f, 20f), Size(160f, 44f)),
-                            NodeId(ErmChenLayoutBridge.REL_PREFIX + "rel2") to Rect(Point(160f, 120f), Size(110f, 60f)),
+                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "order") to
+                                Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 160f, height = 44f)),
+                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "item") to
+                                Rect(origin = Point(x = 300f, y = 20f), size = Size(width = 160f, height = 44f)),
+                            NodeId(ErmChenLayoutBridge.REL_PREFIX + "rel2") to
+                                Rect(origin = Point(x = 160f, y = 120f), size = Size(width = 110f, height = 60f)),
                         ),
                     edges =
                         listOf(
                             // Bug-fix V3.4.6: sourceEntity -> diamond (entity is this
                             // route's source, diamond is its target).
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX + "rel2") to
-                                EdgeRoute.Direct(Point(100f, 64f), Point(215f, 150f)),
+                                EdgeRoute.Direct(source = Point(x = 100f, y = 64f), target = Point(x = 215f, y = 150f)),
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX + "rel2") to
-                                EdgeRoute.Direct(Point(215f, 150f), Point(380f, 64f)),
+                                EdgeRoute.Direct(source = Point(x = 215f, y = 150f), target = Point(x = 380f, y = 64f)),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "kuml-erm-chen-relationship-inner"
-            SampleOutput.write("erm/chen-identifying-relationship.svg", svg)
+            SampleOutput.write(filename = "erm/chen-identifying-relationship.svg", content = svg)
         }
 
         "weak entity draws a second, inner rect (double border)" {
@@ -178,15 +190,17 @@ class ErmChenSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "order") to Rect(Point(20f, 20f), Size(160f, 44f)),
-                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "item") to Rect(Point(300f, 20f), Size(160f, 44f)),
+                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "order") to
+                                Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 160f, height = 44f)),
+                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "item") to
+                                Rect(origin = Point(x = 300f, y = 20f), size = Size(width = 160f, height = 44f)),
                         ),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldContain "kuml-erm-entity-inner"
-            SampleOutput.write("erm/chen-weak-entity.svg", svg)
+            SampleOutput.write(filename = "erm/chen-weak-entity.svg", content = svg)
         }
 
         "cardinality label (1/N) renders near the entity end of a diamond connector" {
@@ -207,18 +221,21 @@ class ErmChenSvgTest :
                 layoutOf(
                     nodes =
                         listOf(
-                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer") to Rect(Point(20f, 20f), Size(160f, 44f)),
-                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "order") to Rect(Point(300f, 20f), Size(160f, 44f)),
-                            NodeId(ErmChenLayoutBridge.REL_PREFIX + "rel1") to Rect(Point(160f, 120f), Size(110f, 60f)),
+                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer") to
+                                Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 160f, height = 44f)),
+                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "order") to
+                                Rect(origin = Point(x = 300f, y = 20f), size = Size(width = 160f, height = 44f)),
+                            NodeId(ErmChenLayoutBridge.REL_PREFIX + "rel1") to
+                                Rect(origin = Point(x = 160f, y = 120f), size = Size(width = 110f, height = 60f)),
                         ),
                     edges =
                         listOf(
                             // Bug-fix V3.4.6: sourceEntity -> diamond (entity is this
                             // route's source, diamond is its target).
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX + "rel1") to
-                                EdgeRoute.Direct(Point(100f, 64f), Point(215f, 150f)),
+                                EdgeRoute.Direct(source = Point(x = 100f, y = 64f), target = Point(x = 215f, y = 150f)),
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX + "rel1") to
-                                EdgeRoute.Direct(Point(215f, 150f), Point(380f, 64f)),
+                                EdgeRoute.Direct(source = Point(x = 215f, y = 150f), target = Point(x = 380f, y = 64f)),
                         ),
                 )
 
@@ -226,7 +243,14 @@ class ErmChenSvgTest :
             // directly between its tag brackets (`>1<`) — with pretty-printing
             // the label would be on its own indented line, making a substring
             // check on the rendered text unreliable.
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), SvgRenderOptions(prettyPrint = false))
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layout,
+                    theme = PlainTheme(),
+                    options = SvgRenderOptions(prettyPrint = false),
+                )
 
             // Bug-fix (fix/erm-chen-label-collisions, V3.4.7): cardinality
             // labels now route through the shared `renderEdgeLabelWithHalo`
@@ -235,7 +259,7 @@ class ErmChenSvgTest :
             svg shouldContain "kuml-edge-label"
             svg shouldContain ">1<"
             svg shouldContain ">N<"
-            SampleOutput.write("erm/chen-cardinality-labels.svg", svg)
+            SampleOutput.write(filename = "erm/chen-cardinality-labels.svg", content = svg)
         }
 
         "cardinality labels on a converging hub clear the entity box, come off the line, and fan apart" {
@@ -277,20 +301,20 @@ class ErmChenSvgTest :
                 )
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.CHEN)
 
-            val addressBounds = Rect(Point(300f, 400f), Size(160f, 44f))
+            val addressBounds = Rect(origin = Point(x = 300f, y = 400f), size = Size(width = 160f, height = 44f))
             val layout =
                 layoutOf(
                     nodes = listOf(NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "address") to addressBounds),
                     edges =
                         listOf(
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX + "relA") to
-                                EdgeRoute.Direct(Point(330f, 250f), Point(340f, 400f)),
+                                EdgeRoute.Direct(source = Point(x = 330f, y = 250f), target = Point(x = 340f, y = 400f)),
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX + "relB") to
-                                EdgeRoute.Direct(Point(380f, 250f), Point(380f, 400f)),
+                                EdgeRoute.Direct(source = Point(x = 380f, y = 250f), target = Point(x = 380f, y = 400f)),
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX + "relC") to
-                                EdgeRoute.Direct(Point(430f, 250f), Point(420f, 400f)),
+                                EdgeRoute.Direct(source = Point(x = 430f, y = 250f), target = Point(x = 420f, y = 400f)),
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX + "relD") to
-                                EdgeRoute.Direct(Point(380f, 444f), Point(380f, 550f)),
+                                EdgeRoute.Direct(source = Point(x = 380f, y = 444f), target = Point(x = 380f, y = 550f)),
                         ),
                 )
 
@@ -299,7 +323,14 @@ class ErmChenSvgTest :
             // route by +paddingPx, which would have to be re-added to every
             // pixel comparison below).
             val renderOptions = SvgRenderOptions(prettyPrint = false, paddingPx = 0f)
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), renderOptions)
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layout,
+                    theme = PlainTheme(),
+                    options = renderOptions,
+                )
             val labels = edgeLabels(svg).filter { it.text == "1" || it.text == "N" }
             labels shouldHaveSize 4
 
@@ -340,10 +371,17 @@ class ErmChenSvgTest :
             }
 
             // Assertion 4 — determinism.
-            val again = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), renderOptions)
+            val again =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layout,
+                    theme = PlainTheme(),
+                    options = renderOptions,
+                )
             svg shouldBe again
 
-            SampleOutput.write("erm/chen-hub-cardinality-labels.svg", svg)
+            SampleOutput.write(filename = "erm/chen-hub-cardinality-labels.svg", content = svg)
         }
 
         "no raw XML entities leak into rendered text" {
@@ -351,13 +389,19 @@ class ErmChenSvgTest :
             val model = ErmModel(name = "Shop", entities = listOf(customer))
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.CHEN)
             val layout =
-                layoutOf(nodes = listOf(NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer") to Rect(Point(20f, 20f), Size(200f, 44f))))
+                layoutOf(
+                    nodes =
+                        listOf(
+                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer") to
+                                Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 200f, height = 44f)),
+                        ),
+                )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
 
             svg shouldNotContain "&amp;apos;"
             svg shouldNotContain "&amp;lt;"
-            SampleOutput.write("erm/chen-xml-escape-guard.svg", svg)
+            SampleOutput.write(filename = "erm/chen-xml-escape-guard.svg", content = svg)
         }
 
         "IDEF1X no longer throws (regression guard, V3.4.5)" {
@@ -365,9 +409,21 @@ class ErmChenSvgTest :
             val model = ErmModel(name = "Shop", entities = listOf(customer))
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.MARTIN)
             val layout =
-                layoutOf(nodes = listOf(NodeId("customer") to Rect(Point(20f, 20f), Size(180f, 90f))))
+                layoutOf(
+                    nodes =
+                        listOf(
+                            NodeId("customer") to Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 90f)),
+                        ),
+                )
 
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), notation = ErmNotation.IDEF1X)
+            val svg =
+                KumlSvgRenderer.toSvg(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layout,
+                    theme = PlainTheme(),
+                    notation = ErmNotation.IDEF1X,
+                )
 
             svg shouldContain "kuml-erm-entity"
         }
@@ -377,10 +433,16 @@ class ErmChenSvgTest :
             val model = ErmModel(name = "Shop", entities = listOf(customer))
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.CHEN)
             val layout =
-                layoutOf(nodes = listOf(NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer") to Rect(Point(20f, 20f), Size(180f, 44f))))
+                layoutOf(
+                    nodes =
+                        listOf(
+                            NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer") to
+                                Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 44f)),
+                        ),
+                )
 
-            val one = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
-            val two = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+            val one = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
+            val two = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             one shouldBe two
         }
     })
@@ -396,7 +458,7 @@ private fun layoutOf(
     return LayoutResult(
         engineId = LayoutEngineId("test"),
         seed = 1L,
-        canvas = Size(maxX + 20f, maxY + 20f),
+        canvas = Size(width = maxX + 20f, height = maxY + 20f),
         nodes = nodes.associate { (id, rect) -> id to NodeLayout(bounds = rect) },
         edges = edges.associate { (id, route) -> id to route },
         groups = emptyMap(),

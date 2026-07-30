@@ -226,10 +226,23 @@ class CompositeAiTraceSinkTest :
                     )
 
                 sink.emit(
-                    AiTraceEntry.SessionStarted(0, "2026-06-23T10:00:00Z", "SES001", "fp"),
+                    AiTraceEntry.SessionStarted(
+                        seqNo = 0,
+                        timestamp = "2026-06-23T10:00:00Z",
+                        sessionId = "SES001",
+                        baseModelFingerprint = "fp",
+                    ),
                 )
                 sink.emit(
-                    AiTraceEntry.Validated(1, "2026-06-23T10:00:01Z", "SES001", "PAT001", "uml.class", "OK", 0),
+                    AiTraceEntry.Validated(
+                        seqNo = 1,
+                        timestamp = "2026-06-23T10:00:01Z",
+                        sessionId = "SES001",
+                        patchId = "PAT001",
+                        patchKind = "uml.class",
+                        phase = "OK",
+                        errorCount = 0,
+                    ),
                 )
 
                 delegate.snapshot() shouldHaveSize 2

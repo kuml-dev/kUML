@@ -27,7 +27,7 @@ class VaultExamplesChoreoTest :
         "rendert ChoreographyDiagram als SVG mit Task-Rechteck-Shapes und Aureolin-Initiator-Band" {
             val ex = examples.firstOrNull { it.baseName.contains("Choreography") }
             ex shouldNotBe null
-            val result = VaultExampleRenderer.render(ex!!.kumlScript, "plain")
+            val result = VaultExampleRenderer.render(script = ex!!.kumlScript, themeName = "plain")
             result.error shouldBe null
             val svg = result.svg
             svg shouldNotBe null
@@ -36,13 +36,13 @@ class VaultExamplesChoreoTest :
             svg shouldContain "<rect"
             // Initiierendes Participant-Band immer Aureolin (CHOREO_INITIATING_FILL)
             svg shouldContain "#FFED00"
-            SampleOutput.write("vault-examples/choreo-test/choreography.svg", svg)
+            SampleOutput.write(filename = "vault-examples/choreo-test/choreography.svg", content = svg)
         }
 
         "rendert ConversationDiagram als SVG mit Hexagon-Shapes und Participant-Gruppen" {
             val ex = examples.firstOrNull { it.baseName.contains("Conversation") }
             ex shouldNotBe null
-            val result = VaultExampleRenderer.render(ex!!.kumlScript, "plain")
+            val result = VaultExampleRenderer.render(script = ex!!.kumlScript, themeName = "plain")
             result.error shouldBe null
             val svg = result.svg
             svg shouldNotBe null
@@ -51,6 +51,6 @@ class VaultExamplesChoreoTest :
             svg shouldContain "<polygon"
             // Participants werden in <g id="conv-participant-…">-Gruppen gerendert
             svg shouldContain "conv-participant-"
-            SampleOutput.write("vault-examples/choreo-test/conversation.svg", svg)
+            SampleOutput.write(filename = "vault-examples/choreo-test/conversation.svg", content = svg)
         }
     })

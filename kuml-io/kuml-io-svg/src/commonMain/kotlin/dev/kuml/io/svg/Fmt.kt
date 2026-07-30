@@ -11,7 +11,7 @@ package dev.kuml.io.svg
  */
 internal fun fmt2(v: Float): String {
     val i = v.toInt()
-    return if (v == i.toFloat()) "$i" else roundToDecimals(v, 2)
+    return if (v == i.toFloat()) "$i" else roundToDecimals(v = v, decimals = 2)
 }
 
 /**
@@ -24,7 +24,7 @@ internal fun fmt2(v: Float): String {
  */
 internal fun fmt3(v: Float): String {
     val i = v.toInt()
-    return if (v == i.toFloat()) i.toString() else roundToDecimals(v, 3)
+    return if (v == i.toFloat()) i.toString() else roundToDecimals(v = v, decimals = 3)
 }
 
 /**

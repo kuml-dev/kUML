@@ -18,7 +18,7 @@ class ProfileXmiImporterTest :
         test("import reads a Profile produced by ProfileXmiExporter") {
             val tmpFile = createTempFile("importer-test-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
             val imported = importer.import(tmpFile)
             imported.name shouldBe autosarProfile.name
         }
@@ -26,7 +26,7 @@ class ProfileXmiImporterTest :
         test("importResult on valid file returns Success") {
             val tmpFile = createTempFile("importer-result-valid-", ".profile.uml").toFile()
             tmpFile.deleteOnExit()
-            exporter.export(autosarProfile, tmpFile)
+            exporter.export(profile = autosarProfile, outputFile = tmpFile)
             val result = importer.importResult(tmpFile)
             result.shouldBeInstanceOf<ProfileResult.Success>()
         }
@@ -64,7 +64,7 @@ class ProfileXmiImporterTest :
                 org.eclipse.uml2.uml.UMLFactory.eINSTANCE
                     .createModel()
             emfModel.name = "TestModel"
-            writer.write(emfModel, modelFile)
+            writer.write(emfModel = emfModel, outputFile = modelFile)
             // The file contains a uml:Model, not uml:Profile — importResult should return Failure
             val result = importer.importResult(modelFile)
             result.shouldBeInstanceOf<ProfileResult.Failure>()

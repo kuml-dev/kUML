@@ -19,19 +19,19 @@ class BlueprintDslTest :
     StringSpec({
         "blueprint builder produces expected model" {
             val m =
-                blueprint("Onboarding") {
-                    val web = channel("Website", ChannelKind.WEB)
-                    val kunde = actor("Kunde", ActorRole.CUSTOMER)
-                    val banner = touchpoint("Banner", channel = web, symbol = TouchpointSymbol.CIRCLE)
-                    phase("Entdeckung") {
+                blueprint(name = "Onboarding") {
+                    val web = channel(name = "Website", kind = ChannelKind.WEB)
+                    val kunde = actor(name = "Kunde", role = ActorRole.CUSTOMER)
+                    val banner = touchpoint(name = "Banner", channel = web, symbol = TouchpointSymbol.CIRCLE)
+                    phase(name = "Entdeckung") {
                         customer(
-                            "Sieht Anzeige",
-                            Sentiment.NEUTRAL,
+                            name = "Sieht Anzeige",
+                            sentiment = Sentiment.NEUTRAL,
                             touchpoints = listOf(banner),
                             actor = kunde,
                         )
                     }
-                    journeyDiagram("J")
+                    journeyDiagram(name = "J")
                 }
             m.name shouldBe "Onboarding"
             m.channels.single().id shouldBe "channel_0"
@@ -48,14 +48,14 @@ class BlueprintDslTest :
 
         "auto-ids are deterministic and collision-free" {
             val m =
-                blueprint("X") {
-                    channel("a")
-                    channel("b")
-                    phase("P0") {
-                        step("s")
-                        step("s2")
+                blueprint(name = "X") {
+                    channel(name = "a")
+                    channel(name = "b")
+                    phase(name = "P0") {
+                        step(name = "s")
+                        step(name = "s2")
                     }
-                    phase("P1") { step("s3") }
+                    phase(name = "P1") { step(name = "s3") }
                 }
             m.channels.map { it.id } shouldBe listOf("channel_0", "channel_1")
             m.phases.map { it.id } shouldBe listOf("phase_0", "phase_1")
@@ -64,10 +64,10 @@ class BlueprintDslTest :
 
         "phase declaration order produces gap-free order values" {
             val m =
-                blueprint("X") {
-                    phase("A") {}
-                    phase("B") {}
-                    phase("C") {}
+                blueprint(name = "X") {
+                    phase(name = "A") {}
+                    phase(name = "B") {}
+                    phase(name = "C") {}
                 }
             m.phases.map { it.order } shouldBe listOf(0, 1, 2)
             m.phases.map { it.name } shouldBe listOf("A", "B", "C")
@@ -75,8 +75,8 @@ class BlueprintDslTest :
 
         "customer convenience sets layer and sentiment" {
             val m =
-                blueprint("X") {
-                    phase("P") { customer("c", Sentiment.VERY_POSITIVE) }
+                blueprint(name = "X") {
+                    phase(name = "P") { customer(name = "c", sentiment = Sentiment.VERY_POSITIVE) }
                 }
             val s = m.steps.single()
             s.layer shouldBe BlueprintLayer.CUSTOMER_ACTIONS
@@ -85,20 +85,20 @@ class BlueprintDslTest :
 
         "generic step can target any layer" {
             val m =
-                blueprint("X") {
-                    phase("P") { step("b", BlueprintLayer.BACKSTAGE) }
+                blueprint(name = "X") {
+                    phase(name = "P") { step(name = "b", layer = BlueprintLayer.BACKSTAGE) }
                 }
             m.steps.single().layer shouldBe BlueprintLayer.BACKSTAGE
         }
 
         "flowsTo infix wires a connection" {
             val m =
-                blueprint("X") {
+                blueprint(name = "X") {
                     lateinit var a: String
                     lateinit var b: String
-                    phase("P") {
-                        a = step("a")
-                        b = step("b", BlueprintLayer.BACKSTAGE)
+                    phase(name = "P") {
+                        a = step(name = "a")
+                        b = step(name = "b", layer = BlueprintLayer.BACKSTAGE)
                     }
                     a flowsTo b
                 }
@@ -109,24 +109,24 @@ class BlueprintDslTest :
 
         "explicit connection with dashed style" {
             val m =
-                blueprint("X") {
+                blueprint(name = "X") {
                     lateinit var a: String
                     lateinit var b: String
-                    phase("P") {
-                        a = step("a")
-                        b = step("b")
+                    phase(name = "P") {
+                        a = step(name = "a")
+                        b = step(name = "b")
                     }
-                    connection(a, b, ConnectionStyle.DASHED)
+                    connection(from = a, to = b, style = ConnectionStyle.DASHED)
                 }
             m.connections.single().style shouldBe ConnectionStyle.DASHED
         }
 
         "journeyDiagram vs blueprintDiagram defaults" {
             val m =
-                blueprint("X") {
-                    phase("P") { customer("c", Sentiment.NEUTRAL) }
-                    journeyDiagram("J")
-                    blueprintDiagram("B")
+                blueprint(name = "X") {
+                    phase(name = "P") { customer(name = "c", sentiment = Sentiment.NEUTRAL) }
+                    journeyDiagram(name = "J")
+                    blueprintDiagram(name = "B")
                 }
             val j = m.diagrams.filterIsInstance<JourneyDiagram>().single()
             j.visibleLayers shouldBe setOf(BlueprintLayer.CUSTOMER_ACTIONS)

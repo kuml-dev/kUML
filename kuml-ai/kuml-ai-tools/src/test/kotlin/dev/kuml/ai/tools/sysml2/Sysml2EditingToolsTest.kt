@@ -28,7 +28,7 @@ class Sysml2EditingToolsTest :
         test("add_part_def creates a top-level PartDefinition") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addPartDef("Vehicle")
+                val result = tools.addPartDef(name = "Vehicle")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 val model = (ctx.resolveModel() as AnyKumlModel.Sysml2).model
                 model.definitions shouldHaveSize 1
@@ -40,8 +40,8 @@ class Sysml2EditingToolsTest :
         test("add_part_def with owner nests inside parent") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addPartDef("Vehicle")
-                val result = tools.addPartDef("Engine", ownerIdOrName = "Vehicle")
+                tools.addPartDef(name = "Vehicle")
+                val result = tools.addPartDef(name = "Engine", ownerIdOrName = "Vehicle")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
             }
         }
@@ -49,8 +49,8 @@ class Sysml2EditingToolsTest :
         test("add_attribute_def attaches to owning part definition") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addPartDef("Vehicle")
-                val result = tools.addAttributeDef("mass", "Vehicle", "Real", unit = "kg")
+                tools.addPartDef(name = "Vehicle")
+                val result = tools.addAttributeDef(name = "mass", ownerIdOrName = "Vehicle", type = "Real", unit = "kg")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
             }
         }
@@ -58,8 +58,8 @@ class Sysml2EditingToolsTest :
         test("add_attribute_def with unit records the SysML unit") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addPartDef("Battery")
-                tools.addAttributeDef("capacity", "Battery", "Real", unit = "kWh")
+                tools.addPartDef(name = "Battery")
+                tools.addAttributeDef(name = "capacity", ownerIdOrName = "Battery", type = "Real", unit = "kWh")
                 val usages = (ctx.resolveModel() as AnyKumlModel.Sysml2).model.usages
                 usages.isNotEmpty() shouldBe true
             }
@@ -68,7 +68,7 @@ class Sysml2EditingToolsTest :
         test("add_state with isInitial flag marks initial pseudostate") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addState("Off", isInitial = true)
+                val result = tools.addState(name = "Off", isInitial = true)
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 val defs = (ctx.resolveModel() as AnyKumlModel.Sysml2).model.definitions
                 val state = defs.filterIsInstance<StateDefinition>().first()
@@ -79,8 +79,8 @@ class Sysml2EditingToolsTest :
         test("add_state in nested state-machine respects parent") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addState("On")
-                val result = tools.addState("SubState", parentIdOrName = "On")
+                tools.addState(name = "On")
+                val result = tools.addState(name = "SubState", parentIdOrName = "On")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
             }
         }
@@ -88,9 +88,16 @@ class Sysml2EditingToolsTest :
         test("add_transition with guard and action attaches both") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addState("Off", isInitial = true)
-                tools.addState("On")
-                val result = tools.addTransition("Off", "On", "powerOn", guard = "voltage > 0", action = "start()")
+                tools.addState(name = "Off", isInitial = true)
+                tools.addState(name = "On")
+                val result =
+                    tools.addTransition(
+                        sourceIdOrName = "Off",
+                        targetIdOrName = "On",
+                        trigger = "powerOn",
+                        guard = "voltage > 0",
+                        action = "start()",
+                    )
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 val usages = (ctx.resolveModel() as AnyKumlModel.Sysml2).model.usages
                 val transition = usages.filterIsInstance<TransitionUsage>().first()
@@ -102,8 +109,8 @@ class Sysml2EditingToolsTest :
         test("add_transition rejects unknown source state") {
             val (_, tools) = makeTools()
             runTest {
-                tools.addState("On")
-                val result = tools.addTransition("NonExistent", "On", "event")
+                tools.addState(name = "On")
+                val result = tools.addTransition(sourceIdOrName = "NonExistent", targetIdOrName = "On", trigger = "event")
                 result.shouldBeInstanceOf<PatchApplyResult.Failure>()
             }
         }
@@ -111,7 +118,7 @@ class Sysml2EditingToolsTest :
         test("add_use_case creates use case and auto-creates actor") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addUseCase("Place Order", actorName = "Customer")
+                val result = tools.addUseCase(name = "Place Order", actorName = "Customer")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 val defs = (ctx.resolveModel() as AnyKumlModel.Sysml2).model.definitions
                 defs.filterIsInstance<UseCaseDefinition>() shouldHaveSize 1
@@ -123,8 +130,8 @@ class Sysml2EditingToolsTest :
         test("add_use_case reuses existing actor by name") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addUseCase("Place Order", actorName = "Customer")
-                tools.addUseCase("Cancel Order", actorName = "Customer")
+                tools.addUseCase(name = "Place Order", actorName = "Customer")
+                tools.addUseCase(name = "Cancel Order", actorName = "Customer")
                 val defs = (ctx.resolveModel() as AnyKumlModel.Sysml2).model.definitions
                 // Should only have one Actor for "Customer"
                 defs.filterIsInstance<dev.kuml.sysml2.ActorDefinition>().size shouldBe 1
@@ -134,7 +141,7 @@ class Sysml2EditingToolsTest :
         test("add_requirement creates requirement with rendered id label") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addRequirement("REQ-001", "The system shall respond in <200ms")
+                val result = tools.addRequirement(reqId = "REQ-001", text = "The system shall respond in <200ms")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 val req =
                     (ctx.resolveModel() as AnyKumlModel.Sysml2)
@@ -149,8 +156,8 @@ class Sysml2EditingToolsTest :
         test("add_requirement with parentReqId links derivation") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addRequirement("REQ-001", "Top-level")
-                val result = tools.addRequirement("REQ-001.1", "Sub-requirement", parentReqId = "REQ-001")
+                tools.addRequirement(reqId = "REQ-001", text = "Top-level")
+                val result = tools.addRequirement(reqId = "REQ-001.1", text = "Sub-requirement", parentReqId = "REQ-001")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 // Both requirements should exist
                 val reqs =
@@ -164,7 +171,7 @@ class Sysml2EditingToolsTest :
         test("add_action with opaque kind creates ActionDefinition") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addAction("ProcessPayment", kind = "opaque")
+                val result = tools.addAction(name = "ProcessPayment", kind = "opaque")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 val action =
                     (ctx.resolveModel() as AnyKumlModel.Sysml2)
@@ -178,7 +185,7 @@ class Sysml2EditingToolsTest :
         test("add_action with send_signal kind creates ActionDefinition") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addAction("SendNotification", kind = "send_signal")
+                val result = tools.addAction(name = "SendNotification", kind = "send_signal")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
             }
         }
@@ -186,7 +193,7 @@ class Sysml2EditingToolsTest :
         test("add_action with invalid kind returns Failure") {
             val (_, tools) = makeTools()
             runTest {
-                val result = tools.addAction("BadAction", kind = "unknown_kind_xyz")
+                val result = tools.addAction(name = "BadAction", kind = "unknown_kind_xyz")
                 result.shouldBeInstanceOf<PatchApplyResult.Failure>()
             }
         }
@@ -194,8 +201,13 @@ class Sysml2EditingToolsTest :
         test("add_constraint attaches to part definition") {
             val (ctx, tools) = makeTools()
             runTest {
-                tools.addPartDef("Vehicle")
-                val result = tools.addConstraint("NewtonsLaw", "force == mass * acceleration", "Vehicle")
+                tools.addPartDef(name = "Vehicle")
+                val result =
+                    tools.addConstraint(
+                        name = "NewtonsLaw",
+                        expression = "force == mass * acceleration",
+                        ownerIdOrName = "Vehicle",
+                    )
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 val constraint =
                     (ctx.resolveModel() as AnyKumlModel.Sysml2)
@@ -209,7 +221,7 @@ class Sysml2EditingToolsTest :
         test("add_constraint without owner adds to top-level constraints") {
             val (ctx, tools) = makeTools()
             runTest {
-                val result = tools.addConstraint("SpeedLimit", "velocity <= 120")
+                val result = tools.addConstraint(name = "SpeedLimit", expression = "velocity <= 120")
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
                 (ctx.resolveModel() as AnyKumlModel.Sysml2)
                     .model.definitions
@@ -221,19 +233,19 @@ class Sysml2EditingToolsTest :
             val (ctx, tools) = makeTools()
             runTest {
                 // BDD
-                tools.addPartDef("Vehicle")
+                tools.addPartDef(name = "Vehicle")
                 // STM
-                tools.addState("Idle", isInitial = true)
-                tools.addState("Running")
-                tools.addTransition("Idle", "Running", "start")
+                tools.addState(name = "Idle", isInitial = true)
+                tools.addState(name = "Running")
+                tools.addTransition(sourceIdOrName = "Idle", targetIdOrName = "Running", trigger = "start")
                 // UC
-                tools.addUseCase("Drive", actorName = "Driver")
+                tools.addUseCase(name = "Drive", actorName = "Driver")
                 // REQ
-                tools.addRequirement("R-001", "Safety requirement")
+                tools.addRequirement(reqId = "R-001", text = "Safety requirement")
                 // ACT
-                tools.addAction("Accelerate")
+                tools.addAction(name = "Accelerate")
                 // PAR
-                tools.addConstraint("Physics", "F = ma")
+                tools.addConstraint(name = "Physics", expression = "F = ma")
 
                 val model = (ctx.resolveModel() as AnyKumlModel.Sysml2).model
                 model.definitions.isNotEmpty() shouldBe true

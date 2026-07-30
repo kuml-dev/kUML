@@ -26,13 +26,13 @@ class PricingTableTest :
             val table = PricingTable.loadFromResources()
             // gpt-4o: inputPer1kTokens=0.005, outputPer1kTokens=0.015
             // cost = (1000 * 0.005 + 500 * 0.015) / 1000 = (5.0 + 7.5) / 1000 = 0.0125
-            val cost = table.costUsd("openai", "gpt-4o", 1000, 500)
+            val cost = table.costUsd(providerId = "openai", modelId = "gpt-4o", tokensIn = 1000, tokensOut = 500)
             cost shouldBe 0.0125
         }
 
         test("costUsd for unknown model returns 0.0") {
             val table = PricingTable.loadFromResources()
-            val cost = table.costUsd("openai", "unknown-model-xyz-9999", 100, 100)
+            val cost = table.costUsd(providerId = "openai", modelId = "unknown-model-xyz-9999", tokensIn = 100, tokensOut = 100)
             cost.shouldBeZero()
         }
     })

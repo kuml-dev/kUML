@@ -99,7 +99,7 @@ public object ScaleCodec {
     public fun reader(
         data: ByteArray,
         maxCollectionLen: Int = DEFAULT_MAX_COLLECTION_LEN,
-    ): ScaleReader = ScaleReader(data, maxCollectionLen)
+    ): ScaleReader = ScaleReader(data = data, maxCollectionLen = maxCollectionLen)
 }
 
 /**
@@ -121,9 +121,9 @@ public class ScaleReader(
     public val position: Int get() = pos
 
     private fun require(n: Int) {
-        if (n < 0) throw ScaleException("Negative read length: $n")
+        if (n < 0) throw ScaleException(message = "Negative read length: $n")
         if (remaining < n) {
-            throw ScaleException("SCALE underflow: need $n bytes at pos $pos, but only $remaining remaining")
+            throw ScaleException(message = "SCALE underflow: need $n bytes at pos $pos, but only $remaining remaining")
         }
     }
 
@@ -136,7 +136,7 @@ public class ScaleReader(
         when (val b = readU8()) {
             0 -> false
             1 -> true
-            else -> throw ScaleException("Invalid bool discriminant: $b")
+            else -> throw ScaleException(message = "Invalid bool discriminant: $b")
         }
 
     public fun readU16(): Int {
@@ -211,7 +211,7 @@ public class ScaleReader(
             else -> {
                 val numBytes = (first ushr 2) + 4
                 if (numBytes > 8) {
-                    throw ScaleException("Compact big-integer mode wider than u64 not supported ($numBytes bytes)")
+                    throw ScaleException(message = "Compact big-integer mode wider than u64 not supported ($numBytes bytes)")
                 }
                 pos += 1
                 require(numBytes)
@@ -231,7 +231,7 @@ public class ScaleReader(
     public fun readCollectionLen(): Int {
         val len = readCompact()
         if (len < 0 || len > maxCollectionLen) {
-            throw ScaleException("Collection length $len exceeds max $maxCollectionLen (possible DoS)")
+            throw ScaleException(message = "Collection length $len exceeds max $maxCollectionLen (possible DoS)")
         }
         return len.toInt()
     }
@@ -256,7 +256,7 @@ public class ScaleReader(
         when (val tag = readU8()) {
             0 -> null
             1 -> element(this)
-            else -> throw ScaleException("Invalid Option discriminant: $tag")
+            else -> throw ScaleException(message = "Invalid Option discriminant: $tag")
         }
 
     /** Liest Result<T, E> (0x00 = Ok, 0x01 = Err) als [ScaleResult]. */
@@ -267,7 +267,7 @@ public class ScaleReader(
         when (val tag = readU8()) {
             0 -> ScaleResult.Ok(ok(this))
             1 -> ScaleResult.Err(err(this))
-            else -> throw ScaleException("Invalid Result discriminant: $tag")
+            else -> throw ScaleException(message = "Invalid Result discriminant: $tag")
         }
 
     /** Liest einen SCALE-kodierten UTF-8 String (Vec<u8>). */

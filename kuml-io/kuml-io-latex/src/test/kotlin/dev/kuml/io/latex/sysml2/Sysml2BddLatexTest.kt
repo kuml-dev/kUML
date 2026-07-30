@@ -53,20 +53,24 @@ class Sysml2BddLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(280f, 200f),
-                    nodes = mapOf(NodeId("Vehicle") to NodeLayout(bounds = Rect(Point(20f, 20f), Size(240f, 160f)))),
+                    canvas = Size(width = 280f, height = 200f),
+                    nodes =
+                        mapOf(
+                            NodeId("Vehicle") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 240f, height = 160f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(model, bdd, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = bdd, layoutResult = layout)
 
             tex shouldContain "\\begin{tikzpicture}"
             tex shouldContain "\\guillemotleft{}part def\\guillemotright{}"
             tex shouldContain "Vehicle"
             tex shouldContain "curbWeight : Mass = 1500.0[kg]"
 
-            SampleOutput.write("sysml2-bdd/single-part-with-attribute.tex", tex)
+            SampleOutput.write(filename = "sysml2-bdd/single-part-with-attribute.tex", content = tex)
         }
 
         "Standalone-Modus produziert kompilierbares .tex-File" {
@@ -77,18 +81,22 @@ class Sysml2BddLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(220f, 160f),
-                    nodes = mapOf(NodeId("Vehicle") to NodeLayout(bounds = Rect(Point(10f, 10f), Size(200f, 140f)))),
+                    canvas = Size(width = 220f, height = 160f),
+                    nodes =
+                        mapOf(
+                            NodeId("Vehicle") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 200f, height = 140f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
             val tex =
                 KumlLatexRenderer.toLatex(
-                    model,
-                    bdd,
-                    layout,
-                    LatexRenderOptions(standalone = true),
+                    model = model,
+                    diagram = bdd,
+                    layoutResult = layout,
+                    options = LatexRenderOptions(standalone = true),
                 )
 
             tex shouldContain "\\documentclass[border=10pt]{standalone}"
@@ -97,7 +105,7 @@ class Sysml2BddLatexTest :
             tex shouldContain "\\end{document}"
             tex shouldContain "kuml-classname-abstract"
 
-            SampleOutput.write("sysml2-bdd/abstract-part-standalone.tex", tex)
+            SampleOutput.write(filename = "sysml2-bdd/abstract-part-standalone.tex", content = tex)
         }
 
         "AttributeDefinition + PortDefinition picken die jeweiligen Stereotype" {
@@ -109,22 +117,24 @@ class Sysml2BddLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(440f, 180f),
+                    canvas = Size(width = 440f, height = 180f),
                     nodes =
                         mapOf(
-                            NodeId("Mass") to NodeLayout(bounds = Rect(Point(20f, 20f), Size(180f, 120f))),
-                            NodeId("PowerPort") to NodeLayout(bounds = Rect(Point(240f, 20f), Size(180f, 120f))),
+                            NodeId("Mass") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 120f))),
+                            NodeId("PowerPort") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 240f, y = 20f), size = Size(width = 180f, height = 120f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(model, bdd, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = bdd, layoutResult = layout)
 
             tex shouldContain "attribute def"
             tex shouldContain "port def"
 
-            SampleOutput.write("sysml2-bdd/attribute-and-port-defs.tex", tex)
+            SampleOutput.write(filename = "sysml2-bdd/attribute-and-port-defs.tex", content = tex)
         }
 
         "Specialisation between two parts renders as a generalisation edge" {
@@ -141,18 +151,20 @@ class Sysml2BddLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(420f, 360f),
+                    canvas = Size(width = 420f, height = 360f),
                     nodes =
                         mapOf(
-                            NodeId("Vehicle") to NodeLayout(bounds = Rect(Point(120f, 20f), Size(180f, 100f))),
-                            NodeId("HybridVehicle") to NodeLayout(bounds = Rect(Point(120f, 180f), Size(180f, 100f))),
+                            NodeId("Vehicle") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 120f, y = 20f), size = Size(width = 180f, height = 100f))),
+                            NodeId("HybridVehicle") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 120f, y = 180f), size = Size(width = 180f, height = 100f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("gen:HybridVehicle::Vehicle") to
                                 EdgeRoute.OrthogonalRounded(
-                                    source = Point(210f, 180f),
-                                    target = Point(210f, 120f),
+                                    source = Point(x = 210f, y = 180f),
+                                    target = Point(x = 210f, y = 120f),
                                     waypoints = emptyList(),
                                     cornerRadiusPx = 4f,
                                 ),
@@ -160,10 +172,10 @@ class Sysml2BddLatexTest :
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(model, bdd, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = bdd, layoutResult = layout)
             tex shouldContain "Vehicle"
             tex shouldContain "HybridVehicle"
-            SampleOutput.write("sysml2-bdd/specialisation.tex", tex)
+            SampleOutput.write(filename = "sysml2-bdd/specialisation.tex", content = tex)
         }
 
         "deterministic output" {
@@ -174,13 +186,17 @@ class Sysml2BddLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(200f, 140f),
-                    nodes = mapOf(NodeId("V") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(200f, 140f)))),
+                    canvas = Size(width = 200f, height = 140f),
+                    nodes =
+                        mapOf(
+                            NodeId("V") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 200f, height = 140f))),
+                        ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val one = KumlLatexRenderer.toLatex(model, bdd, layout)
-            val two = KumlLatexRenderer.toLatex(model, bdd, layout)
+            val one = KumlLatexRenderer.toLatex(model = model, diagram = bdd, layoutResult = layout)
+            val two = KumlLatexRenderer.toLatex(model = model, diagram = bdd, layoutResult = layout)
             one shouldBe two
         }
     })

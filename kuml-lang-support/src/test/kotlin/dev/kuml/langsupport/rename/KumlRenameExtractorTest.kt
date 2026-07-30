@@ -12,7 +12,7 @@ class KumlRenameExtractorTest :
 
         test("finds string literal in classOf(name = \"Order\")") {
             val text = """classOf(name = "Order") { }"""
-            val candidates = KumlRenameExtractor.findRenameCandidates(text, "Order")
+            val candidates = KumlRenameExtractor.findRenameCandidates(text = text, name = "Order")
 
             candidates shouldHaveSize 1
             val c = candidates.first()
@@ -24,7 +24,7 @@ class KumlRenameExtractorTest :
 
         test("finds positional string literal in partDef(\"Vehicle\")") {
             val text = """partDef("Vehicle") { }"""
-            val candidates = KumlRenameExtractor.findRenameCandidates(text, "Vehicle")
+            val candidates = KumlRenameExtractor.findRenameCandidates(text = text, name = "Vehicle")
 
             candidates shouldHaveSize 1
             val c = candidates.first()
@@ -38,7 +38,7 @@ class KumlRenameExtractorTest :
                 classOf(name = "Order") { }
                 association(source = "Order", target = "Item")
                 """.trimIndent()
-            val candidates = KumlRenameExtractor.findRenameCandidates(text, "Order")
+            val candidates = KumlRenameExtractor.findRenameCandidates(text = text, name = "Order")
 
             // Both string-literal occurrences should be found
             val literals = candidates.filter { it.kind == KumlRenameExtractor.Kind.STRING_LITERAL }
@@ -53,7 +53,7 @@ class KumlRenameExtractorTest :
                 """
                 val OrderItem = classOf(name = "Order")
                 """.trimIndent()
-            val candidates = KumlRenameExtractor.findRenameCandidates(text, "Order")
+            val candidates = KumlRenameExtractor.findRenameCandidates(text = text, name = "Order")
 
             // Only the string literal "Order" should match; not the prefix of OrderItem
             val varRefs = candidates.filter { it.kind == KumlRenameExtractor.Kind.VARIABLE_REF }
@@ -76,7 +76,7 @@ class KumlRenameExtractorTest :
                 // classOf(name = "Order") — this is a comment
                 classOf(name = "User") { }
                 """.trimIndent()
-            val candidates = KumlRenameExtractor.findRenameCandidates(text, "Order")
+            val candidates = KumlRenameExtractor.findRenameCandidates(text = text, name = "Order")
 
             candidates.shouldBeEmpty()
         }
@@ -87,7 +87,7 @@ class KumlRenameExtractorTest :
                 /* classOf(name = "Order") is the old name */
                 classOf(name = "NewName") { }
                 """.trimIndent()
-            val candidates = KumlRenameExtractor.findRenameCandidates(text, "Order")
+            val candidates = KumlRenameExtractor.findRenameCandidates(text = text, name = "Order")
 
             candidates.shouldBeEmpty()
         }
@@ -96,7 +96,7 @@ class KumlRenameExtractorTest :
 
         test("string literal offset points to name without quotes") {
             val text = """partDef("Engine")"""
-            val candidates = KumlRenameExtractor.findRenameCandidates(text, "Engine")
+            val candidates = KumlRenameExtractor.findRenameCandidates(text = text, name = "Engine")
 
             candidates shouldHaveSize 1
             val c = candidates.first()
@@ -108,11 +108,11 @@ class KumlRenameExtractorTest :
         // ── Empty/blank guards ────────────────────────────────────────────────
 
         test("returns empty list for blank text") {
-            KumlRenameExtractor.findRenameCandidates("   ", "Order").shouldBeEmpty()
+            KumlRenameExtractor.findRenameCandidates(text = "   ", name = "Order").shouldBeEmpty()
         }
 
         test("returns empty list for blank name") {
-            KumlRenameExtractor.findRenameCandidates("""classOf(name = "Order")""", "").shouldBeEmpty()
+            KumlRenameExtractor.findRenameCandidates(text = """classOf(name = "Order")""", name = "").shouldBeEmpty()
         }
 
         // ── Ordering ──────────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ class KumlRenameExtractorTest :
                 classOf(name = "Order") { }
                 interfaceOf(name = "Order") { }
                 """.trimIndent()
-            val candidates = KumlRenameExtractor.findRenameCandidates(text, "Order")
+            val candidates = KumlRenameExtractor.findRenameCandidates(text = text, name = "Order")
 
             val offsets = candidates.map { it.offset }
             offsets shouldBe offsets.sorted()

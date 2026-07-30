@@ -26,26 +26,26 @@ internal object EdgePathBuilder {
      */
     fun build(route: EdgeRoute): Pair<String, Map<String, String>> =
         when (route) {
-            is EdgeRoute.Direct -> buildDirect(route.source, route.target)
+            is EdgeRoute.Direct -> buildDirect(src = route.source, tgt = route.target)
             is EdgeRoute.OrthogonalRounded ->
                 buildOrthogonal(
-                    route.source,
-                    route.target,
-                    route.waypoints,
-                    route.cornerRadiusPx,
+                    src = route.source,
+                    tgt = route.target,
+                    waypoints = route.waypoints,
+                    radius = route.cornerRadiusPx,
                 )
             is EdgeRoute.TreeRounded ->
                 buildOrthogonal(
-                    route.source,
-                    route.target,
-                    route.waypoints,
-                    route.cornerRadiusPx,
+                    src = route.source,
+                    tgt = route.target,
+                    waypoints = route.waypoints,
+                    radius = route.cornerRadiusPx,
                 )
             is EdgeRoute.Bezier ->
                 buildBezier(
-                    route.source,
-                    route.target,
-                    route.controlPoints,
+                    src = route.source,
+                    tgt = route.target,
+                    controlPoints = route.controlPoints,
                 )
         }
 
@@ -55,11 +55,11 @@ internal object EdgePathBuilder {
             is EdgeRoute.Direct ->
                 "M ${fmt(route.source.x)} ${fmt(route.source.y)} L ${fmt(route.target.x)} ${fmt(route.target.y)}"
             is EdgeRoute.OrthogonalRounded ->
-                orthogonalPathData(route.source, route.target, route.waypoints, route.cornerRadiusPx)
+                orthogonalPathData(src = route.source, tgt = route.target, waypoints = route.waypoints, radius = route.cornerRadiusPx)
             is EdgeRoute.TreeRounded ->
-                orthogonalPathData(route.source, route.target, route.waypoints, route.cornerRadiusPx)
+                orthogonalPathData(src = route.source, tgt = route.target, waypoints = route.waypoints, radius = route.cornerRadiusPx)
             is EdgeRoute.Bezier ->
-                bezierPathData(route.source, route.target, route.controlPoints)
+                bezierPathData(src = route.source, tgt = route.target, controlPoints = route.controlPoints)
         }
 
     // ── Private builders ──────────────────────────────────────────────────────
@@ -81,13 +81,14 @@ internal object EdgePathBuilder {
         tgt: Point,
         waypoints: List<Point>,
         radius: Float,
-    ): Pair<String, Map<String, String>> = "path" to mapOf("d" to orthogonalPathData(src, tgt, waypoints, radius))
+    ): Pair<String, Map<String, String>> =
+        "path" to mapOf("d" to orthogonalPathData(src = src, tgt = tgt, waypoints = waypoints, radius = radius))
 
     private fun buildBezier(
         src: Point,
         tgt: Point,
         controlPoints: List<Point>,
-    ): Pair<String, Map<String, String>> = "path" to mapOf("d" to bezierPathData(src, tgt, controlPoints))
+    ): Pair<String, Map<String, String>> = "path" to mapOf("d" to bezierPathData(src = src, tgt = tgt, controlPoints = controlPoints))
 
     private fun orthogonalPathData(
         src: Point,
@@ -108,20 +109,20 @@ internal object EdgePathBuilder {
 
             if (radius > 0f && next != null) {
                 // Compute actual radius clamped to segment length
-                val segLen = segmentLength(prev, curr)
-                val nextSegLen = segmentLength(curr, next)
+                val segLen = segmentLength(a = prev, b = curr)
+                val nextSegLen = segmentLength(a = curr, b = next)
                 val r = min(radius, min(segLen / 2f, nextSegLen / 2f))
 
                 // Point before the corner
-                val beforeX = curr.x - r * normalize(curr.x - prev.x, segLen)
-                val beforeY = curr.y - r * normalize(curr.y - prev.y, segLen)
+                val beforeX = curr.x - r * normalize(delta = curr.x - prev.x, length = segLen)
+                val beforeY = curr.y - r * normalize(delta = curr.y - prev.y, length = segLen)
                 // Point after the corner
-                val afterX = curr.x + r * normalize(next.x - curr.x, nextSegLen)
-                val afterY = curr.y + r * normalize(next.y - curr.y, nextSegLen)
+                val afterX = curr.x + r * normalize(delta = next.x - curr.x, length = nextSegLen)
+                val afterY = curr.y + r * normalize(delta = next.y - curr.y, length = nextSegLen)
 
                 sb.append(" L ${fmt(beforeX)} ${fmt(beforeY)}")
                 // sweep-flag: 0 or 1 depending on turn direction
-                val sweep = if (crossProduct(prev, curr, next) > 0) 1 else 0
+                val sweep = if (crossProduct(p1 = prev, p2 = curr, p3 = next) > 0) 1 else 0
                 sb.append(" A ${fmt(r)} ${fmt(r)} 0 0 $sweep ${fmt(afterX)} ${fmt(afterY)}")
             } else {
                 sb.append(" L ${fmt(curr.x)} ${fmt(curr.y)}")

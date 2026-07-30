@@ -43,12 +43,12 @@ internal object UmlPropertyAccessor {
         model: List<Any> = emptyList(),
     ): Any? =
         try {
-            getKnown(self, prop)
+            getKnown(self = self, prop = prop)
         } catch (e: OclEvaluationException) {
             if (self !is UmlClassifier) throw e
-            val declared = resolveDeclaredAttribute(self, prop)
+            val declared = resolveDeclaredAttribute(self = self, prop = prop)
             if (declared !== NOT_FOUND) return declared
-            val resolved = resolveAssociationEnd(self, prop, model)
+            val resolved = resolveAssociationEnd(self = self, prop = prop, model = model)
             if (resolved === NOT_FOUND) throw e
             resolved
         }
@@ -120,7 +120,7 @@ internal object UmlPropertyAccessor {
             self is UmlCollaboration && prop == "roles" -> self.roles
             self is UmlCollaboration && prop == "name" -> self.name
             else -> throw OclEvaluationException(
-                "Cannot navigate property '$prop' on ${self::class.simpleName}",
+                message = "Cannot navigate property '$prop' on ${self::class.simpleName}",
             )
         }
 

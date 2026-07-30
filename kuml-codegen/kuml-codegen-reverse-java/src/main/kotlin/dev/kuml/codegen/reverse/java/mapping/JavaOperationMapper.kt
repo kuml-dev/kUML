@@ -18,14 +18,14 @@ internal object JavaOperationMapper {
         val isStatic = method.modifiers.any { it.keyword == Modifier.Keyword.STATIC }
 
         val returnTypeName = mapTypeName(method.typeAsString)
-        val returnType = if (returnTypeName == "void") UmlTypeRef("void") else UmlTypeRef(returnTypeName)
+        val returnType = if (returnTypeName == "void") UmlTypeRef(name = "void") else UmlTypeRef(name = returnTypeName)
 
         val parameters =
             method.parameters.mapIndexed { idx, param ->
                 UmlParameter(
                     id = "$classId.${method.nameAsString}.param$idx",
                     name = param.nameAsString,
-                    type = UmlTypeRef(mapTypeName(param.typeAsString)),
+                    type = UmlTypeRef(name = mapTypeName(param.typeAsString)),
                     direction = ParameterDirection.IN,
                 )
             }

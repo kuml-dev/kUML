@@ -117,7 +117,7 @@ public class ObjectDiagramBuilder(
     ): UmlInstanceSpecification {
         val instanceId =
             id ?: UmlIds.disambiguate(
-                candidate = UmlIds.child(containerId, "${name.ifEmpty { "anon" }}@${classifier.name}"),
+                candidate = UmlIds.child(parentId = containerId, name = "${name.ifEmpty { "anon" }}@${classifier.name}"),
                 taken = takenIds,
             )
         val builder = UmlInstanceSpecificationBuilder(classifier = classifier)

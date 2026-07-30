@@ -13,13 +13,14 @@ class KtAssociationDetectorTest :
         test("property with internal classifier type creates UmlAssociation") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Domain.kt" to
-                            """
-                            class Engine(val horsepower: Int)
-                            class Car(val engine: Engine)
-                            """.trimIndent(),
-                    ),
+                    sources =
+                        mapOf(
+                            "Domain.kt" to
+                                """
+                                class Engine(val horsepower: Int)
+                                class Car(val engine: Engine)
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val diagram = success.model.root as KumlDiagram

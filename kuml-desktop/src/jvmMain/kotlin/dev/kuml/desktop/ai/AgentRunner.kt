@@ -75,20 +75,20 @@ class AgentRunner(
                         return@flow
                     }
 
-                val koogPrompt = buildPrompt(history, executor.currentSettings().systemPrompt)
+                val koogPrompt = buildPrompt(history = history, systemPrompt = executor.currentSettings().systemPrompt)
 
                 // Koog 1.0.0: execute() returns Message.Assistant directly.
                 val response =
                     if (executorFn != null) {
                         executorFn.invoke(koogPrompt, model)
                     } else {
-                        executor.execute(koogPrompt, model)
+                        executor.execute(prompt = koogPrompt, model = model)
                     }
 
                 // textContent() collapses all text MessageParts into a single String.
                 val fullText = response.textContent()
                 if (fullText.isNotBlank()) {
-                    emit(AgentEvent.AssistantDelta(fullText, providerId, modelId))
+                    emit(AgentEvent.AssistantDelta(delta = fullText, providerId = providerId, modelId = modelId))
                 }
 
                 // V3.0.25: Decode tool calls into ModelPatch and buffer.
@@ -97,14 +97,14 @@ class AgentRunner(
                 for (tc in toolCalls) {
                     val callId = UUID.randomUUID().toString()
                     // tc.tool = tool name, tc.argsJson = args as JsonObject
-                    emit(AgentEvent.ToolCallStart(callId, tc.tool, tc.argsJson.toString()))
+                    emit(AgentEvent.ToolCallStart(callId = callId, tool = tc.tool, argsJson = tc.argsJson.toString()))
 
                     // V3.0.25: Attempt to decode and buffer the patch
                     if (patchEngine != null) {
-                        val patch = runCatching { decodePatch(tc.tool, tc.argsJson.toString()) }.getOrNull()
+                        val patch = runCatching { decodePatch(toolName = tc.tool, argsJson = tc.argsJson.toString()) }.getOrNull()
                         if (patch != null) {
                             runCatching { patchEngine.buffer(patch) }
-                            emit(AgentEvent.PatchBuffered(patch.patchId, patch::class.simpleName ?: "unknown"))
+                            emit(AgentEvent.PatchBuffered(patchId = patch.patchId, kind = patch::class.simpleName ?: "unknown"))
                         }
                     }
 
@@ -134,9 +134,9 @@ class AgentRunner(
     internal fun decodePatch(
         toolName: String,
         argsJson: String,
-    ): ModelPatch? = decoder.decode(toolName, argsJson)
+    ): ModelPatch? = decoder.decode(toolName = toolName, argsJson = argsJson)
 
-    private fun resolveModel(): LLModel? = registry.resolveModel(providerId, modelId)
+    private fun resolveModel(): LLModel? = registry.resolveModel(providerId = providerId, modelId = modelId)
 
     internal fun buildPrompt(
         history: List<ConversationMessage>,

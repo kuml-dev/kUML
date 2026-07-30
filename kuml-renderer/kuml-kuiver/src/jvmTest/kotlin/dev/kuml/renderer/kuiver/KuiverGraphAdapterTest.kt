@@ -21,7 +21,7 @@ class KuiverGraphAdapterTest {
     ) = LayoutResult(
         engineId = LayoutEngineId("test"),
         seed = null,
-        canvas = Size(800f, 600f),
+        canvas = Size(width = 800f, height = 600f),
         nodes = nodes,
         edges = edges,
         groups = emptyMap(),
@@ -33,7 +33,7 @@ class KuiverGraphAdapterTest {
         w: Float,
         h: Float,
     ) = NodeLayout(
-        bounds = Rect(origin = Point(x, y), size = Size(w, h)),
+        bounds = Rect(origin = Point(x = x, y = y), size = Size(width = w, height = h)),
     )
 
     @Test
@@ -42,9 +42,9 @@ class KuiverGraphAdapterTest {
             layoutResult(
                 nodes =
                     mapOf(
-                        NodeId("A") to nodeLayout(0f, 0f, 100f, 40f),
-                        NodeId("B") to nodeLayout(200f, 0f, 100f, 40f),
-                        NodeId("C") to nodeLayout(400f, 0f, 100f, 40f),
+                        NodeId("A") to nodeLayout(x = 0f, y = 0f, w = 100f, h = 40f),
+                        NodeId("B") to nodeLayout(x = 200f, y = 0f, w = 100f, h = 40f),
+                        NodeId("C") to nodeLayout(x = 400f, y = 0f, w = 100f, h = 40f),
                     ),
             )
         val kuiver = KuiverGraphAdapter.toKuiver(result)
@@ -58,12 +58,12 @@ class KuiverGraphAdapterTest {
     fun `KuiverGraphAdapter copies all edges from LayoutResult`() {
         val nodeMap =
             mapOf(
-                NodeId("X") to nodeLayout(0f, 0f, 80f, 30f),
-                NodeId("Y") to nodeLayout(100f, 0f, 80f, 30f),
+                NodeId("X") to nodeLayout(x = 0f, y = 0f, w = 80f, h = 30f),
+                NodeId("Y") to nodeLayout(x = 100f, y = 0f, w = 80f, h = 30f),
             )
         val edgeMap =
             mapOf(
-                EdgeId("X--Y") to EdgeRoute.Direct(Point(80f, 15f), Point(100f, 15f)),
+                EdgeId("X--Y") to EdgeRoute.Direct(source = Point(x = 80f, y = 15f), target = Point(x = 100f, y = 15f)),
             )
         val result = layoutResult(nodes = nodeMap, edges = edgeMap)
         val kuiver = KuiverGraphAdapter.toKuiver(result)
@@ -79,7 +79,7 @@ class KuiverGraphAdapterTest {
             layoutResult(
                 nodes =
                     mapOf(
-                        NodeId("N1") to nodeLayout(10f, 20f, 120f, 60f),
+                        NodeId("N1") to nodeLayout(x = 10f, y = 20f, w = 120f, h = 60f),
                     ),
             )
         val kuiver = KuiverGraphAdapter.toKuiver(result)
@@ -98,8 +98,8 @@ class KuiverGraphAdapterTest {
             layoutResult(
                 nodes =
                     mapOf(
-                        NodeId("P1") to nodeLayout(50f, 75f, 80f, 40f),
-                        NodeId("P2") to nodeLayout(200f, 75f, 80f, 40f),
+                        NodeId("P1") to nodeLayout(x = 50f, y = 75f, w = 80f, h = 40f),
+                        NodeId("P2") to nodeLayout(x = 200f, y = 75f, w = 80f, h = 40f),
                     ),
             )
         val config = KuiverGraphAdapter.layoutConfig(result)

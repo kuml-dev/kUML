@@ -78,7 +78,7 @@ class AiPanelState(
         val diff: PatchDiff,
     )
 
-    private var editingContext: AgentEditingContext = AgentEditingContext(AnyKumlModel.emptyUml())
+    private var editingContext: AgentEditingContext = AgentEditingContext(initialModel = AnyKumlModel.emptyUml())
     private var patchEngine: PatchApplyEngine = createEngine()
 
     private val _pendingPatches = MutableStateFlow<List<PendingPatchView>>(emptyList())
@@ -95,7 +95,7 @@ class AiPanelState(
 
     fun send(userText: String) {
         if (isRunning || userText.isBlank()) return
-        appendMessage(ConversationMessage.User(uuid(), now(), userText.trim()))
+        appendMessage(ConversationMessage.User(id = uuid(), timestamp = now(), text = userText.trim()))
         runAgent()
     }
 
@@ -116,7 +116,7 @@ class AiPanelState(
         tokensOut = 0
         estimatedCostUsd = 0.0
         scope.launch(Dispatchers.IO) {
-            editingContext = AgentEditingContext(AnyKumlModel.emptyUml())
+            editingContext = AgentEditingContext(initialModel = AnyKumlModel.emptyUml())
             patchEngine = createEngine()
         }
     }
@@ -149,7 +149,7 @@ class AiPanelState(
     }
 
     suspend fun rejectOne(patchId: String) {
-        patchEngine.rejectOne(patchId)
+        patchEngine.rejectOne(patchId = patchId)
         refreshPendingPatches()
         if (_pendingPatches.value.isEmpty()) withContext(Dispatchers.Main) { showPatchDialog = false }
     }
@@ -187,14 +187,14 @@ class AiPanelState(
             scope.launch(Dispatchers.IO) {
                 isRunning = true
                 try {
-                    val executor = KumlAiExecutor.fromSettings(aiSettings, vault)
+                    val executor = KumlAiExecutor.fromSettings(settings = aiSettings, vault = vault)
                     val runner =
                         AgentRunner(
-                            executor,
-                            selectedProviderId,
-                            selectedModelId,
-                            editingContext,
-                            patchEngine,
+                            executor = executor,
+                            providerId = selectedProviderId,
+                            modelId = selectedModelId,
+                            editingContext = editingContext,
+                            patchEngine = patchEngine,
                             useOrchestration = useOrchestration,
                         )
                     runner.runConversation(_messages.value).collect { ev -> handleEvent(ev) }
@@ -212,14 +212,14 @@ class AiPanelState(
     private suspend fun handleEvent(ev: AgentEvent) =
         withContext(Dispatchers.Main) {
             when (ev) {
-                is AgentEvent.AssistantDelta -> appendOrUpdateStreaming(ev.delta, ev.providerId, ev.modelId)
+                is AgentEvent.AssistantDelta -> appendOrUpdateStreaming(delta = ev.delta, providerId = ev.providerId, modelId = ev.modelId)
                 is AgentEvent.ToolCallStart ->
                     appendMessage(
-                        ConversationMessage.ToolCall(ev.callId, now(), ev.tool, ev.argsJson),
+                        ConversationMessage.ToolCall(id = ev.callId, timestamp = now(), toolName = ev.tool, argsJson = ev.argsJson),
                     )
-                is AgentEvent.ToolCallEnd -> updateToolCallEnd(ev.callId, ev.resultJson, ev.isError)
+                is AgentEvent.ToolCallEnd -> updateToolCallEnd(callId = ev.callId, resultJson = ev.resultJson, isError = ev.isError)
                 is AgentEvent.TokenUsage -> {
-                    usageTracker.accumulate(ev.providerId, ev.modelId, ev.inTok, ev.outTok)
+                    usageTracker.accumulate(providerId = ev.providerId, modelId = ev.modelId, inTok = ev.inTok, outTok = ev.outTok)
                     tokensIn = usageTracker.tokensIn
                     tokensOut = usageTracker.tokensOut
                     estimatedCostUsd = usageTracker.costUsd
@@ -305,12 +305,12 @@ class AiPanelState(
             } else {
                 msg
             }
-        } + ConversationMessage.ToolResult(uuid(), now(), callId, resultJson, isError)
+        } + ConversationMessage.ToolResult(id = uuid(), timestamp = now(), toolCallId = callId, resultJson = resultJson, isError = isError)
     }
 
     private fun emitError(t: Throwable) {
         val (msg, cause) = mapError(t)
-        appendMessage(ConversationMessage.ErrorMessage(uuid(), now(), msg, cause))
+        appendMessage(ConversationMessage.ErrorMessage(id = uuid(), timestamp = now(), message = msg, cause = cause))
         scope.launch { _toasts.emit(msg) }
     }
 
@@ -339,7 +339,7 @@ class AiPanelState(
         val views =
             ids.mapNotNull { id ->
                 runCatching { patchEngine.diff(id) }.getOrNull()?.let { diff ->
-                    PendingPatchView(id, diff.elementChanges.firstOrNull()?.kind ?: "patch", diff)
+                    PendingPatchView(patchId = id, kind = diff.elementChanges.firstOrNull()?.kind ?: "patch", diff = diff)
                 }
             }
         withContext(Dispatchers.Main) { _pendingPatches.value = views }

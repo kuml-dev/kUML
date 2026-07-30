@@ -39,10 +39,10 @@ internal object UmlClassLatexRenderer {
         out: StringBuilder,
     ) {
         when (classifier) {
-            is UmlClass -> renderClass(classifier, nodeId, layout, options, out)
-            is UmlInterface -> renderInterface(classifier, nodeId, layout, options, out)
-            is UmlEnumeration -> renderEnum(classifier, nodeId, layout, options, out)
-            else -> renderFallback(nodeId, layout, options, out, label = classifier.name)
+            is UmlClass -> renderClass(cls = classifier, nodeId = nodeId, layout = layout, options = options, out = out)
+            is UmlInterface -> renderInterface(iface = classifier, nodeId = nodeId, layout = layout, options = options, out = out)
+            is UmlEnumeration -> renderEnum(enum = classifier, nodeId = nodeId, layout = layout, options = options, out = out)
+            else -> renderFallback(nodeId = nodeId, layout = layout, options = options, out = out, label = classifier.name)
         }
     }
 
@@ -185,13 +185,13 @@ internal object UmlClassLatexRenderer {
         // Track running top-y in TikZ coords (y points DOWN in layout, so we
         // subtract going down the box).
         var cursorY = y
-        val nameLine = formatClassHeader(stereotypes, headerName)
+        val nameLine = formatClassHeader(stereotypes = stereotypes, name = headerName)
 
         // Header compartment.
         val headerH = heights[0]
         appendCompartmentLabel(
-            out,
-            options,
+            out = out,
+            options = options,
             cx = x + w / 2f,
             cyTop = cursorY,
             height = headerH,
@@ -203,15 +203,15 @@ internal object UmlClassLatexRenderer {
         // Divider after header (if there's a body).
         var heightIdx = 1
         if (showAttributesCompartment) {
-            appendDivider(out, options, x, cursorY, w)
+            appendDivider(out = out, options = options, x = x, y = cursorY, w = w)
             val ch = heights[heightIdx++]
-            appendCompartmentText(out, options, x, cursorY, w, ch, attributes)
+            appendCompartmentText(out = out, options = options, x = x, yTop = cursorY, w = w, h = ch, lines = attributes)
             cursorY += ch
         }
         if (showOperationsCompartment) {
-            appendDivider(out, options, x, cursorY, w)
+            appendDivider(out = out, options = options, x = x, y = cursorY, w = w)
             val ch = heights[heightIdx]
-            appendCompartmentText(out, options, x, cursorY, w, ch, operations)
+            appendCompartmentText(out = out, options = options, x = x, yTop = cursorY, w = w, h = ch, lines = operations)
         }
     }
 

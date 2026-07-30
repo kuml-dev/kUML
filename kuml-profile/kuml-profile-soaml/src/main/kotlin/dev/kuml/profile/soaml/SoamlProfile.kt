@@ -14,54 +14,54 @@ import dev.kuml.profile.builder.profile
  * Reference: OMG Service oriented architecture Modeling Language (SoaML) 1.0
  */
 public val soamlProfile: KumlProfile =
-    profile("SoaML") {
+    profile(name = "SoaML") {
         namespace = "dev.kuml.profiles.soaml"
         description = "OMG Service oriented architecture Modeling Language"
         version = "1.0.0"
 
         // ── Participants and interfaces ───────────────────────────────────────────
 
-        stereotype("Participant") {
+        stereotype(name = "Participant") {
             extends(UmlMetaclass.Component)
-            constraint("participant-has-port") {
+            constraint(name = "participant-has-port") {
                 ocl("self.ownedPort->notEmpty()")
             }
         }
 
-        stereotype("ServiceInterface") {
+        stereotype(name = "ServiceInterface") {
             extends(UmlMetaclass.Interface)
         }
 
         // ── Ports ────────────────────────────────────────────────────────────────
 
-        stereotype("Service") {
+        stereotype(name = "Service") {
             extends(UmlMetaclass.Port)
         }
 
-        stereotype("Request") {
+        stereotype(name = "Request") {
             extends(UmlMetaclass.Port)
         }
 
         // ── Contracts and architectures ──────────────────────────────────────────
 
-        stereotype("ServiceContract") {
+        stereotype(name = "ServiceContract") {
             extends(UmlMetaclass.Collaboration)
-            constraint("contract-has-two-roles") {
+            constraint(name = "contract-has-two-roles") {
                 ocl("self.role->size() >= 2")
             }
         }
 
-        stereotype("ServicesArchitecture") {
+        stereotype(name = "ServicesArchitecture") {
             extends(UmlMetaclass.Collaboration)
         }
 
         // ── Channels and message types ───────────────────────────────────────────
 
-        stereotype("ServiceChannel") {
+        stereotype(name = "ServiceChannel") {
             extends(UmlMetaclass.Connector)
         }
 
-        stereotype("MessageType") {
+        stereotype(name = "MessageType") {
             extends(UmlMetaclass.Class)
         }
     }

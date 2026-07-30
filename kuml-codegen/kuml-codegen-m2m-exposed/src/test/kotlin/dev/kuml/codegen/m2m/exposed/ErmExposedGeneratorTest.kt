@@ -28,13 +28,13 @@ class ErmExposedGeneratorTest :
 
         test("writes one file per entity to the output directory") {
             val model =
-                ermModel("M") {
-                    entity("users") { id("id", ErmDataType.Integer(64)) }
-                    entity("products") { id("id", ErmDataType.Integer(64)) }
+                ermModel(name = "M") {
+                    entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    entity(name = "products") { id(name = "id", type = ErmDataType.Integer(64)) }
                 }
             val out = Files.createTempDirectory("kuml-erm-exposed-test").toFile()
             try {
-                val files = generator.generate(model, out, emptyMap())
+                val files = generator.generate(model = model, outputDir = out, options = emptyMap())
                 files shouldHaveSize 2
                 files.map { it.name }.toSet() shouldBe setOf("Users.kt", "Products.kt")
                 files.forEach { it.readText() shouldContain "public object" }
@@ -44,10 +44,10 @@ class ErmExposedGeneratorTest :
         }
 
         test("--package option is honored") {
-            val model = ermModel("M") { entity("users") { id("id", ErmDataType.Integer(64)) } }
+            val model = ermModel(name = "M") { entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) } }
             val out = Files.createTempDirectory("kuml-erm-exposed-test").toFile()
             try {
-                val files = generator.generate(model, out, mapOf("package" to "org.myapp.tables"))
+                val files = generator.generate(model = model, outputDir = out, options = mapOf("package" to "org.myapp.tables"))
                 files.single().readText() shouldContain "package org.myapp.tables"
             } finally {
                 out.deleteRecursively()
@@ -55,22 +55,22 @@ class ErmExposedGeneratorTest :
         }
 
         test("invalid model throws CodeGenerationException instead of writing files") {
-            val model = ermModel("Empty") {}
+            val model = ermModel(name = "Empty") {}
             val out = Files.createTempDirectory("kuml-erm-exposed-test").toFile()
             try {
-                shouldThrow<CodeGenerationException> { generator.generate(model, out, emptyMap()) }
+                shouldThrow<CodeGenerationException> { generator.generate(model = model, outputDir = out, options = emptyMap()) }
             } finally {
                 out.deleteRecursively()
             }
         }
 
         test("creates the output directory if absent") {
-            val model = ermModel("M") { entity("users") { id("id", ErmDataType.Integer(64)) } }
+            val model = ermModel(name = "M") { entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) } }
             val parent = Files.createTempDirectory("kuml-erm-exposed-test").toFile()
             val out = parent.resolve("nested/does/not/exist")
             try {
                 out.exists() shouldBe false
-                val files = generator.generate(model, out, emptyMap())
+                val files = generator.generate(model = model, outputDir = out, options = emptyMap())
                 out.exists() shouldBe true
                 files shouldHaveSize 1
             } finally {
@@ -80,15 +80,15 @@ class ErmExposedGeneratorTest :
 
         test("kotlinObjectName override is honored through this entry point") {
             val model =
-                ermModel("M") {
-                    entity("member") {
+                ermModel(name = "M") {
+                    entity(name = "member") {
                         kotlinObjectName("MemberTable")
-                        id("id", ErmDataType.Integer(64))
+                        id(name = "id", type = ErmDataType.Integer(64))
                     }
                 }
             val out = Files.createTempDirectory("kuml-erm-exposed-test").toFile()
             try {
-                val files = generator.generate(model, out, emptyMap())
+                val files = generator.generate(model = model, outputDir = out, options = emptyMap())
                 files.map { it.name } shouldBe listOf("MemberTable.kt")
                 files.single().readText() shouldContain "public object MemberTable : Table(\"member\")"
             } finally {

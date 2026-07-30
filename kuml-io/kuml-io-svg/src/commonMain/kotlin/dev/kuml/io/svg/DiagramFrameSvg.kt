@@ -30,24 +30,25 @@ internal fun renderDiagramFrame(
     val w = canvasW - 2f * inset
     val h = canvasH - 2f * inset
 
-    builder.tag("g", mapOf("id" to "kuml-diagram-frame")) {
+    builder.tag(name = "g", attrs = mapOf("id" to "kuml-diagram-frame")) {
         // Outer rounded rectangle
         tag(
-            "rect",
-            mapOf(
-                "x" to fmt(x),
-                "y" to fmt(y),
-                "width" to fmt(w),
-                "height" to fmt(h),
-                "rx" to "6",
-                "ry" to "6",
-                "class" to "kuml-frame",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmt(x),
+                    "y" to fmt(y),
+                    "width" to fmt(w),
+                    "height" to fmt(h),
+                    "rx" to "6",
+                    "ry" to "6",
+                    "class" to "kuml-frame",
+                ),
         )
         // Type label (small, muted) + name (bold) in top-left
         tag(
-            "text",
-            mapOf("class" to "kuml-small", "x" to "8", "y" to "13"),
+            name = "text",
+            attrs = mapOf("class" to "kuml-small", "x" to "8", "y" to "13"),
         ) { text("$typeLabel: $name") }
     }
 }

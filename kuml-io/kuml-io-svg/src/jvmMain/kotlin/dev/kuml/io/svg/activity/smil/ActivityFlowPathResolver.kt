@@ -33,7 +33,7 @@ internal object ActivityFlowPathResolver {
         val result = mutableMapOf<String, String>()
         for (edge in edges) {
             val route = layoutResult.edges[EdgeId(edge.id)] ?: continue
-            val shifted = shiftRoute(route, padding)
+            val shifted = shiftRoute(route = route, padding = padding)
             result[edge.id] = edgePathD(shifted)
         }
         return result
@@ -67,7 +67,7 @@ internal object ActivityFlowPathResolver {
                 buildPolyline(pts)
             }
 
-            is EdgeRoute.Bezier -> buildBezierPath(src, tgt, route.controlPoints)
+            is EdgeRoute.Bezier -> buildBezierPath(src = src, tgt = tgt, controlPoints = route.controlPoints)
         }
     }
 
@@ -107,7 +107,7 @@ internal object ActivityFlowPathResolver {
         route: EdgeRoute,
         padding: Float,
     ): EdgeRoute {
-        fun Point.shift() = Point(x + padding, y + padding)
+        fun Point.shift() = Point(x = x + padding, y = y + padding)
         return when (route) {
             is EdgeRoute.Direct ->
                 route.copy(source = route.source.shift(), target = route.target.shift())

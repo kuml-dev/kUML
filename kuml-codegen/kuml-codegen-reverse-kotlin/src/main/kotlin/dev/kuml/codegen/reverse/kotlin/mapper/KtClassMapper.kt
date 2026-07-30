@@ -32,8 +32,8 @@ internal class KtClassMapper(
         val nested = ktClass.declarations.filterIsInstance<KtClass>()
         for (nestedCls in nested) {
             diagnostics.info(
-                "REV-K-020",
-                "Nested class '${nestedCls.name}' inside '$name' emitted as top-level classifier.",
+                code = "REV-K-020",
+                message = "Nested class '${nestedCls.name}' inside '$name' emitted as top-level classifier.",
                 file = ktClass.containingFile.name,
             )
         }
@@ -43,30 +43,34 @@ internal class KtClassMapper(
             ktClass.primaryConstructor
                 ?.valueParameters
                 ?.filter { it.hasValOrVar() }
-                ?.map { param -> propertyMapper.fromParameter(param, id) }
+                ?.map { param -> propertyMapper.fromParameter(param = param, ownerId = id) }
                 ?: emptyList()
 
         // Body properties → attributes
         val bodyProps =
             ktClass.declarations
                 .filterIsInstance<KtProperty>()
-                .map { prop -> propertyMapper.map(prop, id) }
+                .map { prop -> propertyMapper.map(prop = prop, ownerId = id) }
 
         val attributes = (primaryCtorProps + bodyProps).sortedBy { it.name }
 
         // Operations: primary ctor + secondary ctors + member functions
         val ctorOps =
             buildList {
-                ktClass.primaryConstructor?.let { add(functionMapper.fromConstructor(it, id, name, index = 0)) }
+                ktClass.primaryConstructor?.let {
+                    add(
+                        functionMapper.fromConstructor(ctor = it, ownerId = id, className = name, index = 0),
+                    )
+                }
                 ktClass.secondaryConstructors.forEachIndexed { idx, ctor ->
-                    add(functionMapper.fromConstructor(ctor, id, name, index = idx + 1))
+                    add(functionMapper.fromConstructor(ctor = ctor, ownerId = id, className = name, index = idx + 1))
                 }
             }
 
         val memberOps =
             ktClass.declarations
                 .filterIsInstance<org.jetbrains.kotlin.psi.KtNamedFunction>()
-                .map { func -> functionMapper.map(func, id) }
+                .map { func -> functionMapper.map(func = func, ownerId = id) }
 
         val operations = (ctorOps + memberOps).sortedBy { it.name }
 

@@ -26,7 +26,7 @@ public class MacOsKeychainBackend(
 
     override fun isAvailable(): Boolean =
         try {
-            val result = ShellOut.run(listOf("security", "list-keychains"))
+            val result = ShellOut.run(command = listOf("security", "list-keychains"))
             result.exitCode == 0
         } catch (_: Exception) {
             false
@@ -61,7 +61,7 @@ public class MacOsKeychainBackend(
             )
         if (result.exitCode != 0) {
             throw KumlAiException.VaultUnavailable(
-                "macOS Keychain put failed for key '$key': ${result.stderr}",
+                message = "macOS Keychain put failed for key '$key': ${result.stderr}",
             )
         }
     }

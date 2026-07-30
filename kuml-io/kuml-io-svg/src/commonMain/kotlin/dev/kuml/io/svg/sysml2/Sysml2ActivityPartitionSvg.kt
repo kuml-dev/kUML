@@ -53,25 +53,27 @@ internal fun renderActivityPartitionGroup(
     val gh = groupLayout.bounds.size.height
 
     builder.tag(
-        "g",
-        mapOf(
-            "id" to xmlEscapeAttr("activityPartition:${partition.id}"),
-            "transform" to "translate(${fmtPart(gx)},${fmtPart(gy)})",
-        ),
+        name = "g",
+        attrs =
+            mapOf(
+                "id" to xmlEscapeAttr("activityPartition:${partition.id}"),
+                "transform" to "translate(${fmtPart(gx)},${fmtPart(gy)})",
+            ),
     ) {
         // 1. Outer dashed lane outline — encompasses the whole partition
         //    height including the header bar. White fill so action nodes
         //    on top render against a clean background instead of the
         //    canvas tint.
         tag(
-            "rect",
-            mapOf(
-                "width" to fmtPart(gw),
-                "height" to fmtPart(gh),
-                "class" to "kuml-class",
-                "fill" to "white",
-                "stroke-dasharray" to PARTITION_BORDER_DASH,
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "width" to fmtPart(gw),
+                    "height" to fmtPart(gh),
+                    "class" to "kuml-class",
+                    "fill" to "white",
+                    "stroke-dasharray" to PARTITION_BORDER_DASH,
+                ),
         )
 
         // 2. Solid header bar at the top — visually identifies which lane
@@ -80,25 +82,27 @@ internal fun renderActivityPartitionGroup(
         //    The header is rendered as a separate rect (not a path with
         //    fill-rule) so SVG-2-strict viewers render it correctly.
         tag(
-            "rect",
-            mapOf(
-                "width" to fmtPart(gw),
-                "height" to fmtPart(PARTITION_HEADER_HEIGHT),
-                "class" to "kuml-class",
-                "fill" to "#f3f3f3",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "width" to fmtPart(gw),
+                    "height" to fmtPart(PARTITION_HEADER_HEIGHT),
+                    "class" to "kuml-class",
+                    "fill" to "#f3f3f3",
+                ),
         )
 
         // 3. Header label — partition name, centred horizontally in the
         //    header bar, baseline-anchored mid-header.
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmtPart(gw / 2f),
-                "y" to fmtPart(PARTITION_HEADER_HEIGHT / 2f + 4f),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmtPart(gw / 2f),
+                    "y" to fmtPart(PARTITION_HEADER_HEIGHT / 2f + 4f),
+                    "text-anchor" to "middle",
+                ),
         ) { text(partition.name) }
     }
 }

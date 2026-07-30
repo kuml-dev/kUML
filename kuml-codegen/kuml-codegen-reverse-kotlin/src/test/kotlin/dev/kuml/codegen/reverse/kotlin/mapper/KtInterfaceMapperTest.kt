@@ -11,7 +11,7 @@ class KtInterfaceMapperTest :
     FunSpec({
 
         test("interface becomes UmlInterface") {
-            val result = TestSupport.runEngine(mapOf("Foo.kt" to "interface Foo"))
+            val result = TestSupport.runEngine(sources = mapOf("Foo.kt" to "interface Foo"))
             val success = TestSupport.success(result)
             val interfaces = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlInterface>()
             interfaces.find { it.name == "Foo" } shouldNotBe null
@@ -20,9 +20,10 @@ class KtInterfaceMapperTest :
         test("fun interface gets fun stereotype") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Transformer.kt" to "fun interface Transformer { fun transform(x: Int): Int }",
-                    ),
+                    sources =
+                        mapOf(
+                            "Transformer.kt" to "fun interface Transformer { fun transform(x: Int): Int }",
+                        ),
                 )
             val success = TestSupport.success(result)
             val interfaces = (success.model.root as KumlDiagram).elements.filterIsInstance<UmlInterface>()

@@ -34,7 +34,7 @@ public class XmiWriter {
                 .createTempFile("kuml-xmi-writer-", ".xmi")
                 .toFile()
         tmpFile.deleteOnExit()
-        write(emfModel, tmpFile)
+        write(emfModel = emfModel, outputFile = tmpFile)
         return tmpFile.readText(Charsets.UTF_8)
     }
 }

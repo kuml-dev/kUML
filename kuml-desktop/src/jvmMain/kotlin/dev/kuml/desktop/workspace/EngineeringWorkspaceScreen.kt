@@ -53,7 +53,7 @@ fun EngineeringWorkspaceScreen(
             selected = state.currentFile,
             onSelect = { file ->
                 confirmUnsavedAndThen {
-                    state.loadFrom(file, FileMenu.readScript(file))
+                    state.loadFrom(file = file, content = FileMenu.readScript(file))
                     state.isDirty = false
                 }
             },

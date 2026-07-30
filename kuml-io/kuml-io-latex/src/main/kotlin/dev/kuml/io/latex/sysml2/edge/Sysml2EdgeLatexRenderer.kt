@@ -52,30 +52,30 @@ internal object Sysml2EdgeLatexRenderer {
     ) {
         val style = pickStyle(metadata)
         when (route) {
-            is EdgeRoute.Direct -> renderDirect(route, metadata, style, options, out)
+            is EdgeRoute.Direct -> renderDirect(route = route, metadata = metadata, style = style, options = options, out = out)
             is EdgeRoute.OrthogonalRounded ->
                 renderPolyline(
-                    route.source,
-                    route.target,
-                    route.waypoints,
-                    route.cornerRadiusPx,
-                    metadata,
-                    style,
-                    options,
-                    out,
+                    source = route.source,
+                    target = route.target,
+                    waypoints = route.waypoints,
+                    cornerRadiusPx = route.cornerRadiusPx,
+                    metadata = metadata,
+                    style = style,
+                    options = options,
+                    out = out,
                 )
             is EdgeRoute.TreeRounded ->
                 renderPolyline(
-                    route.source,
-                    route.target,
-                    route.waypoints,
-                    route.cornerRadiusPx,
-                    metadata,
-                    style,
-                    options,
-                    out,
+                    source = route.source,
+                    target = route.target,
+                    waypoints = route.waypoints,
+                    cornerRadiusPx = route.cornerRadiusPx,
+                    metadata = metadata,
+                    style = style,
+                    options = options,
+                    out = out,
                 )
-            is EdgeRoute.Bezier -> renderBezier(route, metadata, style, options, out)
+            is EdgeRoute.Bezier -> renderBezier(route = route, metadata = metadata, style = style, options = options, out = out)
         }
     }
 

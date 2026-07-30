@@ -77,7 +77,7 @@ class KumlTextDocumentServiceTest :
         }
 
         test("unresolved-reference fixture: publishes one diagnostic at the mapped range") {
-            val stub = FakeCli.write(listOf("ERROR\t3\t5\t3\t9\tUnresolved reference: bar")) ?: return@test
+            val stub = FakeCli.write(tsvLines = listOf("ERROR\t3\t5\t3\t9\tUnresolved reference: bar")) ?: return@test
             val server = KumlLanguageServer()
             val client = RecordingClient()
             server.connect(client)
@@ -88,7 +88,7 @@ class KumlTextDocumentServiceTest :
                 val text = "aaaaaaaaaa\nbbbbbbbbbb\ncccccccccc\ndddddddddd"
                 client.latchFor(uri)
                 service.didOpen(DidOpenTextDocumentParams(TextDocumentItem(uri, "kuml", 1, text)))
-                client.awaitFor(uri, 10, TimeUnit.SECONDS) shouldBe true
+                client.awaitFor(uri = uri, timeout = 10, unit = TimeUnit.SECONDS) shouldBe true
 
                 val published = client.diagnostics.last { it.uri == uri }
                 published.diagnostics.size shouldBe 1
@@ -103,7 +103,7 @@ class KumlTextDocumentServiceTest :
         }
 
         test("valid fixture: stub emits nothing, publishes an empty diagnostic list") {
-            val stub = FakeCli.write(emptyList()) ?: return@test
+            val stub = FakeCli.write(tsvLines = emptyList()) ?: return@test
             val server = KumlLanguageServer()
             val client = RecordingClient()
             server.connect(client)
@@ -113,7 +113,7 @@ class KumlTextDocumentServiceTest :
                 val uri = "file:///valid.kuml.kts"
                 client.latchFor(uri)
                 service.didOpen(DidOpenTextDocumentParams(TextDocumentItem(uri, "kuml", 1, "class Foo")))
-                client.awaitFor(uri, 10, TimeUnit.SECONDS) shouldBe true
+                client.awaitFor(uri = uri, timeout = 10, unit = TimeUnit.SECONDS) shouldBe true
 
                 client.diagnostics
                     .last { it.uri == uri }
@@ -135,13 +135,13 @@ class KumlTextDocumentServiceTest :
             // enough to prove this deterministically, since KumlCliLocator.resolve
             // falls back to PATH/common locations, and this repo's dev machines
             // have a real `kuml` installed via Homebrew (see CLAUDE.md).
-            val service = KumlTextDocumentService(server, server.config, cliResolver = { _, _ -> null })
+            val service = KumlTextDocumentService(server = server, config = server.config, cliResolver = { _, _ -> null })
             try {
                 val uri = "file:///missing-cli.kuml.kts"
                 client.latchFor(uri)
                 service.didOpen(DidOpenTextDocumentParams(TextDocumentItem(uri, "kuml", 1, "class Foo")))
-                client.awaitFor(uri, 10, TimeUnit.SECONDS) shouldBe true
-                client.awaitWarning(10, TimeUnit.SECONDS) shouldBe true
+                client.awaitFor(uri = uri, timeout = 10, unit = TimeUnit.SECONDS) shouldBe true
+                client.awaitWarning(timeout = 10, unit = TimeUnit.SECONDS) shouldBe true
 
                 client.diagnostics
                     .last { it.uri == uri }
@@ -155,7 +155,7 @@ class KumlTextDocumentServiceTest :
         }
 
         test("diagnostics disabled: publishes empty even though the stub would emit an error") {
-            val stub = FakeCli.write(listOf("ERROR\t1\t1\t1\t1\tshould never surface")) ?: return@test
+            val stub = FakeCli.write(tsvLines = listOf("ERROR\t1\t1\t1\t1\tshould never surface")) ?: return@test
             val server = KumlLanguageServer()
             val client = RecordingClient()
             server.connect(client)
@@ -166,7 +166,7 @@ class KumlTextDocumentServiceTest :
                 val uri = "file:///disabled.kuml.kts"
                 client.latchFor(uri)
                 service.didOpen(DidOpenTextDocumentParams(TextDocumentItem(uri, "kuml", 1, "class Foo")))
-                client.awaitFor(uri, 10, TimeUnit.SECONDS) shouldBe true
+                client.awaitFor(uri = uri, timeout = 10, unit = TimeUnit.SECONDS) shouldBe true
 
                 client.diagnostics
                     .last { it.uri == uri }
@@ -179,7 +179,7 @@ class KumlTextDocumentServiceTest :
         }
 
         test("didSave triggers a fresh (debounced) revalidation") {
-            val stub = FakeCli.write(listOf("ERROR\t1\t1\t1\t1\tsave triggered")) ?: return@test
+            val stub = FakeCli.write(tsvLines = listOf("ERROR\t1\t1\t1\t1\tsave triggered")) ?: return@test
             val server = KumlLanguageServer()
             val client = RecordingClient()
             server.connect(client)
@@ -196,12 +196,12 @@ class KumlTextDocumentServiceTest :
                 )
                 // didChange races didOpen-less bookkeeping; store text directly is
                 // unnecessary since didChange already updates the store.
-                client.awaitFor(uri, 10, TimeUnit.SECONDS) shouldBe true
+                client.awaitFor(uri = uri, timeout = 10, unit = TimeUnit.SECONDS) shouldBe true
                 val countAfterChange = client.diagnostics.count { it.uri == uri }
 
                 client.latchFor(uri)
                 service.didSave(DidSaveTextDocumentParams(TextDocumentIdentifier(uri)))
-                client.awaitFor(uri, 10, TimeUnit.SECONDS) shouldBe true
+                client.awaitFor(uri = uri, timeout = 10, unit = TimeUnit.SECONDS) shouldBe true
                 val countAfterSave = client.diagnostics.count { it.uri == uri }
 
                 (countAfterSave > countAfterChange) shouldBe true

@@ -124,7 +124,7 @@ internal object WebRenderPipeline {
         val startMs = System.currentTimeMillis()
         return try {
             KumlScriptGuard.validate(script)
-            val evalResult = KumlScriptHost.eval(script)
+            val evalResult = KumlScriptHost.eval(code = script)
             val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
             if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
                 val msg = errors.joinToString("\n") { it.message }
@@ -134,7 +134,11 @@ internal object WebRenderPipeline {
                 evalResult as? ResultWithDiagnostics.Success
                     ?: return WebRenderResult.Error("Script evaluation did not produce a result")
 
-            val extracted = DiagramExtractor.extractAny(successResult.value.returnValue, java.io.File("inline.kuml.kts"))
+            val extracted =
+                DiagramExtractor.extractAny(
+                    returnValue = successResult.value.returnValue,
+                    input = java.io.File("inline.kuml.kts"),
+                )
 
             val resolvedThemeName = themeName ?: "kuml"
             val theme: KumlTheme =
@@ -146,13 +150,63 @@ internal object WebRenderPipeline {
             val durationMs = System.currentTimeMillis() - startMs
             when (extracted) {
                 is ExtractedDiagram.Uml ->
-                    renderUml(extracted, format, theme, layoutOverride, widthPx, durationMs, standaloneTex, watermark)
-                is ExtractedDiagram.C4 -> renderC4(extracted, format, theme, widthPx, durationMs, standaloneTex, watermark)
-                is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, format, theme, widthPx, durationMs, standaloneTex, watermark)
-                is ExtractedDiagram.Bpmn -> renderBpmn(extracted, format, theme, widthPx, durationMs, watermark)
+                    renderUml(
+                        extracted = extracted,
+                        format = format,
+                        theme = theme,
+                        layoutOverride = layoutOverride,
+                        widthPx = widthPx,
+                        durationMs = durationMs,
+                        standaloneTex = standaloneTex,
+                        watermark = watermark,
+                    )
+                is ExtractedDiagram.C4 ->
+                    renderC4(
+                        extracted = extracted,
+                        format = format,
+                        theme = theme,
+                        widthPx = widthPx,
+                        durationMs = durationMs,
+                        standaloneTex = standaloneTex,
+                        watermark = watermark,
+                    )
+                is ExtractedDiagram.Sysml2 ->
+                    renderSysml2(
+                        extracted = extracted,
+                        format = format,
+                        theme = theme,
+                        widthPx = widthPx,
+                        durationMs = durationMs,
+                        standaloneTex = standaloneTex,
+                        watermark = watermark,
+                    )
+                is ExtractedDiagram.Bpmn ->
+                    renderBpmn(
+                        extracted = extracted,
+                        format = format,
+                        theme = theme,
+                        widthPx = widthPx,
+                        durationMs = durationMs,
+                        watermark = watermark,
+                    )
                 // Blueprint intentionally excludes `watermark` — see renderBlueprint's doc comment.
-                is ExtractedDiagram.Blueprint -> renderBlueprint(extracted, format, widthPx, durationMs)
-                is ExtractedDiagram.Erm -> renderErm(extracted, format, theme, widthPx, durationMs, notation, watermark)
+                is ExtractedDiagram.Blueprint ->
+                    renderBlueprint(
+                        extracted = extracted,
+                        format = format,
+                        widthPx = widthPx,
+                        durationMs = durationMs,
+                    )
+                is ExtractedDiagram.Erm ->
+                    renderErm(
+                        extracted = extracted,
+                        format = format,
+                        theme = theme,
+                        widthPx = widthPx,
+                        durationMs = durationMs,
+                        notationOverride = notation,
+                        watermark = watermark,
+                    )
             }
         } catch (e: ScriptEvaluationException) {
             WebRenderResult.Error(e.message ?: "Script error")
@@ -172,30 +226,47 @@ internal object WebRenderPipeline {
         watermark: Boolean = false,
     ): WebRenderResult {
         val diagram = extracted.diagram
-        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
-        val engine = pickEngine(diagram, layoutOverride)
+        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
+        val engine = pickEngine(diagram = diagram, override = layoutOverride)
         // V3.0.x — see CLI's RenderPipeline.kt for the full rationale: UML sequence
         // diagrams are the one diagram type where declaration order is semantically
         // meaningful, so pin it via LayoutHints.preserveNodeOrder.
         val hints = LayoutHints.DEFAULT.copy(preserveNodeOrder = diagram.type == DiagramType.SEQUENCE)
-        val layoutResult: LayoutResult = engine.layout(layoutGraph, hints)
+        val layoutResult: LayoutResult = engine.layout(graph = layoutGraph, hints = hints)
         return when (format) {
             "svg" -> {
-                val geometry = NodeGeometryExtractor.extract(diagram.type, layoutResult)
+                val geometry = NodeGeometryExtractor.extract(diagramType = diagram.type, layoutResult = layoutResult)
                 WebRenderResult.Svg(
-                    svg = KumlSvgRenderer.toSvg(diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
+                    svg =
+                        KumlSvgRenderer.toSvg(
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = SvgRenderOptions(watermark = watermark),
+                        ),
                     durationMs = durationMs,
                     nodes = geometry.nodes,
                     grid = geometry.grid,
                 )
             }
             "png" -> {
-                val bytes = KumlPngRenderer.toPng(diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx))
-                WebRenderResult.Png(bytes, durationMs)
+                val bytes =
+                    KumlPngRenderer.toPng(
+                        diagram = diagram,
+                        layoutResult = layoutResult,
+                        theme = theme,
+                        options = PngRenderOptions(widthPx = widthPx),
+                    )
+                WebRenderResult.Png(pngBytes = bytes, durationMs = durationMs)
             }
             "latex" -> {
-                val tex = KumlLatexRenderer.toLatex(diagram, layoutResult, LatexRenderOptions(standalone = standaloneTex))
-                WebRenderResult.Latex(tex, durationMs)
+                val tex =
+                    KumlLatexRenderer.toLatex(
+                        diagram = diagram,
+                        layoutResult = layoutResult,
+                        options = LatexRenderOptions(standalone = standaloneTex),
+                    )
+                WebRenderResult.Latex(tex = tex, durationMs = durationMs)
             }
             else -> WebRenderResult.Error("Unsupported format: $format. Use 'svg', 'png', or 'latex'.")
         }
@@ -212,25 +283,45 @@ internal object WebRenderPipeline {
     ): WebRenderResult {
         val diagram = extracted.diagram
         val model = extracted.model
-        val sizeProvider = C4ContentSizeProvider(model)
-        val layoutGraph = C4LayoutBridge.toLayoutGraph(diagram, model, sizeProvider)
+        val sizeProvider = C4ContentSizeProvider(model = model)
+        val layoutGraph = C4LayoutBridge.toLayoutGraph(diagram = diagram, model = model, sizeProvider = sizeProvider)
         val engine =
             LayoutEngineRegistry.get("elk.layered")
                 ?: return WebRenderResult.Error("ELK layout engine not available")
-        val layoutResult: LayoutResult = engine.layout(layoutGraph, LayoutHints.DEFAULT)
+        val layoutResult: LayoutResult = engine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
         return when (format) {
             "svg" ->
                 WebRenderResult.Svg(
-                    KumlSvgRenderer.toSvg(diagram, model, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
-                    durationMs,
+                    svg =
+                        KumlSvgRenderer.toSvg(
+                            diagram = diagram,
+                            model = model,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = SvgRenderOptions(watermark = watermark),
+                        ),
+                    durationMs = durationMs,
                 )
             "png" -> {
-                val bytes = KumlPngRenderer.toPng(diagram, model, layoutResult, theme, PngRenderOptions(widthPx = widthPx))
-                WebRenderResult.Png(bytes, durationMs)
+                val bytes =
+                    KumlPngRenderer.toPng(
+                        diagram = diagram,
+                        model = model,
+                        layoutResult = layoutResult,
+                        theme = theme,
+                        options = PngRenderOptions(widthPx = widthPx),
+                    )
+                WebRenderResult.Png(pngBytes = bytes, durationMs = durationMs)
             }
             "latex" -> {
-                val tex = KumlLatexRenderer.toLatex(diagram, model, layoutResult, LatexRenderOptions(standalone = standaloneTex))
-                WebRenderResult.Latex(tex, durationMs)
+                val tex =
+                    KumlLatexRenderer.toLatex(
+                        diagram = diagram,
+                        model = model,
+                        layoutResult = layoutResult,
+                        options = LatexRenderOptions(standalone = standaloneTex),
+                    )
+                WebRenderResult.Latex(tex = tex, durationMs = durationMs)
             }
             else -> WebRenderResult.Error("Unsupported format: $format. Use 'svg', 'png', or 'latex'.")
         }
@@ -251,16 +342,58 @@ internal object WebRenderPipeline {
                 ?: return WebRenderResult.Error("ELK layout engine not available for SysML 2")
         return when (val diagram = extracted.diagram) {
             is BdDiagram -> {
-                val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Bdd(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
+                val layoutResult =
+                    engine.layout(
+                        graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                        hints = LayoutHints.DEFAULT,
+                    )
+                renderSysml2Bdd(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = theme,
+                    format = format,
+                    widthPx = widthPx,
+                    durationMs = durationMs,
+                    standaloneTex = standaloneTex,
+                    watermark = watermark,
+                )
             }
             is IbdDiagram -> {
-                val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Ibd(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
+                val layoutResult =
+                    engine.layout(
+                        graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                        hints = LayoutHints.DEFAULT,
+                    )
+                renderSysml2Ibd(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = theme,
+                    format = format,
+                    widthPx = widthPx,
+                    durationMs = durationMs,
+                    standaloneTex = standaloneTex,
+                    watermark = watermark,
+                )
             }
             is UcDiagram -> {
-                val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Uc(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
+                val layoutResult =
+                    engine.layout(
+                        graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                        hints = LayoutHints.DEFAULT,
+                    )
+                renderSysml2Uc(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = theme,
+                    format = format,
+                    widthPx = widthPx,
+                    durationMs = durationMs,
+                    standaloneTex = standaloneTex,
+                    watermark = watermark,
+                )
             }
             is ReqDiagram -> {
                 // V2.0.8+: same wider-spacing fix as CLI RenderPipeline — see
@@ -274,24 +407,94 @@ internal object WebRenderPipeline {
                                 layerToLayer = 100f,
                             ),
                     )
-                val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), reqHints)
-                renderSysml2Req(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
+                val layoutResult =
+                    engine.layout(
+                        graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                        hints = reqHints,
+                    )
+                renderSysml2Req(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = theme,
+                    format = format,
+                    widthPx = widthPx,
+                    durationMs = durationMs,
+                    standaloneTex = standaloneTex,
+                    watermark = watermark,
+                )
             }
             is StmDiagram -> {
-                val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Stm(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
+                val layoutResult =
+                    engine.layout(
+                        graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                        hints = LayoutHints.DEFAULT,
+                    )
+                renderSysml2Stm(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = theme,
+                    format = format,
+                    widthPx = widthPx,
+                    durationMs = durationMs,
+                    standaloneTex = standaloneTex,
+                    watermark = watermark,
+                )
             }
             is ActDiagram -> {
-                val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Act(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
+                val layoutResult =
+                    engine.layout(
+                        graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                        hints = LayoutHints.DEFAULT,
+                    )
+                renderSysml2Act(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = theme,
+                    format = format,
+                    widthPx = widthPx,
+                    durationMs = durationMs,
+                    standaloneTex = standaloneTex,
+                    watermark = watermark,
+                )
             }
             is SeqDiagram -> {
-                val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Seq(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
+                val layoutResult =
+                    engine.layout(
+                        graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                        hints = LayoutHints.DEFAULT,
+                    )
+                renderSysml2Seq(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = theme,
+                    format = format,
+                    widthPx = widthPx,
+                    durationMs = durationMs,
+                    standaloneTex = standaloneTex,
+                    watermark = watermark,
+                )
             }
             is ParDiagram -> {
-                val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Par(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
+                val layoutResult =
+                    engine.layout(
+                        graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                        hints = LayoutHints.DEFAULT,
+                    )
+                renderSysml2Par(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = layoutResult,
+                    theme = theme,
+                    format = format,
+                    widthPx = widthPx,
+                    durationMs = durationMs,
+                    standaloneTex = standaloneTex,
+                    watermark = watermark,
+                )
             }
         }
     }
@@ -310,18 +513,38 @@ internal object WebRenderPipeline {
         when (format) {
             "svg" ->
                 WebRenderResult.Svg(
-                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
-                    durationMs,
+                    svg =
+                        KumlSvgRenderer.toSvg(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = SvgRenderOptions(watermark = watermark),
+                        ),
+                    durationMs = durationMs,
                 )
             "png" ->
                 WebRenderResult.Png(
-                    KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
-                    durationMs,
+                    pngBytes =
+                        KumlPngRenderer.toPng(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = PngRenderOptions(widthPx = widthPx),
+                        ),
+                    durationMs = durationMs,
                 )
             "latex" ->
                 WebRenderResult.Latex(
-                    KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions(standalone = standaloneTex)),
-                    durationMs,
+                    tex =
+                        KumlLatexRenderer.toLatex(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            options = LatexRenderOptions(standalone = standaloneTex),
+                        ),
+                    durationMs = durationMs,
                 )
             else -> WebRenderResult.Error("Unsupported format: $format")
         }
@@ -340,18 +563,38 @@ internal object WebRenderPipeline {
         when (format) {
             "svg" ->
                 WebRenderResult.Svg(
-                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
-                    durationMs,
+                    svg =
+                        KumlSvgRenderer.toSvg(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = SvgRenderOptions(watermark = watermark),
+                        ),
+                    durationMs = durationMs,
                 )
             "png" ->
                 WebRenderResult.Png(
-                    KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
-                    durationMs,
+                    pngBytes =
+                        KumlPngRenderer.toPng(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = PngRenderOptions(widthPx = widthPx),
+                        ),
+                    durationMs = durationMs,
                 )
             "latex" ->
                 WebRenderResult.Latex(
-                    KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions(standalone = standaloneTex)),
-                    durationMs,
+                    tex =
+                        KumlLatexRenderer.toLatex(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            options = LatexRenderOptions(standalone = standaloneTex),
+                        ),
+                    durationMs = durationMs,
                 )
             else -> WebRenderResult.Error("Unsupported format: $format")
         }
@@ -370,18 +613,38 @@ internal object WebRenderPipeline {
         when (format) {
             "svg" ->
                 WebRenderResult.Svg(
-                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
-                    durationMs,
+                    svg =
+                        KumlSvgRenderer.toSvg(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = SvgRenderOptions(watermark = watermark),
+                        ),
+                    durationMs = durationMs,
                 )
             "png" ->
                 WebRenderResult.Png(
-                    KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
-                    durationMs,
+                    pngBytes =
+                        KumlPngRenderer.toPng(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = PngRenderOptions(widthPx = widthPx),
+                        ),
+                    durationMs = durationMs,
                 )
             "latex" ->
                 WebRenderResult.Latex(
-                    KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions(standalone = standaloneTex)),
-                    durationMs,
+                    tex =
+                        KumlLatexRenderer.toLatex(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            options = LatexRenderOptions(standalone = standaloneTex),
+                        ),
+                    durationMs = durationMs,
                 )
             else -> WebRenderResult.Error("Unsupported format: $format")
         }
@@ -400,18 +663,38 @@ internal object WebRenderPipeline {
         when (format) {
             "svg" ->
                 WebRenderResult.Svg(
-                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
-                    durationMs,
+                    svg =
+                        KumlSvgRenderer.toSvg(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = SvgRenderOptions(watermark = watermark),
+                        ),
+                    durationMs = durationMs,
                 )
             "png" ->
                 WebRenderResult.Png(
-                    KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
-                    durationMs,
+                    pngBytes =
+                        KumlPngRenderer.toPng(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = PngRenderOptions(widthPx = widthPx),
+                        ),
+                    durationMs = durationMs,
                 )
             "latex" ->
                 WebRenderResult.Latex(
-                    KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions(standalone = standaloneTex)),
-                    durationMs,
+                    tex =
+                        KumlLatexRenderer.toLatex(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            options = LatexRenderOptions(standalone = standaloneTex),
+                        ),
+                    durationMs = durationMs,
                 )
             else -> WebRenderResult.Error("Unsupported format: $format")
         }
@@ -430,24 +713,38 @@ internal object WebRenderPipeline {
         when (format) {
             "svg" ->
                 WebRenderResult.Svg(
-                    KumlSvgRenderer.toSvg(
-                        model,
-                        diagram,
-                        layoutResult,
-                        theme,
-                        SvgRenderOptions(paddingPx = 64f, watermark = watermark),
-                    ),
-                    durationMs,
+                    svg =
+                        KumlSvgRenderer.toSvg(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = SvgRenderOptions(paddingPx = 64f, watermark = watermark),
+                        ),
+                    durationMs = durationMs,
                 )
             "png" ->
                 WebRenderResult.Png(
-                    KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
-                    durationMs,
+                    pngBytes =
+                        KumlPngRenderer.toPng(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = PngRenderOptions(widthPx = widthPx),
+                        ),
+                    durationMs = durationMs,
                 )
             "latex" ->
                 WebRenderResult.Latex(
-                    KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions(standalone = standaloneTex)),
-                    durationMs,
+                    tex =
+                        KumlLatexRenderer.toLatex(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            options = LatexRenderOptions(standalone = standaloneTex),
+                        ),
+                    durationMs = durationMs,
                 )
             else -> WebRenderResult.Error("Unsupported format: $format")
         }
@@ -466,24 +763,38 @@ internal object WebRenderPipeline {
         when (format) {
             "svg" ->
                 WebRenderResult.Svg(
-                    KumlSvgRenderer.toSvg(
-                        model,
-                        diagram,
-                        layoutResult,
-                        theme,
-                        SvgRenderOptions(paddingPx = 64f, watermark = watermark),
-                    ),
-                    durationMs,
+                    svg =
+                        KumlSvgRenderer.toSvg(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = SvgRenderOptions(paddingPx = 64f, watermark = watermark),
+                        ),
+                    durationMs = durationMs,
                 )
             "png" ->
                 WebRenderResult.Png(
-                    KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
-                    durationMs,
+                    pngBytes =
+                        KumlPngRenderer.toPng(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = PngRenderOptions(widthPx = widthPx),
+                        ),
+                    durationMs = durationMs,
                 )
             "latex" ->
                 WebRenderResult.Latex(
-                    KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions(standalone = standaloneTex)),
-                    durationMs,
+                    tex =
+                        KumlLatexRenderer.toLatex(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            options = LatexRenderOptions(standalone = standaloneTex),
+                        ),
+                    durationMs = durationMs,
                 )
             else -> WebRenderResult.Error("Unsupported format: $format")
         }
@@ -502,18 +813,38 @@ internal object WebRenderPipeline {
         when (format) {
             "svg" ->
                 WebRenderResult.Svg(
-                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
-                    durationMs,
+                    svg =
+                        KumlSvgRenderer.toSvg(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = SvgRenderOptions(watermark = watermark),
+                        ),
+                    durationMs = durationMs,
                 )
             "png" ->
                 WebRenderResult.Png(
-                    KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
-                    durationMs,
+                    pngBytes =
+                        KumlPngRenderer.toPng(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = PngRenderOptions(widthPx = widthPx),
+                        ),
+                    durationMs = durationMs,
                 )
             "latex" ->
                 WebRenderResult.Latex(
-                    KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions(standalone = standaloneTex)),
-                    durationMs,
+                    tex =
+                        KumlLatexRenderer.toLatex(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            options = LatexRenderOptions(standalone = standaloneTex),
+                        ),
+                    durationMs = durationMs,
                 )
             else -> WebRenderResult.Error("Unsupported format: $format")
         }
@@ -532,18 +863,38 @@ internal object WebRenderPipeline {
         when (format) {
             "svg" ->
                 WebRenderResult.Svg(
-                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
-                    durationMs,
+                    svg =
+                        KumlSvgRenderer.toSvg(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = SvgRenderOptions(watermark = watermark),
+                        ),
+                    durationMs = durationMs,
                 )
             "png" ->
                 WebRenderResult.Png(
-                    KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
-                    durationMs,
+                    pngBytes =
+                        KumlPngRenderer.toPng(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            options = PngRenderOptions(widthPx = widthPx),
+                        ),
+                    durationMs = durationMs,
                 )
             "latex" ->
                 WebRenderResult.Latex(
-                    KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions(standalone = standaloneTex)),
-                    durationMs,
+                    tex =
+                        KumlLatexRenderer.toLatex(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            options = LatexRenderOptions(standalone = standaloneTex),
+                        ),
+                    durationMs = durationMs,
                 )
             else -> WebRenderResult.Error("Unsupported format: $format")
         }
@@ -567,7 +918,7 @@ internal object WebRenderPipeline {
         }
         // ELK as default for all diagram types (Grid via layoutOverride = "grid", opt-in)
         val kind = diagram.type.toDiagramKind()
-        return LayoutEngineRegistry.pickFor(kind, LayoutEngineId("elk.layered"))
+        return LayoutEngineRegistry.pickFor(kind = kind, preferredEngineId = LayoutEngineId("elk.layered"))
             ?: error("No layout engine available for diagram kind $kind.")
     }
 
@@ -610,65 +961,122 @@ internal object WebRenderPipeline {
                         type = DiagramType.BPMN_PROCESS,
                         elements = elements,
                     )
-                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram, BpmnContentSizeProvider(model))
-                val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                val layoutGraph =
+                    BpmnLayoutBridge.toLayoutGraph(
+                        model = model,
+                        diagram = bpmnDiagram,
+                        sizeProvider = BpmnContentSizeProvider(model),
+                    )
+                val layoutResult: LayoutResult = bpmnEngine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
                 when (format) {
                     "svg" ->
                         WebRenderResult.Svg(
-                            KumlSvgRenderer.toSvg(kumlDiagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
-                            durationMs,
+                            svg =
+                                KumlSvgRenderer.toSvg(
+                                    diagram = kumlDiagram,
+                                    layoutResult = layoutResult,
+                                    theme = theme,
+                                    options = SvgRenderOptions(watermark = watermark),
+                                ),
+                            durationMs = durationMs,
                         )
                     "png" -> {
-                        val pngBytes = KumlPngRenderer.toPng(kumlDiagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx))
-                        WebRenderResult.Png(pngBytes, durationMs)
+                        val pngBytes =
+                            KumlPngRenderer.toPng(
+                                diagram = kumlDiagram,
+                                layoutResult = layoutResult,
+                                theme = theme,
+                                options = PngRenderOptions(widthPx = widthPx),
+                            )
+                        WebRenderResult.Png(pngBytes = pngBytes, durationMs = durationMs)
                     }
                     else -> WebRenderResult.Error("Unsupported format for BPMN: $format (svg, png supported)")
                 }
             }
             is CollaborationDiagram -> {
-                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram, BpmnContentSizeProvider(model))
-                val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                val layoutGraph =
+                    BpmnLayoutBridge.toLayoutGraph(
+                        model = model,
+                        diagram = bpmnDiagram,
+                        sizeProvider = BpmnContentSizeProvider(model),
+                    )
+                val layoutResult: LayoutResult = bpmnEngine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
                 when (format) {
                     "svg" ->
                         WebRenderResult.Svg(
-                            KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
-                            durationMs,
+                            svg =
+                                KumlSvgRenderer.toSvg(
+                                    model = model,
+                                    diagram = bpmnDiagram,
+                                    layoutResult = layoutResult,
+                                    theme = theme,
+                                    options = SvgRenderOptions(watermark = watermark),
+                                ),
+                            durationMs = durationMs,
                         )
                     "png" -> {
-                        val svg = KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme)
-                        WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
+                        val svg = KumlSvgRenderer.toSvg(model = model, diagram = bpmnDiagram, layoutResult = layoutResult, theme = theme)
+                        WebRenderResult.Png(
+                            pngBytes = KumlPngRenderer.toPng(svg = svg, options = PngRenderOptions(widthPx = widthPx)),
+                            durationMs = durationMs,
+                        )
                     }
                     else -> WebRenderResult.Error("Unsupported format for BPMN: $format (svg, png supported)")
                 }
             }
             is ChoreographyDiagram -> {
                 // V3.2.2 — Choreography bypasses ELK entirely: deterministic custom grid layout.
-                val layoutResult: LayoutResult = ChoreographyGridLayout.layout(model, bpmnDiagram)
+                val layoutResult: LayoutResult = ChoreographyGridLayout.layout(model = model, diagram = bpmnDiagram)
                 when (format) {
                     "svg" ->
                         WebRenderResult.Svg(
-                            KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
-                            durationMs,
+                            svg =
+                                KumlSvgRenderer.toSvg(
+                                    model = model,
+                                    diagram = bpmnDiagram,
+                                    layoutResult = layoutResult,
+                                    theme = theme,
+                                    options = SvgRenderOptions(watermark = watermark),
+                                ),
+                            durationMs = durationMs,
                         )
                     "png" -> {
-                        val svg = KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme)
-                        WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
+                        val svg = KumlSvgRenderer.toSvg(model = model, diagram = bpmnDiagram, layoutResult = layoutResult, theme = theme)
+                        WebRenderResult.Png(
+                            pngBytes = KumlPngRenderer.toPng(svg = svg, options = PngRenderOptions(widthPx = widthPx)),
+                            durationMs = durationMs,
+                        )
                     }
                     else -> WebRenderResult.Error("Unsupported format for BPMN: $format (svg, png supported)")
                 }
             }
             is ConversationDiagram -> {
-                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram, BpmnContentSizeProvider(model))
-                val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                val layoutGraph =
+                    BpmnLayoutBridge.toLayoutGraph(
+                        model = model,
+                        diagram = bpmnDiagram,
+                        sizeProvider = BpmnContentSizeProvider(model),
+                    )
+                val layoutResult: LayoutResult = bpmnEngine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
                 when (format) {
                     "svg" ->
                         WebRenderResult.Svg(
-                            KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
-                            durationMs,
+                            svg =
+                                KumlSvgRenderer.toSvg(
+                                    model = model,
+                                    diagram = bpmnDiagram,
+                                    layoutResult = layoutResult,
+                                    theme = theme,
+                                    options = SvgRenderOptions(watermark = watermark),
+                                ),
+                            durationMs = durationMs,
                         )
                     "png" -> {
-                        val svg = KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme)
-                        WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
+                        val svg = KumlSvgRenderer.toSvg(model = model, diagram = bpmnDiagram, layoutResult = layoutResult, theme = theme)
+                        WebRenderResult.Png(
+                            pngBytes = KumlPngRenderer.toPng(svg = svg, options = PngRenderOptions(widthPx = widthPx)),
+                            durationMs = durationMs,
+                        )
                     }
                     else -> WebRenderResult.Error("Unsupported format for BPMN: $format (svg, png supported)")
                 }
@@ -689,10 +1097,13 @@ internal object WebRenderPipeline {
         val model = extracted.model
         val diagram = extracted.diagram
         return when (format) {
-            "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, diagram), durationMs)
+            "svg" -> WebRenderResult.Svg(svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram), durationMs = durationMs)
             "png" -> {
-                val svg = KumlSvgRenderer.toSvg(model, diagram)
-                WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
+                val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram)
+                WebRenderResult.Png(
+                    pngBytes = KumlPngRenderer.toPng(svg = svg, options = PngRenderOptions(widthPx = widthPx)),
+                    durationMs = durationMs,
+                )
             }
             else -> WebRenderResult.Error("Unsupported format for Blueprint: $format (svg, png supported)")
         }
@@ -750,33 +1161,49 @@ internal object WebRenderPipeline {
         val graph =
             when (notation) {
                 ErmNotation.CHEN ->
-                    ErmChenLayoutBridge.toChenLayoutGraph(model, diagram, ErmChenSizeProvider(model, diagram))
+                    ErmChenLayoutBridge.toChenLayoutGraph(
+                        model = model,
+                        diagram = diagram,
+                        sizeProvider = ErmChenSizeProvider(model = model, diagram = diagram),
+                    )
                 ErmNotation.IDEF1X ->
-                    ErmIdef1xLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
+                    ErmIdef1xLayoutBridge.toLayoutGraph(
+                        model = model,
+                        diagram = diagram,
+                        sizeProvider = ErmContentSizeProvider(model = model, diagram = diagram, layoutDirection = hints.direction),
+                    )
                 else ->
-                    ErmLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
+                    ErmLayoutBridge.toLayoutGraph(
+                        model = model,
+                        diagram = diagram,
+                        sizeProvider = ErmContentSizeProvider(model = model, diagram = diagram, layoutDirection = hints.direction),
+                    )
             }
         val engine =
             LayoutEngineRegistry.get("elk.layered")
                 ?: return WebRenderResult.Error("ELK layout engine not available for ERM diagrams")
-        val layout: LayoutResult = engine.layout(graph, hints)
+        val layout: LayoutResult = engine.layout(graph = graph, hints = hints)
 
         return when (format) {
             "svg" ->
                 WebRenderResult.Svg(
-                    KumlSvgRenderer.toSvg(
-                        model,
-                        diagram,
-                        layout,
-                        theme,
-                        options = SvgRenderOptions(watermark = watermark),
-                        notation = notation,
-                    ),
-                    durationMs,
+                    svg =
+                        KumlSvgRenderer.toSvg(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layout,
+                            theme = theme,
+                            options = SvgRenderOptions(watermark = watermark),
+                            notation = notation,
+                        ),
+                    durationMs = durationMs,
                 )
             "png" -> {
-                val svg = KumlSvgRenderer.toSvg(model, diagram, layout, theme, notation = notation)
-                WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
+                val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = theme, notation = notation)
+                WebRenderResult.Png(
+                    pngBytes = KumlPngRenderer.toPng(svg = svg, options = PngRenderOptions(widthPx = widthPx)),
+                    durationMs = durationMs,
+                )
             }
             "latex" ->
                 WebRenderResult.Error(

@@ -88,7 +88,7 @@ public object ErmIdef1xLayoutBridge {
             nodes.add(
                 LayoutNode(
                     id = NodeId(entity.id),
-                    intrinsicSize = sizeProvider.sizeOf(entity.id, "ErmEntity"),
+                    intrinsicSize = sizeProvider.sizeOf(elementId = entity.id, elementKind = "ErmEntity"),
                 ),
             )
         }
@@ -99,7 +99,7 @@ public object ErmIdef1xLayoutBridge {
                 nodes.add(
                     LayoutNode(
                         id = NodeId(view.id),
-                        intrinsicSize = sizeProvider.sizeOf(view.id, "ErmView"),
+                        intrinsicSize = sizeProvider.sizeOf(elementId = view.id, elementKind = "ErmView"),
                     ),
                 )
             }
@@ -117,7 +117,7 @@ public object ErmIdef1xLayoutBridge {
             )
         }
 
-        val categoryCircleSize = Size(CATEGORY_CIRCLE_SIZE, CATEGORY_CIRCLE_SIZE)
+        val categoryCircleSize = Size(width = CATEGORY_CIRCLE_SIZE, height = CATEGORY_CIRCLE_SIZE)
         for (category in model.categories) {
             if (category.supertypeEntityId !in visibleIds) continue
             val visibleSubtypes = category.subtypeEntityIds.filter { it in visibleIds }

@@ -60,7 +60,7 @@ public class AptosRestClient(
                     val resp = httpClient.send(req, HttpResponse.BodyHandlers.ofInputStream())
                     if (resp.statusCode() !in 200..299) {
                         val errBody =
-                            runCatching { readLimited(resp.body(), maxResponseBytes) }.getOrDefault("")
+                            runCatching { readLimited(stream = resp.body(), limit = maxResponseBytes) }.getOrDefault("")
                         val msg =
                             runCatching {
                                 json
@@ -69,15 +69,15 @@ public class AptosRestClient(
                                     ?.jsonPrimitive
                                     ?.content
                             }.getOrNull() ?: "HTTP ${resp.statusCode()}"
-                        throw AptosChainAdapterException.ApiError(resp.statusCode(), msg)
+                        throw AptosChainAdapterException.ApiError(httpStatus = resp.statusCode(), apiMessage = msg)
                     }
-                    readLimited(resp.body(), maxResponseBytes)
+                    readLimited(stream = resp.body(), limit = maxResponseBytes)
                 } catch (e: AptosChainAdapterException) {
                     throw e
                 } catch (e: Exception) {
                     throw AptosChainAdapterException.NetworkError(
-                        "IO error calling ${sanitizeUrl(url)}: ${e.message}",
-                        e,
+                        message = "IO error calling ${sanitizeUrl(url)}: ${e.message}",
+                        cause = e,
                     )
                 }
             }
@@ -86,8 +86,8 @@ public class AptosRestClient(
             json.parseToJsonElement(body)
         } catch (e: Exception) {
             throw AptosChainAdapterException.MalformedResponse(
-                "Could not parse Aptos response: ${e.message}",
-                e,
+                message = "Could not parse Aptos response: ${e.message}",
+                cause = e,
             )
         }
     }
@@ -178,7 +178,7 @@ public class AptosRestClient(
                     totalRead += n
                     if (totalRead > limit) {
                         throw AptosChainAdapterException.NetworkError(
-                            "API response exceeds maximum allowed size of $limit bytes",
+                            message = "API response exceeds maximum allowed size of $limit bytes",
                         )
                     }
                     sb.append(String(buffer, 0, n, Charsets.UTF_8))

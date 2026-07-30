@@ -17,7 +17,7 @@ class JavaAttributeMapperTest :
         test("private int age becomes UmlProperty with PRIVATE Int 1..1") {
             val field = firstField("class Foo { private int age; }")
             val variable = field.variables.first()
-            val prop = JavaAttributeMapper.map(field, variable, "Foo")
+            val prop = JavaAttributeMapper.map(field = field, variable = variable, idPrefix = "Foo")
             prop.name shouldBe "age"
             prop.visibility shouldBe Visibility.PRIVATE
             prop.type.name shouldBe "Int"
@@ -28,7 +28,7 @@ class JavaAttributeMapperTest :
         test("public static final String CONST becomes UmlProperty isStatic true isReadOnly true") {
             val field = firstField("class Foo { public static final String CONST = \"val\"; }")
             val variable = field.variables.first()
-            val prop = JavaAttributeMapper.map(field, variable, "Foo")
+            val prop = JavaAttributeMapper.map(field = field, variable = variable, idPrefix = "Foo")
             prop.isStatic shouldBe true
             prop.isReadOnly shouldBe true
             prop.visibility shouldBe Visibility.PUBLIC
@@ -37,7 +37,7 @@ class JavaAttributeMapperTest :
         test("package-private field becomes UmlProperty with PACKAGE visibility") {
             val field = firstField("class Foo { String data; }")
             val variable = field.variables.first()
-            val prop = JavaAttributeMapper.map(field, variable, "Foo")
+            val prop = JavaAttributeMapper.map(field = field, variable = variable, idPrefix = "Foo")
             prop.visibility shouldBe Visibility.PACKAGE
         }
     })

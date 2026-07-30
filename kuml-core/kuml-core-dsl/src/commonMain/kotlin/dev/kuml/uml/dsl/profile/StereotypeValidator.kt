@@ -41,7 +41,7 @@ internal object StereotypeValidator {
         val knownNames = stereotype.properties.map { it.name }.toSet()
         for (key in application.tags.keys) {
             if (key !in knownNames) {
-                val suggestion = Levenshtein.closest(key, knownNames)
+                val suggestion = Levenshtein.closest(target = key, candidates = knownNames)
                 error(
                     "Stereotype '${stereotype.name}' has no property '$key'." +
                         if (suggestion != null) " Did you mean '$suggestion'?" else "",

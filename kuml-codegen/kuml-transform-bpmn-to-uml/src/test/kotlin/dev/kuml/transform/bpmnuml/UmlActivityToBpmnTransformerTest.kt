@@ -76,11 +76,11 @@ class UmlActivityToBpmnTransformerTest :
                     nA,
                     nB,
                     nodeEnd,
-                    UmlActivityEdge("e0", "n_start", "n_dec"),
-                    UmlActivityEdge("e1", "n_dec", "n_a"),
-                    UmlActivityEdge("e2", "n_dec", "n_b"),
-                    UmlActivityEdge("e3", "n_a", "n_end"),
-                    UmlActivityEdge("e4", "n_b", "n_end"),
+                    UmlActivityEdge(id = "e0", sourceId = "n_start", targetId = "n_dec"),
+                    UmlActivityEdge(id = "e1", sourceId = "n_dec", targetId = "n_a"),
+                    UmlActivityEdge(id = "e2", sourceId = "n_dec", targetId = "n_b"),
+                    UmlActivityEdge(id = "e3", sourceId = "n_a", targetId = "n_end"),
+                    UmlActivityEdge(id = "e4", sourceId = "n_b", targetId = "n_end"),
                 )
             val process = UmlActivityToBpmnMapper.map(diagram)!!
             val gateways = process.flowNodes.filterIsInstance<BpmnGateway>()
@@ -101,12 +101,12 @@ class UmlActivityToBpmnTransformerTest :
                     nB,
                     nodeJoin,
                     nodeEnd,
-                    UmlActivityEdge("e0", "n_start", "n_fork"),
-                    UmlActivityEdge("e1", "n_fork", "n_a"),
-                    UmlActivityEdge("e2", "n_fork", "n_b"),
-                    UmlActivityEdge("e3", "n_a", "n_join"),
-                    UmlActivityEdge("e4", "n_b", "n_join"),
-                    UmlActivityEdge("e5", "n_join", "n_end"),
+                    UmlActivityEdge(id = "e0", sourceId = "n_start", targetId = "n_fork"),
+                    UmlActivityEdge(id = "e1", sourceId = "n_fork", targetId = "n_a"),
+                    UmlActivityEdge(id = "e2", sourceId = "n_fork", targetId = "n_b"),
+                    UmlActivityEdge(id = "e3", sourceId = "n_a", targetId = "n_join"),
+                    UmlActivityEdge(id = "e4", sourceId = "n_b", targetId = "n_join"),
+                    UmlActivityEdge(id = "e5", sourceId = "n_join", targetId = "n_end"),
                 )
             val process = UmlActivityToBpmnMapper.map(diagram)!!
             val gateways = process.flowNodes.filterIsInstance<BpmnGateway>()
@@ -116,7 +116,7 @@ class UmlActivityToBpmnTransformerTest :
 
         test("non-ACTIVITY diagram type returns TransformResult.Failure") {
             val diagram = KumlDiagram(name = "Class Diagram", type = DiagramType.CLASS)
-            val result = transformer.transform(diagram, ctx)
+            val result = transformer.transform(source = diagram, ctx = ctx)
             (result is TransformResult.Failure) shouldBe true
         }
 

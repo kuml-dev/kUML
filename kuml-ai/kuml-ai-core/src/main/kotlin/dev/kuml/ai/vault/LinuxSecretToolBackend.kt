@@ -21,7 +21,7 @@ public class LinuxSecretToolBackend(
 
     override fun isAvailable(): Boolean =
         try {
-            val result = ShellOut.run(listOf("secret-tool", "--version"))
+            val result = ShellOut.run(command = listOf("secret-tool", "--version"))
             result.exitCode == 0
         } catch (_: Exception) {
             false
@@ -49,7 +49,7 @@ public class LinuxSecretToolBackend(
             )
         if (result.exitCode != 0) {
             throw KumlAiException.VaultUnavailable(
-                "secret-tool store failed for key '$key': ${result.stderr}",
+                message = "secret-tool store failed for key '$key': ${result.stderr}",
             )
         }
     }

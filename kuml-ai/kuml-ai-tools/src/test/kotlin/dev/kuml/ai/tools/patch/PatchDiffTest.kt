@@ -66,7 +66,7 @@ class PatchDiffTest :
             runTest {
                 val ctx = AgentEditingContext.emptyUml()
                 val engine = PatchApplyEngine(context = ctx)
-                val patch = addElementPatch("cls1")
+                val patch = addElementPatch(id = "cls1")
                 engine.buffer(patch)
                 val diff = engine.diff(patch.patchId)
 
@@ -84,10 +84,11 @@ class PatchDiffTest :
             runTest {
                 val ctx =
                     AgentEditingContext(
-                        AnyKumlModel.Uml(
-                            name = "Test",
-                            elements = listOf(UmlClass(id = "cls1", name = "Foo")),
-                        ),
+                        initialModel =
+                            AnyKumlModel.Uml(
+                                name = "Test",
+                                elements = listOf(UmlClass(id = "cls1", name = "Foo")),
+                            ),
                     )
                 val engine = PatchApplyEngine(context = ctx)
                 val patch = removeElementPatch("cls1")
@@ -105,13 +106,14 @@ class PatchDiffTest :
             runTest {
                 val ctx =
                     AgentEditingContext(
-                        AnyKumlModel.Uml(
-                            name = "Test",
-                            elements = listOf(UmlClass(id = "cls1", name = "Foo")),
-                        ),
+                        initialModel =
+                            AnyKumlModel.Uml(
+                                name = "Test",
+                                elements = listOf(UmlClass(id = "cls1", name = "Foo")),
+                            ),
                     )
                 val engine = PatchApplyEngine(context = ctx)
-                val patch = updateAttrPatch("cls1", "guard", "x > 0")
+                val patch = updateAttrPatch(ownerId = "cls1", field = "guard", value = "x > 0")
                 engine.buffer(patch)
                 val diff = engine.diff(patch.patchId)
 
@@ -127,17 +129,18 @@ class PatchDiffTest :
             runTest {
                 val ctx =
                     AgentEditingContext(
-                        AnyKumlModel.Uml(
-                            name = "Test",
-                            elements =
-                                listOf(
-                                    UmlClass(id = "A", name = "A"),
-                                    UmlClass(id = "B", name = "B"),
-                                ),
-                        ),
+                        initialModel =
+                            AnyKumlModel.Uml(
+                                name = "Test",
+                                elements =
+                                    listOf(
+                                        UmlClass(id = "A", name = "A"),
+                                        UmlClass(id = "B", name = "B"),
+                                    ),
+                            ),
                     )
                 val engine = PatchApplyEngine(context = ctx)
-                val patch = addRelPatch("rel1", "A", "B")
+                val patch = addRelPatch(relId = "rel1", sourceId = "A", targetId = "B")
                 engine.buffer(patch)
                 val diff = engine.diff(patch.patchId)
 

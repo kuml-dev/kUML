@@ -39,8 +39,9 @@ public object KumlAnimRenderer {
         val totalMs = timeline.totalDurationMs
         if (totalMs <= 0L) {
             throw AnimEncoderException(
-                "Timeline has totalDurationMs=$totalMs — cannot produce an animated export. " +
-                    "Ensure the diagram has SMIL animations (use --animated with a supported diagram type).",
+                message =
+                    "Timeline has totalDurationMs=$totalMs — cannot produce an animated export. " +
+                        "Ensure the diagram has SMIL animations (use --animated with a supported diagram type).",
             )
         }
 
@@ -50,21 +51,22 @@ public object KumlAnimRenderer {
         // reject the combination up front with an actionable message.
         if (options.format == AnimFormat.MP4 && options.transparent) {
             throw AnimEncoderException(
-                "MP4 export does not support a transparent background (H.264 has no standard " +
-                    "alpha channel). Set transparent = false and choose a backgroundColor, " +
-                    "or use --format=apng/webp for transparent animated export.",
+                message =
+                    "MP4 export does not support a transparent background (H.264 has no standard " +
+                        "alpha channel). Set transparent = false and choose a backgroundColor, " +
+                        "or use --format=apng/webp for transparent animated export.",
             )
         }
 
-        val budget = FrameBudget.compute(totalMs, options)
+        val budget = FrameBudget.compute(totalDurationMs = totalMs, options = options)
 
-        val frames = SmilTimelineFrameSampler.sample(animatedSvg, timeline, budget, options)
+        val frames = SmilTimelineFrameSampler.sample(svg = animatedSvg, timeline = timeline, budget = budget, options = options)
 
         val encoded =
             when (options.format) {
-                AnimFormat.APNG -> ApngEncoder.encode(frames, budget.intervalMs)
-                AnimFormat.WEBP -> WebpEncoder.encode(frames, budget.intervalMs)
-                AnimFormat.MP4 -> Mp4Encoder.encode(frames, budget.intervalMs)
+                AnimFormat.APNG -> ApngEncoder.encode(frames = frames, delayMs = budget.intervalMs)
+                AnimFormat.WEBP -> WebpEncoder.encode(frames = frames, delayMs = budget.intervalMs)
+                AnimFormat.MP4 -> Mp4Encoder.encode(frames = frames, delayMs = budget.intervalMs)
             }
 
         val encodedSize = encoded.size.toLong()
@@ -74,9 +76,10 @@ public object KumlAnimRenderer {
             val sizeMb = encodedSize / (1024 * 1024)
             val maxMb = options.maxSizeBytes / (1024 * 1024)
             throw AnimEncoderException(
-                "Animated ${options.format} output is $sizeMb MiB, which exceeds the " +
-                    "$maxMb MiB hard limit (maxSizeBytes=${options.maxSizeBytes}). " +
-                    "Reduce --width or fps to produce a smaller output.",
+                message =
+                    "Animated ${options.format} output is $sizeMb MiB, which exceeds the " +
+                        "$maxMb MiB hard limit (maxSizeBytes=${options.maxSizeBytes}). " +
+                        "Reduce --width or fps to produce a smaller output.",
             )
         }
 
@@ -108,7 +111,7 @@ public object KumlAnimRenderer {
         output: Path,
         options: AnimRenderOptions = AnimRenderOptions.DEFAULT,
     ) {
-        val bytes = toAnimated(animatedSvg, timeline, options)
+        val bytes = toAnimated(animatedSvg = animatedSvg, timeline = timeline, options = options)
         output.toFile().apply {
             parentFile?.mkdirs()
             writeBytes(bytes)

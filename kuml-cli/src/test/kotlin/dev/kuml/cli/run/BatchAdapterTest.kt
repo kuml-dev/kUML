@@ -28,7 +28,7 @@ class BatchAdapterTest :
                 )
             startResult is SessionResult.Ok || startResult is SessionResult.Terminated
 
-            val adapter = BatchAdapter(manager, trafficLightEvents, null)
+            val adapter = BatchAdapter(manager = manager, eventsFile = trafficLightEvents, traceOut = null)
             val exitCode = adapter.run()
             exitCode shouldBe 0
         }
@@ -44,7 +44,7 @@ class BatchAdapterTest :
                 migrationPolicy = MigrationPolicy.AcceptIfFingerprintMatches,
             )
             // ACT terminates on its own via step — we just provide some events
-            val adapter = BatchAdapter(manager, actEvents, null)
+            val adapter = BatchAdapter(manager = manager, eventsFile = actEvents, traceOut = null)
             val exitCode = adapter.run()
             exitCode shouldBe 0
         }
@@ -61,7 +61,7 @@ class BatchAdapterTest :
                     restoreFrom = null,
                     migrationPolicy = MigrationPolicy.AcceptIfFingerprintMatches,
                 )
-                val adapter = BatchAdapter(manager, trafficLightEvents, traceOut)
+                val adapter = BatchAdapter(manager = manager, eventsFile = trafficLightEvents, traceOut = traceOut)
                 val exitCode = adapter.run()
                 exitCode shouldBe 0
                 val content = traceOut.toFile().readText()

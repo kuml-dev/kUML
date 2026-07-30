@@ -37,8 +37,8 @@ class CollaborationBuilder internal constructor(
     /** The computed or explicitly provided ID for this collaboration. */
     val id: String =
         run {
-            val candidate = explicitId ?: UmlIds.child(parentId, name)
-            val resolved = UmlIds.disambiguate(candidate, takenIds)
+            val candidate = explicitId ?: UmlIds.child(parentId = parentId, name = name)
+            val resolved = UmlIds.disambiguate(candidate = candidate, taken = takenIds)
             takenIds += resolved
             resolved
         }
@@ -68,7 +68,7 @@ class CollaborationBuilder internal constructor(
         multiplicity: Multiplicity = Multiplicity(),
         block: CollaborationRoleBuilder.() -> Unit = {},
     ): UmlCollaborationRole {
-        val roleId = UmlIds.disambiguate(UmlIds.child(id, name), takenIds)
+        val roleId = UmlIds.disambiguate(candidate = UmlIds.child(parentId = id, name = name), taken = takenIds)
         takenIds += roleId
         val roleBuilder =
             CollaborationRoleBuilder(
@@ -90,7 +90,7 @@ class CollaborationBuilder internal constructor(
         type: String,
         multiplicity: Multiplicity = Multiplicity(),
         block: CollaborationRoleBuilder.() -> Unit = {},
-    ): UmlCollaborationRole = role(name, UmlTypeRef(name = type), multiplicity, block)
+    ): UmlCollaborationRole = role(name = name, type = UmlTypeRef(name = type), multiplicity = multiplicity, block = block)
 
     internal fun build(): UmlCollaboration =
         UmlCollaboration(

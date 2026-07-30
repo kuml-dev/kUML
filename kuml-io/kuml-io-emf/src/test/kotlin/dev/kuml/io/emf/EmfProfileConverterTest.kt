@@ -17,7 +17,7 @@ class EmfProfileConverterTest :
         beforeEach { EmfBootstrap.resetForTest() }
 
         "createEmfProfile erstellt Profile mit korrektem Namen" {
-            val profile = converter.createEmfProfile("test-profile", emptyList())
+            val profile = converter.createEmfProfile(profileName = "test-profile", stereotypes = emptyList())
             profile.name shouldBe "test-profile"
         }
 
@@ -28,19 +28,19 @@ class EmfProfileConverterTest :
                     name = "Entity",
                     metaclasses = listOf("Class"),
                 )
-            val profile = converter.createEmfProfile("javaee", listOf(stereo))
+            val profile = converter.createEmfProfile(profileName = "javaee", stereotypes = listOf(stereo))
             profile.ownedStereotypes shouldHaveSize 1
             profile.ownedStereotypes.first().name shouldBe "Entity"
         }
 
         "extractStereotypes gibt leere Liste für leeres Profile" {
-            val profile = converter.createEmfProfile("empty", emptyList())
+            val profile = converter.createEmfProfile(profileName = "empty", stereotypes = emptyList())
             converter.extractStereotypes(profile) shouldHaveSize 0
         }
 
         "Roundtrip: UmlStereotype → EMF → UmlStereotype erhält Namen" {
             val stereo = UmlStereotype(id = "Srv", name = "Service", metaclasses = emptyList())
-            val profile = converter.createEmfProfile("spring", listOf(stereo))
+            val profile = converter.createEmfProfile(profileName = "spring", stereotypes = listOf(stereo))
             val extracted = converter.extractStereotypes(profile)
             extracted shouldHaveSize 1
             extracted.first().name shouldBe "Service"
@@ -51,7 +51,7 @@ class EmfProfileConverterTest :
                 UmlProperty(
                     id = "e.v",
                     name = "version",
-                    type = UmlTypeRef("String"),
+                    type = UmlTypeRef(name = "String"),
                 )
             val stereo =
                 UmlStereotype(
@@ -60,7 +60,7 @@ class EmfProfileConverterTest :
                     metaclasses = emptyList(),
                     tagDefinitions = listOf(tagDef),
                 )
-            val profile = converter.createEmfProfile("p", listOf(stereo))
+            val profile = converter.createEmfProfile(profileName = "p", stereotypes = listOf(stereo))
             val emfStereo = profile.ownedStereotypes.first()
             // Non-extension attributes should include our tag definition
             val attrs = emfStereo.ownedAttributes.filter { it.association == null }
@@ -72,7 +72,7 @@ class EmfProfileConverterTest :
                 UmlProperty(
                     id = "s.n",
                     name = "namespace",
-                    type = UmlTypeRef("String"),
+                    type = UmlTypeRef(name = "String"),
                 )
             val stereo =
                 UmlStereotype(
@@ -81,7 +81,7 @@ class EmfProfileConverterTest :
                     metaclasses = emptyList(),
                     tagDefinitions = listOf(tagDef),
                 )
-            val profile = converter.createEmfProfile("p", listOf(stereo))
+            val profile = converter.createEmfProfile(profileName = "p", stereotypes = listOf(stereo))
             val extracted = converter.extractStereotypes(profile)
             val roundtrippedTagDef = extracted.first().tagDefinitions.firstOrNull { it.name == "namespace" }
             roundtrippedTagDef shouldNotBe null
@@ -94,14 +94,14 @@ class EmfProfileConverterTest :
                     UmlStereotype(id = "r", name = "Repository", metaclasses = emptyList()),
                     UmlStereotype(id = "s", name = "Service", metaclasses = emptyList()),
                 )
-            val profile = converter.createEmfProfile("spring", stereos)
+            val profile = converter.createEmfProfile(profileName = "spring", stereotypes = stereos)
             profile.ownedStereotypes shouldHaveSize 3
             profile.ownedStereotypes.map { it.name }.toSet() shouldBe setOf("Entity", "Repository", "Service")
         }
 
         "convertStereotypeFromEmf gibt UmlStereotype mit korrekter Visibility zurück" {
             val stereo = UmlStereotype(id = "a", name = "Abstract", metaclasses = emptyList())
-            val profile = converter.createEmfProfile("p", listOf(stereo))
+            val profile = converter.createEmfProfile(profileName = "p", stereotypes = listOf(stereo))
             val emfStereo = profile.ownedStereotypes.first()
             val result = converter.convertStereotypeFromEmf(emfStereo)
             result.name shouldBe "Abstract"
@@ -115,7 +115,7 @@ class EmfProfileConverterTest :
                     name = "Component",
                     metaclasses = listOf("Class"),
                 )
-            val profile = converter.createEmfProfile("uml-ext", listOf(stereo))
+            val profile = converter.createEmfProfile(profileName = "uml-ext", stereotypes = listOf(stereo))
             val emfStereo = profile.ownedStereotypes.first()
             // Metaclass name is encoded as a sentinel attribute with the METACLASS_ATTR_PREFIX
             val sentinelAttrs =
@@ -133,7 +133,7 @@ class EmfProfileConverterTest :
                     name = "Component",
                     metaclasses = listOf("Class"),
                 )
-            val profile = converter.createEmfProfile("uml-ext", listOf(stereo))
+            val profile = converter.createEmfProfile(profileName = "uml-ext", stereotypes = listOf(stereo))
             val extracted = converter.extractStereotypes(profile)
             extracted.first().metaclasses shouldHaveSize 1
             extracted.first().metaclasses.first() shouldBe "Class"
@@ -146,7 +146,7 @@ class EmfProfileConverterTest :
                     name = "Markup",
                     metaclasses = listOf("Class", "Property"),
                 )
-            val profile = converter.createEmfProfile("p", listOf(stereo))
+            val profile = converter.createEmfProfile(profileName = "p", stereotypes = listOf(stereo))
             val extracted = converter.extractStereotypes(profile)
             extracted.first().metaclasses.toSet() shouldBe setOf("Class", "Property")
         }
@@ -159,7 +159,7 @@ class EmfProfileConverterTest :
                     visibility = Visibility.PRIVATE,
                     metaclasses = emptyList(),
                 )
-            val profile = converter.createEmfProfile("p", listOf(stereo))
+            val profile = converter.createEmfProfile(profileName = "p", stereotypes = listOf(stereo))
             val extracted = converter.extractStereotypes(profile)
             extracted.first().visibility shouldBe Visibility.PRIVATE
         }
@@ -167,9 +167,9 @@ class EmfProfileConverterTest :
         "Stereotyp mit mehreren TagDefinitions — alle werden erhalten" {
             val tagDefs =
                 listOf(
-                    UmlProperty(id = "t.author", name = "author", type = UmlTypeRef("String")),
-                    UmlProperty(id = "t.version", name = "version", type = UmlTypeRef("String")),
-                    UmlProperty(id = "t.deprecated", name = "deprecated", type = UmlTypeRef("Boolean")),
+                    UmlProperty(id = "t.author", name = "author", type = UmlTypeRef(name = "String")),
+                    UmlProperty(id = "t.version", name = "version", type = UmlTypeRef(name = "String")),
+                    UmlProperty(id = "t.deprecated", name = "deprecated", type = UmlTypeRef(name = "Boolean")),
                 )
             val stereo =
                 UmlStereotype(
@@ -178,7 +178,7 @@ class EmfProfileConverterTest :
                     metaclasses = emptyList(),
                     tagDefinitions = tagDefs,
                 )
-            val profile = converter.createEmfProfile("p", listOf(stereo))
+            val profile = converter.createEmfProfile(profileName = "p", stereotypes = listOf(stereo))
             val extracted = converter.extractStereotypes(profile)
             extracted.first().tagDefinitions shouldHaveSize 3
             extracted

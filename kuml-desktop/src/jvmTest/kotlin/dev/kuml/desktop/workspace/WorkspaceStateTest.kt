@@ -67,11 +67,11 @@ class WorkspaceStateTest :
         test("prose document selection: no svg, no error") {
             val root = writeSampleWorkspace()
             try {
-                val workspace = WorkspaceScanner.scan(root)
+                val workspace = WorkspaceScanner.scan(root = root)
                 val state = WorkspaceState(workspace)
                 val doc = state.documents.first { it.relativePath == "prose.md" }
 
-                state.select(doc, "plain", Strings.EN)
+                state.select(doc = doc, themeName = "plain", strings = Strings.EN)
 
                 state.docSvg shouldBe null
                 state.docError shouldBe null
@@ -84,11 +84,11 @@ class WorkspaceStateTest :
         test("class diagram document selection: non-blank svg, no error") {
             val root = writeSampleWorkspace()
             try {
-                val workspace = WorkspaceScanner.scan(root)
+                val workspace = WorkspaceScanner.scan(root = root)
                 val state = WorkspaceState(workspace)
                 val doc = state.documents.first { it.relativePath == "diagram.md" }
 
-                state.select(doc, "plain", Strings.EN)
+                state.select(doc = doc, themeName = "plain", strings = Strings.EN)
 
                 state.docError shouldBe null
                 val svg = state.docSvg.shouldNotBeNull()
@@ -101,11 +101,11 @@ class WorkspaceStateTest :
         test("ERM document selection: short-circuits to previewErmUnsupported, no exception, no svg") {
             val root = writeSampleWorkspace()
             try {
-                val workspace = WorkspaceScanner.scan(root)
+                val workspace = WorkspaceScanner.scan(root = root)
                 val state = WorkspaceState(workspace)
                 val doc = state.documents.first { it.relativePath == "erm.md" }
 
-                state.select(doc, "plain", Strings.EN)
+                state.select(doc = doc, themeName = "plain", strings = Strings.EN)
 
                 state.docSvg shouldBe null
                 state.docError shouldBe Strings.EN.previewErmUnsupported
@@ -117,7 +117,7 @@ class WorkspaceStateTest :
         test("documents are sorted by relativePath") {
             val root = writeSampleWorkspace()
             try {
-                val workspace = WorkspaceScanner.scan(root)
+                val workspace = WorkspaceScanner.scan(root = root)
                 val state = WorkspaceState(workspace)
                 state.documents.map { it.relativePath } shouldBe state.documents.map { it.relativePath }.sorted()
             } finally {
@@ -128,7 +128,7 @@ class WorkspaceStateTest :
         test("graphIndex is built eagerly and has no entries for a workspace with no cross-links") {
             val root = writeSampleWorkspace()
             try {
-                val workspace = WorkspaceScanner.scan(root)
+                val workspace = WorkspaceScanner.scan(root = root)
                 val state = WorkspaceState(workspace)
                 val doc = state.documents.first { it.relativePath == "index.md" }
 

@@ -64,13 +64,13 @@ public object TraceDiff {
                     if (a.withoutTimestamp() == e.withoutTimestamp()) {
                         matched++
                     } else {
-                        mismatches += Mismatch.ValueDiffer(i, e, a)
+                        mismatches += Mismatch.ValueDiffer(index = i, expected = e, actual = a)
                     }
-                a != null -> mismatches += Mismatch.ExtraActual(i, a)
-                e != null -> mismatches += Mismatch.MissingExpected(i, e)
+                a != null -> mismatches += Mismatch.ExtraActual(index = i, actual = a)
+                e != null -> mismatches += Mismatch.MissingExpected(index = i, expected = e)
             }
         }
-        return Report(matched, mismatches)
+        return Report(matched = matched, mismatches = mismatches)
     }
 }
 

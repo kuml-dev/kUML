@@ -171,7 +171,7 @@ public object KumlToolRegistry {
      * Delegates discovery to [discoverExternal]. Use [buildWithExternalFrom] in tests to
      * supply an explicit factory list without a real ServiceLoader.
      */
-    public fun buildWithExternal(ctx: AgentEditingContext): ToolRegistry = buildWithExternalFrom(ctx, discoverExternal())
+    public fun buildWithExternal(ctx: AgentEditingContext): ToolRegistry = buildWithExternalFrom(ctx = ctx, external = discoverExternal())
 
     /**
      * Testable seam for [buildWithExternal]: accepts an explicit factory list instead of

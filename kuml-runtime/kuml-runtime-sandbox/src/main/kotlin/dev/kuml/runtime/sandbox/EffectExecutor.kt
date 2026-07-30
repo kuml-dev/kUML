@@ -45,7 +45,7 @@ public class EffectExecutor(
 
         val effects =
             try {
-                OclLikeExpressionParser.tryParseEffects(actionBody)
+                OclLikeExpressionParser.tryParseEffects(input = actionBody)
                     ?: throw SandboxException.ParseFailure(
                         RuntimeException("Could not parse action body: $actionBody"),
                     )
@@ -63,7 +63,7 @@ public class EffectExecutor(
             if (depthEffect(effect) > policy.maxExpressionDepth) {
                 throw SandboxException.ExpressionTooDeep(policy.maxExpressionDepth)
             }
-            executeOne(effect, instance, event)
+            executeOne(effect = effect, instance = instance, event = event)
             enforceLimits(instance)
         }
     }
@@ -74,9 +74,9 @@ public class EffectExecutor(
         event: Event,
     ) {
         when (effect) {
-            is CallEffect -> executeCall(effect, instance, event)
-            is AssignEffect -> executeAssign(effect, instance, event)
-            is ExpressionEffect -> evaluateExpressionEffect(effect.expr, instance, event)
+            is CallEffect -> executeCall(effect = effect, instance = instance, event = event)
+            is AssignEffect -> executeAssign(effect = effect, instance = instance, event = event)
+            is ExpressionEffect -> evaluateExpressionEffect(expr = effect.expr, instance = instance, event = event)
         }
     }
 
@@ -86,8 +86,8 @@ public class EffectExecutor(
         event: Event,
     ) {
         val key = effect.receiver.joinToString(".")
-        val context = buildContext(instance, event)
-        val evaluatedArgs = effect.args.map { evaluateExpr(it, context) }
+        val context = buildContext(instance = instance, event = event)
+        val evaluatedArgs = effect.args.map { evaluateExpr(expr = it, context = context) }
 
         // Check allowlist
         if (key !in policy.allowedFunctions) {
@@ -119,8 +119,8 @@ public class EffectExecutor(
         instance: StateMachineInstance,
         event: Event,
     ) {
-        val context = buildContext(instance, event)
-        val value = evaluateExpr(effect.value, context)
+        val context = buildContext(instance = instance, event = event)
+        val value = evaluateExpr(expr = effect.value, context = context)
 
         when (effect.target.size) {
             0 -> return // nothing to assign
@@ -128,7 +128,7 @@ public class EffectExecutor(
                 val key = effect.target[0]
                 if (key in reservedNames) throw SandboxException.ReservedVariableName(key)
                 if (value is String && value.length > policy.maxStringLength) {
-                    throw SandboxException.StringLengthExceeded(key, policy.maxStringLength)
+                    throw SandboxException.StringLengthExceeded(key = key, limit = policy.maxStringLength)
                 }
                 instance.variables[key] = value
             }
@@ -138,7 +138,7 @@ public class EffectExecutor(
                 if (rootKey in reservedNames) throw SandboxException.ReservedVariableName(rootKey)
                 val finalKey = effect.target.last()
                 if (value is String && value.length > policy.maxStringLength) {
-                    throw SandboxException.StringLengthExceeded(effect.target.joinToString("."), policy.maxStringLength)
+                    throw SandboxException.StringLengthExceeded(key = effect.target.joinToString("."), limit = policy.maxStringLength)
                 }
                 // Navigate / create intermediate maps
                 var current: MutableMap<String, Any?> =
@@ -178,12 +178,12 @@ public class EffectExecutor(
         instance: StateMachineInstance,
         event: Event,
     ) {
-        val context = buildContext(instance, event)
+        val context = buildContext(instance = instance, event = event)
         // For function calls in expression position, also enforce the whitelist
         if (expr is FunctionCall && expr.name !in policy.allowedFunctions) {
             throw SandboxException.DisallowedFunction(expr.name)
         }
-        evaluateExpr(expr, context)
+        evaluateExpr(expr = expr, context = context)
         // Result is discarded — ExpressionEffect is a bare expression statement
     }
 
@@ -193,7 +193,7 @@ public class EffectExecutor(
     ): Any? {
         // Enforce function whitelist at FunctionCall nodes
         checkFunctionWhitelist(expr)
-        return ExpressionEvaluator.evaluate(expr, context)
+        return ExpressionEvaluator.evaluate(expr = expr, context = context)
     }
 
     private fun checkFunctionWhitelist(expr: KumlExpression) {
@@ -229,7 +229,7 @@ public class EffectExecutor(
         }
         for ((key, value) in instance.variables) {
             if (value is String && value.length > policy.maxStringLength) {
-                throw SandboxException.StringLengthExceeded(key, policy.maxStringLength)
+                throw SandboxException.StringLengthExceeded(key = key, limit = policy.maxStringLength)
             }
         }
     }

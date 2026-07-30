@@ -29,7 +29,7 @@ class ArxmlAdaptiveVersionTest :
                 """.trimIndent()
             val root = parseRoot(xml)
             val warnings = mutableListOf<String>()
-            val result = ArxmlAdaptiveVersion.detect(root, warnings)
+            val result = ArxmlAdaptiveVersion.detect(root = root, warnings = warnings)
             result.shouldNotBeNull()
             result shouldBe ArxmlAdaptiveVersion.R23_11
         }
@@ -44,7 +44,7 @@ class ArxmlAdaptiveVersionTest :
                 </AUTOSAR>
                 """.trimIndent()
             val root = parseRoot(xml)
-            val result = ArxmlAdaptiveVersion.detect(root)
+            val result = ArxmlAdaptiveVersion.detect(root = root)
             result.shouldNotBeNull()
             result shouldBe ArxmlAdaptiveVersion.R22_11
         }
@@ -68,7 +68,7 @@ class ArxmlAdaptiveVersionTest :
                 </AUTOSAR>
                 """.trimIndent()
             val root = parseRoot(xml)
-            val result = ArxmlAdaptiveVersion.detect(root)
+            val result = ArxmlAdaptiveVersion.detect(root = root)
             result.shouldBeNull()
         }
 
@@ -125,7 +125,7 @@ class ArxmlAdaptiveVersionTest :
                 """.trimIndent()
             val root = parseRoot(xml)
             val warnings = mutableListOf<String>()
-            val result = ArxmlAdaptiveVersion.detect(root, warnings)
+            val result = ArxmlAdaptiveVersion.detect(root = root, warnings = warnings)
             result.shouldNotBeNull()
             result shouldBe ArxmlAdaptiveVersion.R23_11
             warnings.any { it.contains("R23_11") }.shouldBeTrue()
@@ -161,7 +161,7 @@ class ArxmlAdaptiveVersionTest :
                 </AUTOSAR>
                 """.trimIndent()
             val root = parseRoot(xml)
-            val result = ArxmlAdaptiveVersion.detect(root)
+            val result = ArxmlAdaptiveVersion.detect(root = root)
             result.shouldNotBeNull()
             result shouldBe ArxmlAdaptiveVersion.R19_03
         }

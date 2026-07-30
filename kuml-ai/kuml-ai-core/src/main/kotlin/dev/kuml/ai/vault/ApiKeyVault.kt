@@ -29,7 +29,7 @@ public class ApiKeyVault internal constructor(
     public fun put(
         provider: LLMProvider,
         key: String,
-    ): Unit = _backend.put(KeyVaultBackend.keyFor(provider), key)
+    ): Unit = _backend.put(key = KeyVaultBackend.keyFor(provider), secret = key)
 
     /** Delete an API key. */
     public fun delete(provider: LLMProvider): Unit = _backend.delete(KeyVaultBackend.keyFor(provider))
@@ -61,7 +61,7 @@ public class ApiKeyVault internal constructor(
                 is MasterPasswordVaultBackend -> b.inner // unwrap first if re-keying
                 else -> b
             }
-        _backend = MasterPasswordVaultBackend.create(masterPassword, innerBackend)
+        _backend = MasterPasswordVaultBackend.create(masterPassword = masterPassword, inner = innerBackend)
     }
 
     /**

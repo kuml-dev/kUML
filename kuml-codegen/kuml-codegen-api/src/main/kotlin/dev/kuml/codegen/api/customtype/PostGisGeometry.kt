@@ -67,7 +67,7 @@ public object PostGisTypeHook : CustomTypeHook {
                 else -> PostGisGeometryKind.GEOMETRY
             }
         val srid = m.groupValues[2].ifEmpty { null }?.toIntOrNull()
-        return PostGisGeometryType(kind, srid)
+        return PostGisGeometryType(kind = kind, srid = srid)
     }
 }
 

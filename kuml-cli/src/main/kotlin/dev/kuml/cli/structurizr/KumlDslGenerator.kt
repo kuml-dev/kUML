@@ -121,22 +121,22 @@ internal object KumlDslGenerator {
         // Deployment nodes
         for (elem in workspace.model.elements) {
             if (elem is StructurizrElement.DeploymentNode) {
-                sb.append(generateDeploymentNode(elem, varNames, indent = "    "))
+                sb.append(generateDeploymentNode(node = elem, varNames = varNames, indent = "    "))
             }
         }
 
         // Relationships
         for (rel in workspace.model.relationships) {
-            val sourceVar = resolveVar(rel.sourceIdentifier, varNames)
-            val targetVar = resolveVar(rel.targetIdentifier, varNames)
+            val sourceVar = resolveVar(identifier = rel.sourceIdentifier, varNames = varNames)
+            val targetVar = resolveVar(identifier = rel.targetIdentifier, varNames = varNames)
 
             if (sourceVar == null || targetVar == null) {
                 sb.appendLine("    // TODO: relationship ${rel.sourceIdentifier} -> ${rel.targetIdentifier}")
                 continue
             }
 
-            val srcExpr = if (isNullableVar(rel.sourceIdentifier, workspace)) "$sourceVar!!" else sourceVar
-            val tgtExpr = if (isNullableVar(rel.targetIdentifier, workspace)) "$targetVar!!" else targetVar
+            val srcExpr = if (isNullableVar(identifier = rel.sourceIdentifier, workspace = workspace)) "$sourceVar!!" else sourceVar
+            val tgtExpr = if (isNullableVar(identifier = rel.targetIdentifier, workspace = workspace)) "$targetVar!!" else targetVar
 
             val hasBody = rel.technology != null
             sb.append("    relationship($srcExpr, $tgtExpr)")
@@ -156,7 +156,7 @@ internal object KumlDslGenerator {
         }
 
         // Views
-        val viewsSection = generateViews(workspace, varNames)
+        val viewsSection = generateViews(workspace = workspace, varNames = varNames)
         if (viewsSection.isNotBlank()) {
             sb.appendLine()
             sb.append(viewsSection)
@@ -293,7 +293,7 @@ internal object KumlDslGenerator {
             node.description?.let { sb.appendLine("$indent    description = ${it.quoted()}") }
             node.technology?.let { sb.appendLine("$indent    technology = ${it.quoted()}") }
             for (child in node.children) {
-                sb.append(generateDeploymentNode(child, varNames, "$indent    "))
+                sb.append(generateDeploymentNode(node = child, varNames = varNames, indent = "$indent    "))
             }
             sb.appendLine("$indent}")
         } else {

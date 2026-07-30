@@ -33,7 +33,7 @@ class ErmToExposedTransformerTest :
         fun transform(
             model: ErmModel,
             options: Map<String, String> = emptyMap(),
-        ) = transformer.transform(model, TransformContext(options))
+        ) = transformer.transform(source = model, ctx = TransformContext(options))
 
         fun successFiles(
             model: ErmModel,
@@ -44,10 +44,10 @@ class ErmToExposedTransformerTest :
 
         test("basic entity produces a Table object with PrimaryKey") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("first_name", ErmDataType.Varchar(255), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "first_name", type = ErmDataType.Varchar(255), nullable = false)
                     }
                 }
             val files = successFiles(model)
@@ -61,10 +61,10 @@ class ErmToExposedTransformerTest :
 
         test("snake_case entity and attribute names convert to PascalCase/camelCase Kotlin identifiers") {
             val model =
-                ermModel("M") {
-                    entity("order_items") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("unit_price", ErmDataType.Decimal(10, 2), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "order_items") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "unit_price", type = ErmDataType.Decimal(precision = 10, scale = 2), nullable = false)
                     }
                 }
             val content = successFiles(model)[0].content
@@ -74,13 +74,13 @@ class ErmToExposedTransformerTest :
         }
 
         test("--package option controls the generated package declaration") {
-            val model = ermModel("M") { entity("users") { id() } }
+            val model = ermModel(name = "M") { entity(name = "users") { id() } }
             val content = successFiles(model, mapOf("package" to "org.myapp.tables"))[0].content
             content shouldContain "package org.myapp.tables"
         }
 
         test("default package is com.example.tables") {
-            val model = ermModel("M") { entity("users") { id() } }
+            val model = ermModel(name = "M") { entity(name = "users") { id() } }
             successFiles(model)[0].content shouldContain "package com.example.tables"
         }
 
@@ -88,24 +88,24 @@ class ErmToExposedTransformerTest :
 
         test("every ErmDataType variant maps to the correct Exposed column call") {
             val model =
-                ermModel("M") {
-                    entity("widgets") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("small_count", ErmDataType.Integer(16))
-                        attribute("big_count", ErmDataType.Integer(64))
-                        attribute("price", ErmDataType.Decimal(10, 2))
-                        attribute("weight", ErmDataType.Real(double = true))
-                        attribute("ratio", ErmDataType.Real(double = false))
-                        attribute("code", ErmDataType.Varchar(64))
-                        attribute("description", ErmDataType.Text)
-                        attribute("active", ErmDataType.Boolean)
-                        attribute("released_on", ErmDataType.Date)
-                        attribute("daily_at", ErmDataType.Time)
-                        attribute("created_at", ErmDataType.Timestamp())
-                        attribute("external_ref", ErmDataType.Uuid)
-                        attribute("blob_data", ErmDataType.Blob)
-                        attribute("payload", ErmDataType.Json)
-                        attribute("geom", ErmDataType.Custom("tsvector"))
+                ermModel(name = "M") {
+                    entity(name = "widgets") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "small_count", type = ErmDataType.Integer(16))
+                        attribute(name = "big_count", type = ErmDataType.Integer(64))
+                        attribute(name = "price", type = ErmDataType.Decimal(precision = 10, scale = 2))
+                        attribute(name = "weight", type = ErmDataType.Real(double = true))
+                        attribute(name = "ratio", type = ErmDataType.Real(double = false))
+                        attribute(name = "code", type = ErmDataType.Varchar(64))
+                        attribute(name = "description", type = ErmDataType.Text)
+                        attribute(name = "active", type = ErmDataType.Boolean)
+                        attribute(name = "released_on", type = ErmDataType.Date)
+                        attribute(name = "daily_at", type = ErmDataType.Time)
+                        attribute(name = "created_at", type = ErmDataType.Timestamp())
+                        attribute(name = "external_ref", type = ErmDataType.Uuid)
+                        attribute(name = "blob_data", type = ErmDataType.Blob)
+                        attribute(name = "payload", type = ErmDataType.Json)
+                        attribute(name = "geom", type = ErmDataType.Custom("tsvector"))
                     }
                 }
             val content = successFiles(model)[0].content
@@ -141,11 +141,11 @@ class ErmToExposedTransformerTest :
 
         test("autoIncrement, nullable, unique modifiers render correctly") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        attribute("id", ErmDataType.Integer(64), primaryKey = true, nullable = false, autoIncrement = true)
-                        attribute("email", ErmDataType.Varchar(255), nullable = false, unique = true)
-                        attribute("nickname", ErmDataType.Varchar(255), nullable = true)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        attribute(name = "id", type = ErmDataType.Integer(64), primaryKey = true, nullable = false, autoIncrement = true)
+                        attribute(name = "email", type = ErmDataType.Varchar(255), nullable = false, unique = true)
+                        attribute(name = "nickname", type = ErmDataType.Varchar(255), nullable = true)
                     }
                 }
             val content = successFiles(model)[0].content
@@ -156,9 +156,9 @@ class ErmToExposedTransformerTest :
 
         test("autoIncrement is ignored for non-Integer types") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        attribute("id", ErmDataType.Uuid, primaryKey = true, nullable = false, autoIncrement = true)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        attribute(name = "id", type = ErmDataType.Uuid, primaryKey = true, nullable = false, autoIncrement = true)
                     }
                 }
             val content = successFiles(model)[0].content
@@ -168,10 +168,10 @@ class ErmToExposedTransformerTest :
 
         test("default value is emitted as a TODO comment, not a typed .default() call") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("credits", ErmDataType.Integer(32), nullable = false, default = "0")
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "credits", type = ErmDataType.Integer(32), nullable = false, default = "0")
                     }
                 }
             val content = successFiles(model)[0].content
@@ -183,11 +183,11 @@ class ErmToExposedTransformerTest :
 
         test("not-null FK attribute becomes reference()") {
             val model =
-                ermModel("M") {
-                    val authors = entity("authors") { id("id", ErmDataType.Integer(64)) }
-                    entity("books") {
-                        id("id", ErmDataType.Integer(64))
-                        foreignKey("author_id", references = authors, nullable = false)
+                ermModel(name = "M") {
+                    val authors = entity(name = "authors") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    entity(name = "books") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        foreignKey(name = "author_id", references = authors, nullable = false)
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
@@ -196,11 +196,11 @@ class ErmToExposedTransformerTest :
 
         test("nullable FK attribute becomes optReference()") {
             val model =
-                ermModel("M") {
-                    val authors = entity("authors") { id("id", ErmDataType.Integer(64)) }
-                    entity("books") {
-                        id("id", ErmDataType.Integer(64))
-                        foreignKey("author_id", references = authors, nullable = true)
+                ermModel(name = "M") {
+                    val authors = entity(name = "authors") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    entity(name = "books") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        foreignKey(name = "author_id", references = authors, nullable = true)
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
@@ -209,12 +209,12 @@ class ErmToExposedTransformerTest :
 
         test("onDelete/onUpdate referential actions render as ReferenceOption named arguments") {
             val model =
-                ermModel("M") {
-                    val authors = entity("authors") { id("id", ErmDataType.Integer(64)) }
-                    entity("books") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    val authors = entity(name = "authors") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    entity(name = "books") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         foreignKey(
-                            "author_id",
+                            name = "author_id",
                             references = authors,
                             nullable = false,
                             onDelete = ReferentialAction.CASCADE,
@@ -228,11 +228,11 @@ class ErmToExposedTransformerTest :
 
         test("NO_ACTION referential action omits ReferenceOption arguments entirely") {
             val model =
-                ermModel("M") {
-                    val authors = entity("authors") { id("id", ErmDataType.Integer(64)) }
-                    entity("books") {
-                        id("id", ErmDataType.Integer(64))
-                        foreignKey("author_id", references = authors, nullable = false)
+                ermModel(name = "M") {
+                    val authors = entity(name = "authors") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    entity(name = "books") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        foreignKey(name = "author_id", references = authors, nullable = false)
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
@@ -245,17 +245,17 @@ class ErmToExposedTransformerTest :
         test("FK with explicit targetAttributeId references that column instead of the primary key") {
             lateinit var isbnAttrId: String
             val model =
-                ermModel("M") {
+                ermModel(name = "M") {
                     val authors =
-                        entity("authors") {
-                            id("id", ErmDataType.Integer(64))
-                            isbnAttrId = attribute("isbn", ErmDataType.Varchar(20), nullable = false, unique = true)
+                        entity(name = "authors") {
+                            id(name = "id", type = ErmDataType.Integer(64))
+                            isbnAttrId = attribute(name = "isbn", type = ErmDataType.Varchar(20), nullable = false, unique = true)
                         }
-                    entity("books") {
-                        id("id", ErmDataType.Integer(64))
+                    entity(name = "books") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "author_isbn_ref",
-                            ErmDataType.Varchar(20),
+                            name = "author_isbn_ref",
+                            type = ErmDataType.Varchar(20),
                             nullable = false,
                             foreignKey = ErmForeignKey(targetEntityId = authors, targetAttributeId = isbnAttrId),
                         )
@@ -267,31 +267,31 @@ class ErmToExposedTransformerTest :
 
         test("FK without targetAttributeId targeting an entity with a composite primary key fails the transform") {
             val model =
-                ermModel("M") {
-                    val students = entity("students") { id("id", ErmDataType.Uuid) }
-                    val courses = entity("courses") { id("id", ErmDataType.Uuid) }
+                ermModel(name = "M") {
+                    val students = entity(name = "students") { id(name = "id", type = ErmDataType.Uuid) }
+                    val courses = entity(name = "courses") { id(name = "id", type = ErmDataType.Uuid) }
                     val studentsCourses =
-                        entity("students_courses", weak = true) {
+                        entity(name = "students_courses", weak = true) {
                             attribute(
-                                "student_id",
-                                ErmDataType.Uuid,
+                                name = "student_id",
+                                type = ErmDataType.Uuid,
                                 primaryKey = true,
                                 nullable = false,
                                 foreignKey = ErmForeignKey(targetEntityId = students),
                             )
                             attribute(
-                                "course_id",
-                                ErmDataType.Uuid,
+                                name = "course_id",
+                                type = ErmDataType.Uuid,
                                 primaryKey = true,
                                 nullable = false,
                                 foreignKey = ErmForeignKey(targetEntityId = courses),
                             )
                         }
-                    entity("enrollment_notes") {
-                        id("id", ErmDataType.Integer(64))
+                    entity(name = "enrollment_notes") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "link_id",
-                            ErmDataType.Uuid,
+                            name = "link_id",
+                            type = ErmDataType.Uuid,
                             nullable = false,
                             // No targetAttributeId — studentsCourses has a composite PK, so there is
                             // no unambiguous single target column to fall back to.
@@ -304,19 +304,19 @@ class ErmToExposedTransformerTest :
 
         test("FK without targetAttributeId targeting a weak entity with no primary key fails the transform") {
             val model =
-                ermModel("M") {
-                    val users = entity("users") { id("id", ErmDataType.Integer(64)) }
+                ermModel(name = "M") {
+                    val users = entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) }
                     val auditLog =
-                        entity("audit_log", weak = true) {
-                            attribute("message", ErmDataType.Text)
+                        entity(name = "audit_log", weak = true) {
+                            attribute(name = "message", type = ErmDataType.Text)
                         }
                     // Required so audit_log's empty primary key itself passes ErmConstraintChecker.
                     relationship(from = users, to = auditLog, kind = RelationshipKind.IDENTIFYING)
-                    entity("audit_log_comments") {
-                        id("id", ErmDataType.Integer(64))
+                    entity(name = "audit_log_comments") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "audit_log_ref",
-                            ErmDataType.Integer(64),
+                            name = "audit_log_ref",
+                            type = ErmDataType.Integer(64),
                             nullable = false,
                             // No targetAttributeId — audit_log has no primary key of its own at all.
                             foreignKey = ErmForeignKey(targetEntityId = auditLog),
@@ -328,12 +328,12 @@ class ErmToExposedTransformerTest :
 
         test("self-referential FK emits a plain typed column, not reference()") {
             val model =
-                ermModel("M") {
-                    entity("employees") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "employees") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "manager_id",
-                            ErmDataType.Integer(64),
+                            name = "manager_id",
+                            type = ErmDataType.Integer(64),
                             nullable = true,
                             // "entity_0" == this entity's own auto-id (first entity() call in the model).
                             foreignKey = ErmForeignKey(targetEntityId = "entity_0"),
@@ -351,20 +351,20 @@ class ErmToExposedTransformerTest :
 
         test("composite primary key (junction entity) renders PrimaryKey with both columns") {
             val model =
-                ermModel("M") {
-                    val students = entity("students") { id("id", ErmDataType.Uuid) }
-                    val courses = entity("courses") { id("id", ErmDataType.Uuid) }
-                    entity("students_courses", weak = true) {
+                ermModel(name = "M") {
+                    val students = entity(name = "students") { id(name = "id", type = ErmDataType.Uuid) }
+                    val courses = entity(name = "courses") { id(name = "id", type = ErmDataType.Uuid) }
+                    entity(name = "students_courses", weak = true) {
                         attribute(
-                            "student_id",
-                            ErmDataType.Uuid,
+                            name = "student_id",
+                            type = ErmDataType.Uuid,
                             primaryKey = true,
                             nullable = false,
                             foreignKey = ErmForeignKey(targetEntityId = students),
                         )
                         attribute(
-                            "course_id",
-                            ErmDataType.Uuid,
+                            name = "course_id",
+                            type = ErmDataType.Uuid,
                             primaryKey = true,
                             nullable = false,
                             foreignKey = ErmForeignKey(targetEntityId = courses),
@@ -380,11 +380,11 @@ class ErmToExposedTransformerTest :
 
         test("weak entity with no primary key omits the primaryKey override") {
             val model =
-                ermModel("M") {
-                    val users = entity("users") { id("id", ErmDataType.Integer(64)) }
+                ermModel(name = "M") {
+                    val users = entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) }
                     val auditLog =
-                        entity("audit_log", weak = true) {
-                            attribute("message", ErmDataType.Text)
+                        entity(name = "audit_log", weak = true) {
+                            attribute(name = "message", type = ErmDataType.Text)
                         }
                     // ErmConstraintChecker requires a weak entity with an empty primary key to be
                     // the target of an identifying relationship — declare one to keep this model valid.
@@ -402,16 +402,16 @@ class ErmToExposedTransformerTest :
             // name can never collide with a Kotlin hard keyword (all lowercase) — unlike attribute names,
             // which are camelCased (first letter lowercase, see the keyword test below). Hyphens exercise
             // the identifier-grammar defense on the entity-name path instead.
-            val model = ermModel("M") { entity("user-table") { id() } }
+            val model = ermModel(name = "M") { entity(name = "user-table") { id() } }
             transform(model).shouldBeInstanceOf<TransformResult.Failure>()
         }
 
         test("Kotlin-keyword attribute name fails the transform") {
             val model =
-                ermModel("M") {
-                    entity("users") {
+                ermModel(name = "M") {
+                    entity(name = "users") {
                         id()
-                        attribute("class", ErmDataType.Varchar(255))
+                        attribute(name = "class", type = ErmDataType.Varchar(255))
                     }
                 }
             transform(model).shouldBeInstanceOf<TransformResult.Failure>()
@@ -419,10 +419,10 @@ class ErmToExposedTransformerTest :
 
         test("attribute name with string-literal breakout characters fails the transform") {
             val model =
-                ermModel("M") {
-                    entity("users") {
+                ermModel(name = "M") {
+                    entity(name = "users") {
                         id()
-                        attribute("evil\") { //", ErmDataType.Varchar(255))
+                        attribute(name = "evil\") { //", type = ErmDataType.Varchar(255))
                     }
                 }
             transform(model).shouldBeInstanceOf<TransformResult.Failure>()
@@ -430,10 +430,10 @@ class ErmToExposedTransformerTest :
 
         test("attribute name with dollar-interpolation characters fails the transform") {
             val model =
-                ermModel("M") {
-                    entity("users") {
+                ermModel(name = "M") {
+                    entity(name = "users") {
                         id()
-                        attribute("bad\$name", ErmDataType.Varchar(255))
+                        attribute(name = "bad\$name", type = ErmDataType.Varchar(255))
                     }
                 }
             transform(model).shouldBeInstanceOf<TransformResult.Failure>()
@@ -441,28 +441,28 @@ class ErmToExposedTransformerTest :
 
         test("attribute name with backslash/newline fails the transform") {
             val model =
-                ermModel("M") {
-                    entity("users") {
+                ermModel(name = "M") {
+                    entity(name = "users") {
                         id()
-                        attribute("bad\\name\n", ErmDataType.Varchar(255))
+                        attribute(name = "bad\\name\n", type = ErmDataType.Varchar(255))
                     }
                 }
             transform(model).shouldBeInstanceOf<TransformResult.Failure>()
         }
 
         test("entity name with path-traversal characters fails the transform") {
-            val model = ermModel("M") { entity("../../etc/passwd") { id() } }
+            val model = ermModel(name = "M") { entity(name = "../../etc/passwd") { id() } }
             transform(model).shouldBeInstanceOf<TransformResult.Failure>()
         }
 
         test("structural error — FK targeting a non-existent entity — fails via ErmConstraintChecker") {
             val model =
-                ermModel("M") {
-                    entity("books") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "books") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "author_id",
-                            ErmDataType.Integer(64),
+                            name = "author_id",
+                            type = ErmDataType.Integer(64),
                             nullable = false,
                             foreignKey = ErmForeignKey(targetEntityId = "does-not-exist"),
                         )
@@ -472,7 +472,7 @@ class ErmToExposedTransformerTest :
         }
 
         test("model with no entities fails via ErmConstraintChecker") {
-            val model = ermModel("Empty") {}
+            val model = ermModel(name = "Empty") {}
             transform(model).shouldBeInstanceOf<TransformResult.Failure>()
         }
 
@@ -480,11 +480,11 @@ class ErmToExposedTransformerTest :
 
         test("trace links entity to its generated file and FK attribute with the FK rule id") {
             val model =
-                ermModel("M") {
-                    val authors = entity("authors") { id("id", ErmDataType.Integer(64)) }
-                    entity("books") {
-                        id("id", ErmDataType.Integer(64))
-                        foreignKey("author_id", references = authors, nullable = false)
+                ermModel(name = "M") {
+                    val authors = entity(name = "authors") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    entity(name = "books") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        foreignKey(name = "author_id", references = authors, nullable = false)
                     }
                 }
             val result = transform(model).shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
@@ -499,10 +499,10 @@ class ErmToExposedTransformerTest :
 
         test("a recognized PostGIS geometry Custom column renders geometry(...) and emits a support file") {
             val model =
-                ermModel("M") {
-                    entity("places") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("location", ErmDataType.Custom("geometry(Point,4326)"), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "places") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "location", type = ErmDataType.Custom("geometry(Point,4326)"), nullable = false)
                     }
                 }
             val files = successFiles(model)
@@ -519,10 +519,10 @@ class ErmToExposedTransformerTest :
 
         test("a model with no geometry column does not emit the PostGIS support file") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("name", ErmDataType.Varchar(255))
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "name", type = ErmDataType.Varchar(255))
                     }
                 }
             successFiles(model).map { it.relativePath } shouldNotContain "PostGisColumnTypes.kt"
@@ -530,10 +530,10 @@ class ErmToExposedTransformerTest :
 
         test("an unrecognized Custom column still falls back to text() with the explanatory comment") {
             val model =
-                ermModel("M") {
-                    entity("widgets") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("payload", ErmDataType.Custom("tsvector"))
+                ermModel(name = "M") {
+                    entity(name = "widgets") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "payload", type = ErmDataType.Custom("tsvector"))
                     }
                 }
             val files = successFiles(model)
@@ -543,10 +543,10 @@ class ErmToExposedTransformerTest :
 
         test("a nullable recognized geometry column still gets .nullable() after the geometry(...) call") {
             val model =
-                ermModel("M") {
-                    entity("places") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("location", ErmDataType.Custom("geometry(polygon)"), nullable = true)
+                ermModel(name = "M") {
+                    entity(name = "places") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "location", type = ErmDataType.Custom("geometry(polygon)"), nullable = true)
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Places.kt" }.content
@@ -559,10 +559,10 @@ class ErmToExposedTransformerTest :
             // identifier by requireValidKotlinIdentifier before this point) — this test only pins
             // the exact geometry(...) call shape for a plain valid name.
             val model =
-                ermModel("M") {
-                    entity("places") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("geom", ErmDataType.Custom("GEOMETRY(LineString, 3857)"), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "places") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "geom", type = ErmDataType.Custom("GEOMETRY(LineString, 3857)"), nullable = false)
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Places.kt" }.content
@@ -573,11 +573,11 @@ class ErmToExposedTransformerTest :
 
         test("hypertable() marker emits an explanatory note comment, no functional Exposed change") {
             val model =
-                ermModel("M") {
-                    entity("sensor_readings") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("recorded_at", ErmDataType.Timestamp(), nullable = false)
-                        hypertable("recorded_at", "7 days")
+                ermModel(name = "M") {
+                    entity(name = "sensor_readings") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "recorded_at", type = ErmDataType.Timestamp(), nullable = false)
+                        hypertable(timeColumn = "recorded_at", chunkInterval = "7 days")
                     }
                 }
             val content = successFiles(model)[0].content
@@ -588,8 +588,8 @@ class ErmToExposedTransformerTest :
 
         test("no hypertable() marker produces no hypertable note comment") {
             val model =
-                ermModel("M") {
-                    entity("users") { id("id", ErmDataType.Integer(64)) }
+                ermModel(name = "M") {
+                    entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) }
                 }
             successFiles(model)[0].content shouldNotContain "TimescaleDB hypertable"
         }
@@ -598,8 +598,8 @@ class ErmToExposedTransformerTest :
 
         test("kotlinObjectName() override replaces the mechanically-derived Kotlin object name") {
             val model =
-                ermModel("M") {
-                    entity("member") {
+                ermModel(name = "M") {
+                    entity(name = "member") {
                         kotlinObjectName("MemberTable")
                         id()
                     }
@@ -611,8 +611,8 @@ class ErmToExposedTransformerTest :
 
         test("no kotlinObjectName() override falls back to PascalCase derivation (unchanged behaviour)") {
             val model =
-                ermModel("M") {
-                    entity("member") { id() }
+                ermModel(name = "M") {
+                    entity(name = "member") { id() }
                 }
             val files = successFiles(model)
             files[0].relativePath shouldBe "Member.kt"
@@ -621,15 +621,15 @@ class ErmToExposedTransformerTest :
 
         test("kotlinObjectName() override propagates to foreign-key reference() calls on other entities") {
             val model =
-                ermModel("M") {
+                ermModel(name = "M") {
                     val authors =
-                        entity("authors") {
+                        entity(name = "authors") {
                             kotlinObjectName("AuthorsTable")
-                            id("id", ErmDataType.Integer(64))
+                            id(name = "id", type = ErmDataType.Integer(64))
                         }
-                    entity("books") {
-                        id("id", ErmDataType.Integer(64))
-                        foreignKey("author_id", references = authors, nullable = false)
+                    entity(name = "books") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        foreignKey(name = "author_id", references = authors, nullable = false)
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
@@ -638,8 +638,8 @@ class ErmToExposedTransformerTest :
 
         test("kotlinObjectName() override that is not a valid Kotlin identifier fails the transform") {
             val model =
-                ermModel("M") {
-                    entity("member") {
+                ermModel(name = "M") {
+                    entity(name = "member") {
                         kotlinObjectName("123-bad")
                         id()
                     }
@@ -649,8 +649,8 @@ class ErmToExposedTransformerTest :
 
         test("kotlinObjectName() override that is a Kotlin hard keyword fails the transform") {
             val model =
-                ermModel("M") {
-                    entity("member") {
+                ermModel(name = "M") {
+                    entity(name = "member") {
                         kotlinObjectName("object")
                         id()
                     }
@@ -660,12 +660,12 @@ class ErmToExposedTransformerTest :
 
         test("two entities overriding to the same kotlinObjectName collide and fail the transform") {
             val model =
-                ermModel("M") {
-                    entity("member") {
+                ermModel(name = "M") {
+                    entity(name = "member") {
                         kotlinObjectName("SharedName")
                         id()
                     }
-                    entity("account") {
+                    entity(name = "account") {
                         kotlinObjectName("SharedName")
                         id()
                     }
@@ -675,14 +675,18 @@ class ErmToExposedTransformerTest :
 
         test("kotlinObjectName() override colliding with an existing enum's Kotlin object name fails the transform") {
             val model =
-                ermModel("M") {
-                    entity("member") {
+                ermModel(name = "M") {
+                    entity(name = "member") {
                         kotlinObjectName("Status")
                         id()
                     }
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")),
+                            nullable = false,
+                        )
                     }
                 }
             transform(model).shouldBeInstanceOf<TransformResult.Failure>()
@@ -690,8 +694,8 @@ class ErmToExposedTransformerTest :
 
         test("kotlinObjectName() override with path-traversal characters fails the transform") {
             val model =
-                ermModel("M") {
-                    entity("member") {
+                ermModel(name = "M") {
+                    entity(name = "member") {
                         kotlinObjectName("../evil")
                         id()
                     }
@@ -703,10 +707,14 @@ class ErmToExposedTransformerTest :
 
         test("enum attribute generates a second enum class file and an enumerationByName column") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")),
+                            nullable = false,
+                        )
                     }
                 }
             val files = successFiles(model)
@@ -724,14 +732,22 @@ class ErmToExposedTransformerTest :
 
         test("two entities referencing the same enum name/values dedupe to a single enum file") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")),
+                            nullable = false,
+                        )
                     }
-                    entity("accounts") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                    entity(name = "accounts") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")),
+                            nullable = false,
+                        )
                     }
                 }
             val files = successFiles(model)
@@ -740,14 +756,22 @@ class ErmToExposedTransformerTest :
 
         test("two ErmDataType.Enum instances with the same name but different values fail the transform") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")),
+                            nullable = false,
+                        )
                     }
-                    entity("accounts") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("status", ErmDataType.Enum("Status", listOf("Open", "Closed")), nullable = false)
+                    entity(name = "accounts") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("Open", "Closed")),
+                            nullable = false,
+                        )
                     }
                 }
             transform(model).shouldBeInstanceOf<TransformResult.Failure>()
@@ -755,11 +779,15 @@ class ErmToExposedTransformerTest :
 
         test("enum name colliding with an entity's Kotlin object name fails the transform") {
             val model =
-                ermModel("M") {
-                    entity("status") { id("id", ErmDataType.Integer(64)) }
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "status") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")),
+                            nullable = false,
+                        )
                     }
                 }
             transform(model).shouldBeInstanceOf<TransformResult.Failure>()
@@ -767,12 +795,12 @@ class ErmToExposedTransformerTest :
 
         test("enum literal with spaces is sanitized to a PascalCase constant and uses customEnumeration") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "status",
-                            ErmDataType.Enum("Status", listOf("in progress", "done")),
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("in progress", "done")),
                             nullable = false,
                         )
                     }
@@ -792,12 +820,12 @@ class ErmToExposedTransformerTest :
 
         test("enum literal with no alphanumeric characters fails the transform") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "status",
-                            ErmDataType.Enum("Status", listOf("---", "done")),
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("---", "done")),
                             nullable = false,
                         )
                     }
@@ -807,12 +835,12 @@ class ErmToExposedTransformerTest :
 
         test("two enum literals sanitizing to the same Kotlin constant name fail the transform") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "status",
-                            ErmDataType.Enum("Status", listOf("In Progress", "In-Progress")),
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("In Progress", "In-Progress")),
                             nullable = false,
                         )
                     }
@@ -822,10 +850,14 @@ class ErmToExposedTransformerTest :
 
         test("nullable enum column renders Column<Status?> with .nullable()") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = true)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(
+                            name = "status",
+                            type = ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive")),
+                            nullable = true,
+                        )
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Users.kt" }.content
@@ -836,16 +868,17 @@ class ErmToExposedTransformerTest :
 
         test("externalFqName enum column imports and references the external type, no enum class file") {
             val model =
-                ermModel("M") {
-                    entity("members") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "members") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "status",
-                            ErmDataType.Enum(
-                                "MemberStatus",
-                                listOf("Active", "Inactive"),
-                                externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
-                            ),
+                            name = "status",
+                            type =
+                                ErmDataType.Enum(
+                                    name = "MemberStatus",
+                                    values = listOf("Active", "Inactive"),
+                                    externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
+                                ),
                             nullable = false,
                         )
                     }
@@ -864,16 +897,17 @@ class ErmToExposedTransformerTest :
 
         test("nullable externalFqName enum column renders Column<T?> with .nullable()") {
             val model =
-                ermModel("M") {
-                    entity("members") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "members") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "status",
-                            ErmDataType.Enum(
-                                "MemberStatus",
-                                listOf("Active", "Inactive"),
-                                externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
-                            ),
+                            name = "status",
+                            type =
+                                ErmDataType.Enum(
+                                    name = "MemberStatus",
+                                    values = listOf("Active", "Inactive"),
+                                    externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
+                                ),
                             nullable = true,
                         )
                     }
@@ -885,28 +919,30 @@ class ErmToExposedTransformerTest :
 
         test("two entities referencing the same externalFqName enum dedupe to zero enum files") {
             val model =
-                ermModel("M") {
-                    entity("members") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "members") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "status",
-                            ErmDataType.Enum(
-                                "MemberStatus",
-                                listOf("Active", "Inactive"),
-                                externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
-                            ),
+                            name = "status",
+                            type =
+                                ErmDataType.Enum(
+                                    name = "MemberStatus",
+                                    values = listOf("Active", "Inactive"),
+                                    externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
+                                ),
                             nullable = false,
                         )
                     }
-                    entity("accounts") {
-                        id("id", ErmDataType.Integer(64))
+                    entity(name = "accounts") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "status",
-                            ErmDataType.Enum(
-                                "MemberStatus",
-                                listOf("Active", "Inactive"),
-                                externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
-                            ),
+                            name = "status",
+                            type =
+                                ErmDataType.Enum(
+                                    name = "MemberStatus",
+                                    values = listOf("Active", "Inactive"),
+                                    externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
+                                ),
                             nullable = false,
                         )
                     }
@@ -917,24 +953,25 @@ class ErmToExposedTransformerTest :
 
         test("same enum name with externalFqName set on one attribute and null on another fails the transform") {
             val model =
-                ermModel("M") {
-                    entity("members") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "members") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "status",
-                            ErmDataType.Enum(
-                                "MemberStatus",
-                                listOf("Active", "Inactive"),
-                                externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
-                            ),
+                            name = "status",
+                            type =
+                                ErmDataType.Enum(
+                                    name = "MemberStatus",
+                                    values = listOf("Active", "Inactive"),
+                                    externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
+                                ),
                             nullable = false,
                         )
                     }
-                    entity("accounts") {
-                        id("id", ErmDataType.Integer(64))
+                    entity(name = "accounts") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "status",
-                            ErmDataType.Enum("MemberStatus", listOf("Active", "Inactive")),
+                            name = "status",
+                            type = ErmDataType.Enum(name = "MemberStatus", values = listOf("Active", "Inactive")),
                             nullable = false,
                         )
                     }
@@ -946,17 +983,18 @@ class ErmToExposedTransformerTest :
             // MemberStatus is only referenced as an import target, never as a generated file —
             // an entity named "member_status" must not trip the duplicate-object-name guard.
             val model =
-                ermModel("M") {
-                    entity("member_status") { id("id", ErmDataType.Integer(64)) }
-                    entity("members") {
-                        id("id", ErmDataType.Integer(64))
+                ermModel(name = "M") {
+                    entity(name = "member_status") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    entity(name = "members") {
+                        id(name = "id", type = ErmDataType.Integer(64))
                         attribute(
-                            "status",
-                            ErmDataType.Enum(
-                                "MemberStatus",
-                                listOf("Active", "Inactive"),
-                                externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
-                            ),
+                            name = "status",
+                            type =
+                                ErmDataType.Enum(
+                                    name = "MemberStatus",
+                                    values = listOf("Active", "Inactive"),
+                                    externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
+                                ),
                             nullable = false,
                         )
                     }
@@ -968,10 +1006,10 @@ class ErmToExposedTransformerTest :
 
         test("a partial (WHERE-carrying) index is documented in the not-emitted comment with its predicate") {
             val model =
-                ermModel("M") {
-                    entity("invitations") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("consumed_at", ErmDataType.Timestamp(), nullable = true)
+                ermModel(name = "M") {
+                    entity(name = "invitations") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "consumed_at", type = ErmDataType.Timestamp(), nullable = true)
                         index("consumed_at", unique = true, name = "idx_invitations_pending", where = "consumed_at IS NULL")
                     }
                 }
@@ -986,10 +1024,10 @@ class ErmToExposedTransformerTest :
 
         test("a non-partial index does not mention a WHERE predicate in the not-emitted comment") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("email", ErmDataType.Varchar(255))
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "email", type = ErmDataType.Varchar(255))
                         index("email", name = "idx_users_email")
                     }
                 }
@@ -1003,9 +1041,9 @@ class ErmToExposedTransformerTest :
 
         test("no uuidRepresentation option set renders javaUUID/UUID (unchanged default behaviour)") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Uuid)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Uuid)
                     }
                 }
             val content = successFiles(model)[0].content
@@ -1017,9 +1055,9 @@ class ErmToExposedTransformerTest :
 
         test("uuidRepresentation = \"java\" (explicit) renders javaUUID/UUID, same as the default") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Uuid)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Uuid)
                     }
                 }
             val content = successFiles(model, mapOf("uuidRepresentation" to "java"))[0].content
@@ -1030,10 +1068,10 @@ class ErmToExposedTransformerTest :
 
         test("uuidRepresentation = \"kotlin\" renders uuid(...)/Column<Uuid> with kotlin.uuid.Uuid import") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Uuid)
-                        attribute("external_ref", ErmDataType.Uuid, nullable = true)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Uuid)
+                        attribute(name = "external_ref", type = ErmDataType.Uuid, nullable = true)
                     }
                 }
             val content = successFiles(model, mapOf("uuidRepresentation" to "kotlin"))[0].content
@@ -1046,11 +1084,11 @@ class ErmToExposedTransformerTest :
 
         test("uuidRepresentation = \"kotlin\": FK reference() to a Uuid primary key renders Column<Uuid>") {
             val model =
-                ermModel("M") {
-                    val authors = entity("authors") { id("id", ErmDataType.Uuid) }
-                    entity("books") {
-                        id("id", ErmDataType.Uuid)
-                        foreignKey("author_id", references = authors, nullable = false)
+                ermModel(name = "M") {
+                    val authors = entity(name = "authors") { id(name = "id", type = ErmDataType.Uuid) }
+                    entity(name = "books") {
+                        id(name = "id", type = ErmDataType.Uuid)
+                        foreignKey(name = "author_id", references = authors, nullable = false)
                     }
                 }
             val files = successFiles(model, mapOf("uuidRepresentation" to "kotlin"))
@@ -1068,11 +1106,11 @@ class ErmToExposedTransformerTest :
 
         test("uuidRepresentation = \"kotlin\": nullable FK optReference() to a Uuid primary key renders Column<Uuid?>") {
             val model =
-                ermModel("M") {
-                    val authors = entity("authors") { id("id", ErmDataType.Uuid) }
-                    entity("books") {
-                        id("id", ErmDataType.Uuid)
-                        foreignKey("author_id", references = authors, nullable = true)
+                ermModel(name = "M") {
+                    val authors = entity(name = "authors") { id(name = "id", type = ErmDataType.Uuid) }
+                    entity(name = "books") {
+                        id(name = "id", type = ErmDataType.Uuid)
+                        foreignKey(name = "author_id", references = authors, nullable = true)
                     }
                 }
             val booksContent =
@@ -1084,9 +1122,9 @@ class ErmToExposedTransformerTest :
 
         test("unrecognized uuidRepresentation value falls back to the java default rather than failing") {
             val model =
-                ermModel("M") {
-                    entity("users") {
-                        id("id", ErmDataType.Uuid)
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Uuid)
                     }
                 }
             val content = successFiles(model, mapOf("uuidRepresentation" to "bogus-typo"))[0].content
@@ -1098,11 +1136,11 @@ class ErmToExposedTransformerTest :
 
         test("no dateTimeRepresentation option set renders javatime date/datetime (unchanged default behaviour)") {
             val model =
-                ermModel("M") {
-                    entity("events") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("released_on", ErmDataType.Date, nullable = false)
-                        attribute("created_at", ErmDataType.Timestamp(), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "events") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "released_on", type = ErmDataType.Date, nullable = false)
+                        attribute(name = "created_at", type = ErmDataType.Timestamp(), nullable = false)
                     }
                 }
             val content = successFiles(model)[0].content
@@ -1118,11 +1156,11 @@ class ErmToExposedTransformerTest :
 
         test("dateTimeRepresentation = \"java\" (explicit) renders javatime date/datetime, same as the default") {
             val model =
-                ermModel("M") {
-                    entity("events") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("released_on", ErmDataType.Date, nullable = false)
-                        attribute("created_at", ErmDataType.Timestamp(), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "events") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "released_on", type = ErmDataType.Date, nullable = false)
+                        attribute(name = "created_at", type = ErmDataType.Timestamp(), nullable = false)
                     }
                 }
             val content = successFiles(model, mapOf("dateTimeRepresentation" to "java"))[0].content
@@ -1139,11 +1177,11 @@ class ErmToExposedTransformerTest :
                 "kotlinx.datetime imports",
         ) {
             val model =
-                ermModel("M") {
-                    entity("events") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("released_on", ErmDataType.Date, nullable = false)
-                        attribute("created_at", ErmDataType.Timestamp(), nullable = true)
+                ermModel(name = "M") {
+                    entity(name = "events") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "released_on", type = ErmDataType.Date, nullable = false)
+                        attribute(name = "created_at", type = ErmDataType.Timestamp(), nullable = true)
                     }
                 }
             val content = successFiles(model, mapOf("dateTimeRepresentation" to "kotlin"))[0].content
@@ -1163,10 +1201,10 @@ class ErmToExposedTransformerTest :
             "dateTimeRepresentation = \"instant\" renders timestamp(...)/Column<Instant> with kotlin.time.Instant import",
         ) {
             val model =
-                ermModel("M") {
-                    entity("events") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("created_at", ErmDataType.Timestamp(), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "events") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "created_at", type = ErmDataType.Timestamp(), nullable = false)
                     }
                 }
             val content = successFiles(model, mapOf("dateTimeRepresentation" to "instant"))[0].content
@@ -1179,10 +1217,10 @@ class ErmToExposedTransformerTest :
 
         test("dateTimeRepresentation = \"instant\": a Date column falls back to the kotlin (kotlinx.datetime) rendering") {
             val model =
-                ermModel("M") {
-                    entity("events") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("released_on", ErmDataType.Date, nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "events") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "released_on", type = ErmDataType.Date, nullable = false)
                     }
                 }
             val content = successFiles(model, mapOf("dateTimeRepresentation" to "instant"))[0].content
@@ -1195,10 +1233,10 @@ class ErmToExposedTransformerTest :
 
         test("dateTimeRepresentation = \"instant\": nullable Timestamp column renders Column<Instant?> with .nullable()") {
             val model =
-                ermModel("M") {
-                    entity("events") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("created_at", ErmDataType.Timestamp(), nullable = true)
+                ermModel(name = "M") {
+                    entity(name = "events") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "created_at", type = ErmDataType.Timestamp(), nullable = true)
                     }
                 }
             val content = successFiles(model, mapOf("dateTimeRepresentation" to "instant"))[0].content
@@ -1207,10 +1245,10 @@ class ErmToExposedTransformerTest :
 
         test("unrecognized dateTimeRepresentation value falls back to the java default rather than failing") {
             val model =
-                ermModel("M") {
-                    entity("events") {
-                        id("id", ErmDataType.Integer(64))
-                        attribute("released_on", ErmDataType.Date, nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "events") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "released_on", type = ErmDataType.Date, nullable = false)
                     }
                 }
             val content = successFiles(model, mapOf("dateTimeRepresentation" to "bogus-typo"))[0].content
@@ -1224,10 +1262,10 @@ class ErmToExposedTransformerTest :
                 "in the same generation run",
         ) {
             val model =
-                ermModel("M") {
-                    entity("events") {
-                        id("id", ErmDataType.Uuid)
-                        attribute("created_at", ErmDataType.Timestamp(), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "events") {
+                        id(name = "id", type = ErmDataType.Uuid)
+                        attribute(name = "created_at", type = ErmDataType.Timestamp(), nullable = false)
                     }
                 }
             val content =
@@ -1249,10 +1287,10 @@ class ErmToExposedTransformerTest :
 
         test("uuidRepresentation = \"kotlin\" alone leaves Date/Timestamp columns on the javatime default") {
             val model =
-                ermModel("M") {
-                    entity("events") {
-                        id("id", ErmDataType.Uuid)
-                        attribute("created_at", ErmDataType.Timestamp(), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "events") {
+                        id(name = "id", type = ErmDataType.Uuid)
+                        attribute(name = "created_at", type = ErmDataType.Timestamp(), nullable = false)
                     }
                 }
             val content = successFiles(model, mapOf("uuidRepresentation" to "kotlin"))[0].content
@@ -1268,10 +1306,10 @@ class ErmToExposedTransformerTest :
 
         test("dateTimeRepresentation = \"kotlin\" alone leaves the Uuid column on the javaUUID default") {
             val model =
-                ermModel("M") {
-                    entity("events") {
-                        id("id", ErmDataType.Uuid)
-                        attribute("created_at", ErmDataType.Timestamp(), nullable = false)
+                ermModel(name = "M") {
+                    entity(name = "events") {
+                        id(name = "id", type = ErmDataType.Uuid)
+                        attribute(name = "created_at", type = ErmDataType.Timestamp(), nullable = false)
                     }
                 }
             val content = successFiles(model, mapOf("dateTimeRepresentation" to "kotlin"))[0].content

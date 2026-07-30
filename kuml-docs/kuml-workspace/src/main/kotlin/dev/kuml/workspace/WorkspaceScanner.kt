@@ -73,7 +73,7 @@ public object WorkspaceScanner {
         val documents =
             mdFiles
                 .sortedBy { it.relativeTo(root).path }
-                .map { parseDocument(root, it) }
+                .map { parseDocument(root = root, file = it) }
 
         return OkfWorkspace(root = root, mode = mode, markerFound = markerFound, documents = documents, marker = marker)
     }

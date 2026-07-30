@@ -50,7 +50,7 @@ class UpdateCacheTest :
             val cache = UpdateCache(path = tmpDir.resolve("u.json"), clock = frozenClock)
             cache.write(sampleRelease)
             val entry = cache.read()!!
-            cache.isFresh(entry, Duration.ofHours(24)) shouldBe true
+            cache.isFresh(entry = entry, ttl = Duration.ofHours(24)) shouldBe true
 
             // Move the clock forward 25h — entry is now stale.
             val laterCache =
@@ -59,7 +59,7 @@ class UpdateCacheTest :
                     clock = Clock.fixed(fakeNow.plus(Duration.ofHours(25)), ZoneOffset.UTC),
                 )
             val rereadEntry = laterCache.read()!!
-            laterCache.isFresh(rereadEntry, Duration.ofHours(24)) shouldBe false
+            laterCache.isFresh(entry = rereadEntry, ttl = Duration.ofHours(24)) shouldBe false
         }
 
         "read returns null for corrupted JSON instead of throwing" {

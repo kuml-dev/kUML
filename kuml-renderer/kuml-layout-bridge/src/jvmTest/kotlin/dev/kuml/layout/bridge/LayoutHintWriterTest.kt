@@ -27,7 +27,7 @@ class LayoutHintWriterTest :
 
         test("single element placement writes gridCol and gridRow metadata") {
             val diagram = simpleDiagram(classElement("A"))
-            val result = LayoutHintWriter.writeGridHints(diagram, mapOf("A" to GridCell(2, 3)))
+            val result = LayoutHintWriter.writeGridHints(diagram = diagram, placements = mapOf("A" to GridCell(col = 2, row = 3)))
             val aMeta = (result.elements.first() as UmlClass).metadata
             aMeta shouldContainKey BridgeLayoutKeys.GRID_COL
             aMeta shouldContainKey BridgeLayoutKeys.GRID_ROW
@@ -39,11 +39,11 @@ class LayoutHintWriterTest :
             val diagram = simpleDiagram(classElement("A"), classElement("B"), classElement("C"))
             val placements =
                 mapOf(
-                    "A" to GridCell(0, 0),
-                    "B" to GridCell(1, 0),
-                    "C" to GridCell(2, 1),
+                    "A" to GridCell(col = 0, row = 0),
+                    "B" to GridCell(col = 1, row = 0),
+                    "C" to GridCell(col = 2, row = 1),
                 )
-            val result = LayoutHintWriter.writeGridHints(diagram, placements)
+            val result = LayoutHintWriter.writeGridHints(diagram = diagram, placements = placements)
             result.elements.forEach { element ->
                 element as UmlClass
                 val meta = element.metadata
@@ -60,7 +60,7 @@ class LayoutHintWriterTest :
 
         test("unknown element id in placements leaves element unchanged") {
             val diagram = simpleDiagram(classElement("A"))
-            val result = LayoutHintWriter.writeGridHints(diagram, mapOf("X" to GridCell(5, 5)))
+            val result = LayoutHintWriter.writeGridHints(diagram = diagram, placements = mapOf("X" to GridCell(col = 5, row = 5)))
             val aMeta = (result.elements.first() as UmlClass).metadata
             aMeta shouldNotContainKey BridgeLayoutKeys.GRID_COL
             aMeta shouldNotContainKey BridgeLayoutKeys.GRID_ROW
@@ -68,9 +68,9 @@ class LayoutHintWriterTest :
 
         test("idempotent: writing same placement twice produces identical result") {
             val diagram = simpleDiagram(classElement("A"))
-            val placements = mapOf("A" to GridCell(1, 2))
-            val first = LayoutHintWriter.writeGridHints(diagram, placements)
-            val second = LayoutHintWriter.writeGridHints(first, placements)
+            val placements = mapOf("A" to GridCell(col = 1, row = 2))
+            val first = LayoutHintWriter.writeGridHints(diagram = diagram, placements = placements)
+            val second = LayoutHintWriter.writeGridHints(diagram = first, placements = placements)
             val firstMeta = (first.elements.first() as UmlClass).metadata
             val secondMeta = (second.elements.first() as UmlClass).metadata
             firstMeta[BridgeLayoutKeys.GRID_COL] shouldBe secondMeta[BridgeLayoutKeys.GRID_COL]
@@ -79,7 +79,7 @@ class LayoutHintWriterTest :
 
         test("written metadata round-trips through HintsReader") {
             val diagram = simpleDiagram(classElement("A"))
-            val result = LayoutHintWriter.writeGridHints(diagram, mapOf("A" to GridCell(3, 7)))
+            val result = LayoutHintWriter.writeGridHints(diagram = diagram, placements = mapOf("A" to GridCell(col = 3, row = 7)))
             val aMeta = (result.elements.first() as UmlClass).metadata
             val hints = HintsReader.read(aMeta)
             hints.gridCol shouldBe 3
@@ -88,7 +88,7 @@ class LayoutHintWriterTest :
 
         test("writeGridHints with empty placements returns diagram unchanged") {
             val diagram = simpleDiagram(classElement("A"))
-            val result = LayoutHintWriter.writeGridHints(diagram, emptyMap())
+            val result = LayoutHintWriter.writeGridHints(diagram = diagram, placements = emptyMap())
             result shouldBe diagram
         }
     })

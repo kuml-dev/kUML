@@ -41,7 +41,7 @@ class StmEdgeAdapterTest :
                     guard = "battery > 0",
                     effect = "switchLights('green')",
                 )
-            val adapter = StmEdgeAdapter(model(t), diagram)
+            val adapter = StmEdgeAdapter(model = model(t), diagram = diagram)
             val meta = adapter.metadataFor("transition:Off::On")!!
             meta.label shouldBe "powerOn [battery > 0] / switchLights('green')"
             meta.dashArray.shouldBeNull()
@@ -51,30 +51,30 @@ class StmEdgeAdapterTest :
 
         "trigger only — no brackets, no slash" {
             val t = TransitionUsage(id = "t", name = "t", sourceStateId = "Off", targetStateId = "On", trigger = "tick")
-            val meta = StmEdgeAdapter(model(t), diagram).metadataFor("t")!!
+            val meta = StmEdgeAdapter(model = model(t), diagram = diagram).metadataFor("t")!!
             meta.label shouldBe "tick"
         }
 
         "guard only — square brackets only" {
             val t = TransitionUsage(id = "t", name = "t", sourceStateId = "Off", targetStateId = "On", guard = "ready")
-            val meta = StmEdgeAdapter(model(t), diagram).metadataFor("t")!!
+            val meta = StmEdgeAdapter(model = model(t), diagram = diagram).metadataFor("t")!!
             meta.label shouldBe "[ready]"
         }
 
         "effect only — slash prefix only" {
             val t = TransitionUsage(id = "t", name = "t", sourceStateId = "Off", targetStateId = "On", effect = "halt()")
-            val meta = StmEdgeAdapter(model(t), diagram).metadataFor("t")!!
+            val meta = StmEdgeAdapter(model = model(t), diagram = diagram).metadataFor("t")!!
             meta.label shouldBe "/ halt()"
         }
 
         "all three slots null — label is null, bare arrow renders" {
             val t = TransitionUsage(id = "t", name = "t", sourceStateId = "Off", targetStateId = "On")
-            val meta = StmEdgeAdapter(model(t), diagram).metadataFor("t")!!
+            val meta = StmEdgeAdapter(model = model(t), diagram = diagram).metadataFor("t")!!
             meta.label.shouldBeNull()
         }
 
         "transition whose target state is invisible is dropped" {
             val t = TransitionUsage(id = "ghost", name = "g", sourceStateId = "Off", targetStateId = "Ghost")
-            StmEdgeAdapter(model(t), diagram).metadataFor("ghost").shouldBeNull()
+            StmEdgeAdapter(model = model(t), diagram = diagram).metadataFor("ghost").shouldBeNull()
         }
     })

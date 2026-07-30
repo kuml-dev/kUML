@@ -36,7 +36,7 @@ public class CsharpCodeGenerator : KumlCodeGenerator {
         // elementNamespace[elementId] = namespace derived from owning UmlPackage (dotted).
         val elementNamespace = mutableMapOf<String, String>()
         val umlNamedElements = diagram.elements.filterIsInstance<UmlNamedElement>()
-        val flatElements = flattenElements(umlNamedElements, namespace = null, elementNamespace)
+        val flatElements = flattenElements(elements = umlNamedElements, namespace = null, elementNamespace = elementNamespace)
 
         // Pre-build index: element id → display name (possibly I-prefixed for interfaces)
         val idToName = mutableMapOf<String, String>()
@@ -73,21 +73,28 @@ public class CsharpCodeGenerator : KumlCodeGenerator {
 
             when (el) {
                 is UmlClass -> {
-                    val content = generateClass(el, generalizations, realizations, idToName, effectiveOpts)
+                    val content =
+                        generateClass(
+                            cls = el,
+                            generalizations = generalizations,
+                            realizations = realizations,
+                            idToName = idToName,
+                            opts = effectiveOpts,
+                        )
                     val safeName = sanitizeElementName(el.name)
                     val file = File(outputDir, "$safeName.cs")
                     file.writeText(content)
                     generated += file
                 }
                 is UmlInterface -> {
-                    val content = generateInterface(el, effectiveOpts)
+                    val content = generateInterface(iface = el, opts = effectiveOpts)
                     val safeName = sanitizeElementName(interfaceName(el.name))
                     val file = File(outputDir, "$safeName.cs")
                     file.writeText(content)
                     generated += file
                 }
                 is UmlEnumeration -> {
-                    val content = generateEnum(el, effectiveOpts)
+                    val content = generateEnum(enum = el, opts = effectiveOpts)
                     val safeName = sanitizeElementName(el.name)
                     val file = File(outputDir, "$safeName.cs")
                     file.writeText(content)
@@ -138,7 +145,7 @@ public class CsharpCodeGenerator : KumlCodeGenerator {
             when (el) {
                 is UmlPackage -> {
                     val childNs = if (namespace != null) "$namespace.${el.name}" else el.name
-                    result += flattenElements(el.members, childNs, elementNamespace)
+                    result += flattenElements(elements = el.members, namespace = childNs, elementNamespace = elementNamespace)
                 }
                 else -> {
                     if (namespace != null) {
@@ -184,24 +191,24 @@ public class CsharpCodeGenerator : KumlCodeGenerator {
             }
         }
 
-        val indent = openNamespace(sb, opts.namespaceName)
+        val indent = openNamespace(sb = sb, namespaceName = opts.namespaceName)
 
-        val baseList = buildBaseList(cls.id, generalizations, realizations, idToName)
+        val baseList = buildBaseList(id = cls.id, generalizations = generalizations, realizations = realizations, idToName = idToName)
         val abstractModifier = if (cls.isAbstract) "abstract " else ""
         sb.appendLine("${indent}public ${abstractModifier}class ${cls.name}$baseList")
         sb.appendLine("$indent{")
 
         for (prop in cls.attributes) {
-            sb.appendLine("$indent    ${formatProperty(prop, mapper, opts)}")
+            sb.appendLine("$indent    ${formatProperty(prop = prop, mapper = mapper, opts = opts)}")
         }
 
         for (op in cls.operations) {
-            sb.appendLine("$indent    ${formatOperation(op, mapper, opts, isInterface = false)}")
+            sb.appendLine("$indent    ${formatOperation(op = op, mapper = mapper, opts = opts, isInterface = false)}")
         }
 
         sb.appendLine("$indent}")
 
-        closeNamespace(sb, opts.namespaceName)
+        closeNamespace(sb = sb, namespaceName = opts.namespaceName)
 
         return sb.toString()
     }
@@ -236,22 +243,22 @@ public class CsharpCodeGenerator : KumlCodeGenerator {
         }
 
         val iName = interfaceName(iface.name)
-        val indent = openNamespace(sb, opts.namespaceName)
+        val indent = openNamespace(sb = sb, namespaceName = opts.namespaceName)
 
         sb.appendLine("${indent}public interface $iName")
         sb.appendLine("$indent{")
 
         for (prop in iface.attributes) {
-            sb.appendLine("$indent    ${formatProperty(prop, mapper, opts)}")
+            sb.appendLine("$indent    ${formatProperty(prop = prop, mapper = mapper, opts = opts)}")
         }
 
         for (op in iface.operations) {
-            sb.appendLine("$indent    ${formatOperation(op, mapper, opts, isInterface = true)}")
+            sb.appendLine("$indent    ${formatOperation(op = op, mapper = mapper, opts = opts, isInterface = true)}")
         }
 
         sb.appendLine("$indent}")
 
-        closeNamespace(sb, opts.namespaceName)
+        closeNamespace(sb = sb, namespaceName = opts.namespaceName)
 
         return sb.toString()
     }
@@ -264,7 +271,7 @@ public class CsharpCodeGenerator : KumlCodeGenerator {
         sb.appendLine("// Generated by kUML C# Code Generator")
         sb.appendLine()
 
-        val indent = openNamespace(sb, opts.namespaceName)
+        val indent = openNamespace(sb = sb, namespaceName = opts.namespaceName)
 
         sb.appendLine("${indent}public enum ${enum.name}")
         sb.appendLine("$indent{")
@@ -276,7 +283,7 @@ public class CsharpCodeGenerator : KumlCodeGenerator {
 
         sb.appendLine("$indent}")
 
-        closeNamespace(sb, opts.namespaceName)
+        closeNamespace(sb = sb, namespaceName = opts.namespaceName)
 
         return sb.toString()
     }

@@ -81,7 +81,13 @@ public class ErmConstraintChecker {
         buildList {
             // 1. minimum content
             if (model.entities.isEmpty()) {
-                add(ConstraintViolation(null, "ERM model '${model.name}' has no entities", ViolationSeverity.ERROR))
+                add(
+                    ConstraintViolation(
+                        elementId = null,
+                        message = "ERM model '${model.name}' has no entities",
+                        severity = ViolationSeverity.ERROR,
+                    ),
+                )
             }
 
             val entityIds = model.entities.map { it.id }.toSet()
@@ -91,9 +97,9 @@ public class ErmConstraintChecker {
             entityNameCounts.filter { it.value > 1 }.forEach { (entityName, _) ->
                 add(
                     ConstraintViolation(
-                        null,
-                        "Entity name '$entityName' is used more than once in model '${model.name}'",
-                        ViolationSeverity.ERROR,
+                        elementId = null,
+                        message = "Entity name '$entityName' is used more than once in model '${model.name}'",
+                        severity = ViolationSeverity.ERROR,
                     ),
                 )
             }
@@ -113,9 +119,9 @@ public class ErmConstraintChecker {
                 if (entity.attributes.isEmpty()) {
                     add(
                         ConstraintViolation(
-                            entity.id,
-                            "Entity '${entity.name ?: entity.id}' has no attributes",
-                            ViolationSeverity.WARNING,
+                            elementId = entity.id,
+                            message = "Entity '${entity.name ?: entity.id}' has no attributes",
+                            severity = ViolationSeverity.WARNING,
                         ),
                     )
                 }
@@ -126,18 +132,19 @@ public class ErmConstraintChecker {
                     if (!entity.weak) {
                         add(
                             ConstraintViolation(
-                                entity.id,
-                                "Entity '${entity.name ?: entity.id}' has no primary key",
-                                ViolationSeverity.ERROR,
+                                elementId = entity.id,
+                                message = "Entity '${entity.name ?: entity.id}' has no primary key",
+                                severity = ViolationSeverity.ERROR,
                             ),
                         )
                     } else if (entity.id !in identifyingTargets) {
                         add(
                             ConstraintViolation(
-                                entity.id,
-                                "Weak entity '${entity.name ?: entity.id}' has no primary key and is not the " +
-                                    "target of an identifying relationship",
-                                ViolationSeverity.ERROR,
+                                elementId = entity.id,
+                                message =
+                                    "Weak entity '${entity.name ?: entity.id}' has no primary key and is not the " +
+                                        "target of an identifying relationship",
+                                severity = ViolationSeverity.ERROR,
                             ),
                         )
                     }
@@ -151,9 +158,9 @@ public class ErmConstraintChecker {
                     .forEach { (attrName, _) ->
                         add(
                             ConstraintViolation(
-                                entity.id,
-                                "Attribute name '$attrName' is used more than once in entity '${entity.name ?: entity.id}'",
-                                ViolationSeverity.ERROR,
+                                elementId = entity.id,
+                                message = "Attribute name '$attrName' is used more than once in entity '${entity.name ?: entity.id}'",
+                                severity = ViolationSeverity.ERROR,
                             ),
                         )
                     }
@@ -166,9 +173,10 @@ public class ErmConstraintChecker {
                         if (targetEntity == null) {
                             add(
                                 ConstraintViolation(
-                                    attribute.id,
-                                    "Foreign key '${attribute.name ?: attribute.id}' targets unknown entity '${fk.targetEntityId}'",
-                                    ViolationSeverity.ERROR,
+                                    elementId = attribute.id,
+                                    message =
+                                        "Foreign key '${attribute.name ?: attribute.id}' targets unknown entity '${fk.targetEntityId}'",
+                                    severity = ViolationSeverity.ERROR,
                                 ),
                             )
                         } else {
@@ -178,10 +186,11 @@ public class ErmConstraintChecker {
                                     if (resolved == null) {
                                         add(
                                             ConstraintViolation(
-                                                attribute.id,
-                                                "Foreign key '${attribute.name ?: attribute.id}' targets unknown attribute " +
-                                                    "'${fk.targetAttributeId}' on entity '${targetEntity.name ?: targetEntity.id}'",
-                                                ViolationSeverity.ERROR,
+                                                elementId = attribute.id,
+                                                message =
+                                                    "Foreign key '${attribute.name ?: attribute.id}' targets unknown attribute " +
+                                                        "'${fk.targetAttributeId}' on entity '${targetEntity.name ?: targetEntity.id}'",
+                                                severity = ViolationSeverity.ERROR,
                                             ),
                                         )
                                     }
@@ -198,10 +207,11 @@ public class ErmConstraintChecker {
                                     }
                                 add(
                                     ConstraintViolation(
-                                        attribute.id,
-                                        "Foreign key '${attribute.name ?: attribute.id}' has type '${attribute.type.render()}' " +
-                                            "but target column has type '${targetAttr.type.render()}'",
-                                        severity,
+                                        elementId = attribute.id,
+                                        message =
+                                            "Foreign key '${attribute.name ?: attribute.id}' has type '${attribute.type.render()}' " +
+                                                "but target column has type '${targetAttr.type.render()}'",
+                                        severity = severity,
                                     ),
                                 )
                             }
@@ -212,10 +222,11 @@ public class ErmConstraintChecker {
                     if (attribute.autoIncrement && attribute.type !is ErmDataType.Integer) {
                         add(
                             ConstraintViolation(
-                                attribute.id,
-                                "Attribute '${attribute.name ?: attribute.id}' is autoIncrement but has non-integer type " +
-                                    "'${attribute.type.render()}'",
-                                ViolationSeverity.WARNING,
+                                elementId = attribute.id,
+                                message =
+                                    "Attribute '${attribute.name ?: attribute.id}' is autoIncrement but has non-integer type " +
+                                        "'${attribute.type.render()}'",
+                                severity = ViolationSeverity.WARNING,
                             ),
                         )
                     }
@@ -226,10 +237,11 @@ public class ErmConstraintChecker {
                         if (enumType.values.isEmpty()) {
                             add(
                                 ConstraintViolation(
-                                    attribute.id,
-                                    "Attribute '${attribute.name ?: attribute.id}' has enum type '${enumType.name}' " +
-                                        "with no literal values",
-                                    ViolationSeverity.ERROR,
+                                    elementId = attribute.id,
+                                    message =
+                                        "Attribute '${attribute.name ?: attribute.id}' has enum type '${enumType.name}' " +
+                                            "with no literal values",
+                                    severity = ViolationSeverity.ERROR,
                                 ),
                             )
                         }
@@ -242,10 +254,11 @@ public class ErmConstraintChecker {
                         if (duplicateValues.isNotEmpty()) {
                             add(
                                 ConstraintViolation(
-                                    attribute.id,
-                                    "Attribute '${attribute.name ?: attribute.id}' has enum type '${enumType.name}' " +
-                                        "with duplicate literal values: ${duplicateValues.joinToString(", ")}",
-                                    ViolationSeverity.ERROR,
+                                    elementId = attribute.id,
+                                    message =
+                                        "Attribute '${attribute.name ?: attribute.id}' has enum type '${enumType.name}' " +
+                                            "with duplicate literal values: ${duplicateValues.joinToString(", ")}",
+                                    severity = ViolationSeverity.ERROR,
                                 ),
                             )
                         }
@@ -257,9 +270,9 @@ public class ErmConstraintChecker {
                     if (index.attributeIds.isEmpty()) {
                         add(
                             ConstraintViolation(
-                                index.id,
-                                "Index '${index.name ?: index.id}' on entity '${entity.name ?: entity.id}' has no attributes",
-                                ViolationSeverity.ERROR,
+                                elementId = index.id,
+                                message = "Index '${index.name ?: index.id}' on entity '${entity.name ?: entity.id}' has no attributes",
+                                severity = ViolationSeverity.ERROR,
                             ),
                         )
                     }
@@ -268,10 +281,11 @@ public class ErmConstraintChecker {
                         if (attrId !in ownAttributeIds) {
                             add(
                                 ConstraintViolation(
-                                    index.id,
-                                    "Index '${index.name ?: index.id}' references attribute '$attrId' which is not " +
-                                        "part of entity '${entity.name ?: entity.id}'",
-                                    ViolationSeverity.ERROR,
+                                    elementId = index.id,
+                                    message =
+                                        "Index '${index.name ?: index.id}' references attribute '$attrId' which is not " +
+                                            "part of entity '${entity.name ?: entity.id}'",
+                                    severity = ViolationSeverity.ERROR,
                                 ),
                             )
                         }
@@ -283,9 +297,11 @@ public class ErmConstraintChecker {
                     if (check.expression.isBlank()) {
                         add(
                             ConstraintViolation(
-                                check.id,
-                                "Check constraint '${check.name ?: check.id}' on entity '${entity.name ?: entity.id}' has an empty expression",
-                                ViolationSeverity.ERROR,
+                                elementId = check.id,
+                                message =
+                                    "Check constraint '${check.name ?: check.id}' on entity '${entity.name ?: entity.id}' " +
+                                        "has an empty expression",
+                                severity = ViolationSeverity.ERROR,
                             ),
                         )
                     }
@@ -297,18 +313,18 @@ public class ErmConstraintChecker {
                 if (rel.sourceEntityId !in entityIds) {
                     add(
                         ConstraintViolation(
-                            rel.id,
-                            "Relationship '${rel.name ?: rel.id}' sourceEntityId '${rel.sourceEntityId}' not found",
-                            ViolationSeverity.ERROR,
+                            elementId = rel.id,
+                            message = "Relationship '${rel.name ?: rel.id}' sourceEntityId '${rel.sourceEntityId}' not found",
+                            severity = ViolationSeverity.ERROR,
                         ),
                     )
                 }
                 if (rel.targetEntityId !in entityIds) {
                     add(
                         ConstraintViolation(
-                            rel.id,
-                            "Relationship '${rel.name ?: rel.id}' targetEntityId '${rel.targetEntityId}' not found",
-                            ViolationSeverity.ERROR,
+                            elementId = rel.id,
+                            message = "Relationship '${rel.name ?: rel.id}' targetEntityId '${rel.targetEntityId}' not found",
+                            severity = ViolationSeverity.ERROR,
                         ),
                     )
                 }
@@ -318,10 +334,11 @@ public class ErmConstraintChecker {
                     if (targetEntity != null && !targetEntity.weak) {
                         add(
                             ConstraintViolation(
-                                rel.id,
-                                "Identifying relationship '${rel.name ?: rel.id}' targets entity " +
-                                    "'${targetEntity.name ?: targetEntity.id}' which is not marked as weak",
-                                ViolationSeverity.WARNING,
+                                elementId = rel.id,
+                                message =
+                                    "Identifying relationship '${rel.name ?: rel.id}' targets entity " +
+                                        "'${targetEntity.name ?: targetEntity.id}' which is not marked as weak",
+                                severity = ViolationSeverity.WARNING,
                             ),
                         )
                     }
@@ -331,10 +348,11 @@ public class ErmConstraintChecker {
                 if (rel.kind == RelationshipKind.IDENTIFYING && rel.sourceCardinality.many && rel.targetCardinality.many) {
                     add(
                         ConstraintViolation(
-                            rel.id,
-                            "Relationship '${rel.name ?: rel.id}' is many-to-many and marked IDENTIFYING — this " +
-                                "usually indicates a missing junction-table resolution",
-                            ViolationSeverity.WARNING,
+                            elementId = rel.id,
+                            message =
+                                "Relationship '${rel.name ?: rel.id}' is many-to-many and marked IDENTIFYING — this " +
+                                    "usually indicates a missing junction-table resolution",
+                            severity = ViolationSeverity.WARNING,
                         ),
                     )
                 }
@@ -345,9 +363,9 @@ public class ErmConstraintChecker {
                 if (view.query.isBlank()) {
                     add(
                         ConstraintViolation(
-                            view.id,
-                            "View '${view.name ?: view.id}' has an empty query",
-                            ViolationSeverity.ERROR,
+                            elementId = view.id,
+                            message = "View '${view.name ?: view.id}' has an empty query",
+                            severity = ViolationSeverity.ERROR,
                         ),
                     )
                 }
@@ -355,9 +373,9 @@ public class ErmConstraintChecker {
                     if (refId !in entityIds) {
                         add(
                             ConstraintViolation(
-                                view.id,
-                                "View '${view.name ?: view.id}' references unknown entity '$refId'",
-                                ViolationSeverity.WARNING,
+                                elementId = view.id,
+                                message = "View '${view.name ?: view.id}' references unknown entity '$refId'",
+                                severity = ViolationSeverity.WARNING,
                             ),
                         )
                     }
@@ -370,9 +388,9 @@ public class ErmConstraintChecker {
                     if (model.elementById(elementId) == null) {
                         add(
                             ConstraintViolation(
-                                null,
-                                "Diagram '${diagram.name}' references unknown element '$elementId'",
-                                ViolationSeverity.ERROR,
+                                elementId = null,
+                                message = "Diagram '${diagram.name}' references unknown element '$elementId'",
+                                severity = ViolationSeverity.ERROR,
                             ),
                         )
                     }
@@ -386,10 +404,11 @@ public class ErmConstraintChecker {
                 if (supertype == null) {
                     add(
                         ConstraintViolation(
-                            category.id,
-                            "Category '${category.name ?: category.id}' supertypeEntityId " +
-                                "'${category.supertypeEntityId}' not found",
-                            ViolationSeverity.ERROR,
+                            elementId = category.id,
+                            message =
+                                "Category '${category.name ?: category.id}' supertypeEntityId " +
+                                    "'${category.supertypeEntityId}' not found",
+                            severity = ViolationSeverity.ERROR,
                         ),
                     )
                 }
@@ -398,9 +417,9 @@ public class ErmConstraintChecker {
                 if (category.subtypeEntityIds.isEmpty()) {
                     add(
                         ConstraintViolation(
-                            category.id,
-                            "Category '${category.name ?: category.id}' has no subtype entities",
-                            ViolationSeverity.ERROR,
+                            elementId = category.id,
+                            message = "Category '${category.name ?: category.id}' has no subtype entities",
+                            severity = ViolationSeverity.ERROR,
                         ),
                     )
                 }
@@ -408,9 +427,9 @@ public class ErmConstraintChecker {
                     if (subtypeId !in entityIds) {
                         add(
                             ConstraintViolation(
-                                category.id,
-                                "Category '${category.name ?: category.id}' subtype entity '$subtypeId' not found",
-                                ViolationSeverity.ERROR,
+                                elementId = category.id,
+                                message = "Category '${category.name ?: category.id}' subtype entity '$subtypeId' not found",
+                                severity = ViolationSeverity.ERROR,
                             ),
                         )
                     }
@@ -420,10 +439,11 @@ public class ErmConstraintChecker {
                 if (category.supertypeEntityId in category.subtypeEntityIds) {
                     add(
                         ConstraintViolation(
-                            category.id,
-                            "Category '${category.name ?: category.id}' has supertype " +
-                                "'${category.supertypeEntityId}' listed as one of its own subtypes",
-                            ViolationSeverity.ERROR,
+                            elementId = category.id,
+                            message =
+                                "Category '${category.name ?: category.id}' has supertype " +
+                                    "'${category.supertypeEntityId}' listed as one of its own subtypes",
+                            severity = ViolationSeverity.ERROR,
                         ),
                     )
                 }
@@ -434,11 +454,12 @@ public class ErmConstraintChecker {
                     if (supertype.attributes.none { it.id == discriminatorId }) {
                         add(
                             ConstraintViolation(
-                                category.id,
-                                "Category '${category.name ?: category.id}' discriminatorAttributeId " +
-                                    "'$discriminatorId' is not an attribute of supertype " +
-                                    "'${supertype.name ?: supertype.id}'",
-                                ViolationSeverity.ERROR,
+                                elementId = category.id,
+                                message =
+                                    "Category '${category.name ?: category.id}' discriminatorAttributeId " +
+                                        "'$discriminatorId' is not an attribute of supertype " +
+                                        "'${supertype.name ?: supertype.id}'",
+                                severity = ViolationSeverity.ERROR,
                             ),
                         )
                     }

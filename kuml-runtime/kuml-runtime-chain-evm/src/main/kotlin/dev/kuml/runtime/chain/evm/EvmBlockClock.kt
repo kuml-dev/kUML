@@ -38,15 +38,15 @@ public class EvmBlockClock(
      * Suspending.
      */
     public suspend fun refresh() {
-        val blockJson = rpc.ethGetBlockByTag(finalityTag, fullTx = false)
+        val blockJson = rpc.ethGetBlockByTag(tag = finalityTag, fullTx = false)
         val obj = blockJson.jsonObject
 
         val numberHex =
             obj["number"]?.jsonPrimitive?.content
-                ?: throw EvmChainAdapterException.MalformedResponse("Block missing 'number' field")
+                ?: throw EvmChainAdapterException.MalformedResponse(message = "Block missing 'number' field")
         val timestampHex =
             obj["timestamp"]?.jsonPrimitive?.content
-                ?: throw EvmChainAdapterException.MalformedResponse("Block missing 'timestamp' field")
+                ?: throw EvmChainAdapterException.MalformedResponse(message = "Block missing 'timestamp' field")
         val hash = obj["hash"]?.jsonPrimitive?.content
 
         val blockNumber = EvmJsonRpcClient.parseHexQuantity(numberHex)

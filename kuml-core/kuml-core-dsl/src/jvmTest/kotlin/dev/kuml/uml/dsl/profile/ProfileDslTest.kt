@@ -33,10 +33,10 @@ class ProfileDslTest :
 
         test("applyProfile + stereotype on classOf stores application") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(javaEeTestProfile)
-                    classOf("User") {
-                        stereotype("Entity") {
+                    classOf(name = "User") {
+                        stereotype(name = "Entity") {
                             "tableName" to "users"
                         }
                     }
@@ -54,10 +54,10 @@ class ProfileDslTest :
 
         test("stereotype with infix tag pairs builds correct tags map") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(javaEeTestProfile)
-                    classOf("User") {
-                        stereotype("Entity") {
+                    classOf(name = "User") {
+                        stereotype(name = "Entity") {
                             "tableName" to "users"
                             "schema" to "auth"
                         }
@@ -81,10 +81,10 @@ class ProfileDslTest :
         test("unknown stereotype name reports profile suggestion") {
             val ex =
                 shouldThrow<IllegalStateException> {
-                    umlModel("M") {
+                    umlModel(name = "M") {
                         applyProfile(javaEeTestProfile)
-                        classOf("User") {
-                            stereotype("Entiy") // typo — should suggest "Entity"
+                        classOf(name = "User") {
+                            stereotype(name = "Entiy") // typo — should suggest "Entity"
                         }
                     }
                 }
@@ -96,10 +96,10 @@ class ProfileDslTest :
         test("stereotype on wrong metaclass throws with descriptive message") {
             val ex =
                 shouldThrow<IllegalArgumentException> {
-                    umlModel("M") {
+                    umlModel(name = "M") {
                         applyProfile(javaEeTestProfile)
-                        interfaceOf("IUser") {
-                            stereotype("Entity") {
+                        interfaceOf(name = "IUser") {
+                            stereotype(name = "Entity") {
                                 "tableName" to "i_user"
                             }
                         }
@@ -115,11 +115,11 @@ class ProfileDslTest :
         test("mandatory property without value throws") {
             val ex =
                 shouldThrow<IllegalStateException> {
-                    umlModel("M") {
+                    umlModel(name = "M") {
                         applyProfile(javaEeTestProfile)
-                        classOf("User") {
+                        classOf(name = "User") {
                             // Entity requires "tableName" — omitted intentionally
-                            stereotype("Entity") {}
+                            stereotype(name = "Entity") {}
                         }
                     }
                 }
@@ -131,11 +131,11 @@ class ProfileDslTest :
 
         test("multiple stereotypes on same element are preserved in order") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(javaEeTestProfile)
-                    classOf("UserSvc") {
-                        stereotype("Entity") { "tableName" to "users" }
-                        stereotype("Service") {}
+                    classOf(name = "UserSvc") {
+                        stereotype(name = "Entity") { "tableName" to "users" }
+                        stereotype(name = "Service") {}
                     }
                 }
 
@@ -154,11 +154,11 @@ class ProfileDslTest :
 
         test("qualified form spring:Service resolves correctly") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(javaEeTestProfile)
                     applyProfile(springTestProfile)
-                    classOf("OrderSvc") {
-                        stereotype("spring:Service") {} // qualified — no ambiguity
+                    classOf(name = "OrderSvc") {
+                        stereotype(name = "spring:Service") {} // qualified — no ambiguity
                     }
                 }
 
@@ -178,11 +178,11 @@ class ProfileDslTest :
         test("ambiguous stereotype name throws with qualified suggestion") {
             val ex =
                 shouldThrow<IllegalStateException> {
-                    umlModel("M") {
+                    umlModel(name = "M") {
                         applyProfile(javaEeTestProfile)
                         applyProfile(springTestProfile)
-                        classOf("OrderSvc") {
-                            stereotype("Service") {} // ambiguous!
+                        classOf(name = "OrderSvc") {
+                            stereotype(name = "Service") {} // ambiguous!
                         }
                     }
                 }
@@ -196,10 +196,10 @@ class ProfileDslTest :
             ProfileRegistry.register(javaEeTestProfile)
 
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile("dev.kuml.test.profiles.javaee")
-                    classOf("User") {
-                        stereotype("Entity") { "tableName" to "users" }
+                    classOf(name = "User") {
+                        stereotype(name = "Entity") { "tableName" to "users" }
                     }
                 }
 
@@ -218,9 +218,9 @@ class ProfileDslTest :
         test("applyProfile by unknown namespace throws") {
             val ex =
                 shouldThrow<IllegalStateException> {
-                    umlModel("M") {
+                    umlModel(name = "M") {
                         applyProfile("dev.kuml.nonexistent.profile")
-                        classOf("User") {}
+                        classOf(name = "User") {}
                     }
                 }
             ex.message shouldContain "dev.kuml.nonexistent.profile"
@@ -231,10 +231,10 @@ class ProfileDslTest :
 
         test("applyProfile works on umlModel as well (D3)") {
             val model =
-                umlModel("M") {
+                umlModel(name = "M") {
                     applyProfile(javaEeTestProfile)
-                    classOf("Repository") {
-                        stereotype("Service") {}
+                    classOf(name = "Repository") {
+                        stereotype(name = "Service") {}
                     }
                 }
 
@@ -253,10 +253,10 @@ class ProfileDslTest :
 
         test("applyProfile works on diagram scope") {
             val diag =
-                diagram("D", DiagramType.CLASS) {
+                diagram(name = "D", type = DiagramType.CLASS) {
                     applyProfile(javaEeTestProfile)
-                    classOf("User") {
-                        stereotype("Entity") { "tableName" to "users" }
+                    classOf(name = "User") {
+                        stereotype(name = "Entity") { "tableName" to "users" }
                     }
                 }
 
@@ -269,10 +269,10 @@ class ProfileDslTest :
         test("stereotype with no applied profiles throws clear error") {
             val ex =
                 shouldThrow<IllegalArgumentException> {
-                    umlModel("M") {
+                    umlModel(name = "M") {
                         // NO applyProfile call
-                        classOf("User") {
-                            stereotype("Entity") {}
+                        classOf(name = "User") {
+                            stereotype(name = "Entity") {}
                         }
                     }
                 }

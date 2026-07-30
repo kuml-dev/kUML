@@ -112,7 +112,7 @@ class KumlToolRegistryExternalDiscoveryTest :
 
         test("buildWithExternalFrom merges built-in and external tool sets") {
             val ctx = AgentEditingContext.emptyUml()
-            val registry = KumlToolRegistry.buildWithExternalFrom(ctx, listOf(JiraToolSetFactory()))
+            val registry = KumlToolRegistry.buildWithExternalFrom(ctx = ctx, external = listOf(JiraToolSetFactory()))
             val toolNames = registry.tools.map { it.name }
             // Built-in inspection tool must be present
             toolNames.any { it.contains("list_elements") || it.contains("listElements") } shouldBe true
@@ -122,7 +122,7 @@ class KumlToolRegistryExternalDiscoveryTest :
 
         test("buildWithExternalFrom with empty external list returns built-in registry") {
             val ctx = AgentEditingContext.emptyUml()
-            val registry = KumlToolRegistry.buildWithExternalFrom(ctx, emptyList())
+            val registry = KumlToolRegistry.buildWithExternalFrom(ctx = ctx, external = emptyList())
             registry shouldNotBe null
             // Built-in tools still present
             val toolNames = registry.tools.map { it.name }
@@ -133,8 +133,8 @@ class KumlToolRegistryExternalDiscoveryTest :
             val ctx = AgentEditingContext.emptyUml()
             val registry =
                 KumlToolRegistry.buildWithExternalFrom(
-                    ctx,
-                    listOf(ThrowingFactory(), JiraToolSetFactory()),
+                    ctx = ctx,
+                    external = listOf(ThrowingFactory(), JiraToolSetFactory()),
                 )
             val toolNames = registry.tools.map { it.name }
             // Good external tool survives
@@ -145,8 +145,8 @@ class KumlToolRegistryExternalDiscoveryTest :
             val ctx = AgentEditingContext.emptyUml()
             val registry =
                 KumlToolRegistry.buildWithExternalFrom(
-                    ctx,
-                    listOf(WrongTypeFactory(), JiraToolSetFactory()),
+                    ctx = ctx,
+                    external = listOf(WrongTypeFactory(), JiraToolSetFactory()),
                 )
             val toolNames = registry.tools.map { it.name }
             // Good external tool survives

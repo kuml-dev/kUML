@@ -19,7 +19,7 @@ public class CppCodegenPlugin : KumlCodegenPlugin {
         PluginDescriptor(
             id = "dev.kuml.plugin.codegen.cpp",
             name = "C++ Code Generator",
-            version = PluginVersion(1, 0, 0),
+            version = PluginVersion(major = 1, minor = 0, patch = 0),
             kumlVersionRange = KumlVersionRange(">=0.12.0"),
             capabilities = setOf(PluginCapability.CODEGEN),
             requiredPermissions = setOf(PluginPermission.FS_WRITE),

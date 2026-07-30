@@ -34,11 +34,11 @@ class UmlComponentSvgFeatureTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = null,
-                canvas = Size(280f, 200f),
+                canvas = Size(width = 280f, height = 200f),
                 nodes =
                     mapOf(
                         NodeId(id) to
-                            NodeLayout(bounds = Rect(Point(10f, 10f), Size(240f, 160f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 240f, height = 160f))),
                     ),
                 edges = emptyMap(),
                 groups = emptyMap(),
@@ -58,7 +58,7 @@ class UmlComponentSvgFeatureTest :
         test("component without features renders header-only without divider lines") {
             val cmp = UmlComponent(id = "c1", name = "OrderService")
             val diagram = KumlDiagram(name = "D", elements = listOf(cmp))
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("c1"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("c1"), theme = PlainTheme())
 
             svg shouldContain "«component»"
             svg shouldContain "OrderService"
@@ -70,7 +70,7 @@ class UmlComponentSvgFeatureTest :
             val op = UmlOperation(id = "c2::op", name = "doIt")
             val cmp = UmlComponent(id = "c2", name = "OrderService", operations = listOf(op))
             val diagram = KumlDiagram(name = "D", elements = listOf(cmp))
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("c2"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("c2"), theme = PlainTheme())
 
             svg shouldContain "doIt"
             countDividerLines(svg) shouldBeAtLeast 1
@@ -82,7 +82,7 @@ class UmlComponentSvgFeatureTest :
                 UmlProperty(
                     id = "c3::a",
                     name = "data",
-                    type = UmlTypeRef("Double"),
+                    type = UmlTypeRef(name = "Double"),
                 )
             val op = UmlOperation(id = "c3::op", name = "compute")
             val cmp =
@@ -93,7 +93,7 @@ class UmlComponentSvgFeatureTest :
                     operations = listOf(op),
                 )
             val diagram = KumlDiagram(name = "D", elements = listOf(cmp))
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("c3"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("c3"), theme = PlainTheme())
 
             svg shouldContain "data"
             svg shouldContain "compute"
@@ -111,7 +111,7 @@ class UmlComponentSvgFeatureTest :
                 )
             val cmp = UmlComponent(id = "c4", name = "SteeringControlSWC", operations = listOf(op))
             val diagram = KumlDiagram(name = "D", elements = listOf(cmp))
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("c4"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("c4"), theme = PlainTheme())
 
             svg shouldContain "«Runnable»"
             svg shouldContain "kuml-feature-stereotype"
@@ -143,7 +143,7 @@ class UmlComponentSvgFeatureTest :
                     nestedComponents = listOf(validator, persistence),
                 )
             val diagram = KumlDiagram(name = "D", elements = listOf(service))
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("svc"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("svc"), theme = PlainTheme())
 
             // Outer component + both nested parts each emit a «component» keyword.
             Regex("«component»").findAll(svg).count() shouldBe 3
@@ -161,7 +161,7 @@ class UmlComponentSvgFeatureTest :
         test("component without nested parts emits exactly one «component» keyword") {
             val cmp = UmlComponent(id = "flat", name = "FlatService")
             val diagram = KumlDiagram(name = "D", elements = listOf(cmp))
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("flat"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("flat"), theme = PlainTheme())
 
             Regex("«component»").findAll(svg).count() shouldBe 1
         }
@@ -193,7 +193,7 @@ class UmlComponentSvgFeatureTest :
                     type = DiagramType.COMPOSITE_STRUCTURE,
                     elements = listOf(service, delegation),
                 )
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("OrderService"), theme = PlainTheme())
 
             // The internal connector is drawn as a polyline (orthogonal routing), NOT
             // routed by ELK (singleNodeLayout has edges = emptyMap()).
@@ -237,7 +237,7 @@ class UmlComponentSvgFeatureTest :
                     type = DiagramType.COMPOSITE_STRUCTURE,
                     elements = listOf(service, assembly),
                 )
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("OrderService"), theme = PlainTheme())
 
             Regex("""<polyline[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
             // Both nested parts still render.
@@ -276,7 +276,7 @@ class UmlComponentSvgFeatureTest :
                     type = DiagramType.COMPOSITE_STRUCTURE,
                     elements = listOf(service, delegation),
                 )
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("OrderService"), theme = PlainTheme())
 
             // The connector polyline itself is still present.
             Regex("""<polyline[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
@@ -317,7 +317,7 @@ class UmlComponentSvgFeatureTest :
                     type = DiagramType.COMPOSITE_STRUCTURE,
                     elements = listOf(service, badConnector),
                 )
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("OrderService"), theme = PlainTheme())
 
             // resolvePortAnchor() returns null for the missing port → the connector is
             // skipped entirely (continue), so exactly zero kuml-connector polylines appear.
@@ -366,7 +366,7 @@ class UmlComponentSvgFeatureTest :
                     type = DiagramType.COMPOSITE_STRUCTURE,
                     elements = listOf(flatService, boundaryConnector),
                 )
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("FlatService"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("FlatService"), theme = PlainTheme())
 
             // The flat component box still renders.
             svg shouldContain "FlatService"
@@ -404,7 +404,7 @@ class UmlComponentSvgFeatureTest :
                 )
             // singleNodeLayout intentionally has edges = emptyMap(): the ELK edge loop
             // contributes nothing, so the only polyline comes from the in-box renderer.
-            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = singleNodeLayout("OrderService"), theme = PlainTheme())
             Regex("""<polyline[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
         }
     })

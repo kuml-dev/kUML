@@ -29,13 +29,13 @@ class Sysml2StmLatexTest :
 
         "STM-TikZ enthält Zustandsnamen und «state»-Stereotyp (V2.0.9 fallback)" {
             val model =
-                sysml2Model("TrafficLight") {
-                    val initial = stateDef("Initial", isInitial = true)
-                    val red = stateDef("Red", entryAction = "switchLights('red')")
-                    val green = stateDef("Green")
-                    transition("init", initial, red)
-                    transition("redToGreen", red, green, trigger = "timer60s")
-                    stmDiagram("STM") {
+                sysml2Model(name = "TrafficLight") {
+                    val initial = stateDef(name = "Initial", isInitial = true)
+                    val red = stateDef(name = "Red", entryAction = "switchLights('red')")
+                    val green = stateDef(name = "Green")
+                    transition(name = "init", source = initial, target = red)
+                    transition(name = "redToGreen", source = red, target = green, trigger = "timer60s")
+                    stmDiagram(name = "STM") {
                         include(initial)
                         include(red)
                         include(green)
@@ -46,18 +46,21 @@ class Sysml2StmLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(600f, 240f),
+                    canvas = Size(width = 600f, height = 240f),
                     nodes =
                         mapOf(
-                            NodeId("Initial") to NodeLayout(bounds = Rect(Point(20f, 100f), Size(24f, 24f))),
-                            NodeId("Red") to NodeLayout(bounds = Rect(Point(80f, 80f), Size(180f, 80f))),
-                            NodeId("Green") to NodeLayout(bounds = Rect(Point(320f, 80f), Size(180f, 80f))),
+                            NodeId("Initial") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 100f), size = Size(width = 24f, height = 24f))),
+                            NodeId("Red") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 80f, y = 80f), size = Size(width = 180f, height = 80f))),
+                            NodeId("Green") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 320f, y = 80f), size = Size(width = 180f, height = 80f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(model, stm, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = stm, layoutResult = layout)
             tex shouldContain "\\begin{tikzpicture}"
             tex shouldContain "Red"
             tex shouldContain "Green"
@@ -67,16 +70,16 @@ class Sysml2StmLatexTest :
             tex shouldContain "state"
             tex shouldContain "initial pseudo-state"
 
-            SampleOutput.write("sysml2-stm/traffic-light-stm.tex", tex)
+            SampleOutput.write(filename = "sysml2-stm/traffic-light-stm.tex", content = tex)
         }
 
         "deterministic STM output" {
             val model =
-                sysml2Model("Det") {
-                    val red = stateDef("Red")
-                    val green = stateDef("Green")
-                    transition("redToGreen", red, green)
-                    stmDiagram("STM") {
+                sysml2Model(name = "Det") {
+                    val red = stateDef(name = "Red")
+                    val green = stateDef(name = "Green")
+                    transition(name = "redToGreen", source = red, target = green)
+                    stmDiagram(name = "STM") {
                         include(red)
                         include(green)
                     }
@@ -86,17 +89,19 @@ class Sysml2StmLatexTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("Red") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(180f, 80f))),
-                            NodeId("Green") to NodeLayout(bounds = Rect(Point(220f, 0f), Size(180f, 80f))),
+                            NodeId("Red") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 180f, height = 80f))),
+                            NodeId("Green") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 220f, y = 0f), size = Size(width = 180f, height = 80f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val one = KumlLatexRenderer.toLatex(model, stm, layout)
-            val two = KumlLatexRenderer.toLatex(model, stm, layout)
+            val one = KumlLatexRenderer.toLatex(model = model, diagram = stm, layoutResult = layout)
+            val two = KumlLatexRenderer.toLatex(model = model, diagram = stm, layoutResult = layout)
             one shouldBe two
         }
     })

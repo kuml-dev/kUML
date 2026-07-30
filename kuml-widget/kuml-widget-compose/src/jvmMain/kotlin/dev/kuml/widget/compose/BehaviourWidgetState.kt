@@ -100,7 +100,7 @@ public class BehaviourWidgetState(
                 name = eventName,
                 payload = JsonObject(emptyMap()),
             )
-        runtime.step(runningInstance, event)
+        runtime.step(instance = runningInstance, event = event)
         trace = runningInstance.trace.toList()
         tracePosition = trace.size
     }
@@ -119,7 +119,7 @@ public class BehaviourWidgetState(
      * the trace, and moves the scrub position to 0.
      */
     public fun reset() {
-        runningInstance = runtime.restoreFrom(model, initialSnapshot, MigrationPolicy.Reject)
+        runningInstance = runtime.restoreFrom(model = model, snapshot = initialSnapshot, policy = MigrationPolicy.Reject)
         trace = runningInstance.trace.toList()
         tracePosition = trace.size
     }
@@ -146,7 +146,7 @@ public class BehaviourWidgetState(
                 internalQueue = emptyList(),
                 isTerminated = false,
             )
-        runningInstance = runtime.restoreFrom(model, forkedSnapshot, MigrationPolicy.Reject)
+        runningInstance = runtime.restoreFrom(model = model, snapshot = forkedSnapshot, policy = MigrationPolicy.Reject)
         trace = runningInstance.trace.toList()
         tracePosition = trace.size
     }

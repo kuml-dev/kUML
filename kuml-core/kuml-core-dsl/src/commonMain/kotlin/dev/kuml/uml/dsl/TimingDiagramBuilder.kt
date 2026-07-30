@@ -67,7 +67,7 @@ public class TimingDiagramBuilder(
         states: List<String>,
         block: TimingLifelineScope.() -> Unit = {},
     ): UmlTimingLifeline {
-        val id = UmlIds.disambiguate(candidate = UmlIds.child(containerId, name), taken = takenIds)
+        val id = UmlIds.disambiguate(candidate = UmlIds.child(parentId = containerId, name = name), taken = takenIds)
         val scope = TimingLifelineScope()
         scope.apply(block)
         val l =

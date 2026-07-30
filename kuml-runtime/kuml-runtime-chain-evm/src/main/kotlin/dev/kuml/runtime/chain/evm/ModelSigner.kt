@@ -39,7 +39,7 @@ public class ModelSigner {
     public fun sign(
         modelSource: String,
         privateKeyHex: String,
-    ): ModelSignature = sign(modelSource, privateKeyHex, System.currentTimeMillis() / 1000L)
+    ): ModelSignature = sign(modelSource = modelSource, privateKeyHex = privateKeyHex, timestamp = System.currentTimeMillis() / 1000L)
 
     /**
      * Wie [sign], aber mit festem [timestamp] — für reproduzierbare Tests.
@@ -59,9 +59,9 @@ public class ModelSigner {
         val signerChecksummed = Eip712Verifier.toChecksumAddress(signerLower)
 
         val modelHash = ModelHasher.hashCanonical(ModelHasher.canonicalize(modelSource))
-        val digest = buildDigest(modelHash, timestamp)
+        val digest = buildDigest(modelHash = modelHash, timestamp = timestamp)
 
-        val (r, s, recId) = Secp256k1.signRecoverable(digest, d)
+        val (r, s, recId) = Secp256k1.signRecoverable(digest = digest, d = d)
         val rBytes = Secp256k1.bigIntTo32Bytes(r)
         val sBytes = Secp256k1.bigIntTo32Bytes(s)
         val vByte = (recId + 27).toByte()
@@ -95,9 +95,9 @@ public class ModelSigner {
         require(computedHash.contentEquals(sig.modelHash)) {
             "modelHash in signature does not match the provided modelSource"
         }
-        val digest = buildDigest(sig.modelHash, sig.timestamp)
+        val digest = buildDigest(modelHash = sig.modelHash, timestamp = sig.timestamp)
         val recovered =
-            Eip712Verifier().recoverAddress(digest, sig.signature)
+            Eip712Verifier().recoverAddress(digest = digest, signature = sig.signature)
                 ?: throw IllegalArgumentException("signature recovery failed — invalid signature bytes")
         return Eip712Verifier.toChecksumAddress(recovered)
     }
@@ -120,8 +120,8 @@ public class ModelSigner {
         timestamp: Long,
     ): ByteArray {
         val domainSeparator = domainSeparator()
-        val structHash = structHash(modelHash, timestamp)
-        return Eip712Verifier.eip712Digest(domainSeparator, structHash)
+        val structHash = structHash(modelHash = modelHash, timestamp = timestamp)
+        return Eip712Verifier.eip712Digest(domainSeparator = domainSeparator, structHash = structHash)
     }
 
     private companion object {

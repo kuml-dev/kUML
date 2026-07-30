@@ -28,7 +28,7 @@ class UmlToDockerTransformerTest :
         // ── Tests ─────────────────────────────────────────────────────────────────
 
         test("single component produces one Dockerfile with correct FROM") {
-            val result = transformer.transform(diagram(component("svc", "OrderService")), ctx)
+            val result = transformer.transform(source = diagram(component("svc", "OrderService")), ctx = ctx)
             val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             files shouldHaveSize 1
             files[0].relativePath shouldBe "OrderService/Dockerfile"
@@ -37,27 +37,27 @@ class UmlToDockerTransformerTest :
 
         test("baseImage option overrides default FROM image") {
             val customCtx = TransformContext(options = mapOf("baseImage" to "amazoncorretto:17-alpine"))
-            val result = transformer.transform(diagram(component("svc", "OrderService")), customCtx)
+            val result = transformer.transform(source = diagram(component("svc", "OrderService")), ctx = customCtx)
             val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
             content shouldContain "FROM amazoncorretto:17-alpine"
         }
 
         test("port option changes EXPOSE line") {
             val customCtx = TransformContext(options = mapOf("port" to "9090"))
-            val result = transformer.transform(diagram(component("svc", "OrderService")), customCtx)
+            val result = transformer.transform(source = diagram(component("svc", "OrderService")), ctx = customCtx)
             val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
             content shouldContain "EXPOSE 9090"
         }
 
         test("component name appears in COPY line as kebab-case") {
-            val result = transformer.transform(diagram(component("svc", "OrderService")), ctx)
+            val result = transformer.transform(source = diagram(component("svc", "OrderService")), ctx = ctx)
             val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
             content shouldContain "COPY build/libs/order-service*.jar app.jar"
         }
 
         test("buildDir option changes COPY source directory") {
             val customCtx = TransformContext(options = mapOf("buildDir" to "target"))
-            val result = transformer.transform(diagram(component("svc", "OrderService")), customCtx)
+            val result = transformer.transform(source = diagram(component("svc", "OrderService")), ctx = customCtx)
             val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
             content shouldContain "COPY target/order-service*.jar app.jar"
         }
@@ -65,11 +65,12 @@ class UmlToDockerTransformerTest :
         test("two-component diagram produces two Dockerfiles") {
             val result =
                 transformer.transform(
-                    diagram(
-                        component("svc1", "OrderService"),
-                        component("svc2", "PaymentService"),
-                    ),
-                    ctx,
+                    source =
+                        diagram(
+                            component("svc1", "OrderService"),
+                            component("svc2", "PaymentService"),
+                        ),
+                    ctx = ctx,
                 )
             val files = (result as TransformResult.Success<List<GeneratedFile>>).output
             files shouldHaveSize 2
@@ -86,7 +87,7 @@ class UmlToDockerTransformerTest :
         }
 
         test("generated comment includes component name") {
-            val result = transformer.transform(diagram(component("svc", "OrderService")), ctx)
+            val result = transformer.transform(source = diagram(component("svc", "OrderService")), ctx = ctx)
             val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
             content shouldContain "# Component: OrderService"
         }

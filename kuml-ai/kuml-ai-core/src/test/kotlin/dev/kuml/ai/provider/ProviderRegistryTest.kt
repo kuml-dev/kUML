@@ -107,7 +107,7 @@ class ProviderRegistryTest :
         test("resolveModel returns null for custom provider with null koogProvider") {
             val custom = StubSpiProvider(id = "custom-null-koog")
             val registry = ProviderRegistry.discoverFrom(listOf(custom))
-            registry.resolveModel("custom-null-koog", "some-model").shouldBeNull()
+            registry.resolveModel(providerId = "custom-null-koog", modelId = "some-model").shouldBeNull()
         }
 
         // ── 9. multiple custom providers all registered when ids are unique ───

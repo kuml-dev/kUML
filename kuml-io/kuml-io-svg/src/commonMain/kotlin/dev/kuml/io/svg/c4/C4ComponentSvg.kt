@@ -26,40 +26,43 @@ internal fun renderC4Component(
     val r = theme.borders.cornerRadiusPx
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         tag(
-            "rect",
-            mapOf(
-                "width" to fmt(w),
-                "height" to fmt(h),
-                "rx" to fmt(r),
-                "ry" to fmt(r),
-                "class" to "kuml-c4component",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "width" to fmt(w),
+                    "height" to fmt(h),
+                    "rx" to fmt(r),
+                    "ry" to fmt(r),
+                    "class" to "kuml-c4component",
+                ),
         )
         val tech = element.technology?.let { " $it" } ?: ""
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-stereotype",
-                "x" to fmt(w / 2f),
-                "y" to "18",
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(w / 2f),
+                    "y" to "18",
+                    "text-anchor" to "middle",
+                ),
         ) { text("[Component:$tech]") }
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-title",
-                "x" to fmt(w / 2f),
-                "y" to "36",
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-title",
+                    "x" to fmt(w / 2f),
+                    "y" to "36",
+                    "text-anchor" to "middle",
+                ),
         ) { text(element.name) }
         element.description?.let { desc ->
-            renderWrappedDescription(this, desc, w)
+            renderWrappedDescription(builder = this, desc = desc, boxWidth = w)
         }
     }
 }

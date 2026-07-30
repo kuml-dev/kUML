@@ -146,11 +146,11 @@ class SpringProfileTest :
 
         test("Scheduled applied via DSL stores entry in operation appliedStereotypes") {
             val diagram =
-                classDiagram("Scheduled Test") {
+                classDiagram(name = "Scheduled Test") {
                     applyProfile(springProfile)
-                    classOf("ReportScheduler") {
-                        operation("generateDaily") {
-                            stereotype("Scheduled") {
+                    classOf(name = "ReportScheduler") {
+                        operation(name = "generateDaily") {
+                            stereotype(name = "Scheduled") {
                                 "cron" to "0 0 * * *"
                             }
                         }

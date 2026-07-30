@@ -22,6 +22,6 @@ public class XmiExporter {
         outputFile: File,
     ) {
         val emfModel = converter.convert(model)
-        writer.write(emfModel, outputFile)
+        writer.write(emfModel = emfModel, outputFile = outputFile)
     }
 }

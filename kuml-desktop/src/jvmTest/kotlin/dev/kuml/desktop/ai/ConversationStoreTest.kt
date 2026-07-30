@@ -21,7 +21,7 @@ class ConversationStoreTest :
             updatedAt: Long = 1000L,
             messages: List<ConversationMessage> =
                 listOf(
-                    ConversationMessage.User("u1", 999L, "Test message"),
+                    ConversationMessage.User(id = "u1", timestamp = 999L, text = "Test message"),
                 ),
         ) = Conversation(
             sessionId = sessionId,

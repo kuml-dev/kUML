@@ -90,7 +90,7 @@ internal object DslLexer {
                     }
                     i++
                 }
-                if (i + 1 >= src.length) throw DslLexException("Unterminated block comment", line)
+                if (i + 1 >= src.length) throw DslLexException(message = "Unterminated block comment", line = line)
                 i += 2 // consume */
                 continue
             }
@@ -98,38 +98,38 @@ internal object DslLexer {
             val startCol = col()
             when {
                 c == '(' -> {
-                    tokens += DslToken(DslTokenKind.LPAREN, "(", line, startCol)
+                    tokens += DslToken(kind = DslTokenKind.LPAREN, text = "(", line = line, column = startCol)
                     i++
                 }
                 c == ')' -> {
-                    tokens += DslToken(DslTokenKind.RPAREN, ")", line, startCol)
+                    tokens += DslToken(kind = DslTokenKind.RPAREN, text = ")", line = line, column = startCol)
                     i++
                 }
                 c == '{' -> {
-                    tokens += DslToken(DslTokenKind.LBRACE, "{", line, startCol)
+                    tokens += DslToken(kind = DslTokenKind.LBRACE, text = "{", line = line, column = startCol)
                     i++
                 }
                 c == '}' -> {
-                    tokens += DslToken(DslTokenKind.RBRACE, "}", line, startCol)
+                    tokens += DslToken(kind = DslTokenKind.RBRACE, text = "}", line = line, column = startCol)
                     i++
                 }
                 c == ',' -> {
-                    tokens += DslToken(DslTokenKind.COMMA, ",", line, startCol)
+                    tokens += DslToken(kind = DslTokenKind.COMMA, text = ",", line = line, column = startCol)
                     i++
                 }
                 c == '.' -> {
-                    tokens += DslToken(DslTokenKind.DOT, ".", line, startCol)
+                    tokens += DslToken(kind = DslTokenKind.DOT, text = ".", line = line, column = startCol)
                     i++
                 }
                 c == '=' -> {
                     // Bare '=' only. '==' and friends have no place in this grammar.
                     if (i + 1 < src.length && src[i + 1] == '=') {
                         throw DslLexException(
-                            "'==' is not part of the interpreter DSL grammar (no expressions)",
-                            line,
+                            message = "'==' is not part of the interpreter DSL grammar (no expressions)",
+                            line = line,
                         )
                     }
-                    tokens += DslToken(DslTokenKind.ASSIGN, "=", line, startCol)
+                    tokens += DslToken(kind = DslTokenKind.ASSIGN, text = "=", line = line, column = startCol)
                     i++
                 }
                 c == '"' -> {
@@ -137,7 +137,7 @@ internal object DslLexer {
                     val sb = StringBuilder()
                     while (i < src.length && src[i] != '"') {
                         if (src[i] == '\n') {
-                            throw DslLexException("Unterminated string literal", line)
+                            throw DslLexException(message = "Unterminated string literal", line = line)
                         }
                         if (src[i] == '\\' && i + 1 < src.length) {
                             i++
@@ -149,7 +149,7 @@ internal object DslLexer {
                                     '\\' -> '\\'
                                     '"' -> '"'
                                     '$' -> '$'
-                                    else -> throw DslLexException("Unsupported escape '\\${src[i]}'", line)
+                                    else -> throw DslLexException(message = "Unsupported escape '\\${src[i]}'", line = line)
                                 },
                             )
                             i++
@@ -157,18 +157,19 @@ internal object DslLexer {
                             // String interpolation is explicitly NOT supported —
                             // it would require expression evaluation. Fail clearly.
                             throw DslLexException(
-                                "String interpolation ('\$') is not supported by the interpreter mode; " +
-                                    "use --eval-strategy=compiler for interpolated strings",
-                                line,
+                                message =
+                                    "String interpolation ('\$') is not supported by the interpreter mode; " +
+                                        "use --eval-strategy=compiler for interpolated strings",
+                                line = line,
                             )
                         } else {
                             sb.append(src[i])
                             i++
                         }
                     }
-                    if (i >= src.length) throw DslLexException("Unterminated string literal", line)
+                    if (i >= src.length) throw DslLexException(message = "Unterminated string literal", line = line)
                     i++ // closing quote
-                    tokens += DslToken(DslTokenKind.STRING, sb.toString(), line, startCol)
+                    tokens += DslToken(kind = DslTokenKind.STRING, text = sb.toString(), line = line, column = startCol)
                 }
                 c.isDigit() || (c == '-' && i + 1 < src.length && src[i + 1].isDigit()) -> {
                     val sb = StringBuilder()
@@ -185,11 +186,11 @@ internal object DslLexer {
                     // values (e.g. "0.19"), never as bare numbers.
                     if (i < src.length && src[i] == '.') {
                         throw DslLexException(
-                            "Decimal number literals are not supported; wrap the value in a string (e.g. \"0.19\")",
-                            line,
+                            message = "Decimal number literals are not supported; wrap the value in a string (e.g. \"0.19\")",
+                            line = line,
                         )
                     }
-                    tokens += DslToken(DslTokenKind.INT, sb.toString(), line, startCol)
+                    tokens += DslToken(kind = DslTokenKind.INT, text = sb.toString(), line = line, column = startCol)
                 }
                 c.isLetter() || c == '_' -> {
                     val sb = StringBuilder()
@@ -205,13 +206,13 @@ internal object DslLexer {
                             "false" -> DslTokenKind.FALSE
                             else -> DslTokenKind.IDENT
                         }
-                    tokens += DslToken(kind, text, line, startCol)
+                    tokens += DslToken(kind = kind, text = text, line = line, column = startCol)
                 }
-                else -> throw DslLexException("Unexpected character '$c'", line)
+                else -> throw DslLexException(message = "Unexpected character '$c'", line = line)
             }
         }
 
-        tokens += DslToken(DslTokenKind.EOF, "<EOF>", line, col())
+        tokens += DslToken(kind = DslTokenKind.EOF, text = "<EOF>", line = line, column = col())
         return tokens
     }
 }

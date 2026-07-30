@@ -87,7 +87,7 @@ class WorkspaceState(
         try {
             val result =
                 withContext(Dispatchers.IO) {
-                    DesktopRenderPipeline.render(block.source, themeName)
+                    DesktopRenderPipeline.render(script = block.source, themeName = themeName)
                 }
             if (token != selectionToken) return // superseded by a newer selection
             when (result) {

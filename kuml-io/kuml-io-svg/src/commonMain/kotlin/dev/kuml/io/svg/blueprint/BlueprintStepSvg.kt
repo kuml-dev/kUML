@@ -96,7 +96,7 @@ internal fun SvgBuilder.renderStepCard(
     val y = cellY + mTop
     val w = cellW - 2 * mSide
     val h = cellH - mTop - mBottom
-    tag("g", mapOf("id" to step.id)) {
+    tag(name = "g", attrs = mapOf("id" to step.id)) {
         rawXml(
             """<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="6" """ +
                 """fill="#fff" stroke="$accent" stroke-width="1.5"/>""",
@@ -110,7 +110,7 @@ internal fun SvgBuilder.renderStepCard(
         val textCenterX = x + textWidth / 2.0
 
         // Wrap title text to avoid horizontal overflow (V3.1.27).
-        val lines = wrapText(step.name ?: step.id, textWidth)
+        val lines = wrapText(text = step.name ?: step.id, maxWidthPx = textWidth)
         // First-line baseline: always y+20, regardless of line count (fix).
         // The previous version shifted this up by half the wrapped block's
         // extra height to "center" multi-line titles — for 3+ lines that
@@ -122,14 +122,15 @@ internal fun SvgBuilder.renderStepCard(
 
         if (lines.size == 1) {
             tag(
-                "text",
-                mapOf(
-                    "x" to f(textCenterX),
-                    "y" to f(firstLineY),
-                    "text-anchor" to "middle",
-                    "class" to "kuml-body",
-                    "font-size" to "12",
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "x" to f(textCenterX),
+                        "y" to f(firstLineY),
+                        "text-anchor" to "middle",
+                        "class" to "kuml-body",
+                        "font-size" to "12",
+                    ),
             ) { text(lines[0]) }
         } else {
             rawXml(
@@ -174,14 +175,15 @@ internal fun SvgBuilder.renderStepCard(
                     """<title>${xmlEscapeContent("Pain: $painPoint")}</title>""",
             )
             tag(
-                "text",
-                mapOf(
-                    "x" to f(x + 20),
-                    "y" to f(painRowY + 3.0),
-                    "class" to "kuml-small",
-                    "font-size" to "9",
-                ),
-            ) { text(truncateOneLine(painPoint, w - 26.0)) }
+                name = "text",
+                attrs =
+                    mapOf(
+                        "x" to f(x + 20),
+                        "y" to f(painRowY + 3.0),
+                        "class" to "kuml-small",
+                        "font-size" to "9",
+                    ),
+            ) { text(truncateOneLine(text = painPoint, maxWidthPx = w - 26.0)) }
         }
         if (step.opportunity != null) {
             rawXml(

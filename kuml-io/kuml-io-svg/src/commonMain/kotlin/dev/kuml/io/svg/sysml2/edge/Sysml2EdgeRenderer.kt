@@ -90,13 +90,13 @@ internal object Sysml2EdgeRenderer {
                 put("class", "kuml-edge")
                 metadata.dashArray?.let { put("stroke-dasharray", it) }
             }
-        builder.tag(tag, lineAttrs)
+        builder.tag(name = tag, attrs = lineAttrs)
 
         // Inline arrowhead (replaces marker-end url(#id) approach).
         val arrowStyle = toArrowStyle(metadata.arrowHead)
         if (arrowStyle != null) {
             val (arrowFrom, arrowTip) = route.arrowDirection()
-            renderInlineArrow(arrowFrom, arrowTip, arrowStyle, theme, builder)
+            renderInlineArrow(from = arrowFrom, tip = arrowTip, style = arrowStyle, theme = theme, builder = builder)
         }
 
         // 2. Labels (stereotype + plain label). Suppress emission entirely
@@ -118,12 +118,12 @@ internal object Sysml2EdgeRenderer {
         // nicht mehr überlappen.
         val topY = my - LABEL_BASELINE_OFFSET_PX + labelStackIndex * STACK_OFFSET_PX
         if (stereotype != null && label != null) {
-            emitText(builder, stereotype, mx, topY - LABEL_LINE_HEIGHT_PX, "kuml-stereotype")
-            emitText(builder, label, mx, topY, "kuml-body")
+            emitText(builder = builder, content = stereotype, x = mx, y = topY - LABEL_LINE_HEIGHT_PX, cssClass = "kuml-stereotype")
+            emitText(builder = builder, content = label, x = mx, y = topY, cssClass = "kuml-body")
         } else if (stereotype != null) {
-            emitText(builder, stereotype, mx, topY, "kuml-stereotype")
+            emitText(builder = builder, content = stereotype, x = mx, y = topY, cssClass = "kuml-stereotype")
         } else if (label != null) {
-            emitText(builder, label, mx, topY, "kuml-body")
+            emitText(builder = builder, content = label, x = mx, y = topY, cssClass = "kuml-body")
         }
 
         // V2.x: true Bezier midpoint via de-Casteljau, multi-line labels
@@ -144,24 +144,26 @@ internal object Sysml2EdgeRenderer {
         val approxW = content.length * 6.2f + 6f
         val approxH = 12f
         builder.tag(
-            "rect",
-            mapOf(
-                "x" to fmt(x - approxW / 2f),
-                "y" to fmt(y - approxH + 2f),
-                "width" to fmt(approxW),
-                "height" to fmt(approxH),
-                "fill" to "white",
-                "stroke" to "none",
-            ),
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmt(x - approxW / 2f),
+                    "y" to fmt(y - approxH + 2f),
+                    "width" to fmt(approxW),
+                    "height" to fmt(approxH),
+                    "fill" to "white",
+                    "stroke" to "none",
+                ),
         )
         builder.tag(
-            "text",
-            mapOf(
-                "class" to cssClass,
-                "x" to fmt(x),
-                "y" to fmt(y),
-                "text-anchor" to "middle",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to cssClass,
+                    "x" to fmt(x),
+                    "y" to fmt(y),
+                    "text-anchor" to "middle",
+                ),
         ) {
             text(content)
         }
@@ -318,7 +320,9 @@ internal object Sysml2EdgeRenderer {
      */
     fun computeLabelStackAssignments(edges: Iterable<Triple<EdgeId, EdgeRoute, String?>>): Map<EdgeId, LabelStackAssignment> =
         computeLabelStackAssignmentsFromAnchors(
-            edges.map { (edgeId, route, labelText) -> LabelAnchorInput(edgeId, labelAnchor(route), labelText) },
+            edges.map { (edgeId, route, labelText) ->
+                LabelAnchorInput(edgeId = edgeId, anchor = labelAnchor(route), labelText = labelText)
+            },
         )
 
     /**
@@ -392,12 +396,12 @@ internal object Sysml2EdgeRenderer {
      */
     fun labelAnchor(route: EdgeRoute): Pair<Float, Float> =
         when (route) {
-            is EdgeRoute.Direct -> midpoint(route.source, route.target)
+            is EdgeRoute.Direct -> midpoint(a = route.source, b = route.target)
             is EdgeRoute.OrthogonalRounded ->
                 longestSegmentMidpoint(listOf(route.source) + route.waypoints + listOf(route.target))
             is EdgeRoute.TreeRounded ->
                 longestSegmentMidpoint(listOf(route.source) + route.waypoints + listOf(route.target))
-            is EdgeRoute.Bezier -> midpoint(route.source, route.target)
+            is EdgeRoute.Bezier -> midpoint(a = route.source, b = route.target)
         }
 
     private fun midpoint(
@@ -418,7 +422,7 @@ internal object Sysml2EdgeRenderer {
                 bestIdx = i
             }
         }
-        return midpoint(points[bestIdx], points[bestIdx + 1])
+        return midpoint(a = points[bestIdx], b = points[bestIdx + 1])
     }
 
     private fun fmt(v: Float): String = fmt2(v)

@@ -22,7 +22,7 @@ class TransformerRegistryTest :
                     override fun transform(
                         source: String,
                         ctx: TransformContext,
-                    ) = TransformResult.Success(source, TransformTrace())
+                    ) = TransformResult.Success(output = source, trace = TransformTrace())
                 }
             TransformerRegistry.register(stub)
 
@@ -42,7 +42,7 @@ class TransformerRegistryTest :
                         override fun transform(
                             source: Unit,
                             ctx: TransformContext,
-                        ) = TransformResult.Success(Unit, TransformTrace())
+                        ) = TransformResult.Success(output = Unit, trace = TransformTrace())
                     },
                 )
             }
@@ -83,7 +83,7 @@ class TransformerRegistryTest :
                     override fun transform(
                         source: Unit,
                         ctx: TransformContext,
-                    ) = TransformResult.Success(Unit, TransformTrace())
+                    ) = TransformResult.Success(output = Unit, trace = TransformTrace())
                 }
             TransformerRegistry.register(stub)
             val descs = TransformerRegistry.descriptions()

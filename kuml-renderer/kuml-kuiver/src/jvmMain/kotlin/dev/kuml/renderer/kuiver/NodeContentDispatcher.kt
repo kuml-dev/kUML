@@ -57,18 +57,18 @@ internal object NodeContentDispatcher {
         theme: KumlTheme,
     ) {
         when (element) {
-            is UmlClass -> UmlClassNode(element, theme)
-            is UmlInterface -> UmlInterfaceNode(element, theme)
-            is UmlEnumeration -> UmlEnumNode(element, theme)
-            is UmlComponent -> UmlComponentNode(element, theme)
-            is UmlActor -> UmlActorNode(element, theme)
-            is UmlUseCase -> UmlUseCaseNode(element, theme)
-            is UmlState -> UmlStateNode(element, theme)
-            is C4Person -> C4PersonNode(element, theme)
-            is C4SoftwareSystem -> C4SoftwareSystemNode(element, theme)
-            is C4Container -> C4ContainerNode(element, theme)
-            is C4Component -> C4ComponentNode(element, theme)
-            else -> GenericFallbackNode(element, theme)
+            is UmlClass -> UmlClassNode(element = element, theme = theme)
+            is UmlInterface -> UmlInterfaceNode(element = element, theme = theme)
+            is UmlEnumeration -> UmlEnumNode(element = element, theme = theme)
+            is UmlComponent -> UmlComponentNode(element = element, theme = theme)
+            is UmlActor -> UmlActorNode(element = element, theme = theme)
+            is UmlUseCase -> UmlUseCaseNode(element = element, theme = theme)
+            is UmlState -> UmlStateNode(element = element, theme = theme)
+            is C4Person -> C4PersonNode(element = element, theme = theme)
+            is C4SoftwareSystem -> C4SoftwareSystemNode(element = element, theme = theme)
+            is C4Container -> C4ContainerNode(element = element, theme = theme)
+            is C4Component -> C4ComponentNode(element = element, theme = theme)
+            else -> GenericFallbackNode(element = element, theme = theme)
         }
     }
 }

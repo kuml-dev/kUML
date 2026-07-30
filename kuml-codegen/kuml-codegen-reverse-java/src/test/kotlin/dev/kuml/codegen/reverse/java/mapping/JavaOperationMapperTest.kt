@@ -15,7 +15,7 @@ class JavaOperationMapperTest :
 
         test("void method without params becomes UmlOperation with returnType void") {
             val method = firstMethod("class Foo { public void doNothing() {} }")
-            val op = JavaOperationMapper.map(method, "Foo")
+            val op = JavaOperationMapper.map(method = method, classId = "Foo")
             op.name shouldBe "doNothing"
             op.parameters.size shouldBe 0
             op.returnType?.name shouldBe "void"
@@ -23,7 +23,7 @@ class JavaOperationMapperTest :
 
         test("method with three IN parameters has three UmlParameters in order") {
             val method = firstMethod("class Foo { public String concat(String a, String b, int c) { return a; } }")
-            val op = JavaOperationMapper.map(method, "Foo")
+            val op = JavaOperationMapper.map(method = method, classId = "Foo")
             op.parameters.size shouldBe 3
             op.parameters[0].name shouldBe "a"
             op.parameters[1].name shouldBe "b"
@@ -33,7 +33,7 @@ class JavaOperationMapperTest :
 
         test("abstract method becomes UmlOperation with isAbstract true") {
             val method = firstMethod("abstract class Foo { public abstract void run(); }")
-            val op = JavaOperationMapper.map(method, "Foo")
+            val op = JavaOperationMapper.map(method = method, classId = "Foo")
             op.isAbstract shouldBe true
         }
     })

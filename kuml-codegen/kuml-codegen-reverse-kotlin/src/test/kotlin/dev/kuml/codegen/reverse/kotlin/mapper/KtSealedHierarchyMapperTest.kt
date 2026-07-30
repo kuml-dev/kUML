@@ -15,14 +15,15 @@ class KtSealedHierarchyMapperTest :
         test("sealed hierarchy emits generalization relations for subtypes") {
             val result =
                 TestSupport.runEngine(
-                    mapOf(
-                        "Shape.kt" to
-                            """
-                            sealed class Shape
-                            class Circle(val r: Double) : Shape()
-                            class Rectangle(val w: Double, val h: Double) : Shape()
-                            """.trimIndent(),
-                    ),
+                    sources =
+                        mapOf(
+                            "Shape.kt" to
+                                """
+                                sealed class Shape
+                                class Circle(val r: Double) : Shape()
+                                class Rectangle(val w: Double, val h: Double) : Shape()
+                                """.trimIndent(),
+                        ),
                 )
             val success = TestSupport.success(result)
             val diagram = success.model.root as KumlDiagram

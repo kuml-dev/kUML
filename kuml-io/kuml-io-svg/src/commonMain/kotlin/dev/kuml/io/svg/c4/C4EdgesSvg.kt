@@ -57,9 +57,9 @@ internal fun renderC4Relationship(
     labelYOffset: Float = 0f,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
-    builder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
+    builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge"))
     val (arrowFrom, arrowTip) = route.arrowDirection()
-    renderInlineArrow(arrowFrom, arrowTip, ArrowStyle.OPEN, theme, builder)
+    renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.OPEN, theme = theme, builder = builder)
 
     val label = c4RelationshipLabel(rel)
     if (label.isEmpty()) return
@@ -79,5 +79,5 @@ internal fun renderC4Relationship(
                 // bounding box straddles it evenly rather than running above.
                 Triple(anchor.x + 10f, anchor.y + 4f + labelYOffset, "start")
         }
-    builder.renderEdgeLabelWithHalo(label, x, y, textAnchor)
+    builder.renderEdgeLabelWithHalo(label = label, x = x, y = y, textAnchor = textAnchor)
 }

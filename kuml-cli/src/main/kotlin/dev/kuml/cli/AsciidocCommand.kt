@@ -126,12 +126,12 @@ internal class AsciidocCommand : CliktCommand(name = "asciidoc") {
                 // child of it (Antora resolves `image::foo.svg[]` against
                 // `modules/<module>/images/foo.svg`, regardless of how deeply the page
                 // is nested under `pages/`). See docs/handbook/modules/tooling/pages/asciidoc.adoc.
-                val defaultAssetsDir = File(resolveAntoraModuleRoot(destFile, outDir), "images")
+                val defaultAssetsDir = File(resolveAntoraModuleRoot(destFile = destFile, outDir = outDir), "images")
                 val outputMode =
                     when (mode) {
                         "inline" -> AsciidocOutputMode.InlineSvg
                         "linked-svg" -> AsciidocOutputMode.LinkedSvg(assetsDir ?: defaultAssetsDir)
-                        "linked-png" -> AsciidocOutputMode.LinkedPng(assetsDir ?: defaultAssetsDir, width)
+                        "linked-png" -> AsciidocOutputMode.LinkedPng(assetsDir = assetsDir ?: defaultAssetsDir, widthPx = width)
                         else -> error("Unsupported mode $mode")
                     }
                 val result =
@@ -157,7 +157,7 @@ internal class AsciidocCommand : CliktCommand(name = "asciidoc") {
         when (mode) {
             "inline" -> AsciidocOutputMode.InlineSvg
             "linked-svg" -> AsciidocOutputMode.LinkedSvg(resolveAssetsDir(outputParentDir))
-            "linked-png" -> AsciidocOutputMode.LinkedPng(resolveAssetsDir(outputParentDir), width)
+            "linked-png" -> AsciidocOutputMode.LinkedPng(assetsDir = resolveAssetsDir(outputParentDir), widthPx = width)
             else -> error("Unsupported mode $mode")
         }
 

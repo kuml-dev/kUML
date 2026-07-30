@@ -37,7 +37,7 @@ fun UmlStateMachineScope.state(
 ): UmlState {
     val resolvedId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.vertex(stateMachineId, name),
+            candidate = UmlIds.vertex(stateMachineId = stateMachineId, name = name),
             taken = takenIds,
         )
     takenIds += resolvedId
@@ -65,7 +65,7 @@ fun UmlCompositeStateScope.state(
 ): UmlState {
     val resolvedId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.child(parentStateId, name),
+            candidate = UmlIds.child(parentId = parentStateId, name = name),
             taken = takenIds,
         )
     takenIds += resolvedId
@@ -152,7 +152,7 @@ private fun pseudoOn(
 ): UmlPseudostate {
     val resolvedId =
         explicitId ?: UmlIds.disambiguate(
-            candidate = UmlIds.vertex(parentId, name),
+            candidate = UmlIds.vertex(stateMachineId = parentId, name = name),
             taken = takenIds,
         )
     takenIds += resolvedId
@@ -169,7 +169,7 @@ private fun pseudoOnChild(
 ): UmlPseudostate {
     val resolvedId =
         explicitId ?: UmlIds.disambiguate(
-            candidate = UmlIds.child(parentId, name),
+            candidate = UmlIds.child(parentId = parentId, name = name),
             taken = takenIds,
         )
     takenIds += resolvedId
@@ -188,14 +188,14 @@ fun UmlStateMachineScope.initialState(
     name: String = "initial",
     id: String? = null,
 ): UmlPseudostate =
-    pseudoOn(stateMachineId, takenIds, name, PseudostateKind.INITIAL, id)
+    pseudoOn(parentId = stateMachineId, takenIds = takenIds, name = name, kind = PseudostateKind.INITIAL, explicitId = id)
         .also { addVertex(it) }
 
 fun UmlCompositeStateScope.initialState(
     name: String = "initial",
     id: String? = null,
 ): UmlPseudostate =
-    pseudoOnChild(parentStateId, takenIds, name, PseudostateKind.INITIAL, id)
+    pseudoOnChild(parentId = parentStateId, takenIds = takenIds, name = name, kind = PseudostateKind.INITIAL, explicitId = id)
         .also { addSubstate(it) }
 
 // ── finalState() ─────────────────────────────────────────────────────────────
@@ -209,7 +209,7 @@ fun UmlStateMachineScope.finalState(
 ): UmlFinalState {
     val resolvedId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.vertex(stateMachineId, name),
+            candidate = UmlIds.vertex(stateMachineId = stateMachineId, name = name),
             taken = takenIds,
         )
     takenIds += resolvedId
@@ -224,7 +224,7 @@ fun UmlCompositeStateScope.finalState(
 ): UmlFinalState {
     val resolvedId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.child(parentStateId, name),
+            candidate = UmlIds.child(parentId = parentStateId, name = name),
             taken = takenIds,
         )
     takenIds += resolvedId
@@ -238,62 +238,104 @@ fun UmlCompositeStateScope.finalState(
 fun UmlStateMachineScope.choice(
     name: String,
     id: String? = null,
-): UmlPseudostate = pseudoOn(stateMachineId, takenIds, name, PseudostateKind.CHOICE, id).also { addVertex(it) }
+): UmlPseudostate =
+    pseudoOn(parentId = stateMachineId, takenIds = takenIds, name = name, kind = PseudostateKind.CHOICE, explicitId = id).also {
+        addVertex(it)
+    }
 
 fun UmlCompositeStateScope.choice(
     name: String,
     id: String? = null,
-): UmlPseudostate = pseudoOnChild(parentStateId, takenIds, name, PseudostateKind.CHOICE, id).also { addSubstate(it) }
+): UmlPseudostate =
+    pseudoOnChild(parentId = parentStateId, takenIds = takenIds, name = name, kind = PseudostateKind.CHOICE, explicitId = id).also {
+        addSubstate(it)
+    }
 
 fun UmlStateMachineScope.fork(
     name: String,
     id: String? = null,
-): UmlPseudostate = pseudoOn(stateMachineId, takenIds, name, PseudostateKind.FORK, id).also { addVertex(it) }
+): UmlPseudostate =
+    pseudoOn(parentId = stateMachineId, takenIds = takenIds, name = name, kind = PseudostateKind.FORK, explicitId = id).also {
+        addVertex(it)
+    }
 
 fun UmlCompositeStateScope.fork(
     name: String,
     id: String? = null,
-): UmlPseudostate = pseudoOnChild(parentStateId, takenIds, name, PseudostateKind.FORK, id).also { addSubstate(it) }
+): UmlPseudostate =
+    pseudoOnChild(parentId = parentStateId, takenIds = takenIds, name = name, kind = PseudostateKind.FORK, explicitId = id).also {
+        addSubstate(it)
+    }
 
 fun UmlStateMachineScope.join(
     name: String,
     id: String? = null,
-): UmlPseudostate = pseudoOn(stateMachineId, takenIds, name, PseudostateKind.JOIN, id).also { addVertex(it) }
+): UmlPseudostate =
+    pseudoOn(parentId = stateMachineId, takenIds = takenIds, name = name, kind = PseudostateKind.JOIN, explicitId = id).also {
+        addVertex(it)
+    }
 
 fun UmlCompositeStateScope.join(
     name: String,
     id: String? = null,
-): UmlPseudostate = pseudoOnChild(parentStateId, takenIds, name, PseudostateKind.JOIN, id).also { addSubstate(it) }
+): UmlPseudostate =
+    pseudoOnChild(parentId = parentStateId, takenIds = takenIds, name = name, kind = PseudostateKind.JOIN, explicitId = id).also {
+        addSubstate(it)
+    }
 
 fun UmlStateMachineScope.junction(
     name: String,
     id: String? = null,
-): UmlPseudostate = pseudoOn(stateMachineId, takenIds, name, PseudostateKind.JUNCTION, id).also { addVertex(it) }
+): UmlPseudostate =
+    pseudoOn(parentId = stateMachineId, takenIds = takenIds, name = name, kind = PseudostateKind.JUNCTION, explicitId = id).also {
+        addVertex(it)
+    }
 
 fun UmlCompositeStateScope.junction(
     name: String,
     id: String? = null,
-): UmlPseudostate = pseudoOnChild(parentStateId, takenIds, name, PseudostateKind.JUNCTION, id).also { addSubstate(it) }
+): UmlPseudostate =
+    pseudoOnChild(parentId = parentStateId, takenIds = takenIds, name = name, kind = PseudostateKind.JUNCTION, explicitId = id).also {
+        addSubstate(it)
+    }
 
 fun UmlStateMachineScope.shallowHistory(
     name: String,
     id: String? = null,
-): UmlPseudostate = pseudoOn(stateMachineId, takenIds, name, PseudostateKind.SHALLOW_HISTORY, id).also { addVertex(it) }
+): UmlPseudostate =
+    pseudoOn(parentId = stateMachineId, takenIds = takenIds, name = name, kind = PseudostateKind.SHALLOW_HISTORY, explicitId = id).also {
+        addVertex(it)
+    }
 
 fun UmlCompositeStateScope.shallowHistory(
     name: String,
     id: String? = null,
-): UmlPseudostate = pseudoOnChild(parentStateId, takenIds, name, PseudostateKind.SHALLOW_HISTORY, id).also { addSubstate(it) }
+): UmlPseudostate =
+    pseudoOnChild(
+        parentId = parentStateId,
+        takenIds = takenIds,
+        name = name,
+        kind = PseudostateKind.SHALLOW_HISTORY,
+        explicitId = id,
+    ).also {
+        addSubstate(it)
+    }
 
 fun UmlStateMachineScope.deepHistory(
     name: String,
     id: String? = null,
-): UmlPseudostate = pseudoOn(stateMachineId, takenIds, name, PseudostateKind.DEEP_HISTORY, id).also { addVertex(it) }
+): UmlPseudostate =
+    pseudoOn(parentId = stateMachineId, takenIds = takenIds, name = name, kind = PseudostateKind.DEEP_HISTORY, explicitId = id).also {
+        addVertex(it)
+    }
 
 fun UmlCompositeStateScope.deepHistory(
     name: String,
     id: String? = null,
-): UmlPseudostate = pseudoOnChild(parentStateId, takenIds, name, PseudostateKind.DEEP_HISTORY, id).also { addSubstate(it) }
+): UmlPseudostate =
+    pseudoOnChild(parentId = parentStateId, takenIds = takenIds, name = name, kind = PseudostateKind.DEEP_HISTORY, explicitId = id).also {
+        addSubstate(it)
+    }
 
 // ── transition() ─────────────────────────────────────────────────────────────
 
@@ -335,8 +377,8 @@ fun UmlStateMachineScope.transitionByIds(
     explicitId: String? = null,
     block: TransitionBuilder.() -> Unit = {},
 ): UmlTransition {
-    val baseId = UmlIds.transition(stateMachineId, sourceName, targetName)
-    val resolvedId = explicitId ?: UmlIds.disambiguate(baseId, takenIds)
+    val baseId = UmlIds.transition(stateMachineId = stateMachineId, sourceName = sourceName, targetName = targetName)
+    val resolvedId = explicitId ?: UmlIds.disambiguate(candidate = baseId, taken = takenIds)
     takenIds += resolvedId
     val containerScope = this as? UmlContainerScope
     val body = TransitionBuilder(containerScope = containerScope).apply(block)
@@ -411,7 +453,7 @@ fun UmlStateMachineScope.compositeState(
 ): UmlState {
     val resolvedId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.vertex(stateMachineId, name),
+            candidate = UmlIds.vertex(stateMachineId = stateMachineId, name = name),
             taken = takenIds,
         )
     takenIds += resolvedId
@@ -437,7 +479,7 @@ fun UmlCompositeStateScope.compositeState(
 ): UmlState {
     val resolvedId =
         id ?: UmlIds.disambiguate(
-            candidate = UmlIds.child(parentStateId, name),
+            candidate = UmlIds.child(parentId = parentStateId, name = name),
             taken = takenIds,
         )
     takenIds += resolvedId

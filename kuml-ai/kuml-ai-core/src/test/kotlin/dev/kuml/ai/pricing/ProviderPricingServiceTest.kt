@@ -102,7 +102,7 @@ class ProviderPricingServiceTest :
 
         test("bundledEstimator returns an estimator with gpt-4o pricing") {
             val est = ProviderPricingService.bundledEstimator()
-            val cost = est.estimate("openai", "gpt-4o", 1_000_000L, 1_000_000L)
+            val cost = est.estimate(providerId = "openai", modelId = "gpt-4o", inputTokens = 1_000_000L, outputTokens = 1_000_000L)
             // 1M input at $5 + 1M output at $15 = $20
             cost shouldBe 20.0
         }

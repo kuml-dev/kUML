@@ -153,19 +153,23 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
                 mergeEdges = diagramMergeEdges ?: LayoutHints.DEFAULT.mergeEdges,
                 spacing = baseSpacing,
             )
-        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram, UmlContentSizeProvider(diagram, hints.direction))
+        val layoutGraph =
+            UmlLayoutBridge.toLayoutGraph(
+                diagram = diagram,
+                sizeProvider = UmlContentSizeProvider(diagram = diagram, layoutDirection = hints.direction),
+            )
         val kind = diagram.type.toDiagramKind()
         val engine =
-            LayoutEngineRegistry.pickFor(kind, null)
+            LayoutEngineRegistry.pickFor(kind = kind, preferredEngineId = null)
                 ?: error("No layout engine registered for kind=$kind")
-        return engine.layout(layoutGraph, hints)
+        return engine.layout(graph = layoutGraph, hints = hints)
     }
 
     // ── C4 ───────────────────────────────────────────────────────────────
     private fun c4Layout(extracted: ExtractedDiagram.C4): LayoutResult {
         ensureEnginesRegistered()
-        val sizeProvider = C4ContentSizeProvider(extracted.model)
-        val layoutGraph = C4LayoutBridge.toLayoutGraph(extracted.diagram, extracted.model, sizeProvider)
+        val sizeProvider = C4ContentSizeProvider(model = extracted.model)
+        val layoutGraph = C4LayoutBridge.toLayoutGraph(diagram = extracted.diagram, model = extracted.model, sizeProvider = sizeProvider)
         val engine =
             LayoutEngineRegistry.get("elk.layered")
                 ?: error("ELK layout engine not available for C4 diagrams.")
@@ -177,7 +181,7 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
             } else {
                 LayoutHints.DEFAULT
             }
-        return engine.layout(layoutGraph, hints)
+        return engine.layout(graph = layoutGraph, hints = hints)
     }
 
     // ── SysML 2 ──────────────────────────────────────────────────────────
@@ -189,34 +193,55 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
                 ?: error("ELK layout engine not available for SysML 2 diagrams.")
         return when (val diagram = extracted.diagram) {
             is ReqDiagram -> {
-                val graph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
+                val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                 val hints =
                     LayoutHints.DEFAULT.copy(
                         spacing = LayoutHints.DEFAULT.spacing.copy(nodeToNode = 80f, edgeToEdge = 20f, layerToLayer = 100f),
                     )
-                engine.layout(graph, hints)
+                engine.layout(graph = graph, hints = hints)
             }
             is StmDiagram -> {
-                val graph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
+                val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                 val hints = LayoutHints.DEFAULT.copy(spacing = Spacing(nodeToNode = 80f, edgeToEdge = 28f, groupPadding = 24f))
-                engine.layout(graph, hints)
+                engine.layout(graph = graph, hints = hints)
             }
             is ActDiagram -> {
-                val graph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
+                val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                 val hints =
                     LayoutHints.DEFAULT.copy(
                         spacing = LayoutHints.DEFAULT.spacing.copy(nodeToNode = 100f, layerToLayer = 100f),
                     )
-                engine.layout(graph, hints)
+                engine.layout(graph = graph, hints = hints)
             }
             is ParDiagram -> {
-                val graph = Sysml2LayoutBridge.toLayoutGraph(model, diagram, Sysml2LayoutBridge.parContentAwareSizeProvider(model))
-                engine.layout(graph, LayoutHints.DEFAULT)
+                val graph =
+                    Sysml2LayoutBridge.toLayoutGraph(
+                        model = model,
+                        diagram = diagram,
+                        sizeProvider = Sysml2LayoutBridge.parContentAwareSizeProvider(model),
+                    )
+                engine.layout(graph = graph, hints = LayoutHints.DEFAULT)
             }
-            is BdDiagram -> engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-            is IbdDiagram -> engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-            is UcDiagram -> engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-            is SeqDiagram -> engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
+            is BdDiagram ->
+                engine.layout(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = LayoutHints.DEFAULT,
+                )
+            is IbdDiagram ->
+                engine.layout(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = LayoutHints.DEFAULT,
+                )
+            is UcDiagram ->
+                engine.layout(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = LayoutHints.DEFAULT,
+                )
+            is SeqDiagram ->
+                engine.layout(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = LayoutHints.DEFAULT,
+                )
         }
     }
 
@@ -237,15 +262,29 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
         // `--format svg/png` for the same script.
         val graph =
             when (diagram.notation) {
-                ErmNotation.CHEN -> ErmChenLayoutBridge.toChenLayoutGraph(model, diagram, ErmChenSizeProvider(model, diagram))
+                ErmNotation.CHEN ->
+                    ErmChenLayoutBridge.toChenLayoutGraph(
+                        model = model,
+                        diagram = diagram,
+                        sizeProvider = ErmChenSizeProvider(model = model, diagram = diagram),
+                    )
                 ErmNotation.IDEF1X ->
-                    ErmIdef1xLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
-                else -> ErmLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
+                    ErmIdef1xLayoutBridge.toLayoutGraph(
+                        model = model,
+                        diagram = diagram,
+                        sizeProvider = ErmContentSizeProvider(model = model, diagram = diagram, layoutDirection = hints.direction),
+                    )
+                else ->
+                    ErmLayoutBridge.toLayoutGraph(
+                        model = model,
+                        diagram = diagram,
+                        sizeProvider = ErmContentSizeProvider(model = model, diagram = diagram, layoutDirection = hints.direction),
+                    )
             }
         val engine =
             LayoutEngineRegistry.get("elk.layered")
                 ?: error("ELK layout engine not available for ERM diagrams.")
-        return engine.layout(graph, hints)
+        return engine.layout(graph = graph, hints = hints)
     }
 
     // ── BPMN ─────────────────────────────────────────────────────────────
@@ -256,27 +295,36 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
             LayoutEngineRegistry.get("elk.layered")
                 ?: error("ELK layout engine not available for BPMN diagrams.")
         return when (val diagram = extracted.diagram) {
-            is ChoreographyDiagram -> ChoreographyGridLayout.layout(model, diagram)
+            is ChoreographyDiagram -> ChoreographyGridLayout.layout(model = model, diagram = diagram)
             is ProcessDiagram ->
-                engine.layout(BpmnLayoutBridge.toLayoutGraph(model, diagram, BpmnContentSizeProvider(model)), LayoutHints.DEFAULT)
+                engine.layout(
+                    graph = BpmnLayoutBridge.toLayoutGraph(model = model, diagram = diagram, sizeProvider = BpmnContentSizeProvider(model)),
+                    hints = LayoutHints.DEFAULT,
+                )
             is CollaborationDiagram ->
-                engine.layout(BpmnLayoutBridge.toLayoutGraph(model, diagram, BpmnContentSizeProvider(model)), LayoutHints.DEFAULT)
+                engine.layout(
+                    graph = BpmnLayoutBridge.toLayoutGraph(model = model, diagram = diagram, sizeProvider = BpmnContentSizeProvider(model)),
+                    hints = LayoutHints.DEFAULT,
+                )
             is ConversationDiagram ->
-                engine.layout(BpmnLayoutBridge.toLayoutGraph(model, diagram, BpmnContentSizeProvider(model)), LayoutHints.DEFAULT)
+                engine.layout(
+                    graph = BpmnLayoutBridge.toLayoutGraph(model = model, diagram = diagram, sizeProvider = BpmnContentSizeProvider(model)),
+                    hints = LayoutHints.DEFAULT,
+                )
         }
     }
 
     override fun run() {
         val scriptFile = File(input)
-        val evalResult = KumlScriptHost.eval(scriptFile)
+        val evalResult = KumlScriptHost.eval(file = scriptFile)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
-            throw ScriptEvaluationException("Script evaluation failed:\n${errors.joinToString("\n") { it.message }}")
+            throw ScriptEvaluationException(message = "Script evaluation failed:\n${errors.joinToString("\n") { it.message }}")
         }
         val successResult =
             evalResult as? ResultWithDiagnostics.Success
-                ?: throw ScriptEvaluationException("Script evaluation did not produce a result")
-        val extracted = DiagramExtractor.extractAny(successResult.value.returnValue, scriptFile)
+                ?: throw ScriptEvaluationException(message = "Script evaluation did not produce a result")
+        val extracted = DiagramExtractor.extractAny(returnValue = successResult.value.returnValue, input = scriptFile)
 
         when (extracted) {
             is ExtractedDiagram.Uml -> {
@@ -328,7 +376,7 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
     private fun requireModelOut(metamodel: String) {
         if (modelOut == null) {
             throw ScriptEvaluationException(
-                "$metamodel diagrams need a --model-out path (their renderers take a model + diagram + layout triple).",
+                message = "$metamodel diagrams need a --model-out path (their renderers take a model + diagram + layout triple).",
             )
         }
     }

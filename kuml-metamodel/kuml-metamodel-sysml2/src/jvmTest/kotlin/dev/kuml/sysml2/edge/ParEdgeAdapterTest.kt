@@ -27,7 +27,7 @@ class ParEdgeAdapterTest :
                     targetEndId = "Vehicle::mass",
                 )
             val model = Sysml2Model(name = "F=ma", usages = listOf(binding))
-            val meta = ParEdgeAdapter(model, diagram).metadataFor("binding:NewtonsLaw::m::Vehicle::mass")!!
+            val meta = ParEdgeAdapter(model = model, diagram = diagram).metadataFor("binding:NewtonsLaw::m::Vehicle::mass")!!
             meta.stereotype.shouldBeNull()
             meta.label shouldBe "m_to_mass"
             meta.dashArray.shouldBeNull()
@@ -43,7 +43,7 @@ class ParEdgeAdapterTest :
                     targetEndId = "Vehicle::force",
                 )
             val model = Sysml2Model(name = "F=ma", usages = listOf(binding))
-            val meta = ParEdgeAdapter(model, diagram).metadataFor("binding:NewtonsLaw::F::Vehicle::force")!!
+            val meta = ParEdgeAdapter(model = model, diagram = diagram).metadataFor("binding:NewtonsLaw::F::Vehicle::force")!!
             meta.label shouldBe "F = force"
         }
 
@@ -56,12 +56,12 @@ class ParEdgeAdapterTest :
                     targetEndId = "",
                 )
             val model = Sysml2Model(name = "F=ma", usages = listOf(binding))
-            val meta = ParEdgeAdapter(model, diagram).metadataFor("binding:foo::bar")!!
+            val meta = ParEdgeAdapter(model = model, diagram = diagram).metadataFor("binding:foo::bar")!!
             meta.label.shouldBeNull()
         }
 
         "unknown edge id returns null" {
             val model = Sysml2Model(name = "F=ma")
-            ParEdgeAdapter(model, diagram).metadataFor("missing").shouldBeNull()
+            ParEdgeAdapter(model = model, diagram = diagram).metadataFor("missing").shouldBeNull()
         }
     })

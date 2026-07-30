@@ -28,69 +28,69 @@ class Sysml2IbdLatexTest :
 
         "IBD-TikZ enthält die Part-Usage-Namen im Snippet (V2.0.6 fallback)" {
             val model =
-                sysml2Model("M") {
-                    val engineDef = partDef("Engine")
-                    val batteryDef = partDef("Battery")
+                sysml2Model(name = "M") {
+                    val engineDef = partDef(name = "Engine")
+                    val batteryDef = partDef(name = "Battery")
                     val vehicle =
-                        partDef("Vehicle") {
-                            part("engine", typeId = engineDef.id)
-                            part("battery", typeId = batteryDef.id)
+                        partDef(name = "Vehicle") {
+                            part(name = "engine", typeId = engineDef.id)
+                            part(name = "battery", typeId = batteryDef.id)
                         }
-                    ibd("Vehicle wiring", owner = vehicle)
+                    ibd(name = "Vehicle wiring", owner = vehicle)
                 }
             val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
             val layout =
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(420f, 160f),
+                    canvas = Size(width = 420f, height = 160f),
                     nodes =
                         mapOf(
                             NodeId("Vehicle::engine") to
-                                NodeLayout(bounds = Rect(Point(20f, 20f), Size(180f, 80f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 180f, height = 80f))),
                             NodeId("Vehicle::battery") to
-                                NodeLayout(bounds = Rect(Point(220f, 20f), Size(180f, 80f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 220f, y = 20f), size = Size(width = 180f, height = 80f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val tex = KumlLatexRenderer.toLatex(model, ibd, layout)
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = ibd, layoutResult = layout)
 
             tex shouldContain "\\begin{tikzpicture}"
             // Fallback emits `name : Type` as the rectangle label.
             tex shouldContain "engine : Engine"
             tex shouldContain "battery : Battery"
 
-            SampleOutput.write("sysml2-ibd/vehicle-two-parts.tex", tex)
+            SampleOutput.write(filename = "sysml2-ibd/vehicle-two-parts.tex", content = tex)
         }
 
         "deterministic IBD output" {
             val model =
-                sysml2Model("M") {
-                    val engineDef = partDef("Engine")
+                sysml2Model(name = "M") {
+                    val engineDef = partDef(name = "Engine")
                     val vehicle =
-                        partDef("Vehicle") {
-                            part("engine", typeId = engineDef.id)
+                        partDef(name = "Vehicle") {
+                            part(name = "engine", typeId = engineDef.id)
                         }
-                    ibd("Det", owner = vehicle)
+                    ibd(name = "Det", owner = vehicle)
                 }
             val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
             val layout =
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(200f, 100f),
+                    canvas = Size(width = 200f, height = 100f),
                     nodes =
                         mapOf(
                             NodeId("Vehicle::engine") to
-                                NodeLayout(bounds = Rect(Point(0f, 0f), Size(180f, 80f))),
+                                NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 180f, height = 80f))),
                         ),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            val one = KumlLatexRenderer.toLatex(model, ibd, layout)
-            val two = KumlLatexRenderer.toLatex(model, ibd, layout)
+            val one = KumlLatexRenderer.toLatex(model = model, diagram = ibd, layoutResult = layout)
+            val two = KumlLatexRenderer.toLatex(model = model, diagram = ibd, layoutResult = layout)
             one shouldBe two
         }
     })

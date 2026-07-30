@@ -27,8 +27,8 @@ public data class StmAnimationContext(
     val normalColor: String = "#ffffff",
 ) {
     init {
-        requireSafeCssColor(highlightColor, "highlightColor")
-        requireSafeCssColor(normalColor, "normalColor")
+        requireSafeCssColor(value = highlightColor, paramName = "highlightColor")
+        requireSafeCssColor(value = normalColor, paramName = "normalColor")
     }
 
     public companion object {

@@ -25,7 +25,7 @@ class OtlpIdsTest :
         }
 
         test("spanId(modelId, vertexId, seqNo) is exactly 16 hex chars") {
-            val id = OtlpIds.spanId("MyModel", "StateA", 42L)
+            val id = OtlpIds.spanId(modelId = "MyModel", vertexId = "StateA", enterSeqNo = 42L)
             id shouldHaveLength 16
             id shouldMatch hexPattern
         }
@@ -35,15 +35,17 @@ class OtlpIdsTest :
             val t2 = OtlpIds.traceId("MyModel")
             t1 shouldBe t2
 
-            val s1 = OtlpIds.spanId("MyModel", "A", 0L)
-            val s2 = OtlpIds.spanId("MyModel", "A", 0L)
+            val s1 = OtlpIds.spanId(modelId = "MyModel", vertexId = "A", enterSeqNo = 0L)
+            val s2 = OtlpIds.spanId(modelId = "MyModel", vertexId = "A", enterSeqNo = 0L)
             s1 shouldBe s2
         }
 
         test("different inputs produce different IDs (no collisions for basic cases)") {
             OtlpIds.traceId("ModelA") shouldNotBe OtlpIds.traceId("ModelB")
-            OtlpIds.spanId("M", "A", 0L) shouldNotBe OtlpIds.spanId("M", "B", 0L)
-            OtlpIds.spanId("M", "A", 0L) shouldNotBe OtlpIds.spanId("M", "A", 1L)
+            OtlpIds.spanId(modelId = "M", vertexId = "A", enterSeqNo = 0L) shouldNotBe
+                OtlpIds.spanId(modelId = "M", vertexId = "B", enterSeqNo = 0L)
+            OtlpIds.spanId(modelId = "M", vertexId = "A", enterSeqNo = 0L) shouldNotBe
+                OtlpIds.spanId(modelId = "M", vertexId = "A", enterSeqNo = 1L)
         }
 
         test("fnv1a64 never returns zero") {

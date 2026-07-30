@@ -48,7 +48,7 @@ class OkfConverterTest :
             val root = tempWorkspace()
             val docFile = File(root, "hello.md")
             docFile.writeText(note)
-            val ws = WorkspaceScanner.scan(root)
+            val ws = WorkspaceScanner.scan(root = root)
             val doc = ws.documents.single()
 
             val extracted = OkfConverter.extractBlocks(doc)
@@ -77,7 +77,7 @@ class OkfConverterTest :
                 |```
                 """.trimMargin(),
             )
-            val ws = WorkspaceScanner.scan(root)
+            val ws = WorkspaceScanner.scan(root = root)
             val extracted = OkfConverter.extractBlocks(ws.documents.single())
             extracted.map { it.stem } shouldBe listOf("domain-classes")
 
@@ -100,7 +100,7 @@ class OkfConverterTest :
                 |```
                 """.trimMargin(),
             )
-            val ws = WorkspaceScanner.scan(root)
+            val ws = WorkspaceScanner.scan(root = root)
             val extracted = OkfConverter.extractBlocks(ws.documents.single())
             extracted.map { it.stem } shouldBe listOf("multi-1", "multi-2")
             extracted.map { it.dslSource } shouldBe
@@ -121,7 +121,7 @@ class OkfConverterTest :
                 |```
                 """.trimMargin(),
             )
-            val ws = WorkspaceScanner.scan(root)
+            val ws = WorkspaceScanner.scan(root = root)
             val extracted = OkfConverter.extractBlocks(ws.documents.single())
             extracted.single().stem shouldBe "custom-name"
 
@@ -138,7 +138,7 @@ class OkfConverterTest :
                 |Just prose, no diagram.
                 """.trimMargin(),
             )
-            val ws = WorkspaceScanner.scan(root)
+            val ws = WorkspaceScanner.scan(root = root)
             OkfConverter.extractBlocks(ws.documents.single()).shouldBeEmpty()
 
             root.deleteRecursively()

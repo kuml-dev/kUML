@@ -84,7 +84,7 @@ class RuntimeSessionManagerTest :
 
         test("start STM from inline script returns valid sessionId and 'Off' activeState") {
             val manager = RuntimeSessionManager()
-            val result = manager.start(thermostatStmScript, "stm", null)
+            val result = manager.start(source = thermostatStmScript, kind = "stm", elementName = null)
             result shouldBe result // ensure no exception
             result as SessionResult.Started
             result.sessionId shouldStartWith "rs-"
@@ -96,7 +96,7 @@ class RuntimeSessionManagerTest :
             val manager = RuntimeSessionManager()
             val file = writeScript(thermostatStmScript)
             try {
-                val result = manager.start(file.absolutePath, "stm", null) as SessionResult.Started
+                val result = manager.start(source = file.absolutePath, kind = "stm", elementName = null) as SessionResult.Started
                 result.activeStates shouldContain "Off"
             } finally {
                 file.delete()
@@ -105,7 +105,7 @@ class RuntimeSessionManagerTest :
 
         test("start with invalid script returns Error result") {
             val manager = RuntimeSessionManager()
-            val result = manager.start("this is not valid kotlin script!!!", "stm", null)
+            val result = manager.start(source = "this is not valid kotlin script!!!", kind = "stm", elementName = null)
             result as SessionResult.Error
             result.message shouldContain "Script evaluation failed"
         }
@@ -128,7 +128,7 @@ class RuntimeSessionManagerTest :
                 }
                 """.trimIndent()
 
-            val result = manager.start(maliciousScript, "stm", null)
+            val result = manager.start(source = maliciousScript, kind = "stm", elementName = null)
             result as SessionResult.Error
             result.message shouldContain "kUML script rejected"
         }
@@ -150,7 +150,7 @@ class RuntimeSessionManagerTest :
                 """.trimIndent()
             val file = writeScript(maliciousScript)
             try {
-                val result = manager.start(file.absolutePath, "stm", null)
+                val result = manager.start(source = file.absolutePath, kind = "stm", elementName = null)
                 result as SessionResult.Error
                 result.message shouldContain "kUML script rejected"
             } finally {
@@ -174,20 +174,20 @@ class RuntimeSessionManagerTest :
                 }
                 """.trimIndent()
 
-            val result = manager.start(maliciousScript, "stm", null)
+            val result = manager.start(source = maliciousScript, kind = "stm", elementName = null)
             result as SessionResult.Error
             result.message shouldContain "kUML script rejected"
         }
 
         test("legitimate STM script passes the guard without false positive") {
             val manager = RuntimeSessionManager()
-            val result = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
+            val result = manager.start(source = thermostatStmScript, kind = "stm", elementName = null) as SessionResult.Started
             result.activeStates shouldContain "Off"
         }
 
         test("legitimate ACT script passes the guard without false positive") {
             val manager = RuntimeSessionManager()
-            val result = manager.start(thermostatActScript, "act", null) as SessionResult.Started
+            val result = manager.start(source = thermostatActScript, kind = "act", elementName = null) as SessionResult.Started
             result.kind shouldBe "act"
         }
 
@@ -195,10 +195,10 @@ class RuntimeSessionManagerTest :
 
         test("event powerOn transitions STM from Off to Idle") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
+            val started = manager.start(source = thermostatStmScript, kind = "stm", elementName = null) as SessionResult.Started
             val sessionId = started.sessionId
 
-            val stepped = manager.event(sessionId, "powerOn", emptyMap()) as SessionResult.Stepped
+            val stepped = manager.event(sessionId = sessionId, eventName = "powerOn", payload = emptyMap()) as SessionResult.Stepped
             stepped.activeStates shouldContain "Idle"
             stepped.fired.size shouldBe 1
             stepped.fired.first() shouldContain "Off"
@@ -206,11 +206,11 @@ class RuntimeSessionManagerTest :
 
         test("event with unknown trigger stays in current state without error") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
+            val started = manager.start(source = thermostatStmScript, kind = "stm", elementName = null) as SessionResult.Started
             val sessionId = started.sessionId
 
             // Off state — unknown event should result in Stayed
-            val result = manager.event(sessionId, "unknownEvent", emptyMap()) as SessionResult.Stepped
+            val result = manager.event(sessionId = sessionId, eventName = "unknownEvent", payload = emptyMap()) as SessionResult.Stepped
             result.fired shouldHaveSize 0
             result.activeStates shouldContain "Off"
             result.stepResult shouldContain "Stayed"
@@ -218,35 +218,35 @@ class RuntimeSessionManagerTest :
 
         test("event with guard payload causes transition when guard holds") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
+            val started = manager.start(source = thermostatStmScript, kind = "stm", elementName = null) as SessionResult.Started
             val sessionId = started.sessionId
 
             // Power on first
-            manager.event(sessionId, "powerOn", emptyMap())
+            manager.event(sessionId = sessionId, eventName = "powerOn", payload = emptyMap())
 
             // Send tick with temperature 15 < targetTemperature 21 - 1 = 20 → guard holds → Heating
             val stepped =
                 manager.event(
-                    sessionId,
-                    "tick",
-                    mapOf("temperature" to 15L, "targetTemperature" to 21L),
+                    sessionId = sessionId,
+                    eventName = "tick",
+                    payload = mapOf("temperature" to 15L, "targetTemperature" to 21L),
                 ) as SessionResult.Stepped
             stepped.activeStates shouldContain "Heating"
         }
 
         test("event with guard payload stays when guard fails") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
+            val started = manager.start(source = thermostatStmScript, kind = "stm", elementName = null) as SessionResult.Started
             val sessionId = started.sessionId
 
-            manager.event(sessionId, "powerOn", emptyMap())
+            manager.event(sessionId = sessionId, eventName = "powerOn", payload = emptyMap())
 
             // temperature 22 >= targetTemperature 21 → startHeating guard fails → stays Idle
             val stepped =
                 manager.event(
-                    sessionId,
-                    "tick",
-                    mapOf("temperature" to 22L, "targetTemperature" to 21L),
+                    sessionId = sessionId,
+                    eventName = "tick",
+                    payload = mapOf("temperature" to 22L, "targetTemperature" to 21L),
                 ) as SessionResult.Stepped
             stepped.activeStates shouldContain "Idle"
             stepped.fired shouldHaveSize 0
@@ -254,15 +254,15 @@ class RuntimeSessionManagerTest :
 
         test("event on unknown sessionId returns Error") {
             val manager = RuntimeSessionManager()
-            val result = manager.event("rs-doesnotexist", "powerOn", emptyMap())
+            val result = manager.event(sessionId = "rs-doesnotexist", eventName = "powerOn", payload = emptyMap())
             result as SessionResult.Error
             result.message shouldContain "not found"
         }
 
         test("event on ACT session returns Error") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatActScript, "act", null) as SessionResult.Started
-            val result = manager.event(started.sessionId, "someEvent", emptyMap())
+            val started = manager.start(source = thermostatActScript, kind = "act", elementName = null) as SessionResult.Started
+            val result = manager.event(sessionId = started.sessionId, eventName = "someEvent", payload = emptyMap())
             result as SessionResult.Error
             result.message.lowercase() shouldContain "activity"
         }
@@ -271,7 +271,7 @@ class RuntimeSessionManagerTest :
 
         test("snapshot returns activeStates and empty traceTail before any events") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
+            val started = manager.start(source = thermostatStmScript, kind = "stm", elementName = null) as SessionResult.Started
             val snap = manager.snapshot(started.sessionId) as SessionResult.Snapshot
             snap.activeStates shouldContain "Off"
             snap.stepCount shouldBe 0
@@ -279,9 +279,9 @@ class RuntimeSessionManagerTest :
 
         test("snapshot after two events returns traceTail with entries") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
-            manager.event(started.sessionId, "powerOn", emptyMap())
-            manager.event(started.sessionId, "powerOff", emptyMap())
+            val started = manager.start(source = thermostatStmScript, kind = "stm", elementName = null) as SessionResult.Started
+            manager.event(sessionId = started.sessionId, eventName = "powerOn", payload = emptyMap())
+            manager.event(sessionId = started.sessionId, eventName = "powerOff", payload = emptyMap())
 
             val snap = manager.snapshot(started.sessionId) as SessionResult.Snapshot
             snap.traceTail.shouldNotBeEmpty()
@@ -290,11 +290,11 @@ class RuntimeSessionManagerTest :
 
         test("snapshot traceTail is capped at 20 entries") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
+            val started = manager.start(source = thermostatStmScript, kind = "stm", elementName = null) as SessionResult.Started
             // Send many events that cycle through states
             repeat(25) {
-                manager.event(started.sessionId, "powerOn", emptyMap())
-                manager.event(started.sessionId, "powerOff", emptyMap())
+                manager.event(sessionId = started.sessionId, eventName = "powerOn", payload = emptyMap())
+                manager.event(sessionId = started.sessionId, eventName = "powerOff", payload = emptyMap())
             }
             val snap = manager.snapshot(started.sessionId) as SessionResult.Snapshot
             snap.traceTail.size shouldBe 20
@@ -304,24 +304,29 @@ class RuntimeSessionManagerTest :
 
         test("patch with variables updates session context") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
-            val patched = manager.patch(started.sessionId, mapOf("myVar" to "hello"), null) as SessionResult.Patched
+            val started = manager.start(source = thermostatStmScript, kind = "stm", elementName = null) as SessionResult.Started
+            val patched =
+                manager.patch(
+                    sessionId = started.sessionId,
+                    variables = mapOf("myVar" to "hello"),
+                    forceState = null,
+                ) as SessionResult.Patched
             patched.ok shouldBe true
         }
 
         test("patch with forceState jumps to named state") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
+            val started = manager.start(source = thermostatStmScript, kind = "stm", elementName = null) as SessionResult.Started
             // STM starts in Off; force-jump to Idle
-            val patched = manager.patch(started.sessionId, emptyMap(), "Idle") as SessionResult.Patched
+            val patched = manager.patch(sessionId = started.sessionId, variables = emptyMap(), forceState = "Idle") as SessionResult.Patched
             patched.ok shouldBe true
             patched.activeStates shouldContain "Idle"
         }
 
         test("patch with unknown forceState returns Error") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
-            val result = manager.patch(started.sessionId, emptyMap(), "NonExistentState")
+            val started = manager.start(source = thermostatStmScript, kind = "stm", elementName = null) as SessionResult.Started
+            val result = manager.patch(sessionId = started.sessionId, variables = emptyMap(), forceState = "NonExistentState")
             result as SessionResult.Error
             result.message shouldContain "forceState"
         }
@@ -330,14 +335,14 @@ class RuntimeSessionManagerTest :
 
         test("stop returns full trace and cleans up session") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
-            manager.event(started.sessionId, "powerOn", emptyMap())
+            val started = manager.start(source = thermostatStmScript, kind = "stm", elementName = null) as SessionResult.Started
+            manager.event(sessionId = started.sessionId, eventName = "powerOn", payload = emptyMap())
             val stopped = manager.stop(started.sessionId) as SessionResult.Stopped
             stopped.traceLength shouldBe stopped.trace.size
             stopped.trace.shouldNotBeEmpty()
 
             // After stop, session is gone
-            val result = manager.event(started.sessionId, "powerOn", emptyMap())
+            val result = manager.event(sessionId = started.sessionId, eventName = "powerOn", payload = emptyMap())
             result as SessionResult.Error
         }
 
@@ -352,7 +357,7 @@ class RuntimeSessionManagerTest :
 
         test("start ACT session returns sessionId with kind=act") {
             val manager = RuntimeSessionManager()
-            val result = manager.start(thermostatActScript, "act", null) as SessionResult.Started
+            val result = manager.start(source = thermostatActScript, kind = "act", elementName = null) as SessionResult.Started
             result.kind shouldBe "act"
             result.sessionId shouldStartWith "rs-"
         }
@@ -360,20 +365,20 @@ class RuntimeSessionManagerTest :
         test("start ACT session with auto-detect selects act kind") {
             val manager = RuntimeSessionManager()
             // No kind hint — should auto-detect act from ActDiagram
-            val result = manager.start(thermostatActScript, null, null) as SessionResult.Started
+            val result = manager.start(source = thermostatActScript, kind = null, elementName = null) as SessionResult.Started
             result.kind shouldBe "act"
         }
 
         test("ACT session snapshot shows terminated after run") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatActScript, "act", null) as SessionResult.Started
+            val started = manager.start(source = thermostatActScript, kind = "act", elementName = null) as SessionResult.Started
             val snap = manager.snapshot(started.sessionId) as SessionResult.Snapshot
             snap.activeStates shouldContain "(terminated)"
         }
 
         test("ACT session stop returns full trace") {
             val manager = RuntimeSessionManager()
-            val started = manager.start(thermostatActScript, "act", null) as SessionResult.Started
+            val started = manager.start(source = thermostatActScript, kind = "act", elementName = null) as SessionResult.Started
             val stopped = manager.stop(started.sessionId) as SessionResult.Stopped
             stopped.trace.shouldNotBeEmpty()
             // Should contain at least TokenPlaced and ActivityTerminated
@@ -384,9 +389,9 @@ class RuntimeSessionManagerTest :
 
         test("expired session returns Error on event") {
             val manager = RuntimeSessionManager(ttlMs = 1L) // 1 ms TTL
-            val started = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
+            val started = manager.start(source = thermostatStmScript, kind = "stm", elementName = null) as SessionResult.Started
             Thread.sleep(10L) // let the TTL expire
-            val result = manager.event(started.sessionId, "powerOn", emptyMap())
+            val result = manager.event(sessionId = started.sessionId, eventName = "powerOn", payload = emptyMap())
             result as SessionResult.Error
             result.message shouldContain "not found"
         }

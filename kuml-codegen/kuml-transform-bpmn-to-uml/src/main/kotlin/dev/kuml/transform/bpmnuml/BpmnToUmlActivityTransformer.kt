@@ -46,14 +46,14 @@ public class BpmnToUmlActivityTransformer : KumlTransformer<BpmnProcess, List<Ge
 
         var trace = TransformTrace()
         for (node in model.nodes) {
-            trace = trace.plus(TraceabilityLink(node.id, outputPath, RULE_NODE))
+            trace = trace.plus(TraceabilityLink(sourceElementId = node.id, targetArtifactId = outputPath, ruleId = RULE_NODE))
         }
         for (edge in model.edges) {
-            trace = trace.plus(TraceabilityLink(edge.id, outputPath, RULE_EDGE))
+            trace = trace.plus(TraceabilityLink(sourceElementId = edge.id, targetArtifactId = outputPath, ruleId = RULE_EDGE))
         }
 
-        val file = GeneratedFile(outputPath, content)
-        return TransformResult.Success(listOf(file), trace)
+        val file = GeneratedFile(relativePath = outputPath, content = content)
+        return TransformResult.Success(output = listOf(file), trace = trace)
     }
 
     private companion object {

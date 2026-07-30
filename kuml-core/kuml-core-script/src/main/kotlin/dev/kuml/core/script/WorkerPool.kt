@@ -112,7 +112,7 @@ internal class WorkerPool(
         fileName: String = "script.kuml.kts",
     ): EvaluatedScript {
         if (closed.get()) {
-            return EvaluatedScript.Failure(FailureKind.SANDBOX, "Script sandbox pool is shut down.")
+            return EvaluatedScript.Failure(kind = FailureKind.SANDBOX, message = "Script sandbox pool is shut down.")
         }
 
         // Layer 1 guard in the parent, before spending a worker on a hostile
@@ -120,7 +120,7 @@ internal class WorkerPool(
         try {
             KumlScriptGuard.validate(source)
         } catch (e: ScriptSecurityException) {
-            return EvaluatedScript.Failure(FailureKind.GUARD, e.message ?: "kUML script rejected by security guard.")
+            return EvaluatedScript.Failure(kind = FailureKind.GUARD, message = e.message ?: "kUML script rejected by security guard.")
         }
 
         val worker =
@@ -128,14 +128,15 @@ internal class WorkerPool(
                 ?: waitForWorker()
                 ?: spawnFallbackWorker()
                 ?: return EvaluatedScript.Failure(
-                    FailureKind.SANDBOX,
-                    "Script sandbox pool saturated: no worker available and the concurrent-worker ceiling " +
-                        "($maxConcurrentWorkers) is reached. Retry shortly.",
+                    kind = FailureKind.SANDBOX,
+                    message =
+                        "Script sandbox pool saturated: no worker available and the concurrent-worker ceiling " +
+                            "($maxConcurrentWorkers) is reached. Retry shortly.",
                 )
 
         logState("assigned worker pid=${worker.pid()}")
         return try {
-            worker.evaluate(source, fileName)
+            worker.evaluate(source = source, fileName = fileName)
         } finally {
             retire(worker)
             // A slot just freed up (worker consumed) — refill in the background.
@@ -232,7 +233,7 @@ internal class WorkerPool(
     private fun newWorker(): WarmScriptWorker? =
         try {
             startingCount.incrementAndGet()
-            val w = WarmScriptWorker(timeoutSeconds, maxHeapMb, javaBinary, classpath)
+            val w = WarmScriptWorker(timeoutSeconds = timeoutSeconds, maxHeapMb = maxHeapMb, javaBinary = javaBinary, classpath = classpath)
             live.add(w)
             w
         } catch (e: Exception) {

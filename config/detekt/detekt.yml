@@ -1,0 +1,57 @@
+# kUML Detekt configuration.
+#
+# SCOPE: this repo uses Detekt for EXACTLY ONE custom rule (kuml/RequireNamedArguments).
+# Style/formatting stays with ktlint. Do NOT set buildUponDefaultConfig = true and do NOT
+# enable any built-in ruleset here — adopting Detekt's 100+ default rules is explicitly
+# out of scope and would bury the one rule that matters in noise.
+
+config:
+  validation: true
+  warningsAsErrors: true
+
+processors:
+  active: true
+
+console-reports:
+  active: true
+
+# ── Built-in rulesets: ALL OFF ───────────────────────────────────────────────
+# With buildUponDefaultConfig = false these are inactive anyway. They are listed
+# explicitly so that a future `detektGenerateConfig` or a Detekt upgrade that
+# flips a default cannot silently switch a ruleset on.
+#
+# NOTE: only the ruleset ids below are recognised by this project's classpath
+# (dev.detekt:2.0.0-alpha.5 core + the default rule modules it pulls in).
+# "errorprone", "formatting", "libraries" and "ruleauthors" are NOT valid keys
+# here — with config.validation: true, listing them fails the build with
+# "Property '<x>' is misspelled or does not exist" (verified 2026-07-30). Those
+# rulesets require additional detekt-rules-* modules on the plugin classpath
+# that this repo does not add, since buildUponDefaultConfig = false means none
+# of them run anyway. Do not re-add them without also adding the dependency.
+comments:       { active: false }
+complexity:     { active: false }
+coroutines:     { active: false }
+empty-blocks:   { active: false }
+exceptions:     { active: false }
+naming:         { active: false }
+performance:    { active: false }
+potential-bugs: { active: false }
+style:          { active: false }
+
+# ── The one rule we actually run ─────────────────────────────────────────────
+kuml:
+  active: true
+  RequireNamedArguments:
+    active: true
+    # This explicit rule-level key is authoritative — detekt-api's Rule.autoCorrect
+    # getter reads it BEFORE consulting any build-wide default, so the root
+    # build.gradle.kts's `-Pkuml.detekt.autoCorrect` Gradle property (which only
+    # sets the DetektExtension-level / root-config default) has NO effect on this
+    # rule while this key is present (verified 2026-07-30). To run a one-off mass
+    # autocorrect pass, flip this line to `true`, run
+    # `./gradlew detektMain detektTest detektMainJvm detektTestJvm`, run
+    # `ktlintFormat`, verify with a clean `./gradlew clean check`, then flip it
+    # back to `false` before committing. Never commit it as `true`.
+    autoCorrect: false
+    ownedPackagePrefixes:
+      - 'dev.kuml.'

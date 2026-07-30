@@ -83,7 +83,7 @@ public fun StateMachineRuntime.applyPatch(
     confirmed: Boolean = false,
 ): PatchResult =
     when (patch) {
-        is ModelPatch.ChangeGuard -> applyChangeGuard(instance, patch, policy, confirmed)
+        is ModelPatch.ChangeGuard -> applyChangeGuard(instance = instance, patch = patch, policy = policy, confirmed = confirmed)
     }
 
 private fun applyChangeGuard(
@@ -100,8 +100,8 @@ private fun applyChangeGuard(
     // ── static OCL guard: size/complexity cap + scope/type check (blank ⇒ no guard)
     val normalized: String? = patch.newOcl.ifBlank { null }
     if (normalized != null) {
-        when (val r = OclSyntax.typeCheck(normalized, defaultGuardScope())) {
-            is OclCheckResult.Error -> return PatchResult.Rejected.InvalidOcl(patch.transitionId, r)
+        when (val r = OclSyntax.typeCheck(expr = normalized, scope = defaultGuardScope())) {
+            is OclCheckResult.Error -> return PatchResult.Rejected.InvalidOcl(transitionId = patch.transitionId, error = r)
             OclCheckResult.Ok -> Unit
         }
     }
@@ -121,14 +121,14 @@ private fun applyChangeGuard(
     // ── migration gate (structural preservation of active vertices)
     val patchedVertexIds = allVertices(newModel).map { it.id }.toSet()
     try {
-        policy.onPatch(patch, instance.currentVertexIds, patchedVertexIds)
+        policy.onPatch(patch = patch, activeVertexIds = instance.currentVertexIds, patchedVertexIds = patchedVertexIds)
     } catch (e: MigrationException) {
         return PatchResult.Rejected.MigrationRejected(e)
     }
 
     // ── atomically rebuild a fresh instance carrying live state over the new model
     val newInstance = instance.rebuildOnto(newModel)
-    return PatchResult.Applied(newInstance, newModel, patch)
+    return PatchResult.Applied(instance = newInstance, model = newModel, patch = patch)
 }
 
 /**

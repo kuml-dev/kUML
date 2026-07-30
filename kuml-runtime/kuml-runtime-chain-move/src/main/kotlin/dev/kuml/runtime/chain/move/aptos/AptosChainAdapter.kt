@@ -42,7 +42,7 @@ public class AptosChainAdapter(
     private val resourceTypeTag: String = DEFAULT_RESOURCE_TYPE_TAG,
     private val eventHandleStruct: String = DEFAULT_EVENT_HANDLE_STRUCT,
     private val eventFieldName: String = DEFAULT_EVENT_FIELD,
-    private val clientFactory: (String) -> AptosRestClient = { url -> AptosRestClient(url) },
+    private val clientFactory: (String) -> AptosRestClient = { url -> AptosRestClient(baseUrl = url) },
     private val eventDecoder: AptosEventDecoder = AptosEventDecoder(),
 ) : KumlChainAdapter {
     private var restClient: AptosRestClient? = null
@@ -72,22 +72,22 @@ public class AptosChainAdapter(
         blockClock = AptosBlockClock(client)
         accountAddress = contractAddress
 
-        val resource = client.getResource(contractAddress, resourceTypeTag)
+        val resource = client.getResource(address = contractAddress, typeTag = resourceTypeTag)
         val data =
             resource["data"]?.jsonObject
-                ?: throw AptosChainAdapterException.MalformedResponse("resource missing 'data'")
+                ?: throw AptosChainAdapterException.MalformedResponse(message = "resource missing 'data'")
         val modelHashStr =
             data["model_hash"]?.jsonPrimitive?.content
-                ?: throw AptosChainAdapterException.MalformedResponse("data missing 'model_hash'")
+                ?: throw AptosChainAdapterException.MalformedResponse(message = "data missing 'model_hash'")
         val modelHash = decodeHash(modelHashStr)
         val modelUri =
             data["model_uri"]?.jsonPrimitive?.content
-                ?: throw AptosChainAdapterException.MalformedResponse("data missing 'model_uri'")
+                ?: throw AptosChainAdapterException.MalformedResponse(message = "data missing 'model_uri'")
         val schemaVersion = data["schema_version"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
 
         // ContractIdentity.address = "{account}::{handle}/{field}" (Spec-Konvention)
         val compositeAddress = "$contractAddress::$eventHandleStruct/$eventFieldName"
-        return ContractIdentity(compositeAddress, modelHash, modelUri, schemaVersion)
+        return ContractIdentity(address = compositeAddress, modelHash = modelHash, modelUri = modelUri, schemaVersion = schemaVersion)
     }
 
     /**
@@ -101,7 +101,14 @@ public class AptosChainAdapter(
             val addr = requireAddress()
             var nextSeq = 0L
             while (true) {
-                val events = client.getEvents(addr, eventHandleStruct, eventFieldName, nextSeq, pageLimit)
+                val events =
+                    client.getEvents(
+                        address = addr,
+                        eventHandleStruct = eventHandleStruct,
+                        fieldName = eventFieldName,
+                        start = nextSeq,
+                        limit = pageLimit,
+                    )
                 val decoded = eventDecoder.decodeAll(events)
                 for (e in decoded) emit(e)
                 nextSeq += events.size
@@ -122,7 +129,14 @@ public class AptosChainAdapter(
             val addr = requireAddress()
             var seq = 0L
             while (true) {
-                val events = client.getEvents(addr, eventHandleStruct, eventFieldName, seq, pageLimit)
+                val events =
+                    client.getEvents(
+                        address = addr,
+                        eventHandleStruct = eventHandleStruct,
+                        fieldName = eventFieldName,
+                        start = seq,
+                        limit = pageLimit,
+                    )
                 if (events.isEmpty()) break
                 for (e in eventDecoder.decodeAll(events)) {
                     if (e.blockNumber >= fromBlock) emit(e)
@@ -163,14 +177,14 @@ public class AptosChainAdapter(
             val clean = hex.removePrefix("0x").removePrefix("0X")
             if (clean.isEmpty()) return ByteArray(0)
             if (clean.length % 2 != 0) {
-                throw AptosChainAdapterException.MalformedResponse("Hex string has odd length: '$hex'")
+                throw AptosChainAdapterException.MalformedResponse(message = "Hex string has odd length: '$hex'")
             }
             return try {
                 ByteArray(clean.length / 2) { i ->
                     clean.substring(i * 2, i * 2 + 2).toInt(16).toByte()
                 }
             } catch (e: NumberFormatException) {
-                throw AptosChainAdapterException.MalformedResponse("Invalid hex string: '$hex'", e)
+                throw AptosChainAdapterException.MalformedResponse(message = "Invalid hex string: '$hex'", cause = e)
             }
         }
     }

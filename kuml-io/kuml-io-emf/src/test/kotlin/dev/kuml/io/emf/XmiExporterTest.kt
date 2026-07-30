@@ -54,7 +54,7 @@ class XmiExporterTest :
                     .createTempFile("kuml-export-test-", ".xmi")
                     .toFile()
             tmpFile.deleteOnExit()
-            exporter.export(model, tmpFile)
+            exporter.export(model = model, outputFile = tmpFile)
             val xml = tmpFile.readText()
             xml shouldContain "Order"
         }
@@ -66,7 +66,7 @@ class XmiExporterTest :
                     .createTempFile("kuml-export-iface-", ".xmi")
                     .toFile()
             tmpFile.deleteOnExit()
-            exporter.export(model, tmpFile)
+            exporter.export(model = model, outputFile = tmpFile)
             val xml = tmpFile.readText()
             xml shouldContain "Printable"
         }
@@ -80,7 +80,7 @@ class XmiExporterTest :
                     .createTempFile("kuml-roundtrip-", ".xmi")
                     .toFile()
             tmpFile.deleteOnExit()
-            exporter.export(firstImport, tmpFile)
+            exporter.export(model = firstImport, outputFile = tmpFile)
 
             val secondImport = importer.import(tmpFile)
             val firstDiagram = firstImport.root as dev.kuml.core.model.KumlDiagram
@@ -99,7 +99,7 @@ class XmiExporterTest :
                     .toFile()
             tmpFile.deleteOnExit()
             shouldNotThrowAny {
-                exporter.export(model, tmpFile)
+                exporter.export(model = model, outputFile = tmpFile)
             }
         }
     })

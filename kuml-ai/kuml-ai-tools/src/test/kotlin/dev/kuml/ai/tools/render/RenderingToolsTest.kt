@@ -25,10 +25,10 @@ class RenderingToolsTest :
         test("render_preview writes SVG to temp and returns the path") {
             val ctx = makeContext()
             val umlTools = UmlEditingTools(ctx)
-            val tools = RenderingTools(ctx, makeTempStore())
+            val tools = RenderingTools(ctx = ctx, artifactStore = makeTempStore())
             runTest {
-                umlTools.addClass("Order")
-                val result = tools.renderPreview("svg")
+                umlTools.addClass(name = "Order")
+                val result = tools.renderPreview(format = "svg")
                 val svg = result.shouldBeInstanceOf<RenderResult.Svg>()
                 File(svg.filePath).exists() shouldBe true
             }
@@ -37,12 +37,12 @@ class RenderingToolsTest :
         test("render_preview SVG summary contains element and relationship counts") {
             val ctx = makeContext()
             val umlTools = UmlEditingTools(ctx)
-            val tools = RenderingTools(ctx, makeTempStore())
+            val tools = RenderingTools(ctx = ctx, artifactStore = makeTempStore())
             runTest {
-                umlTools.addClass("Order")
-                umlTools.addClass("Customer")
-                umlTools.addAssociation("Order", "Customer")
-                val result = tools.renderPreview("svg") as RenderResult.Svg
+                umlTools.addClass(name = "Order")
+                umlTools.addClass(name = "Customer")
+                umlTools.addAssociation(sourceIdOrName = "Order", targetIdOrName = "Customer")
+                val result = tools.renderPreview(format = "svg") as RenderResult.Svg
                 result.summary shouldContain "2 elements"
                 result.summary shouldContain "1 relationships"
             }
@@ -51,10 +51,10 @@ class RenderingToolsTest :
         test("render_preview PNG returns width and height") {
             val ctx = makeContext()
             val umlTools = UmlEditingTools(ctx)
-            val tools = RenderingTools(ctx, makeTempStore())
+            val tools = RenderingTools(ctx = ctx, artifactStore = makeTempStore())
             runTest {
-                umlTools.addClass("Service")
-                val result = tools.renderPreview("png")
+                umlTools.addClass(name = "Service")
+                val result = tools.renderPreview(format = "png")
                 val png = result.shouldBeInstanceOf<RenderResult.Png>()
                 png.widthPx shouldBe 1200
                 File(png.filePath).exists() shouldBe true
@@ -63,7 +63,7 @@ class RenderingToolsTest :
 
         test("validate_model returns Ok for a freshly created empty model") {
             val ctx = makeContext()
-            val tools = RenderingTools(ctx, makeTempStore())
+            val tools = RenderingTools(ctx = ctx, artifactStore = makeTempStore())
             runTest {
                 val result = tools.validateModel()
                 result.shouldBeInstanceOf<ValidateResult.Ok>()
@@ -74,9 +74,9 @@ class RenderingToolsTest :
             // This is a structural test — we verify the validate path executes
             val ctx = makeContext()
             val umlTools = UmlEditingTools(ctx)
-            val tools = RenderingTools(ctx, makeTempStore())
+            val tools = RenderingTools(ctx = ctx, artifactStore = makeTempStore())
             runTest {
-                umlTools.addClass("Order")
+                umlTools.addClass(name = "Order")
                 // Model is structurally valid — should return Ok
                 val result = tools.validateModel()
                 result.shouldBeInstanceOf<ValidateResult.Ok>()

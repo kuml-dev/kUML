@@ -92,13 +92,13 @@ public class SandboxValidator(
         for (vertex in allVertices(model)) {
             if (vertex is UmlState) {
                 vertex.entry?.let { body ->
-                    violations += checkAction(body, ViolationLocation(vertexId = vertex.id, phase = "entry"))
+                    violations += checkAction(body = body, location = ViolationLocation(vertexId = vertex.id, phase = "entry"))
                 }
                 vertex.exit?.let { body ->
-                    violations += checkAction(body, ViolationLocation(vertexId = vertex.id, phase = "exit"))
+                    violations += checkAction(body = body, location = ViolationLocation(vertexId = vertex.id, phase = "exit"))
                 }
                 vertex.doActivity?.let { body ->
-                    violations += checkAction(body, ViolationLocation(vertexId = vertex.id, phase = "doActivity"))
+                    violations += checkAction(body = body, location = ViolationLocation(vertexId = vertex.id, phase = "doActivity"))
                 }
             }
         }
@@ -107,15 +107,15 @@ public class SandboxValidator(
             transition.guard?.let { guard ->
                 violations +=
                     checkGuard(
-                        guard,
-                        ViolationLocation(transitionId = transition.id, phase = "guard"),
+                        guard = guard,
+                        location = ViolationLocation(transitionId = transition.id, phase = "guard"),
                     )
             }
             transition.effect?.let { body ->
                 violations +=
                     checkAction(
-                        body,
-                        ViolationLocation(transitionId = transition.id, phase = "effect"),
+                        body = body,
+                        location = ViolationLocation(transitionId = transition.id, phase = "effect"),
                     )
             }
         }
@@ -139,7 +139,7 @@ public class SandboxValidator(
             )
         }
         val errors = mutableListOf<dev.kuml.expr.ParseError>()
-        val effects = OclLikeExpressionParser.tryParseEffects(body, errors)
+        val effects = OclLikeExpressionParser.tryParseEffects(input = body, errors = errors)
         if (effects == null) {
             return listOf(
                 SandboxViolation(
@@ -219,7 +219,7 @@ public class SandboxValidator(
                 if (it.startsWith("[") && it.endsWith("]")) it.substring(1, it.length - 1).trim() else it
             }
         val errors = mutableListOf<dev.kuml.expr.ParseError>()
-        val expr = OclLikeExpressionParser.tryParse(cleaned, errors)
+        val expr = OclLikeExpressionParser.tryParse(input = cleaned, errors = errors)
         if (expr == null) {
             return listOf(
                 SandboxViolation(

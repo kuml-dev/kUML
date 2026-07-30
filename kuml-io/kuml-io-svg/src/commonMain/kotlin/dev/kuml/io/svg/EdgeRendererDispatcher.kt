@@ -62,22 +62,38 @@ internal object EdgeRendererDispatcher {
         targetStackIndex: Int = 0,
     ) {
         when (relationship) {
-            is UmlAssociation -> renderUmlAssociation(relationship, route, theme, builder, sourceStackIndex, targetStackIndex)
-            is UmlGeneralization -> renderUmlGeneralization(relationship, route, theme, builder)
-            is UmlInterfaceRealization -> renderUmlInterfaceRealization(relationship, route, theme, builder)
-            is UmlDependency -> renderUmlDependency(relationship, route, theme, builder)
-            is UmlConnector -> renderUmlConnector(relationship, route, theme, builder)
-            is UmlInclude -> renderUmlInclude(relationship, route, theme, builder)
-            is UmlExtend -> renderUmlExtend(relationship, route, theme, builder)
-            is UmlLink -> renderUmlLink(relationship, route, theme, builder, sourceStackIndex, targetStackIndex)
-            is UmlActivityEdge -> renderUmlActivityEdge(relationship, route, theme, builder)
-            is UmlCommentLink -> renderUmlCommentLink(route, builder)
-            is C4Relationship -> renderC4Relationship(relationship, route, theme, builder)
+            is UmlAssociation ->
+                renderUmlAssociation(
+                    rel = relationship,
+                    route = route,
+                    theme = theme,
+                    builder = builder,
+                    sourceStackIndex = sourceStackIndex,
+                    targetStackIndex = targetStackIndex,
+                )
+            is UmlGeneralization -> renderUmlGeneralization(rel = relationship, route = route, theme = theme, builder = builder)
+            is UmlInterfaceRealization -> renderUmlInterfaceRealization(rel = relationship, route = route, theme = theme, builder = builder)
+            is UmlDependency -> renderUmlDependency(rel = relationship, route = route, theme = theme, builder = builder)
+            is UmlConnector -> renderUmlConnector(rel = relationship, route = route, theme = theme, builder = builder)
+            is UmlInclude -> renderUmlInclude(rel = relationship, route = route, theme = theme, builder = builder)
+            is UmlExtend -> renderUmlExtend(rel = relationship, route = route, theme = theme, builder = builder)
+            is UmlLink ->
+                renderUmlLink(
+                    rel = relationship,
+                    route = route,
+                    theme = theme,
+                    builder = builder,
+                    sourceStackIndex = sourceStackIndex,
+                    targetStackIndex = targetStackIndex,
+                )
+            is UmlActivityEdge -> renderUmlActivityEdge(rel = relationship, route = route, theme = theme, builder = builder)
+            is UmlCommentLink -> renderUmlCommentLink(route = route, builder = builder)
+            is C4Relationship -> renderC4Relationship(rel = relationship, route = route, theme = theme, builder = builder)
             // BPMN — V3.1.3
-            is SequenceFlow -> renderBpmnSequenceFlow(relationship, route, builder, theme)
+            is SequenceFlow -> renderBpmnSequenceFlow(flow = relationship, route = route, builder = builder, theme = theme)
             // BPMN — V3.1.5 Collaboration
-            is MessageFlow -> renderBpmnMessageFlow(relationship, route, builder, theme)
-            else -> renderFallbackEdge(route, builder)
+            is MessageFlow -> renderBpmnMessageFlow(flow = relationship, route = route, builder = builder, theme = theme)
+            else -> renderFallbackEdge(route = route, builder = builder)
         }
     }
 
@@ -86,6 +102,6 @@ internal object EdgeRendererDispatcher {
         builder: SvgBuilder,
     ) {
         val (tagName, attrs) = EdgePathBuilder.build(route)
-        builder.tag(tagName, attrs + mapOf("class" to "kuml-edge"))
+        builder.tag(name = tagName, attrs = attrs + mapOf("class" to "kuml-edge"))
     }
 }

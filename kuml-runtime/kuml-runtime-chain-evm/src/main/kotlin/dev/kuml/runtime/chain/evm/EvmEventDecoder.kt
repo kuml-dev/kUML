@@ -24,10 +24,10 @@ public class EvmEventDecoder {
     public fun decode(logJson: JsonObject): ChainEvent {
         val topicsArr =
             logJson["topics"]?.jsonArray
-                ?: throw EvmChainAdapterException.MalformedResponse("Log missing 'topics' field")
+                ?: throw EvmChainAdapterException.MalformedResponse(message = "Log missing 'topics' field")
 
         if (topicsArr.isEmpty()) {
-            throw EvmChainAdapterException.MalformedResponse("Log 'topics' array is empty — no event signature hash")
+            throw EvmChainAdapterException.MalformedResponse(message = "Log 'topics' array is empty — no event signature hash")
         }
 
         val eventType = topicsArr[0].jsonPrimitive.content
@@ -37,12 +37,12 @@ public class EvmEventDecoder {
 
         val blockNumberHex =
             logJson["blockNumber"]?.jsonPrimitive?.content
-                ?: throw EvmChainAdapterException.MalformedResponse("Log missing 'blockNumber' field")
+                ?: throw EvmChainAdapterException.MalformedResponse(message = "Log missing 'blockNumber' field")
         val blockNumber = EvmJsonRpcClient.parseHexQuantity(blockNumberHex)
 
         val txHash =
             logJson["transactionHash"]?.jsonPrimitive?.content
-                ?: throw EvmChainAdapterException.MalformedResponse("Log missing 'transactionHash' field")
+                ?: throw EvmChainAdapterException.MalformedResponse(message = "Log missing 'transactionHash' field")
 
         return ChainEvent(
             eventType = eventType,
@@ -56,7 +56,7 @@ public class EvmEventDecoder {
     public fun decodeAll(logsJson: JsonElement): List<ChainEvent> {
         val arr =
             logsJson as? JsonArray
-                ?: throw EvmChainAdapterException.MalformedResponse("Expected JsonArray of logs")
+                ?: throw EvmChainAdapterException.MalformedResponse(message = "Expected JsonArray of logs")
         return arr.map { decode(it.jsonObject) }
     }
 
@@ -72,14 +72,14 @@ public class EvmEventDecoder {
             val clean = hex.removePrefix("0x").removePrefix("0X")
             if (clean.isEmpty()) return ByteArray(0)
             if (clean.length % 2 != 0) {
-                throw EvmChainAdapterException.MalformedResponse("Hex string has odd length: '$hex'")
+                throw EvmChainAdapterException.MalformedResponse(message = "Hex string has odd length: '$hex'")
             }
             return try {
                 ByteArray(clean.length / 2) { i ->
                     clean.substring(i * 2, i * 2 + 2).toInt(16).toByte()
                 }
             } catch (e: NumberFormatException) {
-                throw EvmChainAdapterException.MalformedResponse("Invalid hex string: '$hex'", e)
+                throw EvmChainAdapterException.MalformedResponse(message = "Invalid hex string: '$hex'", cause = e)
             }
         }
     }

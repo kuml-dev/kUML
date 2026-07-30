@@ -40,7 +40,7 @@ class KumlAnimRendererTest :
             val opts = AnimRenderOptions(format = AnimFormat.MP4, transparent = true)
             val ex =
                 shouldThrow<AnimEncoderException> {
-                    KumlAnimRenderer.toAnimated(baseSvg, timeline, opts)
+                    KumlAnimRenderer.toAnimated(animatedSvg = baseSvg, timeline = timeline, options = opts)
                 }
             ex.message shouldContain "transparent background"
             ex.message shouldContain "MP4"
@@ -51,7 +51,7 @@ class KumlAnimRendererTest :
         ) {
             val opts = AnimRenderOptions(format = AnimFormat.MP4, transparent = false)
             // Should proceed past the guard into the encoder (which succeeds when ffmpeg is present).
-            val bytes = KumlAnimRenderer.toAnimated(baseSvg, timeline, opts)
+            val bytes = KumlAnimRenderer.toAnimated(animatedSvg = baseSvg, timeline = timeline, options = opts)
             bytes.isNotEmpty() shouldBe true
         }
     })

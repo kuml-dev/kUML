@@ -39,7 +39,7 @@ public class SuiChainAdapter(
     private val urlValidator: SuiRpcUrlValidator = SuiRpcUrlValidator.Default,
     private val pollIntervalMillis: Long = 2_000L,
     private val pageLimit: Int = 50,
-    private val clientFactory: (String) -> SuiRpcClient = { url -> SuiRpcClient(url) },
+    private val clientFactory: (String) -> SuiRpcClient = { url -> SuiRpcClient(rpcUrl = url) },
     private val eventDecoder: SuiEventDecoder = SuiEventDecoder(),
 ) : KumlChainAdapter {
     private var rpcClient: SuiRpcClient? = null
@@ -74,18 +74,18 @@ public class SuiChainAdapter(
         val result = client.getObject(contractAddress).jsonObject
         val data =
             result["data"]?.jsonObject
-                ?: throw SuiChainAdapterException.MalformedResponse("getObject result missing 'data'")
+                ?: throw SuiChainAdapterException.MalformedResponse(message = "getObject result missing 'data'")
         val content =
             data["content"]?.jsonObject
-                ?: throw SuiChainAdapterException.MalformedResponse("getObject result missing 'data.content'")
+                ?: throw SuiChainAdapterException.MalformedResponse(message = "getObject result missing 'data.content'")
         val fields =
             content["fields"]?.jsonObject
-                ?: throw SuiChainAdapterException.MalformedResponse("getObject result missing 'data.content.fields'")
+                ?: throw SuiChainAdapterException.MalformedResponse(message = "getObject result missing 'data.content.fields'")
 
         val modelHash = decodeModelHash(fields["model_hash"])
         val modelUri =
             fields["model_uri"]?.jsonPrimitive?.content
-                ?: throw SuiChainAdapterException.MalformedResponse("fields missing 'model_uri'")
+                ?: throw SuiChainAdapterException.MalformedResponse(message = "fields missing 'model_uri'")
         val schemaVersion = fields["schema_version"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
 
         // packageId für queryEvents aus content.type extrahieren ("0xPKG::module::Struct")
@@ -94,7 +94,7 @@ public class SuiChainAdapter(
             module = contentType.substringAfter("::").substringBefore("::")
         }
 
-        return ContractIdentity(contractAddress, modelHash, modelUri, schemaVersion)
+        return ContractIdentity(address = contractAddress, modelHash = modelHash, modelUri = modelUri, schemaVersion = schemaVersion)
     }
 
     /**
@@ -110,7 +110,15 @@ public class SuiChainAdapter(
             while (true) {
                 var hasNext = true
                 while (hasNext) {
-                    val res = client.queryEvents(pkg, module, cursor, pageLimit, descending = false).jsonObject
+                    val res =
+                        client
+                            .queryEvents(
+                                packageId = pkg,
+                                module = module,
+                                cursor = cursor,
+                                limit = pageLimit,
+                                descending = false,
+                            ).jsonObject
                     val data = res["data"] ?: JsonArray(emptyList())
                     for (e in eventDecoder.decodeAll(data)) emit(e)
                     hasNext = res["hasNextPage"]?.jsonPrimitive?.booleanOrNull ?: false
@@ -135,7 +143,15 @@ public class SuiChainAdapter(
             var cursor: JsonElement? = null
             var hasNext = true
             while (hasNext) {
-                val res = client.queryEvents(pkg, module, cursor, pageLimit, descending = false).jsonObject
+                val res =
+                    client
+                        .queryEvents(
+                            packageId = pkg,
+                            module = module,
+                            cursor = cursor,
+                            limit = pageLimit,
+                            descending = false,
+                        ).jsonObject
                 val events = eventDecoder.decodeAll(res["data"] ?: JsonArray(emptyList()))
                 for (e in events) {
                     if (e.blockNumber >= fromBlock) emit(e)
@@ -158,7 +174,7 @@ public class SuiChainAdapter(
     private fun decodeModelHash(el: JsonElement?): ByteArray =
         when {
             el == null || el is JsonNull ->
-                throw SuiChainAdapterException.MalformedResponse("fields missing 'model_hash'")
+                throw SuiChainAdapterException.MalformedResponse(message = "fields missing 'model_hash'")
             el is JsonArray ->
                 ByteArray(el.size) { i -> el[i].jsonPrimitive.int.toByte() }
             el is JsonPrimitive -> {
@@ -166,7 +182,7 @@ public class SuiChainAdapter(
                 if (s.startsWith("0x") || s.startsWith("0X")) hexToBytes(s) else Base64Decoder.decode(s)
             }
             else ->
-                throw SuiChainAdapterException.MalformedResponse("Unexpected model_hash shape: $el")
+                throw SuiChainAdapterException.MalformedResponse(message = "Unexpected model_hash shape: $el")
         }
 
     private fun requireClient(): SuiRpcClient = rpcClient ?: error("SuiChainAdapter not connected — call connect() first")
@@ -185,14 +201,14 @@ public class SuiChainAdapter(
             val clean = hex.removePrefix("0x").removePrefix("0X")
             if (clean.isEmpty()) return ByteArray(0)
             if (clean.length % 2 != 0) {
-                throw SuiChainAdapterException.MalformedResponse("Hex string has odd length: '$hex'")
+                throw SuiChainAdapterException.MalformedResponse(message = "Hex string has odd length: '$hex'")
             }
             return try {
                 ByteArray(clean.length / 2) { i ->
                     clean.substring(i * 2, i * 2 + 2).toInt(16).toByte()
                 }
             } catch (e: NumberFormatException) {
-                throw SuiChainAdapterException.MalformedResponse("Invalid hex string: '$hex'", e)
+                throw SuiChainAdapterException.MalformedResponse(message = "Invalid hex string: '$hex'", cause = e)
             }
         }
     }

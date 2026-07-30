@@ -15,13 +15,13 @@ class ComponentDiagramBuilderTest :
     FunSpec(body = {
         test(name = "component diagram shows all components of a container") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Container") {
-                                component("Component 1")
-                                component("Component 2")
-                                component("Component 3")
+                        softwareSystem(name = "System") {
+                            container(name = "Container") {
+                                component(name = "Component 1")
+                                component(name = "Component 2")
+                                component(name = "Component 3")
                             }
                         }
 
@@ -30,7 +30,7 @@ class ComponentDiagramBuilderTest :
                             elements.filterIsInstance<C4Container>().find { it.id == cId }
                         }
 
-                    componentDiagram("Components") {
+                    componentDiagram(name = "Components") {
                         this.container = containers[0]
                     }
                 }
@@ -41,13 +41,13 @@ class ComponentDiagramBuilderTest :
 
         test(name = "external containers are included when flag is set") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("API") {
-                                component("Handler")
+                        softwareSystem(name = "System") {
+                            container(name = "API") {
+                                component(name = "Handler")
                             }
-                            container("Database")
+                            container(name = "Database")
                         }
 
                     val containers =
@@ -55,9 +55,9 @@ class ComponentDiagramBuilderTest :
                             elements.filterIsInstance<C4Container>().find { it.id == cId }
                         }
 
-                    relationship(containers[0], containers[1])
+                    relationship(source = containers[0], target = containers[1])
 
-                    componentDiagram("Components") {
+                    componentDiagram(name = "Components") {
                         this.container = containers[0]
                         showExternalReferences = true
                     }
@@ -70,13 +70,13 @@ class ComponentDiagramBuilderTest :
 
         test(name = "external containers are excluded when flag is false") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("API") {
-                                component("Handler")
+                        softwareSystem(name = "System") {
+                            container(name = "API") {
+                                component(name = "Handler")
                             }
-                            container("Database")
+                            container(name = "Database")
                         }
 
                     val containers =
@@ -84,9 +84,9 @@ class ComponentDiagramBuilderTest :
                             elements.filterIsInstance<C4Container>().find { it.id == cId }
                         }
 
-                    relationship(containers[0], containers[1])
+                    relationship(source = containers[0], target = containers[1])
 
-                    componentDiagram("Components") {
+                    componentDiagram(name = "Components") {
                         this.container = containers[0]
                         showExternalReferences = false
                     }
@@ -99,12 +99,12 @@ class ComponentDiagramBuilderTest :
 
         test(name = "exclude components") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Container") {
-                                component("Component 1")
-                                component("Component 2")
+                        softwareSystem(name = "System") {
+                            container(name = "Container") {
+                                component(name = "Component 1")
+                                component(name = "Component 2")
                             }
                         }
 
@@ -117,7 +117,7 @@ class ComponentDiagramBuilderTest :
                             elements.filterIsInstance<C4Component>().find { it.id == cmpId }
                         }
 
-                    componentDiagram("Components") {
+                    componentDiagram(name = "Components") {
                         this.container = containers[0]
                         exclude(components[1])
                     }
@@ -134,12 +134,12 @@ class ComponentDiagramBuilderTest :
 
         test(name = "relationships between components are included") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Container") {
-                                component("Auth")
-                                component("Payment")
+                        softwareSystem(name = "System") {
+                            container(name = "Container") {
+                                component(name = "Auth")
+                                component(name = "Payment")
                             }
                         }
 
@@ -152,9 +152,9 @@ class ComponentDiagramBuilderTest :
                             elements.filterIsInstance<C4Component>().find { it.id == cmpId }
                         }
 
-                    relationship(components[0], components[1])
+                    relationship(source = components[0], target = components[1])
 
-                    componentDiagram("Components") {
+                    componentDiagram(name = "Components") {
                         this.container = containers[0]
                     }
                 }
@@ -165,14 +165,14 @@ class ComponentDiagramBuilderTest :
 
         test(name = "components from other containers are not auto-included") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Container 1") {
-                                component("Component A")
+                        softwareSystem(name = "System") {
+                            container(name = "Container 1") {
+                                component(name = "Component A")
                             }
-                            container("Container 2") {
-                                component("Component B")
+                            container(name = "Container 2") {
+                                component(name = "Component B")
                             }
                         }
 
@@ -181,7 +181,7 @@ class ComponentDiagramBuilderTest :
                             elements.filterIsInstance<C4Container>().find { it.id == cId }
                         }
 
-                    componentDiagram("Components") {
+                    componentDiagram(name = "Components") {
                         this.container = containers[0]
                     }
                 }
@@ -197,12 +197,12 @@ class ComponentDiagramBuilderTest :
 
         test(name = "serialization round-trip works") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Container") {
-                                component("Auth")
-                                component("Logger")
+                        softwareSystem(name = "System") {
+                            container(name = "Container") {
+                                component(name = "Auth")
+                                component(name = "Logger")
                             }
                         }
 
@@ -211,7 +211,7 @@ class ComponentDiagramBuilderTest :
                             elements.filterIsInstance<C4Container>().find { it.id == cId }
                         }
 
-                    componentDiagram("Components") {
+                    componentDiagram(name = "Components") {
                         this.container = containers[0]
                     }
                 }
@@ -226,11 +226,11 @@ class ComponentDiagramBuilderTest :
 
         test(name = "diagram name and description are set correctly") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Container") {
-                                component("Handler")
+                        softwareSystem(name = "System") {
+                            container(name = "Container") {
+                                component(name = "Handler")
                             }
                         }
 
@@ -239,7 +239,7 @@ class ComponentDiagramBuilderTest :
                             elements.filterIsInstance<C4Container>().find { it.id == cId }
                         }
 
-                    componentDiagram("API Components", description = "Components in the API container") {
+                    componentDiagram(name = "API Components", description = "Components in the API container") {
                         this.container = containers[0]
                     }
                 }
@@ -251,12 +251,12 @@ class ComponentDiagramBuilderTest :
 
         test(name = "relationships can be disabled") {
             val model =
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val system =
-                        softwareSystem("System") {
-                            container("Container") {
-                                component("Auth")
-                                component("Payment")
+                        softwareSystem(name = "System") {
+                            container(name = "Container") {
+                                component(name = "Auth")
+                                component(name = "Payment")
                             }
                         }
 
@@ -269,9 +269,9 @@ class ComponentDiagramBuilderTest :
                             elements.filterIsInstance<C4Component>().find { it.id == cmpId }
                         }
 
-                    relationship(components[0], components[1])
+                    relationship(source = components[0], target = components[1])
 
-                    componentDiagram("Components") {
+                    componentDiagram(name = "Components") {
                         this.container = containers[0]
                         showRelationships = false
                     }

@@ -20,8 +20,8 @@ class DslScopeIsolationTest :
         test(name = "diagram scope has UML builders available") {
             val d =
                 diagram(name = "Class Diagram", type = DiagramType.CLASS) {
-                    classOf("Order")
-                    classOf("Item")
+                    classOf(name = "Order")
+                    classOf(name = "Item")
                 }
             d.elements shouldHaveSize 2
             d.elements[0].shouldBeInstanceOf<UmlClass>()
@@ -29,29 +29,29 @@ class DslScopeIsolationTest :
 
         test(name = "umlModel scope can build full order domain model") {
             val model =
-                umlModel("Order Domain") {
+                umlModel(name = "Order Domain") {
                     val status =
-                        enumOf("OrderStatus") {
-                            literal("DRAFT")
-                            literal("CONFIRMED")
-                            literal("SHIPPED")
-                            literal("CANCELLED")
+                        enumOf(name = "OrderStatus") {
+                            literal(name = "DRAFT")
+                            literal(name = "CONFIRMED")
+                            literal(name = "SHIPPED")
+                            literal(name = "CANCELLED")
                         }
 
-                    `package`("domain") {
-                        classOf("Order") {
-                            attribute("id", type = "UUID")
-                            attribute("status", type = status)
-                            operation("confirm")
-                            operation("cancel")
+                    `package`(name = "domain") {
+                        classOf(name = "Order") {
+                            attribute(name = "id", type = "UUID")
+                            attribute(name = "status", type = status)
+                            operation(name = "confirm")
+                            operation(name = "cancel")
                         }
-                        classOf("OrderItem") {
-                            attribute("quantity", type = "Int")
-                            attribute("unitPrice", type = "BigDecimal")
+                        classOf(name = "OrderItem") {
+                            attribute(name = "quantity", type = "Int")
+                            attribute(name = "unitPrice", type = "BigDecimal")
                         }
-                        classOf("Customer") {
-                            attribute("id", type = "UUID")
-                            attribute("email", type = "String")
+                        classOf(name = "Customer") {
+                            attribute(name = "id", type = "UUID")
+                            attribute(name = "email", type = "String")
                         }
                     }
 
@@ -89,9 +89,9 @@ class DslScopeIsolationTest :
         test(name = "diagram scope also supports classOf and associations") {
             val d =
                 diagram(name = "Inheritance", type = DiagramType.CLASS) {
-                    val animal = classOf("Animal") { isAbstract = true }
-                    val dog = classOf("Dog") { extends(animal) }
-                    val cat = classOf("Cat") { extends("Animal") }
+                    val animal = classOf(name = "Animal") { isAbstract = true }
+                    val dog = classOf(name = "Dog") { extends(animal) }
+                    val cat = classOf(name = "Cat") { extends("Animal") }
                     generalization(specificId = "Fish", generalId = "Animal")
                 }
             // 3 classes + 2 inline extends + 1 explicit generalization = 6 elements
@@ -107,9 +107,9 @@ class DslScopeIsolationTest :
             //   diagram("D") { `package`("p") { association(...) { ... } } }
             // We verify the runtime separation by ensuring a package cannot hold UmlAssociation.
             val model =
-                umlModel("M") {
-                    `package`("domain") {
-                        classOf("Order")
+                umlModel(name = "M") {
+                    `package`(name = "domain") {
+                        classOf(name = "Order")
                     }
                     association(sourceId = "domain::Order", targetId = "domain::Order")
                 }

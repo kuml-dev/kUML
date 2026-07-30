@@ -43,8 +43,8 @@ class DataTypeSerializationTest :
         test("TraceEntry sealed list roundtrips bit-identical") {
             val list: List<TraceEntry> =
                 listOf(
-                    TraceEntry.EventReceived(0L, "t0", "confirm", JsonObject(emptyMap())),
-                    TraceEntry.StateEntered(1L, "t1", "Draft"),
+                    TraceEntry.EventReceived(seqNo = 0L, timestamp = "t0", eventName = "confirm", payload = JsonObject(emptyMap())),
+                    TraceEntry.StateEntered(seqNo = 1L, timestamp = "t1", vertexId = "Draft"),
                     TraceEntry.ActionInvoked(
                         seqNo = 2L,
                         timestamp = "t2",
@@ -53,13 +53,19 @@ class DataTypeSerializationTest :
                         vertexId = "Draft",
                         transitionId = null,
                     ),
-                    TraceEntry.TransitionFired(3L, "t3", "tr1", "Draft", "Confirmed"),
-                    TraceEntry.GuardEvaluated(4L, "t4", "tr1", "true", true),
-                    TraceEntry.GuardWarning(5L, "t5", "tr1", "bad", "parse error"),
-                    TraceEntry.ActionError(6L, "t6", "tr1", "boom"),
-                    TraceEntry.StateExited(7L, "t7", "Draft"),
-                    TraceEntry.Stayed(8L, "t8", "no match"),
-                    TraceEntry.Terminated(9L, "t9", "Done"),
+                    TraceEntry.TransitionFired(
+                        seqNo = 3L,
+                        timestamp = "t3",
+                        transitionId = "tr1",
+                        fromVertexId = "Draft",
+                        toVertexId = "Confirmed",
+                    ),
+                    TraceEntry.GuardEvaluated(seqNo = 4L, timestamp = "t4", transitionId = "tr1", guard = "true", result = true),
+                    TraceEntry.GuardWarning(seqNo = 5L, timestamp = "t5", transitionId = "tr1", guard = "bad", message = "parse error"),
+                    TraceEntry.ActionError(seqNo = 6L, timestamp = "t6", transitionId = "tr1", message = "boom"),
+                    TraceEntry.StateExited(seqNo = 7L, timestamp = "t7", vertexId = "Draft"),
+                    TraceEntry.Stayed(seqNo = 8L, timestamp = "t8", reason = "no match"),
+                    TraceEntry.Terminated(seqNo = 9L, timestamp = "t9", finalVertexId = "Done"),
                 )
             val serializer = kotlinx.serialization.builtins.ListSerializer(TraceEntry.serializer())
             val encoded = json.encodeToString(serializer, list)

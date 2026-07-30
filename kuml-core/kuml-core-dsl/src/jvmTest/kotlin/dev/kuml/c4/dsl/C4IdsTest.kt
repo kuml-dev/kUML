@@ -63,37 +63,37 @@ class C4IdsTest :
         // ── child / relationship helpers ──────────────────────────────────────
 
         test("child with null parent returns name unchanged") {
-            C4Ids.child(null, "Order") shouldBe "Order"
+            C4Ids.child(parentId = null, name = "Order") shouldBe "Order"
         }
 
         test("child with empty parent returns name unchanged") {
-            C4Ids.child("", "Order") shouldBe "Order"
+            C4Ids.child(parentId = "", name = "Order") shouldBe "Order"
         }
 
         test("child with parent returns qualified id") {
-            C4Ids.child("domain", "Order") shouldBe "domain::Order"
+            C4Ids.child(parentId = "domain", name = "Order") shouldBe "domain::Order"
         }
 
         test("child with nested parent concatenates correctly") {
-            C4Ids.child("domain::svc", "Order") shouldBe "domain::svc::Order"
+            C4Ids.child(parentId = "domain::svc", name = "Order") shouldBe "domain::svc::Order"
         }
 
         test("relationship returns rel::<src>-><tgt>") {
-            C4Ids.relationship("source-id", "target-id") shouldBe "rel::source-id->target-id"
+            C4Ids.relationship(sourceId = "source-id", targetId = "target-id") shouldBe "rel::source-id->target-id"
         }
 
         // ── disambiguate ──────────────────────────────────────────────────────
 
         test("disambiguate returns candidate unchanged when not taken") {
-            C4Ids.disambiguate("Customer", emptySet()) shouldBe "Customer"
+            C4Ids.disambiguate(candidate = "Customer", taken = emptySet()) shouldBe "Customer"
         }
 
         test("disambiguate appends ~2 on first collision") {
-            C4Ids.disambiguate("Customer", setOf("Customer")) shouldBe "Customer~2"
+            C4Ids.disambiguate(candidate = "Customer", taken = setOf("Customer")) shouldBe "Customer~2"
         }
 
         test("disambiguate increments suffix until unique") {
-            C4Ids.disambiguate("Customer", setOf("Customer", "Customer~2", "Customer~3")) shouldBe "Customer~4"
+            C4Ids.disambiguate(candidate = "Customer", taken = setOf("Customer", "Customer~2", "Customer~3")) shouldBe "Customer~4"
         }
 
         test("generated IDs are non-empty strings") {

@@ -107,7 +107,7 @@ class PluginUpgradeCommandTest :
             name = "Plugin $id",
             version = version,
             kumlVersionRange = ">=0.1.0",
-            extensions = listOf(ExtensionEntry("theme", "test.Stub", "$id-ext")),
+            extensions = listOf(ExtensionEntry(category = "theme", implementation = "test.Stub", id = "$id-ext")),
             permissions = permissions,
         )
 
@@ -115,7 +115,9 @@ class PluginUpgradeCommandTest :
             id: String,
             version: String,
             permissions: List<String> = emptyList(),
-        ) = PluginRegistry.register(LoadedPlugin(fakeManifest(id, version, permissions), emptyList(), null))
+        ) = PluginRegistry.register(
+            LoadedPlugin(manifest = fakeManifest(id, version, permissions), plugins = emptyList(), classLoader = null),
+        )
 
         fun fakeEntry(
             id: String,
@@ -139,7 +141,7 @@ class PluginUpgradeCommandTest :
 
         fun serviceUnreachable(): UpdateCheckService =
             UpdateCheckService(
-                indexProvider = { throw PluginRegistryException("offline") },
+                indexProvider = { throw PluginRegistryException(message = "offline") },
                 installedProvider = { PluginRegistry.all() },
             )
 
@@ -277,7 +279,7 @@ class PluginUpgradeCommandTest :
             val failingDownloader =
                 object : PluginDownloader() {
                     override fun download(downloadsUrl: String): DownloadedPlugin =
-                        throw PluginRegistryException("simulated download error")
+                        throw PluginRegistryException(message = "simulated download error")
                 }
             val cmd =
                 command(

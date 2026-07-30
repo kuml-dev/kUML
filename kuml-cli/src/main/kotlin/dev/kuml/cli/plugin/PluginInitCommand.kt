@@ -77,7 +77,7 @@ internal data class PluginInitSpec(
             val artifactId = deriveArtifactId(pluginId)
             val packageName = derivePackageName(pluginId)
             val packageDir = packageName.replace('.', '/')
-            val className = deriveClassName(artifactId, category)
+            val className = deriveClassName(artifactId = artifactId, category = category)
             val groupId = deriveGroupId(pluginId)
             return PluginInitSpec(
                 category = category,
@@ -177,14 +177,14 @@ internal object PluginScaffolder {
         val shared = "$RESOURCE_BASE/_shared"
         val cat = "$RESOURCE_BASE/$category"
         return listOf(
-            TemplateFile("$shared/settings.gradle.kts.tmpl", "settings.gradle.kts"),
-            TemplateFile("$shared/gitignore.tmpl", ".gitignore"),
-            TemplateFile("$cat/build.gradle.kts.tmpl", "build.gradle.kts"),
-            TemplateFile("$cat/kuml-plugin.json.tmpl", "src/main/resources/kuml-plugin.json"),
-            TemplateFile("$cat/README.adoc.tmpl", "README.adoc"),
+            TemplateFile(resourcePath = "$shared/settings.gradle.kts.tmpl", outputPath = "settings.gradle.kts"),
+            TemplateFile(resourcePath = "$shared/gitignore.tmpl", outputPath = ".gitignore"),
+            TemplateFile(resourcePath = "$cat/build.gradle.kts.tmpl", outputPath = "build.gradle.kts"),
+            TemplateFile(resourcePath = "$cat/kuml-plugin.json.tmpl", outputPath = "src/main/resources/kuml-plugin.json"),
+            TemplateFile(resourcePath = "$cat/README.adoc.tmpl", outputPath = "README.adoc"),
             TemplateFile(
-                "$cat/Placeholder.kt.tmpl",
-                "src/main/kotlin/{{packageDir}}/{{className}}.kt",
+                resourcePath = "$cat/Placeholder.kt.tmpl",
+                outputPath = "src/main/kotlin/{{packageDir}}/{{className}}.kt",
             ),
         )
     }
@@ -204,7 +204,7 @@ internal object PluginScaffolder {
         force: Boolean,
         echo: (String) -> Unit,
     ) {
-        Scaffolder.scaffold(templateFiles(category), spec.toVars(), targetDir, force, echo)
+        Scaffolder.scaffold(templates = templateFiles(category), vars = spec.toVars(), targetDir = targetDir, force = force, echo = echo)
     }
 }
 
@@ -253,9 +253,14 @@ internal class PluginInitCommand : CliktCommand(name = "init") {
     override fun run() {
         val category = categoryArg ?: categoryOpt ?: promptCategory()
 
-        val pluginId = id ?: promptRequired("id", "Plugin id (e.g. com.example.my-$category)")
-        val pluginName = name ?: promptRequired("name", "Plugin name (e.g. My ${category.replaceFirstChar { it.uppercaseChar() }})")
-        val maintainerVal = maintainer ?: promptRequired("maintainer", "Maintainer name")
+        val pluginId = id ?: promptRequired(optionName = "id", promptText = "Plugin id (e.g. com.example.my-$category)")
+        val pluginName =
+            name
+                ?: promptRequired(
+                    optionName = "name",
+                    promptText = "Plugin name (e.g. My ${category.replaceFirstChar { it.uppercaseChar() }})",
+                )
+        val maintainerVal = maintainer ?: promptRequired(optionName = "maintainer", promptText = "Maintainer name")
         val homepageVal = homepage ?: if (nonInteractive) "" else currentContext.terminal.prompt("Homepage URL", default = "") ?: ""
 
         val spec =
@@ -270,7 +275,7 @@ internal class PluginInitCommand : CliktCommand(name = "init") {
 
         val targetDir = (output ?: File(spec.artifactId)).absoluteFile
         try {
-            PluginScaffolder.scaffold(category, spec, targetDir, force, ::echo)
+            PluginScaffolder.scaffold(category = category, spec = spec, targetDir = targetDir, force = force, echo = ::echo)
         } catch (e: IllegalStateException) {
             echo("Error: ${e.message}", err = true)
             throw ProgramResult(ExitCodes.IO_ERROR)

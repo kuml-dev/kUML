@@ -55,12 +55,12 @@ class UmlCommentSvgTest :
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
                     canvas = size,
-                    nodes = mapOf(NodeId("c1") to NodeLayout(bounds = Rect(Point(10f, 10f), size))),
+                    nodes = mapOf(NodeId("c1") to NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = size))),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             svg shouldContain "class=\"kuml-comment\""
             svg shouldContain "class=\"kuml-comment-fold\""
@@ -82,24 +82,25 @@ class UmlCommentSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("cls1") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(120f, 80f))),
-                            NodeId("c1") to NodeLayout(bounds = Rect(Point(200f, 40f), commentSize)),
+                            NodeId("cls1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 120f, height = 80f))),
+                            NodeId("c1") to NodeLayout(bounds = Rect(origin = Point(x = 200f, y = 40f), size = commentSize)),
                         ),
                     edges =
                         mapOf(
                             EdgeId("link1") to
                                 EdgeRoute.Direct(
-                                    source = Point(140f, 80f),
-                                    target = Point(200f, 60f),
+                                    source = Point(x = 140f, y = 80f),
+                                    target = Point(x = 200f, y = 60f),
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             svg shouldContain "class=\"kuml-edge-dashed\""
             // No arrowhead / label markup for a comment link (unlike dependency/include/extend).
@@ -120,12 +121,12 @@ class UmlCommentSvgTest :
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
                     canvas = size,
-                    nodes = mapOf(NodeId("c1") to NodeLayout(bounds = Rect(Point(0f, 0f), size))),
+                    nodes = mapOf(NodeId("c1") to NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = size))),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             svg shouldNotContain "<script>"
             svg shouldContain "&lt;script&gt;"
@@ -145,12 +146,12 @@ class UmlCommentSvgTest :
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
                     canvas = size,
-                    nodes = mapOf(NodeId("c1") to NodeLayout(bounds = Rect(Point(0f, 0f), size))),
+                    nodes = mapOf(NodeId("c1") to NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = size))),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             svg shouldNotContain "<img src=x onerror=alert(1)>"
             svg shouldContain "&quot;&gt;&lt;img"
@@ -171,24 +172,25 @@ class UmlCommentSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("a1") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(120f, 80f))),
-                            NodeId("c1") to NodeLayout(bounds = Rect(Point(200f, 40f), commentSize)),
+                            NodeId("a1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 120f, height = 80f))),
+                            NodeId("c1") to NodeLayout(bounds = Rect(origin = Point(x = 200f, y = 40f), size = commentSize)),
                         ),
                     edges =
                         mapOf(
                             EdgeId("link1") to
                                 EdgeRoute.Direct(
-                                    source = Point(140f, 80f),
-                                    target = Point(200f, 60f),
+                                    source = Point(x = 140f, y = 80f),
+                                    target = Point(x = 200f, y = 60f),
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             svg shouldContain "class=\"kuml-comment\""
             svg shouldContain "class=\"kuml-edge-dashed\""
@@ -209,24 +211,25 @@ class UmlCommentSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(400f, 200f),
+                    canvas = Size(width = 400f, height = 200f),
                     nodes =
                         mapOf(
-                            NodeId("l1") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(120f, 80f))),
-                            NodeId("c1") to NodeLayout(bounds = Rect(Point(200f, 40f), commentSize)),
+                            NodeId("l1") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 120f, height = 80f))),
+                            NodeId("c1") to NodeLayout(bounds = Rect(origin = Point(x = 200f, y = 40f), size = commentSize)),
                         ),
                     edges =
                         mapOf(
                             EdgeId("link1") to
                                 EdgeRoute.Direct(
-                                    source = Point(140f, 80f),
-                                    target = Point(200f, 60f),
+                                    source = Point(x = 140f, y = 80f),
+                                    target = Point(x = 200f, y = 60f),
                                 ),
                         ),
                     groups = emptyMap(),
                 )
 
-            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+            val svg = KumlSvgRenderer.toSvg(diagram = diagram, layoutResult = layoutResult, theme = PlainTheme())
 
             svg shouldContain "class=\"kuml-comment\""
             svg shouldContain "class=\"kuml-edge-dashed\""

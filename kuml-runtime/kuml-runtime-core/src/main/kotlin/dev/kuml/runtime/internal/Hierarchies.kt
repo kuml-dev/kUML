@@ -21,7 +21,7 @@ internal fun buildParentOf(sm: UmlStateMachine): Map<String, String> {
     val parents = mutableMapOf<String, String>()
     for (v in sm.vertices) {
         parents[v.id] = SYNTHETIC_ROOT_ID
-        if (v is UmlState) descend(v, parents)
+        if (v is UmlState) descend(state = v, parents = parents)
     }
     return parents
 }
@@ -32,7 +32,7 @@ private fun descend(
 ) {
     for (sub in state.substates) {
         parents[sub.id] = state.id
-        if (sub is UmlState) descend(sub, parents)
+        if (sub is UmlState) descend(state = sub, parents = parents)
     }
 }
 

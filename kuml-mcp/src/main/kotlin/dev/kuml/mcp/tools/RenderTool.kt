@@ -59,15 +59,16 @@ internal object RenderTool : McpTool {
         // V0.23.3 — evaluation runs through the sandboxed evaluator (guard is
         // enforced inside it as layer 1). Render is UML-only, matching the
         // historical `extract()` contract.
-        val extracted = McpScriptEvaluator.extract(script, "render.kuml.kts")
+        val extracted = McpScriptEvaluator.extract(script = script, fileName = "render.kuml.kts")
         val diagram =
             (extracted as? ExtractedDiagram.Uml)?.diagram
                 ?: throw ScriptEvaluationException(
-                    "kuml.render currently supports UML diagrams. " +
-                        "End the script with a `classDiagram { … }` / `diagram { … }` expression.",
+                    message =
+                        "kuml.render currently supports UML diagrams. " +
+                            "End the script with a `classDiagram { … }` / `diagram { … }` expression.",
                 )
 
-        return when (val result = McpRenderPipeline.render(diagram, format, width)) {
+        return when (val result = McpRenderPipeline.render(diagram = diagram, format = format, widthPx = width)) {
             is McpRenderPipeline.RenderResult.Svg ->
                 listOf(
                     McpContent(type = "text", text = result.content),

@@ -37,15 +37,15 @@ data class KermlMultiplicity(
 
     companion object {
         /** `1..1` — the KerML/SysML 2 default. */
-        val EXACTLY_ONE: KermlMultiplicity = KermlMultiplicity(1, 1)
+        val EXACTLY_ONE: KermlMultiplicity = KermlMultiplicity(lower = 1, upper = 1)
 
         /** `0..1` — typical for optional ports / attributes. */
-        val OPTIONAL: KermlMultiplicity = KermlMultiplicity(0, 1)
+        val OPTIONAL: KermlMultiplicity = KermlMultiplicity(lower = 0, upper = 1)
 
         /** `0..*` — unbounded, including zero. */
-        val ZERO_OR_MORE: KermlMultiplicity = KermlMultiplicity(0, null)
+        val ZERO_OR_MORE: KermlMultiplicity = KermlMultiplicity(lower = 0, upper = null)
 
         /** `1..*` — unbounded, at least one. */
-        val ONE_OR_MORE: KermlMultiplicity = KermlMultiplicity(1, null)
+        val ONE_OR_MORE: KermlMultiplicity = KermlMultiplicity(lower = 1, upper = null)
     }
 }

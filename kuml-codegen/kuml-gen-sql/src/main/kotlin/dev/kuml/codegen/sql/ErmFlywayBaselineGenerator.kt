@@ -33,10 +33,10 @@ public class ErmFlywayBaselineGenerator(
         outputDir.mkdirs()
         val version = options["flyway-version"] ?: "1"
         val description = options["flyway-description"] ?: "init"
-        val migrationFile = FlywayFileNaming.resolveMigrationFile(outputDir, version, description)
+        val migrationFile = FlywayFileNaming.resolveMigrationFile(outputDir = outputDir, version = version, description = description)
 
         val scratchDir = File(outputDir, ".flyway-baseline-scratch")
-        val delegateFiles = delegate.generate(model, scratchDir, options)
+        val delegateFiles = delegate.generate(model = model, outputDir = scratchDir, options = options)
         check(delegateFiles.size == 1) {
             "ErmFlywayBaselineGenerator expects ErmSqlDdlGenerator to produce exactly one file, got ${delegateFiles.size}"
         }

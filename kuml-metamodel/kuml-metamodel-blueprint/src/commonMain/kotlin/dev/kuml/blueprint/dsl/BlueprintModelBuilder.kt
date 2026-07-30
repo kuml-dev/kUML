@@ -44,8 +44,8 @@ class BlueprintModelBuilder(
         role: ActorRole = ActorRole.CUSTOMER,
         description: String? = null,
     ): String {
-        val id = autoId("actor", actors.size)
-        actors += Actor(id, name, role, description)
+        val id = autoId(prefix = "actor", n = actors.size)
+        actors += Actor(id = id, name = name, role = role, description = description)
         return id
     }
 
@@ -53,8 +53,8 @@ class BlueprintModelBuilder(
         name: String,
         kind: ChannelKind = ChannelKind.OTHER,
     ): String {
-        val id = autoId("channel", channels.size)
-        channels += Channel(id, name, kind)
+        val id = autoId(prefix = "channel", n = channels.size)
+        channels += Channel(id = id, name = name, kind = kind)
         return id
     }
 
@@ -63,8 +63,8 @@ class BlueprintModelBuilder(
         channel: String? = null,
         symbol: TouchpointSymbol = TouchpointSymbol.CIRCLE,
     ): String {
-        val id = autoId("tp", touchpoints.size)
-        touchpoints += Touchpoint(id, name, channelRef = channel, symbol = symbol)
+        val id = autoId(prefix = "tp", n = touchpoints.size)
+        touchpoints += Touchpoint(id = id, name = name, channelRef = channel, symbol = symbol)
         return id
     }
 
@@ -73,10 +73,10 @@ class BlueprintModelBuilder(
         name: String,
         block: PhaseBuilder.() -> Unit,
     ): String {
-        val id = autoId("phase", phaseCounter)
-        phases += Phase(id, name, order = phaseCounter)
+        val id = autoId(prefix = "phase", n = phaseCounter)
+        phases += Phase(id = id, name = name, order = phaseCounter)
         phaseCounter++
-        PhaseBuilder(id, this).apply(block)
+        PhaseBuilder(phaseId = id, model = this).apply(block)
         return id
     }
 
@@ -85,12 +85,13 @@ class BlueprintModelBuilder(
         to: String,
         style: ConnectionStyle = ConnectionStyle.SOLID,
     ) {
-        connections += StepConnection(autoId("conn", connections.size), null, from, to, style)
+        connections +=
+            StepConnection(id = autoId(prefix = "conn", n = connections.size), name = null, sourceRef = from, targetRef = to, style = style)
     }
 
     /** Infix flow operator: `stepA flowsTo stepB`. Returns the target id for chaining. */
     infix fun String.flowsTo(target: String): String {
-        connection(this, target)
+        connection(from = this, to = target)
         return target
     }
 
@@ -99,7 +100,7 @@ class BlueprintModelBuilder(
         layers: Set<BlueprintLayer> = setOf(BlueprintLayer.CUSTOMER_ACTIONS),
         emotionCurve: Boolean = true,
     ) {
-        diagrams += JourneyDiagram(name, layers, emotionCurve)
+        diagrams += JourneyDiagram(name = name, visibleLayers = layers, showEmotionCurve = emotionCurve)
     }
 
     /**
@@ -113,7 +114,7 @@ class BlueprintModelBuilder(
         lines: Set<BlueprintLine> = BlueprintLine.entries.toSet(),
         emotionCurve: Boolean = false,
     ) {
-        diagrams += BlueprintDiagramFull(name, layers, lines, emotionCurve)
+        diagrams += BlueprintDiagramFull(name = name, visibleLayers = layers, showLines = lines, showEmotionCurve = emotionCurve)
     }
 
     // ── internal API used by PhaseBuilder / StepBuilder ──
@@ -121,7 +122,7 @@ class BlueprintModelBuilder(
         steps += step
     }
 
-    internal fun nextStepId(): String = autoId("step", steps.size)
+    internal fun nextStepId(): String = autoId(prefix = "step", n = steps.size)
 
     private fun autoId(
         prefix: String,

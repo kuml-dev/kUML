@@ -62,18 +62,33 @@ class SubstrateSystemEventsParserTest :
         // -------------------------------------------------------------------------
 
         test("parseContractEmitted: empty string '0x' → emptyList") {
-            SubstrateSystemEventsParser.parseContractEmitted("0x", 1L, ALICE_SS58).shouldBeEmpty()
+            SubstrateSystemEventsParser
+                .parseContractEmitted(
+                    eventsHex = "0x",
+                    blockNumber = 1L,
+                    contractAddress = ALICE_SS58,
+                ).shouldBeEmpty()
         }
 
         test("parseContractEmitted: blob < 4 bytes → emptyList") {
-            SubstrateSystemEventsParser.parseContractEmitted("0x010203", 1L, ALICE_SS58).shouldBeEmpty()
+            SubstrateSystemEventsParser
+                .parseContractEmitted(
+                    eventsHex = "0x010203",
+                    blockNumber = 1L,
+                    contractAddress = ALICE_SS58,
+                ).shouldBeEmpty()
         }
 
         test("parseContractEmitted: blob without pallet+event pattern → emptyList") {
             // Kein 0x46 0x00 Muster in diesem Blob
             val blob = ByteArray(50) { 0x01 }
             val hex = "0x" + blob.joinToString("") { "%02x".format(it) }
-            SubstrateSystemEventsParser.parseContractEmitted(hex, 5L, ALICE_SS58).shouldBeEmpty()
+            SubstrateSystemEventsParser
+                .parseContractEmitted(
+                    eventsHex = hex,
+                    blockNumber = 5L,
+                    contractAddress = ALICE_SS58,
+                ).shouldBeEmpty()
         }
 
         // -------------------------------------------------------------------------
@@ -83,10 +98,10 @@ class SubstrateSystemEventsParserTest :
         test("parseContractEmitted: well-formed blob with Alice accountId → 1 event") {
             val topic = ByteArray(32) { 0xAA.toByte() }
             val data = byteArrayOf(0x01, 0x02, 0x03)
-            val blob = buildContractEmittedBlob(ALICE_ACCOUNT_ID, listOf(topic), data)
+            val blob = buildContractEmittedBlob(contractId = ALICE_ACCOUNT_ID, topics = listOf(topic), data = data)
             val hex = "0x" + blob.joinToString("") { "%02x".format(it) }
 
-            val results = SubstrateSystemEventsParser.parseContractEmitted(hex, 42L, ALICE_SS58)
+            val results = SubstrateSystemEventsParser.parseContractEmitted(eventsHex = hex, blockNumber = 42L, contractAddress = ALICE_SS58)
             results shouldHaveSize 1
             results[0].blockNumber shouldBe 42L
             results[0].topicsHex[0] shouldBe "0x" + "aa".repeat(32)
@@ -96,10 +111,10 @@ class SubstrateSystemEventsParserTest :
         test("parseContractEmitted: different contractId is filtered out when address given") {
             // Blob mit anderem contractId → wird durch Adressfilter herausgefiltert
             val otherContractId = ByteArray(32) { 0x42.toByte() }
-            val blob = buildContractEmittedBlob(otherContractId, emptyList(), byteArrayOf())
+            val blob = buildContractEmittedBlob(contractId = otherContractId, topics = emptyList(), data = byteArrayOf())
             val hex = "0x" + blob.joinToString("") { "%02x".format(it) }
             // Alice's SS58 address matcht nicht otherContractId → kein Event
-            val results = SubstrateSystemEventsParser.parseContractEmitted(hex, 1L, ALICE_SS58)
+            val results = SubstrateSystemEventsParser.parseContractEmitted(eventsHex = hex, blockNumber = 1L, contractAddress = ALICE_SS58)
             results.shouldBeEmpty()
         }
 
@@ -109,9 +124,9 @@ class SubstrateSystemEventsParserTest :
 
         test("parseContractEmitted: extrinsicHash is NOT the contract accountId hex (Critical fix)") {
             val aliceIdHex = ALICE_ACCOUNT_ID.joinToString("") { "%02x".format(it) }
-            val blob = buildContractEmittedBlob(ALICE_ACCOUNT_ID, emptyList(), byteArrayOf())
+            val blob = buildContractEmittedBlob(contractId = ALICE_ACCOUNT_ID, topics = emptyList(), data = byteArrayOf())
             val hex = "0x" + blob.joinToString("") { "%02x".format(it) }
-            val results = SubstrateSystemEventsParser.parseContractEmitted(hex, 1L, ALICE_SS58)
+            val results = SubstrateSystemEventsParser.parseContractEmitted(eventsHex = hex, blockNumber = 1L, contractAddress = ALICE_SS58)
             results shouldHaveSize 1
             // Vor dem Fix war extrinsicHash = "0x" + aliceIdHex (Contract-Adresse!).
             // Nach dem Fix: extrinsicHash ist leer (echter Hash nicht aus Pattern-Scan rekonstruierbar).
@@ -120,9 +135,9 @@ class SubstrateSystemEventsParserTest :
         }
 
         test("RawContractEvent.extrinsicHash is empty string after fix") {
-            val blob = buildContractEmittedBlob(ALICE_ACCOUNT_ID, emptyList(), byteArrayOf())
+            val blob = buildContractEmittedBlob(contractId = ALICE_ACCOUNT_ID, topics = emptyList(), data = byteArrayOf())
             val hex = "0x" + blob.joinToString("") { "%02x".format(it) }
-            val results = SubstrateSystemEventsParser.parseContractEmitted(hex, 1L, ALICE_SS58)
+            val results = SubstrateSystemEventsParser.parseContractEmitted(eventsHex = hex, blockNumber = 1L, contractAddress = ALICE_SS58)
             results shouldHaveSize 1
             results[0].extrinsicHash shouldBe ""
         }
@@ -141,7 +156,7 @@ class SubstrateSystemEventsParserTest :
             val blob = header + palletEvent + ALICE_ACCOUNT_ID + topicsLen + fakeTopics + dataCompact
             val hex = "0x" + blob.joinToString("") { "%02x".format(it) }
             // Soll kein Crash verursachen; Event wird uebersprungen weil topicsLen > MAX_TOPICS
-            val results = SubstrateSystemEventsParser.parseContractEmitted(hex, 1L, ALICE_SS58)
+            val results = SubstrateSystemEventsParser.parseContractEmitted(eventsHex = hex, blockNumber = 1L, contractAddress = ALICE_SS58)
             results.shouldBeEmpty()
         }
 
@@ -150,9 +165,14 @@ class SubstrateSystemEventsParserTest :
         // -------------------------------------------------------------------------
 
         test("parseContractEmitted: blockNumber is correctly set on extracted event") {
-            val blob = buildContractEmittedBlob(ALICE_ACCOUNT_ID, emptyList(), byteArrayOf(0xFF.toByte()))
+            val blob = buildContractEmittedBlob(contractId = ALICE_ACCOUNT_ID, topics = emptyList(), data = byteArrayOf(0xFF.toByte()))
             val hex = "0x" + blob.joinToString("") { "%02x".format(it) }
-            val results = SubstrateSystemEventsParser.parseContractEmitted(hex, 999L, ALICE_SS58)
+            val results =
+                SubstrateSystemEventsParser.parseContractEmitted(
+                    eventsHex = hex,
+                    blockNumber = 999L,
+                    contractAddress = ALICE_SS58,
+                )
             results shouldHaveSize 1
             results[0].blockNumber shouldBe 999L
         }
@@ -163,9 +183,9 @@ class SubstrateSystemEventsParserTest :
 
         test("parseContractEmitted: topicsHex entries are '0x' + 64 hex chars (66 chars total)") {
             val topic = ByteArray(32) { 0xFF.toByte() }
-            val blob = buildContractEmittedBlob(ALICE_ACCOUNT_ID, listOf(topic), byteArrayOf())
+            val blob = buildContractEmittedBlob(contractId = ALICE_ACCOUNT_ID, topics = listOf(topic), data = byteArrayOf())
             val hex = "0x" + blob.joinToString("") { "%02x".format(it) }
-            val results = SubstrateSystemEventsParser.parseContractEmitted(hex, 1L, ALICE_SS58)
+            val results = SubstrateSystemEventsParser.parseContractEmitted(eventsHex = hex, blockNumber = 1L, contractAddress = ALICE_SS58)
             results shouldHaveSize 1
             results[0].topicsHex shouldHaveSize 1
             results[0].topicsHex[0].length shouldBe 66
@@ -178,9 +198,9 @@ class SubstrateSystemEventsParserTest :
 
         test("parseContractEmitted: dataScale matches original data bytes") {
             val data = byteArrayOf(0xDE.toByte(), 0xAD.toByte(), 0xBE.toByte(), 0xEF.toByte())
-            val blob = buildContractEmittedBlob(ALICE_ACCOUNT_ID, emptyList(), data)
+            val blob = buildContractEmittedBlob(contractId = ALICE_ACCOUNT_ID, topics = emptyList(), data = data)
             val hex = "0x" + blob.joinToString("") { "%02x".format(it) }
-            val results = SubstrateSystemEventsParser.parseContractEmitted(hex, 5L, ALICE_SS58)
+            val results = SubstrateSystemEventsParser.parseContractEmitted(eventsHex = hex, blockNumber = 5L, contractAddress = ALICE_SS58)
             results shouldHaveSize 1
             results[0].dataScale.toList() shouldBe data.toList()
         }

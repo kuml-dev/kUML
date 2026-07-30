@@ -47,16 +47,16 @@ class ComponentPortEdgeClipperTest :
                     name = "InvoiceService",
                     ports = listOf(UmlPort(id = "InvoiceService::orderEvents", name = "orderEvents")),
                 )
-            val srcBounds = Rect(Point(200f, 50f), Size(200f, 100f))
-            val tgtBounds = Rect(Point(220f, 280f), Size(240f, 110f))
+            val srcBounds = Rect(origin = Point(x = 200f, y = 50f), size = Size(width = 200f, height = 100f))
+            val tgtBounds = Rect(origin = Point(x = 220f, y = 280f), size = Size(width = 240f, height = 110f))
 
             // Original-Route der "Engine" — irgendwas Sinnloses, das vom
             // Clipper verworfen werden muss.
             val original: EdgeRoute =
                 EdgeRoute.OrthogonalRounded(
-                    source = Point(300f, 150f),
-                    target = Point(340f, 280f),
-                    waypoints = listOf(Point(300f, 200f), Point(340f, 200f)),
+                    source = Point(x = 300f, y = 150f),
+                    target = Point(x = 340f, y = 280f),
+                    waypoints = listOf(Point(x = 300f, y = 200f), Point(x = 340f, y = 200f)),
                     cornerRadiusPx = 0f,
                 )
 
@@ -133,12 +133,12 @@ class ComponentPortEdgeClipperTest :
                     name = "B",
                     ports = listOf(UmlPort(id = "B::consumer", name = "consumer")),
                 )
-            val aBounds = Rect(Point(0f, 50f), Size(100f, 80f))
-            val bBounds = Rect(Point(300f, 50f), Size(100f, 80f))
+            val aBounds = Rect(origin = Point(x = 0f, y = 50f), size = Size(width = 100f, height = 80f))
+            val bBounds = Rect(origin = Point(x = 300f, y = 50f), size = Size(width = 100f, height = 80f))
 
             val clipped =
                 ComponentPortEdgeClipper.clip(
-                    route = EdgeRoute.Direct(Point(0f, 0f), Point(0f, 0f)),
+                    route = EdgeRoute.Direct(source = Point(x = 0f, y = 0f), target = Point(x = 0f, y = 0f)),
                     end1Id = "A::api",
                     end2Id = "B::consumer",
                     componentLookup = { id ->
@@ -219,12 +219,12 @@ class ComponentPortEdgeClipperTest :
                     ports = listOf(UmlPort(id = "PDF Renderer Plugin::spi", name = "spi")),
                 )
 
-            val coreBounds = Rect(Point(155.79f, 56f), Size(306f, 80f))
-            val pdvThemeBounds = Rect(Point(404f, 236f), Size(214f, 80f))
-            val tsCodegenBounds = Rect(Point(56f, 236f), Size(287f, 80f))
-            val pdfRendererBounds = Rect(Point(679f, 236f), Size(237f, 80f))
+            val coreBounds = Rect(origin = Point(x = 155.79f, y = 56f), size = Size(width = 306f, height = 80f))
+            val pdvThemeBounds = Rect(origin = Point(x = 404f, y = 236f), size = Size(width = 214f, height = 80f))
+            val tsCodegenBounds = Rect(origin = Point(x = 56f, y = 236f), size = Size(width = 287f, height = 80f))
+            val pdfRendererBounds = Rect(origin = Point(x = 679f, y = 236f), size = Size(width = 237f, height = 80f))
 
-            val original: EdgeRoute = EdgeRoute.Direct(Point(0f, 0f), Point(0f, 0f))
+            val original: EdgeRoute = EdgeRoute.Direct(source = Point(x = 0f, y = 0f), target = Point(x = 0f, y = 0f))
 
             val componentLookup: (String) -> UmlComponent? = { id ->
                 when (id) {
@@ -259,7 +259,7 @@ class ComponentPortEdgeClipperTest :
             val pathTheme = listOf(roundedTheme.source) + roundedTheme.waypoints + roundedTheme.target
             for (box in allBounds) {
                 for (i in 0 until pathTheme.size - 1) {
-                    segmentIntersectsRectInterior(pathTheme[i], pathTheme[i + 1], box) shouldBe false
+                    segmentIntersectsRectInterior(a = pathTheme[i], b = pathTheme[i + 1], r = box) shouldBe false
                 }
             }
 
@@ -276,35 +276,35 @@ class ComponentPortEdgeClipperTest :
             val pathRenderer = listOf(roundedRenderer.source) + roundedRenderer.waypoints + roundedRenderer.target
             for (box in allBounds) {
                 for (i in 0 until pathRenderer.size - 1) {
-                    segmentIntersectsRectInterior(pathRenderer[i], pathRenderer[i + 1], box) shouldBe false
+                    segmentIntersectsRectInterior(a = pathRenderer[i], b = pathRenderer[i + 1], r = box) shouldBe false
                 }
             }
         }
 
         test("leaves route untouched for non-port endpoint ids") {
             val comp = UmlComponent(id = "C", name = "C")
-            val original = EdgeRoute.Direct(Point(1f, 2f), Point(3f, 4f))
+            val original = EdgeRoute.Direct(source = Point(x = 1f, y = 2f), target = Point(x = 3f, y = 4f))
             val clipped =
                 ComponentPortEdgeClipper.clip(
                     route = original,
                     end1Id = "C", // not qualified
                     end2Id = "D",
                     componentLookup = { _ -> comp },
-                    boundsLookup = { _ -> Rect(Point(0f, 0f), Size(10f, 10f)) },
+                    boundsLookup = { _ -> Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 10f, height = 10f)) },
                 )
             clipped shouldBe original
         }
 
         test("leaves route untouched if port name not declared on component") {
             val comp = UmlComponent(id = "C", name = "C") // no ports
-            val original = EdgeRoute.Direct(Point(1f, 2f), Point(3f, 4f))
+            val original = EdgeRoute.Direct(source = Point(x = 1f, y = 2f), target = Point(x = 3f, y = 4f))
             val clipped =
                 ComponentPortEdgeClipper.clip(
                     route = original,
                     end1Id = "C::nope",
                     end2Id = "C::also-nope",
                     componentLookup = { _ -> comp },
-                    boundsLookup = { _ -> Rect(Point(0f, 0f), Size(10f, 10f)) },
+                    boundsLookup = { _ -> Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 10f, height = 10f)) },
                 )
             clipped shouldBe original
         }

@@ -52,18 +52,19 @@ public object Mp4Encoder {
     ): ByteArray {
         if (!EncoderBinaryLocator.isFfmpegAvailable()) {
             throw AnimEncoderException(
-                "No MP4 encoder found on PATH. Install ffmpeg via 'brew install ffmpeg' on macOS " +
-                    "or 'apt-get install ffmpeg' on Debian/Ubuntu.",
+                message =
+                    "No MP4 encoder found on PATH. Install ffmpeg via 'brew install ffmpeg' on macOS " +
+                        "or 'apt-get install ffmpeg' on Debian/Ubuntu.",
             )
         }
 
         val tempDir = createTempDir()
         return try {
             val outputFile = File(tempDir, "output.mp4")
-            encodeWithFfmpeg(frames, delayMs, tempDir, outputFile)
+            encodeWithFfmpeg(frames = frames, delayMs = delayMs, tempDir = tempDir, outputFile = outputFile)
             if (!outputFile.exists() || outputFile.length() == 0L) {
                 throw AnimEncoderException(
-                    "MP4 encoder 'ffmpeg' ran successfully but produced an empty output file.",
+                    message = "MP4 encoder 'ffmpeg' ran successfully but produced an empty output file.",
                 )
             }
             outputFile.readBytes()
@@ -93,7 +94,7 @@ public object Mp4Encoder {
                 f
             }
 
-        val cmd = buildFfmpegCommand(frameFiles, delayMs, outputFile, tempDir)
+        val cmd = buildFfmpegCommand(frameFiles = frameFiles, delayMs = delayMs, outputFile = outputFile, tempDir = tempDir)
 
         val process =
             ProcessBuilder(cmd)
@@ -115,14 +116,14 @@ public object Mp4Encoder {
         if (!finished) {
             process.destroyForcibly()
             throw AnimEncoderException(
-                "MP4 encoder 'ffmpeg' timed out after ${TIMEOUT_SECONDS}s.",
+                message = "MP4 encoder 'ffmpeg' timed out after ${TIMEOUT_SECONDS}s.",
             )
         }
 
         if (process.exitValue() != 0) {
             val stderr = String(stderrBytes, Charsets.UTF_8).take(2048)
             throw AnimEncoderException(
-                "MP4 encoder 'ffmpeg' exited with code ${process.exitValue()}. Stderr: $stderr",
+                message = "MP4 encoder 'ffmpeg' exited with code ${process.exitValue()}. Stderr: $stderr",
             )
         }
     }
@@ -180,7 +181,7 @@ public object Mp4Encoder {
                 dir.setExecutable(true, true)
                 dir
             } catch (e: IOException) {
-                throw AnimEncoderException("Cannot create temp directory: ${e.message}", e)
+                throw AnimEncoderException(message = "Cannot create temp directory: ${e.message}", cause = e)
             }
         }
 }

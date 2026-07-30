@@ -15,7 +15,7 @@ public data class KumlVersionRange(
     /** Returns true if [version] satisfies this range. */
     public fun contains(version: PluginVersion): Boolean =
         try {
-            parseAndCheck(raw, version)
+            parseAndCheck(raw = raw, version = version)
         } catch (_: Exception) {
             false // lenient: unparseable range never matches
         }
@@ -39,7 +39,7 @@ public data class KumlVersionRange(
             }
             // Support ">=X.Y.Z, <A.B.C" style (comma-separated conditions)
             val conditions = raw.split(',').map { it.trim() }
-            return conditions.all { cond -> checkCondition(cond.trim(), version) }
+            return conditions.all { cond -> checkCondition(cond = cond.trim(), v = version) }
         }
 
         private fun checkCondition(

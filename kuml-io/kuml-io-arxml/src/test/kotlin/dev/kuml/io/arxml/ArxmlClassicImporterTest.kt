@@ -43,14 +43,15 @@ class ArxmlClassicImporterTest :
         test("imports COMPOSITION-SW-COMPONENT-TYPE as UmlComponent with SoftwareComponent stereotype kind=composition") {
             val xml =
                 arxmlDoc(
-                    singlePkg(
-                        "Components",
-                        """
+                    innerXml =
+                        singlePkg(
+                            pkgName = "Components",
+                            elementsXml = """
                     <COMPOSITION-SW-COMPONENT-TYPE>
                       <SHORT-NAME>BrakeCtrl</SHORT-NAME>
                     </COMPOSITION-SW-COMPONENT-TYPE>
                     """,
-                    ),
+                        ),
                 )
             val result = importer.importFromString(xml)
             val pkg = result.model.root.shouldBeInstanceOf<UmlPackage>()
@@ -65,14 +66,15 @@ class ArxmlClassicImporterTest :
         test("imports APPLICATION-SW-COMPONENT-TYPE with kind=application") {
             val xml =
                 arxmlDoc(
-                    singlePkg(
-                        "Components",
-                        """
+                    innerXml =
+                        singlePkg(
+                            pkgName = "Components",
+                            elementsXml = """
                     <APPLICATION-SW-COMPONENT-TYPE>
                       <SHORT-NAME>SpeedSensor</SHORT-NAME>
                     </APPLICATION-SW-COMPONENT-TYPE>
                     """,
-                    ),
+                        ),
                 )
             val result = importer.importFromString(xml)
             val pkg = result.model.root.shouldBeInstanceOf<UmlPackage>()
@@ -85,9 +87,10 @@ class ArxmlClassicImporterTest :
         test("P-PORT-PROTOTYPE maps to AutosarPort direction=provided") {
             val xml =
                 arxmlDoc(
-                    singlePkg(
-                        "Comps",
-                        """
+                    innerXml =
+                        singlePkg(
+                            pkgName = "Comps",
+                            elementsXml = """
                     <COMPOSITION-SW-COMPONENT-TYPE>
                       <SHORT-NAME>EngineCtrl</SHORT-NAME>
                       <PORTS>
@@ -97,7 +100,7 @@ class ArxmlClassicImporterTest :
                       </PORTS>
                     </COMPOSITION-SW-COMPONENT-TYPE>
                     """,
-                    ),
+                        ),
                 )
             val result = importer.importFromString(xml)
             val pkg = result.model.root.shouldBeInstanceOf<UmlPackage>()
@@ -113,9 +116,10 @@ class ArxmlClassicImporterTest :
         test("R-PORT-PROTOTYPE maps to direction=required") {
             val xml =
                 arxmlDoc(
-                    singlePkg(
-                        "Comps",
-                        """
+                    innerXml =
+                        singlePkg(
+                            pkgName = "Comps",
+                            elementsXml = """
                     <COMPOSITION-SW-COMPONENT-TYPE>
                       <SHORT-NAME>EngineCtrl</SHORT-NAME>
                       <PORTS>
@@ -125,7 +129,7 @@ class ArxmlClassicImporterTest :
                       </PORTS>
                     </COMPOSITION-SW-COMPONENT-TYPE>
                     """,
-                    ),
+                        ),
                 )
             val result = importer.importFromString(xml)
             val pkg = result.model.root.shouldBeInstanceOf<UmlPackage>()
@@ -141,9 +145,10 @@ class ArxmlClassicImporterTest :
         test("SENDER-RECEIVER-INTERFACE → ComInterface, CLIENT-SERVER-INTERFACE → ComInterface isService=true") {
             val xml =
                 arxmlDoc(
-                    singlePkg(
-                        "Interfaces",
-                        """
+                    innerXml =
+                        singlePkg(
+                            pkgName = "Interfaces",
+                            elementsXml = """
                     <SENDER-RECEIVER-INTERFACE>
                       <SHORT-NAME>IBrake</SHORT-NAME>
                     </SENDER-RECEIVER-INTERFACE>
@@ -151,7 +156,7 @@ class ArxmlClassicImporterTest :
                       <SHORT-NAME>IDiag</SHORT-NAME>
                     </CLIENT-SERVER-INTERFACE>
                     """,
-                    ),
+                        ),
                 )
             val result = importer.importFromString(xml)
             val pkg = result.model.root.shouldBeInstanceOf<UmlPackage>()
@@ -166,9 +171,10 @@ class ArxmlClassicImporterTest :
         test("RUNNABLE-ENTITY → UmlOperation with Runnable stereotype") {
             val xml =
                 arxmlDoc(
-                    singlePkg(
-                        "Comps",
-                        """
+                    innerXml =
+                        singlePkg(
+                            pkgName = "Comps",
+                            elementsXml = """
                     <APPLICATION-SW-COMPONENT-TYPE>
                       <SHORT-NAME>BrakeCtrl</SHORT-NAME>
                       <INTERNAL-BEHAVIORS>
@@ -183,7 +189,7 @@ class ArxmlClassicImporterTest :
                       </INTERNAL-BEHAVIORS>
                     </APPLICATION-SW-COMPONENT-TYPE>
                     """,
-                    ),
+                        ),
                 )
             val result = importer.importFromString(xml)
             val pkg = result.model.root.shouldBeInstanceOf<UmlPackage>()
@@ -201,9 +207,10 @@ class ArxmlClassicImporterTest :
         test("runnable trigger TIMING-EVENT resolves to metadata trigger=TIMING joined by START-ON-EVENT-REF path") {
             val xml =
                 arxmlDoc(
-                    singlePkg(
-                        "Comps",
-                        """
+                    innerXml =
+                        singlePkg(
+                            pkgName = "Comps",
+                            elementsXml = """
                     <APPLICATION-SW-COMPONENT-TYPE>
                       <SHORT-NAME>BrakeCtrl</SHORT-NAME>
                       <INTERNAL-BEHAVIORS>
@@ -224,7 +231,7 @@ class ArxmlClassicImporterTest :
                       </INTERNAL-BEHAVIORS>
                     </APPLICATION-SW-COMPONENT-TYPE>
                     """,
-                    ),
+                        ),
                 )
             val result = importer.importFromString(xml)
             val pkg = result.model.root.shouldBeInstanceOf<UmlPackage>()
@@ -241,9 +248,10 @@ class ArxmlClassicImporterTest :
         test("BEHAVIOR-SPEC imports as UmlStateMachine tracked in component metadata") {
             val xml =
                 arxmlDoc(
-                    singlePkg(
-                        "Comps",
-                        """
+                    innerXml =
+                        singlePkg(
+                            pkgName = "Comps",
+                            elementsXml = """
                     <APPLICATION-SW-COMPONENT-TYPE>
                       <SHORT-NAME>SafetyMgr</SHORT-NAME>
                       <INTERNAL-BEHAVIORS>
@@ -256,7 +264,7 @@ class ArxmlClassicImporterTest :
                       </INTERNAL-BEHAVIORS>
                     </APPLICATION-SW-COMPONENT-TYPE>
                     """,
-                    ),
+                        ),
                 )
             val result = importer.importFromString(xml)
             val pkg = result.model.root.shouldBeInstanceOf<UmlPackage>()
@@ -271,9 +279,10 @@ class ArxmlClassicImporterTest :
         test("unresolved interface TREF path lands in ImportResult.unresolved not an exception") {
             val xml =
                 arxmlDoc(
-                    singlePkg(
-                        "Comps",
-                        """
+                    innerXml =
+                        singlePkg(
+                            pkgName = "Comps",
+                            elementsXml = """
                     <COMPOSITION-SW-COMPONENT-TYPE>
                       <SHORT-NAME>BrakeCtrl</SHORT-NAME>
                       <PORTS>
@@ -284,7 +293,7 @@ class ArxmlClassicImporterTest :
                       </PORTS>
                     </COMPOSITION-SW-COMPONENT-TYPE>
                     """,
-                    ),
+                        ),
                 )
             val result = importer.importFromString(xml)
             result.unresolved shouldHaveSize 1
@@ -296,7 +305,7 @@ class ArxmlClassicImporterTest :
         test("resolved interface TREF lands in port metadata interfaceRef") {
             val xml =
                 arxmlDoc(
-                    """
+                    innerXml = """
                 <AR-PACKAGE>
                   <SHORT-NAME>Interfaces</SHORT-NAME>
                   <ELEMENTS>
@@ -333,7 +342,7 @@ class ArxmlClassicImporterTest :
         test("partial arxml missing PORTS and ELEMENTS imports without throwing, warnings populated") {
             val xml =
                 arxmlDoc(
-                    """
+                    innerXml = """
                 <AR-PACKAGE>
                   <SHORT-NAME>Empty</SHORT-NAME>
                 </AR-PACKAGE>
@@ -370,7 +379,7 @@ class ArxmlClassicImporterTest :
         test("empty ELEMENTS block imports without throwing") {
             val xml =
                 arxmlDoc(
-                    singlePkg("EmptyPkg", ""),
+                    innerXml = singlePkg(pkgName = "EmptyPkg", elementsXml = ""),
                 )
             val result = importer.importFromString(xml)
             val rootPkg = result.model.root.shouldBeInstanceOf<UmlPackage>()
@@ -380,10 +389,11 @@ class ArxmlClassicImporterTest :
         test("unknown element in ELEMENTS block adds warning and does not throw") {
             val xml =
                 arxmlDoc(
-                    singlePkg(
-                        "Pkg",
-                        "<FOO-BAR><SHORT-NAME>Unknown</SHORT-NAME></FOO-BAR>",
-                    ),
+                    innerXml =
+                        singlePkg(
+                            pkgName = "Pkg",
+                            elementsXml = "<FOO-BAR><SHORT-NAME>Unknown</SHORT-NAME></FOO-BAR>",
+                        ),
                 )
             val result = importer.importFromString(xml)
             result.warnings.shouldNotBeEmpty()

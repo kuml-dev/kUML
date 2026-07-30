@@ -14,10 +14,10 @@ class KumlAiExceptionTest :
             val missingKey = KumlAiException.MissingApiKey(LLMProvider.Anthropic)
             missingKey.message shouldContain "KUML-AI-E-002"
 
-            val vaultUnavailable = KumlAiException.VaultUnavailable("not available")
+            val vaultUnavailable = KumlAiException.VaultUnavailable(message = "not available")
             vaultUnavailable.message shouldContain "KUML-AI-E-003"
 
-            val corrupted = KumlAiException.SettingsCorrupted("bad json")
+            val corrupted = KumlAiException.SettingsCorrupted(message = "bad json")
             corrupted.message shouldContain "KUML-AI-E-004"
 
             val unknown = KumlAiException.UnknownProvider("my-provider")

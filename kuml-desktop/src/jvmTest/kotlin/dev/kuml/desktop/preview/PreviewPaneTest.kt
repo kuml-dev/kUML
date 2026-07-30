@@ -17,7 +17,7 @@ class PreviewPaneTest :
 
         test("zooming in by 2x moves a point twice as far from the pivot") {
             val identity = AffineTransform()
-            val zoomed = zoomedTransform(identity, factor = 2.0, centerX = 100.0, centerY = 100.0)
+            val zoomed = zoomedTransform(current = identity, factor = 2.0, centerX = 100.0, centerY = 100.0)
 
             // Pivot itself must not move.
             val pivotDst = Point2D.Double()
@@ -34,8 +34,8 @@ class PreviewPaneTest :
 
         test("zoom in followed by the inverse zoom out returns to the original transform") {
             val identity = AffineTransform()
-            val zoomedIn = zoomedTransform(identity, factor = 1.25, centerX = 50.0, centerY = 50.0)
-            val roundTripped = zoomedTransform(zoomedIn, factor = 1.0 / 1.25, centerX = 50.0, centerY = 50.0)
+            val zoomedIn = zoomedTransform(current = identity, factor = 1.25, centerX = 50.0, centerY = 50.0)
+            val roundTripped = zoomedTransform(current = zoomedIn, factor = 1.0 / 1.25, centerX = 50.0, centerY = 50.0)
 
             val probe = Point2D.Double(37.0, 91.0)
             val expected = Point2D.Double()
@@ -49,7 +49,7 @@ class PreviewPaneTest :
 
         test("factor of 1.0 is a no-op regardless of pivot") {
             val current = AffineTransform.getTranslateInstance(10.0, 20.0)
-            val result = zoomedTransform(current, factor = 1.0, centerX = 500.0, centerY = 500.0)
+            val result = zoomedTransform(current = current, factor = 1.0, centerX = 500.0, centerY = 500.0)
 
             val probe = Point2D.Double(3.0, 4.0)
             val expected = Point2D.Double()

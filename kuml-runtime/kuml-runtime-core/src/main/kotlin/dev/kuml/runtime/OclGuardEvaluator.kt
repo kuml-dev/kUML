@@ -61,7 +61,7 @@ public class OclGuardEvaluator : GuardEvaluator {
                 parsedCache.containsKey(cleaned) -> parsedCache[cleaned]
                 unparseable.contains(cleaned) -> null
                 else -> {
-                    val parsed = OclLikeExpressionParser.tryParse(cleaned)
+                    val parsed = OclLikeExpressionParser.tryParse(input = cleaned)
                     if (parsed != null) {
                         parsedCache[cleaned] = parsed
                     } else {
@@ -76,22 +76,22 @@ public class OclGuardEvaluator : GuardEvaluator {
             // Null or non-boolean results fall back to the legacy OCL path so that
             // navigation errors and unknown-path guards behave identically to V2.0.19.
             try {
-                val raw = ExpressionEvaluator.evaluate(cached, flattenContext(context))
+                val raw = ExpressionEvaluator.evaluate(expr = cached, context = flattenContext(context))
                 when (raw) {
                     true -> GuardResult.True
                     false -> GuardResult.False
                     else -> {
                         // null or non-boolean — fall back to legacy for correct error semantics.
-                        evaluateLegacy(cleaned, instance, event)
+                        evaluateLegacy(cleaned = cleaned, instance = instance, event = event)
                     }
                 }
             } catch (_: EvaluationException) {
                 // AST evaluation failed — fall back to legacy.
-                evaluateLegacy(cleaned, instance, event)
+                evaluateLegacy(cleaned = cleaned, instance = instance, event = event)
             }
         } else {
             // New parser could not handle this guard (in unparseable set); use legacy path.
-            evaluateLegacy(cleaned, instance, event)
+            evaluateLegacy(cleaned = cleaned, instance = instance, event = event)
         }
     }
 
@@ -112,7 +112,7 @@ public class OclGuardEvaluator : GuardEvaluator {
                     "event" to event.toEvalMap(),
                     "vars" to instance.variables,
                 )
-            val raw = OclExpressions.evaluate(cleaned, self = instance, env = env)
+            val raw = OclExpressions.evaluate(expression = cleaned, self = instance, env = env)
             when (raw) {
                 true -> GuardResult.True
                 false -> GuardResult.False

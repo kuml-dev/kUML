@@ -29,10 +29,10 @@ internal fun renderUmlInstance(
     val bo = theme.borders
 
     builder.tag(
-        "g",
-        mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        name = "g",
+        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-instance"))
+        tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-instance"))
 
         // Underlined header: `name : Classifier` (or `: Classifier` if anonymous).
         val header =
@@ -43,27 +43,29 @@ internal fun renderUmlInstance(
             }
 
         tag(
-            "text",
-            mapOf(
-                "class" to "kuml-title",
-                "x" to fmt(w / 2f),
-                "y" to "18",
-                "text-anchor" to "middle",
-                "text-decoration" to "underline",
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-title",
+                    "x" to fmt(w / 2f),
+                    "y" to "18",
+                    "text-anchor" to "middle",
+                    "text-decoration" to "underline",
+                ),
         ) { text(header) }
 
         if (element.slots.isNotEmpty()) {
             var cy = 24f
             tag(
-                "line",
-                mapOf(
-                    "x1" to "0",
-                    "y1" to fmt(cy),
-                    "x2" to fmt(w),
-                    "y2" to fmt(cy),
-                    "class" to "kuml-divider",
-                ),
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to "0",
+                        "y1" to fmt(cy),
+                        "x2" to fmt(w),
+                        "y2" to fmt(cy),
+                        "class" to "kuml-divider",
+                    ),
             )
             cy += 14f
             for (slot in element.slots) {
@@ -74,8 +76,8 @@ internal fun renderUmlInstance(
                         is UmlInstanceValue.Null -> "null"
                     }
                 tag(
-                    "text",
-                    mapOf("class" to "kuml-body", "x" to fmt(bo.thinPx + 4f), "y" to fmt(cy)),
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-body", "x" to fmt(bo.thinPx + 4f), "y" to fmt(cy)),
                 ) {
                     text("${slot.featureName} = $rhs")
                 }

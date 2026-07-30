@@ -55,11 +55,18 @@ public class UmlToDockerTransformer : KumlTransformer<KumlDiagram, List<Generate
                     buildDir = buildDir,
                 )
             val relativePath = "${component.name}/Dockerfile"
-            files += GeneratedFile(relativePath, content)
-            trace = trace.plus(TraceabilityLink(component.id, relativePath, RULE_COMPONENT_TO_DOCKERFILE))
+            files += GeneratedFile(relativePath = relativePath, content = content)
+            trace =
+                trace.plus(
+                    TraceabilityLink(
+                        sourceElementId = component.id,
+                        targetArtifactId = relativePath,
+                        ruleId = RULE_COMPONENT_TO_DOCKERFILE,
+                    ),
+                )
         }
 
-        return TransformResult.Success(files, trace)
+        return TransformResult.Success(output = files, trace = trace)
     }
 
     // ── Dockerfile generation ─────────────────────────────────────────────────

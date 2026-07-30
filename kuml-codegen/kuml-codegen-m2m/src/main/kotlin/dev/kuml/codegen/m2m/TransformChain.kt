@@ -21,14 +21,14 @@ public class TransformChain<A, B, C>(
         source: A,
         ctx: TransformContext,
     ): TransformResult<C> {
-        val r1 = first.transform(source, ctx)
+        val r1 = first.transform(source = source, ctx = ctx)
         if (r1 is TransformResult.Failure) return r1
         val s1 = (r1 as TransformResult.Success).output
-        return when (val r2 = second.transform(s1, ctx)) {
+        return when (val r2 = second.transform(source = s1, ctx = ctx)) {
             is TransformResult.Success ->
                 TransformResult.Success(
-                    r2.output,
-                    TransformTrace(r1.trace.links + r2.trace.links),
+                    output = r2.output,
+                    trace = TransformTrace(r1.trace.links + r2.trace.links),
                 )
             is TransformResult.Failure -> r2
         }

@@ -79,7 +79,7 @@ internal fun renderChoreographyTask(
     val textColor = theme.colors.foreground.toHex()
     val fontFamily = theme.typography.body.family
 
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(task.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(task.id))) {
         // 1. Äußere Box (weißer Hintergrund, einfacher Rahmen, abgerundete Ecken rx=8 gem. BPMN 2.0 §10.4.2)
         rawXml(
             """<rect x="${fmtF(x)}" y="${fmtF(y)}" width="${fmtF(w)}" height="${fmtF(h)}" """ +
@@ -103,16 +103,17 @@ internal fun renderChoreographyTask(
                 """rx="8" fill="$CHOREO_INITIATING_FILL" stroke="$borderColor" stroke-width="1"/>""",
         )
         tag(
-            "text",
-            mapOf(
-                "x" to fmtF(x + w / 2f),
-                "y" to fmtF(y + CHOREO_BAND_H / 2f + 1f),
-                "text-anchor" to "middle",
-                "dominant-baseline" to "middle",
-                "font-family" to fontFamily,
-                "font-size" to "10",
-                "fill" to CHOREO_INITIATING_TEXT,
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "x" to fmtF(x + w / 2f),
+                    "y" to fmtF(y + CHOREO_BAND_H / 2f + 1f),
+                    "text-anchor" to "middle",
+                    "dominant-baseline" to "middle",
+                    "font-family" to fontFamily,
+                    "font-size" to "10",
+                    "fill" to CHOREO_INITIATING_TEXT,
+                ),
         ) { text(task.initiatingParticipant) }
 
         // 4. Unteres Band: empfangender Teilnehmer (weiß / Node-Fill)
@@ -126,40 +127,50 @@ internal fun renderChoreographyTask(
                 """rx="8" fill="$nodeFill" stroke="$borderColor" stroke-width="1"/>""",
         )
         tag(
-            "text",
-            mapOf(
-                "x" to fmtF(x + w / 2f),
-                "y" to fmtF(y + h - CHOREO_BAND_H / 2f + 1f),
-                "text-anchor" to "middle",
-                "dominant-baseline" to "middle",
-                "font-family" to fontFamily,
-                "font-size" to "10",
-                "fill" to textColor,
-            ),
+            name = "text",
+            attrs =
+                mapOf(
+                    "x" to fmtF(x + w / 2f),
+                    "y" to fmtF(y + h - CHOREO_BAND_H / 2f + 1f),
+                    "text-anchor" to "middle",
+                    "dominant-baseline" to "middle",
+                    "font-family" to fontFamily,
+                    "font-size" to "10",
+                    "fill" to textColor,
+                ),
         ) { text(receivingParticipant) }
 
         // 5. Task-Name: zentriert im Mittelband
         val taskName = task.name
         if (!taskName.isNullOrBlank()) {
             tag(
-                "text",
-                mapOf(
-                    "x" to fmtF(x + w / 2f),
-                    "y" to fmtF(y + CHOREO_BAND_H + CHOREO_TASK_NAME_H / 2f + 1f),
-                    "text-anchor" to "middle",
-                    "dominant-baseline" to "middle",
-                    "font-family" to fontFamily,
-                    "font-size" to "12",
-                    "fill" to textColor,
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "x" to fmtF(x + w / 2f),
+                        "y" to fmtF(y + CHOREO_BAND_H + CHOREO_TASK_NAME_H / 2f + 1f),
+                        "text-anchor" to "middle",
+                        "dominant-baseline" to "middle",
+                        "font-family" to fontFamily,
+                        "font-size" to "12",
+                        "fill" to textColor,
+                    ),
             ) { text(taskName) }
         }
 
         // 6. Loop-Marker unten-mitte
-        renderChoreoLoopMarker(task.loopType, x, y, w, h, borderColor, this)
+        renderChoreoLoopMarker(loopType = task.loopType, x = x, y = y, w = w, h = h, markerColor = borderColor, builder = this)
 
         // 7. Message-Envelope-Icons an den Bändern (BPMN 2.0 §11.6.2)
-        renderChoreoMessageEnvelopes(task.messageFlows, x, y, w, h, borderColor, this)
+        renderChoreoMessageEnvelopes(
+            messageFlows = task.messageFlows,
+            x = x,
+            y = y,
+            w = w,
+            h = h,
+            borderColor = borderColor,
+            builder = this,
+        )
     }
 }
 
@@ -256,7 +267,7 @@ internal fun renderChoreographyGateway(
     val textColor = theme.colors.foreground.toHex()
     val fontFamily = theme.typography.body.family
 
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(gw.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(gw.id))) {
         // Raute
         rawXml(
             """<polygon id="${xmlEscapeAttr(gw.id)}-diamond" """ +
@@ -338,15 +349,16 @@ internal fun renderChoreographyGateway(
         val label = gw.name
         if (!label.isNullOrBlank()) {
             tag(
-                "text",
-                mapOf(
-                    "x" to fmtF(cx),
-                    "y" to fmtF(y + BPMN_CHOREO_GATEWAY_SHAPE_H + 12f),
-                    "text-anchor" to "middle",
-                    "font-family" to fontFamily,
-                    "font-size" to "11",
-                    "fill" to textColor,
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "x" to fmtF(cx),
+                        "y" to fmtF(y + BPMN_CHOREO_GATEWAY_SHAPE_H + 12f),
+                        "text-anchor" to "middle",
+                        "font-family" to fontFamily,
+                        "font-size" to "11",
+                        "fill" to textColor,
+                    ),
             ) { text(label) }
         }
     }
@@ -383,7 +395,7 @@ internal fun renderChoreographyEvent(
     val textColor = theme.colors.foreground.toHex()
     val fontFamily = theme.typography.body.family
 
-    builder.tag("g", mapOf("id" to xmlEscapeAttr(event.id))) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(event.id))) {
         when (event.position) {
             EventPosition.START -> {
                 rawXml(
@@ -415,15 +427,16 @@ internal fun renderChoreographyEvent(
         val label = event.name
         if (!label.isNullOrBlank()) {
             tag(
-                "text",
-                mapOf(
-                    "x" to fmtF(cx),
-                    "y" to fmtF(y + BPMN_CHOREO_EVENT_SHAPE_H + 12f),
-                    "text-anchor" to "middle",
-                    "font-family" to fontFamily,
-                    "font-size" to "11",
-                    "fill" to textColor,
-                ),
+                name = "text",
+                attrs =
+                    mapOf(
+                        "x" to fmtF(cx),
+                        "y" to fmtF(y + BPMN_CHOREO_EVENT_SHAPE_H + 12f),
+                        "text-anchor" to "middle",
+                        "font-family" to fontFamily,
+                        "font-size" to "11",
+                        "fill" to textColor,
+                    ),
             ) { text(label) }
         }
     }
@@ -510,7 +523,7 @@ internal fun renderChoreoSequenceFlow(
                     // Rechts neben dem vertikalen Segment, linksbündig, mit Abstand.
                     Triple(anchor.x + 10f, anchor.y + 4f, "start")
             }
-        builder.renderEdgeLabelWithHalo(label, labelX, labelY, textAnchor)
+        builder.renderEdgeLabelWithHalo(label = label, x = labelX, y = labelY, textAnchor = textAnchor)
     }
 }
 

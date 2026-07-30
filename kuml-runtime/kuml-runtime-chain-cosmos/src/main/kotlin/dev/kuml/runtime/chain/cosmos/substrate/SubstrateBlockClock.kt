@@ -47,13 +47,13 @@ public class SubstrateBlockClock(
             val clean = hex.removePrefix("0x").removePrefix("0X")
             if (clean.isEmpty()) return 0L
             if (clean.length % 2 != 0) {
-                throw SubstrateChainAdapterException.MalformedResponse("Timestamp hex has odd length: '$hex'")
+                throw SubstrateChainAdapterException.MalformedResponse(message = "Timestamp hex has odd length: '$hex'")
             }
             val bytes =
                 try {
                     ByteArray(clean.length / 2) { i -> clean.substring(i * 2, i * 2 + 2).toInt(16).toByte() }
                 } catch (e: NumberFormatException) {
-                    throw SubstrateChainAdapterException.MalformedResponse("Invalid timestamp hex: '$hex'", e)
+                    throw SubstrateChainAdapterException.MalformedResponse(message = "Invalid timestamp hex: '$hex'", cause = e)
                 }
             var result = 0L
             for (i in 0 until minOf(8, bytes.size)) {
