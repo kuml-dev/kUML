@@ -7,6 +7,7 @@ import dev.kuml.ai.tools.patch.validation.PatchValidationResult
 import dev.kuml.ai.tools.patch.validation.ValidationPhase
 import dev.kuml.runtime.sandbox.SandboxPolicy
 import dev.kuml.uml.UmlClass
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldNotBeEmpty
@@ -189,6 +190,21 @@ class PatchValidatorTest :
             }
         }
 
+        test("overlong guard expression is rejected as EXPRESSION_TOO_LONG before parsing") {
+            // Strict policy's maxStringLength is 1_024; also deeply nested so that, if the
+            // length pre-check were skipped, the parser's own nesting-depth cap would still
+            // reject it cleanly rather than overflowing the stack. The point here is that the
+            // length check fires first, as a TYPE_CHECK-phase error (not a warning).
+            val model = AnyKumlModel.emptyUml("Test")
+            val overlong = "(".repeat(20_000) + "1" + ")".repeat(20_000)
+            val patch = updateAttrPatch("t1", "guard", overlong)
+            val mutate = ModelMutationRouter.mutateFor(patch)
+            val result = validator.validate(model, patch, mutate)
+            val invalid = result.shouldBeInstanceOf<PatchValidationResult.Invalid>()
+            invalid.phase shouldBe ValidationPhase.TYPE_CHECK
+            invalid.errors.any { it.code == "EXPRESSION_TOO_LONG" } shouldBe true
+        }
+
         test("RENDER smoke disabled by default does not invoke renderer") {
             // Validator has renderSmokeEnabled = false (default) — just checks it returns Valid
             val model = AnyKumlModel.emptyUml("Test")
@@ -198,14 +214,75 @@ class PatchValidatorTest :
             result.shouldBeInstanceOf<PatchValidationResult.Valid>()
         }
 
-        test("RENDER smoke enabled on empty model returns Valid") {
-            val renderValidator = PatchValidator(sandboxPolicy = SandboxPolicy.Permissive, renderSmokeEnabled = true)
+        test("constructing with renderSmokeEnabled=true and no strategy fails fast") {
+            // No unsafe default: forgetting to inject a DoS-hardened RenderSmokeStrategy
+            // must be a loud construction-time failure, not a silent fallback to the
+            // unbounded desktop RenderSmokeCheck against untrusted/multi-tenant input.
+            shouldThrow<IllegalArgumentException> {
+                PatchValidator(sandboxPolicy = SandboxPolicy.Permissive, renderSmokeEnabled = true)
+            }
+        }
+
+        test("PatchValidator.desktop() enables RENDER smoke with the default strategy") {
+            val renderValidator = PatchValidator.desktop(sandboxPolicy = SandboxPolicy.Permissive)
             val model = AnyKumlModel.emptyUml("Test")
             val patch = addElementPatch("cls1")
             val mutate = ModelMutationRouter.mutateFor(patch)
             val result = renderValidator.validate(model, patch, mutate)
             // Empty model renders fine
             result.shouldBeInstanceOf<PatchValidationResult.Valid>()
+        }
+
+        test("RENDER phase uses the injected renderSmokeStrategy instead of the hardcoded default") {
+            var invocationCount = 0
+            val customStrategy =
+                dev.kuml.ai.tools.patch.validation.RenderSmokeStrategy { _ ->
+                    invocationCount++
+                    PatchValidationResult.Valid(warnings = listOf("custom-strategy-ran"))
+                }
+            val pluggableValidator =
+                PatchValidator(
+                    sandboxPolicy = SandboxPolicy.Permissive,
+                    renderSmokeEnabled = true,
+                    renderSmokeStrategy = customStrategy,
+                )
+            val model = AnyKumlModel.emptyUml("Test")
+            val patch = addElementPatch("cls1")
+            val mutate = ModelMutationRouter.mutateFor(patch)
+            val result = pluggableValidator.validate(model, patch, mutate)
+
+            invocationCount shouldBe 1
+            result.shouldBeInstanceOf<PatchValidationResult.Valid>().warnings shouldBe listOf("custom-strategy-ran")
+        }
+
+        test("RENDER phase surfaces a rejection from the injected renderSmokeStrategy") {
+            val rejectingStrategy =
+                dev.kuml.ai.tools.patch.validation.RenderSmokeStrategy { _ ->
+                    PatchValidationResult.Invalid(
+                        errors =
+                            listOf(
+                                dev.kuml.ai.tools.patch.validation.ValidationError(
+                                    code = "RENDER_BUDGET_EXCEEDED",
+                                    message = "Simulated Portal-side resource-bound rejection",
+                                ),
+                            ),
+                        phase = ValidationPhase.RENDER,
+                    )
+                }
+            val pluggableValidator =
+                PatchValidator(
+                    sandboxPolicy = SandboxPolicy.Permissive,
+                    renderSmokeEnabled = true,
+                    renderSmokeStrategy = rejectingStrategy,
+                )
+            val model = AnyKumlModel.emptyUml("Test")
+            val patch = addElementPatch("cls1")
+            val mutate = ModelMutationRouter.mutateFor(patch)
+            val result = pluggableValidator.validate(model, patch, mutate)
+
+            val invalid = result.shouldBeInstanceOf<PatchValidationResult.Invalid>()
+            invalid.phase shouldBe ValidationPhase.RENDER
+            invalid.errors.any { it.code == "RENDER_BUDGET_EXCEEDED" } shouldBe true
         }
 
         test("C4 model AddElement returns Valid") {

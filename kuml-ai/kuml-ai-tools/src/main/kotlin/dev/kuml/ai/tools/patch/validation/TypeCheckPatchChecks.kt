@@ -30,6 +30,23 @@ internal object TypeCheckPatchChecks {
         val expr = patch.newValue
         if (expr.isBlank()) return emptyList()
 
+        // Reject oversized expression strings *before* handing them to the parser.
+        // This bounds parser work on untrusted, multi-tenant patch input up front —
+        // in addition to (not instead of) OclLikeExpressionParser's own internal
+        // nesting-depth cap (see OclLikeExpressionParser.MAX_NESTING_DEPTH) — and
+        // mirrors the length bound SandboxValidator applies for the same reason.
+        if (expr.length > policy.maxStringLength) {
+            return listOf(
+                ValidationError(
+                    code = "EXPRESSION_TOO_LONG",
+                    message =
+                        "Expression length ${expr.length} exceeds policy limit " +
+                            "${policy.maxStringLength} — rejected before parsing.",
+                    locationHint = patch.field,
+                ),
+            )
+        }
+
         val parseErrors = mutableListOf<dev.kuml.expr.ParseError>()
 
         return when (patch.field) {

@@ -8,6 +8,16 @@ import java.nio.file.Path
  *
  * The base directory honors the `kuml.home.dir` system property first (test seam),
  * then falls back to `~/.kuml`. All resolved directories are created on demand.
+ *
+ * > [!WARNING]
+ * > `kuml.home.dir`/`user.home` are **JVM-wide** system properties, not
+ * > per-request or per-tenant configuration. This is fine for the current
+ * > single-user desktop/CLI callers, but a future wave that wires
+ * > [dev.kuml.ai.tools.patch.store.PersistentPatchStore] (or anything else
+ * > resolved through this object) directly into a concurrent multi-tenant
+ * > server must NOT reuse this resolution as-is — all tenants would share the
+ * > same on-disk location. Replace it with a per-tenant-scoped path before
+ * > that wiring happens; do not just widen this object's semantics silently.
  */
 public object KumlHome {
     /** Returns the ~/.kuml base directory (or the test override). */

@@ -76,6 +76,16 @@ public const val CONFLICT_WINDOW_MS: Long = 5_000L
  * All SQL parameters are bound via [java.sql.PreparedStatement] — no string
  * concatenation is ever used to construct queries.
  *
+ * ## Multi-tenant caution (not yet wired into any production caller)
+ * [open]'s default `dir` resolves via [KumlHome.patchesDir], which in turn reads
+ * JVM-global (`kuml.home.dir`/`user.home`) system properties — not per-tenant
+ * configuration. No production caller currently constructs this store (only
+ * test code does), so there is no live issue today. But a future wave that
+ * wires this store directly into a concurrent multi-tenant server MUST replace
+ * the default `dir` with a per-tenant-scoped path first, or every tenant's
+ * patch-conflict state ends up in the same SQLite file/directory. See
+ * [KumlHome]'s KDoc for the same caution from the other side.
+ *
  * @param conn       Open JDBC connection to the SQLite database.
  * @param sessionId  Session ULID. Used in [findBySession] filtering.
  * @param clock      Clock for `applied_epoch_ms`. Inject a fixed clock in tests.

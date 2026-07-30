@@ -4,9 +4,15 @@ package dev.kuml.ai.tools.patch.validation
 // Runs the full LayoutBridge → ElkLayoutEngine → KumlSvgRenderer pipeline on
 // the patched model. Default off because medium models render in 50–200 ms —
 // too costly per tool-call.
-// Activated via PatchValidator(renderSmokeEnabled = true) for CLI smokes and tests.
-// V3.0.24 UI will trigger this via PatchValidator(renderSmokeEnabled = true) when
+// Activated via PatchValidator.desktop(...) for CLI smokes and tests.
+// V3.0.24 UI will trigger this via PatchValidator.desktop(...) when
 // the user explicitly clicks "Preview".
+//
+// This is the DEFAULT [RenderSmokeStrategy] implementation used by
+// PatchValidator when no other strategy is injected. It is desktop-appropriate
+// only: no input-size cap, no timeout, no resource bound of any kind. A
+// server-side caller MUST supply its own [RenderSmokeStrategy] rather than
+// relying on this default — see [RenderSmokeStrategy]'s KDoc for why and how.
 
 import dev.kuml.ai.tools.context.AnyKumlModel
 import dev.kuml.io.svg.KumlSvgRenderer

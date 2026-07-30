@@ -1,5 +1,6 @@
 package dev.kuml.expr
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -120,5 +121,56 @@ class KumlExpressionParserTest :
                     AttributeRef(listOf("event", "targetTemperature")),
                     LiteralInt(1),
                 )
+        }
+
+        // ── Nesting-depth safety net (untrusted multi-tenant input) ────────────────
+        // Regression coverage for the StackOverflowError DoS: an unbounded amount of
+        // nested '(' (or chained '!'/'-') must fail cleanly with a ParseException /
+        // null result, never crash the JVM thread with an uncaught StackOverflowError.
+
+        test("20,000 nested parens → parse() throws ParseException, not StackOverflowError") {
+            val pathological = "(".repeat(20_000) + "1" + ")".repeat(20_000)
+            shouldThrow<ParseException> {
+                OclLikeExpressionParser.parse(pathological)
+            }
+        }
+
+        test("20,000 nested parens → tryParse() returns null, does not throw") {
+            val pathological = "(".repeat(20_000) + "1" + ")".repeat(20_000)
+            val errors = mutableListOf<ParseError>()
+            val result = OclLikeExpressionParser.tryParse(pathological, errors)
+            result shouldBe null
+            errors.isNotEmpty() shouldBe true
+        }
+
+        test("20,000 chained '!' → tryParse() returns null, does not throw") {
+            val pathological = "!".repeat(20_000) + "true"
+            val errors = mutableListOf<ParseError>()
+            val result = OclLikeExpressionParser.tryParse(pathological, errors)
+            result shouldBe null
+            errors.isNotEmpty() shouldBe true
+        }
+
+        test("20,000 chained unary '-' → tryParse() returns null, does not throw") {
+            val pathological = "-".repeat(20_000) + "1"
+            val errors = mutableListOf<ParseError>()
+            val result = OclLikeExpressionParser.tryParse(pathological, errors)
+            result shouldBe null
+            errors.isNotEmpty() shouldBe true
+        }
+
+        test("20,000-deep nested function calls → tryParseEffects() returns null, does not throw") {
+            val pathological = "f(".repeat(20_000) + "1" + ")".repeat(20_000)
+            val errors = mutableListOf<ParseError>()
+            val result = OclLikeExpressionParser.tryParseEffects(pathological, errors)
+            result shouldBe null
+            errors.isNotEmpty() shouldBe true
+        }
+
+        test("nesting just under MAX_NESTING_DEPTH still parses successfully") {
+            val depth = OclLikeExpressionParser.MAX_NESTING_DEPTH - 1
+            val wellFormed = "(".repeat(depth) + "1" + ")".repeat(depth)
+            // Must not throw — depth is within the hard safety cap.
+            OclLikeExpressionParser.parse(wellFormed) shouldBe LiteralInt(1)
         }
     })

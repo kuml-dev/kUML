@@ -32,6 +32,18 @@ public enum class ViolationKind {
 
     /** A single action body contains more effects than the policy allows. */
     TOO_MANY_EFFECTS,
+
+    /**
+     * A guard or action body's raw string length exceeds [SandboxPolicy.maxStringLength]
+     * and was rejected *before* being handed to [OclLikeExpressionParser] at all.
+     *
+     * This check exists in addition to (not instead of) the parser's own internal
+     * nesting-depth cap ([OclLikeExpressionParser.MAX_NESTING_DEPTH]): it bounds the
+     * amount of parsing work performed on untrusted, multi-tenant input up front,
+     * consistent with the length bound already enforced on stored variable values at
+     * runtime (see [EffectExecutor]).
+     */
+    EXPRESSION_TOO_LONG,
 }
 
 /** Location of a violation in the model. */
@@ -116,6 +128,16 @@ public class SandboxValidator(
         location: ViolationLocation,
     ): List<SandboxViolation> {
         if (body.isBlank()) return emptyList()
+        if (body.length > policy.maxStringLength) {
+            return listOf(
+                SandboxViolation(
+                    kind = ViolationKind.EXPRESSION_TOO_LONG,
+                    location = location,
+                    rawText = body,
+                    message = "Action body length ${body.length} exceeds limit ${policy.maxStringLength} — rejected before parsing",
+                ),
+            )
+        }
         val errors = mutableListOf<dev.kuml.expr.ParseError>()
         val effects = OclLikeExpressionParser.tryParseEffects(body, errors)
         if (effects == null) {
@@ -182,6 +204,16 @@ public class SandboxValidator(
         location: ViolationLocation,
     ): List<SandboxViolation> {
         if (guard.isBlank()) return emptyList()
+        if (guard.length > policy.maxStringLength) {
+            return listOf(
+                SandboxViolation(
+                    kind = ViolationKind.EXPRESSION_TOO_LONG,
+                    location = location,
+                    rawText = guard,
+                    message = "Guard length ${guard.length} exceeds limit ${policy.maxStringLength} — rejected before parsing",
+                ),
+            )
+        }
         val cleaned =
             guard.trim().let {
                 if (it.startsWith("[") && it.endsWith("]")) it.substring(1, it.length - 1).trim() else it

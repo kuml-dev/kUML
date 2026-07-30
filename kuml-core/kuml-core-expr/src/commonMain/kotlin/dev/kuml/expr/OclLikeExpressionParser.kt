@@ -21,6 +21,32 @@ package dev.kuml.expr
  */
 public object OclLikeExpressionParser {
     /**
+     * Hard safety cap on recursive-descent nesting depth, enforced *during* parsing —
+     * independent of any caller-supplied [dev.kuml.runtime.sandbox.SandboxPolicy].
+     *
+     * This module has no dependency on `kuml-runtime-sandbox` (and must not gain one,
+     * to avoid a circular module dependency), so it cannot consult
+     * `SandboxPolicy.maxExpressionDepth` directly. That policy check only runs *after*
+     * a full parse succeeds anyway, which is too late: nested `(`, chained `!`, and
+     * chained unary `-` all recurse through the parser itself before any AST exists to
+     * measure. Without a bound here, a string with tens of thousands of nested
+     * parentheses drives the parser to a `StackOverflowError` on the JVM target — an
+     * `Error`, not an `Exception`, so it would not be caught by [tryParse]/
+     * [tryParseEffects]'s `catch (_: Exception)` and would propagate out of any caller
+     * (e.g. `SandboxValidator`, `TypeCheckPatchChecks`) uncaught. (On the JS/Wasm
+     * targets, unbounded recursion has no directly analogous catchable-`Exception`
+     * story either — bounding depth *before* the recursion happens is therefore the
+     * only cross-platform-safe fix, rather than trying to catch a platform-specific
+     * error type after the fact.)
+     *
+     * [MAX_NESTING_DEPTH] is set well above every known [dev.kuml.runtime.sandbox.SandboxPolicy]
+     * preset's `maxExpressionDepth` (32/64), so legitimate inputs are unaffected and still get
+     * a proper `EXPRESSION_TOO_DEEP` policy violation from the caller; inputs beyond this cap
+     * fail fast with a normal [ParseException] instead of recursing further.
+     */
+    public const val MAX_NESTING_DEPTH: Int = 200
+
+    /**
      * Parses [input] into a [KumlExpression].
      *
      * @throws ParseException if the input is syntactically invalid.
@@ -486,6 +512,30 @@ public object OclLikeExpressionParser {
     ) {
         private var pos = 0
 
+        // Tracks recursive-descent nesting depth across the three places this parser
+        // recurses on attacker-controlled input without bound otherwise: chained '!',
+        // chained unary '-', and '(' — either a grouping expression or function-call
+        // arguments. See MAX_NESTING_DEPTH's KDoc for why this lives here rather than
+        // being enforced by callers after the fact.
+        private var depth = 0
+
+        private inline fun <T> nested(
+            column: Int,
+            block: () -> T,
+        ): T {
+            depth++
+            if (depth > MAX_NESTING_DEPTH) {
+                throw ParseException(
+                    ParseError("Expression nesting exceeds maximum depth of $MAX_NESTING_DEPTH", column),
+                )
+            }
+            try {
+                return block()
+            } finally {
+                depth--
+            }
+        }
+
         internal fun isAtEnd(): Boolean = peek().kind == TokenKind.EOF
 
         internal fun peek(): Token = tokens[pos]
@@ -537,8 +587,8 @@ public object OclLikeExpressionParser {
 
         private fun parseNot(): KumlExpression {
             if (check(TokenKind.BANG)) {
-                advance()
-                return UnaryOp(UnaryOperator.NOT, parseNot())
+                val tok = advance()
+                return nested(tok.column) { UnaryOp(UnaryOperator.NOT, parseNot()) }
             }
             return parseCompare()
         }
@@ -583,8 +633,8 @@ public object OclLikeExpressionParser {
 
         private fun parseUnary(): KumlExpression {
             if (check(TokenKind.MINUS)) {
-                advance()
-                return UnaryOp(UnaryOperator.NEG, parseUnary())
+                val tok = advance()
+                return nested(tok.column) { UnaryOp(UnaryOperator.NEG, parseUnary()) }
             }
             return parsePrimary()
         }
@@ -623,17 +673,19 @@ public object OclLikeExpressionParser {
                     val parts = mutableListOf(tok.text)
                     // Check for function call: IDENT '('
                     if (check(TokenKind.LPAREN)) {
-                        advance() // consume '('
-                        val args = mutableListOf<KumlExpression>()
-                        if (!check(TokenKind.RPAREN)) {
-                            args += parseExpr()
-                            while (check(TokenKind.COMMA)) {
-                                advance()
+                        val lparen = advance() // consume '('
+                        nested(lparen.column) {
+                            val args = mutableListOf<KumlExpression>()
+                            if (!check(TokenKind.RPAREN)) {
                                 args += parseExpr()
+                                while (check(TokenKind.COMMA)) {
+                                    advance()
+                                    args += parseExpr()
+                                }
                             }
+                            consume(TokenKind.RPAREN, "Expected ')' after function arguments")
+                            FunctionCall(tok.text, args)
                         }
-                        consume(TokenKind.RPAREN, "Expected ')' after function arguments")
-                        FunctionCall(tok.text, args)
                     } else {
                         // attrRef: IDENT ('.' IDENT)*
                         while (check(TokenKind.DOT)) {
@@ -645,10 +697,12 @@ public object OclLikeExpressionParser {
                     }
                 }
                 TokenKind.LPAREN -> {
-                    advance()
-                    val inner = parseExpr()
-                    consume(TokenKind.RPAREN, "Expected closing ')'")
-                    inner
+                    val lparen = advance()
+                    nested(lparen.column) {
+                        val inner = parseExpr()
+                        consume(TokenKind.RPAREN, "Expected closing ')'")
+                        inner
+                    }
                 }
                 else -> throw ParseException(ParseError("Unexpected token '${tok.text}'", tok.column))
             }

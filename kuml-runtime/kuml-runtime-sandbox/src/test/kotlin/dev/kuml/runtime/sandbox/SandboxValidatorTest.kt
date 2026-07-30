@@ -71,4 +71,29 @@ class SandboxValidatorTest :
             val report = SandboxValidator(SandboxPolicy.Strict).validate(sm)
             report.violations.any { it.kind == ViolationKind.DISALLOWED_FUNCTION } shouldBe true
         }
+
+        test("overlong guard produces EXPRESSION_TOO_LONG violation and is rejected before parsing") {
+            val policy = SandboxPolicy(maxStringLength = 10)
+            // Also deeply nested — if this were handed to the parser it would additionally
+            // trip the nesting-depth cap. The point of this test is that the length check
+            // rejects it first, without ever invoking OclLikeExpressionParser.
+            val overlong = "(".repeat(20_000) + "1" + ")".repeat(20_000)
+            val sm = buildSm(guard = overlong)
+            val report = SandboxValidator(policy).validate(sm)
+            report.violations.any { it.kind == ViolationKind.EXPRESSION_TOO_LONG } shouldBe true
+        }
+
+        test("overlong action body produces EXPRESSION_TOO_LONG violation and is rejected before parsing") {
+            val policy = SandboxPolicy(maxStringLength = 10)
+            val overlong = "!".repeat(20_000) + "true"
+            val sm = buildSm(entry = overlong)
+            val report = SandboxValidator(policy).validate(sm)
+            report.violations.any { it.kind == ViolationKind.EXPRESSION_TOO_LONG } shouldBe true
+        }
+
+        test("guard within maxStringLength is unaffected by the length check") {
+            val sm = buildSm(guard = "x > 0")
+            val report = SandboxValidator(SandboxPolicy()).validate(sm)
+            report.violations.any { it.kind == ViolationKind.EXPRESSION_TOO_LONG } shouldBe false
+        }
     })

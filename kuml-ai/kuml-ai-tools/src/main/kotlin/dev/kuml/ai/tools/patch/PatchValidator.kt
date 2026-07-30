@@ -5,6 +5,7 @@ import dev.kuml.ai.tools.context.DeepCopy
 import dev.kuml.ai.tools.context.ModelPatch
 import dev.kuml.ai.tools.patch.validation.PatchValidationResult
 import dev.kuml.ai.tools.patch.validation.RenderSmokeCheck
+import dev.kuml.ai.tools.patch.validation.RenderSmokeStrategy
 import dev.kuml.ai.tools.patch.validation.StructuralPatchChecks
 import dev.kuml.ai.tools.patch.validation.TypeCheckPatchChecks
 import dev.kuml.ai.tools.patch.validation.ValidationError
@@ -27,11 +28,50 @@ import dev.kuml.uml.UmlStateMachine
  *
  * Phases 1–3 are FAIL-FAST per phase boundary: each phase collects all errors
  * within itself before deciding fail/pass. A failing phase short-circuits later ones.
+ *
+ * The RENDER phase is pluggable via [renderSmokeStrategy], which has **no unsafe
+ * default**: passing [renderSmokeEnabled] = true without also supplying an explicit
+ * [renderSmokeStrategy] fails fast at construction time (see the `init` block below)
+ * rather than silently falling back to the unbounded, no-size-cap, no-timeout
+ * [RenderSmokeCheck] renderer. That renderer is only appropriate for a trusted,
+ * single-user desktop/CLI caller — use [PatchValidator.desktop] to opt into it
+ * explicitly by name. A server-side caller must inject its own DoS-hardened
+ * [RenderSmokeStrategy] before enabling [renderSmokeEnabled] against
+ * untrusted/multi-tenant input — see [RenderSmokeStrategy]'s KDoc.
  */
 public class PatchValidator(
     private val sandboxPolicy: SandboxPolicy = SandboxPolicy.Strict,
     private val renderSmokeEnabled: Boolean = false,
+    private val renderSmokeStrategy: RenderSmokeStrategy? = null,
 ) {
+    init {
+        require(!renderSmokeEnabled || renderSmokeStrategy != null) {
+            "PatchValidator(renderSmokeEnabled = true) requires an explicit renderSmokeStrategy. " +
+                "The unbounded desktop-only default (RenderSmokeCheck: no size cap, no timeout) is " +
+                "intentionally NOT wired in implicitly, to avoid a silent multi-tenant DoS trap for " +
+                "future callers. Use PatchValidator.desktop(...) for a trusted single-user caller, " +
+                "or pass a DoS-hardened RenderSmokeStrategy for server-side/multi-tenant use — see " +
+                "RenderSmokeStrategy's KDoc."
+        }
+    }
+
+    public companion object {
+        /**
+         * Convenience factory for trusted, single-user callers (desktop app, CLI, local
+         * tooling) that want the RENDER smoke phase enabled with the default, unbounded
+         * [RenderSmokeCheck] strategy (no size cap, no timeout).
+         *
+         * Do NOT use this for a network-facing, multi-tenant service — construct
+         * [PatchValidator] directly with a DoS-hardened [RenderSmokeStrategy] instead.
+         */
+        public fun desktop(sandboxPolicy: SandboxPolicy = SandboxPolicy.Strict): PatchValidator =
+            PatchValidator(
+                sandboxPolicy = sandboxPolicy,
+                renderSmokeEnabled = true,
+                renderSmokeStrategy = RenderSmokeStrategy { model -> RenderSmokeCheck.run(model) },
+            )
+    }
+
     /**
      * Validates [patch] by applying it to a clone of [baseModel].
      *
@@ -96,9 +136,12 @@ public class PatchValidator(
             return PatchValidationResult.Invalid(errors = typeErrors, phase = ValidationPhase.TYPE_CHECK)
         }
 
-        // ── Phase 4: RENDER (opt-in) ────────────────────────────────────────────
+        // ── Phase 4: RENDER (opt-in, pluggable — see [RenderSmokeStrategy]) ─────
         if (renderSmokeEnabled) {
-            val renderResult = RenderSmokeCheck.run(patched)
+            // Non-null is guaranteed by the init{} check above (renderSmokeEnabled = true
+            // requires a non-null renderSmokeStrategy at construction time).
+            val strategy = checkNotNull(renderSmokeStrategy) { "renderSmokeStrategy must be non-null when renderSmokeEnabled" }
+            val renderResult = strategy.run(patched)
             if (renderResult is PatchValidationResult.Invalid) return renderResult
             if (renderResult is PatchValidationResult.Valid) {
                 warnings.addAll(renderResult.warnings)
