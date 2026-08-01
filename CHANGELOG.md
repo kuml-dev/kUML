@@ -6,6 +6,43 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.46.0] — 2026-08-01
+
+### Fixed
+
+**`kuml-jetbrains-plugin`: hard `org.jetbrains.kotlin` dependency prevented the plugin from loading on any IDE without the Kotlin plugin**
+
+`plugin.xml` declared `<depends>org.jetbrains.kotlin</depends>` unconditionally. The IntelliJ
+Platform refuses to load a plugin at all if a hard `<depends>` target is missing, so on WebStorm,
+PyCharm, GoLand, Rider, CLion, DataGrip, and RubyMine — none of which bundle the Kotlin plugin —
+kUML failed to install with "Plugin kUML requires plugin org.jetbrains.kotlin to be installed".
+That blocked not just the genuinely Kotlin-dependent features but also the file icon and the
+live split-view SVG preview, both of which work purely off the `.kuml.kts` filename and the
+external `kuml` CLI with no Kotlin-plugin API at all.
+
+Split `plugin.xml` into two descriptors. `plugin.xml` now declares only
+`com.intellij.modules.platform` as a hard dependency, plus the Kotlin-plugin-free extensions
+(file icon, split editor, settings page, live templates, export notifications). A new
+config-file fragment, `META-INF/kuml-kotlin-support.xml`, is referenced via `<depends
+optional="true" config-file="kuml-kotlin-support.xml">org.jetbrains.kotlin</depends>` and is
+loaded by the platform only when the Kotlin plugin is actually present; it holds
+`scriptDefinitionsSource` plus `supportsKotlinPluginMode` and every extension bound to
+`language="kotlin"` (external annotator, structure view, folding, completion, rename) —
+including four classes (`KumlAnnotator`, `KumlStructureViewBuilderProvider`,
+`KumlFoldingBuilder`, `KumlCompletionContributor`, `KumlRenameHandler`) that have zero
+`org.jetbrains.kotlin.*` imports and move solely because their `language="kotlin"` extension-point
+registration cannot resolve without the Kotlin plugin present. Only
+`KumlScriptDefinitionsSource` genuinely needs Kotlin classes at load time.
+
+Result: the plugin now installs and runs on every IntelliJ-Platform IDE. Script recognition,
+completion, structure view, folding, rename, and inline diagnostics continue to activate
+automatically wherever the Kotlin plugin is present; the file icon and split-view preview now
+also work where it is not. `KumlPluginDescriptorTest` was extended to assert the descriptor split
+and guard against the Kotlin-bound extensions being re-merged into `plugin.xml` in the future.
+Pure descriptor change — no Kotlin source file under `src/main/kotlin/` was touched, and
+`build.gradle.kts`'s dependency block (`bundledPlugin`, exclusions) is unchanged, since
+`optional="true"` is a runtime descriptor concern, orthogonal to compile-time dependencies.
+
 ## [0.45.0] — 2026-07-30
 
 ### Changed
