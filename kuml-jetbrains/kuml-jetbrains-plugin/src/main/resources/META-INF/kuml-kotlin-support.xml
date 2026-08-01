@@ -1,0 +1,104 @@
+<idea-plugin>
+    <!--
+        Optional-dependency fragment, referenced from plugin.xml via
+            <depends optional="true" config-file="kuml-kotlin-support.xml">org.jetbrains.kotlin</depends>
+
+        The IntelliJ Platform loads this file ONLY when the Kotlin plugin is present.
+        Everything registered here either (a) uses a Kotlin-plugin extension point, or
+        (b) is bound to language="kotlin" and therefore cannot resolve without it.
+
+        Do NOT move any of these back into plugin.xml — KumlPluginDescriptorTest asserts
+        the split and will fail if they are re-merged.
+    -->
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <!--
+            K2-Kompatibilität: Seit IntelliJ 2024.x ist K2 der Default-Frontend des
+            Kotlin-Plugins. Plugins, die auf org.jetbrains.kotlin aufbauen, müssen
+            explizit deklarieren, welche Modi sie unterstützen — sonst werden sie im
+            K2-Mode automatisch deaktiviert ("Plugin is incompatible with the Kotlin
+            plugin in 'K2' mode").
+
+            Dieses Plugin benutzt KEINE K1-Resolve-APIs (keine Imports aus
+            `org.jetbrains.kotlin.idea.*`, `org.jetbrains.kotlin.resolve.*`,
+            `BindingContext`, `KotlinType` etc.). Es stützt sich ausschließlich auf:
+              - `com.intellij.*` Platform-APIs (K2-agnostisch),
+              - `kotlin.script.experimental.*` Scripting-API (in beiden Modi identisch),
+              - PSI-Elemente (Parser-Output ist shared).
+
+            Damit ist das Plugin in beiden Modi lauffähig.
+        -->
+        <supportsKotlinPluginMode supportsK1="true" supportsK2="true"/>
+
+        <!--
+            Registers the kUML script definition with the Kotlin plugin via the
+            K2-native `scriptDefinitionsSource` extension point (interface
+            org.jetbrains.kotlin.scripting.definitions.ScriptDefinitionsSource).
+
+            This replaces the legacy `scriptDefinitionsProvider` EP, which in
+            IntelliJ 2025.1+/build 261 K2 mode is only reached through the
+            BridgeScriptDefinitionsContributor shim — and that shim fails to
+            instantiate a no-arg provider ("Cannot find suitable constructor,
+            expected (Project), …"), so `*.kuml.kts` was never recognised.
+
+            `scriptDefinitionsSource` is consumed in BOTH K1 and K2 modes (JetBrains'
+            own Gradle/main.kts definitions use it), so this one registration works
+            across every IntelliJ configuration. See KumlScriptDefinitionsSource.
+        -->
+        <scriptDefinitionsSource
+            implementation="dev.kuml.jetbrains.KumlScriptDefinitionsSource"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!--
+            Inline diagnostics for *.kuml.kts via the external `kuml diagnostics` CLI.
+            The class itself has no Kotlin imports, but language="kotlin" cannot be
+            resolved without the Kotlin plugin — hence it lives here.
+        -->
+        <externalAnnotator
+            language="kotlin"
+            implementationClass="dev.kuml.jetbrains.KumlAnnotator"/>
+
+        <!--
+            V2.0.28b: Structure view — shows DSL elements (states, parts, classes …)
+            extracted from the script text in the Structure panel.
+            Registered for the Kotlin language since *.kuml.kts are parsed as Kotlin scripts.
+        -->
+        <lang.psiStructureViewFactory
+            language="kotlin"
+            implementationClass="dev.kuml.jetbrains.KumlStructureViewBuilderProvider"/>
+
+        <!--
+            V2.0.28c: Code folding — collapses DSL lambda blocks in *.kuml.kts files.
+            Registered for the Kotlin language (same reason as the structure view above).
+            The builder guards against non-.kuml.kts files internally.
+        -->
+        <lang.foldingBuilder
+            language="kotlin"
+            implementationClass="dev.kuml.jetbrains.folding.KumlFoldingBuilder"/>
+
+        <!--
+            V2.0.41: Code-Completion für kUML-DSL Top-Level-Funktionen.
+            Der Contributor diskriminiert intern auf .kuml.kts-Dateinamen.
+        -->
+        <completion.contributor
+            language="kotlin"
+            implementationClass="dev.kuml.jetbrains.completion.KumlCompletionContributor"
+            order="first"/>
+
+        <!--
+            V2.0.41: Rename Refactoring (Shift+F6) für DSL-Element-Namen.
+
+            Hinweis: KumlRenameHandler selbst importiert KEINE Kotlin-Plugin-Klassen
+            (arbeitet rein auf file.text/editor.document, filtert auf ".kuml.kts").
+            Es steht trotzdem bewusst hier: ohne Kotlin-Plugin öffnet die IDE
+            *.kuml.kts als Klartext ohne jede DSL-Erkennung — ein stilles
+            Text-Ersetzen per Shift+F6 wäre dort ungeprüfte Fläche mit geringem Nutzen.
+            Soll Rename später auch auf WebStorm/PyCharm laufen, genügt ein Verschieben
+            dieses Blocks zurück in plugin.xml (plus Anpassung von
+            KumlPluginDescriptorTest) — kein Code-Change nötig.
+        -->
+        <renameHandler
+            implementation="dev.kuml.jetbrains.rename.KumlRenameHandler"/>
+    </extensions>
+</idea-plugin>

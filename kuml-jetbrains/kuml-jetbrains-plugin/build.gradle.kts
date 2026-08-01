@@ -156,6 +156,15 @@ intellijPlatform {
         }
         changeNotes =
             """
+            <h4>0.20.0</h4>
+            <ul>
+              <li><code>org.jetbrains.kotlin</code> is now an <b>optional</b> dependency. The plugin now
+                  installs and runs on IDEs without the Kotlin plugin (WebStorm, PyCharm, GoLand, Rider,
+                  CLion, DataGrip, RubyMine): the file icon and the live split-view SVG preview work
+                  everywhere. Script recognition, completion, structure view, folding, rename and
+                  diagnostics activate automatically when the Kotlin plugin is present, via a new
+                  config-file fragment (<code>META-INF/kuml-kotlin-support.xml</code>).</li>
+            </ul>
             <h4>0.19.2</h4>
             <ul>
               <li>Internal API removed: the plugin's bundled DSL classpath is now resolved purely via the JDK

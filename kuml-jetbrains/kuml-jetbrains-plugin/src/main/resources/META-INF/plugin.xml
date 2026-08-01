@@ -36,6 +36,13 @@
             this IDE plugin is intentionally minimal and stays out of the render pipeline.
         </p>
         <p>
+            <b>Without the Kotlin plugin</b> (WebStorm, PyCharm, GoLand, Rider, CLion,
+            DataGrip, RubyMine): the plugin still loads and provides the kUML file icon and
+            the live split-view SVG preview. Script recognition, completion, structure view,
+            folding, rename and inline diagnostics require the Kotlin plugin and activate
+            automatically once it is installed.
+        </p>
+        <p>
             Project page: <a href="https://kuml.dev">https://kuml.dev</a>.
         </p>
     ]]></description>
@@ -43,6 +50,15 @@
     <change-notes><![CDATA[
         <!-- Diese Datei wird beim Build durch patchPluginXml überschrieben.
              Maßgeblich sind die changeNotes in build.gradle.kts. -->
+        <h4>0.20.0</h4>
+        <ul>
+            <li><code>org.jetbrains.kotlin</code> is now an optional dependency: on IDEs without the
+                Kotlin plugin (WebStorm, PyCharm, GoLand, Rider, CLion, DataGrip, RubyMine) the plugin
+                still loads and provides the file icon and the live split-view SVG preview. Script
+                recognition, completion, structure view, folding, rename and inline diagnostics move to
+                a config-file fragment (<code>META-INF/kuml-kotlin-support.xml</code>) that only loads
+                when the Kotlin plugin is present.</li>
+        </ul>
         <h4>0.8.0</h4>
         <ul>
             <li>K2-Kompatibilität: Plugin läuft wieder in IntelliJ 2024.x+ mit aktivem K2-Frontend.</li>
@@ -71,64 +87,41 @@
     <!--
         Compatibility:
         sinceBuild is in build.gradle.kts (intellijPlatform.pluginConfiguration.ideaVersion).
-        We depend on the Kotlin plugin because we use its scriptDefinitionsProvider EP.
+
+        `com.intellij.modules.platform` is the only HARD dependency — it makes the plugin
+        installable on every IntelliJ-Platform IDE (IDEA, WebStorm, PyCharm, GoLand, Rider,
+        CLion, DataGrip, RubyMine, Android Studio).
+
+        `org.jetbrains.kotlin` is OPTIONAL. Everything that genuinely needs the Kotlin
+        plugin — the script definition source and every extension bound to the Kotlin
+        language — lives in the config-file fragment META-INF/kuml-kotlin-support.xml,
+        which the platform loads ONLY when the Kotlin plugin is actually present.
+
+        Consequence: on an IDE without the Kotlin plugin the kUML plugin still loads and
+        provides the file icon, the split-view SVG preview, the settings page, live
+        templates and export notifications. Previously the hard <depends> made the
+        platform refuse to load the ENTIRE plugin there
+        ("Plugin kUML requires plugin org.jetbrains.kotlin to be installed").
     -->
     <depends>com.intellij.modules.platform</depends>
-    <depends>org.jetbrains.kotlin</depends>
-
-    <extensions defaultExtensionNs="org.jetbrains.kotlin">
-        <!--
-            K2-Kompatibilität: Seit IntelliJ 2024.x ist K2 der Default-Frontend des
-            Kotlin-Plugins. Plugins, die `depends`-on org.jetbrains.kotlin sind, müssen
-            explizit deklarieren, welche Modi sie unterstützen — sonst werden sie im
-            K2-Mode automatisch deaktiviert ("Plugin is incompatible with the Kotlin
-            plugin in 'K2' mode").
-
-            Dieses Plugin benutzt KEINE K1-Resolve-APIs (keine Imports aus
-            `org.jetbrains.kotlin.idea.*`, `org.jetbrains.kotlin.resolve.*`,
-            `BindingContext`, `KotlinType` etc.). Es stützt sich ausschließlich auf:
-              - `com.intellij.*` Platform-APIs (K2-agnostisch),
-              - `kotlin.script.experimental.*` Scripting-API (in beiden Modi identisch),
-              - PSI-Elemente (KtFile/KtCallExpression — Parser-Output ist shared).
-
-            Damit ist das Plugin in beiden Modi lauffähig.
-        -->
-        <supportsKotlinPluginMode supportsK1="true" supportsK2="true"/>
-
-        <!--
-            Registers the kUML script definition with the Kotlin plugin via the
-            K2-native `scriptDefinitionsSource` extension point (interface
-            org.jetbrains.kotlin.scripting.definitions.ScriptDefinitionsSource).
-
-            This replaces the legacy `scriptDefinitionsProvider` EP, which in
-            IntelliJ 2025.1+/build 261 K2 mode is only reached through the
-            BridgeScriptDefinitionsContributor shim — and that shim fails to
-            instantiate a no-arg provider ("Cannot find suitable constructor,
-            expected (Project), …"), so `*.kuml.kts` was never recognised.
-
-            `scriptDefinitionsSource` is consumed in BOTH K1 and K2 modes (JetBrains'
-            own Gradle/main.kts definitions use it), so this one registration works
-            across every IntelliJ configuration. See KumlScriptDefinitionsSource.
-        -->
-        <scriptDefinitionsSource
-            implementation="dev.kuml.jetbrains.KumlScriptDefinitionsSource"/>
-    </extensions>
+    <depends optional="true" config-file="kuml-kotlin-support.xml">org.jetbrains.kotlin</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <!--
             Custom file icon for `*.kuml.kts`.
-            The actual file type is "Kotlin script" (registered by the Kotlin plugin) —
-            we only override the icon for files matching the kUML extension.
+            Matches purely on the filename suffix — no Kotlin file type required,
+            so this works on IDEs without the Kotlin plugin.
         -->
         <fileIconProvider
             implementation="dev.kuml.jetbrains.KumlFileIconProvider"
             order="first"/>
 
-        <externalAnnotator language="kotlin" implementationClass="dev.kuml.jetbrains.KumlAnnotator"/>
-
         <!--
             V2.0.28b: Split-editor — shows the diagram SVG alongside the code editor.
             Registered with editorTypeId = "kuml-split-editor".
+            Kotlin-plugin-free: accepts files via fileName.endsWith(".kuml.kts") and
+            renders through the external `kuml` CLI. THE reason the Kotlin dependency
+            is optional — this must keep working on WebStorm/PyCharm/GoLand/Rider/CLion.
         -->
         <fileEditorProvider implementation="dev.kuml.jetbrains.KumlSplitEditorProvider"/>
 
@@ -143,42 +136,9 @@
             displayName="kUML Preview"/>
 
         <!--
-            V2.0.28b: Structure view — shows DSL elements (states, parts, classes …)
-            extracted from the script text in the Structure panel.
-            Registered for the Kotlin language since *.kuml.kts are parsed as Kotlin scripts.
-        -->
-        <lang.psiStructureViewFactory
-            language="kotlin"
-            implementationClass="dev.kuml.jetbrains.KumlStructureViewBuilderProvider"/>
-
-        <!--
-            V2.0.28c: Code folding — collapses DSL lambda blocks in *.kuml.kts files.
-            Registered for the Kotlin language (same reason as the structure view above).
-            The builder guards against non-.kuml.kts files internally.
-        -->
-        <lang.foldingBuilder
-            language="kotlin"
-            implementationClass="dev.kuml.jetbrains.folding.KumlFoldingBuilder"/>
-
-        <!--
             V2.0.41: Live Templates — kUML.xml wird automatisch geladen.
         -->
         <defaultLiveTemplates file="/liveTemplates/kUML.xml"/>
-
-        <!--
-            V2.0.41: Code-Completion für kUML-DSL Top-Level-Funktionen.
-            Der Contributor diskriminiert intern auf .kuml.kts-Dateinamen.
-        -->
-        <completion.contributor
-            language="kotlin"
-            implementationClass="dev.kuml.jetbrains.completion.KumlCompletionContributor"
-            order="first"/>
-
-        <!--
-            V2.0.41: Rename Refactoring (Shift+F6) für DSL-Element-Namen.
-        -->
-        <renameHandler
-            implementation="dev.kuml.jetbrains.rename.KumlRenameHandler"/>
 
         <!--
             kUML Export balloon notifications (SVG / PNG / TeX export results).
