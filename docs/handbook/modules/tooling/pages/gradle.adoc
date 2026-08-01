@@ -5,19 +5,14 @@ The Gradle plugin contributes three tasks to any Gradle build: `kumlRender`, `ku
 and `kumlValidate`. All three are `@CacheableTask` with proper `@InputDirectory` /
 `@OutputDirectory` annotations — incremental builds skip unchanged scripts.
 
-[WARNING]
+[NOTE]
 ====
-The `dev.kuml` Gradle plugin is **not yet published** to the Gradle Plugin
-Portal or Maven Central. Until this ships, use a local composite build or
-`publishToMavenLocal` — see <<Publishing the plugin from your own fork>>
-below for the exact steps. This notice is removed once the plugin is live
-on both channels.
+The `dev.kuml` Gradle plugin is published on the
+https://plugins.gradle.org/plugin/dev.kuml[Gradle Plugin Portal] and on Maven Central
+(group `dev.kuml`, artefact `kuml-gradle-plugin`) since v0.32.0.
 ====
 
 == Apply the plugin
-
-The example below is the target usage once the plugin is published — see the warning
-above for the workaround that works today.
 
 [source,kotlin]
 ----
@@ -175,14 +170,10 @@ diff <(kuml render src/main/kuml/order.kuml.kts) build/kuml/order.svg
 That makes CI cache invalidation straightforward: a commit that changes a `*.kuml.kts`
 invalidates the corresponding output; everything else stays cached.
 
-== Publishing the plugin from your own fork
+== Building the plugin from source
 
-The plugin is not yet published anywhere — this section documents the local workaround
-until it is. Once published, it will be available both from the Gradle Plugin Portal
-(`plugins { id("dev.kuml") version "X.Y.Z" }`) and from Maven Central as a regular
-dependency (group `dev.kuml`, artefact `kuml-gradle-plugin`, for build-script-classpath or
-programmatic use — not the same coordinate as the `plugins {}` DSL marker). Until then, a
-locally published copy is one Gradle invocation away:
+The published plugin (see above) is the recommended path for consumers. If you need an
+unreleased fix or are developing the plugin itself, publish a local copy instead:
 
 [source,bash]
 ----
