@@ -6,6 +6,27 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.47.0] — 2026-08-05
+
+### Fixed
+
+**Chocolatey package: `kuml` installed successfully but was uncallable — no shim was ever created**
+
+`chocolateyInstall.ps1` assumed Chocolatey auto-shims `.bat` launchers the same way it does
+`.exe` files — it doesn't. Chocolatey's automatic shim generation only ever considers `.exe`
+files it finds under `tools\`; `.bat`/`.cmd` launchers are never picked up without an explicit
+`Install-BinFile` call. As a result, `choco install kuml` reported success and deployed every
+package file correctly, but left `C:\ProgramData\chocolatey\bin\` empty — no `kuml` command
+existed anywhere on `PATH` after a clean install. Confirmed via `chocolatey.log`: not a single
+`shimgen.exe` invocation occurred during install.
+
+Added explicit `Install-BinFile` calls in `chocolateyInstall.ps1` for `kuml.bat` and, where
+present, `kuml-mcp.bat`/`kuml-lsp.bat`, plus matching `Uninstall-BinFile` calls in
+`chocolateyUninstall.ps1` so the shims are torn down again on uninstall like any other
+Chocolatey package. Went through the standard review-loop + security-loop pipeline; both
+independently flagged the same minor issue (unnecessary `-ErrorAction SilentlyContinue` risking
+a masked removal failure on uninstall), fixed before merge.
+
 ## [0.46.0] — 2026-08-01
 
 ### Fixed
