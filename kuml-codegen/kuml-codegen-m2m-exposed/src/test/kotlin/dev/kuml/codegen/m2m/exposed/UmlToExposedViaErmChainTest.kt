@@ -116,8 +116,14 @@ class UmlToExposedViaErmChainTest :
             junction.content shouldContain "override val primaryKey: PrimaryKey = PrimaryKey(studentId, courseId)"
             // UmlToErmTransformer's junction-entity materialization sets onDelete = CASCADE on
             // both junction FKs by default (deleting either parent row cascades to the link row).
-            junction.content shouldContain "reference(\"student_id\", Students.id, onDelete = ReferenceOption.CASCADE)"
-            junction.content shouldContain "reference(\"course_id\", Courses.id, onDelete = ReferenceOption.CASCADE)"
+            junction.content shouldContain (
+                "reference(\"student_id\", Students.id, onDelete = ReferenceOption.CASCADE, " +
+                    "onUpdate = ReferenceOption.NO_ACTION, fkName = \"fk_students_courses_student_id\")"
+            )
+            junction.content shouldContain (
+                "reference(\"course_id\", Courses.id, onDelete = ReferenceOption.CASCADE, " +
+                    "onUpdate = ReferenceOption.NO_ACTION, fkName = \"fk_students_courses_course_id\")"
+            )
         }
 
         test("--package option is threaded through both chain steps") {

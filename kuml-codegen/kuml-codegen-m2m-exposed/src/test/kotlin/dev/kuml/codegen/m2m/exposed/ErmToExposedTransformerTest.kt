@@ -191,7 +191,15 @@ class ErmToExposedTransformerTest :
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
-            content shouldContain "val authorId: Column<Long> = reference(\"author_id\", Authors.id)"
+            // onDelete/onUpdate/fkName are always explicit now (FK constraint naming/action fix) — a bare reference()
+            // call left Exposed to compute its own, different, defaults (RESTRICT + a
+            // "fk_<table>_<column>__<targetcolumn>" name) that silently disagreed with what
+            // ErmSqlEmitter actually wrote to the database. See ermDefaultForeignKeyConstraintName.
+            content shouldContain (
+                "val authorId: Column<Long> = reference(\"author_id\", Authors.id, " +
+                    "onDelete = ReferenceOption.NO_ACTION, onUpdate = ReferenceOption.NO_ACTION, " +
+                    "fkName = \"fk_books_author_id\")"
+            )
         }
 
         test("nullable FK attribute becomes optReference()") {
@@ -204,7 +212,11 @@ class ErmToExposedTransformerTest :
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
-            content shouldContain "val authorId: Column<Long?> = optReference(\"author_id\", Authors.id)"
+            content shouldContain (
+                "val authorId: Column<Long?> = optReference(\"author_id\", Authors.id, " +
+                    "onDelete = ReferenceOption.NO_ACTION, onUpdate = ReferenceOption.NO_ACTION, " +
+                    "fkName = \"fk_books_author_id\")"
+            )
         }
 
         test("onDelete/onUpdate referential actions render as ReferenceOption named arguments") {
@@ -222,11 +234,23 @@ class ErmToExposedTransformerTest :
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
-            content shouldContain "reference(\"author_id\", Authors.id, onDelete = ReferenceOption.CASCADE)"
+            content shouldContain (
+                "reference(\"author_id\", Authors.id, onDelete = ReferenceOption.CASCADE, " +
+                    "onUpdate = ReferenceOption.NO_ACTION, fkName = \"fk_books_author_id\")"
+            )
             content shouldContain "import org.jetbrains.exposed.v1.core.ReferenceOption"
         }
 
-        test("NO_ACTION referential action omits ReferenceOption arguments entirely") {
+        // Renamed from "NO_ACTION referential action omits ReferenceOption arguments entirely"
+        // (FK constraint naming/action fix): the old behaviour — a bare reference() call with no onDelete/onUpdate/
+        // fkName args at all for NO_ACTION — is exactly the bug this fix closes. A bare call left
+        // Exposed's own ForeignKeyConstraint to compute its own defaults at runtime (Postgres
+        // dialect default reference option RESTRICT, not NO_ACTION, plus a
+        // "fk_<table>_<column>__<targetcolumn>" constraint name), which silently disagreed with
+        // what ErmSqlEmitter's DDL — the thing Flyway actually applies to the real database —
+        // already declared (NO_ACTION via an omitted clause, name "fk_<table>_<column>"). Now
+        // NO_ACTION renders explicitly instead of being left implicit.
+        test("NO_ACTION referential action renders explicit ReferenceOption.NO_ACTION arguments") {
             val model =
                 ermModel(name = "M") {
                     val authors = entity(name = "authors") { id(name = "id", type = ErmDataType.Integer(64)) }
@@ -236,8 +260,11 @@ class ErmToExposedTransformerTest :
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
-            content shouldNotContain "ReferenceOption"
-            content shouldContain "reference(\"author_id\", Authors.id)"
+            content shouldContain (
+                "reference(\"author_id\", Authors.id, onDelete = ReferenceOption.NO_ACTION, " +
+                    "onUpdate = ReferenceOption.NO_ACTION, fkName = \"fk_books_author_id\")"
+            )
+            content shouldContain "import org.jetbrains.exposed.v1.core.ReferenceOption"
         }
 
         // ── FK target-column resolution (targetAttributeId) ─────────────────
@@ -262,7 +289,11 @@ class ErmToExposedTransformerTest :
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
-            content shouldContain "val authorIsbnRef: Column<String> = reference(\"author_isbn_ref\", Authors.isbn)"
+            content shouldContain (
+                "val authorIsbnRef: Column<String> = reference(\"author_isbn_ref\", Authors.isbn, " +
+                    "onDelete = ReferenceOption.NO_ACTION, onUpdate = ReferenceOption.NO_ACTION, " +
+                    "fkName = \"fk_books_author_isbn_ref\")"
+            )
         }
 
         test("FK without targetAttributeId targeting an entity with a composite primary key fails the transform") {
@@ -374,8 +405,14 @@ class ErmToExposedTransformerTest :
             val content = successFiles(model).first { it.relativePath == "StudentsCourses.kt" }.content
             content shouldContain "public object StudentsCourses : Table(\"students_courses\")"
             content shouldContain "override val primaryKey: PrimaryKey = PrimaryKey(studentId, courseId)"
-            content shouldContain "reference(\"student_id\", Students.id)"
-            content shouldContain "reference(\"course_id\", Courses.id)"
+            content shouldContain (
+                "reference(\"student_id\", Students.id, onDelete = ReferenceOption.NO_ACTION, " +
+                    "onUpdate = ReferenceOption.NO_ACTION, fkName = \"fk_students_courses_student_id\")"
+            )
+            content shouldContain (
+                "reference(\"course_id\", Courses.id, onDelete = ReferenceOption.NO_ACTION, " +
+                    "onUpdate = ReferenceOption.NO_ACTION, fkName = \"fk_students_courses_course_id\")"
+            )
         }
 
         test("weak entity with no primary key omits the primaryKey override") {
@@ -1098,7 +1135,11 @@ class ErmToExposedTransformerTest :
             authorsContent shouldContain "val id: Column<Uuid> = uuid(\"id\")"
             authorsContent shouldContain "import kotlin.uuid.Uuid"
 
-            booksContent shouldContain "val authorId: Column<Uuid> = reference(\"author_id\", Authors.id)"
+            booksContent shouldContain (
+                "val authorId: Column<Uuid> = reference(\"author_id\", Authors.id, " +
+                    "onDelete = ReferenceOption.NO_ACTION, onUpdate = ReferenceOption.NO_ACTION, " +
+                    "fkName = \"fk_books_author_id\")"
+            )
             booksContent shouldContain "import kotlin.uuid.Uuid"
             booksContent shouldNotContain "javaUUID"
             booksContent shouldNotContain "java.util.UUID"
@@ -1117,7 +1158,11 @@ class ErmToExposedTransformerTest :
                 successFiles(model, mapOf("uuidRepresentation" to "kotlin"))
                     .first { it.relativePath == "Books.kt" }
                     .content
-            booksContent shouldContain "val authorId: Column<Uuid?> = optReference(\"author_id\", Authors.id)"
+            booksContent shouldContain (
+                "val authorId: Column<Uuid?> = optReference(\"author_id\", Authors.id, " +
+                    "onDelete = ReferenceOption.NO_ACTION, onUpdate = ReferenceOption.NO_ACTION, " +
+                    "fkName = \"fk_books_author_id\")"
+            )
         }
 
         test("unrecognized uuidRepresentation value falls back to the java default rather than failing") {

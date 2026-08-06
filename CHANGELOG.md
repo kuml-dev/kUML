@@ -6,6 +6,42 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.48.0] — 2026-08-06
+
+### Fixed
+
+**`kuml-codegen-m2m-exposed`: generated `reference()`/`optReference()` calls silently disagreed with the FK constraints `kuml-gen-sql` actually writes to the database**
+
+`ErmSqlEmitter` (`kuml-gen-sql`) and `ErmExposedEmitter` (`kuml-codegen-m2m-exposed`) both derive
+a foreign key's constraint name and referential actions from the same `ErmModel`, but never
+agreed on how. `ErmSqlEmitter` named constraints `fk_<table>_<column>` and correctly omitted
+`ON DELETE`/`ON UPDATE` clauses for `ReferentialAction.NO_ACTION` (an omitted clause *means*
+`NO ACTION` on Postgres/MySQL/H2 — the SQL-standard default). `ErmExposedEmitter` left
+`fkName`/`onDelete`/`onUpdate` off the generated `reference()`/`optReference()` call entirely for
+that same `NO_ACTION` case, which meant Exposed itself computed its *own*, different, defaults at
+runtime: `fk_<table>_<column>__<targetcolumn>` naming, and `RESTRICT` as the Postgres dialect's
+default reference option — not `NO_ACTION`. A downstream consumer's Testcontainers-based CI (a
+real Postgres container, migrated with the generated DDL) caught this the first time anything
+actually compared the migrated schema against the compiled `Table` objects via Exposed's own
+`SchemaUtils.statementsRequiredToActualizeScheme`; no kUML test had ever done that comparison
+before, since each emitter's tests only asserted its own output in isolation.
+
+Extracted the shared naming convention into `ermDefaultForeignKeyConstraintName` in
+`kuml-metamodel-erm` (the single source of truth `ErmSqlEmitter` already used, now used by both
+emitters) and made `ErmExposedEmitter` always pass `fkName`, `onDelete`, and `onUpdate` to
+`reference()`/`optReference()` explicitly — including the `NO_ACTION` case, which now renders
+`ReferenceOption.NO_ACTION` instead of omitting the arguments. Added
+`ErmSqlExposedFkAgreementTest`, a golden-model test that renders one `ErmModel` through both
+emitters and asserts they agree on every FK's constraint name and referential actions — no live
+database required, guarding against this exact class of drift recurring. Existing
+`ErmToExposedTransformerTest`/`UmlToExposedViaErmChainTest` assertions updated for the new,
+always-explicit argument shape.
+
+This changes `ErmExposedEmitter`'s output, not `ErmSqlEmitter`'s — the direction confirmed safe
+for existing consumers with already-migrated databases: the new explicit `fkName` values match
+what `ErmSqlEmitter`'s DDL already names those constraints (and always has), so no rename
+migration is needed anywhere this generator's SQL output has already been applied.
+
 ## [0.47.0] — 2026-08-05
 
 ### Fixed

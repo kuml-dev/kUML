@@ -17,6 +17,7 @@ import dev.kuml.erm.model.ErmIndex
 import dev.kuml.erm.model.ErmMetadataKeys
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ReferentialAction
+import dev.kuml.erm.model.ermDefaultForeignKeyConstraintName
 
 /**
  * Which Kotlin type [ErmExposedEmitter] renders an [ErmDataType.Uuid] column as. Selected
@@ -720,6 +721,8 @@ internal class ErmExposedEmitter(
                             propName = propName,
                             attr = attr,
                             colLiteral = colLiteral,
+                            fkTableRawName = entity.name ?: entity.id,
+                            fkColumnRawName = rawName,
                             targetObjectName = targetObjectName,
                             targetPropName = targetPropName,
                             fk = fk,
@@ -851,6 +854,8 @@ internal class ErmExposedEmitter(
         propName: String,
         attr: ErmAttribute,
         colLiteral: String,
+        fkTableRawName: String,
+        fkColumnRawName: String,
         targetObjectName: String,
         targetPropName: String,
         fk: ErmForeignKey,
@@ -862,12 +867,24 @@ internal class ErmExposedEmitter(
         // attribute's own declared type (its underlying storage type), same as a plain column.
         imports += rendered.imports
 
+        // onDelete/onUpdate/fkName are always passed *explicitly* now — never left for Exposed
+        // to default at runtime. A bare reference()/optReference() call leaves Exposed's own
+        // ForeignKeyConstraint to compute its own defaults (dialect default reference option,
+        // which is RESTRICT — not NO_ACTION — plus a "fk_<table>_<column>__<targetcolumn>" name),
+        // which silently disagrees with what ErmSqlEmitter's DDL actually declares
+        // (fk_<table>_<column>, with the referential action ErmForeignKey itself carries). See
+        // ermDefaultForeignKeyConstraintName's KDoc for the full history of this divergence.
+        val fkNameLiteral =
+            kotlinStringLiteral(
+                ermDefaultForeignKeyConstraintName(tableName = fkTableRawName, columnName = fkColumnRawName),
+            )
         val optionArgs =
-            buildList {
-                referenceOptionName(fk.onDelete)?.let { add("onDelete = ReferenceOption.$it") }
-                referenceOptionName(fk.onUpdate)?.let { add("onUpdate = ReferenceOption.$it") }
-            }
-        if (optionArgs.isNotEmpty()) imports += "org.jetbrains.exposed.v1.core.ReferenceOption"
+            listOf(
+                "onDelete = ReferenceOption.${referenceOptionName(fk.onDelete)}",
+                "onUpdate = ReferenceOption.${referenceOptionName(fk.onUpdate)}",
+                "fkName = \"$fkNameLiteral\"",
+            )
+        imports += "org.jetbrains.exposed.v1.core.ReferenceOption"
 
         // Exposed 1.3.1's Table.reference()/optReference() overloads that accept a plain
         // (non-IdTable) Table — which is what this emitter always generates — take the
@@ -878,9 +895,9 @@ internal class ErmExposedEmitter(
         return "    public val $propName: Column<$ktType> = $call"
     }
 
-    private fun referenceOptionName(action: ReferentialAction): String? =
+    private fun referenceOptionName(action: ReferentialAction): String =
         when (action) {
-            ReferentialAction.NO_ACTION -> null
+            ReferentialAction.NO_ACTION -> "NO_ACTION"
             ReferentialAction.RESTRICT -> "RESTRICT"
             ReferentialAction.CASCADE -> "CASCADE"
             ReferentialAction.SET_NULL -> "SET_NULL"

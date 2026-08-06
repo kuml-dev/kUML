@@ -13,6 +13,7 @@ import dev.kuml.erm.model.ErmMetadataKeys
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ErmView
 import dev.kuml.erm.model.ReferentialAction
+import dev.kuml.erm.model.ermDefaultForeignKeyConstraintName
 
 /**
  * V3.4.7 — the single source of truth for SQL DDL generation from an
@@ -382,7 +383,12 @@ internal class ErmSqlEmitter(
                 ?: targetEntity.primaryKey.singleOrNull()
         val refColumn = targetAttr?.let { columnNameOf(it) } ?: "id"
 
-        val constraintName = SqlNames.requireSafe(name = "fk_${fkTable}_$fkColumn", what = "FK constraint name", source = attr.id)
+        val constraintName =
+            SqlNames.requireSafe(
+                name = ermDefaultForeignKeyConstraintName(tableName = fkTable, columnName = fkColumn),
+                what = "FK constraint name",
+                source = attr.id,
+            )
         val onDelete = referentialClause(keyword = "ON DELETE", action = fk.onDelete)
         val onUpdate = referentialClause(keyword = "ON UPDATE", action = fk.onUpdate)
 
