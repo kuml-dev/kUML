@@ -73,6 +73,38 @@ class ErmSqlEmitterTest :
             sql shouldContain "count INTEGER NOT NULL DEFAULT 0"
         }
 
+        test("Enum default skips the DDL DEFAULT clause when a literal needs sanitizing, keeps it otherwise") {
+            // ermEnumNeedsCustomMapping's KDoc: Exposed 1.3.1's schema-diff cannot recognize a
+            // default value round-tripped through customEnumeration's toDb lambda (empirically
+            // verified against a real Postgres container, Portal-Server's SchemaSmokeTest,
+            // 2026-08-06) — ErmExposedEmitter never emits a matching .default(...) for such a
+            // column, so this DDL-side DEFAULT must stay unemitted too, keeping both emitters in
+            // agreement (neither declares one) rather than a default Exposed's own tooling can
+            // never confirm. A plain-identifier enum literal (no sanitizing needed) is unaffected.
+            val model =
+                ermModel(name = "M") {
+                    entity(name = "tickets") {
+                        id(name = "id", type = ErmDataType.Integer(32))
+                        attribute(
+                            name = "origin",
+                            type = ErmDataType.Enum(name = "TicketOrigin", values = listOf("PROBLEM_REPORT", "CATALOG_BOOKING")),
+                            nullable = false,
+                            default = "PROBLEM_REPORT",
+                        )
+                        attribute(
+                            name = "kind",
+                            type = ErmDataType.Enum(name = "AssetKind", values = listOf("DEVICE", "SYSTEM")),
+                            nullable = false,
+                            default = "DEVICE",
+                        )
+                    }
+                }
+            val sql = emit(model)
+            sql shouldContain "origin VARCHAR(15) NOT NULL,"
+            sql shouldNotContain "origin VARCHAR(15) NOT NULL DEFAULT"
+            sql shouldContain "kind VARCHAR(6) NOT NULL DEFAULT 'DEVICE'"
+        }
+
         test("composite PK renders as a table-level PRIMARY KEY, not inline") {
             // Built with raw `attribute(...)` (not the `foreignKey()` convenience builder) since
             // the latter never sets `primaryKey = true` — junction tables need both columns to

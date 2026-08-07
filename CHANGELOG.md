@@ -6,6 +6,51 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.49.0] — 2026-08-07
+
+### Fixed
+
+**`kuml-codegen-m2m-exposed`: attribute defaults and enum `CHECK` constraints were never emitted, only left as comments**
+
+Follow-up to the FK-naming-agreement fix in v0.48.0: once that fix let a downstream consumer's
+Testcontainers-based CI (a real Postgres+PostGIS container) actually reach further down its table
+list, it immediately caught two more pre-existing gaps in `ErmExposedEmitter` — every
+`ErmAttribute.default` was left as a `// TODO default = "..."` comment instead of a typed
+`.default(...)` call, and every `ErmDataType.Enum`-derived `CHECK` constraint was left unemitted
+entirely (only a `// Note: N check constraint(s) ... not emitted` comment), both silently
+disagreeing with what `ErmSqlEmitter`'s DDL actually declares.
+
+`ErmExposedEmitter` now renders a typed `.default(...)` for `Boolean`/`Integer`/`Real`/`Decimal`
+and non-sanitized-literal `Enum` attributes (`Varchar`/`Text`/date-time/`Uuid`/`Json`/`Custom`/
+externally-retrofitted-enum defaults keep the safe TODO-comment fallback — there is no way to
+safely infer a typed literal for those). Every `Enum`-typed attribute now also gets its
+auto-derived `CHECK` constraint emitted via `Table.check(name) { col.inList(EnumType.entries) }`,
+named to match Postgres's own auto-naming for the SQL side's anonymous `CHECK`
+(`<table>_<column>_check`) — the same rationale `ermDefaultForeignKeyConstraintName`'s `fkName`
+fix already established for foreign keys.
+
+`sanitizeEnumConstantName` moved to a new shared `dev.kuml.erm.model.ErmEnumNaming`
+(`kuml-metamodel-erm`), alongside a new `ermEnumNeedsCustomMapping(values)` predicate, so both
+emitters answer "does this enum need `customEnumeration`'s `dbValue`/`fromDb` mapping" from one
+source of truth instead of duplicating the logic — the same pattern that already prevented the FK
+constraint name from silently diverging.
+
+**Also fixed**: for an enum needing `customEnumeration`'s sanitizing (e.g. a literal like
+`"NOT_APPLICABLE"` isn't a valid Kotlin identifier), Exposed 1.3.1's schema-diff
+(`MigrationUtils.statementsRequiredForDatabaseMigration`) cannot recognize a default value
+round-tripped through `customEnumeration`'s `toDb` lambda — verified empirically against a real
+Postgres container that it keeps proposing a `SET DEFAULT`/`DROP DEFAULT` statement regardless of
+whether the `Table` object declares a matching `.default(...)` or not. `ErmSqlEmitter` now skips
+the DDL-level `DEFAULT` clause for exactly these columns too (`ermEnumNeedsCustomMapping(values)
+== true`), keeping both emitters in agreement (neither declares a default) rather than a DB
+default Exposed's own tooling can never confirm the generated `Table` object actually matches.
+
+Added regression coverage matching the precedent `ErmSqlExposedFkAgreementTest` already set:
+`ErmSqlEmitterTest` (a customEnumeration-needing enum default skips the DDL `DEFAULT` clause, a
+plain enum default keeps it) and `ErmToExposedTransformerTest` (the auto-derived enum `CHECK` is
+emitted with the Postgres-matching constraint name; a customEnumeration-needing default still
+falls back to the TODO comment while its `CHECK` is emitted normally).
+
 ## [0.48.0] — 2026-08-06
 
 ### Fixed

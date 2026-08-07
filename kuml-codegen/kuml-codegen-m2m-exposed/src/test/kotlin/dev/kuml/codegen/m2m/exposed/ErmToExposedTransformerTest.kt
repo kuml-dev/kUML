@@ -166,7 +166,7 @@ class ErmToExposedTransformerTest :
             content shouldNotContain "autoIncrement()"
         }
 
-        test("default value is emitted as a TODO comment, not a typed .default() call") {
+        test("default value that safely parses for its declared type becomes a typed .default() call") {
             val model =
                 ermModel(name = "M") {
                     entity(name = "users") {
@@ -175,7 +175,20 @@ class ErmToExposedTransformerTest :
                     }
                 }
             val content = successFiles(model)[0].content
-            content shouldContain "// TODO default = \"0\""
+            content shouldContain ".default(0)"
+            content shouldNotContain "// TODO default"
+        }
+
+        test("default value that fails to parse for its declared type falls back to a TODO comment") {
+            val model =
+                ermModel(name = "M") {
+                    entity(name = "users") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(name = "credits", type = ErmDataType.Integer(32), nullable = false, default = "not-a-number")
+                    }
+                }
+            val content = successFiles(model)[0].content
+            content shouldContain "// TODO default = \"not-a-number\""
             content shouldNotContain ".default("
         }
 
@@ -765,6 +778,36 @@ class ErmToExposedTransformerTest :
 
             val usersContent = files.first { it.relativePath == "Users.kt" }.content
             usersContent shouldContain "val status: Column<Status> = enumerationByName<Status>(\"status\", 8)"
+            // Auto-derived CHECK, named to match Postgres's own auto-naming for the SQL side's
+            // anonymous CHECK (users_status_check) — see postgresDefaultEnumCheckConstraintName's
+            // KDoc for why this must be explicit rather than left to Exposed's own default.
+            usersContent shouldContain "check(\"users_status_check\") { status.inList(Status.entries) }"
+            usersContent shouldContain "import org.jetbrains.exposed.v1.core.inList"
+        }
+
+        test("Enum default that needs customEnumeration's sanitizing skips .default(), still emits the CHECK") {
+            // ermEnumNeedsCustomMapping's KDoc: verified against a real Postgres container that
+            // Exposed 1.3.1's schema-diff can't recognize a default round-tripped through
+            // customEnumeration's toDb lambda — stays on the TODO-comment fallback rather than
+            // emit a .default(...) this Exposed version can't keep in sync with itself. The CHECK
+            // constraint itself is unaffected (only ever built from the enum's own entries, never
+            // from the default), so it's still emitted normally.
+            val model =
+                ermModel(name = "M") {
+                    entity(name = "tickets") {
+                        id(name = "id", type = ErmDataType.Integer(64))
+                        attribute(
+                            name = "origin",
+                            type = ErmDataType.Enum(name = "TicketOrigin", values = listOf("PROBLEM_REPORT", "CATALOG_BOOKING")),
+                            nullable = false,
+                            default = "PROBLEM_REPORT",
+                        )
+                    }
+                }
+            val content = successFiles(model).first { it.relativePath == "Tickets.kt" }.content
+            content shouldContain "// TODO default = \"PROBLEM_REPORT\""
+            content shouldNotContain ".default("
+            content shouldContain "check(\"tickets_origin_check\") { origin.inList(TicketOrigin.entries) }"
         }
 
         test("two entities referencing the same enum name/values dedupe to a single enum file") {

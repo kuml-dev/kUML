@@ -14,6 +14,7 @@ import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ErmView
 import dev.kuml.erm.model.ReferentialAction
 import dev.kuml.erm.model.ermDefaultForeignKeyConstraintName
+import dev.kuml.erm.model.ermEnumNeedsCustomMapping
 
 /**
  * V3.4.7 — the single source of truth for SQL DDL generation from an
@@ -157,7 +158,19 @@ internal class ErmSqlEmitter(
         if (!attr.autoIncrement) {
             parts += if (attr.nullable) "NULL" else "NOT NULL"
             if (attr.unique && !attr.primaryKey) parts += "UNIQUE"
-            attr.default?.let { parts += "DEFAULT ${renderDefaultLiteral(raw = it, type = attr.type)}" }
+            // A customEnumeration-backed column (see ermEnumNeedsCustomMapping's KDoc) never gets
+            // a DB-level DEFAULT here, even when ErmAttribute.default is set: Exposed 1.3.1's
+            // schema-diff can't recognize such a default no matter which side declares it
+            // (empirically verified against a real Postgres container, Portal-Server's
+            // SchemaSmokeTest, 2026-08-06), so ErmExposedEmitter never emits a matching
+            // `.default(...)` for these columns either — this keeps both emitters in agreement
+            // (neither declares a default) instead of the migration setting one Exposed's own
+            // tooling can never confirm the generated Table object actually matches.
+            val enumType = attr.type as? ErmDataType.Enum
+            val skipDefault = enumType != null && ermEnumNeedsCustomMapping(enumType.values)
+            if (!skipDefault) {
+                attr.default?.let { parts += "DEFAULT ${renderDefaultLiteral(raw = it, type = attr.type)}" }
+            }
         }
         if (attr.primaryKey && singleColumnPk) parts += "PRIMARY KEY"
 
