@@ -1,8 +1,10 @@
 package dev.kuml.io.svg.bpmn.edge
 
 import dev.kuml.bpmn.model.SequenceFlow
+import dev.kuml.io.svg.EdgeLabelGeometry
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt2
+import dev.kuml.io.svg.renderEdgeLabelWithHalo
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.renderer.theme.core.KumlTheme
 import kotlin.math.sqrt
@@ -26,8 +28,6 @@ internal fun renderBpmnSequenceFlow(
     val tgt = route.target
 
     val edgeColor = theme.colors.edge.toHex()
-    val labelColor = theme.colors.muted.toHex()
-    val fontFamily = theme.typography.body.family
 
     // Pfad-Daten
     val pathD =
@@ -91,42 +91,16 @@ internal fun renderBpmnSequenceFlow(
         }
     }
 
-    // Condition-Label (Name des Flows)
+    // Condition-Label (Name des Flows). Arc-length-aware midpoint (matches every
+    // other edge renderer) instead of an array-index midpoint — for an
+    // orthogonal/tree route with an odd waypoint count, `allPts[allPts.size / 2]`
+    // can land off-center on the polyline. Halo pattern (matches
+    // BpmnMessageFlowSvg / BpmnChoreoSvg) instead of a bare `<text>`, so the
+    // label stays readable when the flow line passes directly through it.
     val label = flow.name
     if (!label.isNullOrBlank()) {
-        val midX: Float
-        val midY: Float
-        when (route) {
-            is EdgeRoute.OrthogonalRounded -> {
-                val allPts = listOf(src) + route.waypoints + listOf(tgt)
-                val mid = allPts[allPts.size / 2]
-                midX = mid.x
-                midY = mid.y
-            }
-
-            is EdgeRoute.TreeRounded -> {
-                val allPts = listOf(src) + route.waypoints + listOf(tgt)
-                val mid = allPts[allPts.size / 2]
-                midX = mid.x
-                midY = mid.y
-            }
-
-            else -> {
-                midX = (src.x + tgt.x) / 2f
-                midY = (src.y + tgt.y) / 2f
-            }
-        }
-        builder.tag(
-            name = "text",
-            attrs =
-                mapOf(
-                    "x" to fmtF(midX + 4f),
-                    "y" to fmtF(midY - 4f),
-                    "font-family" to fontFamily,
-                    "font-size" to "10",
-                    "fill" to labelColor,
-                ),
-        ) { text(label) }
+        val anchor = EdgeLabelGeometry.midAnchor(route)
+        builder.renderEdgeLabelWithHalo(label = label, x = anchor.x + 4f, y = anchor.y - 4f, textAnchor = "start")
     }
 }
 

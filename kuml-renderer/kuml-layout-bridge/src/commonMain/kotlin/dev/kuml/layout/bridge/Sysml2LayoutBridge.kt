@@ -168,6 +168,16 @@ public object Sysml2LayoutBridge {
     public const val UC_ELLIPSE_H_PAD: Float = 30f
 
     /**
+     * Horizontal padding (left + right) reserved around an actor's name
+     * label (V2.x overflow fix). Deliberately much smaller than
+     * [UC_ELLIPSE_H_PAD] — an actor box is a plain rectangle with the name
+     * centered directly below the stick figure
+     * ([dev.kuml.io.svg.sysml2.renderSysml2Actor]), not a curved boundary
+     * that needs extra breathing room.
+     */
+    public const val UC_ACTOR_NAME_H_PAD: Float = 4f
+
+    /**
      * Default-Größe pro IBD-Box (V2.0.6). Kleiner als die BDD-Default-Größe,
      * weil IBD-Boxen nur `name : Type [mult]` zeigen — keine Compartments für
      * Attribute/Ports/Sub-Parts. Die `«part»`-Stereotyp-Zeile plus eine
@@ -437,7 +447,64 @@ public object Sysml2LayoutBridge {
      * Breite zurück.
      */
     public fun ibdContentAwareSizeProvider(model: Sysml2Model? = null): SizeProvider =
-        SizeProvider { id, _ ->
+        ibdContentAwareSizeProvider(model = model, diagram = null, layoutDirection = LayoutDirection.TopToBottom)
+
+    /**
+     * Content-aware [SizeProvider] for IBD nodes, **with edge-fan awareness**
+     * (mirrors [stmContentAwareSizeProvider]'s two-arg overload — see its
+     * KDoc for the general "box grows with connected-edge count, direction
+     * follows layout direction" heuristic, documented project-wide in
+     * CLAUDE.md's "Renderer-Sizing-Heuristik").
+     *
+     * IBD boxes commonly have several port connections (e.g. a `BankUsers`
+     * hub part with 20+ connectors) — without this puffer, connector
+     * endpoints on a box's edge cram together and edge labels overlap,
+     * exactly the symptom the heuristic exists to prevent everywhere else
+     * (UML classes, STM states). The single-arg overload never had this axis;
+     * this overload adds it without changing the single-arg one's behaviour
+     * (which still delegates here with `diagram = null` → zero puffer).
+     *
+     * Re-derives the visible part-usage id set independently of
+     * [toLayoutGraph]'s own resolution — same duplication precedent as
+     * [stmContentAwareSizeProvider], which re-counts transitions rather than
+     * sharing [toLayoutGraph]'s edge-building loop.
+     */
+    public fun ibdContentAwareSizeProvider(
+        model: Sysml2Model?,
+        diagram: IbdDiagram?,
+        layoutDirection: LayoutDirection = LayoutDirection.TopToBottom,
+    ): SizeProvider {
+        val connectionsById: Map<String, Int> =
+            if (model == null || diagram == null) {
+                emptyMap()
+            } else {
+                val owner =
+                    model.definitions.filterIsInstance<PartDefinition>().firstOrNull { it.id == diagram.ownerId }
+                if (owner == null) {
+                    emptyMap()
+                } else {
+                    val partDefIds: Set<String> = model.definitions.filterIsInstance<PartDefinition>().map { it.id }.toSet()
+                    val ownerPartUsageFeatures =
+                        owner.features.filter { feature -> feature.typeId != null && feature.typeId in partDefIds }
+                    val filterIds: Set<String>? = diagram.elementIds.takeIf { it.isNotEmpty() }?.toSet()
+                    val visibleNodeIds: Set<String> =
+                        (if (filterIds == null) ownerPartUsageFeatures else ownerPartUsageFeatures.filter { it.id in filterIds })
+                            .map { it.id }
+                            .toSet()
+                    val ownerPrefix = "${owner.id}::"
+                    buildMap<String, Int> {
+                        for (connection in model.usages.filterIsInstance<ConnectionUsage>()) {
+                            if (!connection.id.startsWith(ownerPrefix)) continue
+                            val srcNode = longestPrefixNodeId(endpointId = connection.sourceEndId, visibleNodeIds = visibleNodeIds) ?: continue
+                            val tgtNode = longestPrefixNodeId(endpointId = connection.targetEndId, visibleNodeIds = visibleNodeIds) ?: continue
+                            put(srcNode, (get(srcNode) ?: 0) + 1)
+                            put(tgtNode, (get(tgtNode) ?: 0) + 1)
+                        }
+                    }
+                }
+            }
+
+        return SizeProvider { id, _ ->
             val h = STEREOTYPE_LINE_H + NAME_LINE_H + BOX_V_PADDING
             val w =
                 if (model == null) {
@@ -458,8 +525,11 @@ public object Sysml2LayoutBridge {
                     val contentW = maxOf(stereoW, titleW) + 2 * IBD_H_PAD
                     maxOf(contentW, IBD_DEFAULT_WIDTH)
                 }
-            dev.kuml.layout.Size(width = w, height = maxOf(h, 50f))
+            val (wExtra, hExtra) =
+                stmConnectionPuffer(transitionCount = connectionsById[id] ?: 0, layoutDirection = layoutDirection)
+            dev.kuml.layout.Size(width = w + wExtra, height = maxOf(h, 50f) + hExtra)
         }
+    }
 
     /**
      * Content-aware [SizeProvider] for STM nodes. Pseudo-states keep the
@@ -647,16 +717,43 @@ public object Sysml2LayoutBridge {
                             BOX_V_PADDING
                     dev.kuml.layout.Size(width = REQ_DEFAULT_WIDTH, height = maxOf(h, 70f))
                 }
-                "ActorDefinition" -> dev.kuml.layout.Size(width = UC_ACTOR_WIDTH, height = UC_ACTOR_HEIGHT)
+                "ActorDefinition" -> {
+                    val actor = model.definitions.firstOrNull { it.id == id } as? ActorDefinition
+                    ucActorContentSize(name = actor?.name)
+                }
                 "UseCaseDefinition" -> {
                     val uc = model.definitions.firstOrNull { it.id == id } as? UseCaseDefinition
-                    val nameW = (uc?.name?.length ?: 0) * BDD_BODY_CHAR_PX
-                    val contentW = nameW + 2 * UC_ELLIPSE_H_PAD
-                    dev.kuml.layout.Size(width = maxOf(contentW, UC_USECASE_WIDTH), height = UC_USECASE_HEIGHT)
+                    ucUseCaseContentSize(name = uc?.name)
                 }
                 else -> dev.kuml.layout.Size(width = REQ_DEFAULT_WIDTH, height = REQ_DEFAULT_HEIGHT)
             }
         }
+
+    /**
+     * Content-aware size for a UC/REQ actor node — the stick-figure glyph
+     * itself is fixed ([UC_ACTOR_WIDTH]), but its name label
+     * ([dev.kuml.io.svg.sysml2.renderSysml2Actor] draws it centered below the
+     * figure with no clamp) needs the box to grow for long actor names.
+     * Shared by [reqContentAwareSizeProvider] and [ucContentAwareSizeProvider]
+     * so both diagram kinds size an `ActorDefinition` identically.
+     */
+    private fun ucActorContentSize(name: String?): dev.kuml.layout.Size {
+        val nameW = (name?.length ?: 0) * BDD_BODY_CHAR_PX
+        val contentW = nameW + 2 * UC_ACTOR_NAME_H_PAD
+        return dev.kuml.layout.Size(width = maxOf(contentW, UC_ACTOR_WIDTH), height = UC_ACTOR_HEIGHT)
+    }
+
+    /**
+     * Content-aware size for a UC/REQ use-case node — mirrors the width
+     * formula already used by [reqContentAwareSizeProvider]'s
+     * `UseCaseDefinition` branch; factored out so
+     * [ucContentAwareSizeProvider] reuses the identical calculation.
+     */
+    private fun ucUseCaseContentSize(name: String?): dev.kuml.layout.Size {
+        val nameW = (name?.length ?: 0) * BDD_BODY_CHAR_PX
+        val contentW = nameW + 2 * UC_ELLIPSE_H_PAD
+        return dev.kuml.layout.Size(width = maxOf(contentW, UC_USECASE_WIDTH), height = UC_USECASE_HEIGHT)
+    }
 
     /**
      * Mirrors the word-boundary wrapping that `wrapWords()` in
@@ -731,7 +828,7 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: IbdDiagram,
-        sizeProvider: SizeProvider = ibdContentAwareSizeProvider(model),
+        sizeProvider: SizeProvider = ibdContentAwareSizeProvider(model = model, diagram = diagram),
     ): LayoutGraph {
         // 1. Owner auflösen — fehlt der Owner, ist der Graph leer (analog BDD).
         val owner =
@@ -833,7 +930,7 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: UcDiagram,
-        sizeProvider: SizeProvider = ucDefaultSizeProvider(),
+        sizeProvider: SizeProvider = ucContentAwareSizeProvider(model),
     ): LayoutGraph {
         val visibleIds: Set<String> = diagram.elementIds.toSet()
 
@@ -1137,7 +1234,7 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: ActDiagram,
-        sizeProvider: SizeProvider = actDefaultSizeProvider(),
+        sizeProvider: SizeProvider = actContentAwareSizeProvider(model),
     ): LayoutGraph {
         // V2.0.16: ActivityPartitionDefinitions sammeln, die im Diagramm
         //          sichtbar sind. Eine Partition wird genau dann zur
@@ -1342,7 +1439,7 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: SeqDiagram,
-        sizeProvider: SizeProvider = seqDefaultSizeProvider(),
+        sizeProvider: SizeProvider = seqContentAwareSizeProvider(model),
     ): LayoutGraph {
         // 1. Sichtbare Lifelines auflösen — nicht-LifelineDefinitions werden
         //    stillschweigend übersprungen (Validator-Sache).
@@ -1444,6 +1541,35 @@ public object Sysml2LayoutBridge {
         }
 
     /**
+     * Content-aware [SizeProvider] for SEQ diagrams. [seqDefaultSizeProvider]
+     * always returns a fixed [SEQ_LIFELINE_WIDTH] head box regardless of
+     * lifeline name length — [renderLifelineHead] (`Sysml2SequenceSvg.kt`,
+     * kuml-io-svg) draws the `«lifeline»` stereotype and the name centered
+     * with no clamp, so a long part/lifeline name overflows the fixed head
+     * box (message *labels* between lifelines are already safely clamped via
+     * `drawSeqLabelWithWhiteBackground`'s `maxWidth` — only the header box
+     * itself had this gap). Width grows to fit the longer of the stereotype
+     * and the name, reusing the same char-width constants as
+     * [bddContentAwareSizeProvider]'s width formula. Only the *width* the
+     * bridge assigns via [sizeProvider] changes — [toLayoutGraph] always
+     * overrides the *height* from the message-count calculation, unaffected
+     * by this provider.
+     */
+    public fun seqContentAwareSizeProvider(model: Sysml2Model): SizeProvider =
+        SizeProvider { id, kindHint ->
+            when (kindHint) {
+                "LifelineDefinition" -> {
+                    val lifeline = model.definitions.firstOrNull { it.id == id } as? LifelineDefinition
+                    val stereoW = "«lifeline»".length * IBD_STEREO_CHAR_PX
+                    val nameW = (lifeline?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
+                    val contentW = maxOf(stereoW, nameW) + 2 * IBD_H_PAD
+                    dev.kuml.layout.Size(width = maxOf(contentW, SEQ_LIFELINE_WIDTH), height = SEQ_LIFELINE_HEAD_HEIGHT)
+                }
+                else -> dev.kuml.layout.Size(width = SEQ_LIFELINE_WIDTH, height = SEQ_LIFELINE_HEAD_HEIGHT)
+            }
+        }
+
+    /**
      * Default-[SizeProvider] für ACT-Diagramme (V2.0.10) — gibt je nach
      * `kindHint` (Name eines [ActivityNodeKind]-Enum-Werts) die passenden
      * Default-Maße zurück:
@@ -1461,6 +1587,64 @@ public object Sysml2LayoutBridge {
             when (kindHint) {
                 ActivityNodeKind.Action.name ->
                     dev.kuml.layout.Size(width = ACT_ACTION_WIDTH, height = ACT_ACTION_HEIGHT)
+                ActivityNodeKind.Initial.name,
+                ActivityNodeKind.Final.name,
+                ActivityNodeKind.FlowFinal.name,
+                ->
+                    dev.kuml.layout.Size(width = ACT_PSEUDO_SIZE, height = ACT_PSEUDO_SIZE)
+                ActivityNodeKind.Decision.name,
+                ActivityNodeKind.Merge.name,
+                ->
+                    dev.kuml.layout.Size(width = ACT_DIAMOND_WIDTH, height = ACT_DIAMOND_HEIGHT)
+                ActivityNodeKind.Fork.name,
+                ActivityNodeKind.Join.name,
+                ->
+                    dev.kuml.layout.Size(width = ACT_BAR_WIDTH, height = ACT_BAR_HEIGHT)
+                else -> dev.kuml.layout.Size(width = ACT_ACTION_WIDTH, height = ACT_ACTION_HEIGHT)
+            }
+        }
+
+    /**
+     * Rendered action-body text is truncated at this many characters by
+     * [dev.kuml.io.svg.sysml2.renderRegularAction] (`ACT_BODY_MAX_LEN` in
+     * `Sysml2ActivitySvg.kt`, kuml-io-svg). Duplicated here — per the
+     * established house convention (`kuml-io-svg` cannot depend on
+     * `kuml-layout-bridge`) — solely to cap the body-line contribution to
+     * [actContentAwareSizeProvider]'s width estimate at the same length that
+     * actually renders; MUST stay numerically identical to the io-svg
+     * constant.
+     */
+    public const val ACT_BODY_MAX_LEN_FOR_SIZING: Int = 30
+
+    /**
+     * Content-aware [SizeProvider] for ACT (SysML 2 Activity) action boxes.
+     *
+     * [actDefaultSizeProvider] always returns a fixed [ACT_ACTION_WIDTH] ×
+     * [ACT_ACTION_HEIGHT] box for every `Action` node — [renderRegularAction]
+     * draws the action's `name` as a single unclamped, uncentered-overflow
+     * `<text>` line with no wrap or truncation, so a long action name
+     * overflows the fixed box (unlike the action *body*, which the renderer
+     * already truncates at [ACT_BODY_MAX_LEN_FOR_SIZING] chars). This
+     * provider grows width to fit the longer of the name and the
+     * (truncation-capped) body line — mirrors
+     * [bddContentAwareSizeProvider]'s width formula, reusing the same
+     * char-width constants.
+     *
+     * Pseudo-nodes (Initial/Final/FlowFinal), diamonds (Decision/Merge) and
+     * bars (Fork/Join) have no variable text inside their shape and keep
+     * their fixed [actDefaultSizeProvider] sizes unchanged.
+     */
+    public fun actContentAwareSizeProvider(model: Sysml2Model): SizeProvider =
+        SizeProvider { id, kindHint ->
+            when (kindHint) {
+                ActivityNodeKind.Action.name -> {
+                    val def = model.definitions.firstOrNull { it.id == id } as? ActionDefinition
+                    val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
+                    val bodyLen = minOf(def?.action?.length ?: 0, ACT_BODY_MAX_LEN_FOR_SIZING)
+                    val bodyW = bodyLen * BDD_BODY_CHAR_PX
+                    val contentW = maxOf(nameW, bodyW) + 2 * IBD_H_PAD
+                    dev.kuml.layout.Size(width = maxOf(contentW, ACT_ACTION_WIDTH), height = ACT_ACTION_HEIGHT)
+                }
                 ActivityNodeKind.Initial.name,
                 ActivityNodeKind.Final.name,
                 ActivityNodeKind.FlowFinal.name,
@@ -1530,6 +1714,35 @@ public object Sysml2LayoutBridge {
         }
 
     /**
+     * Content-aware [SizeProvider] for UC diagrams. [ucDefaultSizeProvider]
+     * always returns fixed [UC_ACTOR_WIDTH]/[UC_USECASE_WIDTH] boxes
+     * regardless of name length — [reqContentAwareSizeProvider] already grows
+     * `UseCaseDefinition` correctly (a long use-case name like `"Rate
+     * Tradesperson (Symmetric, Double-Blind)"` overflowed the fixed ellipse
+     * only in a *pure* UC diagram, not inside a REQ diagram, since only REQ
+     * had a content-aware path). This gives UC diagrams the identical
+     * content-aware sizing, via the shared [ucActorContentSize] /
+     * [ucUseCaseContentSize] helpers.
+     */
+    public fun ucContentAwareSizeProvider(model: Sysml2Model): SizeProvider =
+        SizeProvider { id, kindHint ->
+            when (kindHint) {
+                "ActorDefinition" -> {
+                    val actor = model.definitions.firstOrNull { it.id == id } as? ActorDefinition
+                    ucActorContentSize(name = actor?.name)
+                }
+                "UseCaseDefinition" -> {
+                    val uc = model.definitions.firstOrNull { it.id == id } as? UseCaseDefinition
+                    ucUseCaseContentSize(name = uc?.name)
+                }
+                else -> {
+                    val def = model.definitions.firstOrNull { it.id == id }
+                    ucUseCaseContentSize(name = def?.name)
+                }
+            }
+        }
+
+    /**
      * Übersetzt das gegebene PAR-Diagramm (V2.0.12) in einen [LayoutGraph] —
      * die **achte** und **letzte** Übersetzung der SysML-2-Diagramm-Linie.
      *
@@ -1585,7 +1798,7 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: ParDiagram,
-        sizeProvider: SizeProvider = parDefaultSizeProvider(),
+        sizeProvider: SizeProvider = parContentAwareSizeProvider(model),
     ): LayoutGraph {
         val nodes = mutableListOf<LayoutNode>()
         for (id in diagram.elementIds) {
@@ -1642,6 +1855,15 @@ public object Sysml2LayoutBridge {
         }
 
     /**
+     * Avg width of an 11pt monospace char (constraint expression compartment,
+     * `font-family="monospace"` in [dev.kuml.io.svg.sysml2.renderConstraintDefinition]).
+     * Monospace glyphs at a given point size run wider on average than the
+     * proportional [BDD_BODY_CHAR_PX] estimate, since every glyph is sized to
+     * fit the widest character in the font.
+     */
+    public const val PAR_EXPRESSION_CHAR_PX: Float = 7.2f
+
+    /**
      * Content-aware [SizeProvider] for PAR diagrams (V2.0.44).
      *
      * ConstraintDefinition height now grows with parameter count instead of
@@ -1649,10 +1871,16 @@ public object Sysml2LayoutBridge {
      * constraint with > 2 parameters — newton-second-law-par showed the third
      * `«in» a : Acceleration` line running outside the box).
      *
+     * Width also grows to fit the longest of: the name, the (truncation-
+     * capped) expression, and each formatted parameter line
+     * (`"«in» accelerationValue : AccelerationMagnitude"`) — previously
+     * fixed at [PAR_CONSTRAINT_WIDTH] regardless of content, which could
+     * still overflow even though the expression itself is bounded by
+     * `EXPRESSION_MAX_CHARS` (30 chars) at render time.
+     *
      * Height layout: `«constraint»` stereotype + name + expression compartment +
      * parameter compartment (one line per parameter), each separated by a
-     * divider gap. Width keeps the default — character-level measurement would
-     * require a font-metric backed estimator and is left for V2.x polish.
+     * divider gap.
      *
      * PartDefinitions defer to [bddContentAwareSizeProvider] (already
      * content-aware), so the two PartUsage boxes in newton-second-law-par
@@ -1671,13 +1899,42 @@ public object Sysml2LayoutBridge {
                             (if (hasExpression) DIVIDER_GAP + FEATURE_LINE_H else 0f) +
                             (if (paramCount > 0) DIVIDER_GAP + paramCount * FEATURE_LINE_H else 0f) +
                             BOX_V_PADDING
-                    dev.kuml.layout.Size(width = PAR_CONSTRAINT_WIDTH, height = maxOf(h, 70f))
+                    val nameW = (c?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
+                    // EXPRESSION_MAX_CHARS in Sysml2ConstraintSvg.kt (kuml-io-svg) —
+                    // duplicated per the house convention (io-svg can't be depended
+                    // on from layout-bridge); MUST stay numerically identical.
+                    val exprLen = minOf(c?.expression?.length ?: 0, PAR_EXPRESSION_MAX_CHARS_FOR_SIZING)
+                    val exprW = exprLen * PAR_EXPRESSION_CHAR_PX
+                    val paramMaxW =
+                        c?.parameters?.maxOfOrNull { p ->
+                            val stereo =
+                                when (p.direction) {
+                                    dev.kuml.sysml2.ConstraintParameterDirection.In -> "«in»"
+                                    dev.kuml.sysml2.ConstraintParameterDirection.Out -> "«out»"
+                                    dev.kuml.sysml2.ConstraintParameterDirection.Inout -> "«inout»"
+                                }
+                            val typeSuffix = p.typeId?.let { " : $it" } ?: ""
+                            "$stereo ${p.name}$typeSuffix".length * BDD_BODY_CHAR_PX
+                        } ?: 0f
+                    val contentW = maxOf(nameW, exprW, paramMaxW) + 2 * IBD_H_PAD
+                    dev.kuml.layout.Size(width = maxOf(contentW, PAR_CONSTRAINT_WIDTH), height = maxOf(h, 70f))
                 }
                 "PartDefinition" -> bdd.sizeOf(elementId = id, elementKind = kindHint)
                 else -> dev.kuml.layout.Size(width = PAR_CONSTRAINT_WIDTH, height = PAR_CONSTRAINT_HEIGHT)
             }
         }
     }
+
+    /**
+     * Rendered constraint-expression text is truncated at this many
+     * characters by [dev.kuml.io.svg.sysml2.renderConstraintDefinition]
+     * (`EXPRESSION_MAX_CHARS` in `Sysml2ConstraintSvg.kt`, kuml-io-svg).
+     * Duplicated here solely to cap the expression-line contribution to
+     * [parContentAwareSizeProvider]'s width estimate at the same length that
+     * actually renders; MUST stay numerically identical to the io-svg
+     * constant.
+     */
+    public const val PAR_EXPRESSION_MAX_CHARS_FOR_SIZING: Int = 30
 
     /**
      * Enriches a raw [LayoutResult] with port positions derived from the

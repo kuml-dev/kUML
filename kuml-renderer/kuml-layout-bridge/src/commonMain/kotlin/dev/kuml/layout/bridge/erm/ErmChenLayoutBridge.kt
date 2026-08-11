@@ -108,7 +108,7 @@ public object ErmChenLayoutBridge {
     public fun toChenLayoutGraph(
         model: ErmModel,
         diagram: ErmDiagram,
-        sizeProvider: SizeProvider = SizeProvider.constant(),
+        sizeProvider: SizeProvider = ErmChenSizeProvider(model = model, diagram = diagram),
     ): LayoutGraph {
         val visibleIds: Set<String> =
             diagram.elementIds

@@ -1310,6 +1310,85 @@ public object KumlSvgRenderer {
     }
 
     /**
+     * Widens a pure SysML 2 diagram's canvas (BDD/IBD/UC/REQ/STM/ACT/PAR, all
+     * routed through [renderSysml2Synthetic]) so every edge's stereotype/label
+     * fits inside the diagram's outer frame instead of running past its
+     * left/right border.
+     *
+     * Bug fix: [umlStmWidenForLabelOverhang] and [umlActivityWidenForGuardOverhang]
+     * already give this safety net to classic UML STATE and ACTIVITY diagrams,
+     * but every pure-SysML2 diagram kind shares [renderSysml2Synthetic] instead
+     * and never got an equivalent pass — a long `trigger [guard] / effect`
+     * transition label or a long `«stereotype»` on a BDD/REQ/PAR edge could run
+     * straight past the frame with nothing to stop it (found live: the
+     * Conference Room Lifecycle STM's `endRoom [moderator or global
+     * BOARD/ADMIN]` transition label).
+     *
+     * Modeled on [umlActivityWidenForGuardOverhang]: pure SysML2 diagrams draw
+     * their frame the generic way too ([SvgDocument.render]'s
+     * `renderDiagramFrame` spans the canvas directly), so growing the canvas
+     * width (and shifting overflow-side content) is enough — no dedicated
+     * frame GROUP to resize, unlike the state-machine case.
+     *
+     * Returns [layoutResult] unchanged when no label overflows (the
+     * overwhelming majority of diagrams), so unrelated diagrams render
+     * byte-for-byte identical to before this fix.
+     */
+    private fun sysml2WidenForLabelOverhang(
+        layoutResult: LayoutResult,
+        sysml2EdgeAdapter: Sysml2EdgeAdapter,
+        padding: Float,
+    ): LayoutResult {
+        val canvasW = layoutResult.canvas.width + 2 * padding
+        val frameLeft = DIAGRAM_FRAME_INSET_PX
+        val frameRight = canvasW - DIAGRAM_FRAME_INSET_PX
+
+        var leftOverhang = 0f
+        var rightOverhang = 0f
+        for ((edgeId, route) in layoutResult.edges) {
+            val meta = sysml2EdgeAdapter.metadataFor(edgeId.value) ?: continue
+            val label = widestLabelText(meta) ?: continue
+            val shiftedRoute = shiftRoute(route = route, dx = padding)
+            val (mx, _) = Sysml2EdgeRenderer.labelAnchor(shiftedRoute)
+            val halfWidth = Sysml2EdgeRenderer.estimateLabelHalfWidth(label)
+            leftOverhang = maxOf(leftOverhang, (frameLeft + STM_LABEL_FRAME_CLEARANCE_PX) - (mx - halfWidth))
+            rightOverhang = maxOf(rightOverhang, (mx + halfWidth) - (frameRight - STM_LABEL_FRAME_CLEARANCE_PX))
+        }
+        if (leftOverhang <= 0f && rightOverhang <= 0f) return layoutResult
+
+        // Shift every node/edge/group by leftOverhang so nothing lands at a
+        // negative x once the canvas grows on the left — the frame itself
+        // needs no separate shift, it's redrawn from canvasW at render time.
+        val shiftedNodes =
+            layoutResult.nodes.mapValues { (_, nodeLayout) ->
+                nodeLayout.copy(
+                    bounds =
+                        nodeLayout.bounds.copy(
+                            origin = nodeLayout.bounds.origin.copy(x = nodeLayout.bounds.origin.x + leftOverhang),
+                        ),
+                    ports = nodeLayout.ports.mapValues { (_, p) -> p.copy(x = p.x + leftOverhang) },
+                )
+            }
+        val shiftedEdges =
+            layoutResult.edges.mapValues { (_, route) -> shiftRoute(route = route, dx = leftOverhang, dy = 0f) }
+        val shiftedGroups =
+            layoutResult.groups.mapValues { (_, groupLayout) ->
+                groupLayout.copy(
+                    bounds =
+                        groupLayout.bounds.copy(
+                            origin = groupLayout.bounds.origin.copy(x = groupLayout.bounds.origin.x + leftOverhang),
+                        ),
+                )
+            }
+        return layoutResult.copy(
+            canvas = layoutResult.canvas.copy(width = layoutResult.canvas.width + leftOverhang + rightOverhang),
+            nodes = shiftedNodes,
+            edges = shiftedEdges,
+            groups = shiftedGroups,
+        )
+    }
+
+    /**
      * Rendert ein UML STATE-Diagramm als SVG.
      *
      * Flat-layout: der [UmlStateMachine]-Rahmen wird als LayoutGroup gerendert,
@@ -1552,13 +1631,22 @@ public object KumlSvgRenderer {
      */
     private fun renderSysml2Synthetic(
         synthetic: KumlDiagram,
-        layoutResult: LayoutResult,
+        rawLayoutResult: LayoutResult,
         theme: KumlTheme,
         options: SvgRenderOptions,
         sysml2EdgeAdapter: Sysml2EdgeAdapter,
         typeLabel: String,
-    ): String =
-        SvgDocument.render(
+    ): String {
+        // Widen the frame (and canvas) BEFORE computing anything padding-relative
+        // below, so every subsequent step already sees the final geometry — see
+        // sysml2WidenForLabelOverhang KDoc for why widening beats clamping here.
+        val layoutResult =
+            sysml2WidenForLabelOverhang(
+                layoutResult = rawLayoutResult,
+                sysml2EdgeAdapter = sysml2EdgeAdapter,
+                padding = options.paddingPx,
+            )
+        return SvgDocument.render(
             layoutResult = layoutResult,
             theme = theme,
             options = options,
@@ -1630,6 +1718,7 @@ public object KumlSvgRenderer {
                 }
             }
         }
+    }
 
     /**
      * Rendert ein SysML-2-BDD als SVG (V2.0.4).
@@ -1662,7 +1751,7 @@ public object KumlSvgRenderer {
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            layoutResult = layoutResult,
+            rawLayoutResult = layoutResult,
             theme = theme,
             options = options,
             sysml2EdgeAdapter = BddEdgeAdapter(model = model, diagram = diagram),
@@ -1703,7 +1792,7 @@ public object KumlSvgRenderer {
         val enrichedLayout = Sysml2LayoutBridge.enrichIbdPortPositions(model = model, diagram = diagram, layoutResult = layoutResult)
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            layoutResult = enrichedLayout,
+            rawLayoutResult = enrichedLayout,
             theme = theme,
             options = options,
             sysml2EdgeAdapter = IbdEdgeAdapter(model = model, diagram = diagram),
@@ -1749,7 +1838,7 @@ public object KumlSvgRenderer {
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            layoutResult = layoutResult,
+            rawLayoutResult = layoutResult,
             theme = theme,
             options = options,
             sysml2EdgeAdapter = UcEdgeAdapter(diagram),
@@ -1802,7 +1891,7 @@ public object KumlSvgRenderer {
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            layoutResult = layoutResult,
+            rawLayoutResult = layoutResult,
             theme = theme,
             options = options,
             sysml2EdgeAdapter = ReqEdgeAdapter(diagram),
@@ -1849,7 +1938,7 @@ public object KumlSvgRenderer {
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            layoutResult = layoutResult,
+            rawLayoutResult = layoutResult,
             theme = theme,
             options = options,
             sysml2EdgeAdapter = StmEdgeAdapter(model = model, diagram = diagram),
@@ -1914,6 +2003,13 @@ public object KumlSvgRenderer {
                 .filterIsInstance<ActivityPartitionDefinition>()
                 .associateBy { it.id }
         val adapter = ActEdgeAdapter(model = model, diagram = diagram)
+        // Widen the frame (and canvas) BEFORE the shape index / SvgDocument.render
+        // below, so every subsequent step already sees the final geometry — see
+        // sysml2WidenForLabelOverhang KDoc. Shadows the `layoutResult` parameter
+        // for the rest of this function (its own initializer still resolves to
+        // the un-widened parameter, standard Kotlin shadowing).
+        @Suppress("NAME_SHADOWING")
+        val layoutResult = sysml2WidenForLabelOverhang(layoutResult = layoutResult, sysml2EdgeAdapter = adapter, padding = options.paddingPx)
 
         // V2.0.46: Index der Activity-Knoten-Formen für den Edge-Clipper.
         //          ELK liefert Edge-Endpunkte auf dem Rand der achsparallelen
@@ -2351,7 +2447,7 @@ public object KumlSvgRenderer {
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            layoutResult = layoutResult,
+            rawLayoutResult = layoutResult,
             theme = theme,
             options = options,
             sysml2EdgeAdapter = ParEdgeAdapter(model = model, diagram = diagram),

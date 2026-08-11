@@ -73,7 +73,7 @@ public object C4LayoutBridge {
     public fun toLayoutGraph(
         diagram: C4Diagram,
         model: C4Model,
-        sizeProvider: SizeProvider = SizeProvider.constant(),
+        sizeProvider: SizeProvider = C4ContentSizeProvider(model = model),
     ): LayoutGraph {
         // Build a flat lookup map from all elements in the model
         val elementIndex = model.elements.associateBy { it.id }

@@ -172,11 +172,20 @@ public object UmlLayoutBridge {
      * - Alles andere wird schweigend ignoriert.
      *
      * @param diagram Das zu übersetzende UML-Diagramm.
-     * @param sizeProvider Liefert die intrinsische Größe pro Knoten.
+     * @param sizeProvider Liefert die intrinsische Größe pro Knoten. Default:
+     *   [UmlContentSizeProvider] — content-aware sizing so classifiers with
+     *   attributes/operations don't render at a fixed 160×80 box regardless
+     *   of content. Previously defaulted to [SizeProvider.constant]; only
+     *   `kuml-cli` opted into content-aware sizing explicitly, so every other
+     *   render pipeline (web, desktop, gradle-plugin, mcp, ai-tools,
+     *   markdown, asciidoc, widget-compose) silently rendered fixed-size UML
+     *   class boxes that could overflow with any real content. Callers that
+     *   need a specific [LayoutDirection] for sizing should still pass
+     *   `UmlContentSizeProvider(diagram, direction)` explicitly.
      */
     public fun toLayoutGraph(
         diagram: KumlDiagram,
-        sizeProvider: SizeProvider = SizeProvider.constant(),
+        sizeProvider: SizeProvider = UmlContentSizeProvider(diagram),
     ): LayoutGraph {
         val nodes = mutableListOf<LayoutNode>()
         val edges = mutableListOf<LayoutEdge>()

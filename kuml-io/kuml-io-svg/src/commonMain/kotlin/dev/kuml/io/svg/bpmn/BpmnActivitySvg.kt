@@ -160,21 +160,49 @@ private fun renderActivityBox(
     if (!label.isNullOrBlank()) {
         val cx = x + w / 2f
         val cy = y + h / 2f
-        builder.tag(
-            name = "text",
-            attrs =
-                mapOf(
-                    "x" to fmtF(cx),
-                    "y" to fmtF(cy + 4f),
-                    "text-anchor" to "middle",
-                    "dominant-baseline" to "middle",
-                    "font-family" to fontFamily,
-                    "font-size" to "12",
-                    "fill" to textColor,
-                ),
-        ) { text(label) }
+        val estimatedTextW = label.length * BPMN_TASK_LABEL_CHAR_PX
+        val maxTextW = (w - BPMN_TASK_LABEL_H_PADDING).coerceAtLeast(0f)
+        val baseAttrs =
+            mapOf(
+                "x" to fmtF(cx),
+                "y" to fmtF(cy + 4f),
+                "text-anchor" to "middle",
+                "dominant-baseline" to "middle",
+                "font-family" to fontFamily,
+                "font-size" to "12",
+                "fill" to textColor,
+            )
+        // BpmnContentSizeProvider.taskBoxSize (kuml-layout-bridge) caps box width at
+        // MAX_TASK_WIDTH as a DoS guard against pathological label input, but that only
+        // bounds the *box* — this renderer previously drew the label as unclamped
+        // single-line text regardless, so any name whose estimate exceeded the cap still
+        // rendered wider than the box. textLength + lengthAdjust compresses the glyphs to
+        // fit, same pattern as UmlSequenceSvg.drawLabelWithWhiteBackground.
+        val attrs =
+            if (estimatedTextW > maxTextW) {
+                baseAttrs + mapOf("textLength" to fmtF(maxTextW), "lengthAdjust" to "spacingAndGlyphs")
+            } else {
+                baseAttrs
+            }
+        builder.tag(name = "text", attrs = attrs) { text(label) }
     }
 }
+
+/**
+ * Estimated pixel width per character for a task/sub-process/call-activity
+ * label at `font-size 12`. Duplicated from
+ * `BpmnContentSizeProvider.TASK_CHAR_PX` (kuml-layout-bridge) — per the house
+ * convention (`kuml-io-svg` can't depend on `kuml-layout-bridge`) — solely so
+ * this renderer can tell when its own estimate would overflow the box the
+ * bridge actually sized; MUST stay numerically identical to that constant.
+ */
+private const val BPMN_TASK_LABEL_CHAR_PX: Float = 7.0f
+
+/**
+ * Horizontal padding reserved inside the box before the label starts
+ * overflowing. Duplicated from `BpmnContentSizeProvider.BOX_H_PADDING`.
+ */
+private const val BPMN_TASK_LABEL_H_PADDING: Float = 24f
 
 private fun renderTaskTypeIcon(
     type: TaskType,

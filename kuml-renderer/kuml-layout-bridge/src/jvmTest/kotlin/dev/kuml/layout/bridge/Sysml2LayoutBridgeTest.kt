@@ -387,6 +387,9 @@ class Sysml2LayoutBridgeTest :
         }
 
         "UC respects actor vs use-case default sizes" {
+            // toLayoutGraph's default sizeProvider is ucContentAwareSizeProvider(model);
+            // these short names ("Reader", "BorrowBook") stay under the char budget that
+            // would grow the box, so both still floor at their fixed default size.
             val model =
                 sysml2Model(name = "Sizes") {
                     val reader = actorDef(name = "Reader")
@@ -1584,7 +1587,13 @@ class Sysml2LayoutBridgeTest :
             )
         }
 
-        "PAR constraint sized as PAR_CONSTRAINT_WIDTH × PAR_CONSTRAINT_HEIGHT" {
+        "PAR constraint sized content-aware (short name/expression floors at PAR_CONSTRAINT_WIDTH, height from compartment count)" {
+            // toLayoutGraph's default sizeProvider is parContentAwareSizeProvider(model)
+            // — width floors at PAR_CONSTRAINT_WIDTH for short content (name/expression
+            // here are well under the char budget that would grow it), height is
+            // computed from the actual compartment count (stereotype + name + one
+            // expression line, no parameters) rather than the old fixed
+            // PAR_CONSTRAINT_HEIGHT, which over-allocated for constraints this short.
             val model =
                 sysml2Model(name = "PARSize") {
                     val newton = constraintDef(name = "NewtonsLaw", expression = "F = m * a")
@@ -1594,7 +1603,7 @@ class Sysml2LayoutBridgeTest :
             val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = par)
             val node = graph.nodes.single()
             node.intrinsicSize.width shouldBe Sysml2LayoutBridge.PAR_CONSTRAINT_WIDTH
-            node.intrinsicSize.height shouldBe Sysml2LayoutBridge.PAR_CONSTRAINT_HEIGHT
+            node.intrinsicSize.height shouldBe 70f
             SampleOutput.write(
                 filename = "sysml2-layout-bridge/par-constraint-default-size.layout.json",
                 content = prettyJson.encodeToString(graph),

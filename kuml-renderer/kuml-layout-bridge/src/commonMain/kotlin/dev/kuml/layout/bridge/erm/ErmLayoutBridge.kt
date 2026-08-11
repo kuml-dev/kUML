@@ -87,7 +87,7 @@ public object ErmLayoutBridge {
     public fun toLayoutGraph(
         model: ErmModel,
         diagram: ErmDiagram,
-        sizeProvider: SizeProvider = SizeProvider.constant(),
+        sizeProvider: SizeProvider = ErmContentSizeProvider(model = model, diagram = diagram),
     ): LayoutGraph {
         val visibleIds: Set<String> =
             diagram.elementIds

@@ -6,6 +6,7 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.arrowDirection
 import dev.kuml.io.svg.fmt2
 import dev.kuml.io.svg.renderInlineArrow
+import dev.kuml.io.svg.sysml2.wrapWords
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
@@ -61,6 +62,20 @@ internal object Sysml2EdgeRenderer {
      * stack height for the common single-sibling case.
      */
     private const val STACK_OFFSET_PX: Float = 22f
+
+    /**
+     * Max characters per wrapped edge-label line. Long trigger/guard/action
+     * text (e.g. `"endRoom [moderator or global BOARD/ADMIN]"`) previously
+     * rendered as a single unclamped line — the white background rect grew
+     * exactly as wide as the raw text, which could run past the diagram
+     * frame or over neighbouring nodes since nothing upstream reserves
+     * horizontal room for edge labels (see [emitText]). Word-wrapping at a
+     * fixed character budget keeps every label a bounded, readable width
+     * instead of silently overflowing. 40 chars is wide enough that most
+     * short stereotypes/guards stay on one line, matching the box-width
+     * feel of the shortest content-aware node boxes.
+     */
+    private const val EDGE_LABEL_WRAP_CHARS: Int = 40
 
     /**
      * Draw a SysML 2 edge.
@@ -140,32 +155,39 @@ internal object Sysml2EdgeRenderer {
         y: Float,
         cssClass: String,
     ) {
+        // Word-wrap long labels instead of drawing one unbounded-width line —
+        // see EDGE_LABEL_WRAP_CHARS. `y` is the baseline of the FIRST line;
+        // wrapped lines stack downward, away from the line/stereotype above.
+        val lines = wrapWords(content, EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(content) }
+        val singleLineH = 12f
+        val approxW = (lines.maxOf { it.length }) * 6.2f + 6f
+        val approxH = singleLineH + (lines.size - 1) * LABEL_LINE_HEIGHT_PX
         // Background rect for readability when labels overlap
-        val approxW = content.length * 6.2f + 6f
-        val approxH = 12f
         builder.tag(
             name = "rect",
             attrs =
                 mapOf(
                     "x" to fmt(x - approxW / 2f),
-                    "y" to fmt(y - approxH + 2f),
+                    "y" to fmt(y - singleLineH + 2f),
                     "width" to fmt(approxW),
                     "height" to fmt(approxH),
                     "fill" to "white",
                     "stroke" to "none",
                 ),
         )
-        builder.tag(
-            name = "text",
-            attrs =
-                mapOf(
-                    "class" to cssClass,
-                    "x" to fmt(x),
-                    "y" to fmt(y),
-                    "text-anchor" to "middle",
-                ),
-        ) {
-            text(content)
+        lines.forEachIndexed { index, line ->
+            builder.tag(
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to cssClass,
+                        "x" to fmt(x),
+                        "y" to fmt(y + index * LABEL_LINE_HEIGHT_PX),
+                        "text-anchor" to "middle",
+                    ),
+            ) {
+                text(line)
+            }
         }
     }
 
@@ -208,9 +230,11 @@ internal object Sysml2EdgeRenderer {
 
     /**
      * Estimate a label's half-width in SVG user units. Mirrors the formula
-     * used by [emitText] for the white background rectangle
-     * (`approxW = length * 6.2f + 6f`) so the clustering decision is in the
-     * same coordinate system the renderer actually paints in.
+     * used by [emitText] for the white background rectangle — same
+     * [EDGE_LABEL_WRAP_CHARS] word-wrap, half-width taken from the *widest
+     * wrapped line* (`approxW = widestLine.length * 6.2f + 6f`) — so the
+     * clustering decision is in the same coordinate system the renderer
+     * actually paints in, including for labels long enough to wrap.
      *
      * Null / blank labels report half-width 0 — they contribute no horizontal
      * overlap and therefore only cluster with vertically-overlapping
@@ -223,7 +247,8 @@ internal object Sysml2EdgeRenderer {
      */
     internal fun estimateLabelHalfWidth(labelText: String?): Float {
         if (labelText.isNullOrBlank()) return 0f
-        return (labelText.length * 6.2f + HORIZONTAL_OVERLAP_PADDING_PX) / 2f
+        val widestLine = wrapWords(labelText, EDGE_LABEL_WRAP_CHARS).maxOfOrNull { it.length } ?: labelText.length
+        return (widestLine * 6.2f + HORIZONTAL_OVERLAP_PADDING_PX) / 2f
     }
 
     /**

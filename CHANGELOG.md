@@ -6,6 +6,42 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+**Text overflow across renderer: edge labels and several node types only sized boxes by connected-edge count, never by their own content**
+
+Found live: a Lapis-Cloud README diagram (SysML 2 STM) showed action text overflowing state
+boxes, and a separate edge-label overflow was flagged as a related bug. Root-caused into a whole
+bug class — several node/edge renderers in `kuml-io-svg` draw text with no width clamp while the
+matching `kuml-layout-bridge` sizer computes box size independently; wherever the two drift, text
+overflows.
+
+Fixed the specific report plus every other instance of the same pattern found by a full audit:
+
+- `Sysml2EdgeRenderer.emitText()` — long edge/transition labels now word-wrap onto multiple lines
+  (`EDGE_LABEL_WRAP_CHARS = 40`) instead of drawing one unbounded-width line; also fixes classic
+  UML state-machine transitions, which reuse this renderer.
+- New `sysml2WidenForLabelOverhang` — pure SysML 2 diagrams (BDD/IBD/UC/REQ/STM/ACT/PAR) now get
+  the same canvas-widening safety net classic UML STATE/ACTIVITY diagrams already had, so a long
+  label can't run past the outer frame.
+- `UmlLayoutBridge`, `C4LayoutBridge`, `ErmLayoutBridge`, `ErmChenLayoutBridge`,
+  `ErmIdef1xLayoutBridge`: default `sizeProvider` switched from a fixed `SizeProvider.constant()`
+  to the already-existing content-aware provider. Previously only `kuml-cli` opted into
+  content-aware UML class sizing explicitly — every other pipeline (`kuml-web`, `kuml-desktop`,
+  `kuml-gradle-plugin`, `kuml-mcp`, `kuml-ai-tools`, `kuml-docs/*`, `kuml-widget-compose`) silently
+  rendered fixed 160×80 boxes regardless of content. Highest-impact fix: `kuml-mcp`/`kuml-ai-tools`
+  are the surfaces most likely to see long LLM-generated class/attribute names.
+- SysML 2 `Sysml2LayoutBridge`: ACT action boxes, UC actors/use-cases, SEQ lifeline header boxes,
+  and PAR constraint boxes are now content-aware (previously fixed-size regardless of name/
+  expression/parameter length); IBD boxes gained the edge-fan puffer STM/UML boxes already had.
+- BPMN task/sub-process/call-activity labels now get a `textLength`/`lengthAdjust` clamp when they
+  would exceed the box's DoS-capped `MAX_TASK_WIDTH`. BPMN sequence-flow condition labels switched
+  to the shared halo-label pattern (readability) and an arc-length-aware midpoint (previously an
+  array-index midpoint that could land off-center on multi-waypoint routes).
+
+Verified: `kuml-layout-bridge` + `kuml-io-svg` `jvmTest` green, full `kuml-vault-examples-tests`
+render suite green (all diagram types, all themes), `./gradlew clean check` green.
+
 ## [0.49.0] — 2026-08-07
 
 ### Fixed
