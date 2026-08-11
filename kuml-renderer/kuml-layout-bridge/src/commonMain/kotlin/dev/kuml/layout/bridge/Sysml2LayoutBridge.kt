@@ -480,12 +480,27 @@ public object Sysml2LayoutBridge {
      * Content-aware [SizeProvider] for STM nodes, **with edge-fan awareness**.
      *
      * Pseudo-states (Initial/Final) keep the fixed square size unconditionally.
-     * Regular [StateDefinition] boxes grow along two axes:
+     * Regular [StateDefinition] boxes grow along three axes:
      *
-     *  1. **Content axis** — height tracks the number of `entry`/`exit`/`do`
-     *     action slots (`NAME_LINE_H + n × ACTION_LINE_H + padding`). Identical
-     *     to the single-argument overload.
-     *  2. **Fan axis** — when [diagram] is non-null, the provider pre-counts
+     *  1. **Content axis (height)** — height tracks the number of `entry`/
+     *     `exit`/`do` action slots (`NAME_LINE_H + n × ACTION_LINE_H +
+     *     padding`). Identical to the single-argument overload.
+     *  2. **Content axis (width)** — width grows to fit the longest of the
+     *     state name and each `entry`/`exit`/`do` action line, formatted
+     *     exactly as `Sysml2StateSvg.renderRegularState` renders them
+     *     (`"entry / $action"` etc.), estimated via [IBD_TITLE_CHAR_PX]/
+     *     [BDD_BODY_CHAR_PX] — the same char-width constants already
+     *     calibrated for the `.kuml-title`/`.kuml-body` CSS classes STM boxes
+     *     actually render with, so the estimate matches the real font/size.
+     *     Bugfix, mirrors [bddContentAwareSizeProvider]'s identical "grow with
+     *     the longest line" fix: action text is a single unwrapped `<text>`
+     *     line with no width clamp on the SVG side, so before this fix a
+     *     state box stayed at the fixed [STM_STATE_WIDTH] regardless of how
+     *     long its action text was — any action string longer than roughly
+     *     STM_STATE_WIDTH / BDD_BODY_CHAR_PX chars overflowed the box outline
+     *     (observed: a Lapis-Cloud README diagram with full-sentence
+     *     `entryAction`/`doAction` strings, 2026-08-11).
+     *  3. **Fan axis** — when [diagram] is non-null, the provider pre-counts
      *     transitions whose source *or* target is the state (self-loops count
      *     twice) and adds [STM_CONNECTION_PUFFER_PX] per anliegender Kante on
      *     the side(s) where ELK is most likely to dock edges, capped at
@@ -567,8 +582,24 @@ public object Sysml2LayoutBridge {
                             transitionCount = connectionsById[id] ?: 0,
                             layoutDirection = layoutDirection,
                         )
+                    // Bugfix: width previously ignored entry/exit/do action text entirely, so a
+                    // long action string (e.g. "entry / LiveKit CreateRoom via server-internal
+                    // admin token") overflowed the fixed STM_STATE_WIDTH -- Sysml2StateSvg emits
+                    // each action as ONE unwrapped "entry / $action" line, never clipped or
+                    // wrapped, matching bddContentAwareSizeProvider's own "grow with the longest
+                    // line" fix for the identical class of BDD-box overflow. IBD_TITLE_CHAR_PX/
+                    // BDD_BODY_CHAR_PX are already calibrated for exactly the `.kuml-title`/
+                    // `.kuml-body` CSS classes STM boxes render with -- no new constants needed.
+                    val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
+                    val actionMaxW =
+                        listOfNotNull(
+                            def?.entryAction?.takeIf { it.isNotBlank() }?.let { "entry / $it" },
+                            def?.doAction?.takeIf { it.isNotBlank() }?.let { "do / $it" },
+                            def?.exitAction?.takeIf { it.isNotBlank() }?.let { "exit / $it" },
+                        ).maxOfOrNull { it.length * BDD_BODY_CHAR_PX } ?: 0f
+                    val contentW = maxOf(nameW, actionMaxW) + 2 * IBD_H_PAD
                     dev.kuml.layout.Size(
-                        width = STM_STATE_WIDTH + wExtra,
+                        width = maxOf(STM_STATE_WIDTH, contentW) + wExtra,
                         height = maxOf(baseH, 44f) + hExtra,
                     )
                 }
