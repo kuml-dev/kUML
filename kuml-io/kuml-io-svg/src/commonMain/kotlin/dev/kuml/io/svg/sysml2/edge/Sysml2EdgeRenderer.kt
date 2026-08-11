@@ -158,7 +158,7 @@ internal object Sysml2EdgeRenderer {
         // Word-wrap long labels instead of drawing one unbounded-width line —
         // see EDGE_LABEL_WRAP_CHARS. `y` is the baseline of the FIRST line;
         // wrapped lines stack downward, away from the line/stereotype above.
-        val lines = wrapWords(content, EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(content) }
+        val lines = wrapWords(text = content, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(content) }
         val singleLineH = 12f
         val approxW = (lines.maxOf { it.length }) * 6.2f + 6f
         val approxH = singleLineH + (lines.size - 1) * LABEL_LINE_HEIGHT_PX
@@ -247,7 +247,7 @@ internal object Sysml2EdgeRenderer {
      */
     internal fun estimateLabelHalfWidth(labelText: String?): Float {
         if (labelText.isNullOrBlank()) return 0f
-        val widestLine = wrapWords(labelText, EDGE_LABEL_WRAP_CHARS).maxOfOrNull { it.length } ?: labelText.length
+        val widestLine = wrapWords(text = labelText, maxChars = EDGE_LABEL_WRAP_CHARS).maxOfOrNull { it.length } ?: labelText.length
         return (widestLine * 6.2f + HORIZONTAL_OVERLAP_PADDING_PX) / 2f
     }
 

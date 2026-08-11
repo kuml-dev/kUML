@@ -185,7 +185,7 @@ public object UmlLayoutBridge {
      */
     public fun toLayoutGraph(
         diagram: KumlDiagram,
-        sizeProvider: SizeProvider = UmlContentSizeProvider(diagram),
+        sizeProvider: SizeProvider = UmlContentSizeProvider(diagram = diagram),
     ): LayoutGraph {
         val nodes = mutableListOf<LayoutNode>()
         val edges = mutableListOf<LayoutEdge>()

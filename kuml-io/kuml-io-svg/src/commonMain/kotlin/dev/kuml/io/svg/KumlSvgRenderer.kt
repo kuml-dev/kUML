@@ -2003,13 +2003,15 @@ public object KumlSvgRenderer {
                 .filterIsInstance<ActivityPartitionDefinition>()
                 .associateBy { it.id }
         val adapter = ActEdgeAdapter(model = model, diagram = diagram)
+
         // Widen the frame (and canvas) BEFORE the shape index / SvgDocument.render
         // below, so every subsequent step already sees the final geometry — see
         // sysml2WidenForLabelOverhang KDoc. Shadows the `layoutResult` parameter
         // for the rest of this function (its own initializer still resolves to
         // the un-widened parameter, standard Kotlin shadowing).
         @Suppress("NAME_SHADOWING")
-        val layoutResult = sysml2WidenForLabelOverhang(layoutResult = layoutResult, sysml2EdgeAdapter = adapter, padding = options.paddingPx)
+        val layoutResult =
+            sysml2WidenForLabelOverhang(layoutResult = layoutResult, sysml2EdgeAdapter = adapter, padding = options.paddingPx)
 
         // V2.0.46: Index der Activity-Knoten-Formen für den Edge-Clipper.
         //          ELK liefert Edge-Endpunkte auf dem Rand der achsparallelen

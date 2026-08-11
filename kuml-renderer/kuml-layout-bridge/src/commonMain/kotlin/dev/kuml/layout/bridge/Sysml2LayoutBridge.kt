@@ -483,7 +483,11 @@ public object Sysml2LayoutBridge {
                 if (owner == null) {
                     emptyMap()
                 } else {
-                    val partDefIds: Set<String> = model.definitions.filterIsInstance<PartDefinition>().map { it.id }.toSet()
+                    val partDefIds: Set<String> =
+                        model.definitions
+                            .filterIsInstance<PartDefinition>()
+                            .map { it.id }
+                            .toSet()
                     val ownerPartUsageFeatures =
                         owner.features.filter { feature -> feature.typeId != null && feature.typeId in partDefIds }
                     val filterIds: Set<String>? = diagram.elementIds.takeIf { it.isNotEmpty() }?.toSet()
@@ -495,8 +499,10 @@ public object Sysml2LayoutBridge {
                     buildMap<String, Int> {
                         for (connection in model.usages.filterIsInstance<ConnectionUsage>()) {
                             if (!connection.id.startsWith(ownerPrefix)) continue
-                            val srcNode = longestPrefixNodeId(endpointId = connection.sourceEndId, visibleNodeIds = visibleNodeIds) ?: continue
-                            val tgtNode = longestPrefixNodeId(endpointId = connection.targetEndId, visibleNodeIds = visibleNodeIds) ?: continue
+                            val srcNode =
+                                longestPrefixNodeId(endpointId = connection.sourceEndId, visibleNodeIds = visibleNodeIds) ?: continue
+                            val tgtNode =
+                                longestPrefixNodeId(endpointId = connection.targetEndId, visibleNodeIds = visibleNodeIds) ?: continue
                             put(srcNode, (get(srcNode) ?: 0) + 1)
                             put(tgtNode, (get(tgtNode) ?: 0) + 1)
                         }
