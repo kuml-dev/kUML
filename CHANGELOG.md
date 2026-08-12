@@ -8,6 +8,23 @@ All notable changes to this project are documented here. Format follows
 
 ### Fixed
 
+**`kuml.render` (MCP): hardcoded `PlainTheme()`, ignoring the `kuml` brand-theme default used everywhere else**
+
+v0.20.5 made `kuml` (navy/gold/off-white brand colours) the default theme "across CLI, Web/Server
+(Obsidian auto mode), Gradle plugin, and Desktop" — but `kuml-mcp`'s `RenderTool`/`McpRenderPipeline`
+were never updated and kept instantiating `PlainTheme()` directly, with no `theme` parameter on the
+`kuml.render` tool at all. Every diagram rendered through an MCP client (Claude Desktop, Cursor,
+etc.) came back black-and-white while every other surface had already switched to brand colours.
+
+`kuml.render` now accepts an optional `theme` argument (same layering as the CLI: explicit argument
+> built-in default `"kuml"`) and defaults to the brand theme when omitted or blank. An unknown theme
+name throws a structured `McpToolException` (`KUML-MCP-E-RENDER-UNKNOWN-THEME`) listing the
+registered themes instead of surfacing as a generic internal error. `"theme": "plain"` restores the
+previous black-and-white output exactly.
+
+This is a visible output change for existing MCP clients: renders that previously came back
+black-and-white now come back in brand colours by default.
+
 **Text overflow across renderer: edge labels and several node types only sized boxes by connected-edge count, never by their own content**
 
 Found live: a Lapis-Cloud README diagram (SysML 2 STM) showed action text overflowing state

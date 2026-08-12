@@ -33,7 +33,10 @@ Claude Desktop (and other MCP clients) connect to this process over stdio.
 | `kuml.render`
 | `script` (required, string — inline `*.kuml.kts` content) +
   `format` (optional, `svg`\|`png`, default `svg`) +
-  `width` (optional, integer, PNG only, default `1024`)
+  `width` (optional, integer, PNG only, default `1024`) +
+  `theme` (optional, string, default `kuml` — the kUML house theme; any other
+  registered theme name, e.g. `plain`, `elegant`, `playful`, can be requested; an
+  unknown name throws a structured error listing the registered themes)
 | SVG: one `text` content block with the SVG markup. +
   PNG: one `image` content block, base64-encoded, `mimeType: image/png`.
 

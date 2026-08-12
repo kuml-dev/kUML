@@ -20,7 +20,10 @@ internal object RenderTool : McpTool {
     override val descriptor: McpToolDescriptor =
         McpToolDescriptor(
             name = "kuml.render",
-            description = "Render a kUML DSL script to an SVG or PNG diagram. Returns SVG inline as text or PNG as base64-encoded image.",
+            description =
+                "Render a kUML DSL script to an SVG or PNG diagram. Returns SVG inline as text or " +
+                    "PNG as base64-encoded image. Renders with the kUML house theme by default; pass " +
+                    "`theme` for a different registered theme (e.g. 'plain').",
             inputSchema =
                 buildJsonObject {
                     put("type", "object")
@@ -44,6 +47,17 @@ internal object RenderTool : McpTool {
                             put("type", "integer")
                             put("description", "Width in pixels (PNG only). Default: 1024")
                         }
+                        putJsonObject("theme") {
+                            put("type", "string")
+                            put(
+                                "description",
+                                "Optional theme name (analogous to the CLI's --theme flag). Default: 'kuml' " +
+                                    "(the kUML house theme — navy/gold/off-white brand colours). Any other " +
+                                    "registered theme can be requested, e.g. 'plain' for the minimal " +
+                                    "black-and-white look, 'elegant', 'playful'. An unknown name returns an " +
+                                    "error listing the registered themes.",
+                            )
+                        }
                     }
                     putJsonArray("required") { add(JsonPrimitive("script")) }
                 },
@@ -55,6 +69,7 @@ internal object RenderTool : McpTool {
                 ?: throw IllegalArgumentException("Missing required argument: script")
         val format = arguments["format"]?.jsonPrimitive?.content ?: "svg"
         val width = arguments["width"]?.jsonPrimitive?.int ?: 1024
+        val theme = arguments["theme"]?.jsonPrimitive?.content
 
         // V0.23.3 — evaluation runs through the sandboxed evaluator (guard is
         // enforced inside it as layer 1). Render is UML-only, matching the
@@ -68,7 +83,15 @@ internal object RenderTool : McpTool {
                             "End the script with a `classDiagram { … }` / `diagram { … }` expression.",
                 )
 
-        return when (val result = McpRenderPipeline.render(diagram = diagram, format = format, widthPx = width)) {
+        return when (
+            val result =
+                McpRenderPipeline.render(
+                    diagram = diagram,
+                    format = format,
+                    widthPx = width,
+                    themeName = theme,
+                )
+        ) {
             is McpRenderPipeline.RenderResult.Svg ->
                 listOf(
                     McpContent(type = "text", text = result.content),
