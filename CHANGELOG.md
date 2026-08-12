@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.50.0] — 2026-08-12
+
 ### Fixed
 
 **`kuml.render` (MCP): hardcoded `PlainTheme()`, ignoring the `kuml` brand-theme default used everywhere else**
