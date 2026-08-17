@@ -110,7 +110,7 @@ class KumlMarkdownCodeFenceTest :
                 KumlPreviewRenderer.Outcome.Failure("Syntax error at line 1: Unresolved reference 'invalidDiagramDSL'"),
             )
 
-            val html = provider.generateHtml("kuml name=broken-diag", source, dummyNode)
+            val html = provider.generateHtml("kuml theme=plain name=broken-diag", source, dummyNode)
             html shouldContain "class=\"kuml-diagram-error\""
             html shouldContain "kUML Diagram Error (broken-diag)"
             html shouldContain "Unresolved reference &#39;invalidDiagramDSL&#39;"
