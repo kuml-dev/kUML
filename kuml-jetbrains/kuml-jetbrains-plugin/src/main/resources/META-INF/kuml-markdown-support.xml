@@ -1,0 +1,13 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="org.intellij.markdown">
+        <fenceGeneratingProvider
+            implementation="dev.kuml.jetbrains.markdown.KumlMarkdownCodeFenceProvider"/>
+        <fenceLanguageProvider
+            implementation="dev.kuml.jetbrains.markdown.KumlMarkdownCodeFenceLanguageProvider"/>
+    </extensions>
+    <extensions defaultExtensionNs="com.intellij">
+        <codeInsight.lineMarkerProvider
+            language="Markdown"
+            implementationClass="dev.kuml.jetbrains.markdown.KumlMarkdownLineMarkerProvider"/>
+    </extensions>
+</idea-plugin>

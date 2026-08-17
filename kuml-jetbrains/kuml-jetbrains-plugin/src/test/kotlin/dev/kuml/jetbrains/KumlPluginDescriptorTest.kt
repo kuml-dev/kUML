@@ -29,6 +29,7 @@ class KumlPluginDescriptorTest :
 
         val pluginXml: String by lazy { readResource("META-INF/plugin.xml") }
         val kotlinSupportXml: String by lazy { readResource("META-INF/kuml-kotlin-support.xml") }
+        val markdownSupportXml: String by lazy { readResource("META-INF/kuml-markdown-support.xml") }
 
         // ── (3) Extensions that MUST work without the Kotlin plugin ──────────────
         // These are the whole point of the optional-dependency fix: on WebStorm,
@@ -59,10 +60,16 @@ class KumlPluginDescriptorTest :
                 "<depends optional=\"true\" config-file=\"kuml-kotlin-support.xml\">org.jetbrains.kotlin</depends>"
         }
 
+        test("plugin.xml declares org.intellij.plugins.markdown as an optional dependency with a config-file") {
+            pluginXml shouldContain
+                "<depends optional=\"true\" config-file=\"kuml-markdown-support.xml\">org.intellij.plugins.markdown</depends>"
+        }
+
         test("plugin.xml keeps com.intellij.modules.platform as the only hard dependency") {
             pluginXml shouldContain "<depends>com.intellij.modules.platform</depends>"
-            // A bare, non-optional Kotlin dependency must never come back.
+            // A bare, non-optional Kotlin/Markdown dependency must never come back.
             pluginXml shouldNotContain "<depends>org.jetbrains.kotlin</depends>"
+            pluginXml shouldNotContain "<depends>org.intellij.plugins.markdown</depends>"
         }
 
         // ── (2) Fragment content ─────────────────────────────────────────────────
@@ -104,12 +111,28 @@ class KumlPluginDescriptorTest :
             }
         }
 
+        test("kuml-markdown-support.xml is present on the classpath and is a valid fragment root") {
+            markdownSupportXml shouldContain "<idea-plugin>"
+            markdownSupportXml shouldNotContain "<id>"
+            markdownSupportXml shouldNotContain "<depends>"
+        }
+
+        test("kuml-markdown-support.xml registers fenceLanguageProvider and lineMarkerProvider") {
+            markdownSupportXml shouldContain "defaultExtensionNs=\"org.intellij.markdown\""
+            markdownSupportXml shouldContain "fenceGeneratingProvider"
+            markdownSupportXml shouldContain "dev.kuml.jetbrains.markdown.KumlMarkdownCodeFenceProvider"
+            markdownSupportXml shouldContain "fenceLanguageProvider"
+            markdownSupportXml shouldContain "dev.kuml.jetbrains.markdown.KumlMarkdownCodeFenceLanguageProvider"
+            markdownSupportXml shouldContain "codeInsight.lineMarkerProvider"
+            markdownSupportXml shouldContain "dev.kuml.jetbrains.markdown.KumlMarkdownLineMarkerProvider"
+        }
+
         // ── (c) Re-merge guard ───────────────────────────────────────────────────
-        // If someone later moves a Kotlin-bound extension back into plugin.xml, the
-        // plugin silently stops loading on Kotlin-free IDEs again. Assert on class
-        // names, NOT on the string "org.jetbrains.kotlin": that literal legitimately
-        // appears in plugin.xml's <description> CDATA.
-        test("plugin.xml contains none of the Kotlin-bound extension implementations") {
+        // If someone later moves a Kotlin- or Markdown-bound extension back into plugin.xml, the
+        // plugin silently stops loading on Kotlin/Markdown-free IDEs again. Assert on class
+        // names, NOT on the string "org.jetbrains.kotlin" / "org.intellij.plugins.markdown":
+        // those literals legitimately appear in plugin.xml's <description> CDATA.
+        test("plugin.xml contains none of the Kotlin- or Markdown-bound extension implementations") {
             listOf(
                 "KumlScriptDefinitionsSource",
                 "KumlAnnotator",
@@ -117,6 +140,9 @@ class KumlPluginDescriptorTest :
                 "KumlFoldingBuilder",
                 "KumlCompletionContributor",
                 "KumlRenameHandler",
+                "KumlMarkdownCodeFenceProvider",
+                "KumlMarkdownCodeFenceLanguageProvider",
+                "KumlMarkdownLineMarkerProvider",
             ).forEach { className -> pluginXml shouldNotContain className }
         }
 

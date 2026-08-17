@@ -126,6 +126,7 @@ dependencies {
         // Wir nutzen den `org.jetbrains.kotlin.scriptDefinitionsProvider`-EP des
         // gebündelten Kotlin-Plugins.
         bundledPlugin("org.jetbrains.kotlin")
+        bundledPlugin("org.intellij.plugins.markdown")
 
         // Bewusst kein `testFramework(...)` — unsere Tests prüfen den
         // ScriptDefinitionsProvider standalone (ohne IDE-Sandbox). Der
