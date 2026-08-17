@@ -30,6 +30,7 @@ class KumlPluginDescriptorTest :
         val pluginXml: String by lazy { readResource("META-INF/plugin.xml") }
         val kotlinSupportXml: String by lazy { readResource("META-INF/kuml-kotlin-support.xml") }
         val markdownSupportXml: String by lazy { readResource("META-INF/kuml-markdown-support.xml") }
+        val asciidocSupportXml: String by lazy { readResource("META-INF/kuml-asciidoc-support.xml") }
 
         // ── (3) Extensions that MUST work without the Kotlin plugin ──────────────
         // These are the whole point of the optional-dependency fix: on WebStorm,
@@ -65,11 +66,17 @@ class KumlPluginDescriptorTest :
                 "<depends optional=\"true\" config-file=\"kuml-markdown-support.xml\">org.intellij.plugins.markdown</depends>"
         }
 
+        test("plugin.xml declares org.asciidoctor.intellij.asciidoc as an optional dependency with a config-file") {
+            pluginXml shouldContain
+                "<depends optional=\"true\" config-file=\"kuml-asciidoc-support.xml\">org.asciidoctor.intellij.asciidoc</depends>"
+        }
+
         test("plugin.xml keeps com.intellij.modules.platform as the only hard dependency") {
             pluginXml shouldContain "<depends>com.intellij.modules.platform</depends>"
-            // A bare, non-optional Kotlin/Markdown dependency must never come back.
+            // A bare, non-optional Kotlin/Markdown/AsciiDoc dependency must never come back.
             pluginXml shouldNotContain "<depends>org.jetbrains.kotlin</depends>"
             pluginXml shouldNotContain "<depends>org.intellij.plugins.markdown</depends>"
+            pluginXml shouldNotContain "<depends>org.asciidoctor.intellij.asciidoc</depends>"
         }
 
         // ── (2) Fragment content ─────────────────────────────────────────────────
@@ -127,12 +134,28 @@ class KumlPluginDescriptorTest :
             markdownSupportXml shouldContain "dev.kuml.jetbrains.markdown.KumlMarkdownLineMarkerProvider"
         }
 
+        test("kuml-asciidoc-support.xml is present on the classpath and is a valid fragment root") {
+            asciidocSupportXml shouldContain "<idea-plugin>"
+            asciidocSupportXml shouldNotContain "<id>"
+            asciidocSupportXml shouldNotContain "<depends>"
+        }
+
+        test("kuml-asciidoc-support.xml registers html panel provider, line marker and language injector") {
+            asciidocSupportXml shouldContain "defaultExtensionNs=\"org.asciidoc.intellij\""
+            asciidocSupportXml shouldContain "html.panel.provider"
+            asciidocSupportXml shouldContain "dev.kuml.jetbrains.asciidoc.KumlAsciidocHtmlPanelProvider"
+            asciidocSupportXml shouldContain "codeInsight.lineMarkerProvider"
+            asciidocSupportXml shouldContain "dev.kuml.jetbrains.asciidoc.KumlAsciidocLineMarkerProvider"
+            asciidocSupportXml shouldContain "multiHostInjector"
+            asciidocSupportXml shouldContain "dev.kuml.jetbrains.asciidoc.KumlAsciidocLanguageInjector"
+        }
+
         // ── (c) Re-merge guard ───────────────────────────────────────────────────
-        // If someone later moves a Kotlin- or Markdown-bound extension back into plugin.xml, the
-        // plugin silently stops loading on Kotlin/Markdown-free IDEs again. Assert on class
+        // If someone later moves a Kotlin-/Markdown-/AsciiDoc-bound extension back into plugin.xml, the
+        // plugin silently stops loading on IDEs without those plugins again. Assert on class
         // names, NOT on the string "org.jetbrains.kotlin" / "org.intellij.plugins.markdown":
         // those literals legitimately appear in plugin.xml's <description> CDATA.
-        test("plugin.xml contains none of the Kotlin- or Markdown-bound extension implementations") {
+        test("plugin.xml contains none of the Kotlin-, Markdown- or AsciiDoc-bound extension implementations") {
             listOf(
                 "KumlScriptDefinitionsSource",
                 "KumlAnnotator",
@@ -143,6 +166,13 @@ class KumlPluginDescriptorTest :
                 "KumlMarkdownCodeFenceProvider",
                 "KumlMarkdownCodeFenceLanguageProvider",
                 "KumlMarkdownLineMarkerProvider",
+                "KumlAsciidocHtmlPanelProvider",
+                "KumlAsciidocLineMarkerProvider",
+                "KumlAsciidocLanguageInjector",
+                "KumlAsciidocReferencedFileWatcher",
+                "KumlAsciidocHtmlRewriter",
+                "KumlAsciidocBlockParser",
+                "KumlAsciidocPathGuard",
             ).forEach { className -> pluginXml shouldNotContain className }
         }
 

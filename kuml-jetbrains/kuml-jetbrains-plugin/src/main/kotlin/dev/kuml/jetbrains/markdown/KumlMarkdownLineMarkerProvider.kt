@@ -16,6 +16,7 @@ import dev.kuml.jetbrains.KumlExportFormat
 import dev.kuml.jetbrains.KumlIcons
 import dev.kuml.jetbrains.KumlPreviewRenderer
 import dev.kuml.jetbrains.KumlPreviewSettings
+import dev.kuml.jetbrains.preview.KumlDocPreviewCache
 import org.intellij.plugins.markdown.lang.psi.impl.MarkdownCodeFence
 import java.awt.datatransfer.StringSelection
 import java.awt.event.MouseEvent
@@ -93,7 +94,7 @@ class KumlMarkdownLineMarkerProvider : LineMarkerProvider {
                 add(
                     object : AnAction("Copy Rendered SVG") {
                         override fun actionPerformed(e: AnActionEvent) {
-                            val outcome = KumlMarkdownPreviewCache.getOrRender(scriptText, theme, name)
+                            val outcome = KumlDocPreviewCache.getOrRender(scriptText, theme, name)
                             if (outcome is KumlPreviewRenderer.Outcome.Svg) {
                                 CopyPasteManager.getInstance().setContents(StringSelection(outcome.svg))
                             }

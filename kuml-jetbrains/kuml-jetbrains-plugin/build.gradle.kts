@@ -127,6 +127,9 @@ dependencies {
         // gebündelten Kotlin-Plugins.
         bundledPlugin("org.jetbrains.kotlin")
         bundledPlugin("org.intellij.plugins.markdown")
+        // Optional marketplace plugin — AsciiDoc preview HTML rewrite / line markers /
+        // language injection only load when this plugin is installed (see kuml-asciidoc-support.xml).
+        plugin("org.asciidoctor.intellij.asciidoc", "0.43.6")
 
         // Bewusst kein `testFramework(...)` — unsere Tests prüfen den
         // ScriptDefinitionsProvider standalone (ohne IDE-Sandbox). Der

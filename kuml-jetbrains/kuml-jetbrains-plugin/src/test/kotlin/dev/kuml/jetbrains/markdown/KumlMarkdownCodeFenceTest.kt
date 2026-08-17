@@ -1,8 +1,8 @@
 package dev.kuml.jetbrains.markdown
 
 import dev.kuml.jetbrains.KumlPreviewRenderer
+import dev.kuml.jetbrains.preview.KumlDocPreviewCache
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -84,10 +84,10 @@ class KumlMarkdownCodeFenceTest :
             val source = "classDiagram { classOf(\"Order\") }"
             val theme = "elegant"
             val name = "order-domain"
-            val key = KumlMarkdownPreviewCache.computeKey(source, theme, name)
+            val key = KumlDocPreviewCache.computeKey(source, theme, name)
             val mockSvg = "<svg viewBox=\"0 0 100 100\"><text>Order</text></svg>"
 
-            KumlMarkdownPreviewCache.put(key, KumlPreviewRenderer.Outcome.Svg(mockSvg))
+            KumlDocPreviewCache.put(key, KumlPreviewRenderer.Outcome.Svg(mockSvg))
 
             val html = provider.generateHtml("kuml {theme=\"elegant\" name=\"order-domain\" width=600}", source, dummyNode)
             html shouldContain "class=\"kuml-diagram-container\""
@@ -103,9 +103,9 @@ class KumlMarkdownCodeFenceTest :
             val source = "invalidDiagramDSL { }"
             val theme = "plain"
             val name = "broken-diag"
-            val key = KumlMarkdownPreviewCache.computeKey(source, theme, name)
+            val key = KumlDocPreviewCache.computeKey(source, theme, name)
 
-            KumlMarkdownPreviewCache.put(
+            KumlDocPreviewCache.put(
                 key,
                 KumlPreviewRenderer.Outcome.Failure("Syntax error at line 1: Unresolved reference 'invalidDiagramDSL'"),
             )

@@ -2,6 +2,8 @@ package dev.kuml.jetbrains.markdown
 
 import dev.kuml.jetbrains.KumlPreviewRenderer
 import dev.kuml.jetbrains.KumlPreviewSettings
+import dev.kuml.jetbrains.preview.KumlDocPreviewCache
+import dev.kuml.jetbrains.preview.KumlPreviewHtml
 import org.intellij.markdown.ast.ASTNode
 import org.intellij.plugins.markdown.extensions.CodeFenceGeneratingProvider
 
@@ -31,26 +33,24 @@ class KumlMarkdownCodeFenceProvider : CodeFenceGeneratingProvider {
         val width = attributes["width"]
 
         val cleanSource = raw.trimEnd('\n', '\r')
-        val outcome = KumlMarkdownPreviewCache.getOrRender(cleanSource, theme, name)
+        val outcome = KumlDocPreviewCache.getOrRender(cleanSource, theme, name)
 
         return when (outcome) {
             is KumlPreviewRenderer.Outcome.Svg -> {
                 val sanitizedSvg = sanitizeSvg(outcome.svg)
-                buildSvgContainer(sanitizedSvg, name, theme, width)
+                KumlPreviewHtml.buildSvgContainer(sanitizedSvg, name, theme, width)
             }
             is KumlPreviewRenderer.Outcome.Failure -> {
-                buildErrorContainer(outcome.message, name)
+                KumlPreviewHtml.buildErrorContainer(outcome.message, name)
             }
             is KumlPreviewRenderer.Outcome.Empty -> {
-                buildEmptyContainer(name)
+                KumlPreviewHtml.buildEmptyContainer(name)
             }
         }
     }
 
     companion object {
         private val ATTR_PAIR = Regex("""(\w+)\s*=\s*"([^"]*)"|(\w+)\s*=\s*(\S+)""")
-        private val SCRIPT_TAG_REGEX = Regex("""<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>""", RegexOption.IGNORE_CASE)
-        private val EVENT_HANDLER_REGEX = Regex("""\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)""", RegexOption.IGNORE_CASE)
 
         /**
          * Parses code fence attributes from the language info string.
@@ -91,74 +91,10 @@ class KumlMarkdownCodeFenceProvider : CodeFenceGeneratingProvider {
         /**
          * Defense-in-depth SVG sanitization preventing execution of script tags or inline event handlers.
          */
-        fun sanitizeSvg(svg: String): String {
-            var sanitized = SCRIPT_TAG_REGEX.replace(svg, "")
-            sanitized = EVENT_HANDLER_REGEX.replace(sanitized, "")
-            return sanitized
-        }
+        fun sanitizeSvg(svg: String): String = KumlPreviewHtml.sanitizeSvg(svg)
 
-        private fun buildSvgContainer(
-            svg: String,
-            name: String,
-            theme: String,
-            width: String?,
-        ): String {
-            val widthStyle =
-                if (width != null) {
-                    val formatted = if (width.all { it.isDigit() }) "${width}px" else width
-                    "max-width: $formatted; width: 100%;"
-                } else {
-                    "max-width: 100%;"
-                }
+        fun escapeHtml(text: String): String = KumlPreviewHtml.escapeHtml(text)
 
-            val escapedName = escapeHtmlAttribute(name)
-            val escapedTheme = escapeHtmlAttribute(theme)
-
-            return """
-<div class="kuml-diagram-container" data-kuml-name="$escapedName" data-kuml-theme="$escapedTheme" style="text-align: center; margin: 1.5em 0; overflow-x: auto; $widthStyle">
-$svg
-</div>
-                """.trimIndent()
-        }
-
-        private fun buildErrorContainer(
-            errorMessage: String,
-            name: String,
-        ): String {
-            val escapedMessage = escapeHtml(errorMessage)
-            val escapedName = escapeHtml(name)
-            return """
-<div class="kuml-diagram-error" data-kuml-name="$escapedName" style="border: 1px solid #e06c75; background: rgba(224, 108, 117, 0.08); padding: 12px 16px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #e06c75; margin: 1.5em 0; line-height: 1.4;">
-    <div style="font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-        <span>kUML Diagram Error ($escapedName)</span>
-    </div>
-    <pre style="margin: 0; padding: 8px; background: rgba(0, 0, 0, 0.05); border-radius: 4px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; white-space: pre-wrap;">$escapedMessage</pre>
-</div>
-                """.trimIndent()
-        }
-
-        private fun buildEmptyContainer(name: String): String {
-            val escapedName = escapeHtml(name)
-            return """
-<div class="kuml-diagram-empty" data-kuml-name="$escapedName" style="padding: 12px; border: 1px dashed #abb2bf; border-radius: 6px; text-align: center; color: #5c6370; font-style: italic; margin: 1.5em 0;">
-    (Empty kUML diagram)
-</div>
-                """.trimIndent()
-        }
-
-        fun escapeHtml(text: String): String =
-            text
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&#39;")
-
-        fun escapeHtmlAttribute(text: String): String =
-            text
-                .replace("&", "&amp;")
-                .replace("\"", "&quot;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
+        fun escapeHtmlAttribute(text: String): String = KumlPreviewHtml.escapeHtmlAttribute(text)
     }
 }

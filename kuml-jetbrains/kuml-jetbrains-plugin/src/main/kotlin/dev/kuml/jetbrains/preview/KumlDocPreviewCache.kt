@@ -1,4 +1,4 @@
-package dev.kuml.jetbrains.markdown
+package dev.kuml.jetbrains.preview
 
 import dev.kuml.jetbrains.KumlPreviewRenderer
 import dev.kuml.jetbrains.KumlPreviewSettings
@@ -7,12 +7,12 @@ import java.util.Collections
 import java.util.LinkedHashMap
 
 /**
- * Thread-safe LRU cache for rendered Markdown kUML diagram previews.
+ * Thread-safe LRU cache for rendered document (Markdown / AsciiDoc) kUML diagram previews.
  *
  * Keys are computed from the SHA-256 hash of script text, theme, and diagram name.
  * Caches up to [MAX_ENTRIES] entries (default 50) to keep memory bounded.
  */
-internal object KumlMarkdownPreviewCache {
+internal object KumlDocPreviewCache {
     const val MAX_ENTRIES: Int = 50
 
     private val cache: MutableMap<String, KumlPreviewRenderer.Outcome> =

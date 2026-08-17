@@ -1,0 +1,14 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="org.asciidoc.intellij">
+        <html.panel.provider
+            implementation="dev.kuml.jetbrains.asciidoc.KumlAsciidocHtmlPanelProvider"
+            order="first"/>
+    </extensions>
+    <extensions defaultExtensionNs="com.intellij">
+        <codeInsight.lineMarkerProvider
+            language="AsciiDoc"
+            implementationClass="dev.kuml.jetbrains.asciidoc.KumlAsciidocLineMarkerProvider"/>
+        <multiHostInjector
+            implementation="dev.kuml.jetbrains.asciidoc.KumlAsciidocLanguageInjector"/>
+    </extensions>
+</idea-plugin>
