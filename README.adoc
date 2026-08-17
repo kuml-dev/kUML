@@ -15,9 +15,13 @@ One source. Any diagram. Readable for humans and AI.
 *kUML* is a modelling tool that expresses UML 2.x, SysML 2, C4, BPMN 2.0 and ERM as a
 type-safe Kotlin DSL — the first UML tool deliberately designed for the LLM era.
 
-image:https://img.shields.io/maven-central/v/dev.kuml/kuml-core-dsl[Maven Central]
-image:https://img.shields.io/github/license/kuml-dev/kUML[Apache 2.0]
-image:https://img.shields.io/github/actions/workflow/status/kuml-dev/kUML/ci.yml[CI]
+image:https://img.shields.io/maven-central/v/dev.kuml/kuml-core-dsl[Maven Central,link=https://central.sonatype.com/artifact/dev.kuml/kuml-core-dsl]
+image:https://img.shields.io/jetbrains/plugin/v/dev.kuml.ide?label=JetBrains%20Plugin&logo=intellijidea[JetBrains Marketplace,link=https://plugins.jetbrains.com/plugin/dev.kuml.ide]
+image:https://img.shields.io/github/actions/workflow/status/kuml-dev/kUML/ci.yml?branch=master&label=CI&logo=github[CI,link=https://github.com/kuml-dev/kUML/actions/workflows/ci.yml]
+image:https://img.shields.io/github/actions/workflow/status/kuml-dev/kUML/codeql.yml?branch=master&label=CodeQL&logo=github[CodeQL,link=https://github.com/kuml-dev/kUML/actions/workflows/codeql.yml]
+image:https://img.shields.io/badge/Kotlin-2.4.0-7F52FF.svg?logo=kotlin&logoColor=white[Kotlin 2.4.0,link=https://kotlinlang.org]
+image:https://img.shields.io/badge/JDK-21+-ED8B00.svg?logo=openjdk&logoColor=white[Java 21+,link=https://adoptium.net]
+image:https://img.shields.io/github/license/kuml-dev/kUML[Apache 2.0,link=https://github.com/kuml-dev/kUML/blob/master/LICENSE]
 
 == Why kUML?
 
