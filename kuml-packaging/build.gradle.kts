@@ -12,6 +12,15 @@
 //
 // All five tasks depend on :kuml-cli:shadowJar; none are included in `check`.
 //
+// Each also depends on :kuml-cli:copyStyleWorkerLibForShadowJar, which stages
+// the :kuml-style-worker runtime jars into build/libs/style/, right next to
+// the shadow jar itself — otherwise `kuml validate`'s style check silently
+// degrades to STYLE_CHECK_UNAVAILABLE in every one of these distributions
+// (see the task's KDoc in kuml-cli/build.gradle.kts for the full mechanism).
+// jpackage's --input (used by packageDeb/Rpm/Dmg/Msi below) picks that
+// directory up automatically; dockerBuildCli's Dockerfile has to COPY it
+// explicitly (see src/main/docker/cli/Dockerfile).
+//
 // NOTE (V3.2.29, 2026-07-04): packageDmg/packageMsi here are NOT the DMG/MSI
 // actually shipped by kUML's release pipeline — release.yml never invokes
 // this task. The real kuml-desktop DMG/MSI are built via Compose
@@ -78,6 +87,19 @@ val distDirPath: String =
         .asFile.absolutePath
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Style-check-through-shadow-jar regression test wiring.
+//
+// Unlike the jpackage/Docker tasks below, this only needs a `java` binary —
+// no jpackage, no Docker daemon — so it is safe to run on every platform as
+// part of the normal `test` task (not OS-gated like packageDeb/Rpm/Dmg/Msi).
+// See ShadowJarStyleCheckTest for what it actually verifies.
+// ─────────────────────────────────────────────────────────────────────────────
+tasks.withType<Test>().configureEach {
+    dependsOn(":kuml-cli:shadowJar", ":kuml-cli:copyStyleWorkerLibForShadowJar")
+    systemProperty("kuml.packaging.shadowJarPath", shadowJarPath)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // jpackage — DEB (Linux)
 // ─────────────────────────────────────────────────────────────────────────────
 val packageDeb =
@@ -89,7 +111,7 @@ val packageDeb =
                 .current()
                 .isLinux
         }
-        dependsOn(":kuml-cli:shadowJar")
+        dependsOn(":kuml-cli:shadowJar", ":kuml-cli:copyStyleWorkerLibForShadowJar")
         // Capture Strings only — no Gradle script object references — for CC safety.
         val jarP = shadowJarPath
         val destP = distDirPath
@@ -137,7 +159,7 @@ val packageRpm =
                 .current()
                 .isLinux
         }
-        dependsOn(":kuml-cli:shadowJar")
+        dependsOn(":kuml-cli:shadowJar", ":kuml-cli:copyStyleWorkerLibForShadowJar")
         val jarP = shadowJarPath
         val destP = distDirPath
         val ver = kumlVersion
@@ -192,7 +214,7 @@ val packageDmg =
                 .current()
                 .isMacOsX
         }
-        dependsOn(":kuml-cli:shadowJar")
+        dependsOn(":kuml-cli:shadowJar", ":kuml-cli:copyStyleWorkerLibForShadowJar")
         val jarP = shadowJarPath
         val destP = distDirPath
         val macVer = macOsPackageVersion
@@ -238,7 +260,7 @@ val packageMsi =
                 .current()
                 .isWindows
         }
-        dependsOn(":kuml-cli:shadowJar")
+        dependsOn(":kuml-cli:shadowJar", ":kuml-cli:copyStyleWorkerLibForShadowJar")
         val jarP = shadowJarPath
         val destP = distDirPath
         val ver = kumlVersion
@@ -279,7 +301,7 @@ val dockerBuildCli =
     tasks.register<Exec>("dockerBuildCli") {
         group = "distribution"
         description = "Build Docker CLI image and tag as ghcr.io/kuml-dev/kuml-cli:<version>"
-        dependsOn(":kuml-cli:shadowJar")
+        dependsOn(":kuml-cli:shadowJar", ":kuml-cli:copyStyleWorkerLibForShadowJar")
         isIgnoreExitValue = true
         val jarP = shadowJarPath
         val dockerFilePath =

@@ -19,72 +19,72 @@ import dev.kuml.sysml2.dsl.sysml2Model
  *   normalMode → Eco→Idle
  *   powerOff   → Idle→Off
  */
-sysml2Model("Thermostat") {
+sysml2Model(name = "Thermostat") {
 
-    val initial = stateDef("Initial", isInitial = true)
-    val off = stateDef("Off", entryAction = "relays.allOff()")
-    val idle = stateDef("Idle", entryAction = "display.show('idle')")
+    val initial = stateDef(name = "Initial", isInitial = true)
+    val off = stateDef(name = "Off", entryAction = "relays.allOff()")
+    val idle = stateDef(name = "Idle", entryAction = "display.show('idle')")
     val heating =
         stateDef(
-            "Heating",
+            name = "Heating",
             entryAction = "relay.heat(true)",
             exitAction = "relay.heat(false)",
         )
     val cooling =
         stateDef(
-            "Cooling",
+            name = "Cooling",
             entryAction = "relay.cool(true)",
             exitAction = "relay.cool(false)",
         )
     val eco =
         stateDef(
-            "Eco",
+            name = "Eco",
             entryAction = "display.show('eco')",
             doAction = "setTargetTemp(18)",
         )
 
-    transition("init", initial, off)
-    transition("powerOn", off, idle, trigger = "powerOn")
-    transition("offFromIdle", idle, off, trigger = "powerOff", id = "transition:Idle::Off:powerOff")
-    transition("offFromHeating", heating, off, trigger = "powerOff", id = "transition:Heating::Off:powerOff")
-    transition("offFromCooling", cooling, off, trigger = "powerOff", id = "transition:Cooling::Off:powerOff")
-    transition("offFromEco", eco, off, trigger = "powerOff", id = "transition:Eco::Off:powerOff")
+    transition(name = "init", source = initial, target = off)
+    transition(name = "powerOn", source = off, target = idle, trigger = "powerOn")
+    transition(name = "offFromIdle", source = idle, target = off, trigger = "powerOff", id = "transition:Idle::Off:powerOff")
+    transition(name = "offFromHeating", source = heating, target = off, trigger = "powerOff", id = "transition:Heating::Off:powerOff")
+    transition(name = "offFromCooling", source = cooling, target = off, trigger = "powerOff", id = "transition:Cooling::Off:powerOff")
+    transition(name = "offFromEco", source = eco, target = off, trigger = "powerOff", id = "transition:Eco::Off:powerOff")
     transition(
-        "startHeating",
-        idle,
-        heating,
+        name = "startHeating",
+        source = idle,
+        target = heating,
         trigger = "tick",
         guard = "event.temperature < event.targetTemperature - 1",
         id = "transition:Idle::Heating",
     )
     transition(
-        "startCooling",
-        idle,
-        cooling,
+        name = "startCooling",
+        source = idle,
+        target = cooling,
         trigger = "tick",
         guard = "event.temperature > event.targetTemperature + 1",
         id = "transition:Idle::Cooling",
     )
-    transition("enterEco", idle, eco, trigger = "ecoMode")
+    transition(name = "enterEco", source = idle, target = eco, trigger = "ecoMode")
     transition(
-        "heatDone",
-        heating,
-        idle,
+        name = "heatDone",
+        source = heating,
+        target = idle,
         trigger = "tick",
         guard = "event.temperature >= event.targetTemperature",
         id = "transition:Heating::Idle",
     )
     transition(
-        "coolDone",
-        cooling,
-        idle,
+        name = "coolDone",
+        source = cooling,
+        target = idle,
         trigger = "tick",
         guard = "event.temperature <= event.targetTemperature",
         id = "transition:Cooling::Idle",
     )
-    transition("exitEco", eco, idle, trigger = "normalMode")
+    transition(name = "exitEco", source = eco, target = idle, trigger = "normalMode")
 
-    stmDiagram("Pepela Thermostat — temperature control") {
+    stmDiagram(name = "Pepela Thermostat — temperature control") {
         include(initial)
         include(off)
         include(idle)

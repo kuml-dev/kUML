@@ -169,6 +169,23 @@ detekt-api                       = { module = "dev.detekt:detekt-api",         v
 # fine and is all RequireNamedArgumentsSpec needs.
 detekt-test-utils                = { module = "dev.detekt:detekt-test-utils",  version.ref = "detekt" }
 
+# ── kUML source-style validation worker (:kuml-style-worker) ─────────────────
+# The Kotlin Analysis API standalone session, repackaged by detekt because
+# Maven Central carries no other coordinate for it (org.jetbrains.kotlin:
+# analysis-api-standalone* is only published to JetBrains' own
+# cache-redirector, not Central). detekt-kotlin-analysis-api-standalone
+# references UNSHADED com/intellij/** classes, so it needs the plain
+# `kotlin-compiler` artifact below — NEVER the `-embeddable` one on the same
+# classpath (both relocate/ship com.intellij differently; mixing them throws
+# NoSuchMethodError on KotlinCoreEnvironment$Companion at session-build time).
+# This is why the style check runs in its own child-process worker JVM with
+# its own isolated classpath (see dev.kuml.core.script.style.NamedArgumentStyleCheck)
+# rather than on kuml-cli/kuml-mcp's own runtime classpath, which already
+# carries kotlin-compiler-embeddable for the DSL scripting host.
+detekt-kotlin-analysis-api            = { module = "dev.detekt:detekt-kotlin-analysis-api",            version.ref = "detekt" }
+detekt-kotlin-analysis-api-standalone = { module = "dev.detekt:detekt-kotlin-analysis-api-standalone", version.ref = "detekt" }
+kotlin-compiler                       = { module = "org.jetbrains.kotlin:kotlin-compiler",             version.ref = "kotlin" }
+
 [plugins]
 kotlin-jvm              = { id = "org.jetbrains.kotlin.jvm",                      version.ref = "kotlin" }
 kotlin-multiplatform    = { id = "org.jetbrains.kotlin.multiplatform",            version.ref = "kotlin" }

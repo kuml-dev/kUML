@@ -18,6 +18,9 @@ import dev.kuml.core.ocl.StereotypeValidator
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.core.script.style.NamedArgumentStyleCheck
+import dev.kuml.core.script.style.StyleCheckResult
+import dev.kuml.core.script.style.StyleFinding
 import dev.kuml.erm.constraint.ErmConstraintChecker
 import dev.kuml.erm.constraint.ViolationSeverity
 import dev.kuml.expr.ExpressionTypeChecker
@@ -32,12 +35,21 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.util.concurrent.FutureTask
+import java.util.concurrent.TimeUnit
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
 
 // Single shared pretty-printing Json instance — creating a new Json {} per call
 // is flagged by the kotlinx.serialization compiler plugin as needlessly slow.
 private val kumlPrettyJson = Json { prettyPrint = true }
+
+// Outer join timeout for the background style-check task. Generous headroom
+// above NamedArgumentStyleCheck's own internal 10s child-process timeout —
+// this only guards against the join() call itself somehow never returning
+// (e.g. a JVM-level scheduling pathology), not the normal timeout path,
+// which NamedArgumentStyleCheck already handles by returning Unavailable.
+private const val STYLE_CHECK_JOIN_TIMEOUT_SECONDS = 20L
 
 /**
  * The `validate` subcommand.
@@ -77,13 +89,51 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         help = "Skip structural checks (duplicate IDs, circular inheritance, dangling references). Default: structural checks are ON.",
     ).flag(default = false)
 
+    private val noCheckStyle by option(
+        "--no-check-style",
+        help =
+            "Skip the named-argument source-style check (dev.kuml.* calls with more than one " +
+                "value parameter must use named arguments). Default: style checks are ON.",
+    ).flag(default = false)
+
     override fun help(context: Context): String = "Validate OCL constraints in a kUML script."
 
     override fun run() {
+        // 0. Kick off the source-style check (RequireNamedArguments, ported to run
+        //    against real source text — see :kuml-style-worker) on a background
+        //    thread, concurrently with step 1's script evaluation below. The two
+        //    are fully independent (the style check never evaluates the script,
+        //    only statically resolves symbols in it), so running them in parallel
+        //    keeps the added wall-clock cost close to zero against the ~1.2s the
+        //    style check's own child-process worker takes.
+        val styleCheckTask: FutureTask<StyleCheckResult>? =
+            if (noCheckStyle) {
+                null
+            } else {
+                val source = input.readText()
+                FutureTask { NamedArgumentStyleCheck.check(source = source, fileName = input.name) }.also {
+                    Thread(it, "kuml-validate-style-check").apply { isDaemon = true }.start()
+                }
+            }
+
         // 1. Evaluate script
         val evalResult = KumlScriptHost.eval(file = input)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
+
+        // 1b. Collect the style check's outcome now — independent of whether the
+        //     script itself evaluated successfully (a script with a syntax error
+        //     may still have named-argument violations worth reporting, and the
+        //     style check tolerates partially-broken input; see NamedArgumentStyleCheck).
+        val styleViolations: List<StructuralViolation> = collectStyleViolations(styleCheckTask)
+        val styleErrors = styleViolations.filter { it.severity == "error" }
+        val styleWarnings = styleViolations.filter { it.severity == "warning" }
+
         if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
+            if (styleViolations.isNotEmpty()) {
+                echo("\nStyle validation:")
+                for (sv in styleErrors) echo("  ERROR [${sv.id}] ${sv.location}: ${sv.message}")
+                for (sv in styleWarnings) echo("  WARN  [${sv.id}] ${sv.message}")
+            }
             echo("Script error: ${errors.joinToString("\n") { it.message }}", err = true)
             throw ProgramResult(ExitCodes.SCRIPT_ERROR)
         }
@@ -224,13 +274,29 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
             }
         }
 
+        // 7c. Style validation output (V0.50.0) — see step 0/1b above for where
+        //     styleViolations/styleErrors/styleWarnings were computed. Kept as its
+        //     own section (not folded into "Structural validation:") so the
+        //     source-style nature of these findings stays visually distinct, even
+        //     though it flows into the same allStructuralLikeViolations /
+        //     `category: "style"` JSON section as structural/ERM findings below.
+        if (styleViolations.isNotEmpty()) {
+            echo("\nStyle validation:")
+            for (sv in styleErrors) {
+                echo("  ERROR [${sv.id}] ${sv.location}: ${sv.message}")
+            }
+            for (sv in styleWarnings) {
+                echo("  WARN  [${sv.id}] ${sv.message}")
+            }
+        }
+
         // 8. Output
         val allViolations =
             modelResult.violations + (stereotypeResult?.violations ?: emptyList())
-        val allStructuralLikeViolations = structuralViolations + ermViolations
+        val allStructuralLikeViolations = structuralViolations + ermViolations + styleViolations
         val combined =
             KumlValidationResult(
-                valid = allViolations.isEmpty() && structuralErrors.isEmpty() && ermErrors.isEmpty(),
+                valid = allViolations.isEmpty() && structuralErrors.isEmpty() && ermErrors.isEmpty() && styleErrors.isEmpty(),
                 violations = allViolations,
             )
 
@@ -355,6 +421,51 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
             Sysml2ConstraintChecker.check(model = model, diagram = diagram)
         }
     }
+
+    /**
+     * Waits for the background [styleCheckTask] (started in step 0 of [run])
+     * and converts its [StyleCheckResult] into [StructuralViolation]s.
+     *
+     * [StyleCheckResult.Ok] findings become `severity = "error"` violations
+     * with `id = "POSITIONAL_ARGUMENT"`. [StyleCheckResult.Unavailable] — the
+     * worker library was missing, the child process failed to start, or it
+     * timed out — becomes a single `severity = "warning"` violation with
+     * `id = "STYLE_CHECK_UNAVAILABLE"`: deliberately a WARNING, never an
+     * ERROR, because a broken installation is not a defect in the user's
+     * script (see `NamedArgumentStyleCheck`'s KDoc / CLAUDE.md task plan §5).
+     * `styleCheckTask == null` (i.e. `--no-check-style`) yields an empty list.
+     */
+    private fun collectStyleViolations(styleCheckTask: FutureTask<StyleCheckResult>?): List<StructuralViolation> {
+        if (styleCheckTask == null) return emptyList()
+        val result =
+            try {
+                styleCheckTask.get(STYLE_CHECK_JOIN_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            } catch (e: Exception) {
+                StyleCheckResult.Unavailable("Style check did not complete: ${e::class.simpleName}")
+            }
+        return when (result) {
+            is StyleCheckResult.Ok -> result.findings.map { it.toStructuralViolation() }
+            is StyleCheckResult.Unavailable ->
+                listOf(
+                    StructuralViolation(
+                        id = "STYLE_CHECK_UNAVAILABLE",
+                        severity = "warning",
+                        message = result.reason,
+                        location = null,
+                        category = "style",
+                    ),
+                )
+        }
+    }
+
+    private fun StyleFinding.toStructuralViolation(): StructuralViolation =
+        StructuralViolation(
+            id = id,
+            severity = severity,
+            message = message,
+            location = location,
+            category = "style",
+        )
 
     private fun printText(
         combined: KumlValidationResult,

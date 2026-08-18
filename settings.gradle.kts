@@ -29,6 +29,7 @@ rootProject.name = "kUML"
 
 // ── Build Tooling ────────────────────────────────────── V3.x ──
 include(":kuml-detekt-rules") // custom Detekt ruleset (RequireNamedArguments gate)
+include(":kuml-style-worker") // source-style validation child-process worker (`kuml validate` / `kuml.validate`)
 
 // ── Profiles ─────────────────────────────────────────── V1.1 ──
 include(":kuml-profile")

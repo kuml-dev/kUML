@@ -49,6 +49,52 @@ tasks.withType<Test>().configureEach {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Source-style validation worker (`kuml.validate` positional-argument check).
+// Same wiring and rationale as kuml-cli/build.gradle.kts — see the comment
+// there for the full explanation (kuml-style-worker's unshaded kotlin-compiler
+// must never share a classpath with this module's kotlin-compiler-embeddable).
+// ─────────────────────────────────────────────────────────────────────────────
+val styleWorkerRuntime =
+    configurations.create("styleWorkerRuntime") {
+        // See kuml-cli/build.gradle.kts's identical block for why this force
+        // lives here (the consumer) rather than in :kuml-style-worker itself.
+        resolutionStrategy {
+            force("org.jetbrains.kotlin:kotlin-reflect:${libs.versions.kotlin.get()}")
+        }
+    }
+
+dependencies {
+    styleWorkerRuntime(project(path = ":kuml-style-worker"))
+}
+
+val copyStyleWorkerLibForTest =
+    // Sync, not Copy — see kuml-cli/build.gradle.kts's identical block for why.
+    tasks.register<Sync>("copyStyleWorkerLibForTest") {
+        description = "Stages the :kuml-style-worker runtime classpath for test-time discovery via -Dkuml.style.lib."
+        from(styleWorkerRuntime)
+        into(layout.buildDirectory.dir("style-worker-lib"))
+    }
+
+tasks.withType<Test>().configureEach {
+    dependsOn(copyStyleWorkerLibForTest)
+    systemProperty(
+        "kuml.style.lib",
+        layout.buildDirectory
+            .dir("style-worker-lib")
+            .get()
+            .asFile.absolutePath,
+    )
+}
+
+distributions {
+    main {
+        contents {
+            from(styleWorkerRuntime) { into("lib/style") }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // V3.2.17 — Bundle the DSL reference handbook pages and curated vault examples
 // as classpath resources for the `kuml://dsl/reference` and `kuml://dsl/examples`
 // MCP resources (see ResourceRegistry.kt). Declarative `from(...)` copy specs

@@ -5,21 +5,21 @@ import dev.kuml.sysml2.dsl.sysml2Model
 // V2.0.20a — fixture with a deliberately unparseable guard expression.
 // The '@@@' guard cannot be parsed by OclLikeExpressionParser and must
 // trigger a non-zero exit from `kuml validate-expressions`.
-sysml2Model("BrokenGuard") {
-    val initial = stateDef("Initial", isInitial = true)
-    val stateA = stateDef("StateA")
-    val stateB = stateDef("StateB", isFinal = true)
+sysml2Model(name = "BrokenGuard") {
+    val initial = stateDef(name = "Initial", isInitial = true)
+    val stateA = stateDef(name = "StateA")
+    val stateB = stateDef(name = "StateB", isFinal = true)
 
-    transition("init", initial, stateA)
+    transition(name = "init", source = initial, target = stateA)
     transition(
-        "broken",
-        stateA,
-        stateB,
+        name = "broken",
+        source = stateA,
+        target = stateB,
         trigger = "go",
         guard = "@@@",
     )
 
-    stmDiagram("BrokenGuard") {
+    stmDiagram(name = "BrokenGuard") {
         include(initial)
         include(stateA)
         include(stateB)

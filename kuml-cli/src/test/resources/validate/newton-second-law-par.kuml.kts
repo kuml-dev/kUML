@@ -5,10 +5,10 @@ import dev.kuml.sysml2.ConstraintParameterDirection
 import dev.kuml.sysml2.dsl.sysml2Model
 
 // V2.0.20b — Newton's Second Law PAR fixture for validate --strict smoke test.
-sysml2Model("NewtonModel") {
-    attributeDef("Mass")
-    attributeDef("Acceleration")
-    attributeDef("Force")
+sysml2Model(name = "NewtonModel") {
+    attributeDef(name = "Mass")
+    attributeDef(name = "Acceleration")
+    attributeDef(name = "Force")
 
     val newton =
         constraintDef(
@@ -16,24 +16,24 @@ sysml2Model("NewtonModel") {
             expression = "F = m * a",
             parameters =
                 listOf(
-                    ConstraintParameter("F", "Force", ConstraintParameterDirection.Out),
-                    ConstraintParameter("m", "Mass", ConstraintParameterDirection.In),
-                    ConstraintParameter("a", "Acceleration", ConstraintParameterDirection.In),
+                    ConstraintParameter(name = "F", typeId = "Force", direction = ConstraintParameterDirection.Out),
+                    ConstraintParameter(name = "m", typeId = "Mass", direction = ConstraintParameterDirection.In),
+                    ConstraintParameter(name = "a", typeId = "Acceleration", direction = ConstraintParameterDirection.In),
                 ),
         )
 
     val vehicle =
-        partDef("Vehicle") {
-            attribute("mass", "Mass")
-            attribute("acceleration", "Acceleration")
-            attribute("force", "Force")
+        partDef(name = "Vehicle") {
+            attribute(name = "mass", typeId = "Mass")
+            attribute(name = "acceleration", typeId = "Acceleration")
+            attribute(name = "force", typeId = "Force")
         }
 
-    bind("F_to_force", "NewtonsLaw::F", "Vehicle::force")
-    bind("m_to_mass", "NewtonsLaw::m", "Vehicle::mass")
-    bind("a_to_acceleration", "NewtonsLaw::a", "Vehicle::acceleration")
+    bind(name = "F_to_force", source = "NewtonsLaw::F", target = "Vehicle::force")
+    bind(name = "m_to_mass", source = "NewtonsLaw::m", target = "Vehicle::mass")
+    bind(name = "a_to_acceleration", source = "NewtonsLaw::a", target = "Vehicle::acceleration")
 
-    parDiagram("Newton — F = m·a applied to Vehicle") {
+    parDiagram(name = "Newton — F = m·a applied to Vehicle") {
         include(newton)
         include(vehicle)
     }

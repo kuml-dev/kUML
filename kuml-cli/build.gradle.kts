@@ -142,6 +142,105 @@ tasks.withType<Test>().configureEach {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Source-style validation worker (`kuml validate` positional-argument check).
+//
+// :kuml-style-worker carries the plain (unshaded) org.jetbrains.kotlin:kotlin-compiler,
+// which is incompatible on the same classpath as kuml-cli's own
+// kotlin-compiler-embeddable (see dev.kuml.core.script.style.NamedArgumentStyleCheck's
+// KDoc). Its jars must therefore never be an `implementation`/`runtimeOnly`
+// dependency of kuml-cli — instead they are resolved into their own
+// configuration and copied into a SEPARATE `lib/style/` directory, only ever
+// loaded by a freshly launched child JVM.
+//
+// - Production (`installDist`/`distTar`/`distZip`): copied straight into
+//   `lib/style/` of the distribution via the declarative `from(...)` copy spec
+//   below (Configuration-Cache-safe — no doFirst/doLast, see CLAUDE.md's
+//   kuml-packaging Exec-Task pitfall note).
+// - Tests: there is no installed distribution under `build/classes/...`, so
+//   `copyStyleWorkerLibForTest` stages the same jars under
+//   `build/style-worker-lib/` and `-Dkuml.style.lib=...` points
+//   StyleWorkerLibLocator straight at it (see its KDoc for the full
+//   resolution order).
+// ─────────────────────────────────────────────────────────────────────────────
+val styleWorkerRuntime =
+    configurations.create("styleWorkerRuntime") {
+        // kotlin-compiler (unshaded, pulled in by :kuml-style-worker) transitively
+        // resolves an older kotlin-reflect than this repo's Kotlin version. Force
+        // it here — this is the configuration that actually determines what lands
+        // in lib/style/, not :kuml-style-worker's own build script (a producer
+        // module's resolutionStrategy never applies to how a CONSUMER resolves it
+        // as a project dependency).
+        resolutionStrategy {
+            force("org.jetbrains.kotlin:kotlin-reflect:${libs.versions.kotlin.get()}")
+        }
+    }
+
+dependencies {
+    styleWorkerRuntime(project(path = ":kuml-style-worker"))
+}
+
+val copyStyleWorkerLibForTest =
+    // Sync, not Copy: a plain Copy task never removes files that drop out of
+    // the resolved configuration between runs (e.g. after a resolutionStrategy
+    // force changes which jar version wins) — the destination dir would keep
+    // accumulating stale/superseded jars forever. Sync mirrors the source set
+    // exactly on every run.
+    tasks.register<Sync>("copyStyleWorkerLibForTest") {
+        description = "Stages the :kuml-style-worker runtime classpath for test-time discovery via -Dkuml.style.lib."
+        from(styleWorkerRuntime)
+        into(layout.buildDirectory.dir("style-worker-lib"))
+    }
+
+tasks.withType<Test>().configureEach {
+    dependsOn(copyStyleWorkerLibForTest)
+    systemProperty(
+        "kuml.style.lib",
+        layout.buildDirectory
+            .dir("style-worker-lib")
+            .get()
+            .asFile.absolutePath,
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shadow-JAR-based distributions (Docker image, .deb, .rpm — all built by
+// :kuml-packaging from :kuml-cli:shadowJar, published on every version tag
+// via .github/workflows/release-installers.yml) never see styleWorkerRuntime
+// either, for the same reason the `implementation`/`runtimeOnly` exclusion
+// above exists: Shadow's default `runtimeClasspath` packaging would merge
+// the unshaded kotlin-compiler into the SAME fat jar as this module's own
+// kotlin-compiler-embeddable, which is exactly the classpath collision
+// NamedArgumentStyleCheck's KDoc documents as fatal. And unlike installDist,
+// a single fat jar has no `lib/` directory at all, so there is nowhere for a
+// sibling `lib/style/` to live.
+//
+// :kuml-packaging's jpackage tasks (packageDeb, packageRpm, packageDmg,
+// packageMsi) all invoke `jpackage --input <shadow jar's parent dir>`, which
+// copies that ENTIRE directory (recursively) into the installed app image
+// next to the main jar; dockerBuildCli's Docker build context is that same
+// directory. Staging the styleWorkerRuntime jars into a `style/`
+// subdirectory right next to the shadow jar (`build/libs/style/`) therefore
+// makes them land alongside the shadow jar in every one of those
+// distributions too — matching StyleWorkerLibLocator's
+// `<dir of the jar containing this class>/style` resolution rule (case 2 in
+// its KDoc) with zero locator changes needed. The Docker image additionally
+// needs its Dockerfile to `COPY style/ style/` explicitly, since a `docker
+// build` only picks up what the Dockerfile names, unlike jpackage's blanket
+// `--input` copy (see kuml-packaging/src/main/docker/cli/Dockerfile).
+// ─────────────────────────────────────────────────────────────────────────────
+val copyStyleWorkerLibForShadowJar =
+    // Sync, not Copy — see copyStyleWorkerLibForTest above for why.
+    tasks.register<Sync>("copyStyleWorkerLibForShadowJar") {
+        description =
+            "Stages the :kuml-style-worker runtime classpath next to the shadow JAR " +
+            "(build/libs/style/) so kuml-packaging's jpackage tasks (--input build/libs) " +
+            "and the Docker image build (context = build/libs) can bundle it alongside " +
+            "the fat jar for StyleWorkerLibLocator to find at runtime."
+        from(styleWorkerRuntime)
+        into(layout.buildDirectory.dir("libs/style"))
+    }
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Gradle 9 strict duplicate handling — kuml-cli transitively pulls
 // runtime-desktop-<version>.jar via :kuml-web → :kuml-renderer:kuml-themes
 // (Compose KMP JVM target).  Without an explicit strategy, distTar/distZip
@@ -152,6 +251,10 @@ distributions {
     main {
         contents {
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+            // Style-check worker jars land in their OWN lib/style/ subdirectory —
+            // never merged into lib/ — so they are never on kuml-cli's own
+            // runtime classpath (see the styleWorkerRuntime KDoc above).
+            from(styleWorkerRuntime) { into("lib/style") }
         }
     }
 }
