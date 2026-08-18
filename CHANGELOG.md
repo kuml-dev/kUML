@@ -6,6 +6,25 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.51.1] — 2026-08-18
+
+### Fixed
+
+**JetBrains plugin: eliminated a Marketplace-verifier "deprecated API" finding on the diagram export dialog**
+
+No user-visible behavior change — this is a build/verification-hygiene fix. The plugin's export dialog
+(`KumlExportAction.export`) built its `FileSaverDescriptor` using the platform's 3-arg vararg constructor,
+which IntelliJ 2025.1+ marks `@Deprecated` in favor of a non-vararg 3-arg overload introduced in that
+generation. The plugin's compile-time IntelliJ Platform SDK is bumped from 2024.3 to 2025.1.7.2 (latest
+2025.1 patch) and the descriptor is now built reflectively, preferring the new constructor when the
+running platform has it and falling back to the old one otherwise — verified via `javap` against both
+platform generations' actual class files that the fallback path exactly matches the previously-shipped
+constructor call, so behavior on any supported IDE is unchanged.
+
+`sinceBuild` stays `"243"` (IntelliJ 2024.3+): the reflective fallback keeps the plugin fully functional
+on IDE versions predating the new constructor, so there was no reason to drop support for them just to
+silence a build-time warning.
+
 ## [0.51.0] — 2026-08-18
 
 ### Added

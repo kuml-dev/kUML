@@ -167,6 +167,14 @@ intellijPlatform {
         }
         changeNotes =
             """
+            <h4>0.51.1</h4>
+            <ul>
+              <li>Internal fix, no user-visible behavior change: the diagram export dialog no longer
+                  triggers a Marketplace-verifier "deprecated API" finding. The compile-time IntelliJ
+                  Platform SDK moved to 2025.1.7.2; the export dialog's descriptor is now built
+                  reflectively so it keeps working identically on every IDE version this plugin
+                  supports (still <code>2024.3+</code>).</li>
+            </ul>
             <h4>0.51.0</h4>
             <ul>
               <li>kUML diagram preview in <b>Markdown</b> documents: <code>kuml</code> fenced code blocks
