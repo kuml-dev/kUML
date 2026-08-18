@@ -160,6 +160,16 @@ intellijPlatform {
         }
         changeNotes =
             """
+            <h4>0.51.0</h4>
+            <ul>
+              <li>kUML diagram preview in <b>Markdown</b> documents: <code>kuml</code> fenced code blocks
+                  render as inline SVG in IntelliJ's built-in Markdown preview, with gutter export/copy
+                  actions and Kotlin syntax highlighting inside the block.</li>
+              <li>kUML diagram preview in <b>AsciiDoc</b> documents: <code>[source,kuml]</code> listing
+                  blocks and <code>kuml::path.kuml.kts[]</code> block macros render as inline SVG in the
+                  official AsciiDoc plugin's preview. Both are optional plugin dependencies — kUML still
+                  loads normally without the Markdown or AsciiDoc plugins installed.</li>
+            </ul>
             <h4>0.20.0</h4>
             <ul>
               <li><code>org.jetbrains.kotlin</code> is now an <b>optional</b> dependency. The plugin now

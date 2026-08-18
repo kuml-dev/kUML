@@ -44,7 +44,7 @@ buildscript {
 
 allprojects {
     group = "dev.kuml"
-    version = "0.50.0"
+    version = "0.51.0"
 }
 
 // Kotlin modules that provably cannot be covered by the RequireNamedArguments

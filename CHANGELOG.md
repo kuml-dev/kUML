@@ -6,6 +6,66 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.51.0] — 2026-08-18
+
+### Added
+
+**JetBrains plugin: kUML diagram preview in Markdown and AsciiDoc documents**
+
+`kuml` fenced code blocks (` ```kuml `) in the Markdown preview and `[source,kuml]` listing blocks
+/ `kuml::path.kuml.kts[]` block macros in the AsciiDoc preview now render as inline SVG diagrams,
+directly in IntelliJ's built-in preview panels — no separate `kuml render` step needed while
+writing docs. Both support `theme`/`name`/`width` attributes, gutter actions (export SVG/PNG/TeX,
+copy SVG, copy source), Kotlin syntax highlighting inside the block body, and a shared SHA-256/
+LRU-50 render cache so the same script+theme combination only ever renders once regardless of
+which preview surface asked for it.
+
+Markdown integrates via IntelliJ's `CodeFenceGeneratingProvider` extension point. AsciiDoc has no
+equivalent hook — the official AsciiDoc plugin exposes only an HTML-panel-provider EP — so
+integration instead wraps the stock JCEF preview panel and rewrites the HTML Asciidoctor produces,
+matching parsed `[source,kuml]`/`kuml::` blocks against the rendered markup via decoded-HTML-entity
+comparison so it works regardless of which (if any) `source-highlighter` is configured — verified
+directly against the real AsciidoctorJ engine bundled in the AsciiDoc plugin, including its own
+default `source-highlighter=coderay`, which HTML-escapes quotes differently than the unhighlighted
+default and would otherwise silently fail to match any script containing a string literal. Both
+the Markdown and AsciiDoc integrations are optional plugin dependencies (`<depends optional="true">`
+on `org.intellij.plugins.markdown` / `org.asciidoctor.intellij.asciidoc`) — kUML still loads and
+its Kotlin-script preview keeps working normally on IDEs that have neither installed.
+
+`kuml::` macro paths are resolved and containment-checked against the `.adoc` file's directory
+(or the project root) before any file is read, rejecting `..` escapes, absolute paths outside the
+project, and `http(s):`/`file:`/`ftp:` targets — including symlink-escape attempts, via
+`toRealPath()` re-checking whenever the resolved target actually exists on disk, so a symlink
+placed inside the allowed tree can't point a `kuml::` reference at an arbitrary file elsewhere on
+the machine.
+
+**`kuml validate` / `kuml.validate`: new default-on named-arguments style check**
+
+Both the CLI's `validate` subcommand and the MCP `kuml.validate` tool previously only validated a
+submitted script's *evaluated model* (OCL constraints, structural checks, ERM constraints) — never
+the script's own source style. This project has long required named arguments for every call to a
+kUML-owned function/constructor with more than one parameter (CLAUDE.md: "Named Parameters —
+PFLICHT", enforced on kUML's own source at build time since the `RequireNamedArguments` Detekt rule),
+specifically because it makes LLM-authored kUML scripts more reliable — but a script submitted
+through `validate` got no such check at all, even though it calls the exact same DSL functions.
+
+`validate` now runs that same check against the submitted script's actual source text and reports
+every positional-argument call to a `dev.kuml.*` function/constructor as an error — `valid=false`
+and CLI exit code 5, same as an OCL violation, on by default. The exemptions match the build-time
+rule exactly: single-parameter calls, `vararg` parameters, operator/infix functions, and a block-
+DSL's trailing lambda argument are never flagged.
+
+The check runs in a new, disposable child-process worker (`:kuml-style-worker`) rather than
+in-process: the Kotlin Analysis API session it needs cannot share a classpath with the
+`kotlin-compiler-embeddable` already loaded for script evaluation without a `NoSuchMethodError` at
+session-build time, and an in-process isolated classloader leaks a non-daemon thread that would
+hang `kuml-mcp`'s long-lived server process forever. The worker never executes the analyzed script
+— only static symbol resolution — so it intentionally runs without kUML's usual OS-level sandbox
+(there is no code-execution trust boundary to cage here), guarded instead against resource
+exhaustion: the same script-length cap the DSL-evaluation path already enforces, and a concurrency
+ceiling (`KUML_STYLE_WORKER_MAX_CONCURRENT`, default 4) so a burst of concurrent `kuml.validate`
+calls can't fork-bomb the host.
+
 ## [0.50.0] — 2026-08-12
 
 ### Fixed
