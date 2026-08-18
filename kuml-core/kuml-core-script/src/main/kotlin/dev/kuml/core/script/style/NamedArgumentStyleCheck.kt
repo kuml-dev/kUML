@@ -80,7 +80,15 @@ public object NamedArgumentStyleCheck {
     private val json = Json { ignoreUnknownKeys = true }
 
     private const val STYLE_WORKER_MAIN_CLASS = "dev.kuml.style.worker.StyleWorkerMain"
-    private const val DEFAULT_TIMEOUT_SECONDS = 10L
+
+    // 30s matches WorkerPool.DEFAULT_READY_TIMEOUT_MILLIS — the established budget
+    // elsewhere in this module for "how long to wait for a freshly-launched worker
+    // JVM to become ready" under load. 10s was too tight: CI observed real timeouts
+    // ("Style worker timed out after 10s") when several DSL-evaluation WorkerPool
+    // JVMs (ceiling=6) were already competing for CPU on a shared runner alongside
+    // this worker's own JVM boot + Analysis-API-session bootstrap, even though the
+    // uncontended local cost is ~1.2s (see class KDoc).
+    private const val DEFAULT_TIMEOUT_SECONDS = 30L
     private const val DEFAULT_MAX_HEAP_MB = 1024
     private const val FORCE_KILL_GRACE_SECONDS = 5L
     private const val READER_JOIN_MILLIS = 2_000L
