@@ -4,6 +4,7 @@ import com.intellij.ide.actions.RevealFileAction
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileChooser.FileSaverDescriptor
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -45,6 +46,7 @@ data class KumlExportContext(
 internal object KumlExportAction {
     private const val NOTIFICATION_GROUP = "kUML Export"
     private const val MAX_STDERR_CHARS = 2000
+    private val LOG = Logger.getInstance(KumlExportAction::class.java)
 
     /**
      * Trigger an export of the kUML diagram described by [ctx] in [format]
@@ -72,12 +74,47 @@ internal object KumlExportAction {
         val defaultName = "$baseName.${format.extension}"
 
         // 3. Show save dialog.
+        //
+        // NOTE on version-adaptive FileSaverDescriptor construction:
+        // IntelliJ Platform 2025.1 (build 251+) introduced a non-deprecated, non-vararg
+        // FileSaverDescriptor(String, String, String) constructor and marked the previously
+        // sole FileSaverDescriptor(String, String, String...) vararg constructor @Deprecated.
+        // Verified via javap against the real ideaIU-2024.3.7.1 and ideaIU-2025.1.7.2
+        // app-client.jar class files: 243.x exposes ONLY the vararg ctor (not deprecated
+        // there — it's the sole option); 251.x exposes BOTH, with only the vararg one
+        // flagged Deprecated.
+        //
+        // sinceBuild="243" (see build.gradle.kts) means this plugin still runs on real
+        // 2024.3.x/2025.0.x installs where the new 3-arg constructor does not exist as a
+        // class member AT ALL (different method descriptor, not just "deprecated"). A plain
+        // Kotlin `FileSaverDescriptor(title, description, format.extension)` call compiles
+        // to whichever overload the COMPILE-TIME SDK happens to expose — against our 251.x
+        // compile SDK that silently resolves to the NEW constructor, which would crash with
+        // NoSuchMethodError the moment a real 2024.3.x/2025.0.x user clicks Export. DO NOT
+        // "simplify" this back to a plain constructor call — the compiler will not warn you,
+        // because from ITS point of view it's calling a perfectly valid, non-deprecated ctor.
+        //
+        // Both constructors are therefore invoked reflectively, mirroring the version-skew-
+        // safety idiom already established in KumlScriptDefinitionsSource.kt for the same
+        // class of compile-time/runtime platform-version mismatch. Feature-detection
+        // (getConstructor success/failure) is used instead of a hardcoded build-number
+        // check, so this keeps working correctly even if some future platform build changes
+        // exactly which generation carries which overload.
+        //
+        // Verified side effect: reflective invocation also hides BOTH call sites from the
+        // JetBrains Plugin Verifier's static deprecated-API bytecode scan (it flags any
+        // direct symbolic reference to a member deprecated in the verification target,
+        // regardless of whether a runtime guard makes that instruction unreachable there) —
+        // eliminating the "deprecated constructor" finding against every verified target
+        // build, not only the sinceBuild floor.
         val descriptor =
-            FileSaverDescriptor(
-                "Diagramm exportieren als ${format.displayName}",
-                "Exportpfad wählen",
-                format.extension,
-            )
+            buildFileSaverDescriptor(format) ?: run {
+                notifyError(
+                    ctx.project,
+                    "Interner Fehler: Speicherdialog konnte nicht erstellt werden (siehe idea.log).",
+                )
+                return
+            }
         val baseVDir = LocalFileSystem.getInstance().findFileByIoFile(srcDir)
         val saveDialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, ctx.project)
         val wrapper = saveDialog.save(baseVDir, defaultName) ?: return // user cancelled
@@ -131,6 +168,62 @@ internal object KumlExportAction {
                 }
             },
         )
+    }
+
+    /**
+     * Builds a [FileSaverDescriptor] using whichever constructor actually exists on the
+     * running platform, resolved reflectively. See the NOTE above [export] for why this
+     * cannot be a plain constructor call.
+     *
+     * Returns `null` if neither constructor can be found and invoked (e.g. a future
+     * platform build changes the constructor shape yet again, or `newInstance` throws).
+     * The whole probe-and-invoke sequence — including the legacy fallback and both
+     * `newInstance` calls — is wrapped in a single `try/catch(Throwable)`, mirroring the
+     * reflective-construction idiom in `KumlScriptDefinitionsSource.kt`: fail safe with a
+     * logged warning instead of letting a `NoSuchMethodException` /
+     * `InvocationTargetException` / `IllegalAccessException` / `InstantiationException`
+     * propagate uncaught through the AnAction/line-marker click handlers that call
+     * [export].
+     */
+    private fun buildFileSaverDescriptor(format: KumlExportFormat): FileSaverDescriptor? {
+        val title = "Diagramm exportieren als ${format.displayName}"
+        val description = "Exportpfad wählen"
+
+        return try {
+            // Prefer the non-deprecated 2025.1+ (String, String, String) constructor when
+            // it exists on this runtime; fall back to the pre-2025.1
+            // (String, String, String...) vararg constructor otherwise. getConstructor
+            // throws NoSuchMethodException when the member is absent — used here as the
+            // actual runtime feature test rather than sniffing ApplicationInfo's build
+            // number, so this stays correct even if a future platform build changes
+            // exactly which generation carries the new overload.
+            val modernCtor =
+                runCatching {
+                    FileSaverDescriptor::class.java.getConstructor(
+                        String::class.java,
+                        String::class.java,
+                        String::class.java,
+                    )
+                }.getOrNull()
+            if (modernCtor != null) {
+                modernCtor.newInstance(title, description, format.extension) as FileSaverDescriptor
+            } else {
+                LOG.warn(
+                    "kUML export: modern FileSaverDescriptor(String,String,String) ctor not found " +
+                        "on this platform build, falling back to legacy vararg ctor",
+                )
+                val legacyCtor =
+                    FileSaverDescriptor::class.java.getConstructor(
+                        String::class.java,
+                        String::class.java,
+                        Array<String>::class.java,
+                    )
+                legacyCtor.newInstance(title, description, arrayOf(format.extension)) as FileSaverDescriptor
+            }
+        } catch (t: Throwable) {
+            LOG.warn("kUML export: failed to construct FileSaverDescriptor reflectively", t)
+            null
+        }
     }
 
     private fun notifySuccess(

@@ -156,6 +156,13 @@ intellijPlatform {
         ideaVersion {
             // 2024.3 = build 243. `untilBuild` weglassen → kompatibel mit allen
             // späteren Versionen, bis Plugin-Verifier was anderes sagt.
+            //
+            // NOT raised alongside the 2025.1.7.2 compile-SDK bump (see libs.versions.toml
+            // and KumlExportAction.kt): the only reason that bump was needed is unrelated to
+            // this floor (general platform currency), and the FileSaverDescriptor deprecated-
+            // ctor fix is implemented via reflection specifically so it works correctly on
+            // real 2024.3.x/2025.0.x installs without raising this value. Do not raise this
+            // to "251" as a "cleanup" — that would drop real users for no remaining benefit.
             sinceBuild = "243"
         }
         changeNotes =
