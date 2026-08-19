@@ -10,14 +10,17 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
   diagram family (Class/Sequence/C4/SysML 2) and difficulty (Simple/Medium/Complex).
 * `gcr_common.py` — shared prompt primers, per-DSL validation/extraction, and the generic
   Generate-Compile-Repair loop + resumable run driver used by every provider script.
-* `run-claude.py` / `run-gemini.py` / `run-gpt4o.py` — provider-specific orchestration
-  scripts built on `gcr_common.py`. Each supplies its own API call function and a "stop the
-  whole run, quota exhausted" exception type; everything else (primers, validation,
-  resume-on-rerun) is shared, so all four models' primary datasets use byte-identical
-  Sequence/C4/SysML 2 primers. Usage: `export ANTHROPIC_API_KEY=...` /
-  `export GEMINI_API_KEY=...` / `export OPENAI_API_KEY=...`, then `python3 run-claude.py` /
-  `python3 run-gemini.py` / `python3 run-gpt4o.py` (see `--help` for `--model`, `--workers`,
-  `--limit`, `--ids`, `--out`).
+* `run-claude.py` / `run-gemini.py` / `run-gpt4o.py` / `run-ollama.py` — provider-specific
+  orchestration scripts built on `gcr_common.py`. Each supplies its own API call function and a
+  "stop the whole run" exception type (quota-exhausted for the cloud providers, unreachable
+  server/unpulled model for Ollama); everything else (primers, validation, resume-on-rerun) is
+  shared, so all runs use byte-identical Sequence/C4/SysML 2 primers. Usage:
+  `export ANTHROPIC_API_KEY=...` / `export GEMINI_API_KEY=...` / `export OPENAI_API_KEY=...`,
+  then `python3 run-claude.py` / `python3 run-gemini.py` / `python3 run-gpt4o.py` (see `--help`
+  for `--model`, `--workers`, `--limit`, `--ids`, `--out`). For a local open-weight model via
+  Ollama, no API key is needed: `ollama serve`, `ollama pull <model>`, then
+  `python3 run-ollama.py --model <model>` (`--workers` defaults to 1 — Ollama serializes
+  generation on typical single-GPU/CPU hardware).
 * `run-claude-examples.py` / `run-gemini-examples.py` — companion scripts for the
   V3.3 `kuml.examples` MCP-tool-use arm (kUML cells only); see the handbook page for that
   separate research question.
@@ -36,6 +39,10 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
   requires `pip install scipy`) between kUML and each baseline on SF/HR, at (task, sample)
   granularity (up to 150 paired observations per model per comparison, more power than the
   n=3 sample-level comparison). Writes `results/significance-summary.json`.
+* `results/qwen3-coder:30b/` — exploratory single-sample run against a local open-weight model
+  via Ollama (Q4_K_M quantization), added 2026-08-19. Same primers as the primary datasets, but
+  1 sample/cell only — see the handbook page's Limitations section before comparing it directly
+  to the 3-sample primary numbers below.
 * `results/claude-sonnet-5/`, `results/gpt-4o/`, `results/gemini-2.5-flash/`,
   `results/gemini-2.5-pro/` — the paper's **primary** dataset for all four models: 3
   independent samples per cell (`raw-results.json` = sample 1, `raw-results-sample{2,3}.json`

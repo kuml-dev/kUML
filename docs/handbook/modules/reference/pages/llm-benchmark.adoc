@@ -254,8 +254,58 @@ Full per-family/per-difficulty breakdowns and raw generations (including `finalC
 images can be re-rendered without new LLM calls): `research/gcr-benchmark/results/gpt-4o/`,
 `results/gemini-2.5-flash/`, and `results/gemini-2.5-pro/`.
 
+== Published results — qwen3-coder:30b, local via Ollama (2026-08-19, n=1)
+
+A fifth run, this time against a locally hosted open-weight model
+(https://ollama.com[Ollama, window=_blank], `qwen3-coder:30b`, Q4_K_M quantization) instead of a
+cloud API, via `run-ollama.py` (same `gcr_common.py` primers/GCR-loop/scoring as every other
+provider script — see "Reproduce with your own LLM" below).
+
+[cols="1,1,1,1,1,1"]
+|===
+| DSL | CR | FCR | SF | HR | RI
+
+| kUML + GCR
+| 70.0%
+| 80.0%
+| 26.4%
+| 20.1%
+| 1.15
+
+| PlantUML
+| 98.0%
+| 100.0%
+| 27.4%
+| 23.2%
+| 1.02
+
+| Mermaid
+| 94.0%
+| 96.0%
+| *32.4%*
+| *18.5%*
+| 1.02
+|===
+
+Unlike Claude Sonnet 5 and GPT-4o (kUML highest SF, lowest HR), qwen3-coder:30b reproduces the
+Gemini pattern: kUML trails both baselines on Structural Fidelity, and its Final Compile Rate
+(80.0%) is well below PlantUML/Mermaid's near-100%, with 10 of 50 kUML generations exhausting
+all 3 repair attempts without converging, concentrated in the Sequence and SysML 2 families
+(`SEQ-S-03`, `SEQ-M-01`, `SEQ-M-02`, `SEQ-M-04`, `SEQ-C-03`, `SYS-S-02`, `SYS-M-02`, `SYS-M-03`,
+`SYS-C-03`, plus `CLASS-C-03`). This is consistent with the working hypothesis that kUML's
+syntax is underrepresented in training data relative to PlantUML/Mermaid — a 30B open-weight
+model appears more sensitive to that gap than the frontier models tested so far, though a single
+model at a single quantization level can't separate "smaller/open-weight" from "this specific
+model family" as the driving factor. Raw generations (including `finalCode` per cell):
+`research/gcr-benchmark/results/qwen3-coder:30b/raw-results.json`.
+
 == Limitations
 
+* **qwen3-coder:30b is a single-sample, single-quantization exploratory run, not part of the
+  primary four-model dataset.** It uses the same byte-identical `gcr_common.py` primers as the
+  primary datasets (no primer-parity caveat), but only 1 sample per cell like the retained
+  `2026-07-06-claude-sonnet-5/` robustness check, and a local Q4_K_M-quantized weight — results
+  may differ from an unquantized or differently-quantized run of the same model.
 * **Four models ran, testing a tier confound directly — inconclusively resolved.** Claude Sonnet 5
   and GPT-4o are comparable frontier/flagship models; Gemini 2.5 Flash is a faster/cheaper tier. A
   Gemini 2.5 Pro run was added specifically to separate model-tier effects from model-family effects
