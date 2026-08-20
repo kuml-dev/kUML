@@ -395,48 +395,75 @@ runs, with no family fully clean (unlike llama4:scout's all-successful C4). Raw 
 == MCP tool-use arm: does `kuml.examples` help? (2026-08-20)
 
 Every result above is pure prompt-to-text generation — the model never gets to *ask* for anything
-mid-generation, only to react to compiler errors via the GCR repair loop. `run-claude-examples.py`
-and `run-gemini-examples.py` test a different mechanism: give the model a real
-`kuml_examples` tool, backed by a live `kuml-mcp` server subprocess over stdio (the same binary a
-real MCP client would talk to, not a reimplementation), and let it pull curated
-`.kuml.kts` examples for the target diagram type mid-conversation before producing its final
-answer. Bounded at 4 tool-use rounds; whatever text the model settles on is validated by the exact
-same GCR loop and toolchain as every other run. Only kUML's 50 cells run (`kuml.examples` is
-kUML-specific — offering it for PlantUML/Mermaid cells would be either unused or irrelevant to
-what's being measured).
+mid-generation, only to react to compiler errors via the GCR repair loop. `run-claude-examples.py`,
+`run-gemini-examples.py`, `run-gpt4o-examples.py`, and `run-ollama-examples.py` test a different
+mechanism: give the model a real `kuml_examples` tool, backed by a live `kuml-mcp` server
+subprocess over stdio (the same binary a real MCP client would talk to, not a reimplementation),
+and let it pull curated `.kuml.kts` examples for the target diagram type mid-conversation before
+producing its final answer. Bounded at 4 tool-use rounds; whatever text the model settles on is
+validated by the exact same GCR loop and toolchain as every other run. Only kUML's 50 cells run
+(`kuml.examples` is kUML-specific — offering it for PlantUML/Mermaid cells would be either unused
+or irrelevant to what's being measured).
 
 [cols="1,1,1,1,1,1"]
 |===
 | Model | CR | FCR | SF | HR | RI
 
-6+| **Claude Sonnet 5**
+6+| **Claude Sonnet 5** — tool called in 50/50 cells (mean 1.24 calls/cell)
 | Without `kuml.examples` (baseline) | 72.0% | 88.0% | 44.5% | 15.1% | 1.23
 | With `kuml.examples` (MCP tool) | *92.0%* | *98.0%* | *56.0%* | *12.8%* | *1.06*
 
-6+| **Gemini 2.5 Flash**
+6+| **Gemini 2.5 Flash** — tool called in 18/50 cells (mean 0.5 calls/cell)
 | Without `kuml.examples` (baseline) | 52.0% | 74.0% | 26.9% | 20.7% | 1.30
 | With `kuml.examples` (MCP tool) | *60.0%* | *82.0%* | *39.3%* | *18.0%* | 1.32
+
+6+| **GPT-4o** — tool called in 49/50 cells (mean 1.1 calls/cell)
+| Without `kuml.examples` (baseline) | 86.0% | 96.0% | 46.4% | 11.8% | 1.15
+| With `kuml.examples` (MCP tool) | 92.0% | 100.0% | 44.6% | 18.4% | 1.10
+
+6+| **qwen3-coder:30b, local** — tool called in 10/50 cells (mean 0.2 calls/cell)
+| Without `kuml.examples` (baseline) | 70.0% | 80.0% | 26.4% | 20.1% | 1.15
+| With `kuml.examples` (MCP tool) | 70.0% | 80.0% | 26.0% | 22.2% | 1.18
+
+6+| **llama4:scout, local** — tool called in 0/50 cells (mean 0.0 calls/cell)
+| Without `kuml.examples` (baseline) | 60.0% | 72.0% | 26.5% | 15.1% | 1.17
+| With `kuml.examples` (MCP tool) | *2.0%* | *40.0%* | *15.3%* | 10.5% | *2.40*
 |===
 
-Tool access improves every metric for both models — Compile Rate, Final Compile Rate, and
-Structural Fidelity all rise, Hallucination Rate falls (fewer repair iterations too, for Claude).
-The effect is largest for Claude (SF +11.5 points, CR +20 points). But the two models don't use
-the tool the same way: Claude calls it in all 50/50 cells (mean 1.24 calls/cell), while Gemini 2.5
-Flash calls it in only 18/50 (mean 0.5 calls/cell) — a model that's offered a tool doesn't
-necessarily reach for it, and that reluctance shows up as a smaller (though still positive)
-benefit. Raw generations, including `toolCallCount` per cell:
-`research/gcr-benchmark/results/claude-sonnet-5-with-examples/raw-results.json` and
-`results/gemini-2.5-flash-with-examples/raw-results.json`.
+**Tool access does not uniformly help — the effect is model-specific, and correlates only loosely
+with how often the model actually calls the tool.** Two models improve substantially (Claude, +11.5
+SF points; Gemini 2.5 Flash, +12.4 SF points). Two are roughly flat: qwen3-coder:30b barely reaches
+for the tool (10/50) and its numbers barely move. GPT-4o is the interesting middle case — it calls
+the tool almost every time (49/50, nearly as often as Claude) yet ends up *slightly worse* on SF
+(-1.8 points) and clearly worse on Hallucination Rate (+6.6 points): frequent tool use is not the
+same as the tool improving the final answer.
 
-This arm hasn't been run against any local Ollama model yet. Doing so would need a model whose
-Ollama-served tool-use actually works reliably against the OpenAI-compatible `tools` API — not a
-given at this size/quantization, and Gemini Flash's 18/50 call rate is a reminder that offering a
-tool and a model reliably using it are two different things.
+The sharpest result is llama4:scout, where merely **offering** the tool — despite it being called
+zero times across all 50 cells — collapsed first-shot Compile Rate from 60.0% to 2.0% and Final
+Compile Rate from 72.0% to 40.0%. This isn't a script artifact: manually re-validating a sample of
+the failing generations against the real `kuml` toolchain confirms genuine defects the no-tool
+baseline didn't produce at this rate — forward references to `val`s declared later in the same
+block (`Unresolved reference 'hotel'`, where `hotel` is declared after the association that uses
+it), and `association(...)` calls emitted in the wrong builder scope
+(`cannot be called in this context with an implicit receiver`). The tool schema was never invoked,
+so the model's own inference-time reasoning about the code didn't change — what changed is the
+request shape it saw. The most plausible read: llama4:scout's tool-calling behavior is fragile
+enough that the mere presence of a `tools` array in the request measurably disrupts its plain-text
+Kotlin-DSL generation, independent of whether it uses that array. This is a single sample and could
+be a quantization- or prompt-specific artifact, not necessarily true of llama4:scout at a different
+quantization or with a different tool schema — but it's a concrete counterexample to "offering
+tools can only help."
+
+deepseek-r1:70b was not run in this arm: Ollama reports no `tools` capability for it, and a smoke
+test confirmed the model never emits a tool call when one is offered (silently ignoring the `tools`
+parameter rather than erroring) — a full 50-cell run would only reproduce the no-tool baseline.
+Raw generations, including `toolCallCount` per cell, for every tested configuration:
+`research/gcr-benchmark/results/<model>-with-examples/raw-results.json`.
 
 == Which model should I use with kUML?
 
-Pulling every SF result in this benchmark into one ranking (n=1 per cell throughout — read as
-"suggestive," not "significant"):
+Pulling every SF result in this benchmark into one ranking, strictly sorted by SF (n=1 per cell
+throughout — read as "suggestive," not "significant"):
 
 [cols="1,1,1"]
 |===
@@ -446,25 +473,21 @@ Pulling every SF result in this benchmark into one ranking (n=1 per cell through
 | *56.0%*
 | Yes, by a wide margin
 
-| Claude Sonnet 5 (no tool)
-| 45.3%
-| Yes
-
 | GPT-4o
 | 46.4%
 | Yes
 
-| llama4:scout (local)
-| 26.5%
+| Claude Sonnet 5 (no tool)
+| 45.3% footnote:claudesf[The 2026-07-06 single-sample run and the later 9-model dataset's own
+  Claude Sonnet 5 baseline (44.5%, see the MCP arm table above) differ slightly — both are real
+  n=1 samples from separately-run generations against the same primers, not a data error; treat
+  the ~1-point gap as sampling noise on top of the existing n=1 caveat, not a discrepancy to
+  resolve.]
 | Yes
 
-| qwen3-coder:30b (local)
-| 26.4%
-| No — Mermaid ahead (32.4%)
-
-| deepseek-r1:70b (local)
-| 21.4%
-| Essentially tied with Mermaid (21.6%)
+| GPT-4o + `kuml.examples` (MCP)
+| 44.6%
+| Yes, but slightly below GPT-4o's own no-tool result
 
 | Gemini 2.5 Flash + `kuml.examples` (MCP)
 | 39.3%
@@ -474,30 +497,58 @@ Pulling every SF result in this benchmark into one ranking (n=1 per cell through
 | 26.9%
 | No
 
+| llama4:scout (local)
+| 26.5%
+| Yes
+
+| qwen3-coder:30b (local)
+| 26.4%
+| No — Mermaid ahead (32.4%)
+
 | Gemini 2.5 Pro
 | 26.2%
 | No
+
+| qwen3-coder:30b + `kuml.examples` (MCP, local)
+| 26.0%
+| No — essentially unchanged from its own no-tool result
+
+| deepseek-r1:70b (local)
+| 21.4%
+| Essentially tied with Mermaid (21.6%)
+
+| llama4:scout + `kuml.examples` (MCP, local)
+| 15.3%
+| No — collapsed from its own no-tool result (see MCP arm section: tool never called, but merely offered)
 |===
 
-Two practical takeaways, both with the n=1 caveat above attached:
+Three practical takeaways, all with the n=1 caveat above attached:
 
-* **If you're calling a frontier model and can offer MCP tools, do it.** The single largest lever
-  in this entire benchmark isn't which model you pick — it's whether that model has `kuml.examples`
-  available. Claude with the tool beats every other configuration tested, including Claude without
-  it, by a wide margin.
+* **MCP tool access is not a free lunch — it helps some models substantially, is a wash for
+  others, and actively hurt one of the five configurations tested.** Claude Sonnet 5 and Gemini 2.5
+  Flash both improve clearly; GPT-4o and qwen3-coder:30b are roughly flat; llama4:scout got
+  dramatically worse despite never calling the tool. "Give the model more tools" is not a
+  substitute for measuring what happens when you do.
+* **If you're calling Claude specifically, offering `kuml.examples` is the single largest lever in
+  this entire benchmark** — Claude with the tool beats every other configuration tested by a wide
+  margin. That result doesn't generalize to "any model, any tool" though — see the first point.
 * **Local-model choice doesn't reduce to "bigger is better" or "newer is better."** llama4:scout
-  (109B MoE) leads its baselines; qwen3-coder:30b (30B) and deepseek-r1:70b (70B) don't, and land
-  on opposite sides of "clearly behind" and "statistically a coin flip." If you're picking a local
-  model specifically for kUML generation, llama4:scout is the strongest result so far among the
-  three tested — but this is one sample per model, not a recommendation to standardize on it.
+  (109B MoE) leads its baselines *without* tool access but craters *with* it; qwen3-coder:30b (30B)
+  and deepseek-r1:70b (70B) don't lead either way. If you're picking a local model specifically for
+  kUML generation without MCP tools, llama4:scout's no-tool result is the strongest so far among
+  the three tested — but this is one sample per model, not a recommendation to standardize on it.
 
 == Limitations
 
-* **The MCP tool-use arm ran on 2 of 9 model configurations, kUML only, n=1.** Claude Sonnet 5 and
-  Gemini 2.5 Flash are the only models tested with `kuml.examples` available; GPT-4o, Gemini 2.5
-  Pro, and all three local Ollama models have no with-tool data point. The arm only exercises
-  `kuml.examples` — the other five `kuml-mcp` tools (`kuml.validate`, `kuml.render`,
-  `kuml.list_elements`, `kuml.describe`, `kuml.generate`) are untested in this benchmark.
+* **The MCP tool-use arm ran on 5 of 9 model configurations, kUML only, n=1.** Claude Sonnet 5,
+  GPT-4o, Gemini 2.5 Flash, qwen3-coder:30b, and llama4:scout all have a with-tool data point;
+  Gemini 2.5 Pro has none. deepseek-r1:70b was deliberately excluded — Ollama reports no `tools`
+  capability for it, and a smoke test confirmed it never emits a tool call when one is offered.
+  The arm only exercises `kuml.examples` — the other five `kuml-mcp` tools (`kuml.validate`,
+  `kuml.render`, `kuml.list_elements`, `kuml.describe`, `kuml.generate`) are untested in this
+  benchmark. The llama4:scout result in particular (catastrophic CR collapse despite zero tool
+  calls) is a single sample — treat it as "a thing that happened once," not a general property of
+  offering tools to that model.
 * **qwen3-coder:30b, llama4:scout, and deepseek-r1:70b are single-sample, single-quantization
   exploratory runs, not part of the primary four-model dataset.** All three use the same
   byte-identical `gcr_common.py` primers as the primary datasets (no primer-parity caveat), but

@@ -21,12 +21,15 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
   Ollama, no API key is needed: `ollama serve`, `ollama pull <model>`, then
   `python3 run-ollama.py --model <model>` (`--workers` defaults to 1 — Ollama serializes
   generation on typical single-GPU/CPU hardware).
-* `run-claude-examples.py` / `run-gemini-examples.py` — companion scripts for the
-  V3.3 `kuml.examples` MCP-tool-use arm (kUML cells only, via a real `kuml-mcp` server subprocess):
-  does offering the model a live `kuml.examples` tool improve generation quality over the plain
-  compiler-feedback (GCR) loop alone? See the handbook's "MCP tool-use arm" section for results —
-  yes, substantially, for both models tested (Claude Sonnet 5, Gemini 2.5 Flash), though the two
-  models differ sharply in how often they actually call the tool.
+* `run-claude-examples.py` / `run-gemini-examples.py` / `run-gpt4o-examples.py` /
+  `run-ollama-examples.py` — companion scripts for the V3.3 `kuml.examples` MCP-tool-use arm (kUML
+  cells only, via a real `kuml-mcp` server subprocess — build it first with
+  `./gradlew :kuml-mcp:installDist`): does offering the model a live `kuml.examples` tool improve
+  generation quality over the plain compiler-feedback (GCR) loop alone? See the handbook's "MCP
+  tool-use arm" section for results — **no single answer**: it helps Claude Sonnet 5 and Gemini 2.5
+  Flash substantially, is roughly a wash for GPT-4o and qwen3-coder:30b, and measurably hurt
+  llama4:scout even though that model never actually called the tool. deepseek-r1:70b isn't in this
+  arm — Ollama reports no tool-calling support for it.
 * `build-manifest.py` — renders SVGs from a `results/<model>/raw-results.json` (via
   `kuml render`/`dump-json`, `plantuml -tsvg`, `mmdc`) and merges per-cell metrics into
   the kuml.dev gallery manifest additively, under `modelVariants[<model-key>]` — never
