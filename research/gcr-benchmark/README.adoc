@@ -10,26 +10,31 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
   diagram family (Class/Sequence/C4/SysML 2) and difficulty (Simple/Medium/Complex).
 * `gcr_common.py` — shared prompt primers, per-DSL validation/extraction, and the generic
   Generate-Compile-Repair loop + resumable run driver used by every provider script.
-* `run-claude.py` / `run-gemini.py` / `run-gpt4o.py` / `run-ollama.py` — provider-specific
-  orchestration scripts built on `gcr_common.py`. Each supplies its own API call function and a
-  "stop the whole run" exception type (quota-exhausted for the cloud providers, unreachable
-  server/unpulled model for Ollama); everything else (primers, validation, resume-on-rerun) is
-  shared, so all runs use byte-identical Sequence/C4/SysML 2 primers. Usage:
-  `export ANTHROPIC_API_KEY=...` / `export GEMINI_API_KEY=...` / `export OPENAI_API_KEY=...`,
-  then `python3 run-claude.py` / `python3 run-gemini.py` / `python3 run-gpt4o.py` (see `--help`
-  for `--model`, `--workers`, `--limit`, `--ids`, `--out`). For a local open-weight model via
-  Ollama, no API key is needed: `ollama serve`, `ollama pull <model>`, then
+* `run-claude.py` / `run-gemini.py` / `run-gpt4o.py` / `run-grok.py` / `run-ollama.py` —
+  provider-specific orchestration scripts built on `gcr_common.py`. Each supplies its own API call
+  function and a "stop the whole run" exception type (quota-exhausted for the cloud providers,
+  unreachable server/unpulled model for Ollama); everything else (primers, validation,
+  resume-on-rerun) is shared, so all runs use byte-identical Sequence/C4/SysML 2 primers. Usage:
+  `export ANTHROPIC_API_KEY=...` / `export GEMINI_API_KEY=...` / `export OPENAI_API_KEY=...` /
+  `export XAI_API_KEY=...`, then `python3 run-claude.py` / `python3 run-gemini.py` /
+  `python3 run-gpt4o.py` / `python3 run-grok.py` (see `--help` for `--model`, `--workers`,
+  `--limit`, `--ids`, `--out`; `run-grok.py` defaults to `--model grok-4`). For a local open-weight
+  model via Ollama, no API key is needed: `ollama serve`, `ollama pull <model>`, then
   `python3 run-ollama.py --model <model>` (`--workers` defaults to 1 — Ollama serializes
-  generation on typical single-GPU/CPU hardware).
+  generation on typical single-GPU/CPU hardware). `run-grok.py` uses xAI's OpenAI-compatible
+  endpoint and hasn't been run against a live account yet (no `XAI_API_KEY` available at write
+  time) — no results published for it so far; treat its quota-exhaustion detection (a 429 whose
+  payload mentions "credit" or "quota") as unverified against a real error response until then.
 * `run-claude-examples.py` / `run-gemini-examples.py` / `run-gpt4o-examples.py` /
-  `run-ollama-examples.py` — companion scripts for the V3.3 `kuml.examples` MCP-tool-use arm (kUML
-  cells only, via a real `kuml-mcp` server subprocess — build it first with
-  `./gradlew :kuml-mcp:installDist`): does offering the model a live `kuml.examples` tool improve
-  generation quality over the plain compiler-feedback (GCR) loop alone? See the handbook's "MCP
-  tool-use arm" section for results — **no single answer**: it helps Claude Sonnet 5 and Gemini 2.5
-  Flash substantially, is roughly a wash for GPT-4o and qwen3-coder:30b, and measurably hurt
-  llama4:scout even though that model never actually called the tool. deepseek-r1:70b isn't in this
-  arm — Ollama reports no tool-calling support for it.
+  `run-grok-examples.py` / `run-ollama-examples.py` — companion scripts for the V3.3
+  `kuml.examples` MCP-tool-use arm (kUML cells only, via a real `kuml-mcp` server subprocess —
+  build it first with `./gradlew :kuml-mcp:installDist`): does offering the model a live
+  `kuml.examples` tool improve generation quality over the plain compiler-feedback (GCR) loop
+  alone? See the handbook's "MCP tool-use arm" section for results — **no single answer**: it
+  helps Claude Sonnet 5 and Gemini 2.5 Flash substantially, is roughly a wash for GPT-4o and
+  qwen3-coder:30b, and measurably hurt llama4:scout even though that model never actually called
+  the tool. deepseek-r1:70b isn't in this arm — Ollama reports no tool-calling support for it.
+  `run-grok-examples.py` is written but likewise unrun — no Grok data point in that table yet.
 * `build-manifest.py` — renders SVGs from a `results/<model>/raw-results.json` (via
   `kuml render`/`dump-json`, `plantuml -tsvg`, `mmdc`) and merges per-cell metrics into
   the kuml.dev gallery manifest additively, under `modelVariants[<model-key>]` — never
