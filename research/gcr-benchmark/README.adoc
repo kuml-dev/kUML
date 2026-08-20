@@ -39,12 +39,13 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
   requires `pip install scipy`) between kUML and each baseline on SF/HR, at (task, sample)
   granularity (up to 150 paired observations per model per comparison, more power than the
   n=3 sample-level comparison). Writes `results/significance-summary.json`.
-* `results/qwen3-coder:30b/` and `results/llama4:scout/` — exploratory single-sample runs against
-  local open-weight models via Ollama (Q4_K_M quantization), added 2026-08-19. Same primers as
-  the primary datasets, but 1 sample/cell only — see the handbook page's Limitations section
-  before comparing them directly to the 3-sample primary numbers below. The two disagree on
-  whether kUML leads or trails on Structural Fidelity (qwen3-coder:30b trails, llama4:scout
-  leads) — see the handbook page for the comparison.
+* `results/qwen3-coder:30b/`, `results/llama4:scout/`, and `results/deepseek-r1:70b/` —
+  exploratory single-sample runs against local open-weight models via Ollama (Q4_K_M
+  quantization), added 2026-08-19/2026-08-20. Same primers as the primary datasets, but 1
+  sample/cell only — see the handbook page's Limitations section before comparing them directly
+  to the 3-sample primary numbers below. The three don't converge on a single pattern for whether
+  kUML leads on Structural Fidelity (qwen3-coder:30b trails, llama4:scout leads clearly,
+  deepseek-r1:70b ties with Mermaid) — see the handbook page for the comparison.
 * `results/claude-sonnet-5/`, `results/gpt-4o/`, `results/gemini-2.5-flash/`,
   `results/gemini-2.5-pro/` — the paper's **primary** dataset for all four models: 3
   independent samples per cell (`raw-results.json` = sample 1, `raw-results-sample{2,3}.json`

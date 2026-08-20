@@ -344,17 +344,66 @@ with kUML's syntax. kUML's 14 non-converging generations spread across Class-Com
 for kUML this run, the inverse of the C4 first-shot compile-rate cliff seen with Claude Sonnet 5.
 Raw generations: `research/gcr-benchmark/results/llama4:scout/raw-results.json`.
 
+== Published results — deepseek-r1:70b, local via Ollama (2026-08-20, n=1)
+
+A third local Ollama model, this time a reasoning model: `deepseek-r1:70b` (70.6B parameters,
+Q4_K_M quantization). Generation was markedly slower than the other two local runs (reasoning
+traces before the final answer), and one cell (`SEQ-M-02` PlantUML) hit the client-side request
+timeout on its first attempt — re-run individually via `run-ollama.py --ids SEQ-M-02` to
+completion, same as any other retry.
+
+[cols="1,1,1,1,1,1"]
+|===
+| DSL | CR | FCR | SF | HR | RI
+
+| kUML + GCR
+| 44.0%
+| 62.0%
+| 21.4%
+| *15.8%*
+| 1.32
+
+| PlantUML
+| 54.0%
+| 70.0%
+| 17.2%
+| 20.6%
+| 1.23
+
+| Mermaid
+| 60.0%
+| 82.0%
+| *21.6%*
+| 22.5%
+| 1.29
+|===
+
+deepseek-r1:70b doesn't cleanly fit either prior pattern: kUML's Structural Fidelity (21.4%) is
+essentially tied with Mermaid's (21.6%, a 0.2-point gap) while clearly ahead of PlantUML's
+(17.2%), and kUML has the lowest Hallucination Rate of the three — but the SF "win" over Mermaid
+is too small at n=1 to call outright, unlike llama4:scout's clearer lead. All three DSLs again
+compile markedly worse than against the frontier models (kUML FCR 62.0%, the lowest of any run in
+this benchmark), continuing the pattern from llama4:scout that local/smaller models generally
+struggle with strict output-format adherence regardless of target DSL. kUML's 19 non-converging
+generations spread across Class (7: `CLASS-C-01`, `CLASS-C-02`, `CLASS-C-06`, `CLASS-M-01`,
+`CLASS-M-03`, `CLASS-M-05`, `CLASS-S-02`), Sequence (4: `SEQ-C-01`, `SEQ-C-02`, `SEQ-C-03`,
+`SEQ-M-01`), C4 (3: `C4-C-02`, `C4-M-01`, `C4-M-04`), and SysML 2 (5: `SYS-C-01`, `SYS-C-02`,
+`SYS-M-02`, `SYS-M-03`, `SYS-S-02`) — the most evenly spread failure pattern of the three local
+runs, with no family fully clean (unlike llama4:scout's all-successful C4). Raw generations:
+`research/gcr-benchmark/results/deepseek-r1:70b/raw-results.json`.
+
 == Limitations
 
-* **qwen3-coder:30b and llama4:scout are single-sample, single-quantization exploratory runs, not
-  part of the primary four-model dataset.** Both use the same byte-identical `gcr_common.py`
-  primers as the primary datasets (no primer-parity caveat), but only 1 sample per cell like the
-  retained `2026-07-06-claude-sonnet-5/` robustness check, and a local Q4_K_M-quantized weight —
-  results may differ from an unquantized or differently-quantized run of the same model. The two
-  local runs disagree with each other on whether kUML leads or trails on Structural Fidelity
-  (qwen3-coder:30b: trails, reproducing the Gemini pattern; llama4:scout: leads, reproducing the
-  Claude/GPT-4o pattern) — with n=1 per model this is at most suggestive that open-weight-vs-
-  frontier is not itself the deciding factor, not proof of a specific mechanism.
+* **qwen3-coder:30b, llama4:scout, and deepseek-r1:70b are single-sample, single-quantization
+  exploratory runs, not part of the primary four-model dataset.** All three use the same
+  byte-identical `gcr_common.py` primers as the primary datasets (no primer-parity caveat), but
+  only 1 sample per cell like the retained `2026-07-06-claude-sonnet-5/` robustness check, and a
+  local Q4_K_M-quantized weight — results may differ from an unquantized or differently-quantized
+  run of the same model. The three local runs don't converge on a single pattern for whether kUML
+  leads on Structural Fidelity: qwen3-coder:30b trails (reproducing the Gemini pattern),
+  llama4:scout leads clearly (reproducing the Claude/GPT-4o pattern), and deepseek-r1:70b is
+  effectively tied with Mermaid — with n=1 per model this is at most suggestive that open-weight-
+  vs-frontier is not itself the deciding factor, not proof of a specific mechanism.
 * **Four models ran, testing a tier confound directly — inconclusively resolved.** Claude Sonnet 5
   and GPT-4o are comparable frontier/flagship models; Gemini 2.5 Flash is a faster/cheaper tier. A
   Gemini 2.5 Pro run was added specifically to separate model-tier effects from model-family effects
