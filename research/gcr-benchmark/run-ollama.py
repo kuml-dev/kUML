@@ -22,7 +22,7 @@ import os
 import urllib.error
 import urllib.request
 
-from gcr_common import SCRIPT_DIR, run_benchmark
+from gcr_common import SCRIPT_DIR, run_benchmark, sanitize_for_path
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 
@@ -78,7 +78,7 @@ def main():
     ap.add_argument("--ids", default=None, help="comma-separated task IDs to run (for smoke-testing specific families)")
     ap.add_argument("--out", default=None, help="default: results/<model>/raw-results.json")
     args = ap.parse_args()
-    out = args.out or os.path.join(SCRIPT_DIR, "results", args.model, "raw-results.json")
+    out = args.out or os.path.join(SCRIPT_DIR, "results", sanitize_for_path(args.model), "raw-results.json")
 
     run_benchmark(call_ollama, OllamaUnreachable, args.model, out, args.workers, args.limit, args.ids)
 

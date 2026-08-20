@@ -31,6 +31,18 @@ import threading
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CORPUS_PATH = os.path.join(SCRIPT_DIR, "corpus.json")
 
+
+def sanitize_for_path(name):
+    """Make a model name safe to use as a directory/file-name component.
+
+    Ollama model names use a `model:tag` convention (e.g. `llama4:scout`) —
+    the colon is invalid in Windows paths and breaks `actions/checkout` on
+    Windows CI runners (git-for-windows refuses to write the file). Replace
+    any character NTFS/Windows disallows in a path segment (`<>:"/\\|?*`)
+    with `-`.
+    """
+    return re.sub(r'[<>:"/\\|?*]', "-", name)
+
 # --------------------------------------------------------------------------
 # Prompt primers — one per (dsl, family). Kept compact (~150-300 tokens) plus
 # a worked example with generic entity names, per the documented methodology.

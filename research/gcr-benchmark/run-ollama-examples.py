@@ -40,6 +40,7 @@ from gcr_common import (
     DONE_STATUSES,
     SCRIPT_DIR,
     make_gcr_loop,
+    sanitize_for_path,
 )
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
@@ -280,7 +281,7 @@ def main():
             f"./gradlew :kuml-mcp:installDist (or set KUML_MCP_BIN)"
         )
 
-    out = args.out or os.path.join(SCRIPT_DIR, "results", f"{args.model}-with-examples", "raw-results.json")
+    out = args.out or os.path.join(SCRIPT_DIR, "results", f"{sanitize_for_path(args.model)}-with-examples", "raw-results.json")
     run_kuml_only_benchmark(args.model, out, args.workers, args.limit, args.ids)
 
 
