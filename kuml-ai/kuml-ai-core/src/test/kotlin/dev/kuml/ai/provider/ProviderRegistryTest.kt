@@ -29,12 +29,12 @@ class ProviderRegistryTest :
         beforeEach { ProviderRegistry.resetCacheForTest() }
         afterEach { ProviderRegistry.resetCacheForTest() }
 
-        // ── 1. builtIns() returns exactly the four built-ins ─────────────────
+        // ── 1. builtIns() returns exactly the five built-ins ─────────────────
 
-        test("builtIns contains exactly OpenAI Anthropic Google and Ollama") {
+        test("builtIns contains exactly OpenAI Anthropic Google Ollama and Gonka") {
             val registry = ProviderRegistry.builtIns()
             val ids = registry.all().map { it.id }
-            ids shouldContainExactlyInAnyOrder listOf("openai", "anthropic", "google", "ollama")
+            ids shouldContainExactlyInAnyOrder listOf("openai", "anthropic", "google", "ollama", "gonka")
         }
 
         // ── 2. discover() with no custom providers equals builtIns() ─────────
@@ -51,7 +51,7 @@ class ProviderRegistryTest :
             val custom = StubSpiProvider(id = "my-custom-llm")
             val registry = ProviderRegistry.discoverFrom(listOf(custom))
             val ids = registry.all().map { it.id }
-            ids shouldContainExactlyInAnyOrder listOf("openai", "anthropic", "google", "ollama", "my-custom-llm")
+            ids shouldContainExactlyInAnyOrder listOf("openai", "anthropic", "google", "ollama", "gonka", "my-custom-llm")
 
             val found = registry.get("my-custom-llm")
             found.shouldNotBeNull()
@@ -66,9 +66,9 @@ class ProviderRegistryTest :
             val impostor = StubSpiProvider(id = "openai", displayName = "Fake OpenAI")
             val registry = ProviderRegistry.discoverFrom(listOf(impostor))
 
-            // Registry still has exactly 4 providers — the impostor was ignored
+            // Registry still has exactly 5 providers — the impostor was ignored
             val ids = registry.all().map { it.id }
-            ids shouldContainExactlyInAnyOrder listOf("openai", "anthropic", "google", "ollama")
+            ids shouldContainExactlyInAnyOrder listOf("openai", "anthropic", "google", "ollama", "gonka")
 
             // The "openai" entry is the real built-in, not the impostor
             val openAi = registry.get("openai")
@@ -117,6 +117,16 @@ class ProviderRegistryTest :
             val customB = StubSpiProvider(id = "acme-slow")
             val registry = ProviderRegistry.discoverFrom(listOf(customA, customB))
             val ids = registry.all().map { it.id }
-            ids shouldContainExactlyInAnyOrder listOf("openai", "anthropic", "google", "ollama", "acme-fast", "acme-slow")
+            ids shouldContainExactlyInAnyOrder
+                listOf("openai", "anthropic", "google", "ollama", "gonka", "acme-fast", "acme-slow")
+        }
+
+        // ── 10. resolveModel pass-through for Gonka's dynamic catalog ────────
+
+        test("resolveModel returns a pass-through LLModel for Gonka (dynamic catalog)") {
+            val registry = ProviderRegistry.builtIns()
+            val resolved = registry.resolveModel(providerId = "gonka", modelId = "some-network-hosted-model")
+            resolved.shouldNotBeNull()
+            resolved.id shouldBe "some-network-hosted-model"
         }
     })

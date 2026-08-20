@@ -25,6 +25,15 @@ dependencies {
     runtimeOnly(libs.koog.prompt.executor.anthropic.client)
     runtimeOnly(libs.koog.prompt.executor.google.client)
     runtimeOnly(libs.koog.prompt.executor.ollama.client)
+    // V3.x.y — Gonka decentralized-network provider (tree-shaken like the others)
+    runtimeOnly(libs.koog.gonka) {
+        // kUML only ever uses koog-gonka's ApiKey (Broker) auth path, never GonkaAuth.Wallet —
+        // these two transitive deps exist solely to support that unused wallet-signing code
+        // (de.betchvaia.koog.gonka.wallet.*) and would otherwise ship dead native binaries
+        // (secp256k1 for darwin/linux/mingw) + a full BouncyCastle provider for nothing.
+        exclude(group = "fr.acinq.secp256k1")
+        exclude(group = "org.bouncycastle", module = "bcprov-jdk18on")
+    }
 
     // ── kUML-internal ────────────────────────────────────────────────────────
     implementation(libs.kotlinx.serialization.json)

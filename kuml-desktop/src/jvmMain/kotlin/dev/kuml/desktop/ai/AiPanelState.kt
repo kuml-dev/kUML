@@ -188,17 +188,19 @@ class AiPanelState(
                 isRunning = true
                 try {
                     val executor = KumlAiExecutor.fromSettings(settings = aiSettings, vault = vault)
-                    val runner =
-                        AgentRunner(
-                            executor = executor,
-                            providerId = selectedProviderId,
-                            modelId = selectedModelId,
-                            editingContext = editingContext,
-                            patchEngine = patchEngine,
-                            useOrchestration = useOrchestration,
-                        )
-                    runner.runConversation(_messages.value).collect { ev -> handleEvent(ev) }
-                    persistCurrentSession()
+                    executor.use {
+                        val runner =
+                            AgentRunner(
+                                executor = executor,
+                                providerId = selectedProviderId,
+                                modelId = selectedModelId,
+                                editingContext = editingContext,
+                                patchEngine = patchEngine,
+                                useOrchestration = useOrchestration,
+                            )
+                        runner.runConversation(_messages.value).collect { ev -> handleEvent(ev) }
+                        persistCurrentSession()
+                    }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     // user-initiated stop — do not emit error
                 } catch (e: Throwable) {

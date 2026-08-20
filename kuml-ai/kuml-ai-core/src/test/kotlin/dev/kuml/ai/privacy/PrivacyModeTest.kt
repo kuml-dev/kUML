@@ -1,6 +1,7 @@
 package dev.kuml.ai.privacy
 
 import ai.koog.prompt.llm.LLMProvider
+import dev.kuml.ai.provider.BuiltInProviders
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
@@ -17,5 +18,6 @@ class PrivacyModeTest :
             PrivacyMode.isLocal(LLMProvider.OpenAI) shouldBe false
             PrivacyMode.isLocal(LLMProvider.Anthropic) shouldBe false
             PrivacyMode.isLocal(LLMProvider.Google) shouldBe false
+            PrivacyMode.isLocal(BuiltInProviders.gonka().koogProvider!!) shouldBe false
         }
     })

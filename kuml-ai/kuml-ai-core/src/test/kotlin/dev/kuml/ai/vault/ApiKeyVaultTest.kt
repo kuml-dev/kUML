@@ -1,6 +1,7 @@
 package dev.kuml.ai.vault
 
 import ai.koog.prompt.llm.LLMProvider
+import dev.kuml.ai.provider.BuiltInProviders
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
@@ -45,6 +46,19 @@ class ApiKeyVaultTest :
             // Second delete is a no-op
             vault.delete(LLMProvider.Anthropic)
             vault.get(LLMProvider.Anthropic).shouldBeNull()
+        }
+
+        test("put then get then delete roundtrips for the Gonka provider marker") {
+            // Regression proof: Gonka's marker is a private named `object` subclass of
+            // LLMProvider (not a bare `LLMProvider(...)` constructor call), specifically so
+            // KeyVaultBackend.keyFor's ::class.simpleName-based vault key stays distinct and
+            // collision-free — this exercises that end-to-end through the real ApiKeyVault API.
+            val vault = ApiKeyVault(FakeKeyVaultBackend())
+            val gonka = BuiltInProviders.gonka().koogProvider!!
+            vault.put(provider = gonka, key = "gonka-broker-key-123")
+            vault.get(gonka) shouldBe "gonka-broker-key-123"
+            vault.delete(gonka)
+            vault.get(gonka).shouldBeNull()
         }
 
         test("isFallback is true when running on PlainJsonFallbackBackend") {

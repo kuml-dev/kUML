@@ -73,23 +73,26 @@ internal class AiBenchCommand(
                     throw ProgramResult(ExitCodes.PROVIDER_UNREACHABLE)
                 }
 
-        val executor = buildExecutor(settings)
-
         val suite =
             tasks?.let { BenchTaskSuite.take(it) } ?: BenchTaskSuite.all
 
         echo("Running ${suite.size} benchmark tasks — provider=$provider model=$resolvedModel\n")
 
+        // Short-lived CLI process — the JVM exit would reclaim resources anyway, but
+        // .use { } closes the executor's provider clients (e.g. Gonka's owned HTTP client)
+        // deterministically and consistently with the desktop's AiPanelState usage.
         val report =
-            runBlocking {
-                try {
-                    AiBench.run(tasks = suite, executor = executor, provider = provider, model = koogModel)
-                } catch (e: AiBench.ProviderUnreachableException) {
-                    System.err.println("Provider '$provider' is not reachable: ${e.message}")
-                    System.err.println(
-                        "For Ollama, ensure it is running: ollama serve",
-                    )
-                    throw ProgramResult(ExitCodes.PROVIDER_UNREACHABLE)
+            buildExecutor(settings).use { executor ->
+                runBlocking {
+                    try {
+                        AiBench.run(tasks = suite, executor = executor, provider = provider, model = koogModel)
+                    } catch (e: AiBench.ProviderUnreachableException) {
+                        System.err.println("Provider '$provider' is not reachable: ${e.message}")
+                        System.err.println(
+                            "For Ollama, ensure it is running: ollama serve",
+                        )
+                        throw ProgramResult(ExitCodes.PROVIDER_UNREACHABLE)
+                    }
                 }
             }
 
@@ -131,6 +134,11 @@ internal class AiBenchCommand(
                 "openai" -> "gpt-4o"
                 "anthropic" -> "claude-sonnet-4-5"
                 "google" -> "gemini-1.5-pro"
+                "gonka" ->
+                    error(
+                        "No default model configured for provider 'gonka' — pass --model explicitly " +
+                            "(Gonka's model catalog is network-hosted and dynamic, so kUML has no safe default).",
+                    )
                 else -> "llama3.2"
             }
 

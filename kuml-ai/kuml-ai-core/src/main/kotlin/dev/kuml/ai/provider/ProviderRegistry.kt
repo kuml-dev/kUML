@@ -14,7 +14,7 @@ import java.util.ServiceLoader
  * Koog's [LLMProvider] is sealed, so we wrap it in [KumlLlmProvider]
  * with a stable string id for settings serialization.
  *
- * Built-in providers (OpenAI, Anthropic, Google, Ollama) always win on
+ * Built-in providers (OpenAI, Anthropic, Google, Ollama, Gonka) always win on
  * id collision with custom SPI providers — see [discover].
  */
 public class ProviderRegistry private constructor(
@@ -23,7 +23,7 @@ public class ProviderRegistry private constructor(
     /** All registered providers. */
     public fun all(): Collection<KumlLlmProvider> = byId.values
 
-    /** Lookup by string id (e.g. "openai", "anthropic", "google", "ollama"). */
+    /** Lookup by string id (e.g. "openai", "anthropic", "google", "ollama", "gonka"). */
     public fun get(id: String): KumlLlmProvider? = byId[id]
 
     /**
@@ -50,7 +50,7 @@ public class ProviderRegistry private constructor(
     public companion object {
         private val log = LoggerFactory.getLogger(ProviderRegistry::class.java)
 
-        /** Built-in providers only — OpenAI, Anthropic, Google, Ollama. */
+        /** Built-in providers only — OpenAI, Anthropic, Google, Ollama, Gonka. */
         public fun builtIns(): ProviderRegistry =
             ProviderRegistry(
                 BuiltInProviders.all().associateBy { it.id },
@@ -116,6 +116,8 @@ public class ProviderRegistry private constructor(
             // V3.0.23 carry-over: replaced reflection lookup with explicit ModelCatalog table.
             // Ollama accepts any model id the user has pulled locally — use pass-through.
             if (koogProvider == LLMProvider.Ollama) return ModelCatalog.resolveOllama(modelId)
+            // Gonka: dynamic, network-hosted model catalog (like Ollama) — no static ModelCatalog table.
+            if (koogProvider.id == BuiltInProviders.GONKA_PROVIDER_ID) return LLModel(koogProvider, modelId)
 
             val providerId =
                 when (koogProvider) {

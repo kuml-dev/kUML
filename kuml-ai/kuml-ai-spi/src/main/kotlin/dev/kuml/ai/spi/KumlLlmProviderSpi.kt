@@ -107,7 +107,7 @@ private fun isPrivateRange(address: InetAddress): Boolean {
  * discovered by `ProviderRegistry.discover()`.
  *
  * **Collision rule (V3.1.15):** if a custom provider's [id] matches a built-in
- * provider id ("openai", "anthropic", "google", "ollama"), the built-in wins and
+ * provider id ("openai", "anthropic", "google", "ollama", "gonka"), the built-in wins and
  * the custom provider is silently ignored with a warning log.
  *
  * **Why [buildClient] returns [Any]:** this artifact intentionally has zero Koog

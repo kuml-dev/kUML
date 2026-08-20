@@ -8,7 +8,7 @@ import dev.kuml.ai.spi.ModelDescriptor
  * kUML-side wrapper around a Koog [LLMProvider] with a stable string id,
  * a human-readable display name, and capability flags.
  *
- * For built-in providers (OpenAI, Anthropic, Google, Ollama), [koogProvider] is
+ * For built-in providers (OpenAI, Anthropic, Google, Ollama, Gonka), [koogProvider] is
  * always non-null. For custom providers registered via [dev.kuml.ai.spi.KumlLlmProviderSpi],
  * [koogProvider] is null because Koog's [LLMProvider] is a sealed class that cannot be
  * extended by third parties. Custom providers are therefore available for discovery
@@ -18,7 +18,7 @@ import dev.kuml.ai.spi.ModelDescriptor
  * as the default (deferred to V3.2+).
  */
 public data class KumlLlmProvider(
-    /** Stable lowercase string id (e.g. "openai", "anthropic", "google", "ollama"). */
+    /** Stable lowercase string id (e.g. "openai", "anthropic", "google", "ollama", "gonka"). */
     val id: String,
     /** Human-readable name for display in UI and error messages. */
     val displayName: String,

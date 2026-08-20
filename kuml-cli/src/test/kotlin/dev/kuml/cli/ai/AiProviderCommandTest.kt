@@ -17,15 +17,16 @@ import kotlinx.serialization.json.jsonPrimitive
 class AiProviderCommandTest :
     FunSpec({
 
-        // ── Test 1: kuml ai provider list shows 4 built-in providers ─────────
+        // ── Test 1: kuml ai provider list shows 5 built-in providers ─────────
 
-        test("ai provider list exits 0 and shows all 4 built-in providers") {
+        test("ai provider list exits 0 and shows all 5 built-in providers") {
             val result = KumlCli().test("ai provider list")
             result.statusCode shouldBe 0
             result.output shouldContain "openai"
             result.output shouldContain "anthropic"
             result.output shouldContain "google"
             result.output shouldContain "ollama"
+            result.output shouldContain "gonka"
         }
 
         // ── Test 2: cloud vs local badge ──────────────────────────────────────
@@ -37,9 +38,9 @@ class AiProviderCommandTest :
             result.output shouldContain "cloud"
         }
 
-        // ── Test 3: --output json is valid JSON with 4 entries ────────────────
+        // ── Test 3: --output json is valid JSON with 5 entries ────────────────
 
-        test("ai provider list --output json produces valid JSON with 4 providers") {
+        test("ai provider list --output json produces valid JSON with 5 providers") {
             val result = KumlCli().test("ai provider list --output json")
             result.statusCode shouldBe 0
 
@@ -48,10 +49,10 @@ class AiProviderCommandTest :
                 root.jsonObject["providers"]?.jsonArray
                     ?: error("Expected 'providers' array in JSON output")
 
-            providers.size shouldBe 4
+            providers.size shouldBe 5
 
             val ids = providers.map { it.jsonObject["id"]?.jsonPrimitive?.content ?: "" }.toSet()
-            ids shouldBe setOf("openai", "anthropic", "google", "ollama")
+            ids shouldBe setOf("openai", "anthropic", "google", "ollama", "gonka")
         }
 
         // ── Test 4: each JSON entry has id and local fields ───────────────────

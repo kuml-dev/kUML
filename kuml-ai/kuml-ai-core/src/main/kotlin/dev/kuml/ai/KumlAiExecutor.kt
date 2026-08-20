@@ -13,6 +13,7 @@ import dev.kuml.ai.provider.ProviderRegistry
 import dev.kuml.ai.settings.KumlAiSettings
 import dev.kuml.ai.vault.ApiKeyVault
 import kotlinx.coroutines.flow.Flow
+import org.slf4j.LoggerFactory
 
 /**
  * kUML-side thin wrapper around Koog's [MultiLLMPromptExecutor].
@@ -24,6 +25,13 @@ import kotlinx.coroutines.flow.Flow
  *  - Surface kUML-typed exceptions for caller-friendly handling.
  *
  * Construct via [fromSettings] — do not call the constructor directly.
+ *
+ * Implements [java.io.Closeable]: some provider clients (e.g. Gonka's `GonkaLLMClient`)
+ * own dedicated resources (an HTTP client + connection pool) that must be released.
+ * [close] delegates to the underlying [PromptExecutor]'s own `close()` — Koog's
+ * `MultiLLMPromptExecutor.close()` already iterates every constructed `LLMClient` and
+ * closes it. Callers should wrap executor usage in `.use { ... }` or call [close] explicitly
+ * once done, especially for providers whose client is not a no-op to close.
  */
 public class KumlAiExecutor private constructor(
     private val delegate: PromptExecutor,
@@ -31,7 +39,7 @@ public class KumlAiExecutor private constructor(
     private val privacy: PrivacyEnforcer,
     private val registry: ProviderRegistry,
     private val budgetGuard: BudgetGuard? = null,
-) {
+) : java.io.Closeable {
     /**
      * Execute a prompt with the configured default model.
      * Resolves the default provider + model from [settings].
@@ -94,7 +102,20 @@ public class KumlAiExecutor private constructor(
     /** Exposes the underlying PromptExecutor for AIAgent integration (V3.0.24). */
     public fun promptExecutor(): PromptExecutor = delegate
 
+    /**
+     * Releases resources held by the underlying [PromptExecutor] (e.g. Gonka's owned
+     * HTTP client). Delegates to Koog's own `PromptExecutorAPI.close()`, which already
+     * closes every constructed `LLMClient` in this executor's provider map. Never throws —
+     * failures are logged and swallowed, matching typical `Closeable.close()` contracts.
+     */
+    override fun close() {
+        runCatching { delegate.close() }
+            .onFailure { log.warn("KumlAiExecutor.close() failed to close delegate PromptExecutor", it) }
+    }
+
     public companion object {
+        private val log = LoggerFactory.getLogger(KumlAiExecutor::class.java)
+
         /**
          * Build an executor from the persisted settings and vault.
          *
@@ -120,7 +141,7 @@ public class KumlAiExecutor private constructor(
             if (defaultProvider.koogProvider == null) {
                 throw KumlAiException.UnknownProvider(
                     "${settings.defaultProvider} (custom SPI providers are not yet executable — " +
-                        "choose a built-in provider: openai, anthropic, google, ollama)",
+                        "choose a built-in provider: openai, anthropic, google, ollama, gonka)",
                 )
             }
 

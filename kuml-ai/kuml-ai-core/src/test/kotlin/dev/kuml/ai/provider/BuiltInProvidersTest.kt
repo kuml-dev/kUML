@@ -78,8 +78,8 @@ class BuiltInProvidersTest :
             }
         }
 
-        test("all() returns exactly four built-in providers") {
-            BuiltInProviders.all().size shouldBe 4
+        test("all() returns exactly five built-in providers") {
+            BuiltInProviders.all().size shouldBe 5
         }
 
         test("all() built-in ids are unique") {
@@ -92,6 +92,7 @@ class BuiltInProvidersTest :
             BuiltInProviders.anthropic().isLocal shouldBe false
             BuiltInProviders.google().isLocal shouldBe false
             BuiltInProviders.ollama().isLocal shouldBe true
+            BuiltInProviders.gonka().isLocal shouldBe false
         }
 
         test("OpenAI supportedModels contains gpt-4o") {
@@ -120,5 +121,27 @@ class BuiltInProvidersTest :
             client.shouldNotBeNull()
             // Confirm the instance is indeed OpenAILLMClient (not some other type)
             client::class.java.name shouldNotBe "java.lang.Object"
+        }
+
+        // ── Gonka additions ──────────────────────────────────────────────────
+
+        test("Gonka built-in maps to a provider with id gonka") {
+            BuiltInProviders.gonka().koogProvider!!.id shouldBe "gonka"
+        }
+
+        test("Gonka factory requires non-null api key") {
+            shouldThrow<IllegalArgumentException> {
+                BuiltInProviders.gonka().clientFactory(null)
+            }
+        }
+
+        test("Gonka factory constructs a working LLMClient given a key") {
+            val client = BuiltInProviders.gonka().clientFactory("test-key")
+            client.shouldNotBeNull()
+            client::class.java.name shouldBe "de.betchvaia.koog.gonka.GonkaLLMClient"
+        }
+
+        test("Gonka built-in has empty supportedModels because model ids are dynamic") {
+            BuiltInProviders.gonka().supportedModels shouldBe emptyList()
         }
     })

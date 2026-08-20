@@ -34,6 +34,10 @@ private class FakePromptExecutor(
     private val responsesByModel: Map<LLModel, Message.Assistant> = emptyMap(),
     private val streamsByModel: Map<LLModel, Flow<StreamFrame>> = emptyMap(),
 ) : PromptExecutor() {
+    /** Set to true by [close] — used to assert KumlAiExecutor.close() delegates through. */
+    var closed: Boolean = false
+        private set
+
     override suspend fun execute(
         prompt: ai.koog.prompt.Prompt,
         model: LLModel,
@@ -51,7 +55,9 @@ private class FakePromptExecutor(
         model: LLModel,
     ): ModerationResult = ModerationResult(isHarmful = false, categories = emptyMap())
 
-    override fun close(): Unit = Unit
+    override fun close() {
+        closed = true
+    }
 }
 
 private fun testRegistry(): ProviderRegistry = ProviderRegistry.builtIns()
@@ -142,5 +148,40 @@ class KumlAiExecutorTest :
             } finally {
                 tempDir.toFile().deleteRecursively()
             }
+        }
+
+        test("fromSettings throws MissingApiKey when gonka is default/enabled but no key is stored") {
+            val settings =
+                KumlAiSettings(
+                    defaultProvider = "gonka",
+                    enabledProviders = setOf("gonka"),
+                    privacyMode = false,
+                    defaultModels = mapOf("gonka" to "some-model"),
+                )
+            val tempDir = Files.createTempDirectory("kuml-vault-test-gonka")
+            try {
+                shouldThrow<KumlAiException.MissingApiKey> {
+                    KumlAiExecutor.fromSettings(
+                        settings = settings,
+                        vault = ApiKeyVault(PlainJsonFallbackBackend(tempDir.resolve("secrets.json"))),
+                        registry = testRegistry(),
+                    )
+                }
+            } finally {
+                tempDir.toFile().deleteRecursively()
+            }
+        }
+
+        test("close() delegates to the underlying PromptExecutor") {
+            val fakeExecutor = FakePromptExecutor()
+            val executor =
+                KumlAiExecutor.forTest(
+                    delegate = fakeExecutor,
+                    settings = KumlAiSettings(privacyMode = true),
+                    privacy = PrivacyEnforcer(privacyMode = true),
+                    registry = testRegistry(),
+                )
+            executor.close()
+            fakeExecutor.closed shouldBe true
         }
     })

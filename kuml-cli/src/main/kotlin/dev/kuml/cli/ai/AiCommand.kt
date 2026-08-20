@@ -143,7 +143,7 @@ internal class AiProviderListCommand : CliktCommand(name = "list") {
 // ── `kuml ai provider info` ──────────────────────────────────────────────────
 
 internal class AiProviderInfoCommand : CliktCommand(name = "info") {
-    private val id by argument(help = "Provider id (e.g. openai, anthropic, google, ollama)")
+    private val id by argument(help = "Provider id (e.g. openai, anthropic, google, ollama, gonka)")
 
     override fun help(context: Context): String = "Show details and supported models for a registered LLM provider."
 

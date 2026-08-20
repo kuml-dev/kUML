@@ -138,10 +138,13 @@ public object ModelCatalog {
     /**
      * Returns [ModelDescriptor] entries for all known models of a given provider.
      * Excludes legacy alias entries (the same model id may be listed only once).
-     * Ollama returns an empty list — it accepts dynamic model ids.
+     * Ollama and Gonka return an empty list — both have dynamic, network/locally-hosted
+     * model catalogs rather than a static table (no verified ground truth for Gonka's
+     * hosted model ids — fabricating plausible-looking ones would be worse than leaving
+     * it dynamic).
      */
     public fun descriptorsFor(providerId: String): List<ModelDescriptor> {
-        if (providerId == "ollama") return emptyList()
+        if (providerId == "ollama" || providerId == "gonka") return emptyList()
         // Deduplicate: some entries are legacy aliases pointing to the same LLModel.
         // Keep only primary entries (those whose modelId appears in displayNames).
         val primaryKeys = displayNames.keys.filter { it.first == providerId }
