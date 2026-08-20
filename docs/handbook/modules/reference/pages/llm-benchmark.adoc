@@ -392,11 +392,54 @@ generations spread across Class (7: `CLASS-C-01`, `CLASS-C-02`, `CLASS-C-06`, `C
 runs, with no family fully clean (unlike llama4:scout's all-successful C4). Raw generations:
 `research/gcr-benchmark/results/deepseek-r1:70b/raw-results.json`.
 
+== Published results — Grok 4, xAI (2026-08-20, n=1)
+
+A fifth frontier cloud model, run via xAI's OpenAI-compatible Chat Completions endpoint
+(`run-grok.py`).
+
+[cols="1,1,1,1,1,1"]
+|===
+| DSL | CR | FCR | SF | HR | RI
+
+| kUML + GCR
+| 90.0%
+| 98.0%
+| *36.8%*
+| *28.1%*
+| 1.08
+
+| PlantUML
+| 100.0%
+| 100.0%
+| 34.6%
+| 22.4%
+| 1.00
+
+| Mermaid
+| 92.0%
+| 100.0%
+| 36.4%
+| 23.0%
+| 1.10
+|===
+
+kUML narrowly leads on Structural Fidelity, but the margin is thin (0.4 points over Mermaid, 2.2
+over PlantUML) — not the wide gap seen with Claude Sonnet 5 or GPT-4o. More notable is
+Hallucination Rate: kUML's 28.1% is the *worst* of the three DSLs for this model, and the highest
+kUML HR of any frontier model tested (compare Claude 15.1%, GPT-4o 11.8%, Gemini 2.5 Flash 20.7%,
+Gemini 2.5 Pro 18.5%). Grok reproduces the Claude/GPT-4o "kUML leads" pattern on SF, but not their
+"kUML also hallucinates least" pattern on HR — the two metrics that moved together for every other
+frontier model diverge here. PlantUML's 100.0% first-shot compile rate ties the highest recorded
+for any DSL/model pair in this benchmark (also reached by Mermaid against GPT-4o and Gemini 2.5
+Flash). Raw generations:
+`research/gcr-benchmark/results/grok-4/raw-results.json`.
+
 == MCP tool-use arm: does `kuml.examples` help? (2026-08-20)
 
 Every result above is pure prompt-to-text generation — the model never gets to *ask* for anything
 mid-generation, only to react to compiler errors via the GCR repair loop. `run-claude-examples.py`,
-`run-gemini-examples.py`, `run-gpt4o-examples.py`, and `run-ollama-examples.py` test a different
+`run-gemini-examples.py`, `run-gpt4o-examples.py`, `run-grok-examples.py`, and
+`run-ollama-examples.py` test a different
 mechanism: give the model a real `kuml_examples` tool, backed by a live `kuml-mcp` server
 subprocess over stdio (the same binary a real MCP client would talk to, not a reimplementation),
 and let it pull curated `.kuml.kts` examples for the target diagram type mid-conversation before
@@ -428,6 +471,10 @@ or irrelevant to what's being measured).
 6+| **llama4:scout, local** — tool called in 0/50 cells (mean 0.0 calls/cell)
 | Without `kuml.examples` (baseline) | 60.0% | 72.0% | 26.5% | 15.1% | 1.17
 | With `kuml.examples` (MCP tool) | *2.0%* | *40.0%* | *15.3%* | 10.5% | *2.40*
+
+6+| **Grok 4** — tool called in 12/50 cells (mean 0.24 calls/cell)
+| Without `kuml.examples` (baseline) | 90.0% | 98.0% | 36.8% | 28.1% | 1.08
+| With `kuml.examples` (MCP tool) | 94.0% | 100.0% | 37.8% | 25.8% | 1.06
 |===
 
 **Tool access does not uniformly help — the effect is model-specific, and correlates only loosely
@@ -436,7 +483,11 @@ SF points; Gemini 2.5 Flash, +12.4 SF points). Two are roughly flat: qwen3-coder
 for the tool (10/50) and its numbers barely move. GPT-4o is the interesting middle case — it calls
 the tool almost every time (49/50, nearly as often as Claude) yet ends up *slightly worse* on SF
 (-1.8 points) and clearly worse on Hallucination Rate (+6.6 points): frequent tool use is not the
-same as the tool improving the final answer.
+same as the tool improving the final answer. Grok 4 lands in between: a modest, genuine improvement
+(SF +1.0, HR -2.3) on light tool usage (12/50, a call rate close to qwen3-coder:30b's) — the closest
+this arm gets to "small positive effect roughly proportional to how often the tool is actually
+used," though even that reading doesn't survive contact with GPT-4o's near-universal-but-unhelpful
+usage or llama4:scout's zero-usage-but-catastrophic result.
 
 The sharpest result is llama4:scout, where merely **offering** the tool — despite it being called
 zero times across all 50 cells — collapsed first-shot Compile Rate from 60.0% to 2.0% and Final
@@ -493,6 +544,14 @@ throughout — read as "suggestive," not "significant"):
 | 39.3%
 | No — still below Mermaid's baseline SF on the plain run, though a large improvement over its own no-tool number
 
+| Grok 4 + `kuml.examples` (MCP)
+| 37.8%
+| Yes, narrowly — but has the worst Hallucination Rate (25.8%) of any leading configuration
+
+| Grok 4 (no tool)
+| 36.8%
+| Yes, narrowly — but has the worst Hallucination Rate (28.1%) of the three DSLs for this model
+
 | Gemini 2.5 Flash (no tool)
 | 26.9%
 | No
@@ -525,10 +584,10 @@ throughout — read as "suggestive," not "significant"):
 Three practical takeaways, all with the n=1 caveat above attached:
 
 * **MCP tool access is not a free lunch — it helps some models substantially, is a wash for
-  others, and actively hurt one of the five configurations tested.** Claude Sonnet 5 and Gemini 2.5
-  Flash both improve clearly; GPT-4o and qwen3-coder:30b are roughly flat; llama4:scout got
-  dramatically worse despite never calling the tool. "Give the model more tools" is not a
-  substitute for measuring what happens when you do.
+  others, and actively hurt one of the six configurations tested.** Claude Sonnet 5 and Gemini 2.5
+  Flash both improve clearly; Grok 4 improves modestly; GPT-4o and qwen3-coder:30b are roughly
+  flat; llama4:scout got dramatically worse despite never calling the tool. "Give the model more
+  tools" is not a substitute for measuring what happens when you do.
 * **If you're calling Claude specifically, offering `kuml.examples` is the single largest lever in
   this entire benchmark** — Claude with the tool beats every other configuration tested by a wide
   margin. That result doesn't generalize to "any model, any tool" though — see the first point.
@@ -540,10 +599,11 @@ Three practical takeaways, all with the n=1 caveat above attached:
 
 == Limitations
 
-* **The MCP tool-use arm ran on 5 of 9 model configurations, kUML only, n=1.** Claude Sonnet 5,
-  GPT-4o, Gemini 2.5 Flash, qwen3-coder:30b, and llama4:scout all have a with-tool data point;
-  Gemini 2.5 Pro has none. deepseek-r1:70b was deliberately excluded — Ollama reports no `tools`
-  capability for it, and a smoke test confirmed it never emits a tool call when one is offered.
+* **The MCP tool-use arm ran on 6 of 8 baseline model configurations, kUML only, n=1.** Claude
+  Sonnet 5, GPT-4o, Gemini 2.5 Flash, Grok 4, qwen3-coder:30b, and llama4:scout all have a
+  with-tool data point; Gemini 2.5 Pro and deepseek-r1:70b have none — the latter deliberately
+  excluded, since Ollama reports no `tools` capability for it and a smoke test confirmed it never
+  emits a tool call when one is offered.
   The arm only exercises `kuml.examples` — the other five `kuml-mcp` tools (`kuml.validate`,
   `kuml.render`, `kuml.list_elements`, `kuml.describe`, `kuml.generate`) are untested in this
   benchmark. The llama4:scout result in particular (catastrophic CR collapse despite zero tool

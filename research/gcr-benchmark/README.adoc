@@ -22,19 +22,19 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
   model via Ollama, no API key is needed: `ollama serve`, `ollama pull <model>`, then
   `python3 run-ollama.py --model <model>` (`--workers` defaults to 1 — Ollama serializes
   generation on typical single-GPU/CPU hardware). `run-grok.py` uses xAI's OpenAI-compatible
-  endpoint and hasn't been run against a live account yet (no `XAI_API_KEY` available at write
-  time) — no results published for it so far; treat its quota-exhaustion detection (a 429 whose
-  payload mentions "credit" or "quota") as unverified against a real error response until then.
+  endpoint; kUML narrowly leads on Structural Fidelity against Grok 4 (36.8% vs. 36.4%/34.6%) but
+  has the *worst* Hallucination Rate of the three DSLs for this model (28.1%) — see the handbook's
+  Grok 4 results section.
 * `run-claude-examples.py` / `run-gemini-examples.py` / `run-gpt4o-examples.py` /
   `run-grok-examples.py` / `run-ollama-examples.py` — companion scripts for the V3.3
   `kuml.examples` MCP-tool-use arm (kUML cells only, via a real `kuml-mcp` server subprocess —
   build it first with `./gradlew :kuml-mcp:installDist`): does offering the model a live
   `kuml.examples` tool improve generation quality over the plain compiler-feedback (GCR) loop
   alone? See the handbook's "MCP tool-use arm" section for results — **no single answer**: it
-  helps Claude Sonnet 5 and Gemini 2.5 Flash substantially, is roughly a wash for GPT-4o and
-  qwen3-coder:30b, and measurably hurt llama4:scout even though that model never actually called
-  the tool. deepseek-r1:70b isn't in this arm — Ollama reports no tool-calling support for it.
-  `run-grok-examples.py` is written but likewise unrun — no Grok data point in that table yet.
+  helps Claude Sonnet 5 and Gemini 2.5 Flash substantially, gives Grok 4 a modest genuine bump, is
+  roughly a wash for GPT-4o and qwen3-coder:30b, and measurably hurt llama4:scout even though that
+  model never actually called the tool. deepseek-r1:70b isn't in this arm — Ollama reports no
+  tool-calling support for it.
 * `build-manifest.py` — renders SVGs from a `results/<model>/raw-results.json` (via
   `kuml render`/`dump-json`, `plantuml -tsvg`, `mmdc`) and merges per-cell metrics into
   the kuml.dev gallery manifest additively, under `modelVariants[<model-key>]` — never
@@ -57,6 +57,11 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
   to the 3-sample primary numbers below. The three don't converge on a single pattern for whether
   kUML leads on Structural Fidelity (qwen3-coder:30b trails, llama4:scout leads clearly,
   deepseek-r1:70b ties with Mermaid) — see the handbook page for the comparison.
+* `results/grok-4/` — exploratory single-sample run against xAI's Grok 4 via its OpenAI-compatible
+  API, added 2026-08-20. Same primers as the primary datasets, 1 sample/cell. kUML narrowly leads
+  on Structural Fidelity (36.8% vs. 36.4%/34.6%) but has the worst Hallucination Rate of the three
+  DSLs for this model (28.1%) — the first frontier model where SF and HR move in opposite
+  directions relative to the baselines.
 * `results/claude-sonnet-5/`, `results/gpt-4o/`, `results/gemini-2.5-flash/`,
   `results/gemini-2.5-pro/` — the paper's **primary** dataset for all four models: 3
   independent samples per cell (`raw-results.json` = sample 1, `raw-results-sample{2,3}.json`
