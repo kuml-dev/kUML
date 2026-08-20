@@ -392,8 +392,112 @@ generations spread across Class (7: `CLASS-C-01`, `CLASS-C-02`, `CLASS-C-06`, `C
 runs, with no family fully clean (unlike llama4:scout's all-successful C4). Raw generations:
 `research/gcr-benchmark/results/deepseek-r1:70b/raw-results.json`.
 
+== MCP tool-use arm: does `kuml.examples` help? (2026-08-20)
+
+Every result above is pure prompt-to-text generation — the model never gets to *ask* for anything
+mid-generation, only to react to compiler errors via the GCR repair loop. `run-claude-examples.py`
+and `run-gemini-examples.py` test a different mechanism: give the model a real
+`kuml_examples` tool, backed by a live `kuml-mcp` server subprocess over stdio (the same binary a
+real MCP client would talk to, not a reimplementation), and let it pull curated
+`.kuml.kts` examples for the target diagram type mid-conversation before producing its final
+answer. Bounded at 4 tool-use rounds; whatever text the model settles on is validated by the exact
+same GCR loop and toolchain as every other run. Only kUML's 50 cells run (`kuml.examples` is
+kUML-specific — offering it for PlantUML/Mermaid cells would be either unused or irrelevant to
+what's being measured).
+
+[cols="1,1,1,1,1,1"]
+|===
+| Model | CR | FCR | SF | HR | RI
+
+6+| **Claude Sonnet 5**
+| Without `kuml.examples` (baseline) | 72.0% | 88.0% | 44.5% | 15.1% | 1.23
+| With `kuml.examples` (MCP tool) | *92.0%* | *98.0%* | *56.0%* | *12.8%* | *1.06*
+
+6+| **Gemini 2.5 Flash**
+| Without `kuml.examples` (baseline) | 52.0% | 74.0% | 26.9% | 20.7% | 1.30
+| With `kuml.examples` (MCP tool) | *60.0%* | *82.0%* | *39.3%* | *18.0%* | 1.32
+|===
+
+Tool access improves every metric for both models — Compile Rate, Final Compile Rate, and
+Structural Fidelity all rise, Hallucination Rate falls (fewer repair iterations too, for Claude).
+The effect is largest for Claude (SF +11.5 points, CR +20 points). But the two models don't use
+the tool the same way: Claude calls it in all 50/50 cells (mean 1.24 calls/cell), while Gemini 2.5
+Flash calls it in only 18/50 (mean 0.5 calls/cell) — a model that's offered a tool doesn't
+necessarily reach for it, and that reluctance shows up as a smaller (though still positive)
+benefit. Raw generations, including `toolCallCount` per cell:
+`research/gcr-benchmark/results/claude-sonnet-5-with-examples/raw-results.json` and
+`results/gemini-2.5-flash-with-examples/raw-results.json`.
+
+This arm hasn't been run against any local Ollama model yet. Doing so would need a model whose
+Ollama-served tool-use actually works reliably against the OpenAI-compatible `tools` API — not a
+given at this size/quantization, and Gemini Flash's 18/50 call rate is a reminder that offering a
+tool and a model reliably using it are two different things.
+
+== Which model should I use with kUML?
+
+Pulling every SF result in this benchmark into one ranking (n=1 per cell throughout — read as
+"suggestive," not "significant"):
+
+[cols="1,1,1"]
+|===
+| Model | kUML SF | kUML leads baselines?
+
+| Claude Sonnet 5 + `kuml.examples` (MCP)
+| *56.0%*
+| Yes, by a wide margin
+
+| Claude Sonnet 5 (no tool)
+| 45.3%
+| Yes
+
+| GPT-4o
+| 46.4%
+| Yes
+
+| llama4:scout (local)
+| 26.5%
+| Yes
+
+| qwen3-coder:30b (local)
+| 26.4%
+| No — Mermaid ahead (32.4%)
+
+| deepseek-r1:70b (local)
+| 21.4%
+| Essentially tied with Mermaid (21.6%)
+
+| Gemini 2.5 Flash + `kuml.examples` (MCP)
+| 39.3%
+| No — still below Mermaid's baseline SF on the plain run, though a large improvement over its own no-tool number
+
+| Gemini 2.5 Flash (no tool)
+| 26.9%
+| No
+
+| Gemini 2.5 Pro
+| 26.2%
+| No
+|===
+
+Two practical takeaways, both with the n=1 caveat above attached:
+
+* **If you're calling a frontier model and can offer MCP tools, do it.** The single largest lever
+  in this entire benchmark isn't which model you pick — it's whether that model has `kuml.examples`
+  available. Claude with the tool beats every other configuration tested, including Claude without
+  it, by a wide margin.
+* **Local-model choice doesn't reduce to "bigger is better" or "newer is better."** llama4:scout
+  (109B MoE) leads its baselines; qwen3-coder:30b (30B) and deepseek-r1:70b (70B) don't, and land
+  on opposite sides of "clearly behind" and "statistically a coin flip." If you're picking a local
+  model specifically for kUML generation, llama4:scout is the strongest result so far among the
+  three tested — but this is one sample per model, not a recommendation to standardize on it.
+
 == Limitations
 
+* **The MCP tool-use arm ran on 2 of 9 model configurations, kUML only, n=1.** Claude Sonnet 5 and
+  Gemini 2.5 Flash are the only models tested with `kuml.examples` available; GPT-4o, Gemini 2.5
+  Pro, and all three local Ollama models have no with-tool data point. The arm only exercises
+  `kuml.examples` — the other five `kuml-mcp` tools (`kuml.validate`, `kuml.render`,
+  `kuml.list_elements`, `kuml.describe`, `kuml.generate`) are untested in this benchmark.
 * **qwen3-coder:30b, llama4:scout, and deepseek-r1:70b are single-sample, single-quantization
   exploratory runs, not part of the primary four-model dataset.** All three use the same
   byte-identical `gcr_common.py` primers as the primary datasets (no primer-parity caveat), but

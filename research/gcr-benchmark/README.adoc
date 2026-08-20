@@ -22,8 +22,11 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
   `python3 run-ollama.py --model <model>` (`--workers` defaults to 1 — Ollama serializes
   generation on typical single-GPU/CPU hardware).
 * `run-claude-examples.py` / `run-gemini-examples.py` — companion scripts for the
-  V3.3 `kuml.examples` MCP-tool-use arm (kUML cells only); see the handbook page for that
-  separate research question.
+  V3.3 `kuml.examples` MCP-tool-use arm (kUML cells only, via a real `kuml-mcp` server subprocess):
+  does offering the model a live `kuml.examples` tool improve generation quality over the plain
+  compiler-feedback (GCR) loop alone? See the handbook's "MCP tool-use arm" section for results —
+  yes, substantially, for both models tested (Claude Sonnet 5, Gemini 2.5 Flash), though the two
+  models differ sharply in how often they actually call the tool.
 * `build-manifest.py` — renders SVGs from a `results/<model>/raw-results.json` (via
   `kuml render`/`dump-json`, `plantuml -tsvg`, `mmdc`) and merges per-cell metrics into
   the kuml.dev gallery manifest additively, under `modelVariants[<model-key>]` — never
