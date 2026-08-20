@@ -6,6 +6,29 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.52.0] — 2026-08-20
+
+### Added
+
+**`kuml-ai`: Gonka as a new built-in LLM provider**
+
+The kUML AI assistant (`kuml-desktop`'s AI panel, and `kuml ai` on the CLI) now supports
+[Gonka](https://gonka.ai), a decentralized, blockchain-based AI-compute network with an
+OpenAI-compatible API, as a fifth built-in provider alongside OpenAI, Anthropic, Google, and
+Ollama — via [`koog-gonka`](https://github.com/betschwa/koog-gonka)
+(`de.betchvaia:koog-gonka`), a Koog `LLMClient` implementation for Gonka now published on Maven
+Central.
+
+Gonka is wired the same way the other cloud providers are: it requires an API key (Gonka's
+Broker endpoint), is treated as a cloud provider under kUML's privacy mode (blocked by default
+under `privacyMode = true`, exactly like OpenAI/Anthropic/Google — Gonka dispatches prompts to
+decentralized, network-selected compute hosts, not the user's own machine), and its model
+catalog stays dynamic rather than a static table, matching how Ollama's locally-pulled models are
+handled, since there's no fixed, verifiable list of models the network hosts at any given moment.
+
+Only Gonka's API-key (Broker) authentication is supported. Gonka's own wallet-based signing
+protocol isn't production-ready upstream yet, so kUML doesn't expose it as an option.
+
 ## [0.51.1] — 2026-08-18
 
 ### Fixed
