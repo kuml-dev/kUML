@@ -73,6 +73,7 @@ data class Strings(
     val previewProseEmpty: String,
     val previewErmUnsupported: String,
     val previewNotTrusted: String,
+    val previewFit: String,
     val workspaceBadgeDiagram: String,
     val workspaceBadgeProse: String,
     val workspaceBadgeUnknown: String,
@@ -190,6 +191,7 @@ data class Strings(
                 previewErmUnsupported =
                     "ERM-Rendering wird noch nicht unterstützt — geplant für kUML V3.4.2.",
                 previewNotTrusted = "Workspace nicht vertraut — Rendering deaktiviert",
+                previewFit = "Anpassen",
                 workspaceBadgeDiagram = "Enthält ein Diagramm",
                 workspaceBadgeProse = "Prosa oder Sammlung, kein Diagramm",
                 workspaceBadgeUnknown = "Unbekannter Dokumenttyp",
@@ -308,6 +310,7 @@ data class Strings(
                 previewErmUnsupported =
                     "ERM rendering is not yet supported — planned for kUML V3.4.2.",
                 previewNotTrusted = "Workspace not trusted — rendering disabled",
+                previewFit = "Fit",
                 workspaceBadgeDiagram = "Contains a diagram",
                 workspaceBadgeProse = "Prose or collection, no diagram",
                 workspaceBadgeUnknown = "Unknown document type",

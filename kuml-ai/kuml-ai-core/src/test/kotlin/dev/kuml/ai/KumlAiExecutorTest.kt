@@ -88,6 +88,63 @@ class KumlAiExecutorTest :
             result.textContent() shouldBe "hello from ollama"
         }
 
+        test("execute(prompt, model, tools) dispatches tools through to the delegate and applies the same guards") {
+            var seenTools: List<ToolDescriptor>? = null
+            val recordingExecutor =
+                object : PromptExecutor() {
+                    override suspend fun execute(
+                        prompt: ai.koog.prompt.Prompt,
+                        model: LLModel,
+                        tools: List<ToolDescriptor>,
+                    ): Message.Assistant {
+                        seenTools = tools
+                        return assistantMessage("tool-aware response")
+                    }
+
+                    override fun executeStreaming(
+                        prompt: ai.koog.prompt.Prompt,
+                        model: LLModel,
+                        tools: List<ToolDescriptor>,
+                    ): Flow<StreamFrame> = flowOf(StreamFrame.End("stop"))
+
+                    override suspend fun moderate(
+                        prompt: ai.koog.prompt.Prompt,
+                        model: LLModel,
+                    ): ModerationResult = ModerationResult(isHarmful = false, categories = emptyMap())
+
+                    override fun close() {}
+                }
+            val executor =
+                KumlAiExecutor.forTest(
+                    delegate = recordingExecutor,
+                    settings = KumlAiSettings(defaultProvider = "ollama", privacyMode = true),
+                    privacy = PrivacyEnforcer(privacyMode = true),
+                    registry = testRegistry(),
+                )
+            val testPrompt = prompt("test") { user("hello") }
+            val descriptor = ToolDescriptor(name = "add_class", description = "Adds a UML class.")
+
+            val result = executor.execute(prompt = testPrompt, model = ollamaModel, tools = listOf(descriptor))
+
+            result.textContent() shouldBe "tool-aware response"
+            seenTools shouldBe listOf(descriptor)
+        }
+
+        test("execute(prompt, model, tools) throws PrivacyModeViolation when privacy mode blocks the provider") {
+            val executor =
+                KumlAiExecutor.forTest(
+                    delegate = FakePromptExecutor(),
+                    settings = KumlAiSettings(privacyMode = true),
+                    privacy = PrivacyEnforcer(privacyMode = true),
+                    registry = testRegistry(),
+                )
+            val testPrompt = prompt("test") { user("hello") }
+            val anthropicModel = LLModel(LLMProvider.Anthropic, "claude-sonnet-4-5")
+            shouldThrow<KumlAiException.PrivacyModeViolation> {
+                executor.execute(prompt = testPrompt, model = anthropicModel, tools = emptyList())
+            }
+        }
+
         test("execute throws PrivacyModeViolation when privacy mode is on and provider is Anthropic") {
             val executor =
                 KumlAiExecutor.forTest(

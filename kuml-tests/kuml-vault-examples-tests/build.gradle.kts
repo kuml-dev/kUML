@@ -11,6 +11,9 @@ dependencies {
     testImplementation(libs.kotest.assertions.core)
     testImplementation(project(":kuml-core:kuml-core-script"))
     testImplementation(project(":kuml-core:kuml-core-dsl"))
+    // V3.2.x — AiContextSeedingRoundtripTest: exercises AnyKumlModel.fromKumlDiagram, the
+    // same seeding path AiPanelState uses for the AI panel's editing context.
+    testImplementation(project(":kuml-ai:kuml-ai-tools"))
     testImplementation(project(":kuml-metamodel:kuml-metamodel-uml"))
     testImplementation(project(":kuml-metamodel:kuml-metamodel-c4"))
     testImplementation(project(":kuml-metamodel:kuml-metamodel-sysml2"))

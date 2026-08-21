@@ -69,7 +69,11 @@ public class KumlAiSettingsStore(
     ): KumlAiSettings =
         when (rawSchemaVersion) {
             0 -> {
-                // V0 has no privacyMode, no schemaVersion — inject defaults
+                // V0 has no privacyMode, no schemaVersion — inject defaults, then fall through
+                // to the v1 case instead of decoding directly here. Review fix: this used to
+                // decode straight from schemaVersion=1 JSON, which skipped the v1→v2
+                // LEGACY_V1_DEFAULT_SYSTEM_PROMPT cleanup below entirely — a V0 document ends
+                // up on CURRENT_SCHEMA_VERSION=2 like every other document, not stuck at 1.
                 val withDefaults =
                     JsonObject(
                         raw.toMutableMap().apply {
@@ -77,9 +81,27 @@ public class KumlAiSettingsStore(
                             put("schemaVersion", JsonPrimitive(1))
                         },
                     )
-                json.decodeFromJsonElement(KumlAiSettings.serializer(), withDefaults)
+                migrate(rawSchemaVersion = 1, raw = withDefaults)
             }
-            1 -> json.decodeFromJsonElement(KumlAiSettings.serializer(), raw)
+            1 -> {
+                // V3.2.x — real tool-calling: DEFAULT_SYSTEM_PROMPT changed from a generic
+                // one-liner to a real kUML-DSL-grammar-aware prompt. Schema v1 was already
+                // released with `encodeDefaults = true`, so every prior save() wrote the OLD
+                // default verbatim into ai-settings.json — a user who never customised the
+                // prompt would otherwise never see the new one on load. Only drop the stored
+                // value when it is exactly the old literal default; a genuinely customised
+                // prompt is preserved untouched.
+                val stored = raw["systemPrompt"]?.jsonPrimitive?.content
+                val upgraded =
+                    raw.toMutableMap().apply {
+                        if (stored == null || stored == KumlAiSettings.LEGACY_V1_DEFAULT_SYSTEM_PROMPT) {
+                            remove("systemPrompt") // let the current Kotlin default (new prompt) apply
+                        }
+                        put("schemaVersion", JsonPrimitive(2))
+                    }
+                json.decodeFromJsonElement(KumlAiSettings.serializer(), JsonObject(upgraded))
+            }
+            2 -> json.decodeFromJsonElement(KumlAiSettings.serializer(), raw)
             else -> throw KumlAiException.SettingsCorrupted(
                 message =
                     "Unsupported schema version: $rawSchemaVersion " +

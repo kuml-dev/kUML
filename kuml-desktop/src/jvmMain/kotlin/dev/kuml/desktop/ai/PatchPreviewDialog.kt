@@ -23,8 +23,11 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,6 +35,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.rememberDialogState
+import dev.kuml.desktop.preview.parseSvg
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.apache.batik.swing.JSVGCanvas
+import javax.swing.SwingUtilities
+
+/** Fixed height of the turn-mode SVG preview strip above the patch list (design review, 3.4). */
+private val TURN_PREVIEW_HEIGHT = 240.dp
 
 @Composable
 fun PatchPreviewDialog(
@@ -43,6 +54,26 @@ fun PatchPreviewDialog(
     onAcceptAll: () -> Unit,
     onRejectAll: () -> Unit,
     onDismiss: () -> Unit,
+    /**
+     * V3.2.x — turn-based confirmation (design review 3.4): when non-null, this dialog is
+     * showing the ONE real diagram change the AI made this turn (direct tool-calling path,
+     * see [AgentRunner]) rather than a list of individually accept/reject-able legacy
+     * [dev.kuml.ai.tools.context.ModelPatch] guesses. Renders as a diagram preview above the
+     * patch list, and [PatchPreviewCard] hides its per-item Accept/Reject buttons — only the
+     * footer's "Alle übernehmen" / "Alle ablehnen" apply.
+     */
+    previewSvg: String? = null,
+    /**
+     * Review fix: whether the dialog is in turn-confirmation mode — decides whether
+     * per-item Accept/Reject buttons are hidden, and MUST be independent of whether
+     * [previewSvg] actually rendered. `previewSvg == null` used to double as this signal, so a
+     * turn whose model mutated for real but then FAILED to render (see
+     * [AiPanelState.checkForTurnPatches]) fell back to showing per-item buttons wired to the
+     * legacy [dev.kuml.ai.tools.patch.PatchApplyEngine] buffer — which turn-mode patches were
+     * never buffered into, so accepting/rejecting one silently no-opped while closing the
+     * dialog, losing the confirmation entirely. Callers pass `turnPatches.isNotEmpty()`.
+     */
+    isTurnMode: Boolean = previewSvg != null,
 ) {
     if (!isVisible) return
 
@@ -54,6 +85,24 @@ fun PatchPreviewDialog(
         MaterialTheme {
             Surface(Modifier.fillMaxSize()) {
                 Column(Modifier.fillMaxSize()) {
+                    if (previewSvg != null) {
+                        TurnPreviewSvg(svg = previewSvg, modifier = Modifier.fillMaxWidth().height(TURN_PREVIEW_HEIGHT))
+                        Divider()
+                    } else if (isTurnMode) {
+                        // Review fix: the turn's tool calls mutated the model for real even
+                        // though rendering the preview failed — say so instead of silently
+                        // showing an empty strip, since the confirmation below still applies
+                        // to a real change the user cannot currently see rendered.
+                        Surface(Modifier.fillMaxWidth()) {
+                            Text(
+                                "Vorschau nicht verfügbar — das Modell wurde dennoch geändert. " +
+                                    "„Alle übernehmen“/„Alle ablehnen“ entscheiden über diese Änderung.",
+                                style = MaterialTheme.typography.caption,
+                                modifier = Modifier.padding(12.dp),
+                            )
+                        }
+                        Divider()
+                    }
                     // Patch list
                     LazyColumn(
                         Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 8.dp),
@@ -63,6 +112,7 @@ fun PatchPreviewDialog(
                             PatchPreviewCard(
                                 view = view,
                                 isApplying = isApplying,
+                                allowPerItemActions = !isTurnMode,
                                 onAccept = { onAcceptOne(view.patchId) },
                                 onReject = { onRejectOne(view.patchId) },
                             )
@@ -94,10 +144,31 @@ fun PatchPreviewDialog(
     }
 }
 
+/**
+ * Renders [svg] into a fixed-height Batik canvas — the turn-mode preview shown above the
+ * patch list in [PatchPreviewDialog]. Lightweight sibling of [dev.kuml.desktop.preview.PreviewPane]:
+ * no zoom/fit toolbar, since this is a read-only confirmation preview, not an editing surface.
+ */
+@Composable
+private fun TurnPreviewSvg(
+    svg: String,
+    modifier: Modifier,
+) {
+    val canvas = remember { JSVGCanvas() }
+    LaunchedEffect(svg) {
+        val doc = withContext(Dispatchers.IO) { parseSvg(svg) }
+        if (doc != null) {
+            SwingUtilities.invokeLater { canvas.setSVGDocument(doc) }
+        }
+    }
+    SwingPanel(factory = { canvas }, modifier = modifier)
+}
+
 @Composable
 private fun PatchPreviewCard(
     view: AiPanelState.PendingPatchView,
     isApplying: Boolean,
+    allowPerItemActions: Boolean = true,
     onAccept: () -> Unit,
     onReject: () -> Unit,
 ) {
@@ -122,10 +193,14 @@ private fun PatchPreviewCard(
                 )
             }
             Spacer(Modifier.height(8.dp))
-            // Before / After
-            Row(Modifier.fillMaxWidth().height(160.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DiffBox(label = "Vorher", text = view.diff.before.text, modifier = Modifier.weight(1f))
-                DiffBox(label = "Nachher", text = view.diff.after.text, modifier = Modifier.weight(1f))
+            // Before / After — skipped in turn mode: the diagram preview above the list
+            // already shows the "Nachher" state, and there is no per-patch "Vorher" to show
+            // (the whole turn's tool calls already landed in editingContext together).
+            if (allowPerItemActions) {
+                Row(Modifier.fillMaxWidth().height(160.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DiffBox(label = "Vorher", text = view.diff.before.text, modifier = Modifier.weight(1f))
+                    DiffBox(label = "Nachher", text = view.diff.after.text, modifier = Modifier.weight(1f))
+                }
             }
             // Element changes
             if (view.diff.elementChanges.isNotEmpty()) {
@@ -146,14 +221,18 @@ private fun PatchPreviewCard(
                     }
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            // Actions
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onAccept, enabled = !isApplying, modifier = Modifier.height(32.dp)) {
-                    Text("Übernehmen", fontSize = 12.sp)
-                }
-                OutlinedButton(onClick = onReject, enabled = !isApplying, modifier = Modifier.height(32.dp)) {
-                    Text("Ablehnen", fontSize = 12.sp)
+            // Actions — hidden in turn mode: only the dialog footer's "Alle übernehmen" /
+            // "Alle ablehnen" apply (design review, 3.4 — one confirmation per AI turn, not
+            // per individual change within it).
+            if (allowPerItemActions) {
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onAccept, enabled = !isApplying, modifier = Modifier.height(32.dp)) {
+                        Text("Übernehmen", fontSize = 12.sp)
+                    }
+                    OutlinedButton(onClick = onReject, enabled = !isApplying, modifier = Modifier.height(32.dp)) {
+                        Text("Ablehnen", fontSize = 12.sp)
+                    }
                 }
             }
         }

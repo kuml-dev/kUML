@@ -78,3 +78,47 @@ public sealed interface AnyKumlModel {
         public fun emptySysml2(name: String = "AgentSysml2"): Sysml2 = Sysml2(model = Sysml2Model(name = name))
     }
 }
+
+/**
+ * Rebuilds an [AnyKumlModel.Uml] editing-context seed from an already-extracted
+ * [KumlDiagram] — the inverse of [AnyKumlModel.Uml.toKumlModel].
+ *
+ * KNOWN LOSS (flagged 2026-08-21, see the Branch-2 roundtrip test in
+ * kuml-vault-examples-tests): [AnyKumlModel.Uml] has only two flat buckets —
+ * [UmlNamedElement] and [UmlRelationship]. `dev.kuml.uml.UmlComment` is neither
+ * (see its own KDoc: "intentionally NOT a UmlNamedElement") — free-standing or
+ * anchored comments in [diagram] are silently dropped by this function. This is
+ * a structural gap in [AnyKumlModel.Uml] itself, not a printer round-trip nuance
+ * like `dev.kuml.uml.UmlPackage` (which the printer already flags with a TODO
+ * comment). Fixing it would require a third bucket here plus matching changes in
+ * DeepCopy/ModelMutationRouter/ScriptSerializer/PatchApplyEngine — out of scope
+ * for this wave; deferred to a follow-up.
+ *
+ * Also out of scope: non-class UML diagrams (state machine, sequence/interaction)
+ * — [AnyKumlModel.Uml] and `dev.kuml.ai.tools.uml.UmlEditingTools` only model
+ * classifiers/relationships, so STM regions, interaction fragments, etc. are
+ * dropped the same way if a non-class-diagram script is opened.
+ */
+public fun AnyKumlModel.Uml.Companion.fromKumlDiagram(diagram: KumlDiagram): AnyKumlModel.Uml =
+    AnyKumlModel.Uml(
+        name = diagram.name,
+        diagramId = diagram.id,
+        diagramType = diagram.type.name,
+        elements = diagram.elements.filterIsInstance<UmlNamedElement>(),
+        relationships = diagram.elements.filterIsInstance<UmlRelationship>(),
+    )
+
+/**
+ * Rebuilds an [AnyKumlModel.Uml] editing-context seed from a rendered [KumlModel] —
+ * the inverse of [AnyKumlModel.Uml.toKumlModel]. Delegates to [fromKumlDiagram] once
+ * [model]'s root is confirmed to be a [KumlDiagram].
+ *
+ * See [fromKumlDiagram]'s KDoc for the known `UmlComment` / non-class-diagram loss
+ * that applies equally here.
+ */
+public fun AnyKumlModel.Uml.Companion.fromKumlModel(model: KumlModel): AnyKumlModel.Uml {
+    val diagram =
+        model.root as? KumlDiagram
+            ?: error("fromKumlModel: model.root is not a KumlDiagram (got ${model.root::class.simpleName})")
+    return fromKumlDiagram(diagram)
+}

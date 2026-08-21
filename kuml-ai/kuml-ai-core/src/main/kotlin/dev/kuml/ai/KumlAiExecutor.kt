@@ -1,5 +1,6 @@
 package dev.kuml.ai
 
+import ai.koog.agents.core.tools.ToolDescriptor
 import ai.koog.prompt.Prompt
 import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
 import ai.koog.prompt.executor.model.PromptExecutor
@@ -69,6 +70,29 @@ public class KumlAiExecutor private constructor(
         budgetGuard?.checkBeforeCall()
         privacy.guard(model.provider)
         return delegate.execute(prompt, model)
+    }
+
+    /**
+     * Execute a prompt with an explicit model override and a set of [tools] the model may
+     * call. Koog 1.0.0's `PromptExecutorAPI.execute` already supports a `tools` parameter —
+     * this overload just threads it through the same privacy/budget guards as the two-arg
+     * [execute] above.
+     *
+     * Deliberately has NO default value for [tools] (unlike Koog's own `tools: List<ToolDescriptor> = emptyList()`)
+     * so callers explicitly opt into the tool-calling code path instead of silently landing here
+     * via an ambiguous overload resolution against the two-arg [execute].
+     *
+     * Throws [KumlAiException.PrivacyModeViolation] when privacy mode blocks the provider.
+     * Throws [KumlAiException.BudgetExceeded] when the session cost cap is reached.
+     */
+    public suspend fun execute(
+        prompt: Prompt,
+        model: LLModel,
+        tools: List<ToolDescriptor>,
+    ): Message.Assistant {
+        budgetGuard?.checkBeforeCall()
+        privacy.guard(model.provider)
+        return delegate.execute(prompt, model, tools)
     }
 
     /**

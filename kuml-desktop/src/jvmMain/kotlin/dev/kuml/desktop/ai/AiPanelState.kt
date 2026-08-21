@@ -9,10 +9,18 @@ import dev.kuml.ai.settings.KumlAiSettings
 import dev.kuml.ai.settings.KumlAiSettingsStore
 import dev.kuml.ai.tools.context.AgentEditingContext
 import dev.kuml.ai.tools.context.AnyKumlModel
+import dev.kuml.ai.tools.context.ModelPatch
+import dev.kuml.ai.tools.context.Snapshot
+import dev.kuml.ai.tools.context.fromKumlDiagram
 import dev.kuml.ai.tools.patch.PatchApplyEngine
 import dev.kuml.ai.tools.patch.PatchDiff
 import dev.kuml.ai.vault.ApiKeyVault
+import dev.kuml.core.script.DiagramExtractor
+import dev.kuml.core.script.ExtractedDiagram
+import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.desktop.AppState
+import dev.kuml.desktop.render.DesktopRenderPipeline
+import dev.kuml.desktop.render.DesktopRenderResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -25,7 +33,10 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.UUID
+import kotlin.script.experimental.api.ResultWithDiagnostics
+import kotlin.script.experimental.api.ScriptDiagnostic
 
 class AiPanelState(
     private val appState: AppState,
@@ -38,6 +49,15 @@ class AiPanelState(
     private val pricingTable: PricingTable = PricingTable.loadFromResources(),
     /** V3.1.18: when true, routes through KumlAgentOrchestrator instead of single-turn. */
     val useOrchestration: Boolean = false,
+    /**
+     * Renders a turn's resulting model to SVG for the confirmation dialog preview.
+     * Defaults to the real [DesktopRenderPipeline]; injectable so tests can exercise
+     * [checkForTurnPatches]'s success AND render-failure branches deterministically,
+     * without paying for a full ELK/theme render pipeline per test case.
+     */
+    private val renderFn: (String, String) -> DesktopRenderResult = { script, themeName ->
+        DesktopRenderPipeline.render(script = script, themeName = themeName)
+    },
 ) {
     // V3.7.1 review fix: [KumlAiSettingsStore.load] throws KumlAiException.SettingsCorrupted on
     // unparsable JSON or an unknown schema version. This initializer runs from MainWindow's
@@ -112,7 +132,9 @@ class AiPanelState(
         val diff: PatchDiff,
     )
 
-    private var editingContext: AgentEditingContext = AgentEditingContext(initialModel = AnyKumlModel.emptyUml())
+    // internal (not private): AiPanelStatePatchTest exercises the turn-confirmation flow
+    // directly against this field — see seedEditingContextFromScript/checkForTurnPatches KDoc.
+    internal var editingContext: AgentEditingContext = AgentEditingContext(initialModel = AnyKumlModel.emptyUml())
     private var patchEngine: PatchApplyEngine = createEngine()
 
     private val _pendingPatches = MutableStateFlow<List<PendingPatchView>>(emptyList())
@@ -125,10 +147,56 @@ class AiPanelState(
 
     private fun createEngine(): PatchApplyEngine = PatchApplyEngine(context = editingContext, traceSink = AppStateAiTraceSink())
 
+    // ── V3.2.x — Real tool-calling: turn-based confirmation ───────────────────
+    // (Fund 4, design review: the legacy PatchBuffered/patchEngine buffer above stays
+    // wired for the — currently never-activated — orchestrator path only. The direct
+    // AgentRunner path mutates editingContext for real inside each @Tool call, so its
+    // pending-change surface is read straight from editingContext.patches() instead.)
+
+    /** A single mutation the AI applied for real during the just-finished turn. */
+    data class TurnPatchSummary(
+        val kind: String,
+        val description: String,
+    )
+
+    /**
+     * Snapshot taken right before dispatching the current turn — used to undo it on reject.
+     * internal (not private): set up directly by [AiPanelStatePatchTest] to test rejectAll's
+     * turn-mode rollback without needing a full agent run.
+     */
+    internal var lastTurnSnapshot: Snapshot? = null
+
+    /**
+     * Whether [updateScriptFromModel] is allowed to overwrite [appState].script this turn.
+     * False when [seedEditingContextFromScript] could not parse the currently open script —
+     * writing back in that case would silently clobber content the AI never actually saw.
+     * internal (not private): asserted directly by [AiPanelStatePatchTest].
+     */
+    internal var canWriteScript: Boolean = true
+
+    /**
+     * Size of [AgentEditingContext.patches] captured right before the current turn started.
+     * internal (not private): set up directly by [AiPanelStatePatchTest] to drive
+     * [checkForTurnPatches] without a full agent run.
+     */
+    internal var patchCountBeforeTurn: Int = 0
+
+    private val _turnPatches = MutableStateFlow<List<TurnPatchSummary>>(emptyList())
+    val turnPatches: StateFlow<List<TurnPatchSummary>> = _turnPatches.asStateFlow()
+
+    private val _turnPreviewSvg = MutableStateFlow<String?>(null)
+    val turnPreviewSvg: StateFlow<String?> = _turnPreviewSvg.asStateFlow()
+
     // ── Conversation ──────────────────────────────────────────────────────────
 
     fun send(userText: String) {
-        if (isRunning || userText.isBlank()) return
+        // Review fix (race condition): a pending PatchPreviewDialog confirmation — turn mode
+        // OR legacy buffered-patch mode — MUST block a new turn. Without this guard, starting
+        // turn 2 while turn 1's (non-modal) dialog is still open re-seeds editingContext from
+        // the still-unmodified script (see seedEditingContextFromScript), silently detaching
+        // the dialog from the state it is showing: confirming it afterwards would then act on
+        // turn 2's context instead, discarding turn 1's real mutations without any warning.
+        if (isRunning || showPatchDialog || userText.isBlank()) return
         appendMessage(ConversationMessage.User(id = uuid(), timestamp = now(), text = userText.trim()))
         runAgent()
     }
@@ -149,10 +217,11 @@ class AiPanelState(
         tokensIn = 0
         tokensOut = 0
         estimatedCostUsd = 0.0
-        scope.launch(Dispatchers.IO) {
-            editingContext = AgentEditingContext(initialModel = AnyKumlModel.emptyUml())
-            patchEngine = createEngine()
-        }
+        // V3.2.x: editingContext is no longer seeded here — it is re-derived from the
+        // currently open script at the start of every turn (see seedEditingContextFromScript()),
+        // so newSession() has nothing useful to seed in advance. Fund 1 fix: the previous
+        // seed-once-per-session behaviour is what let an accepted/rejected AI turn silently
+        // diverge from the script the user was actually looking at.
     }
 
     fun reloadSettings() {
@@ -205,28 +274,66 @@ class AiPanelState(
         if (_pendingPatches.value.isEmpty()) withContext(Dispatchers.Main) { showPatchDialog = false }
     }
 
+    /**
+     * Confirms the pending changes shown in [PatchPreviewDialog].
+     *
+     * Turn mode (`_turnPatches` non-empty — the direct AgentRunner tool-loop already
+     * mutated [editingContext] for real): writes the resulting model back to the script
+     * and re-baselines [patchEngine] so a later [rejectAll] cannot undo an already-confirmed
+     * turn. Legacy mode (orchestrator path, `_turnPatches` empty): unchanged pre-V3.2
+     * behaviour — applies every buffered [ModelPatch] via [patchEngine].
+     */
     suspend fun acceptAll() {
         if (isApplying) return
         isApplying = true
         try {
-            val ids = patchEngine.pendingPatchIds()
-            ids.forEach { patchEngine.applyOne(it) }
-            updateScriptFromModel()
-            withContext(Dispatchers.Main) {
-                _pendingPatches.value = emptyList()
-                showPatchDialog = false
+            if (_turnPatches.value.isNotEmpty()) {
+                updateScriptFromModel()
+                patchEngine = createEngine()
+                withContext(Dispatchers.Main) {
+                    _turnPatches.value = emptyList()
+                    _turnPreviewSvg.value = null
+                    showPatchDialog = false
+                }
+            } else {
+                val ids = patchEngine.pendingPatchIds()
+                ids.forEach { patchEngine.applyOne(it) }
+                updateScriptFromModel()
+                withContext(Dispatchers.Main) {
+                    _pendingPatches.value = emptyList()
+                    showPatchDialog = false
+                }
             }
         } finally {
             isApplying = false
         }
     }
 
+    /**
+     * Discards the pending changes shown in [PatchPreviewDialog].
+     *
+     * Turn mode: rolls [editingContext] back to [lastTurnSnapshot] — undoing only this
+     * turn's direct `ctx.applyPatch()` mutations, not the whole session. Legacy mode:
+     * unchanged pre-V3.2 behaviour (rolls back to the pre-session snapshot via
+     * [PatchApplyEngine.rejectAll]).
+     *
+     * Fund 1 fix: this no longer calls [updateScriptFromModel] — rejecting must never
+     * write anything back to [appState].script.
+     */
     suspend fun rejectAll() {
-        patchEngine.rejectAll()
-        updateScriptFromModel() // Script shows pre-session snapshot
-        withContext(Dispatchers.Main) {
-            _pendingPatches.value = emptyList()
-            showPatchDialog = false
+        if (_turnPatches.value.isNotEmpty()) {
+            lastTurnSnapshot?.let { editingContext.resetTo(it) }
+            withContext(Dispatchers.Main) {
+                _turnPatches.value = emptyList()
+                _turnPreviewSvg.value = null
+                showPatchDialog = false
+            }
+        } else {
+            patchEngine.rejectAll()
+            withContext(Dispatchers.Main) {
+                _pendingPatches.value = emptyList()
+                showPatchDialog = false
+            }
         }
     }
 
@@ -238,6 +345,9 @@ class AiPanelState(
             scope.launch(Dispatchers.IO) {
                 isRunning = true
                 try {
+                    seedEditingContextFromScript()
+                    lastTurnSnapshot = editingContext.snapshot()
+                    patchCountBeforeTurn = editingContext.patches().size
                     val executor = KumlAiExecutor.fromSettings(settings = aiSettings, vault = vault)
                     executor.use {
                         val runner =
@@ -262,6 +372,51 @@ class AiPanelState(
             }
     }
 
+    /**
+     * Re-seeds [editingContext] from the currently open editor script before every agent
+     * turn (Kay/Atkinson, design review: "das Skript ist die Wahrheit, das Modell ist eine
+     * Projektion, jede Projektion wird vor Gebrauch neu abgeleitet"). On an unparsable/empty
+     * script, falls back to an empty UML model but sets [canWriteScript] = false so
+     * [updateScriptFromModel] cannot clobber a script the AI never actually understood.
+     *
+     * internal (not private): called directly by [AiPanelStatePatchTest] to test both the
+     * happy path and the unparsable-script fallback without going through a full agent run.
+     */
+    internal suspend fun seedEditingContextFromScript() {
+        val script = appState.script
+        val seeded =
+            if (script.isBlank()) {
+                canWriteScript = true
+                AnyKumlModel.emptyUml()
+            } else {
+                runCatching {
+                    val evalResult = KumlScriptHost.eval(code = script)
+                    val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
+                    val success =
+                        (evalResult as? ResultWithDiagnostics.Success)
+                            ?.takeIf { errors.isEmpty() }
+                            ?: error("script evaluation failed: ${errors.joinToString("; ") { it.message }}")
+                    val extracted =
+                        DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = File("inline.kuml.kts"))
+                    extracted as? ExtractedDiagram.Uml ?: error("not a UML class diagram")
+                }.map { AnyKumlModel.Uml.fromKumlDiagram(it.diagram) }
+                    .onSuccess { canWriteScript = true }
+                    .onFailure {
+                        // `runCatching` above catches Throwable, which includes
+                        // CancellationException — never swallow that here: a cancelled agent
+                        // turn (see runAgent()'s `catch (e: CancellationException)`) must
+                        // propagate and stop cleanly instead of falling through to an empty
+                        // model and continuing on to call the external LLM provider.
+                        if (it is kotlinx.coroutines.CancellationException) throw it
+                    }.getOrElse {
+                        canWriteScript = false
+                        AnyKumlModel.emptyUml()
+                    }
+            }
+        editingContext = AgentEditingContext(initialModel = seeded)
+        patchEngine = createEngine()
+    }
+
     private suspend fun handleEvent(ev: AgentEvent) =
         withContext(Dispatchers.Main) {
             when (ev) {
@@ -277,7 +432,18 @@ class AiPanelState(
                     tokensOut = usageTracker.tokensOut
                     estimatedCostUsd = usageTracker.costUsd
                 }
-                is AgentEvent.Done -> finalizeStreaming()
+                is AgentEvent.Done -> {
+                    finalizeStreaming()
+                    // Review fix (race condition): this used to launch checkForTurnPatches in a
+                    // coroutine detached from currentJob (scope.launch(Dispatchers.IO) { ... }),
+                    // which meant currentJob?.cancel() could not stop it AND isRunning flipped to
+                    // false (in runAgent()'s finally) before it finished — the exact window that
+                    // let a second turn start while turn 1's patch preview was still being
+                    // prepared. Calling it directly here keeps it a structured child of
+                    // currentJob: cancellable, and isRunning stays true until the dialog state
+                    // (_turnPatches/_turnPreviewSvg/showPatchDialog) is fully settled.
+                    checkForTurnPatches(patchCountBeforeTurn)
+                }
                 is AgentEvent.Error -> emitError(ev.throwable)
                 is AgentEvent.PatchBuffered -> {
                     scope.launch(Dispatchers.IO) {
@@ -399,6 +565,7 @@ class AiPanelState(
     }
 
     private suspend fun updateScriptFromModel() {
+        if (!canWriteScript) return
         val model = editingContext.resolveModel()
         val dsl = ScriptSerializer.toDsl(model)
         withContext(Dispatchers.Main) {
@@ -406,6 +573,57 @@ class AiPanelState(
             appState.isDirty = true
         }
     }
+
+    /**
+     * Checks whether the just-finished turn made any real [ModelPatch] mutations against
+     * [editingContext] (the direct AgentRunner tool-loop applies tools for real — see
+     * [dev.kuml.ai.tools.uml.UmlEditingTools] — so [AgentEditingContext.patches] is the
+     * source of truth, not the legacy [patchEngine] buffer). If so, renders a preview SVG
+     * of the resulting model and opens [PatchPreviewDialog] in turn-confirmation mode.
+     *
+     * A no-op when [countBefore] equals the current patch count — that happens for plain
+     * chat turns and for the (currently never-activated) orchestrator path, which still
+     * goes through the legacy `patchEngine`/`AgentEvent.PatchBuffered` mechanism instead.
+     *
+     * Review fix: a failed [renderFn] call (`renderResult` is [DesktopRenderResult.Error],
+     * not [DesktopRenderResult.Svg]) still opens the dialog with [_turnPatches] populated and
+     * [_turnPreviewSvg] left null — the turn's mutations are real regardless of whether the
+     * preview rendered, so the confirmation must still happen. Whether the dialog offers
+     * per-item Accept/Reject in that case is decided by turn-mode (`turnPatches.isNotEmpty()`
+     * in [AiPanel]), never by nullness of the preview SVG — see [PatchPreviewDialog]'s
+     * `isTurnMode` parameter.
+     *
+     * internal (not private): called directly by [AiPanelStatePatchTest] to test the
+     * empty-delta no-op, the successful-render path, and the render-failure path without
+     * needing a full agent run.
+     */
+    internal suspend fun checkForTurnPatches(countBefore: Int) {
+        val all = editingContext.patches()
+        val delta = all.drop(countBefore)
+        if (delta.isEmpty()) return
+
+        val model = editingContext.resolveModel()
+        val dsl = ScriptSerializer.toDsl(model)
+        val renderResult =
+            withContext(Dispatchers.Default) {
+                renderFn(dsl, appState.theme)
+            }
+        withContext(Dispatchers.Main) {
+            _turnPatches.value = delta.map { it.toSummary() }
+            _turnPreviewSvg.value = (renderResult as? DesktopRenderResult.Svg)?.svg
+            showPatchDialog = true
+        }
+    }
+
+    private fun ModelPatch.toSummary(): TurnPatchSummary =
+        when (this) {
+            is ModelPatch.AddElement -> TurnPatchSummary(kind = "added", description = "$elementKind '$name'")
+            is ModelPatch.RemoveElement -> TurnPatchSummary(kind = "removed", description = elementId)
+            is ModelPatch.UpdateAttribute -> TurnPatchSummary(kind = "modified", description = "$ownerId.$field")
+            is ModelPatch.RenameElement -> TurnPatchSummary(kind = "modified", description = "$oldName → $newName")
+            is ModelPatch.AddRelationship ->
+                TurnPatchSummary(kind = "added", description = "$relationshipKind ($sourceId → $targetId)")
+        }
 
     private fun persistCurrentSession() {
         val conv =

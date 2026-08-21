@@ -21,6 +21,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.kuml.ai.tools.patch.ElementChange
+import dev.kuml.ai.tools.patch.PatchDiff
+import dev.kuml.ai.tools.patch.apply.ModelSnippet
 import dev.kuml.desktop.ai.components.AiFooter
 import dev.kuml.desktop.ai.components.ConversationPane
 import dev.kuml.desktop.ai.components.InputPane
@@ -38,6 +41,8 @@ fun AiPanel(
     LaunchedEffect(Unit) { state.reloadSettings() }
     val messages by state.messages.collectAsState()
     val pendingPatches by state.pendingPatches.collectAsState()
+    val turnPatches by state.turnPatches.collectAsState()
+    val turnPreviewSvg by state.turnPreviewSvg.collectAsState()
     val scope = rememberCoroutineScope()
 
     Column(modifier.fillMaxSize().padding(8.dp)) {
@@ -96,8 +101,17 @@ fun AiPanel(
     }
 
     // V3.0.25 — Patch preview dialog (rendered outside the Column so it floats above everything)
+    // V3.2.x: when the AI turn actually mutated the model via real tool calls (see
+    // AgentRunner), turnPatches/turnPreviewSvg are non-empty and take over the dialog in
+    // turn-confirmation mode (design review, 3.4) — the legacy per-patch pendingPatches view
+    // is shown only for the (currently never-activated) orchestrator path.
     PatchPreviewDialog(
-        pendingPatches = pendingPatches,
+        pendingPatches = if (turnPatches.isNotEmpty()) turnPatches.mapIndexed { i, s -> s.toPendingPatchView(i) } else pendingPatches,
+        previewSvg = turnPreviewSvg,
+        // Review fix: turn-mode is decided by whether this turn had real tool-call mutations
+        // (turnPatches non-empty), never by whether the preview SVG happened to render — see
+        // PatchPreviewDialog's isTurnMode KDoc.
+        isTurnMode = turnPatches.isNotEmpty(),
         isVisible = state.showPatchDialog,
         isApplying = state.isApplying,
         onAcceptOne = { id -> scope.launch { state.acceptOne(id) } },
@@ -105,6 +119,27 @@ fun AiPanel(
         onAcceptAll = { scope.launch { state.acceptAll() } },
         onRejectAll = { scope.launch { state.rejectAll() } },
         onDismiss = { state.dismissPatchDialog() },
+    )
+}
+
+/**
+ * Maps a [AiPanelState.TurnPatchSummary] to a [AiPanelState.PendingPatchView] so
+ * [PatchPreviewDialog] can render it through the same list — with `previewSvg` non-null,
+ * the dialog itself skips the Vorher/Nachher boxes and per-item Accept/Reject buttons, so
+ * only [PatchDiff.elementChanges] (used for the summary line) actually matters here.
+ */
+private fun AiPanelState.TurnPatchSummary.toPendingPatchView(index: Int): AiPanelState.PendingPatchView {
+    val patchId = "turn-patch-$index"
+    return AiPanelState.PendingPatchView(
+        patchId = patchId,
+        kind = kind,
+        diff =
+            PatchDiff(
+                patchId = patchId,
+                before = ModelSnippet(elementIds = emptyList(), text = ""),
+                after = ModelSnippet(elementIds = emptyList(), text = ""),
+                elementChanges = listOf(ElementChange(elementId = description, kind = kind)),
+            ),
     )
 }
 
