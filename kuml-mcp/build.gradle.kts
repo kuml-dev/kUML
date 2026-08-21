@@ -38,9 +38,20 @@ dependencies {
     implementation(project(":kuml-io:kuml-io-png"))
     implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
     implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
+    // SLF4J backend — see gradle/libs.versions.toml. This module owns the single
+    // repo-wide `logback.xml`, because it is the deepest node in the dependency
+    // graph among the modules that ship a backend
+    // (kuml-mcp ⊂ kuml-ai-tools ⊂ kuml-cli ⊂ kuml-desktop), so exactly one
+    // logback.xml is ever on any runtime classpath.
+    runtimeOnly(libs.logback.classic)
 
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
+    // McpStdoutPurityTest / LoggingSecurityPinsTest inspect the parsed Logback
+    // configuration directly (JoranConfigurator, LoggerContext, ConsoleAppender) —
+    // needs compile-time access, unlike production code which only ever touches
+    // the SLF4J facade.
+    testImplementation(libs.logback.classic)
 }
 
 tasks.withType<Test>().configureEach {

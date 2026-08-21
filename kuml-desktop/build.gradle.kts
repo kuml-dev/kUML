@@ -62,6 +62,12 @@ kotlin {
                     implementation(libs.ktor.client.java)
                     // V3.6.4 — Knowledge Workspace viewer: read-only Markdown rendering (M3)
                     implementation(libs.markdown.renderer.m3)
+                    // SLF4J backend — see gradle/libs.versions.toml. Without a provider
+                    // SLF4J prints "SLF4J(W): No SLF4J providers were found." and discards
+                    // every log statement. Configuration: logback-kuml-desktop.xml,
+                    // selected explicitly in Main.kt (NOT via the magic `logback.xml` name —
+                    // kuml-mcp already owns the single repo-wide logback.xml).
+                    runtimeOnly(libs.logback.classic)
                 }
             }
         val jvmTest =
@@ -70,6 +76,13 @@ kotlin {
                     implementation(libs.kotest.runner.junit5)
                     implementation(libs.kotest.assertions.core)
                     implementation(libs.kotlinx.coroutines.test)
+                    // Explicit: whether jvmTestRuntimeClasspath inherits jvmMain's runtimeOnly
+                    // is a KMP configuration detail — declared here so the logging tests below
+                    // don't depend on it. `implementation` (not `runtimeOnly`) because
+                    // DesktopLoggingConfigTest/LoggingSecurityPinsTest inspect the parsed
+                    // Logback configuration directly (JoranConfigurator, LoggerContext,
+                    // RollingFileAppender) and need compile-time access.
+                    implementation(libs.logback.classic)
                 }
             }
     }

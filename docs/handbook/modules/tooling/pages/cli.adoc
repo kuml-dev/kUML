@@ -347,6 +347,42 @@ xref:knowledge-workspaces.adoc[Knowledge Workspaces] for the `.kuml-workspace.to
 marker format, the full `type:` vocabulary, and the `OKF-*` finding codes, including the
 `OKF-C-00x` codes specific to `convert`.
 
+== Logging
+
+All log output goes to stderr — stdout is reserved for rendered output (SVG/PNG) and
+structured JSON, so it is always safe to pipe (`kuml render --format svg > out.svg`) or
+redirect (`kuml validate --output json 2>/dev/null`) without a stray log line corrupting
+the result.
+
+Set `KUML_LOG_LEVEL` to control verbosity (default `WARN`). Valid values are
+`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `OFF` and `ALL` (case-insensitive):
+
+[source,shell]
+----
+KUML_LOG_LEVEL=DEBUG kuml ai provider list
+----
+
+`KUML_LOG_LEVEL` can also be set as a JVM system property (`-DKUML_LOG_LEVEL=DEBUG`)
+instead of an OS environment variable — useful when launching the CLI from a wrapper
+script or a `java -jar` invocation that has no convenient way to export an env var. Both
+channels are normalized identically; a system property takes precedence over the
+environment variable if both are set, matching Logback's own substitution lookup order.
+
+An unset `KUML_LOG_LEVEL` falls back to `WARN`. A value outside the list above (a
+plausible-but-wrong guess like `SILENT`, `NONE` or `quiet`) is normalized back to `WARN`
+as well, rather than being passed through — Logback's own parser would otherwise
+silently fall back to maximum verbosity (`DEBUG`) for any name it doesn't recognize,
+which is the opposite of what a lower-verbosity guess like `SILENT` was going for. This
+normalization applies the same way regardless of which channel (environment variable or
+system property) the value was set through.
+
+Third-party HTTP/AI client loggers (`io.ktor`, `ai.koog`, `de.betchvaia`,
+`aws.smithy.kotlin`, `software.amazon.awssdk`, `org.eclipse.elk`, `org.apache.hc`,
+`io.netty`) are intentionally pinned to `WARN` regardless of `KUML_LOG_LEVEL` —
+those stacks log full request/response bodies, including `Authorization` headers,
+at `DEBUG`/`TRACE`. Raising `KUML_LOG_LEVEL` only ever increases kUML's own log
+verbosity.
+
 == Exit codes
 
 [cols="1,2"]

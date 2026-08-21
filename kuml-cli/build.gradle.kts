@@ -102,9 +102,19 @@ dependencies {
     // exactly the same rationale as reverse-java's JavaParser dependency above.
     runtimeOnly(project(path = ":kuml-codegen:kuml-codegen-reverse-sql"))
     implementation(libs.kotlinx.coroutines.core)
+    // SLF4J backend — see gradle/libs.versions.toml. Configuration:
+    // logback-kuml-cli.xml, selected in Main.kt. stdout is the CLI's DATA channel
+    // (`kuml render --format svg > x.svg`, structured JSON errors) — the config
+    // therefore pins its only appender to System.err and installs a
+    // NopStatusListener so Logback's own status output can never reach stdout either.
+    runtimeOnly(libs.logback.classic)
 
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
+    // CliLoggingConfigTest inspects the parsed Logback configuration directly
+    // (JoranConfigurator, LoggerContext, ConsoleAppender) — needs compile-time
+    // access, unlike production code which only ever touches the SLF4J facade.
+    testImplementation(libs.logback.classic)
     // V3.1.36 — ARXML CLI tests: ExportCommandArxmlCliTest + ReverseCommandArxmlCliTest.
     // MUST remain testRuntimeOnly — kuml-io-arxml is JVM-only (JDOM2) and must NEVER become
     // a compile-time or implementation dep of kuml-cli (that would break the GraalVM native image).
@@ -336,6 +346,15 @@ tasks.named<ProcessResources>("processResources") {
 // Attempting a build: `./gradlew :kuml-cli:nativeCompile` (requires GraalVM 21+
 // on PATH or via toolchain). Expected to fail in V1.0 — the configuration is
 // provided so the path-forward work for V1.1 has a starting point.
+//
+// NOTE (logging wave): logback-classic (see gradle/libs.versions.toml) is now a
+// runtimeOnly dependency of this module. Logback's Joran XML configurator is
+// reflection-heavy and has not been verified under GraalVM Native Image. When
+// nativeCompile is actually wired into V1.1 work, check Logback first — either
+// `--initialize-at-build-time=ch.qos.logback` may be needed, or (only for the
+// native path, via an `exclude` on this module's native-image dependency set)
+// a fallback to `slf4j-simple` — see the rejection rationale for slf4j-simple
+// in the logging-backend plan for why it is NOT used on the regular JVM path.
 // ─────────────────────────────────────────────────────────────────────────────
 graalvmNative {
     binaries {

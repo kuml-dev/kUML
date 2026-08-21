@@ -6,6 +6,42 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+**Logging actually works now — an SLF4J backend is finally shipped**
+
+kUML's code logs through the SLF4J facade, but no module ever shipped an SLF4J
+provider. Every run therefore printed `SLF4J(W): No SLF4J providers were found.`
+and silently discarded *all* log output — including `kuml ai`'s warning that API
+keys are being stored in plain text because no OS keystore was available.
+`kuml-desktop`, `kuml-cli` and `kuml-mcp` now ship `logback-classic`.
+
+All log output goes to **stderr** in every module — stdout stays reserved for the
+CLI's rendered output/structured JSON and for the MCP server's JSON-RPC protocol.
+`kuml-desktop` additionally writes a size-and-time-rolled log file next to its
+settings (`…/kUML/logs/kuml-desktop.log`, 5 MB × 7 days, 50 MB cap, directory
+restricted to owner-only where POSIX permissions are available).
+
+Third-party HTTP/AI loggers (Ktor, Koog, AWS Smithy, ELK) are pinned to `WARN` so
+that raising kUML's own verbosity never turns on request/response body logging,
+which would expose `Authorization` headers.
+
+New environment variable `KUML_LOG_LEVEL` controls kUML's own log verbosity
+(default `WARN` for `kuml-cli`/`kuml-mcp`, `INFO` for `kuml-desktop`'s log file).
+Third-party HTTP/AI loggers are intentionally pinned to `WARN` regardless of
+this setting.
+
+Out of scope for this change: `kuml-web` has the identical root cause
+(slf4j-api without a provider) but is deferred to a follow-up wave.
+
+Note on convention: the vault-wide Kotlin logging convention prescribes
+`kotlin-logging` over direct `org.slf4j.LoggerFactory` use. kUML's existing (7)
+log call sites all predate this change and use `org.slf4j.LoggerFactory`
+directly; this wave ships the missing backend without migrating those call
+sites (kotlin-logging is itself only an SLF4J facade, so the backend fix is
+identical either way) — a `kotlin-logging` migration is left to its own,
+separate wave.
+
 ## [0.52.0] — 2026-08-20
 
 ### Added

@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  kUML Desktop logging. Selected explicitly by dev.kuml.desktop.MainKt via
+  -Dlogback.configurationFile=logback-kuml-desktop.xml, because kuml-mcp's
+  logback.xml is also on this module's classpath (transitively via
+  kuml-cli -> kuml-ai-tools -> kuml-mcp) and must not win.
+
+  A packaged desktop app (.app/.dmg/.msi) has no console the user ever sees, so
+  the primary sink is a size-and-time rolled file under the same per-user
+  directory AppPaths already uses for desktop-settings.json. The console
+  appender stays, pinned to System.err (never stdout) and filtered to WARN, so
+  `./gradlew :kuml-desktop:run` shows real problems without noise.
+  ${kuml.desktop.logDir} is set in Main.kt BEFORE the first logger is touched.
+
+  Unlike kuml-mcp/kuml-cli, no NopStatusListener is installed here: stdout is
+  not a protocol/data channel for a GUI app, and Logback's own config-error
+  status output should stay visible while debugging the desktop build.
+
+  The FILE appender's pattern replaces CR/LF — and the other Unicode line
+  separators NEL (U+0085), LINE SEPARATOR (U+2028), PARAGRAPH SEPARATOR
+  (U+2029), VT (U+000B) and FF (U+000C), all of which Java's own \R regex
+  class and common log consumers (Splunk, Loki/Promtail, many editors) treat
+  as line breaks just as readily as \r/\n — with a literal "\n" on every
+  conversion word an attacker could steer content into — %msg, %thread,
+  %logger, and the appended exception dump (%ex) — because third-party
+  plugin code is not under kUML's control and could otherwise forge fake
+  log lines when this file is read/parsed: a single logged event could
+  otherwise masquerade as several independent physical log lines, including
+  a fabricated higher-severity one from a different logger. Concretely:
+  KumlToolRegistry.kt logs e.message from foreign plugin exceptions (%msg),
+  that same foreign code can name its own threads (%thread), and a plugin
+  can register an SLF4J logger under any string name of its choosing via
+  LoggerFactory.getLogger(String) (%logger) — kuml-plugin-loader's
+  PluginClassLoader is parent-first, so foreign plugin code shares this
+  process's slf4j-api/logback and can call that API directly. %logger{40}'s
+  abbreviation does NOT reliably protect against this: the abbreviator only
+  shortens segments before the last dot, so a CR/LF placed in the final
+  segment (or in a dotless name) survives verbatim, and short names (<= 40
+  chars) are not abbreviated at all. %ex is wrapped explicitly (instead of
+  leaving Logback's implicit exception-dump append, which is unwrapped and
+  would reopen exactly this hole) — the trade-off is that a multi-frame
+  stack trace collapses onto a single physical line with literal "\n"
+  separators instead of real indentation, which is deliberate: readability
+  loses to not being CRLF-forgeable. The desktop STDERR appender is exempt
+  (WARN-filtered, human-terminal-only, no plugin-loader-shared classpath
+  concern beyond what FILE already covers) — kuml-cli's STDERR appender,
+  which shares the same kuml-plugin-loader threat model as this FILE
+  appender, applies the identical neutralization; see the header comment in
+  kuml-cli/src/main/resources/logback-kuml-cli.xml.
+  The neutralized %ex is nested inside a second %replace that prefixes it
+  with a space, hyphen, hyphen, space separator only when it is non-empty
+  (regex `^(?=.)`, which matches the start of the string only if at least
+  one character follows) — this keeps a real exception dump visually
+  separated from %msg (e.g. "closed [sep] java.lang.RuntimeException: ...",
+  where [sep] is that separator) without appending a dangling separator to
+  the vast majority of log lines that carry no exception at all.
+  DesktopLoggingConfigTest has one negative/tamper test per channel (message,
+  thread name, logger name, exception dump), plus a regression test for the
+  msg/ex separator and a regression test for the wider Unicode line-separator
+  coverage.
+
+  SUPPLY-CHAIN NOTE: this configuration deliberately never uses
+  <jmxConfigurator>, <insertFromJNDI>, SocketAppender/SMTPAppender, or a
+  serialized configuration — the historical Logback CVE surface.
+
+  A DefaultShutdownHook is registered so the RollingFileAppender flushes and
+  closes its stream cleanly on JVM exit rather than relying on the process
+  simply going away.
+-->
+<configuration>
+  <shutdownHook class="ch.qos.logback.core.hook.DefaultShutdownHook"/>
+
+  <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+    <target>System.err</target>
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>WARN</level>
+    </filter>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${kuml.desktop.logDir}/kuml-desktop.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${kuml.desktop.logDir}/kuml-desktop.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>5MB</maxFileSize>
+      <maxHistory>7</maxHistory>
+      <totalSizeCap>50MB</totalSizeCap>
+    </rollingPolicy>
+    <encoder>
+      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%replace(%thread){'[\r\n\f\u000B\u0085\u2028\u2029]', '\\n'}] %-5level %replace(%logger{40}){'[\r\n\f\u000B\u0085\u2028\u2029]', '\\n'} - %replace(%msg){'[\r\n\f\u000B\u0085\u2028\u2029]', '\\n'}%replace(%replace(%ex){'[\r\n\f\u000B\u0085\u2028\u2029]', '\\n'}){'^(?=.)', ' -- '}%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Same security pins as kuml-mcp/src/main/resources/logback.xml — see the
+       rationale there. -->
+  <logger name="io.ktor"                level="WARN"/>
+  <logger name="ai.koog"                level="WARN"/>
+  <logger name="de.betchvaia"           level="WARN"/>
+  <logger name="aws.smithy.kotlin"      level="WARN"/>
+  <logger name="software.amazon.awssdk" level="WARN"/>
+  <logger name="org.eclipse.elk"        level="WARN"/>
+  <logger name="org.jetbrains.skiko"    level="WARN"/>
+  <logger name="org.apache.hc"          level="WARN"/>
+  <logger name="io.netty"               level="WARN"/>
+
+  <root level="${KUML_LOG_LEVEL:-INFO}">
+    <appender-ref ref="STDERR"/>
+    <appender-ref ref="FILE"/>
+  </root>
+</configuration>

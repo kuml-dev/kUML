@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Repository-wide default SLF4J/Logback configuration AND the configuration of
+  the kUML MCP server.
+
+  WHY IT LIVES HERE: kuml-mcp is the deepest node in the dependency graph among
+  the modules that ship a Logback backend
+  (kuml-mcp <- kuml-ai-tools <- kuml-cli <- kuml-desktop). Keeping the single
+  file named `logback.xml` here guarantees that exactly one `logback.xml` is on
+  any runtime classpath, so Logback's classpath-order-dependent lookup can never
+  pick an unintended configuration. Applications that need more (kuml-cli,
+  kuml-desktop) ship a UNIQUELY NAMED file and select it in their main() via
+  -Dlogback.configurationFile. Never add a second file named `logback.xml`.
+
+  HARD RULE — STDOUT IS A PROTOCOL CHANNEL:
+  The MCP server speaks JSON-RPC 2.0 over stdout (McpServer.run() writes to
+  System.out). A single byte of log output on stdout corrupts the protocol and
+  breaks every MCP client. Therefore:
+    * the console appender is pinned to System.err,
+    * a NopStatusListener suppresses Logback's OWN status messages, which
+      StatusPrinter would otherwise write to System.out on any config warning,
+    * no appender targeting System.out may ever be added here.
+  McpStdoutPurityTest enforces all three.
+
+  SUPPLY-CHAIN NOTE: this configuration deliberately never uses
+  <jmxConfigurator>, <insertFromJNDI>, SocketAppender/SMTPAppender, or a
+  serialized configuration — the historical Logback CVE surface.
+
+  NEW ENVIRONMENT VARIABLE: KUML_LOG_LEVEL controls kUML's own log verbosity
+  (default WARN here and in kuml-cli, INFO for kuml-desktop's log file).
+  Third-party HTTP/AI loggers below are intentionally pinned to WARN
+  regardless of this setting — see the comment on that block.
+-->
+<configuration>
+  <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+
+  <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+    <target>System.err</target>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Third-party HTTP / AI stacks are pinned so that raising kUML's own level
+       via KUML_LOG_LEVEL can NEVER switch on request/response body logging.
+       Those stacks log Authorization headers ("Bearer sk-...") at DEBUG/TRACE.
+       Raising any of these lines is a deliberate secret-exposure decision.
+       LoggingSecurityPinsTest guards them. -->
+  <logger name="io.ktor"                level="WARN"/>
+  <logger name="ai.koog"                level="WARN"/>
+  <logger name="de.betchvaia"           level="WARN"/>
+  <logger name="aws.smithy.kotlin"      level="WARN"/>
+  <logger name="software.amazon.awssdk" level="WARN"/>
+  <logger name="org.eclipse.elk"        level="WARN"/>
+  <logger name="org.apache.hc"          level="WARN"/>
+  <logger name="io.netty"               level="WARN"/>
+
+  <root level="${KUML_LOG_LEVEL:-WARN}">
+    <appender-ref ref="STDERR"/>
+  </root>
+</configuration>

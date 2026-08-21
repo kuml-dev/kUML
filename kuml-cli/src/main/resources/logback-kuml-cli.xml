@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  kUML CLI logging configuration. Selected explicitly by dev.kuml.cli.MainKt via
+  -Dlogback.configurationFile=logback-kuml-cli.xml, because kuml-mcp's
+  logback.xml is also on this module's classpath (transitively via
+  kuml-ai-tools -> kuml-mcp) and must not win — see the note in that file for
+  why exactly one file is ever named `logback.xml` repo-wide.
+
+  HARD RULE — STDOUT IS THE CLI'S DATA CHANNEL:
+  `kuml render` writing SVG to stdout (format svg) and every structured-JSON
+  error path write to stdout. A single byte of log output there corrupts the
+  pipe. Therefore:
+    * the console appender is pinned to System.err,
+    * a NopStatusListener suppresses Logback's OWN status messages, which
+      StatusPrinter would otherwise write to System.out on any config warning,
+    * no appender targeting System.out may ever be added here.
+  CliLoggingConfigTest enforces this.
+
+  SUPPLY-CHAIN NOTE: this configuration deliberately never uses
+  <jmxConfigurator>, <insertFromJNDI>, SocketAppender/SMTPAppender, or a
+  serialized configuration — the historical Logback CVE surface.
+
+  KUML_LOG_LEVEL controls kUML's own log verbosity (default WARN). The
+  security warnings in ApiKeyVault/PlainJsonFallbackBackend are `warn` level
+  and therefore visible by default — that visibility is the whole point of
+  this change. Third-party HTTP/AI loggers below are intentionally pinned to
+  WARN regardless of this setting.
+
+  CRLF-FORGING NOTE: kuml-cli loads third-party plugins via kuml-plugin-loader
+  (parent-first PluginClassLoader, sharing this process's slf4j-api/logback
+  with foreign plugin code). That code can register an SLF4J logger under any
+  name, name its own threads, and its exceptions' getMessage() is not under
+  kUML's control — any of these could otherwise embed CR/LF plus text shaped
+  like an independent, higher-severity log line, splitting one logged event
+  into several fabricated physical lines for anything that parses stderr
+  (piped build/CI logs, `2> debug.log`). The STDERR pattern therefore
+  neutralizes %thread/%logger/%msg/%ex the same way as
+  kuml-desktop/src/jvmMain/resources/logback-kuml-desktop.xml's FILE appender
+  — see that file's header comment for the full rationale.
+  CliLoggingConfigTest has one negative/tamper test per channel.
+-->
+<configuration>
+  <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+
+  <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+    <target>System.err</target>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%replace(%thread){'[\r\n\f\u000B\u0085\u2028\u2029]', '\\n'}] %-5level %replace(%logger{36}){'[\r\n\f\u000B\u0085\u2028\u2029]', '\\n'} - %replace(%msg){'[\r\n\f\u000B\u0085\u2028\u2029]', '\\n'}%replace(%replace(%ex){'[\r\n\f\u000B\u0085\u2028\u2029]', '\\n'}){'^(?=.)', ' -- '}%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Third-party HTTP / AI stacks are pinned so that raising kUML's own level
+       via KUML_LOG_LEVEL can NEVER switch on request/response body logging.
+       Those stacks log Authorization headers ("Bearer sk-...") at DEBUG/TRACE.
+       Raising any of these lines is a deliberate secret-exposure decision.
+       LoggingSecurityPinsTest / CliLoggingConfigTest guard them. -->
+  <logger name="io.ktor"                level="WARN"/>
+  <logger name="ai.koog"                level="WARN"/>
+  <logger name="de.betchvaia"           level="WARN"/>
+  <logger name="aws.smithy.kotlin"      level="WARN"/>
+  <logger name="software.amazon.awssdk" level="WARN"/>
+  <logger name="org.eclipse.elk"        level="WARN"/>
+  <logger name="org.apache.hc"          level="WARN"/>
+  <logger name="io.netty"               level="WARN"/>
+
+  <root level="${KUML_LOG_LEVEL:-WARN}">
+    <appender-ref ref="STDERR"/>
+  </root>
+</configuration>

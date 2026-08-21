@@ -412,6 +412,43 @@ data class KumlError(
 
 Jeder CLI-Befehl unterstützt `--output json` für maschinenlesbare Fehlerausgabe.
 
+### 6. Logging
+
+kUML loggt über die SLF4J-Fassade (`org.slf4j.LoggerFactory`), nicht über
+`kotlin-logging`. Das weicht von der vault-weiten Kotlin-Konvention ab
+("Logging ausschließlich über kotlin-logging") — **dokumentierte Ausnahme für
+dieses Repo**: alle bestehenden Log-Aufrufe im Code stammen von vor dieser
+Konvention, und `kotlin-logging` ist seinerseits nur eine Fassade über
+derselben SLF4J-API, sodass eine Migration am eigentlichen Backend-Problem
+nichts ändert. Eine `kotlin-logging`-Migration ist als eigene, separate Welle
+denkbar, aber nicht Teil der Logging-Backend-Welle (siehe CHANGELOG
+`[Unreleased]`).
+
+`kuml-cli`, `kuml-mcp` und `kuml-desktop` liefern `logback-classic` als
+`runtimeOnly`-Backend aus (`gradle/libs.versions.toml`). **Regel: es gibt
+repo-weit genau eine Datei namens `logback.xml`** (in `kuml-mcp`, dem
+tiefsten Punkt im Abhängigkeitsgraphen unter den Backend-liefernden Modulen:
+`kuml-mcp ⊂ kuml-ai-tools ⊂ kuml-cli ⊂ kuml-desktop`). `kuml-cli` und
+`kuml-desktop` wählen ihre eigene, eindeutig benannte Konfiguration
+(`logback-kuml-cli.xml`, `logback-kuml-desktop.xml`) explizit über
+`-Dlogback.configurationFile` in ihrem jeweiligen `Main.kt` — niemals eine
+zweite Datei `logback.xml` anlegen, sonst hängt die Konfigurationswahl von
+der (nichtdeterministischen) Classpath-Reihenfolge ab.
+
+Stdout ist bei `kuml-cli` (gerenderte Ausgabe/strukturiertes JSON) und
+`kuml-mcp` (JSON-RPC-Protokoll) ein Daten-/Protokollkanal — alle drei
+Konfigurationen routen deshalb ausnahmslos nach **stderr**.
+Umgebungsvariable `KUML_LOG_LEVEL` steuert die Verbosity von kUML-eigenem
+Code (Default `WARN` bei cli/mcp, `INFO` für die Desktop-Logdatei);
+Fremd-Logger (`io.ktor`, `ai.koog`, `de.betchvaia`, `aws.smithy.kotlin`,
+`software.amazon.awssdk`, `org.eclipse.elk`, `org.apache.hc`, `io.netty`)
+bleiben davon unabhängig fest auf `WARN` gepinnt, damit `KUML_LOG_LEVEL=DEBUG`
+niemals versehentlich `Authorization`-Header dieser HTTP-Clients mitloggt.
+
+`kuml-jetbrains-plugin` und `kuml-gradle` bekommen **niemals** ein eigenes
+SLF4J-Backend — ein IDE-Plugin bzw. Gradle-Plugin nutzt den vom Host
+bereitgestellten Provider.
+
 ---
 
 ## DSL-Konventionen

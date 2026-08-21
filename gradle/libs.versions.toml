@@ -38,6 +38,7 @@ atomicfu               = "0.33.0"
 lsp4j                  = "0.24.0"
 markdown-renderer      = "0.43.0"
 detekt                 = "2.0.0-alpha.5"
+logback                = "1.6.3"
 
 [libraries]
 # ── Compose / Kuiver ─────────────────────────────────────────────────────────
@@ -187,6 +188,22 @@ detekt-test-utils                = { module = "dev.detekt:detekt-test-utils",  v
 detekt-kotlin-analysis-api            = { module = "dev.detekt:detekt-kotlin-analysis-api",            version.ref = "detekt" }
 detekt-kotlin-analysis-api-standalone = { module = "dev.detekt:detekt-kotlin-analysis-api-standalone", version.ref = "detekt" }
 kotlin-compiler                       = { module = "org.jetbrains.kotlin:kotlin-compiler",             version.ref = "kotlin" }
+
+# ── Logging: SLF4J-Backend ───────────────────────────────────────────────────
+# kUML's code logs through the SLF4J facade (org.slf4j.LoggerFactory). slf4j-api
+# arrives transitively via Koog / aws-smithy-kotlin, but until this entry existed
+# NO provider was on any runtime classpath — SLF4J fell back to its NOP logger
+# ("SLF4J(W): No SLF4J providers were found."), silently discarding every log
+# statement, including ApiKeyVault's plaintext-API-key security warning.
+#
+# logback-classic 1.6.3 declares slf4j-api 2.0.18 — exactly the version this repo
+# already resolves — and pulls only logback-core in addition (mail/servlet/jackson
+# deps in its POM are optional, provided, or test scope).
+#
+# Declared runtimeOnly in :kuml-desktop, :kuml-cli and :kuml-mcp only. It must
+# NEVER reach :kuml-jetbrains-plugin (the IDE supplies its own provider) or
+# :kuml-gradle (Gradle supplies its own).
+logback-classic                 = { module = "ch.qos.logback:logback-classic",                version.ref = "logback" }
 
 [plugins]
 kotlin-jvm              = { id = "org.jetbrains.kotlin.jvm",                      version.ref = "kotlin" }
