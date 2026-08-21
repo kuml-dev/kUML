@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.kuml.ai.KumlAiException
 import dev.kuml.ai.KumlAiExecutor
+import dev.kuml.ai.settings.KumlAiSettings
 import dev.kuml.ai.settings.KumlAiSettingsStore
 import dev.kuml.ai.tools.context.AgentEditingContext
 import dev.kuml.ai.tools.context.AnyKumlModel
@@ -29,14 +30,22 @@ import java.util.UUID
 class AiPanelState(
     private val appState: AppState,
     private val scope: CoroutineScope,
-    private val settingsStore: KumlAiSettingsStore = KumlAiSettingsStore(),
+    // V3.7.1 — internal (not private) so AiProviderSettingsDialog can be handed the exact
+    // same KumlAiSettingsStore instance/path as this panel (see MainWindow.kt wiring).
+    internal val settingsStore: KumlAiSettingsStore = KumlAiSettingsStore(),
     private val vault: ApiKeyVault,
     private val conversationStore: ConversationStore = ConversationStore.default(),
     private val pricingTable: PricingTable = PricingTable.loadFromResources(),
     /** V3.1.18: when true, routes through KumlAgentOrchestrator instead of single-turn. */
     val useOrchestration: Boolean = false,
 ) {
-    var aiSettings by mutableStateOf(settingsStore.load())
+    // V3.7.1 review fix: [KumlAiSettingsStore.load] throws KumlAiException.SettingsCorrupted on
+    // unparsable JSON or an unknown schema version. This initializer runs from MainWindow's
+    // `remember { AiPanelState(...) }` — an uncaught throw here would crash composition on
+    // every app start until the file is fixed or deleted by hand. Falling back to defaults
+    // keeps the app usable; AiProviderSettingsState.load() is what actually self-heals the file
+    // on disk once the "AI Providers…" dialog is opened (see its KDoc).
+    var aiSettings by mutableStateOf(runCatching { settingsStore.load() }.getOrDefault(KumlAiSettings()))
         private set
 
     var selectedProviderId by mutableStateOf(aiSettings.defaultProvider)
@@ -45,7 +54,32 @@ class AiPanelState(
     )
 
     val availableProviders: List<String> get() = aiSettings.enabledProviders.toList().sorted()
-    val availableModels: List<String> get() = pricingTable.modelsForProvider(selectedProviderId)
+
+    /**
+     * Model ids offered in the panel's model dropdown ([ProviderModelPicker]) for the currently
+     * selected provider.
+     *
+     * V3.7.1 review fix: this used to be JUST [PricingTable.modelsForProvider]'s static list.
+     * For a dynamic-catalog provider (Ollama, Gonka) the user's actual configured default model
+     * — set via a free-text field in the "AI Providers" dialog — is very often NOT one of
+     * pricing.json's few suggested entries (Gonka has no pricing.json entry at all, so its list
+     * is empty). [ProviderModelPicker]'s provider-switch handler falls back to
+     * `availableModels.firstOrNull()` whenever [KumlAiSettings.defaultModels] has no entry for
+     * the newly selected provider yet — with only the static list, that fallback would silently
+     * overwrite a validly configured free-text model with "" (Gonka) or a wrong hard-coded
+     * suggestion (Ollama). Prepending the configured default (when it isn't already in the
+     * static list) keeps it selectable and keeps it the fallback value.
+     */
+    val availableModels: List<String>
+        get() {
+            val fromPricing = pricingTable.modelsForProvider(selectedProviderId)
+            val configuredDefault = aiSettings.defaultModels[selectedProviderId]
+            return if (!configuredDefault.isNullOrBlank() && configuredDefault !in fromPricing) {
+                listOf(configuredDefault) + fromPricing
+            } else {
+                fromPricing
+            }
+        }
 
     private val _messages = MutableStateFlow<List<ConversationMessage>>(emptyList())
     val messages: StateFlow<List<ConversationMessage>> = _messages.asStateFlow()
@@ -122,10 +156,27 @@ class AiPanelState(
     }
 
     fun reloadSettings() {
-        aiSettings = settingsStore.load()
+        // V3.7.1 review fix: called from MainWindow's AiProviderSettingsDialog onClose callback
+        // and from AiPanel's `LaunchedEffect(Unit)` — neither has an exception handler of its
+        // own, so an uncaught KumlAiException.SettingsCorrupted (e.g. the user hand-edited
+        // ai-settings.json and left it unparsable) would crash straight out of a Compose click
+        // handler / recomposition. Falling back to the settings already held keeps the panel
+        // usable; AiProviderSettingsState.load() is what actually self-heals the file on disk.
+        aiSettings = runCatching { settingsStore.load() }.getOrDefault(aiSettings)
         if (selectedProviderId !in aiSettings.enabledProviders) {
+            // Currently selected provider was disabled (or never enabled) — fall back to the
+            // configured default provider/model pair.
             selectedProviderId = aiSettings.defaultProvider
             selectedModelId = aiSettings.defaultModels[selectedProviderId] ?: "llama3.2"
+        } else {
+            // Provider is still enabled, but its default model may have changed in the dialog
+            // (e.g. a Freitext model entry for Ollama). Pick that up so the panel's dropdown
+            // reflects the change without requiring an app restart.
+            aiSettings.defaultModels[selectedProviderId]?.let { updatedModel ->
+                if (updatedModel != selectedModelId) {
+                    selectedModelId = updatedModel
+                }
+            }
         }
     }
 

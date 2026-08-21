@@ -68,6 +68,15 @@ kotlin {
                     // selected explicitly in Main.kt (NOT via the magic `logback.xml` name —
                     // kuml-mcp already owns the single repo-wide logback.xml).
                     runtimeOnly(libs.logback.classic)
+                    // V3.7.1 — Main dispatcher for a plain Desktop JVM app.
+                    // Dispatchers.Main resolves a MainDispatcherFactory via ServiceLoader; Compose
+                    // Desktop ships its own internal UI dispatcher and registers NO such factory.
+                    // Without kotlinx-coroutines-swing, every withContext(Dispatchers.Main) in
+                    // AiPanelState throws "Module with the Main dispatcher is missing" — which is
+                    // exactly what happened on every message sent to the AI panel.
+                    // runtimeOnly: no source references Dispatchers.Swing by name; registration is
+                    // purely a META-INF/services concern.
+                    runtimeOnly(libs.kotlinx.coroutines.swing)
                 }
             }
         val jvmTest =
@@ -83,6 +92,11 @@ kotlin {
                     // Logback configuration directly (JoranConfigurator, LoggerContext,
                     // RollingFileAppender) and need compile-time access.
                     implementation(libs.logback.classic)
+                    // V3.7.1 — Same reasoning as the logback entry above: whether
+                    // jvmTestRuntimeClasspath inherits jvmMain's runtimeOnly is a KMP
+                    // configuration detail — declared explicitly so MainDispatcherAvailabilityTest
+                    // tests the real shipped setup.
+                    implementation(libs.kotlinx.coroutines.swing)
                 }
             }
     }

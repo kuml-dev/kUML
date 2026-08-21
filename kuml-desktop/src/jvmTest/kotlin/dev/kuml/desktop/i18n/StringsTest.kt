@@ -137,4 +137,136 @@ class StringsTest :
         test("EN and DE differ on aiInputPlaceholder") {
             Strings.EN.aiInputPlaceholder shouldNotBe Strings.DE.aiInputPlaceholder
         }
+
+        // --- V3.7.1 — AI provider settings (both languages non-empty; EN vs DE parity) ---
+        test("EN menuAiProviderSettings is non-empty") { Strings.EN.menuAiProviderSettings.isNotEmpty() shouldBe true }
+        test("DE menuAiProviderSettings is non-empty") { Strings.DE.menuAiProviderSettings.isNotEmpty() shouldBe true }
+        test("EN and DE differ on menuAiProviderSettings") {
+            Strings.EN.menuAiProviderSettings shouldNotBe Strings.DE.menuAiProviderSettings
+        }
+
+        test("EN aiProviderSettingsHeadline is non-empty") { Strings.EN.aiProviderSettingsHeadline.isNotEmpty() shouldBe true }
+        test("DE aiProviderSettingsHeadline is non-empty") { Strings.DE.aiProviderSettingsHeadline.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiProviderSettingsHeadline") {
+            Strings.EN.aiProviderSettingsHeadline shouldNotBe Strings.DE.aiProviderSettingsHeadline
+        }
+
+        test("EN aiManageProviders is non-empty") { Strings.EN.aiManageProviders.isNotEmpty() shouldBe true }
+        test("DE aiManageProviders is non-empty") { Strings.DE.aiManageProviders.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiManageProviders") {
+            Strings.EN.aiManageProviders shouldNotBe Strings.DE.aiManageProviders
+        }
+
+        test("EN aiPrivacyModeLabel is non-empty") { Strings.EN.aiPrivacyModeLabel.isNotEmpty() shouldBe true }
+        test("DE aiPrivacyModeLabel is non-empty") { Strings.DE.aiPrivacyModeLabel.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiPrivacyModeLabel") {
+            Strings.EN.aiPrivacyModeLabel shouldNotBe Strings.DE.aiPrivacyModeLabel
+        }
+
+        test("EN aiPrivacyModeHint is non-empty") { Strings.EN.aiPrivacyModeHint.isNotEmpty() shouldBe true }
+        test("DE aiPrivacyModeHint is non-empty") { Strings.DE.aiPrivacyModeHint.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiPrivacyModeHint") {
+            Strings.EN.aiPrivacyModeHint shouldNotBe Strings.DE.aiPrivacyModeHint
+        }
+
+        test("EN aiPrivacyConfirmTitle is non-empty") { Strings.EN.aiPrivacyConfirmTitle.isNotEmpty() shouldBe true }
+        test("DE aiPrivacyConfirmTitle is non-empty") { Strings.DE.aiPrivacyConfirmTitle.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiPrivacyConfirmTitle") {
+            Strings.EN.aiPrivacyConfirmTitle shouldNotBe Strings.DE.aiPrivacyConfirmTitle
+        }
+
+        // The confirmation body must name the concrete consequence (data leaving the machine),
+        // never a generic "Are you sure?" — verified here so a future edit can't silently regress it.
+        test("EN aiPrivacyConfirmBody names the provider explicitly") {
+            Strings.EN.aiPrivacyConfirmBody shouldContain "provider"
+        }
+        test("DE aiPrivacyConfirmBody names the provider explicitly") {
+            Strings.DE.aiPrivacyConfirmBody shouldContain "Anbieter"
+        }
+        test("EN and DE differ on aiPrivacyConfirmBody") {
+            Strings.EN.aiPrivacyConfirmBody shouldNotBe Strings.DE.aiPrivacyConfirmBody
+        }
+
+        test("EN aiPrivacyConfirmAccept is non-empty") { Strings.EN.aiPrivacyConfirmAccept.isNotEmpty() shouldBe true }
+        test("DE aiPrivacyConfirmAccept is non-empty") { Strings.DE.aiPrivacyConfirmAccept.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiPrivacyConfirmAccept") {
+            Strings.EN.aiPrivacyConfirmAccept shouldNotBe Strings.DE.aiPrivacyConfirmAccept
+        }
+
+        test("EN aiPrivacyConfirmCancel is non-empty") { Strings.EN.aiPrivacyConfirmCancel.isNotEmpty() shouldBe true }
+        test("DE aiPrivacyConfirmCancel is non-empty") { Strings.DE.aiPrivacyConfirmCancel.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiPrivacyConfirmCancel") {
+            Strings.EN.aiPrivacyConfirmCancel shouldNotBe Strings.DE.aiPrivacyConfirmCancel
+        }
+
+        test("EN aiPrivacyBadge is non-empty") { Strings.EN.aiPrivacyBadge.isNotEmpty() shouldBe true }
+        test("DE aiPrivacyBadge is non-empty") { Strings.DE.aiPrivacyBadge.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiPrivacyBadge") {
+            Strings.EN.aiPrivacyBadge shouldNotBe Strings.DE.aiPrivacyBadge
+        }
+
+        test("EN aiProviderLocal is non-empty") { Strings.EN.aiProviderLocal.isNotEmpty() shouldBe true }
+        test("DE aiProviderLocal is non-empty") { Strings.DE.aiProviderLocal.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiProviderLocal") {
+            Strings.EN.aiProviderLocal shouldNotBe Strings.DE.aiProviderLocal
+        }
+
+        // aiProviderCloud is deliberately identical in both languages ("Cloud") — no
+        // shouldNotBe parity test for this key, per the V3.7.1 plan (F6/§D).
+        test("EN aiProviderCloud is non-empty") { Strings.EN.aiProviderCloud.isNotEmpty() shouldBe true }
+        test("DE aiProviderCloud is non-empty") { Strings.DE.aiProviderCloud.isNotEmpty() shouldBe true }
+
+        test("EN aiProviderNoModels is non-empty") { Strings.EN.aiProviderNoModels.isNotEmpty() shouldBe true }
+        test("DE aiProviderNoModels is non-empty") { Strings.DE.aiProviderNoModels.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiProviderNoModels") {
+            Strings.EN.aiProviderNoModels shouldNotBe Strings.DE.aiProviderNoModels
+        }
+
+        test("EN aiProviderNeedsKey is non-empty") { Strings.EN.aiProviderNeedsKey.isNotEmpty() shouldBe true }
+        test("DE aiProviderNeedsKey is non-empty") { Strings.DE.aiProviderNeedsKey.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiProviderNeedsKey") {
+            Strings.EN.aiProviderNeedsKey shouldNotBe Strings.DE.aiProviderNeedsKey
+        }
+
+        test("EN aiProviderBlockedByPrivacy is non-empty") { Strings.EN.aiProviderBlockedByPrivacy.isNotEmpty() shouldBe true }
+        test("DE aiProviderBlockedByPrivacy is non-empty") { Strings.DE.aiProviderBlockedByPrivacy.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiProviderBlockedByPrivacy") {
+            Strings.EN.aiProviderBlockedByPrivacy shouldNotBe Strings.DE.aiProviderBlockedByPrivacy
+        }
+
+        test("EN aiKeySave is non-empty") { Strings.EN.aiKeySave.isNotEmpty() shouldBe true }
+        test("DE aiKeySave is non-empty") { Strings.DE.aiKeySave.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiKeySave") { Strings.EN.aiKeySave shouldNotBe Strings.DE.aiKeySave }
+
+        test("EN aiKeyChange is non-empty") { Strings.EN.aiKeyChange.isNotEmpty() shouldBe true }
+        test("DE aiKeyChange is non-empty") { Strings.DE.aiKeyChange.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiKeyChange") { Strings.EN.aiKeyChange shouldNotBe Strings.DE.aiKeyChange }
+
+        test("EN aiKeyDelete is non-empty") { Strings.EN.aiKeyDelete.isNotEmpty() shouldBe true }
+        test("DE aiKeyDelete is non-empty") { Strings.DE.aiKeyDelete.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiKeyDelete") { Strings.EN.aiKeyDelete shouldNotBe Strings.DE.aiKeyDelete }
+
+        test("EN aiKeyPlaceholder is non-empty") { Strings.EN.aiKeyPlaceholder.isNotEmpty() shouldBe true }
+        test("DE aiKeyPlaceholder is non-empty") { Strings.DE.aiKeyPlaceholder.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiKeyPlaceholder") {
+            Strings.EN.aiKeyPlaceholder shouldNotBe Strings.DE.aiKeyPlaceholder
+        }
+
+        test("EN aiVaultPlainWarning is non-empty") { Strings.EN.aiVaultPlainWarning.isNotEmpty() shouldBe true }
+        test("DE aiVaultPlainWarning is non-empty") { Strings.DE.aiVaultPlainWarning.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiVaultPlainWarning") {
+            Strings.EN.aiVaultPlainWarning shouldNotBe Strings.DE.aiVaultPlainWarning
+        }
+
+        test("EN aiDefaultProvider is non-empty") { Strings.EN.aiDefaultProvider.isNotEmpty() shouldBe true }
+        test("DE aiDefaultProvider is non-empty") { Strings.DE.aiDefaultProvider.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiDefaultProvider") {
+            Strings.EN.aiDefaultProvider shouldNotBe Strings.DE.aiDefaultProvider
+        }
+
+        test("EN aiDefaultModel is non-empty") { Strings.EN.aiDefaultModel.isNotEmpty() shouldBe true }
+        test("DE aiDefaultModel is non-empty") { Strings.DE.aiDefaultModel.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiDefaultModel") {
+            Strings.EN.aiDefaultModel shouldNotBe Strings.DE.aiDefaultModel
+        }
     })

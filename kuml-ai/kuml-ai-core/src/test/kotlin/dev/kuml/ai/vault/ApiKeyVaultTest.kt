@@ -29,6 +29,34 @@ private class FakeKeyVaultBackend : KeyVaultBackend {
     }
 }
 
+/**
+ * Simulates an OS keystore backend that cannot answer a presence check at all (e.g. a
+ * permanently denied Keychain/secret-tool consent prompt) — used to verify that
+ * [ApiKeyVault.has] and the [MasterPasswordVaultBackend] decorator both propagate that tri-state
+ * `null` faithfully rather than collapsing it into a definite `false` (the exact fail-destructive
+ * bug this backend exists to guard against — see [KeyVaultBackend.has]'s KDoc).
+ */
+private class FakeVaultErrorBackend : KeyVaultBackend {
+    override val displayName: String = "Fake (has() always errors)"
+
+    override fun isAvailable(): Boolean = true
+
+    override fun put(
+        key: String,
+        secret: String,
+    ) {
+        // no-op — this fake never actually stores anything
+    }
+
+    override fun get(key: String): String? = null
+
+    override fun delete(key: String) {
+        // no-op
+    }
+
+    override fun has(key: String): Boolean? = null
+}
+
 class ApiKeyVaultTest :
     FunSpec({
 
@@ -69,5 +97,35 @@ class ApiKeyVaultTest :
             } finally {
                 tempDir.toFile().deleteRecursively()
             }
+        }
+
+        // ── has() tri-state — see KeyVaultBackend.has's KDoc and the fail-destructive review
+        // finding on AiProviderSettingsState.keyPresence ────────────────────────────────────
+
+        test("has() defaults to get() != null for a backend with no override") {
+            val vault = ApiKeyVault(FakeKeyVaultBackend())
+            vault.has(LLMProvider.OpenAI) shouldBe false
+            vault.put(provider = LLMProvider.OpenAI, key = "sk-test-123")
+            vault.has(LLMProvider.OpenAI) shouldBe true
+            vault.delete(LLMProvider.OpenAI)
+            vault.has(LLMProvider.OpenAI) shouldBe false
+        }
+
+        test("has() propagates a backend's null (vault error) faithfully — not collapsed to false") {
+            val vault = ApiKeyVault(FakeVaultErrorBackend())
+            vault.has(LLMProvider.OpenAI).shouldBeNull()
+        }
+
+        test("MasterPasswordVaultBackend.has() delegates straight to inner, bypassing decryption entirely") {
+            val inner = FakeVaultErrorBackend()
+            val wrapped = MasterPasswordVaultBackend.create(masterPassword = "hunter2".toCharArray(), inner = inner)
+
+            // Reaches inner's tri-state while unlocked...
+            wrapped.has("kuml.ai.openai.apiKey").shouldBeNull()
+
+            // ...and still does after locking — has() never needs the derived key, unlike
+            // get()/put(), which throw VaultUnavailable once locked (see checkNotLocked()).
+            wrapped.lock()
+            wrapped.has("kuml.ai.openai.apiKey").shouldBeNull()
         }
     })

@@ -6,7 +6,67 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+**AI Providers dialog — configure providers, models and API keys without editing JSON**
+
+`kuml-desktop`'s AI panel had no UI for provider configuration: enabling a cloud
+provider, changing its default model, or storing/removing its API key all
+required hand-editing `ai-settings.json`. A new **AI Providers…** dialog
+(reachable from the `AI` menu and from a new **Providers…** button in the panel
+header itself) now covers all of it — enable/disable per provider, pick a
+default provider and default model (a dropdown for OpenAI/Anthropic/Google, a
+free-text field for Ollama/Gonka since both accept any locally-resolved model
+id), and save/change/delete each cloud provider's API key. Every change is
+persisted immediately; there is no separate Apply/OK step.
+
+A privacy-mode switch frames the whole dialog: while it's on, only local
+providers are selectable. Turning it **off** requires a one-time confirmation
+that names the concrete consequence ("your prompts, your model content and the
+diagrams derived from them will be sent to the selected cloud provider and
+processed there") rather than a generic "Are you sure?"; turning it back on
+never asks. A small "Private" badge appears in the panel header whenever
+privacy mode is active.
+
+The dialog also closes a real crash source: enabling a cloud provider without
+ever storing an API key for it used to bring down the *entire* AI executor on
+the next message — not just that provider — because `KumlAiExecutor.fromSettings()`
+builds every enabled provider's client up front. The dialog now enforces the
+same invariants the executor implicitly requires (every enabled provider is
+known and either local or has a stored key, `defaultProvider` always stays
+inside the enabled set, every enabled provider has a resolvable default
+model) before persisting, so this class of self-inflicted crash can no longer
+happen through the UI.
+
+Review-loop fixes on top of the initial implementation: reloading settings
+after the dialog closes now also picks up a pure default-model change for a
+still-enabled provider (previously only a change of *which* providers were
+enabled was noticed, so retyping Ollama's or Gonka's model in the free-text
+field silently had no effect until the app was restarted); a dynamic-catalog
+cloud provider (Gonka) whose checkbox looked clickable but was silently
+dropped the instant it was checked (no resolvable default model — Gonka's
+model catalog is network-hosted, so kUML has no safe built-in default) now
+shows a **"needs a model first"** lock reason and stays disabled until a
+model is entered, instead of reverting with no explanation; every settings
+mutation the dialog triggers is now serialized through a `Mutex` so two
+overlapping dialog callbacks (e.g. a checkbox toggle and a default-provider
+radio click a moment apart) can no longer race and silently drop one of the
+two changes; and a hand-corrupted `ai-settings.json` no longer crashes the
+dialog on open — it self-heals to defaults instead, matching this feature's
+own documented self-healing behaviour for the merely-stale (not corrupt) case.
+
 ### Fixed
+
+**AI panel crashed on every message sent — missing Main-dispatcher module**
+
+Sending any message in the AI panel threw `IllegalStateException: Module with
+the Main dispatcher is missing` and crashed the panel. Root cause:
+`kuml-desktop`'s runtime classpath never declared `kotlinx-coroutines-swing`,
+the module that registers a `MainDispatcherFactory` for `Dispatchers.Main` —
+Compose Desktop ships its own internal UI dispatcher but does not register
+one for kotlinx-coroutines. `kuml-desktop` now depends on
+`kotlinx-coroutines-swing` at runtime, matching the version already pinned
+for `kotlinx-coroutines-core`.
 
 **Logging actually works now — an SLF4J backend is finally shipped**
 

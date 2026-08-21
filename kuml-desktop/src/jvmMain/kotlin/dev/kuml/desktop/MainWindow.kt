@@ -34,6 +34,7 @@ import androidx.compose.ui.window.rememberDialogState
 import dev.kuml.ai.vault.ApiKeyVault
 import dev.kuml.desktop.ai.AiPanel
 import dev.kuml.desktop.ai.AiPanelState
+import dev.kuml.desktop.ai.settings.AiProviderSettingsDialog
 import dev.kuml.desktop.editor.EditorActions
 import dev.kuml.desktop.editor.EditorPane
 import dev.kuml.desktop.i18n.Strings
@@ -78,6 +79,8 @@ fun FrameWindowScope.MainWindow(
     val controller = remember(scope) { DesktopRenderController(state = state, scope = scope) }
     val aiState = remember { AiPanelState(appState = state, scope = scope, vault = vault) }
     var showPluginManager by remember { mutableStateOf(false) }
+    // V3.7.1 — AI provider settings dialog
+    var showAiProviderSettings by remember { mutableStateOf(false) }
     // P6, design review — About dialog (the strings already existed, the dialog didn't).
     var showAboutDialog by remember { mutableStateOf(false) }
     // P2, design review — handle to the currently-mounted EditorPane's undo/redo, so the
@@ -334,6 +337,10 @@ fun FrameWindowScope.MainWindow(
         }
         // V3.0.24 — AI panel menu
         Menu(strings.menuAi) {
+            // V3.7.1 — provider/model/key configuration, first item so it's found where a
+            // user reporting a crash on "no api key configured" actually looked for it.
+            Item(strings.menuAiProviderSettings, onClick = { showAiProviderSettings = true })
+            Separator()
             CheckboxItem(
                 text = strings.aiPanelTitle,
                 checked = state.aiPanelOpen,
@@ -389,6 +396,7 @@ fun FrameWindowScope.MainWindow(
                         AiPanel(
                             state = aiState,
                             strings = strings,
+                            onOpenProviderSettings = { showAiProviderSettings = true },
                             modifier = Modifier.width(state.aiPanelWidthPx.dp).fillMaxHeight(),
                         )
                     }
@@ -402,6 +410,22 @@ fun FrameWindowScope.MainWindow(
     // V3.0.13 — Plugin Manager Dialog (conditionally visible)
     if (showPluginManager) {
         PluginManagerPane(strings = strings, onClose = { showPluginManager = false })
+    }
+
+    // V3.7.1 — AI provider settings dialog (conditionally visible)
+    if (showAiProviderSettings) {
+        AiProviderSettingsDialog(
+            settingsStore = aiState.settingsStore,
+            vault = vault,
+            strings = strings,
+            onClose = {
+                showAiProviderSettings = false
+                // ZWINGEND — sonst sieht das Panel (Header-Privacy-Badge, Provider-Auswahl)
+                // die im Dialog vorgenommenen Änderungen nicht (siehe AiPanel.kt LaunchedEffect,
+                // das nur beim ersten Mount feuert).
+                aiState.reloadSettings()
+            },
+        )
     }
 
     // P6, design review — About dialog.

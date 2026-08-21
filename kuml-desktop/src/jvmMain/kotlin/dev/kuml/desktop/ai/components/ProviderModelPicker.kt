@@ -30,7 +30,14 @@ fun ProviderModelPicker(state: AiPanelState) {
                         text = { Text(p) },
                         onClick = {
                             state.selectedProviderId = p
-                            state.selectedModelId = state.availableModels.firstOrNull() ?: ""
+                            // Prefer the provider's own configured default model (set via the
+                            // "AI Providers" dialog, e.g. a free-text Ollama/Gonka model id)
+                            // over the first entry of the static pricing.json list — that list
+                            // is empty for Gonka and only a few suggestions for Ollama, so
+                            // falling straight to firstOrNull() silently discards a validly
+                            // configured model the moment the user opens this dropdown (V3.7.1
+                            // review fix).
+                            state.selectedModelId = state.aiSettings.defaultModels[p] ?: state.availableModels.firstOrNull() ?: ""
                             pExpanded = false
                         },
                     )

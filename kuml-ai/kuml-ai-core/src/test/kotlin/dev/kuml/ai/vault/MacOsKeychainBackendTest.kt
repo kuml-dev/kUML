@@ -1,6 +1,8 @@
 package dev.kuml.ai.vault
 
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.shouldBe
 
 /**
  * Tests MacOsKeychainBackend with a mocked ShellOut.
@@ -27,5 +29,22 @@ class MacOsKeychainBackendTest :
             } finally {
                 System.clearProperty("kuml.ai.os")
             }
+        }
+
+        // Regression tests for the fail-destructive review finding: has()'s exit-code decision
+        // table is extracted into a pure function specifically so it is unit-testable without a
+        // ShellOut mocking seam — see MacOsKeychainBackend.interpretHasExitCode's KDoc.
+        test("interpretHasExitCode: exit 0 means the item was found") {
+            MacOsKeychainBackend.interpretHasExitCode(0) shouldBe true
+        }
+
+        test("interpretHasExitCode: exit 44 (errSecItemNotFound) means definitely absent") {
+            MacOsKeychainBackend.interpretHasExitCode(44) shouldBe false
+        }
+
+        test("interpretHasExitCode: any other exit code is an unknown backend error, not absence") {
+            MacOsKeychainBackend.interpretHasExitCode(-128).shouldBeNull() // errSecUserCanceled
+            MacOsKeychainBackend.interpretHasExitCode(-25308).shouldBeNull() // errSecInteractionNotAllowed
+            MacOsKeychainBackend.interpretHasExitCode(1).shouldBeNull()
         }
     })

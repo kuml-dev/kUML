@@ -88,7 +88,56 @@ public class LinuxSecretToolBackend(
         // Ignore exit code — delete is idempotent
     }
 
+    /**
+     * Tri-state existence probe — see [KeyVaultBackend.has]'s contract.
+     *
+     * Reuses `secret-tool lookup` (the same command as [get]) rather than `secret-tool search`.
+     * `search`'s own exit code is 0 whenever the D-Bus query itself succeeded — REGARDLESS of
+     * whether any item actually matched (verified against libsecret's
+     * `secret_tool_action_search` in `tool/secret-tool.c`: it returns 0 whenever `error == NULL`,
+     * match count notwithstanding) — so it cannot tell "not found" from "found" via exit code
+     * alone. It also unconditionally loads and prints the matched secret's plaintext value to
+     * stdout when a match exists (`SECRET_SEARCH_LOAD_SECRETS`), so it buys no confidentiality
+     * benefit over `lookup` either.
+     *
+     * `lookup` itself (`secret_tool_action_lookup`) returns exit code 1 for BOTH the "not found"
+     * case (`value == NULL`, no `GError` set, nothing written to stderr) AND any real backend
+     * error (D-Bus/daemon unreachable, keyring locked — always `g_printerr`'d to stderr first,
+     * before returning 1). The two are told apart here by stderr emptiness: a real error always
+     * populates stderr before returning 1; "not found" never does.
+     */
+    override fun has(key: String): Boolean? {
+        val result =
+            ShellOut.run(
+                command =
+                    listOf(
+                        "secret-tool",
+                        "lookup",
+                        "service",
+                        service,
+                        "key",
+                        key,
+                    ),
+            )
+        return interpretHasResult(exitCode = result.exitCode, stderrBlank = result.stderr.isBlank())
+    }
+
     public companion object {
         public const val DEFAULT_SERVICE: String = "dev.kuml.ai"
+
+        /**
+         * Pure exit-code/stderr decision table for [has] — extracted so it is unit-testable
+         * without shelling out to the real `secret-tool` CLI (there is no DI seam for [ShellOut]
+         * in this module; see [LinuxSecretToolBackendTest]'s existing note on that limitation).
+         */
+        internal fun interpretHasResult(
+            exitCode: Int,
+            stderrBlank: Boolean,
+        ): Boolean? =
+            when {
+                exitCode == 0 -> true
+                exitCode == 1 && stderrBlank -> false // not found, no error reported
+                else -> null // real backend error (stderr populated), or unexpected exit code
+            }
     }
 }

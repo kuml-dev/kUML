@@ -90,6 +90,41 @@ public class MacOsKeychainBackend(
         }
     }
 
+    /**
+     * Tri-state existence probe — see [KeyVaultBackend.has]'s contract.
+     *
+     * Deliberately omits `-w`: `find-generic-password` without it only inspects the item's
+     * metadata, never its secret value. That has two benefits over probing via [get]: (a) it
+     * never reads the API key into the JVM heap just to answer "is one configured", and (b) it
+     * does not require the "Always Allow" keychain-access consent that specifically guards the
+     * *secret value* — so a locked keychain or an earlier-denied `-w` prompt does not make this
+     * presence check itself pop a consent dialog.
+     *
+     * Exit codes are unambiguous here (Apple SecBase.h): `0` = found, `44`
+     * (`errSecItemNotFound`) = definitely absent, anything else (auth failure, locked keychain,
+     * `security` itself missing) is a genuine backend failure and MUST surface as `null` — never
+     * collapse it into "absent" (that is exactly the fail-destructive bug this method exists to
+     * fix; see [KeyVaultBackend.has]'s KDoc).
+     */
+    override fun has(key: String): Boolean? {
+        val user = System.getProperty("user.name") ?: "kuml"
+        val result =
+            ShellOut.run(
+                command =
+                    listOf(
+                        "security",
+                        "find-generic-password",
+                        "-a",
+                        user,
+                        "-s",
+                        service,
+                        "-l",
+                        key,
+                    ),
+            )
+        return interpretHasExitCode(result.exitCode)
+    }
+
     override fun delete(key: String) {
         val user = System.getProperty("user.name") ?: "kuml"
         ShellOut.run(
@@ -110,5 +145,17 @@ public class MacOsKeychainBackend(
 
     public companion object {
         public const val DEFAULT_SERVICE: String = "dev.kuml.ai"
+
+        /**
+         * Pure exit-code decision table for [has] — extracted so it is unit-testable without
+         * shelling out to the real `security` CLI (there is no DI seam for [ShellOut] in this
+         * module; see [MacOsKeychainBackendTest]'s existing note on that limitation).
+         */
+        internal fun interpretHasExitCode(exitCode: Int): Boolean? =
+            when (exitCode) {
+                0 -> true
+                44 -> false // errSecItemNotFound — definitely absent
+                else -> null // auth failure / locked keychain / other backend error
+            }
     }
 }

@@ -71,6 +71,24 @@ public class WindowsDpapiBackend(
         }
     }
 
+    /**
+     * Tri-state existence probe — see [KeyVaultBackend.has]'s contract.
+     *
+     * Unlike [get], this never attempts DPAPI decryption — it only checks whether an encrypted
+     * blob is present under [key] in the on-disk map, mirroring the presence-only checks in
+     * [MacOsKeychainBackend.has] and [LinuxSecretToolBackend.has].
+     *
+     * Distinguishes "storage file legitimately does not exist yet" (definitely absent — `false`)
+     * from "storage file exists but could not be read/parsed" (backend error — `null`, e.g. an
+     * AV/OneDrive file lock or corruption after a crash). The default [KeyVaultBackend.has]
+     * cannot make this distinction because [readMap] collapses both cases to an empty map.
+     */
+    override fun has(key: String): Boolean? {
+        if (!Files.exists(storagePath)) return false
+        val map = readMapOrNull() ?: return null
+        return map.containsKey(key)
+    }
+
     /** Thin interface so tests can inject a mock instead of requiring a real Windows host. */
     internal interface CryptInterop {
         fun protect(data: ByteArray): ByteArray
@@ -106,13 +124,22 @@ public class WindowsDpapiBackend(
             ignoreUnknownKeys = true
         }
 
-    private fun readMap(): JsonObject {
+    private fun readMap(): JsonObject = readMapOrNull() ?: JsonObject(emptyMap())
+
+    /**
+     * Like [readMap], but preserves the distinction between "no file yet" (empty map) and
+     * "file exists but failed to read/parse" (`null`) — needed by [has] so a transient read
+     * failure isn't reported as "definitely no secret configured". [get]/[put]/[delete] use
+     * [readMap] and intentionally keep the older fail-to-empty-map behavior; only the tri-state
+     * [has] probe needs to tell the two apart.
+     */
+    private fun readMapOrNull(): JsonObject? {
         if (!Files.exists(storagePath)) return JsonObject(emptyMap())
         return try {
             val text = Files.readString(storagePath, StandardCharsets.UTF_8)
             json.parseToJsonElement(text).jsonObject
         } catch (_: Exception) {
-            JsonObject(emptyMap())
+            null
         }
     }
 

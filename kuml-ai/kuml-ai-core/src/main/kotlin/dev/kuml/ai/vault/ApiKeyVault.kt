@@ -25,6 +25,15 @@ public class ApiKeyVault internal constructor(
     /** Read an API key for a provider. */
     public fun get(provider: LLMProvider): String? = _backend.get(KeyVaultBackend.keyFor(provider))
 
+    /**
+     * Tri-state existence probe for [provider] — see [KeyVaultBackend.has]'s contract. Prefer
+     * this over `get(provider) != null` whenever only presence matters: it lets backends that
+     * shell out to an OS keystore (macOS Keychain, Linux libsecret) distinguish a definite
+     * "no key configured" from "the backend itself failed to answer" instead of silently
+     * collapsing both into `false`.
+     */
+    public fun has(provider: LLMProvider): Boolean? = _backend.has(KeyVaultBackend.keyFor(provider))
+
     /** Store an API key. */
     public fun put(
         provider: LLMProvider,

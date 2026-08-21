@@ -93,6 +93,30 @@ data class Strings(
     val pluginManagerScreenshotTitle: String,
     // V3.7.x — AI input placeholder i18n (design-review P5)
     val aiInputPlaceholder: String,
+    // V3.7.1 — AI provider settings
+    val menuAiProviderSettings: String,
+    val aiProviderSettingsHeadline: String,
+    val aiManageProviders: String,
+    val aiPrivacyModeLabel: String,
+    val aiPrivacyModeHint: String,
+    val aiPrivacyConfirmTitle: String,
+    val aiPrivacyConfirmBody: String,
+    val aiPrivacyConfirmAccept: String,
+    val aiPrivacyConfirmCancel: String,
+    val aiPrivacyBadge: String,
+    val aiProviderLocal: String,
+    val aiProviderCloud: String,
+    val aiProviderNoModels: String,
+    val aiProviderNeedsKey: String,
+    val aiProviderBlockedByPrivacy: String,
+    val aiProviderNeedsModel: String,
+    val aiKeySave: String,
+    val aiKeyChange: String,
+    val aiKeyDelete: String,
+    val aiKeyPlaceholder: String,
+    val aiVaultPlainWarning: String,
+    val aiDefaultProvider: String,
+    val aiDefaultModel: String,
 ) {
     companion object {
         val DE =
@@ -184,6 +208,33 @@ data class Strings(
                 pluginManagerShowAllReviews = "Alle Reviews anzeigen (%d)",
                 pluginManagerScreenshotTitle = "Screenshot",
                 aiInputPlaceholder = "Modell beschreiben…",
+                menuAiProviderSettings = "KI-Anbieter…",
+                aiProviderSettingsHeadline = "KI-Anbieter",
+                aiManageProviders = "Anbieter…",
+                aiPrivacyModeLabel = "Privacy-Modus",
+                aiPrivacyModeHint =
+                    "Solange der Privacy-Modus aktiv ist, verlässt kein Modellinhalt Ihren Rechner — " +
+                        "nur lokale Anbieter wie Ollama sind wählbar.",
+                aiPrivacyConfirmTitle = "Privacy-Modus ausschalten?",
+                aiPrivacyConfirmBody =
+                    "Ihre Eingaben, Ihr Modellinhalt und die daraus erzeugten Diagramme werden künftig " +
+                        "an den gewählten Cloud-Anbieter übertragen und dort verarbeitet.",
+                aiPrivacyConfirmAccept = "Ausschalten",
+                aiPrivacyConfirmCancel = "Aktiv lassen",
+                aiPrivacyBadge = "Privat",
+                aiProviderLocal = "Lokal",
+                aiProviderCloud = "Cloud",
+                aiProviderNoModels = "Für diesen Anbieter ist derzeit kein Modell auflösbar.",
+                aiProviderNeedsKey = "Tragen Sie einen API-Schlüssel ein, um diesen Anbieter zu aktivieren.",
+                aiProviderBlockedByPrivacy = "Im Privacy-Modus gesperrt.",
+                aiProviderNeedsModel = "Tragen Sie zuerst ein Modell ein, um diesen Anbieter zu aktivieren.",
+                aiKeySave = "Speichern",
+                aiKeyChange = "Ändern",
+                aiKeyDelete = "Löschen",
+                aiKeyPlaceholder = "API-Schlüssel",
+                aiVaultPlainWarning = "Kein OS-Schlüsselspeicher verfügbar — Schlüssel werden unverschlüsselt abgelegt.",
+                aiDefaultProvider = "Standard",
+                aiDefaultModel = "Modell",
             )
 
         val EN =
@@ -275,6 +326,33 @@ data class Strings(
                 pluginManagerShowAllReviews = "Show all reviews (%d)",
                 pluginManagerScreenshotTitle = "Screenshot",
                 aiInputPlaceholder = "Describe your model…",
+                menuAiProviderSettings = "AI Providers…",
+                aiProviderSettingsHeadline = "AI Providers",
+                aiManageProviders = "Providers…",
+                aiPrivacyModeLabel = "Privacy mode",
+                aiPrivacyModeHint =
+                    "While privacy mode is on, no model content leaves your machine — only local " +
+                        "providers such as Ollama can be selected.",
+                aiPrivacyConfirmTitle = "Turn off privacy mode?",
+                aiPrivacyConfirmBody =
+                    "Your prompts, your model content and the diagrams derived from them will be " +
+                        "sent to the selected cloud provider and processed there.",
+                aiPrivacyConfirmAccept = "Turn off",
+                aiPrivacyConfirmCancel = "Keep it on",
+                aiPrivacyBadge = "Private",
+                aiProviderLocal = "Local",
+                aiProviderCloud = "Cloud",
+                aiProviderNoModels = "No model can currently be resolved for this provider.",
+                aiProviderNeedsKey = "Enter an API key to enable this provider.",
+                aiProviderBlockedByPrivacy = "Blocked while privacy mode is on.",
+                aiProviderNeedsModel = "Enter a model first to enable this provider.",
+                aiKeySave = "Save",
+                aiKeyChange = "Change",
+                aiKeyDelete = "Delete",
+                aiKeyPlaceholder = "API key",
+                aiVaultPlainWarning = "No OS keystore available — keys are stored unencrypted.",
+                aiDefaultProvider = "Default",
+                aiDefaultModel = "Model",
             )
 
         fun forLanguage(lang: String): Strings = if (lang == "de") DE else EN
