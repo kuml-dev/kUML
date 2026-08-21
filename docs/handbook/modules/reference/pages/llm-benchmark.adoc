@@ -434,12 +434,61 @@ for any DSL/model pair in this benchmark (also reached by Mermaid against GPT-4o
 Flash). Raw generations:
 `research/gcr-benchmark/results/grok-4/raw-results.json`.
 
+== Published results — MiniMax-M2.7, Gonka via GonkaRouter (2026-08-21, n=1)
+
+A decentralized/blockchain compute network entry, run via GonkaRouter (`https://gonkarouter.io`), a
+third-party OpenAI-compatible broker for the Gonka network — distinct from kUML's built-in `kuml ai`
+Gonka provider, which is hardcoded to the official broker (`run-gonka.py`).
+
+MiniMax-M2.7 is a reasoning model that emits a visible `<think>...</think>` trace inline in its
+response content before any code. At `max_tokens=32768`, **73.3% of all 150 baseline cells ended in
+`stuck` status** — the model exhausted its entire token budget mid-reasoning without ever producing
+code. The scores below are computed only over the cells that did produce final code (n=40 of 150);
+read them as "what the model does when it finishes reasoning in time," not as a representative sample
+of all 150 attempts — the 73.3% that never finished are timeouts, not compile failures on code the
+model actually wrote.
+
+[cols="1,1,1,1,1,1"]
+|===
+| DSL | CR | FCR | SF | HR | RI
+
+| kUML + GCR
+| 14.0%
+| 18.0%
+| *6.0%*
+| 5.4%
+| 1.22
+
+| PlantUML
+| 22.0%
+| 32.0%
+| 7.7%
+| 11.6%
+| 1.31
+
+| Mermaid
+| 24.0%
+| 30.0%
+| 7.7%
+| *8.0%*
+| 1.20
+|===
+
+Every FCR and SF figure here is the lowest of any model tested in this benchmark, by a wide margin —
+the next-lowest kUML FCR is deepseek-r1:70b's 62.0% (see above), ~44 points higher. This
+isn't evidence MiniMax-M2.7 is unusually weak at the DSLs themselves: manually inspecting the
+successful generations (e.g. `CLASS-S-01`/`CLASS-S-03`/`CLASS-S-05`) shows clean, structurally sound
+output comparable to other models' successes. The gap is almost entirely explained by the stuck rate
+— see the MCP tool-use arm below for evidence that access to `kuml.examples` substantially improves
+completion, consistent with shorter/more directed reasoning once the tool supplies a concrete example
+to anchor on. Raw generations: `research/gcr-benchmark/results/MiniMaxAI-MiniMax-M2.7/raw-results.json`.
+
 == MCP tool-use arm: does `kuml.examples` help? (2026-08-20)
 
 Every result above is pure prompt-to-text generation — the model never gets to *ask* for anything
 mid-generation, only to react to compiler errors via the GCR repair loop. `run-claude-examples.py`,
-`run-gemini-examples.py`, `run-gpt4o-examples.py`, `run-grok-examples.py`, and
-`run-ollama-examples.py` test a different
+`run-gemini-examples.py`, `run-gpt4o-examples.py`, `run-grok-examples.py`, `run-gonka-examples.py`,
+and `run-ollama-examples.py` test a different
 mechanism: give the model a real `kuml_examples` tool, backed by a live `kuml-mcp` server
 subprocess over stdio (the same binary a real MCP client would talk to, not a reimplementation),
 and let it pull curated `.kuml.kts` examples for the target diagram type mid-conversation before
@@ -475,6 +524,10 @@ or irrelevant to what's being measured).
 6+| **Grok 4** — tool called in 12/50 cells (mean 0.24 calls/cell)
 | Without `kuml.examples` (baseline) | 90.0% | 98.0% | 36.8% | 28.1% | 1.08
 | With `kuml.examples` (MCP tool) | 94.0% | 100.0% | 37.8% | 25.8% | 1.06
+
+6+| **MiniMax-M2.7 (Gonka)** — tool called in 21/50 cells (mean 0.84 calls/cell)
+| Without `kuml.examples` (baseline) | 14.0% | 18.0% | 6.0% | 5.4% | 1.22
+| With `kuml.examples` (MCP tool) | *10.0%* | *46.0%* | *15.3%* | *14.5%* | *2.04*
 |===
 
 **Tool access does not uniformly help — the effect is model-specific, and correlates only loosely
@@ -487,7 +540,15 @@ same as the tool improving the final answer. Grok 4 lands in between: a modest, 
 (SF +1.0, HR -2.3) on light tool usage (12/50, a call rate close to qwen3-coder:30b's) — the closest
 this arm gets to "small positive effect roughly proportional to how often the tool is actually
 used," though even that reading doesn't survive contact with GPT-4o's near-universal-but-unhelpful
-usage or llama4:scout's zero-usage-but-catastrophic result.
+usage or llama4:scout's zero-usage-but-catastrophic result. MiniMax-M2.7 is the clearest positive
+outlier: FCR more than doubled (18.0%→46.0%) and SF more than doubled (6.0%→15.3%) with only
+moderate tool usage (21/50, comparable to Grok 4's call rate) — but HR also nearly tripled
+(5.4%→14.5%) and CR actually fell (14.0%→10.0%), so the tool appears to trade first-shot precision
+and hallucination discipline for a much higher rate of eventually finishing at all. The most
+plausible mechanism, consistent with this model's very high baseline stuck rate (see the results
+section above): a concrete example gives the reasoning trace something to anchor on, shortening it
+enough to finish within the token budget more often — a different failure mode than the other five
+models, none of which showed anywhere near MiniMax-M2.7's baseline stuck rate.
 
 The sharpest result is llama4:scout, where merely **offering** the tool — despite it being called
 zero times across all 50 cells — collapsed first-shot Compile Rate from 60.0% to 2.0% and Final
@@ -579,15 +640,26 @@ throughout — read as "suggestive," not "significant"):
 | llama4:scout + `kuml.examples` (MCP, local)
 | 15.3%
 | No — collapsed from its own no-tool result (see MCP arm section: tool never called, but merely offered)
+
+| MiniMax-M2.7 + `kuml.examples` (MCP, Gonka)
+| 15.3%
+| No same-model PlantUML/Mermaid SF exists for this arm (kUML-only cells) — but more than double its own no-tool result (6.0%)
+
+| MiniMax-M2.7 (no tool, Gonka)
+| *6.0%*
+| No — PlantUML and Mermaid both ahead (7.7% each); the lowest kUML SF of any model tested
 |===
 
 Three practical takeaways, all with the n=1 caveat above attached:
 
 * **MCP tool access is not a free lunch — it helps some models substantially, is a wash for
-  others, and actively hurt one of the six configurations tested.** Claude Sonnet 5 and Gemini 2.5
-  Flash both improve clearly; Grok 4 improves modestly; GPT-4o and qwen3-coder:30b are roughly
-  flat; llama4:scout got dramatically worse despite never calling the tool. "Give the model more
-  tools" is not a substitute for measuring what happens when you do.
+  others, and actively hurt one of the seven configurations tested.** Claude Sonnet 5, Gemini 2.5
+  Flash, and MiniMax-M2.7 all improve clearly, though MiniMax-M2.7's improvement is a third
+  pattern of its own: completion rate more than doubled while precision and hallucination
+  discipline both got worse (CR fell, HR nearly tripled) — a trade, not an unambiguous win. Grok 4
+  improves modestly; GPT-4o and qwen3-coder:30b are roughly flat; llama4:scout got dramatically
+  worse despite never calling the tool. "Give the model more tools" is not a substitute for
+  measuring what happens when you do.
 * **If you're calling Claude specifically, offering `kuml.examples` is the single largest lever in
   this entire benchmark** — Claude with the tool beats every other configuration tested by a wide
   margin. That result doesn't generalize to "any model, any tool" though — see the first point.
@@ -596,12 +668,19 @@ Three practical takeaways, all with the n=1 caveat above attached:
   and deepseek-r1:70b (70B) don't lead either way. If you're picking a local model specifically for
   kUML generation without MCP tools, llama4:scout's no-tool result is the strongest so far among
   the three tested — but this is one sample per model, not a recommendation to standardize on it.
+* **On decentralized-compute networks (tested here via GonkaRouter for Gonka), matching the model's
+  reasoning-token appetite to the request budget matters as much as DSL choice.** MiniMax-M2.7's
+  headline weakness in this benchmark — 73.3% of baseline cells never finishing — is a budget/timeout
+  issue, not a demonstrated DSL-competence issue: its completed generations are qualitatively
+  comparable to other models' successes, and giving it `kuml.examples` more than doubled its
+  completion rate. Treat a low score from this class of model as "ran out of reasoning budget," not
+  automatically as "can't write kUML."
 
 == Limitations
 
-* **The MCP tool-use arm ran on 6 of 8 baseline model configurations, kUML only, n=1.** Claude
-  Sonnet 5, GPT-4o, Gemini 2.5 Flash, Grok 4, qwen3-coder:30b, and llama4:scout all have a
-  with-tool data point; Gemini 2.5 Pro and deepseek-r1:70b have none — the latter deliberately
+* **The MCP tool-use arm ran on 7 of 9 baseline model configurations, kUML only, n=1.** Claude
+  Sonnet 5, GPT-4o, Gemini 2.5 Flash, Grok 4, qwen3-coder:30b, llama4:scout, and MiniMax-M2.7 all
+  have a with-tool data point; Gemini 2.5 Pro and deepseek-r1:70b have none — the latter deliberately
   excluded, since Ollama reports no `tools` capability for it and a smoke test confirmed it never
   emits a tool call when one is offered.
   The arm only exercises `kuml.examples` — the other five `kuml-mcp` tools (`kuml.validate`,
@@ -609,6 +688,14 @@ Three practical takeaways, all with the n=1 caveat above attached:
   benchmark. The llama4:scout result in particular (catastrophic CR collapse despite zero tool
   calls) is a single sample — treat it as "a thing that happened once," not a general property of
   offering tools to that model.
+* **MiniMax-M2.7's benchmark scores are computed over a minority of cells that finished within the
+  token budget.** 110 of 150 baseline cells (73.3%) ended in `stuck` status — the model's `<think>`
+  reasoning trace exhausted the 32,768-token request budget before producing any code, not a compile
+  failure on code it actually produced. The FCR/SF/HR figures reported for this model describe "what
+  it does when it finishes reasoning in time," not a representative sample of all 150 attempts. A
+  higher token budget, a different quantization, or a different Gonka broker could plausibly show a
+  different completion rate — this looks like a property of this specific broker/budget combination,
+  not necessarily an intrinsic limit of the model.
 * **qwen3-coder:30b, llama4:scout, and deepseek-r1:70b are single-sample, single-quantization
   exploratory runs, not part of the primary four-model dataset.** All three use the same
   byte-identical `gcr_common.py` primers as the primary datasets (no primer-parity caveat), but

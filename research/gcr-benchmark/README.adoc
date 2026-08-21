@@ -10,28 +10,37 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
   diagram family (Class/Sequence/C4/SysML 2) and difficulty (Simple/Medium/Complex).
 * `gcr_common.py` — shared prompt primers, per-DSL validation/extraction, and the generic
   Generate-Compile-Repair loop + resumable run driver used by every provider script.
-* `run-claude.py` / `run-gemini.py` / `run-gpt4o.py` / `run-grok.py` / `run-ollama.py` —
-  provider-specific orchestration scripts built on `gcr_common.py`. Each supplies its own API call
-  function and a "stop the whole run" exception type (quota-exhausted for the cloud providers,
-  unreachable server/unpulled model for Ollama); everything else (primers, validation,
-  resume-on-rerun) is shared, so all runs use byte-identical Sequence/C4/SysML 2 primers. Usage:
-  `export ANTHROPIC_API_KEY=...` / `export GEMINI_API_KEY=...` / `export OPENAI_API_KEY=...` /
-  `export XAI_API_KEY=...`, then `python3 run-claude.py` / `python3 run-gemini.py` /
-  `python3 run-gpt4o.py` / `python3 run-grok.py` (see `--help` for `--model`, `--workers`,
-  `--limit`, `--ids`, `--out`; `run-grok.py` defaults to `--model grok-4`). For a local open-weight
-  model via Ollama, no API key is needed: `ollama serve`, `ollama pull <model>`, then
-  `python3 run-ollama.py --model <model>` (`--workers` defaults to 1 — Ollama serializes
+* `run-claude.py` / `run-gemini.py` / `run-gpt4o.py` / `run-grok.py` / `run-gonka.py` /
+  `run-ollama.py` — provider-specific orchestration scripts built on `gcr_common.py`. Each supplies
+  its own API call function and a "stop the whole run" exception type (quota-exhausted for the
+  cloud providers, unreachable server/unpulled model for Ollama); everything else (primers,
+  validation, resume-on-rerun) is shared, so all runs use byte-identical Sequence/C4/SysML 2
+  primers. Usage: `export ANTHROPIC_API_KEY=...` / `export GEMINI_API_KEY=...` /
+  `export OPENAI_API_KEY=...` / `export XAI_API_KEY=...` / `export GONKAROUTER_API_KEY=...`, then
+  `python3 run-claude.py` / `python3 run-gemini.py` / `python3 run-gpt4o.py` /
+  `python3 run-grok.py` / `python3 run-gonka.py --model <model-id>` (see `--help` for `--model`,
+  `--workers`, `--limit`, `--ids`, `--out`; `run-grok.py` defaults to `--model grok-4`). For a
+  local open-weight model via Ollama, no API key is needed: `ollama serve`, `ollama pull <model>`,
+  then `python3 run-ollama.py --model <model>` (`--workers` defaults to 1 — Ollama serializes
   generation on typical single-GPU/CPU hardware). `run-grok.py` uses xAI's OpenAI-compatible
   endpoint; kUML narrowly leads on Structural Fidelity against Grok 4 (36.8% vs. 36.4%/34.6%) but
   has the *worst* Hallucination Rate of the three DSLs for this model (28.1%) — see the handbook's
-  Grok 4 results section.
+  Grok 4 results section. `run-gonka.py` talks directly to GonkaRouter
+  (`https://gonkarouter.io`), a third-party OpenAI-compatible broker for the decentralized Gonka
+  compute network — distinct from kUML's built-in `kuml ai` Gonka provider, which is hardcoded to
+  the official broker; it also strips a `<think>...</think>` reasoning trace some Gonka-hosted
+  models (confirmed for MiniMax-M2.7) emit inline in the response content, discarding the response
+  entirely if the trace is truncated (unclosed tag) rather than letting the leftover reasoning
+  prose reach validation. MiniMax-M2.7's baseline run had a 73.3% "stuck" rate (reasoning exceeded
+  the 32,768-token budget before producing code) — see the handbook's MiniMax-M2.7 results section.
 * `run-claude-examples.py` / `run-gemini-examples.py` / `run-gpt4o-examples.py` /
-  `run-grok-examples.py` / `run-ollama-examples.py` — companion scripts for the V3.3
-  `kuml.examples` MCP-tool-use arm (kUML cells only, via a real `kuml-mcp` server subprocess —
-  build it first with `./gradlew :kuml-mcp:installDist`): does offering the model a live
-  `kuml.examples` tool improve generation quality over the plain compiler-feedback (GCR) loop
+  `run-grok-examples.py` / `run-gonka-examples.py` / `run-ollama-examples.py` — companion scripts
+  for the V3.3 `kuml.examples` MCP-tool-use arm (kUML cells only, via a real `kuml-mcp` server
+  subprocess — build it first with `./gradlew :kuml-mcp:installDist`): does offering the model a
+  live `kuml.examples` tool improve generation quality over the plain compiler-feedback (GCR) loop
   alone? See the handbook's "MCP tool-use arm" section for results — **no single answer**: it
-  helps Claude Sonnet 5 and Gemini 2.5 Flash substantially, gives Grok 4 a modest genuine bump, is
+  helps Claude Sonnet 5, Gemini 2.5 Flash, and MiniMax-M2.7 substantially (the latter also nearly
+  tripling its Hallucination Rate alongside the gain), gives Grok 4 a modest genuine bump, is
   roughly a wash for GPT-4o and qwen3-coder:30b, and measurably hurt llama4:scout even though that
   model never actually called the tool. deepseek-r1:70b isn't in this arm — Ollama reports no
   tool-calling support for it.
@@ -62,6 +71,16 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
   on Structural Fidelity (36.8% vs. 36.4%/34.6%) but has the worst Hallucination Rate of the three
   DSLs for this model (28.1%) — the first frontier model where SF and HR move in opposite
   directions relative to the baselines.
+* `results/MiniMaxAI-MiniMax-M2.7/` and `results/MiniMaxAI-MiniMax-M2.7-with-examples/` —
+  exploratory single-sample runs against MiniMax-M2.7 served over GonkaRouter, a third-party
+  broker for the decentralized Gonka compute network, added 2026-08-21. Same primers as the
+  primary datasets, 1 sample/cell. The standout result is a 73.3% "stuck" rate in the baseline run
+  (110/150 cells never finished their `<think>` reasoning trace within the 32,768-token budget) —
+  every FCR/SF figure for this model is the lowest recorded in this benchmark, but conditioned on
+  the minority of cells that did finish in time, not a representative sample of all attempts.
+  `kuml.examples` access more than doubled both completion (FCR 18.0%→46.0%) and Structural
+  Fidelity (6.0%→15.3%), at the cost of a near-tripled Hallucination Rate (5.4%→14.5%) — see the
+  handbook page for the full comparison.
 * `results/claude-sonnet-5/`, `results/gpt-4o/`, `results/gemini-2.5-flash/`,
   `results/gemini-2.5-pro/` — the paper's **primary** dataset for all four models: 3
   independent samples per cell (`raw-results.json` = sample 1, `raw-results-sample{2,3}.json`
