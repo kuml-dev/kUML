@@ -128,6 +128,43 @@ internal fun AiProviderSettingsDialog(
                         )
                     }
 
+                    // V3.7.4 — informational hint only (no icon, no error color): a leftover
+                    // shared-service macOS Keychain item from before the credential-misrouting
+                    // fix. Never read, never deleted (see ApiKeyVault.hasLegacySharedKeychainItem
+                    // / MacOsKeychainBackend.legacySharedItemExists) — this is purely a nudge to
+                    // re-enter the affected keys.
+                    // V3.7.5 (review fix): the underlying Keychain item never goes away on its
+                    // own, so without an explicit dismiss this notice used to persist forever
+                    // even after the user had already re-entered every affected key — a Row with
+                    // a small "Verstanden"/"Got it" button next to the text persists that
+                    // acknowledgement (state.dismissLegacyKeychainNotice()) instead.
+                    if (state.legacyKeychainItemPresent) {
+                        Spacer(Modifier.height(8.dp))
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(8.dp),
+                            ) {
+                                Text(
+                                    text = strings.aiVaultLegacyKeychainNotice,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                TextButton(
+                                    enabled = !state.isClosing,
+                                    onClick = { state.dismissLegacyKeychainNotice() },
+                                ) {
+                                    Text(strings.aiVaultLegacyKeychainDismiss)
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(Modifier.height(8.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         Button(enabled = !state.isClosing, onClick = ::requestClose) { Text(strings.dialogClose) }

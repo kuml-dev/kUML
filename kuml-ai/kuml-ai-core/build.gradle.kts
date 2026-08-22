@@ -55,6 +55,15 @@ tasks.withType<Test>().configureEach {
     jvmArgs("-Xmx512m")
     // Privacy-Mode tests run locally; live provider tests are opt-in
     systemProperty("kuml.ai.test.live", System.getProperty("kuml.ai.test.live") ?: "false")
+    // V3.7.4 — real macOS Keychain / Linux secret-tool round trip for KeyVaultBackendContract
+    // (see MacOsKeychainBackendTest/LinuxSecretToolBackendTest). Forwarded the same way as
+    // kuml.ai.test.live above — without this, `-Dkuml.ai.vault.liveKeystoreTests=true` on the
+    // Gradle command line only sets the property in the build JVM, never in the forked test
+    // worker, and the live contract test silently (and misleadingly) reports "skipped".
+    systemProperty(
+        "kuml.ai.vault.liveKeystoreTests",
+        System.getProperty("kuml.ai.vault.liveKeystoreTests") ?: "false",
+    )
     // Exclude @Tag("live") tests unless explicitly opted in
     val liveEnabled = System.getProperty("kuml.ai.test.live") == "true"
     useJUnitPlatform {

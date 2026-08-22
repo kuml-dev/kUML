@@ -2,6 +2,7 @@ package dev.kuml.desktop.workspace
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +14,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
@@ -21,17 +26,19 @@ import androidx.compose.ui.unit.sp
 import dev.kuml.desktop.AppState
 import dev.kuml.desktop.editor.EditorActions
 import dev.kuml.desktop.editor.EditorPane
+import dev.kuml.desktop.editor.FindBar
+import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.io.FileMenu
 import dev.kuml.desktop.preview.PreviewPane
-import dev.kuml.desktop.render.DesktopRenderController
 import java.io.File
 
 /**
  * Engineering-mode workspace layout (V3.6.4): a tree of `*.kuml.kts` files next
  * to the existing single-file [EditorPane]/[PreviewPane] pair. Selecting a script
  * loads it into [state] via [AppState.loadFrom] — exactly the normal File → Open
- * flow — so the existing [DesktopRenderController]/debounce/render pipeline picks
- * it up unchanged.
+ * flow — so the existing render pipeline (driven from `MainWindow`'s single
+ * `RenderInputs` derivation — see the V3.7.4 design-review note there) picks it
+ * up unchanged.
  *
  * Selecting a different file first runs it through [confirmUnsavedAndThen] (P1,
  * design review) — the same unsaved-changes guard used everywhere else in the app
@@ -41,11 +48,11 @@ import java.io.File
 @Composable
 fun EngineeringWorkspaceScreen(
     state: AppState,
-    controller: DesktopRenderController,
+    strings: Strings,
     scriptFiles: List<File>,
     confirmUnsavedAndThen: (() -> Unit) -> Unit,
     modifier: Modifier = Modifier,
-    onEditorReady: (EditorActions) -> Unit = {},
+    onEditorReady: (EditorActions?) -> Unit = {},
 ) {
     // P5 — Ansichtsmodus: der Dateibaum bleibt in allen drei Modi sichtbar (Susan Kare, design
     // review: "Baum ist Navigation, nicht Inhalt"). Gewichte: SPLIT 1:2:2 (unverändert
@@ -54,6 +61,9 @@ fun EngineeringWorkspaceScreen(
     // zum PreviewPane-State-Reset).
     val editorWeight = if (state.viewMode == AppState.ViewMode.SPLIT) 2f else 4f
     val previewWeight = if (state.viewMode == AppState.ViewMode.SPLIT) 2f else 4f
+    // V3.7.4 (design review P8) — mirrored locally so FindBar (below) can reach the same
+    // handle the outer onEditorReady callback forwards up to MainWindow's Edit menu.
+    var localActions by remember { mutableStateOf<EditorActions?>(null) }
     Row(modifier = modifier.fillMaxWidth().fillMaxHeight()) {
         EngineeringFileTreePane(
             files = scriptFiles,
@@ -68,12 +78,23 @@ fun EngineeringWorkspaceScreen(
         )
         HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
         if (state.viewMode != AppState.ViewMode.DIAGRAM) {
-            EditorPane(
-                state = state,
-                controller = controller,
-                modifier = Modifier.weight(editorWeight).fillMaxHeight(),
-                onEditorReady = onEditorReady,
-            )
+            Column(modifier = Modifier.weight(editorWeight).fillMaxHeight()) {
+                EditorPane(
+                    state = state,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    onEditorReady = { actions ->
+                        localActions = actions
+                        onEditorReady(actions)
+                    },
+                )
+                if (state.findBarOpen) {
+                    FindBar(
+                        actions = localActions,
+                        strings = strings,
+                        onClose = { state.findBarOpen = false },
+                    )
+                }
+            }
         }
         if (state.viewMode == AppState.ViewMode.SPLIT) {
             HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))

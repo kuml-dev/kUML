@@ -158,4 +158,20 @@ class AppStateTest :
                 state.toSettings().viewMode shouldBe mode.name
             }
         }
+
+        // --- V3.7.4 — showWatermark ---
+
+        test("default showWatermark is false") {
+            AppState().showWatermark shouldBe false
+        }
+
+        test("AppState(initialSettings) adopts showWatermark from settings") {
+            AppState(AppSettings(showWatermark = true)).showWatermark shouldBe true
+        }
+
+        test("toSettings() mirrors showWatermark") {
+            val state = AppState()
+            state.showWatermark = true
+            state.toSettings().showWatermark shouldBe true
+        }
     })

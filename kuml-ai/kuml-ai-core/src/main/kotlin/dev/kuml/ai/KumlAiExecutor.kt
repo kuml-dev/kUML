@@ -181,7 +181,12 @@ public class KumlAiExecutor private constructor(
                     val koog = kumlProvider.koogProvider ?: return@mapNotNull null // skip custom
                     val apiKey =
                         if (!kumlProvider.isLocal) {
-                            vault.get(koog)
+                            // isNotBlank(), not just != null: a backend can fail silently and
+                            // report an empty/whitespace-only secret as "found" rather than
+                            // absent (see MacOsKeychainBackend's class KDoc on the two-prompt
+                            // stdin desync). Treating that as present would build a client with
+                            // an empty Authorization header instead of failing locally here.
+                            vault.get(koog)?.takeIf { it.isNotBlank() }
                                 ?: throw KumlAiException.MissingApiKey(koog)
                         } else {
                             null

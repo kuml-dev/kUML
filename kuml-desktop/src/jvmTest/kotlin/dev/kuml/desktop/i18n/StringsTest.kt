@@ -269,4 +269,47 @@ class StringsTest :
         test("EN and DE differ on aiDefaultModel") {
             Strings.EN.aiDefaultModel shouldNotBe Strings.DE.aiDefaultModel
         }
+
+        // --- V3.7.4 new keys (both languages non-empty, EN ≠ DE) ---
+        test("EN aiInputHint is non-empty") { Strings.EN.aiInputHint.isNotEmpty() shouldBe true }
+        test("DE aiInputHint is non-empty") { Strings.DE.aiInputHint.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiInputHint") { Strings.EN.aiInputHint shouldNotBe Strings.DE.aiInputHint }
+
+        test("EN aiVaultLegacyKeychainNotice is non-empty") {
+            Strings.EN.aiVaultLegacyKeychainNotice.isNotEmpty() shouldBe true
+        }
+        test("DE aiVaultLegacyKeychainNotice is non-empty") {
+            Strings.DE.aiVaultLegacyKeychainNotice.isNotEmpty() shouldBe true
+        }
+        test("EN and DE differ on aiVaultLegacyKeychainNotice") {
+            Strings.EN.aiVaultLegacyKeychainNotice shouldNotBe Strings.DE.aiVaultLegacyKeychainNotice
+        }
+
+        test("EN menuViewWatermark is non-empty") { Strings.EN.menuViewWatermark.isNotEmpty() shouldBe true }
+        test("DE menuViewWatermark is non-empty") { Strings.DE.menuViewWatermark.isNotEmpty() shouldBe true }
+        test("EN and DE differ on menuViewWatermark") {
+            Strings.EN.menuViewWatermark shouldNotBe Strings.DE.menuViewWatermark
+        }
+
+        test("EN findPlaceholder is non-empty") { Strings.EN.findPlaceholder.isNotEmpty() shouldBe true }
+        test("DE findPlaceholder is non-empty") { Strings.DE.findPlaceholder.isNotEmpty() shouldBe true }
+
+        test("EN findNext is non-empty") { Strings.EN.findNext.isNotEmpty() shouldBe true }
+        test("DE findNext is non-empty") { Strings.DE.findNext.isNotEmpty() shouldBe true }
+        test("EN and DE differ on findNext") { Strings.EN.findNext shouldNotBe Strings.DE.findNext }
+
+        test("EN findPrevious is non-empty") { Strings.EN.findPrevious.isNotEmpty() shouldBe true }
+        test("DE findPrevious is non-empty") { Strings.DE.findPrevious.isNotEmpty() shouldBe true }
+        test("EN and DE differ on findPrevious") { Strings.EN.findPrevious shouldNotBe Strings.DE.findPrevious }
+
+        test("EN findClose is non-empty") { Strings.EN.findClose.isNotEmpty() shouldBe true }
+        test("DE findClose is non-empty") { Strings.DE.findClose.isNotEmpty() shouldBe true }
+
+        test("EN findMatchCase is non-empty") { Strings.EN.findMatchCase.isNotEmpty() shouldBe true }
+        test("DE findMatchCase is non-empty") { Strings.DE.findMatchCase.isNotEmpty() shouldBe true }
+        test("EN and DE differ on findMatchCase") { Strings.EN.findMatchCase shouldNotBe Strings.DE.findMatchCase }
+
+        test("EN findNoMatch is non-empty") { Strings.EN.findNoMatch.isNotEmpty() shouldBe true }
+        test("DE findNoMatch is non-empty") { Strings.DE.findNoMatch.isNotEmpty() shouldBe true }
+        test("EN and DE differ on findNoMatch") { Strings.EN.findNoMatch shouldNotBe Strings.DE.findNoMatch }
     })

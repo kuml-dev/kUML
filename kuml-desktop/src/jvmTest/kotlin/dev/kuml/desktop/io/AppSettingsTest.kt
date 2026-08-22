@@ -139,4 +139,35 @@ class AppSettingsTest :
             val decoded = json.decodeFromString<AppSettings>(jsonWithoutViewMode)
             decoded.viewMode shouldBe "SPLIT"
         }
+
+        // --- V3.7.4 — showWatermark (additive field, default false — parity with the CLI) ---
+        test("DEFAULT showWatermark is false") {
+            AppSettings.DEFAULT.showWatermark shouldBe false
+        }
+
+        test("JSON round-trip preserves showWatermark = true") {
+            val original = AppSettings.DEFAULT.copy(showWatermark = true)
+            val encoded = json.encodeToString(original)
+            val decoded = json.decodeFromString<AppSettings>(encoded)
+            decoded shouldBe original
+        }
+
+        test("JSON without showWatermark field decodes to false (old settings file)") {
+            val jsonWithoutWatermark =
+                """
+                {
+                    "schemaVersion": 1,
+                    "theme": "kuml",
+                    "language": "en",
+                    "recentFiles": [],
+                    "lastDir": null,
+                    "windowWidth": 1200,
+                    "windowHeight": 800,
+                    "windowX": -1,
+                    "windowY": -1
+                }
+                """.trimIndent()
+            val decoded = json.decodeFromString<AppSettings>(jsonWithoutWatermark)
+            decoded.showWatermark shouldBe false
+        }
     })

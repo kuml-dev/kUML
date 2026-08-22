@@ -229,6 +229,38 @@ class KumlAiExecutorTest :
             }
         }
 
+        test("fromSettings throws MissingApiKey when the stored key is blank, not just when absent") {
+            // Regression test for the fail-silent finding: a vault backend that (through a
+            // storage bug or, on MacOsKeychainBackend, a desynced `security add-generic-password`
+            // stdin prompt sequence) has `get()` return a non-null but blank/whitespace-only
+            // string must NOT be treated as "an API key is configured". Otherwise a client is
+            // built with an empty Authorization header and fails opaquely at the provider instead
+            // of failing locally as MissingApiKey.
+            val settings =
+                KumlAiSettings(
+                    defaultProvider = "gonka",
+                    enabledProviders = setOf("gonka"),
+                    privacyMode = false,
+                    defaultModels = mapOf("gonka" to "some-model"),
+                )
+            val tempDir = Files.createTempDirectory("kuml-vault-test-gonka-blank")
+            try {
+                val registry = testRegistry()
+                val gonkaKoogProvider = registry.get("gonka")!!.koogProvider!!
+                val vault = ApiKeyVault(PlainJsonFallbackBackend(tempDir.resolve("secrets.json")))
+                vault.put(provider = gonkaKoogProvider, key = "   ") // simulate a corrupted, blank-valued entry
+                shouldThrow<KumlAiException.MissingApiKey> {
+                    KumlAiExecutor.fromSettings(
+                        settings = settings,
+                        vault = vault,
+                        registry = registry,
+                    )
+                }
+            } finally {
+                tempDir.toFile().deleteRecursively()
+            }
+        }
+
         test("close() delegates to the underlying PromptExecutor") {
             val fakeExecutor = FakePromptExecutor()
             val executor =

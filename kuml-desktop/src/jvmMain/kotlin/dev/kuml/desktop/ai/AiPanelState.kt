@@ -62,7 +62,13 @@ class AiPanelState(
      * without paying for a full ELK/theme render pipeline per test case.
      */
     private val renderFn: (String, String) -> DesktopRenderResult = { script, themeName ->
-        DesktopRenderPipeline.render(script = script, themeName = themeName)
+        // V3.7.4 (design review P9) — the confirmation-dialog preview should match the main
+        // preview/export WYSIWYG-wise: if the user has the watermark toggle on, a patch
+        // preview rendered without it would look subtly different from what gets applied.
+        // The seam signature itself stays (String, String) -> DesktopRenderResult (unchanged)
+        // so AiPanelStateTest/AiPanelStatePatchTest's existing test doubles need no changes —
+        // only this default implementation closes over `appState`.
+        DesktopRenderPipeline.render(script = script, themeName = themeName, watermark = appState.showWatermark)
     },
     /**
      * Test-only seam (analogous to [renderFn]): overrides the execution function passed to

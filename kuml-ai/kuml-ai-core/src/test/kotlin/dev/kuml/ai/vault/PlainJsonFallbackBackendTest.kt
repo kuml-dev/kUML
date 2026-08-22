@@ -63,4 +63,12 @@ class PlainJsonFallbackBackendTest :
 
             backend.has("any-key").shouldBeNull()
         }
+
+        // ── Cross-backend behavioural contract (V3.7.4) — see KeyVaultBackendContract's KDoc.
+        // Runs unconditionally in CI: this backend needs no external tool or OS keystore.
+        keyVaultBackendContract(backendName = "PlainJsonFallbackBackend") {
+            PlainJsonFallbackBackend(
+                storagePath = Files.createTempDirectory("kuml-plain-json-contract-test").resolve("secrets.json"),
+            )
+        }
     })

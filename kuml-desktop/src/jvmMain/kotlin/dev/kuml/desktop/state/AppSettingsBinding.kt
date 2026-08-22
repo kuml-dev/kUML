@@ -32,6 +32,13 @@ fun rememberAppSettingsBinding(
         state.windowX,
         state.windowY,
         state.trustedWorkspaces.toList(),
+        // V3.7.4 — both were readable/settable during a session but only ever persisted on
+        // quit (Main.kt's onCloseRequest calls state.toSettings() once, there). showWatermark
+        // is added here so toggling View ▸ Wasserzeichen survives a crash, not just a clean
+        // quit -- viewMode was ALREADY missing from this list before this change (pre-existing
+        // gap, not introduced here); fixed alongside since it is the same class of bug.
+        state.viewMode,
+        state.showWatermark,
     ) {
         saveJob?.cancel()
         saveJob =

@@ -9,6 +9,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
@@ -402,6 +403,65 @@ class AiProviderSettingsStateTest :
                 freshState().load()
                 Files.readAllBytes(path) shouldBe bytesAfterFirstLoad
             }
+        }
+
+        // V3.7.5 (review fix) — dismissLegacyKeychainNotice() must persist the acknowledgement,
+        // not just flip the in-memory flag: the underlying Keychain item is never deleted, so
+        // without a persisted dismiss the notice would otherwise reappear on every dialog open
+        // forever (see legacyKeychainItemPresent's KDoc).
+        test("dismissLegacyKeychainNotice() persists legacyKeychainNoticeDismissed and clears the flag") {
+            runTest {
+                val path = Files.createTempDirectory("kuml-provider-settings-legacy-dismiss").resolve("ai-settings.json")
+                val store = KumlAiSettingsStore(path = path)
+                store.save(KumlAiSettings(privacyMode = false))
+                val state =
+                    AiProviderSettingsState(
+                        settingsStore = store,
+                        vault = ApiKeyVault.detect(),
+                        registry = ProviderRegistry.builtIns(),
+                        pricingTable = PricingTable.forTest("ollama" to listOf("llama3.2")),
+                        ioDispatcher = UnconfinedTestDispatcher(),
+                    )
+                state.load()
+
+                state.dismissLegacyKeychainNotice()
+                state.awaitPendingWrites()
+
+                state.legacyKeychainItemPresent shouldBe false
+                state.currentSettings().legacyKeychainNoticeDismissed shouldBe true
+                KumlAiSettingsStore(path = path).load().legacyKeychainNoticeDismissed shouldBe true
+            }
+        }
+
+        // Regression guard for the review finding fixed here: the "Verstanden"/dismiss
+        // TextButton for the legacy-Keychain notice was the ONLY mutating control in
+        // AiProviderSettingsDialog missing `enabled = !state.isClosing` — every sibling control
+        // (Close button, privacy-disable confirm, checkboxes, model menu, API-key buttons) has it
+        // (see isClosing's KDoc: "The UI MUST disable every row control ... once this is true").
+        // Without it, a click landing in the isClosing-but-not-yet-disposed window (requestClose()
+        // sets isClosing = true and then suspends in awaitPendingWrites() — nothing in Compose
+        // blocks the UI on that suspension) starts a brand-new dismissLegacyKeychainNotice() job
+        // AFTER the drain loop already observed an empty pendingWrites queue, which dispose()'s
+        // backgroundScope.cancel() then aborts mid-write — legacyKeychainNoticeDismissed never
+        // reaches disk and the notice reappears next time, silently undoing V3.7.5.
+        //
+        // A full Compose UI test (clicking the actual button and asserting it is disabled) would
+        // require standing up compose-ui-test on desktop, which PatchPreviewDialogTest's KDoc
+        // already documents as out of scope for this module. This is the same pragmatic
+        // source-level guard used for other structural invariants in this suite (see
+        // MainDispatcherAvailabilityTest, which inspects classpath resources instead of behaviour
+        // for the same reason) — it fails loudly if the `enabled = !state.isClosing` wiring is
+        // ever dropped from this specific button again, without needing a Compose test runtime.
+        test("AiProviderSettingsDialog: legacy-Keychain dismiss button stays wired to isClosing") {
+            val dialogSource =
+                java.io.File("src/jvmMain/kotlin/dev/kuml/desktop/ai/settings/AiProviderSettingsDialog.kt").readText()
+            // The string also appears once in a KDoc comment above the actual control (explaining
+            // why the button exists at all) — skip past that mention to the real `onClick = { ... }`
+            // call site so this guard cannot be fooled by prose alone.
+            val callSite = dialogSource.indexOf("onClick = { state.dismissLegacyKeychainNotice() }")
+            callSite shouldNotBe -1
+            val enclosingButton = dialogSource.substring((callSite - 200).coerceAtLeast(0), callSite)
+            enclosingButton.contains("enabled = !state.isClosing") shouldBe true
         }
 
         // Regression test for the mutate() failure path and the rollback it must trigger in

@@ -55,6 +55,22 @@ public class ApiKeyVault internal constructor(
     public val isMasterPasswordEnabled: Boolean get() = _backend is MasterPasswordVaultBackend
 
     /**
+     * True, if on this machine there is still a leftover item in the macOS Keychain from the
+     * shared-service era (< V3.7.4), when every provider's API key overwrote the same Keychain
+     * item. Always `false` on every other backend/OS. The item is never read and never deleted --
+     * see [MacOsKeychainBackend.legacySharedItemExists]'s KDoc -- this is used solely to surface
+     * a hint in the provider settings dialog.
+     */
+    public fun hasLegacySharedKeychainItem(): Boolean {
+        val raw =
+            when (val b = _backend) {
+                is MasterPasswordVaultBackend -> b.inner
+                else -> b
+            }
+        return (raw as? MacOsKeychainBackend)?.legacySharedItemExists() ?: false
+    }
+
+    /**
      * Wrap the current backend in a [MasterPasswordVaultBackend] using AES-256-GCM encryption.
      *
      * The raw [masterPassword] CharArray is zero-filled immediately after key derivation —

@@ -70,6 +70,7 @@ class WorkspaceState(
         doc: OkfDocument,
         themeName: String,
         strings: Strings,
+        watermark: Boolean = false,
     ) {
         val token = ++selectionToken
         selected = doc
@@ -87,7 +88,7 @@ class WorkspaceState(
         try {
             val result =
                 withContext(Dispatchers.IO) {
-                    DesktopRenderPipeline.render(script = block.source, themeName = themeName)
+                    DesktopRenderPipeline.render(script = block.source, themeName = themeName, watermark = watermark)
                 }
             if (token != selectionToken) return // superseded by a newer selection
             when (result) {

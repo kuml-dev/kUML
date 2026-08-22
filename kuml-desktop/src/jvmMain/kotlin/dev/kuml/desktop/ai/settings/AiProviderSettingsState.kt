@@ -226,6 +226,18 @@ internal class AiProviderSettingsState(
     var vaultIsFallback by mutableStateOf(false)
         private set
 
+    /**
+     * True when a leftover shared-service Keychain item from before V3.7.4 is still present on
+     * this machine (macOS only — always `false` on every other OS/backend) AND the user has not
+     * already dismissed the notice via [dismissLegacyKeychainNotice] (V3.7.5, review fix — the
+     * underlying Keychain item is never deleted, see
+     * [ApiKeyVault.hasLegacySharedKeychainItem]'s KDoc, so presence alone would otherwise show
+     * this notice forever). Read-only from the dialog's perspective — only [dismissLegacyKeychainNotice]
+     * changes it.
+     */
+    var legacyKeychainItemPresent by mutableStateOf(false)
+        private set
+
     /** True while the one-time "disable privacy mode" confirmation is open. */
     var privacyConfirmPending by mutableStateOf(false)
         private set
@@ -262,7 +274,22 @@ internal class AiProviderSettingsState(
         val loadResult = withContext(ioDispatcher) { runCatching { settingsStore.load() } }
         settings = loadResult.getOrDefault(KumlAiSettings())
         vaultIsFallback = vault.isFallback
+        val legacyItemPresent =
+            withContext(ioDispatcher) { runCatching { vault.hasLegacySharedKeychainItem() }.getOrDefault(false) }
+        legacyKeychainItemPresent = legacyItemPresent && !settings.legacyKeychainNoticeDismissed
         mutate(forceSave = loadResult.isFailure) { it }
+    }
+
+    /**
+     * Persists that the user has acknowledged the leftover-shared-Keychain-item notice, so it
+     * stops reappearing on every future dialog open (V3.7.5, review fix — see
+     * [legacyKeychainItemPresent]'s KDoc for why presence alone can never clear it).
+     */
+    fun dismissLegacyKeychainNotice() {
+        legacyKeychainItemPresent = false
+        launchTracked {
+            mutate { it.copy(legacyKeychainNoticeDismissed = true) }
+        }
     }
 
     suspend fun setEnabled(

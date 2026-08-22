@@ -11,6 +11,7 @@ import androidx.compose.ui.window.rememberWindowState
 import dev.kuml.ai.vault.ApiKeyVault
 import dev.kuml.desktop.io.AppPaths
 import dev.kuml.desktop.io.AppSettingsStore
+import dev.kuml.desktop.render.DesktopEngineInit
 import java.nio.file.Path
 
 fun main() {
@@ -22,6 +23,14 @@ fun main() {
     // macOS: Menüleiste im System-Menü-Bar — muss VOR jeder AWT/Swing-Initialisierung gesetzt werden
     System.setProperty("apple.laf.useScreenMenuBar", "true")
     System.setProperty("apple.awt.application.name", "kUML Desktop")
+
+    // V3.7.4 (design review P6): must run BEFORE the MenuBar is first composed — the View ▸
+    // Theme submenu reads ThemeRegistry.names() at build time (`remember { ... }` in
+    // MainWindow.kt), and before this fix that only ever ran as a side effect of the FIRST
+    // render (DesktopRenderPipeline.render -> DesktopEngineInit.ensure()), which itself only
+    // happened on the first keystroke — so the theme menu listed three fallback names, two of
+    // which ("dark", "blueprint") don't correspond to any real theme.
+    DesktopEngineInit.ensure()
 
     // V3.0.24 — detect OS keychain (may block briefly on first access) before Compose starts
     val vault = ApiKeyVault.detect()

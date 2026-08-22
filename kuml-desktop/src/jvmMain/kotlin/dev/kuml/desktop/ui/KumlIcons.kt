@@ -11,17 +11,19 @@ import androidx.compose.ui.unit.dp
 
 /**
  * kUML-eigene Icon-Familie (P2/P5, design review): bewusst KEINE Compose-Material-Icons-
- * Abhängigkeit — `material-icons-core` deckt nur 1 von 6 hier benötigten Glyphen ab (kein
- * Zoom-In/Zoom-Out/Fit-to-Window/Source-Split-Diagram-Satz aus einer Quelle), und
- * `material-icons-extended` wäre mehrere tausend Vektoren nur für sechs benötigte Formen.
+ * Abhängigkeit — `material-icons-core` deckt nur 1 von 6 ursprünglich benötigten Glyphen ab
+ * (kein Zoom-In/Zoom-Out/Fit-to-Window/Source-Split-Diagram-Satz aus einer Quelle), und
+ * `material-icons-extended` wäre mehrere tausend Vektoren nur für die paar benötigten Formen.
  *
- * Alle sechs Icons in einem 24×24-Viewport, Strichstärke 2dp (Zoom/Fit) bzw. gefüllte
+ * Alle Icons in einem 24×24-Viewport, Strichstärke 2dp (Zoom/Fit/Chevron/Close) bzw. gefüllte
  * Flächen (View-Modus-Icons), `currentColor`-Prinzip: die Pfade selbst tragen nur eine
  * Platzhalterfarbe — [androidx.compose.material3.Icon]'s `tint`-Parameter überschreibt sie
- * beim Rendern per ColorFilter, siehe Aufrufstellen in `PreviewPane.kt`/`MainWindow.kt`.
+ * beim Rendern per ColorFilter, siehe Aufrufstellen in `PreviewPane.kt`/`MainWindow.kt`/`FindBar.kt`.
  *
- * Ein Autor, ein Strichgewicht (Alan Kay/Jony Ive, design review) — alle sechs Vektoren
- * wurden in derselben Sitzung auf demselben Raster gezeichnet.
+ * Ein Autor, ein Strichgewicht (Alan Kay/Jony Ive, design review) — alle Vektoren wurden auf
+ * demselben Raster gezeichnet (Chevron/Close ergänzt V3.7.5, review fix: FindBar's `MiniButton`
+ * war eine zweite, parallele Tooltip-Implementierung neben [dev.kuml.desktop.ui.IconTooltipButton]
+ * mit Text-Glyphen statt Vektoren — dieser Satz macht FindBar auf [IconTooltipButton] umstellbar).
  */
 object KumlIcons {
     /** Lupe mit "+" — Zoom In. */
@@ -41,6 +43,15 @@ object KumlIcons {
 
     /** Volles Rechteck mit Indikator-Leiste rechts (gespiegelt zu [ViewSource]) — "Nur Diagramm". */
     val ViewDiagram: ImageVector by lazy { buildViewRectIcon(name = "KumlViewDiagram", indicatorOnLeft = false) }
+
+    /** Nach oben zeigendes Chevron — "vorheriger Treffer" in [dev.kuml.desktop.editor.FindBar]. */
+    val ChevronUp: ImageVector by lazy { buildChevronIcon(name = "KumlChevronUp", pointingUp = true) }
+
+    /** Nach unten zeigendes Chevron — "nächster Treffer" in [dev.kuml.desktop.editor.FindBar]. */
+    val ChevronDown: ImageVector by lazy { buildChevronIcon(name = "KumlChevronDown", pointingUp = false) }
+
+    /** Zwei kreuzende Linien ("×") — Schließen, z. B. [dev.kuml.desktop.editor.FindBar]. */
+    val Close: ImageVector by lazy { buildCloseIcon() }
 
     private const val VIEWPORT = 24f
     private const val STROKE_WIDTH = 2f
@@ -222,6 +233,58 @@ object KumlIcons {
                 ) {
                     moveTo(12f, 4f)
                     lineTo(12f, 20f)
+                }
+            }.build()
+
+    /** Single-stroke chevron, pointing up or down (V3.7.5, FindBar prev/next). */
+    private fun buildChevronIcon(
+        name: String,
+        pointingUp: Boolean,
+    ): ImageVector =
+        builder(name)
+            .apply {
+                path(
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                ) {
+                    if (pointingUp) {
+                        moveTo(6f, 14f)
+                        lineTo(12f, 8f)
+                        lineTo(18f, 14f)
+                    } else {
+                        moveTo(6f, 10f)
+                        lineTo(12f, 16f)
+                        lineTo(18f, 10f)
+                    }
+                }
+            }.build()
+
+    /** Two crossing diagonal strokes ("×") — V3.7.5, FindBar close button. */
+    private fun buildCloseIcon(): ImageVector =
+        builder("KumlClose")
+            .apply {
+                path(
+                    name = "KumlClose.diag1",
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                ) {
+                    moveTo(6f, 6f)
+                    lineTo(18f, 18f)
+                }
+                path(
+                    name = "KumlClose.diag2",
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                ) {
+                    moveTo(18f, 6f)
+                    lineTo(6f, 18f)
                 }
             }.build()
 }

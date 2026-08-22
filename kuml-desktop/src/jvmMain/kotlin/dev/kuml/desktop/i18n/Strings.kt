@@ -130,6 +130,21 @@ data class Strings(
     val viewModeSplit: String,
     val viewModeDiagram: String,
     val menuViewMode: String,
+    // V3.7.4 — AI input Enter-to-send hint (design-review P2)
+    val aiInputHint: String,
+    // V3.7.4 — macOS Keychain credential-misrouting fix: legacy shared-item notice (P1)
+    val aiVaultLegacyKeychainNotice: String,
+    // V3.7.5 — dismiss button for the above (review fix: notice never had a way to go away)
+    val aiVaultLegacyKeychainDismiss: String,
+    // V3.7.4 — desktop watermark toggle (design-review P9)
+    val menuViewWatermark: String,
+    // V3.7.4 — editor find bar (design-review P8)
+    val findPlaceholder: String,
+    val findNext: String,
+    val findPrevious: String,
+    val findClose: String,
+    val findMatchCase: String,
+    val findNoMatch: String,
 ) {
     companion object {
         val DE =
@@ -260,6 +275,19 @@ data class Strings(
                 viewModeSplit = "Geteilt",
                 viewModeDiagram = "Diagramm",
                 menuViewMode = "Ansichtsmodus",
+                aiInputHint = "Enter senden · Shift+Enter Zeilenumbruch",
+                aiVaultLegacyKeychainNotice =
+                    "Aus einer früheren Version liegt im Schlüsselbund noch ein gemeinsamer Eintrag, dessen " +
+                        "Anbieter nicht mehr eindeutig bestimmbar ist. kUML verwendet ihn nicht mehr — bitte " +
+                        "tragen Sie die betroffenen API-Schlüssel hier neu ein.",
+                aiVaultLegacyKeychainDismiss = "Verstanden",
+                menuViewWatermark = "Wasserzeichen „Powered by kUML“",
+                findPlaceholder = "Suchen…",
+                findNext = "Nächster Treffer",
+                findPrevious = "Voriger Treffer",
+                findClose = "Schließen",
+                findMatchCase = "Groß-/Kleinschreibung",
+                findNoMatch = "Kein Treffer",
             )
 
         val EN =
@@ -388,6 +416,19 @@ data class Strings(
                 viewModeSplit = "Split",
                 viewModeDiagram = "Diagram",
                 menuViewMode = "View Mode",
+                aiInputHint = "Enter to send · Shift+Enter for a new line",
+                aiVaultLegacyKeychainNotice =
+                    "A shared keychain entry from an earlier version is still present; which provider it " +
+                        "belongs to can no longer be determined. kUML no longer uses it — please re-enter " +
+                        "the affected API keys here.",
+                aiVaultLegacyKeychainDismiss = "Got it",
+                menuViewWatermark = "“Powered by kUML” watermark",
+                findPlaceholder = "Find…",
+                findNext = "Next match",
+                findPrevious = "Previous match",
+                findClose = "Close",
+                findMatchCase = "Match case",
+                findNoMatch = "No match",
             )
 
         fun forLanguage(lang: String): Strings = if (lang == "de") DE else EN

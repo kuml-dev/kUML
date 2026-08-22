@@ -85,6 +85,15 @@ class AppState(
         runCatching { ViewMode.valueOf(initialSettings.viewMode) }.getOrDefault(ViewMode.SPLIT),
     )
 
+    // V3.7.4 — opt-in "Powered by kUML" watermark (View ▸ Wasserzeichen). See
+    // AppSettings.showWatermark's KDoc for the default-off rationale.
+    var showWatermark by mutableStateOf(initialSettings.showWatermark)
+
+    // P8 — editor find bar. Deliberately transient (NOT persisted in AppSettings/toSettings()
+    // below): an open search bar is not session state a user expects to see again after
+    // restarting the app, unlike viewMode/showWatermark/theme/language.
+    var findBarOpen by mutableStateOf(false)
+
     /**
      * Lädt Dateiinhalt in den Editor und aktualisiert Metadaten.
      * Setzt isDirty=false, aktualisiert currentFile, lastDir und recentFiles.
@@ -130,6 +139,7 @@ class AppState(
             aiPanelWidthPx = aiPanelWidthPx,
             trustedWorkspaces = trustedWorkspaces.toList(),
             viewMode = viewMode.name,
+            showWatermark = showWatermark,
         )
 
     /** Ansichtsmodus zwischen Editor (Quelltext) und Vorschau (Diagramm). Siehe [viewMode]. */

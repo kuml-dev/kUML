@@ -49,4 +49,13 @@ class LinuxSecretToolBackendTest :
             LinuxSecretToolBackend.interpretHasResult(exitCode = 2, stderrBlank = true).shouldBeNull()
             LinuxSecretToolBackend.interpretHasResult(exitCode = -1, stderrBlank = true).shouldBeNull()
         }
+
+        // ── Cross-backend behavioural contract (V3.7.4) — see KeyVaultBackendContract's KDoc.
+        // Gated behind an explicit opt-in AND real availability: writes to the real D-Bus
+        // secret-service / GNOME Keyring, which is not present in headless CI.
+        keyVaultBackendContract(backendName = "LinuxSecretToolBackend") {
+            val liveKeystoreOptIn = System.getProperty("kuml.ai.vault.liveKeystoreTests") == "true"
+            LinuxSecretToolBackend(service = "dev.kuml.ai.test.${java.util.UUID.randomUUID()}")
+                .takeIf { liveKeystoreOptIn && it.isAvailable() }
+        }
     })

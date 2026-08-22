@@ -1,5 +1,6 @@
 package dev.kuml.desktop
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,11 +16,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,6 +42,7 @@ import dev.kuml.desktop.ai.AiPanelState
 import dev.kuml.desktop.ai.settings.AiProviderSettingsDialog
 import dev.kuml.desktop.editor.EditorActions
 import dev.kuml.desktop.editor.EditorPane
+import dev.kuml.desktop.editor.FindBar
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.io.AppSettingsStore
 import dev.kuml.desktop.io.FileMenu
@@ -46,6 +50,7 @@ import dev.kuml.desktop.io.UnsavedChoice
 import dev.kuml.desktop.plugins.PluginManagerPane
 import dev.kuml.desktop.preview.PreviewPane
 import dev.kuml.desktop.render.DesktopRenderController
+import dev.kuml.desktop.render.RenderInputs
 import dev.kuml.desktop.state.rememberAppSettingsBinding
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
@@ -63,9 +68,31 @@ import dev.kuml.workspace.OkfWorkspace
 import dev.kuml.workspace.WorkspaceMode
 import dev.kuml.workspace.WorkspaceScanner
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+
+/**
+ * Pure decision of how long to debounce a render for the given [RenderInputs] transition
+ * (V3.7.4, design review P6). Extracted out of the `LaunchedEffect(controller)` collector below
+ * specifically so it is unit-testable without a Compose runtime (see the cross-cutting
+ * pure-function-extraction note in the plan — `kuml-desktop` has no Compose UI test harness).
+ *
+ * Only an actual script EDIT (the user typing) gets the debounce — a theme switch, a watermark
+ * toggle, or the very first emission (previousScript == null, i.e. app/document just opened)
+ * all render immediately, since none of those originate from a keystroke stream that benefits
+ * from coalescing.
+ */
+internal fun renderDelayFor(
+    previousScript: String?,
+    inputs: RenderInputs,
+): Long =
+    if (previousScript != null && previousScript != inputs.script) {
+        DesktopRenderController.DEFAULT_DEBOUNCE_MS
+    } else {
+        0L
+    }
 
 /**
  * Top-Level-Composable für das kUML Desktop Hauptfenster.
@@ -99,6 +126,33 @@ fun FrameWindowScope.MainWindow(
 
     DisposableEffect(controller) {
         onDispose { controller.cancel() }
+    }
+
+    // V3.7.4 (design review P6) — the ONE render trigger, replacing the previous single
+    // call site inside EditorPane's DocumentListener (which meant a theme/watermark change,
+    // or ViewMode.DIAGRAM where EditorPane isn't even composed, never re-rendered anything
+    // until the next keystroke). RenderInputs bundles every input a render actually depends
+    // on; distinctUntilChanged() skips a redundant re-render on an unrelated recomposition
+    // that happens not to change any of the three fields.
+    //
+    // snapshotFlow emits once immediately on collection start, which also fixes the
+    // "welcome script never rendered" gap: state.script == the initial script at mount time,
+    // so the very first emission already renders it, rather than waiting for a first edit
+    // that (for the placeholder welcome script) may never happen.
+    //
+    // Keyed on `controller` (not Unit) — this effect owns `controller`'s only render calls,
+    // so if the controller instance were ever replaced, the effect must restart against the
+    // new one rather than silently keep driving a stale controller for the rest of the
+    // composition's lifetime.
+    LaunchedEffect(controller) {
+        var previousScript: String? = null
+        snapshotFlow { RenderInputs(script = state.script, themeName = state.theme, watermark = state.showWatermark) }
+            .distinctUntilChanged()
+            .collect { inputs ->
+                val delayMs = renderDelayFor(previousScript = previousScript, inputs = inputs)
+                previousScript = inputs.script
+                controller.scheduleRender(inputs = inputs, delayMs = delayMs)
+            }
     }
 
     val windowHandle: java.awt.Window? = window
@@ -171,6 +225,16 @@ fun FrameWindowScope.MainWindow(
     // actually mounted (null or Engineering workspace mode, not the read-only Knowledge
     // workspace viewer).
     val showsEditor = state.openWorkspace !is OpenWorkspace.Knowledge
+
+    // Review fix — `showsEditor` alone doesn't cover ViewMode.DIAGRAM: EditorPane (and FindBar)
+    // aren't composed at all there either (see the `if (state.viewMode != DIAGRAM)` gate around
+    // EditorPane below), so `editorActions` is null in that mode too. Undo/Redo already fall
+    // through safely because their `enabled` reads `editorActions?.canUndo?.value ?: false`,
+    // which is false once null — but Find's onClick unconditionally set
+    // `state.findBarOpen = true` regardless of whether an editor existed to show it against,
+    // so pressing Ctrl+F in Diagram mode silently armed a find bar that popped up unannounced
+    // the next time the user switched back to Split/Source.
+    val showsEditorPane = showsEditor && state.viewMode != AppState.ViewMode.DIAGRAM
 
     MenuBar {
         Menu(strings.menuFile) {
@@ -305,21 +369,63 @@ fun FrameWindowScope.MainWindow(
                 onClick = { editorActions?.redo?.invoke() },
             )
             Separator()
-            // P6, design review — Find/Replace isn't implemented yet; disabled rather than a
-            // clickable no-op so the menu doesn't claim a capability it doesn't have.
-            Item(strings.menuEditFind, enabled = false, onClick = {})
+            // V3.7.4 (design review P8) — inline incremental find bar (see FindBar.kt).
+            // V3.7.5 (review fix): gated on `showsEditorPane`, not just `showsEditor` — see its
+            // definition above for why ViewMode.DIAGRAM needs the same guard as Undo/Redo. The
+            // onClick body is also guarded directly (not just via `enabled`) so a shortcut that
+            // somehow still fires while disabled can never latch `findBarOpen = true` with no
+            // editor mounted to show it against.
+            Item(
+                strings.menuEditFind,
+                enabled = showsEditorPane,
+                shortcut = KeyShortcut(key = Key.F, ctrl = true),
+                onClick = {
+                    if (showsEditorPane) {
+                        editorActions?.beginFind?.invoke()
+                        state.findBarOpen = true
+                    }
+                },
+            )
         }
         Menu(strings.menuView) {
-            val themeNames = remember { ThemeRegistry.names().ifEmpty { listOf("plain", "dark", "blueprint") } }
+            // V3.7.4 (design review P6): the old fallback list `listOf("plain", "dark",
+            // "blueprint")` named two themes ("dark", "blueprint") that DesktopRenderPipeline's
+            // theme lookup silently falls back to "kuml" for — selecting them visibly changed
+            // nothing. That fallback was only ever reachable because ThemeRegistry.names() used
+            // to be empty at MenuBar-build time (DesktopEngineInit.ensure() ran too late — see
+            // Main.main()); now that init runs first, this ifEmpty is pure defensive fallback for
+            // a genuinely empty registry, so it lists only the one theme that is guaranteed to
+            // actually exist.
+            val themeNames = remember { ThemeRegistry.names().ifEmpty { listOf("kuml") } }
             Menu(strings.menuViewTheme) {
                 themeNames.forEach { name ->
-                    Item(name.replaceFirstChar { it.uppercase() }, onClick = { state.theme = name })
+                    // RadioButtonItem (not Item) so the active theme is visibly marked -- same
+                    // reasoning as the language submenu right below and the view-mode submenu.
+                    RadioButtonItem(
+                        name.replaceFirstChar { it.uppercase() },
+                        selected = state.theme == name,
+                        onClick = { state.theme = name },
+                    )
                 }
             }
             Menu(strings.menuViewLanguage) {
-                Item("Deutsch", onClick = { state.language = "de" })
-                Item("English", onClick = { state.language = "en" })
+                // V3.7.4 (design review P7): RadioButtonItem instead of Item, so the currently
+                // active language is visibly marked -- same pattern as menuViewMode below.
+                // Labels intentionally stay in their own language (not localized via `strings`),
+                // matching the existing convention.
+                RadioButtonItem("Deutsch", selected = state.language == "de", onClick = { state.language = "de" })
+                RadioButtonItem("English", selected = state.language == "en", onClick = { state.language = "en" })
             }
+            Separator()
+            // V3.7.4 (design review P9): opt-in "Powered by kUML" watermark, default off (parity
+            // with the CLI's `kuml render` default -- see AppSettings.showWatermark's KDoc).
+            // Placed here, before the Separator/view-mode submenu below -- toggling it re-renders
+            // immediately via DesktopRenderController's RenderInputs (see P6's derivation).
+            CheckboxItem(
+                text = strings.menuViewWatermark,
+                checked = state.showWatermark,
+                onCheckedChange = { state.showWatermark = it },
+            )
             Separator()
             // P5 — view-mode submenu, mirrors the segmented control in the status bar.
             // Shortcuts follow this repo's existing convention (Undo/Redo above use
@@ -406,11 +512,12 @@ fun FrameWindowScope.MainWindow(
                                 themeName = state.theme,
                                 strings = strings,
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
+                                showWatermark = state.showWatermark,
                             )
                         is OpenWorkspace.Engineering ->
                             EngineeringWorkspaceScreen(
                                 state = state,
-                                controller = controller,
+                                strings = strings,
                                 scriptFiles = ws.scriptFiles,
                                 confirmUnsavedAndThen = { action -> confirmUnsavedAndThen(action) },
                                 onEditorReady = { editorActions = it },
@@ -425,12 +532,23 @@ fun FrameWindowScope.MainWindow(
                             // frisches SVGDocument, der Zoom wird also heute schon bei jedem
                             // Rendern zurückgesetzt (design review, Bill Atkinson/Alan Kay).
                             if (state.viewMode != AppState.ViewMode.DIAGRAM) {
-                                EditorPane(
-                                    state = state,
-                                    controller = controller,
-                                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                                    onEditorReady = { editorActions = it },
-                                )
+                                Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                                    EditorPane(
+                                        state = state,
+                                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                                        onEditorReady = { editorActions = it },
+                                    )
+                                    // V3.7.4 (design review P8) — below the editor, never an
+                                    // overlay on top of it (SwingPanel is heavyweight, see
+                                    // FindBar's own KDoc).
+                                    if (state.findBarOpen) {
+                                        FindBar(
+                                            actions = editorActions,
+                                            strings = strings,
+                                            onClose = { state.findBarOpen = false },
+                                        )
+                                    }
+                                }
                             }
                             if (state.viewMode == AppState.ViewMode.SPLIT) {
                                 HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
@@ -597,6 +715,10 @@ private fun ViewModeSegmentedControl(
     }
 }
 
+// V3.7.4 (design review P5) — IconTooltipButton's tooltipPlacement parameter carries the
+// experimental TooltipPlacement type in its own public signature, so every caller must opt in,
+// even a call site (like this one) that never names TooltipPlacement explicitly.
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ViewModeSegment(
     mode: AppState.ViewMode,
@@ -613,7 +735,6 @@ private fun ViewModeSegment(
             icon = icon,
             description = description,
             onClick = { state.viewMode = mode },
-            iconSize = 14.dp,
         )
     }
 }

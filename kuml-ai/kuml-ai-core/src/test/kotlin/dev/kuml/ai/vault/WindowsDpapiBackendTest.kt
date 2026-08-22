@@ -75,4 +75,13 @@ class WindowsDpapiBackendTest :
 
             backend.has("any-key").shouldBeNull()
         }
+
+        // ── Cross-backend behavioural contract (V3.7.4) — see KeyVaultBackendContract's KDoc.
+        // Only runs when isAvailable() is true (real Windows host with JNA present) — put()/get()
+        // require actual DPAPI, unlike the has()-only tests above.
+        keyVaultBackendContract(backendName = "WindowsDpapiBackend") {
+            WindowsDpapiBackend(
+                storagePath = Files.createTempDirectory("kuml-dpapi-contract-test").resolve("secrets.dpapi"),
+            ).takeIf { it.isAvailable() }
+        }
     })

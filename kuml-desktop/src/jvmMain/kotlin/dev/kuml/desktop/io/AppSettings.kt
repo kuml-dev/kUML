@@ -25,6 +25,13 @@ data class AppSettings(
     // read by an older build) is handled by AppState's runCatching { ViewMode.valueOf(...) }
     // fallback to SPLIT — additive field, no schema-version bump needed.
     val viewMode: String = "SPLIT",
+    // V3.7.4 — opt-in "Powered by kUML" watermark in the preview AND in exports (the export
+    // writes state.lastSvg, i.e. exactly what is visible). Default false, identical to the
+    // CLI's default (`kuml render` without `--watermark`) — the desktop app must never
+    // silently write a brand mark into someone else's file that the CLI would omit. Additive
+    // field, no schemaVersion bump (same reasoning as trustedWorkspaces/viewMode above — no
+    // code path actually reads schemaVersion; see AppSettingsStore.load()).
+    val showWatermark: Boolean = false,
 ) {
     companion object {
         val DEFAULT = AppSettings()

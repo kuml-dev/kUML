@@ -6,7 +6,78 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Security
+
+**macOS Keychain credential misrouting — cross-provider API key leakage (fixed)**
+
+On macOS, `kuml-desktop`'s API-key vault stored every cloud provider's key under
+the *same* Keychain item, differing only by a cosmetic `-l`/label attribute.
+Measured empirically: `security find-generic-password -a $USER -s dev.kuml.ai
+-l "OpenAILLMProvider" -w` returned the **Anthropic** key with exit code 0 — the
+label is not evaluated as a search predicate by `find-generic-password`, only
+the (account, service) pair is. Consequently, saving a second provider's API
+key silently overwrote the first provider's item, and reading any provider's
+key actually read whichever single item happened to be stored — an API key
+could be sent to a completely different provider's endpoint than the one it
+was entered for. Fixed by folding the key into the Keychain *service* string
+itself, so each provider now gets its own independent (account, service)
+identity; verified against the real macOS Keychain (not just mocked) via a
+shared cross-backend contract test suite. **If you have used the AI Providers
+dialog on macOS before this release, please re-enter your API keys** — a
+neutral notice in the dialog also flags this automatically when a leftover
+shared-service item is detected. Also fixed in the same pass: `security
+add-generic-password -w` requires its value on stdin *twice* (password +
+confirmation) when stdin is not a real terminal; the vault previously wrote it
+once, which could silently store an empty secret.
+
+### Fixed
+
+- **Theme changes had no visible effect until the next keystroke** — the only
+  render trigger lived inside the editor's document listener, so switching
+  themes, toggling the new watermark, or opening the app (before ever typing)
+  rendered nothing until the user typed something. In `ViewMode.DIAGRAM` mode
+  the editor isn't even mounted, so a theme switch there was permanently
+  inert. All render-relevant inputs (script, theme, watermark) now flow
+  through one reactive derivation, so every change (including the very first
+  render of the welcome script) applies immediately.
+- **View ▸ Theme listed two theme names that did not exist** (`dark`,
+  `blueprint`) — an artifact of the theme registry not yet being populated
+  when the menu bar was first built; selecting them silently fell back to the
+  default theme. The engine now initializes before the menu bar is built, and
+  the fallback list only names the one theme guaranteed to exist.
+- **Blueprint/Journey-Map diagrams ignored the active theme** — the desktop
+  render pipeline's Blueprint branch never passed `theme` through, always
+  falling back to the plain theme regardless of the selected one.
+- **Undo/Redo could act on a disposed editor** after switching to
+  `ViewMode.DIAGRAM` and back — the handle was never cleared on unmount.
+
 ### Added
+
+**Desktop UX polish — compact toolbars, anchored tooltips, watermark toggle, inline find**
+
+- **Enter sends, Shift+Enter inserts a newline** in the AI panel's input field
+  (previously Enter always inserted a newline, so sending required going for
+  the mouse) — a hint line under the field documents both. Known limitation:
+  during active IME/CJK composition, Enter still confirms the composition
+  rather than sending, per this Compose Desktop version's public API.
+- **Compact 32/18 icon buttons** for the zoom strip, view-mode segmented
+  control, and the new find bar — previously an 18 dp icon sat inside a full
+  48 dp Material3 hit target. Dialog action buttons (Save/Discard/Close etc.)
+  are unchanged; only frequent, low-consequence toolbar controls were tightened.
+- **Tooltips anchor to their button** instead of following the mouse cursor,
+  and no longer sit under the cursor blocking the click they describe.
+- **View ▸ Sprache and View ▸ Theme now mark the active choice** with a radio
+  button, matching the existing View ▸ Ansichtsmodus submenu.
+- **Opt-in "Powered by kUML" watermark** (View ▸ Wasserzeichen) — off by
+  default, matching the CLI's `kuml render` default. Applies to the live
+  preview and to SVG/PNG export uniformly. Known gap: Blueprint/Journey-Map
+  diagrams cannot show the watermark yet (same renderer limitation the CLI has
+  documented since V3.1.24).
+- **Inline incremental find** (Edit ▸ Suchen / Ctrl+F) — a slim bar below the
+  editor (never a Compose overlay on top of it — the editor is a heavyweight
+  Swing component) with next/previous match, case-sensitivity toggle, and a
+  clear "no match" indicator. Escape closes it and leaves the caret at the
+  last match.
 
 **AI Providers dialog — configure providers, models and API keys without editing JSON**
 

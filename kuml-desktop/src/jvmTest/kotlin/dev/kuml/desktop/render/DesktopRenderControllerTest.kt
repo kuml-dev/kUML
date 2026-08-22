@@ -18,7 +18,7 @@ class DesktopRenderControllerTest :
             runTest {
                 val state = AppState()
                 val controller = DesktopRenderController(state = state, scope = this, debounceMs = 300)
-                controller.scheduleRender("classDiagram(name = \"Test\") { }")
+                controller.scheduleRender(script = "classDiagram(name = \"Test\") { }")
                 state.lastSvg shouldBe ""
             }
         }
@@ -27,7 +27,7 @@ class DesktopRenderControllerTest :
             runTest {
                 val state = AppState()
                 val controller = DesktopRenderController(state = state, scope = this, debounceMs = 300)
-                controller.scheduleRender("classDiagram(name = \"Test\") { }")
+                controller.scheduleRender(script = "classDiagram(name = \"Test\") { }")
                 controller.cancel()
                 advanceTimeBy(500)
                 state.lastSvg shouldBe ""
@@ -40,7 +40,7 @@ class DesktopRenderControllerTest :
             runBlocking {
                 val state = AppState()
                 val controller = DesktopRenderController(state = state, scope = this, debounceMs = 50)
-                controller.scheduleRender("not valid kotlin @@@@")
+                controller.scheduleRender(script = "not valid kotlin @@@@")
                 // Wait for debounce + script evaluation on IO threads
                 delay(20_000)
                 controller.cancel()
@@ -51,5 +51,44 @@ class DesktopRenderControllerTest :
         test("isRendering is false when idle") {
             val state = AppState()
             state.isRendering shouldBe false
+        }
+
+        // ── V3.7.4 (design review P6) — RenderInputs-based scheduling ───────────────────────
+
+        test("scheduleRender(inputs, delayMs = 0) renders without waiting for the debounce") {
+            runBlocking {
+                val state = AppState()
+                val controller = DesktopRenderController(state = state, scope = this, debounceMs = 5_000)
+                controller.scheduleRender(
+                    inputs = RenderInputs(script = "classDiagram(name = \"Test\") { }", themeName = "kuml", watermark = false),
+                    delayMs = 0,
+                )
+                // No delay(...) needed here beyond letting the coroutine actually run -- a
+                // long debounceMs proves the render did NOT wait for it.
+                delay(20_000)
+                controller.cancel()
+                state.lastSvg shouldNotBe ""
+            }
+        }
+
+        test("RenderInputs with the same script but a different theme renders a different SVG") {
+            runBlocking {
+                val state = AppState()
+                val controller = DesktopRenderController(state = state, scope = this, debounceMs = 0)
+                val script = "classDiagram(name = \"ThemeTest\") { }"
+
+                controller.scheduleRender(inputs = RenderInputs(script = script, themeName = "kuml", watermark = false), delayMs = 0)
+                delay(20_000)
+                val kumlSvg = state.lastSvg
+
+                controller.scheduleRender(inputs = RenderInputs(script = script, themeName = "plain", watermark = false), delayMs = 0)
+                delay(20_000)
+                val plainSvg = state.lastSvg
+
+                controller.cancel()
+                kumlSvg shouldNotBe ""
+                plainSvg shouldNotBe ""
+                kumlSvg shouldNotBe plainSvg
+            }
         }
     })

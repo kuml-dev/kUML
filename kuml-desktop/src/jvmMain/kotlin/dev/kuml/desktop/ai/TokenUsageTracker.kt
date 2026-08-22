@@ -1,5 +1,18 @@
 package dev.kuml.desktop.ai
 
+/**
+ * Accumulates a LOCAL ESTIMATE of token usage/cost for the current session — NOT a live account
+ * balance or billing query (V3.7.4, design-review P3: "show the real remaining credit/balance").
+ *
+ * [costUsd] is computed purely client-side from token counts × [PricingTable]'s per-model
+ * $/1K-token rates; it is never fetched from any provider. There is no provider-agnostic way to
+ * do better: Koog's `LLMClient`/`PromptExecutor` (the abstraction every provider in this app goes
+ * through) is a pure chat-completion interface with no billing/account endpoint, and two of the
+ * five built-in providers (Ollama, Gonka) have no billing concept at all — a real balance query
+ * would be a bespoke REST call per cloud provider with its own auth scope, and would simply not
+ * exist for the other two. The local estimate here is the one thing that covers all five
+ * providers uniformly, so it is the broader solution, not a fallback for a missing feature.
+ */
 class TokenUsageTracker(
     private val pricing: PricingTable,
 ) {

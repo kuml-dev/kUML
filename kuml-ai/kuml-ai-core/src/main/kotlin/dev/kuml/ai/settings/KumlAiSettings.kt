@@ -30,6 +30,17 @@ public data class KumlAiSettings(
     val systemPrompt: String = DEFAULT_SYSTEM_PROMPT,
     /** Temperature default applied when caller does not specify. */
     val temperature: Double = 0.2,
+    /**
+     * V3.7.5 (review fix) — true once the user has dismissed the AI Providers dialog's
+     * leftover-shared-Keychain-item notice. The underlying macOS Keychain item is deliberately
+     * never deleted (see `MacOsKeychainBackend.legacySharedItemExists`'s KDoc), so presence
+     * alone can never clear the notice on its own — without this flag it would keep
+     * reappearing on every dialog open forever, even after the user has already re-entered
+     * every affected API key. Not schema-version-gated: a settings file saved before this field
+     * existed simply decodes it as `false` (kotlinx.serialization default), which is exactly
+     * the desired "not yet dismissed" behaviour for every pre-existing installation.
+     */
+    val legacyKeychainNoticeDismissed: Boolean = false,
 ) {
     public companion object {
         public const val CURRENT_SCHEMA_VERSION: Int = 2

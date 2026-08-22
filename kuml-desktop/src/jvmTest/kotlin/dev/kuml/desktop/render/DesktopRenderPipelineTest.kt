@@ -3,6 +3,7 @@ package dev.kuml.desktop.render
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class DesktopRenderPipelineTest :
@@ -111,5 +112,30 @@ class DesktopRenderPipelineTest :
                 }
                 """.trimIndent()
             DesktopRenderPipeline.render(script = script, themeName = "dark").shouldBeInstanceOf<DesktopRenderResult.Svg>()
+        }
+
+        // ── V3.7.4 (design review P9) — opt-in watermark ─────────────────────────────────────
+
+        test("watermark = true adds the 'Powered by kUML' label") {
+            val script =
+                """
+                classDiagram(name = "WatermarkOn") {
+                    classOf(name = "A") { }
+                }
+                """.trimIndent()
+            val result =
+                DesktopRenderPipeline.render(script = script, themeName = "plain", watermark = true) as DesktopRenderResult.Svg
+            result.svg shouldContain "Powered by kUML"
+        }
+
+        test("watermark = false (the default) omits the label") {
+            val script =
+                """
+                classDiagram(name = "WatermarkOff") {
+                    classOf(name = "A") { }
+                }
+                """.trimIndent()
+            val result = DesktopRenderPipeline.render(script = script, themeName = "plain") as DesktopRenderResult.Svg
+            result.svg shouldNotContain "Powered by kUML"
         }
     })

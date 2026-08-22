@@ -1,5 +1,6 @@
 package dev.kuml.desktop.preview
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import dev.kuml.desktop.AppState
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
+import dev.kuml.desktop.ui.tooltipBelow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.batik.swing.JSVGCanvas
@@ -34,7 +36,13 @@ private const val ZOOM_STEP = 1.25
  * Fehler und Lade-Status werden im StatusBar von MainWindow angezeigt —
  * NICHT hier als Compose-Overlay, weil SwingPanel (heavyweight AWT) immer
  * über Compose-Layern (lightweight) malt und Overlays so unsichtbar wären.
+ *
+ * V3.7.4 (design review P5) — [dev.kuml.desktop.ui.IconTooltipButton]'s `tooltipPlacement`
+ * parameter carries `TooltipPlacement` (an experimental Compose Foundation type) into its own
+ * public signature, so every caller — not just `IconTooltipButton`'s own body — must opt in,
+ * even calls (like the three below) that never name `TooltipPlacement` explicitly.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PreviewPane(
     state: AppState,
@@ -71,20 +79,26 @@ fun PreviewPane(
             // family (see KumlIcons.kt) — no material-icons dependency covers this exact set.
             // Each button is wrapped in a TooltipArea (same pattern as WorkspaceTreePane's
             // TypeBadge) so the icon-only affordance still names itself on hover for a11y.
+            // V3.7.4 (design review P5): this strip sits at the TOP of the pane -- a
+            // tooltip anchored above the button would be clipped at the window edge, so it
+            // is anchored BELOW instead (see tooltipBelow's KDoc).
             IconTooltipButton(
                 icon = KumlIcons.ZoomIn,
                 description = strings.previewZoomIn,
                 onClick = { zoomCanvas(canvas = canvas, factor = ZOOM_STEP) },
+                tooltipPlacement = tooltipBelow(),
             )
             IconTooltipButton(
                 icon = KumlIcons.ZoomOut,
                 description = strings.previewZoomOut,
                 onClick = { zoomCanvas(canvas = canvas, factor = 1.0 / ZOOM_STEP) },
+                tooltipPlacement = tooltipBelow(),
             )
             IconTooltipButton(
                 icon = KumlIcons.FitToWindow,
                 description = strings.previewFit,
                 onClick = { canvas.resetRenderingTransform() },
+                tooltipPlacement = tooltipBelow(),
             )
         }
         SwingPanel(

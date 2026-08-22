@@ -38,6 +38,7 @@ internal object DesktopRenderPipeline {
     fun render(
         script: String,
         themeName: String,
+        watermark: Boolean = false,
     ): DesktopRenderResult {
         DesktopEngineInit.ensure()
         return try {
@@ -66,6 +67,14 @@ internal object DesktopRenderPipeline {
                 LayoutEngineRegistry.get("elk.layered")
                     ?: return DesktopRenderResult.Error("ELK-Layout-Engine nicht verfügbar")
 
+            // V3.7.4 (design review P9) — opt-in "Powered by kUML" watermark, threaded through
+            // every SvgRenderOptions use below so the toggle applies uniformly across diagram
+            // types. KNOWN GAP: the Blueprint branch further down does not take an
+            // SvgRenderOptions at all (see its own comment) — same limitation the CLI's
+            // RenderPipeline.renderBlueprint has documented since V3.1.24.
+            val svgOptions = SvgRenderOptions(watermark = watermark)
+            val paddingOpts = SvgRenderOptions(paddingPx = 64f, watermark = watermark)
+
             val svg =
                 when (extracted) {
                     is ExtractedDiagram.Uml -> {
@@ -75,7 +84,7 @@ internal object DesktopRenderPipeline {
                         // is semantically meaningful, so pin it via LayoutHints.preserveNodeOrder.
                         val hints = LayoutHints.DEFAULT.copy(preserveNodeOrder = extracted.diagram.type == DiagramType.SEQUENCE)
                         val layout = elkEngine.layout(graph = graph, hints = hints)
-                        KumlSvgRenderer.toSvg(diagram = extracted.diagram, layoutResult = layout, theme = theme)
+                        KumlSvgRenderer.toSvg(diagram = extracted.diagram, layoutResult = layout, theme = theme, options = svgOptions)
                     }
                     is ExtractedDiagram.C4 -> {
                         val sizeProvider = C4ContentSizeProvider(model = extracted.model)
@@ -86,11 +95,16 @@ internal object DesktopRenderPipeline {
                                 sizeProvider = sizeProvider,
                             )
                         val layout = elkEngine.layout(graph = graph, hints = LayoutHints.DEFAULT)
-                        KumlSvgRenderer.toSvg(diagram = extracted.diagram, model = extracted.model, layoutResult = layout, theme = theme)
+                        KumlSvgRenderer.toSvg(
+                            diagram = extracted.diagram,
+                            model = extracted.model,
+                            layoutResult = layout,
+                            theme = theme,
+                            options = svgOptions,
+                        )
                     }
                     is ExtractedDiagram.Sysml2 -> {
                         val model = extracted.model
-                        val paddingOpts = SvgRenderOptions(paddingPx = 64f)
                         when (val diagram = extracted.diagram) {
                             is BdDiagram ->
                                 KumlSvgRenderer.toSvg(
@@ -102,6 +116,7 @@ internal object DesktopRenderPipeline {
                                             hints = LayoutHints.DEFAULT,
                                         ),
                                     theme = theme,
+                                    options = svgOptions,
                                 )
                             is IbdDiagram ->
                                 KumlSvgRenderer.toSvg(
@@ -113,6 +128,7 @@ internal object DesktopRenderPipeline {
                                             hints = LayoutHints.DEFAULT,
                                         ),
                                     theme = theme,
+                                    options = svgOptions,
                                 )
                             is UcDiagram ->
                                 KumlSvgRenderer.toSvg(
@@ -124,6 +140,7 @@ internal object DesktopRenderPipeline {
                                             hints = LayoutHints.DEFAULT,
                                         ),
                                     theme = theme,
+                                    options = svgOptions,
                                 )
                             is ReqDiagram ->
                                 KumlSvgRenderer.toSvg(
@@ -135,6 +152,7 @@ internal object DesktopRenderPipeline {
                                             hints = LayoutHints.DEFAULT,
                                         ),
                                     theme = theme,
+                                    options = svgOptions,
                                 )
                             is StmDiagram ->
                                 KumlSvgRenderer.toSvg(
@@ -170,6 +188,7 @@ internal object DesktopRenderPipeline {
                                             hints = LayoutHints.DEFAULT,
                                         ),
                                     theme = theme,
+                                    options = svgOptions,
                                 )
                             is ParDiagram ->
                                 KumlSvgRenderer.toSvg(
@@ -181,6 +200,7 @@ internal object DesktopRenderPipeline {
                                             hints = LayoutHints.DEFAULT,
                                         ),
                                     theme = theme,
+                                    options = svgOptions,
                                 )
                         }
                     }
@@ -212,7 +232,7 @@ internal object DesktopRenderPipeline {
                                             ),
                                         hints = LayoutHints.DEFAULT,
                                     )
-                                KumlSvgRenderer.toSvg(diagram = kumlDiagram, layoutResult = layout, theme = theme)
+                                KumlSvgRenderer.toSvg(diagram = kumlDiagram, layoutResult = layout, theme = theme, options = svgOptions)
                             }
                             is CollaborationDiagram -> {
                                 val sizeProvider = BpmnContentSizeProvider(extracted.model)
@@ -226,12 +246,24 @@ internal object DesktopRenderPipeline {
                                             ),
                                         hints = LayoutHints.DEFAULT,
                                     )
-                                KumlSvgRenderer.toSvg(model = extracted.model, diagram = diagram, layoutResult = layout, theme = theme)
+                                KumlSvgRenderer.toSvg(
+                                    model = extracted.model,
+                                    diagram = diagram,
+                                    layoutResult = layout,
+                                    theme = theme,
+                                    options = svgOptions,
+                                )
                             }
                             is ChoreographyDiagram -> {
                                 // V3.2.2 — Choreography bypasses ELK entirely: deterministic custom grid layout.
                                 val layout = ChoreographyGridLayout.layout(model = extracted.model, diagram = diagram)
-                                KumlSvgRenderer.toSvg(model = extracted.model, diagram = diagram, layoutResult = layout, theme = theme)
+                                KumlSvgRenderer.toSvg(
+                                    model = extracted.model,
+                                    diagram = diagram,
+                                    layoutResult = layout,
+                                    theme = theme,
+                                    options = svgOptions,
+                                )
                             }
                             is ConversationDiagram -> {
                                 val sizeProvider = BpmnContentSizeProvider(extracted.model)
@@ -245,13 +277,28 @@ internal object DesktopRenderPipeline {
                                             ),
                                         hints = LayoutHints.DEFAULT,
                                     )
-                                KumlSvgRenderer.toSvg(model = extracted.model, diagram = diagram, layoutResult = layout, theme = theme)
+                                KumlSvgRenderer.toSvg(
+                                    model = extracted.model,
+                                    diagram = diagram,
+                                    layoutResult = layout,
+                                    theme = theme,
+                                    options = svgOptions,
+                                )
                             }
                         }
                     }
                     // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
+                    //
+                    // KNOWN GAP (V3.7.4, design review P9): this overload of KumlSvgRenderer.toSvg
+                    // does not accept an SvgRenderOptions at all -- BlueprintGridSvg builds its
+                    // own <svg> root directly instead of going through SvgDocument.render, so the
+                    // watermark cannot be threaded through here. Same limitation the CLI's
+                    // RenderPipeline.renderBlueprint has documented since V3.1.24. `theme` IS now
+                    // passed through, though -- it was previously silently dropped (falling back
+                    // to PlainTheme()) even though a theme change elsewhere in this file already
+                    // re-triggers this render path; see P6's KDoc.
                     is ExtractedDiagram.Blueprint ->
-                        KumlSvgRenderer.toSvg(model = extracted.model, diagram = extracted.diagram)
+                        KumlSvgRenderer.toSvg(model = extracted.model, diagram = extracted.diagram, theme = theme)
                     // V3.4.1: ERM rendering is out of scope — planned for V3.4.2.
                     is ExtractedDiagram.Erm ->
                         return DesktopRenderResult.Error(
