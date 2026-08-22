@@ -134,30 +134,39 @@ internal fun AiProviderSettingsDialog(
                     }
                 }
             }
-        }
-    }
 
-    // ── One-time confirmation before turning privacy mode OFF ──────────────────────
-    // Turning it back ON never asks — see AiProviderSettingsState.requestPrivacyMode.
-    if (state.privacyConfirmPending) {
-        AlertDialog(
-            onDismissRequest = { state.cancelPrivacyDisable() },
-            title = { Text(strings.aiPrivacyConfirmTitle) },
-            text = { Text(strings.aiPrivacyConfirmBody) },
-            confirmButton = {
-                TextButton(
-                    enabled = !state.isClosing,
-                    onClick = { state.launchTracked { state.confirmPrivacyDisable() } },
-                ) {
-                    Text(strings.aiPrivacyConfirmAccept)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { state.cancelPrivacyDisable() }) {
-                    Text(strings.aiPrivacyConfirmCancel)
-                }
-            },
-        )
+            // ── One-time confirmation before turning privacy mode OFF ──────────────
+            // Turning it back ON never asks — see AiProviderSettingsState.requestPrivacyMode.
+            //
+            // FIX (P4): this AlertDialog used to be emitted as a SIBLING of the DialogWindow
+            // block above (i.e. outside its composition), which meant Compose Desktop attached
+            // it to whichever window's composition happened to contain it at the top level —
+            // NOT guaranteed to be this settings DialogWindow. In practice the confirmation
+            // could render behind the settings window instead of on top of it, making "disable
+            // privacy mode" look unresponsive. Emitting it here, inside DialogWindow's own
+            // MaterialTheme block, ties its composition (and therefore its owner window) to
+            // this DialogWindow, so it always layers above the settings dialog it belongs to.
+            if (state.privacyConfirmPending) {
+                AlertDialog(
+                    onDismissRequest = { state.cancelPrivacyDisable() },
+                    title = { Text(strings.aiPrivacyConfirmTitle) },
+                    text = { Text(strings.aiPrivacyConfirmBody) },
+                    confirmButton = {
+                        TextButton(
+                            enabled = !state.isClosing,
+                            onClick = { state.launchTracked { state.confirmPrivacyDisable() } },
+                        ) {
+                            Text(strings.aiPrivacyConfirmAccept)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { state.cancelPrivacyDisable() }) {
+                            Text(strings.aiPrivacyConfirmCancel)
+                        }
+                    },
+                )
+            }
+        }
     }
 }
 

@@ -47,6 +47,13 @@ fun EngineeringWorkspaceScreen(
     modifier: Modifier = Modifier,
     onEditorReady: (EditorActions) -> Unit = {},
 ) {
+    // P5 — Ansichtsmodus: der Dateibaum bleibt in allen drei Modi sichtbar (Susan Kare, design
+    // review: "Baum ist Navigation, nicht Inhalt"). Gewichte: SPLIT 1:2:2 (unverändert
+    // gegenüber vor P5), SOURCE 1:4, DIAGRAM 1:4 — der ausgeblendete Bereich wird NICHT
+    // komponiert (echtes if, keine Nullbreite, siehe MainWindow.kt's identischer Kommentar
+    // zum PreviewPane-State-Reset).
+    val editorWeight = if (state.viewMode == AppState.ViewMode.SPLIT) 2f else 4f
+    val previewWeight = if (state.viewMode == AppState.ViewMode.SPLIT) 2f else 4f
     Row(modifier = modifier.fillMaxWidth().fillMaxHeight()) {
         EngineeringFileTreePane(
             files = scriptFiles,
@@ -60,17 +67,23 @@ fun EngineeringWorkspaceScreen(
             modifier = Modifier.weight(1f).fillMaxHeight(),
         )
         HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
-        EditorPane(
-            state = state,
-            controller = controller,
-            modifier = Modifier.weight(2f).fillMaxHeight(),
-            onEditorReady = onEditorReady,
-        )
-        HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
-        PreviewPane(
-            state = state,
-            modifier = Modifier.weight(2f).fillMaxHeight(),
-        )
+        if (state.viewMode != AppState.ViewMode.DIAGRAM) {
+            EditorPane(
+                state = state,
+                controller = controller,
+                modifier = Modifier.weight(editorWeight).fillMaxHeight(),
+                onEditorReady = onEditorReady,
+            )
+        }
+        if (state.viewMode == AppState.ViewMode.SPLIT) {
+            HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
+        }
+        if (state.viewMode != AppState.ViewMode.SOURCE) {
+            PreviewPane(
+                state = state,
+                modifier = Modifier.weight(previewWeight).fillMaxHeight(),
+            )
+        }
     }
 }
 

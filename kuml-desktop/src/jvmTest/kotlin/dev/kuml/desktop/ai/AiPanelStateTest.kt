@@ -1,5 +1,6 @@
 package dev.kuml.desktop.ai
 
+import dev.kuml.ai.provider.OllamaModelListResult
 import dev.kuml.ai.settings.KumlAiSettings
 import dev.kuml.ai.settings.KumlAiSettingsStore
 import dev.kuml.ai.vault.ApiKeyVault
@@ -9,12 +10,15 @@ import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import java.nio.file.Files
 
 /** Create a KumlAiSettingsStore backed by a temp file with given settings pre-written. */
@@ -299,6 +303,114 @@ class AiPanelStateTest :
             val (msg, cause) = state.mapError(err)
             msg shouldBe "Something completely unexpected"
             cause shouldBe "RuntimeException"
+            scope.cancel()
+        }
+
+        // ── P3 — real Ollama model list ──────────────────────────────────────────────
+        // Deliberately NOT wrapped in runTest/a TestDispatcher: refreshOllamaModelsIfNeeded
+        // launches on Dispatchers.IO (a real thread pool) regardless of the scope's own
+        // dispatcher — see AiPanelStateToolCallIdTest's class KDoc for the same reasoning.
+        // Real-time polling with a bounded timeout is the simplest deterministic wait here.
+
+        suspend fun awaitOllamaState(
+            state: AiPanelState,
+            predicate: (AiPanelState.OllamaModelListState) -> Boolean,
+        ) {
+            withTimeout(5_000) {
+                while (!predicate(state.ollamaModelListState.value)) delay(10)
+            }
+        }
+
+        test("refreshOllamaModelsIfNeeded() is a no-op when the selected provider is not ollama") {
+            val scope = CoroutineScope(Dispatchers.Default)
+            val state =
+                makeState(
+                    settings =
+                        KumlAiSettings(
+                            privacyMode = false,
+                            enabledProviders = setOf("ollama", "openai"),
+                            defaultProvider = "openai",
+                            defaultModels = mapOf("openai" to "gpt-4o"),
+                        ),
+                    scope = scope,
+                )
+            state.selectedProviderId = "openai"
+            state.ollamaModelFetcher = { error("must not be called when provider != ollama") }
+
+            state.refreshOllamaModelsIfNeeded()
+
+            // Synchronous check: the guard returns before anything is ever launched, so there
+            // is nothing to await — a still-Loading (untouched initial) state proves it.
+            state.ollamaModelListState.value.shouldBeInstanceOf<AiPanelState.OllamaModelListState.Loading>()
+            scope.cancel()
+        }
+
+        test("refreshOllamaModelsIfNeeded() populates Loaded from a successful fetch") {
+            val scope = CoroutineScope(Dispatchers.Default)
+            val state = makeState(scope = scope)
+            state.selectedProviderId = "ollama"
+            state.ollamaModelFetcher = { OllamaModelListResult.Success(listOf("llama3.2", "qwen3-coder:30b")) }
+
+            state.refreshOllamaModelsIfNeeded()
+            awaitOllamaState(state) { it is AiPanelState.OllamaModelListState.Loaded }
+
+            val loaded = state.ollamaModelListState.value as AiPanelState.OllamaModelListState.Loaded
+            loaded.modelIds shouldBe listOf("llama3.2", "qwen3-coder:30b")
+            scope.cancel()
+        }
+
+        test("refreshOllamaModelsIfNeeded() populates Unavailable from a failed fetch") {
+            val scope = CoroutineScope(Dispatchers.Default)
+            val state = makeState(scope = scope)
+            state.selectedProviderId = "ollama"
+            state.ollamaModelFetcher = { OllamaModelListResult.Failure("connection refused") }
+
+            state.refreshOllamaModelsIfNeeded()
+            awaitOllamaState(state) { it is AiPanelState.OllamaModelListState.Unavailable }
+
+            val unavailable = state.ollamaModelListState.value as AiPanelState.OllamaModelListState.Unavailable
+            unavailable.reason shouldBe "connection refused"
+            scope.cancel()
+        }
+
+        test("a second refreshOllamaModelsIfNeeded() call reuses the cache instead of fetching again") {
+            val scope = CoroutineScope(Dispatchers.Default)
+            val state = makeState(scope = scope)
+            state.selectedProviderId = "ollama"
+            var fetchCount = 0
+            state.ollamaModelFetcher = {
+                fetchCount++
+                OllamaModelListResult.Success(listOf("llama3.2"))
+            }
+
+            state.refreshOllamaModelsIfNeeded()
+            awaitOllamaState(state) { it is AiPanelState.OllamaModelListState.Loaded }
+            state.refreshOllamaModelsIfNeeded()
+            // The cached path sets the state synchronously (no coroutine launch at all — see
+            // its early `return` in the source) so no additional await is needed here.
+
+            fetchCount shouldBe 1
+            scope.cancel()
+        }
+
+        test("force = true bypasses the cache and fetches again") {
+            val scope = CoroutineScope(Dispatchers.Default)
+            val state = makeState(scope = scope)
+            state.selectedProviderId = "ollama"
+            var fetchCount = 0
+            state.ollamaModelFetcher = {
+                fetchCount++
+                OllamaModelListResult.Success(listOf("llama3.2"))
+            }
+
+            state.refreshOllamaModelsIfNeeded()
+            awaitOllamaState(state) { it is AiPanelState.OllamaModelListState.Loaded }
+            state.refreshOllamaModelsIfNeeded(force = true)
+            withTimeout(5_000) {
+                while (fetchCount < 2) delay(10)
+            }
+
+            fetchCount shouldBe 2
             scope.cancel()
         }
     })

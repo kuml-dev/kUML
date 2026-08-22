@@ -126,4 +126,36 @@ class AppStateTest :
             result.windowWidth shouldBe 1400
             result.windowHeight shouldBe 900
         }
+
+        // --- P5 — Ansichtsmodus (Quelltext/Geteilt/Diagramm) ---
+
+        test("default viewMode is SPLIT") {
+            AppState().viewMode shouldBe AppState.ViewMode.SPLIT
+        }
+
+        test("viewMode mutation is observable") {
+            val s = AppState()
+            s.viewMode = AppState.ViewMode.DIAGRAM
+            s.viewMode shouldBe AppState.ViewMode.DIAGRAM
+        }
+
+        test("AppState(initialSettings) adopts viewMode from settings") {
+            val settings = AppSettings(viewMode = "DIAGRAM")
+            AppState(settings).viewMode shouldBe AppState.ViewMode.DIAGRAM
+        }
+
+        // Regression guard: an old settings file (predating P5) or a future enum value read by
+        // an older build must fall back to SPLIT instead of crashing composition on startup.
+        test("AppState(initialSettings) with an unparsable viewMode falls back to SPLIT without crashing") {
+            val settings = AppSettings(viewMode = "NONSENSE_FUTURE_VALUE")
+            AppState(settings).viewMode shouldBe AppState.ViewMode.SPLIT
+        }
+
+        test("toSettings() mirrors viewMode for all three enum values") {
+            AppState.ViewMode.entries.forEach { mode ->
+                val state = AppState()
+                state.viewMode = mode
+                state.toSettings().viewMode shouldBe mode.name
+            }
+        }
     })

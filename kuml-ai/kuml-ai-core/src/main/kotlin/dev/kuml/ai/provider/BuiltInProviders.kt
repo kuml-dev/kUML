@@ -68,8 +68,11 @@ public object BuiltInProviders {
      * registers itself in META-INF/services/ai.koog.http.client.KoogHttpClient$Factory.
      * Throws [ClassNotFoundException] if neither the interface nor an implementation
      * is on the classpath.
+     *
+     * internal (not private): also used by [OllamaModelCatalog.fetchOllamaModelIds] (V3.2.x,
+     * P3) — same package, same reflective-client convention, no reason to duplicate this.
      */
-    private fun resolveHttpClientFactory(): Any {
+    internal fun resolveHttpClientFactory(): Any {
         val factoryClass = Class.forName(HTTP_CLIENT_FACTORY_FQCN)
         val loader =
             java.util.ServiceLoader.load(

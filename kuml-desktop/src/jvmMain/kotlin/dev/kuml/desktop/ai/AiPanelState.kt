@@ -1,10 +1,16 @@
 package dev.kuml.desktop.ai
 
+import ai.koog.prompt.Prompt
+import ai.koog.prompt.llm.LLModel
+import ai.koog.prompt.message.Message
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.kuml.ai.KumlAiException
 import dev.kuml.ai.KumlAiExecutor
+import dev.kuml.ai.provider.BuiltInProviders
+import dev.kuml.ai.provider.OllamaModelListResult
+import dev.kuml.ai.provider.fetchOllamaModelIds
 import dev.kuml.ai.settings.KumlAiSettings
 import dev.kuml.ai.settings.KumlAiSettingsStore
 import dev.kuml.ai.tools.context.AgentEditingContext
@@ -58,6 +64,13 @@ class AiPanelState(
     private val renderFn: (String, String) -> DesktopRenderResult = { script, themeName ->
         DesktopRenderPipeline.render(script = script, themeName = themeName)
     },
+    /**
+     * Test-only seam (analogous to [renderFn]): overrides the execution function passed to
+     * [AgentRunner], letting a regression test drive a full [send] → [handleEvent] → [messages]
+     * round-trip against a stubbed model response instead of only exercising [AgentRunner] in
+     * isolation. Null (the default) means [AgentRunner] uses [KumlAiExecutor.execute] as usual.
+     */
+    internal val agentExecutorFn: (suspend (Prompt, LLModel) -> Message.Assistant)? = null,
 ) {
     // V3.7.1 review fix: [KumlAiSettingsStore.load] throws KumlAiException.SettingsCorrupted on
     // unparsable JSON or an unknown schema version. This initializer runs from MainWindow's
@@ -100,6 +113,67 @@ class AiPanelState(
                 fromPricing
             }
         }
+
+    // ── P3 — real Ollama model list (replaces the static pricing.json suggestion list) ──────
+
+    /** State of the Ollama-only model list fetched live from `/api/tags`. See [ollamaModelListState]. */
+    sealed class OllamaModelListState {
+        data object Loading : OllamaModelListState()
+
+        data class Loaded(
+            val modelIds: List<String>,
+        ) : OllamaModelListState()
+
+        data class Unavailable(
+            val reason: String,
+        ) : OllamaModelListState()
+    }
+
+    private val _ollamaModelListState = MutableStateFlow<OllamaModelListState>(OllamaModelListState.Loading)
+
+    /**
+     * Read by [dev.kuml.desktop.ai.components.ProviderModelPicker] whenever [selectedProviderId]
+     * is `"ollama"`: replaces the previous silent fallback to [availableModels] (which for
+     * Ollama is just pricing.json's static suggestion list, not what is actually pulled on the
+     * user's machine) with a real, live-fetched catalog — see [refreshOllamaModelsIfNeeded].
+     */
+    val ollamaModelListState: StateFlow<OllamaModelListState> = _ollamaModelListState.asStateFlow()
+
+    /** Cached across calls within one provider-selection so re-opening the dropdown doesn't re-fetch every time. */
+    private var ollamaModelsCache: List<String>? = null
+
+    /**
+     * Test-only seam (analogous to [renderFn]/[agentExecutorFn]): overrides the network call
+     * [refreshOllamaModelsIfNeeded] makes, so a test can drive Loading/Loaded/Unavailable without
+     * a real local Ollama process. Defaults to the real [BuiltInProviders.fetchOllamaModelIds].
+     */
+    internal var ollamaModelFetcher: suspend () -> OllamaModelListResult = { BuiltInProviders.fetchOllamaModelIds() }
+
+    /**
+     * Fetches the real, currently-pulled Ollama model ids in the background. A no-op when
+     * [selectedProviderId] isn't `"ollama"` — switching to any other provider must not fire a
+     * network call. `force = true` bypasses [ollamaModelsCache] (used by a manual refresh
+     * affordance, if one is ever added — not wired to any UI control yet).
+     */
+    fun refreshOllamaModelsIfNeeded(force: Boolean = false) {
+        if (selectedProviderId != "ollama") return
+        val cached = ollamaModelsCache
+        if (cached != null && !force) {
+            _ollamaModelListState.value = OllamaModelListState.Loaded(cached)
+            return
+        }
+        _ollamaModelListState.value = OllamaModelListState.Loading
+        scope.launch(Dispatchers.IO) {
+            when (val result = ollamaModelFetcher()) {
+                is OllamaModelListResult.Success -> {
+                    ollamaModelsCache = result.modelIds
+                    withContext(Dispatchers.Main) { _ollamaModelListState.value = OllamaModelListState.Loaded(result.modelIds) }
+                }
+                is OllamaModelListResult.Failure ->
+                    withContext(Dispatchers.Main) { _ollamaModelListState.value = OllamaModelListState.Unavailable(result.reason) }
+            }
+        }
+    }
 
     private val _messages = MutableStateFlow<List<ConversationMessage>>(emptyList())
     val messages: StateFlow<List<ConversationMessage>> = _messages.asStateFlow()
@@ -358,6 +432,7 @@ class AiPanelState(
                                 editingContext = editingContext,
                                 patchEngine = patchEngine,
                                 useOrchestration = useOrchestration,
+                                executorFn = agentExecutorFn,
                             )
                         runner.runConversation(_messages.value).collect { ev -> handleEvent(ev) }
                         persistCurrentSession()
@@ -423,7 +498,13 @@ class AiPanelState(
                 is AgentEvent.AssistantDelta -> appendOrUpdateStreaming(delta = ev.delta, providerId = ev.providerId, modelId = ev.modelId)
                 is AgentEvent.ToolCallStart ->
                     appendMessage(
-                        ConversationMessage.ToolCall(id = ev.callId, timestamp = now(), toolName = ev.tool, argsJson = ev.argsJson),
+                        ConversationMessage.ToolCall(
+                            id = ev.callId,
+                            timestamp = now(),
+                            toolName = ev.tool,
+                            argsJson = ev.argsJson,
+                            providerCallId = ev.providerCallId,
+                        ),
                     )
                 is AgentEvent.ToolCallEnd -> updateToolCallEnd(callId = ev.callId, resultJson = ev.resultJson, isError = ev.isError)
                 is AgentEvent.TokenUsage -> {

@@ -6,9 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -18,6 +15,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.AppState
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.IconTooltipButton
+import dev.kuml.desktop.ui.KumlIcons
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.batik.swing.JSVGCanvas
@@ -68,9 +67,25 @@ fun PreviewPane(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
         ) {
-            IconButton(onClick = { zoomCanvas(canvas = canvas, factor = ZOOM_STEP) }) { Text("+") }
-            IconButton(onClick = { zoomCanvas(canvas = canvas, factor = 1.0 / ZOOM_STEP) }) { Text("–") }
-            TextButton(onClick = { canvas.resetRenderingTransform() }) { Text(strings.previewFit) }
+            // P2 (design review): "+"/"–" text glyphs replaced with a proper kUML-owned icon
+            // family (see KumlIcons.kt) — no material-icons dependency covers this exact set.
+            // Each button is wrapped in a TooltipArea (same pattern as WorkspaceTreePane's
+            // TypeBadge) so the icon-only affordance still names itself on hover for a11y.
+            IconTooltipButton(
+                icon = KumlIcons.ZoomIn,
+                description = strings.previewZoomIn,
+                onClick = { zoomCanvas(canvas = canvas, factor = ZOOM_STEP) },
+            )
+            IconTooltipButton(
+                icon = KumlIcons.ZoomOut,
+                description = strings.previewZoomOut,
+                onClick = { zoomCanvas(canvas = canvas, factor = 1.0 / ZOOM_STEP) },
+            )
+            IconTooltipButton(
+                icon = KumlIcons.FitToWindow,
+                description = strings.previewFit,
+                onClick = { canvas.resetRenderingTransform() },
+            )
         }
         SwingPanel(
             factory = { canvas },

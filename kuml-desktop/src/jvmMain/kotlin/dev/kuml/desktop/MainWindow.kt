@@ -20,8 +20,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyShortcut
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,6 +47,8 @@ import dev.kuml.desktop.plugins.PluginManagerPane
 import dev.kuml.desktop.preview.PreviewPane
 import dev.kuml.desktop.render.DesktopRenderController
 import dev.kuml.desktop.state.rememberAppSettingsBinding
+import dev.kuml.desktop.ui.IconTooltipButton
+import dev.kuml.desktop.ui.KumlIcons
 import dev.kuml.desktop.workspace.EngineeringFileScanner
 import dev.kuml.desktop.workspace.EngineeringWorkspaceScreen
 import dev.kuml.desktop.workspace.KnowledgeWorkspaceScreen
@@ -316,6 +320,42 @@ fun FrameWindowScope.MainWindow(
                 Item("Deutsch", onClick = { state.language = "de" })
                 Item("English", onClick = { state.language = "en" })
             }
+            Separator()
+            // P5 — view-mode submenu, mirrors the segmented control in the status bar.
+            // Shortcuts follow this repo's existing convention (Undo/Redo above use
+            // `ctrl = true` for BOTH Windows/Linux and macOS — Compose Desktop maps `ctrl`
+            // to the platform-native modifier itself, no separate `meta` flag anywhere in
+            // this codebase yet), so `ctrl = true` here too rather than introducing `meta`.
+            //
+            // Review fix — same `showsEditor` guard as Undo/Redo above: the Knowledge
+            // workspace viewer (KnowledgeWorkspaceScreen) ignores state.viewMode entirely
+            // and always renders its fixed tree|markdown|SVG three-column layout, so the
+            // submenu (and its Ctrl+1/2/3 shortcuts) is hidden rather than shown-but-inert
+            // while a Knowledge workspace is open. EngineeringWorkspaceScreen DOES read
+            // state.viewMode (see its editorWeight/previewWeight), so the submenu stays
+            // available there — `showsEditor` is exactly `openWorkspace !is Knowledge`.
+            if (showsEditor) {
+                Menu(strings.menuViewMode) {
+                    RadioButtonItem(
+                        strings.viewModeSource,
+                        selected = state.viewMode == AppState.ViewMode.SOURCE,
+                        shortcut = KeyShortcut(key = Key.One, ctrl = true),
+                        onClick = { state.viewMode = AppState.ViewMode.SOURCE },
+                    )
+                    RadioButtonItem(
+                        strings.viewModeSplit,
+                        selected = state.viewMode == AppState.ViewMode.SPLIT,
+                        shortcut = KeyShortcut(key = Key.Two, ctrl = true),
+                        onClick = { state.viewMode = AppState.ViewMode.SPLIT },
+                    )
+                    RadioButtonItem(
+                        strings.viewModeDiagram,
+                        selected = state.viewMode == AppState.ViewMode.DIAGRAM,
+                        shortcut = KeyShortcut(key = Key.Three, ctrl = true),
+                        onClick = { state.viewMode = AppState.ViewMode.DIAGRAM },
+                    )
+                }
+            }
         }
         Menu(strings.menuHelp) {
             // P6, design review — actually opens the docs site instead of doing nothing.
@@ -377,17 +417,30 @@ fun FrameWindowScope.MainWindow(
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
                             )
                         null -> {
-                            EditorPane(
-                                state = state,
-                                controller = controller,
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
-                                onEditorReady = { editorActions = it },
-                            )
-                            HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
-                            PreviewPane(
-                                state = state,
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
-                            )
+                            // P5 — Ansichtsmodus: der ausgeblendete Bereich wird NICHT komponiert
+                            // (echtes if, keine Nullbreite). Das setzt bei jedem Umschalten den
+                            // JSVGCanvas/SwingPanel-State von PreviewPane zurück — das ist KEIN
+                            // neuer Fehler, sondern konsistent mit dem bestehenden Verhalten:
+                            // PreviewPane setzt bei jeder Änderung von state.lastSvg ohnehin ein
+                            // frisches SVGDocument, der Zoom wird also heute schon bei jedem
+                            // Rendern zurückgesetzt (design review, Bill Atkinson/Alan Kay).
+                            if (state.viewMode != AppState.ViewMode.DIAGRAM) {
+                                EditorPane(
+                                    state = state,
+                                    controller = controller,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    onEditorReady = { editorActions = it },
+                                )
+                            }
+                            if (state.viewMode == AppState.ViewMode.SPLIT) {
+                                HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
+                            }
+                            if (state.viewMode != AppState.ViewMode.SOURCE) {
+                                PreviewPane(
+                                    state = state,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                )
+                            }
                         }
                     }
                     // V3.0.24 — AI panel (conditionally visible)
@@ -402,7 +455,7 @@ fun FrameWindowScope.MainWindow(
                     }
                 }
                 // StatusBar — reines Compose, KEIN SwingPanel → immer sichtbar
-                StatusBar(state = state)
+                StatusBar(state = state, showsEditor = showsEditor)
             }
         }
     }
@@ -474,7 +527,10 @@ fun FrameWindowScope.MainWindow(
  * sodass sie nie von AWT-Heavyweight-Komponenten verdeckt wird.
  */
 @Composable
-private fun StatusBar(state: AppState) {
+private fun StatusBar(
+    state: AppState,
+    showsEditor: Boolean,
+) {
     val strings = Strings.forLanguage(state.language)
     val (text, color) =
         when {
@@ -484,14 +540,82 @@ private fun StatusBar(state: AppState) {
             else -> strings.statusNoDiagram to Color.Gray
         }
     HorizontalDivider()
-    Text(
-        text = text,
-        color = color,
-        fontSize = 11.sp,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
+    Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp),
-    )
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = text,
+            color = color,
+            fontSize = 11.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        // P5 — view-mode segmented control, only meaningful in single-file mode and the
+        // Engineering workspace (EngineeringWorkspaceScreen reads the same state.viewMode
+        // for its own editor/preview weights). Review fix — the Knowledge workspace viewer
+        // (KnowledgeWorkspaceScreen) never reads state.viewMode at all and always renders
+        // its fixed tree|markdown|SVG three-column layout, so the control is hidden rather
+        // than shown-but-inert while a Knowledge workspace is open. Same `showsEditor` gate
+        // used for Undo/Redo and the View ▸ Ansichtsmodus submenu above.
+        if (showsEditor) {
+            ViewModeSegmentedControl(state = state, strings = strings)
+        }
+    }
+}
+
+/**
+ * Compact three-way segmented control for [AppState.ViewMode] (P5, design review). Uses
+ * [IconTooltipButton] (same tooltip styling as [dev.kuml.desktop.preview.PreviewPane]'s
+ * zoom/fit strip) so all three icon-only affordances in the app share one visual language.
+ */
+@Composable
+private fun ViewModeSegmentedControl(
+    state: AppState,
+    strings: Strings,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        ViewModeSegment(
+            mode = AppState.ViewMode.SOURCE,
+            icon = KumlIcons.ViewSource,
+            description = strings.viewModeSource,
+            state = state,
+        )
+        ViewModeSegment(
+            mode = AppState.ViewMode.SPLIT,
+            icon = KumlIcons.ViewSplit,
+            description = strings.viewModeSplit,
+            state = state,
+        )
+        ViewModeSegment(
+            mode = AppState.ViewMode.DIAGRAM,
+            icon = KumlIcons.ViewDiagram,
+            description = strings.viewModeDiagram,
+            state = state,
+        )
+    }
+}
+
+@Composable
+private fun ViewModeSegment(
+    mode: AppState.ViewMode,
+    icon: ImageVector,
+    description: String,
+    state: AppState,
+) {
+    val isActive = state.viewMode == mode
+    Surface(
+        color = if (isActive) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+        shape = MaterialTheme.shapes.small,
+    ) {
+        IconTooltipButton(
+            icon = icon,
+            description = description,
+            onClick = { state.viewMode = mode },
+            iconSize = 14.dp,
+        )
+    }
 }
 
 /**

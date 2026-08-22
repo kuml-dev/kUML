@@ -8,15 +8,20 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.ai.AiPanelState
+import dev.kuml.desktop.i18n.Strings
 
 @Composable
-fun ProviderModelPicker(state: AiPanelState) {
+fun ProviderModelPicker(
+    state: AiPanelState,
+    strings: Strings,
+) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         // Provider dropdown
         var pExpanded by remember { mutableStateOf(false) }
@@ -38,6 +43,9 @@ fun ProviderModelPicker(state: AiPanelState) {
                             // configured model the moment the user opens this dropdown (V3.7.1
                             // review fix).
                             state.selectedModelId = state.aiSettings.defaultModels[p] ?: state.availableModels.firstOrNull() ?: ""
+                            // P3 — switching TO Ollama kicks off a real /api/tags fetch (no-op
+                            // for every other provider, see refreshOllamaModelsIfNeeded's guard).
+                            state.refreshOllamaModelsIfNeeded()
                             pExpanded = false
                         },
                     )
@@ -46,19 +54,50 @@ fun ProviderModelPicker(state: AiPanelState) {
         }
         // Model dropdown
         var mExpanded by remember { mutableStateOf(false) }
+        val ollamaModelListState by state.ollamaModelListState.collectAsState()
         Box {
             OutlinedButton(onClick = { mExpanded = true }) {
                 Text(state.selectedModelId.ifBlank { "Model" }, maxLines = 1)
             }
             DropdownMenu(expanded = mExpanded, onDismissRequest = { mExpanded = false }) {
-                state.availableModels.forEach { m ->
-                    DropdownMenuItem(
-                        text = { Text(m) },
-                        onClick = {
-                            state.selectedModelId = m
-                            mExpanded = false
-                        },
-                    )
+                // P3 (design review — "kein stiller Rückfall"): for Ollama, the dropdown no
+                // longer renders state.availableModels (pricing.json's static suggestion list,
+                // which has nothing to do with what is actually pulled on the user's machine) —
+                // it renders the REAL, live-fetched catalog instead, with an honest Loading/
+                // Unavailable state rather than silently falling back to a wrong static list.
+                if (state.selectedProviderId == "ollama") {
+                    when (val ollamaState = ollamaModelListState) {
+                        is AiPanelState.OllamaModelListState.Loading ->
+                            DropdownMenuItem(text = { Text(strings.aiOllamaModelsLoading) }, enabled = false, onClick = {})
+                        is AiPanelState.OllamaModelListState.Unavailable -> {
+                            DropdownMenuItem(
+                                text = { Text(strings.aiOllamaModelsUnavailable.format(ollamaState.reason)) },
+                                enabled = false,
+                                onClick = {},
+                            )
+                            DropdownMenuItem(text = { Text(strings.aiOllamaPullHint) }, enabled = false, onClick = {})
+                        }
+                        is AiPanelState.OllamaModelListState.Loaded ->
+                            ollamaState.modelIds.forEach { m ->
+                                DropdownMenuItem(
+                                    text = { Text(m) },
+                                    onClick = {
+                                        state.selectedModelId = m
+                                        mExpanded = false
+                                    },
+                                )
+                            }
+                    }
+                } else {
+                    state.availableModels.forEach { m ->
+                        DropdownMenuItem(
+                            text = { Text(m) },
+                            onClick = {
+                                state.selectedModelId = m
+                                mExpanded = false
+                            },
+                        )
+                    }
                 }
             }
         }

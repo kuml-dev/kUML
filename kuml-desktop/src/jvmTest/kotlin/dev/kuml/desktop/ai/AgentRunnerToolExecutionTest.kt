@@ -222,6 +222,32 @@ class AgentRunnerToolExecutionTest :
             }
         }
 
+        // Regression test for the "Key was already used" crash (P1): Ollama's tool-call id is a
+        // hash over toolName:content:index where `index` resets every response — so the SAME
+        // provider id can legitimately recur across tool-loop rounds. callId (the UI/LazyColumn
+        // key) must never collide even when the provider's raw id does.
+        test("same provider tc.id across two rounds still yields distinct callId (collision-proof UI key)") {
+            val ctx = AgentEditingContext(initialModel = AnyKumlModel.emptyUml())
+            val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
+            val collidingId = "tc-collision"
+            val runner =
+                makeRunner(
+                    ctx,
+                    engine,
+                    sequencedExecutorFn(
+                        assistantWithToolCall(tool = "add_class", argsJson = """{"name":"Order"}""", id = collidingId),
+                        assistantWithToolCall(tool = "add_class", argsJson = """{"name":"Invoice"}""", id = collidingId),
+                        assistantWithText("Done."),
+                    ),
+                )
+            val events = runner.runConversation(listOf(ConversationMessage.User(id = "u1", timestamp = 1L, text = "test"))).toList()
+
+            val starts = events.filterIsInstance<AgentEvent.ToolCallStart>()
+            starts shouldHaveSize 2
+            starts.map { it.callId }.distinct() shouldHaveSize 2
+            starts.map { it.providerCallId } shouldBe listOf(collidingId, collidingId)
+        }
+
         // ── decodePatch unit tests (PatchDecoder — unaffected by V3.2.x, still used by the
         // orchestrator path, see AgentRunner's class KDoc) ──────────────────────────────
 

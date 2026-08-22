@@ -27,6 +27,7 @@ class AppSettingsTest :
             s.windowX shouldBe -1
             s.windowY shouldBe -1
             s.trustedWorkspaces shouldBe emptyList()
+            s.viewMode shouldBe "SPLIT"
         }
 
         test("JSON round-trip preserves all fields") {
@@ -110,5 +111,32 @@ class AppSettingsTest :
                 """.trimIndent()
             val decoded = json.decodeFromString<AppSettings>(jsonWithoutTrustedWorkspaces)
             decoded.trustedWorkspaces shouldBe emptyList()
+        }
+
+        // --- P5 — viewMode (additive field) ---
+        test("JSON round-trip preserves viewMode") {
+            val original = AppSettings.DEFAULT.copy(viewMode = "DIAGRAM")
+            val encoded = json.encodeToString(original)
+            val decoded = json.decodeFromString<AppSettings>(encoded)
+            decoded shouldBe original
+        }
+
+        test("JSON without viewMode field decodes to the SPLIT default (old settings file)") {
+            val jsonWithoutViewMode =
+                """
+                {
+                    "schemaVersion": 1,
+                    "theme": "kuml",
+                    "language": "en",
+                    "recentFiles": [],
+                    "lastDir": null,
+                    "windowWidth": 1200,
+                    "windowHeight": 800,
+                    "windowX": -1,
+                    "windowY": -1
+                }
+                """.trimIndent()
+            val decoded = json.decodeFromString<AppSettings>(jsonWithoutViewMode)
+            decoded.viewMode shouldBe "SPLIT"
         }
     })

@@ -74,6 +74,9 @@ data class Strings(
     val previewErmUnsupported: String,
     val previewNotTrusted: String,
     val previewFit: String,
+    // P2 — zoom control tooltips (icon buttons replaced "+"/"–" text glyphs, design review)
+    val previewZoomIn: String,
+    val previewZoomOut: String,
     val workspaceBadgeDiagram: String,
     val workspaceBadgeProse: String,
     val workspaceBadgeUnknown: String,
@@ -118,6 +121,15 @@ data class Strings(
     val aiVaultPlainWarning: String,
     val aiDefaultProvider: String,
     val aiDefaultModel: String,
+    // P3 — real Ollama model list (dropdown Loading/Unavailable states)
+    val aiOllamaModelsLoading: String,
+    val aiOllamaModelsUnavailable: String,
+    val aiOllamaPullHint: String,
+    // P5 — view mode segmented control (source/split/diagram)
+    val viewModeSource: String,
+    val viewModeSplit: String,
+    val viewModeDiagram: String,
+    val menuViewMode: String,
 ) {
     companion object {
         val DE =
@@ -192,6 +204,8 @@ data class Strings(
                     "ERM-Rendering wird noch nicht unterstützt — geplant für kUML V3.4.2.",
                 previewNotTrusted = "Workspace nicht vertraut — Rendering deaktiviert",
                 previewFit = "Anpassen",
+                previewZoomIn = "Vergrößern",
+                previewZoomOut = "Verkleinern",
                 workspaceBadgeDiagram = "Enthält ein Diagramm",
                 workspaceBadgeProse = "Prosa oder Sammlung, kein Diagramm",
                 workspaceBadgeUnknown = "Unbekannter Dokumenttyp",
@@ -219,9 +233,9 @@ data class Strings(
                         "nur lokale Anbieter wie Ollama sind wählbar.",
                 aiPrivacyConfirmTitle = "Privacy-Modus ausschalten?",
                 aiPrivacyConfirmBody =
-                    "Ihre Eingaben, Ihr Modellinhalt und die daraus erzeugten Diagramme werden künftig " +
-                        "an den gewählten Cloud-Anbieter übertragen und dort verarbeitet.",
-                aiPrivacyConfirmAccept = "Ausschalten",
+                    "Ab dem nächsten Aufruf werden Prompts, Diagramm-Quelltext und Dateiinhalte an " +
+                        "den ausgewählten Cloud-Anbieter übertragen. Fortfahren?",
+                aiPrivacyConfirmAccept = "Deaktivieren und fortfahren",
                 aiPrivacyConfirmCancel = "Aktiv lassen",
                 aiPrivacyBadge = "Privat",
                 aiProviderLocal = "Lokal",
@@ -237,6 +251,15 @@ data class Strings(
                 aiVaultPlainWarning = "Kein OS-Schlüsselspeicher verfügbar — Schlüssel werden unverschlüsselt abgelegt.",
                 aiDefaultProvider = "Standard",
                 aiDefaultModel = "Modell",
+                aiOllamaModelsLoading = "Lädt Modelle…",
+                aiOllamaModelsUnavailable = "Ollama nicht erreichbar: %s",
+                aiOllamaPullHint =
+                    "Prüfen Sie, ob Ollama unter http://localhost:11434 läuft, und laden Sie ein " +
+                        "Modell mit \"ollama pull <modell>\" herunter.",
+                viewModeSource = "Quelltext",
+                viewModeSplit = "Geteilt",
+                viewModeDiagram = "Diagramm",
+                menuViewMode = "Ansichtsmodus",
             )
 
         val EN =
@@ -311,6 +334,8 @@ data class Strings(
                     "ERM rendering is not yet supported — planned for kUML V3.4.2.",
                 previewNotTrusted = "Workspace not trusted — rendering disabled",
                 previewFit = "Fit",
+                previewZoomIn = "Zoom in",
+                previewZoomOut = "Zoom out",
                 workspaceBadgeDiagram = "Contains a diagram",
                 workspaceBadgeProse = "Prose or collection, no diagram",
                 workspaceBadgeUnknown = "Unknown document type",
@@ -338,9 +363,9 @@ data class Strings(
                         "providers such as Ollama can be selected.",
                 aiPrivacyConfirmTitle = "Turn off privacy mode?",
                 aiPrivacyConfirmBody =
-                    "Your prompts, your model content and the diagrams derived from them will be " +
-                        "sent to the selected cloud provider and processed there.",
-                aiPrivacyConfirmAccept = "Turn off",
+                    "From the next request on, prompts, diagram source, and file contents will be " +
+                        "sent to the selected cloud provider. Continue?",
+                aiPrivacyConfirmAccept = "Disable and continue",
                 aiPrivacyConfirmCancel = "Keep it on",
                 aiPrivacyBadge = "Private",
                 aiProviderLocal = "Local",
@@ -356,6 +381,13 @@ data class Strings(
                 aiVaultPlainWarning = "No OS keystore available — keys are stored unencrypted.",
                 aiDefaultProvider = "Default",
                 aiDefaultModel = "Model",
+                aiOllamaModelsLoading = "Loading models…",
+                aiOllamaModelsUnavailable = "Ollama unavailable: %s",
+                aiOllamaPullHint = "Check that Ollama is running at http://localhost:11434, and pull a model with \"ollama pull <model>\".",
+                viewModeSource = "Source",
+                viewModeSplit = "Split",
+                viewModeDiagram = "Diagram",
+                menuViewMode = "View Mode",
             )
 
         fun forLanguage(lang: String): Strings = if (lang == "de") DE else EN

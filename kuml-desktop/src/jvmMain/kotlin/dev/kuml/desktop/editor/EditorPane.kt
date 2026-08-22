@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
+import androidx.compose.ui.platform.testTag
 import dev.kuml.desktop.AppState
 import dev.kuml.desktop.render.DesktopRenderController
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea
@@ -101,6 +102,8 @@ fun EditorPane(
 
     SwingPanel(
         factory = { RTextScrollPane(textArea) },
-        modifier = modifier,
+        // P5 — testTag so view-mode tests can assert the editor's presence/absence per mode
+        // (analogous to PreviewPane's existing "kuml-preview" tag).
+        modifier = modifier.testTag("kuml-editor"),
     )
 }

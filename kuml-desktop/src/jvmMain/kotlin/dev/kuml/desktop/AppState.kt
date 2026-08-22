@@ -78,6 +78,13 @@ class AppState(
     /** Aktuell geöffneter Workspace (Knowledge oder Engineering); null = Single-File-Modus. */
     var openWorkspace by mutableStateOf<OpenWorkspace?>(null)
 
+    // P5 — Ansichtsmodus (Quelltext/Geteilt/Diagramm)
+
+    /** Aktiver Ansichtsmodus zwischen Editor- und Vorschau-Pane. */
+    var viewMode by mutableStateOf(
+        runCatching { ViewMode.valueOf(initialSettings.viewMode) }.getOrDefault(ViewMode.SPLIT),
+    )
+
     /**
      * Lädt Dateiinhalt in den Editor und aktualisiert Metadaten.
      * Setzt isDirty=false, aktualisiert currentFile, lastDir und recentFiles.
@@ -122,7 +129,11 @@ class AppState(
             aiPanelOpen = aiPanelOpen,
             aiPanelWidthPx = aiPanelWidthPx,
             trustedWorkspaces = trustedWorkspaces.toList(),
+            viewMode = viewMode.name,
         )
+
+    /** Ansichtsmodus zwischen Editor (Quelltext) und Vorschau (Diagramm). Siehe [viewMode]. */
+    enum class ViewMode { SOURCE, SPLIT, DIAGRAM }
 
     companion object {
         val WELCOME_SCRIPT: String =

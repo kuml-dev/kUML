@@ -38,7 +38,13 @@ fun AiPanel(
     onOpenProviderSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LaunchedEffect(Unit) { state.reloadSettings() }
+    LaunchedEffect(Unit) {
+        state.reloadSettings()
+        // P3 — if the panel mounts with Ollama already selected (e.g. app restart with Ollama
+        // as the persisted default provider), fetch its real model list right away instead of
+        // waiting for the user to open the provider dropdown and re-select it.
+        state.refreshOllamaModelsIfNeeded()
+    }
     val messages by state.messages.collectAsState()
     val pendingPatches by state.pendingPatches.collectAsState()
     val turnPatches by state.turnPatches.collectAsState()
@@ -55,7 +61,7 @@ fun AiPanel(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                ProviderModelPicker(state)
+                ProviderModelPicker(state = state, strings = strings)
                 Spacer(Modifier.weight(1f))
                 if (state.aiSettings.privacyMode) {
                     PrivacyBadge(label = strings.aiPrivacyBadge)

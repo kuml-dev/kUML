@@ -145,8 +145,25 @@ class AgentRunner(
 
                     var nextPrompt = prompt(koogPrompt) { message(response) }
                     for (tc in toolCalls) {
-                        val callId = tc.id ?: UUID.randomUUID().toString()
-                        emit(AgentEvent.ToolCallStart(callId = callId, tool = tc.tool, argsJson = tc.args))
+                        // FIX (Absturz "Key was already used"): der Schlüssel einer Anzeigeliste
+                        // gehört der Anzeige, nicht dem Provider. Ollamas Tool-Call-IDs sind ein
+                        // Hash über toolName:content:index — `index` läuft nur innerhalb EINER
+                        // Antwort (siehe OllamaConverters.kt generateToolCallId), nicht über den
+                        // gesamten Tool-Loop. Ruft das Modell in einer späteren Runde dasselbe
+                        // Tool mit strukturell ähnlichen Argumenten auf, kollidiert der Hash exakt
+                        // — dieselbe ID würde zweimal als LazyColumn-Key landen und Compose
+                        // crashen. `tc.id` fließt NICHT in `callId` ein; Koogs eigenes
+                        // Tool-Result-Matching liest `tc.id` unten ohnehin direkt aus `tc`, nie
+                        // aus dieser Variablen.
+                        val callId = UUID.randomUUID().toString()
+                        emit(
+                            AgentEvent.ToolCallStart(
+                                callId = callId,
+                                tool = tc.tool,
+                                argsJson = tc.args,
+                                providerCallId = tc.id,
+                            ),
+                        )
 
                         val (resultJson, isError) = executeRegisteredTool(registry = toolRegistry, tc = tc)
 

@@ -20,6 +20,11 @@ data class AppSettings(
     // roots the user has explicitly trusted (see WorkspaceTrust). Additive field —
     // absent in old settings files, decodes to emptyList() via ignoreUnknownKeys.
     val trustedWorkspaces: List<String> = emptyList(),
+    // P5 — persisted view mode (source/split/diagram). Stored as the enum's name(); an
+    // unknown/corrupt value (old settings file predating this field, or a future enum value
+    // read by an older build) is handled by AppState's runCatching { ViewMode.valueOf(...) }
+    // fallback to SPLIT — additive field, no schema-version bump needed.
+    val viewMode: String = "SPLIT",
 ) {
     companion object {
         val DEFAULT = AppSettings()

@@ -37,6 +37,8 @@ sealed class ConversationMessage {
         val toolName: String,
         val argsJson: String,
         val state: ToolCallState = ToolCallState.RUNNING,
+        /** Roh-ID vom Provider, nur zu Diagnose-/Trace-Zwecken (s. [dev.kuml.desktop.ai.AgentEvent.ToolCallStart]). */
+        val providerCallId: String? = null,
     ) : ConversationMessage()
 
     @Serializable

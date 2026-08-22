@@ -131,6 +131,30 @@ class AiProviderSettingsStateTest :
             }
         }
 
+        // P4 (Absturz-Fix "Privacy-Bestätigung im Settings-Fenster"): cancelPrivacyDisable() war
+        // bislang nicht direkt getestet — nur der confirm-Pfad. Deckt jetzt den Dismiss/Cancel-Pfad
+        // des AlertDialogs ab (Nutzer klickt "Aktiv lassen" oder dismisst per Klick daneben).
+        test("cancelPrivacyDisable() closes the confirmation without changing privacyMode") {
+            runTest {
+                val state = makeState(settings = KumlAiSettings(privacyMode = true))
+                state.load()
+
+                state.requestPrivacyMode(enabled = false)
+                state.privacyConfirmPending shouldBe true
+                state.privacyMode shouldBe true
+
+                state.cancelPrivacyDisable()
+                state.privacyConfirmPending shouldBe false
+                state.privacyMode shouldBe true
+
+                // A later disable request must still open a fresh confirmation — cancelling once
+                // must not have permanently suppressed it.
+                state.requestPrivacyMode(enabled = false)
+                state.privacyConfirmPending shouldBe true
+                state.privacyMode shouldBe true
+            }
+        }
+
         test("turning privacy mode on strips an already-enabled cloud provider from enabledProviders") {
             runTest {
                 val state = makeState(settings = KumlAiSettings(privacyMode = false))

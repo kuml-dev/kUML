@@ -11,6 +11,12 @@ sealed class AgentEvent {
         val callId: String,
         val tool: String,
         val argsJson: String,
+        /**
+         * Roh-ID des Providers (Koog `MessagePart.Tool.Call.id`), NUR zur Anzeige/Debug —
+         * niemals als UI-Schlüssel verwenden (siehe [dev.kuml.desktop.ai.AgentRunner]-Kommentar
+         * zum "Key was already used"-Absturz). Null, falls der Provider keine ID liefert.
+         */
+        val providerCallId: String? = null,
     ) : AgentEvent()
 
     data class ToolCallEnd(

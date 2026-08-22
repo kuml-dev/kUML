@@ -55,6 +55,36 @@ class ConversationMessageSerializationTest :
             decoded.state shouldBe ToolCallState.RUNNING
         }
 
+        test("ToolCall message roundtrip with providerCallId set") {
+            val msg =
+                ConversationMessage.ToolCall(
+                    id = "tc2",
+                    timestamp = 3500L,
+                    toolName = "add_class",
+                    argsJson = """{"name":"Bar"}""",
+                    state = ToolCallState.SUCCESS,
+                    providerCallId = "ollama-raw-id-42",
+                )
+            val encoded = json.encodeToString(ConversationMessage.serializer(), msg)
+            val decoded = json.decodeFromString<ConversationMessage>(encoded)
+            decoded.shouldBeInstanceOf<ConversationMessage.ToolCall>()
+            decoded.providerCallId shouldBe "ollama-raw-id-42"
+        }
+
+        // Abwärtskompatibilität: eine ältere, vor providerCallId geschriebene JSON-Fixture (z.B.
+        // eine bereits persistierte Conversation-Datei) muss weiterhin lesbar sein — Default null
+        // greift dank ignoreUnknownKeys/fehlendem Feld, kein Absturz beim Laden alter Sessions.
+        test("ToolCall message from a pre-providerCallId JSON fixture still decodes (backward compatibility)") {
+            val oldJson =
+                """
+                {"type":"tool_call","id":"tc-old","timestamp":9999,"toolName":"add_class","argsJson":"{}","state":"SUCCESS"}
+                """.trimIndent()
+            val decoded = json.decodeFromString<ConversationMessage>(oldJson)
+            decoded.shouldBeInstanceOf<ConversationMessage.ToolCall>()
+            decoded.providerCallId shouldBe null
+            decoded.toolName shouldBe "add_class"
+        }
+
         test("ToolResult message roundtrip") {
             val msg =
                 ConversationMessage.ToolResult(
