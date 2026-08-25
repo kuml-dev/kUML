@@ -1,7 +1,7 @@
 = kuml-core-dsl
 :toc:
 
-image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-core-dsl*
+image:../../docs/images/kuml-logo.png[kUML,width=48,role=left] *kuml-core-dsl*
 
 Type-safe Kotlin DSL builder infrastructure for kUML.
 Provides the `diagram{}` / `umlModel{}` entry-points, the `@KumlDsl` scope marker,

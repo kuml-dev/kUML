@@ -1,7 +1,7 @@
 = kuml-layout-elk
 :toc:
 
-image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-layout-elk*
+image:../../docs/images/kuml-logo.png[kUML,width=48,role=left] *kuml-layout-elk*
 
 ELK 0.11.0 adapter for kUML.
 

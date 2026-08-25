@@ -1,7 +1,7 @@
 = kuml-themes
 :toc:
 
-image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-themes*
+image:../../docs/images/kuml-logo.png[kUML,width=48,role=left] *kuml-themes*
 
 Compose Multiplatform adapter for `kuml-themes-core`.
 Converts framework-neutral `KumlTheme` data into Compose `MaterialTheme`-compatible

@@ -1,7 +1,7 @@
 = kuml-metamodel-c4
 :toc:
 
-image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-metamodel-c4*
+image:../../docs/images/kuml-logo.png[kUML,width=48,role=left] *kuml-metamodel-c4*
 
 Pure Kotlin sealed-class hierarchy for the C4 model (Simon Brown) — the metamodel
 that backs all V1 C4 diagram types.

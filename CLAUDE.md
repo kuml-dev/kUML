@@ -727,7 +727,6 @@ Logo-Quelldateien liegen im Vault unter `03 Bereiche/kUML/Design/` und müssen b
 |---|---|---|
 | `Gemini_16x9.png` | `docs/images/kuml-banner.png` | Root-README-Header (Banner, 16:9) |
 | `Gemini_1x1.png` | `docs/images/kuml-logo.png` | Modul-READMEs, GitHub-Profil (Quadrat) |
-| `Gemini-Einfach_1x1.png` | `docs/images/kuml-logo-simple.png` | Vereinfachte Variante, kleine Größen, Favicons |
 
 AsciiDoc-Einbindung im **Root-README** (Banner oben):
 
@@ -738,7 +737,7 @@ image::docs/images/kuml-banner.png[kUML — Kotlin UML Modelling,link=https://ku
 AsciiDoc-Einbindung in **Modul-READMEs** (kleines Icon mit Titel):
 
 ```asciidoc
-image:../../docs/images/kuml-logo-simple.png[kUML,width=64,role=left] *kuml-core-dsl*
+image:../../docs/images/kuml-logo.png[kUML,width=64,role=left] *kuml-core-dsl*
 ```
 
 > Hinweis: Der Pfad `../../docs/images/` ist relativ zum Modul-Unterordner. Im Root-README entfällt das `../../`.
@@ -799,7 +798,7 @@ Vorlage für ein **Modul-README** (z. B. `kuml-core-dsl/README.adoc`):
 = kuml-core-dsl
 :toc:
 
-image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left]
+image:../../docs/images/kuml-logo.png[kUML,width=48,role=left]
 
 Kotlin-DSL-Builder für kUML. Sprachenübergreifende Infrastruktur — die konkreten
 DSLs für UML 2.x, SysML 2 und C4 leben in den `kuml-metamodel-*`-Modulen.

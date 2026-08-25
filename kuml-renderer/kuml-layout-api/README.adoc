@@ -1,7 +1,7 @@
 = kuml-layout-api
 :toc:
 
-image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-layout-api*
+image:../../docs/images/kuml-logo.png[kUML,width=48,role=left] *kuml-layout-api*
 
 Engine-agnostic layout contract for kUML.
 

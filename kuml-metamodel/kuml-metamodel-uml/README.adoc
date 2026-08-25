@@ -1,7 +1,7 @@
 = kuml-metamodel-uml
 :toc:
 
-image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-metamodel-uml*
+image:../../docs/images/kuml-logo.png[kUML,width=48,role=left] *kuml-metamodel-uml*
 
 Pure Kotlin sealed-class hierarchy for UML 2.x — the metamodel that backs all
 V1 UML diagram types (CLASS, SEQUENCE, STATE, COMPONENT, USE_CASE).
