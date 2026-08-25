@@ -32,6 +32,16 @@ once, which could silently store an empty secret.
 
 ### Fixed
 
+- **AI panel token-usage counter always showed 0/0/$0.0000** — `AgentRunner` never read
+  the real per-turn token counts Koog already exposes on `Message.Assistant.metaInfo` for
+  every provider (openai/anthropic/google/ollama/gonka), so the footer's `↑{in} ↓{out}` /
+  `≈ ${cost}` display was permanently stuck at zero regardless of actual usage. Fixed by
+  emitting `AgentEvent.TokenUsage` with the real counts after every completed turn; a
+  missing/null count (which can happen per-provider on any given response) is now treated
+  as "unknown, skip this turn's accounting" rather than silently counted as zero.
+  Local-provider (Ollama) cost correctly continues to show $0.00 — that was already
+  correct, only the token counts were broken.
+
 - **Theme changes had no visible effect until the next keystroke** — the only
   render trigger lived inside the editor's document listener, so switching
   themes, toggling the new watermark, or opening the app (before ever typing)

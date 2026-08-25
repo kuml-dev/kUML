@@ -101,8 +101,19 @@ public class KumlAiExecutor private constructor(
      * The privacy guard is applied **eagerly** before the Flow is built,
      * so callers see [KumlAiException.PrivacyModeViolation] immediately
      * and not on the first collect. Wire-level integration target: V3.0.24.
-     * Budget guard is also applied eagerly (pre-check only; token accounting
-     * is done by the desktop's AgentRunner via [budgetGuard]).
+     *
+     * Budget guard is applied eagerly here as a pre-check only (V3.7.5 correction: the
+     * previous wording claimed "token accounting is done by the desktop's AgentRunner via
+     * [budgetGuard]" — that was never true). [BudgetGuard.recordUsage] (the post-call
+     * accounting half of [budgetGuard]) is currently NOT invoked anywhere in this codebase —
+     * not from this method (which itself has zero production call sites; see the class KDoc
+     * remark on [dev.kuml.desktop.ai.AgentRunner]'s single live, non-streaming conversation
+     * path), and not from the desktop's `AgentRunner`, which calls only the non-streaming
+     * [execute] overloads and reports usage to the UI purely through its own, separate
+     * `dev.kuml.desktop.ai.TokenUsageTracker`. [budgetGuard] and that tracker are two
+     * independent accounting mechanisms today, not one wired-together pipeline — do not assume
+     * that setting `dev.kuml.ai.settings.KumlAiSettings.costBudgetUsd` affects the desktop UI's
+     * token/cost counter, or vice versa.
      */
     public fun executeStreaming(
         prompt: Prompt,

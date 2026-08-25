@@ -8,6 +8,7 @@ import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.MessagePart
+import ai.koog.prompt.message.ResponseMetaInfo
 import ai.koog.serialization.JSONObject
 import ai.koog.serialization.JSONSerializer
 import ai.koog.serialization.kotlinx.KotlinxSerializer
@@ -18,6 +19,7 @@ import dev.kuml.ai.tools.context.ModelPatch
 import dev.kuml.ai.tools.patch.PatchApplyEngine
 import dev.kuml.ai.tools.registry.KumlToolRegistry
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import java.util.UUID
 
@@ -34,7 +36,11 @@ import java.util.UUID
  *
  * V3.1.18: When [useOrchestration] is true, delegates to [KumlAgentOrchestrator]
  * which routes to domain-specialist agents before running synthesis. Default is false
- * — zero behaviour change for existing tests/users.
+ * — zero behaviour change for existing tests/users. Note (V3.7.5): the orchestrator path
+ * does not emit [AgentEvent.TokenUsage] either — if [useOrchestration] is ever activated,
+ * this same token-usage-counter bug would silently resurface there. Wire
+ * [emitTokenUsageIfKnown]-equivalent handling into [KumlAgentOrchestrator]/
+ * [KumlSpecialistAgent] before flipping that flag on for real users.
  *
  * V3.1.20: Updated for Koog 1.0.0 — execute() now returns Message.Assistant directly.
  * Tool calls moved from top-level Message.Tool.Call to MessagePart.Tool.Call inside
@@ -122,6 +128,7 @@ class AgentRunner(
                     if (fullText.isNotBlank()) {
                         emit(AgentEvent.AssistantDelta(delta = fullText, providerId = providerId, modelId = modelId))
                     }
+                    emitTokenUsageIfKnown(response.metaInfo)
 
                     // Koog 1.0.0: tool calls are MessagePart.Tool.Call inside response.parts.
                     val toolCalls = response.parts.filterIsInstance<MessagePart.Tool.Call>()
@@ -180,6 +187,32 @@ class AgentRunner(
                 emit(AgentEvent.Error(e))
             }
         }
+
+    /**
+     * Emits [AgentEvent.TokenUsage] when [metaInfo] carries real, known counts for THIS turn.
+     *
+     * Koog populates `ResponseMetaInfo.inputTokensCount`/`outputTokensCount` from each
+     * provider's native usage field (OpenAI `usage.promptTokens`/`completionTokens`, Anthropic
+     * `usage.inputTokens`/`outputTokens`, Google `usageMetadata.promptTokenCount`/
+     * `candidatesTokenCount`, Ollama `promptEvalCount`/`evalCount`, Gonka via the shared
+     * OpenAI-compatible base) — but EVERY provider can in principle omit either field on a given
+     * response (both fields are declared nullable on [ResponseMetaInfo] itself). Treating a
+     * missing count as "unknown, do not accumulate" is deliberate: silently accumulating 0 for a
+     * real, non-zero turn would look pixel-identical to the original bug (a counter stuck at a
+     * wrong number instead of a visibly-live one) and would be strictly worse than just not
+     * updating this turn.
+     *
+     * Uses [AgentRunner]'s own [providerId]/[modelId] fields for the emitted event — NOT
+     * [ResponseMetaInfo.modelId], which is provider-reported, may be `null`, and may not match
+     * kUML's own model-id namespace. This mirrors the existing [AgentEvent.AssistantDelta]
+     * emission two lines above.
+     */
+    private suspend fun FlowCollector<AgentEvent>.emitTokenUsageIfKnown(metaInfo: ResponseMetaInfo) {
+        val inTok = metaInfo.inputTokensCount
+        val outTok = metaInfo.outputTokensCount
+        if (inTok == null || outTok == null) return
+        emit(AgentEvent.TokenUsage(inTok = inTok, outTok = outTok, providerId = providerId, modelId = modelId))
+    }
 
     /**
      * Really executes [tc] against a tool from [registry] (V3.2.x). Returns the tool's

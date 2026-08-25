@@ -43,4 +43,17 @@ class TokenUsageTrackerTest :
             tracker.isBudgetExceeded(0.0001) shouldBe true
             tracker.isBudgetExceeded(999.99) shouldBe false
         }
+
+        // V3.7.5 regression test (task item 3): once the AgentRunner token-usage-wiring bug is
+        // fixed, real nonzero token counts now flow in for Ollama too — this must NOT turn into
+        // a fake nonzero cost. Uses the REAL bundled pricing.json (not forTest's hardcoded
+        // nonzero rates), since that's what encodes Ollama's three models as free.
+        test("Ollama real nonzero token counts against bundled pricing.json still yield \$0.00 cost") {
+            val realPricing = PricingTable.loadFromResources()
+            val tracker = TokenUsageTracker(realPricing)
+            tracker.accumulate(providerId = "ollama", modelId = "llama3.2", inTok = 500, outTok = 800)
+            tracker.tokensIn shouldBe 500
+            tracker.tokensOut shouldBe 800
+            tracker.costUsd.shouldBeZero()
+        }
     })
