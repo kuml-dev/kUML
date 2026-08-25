@@ -138,6 +138,30 @@ two changes; and a hand-corrupted `ai-settings.json` no longer crashes the
 dialog on open — it self-heals to defaults instead, matching this feature's
 own documented self-healing behaviour for the merely-stale (not corrupt) case.
 
+**Real tool-calling in the desktop AI panel**
+
+The AI panel's "direct" (non-orchestrated) agent path used to decode a patch
+from the LLM's text output but never actually execute any tool against the
+open diagram — and the editing context used to ground the LLM was built once
+per session from an always-empty model instead of the diagram actually open
+in the editor, so every turn after the first operated on stale/empty context.
+Both are fixed: the panel now does real tool-calling against the same tool
+registry the orchestrated path uses, in a bounded round loop, and re-seeds
+its editing context from the current script before every turn.
+
+**Real app icon, Source/Split/Diagram view toggle, and a live Ollama model list**
+
+- `kuml-desktop` finally has its own app icon (derived from the `{k}` brand
+  mark) instead of falling back to a generic Java icon — the `.icns`/`.ico`
+  bundling this needed had been silently absent since V3.2.x.
+- A new View ▸ Ansichtsmodus toggle (also `Cmd`/`Ctrl`-1/2/3) switches between
+  seeing only the script source, a split source+diagram view, or only the
+  rendered diagram — persisted across restarts.
+- The Ollama model dropdown now queries Ollama's own `/api/tags` endpoint for
+  the models actually installed locally, instead of showing a static,
+  potentially-wrong suggestion list.
+- The zoom toolbar uses real icons instead of raw text glyphs.
+
 ### Fixed
 
 **AI panel crashed on every message sent — missing Main-dispatcher module**
@@ -150,6 +174,15 @@ Compose Desktop ships its own internal UI dispatcher but does not register
 one for kotlinx-coroutines. `kuml-desktop` now depends on
 `kotlinx-coroutines-swing` at runtime, matching the version already pinned
 for `kotlinx-coroutines-core`.
+
+**AI panel crashed with "Key was already used" during multi-round tool calls**
+
+Ollama's tool-call ID is a hash over `toolName:content:index`, which collides
+across separate rounds of a multi-round tool loop when arguments are
+structurally similar — `AgentRunner` previously used that provider-supplied ID
+directly as the Compose `LazyColumn` key, so two colliding tool-call entries
+crashed the UI. The key is now always a locally-generated UUID; the raw
+provider ID is kept only as an optional diagnostic field.
 
 **Logging actually works now — an SLF4J backend is finally shipped**
 
