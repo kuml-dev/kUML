@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.53.0] — 2026-08-25
+
 ### Security
 
 **macOS Keychain credential misrouting — cross-provider API key leakage (fixed)**
