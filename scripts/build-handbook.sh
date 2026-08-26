@@ -7,7 +7,10 @@
 # docs/handbook/modules/tooling/pages/asciidoc.adoc: Antora runs on
 # Asciidoctor.js (Node) and cannot load the JVM `kuml-asciidoc` Asciidoctor
 # extension directly, so `kuml asciidoc` renders the diagrams to plain
-# AsciiDoc *before* Antora ever sees the files (V3.2.19).
+# AsciiDoc *before* Antora ever sees the files (V3.2.19). `--with-source`
+# additionally reproduces each block's original kUML DSL source as a
+# `[source,kotlin]` listing right above the rendered diagram, so every
+# handbook diagram shows both its DSL source and its rendered image.
 #
 # Antora content sources must be git repositories (a plain directory does
 # not work — verified empirically). This script therefore stages the
@@ -55,7 +58,8 @@ mkdir -p "$STAGE_DIR"
 "$KUML" asciidoc \
   --input-dir "$REPO_ROOT/docs/handbook" \
   --output-dir "$STAGE_DIR/docs/handbook" \
-  --mode linked-svg
+  --mode linked-svg \
+  --with-source
 
 echo "[build-handbook] Staging scratch git repo for Antora (content sources must be git repos)"
 git -C "$STAGE_DIR" init -q

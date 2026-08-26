@@ -33,6 +33,7 @@ import java.io.IOException
  * ```
  * kuml asciidoc --input guide.adoc --output guide.rendered.adoc --mode inline
  * kuml asciidoc --input-dir docs/handbook --output-dir build/handbook-rendered --mode inline
+ * kuml asciidoc --input-dir docs/handbook --output-dir build/handbook-rendered --mode linked-svg --with-source
  * ```
  */
 internal class AsciidocCommand : CliktCommand(name = "asciidoc") {
@@ -63,6 +64,11 @@ internal class AsciidocCommand : CliktCommand(name = "asciidoc") {
 
     private val quiet by option("--quiet", help = "Suppress per-file progress output (directory mode)")
         .flag(default = false)
+
+    private val withSource by option(
+        "--with-source",
+        help = "Also reproduce the original kUML DSL source as a `[source,kotlin]` listing next to each rendered diagram",
+    ).flag(default = false)
 
     override fun help(context: Context): String = "Render kuml blocks in AsciiDoc file(s) to SVG or PNG (Antora pre-render step)."
 
@@ -97,6 +103,7 @@ internal class AsciidocCommand : CliktCommand(name = "asciidoc") {
                 input = inFile.readText(Charsets.UTF_8),
                 mode = outputMode,
                 baseName = inFile.nameWithoutExtension,
+                withSource = withSource,
             )
         outFile.parentFile?.mkdirs()
         outFile.writeText(result.output, Charsets.UTF_8)
@@ -139,6 +146,7 @@ internal class AsciidocCommand : CliktCommand(name = "asciidoc") {
                         input = srcFile.readText(Charsets.UTF_8),
                         mode = outputMode,
                         baseName = srcFile.nameWithoutExtension,
+                        withSource = withSource,
                     )
                 destFile.writeText(result.output, Charsets.UTF_8)
                 renderedCount++

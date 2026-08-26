@@ -12,7 +12,7 @@ package dev.kuml.asciidoc
  *     classDiagram(name = "Demo") { ... }
  *     ----
  *     ```
- *     Optionale Attribute: `[source,kuml,name="hello",width=800]`.
+ *     Optionale Attribute: `[source,kuml,name="hello",width=800,showsource=false]`.
  *
  *  2. **Block-Makro** `kuml::path[…]`:
  *     ```

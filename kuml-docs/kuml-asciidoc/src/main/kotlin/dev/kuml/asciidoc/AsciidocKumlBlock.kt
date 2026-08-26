@@ -31,6 +31,14 @@ public data class AsciidocKumlBlock(
      * `kuml::path[theme=playful]`. `null` means "use the processor/pipeline default".
      */
     public val theme: String? get() = attributes["theme"]
+
+    /**
+     * Optional per-block override for whether the original DSL source is reproduced as a
+     * `[source,kotlin]` listing alongside the rendered diagram, e.g.
+     * `[source,kuml,showsource=false]` or `kuml::path[showsource=false]`. `null` means
+     * "no override — use the processor's `withSource` default" (see [AsciidocProcessor.process]).
+     */
+    public val showSource: Boolean? get() = attributes["showsource"]?.toBooleanStrictOrNull()
 }
 
 /** Welche AsciiDoc-Syntax den Block geliefert hat. */

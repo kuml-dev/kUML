@@ -243,6 +243,73 @@ class AsciidocCommandTest :
             outDir.deleteRecursively()
         }
 
+        test("--with-source flag emits both the DSL source and inline SVG") {
+            val input = adocFile()
+            val out = Files.createTempFile("kuml-cli-out", ".adoc").toFile()
+            val result =
+                KumlCli().test(
+                    listOf(
+                        "asciidoc",
+                        "--input",
+                        input.absolutePath,
+                        "--output",
+                        out.absolutePath,
+                        "--mode",
+                        "inline",
+                        "--with-source",
+                    ),
+                )
+            result.statusCode shouldBe 0
+            val produced = out.readText()
+            produced shouldContain "[source,kotlin]"
+            produced shouldContain simpleScript
+            produced shouldContain "<svg"
+            input.delete()
+            out.delete()
+        }
+
+        test("--with-source flag works in directory mode") {
+            val inDir = Files.createTempDirectory("kuml-cli-indir").toFile()
+            val pageFile = java.io.File(inDir, "page.adoc")
+            pageFile.writeText(
+                """
+                |= Demo
+                |
+                |[source,kuml]
+                |----
+                |$simpleScript
+                |----
+                |
+                """.trimMargin(),
+            )
+            val outDir = Files.createTempDirectory("kuml-cli-outdir").toFile()
+
+            val result =
+                KumlCli().test(
+                    listOf(
+                        "asciidoc",
+                        "--input-dir",
+                        inDir.absolutePath,
+                        "--output-dir",
+                        outDir.absolutePath,
+                        "--mode",
+                        "linked-svg",
+                        "--with-source",
+                    ),
+                )
+            result.statusCode shouldBe 0
+
+            val renderedPage = java.io.File(outDir, "page.adoc")
+            renderedPage.exists() shouldBe true
+            val produced = renderedPage.readText()
+            produced shouldContain "[source,kotlin]"
+            produced shouldContain simpleScript
+            produced shouldContain "image::"
+
+            inDir.deleteRecursively()
+            outDir.deleteRecursively()
+        }
+
         test("rejects mixing single-file and directory options") {
             val input = adocFile()
             val outDir = Files.createTempDirectory("kuml-cli-outdir").toFile()

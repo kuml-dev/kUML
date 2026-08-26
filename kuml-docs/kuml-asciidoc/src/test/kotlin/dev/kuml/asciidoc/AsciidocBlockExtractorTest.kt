@@ -101,6 +101,20 @@ class AsciidocBlockExtractorTest :
             blocks[2].attributes["name"] shouldBe "c"
         }
 
+        test("showsource attribute is parsed into the attributes map") {
+            val doc =
+                """
+                [source,kuml,showsource=false]
+                ----
+                classDiagram(name = "H") {}
+                ----
+                """.trimIndent()
+            val blocks = AsciidocBlockExtractor.extract(doc)
+            blocks.size shouldBe 1
+            blocks[0].attributes["showsource"] shouldBe "false"
+            blocks[0].showSource shouldBe false
+        }
+
         test("[source,asciidoc] listing block is ignored (not kuml)") {
             val doc =
                 """
