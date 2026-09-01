@@ -19,6 +19,10 @@ class KumlMarkdownPreviewExtensionTest :
             newExtension().scripts shouldBe listOf("kuml-markdown-preview.js")
         }
 
+        test("styles exposes exactly the bundled placeholder stylesheet") {
+            newExtension().styles shouldBe listOf("kuml-markdown-preview.css")
+        }
+
         test("priority is DEFAULT") {
             newExtension().priority shouldBe
                 org.intellij.plugins.markdown.extensions.MarkdownBrowserPreviewExtension.Priority.DEFAULT
@@ -40,6 +44,16 @@ class KumlMarkdownPreviewExtensionTest :
             extension.canProvide("kuml-markdown-preview.js/../plugin.xml") shouldBe false
         }
 
+        test("canProvide is true only for the exact placeholder stylesheet name") {
+            val extension = newExtension()
+            extension.canProvide("kuml-markdown-preview.css") shouldBe true
+            extension.canProvide("KUML-MARKDOWN-PREVIEW.CSS") shouldBe false
+            // Same path-traversal guard as the bridge script: exact match only.
+            extension.canProvide("../../META-INF/plugin.xml") shouldBe false
+            extension.canProvide("evil/kuml-markdown-preview.css") shouldBe false
+            extension.canProvide("kuml-markdown-preview.css/../plugin.xml") shouldBe false
+        }
+
         test("loadResource returns the bridge script content as text/javascript") {
             val extension = newExtension()
             val resource = extension.loadResource("kuml-markdown-preview.js")
@@ -51,10 +65,20 @@ class KumlMarkdownPreviewExtensionTest :
             content shouldContain "kuml.markdown.render.response"
         }
 
+        test("loadResource returns the placeholder stylesheet content as text/css") {
+            val extension = newExtension()
+            val resource = extension.loadResource("kuml-markdown-preview.css")
+            requireNotNull(resource)
+            resource.type shouldBe "text/css"
+            val content = String(resource.content, Charsets.UTF_8)
+            content shouldContain "kuml-diagram-placeholder"
+        }
+
         test("loadResource returns null for any other resource name") {
             val extension = newExtension()
             extension.loadResource("mermaid.min.js") shouldBe null
             extension.loadResource("../../META-INF/plugin.xml") shouldBe null
+            extension.loadResource("kuml-markdown-preview.css/../plugin.xml") shouldBe null
         }
 
         test("dispose on a null pipe does not throw") {

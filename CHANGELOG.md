@@ -56,6 +56,27 @@ fence-identity path the browser and the IDE have to agree on:
   Unexpected failures now render an error container, and the in-flight marker is cleared on every
   terminal path.
 
+### Changed
+
+**`kuml-jetbrains-plugin`: size-stable placeholder while a Markdown preview fence renders**
+
+Since the `MarkdownBrowserPreviewExtension` rewrite above, a `kuml` fence's raw
+`<pre><code class="language-kuml">` source stayed visible in the preview until the render
+response arrived, then got swapped for the (usually much taller) rendered SVG — a visible
+layout jump on every render, including on every keystroke while editing a fence. The bridge
+script (`kuml-markdown-preview.js`) now hides the raw fence and inserts a blank, size-stable
+placeholder (`.kuml-diagram-placeholder`, styled via a new bundled `kuml-markdown-preview.css`
+injected through `MarkdownBrowserPreviewExtension.styles`) as soon as the render request is
+successfully posted to the IDE — reserving either the height this exact fence's last successful
+render measured, or a fixed 240px default for a fence that has never rendered yet. No spinner: a
+static "Rendering kUML diagram…" hint fades in only if the render takes longer than 150ms, so the
+common case (a small diagram rendering well under that) never shows any placeholder text at all,
+just holds its reserved height for an instant. If posting the request itself fails (broken message
+pipe), the raw fence source is left untouched, matching the existing graceful-degrade behavior.
+Only a genuinely successful diagram render (never an error/empty container) updates the
+remembered height, so a fixed error doesn't get penalized with the wrong placeholder size on its
+next render.
+
 ## [0.53.0] — 2026-08-25
 
 ### Security

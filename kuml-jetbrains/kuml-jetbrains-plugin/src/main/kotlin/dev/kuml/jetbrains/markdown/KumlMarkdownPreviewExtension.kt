@@ -74,19 +74,32 @@ class KumlMarkdownPreviewExtension internal constructor(
     override val scripts: List<String>
         get() = listOf(BRIDGE_SCRIPT)
 
+    override val styles: List<String>
+        get() = listOf(PLACEHOLDER_STYLESHEET)
+
     override val resourceProvider: ResourceProvider
         get() = this
 
-    override fun canProvide(resourceName: String): Boolean = resourceName == BRIDGE_SCRIPT
+    override fun canProvide(resourceName: String): Boolean = resourceName == BRIDGE_SCRIPT || resourceName == PLACEHOLDER_STYLESHEET
 
-    override fun loadResource(resourceName: String): ResourceProvider.Resource? {
-        if (resourceName != BRIDGE_SCRIPT) return null
-        return ResourceProvider.loadInternalResource(
-            KumlMarkdownPreviewExtension::class.java,
-            "/kuml/$BRIDGE_SCRIPT",
-            "text/javascript",
-        )
-    }
+    override fun loadResource(resourceName: String): ResourceProvider.Resource? =
+        when (resourceName) {
+            BRIDGE_SCRIPT ->
+                ResourceProvider.loadInternalResource(
+                    KumlMarkdownPreviewExtension::class.java,
+                    "/kuml/$BRIDGE_SCRIPT",
+                    "text/javascript",
+                )
+            PLACEHOLDER_STYLESHEET ->
+                ResourceProvider.loadInternalResource(
+                    KumlMarkdownPreviewExtension::class.java,
+                    "/kuml/$PLACEHOLDER_STYLESHEET",
+                    "text/css",
+                )
+            // Exact-match only (never endsWith/contains/startsWith) — a path-traversal
+            // guard, see KumlMarkdownPreviewExtensionTest's canProvide cases.
+            else -> null
+        }
 
     override fun dispose() {
         pipe?.removeSubscription(KumlMarkdownPreviewProtocol.REQUEST_EVENT, handler)
@@ -185,6 +198,15 @@ class KumlMarkdownPreviewExtension internal constructor(
 
     companion object {
         private const val BRIDGE_SCRIPT = "kuml-markdown-preview.js"
+
+        /**
+         * Serves the size-stable placeholder's CSS (`.kuml-diagram-placeholder`) — see
+         * `insertPlaceholder` in the bundled `kuml-markdown-preview.js`. Injected via
+         * [styles] exactly like [BRIDGE_SCRIPT] is injected via [scripts]; both go
+         * through the same [ResourceProvider] exact-match/path-traversal guard in
+         * [canProvide].
+         */
+        private const val PLACEHOLDER_STYLESHEET = "kuml-markdown-preview.css"
 
         /**
          * Caps concurrent `kuml` CLI subprocesses spawned by fence-render requests

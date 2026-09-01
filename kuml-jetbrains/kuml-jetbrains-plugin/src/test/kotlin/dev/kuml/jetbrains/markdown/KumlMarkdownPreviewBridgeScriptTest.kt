@@ -67,6 +67,54 @@ class KumlMarkdownPreviewBridgeScriptTest :
             }
         }
 
+        test("declares the size-stable placeholder's timing/height constants") {
+            script shouldContain "PLACEHOLDER_REVEAL_DELAY_MS"
+            script shouldContain "150"
+            script shouldContain "DEFAULT_PLACEHOLDER_HEIGHT_PX"
+            script shouldContain "240"
+            script shouldContain "kuml-diagram-placeholder"
+        }
+
+        test("only hides the fence and shows the placeholder AFTER a successful post() to the message pipe") {
+            // The critical ordering guard from the plan behind this change: if the pipe
+            // itself is broken, requestRender's catch block must be the only thing that
+            // runs — the raw fence source has to stay visible, never hidden behind a
+            // placeholder that will now never be replaced by a real render.
+            val requestRenderBody =
+                Regex("""function requestRender\(entry\) \{([\s\S]*?)\n {2}\}""")
+                    .find(script)
+                    ?.groupValues
+                    ?.get(1)
+                    ?: error("requestRender function body not found in bridge script")
+            withClue("requestRender's body") {
+                requestRenderBody shouldContain "messagePipe.post("
+                requestRenderBody shouldContain "insertPlaceholder("
+            }
+            val postIndex = requestRenderBody.indexOf("messagePipe.post(")
+            val insertPlaceholderIndex = requestRenderBody.indexOf("insertPlaceholder(")
+            withClue("insertPlaceholder(entry) must be called strictly AFTER messagePipe.post(...) succeeds, inside the same try") {
+                (postIndex >= 0 && insertPlaceholderIndex > postIndex).shouldBeTrue()
+            }
+        }
+
+        test("a pending reveal timer is cancelled before a fresh placeholder or a real render replaces it") {
+            // Otherwise the "Rendering..." hint could flash onto an element that is
+            // about to be torn out and replaced (superseded request, or the real
+            // response landing), or fire against a placeholder slot a later request has
+            // since reused.
+            script shouldContain "pendingRevealTimers"
+            script shouldContain "clearTimeout"
+        }
+
+        test("only a genuinely successful diagram render updates the remembered placeholder height") {
+            // An error/empty container's height must never overwrite
+            // lastRenderedHeightByElement — see the finding this guards against in
+            // onResponse's kdoc-equivalent comment.
+            script shouldContain "lastRenderedHeightByElement"
+            script shouldContain ".kuml-diagram-container"
+            script shouldContain "getBoundingClientRect"
+        }
+
         test("an already-rendered fence is not re-requested on every MutationObserver tick") {
             // Consequence of keeping the <pre> in the DOM: without a per-element
             // rendered-source marker, every DOM mutation would re-enqueue every fence.

@@ -17,9 +17,34 @@
   var RESPONSE_EVENT = "kuml.markdown.render.response";
   var SEP = String.fromCharCode(0x1f);
 
+  // How long a fence sits behind a blank, size-stable placeholder before the "still
+  // rendering" hint text appears. Short enough that a genuinely slow render (a large
+  // diagram, a cold `kuml` CLI JVM start) doesn't look stuck; long enough that the
+  // common case — a small diagram rendering in well under 150ms — never flashes any
+  // text at all, just holds its reserved height for an instant. No spinner, no
+  // animation: a static line of text is the whole "loading" affordance.
+  var PLACEHOLDER_REVEAL_DELAY_MS = 150;
+  // Height reserved for a fence that has never rendered successfully in this preview
+  // session yet, so there is SOME size-stable box to show instead of the raw <pre>
+  // even on the very first render. Deliberately a rough "typical small diagram" guess,
+  // not a promise — the point is only to avoid the raw-text-to-large-SVG jump, not to
+  // predict the exact upcoming height.
+  var DEFAULT_PLACEHOLDER_HEIGHT_PX = 240;
+
   var pending = {};
   var nextRequestSeq = 0;
   var scheduled = false;
+  // codeEl -> px, the height of the LAST successful (kuml-diagram-container) render of
+  // that exact fence. Never set from an error/empty container — those don't tell us
+  // anything about how tall a real diagram for this fence would be, and letting them
+  // overwrite this map would size the placeholder to the WRONG kind of content the
+  // next time the same fence re-renders after being fixed.
+  var lastRenderedHeightByElement = new WeakMap();
+  // codeEl -> setTimeout handle for the pending "reveal the hint text" timer, so
+  // onResponse() can cancel it if the real render lands before PLACEHOLDER_REVEAL_DELAY_MS
+  // elapses (otherwise the hint text would flash onto a placeholder that's about to be
+  // torn out immediately after).
+  var pendingRevealTimers = new WeakMap();
 
   function base64EncodeUtf8(text) {
     var bytes = new TextEncoder().encode(text);
@@ -191,6 +216,62 @@
     return found;
   }
 
+  // Shared by insertPlaceholder() and onResponse(): both need to place exactly one
+  // element right after `pre` and, if a PREVIOUS such element (an earlier placeholder,
+  // or an earlier render from before this fence's last edit) is already sitting there,
+  // replace it instead of piling up a second one. Only elements this file itself
+  // placed there (marked below) are ever treated as replaceable — anything else
+  // (arbitrary surrounding Markdown content) is left alone and `container` is simply
+  // inserted right after `pre`.
+  function isSwapNode(node) {
+    return !!(node && node.getAttribute && (node.getAttribute("data-kuml-rendered") === "true" || node.getAttribute("data-kuml-placeholder") === "true"));
+  }
+
+  function swapAfterPre(pre, container) {
+    var previous = pre.nextElementSibling;
+    if (isSwapNode(previous)) {
+      pre.parentNode.replaceChild(container, previous);
+    } else {
+      pre.parentNode.insertBefore(container, pre.nextSibling);
+    }
+  }
+
+  // Inserts a blank, size-stable box right after `entry.pre` and hides `entry.pre` —
+  // called only once requestRender() has confirmed the render request actually made it
+  // onto the message pipe (see requestRender below). Reserves either the height this
+  // exact fence's last successful render measured, or DEFAULT_PLACEHOLDER_HEIGHT_PX for
+  // a fence that has never rendered yet — so swapping the raw <pre> for the eventual
+  // diagram does not also visibly grow/shrink the page under the reader. No spinner: a
+  // static hint line fades in after PLACEHOLDER_REVEAL_DELAY_MS, purely so a render that
+  // takes long enough to notice doesn't look like nothing is happening; a render that
+  // completes before the delay elapses never shows any text at all.
+  function insertPlaceholder(entry) {
+    var height = lastRenderedHeightByElement.get(entry.codeEl) || DEFAULT_PLACEHOLDER_HEIGHT_PX;
+
+    var placeholder = document.createElement("div");
+    placeholder.className = "kuml-diagram-placeholder";
+    placeholder.setAttribute("data-kuml-placeholder", "true");
+    placeholder.style.minHeight = height + "px";
+
+    swapAfterPre(entry.pre, placeholder);
+    entry.pre.style.display = "none";
+
+    var existingTimer = pendingRevealTimers.get(entry.codeEl);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+    var timer = setTimeout(function () {
+      pendingRevealTimers.delete(entry.codeEl);
+      // The placeholder may already be gone by now (the real render landed, or a
+      // newer edit superseded it with a fresh placeholder of its own) — only touch it
+      // if it is still the element actually sitting right after `pre`.
+      if (entry.pre.nextElementSibling === placeholder) {
+        placeholder.textContent = "Rendering kUML diagram…";
+      }
+    }, PLACEHOLDER_REVEAL_DELAY_MS);
+    pendingRevealTimers.set(entry.codeEl, timer);
+  }
+
   function requestRender(entry) {
     var requestId = "r" + Date.now() + "-" + nextRequestSeq++;
     entry.codeEl.setAttribute("data-kuml-pending", requestId);
@@ -199,6 +280,11 @@
     var payload = [requestId, String(entry.ordinal), base64EncodeUtf8(entry.source)].join(SEP);
     try {
       window.__IntelliJTools.messagePipe.post(REQUEST_EVENT, payload);
+      // Reached ONLY after a successful post() — if the pipe itself is broken (catch
+      // below), the raw fence source stays visible exactly as before this placeholder
+      // was introduced, rather than being hidden behind a placeholder that will now
+      // never be replaced.
+      insertPlaceholder(entry);
     } catch (error) {
       console.error("kuml-markdown-preview: failed to post render request", error);
     }
@@ -223,6 +309,16 @@
     // correct it. Drop it and let the newer request's response win.
     if (entry.codeEl.getAttribute("data-kuml-pending") !== requestId) {
       return;
+    }
+
+    // The reveal timer (if any) belongs to the placeholder this response is about to
+    // replace — cancel it so the hint text never flashes onto an element that is about
+    // to be torn out, and so the timer's own nextElementSibling re-check never runs
+    // against a placeholder slot a LATER request may since have reused.
+    var pendingTimer = pendingRevealTimers.get(entry.codeEl);
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+      pendingRevealTimers.delete(entry.codeEl);
     }
 
     var html;
@@ -257,16 +353,26 @@
     // Keeping the <pre> in place keeps the two counts identical for the whole lifetime
     // of the preview document, which is what makes the ordinal trustworthy at all.
     pre.style.display = "none";
-
-    var previous = pre.nextElementSibling;
-    if (previous && previous.getAttribute && previous.getAttribute("data-kuml-rendered") === "true") {
-      pre.parentNode.replaceChild(container, previous);
-    } else {
-      pre.parentNode.insertBefore(container, pre.nextSibling);
-    }
+    swapAfterPre(pre, container);
 
     entry.codeEl.__kumlRenderedSource = entry.source;
     entry.codeEl.removeAttribute("data-kuml-pending");
+
+    // Only a genuinely successful diagram render (a ".kuml-diagram-container" child —
+    // see KumlPreviewHtml.buildSvgContainer) tells us anything about how tall THIS
+    // fence's diagram actually is. An error or "(Empty kUML diagram)" container's
+    // height reflects that container's own unrelated styling, not a preview of the next
+    // real render — recording it would size the NEXT placeholder for the wrong kind of
+    // content once the underlying error is fixed. Measured a frame later
+    // (requestAnimationFrame), matching schedule()'s own idiom elsewhere in this file,
+    // so the read happens after the browser has actually laid out the freshly inserted
+    // SVG rather than on whatever pre-layout value getBoundingClientRect() would return
+    // synchronously right after the innerHTML assignment above.
+    if (container.querySelector(".kuml-diagram-container")) {
+      requestAnimationFrame(function () {
+        lastRenderedHeightByElement.set(entry.codeEl, container.getBoundingClientRect().height);
+      });
+    }
   }
 
   function schedule() {

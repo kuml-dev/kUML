@@ -1,0 +1,30 @@
+/* kUML Markdown preview — size-stable placeholder shown between "request sent" and
+ * "rendered SVG swapped in" (see kuml-markdown-preview.js's insertPlaceholder /
+ * PLACEHOLDER_REVEAL_DELAY_MS). Without this, the raw <pre> fence (a handful of text
+ * lines) sits in the preview until the response arrives, then gets replaced by a much
+ * taller diagram — a visible layout jump on every render, including on every keystroke
+ * while editing a fence. The placeholder reserves roughly the height the LAST
+ * successful render of this exact fence measured (kuml-markdown-preview.js's
+ * lastRenderedHeightByElement), or a fixed default for a fence that has never rendered
+ * yet, so the swap lands at (approximately) the same height instead of visibly growing
+ * the page under the reader.
+ *
+ * Deliberately mirrors KumlPreviewHtml.buildEmptyContainer's inline styles (padding,
+ * dashed border, italic muted text) — both AsciiDoc and Markdown previews share that
+ * "structurally empty" look, and the loading placeholder intentionally reuses the same
+ * typography so it reads as "nothing to see yet" rather than as an error. Kept as two
+ * independently maintained declarations (Kotlin inline styles vs. this CSS file, one
+ * per host document format) rather than a shared constant — the duplication is a single
+ * small style block, and unifying it would require a shared resource neither preview
+ * pipeline currently loads. If you change one, change the other to match.
+ */
+.kuml-diagram-placeholder {
+  box-sizing: border-box;
+  margin: 1.5em 0;
+  padding: 12px;
+  border: 1px dashed #abb2bf;
+  border-radius: 6px;
+  text-align: center;
+  color: #5c6370;
+  font-style: italic;
+}
