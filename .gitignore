@@ -94,6 +94,11 @@ fabric.properties
 **/build/
 !src/**/build/
 
+# Eclipse/IDE-style compiled-output directories some tool integrations create
+# alongside (and duplicating) Gradle's own build/ — no repository tracks
+# anything under bin/, verified via `git ls-files | grep -E '(^|/)bin/'`.
+**/bin/
+
 # Ignore Gradle GUI config
 gradle-app.setting
 
