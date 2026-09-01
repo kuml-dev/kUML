@@ -1191,8 +1191,57 @@ jobs:
       - name: Setup Gradle
         if: steps.gate.outputs.has_token == 'true'
         uses: gradle/actions/setup-gradle@v4
+        with:
+          # The Plugin Verifier downloads several full IDE distributions into
+          # ~/.gradle/caches/modules-2 (recommended() = 6 IDEs, ~3 GB compressed / ~28 GB
+          # unpacked — measured locally). Saving that into the GitHub Actions Gradle cache
+          # would blow well past the 10 GB per-repo cache budget and evict every other
+          # cache entry this repo relies on.
+          cache-read-only: true
 
-      - name: Build, sign and publish plugin
+      - name: Free disk space for the Plugin Verifier IDE downloads
+        # recommended() resolves 6 IDE builds (~28 GB unpacked, measured locally) — a
+        # standard ubuntu-latest runner (~21 GB free) runs out of space partway through
+        # without this. Removing preinstalled toolchains this job never uses (no
+        # third-party action here: this step runs in the same job as the plugin signing
+        # and publish-token secrets below, and pulling in unpinned/unreviewed third-party
+        # actions into a secret-bearing job is exactly the kind of supply-chain surface
+        # this repo avoids elsewhere).
+        if: steps.gate.outputs.has_token == 'true'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup || true
+          df -h /
+
+      - name: Verify plugin (Marketplace gate)
+        # `clean` is mandatory per this repo's CLAUDE.md build-verification discipline —
+        # and, unlike runtimeZip/packageMsi/publishPlugins elsewhere in this file, the
+        # publish step previously had no `clean` at all before its one Gradle invocation.
+        # It belongs HERE, on the first of the two invocations only: the publish step
+        # below deliberately does NOT clean, so it reuses (rather than rebuilds) the exact
+        # artifact this step verified.
+        #
+        # verifyPlugin fails (default failureLevel — [COMPATIBILITY_PROBLEMS,
+        # INTERNAL_API_USAGES, OVERRIDE_ONLY_API_USAGES], verified in the plugin's own
+        # sources) on exactly the two problems that silently blocked every Marketplace
+        # submission from 0.51.0 through 0.53.0 (see CHANGELOG.md, [Unreleased]). This is
+        # the CI gate that would have caught that before the tag was ever pushed.
+        #
+        # Deliberately NO secrets in this step's environment. verifyPlugin downloads and
+        # executes the Plugin Verifier plus six full IDE distributions (~28 GB unpacked);
+        # running all of that with the plugin signing private key and the Marketplace
+        # publish token in the process environment would hand a very large amount of
+        # third-party code credentials it has no need for. Least privilege: verification
+        # needs no secret, so it gets none.
+        if: steps.gate.outputs.has_token == 'true'
+        run: ./gradlew clean :kuml-jetbrains:kuml-jetbrains-plugin:verifyPlugin
+
+      - name: Sign and publish plugin
+        # No `clean` here — intentional, and the only place in this file where its absence
+        # is correct. buildPlugin already ran (and was verified) in the step above; a
+        # second `clean` would delete that just-verified artifact and rebuild an
+        # unverified one, breaking the "what was verified is what gets published"
+        # guarantee this gate exists to provide. signPlugin/publishPlugin simply consume
+        # the up-to-date buildPlugin output from the same workspace.
         if: steps.gate.outputs.has_token == 'true'
         env:
           KUML_PLUGIN_CERTIFICATE_CHAIN: ${{ secrets.KUML_PLUGIN_CERTIFICATE_CHAIN }}

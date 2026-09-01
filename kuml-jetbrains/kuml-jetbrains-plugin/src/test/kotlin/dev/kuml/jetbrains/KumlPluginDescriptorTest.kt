@@ -124,14 +124,22 @@ class KumlPluginDescriptorTest :
             markdownSupportXml shouldNotContain "<depends>"
         }
 
-        test("kuml-markdown-support.xml registers fenceLanguageProvider and lineMarkerProvider") {
+        test("kuml-markdown-support.xml registers browserPreviewExtensionProvider, fenceLanguageProvider and lineMarkerProvider") {
             markdownSupportXml shouldContain "defaultExtensionNs=\"org.intellij.markdown\""
-            markdownSupportXml shouldContain "fenceGeneratingProvider"
-            markdownSupportXml shouldContain "dev.kuml.jetbrains.markdown.KumlMarkdownCodeFenceProvider"
+            markdownSupportXml shouldContain "browserPreviewExtensionProvider"
+            markdownSupportXml shouldContain "dev.kuml.jetbrains.markdown.KumlMarkdownPreviewExtension\$Provider"
             markdownSupportXml shouldContain "fenceLanguageProvider"
             markdownSupportXml shouldContain "dev.kuml.jetbrains.markdown.KumlMarkdownCodeFenceLanguageProvider"
             markdownSupportXml shouldContain "codeInsight.lineMarkerProvider"
             markdownSupportXml shouldContain "dev.kuml.jetbrains.markdown.KumlMarkdownLineMarkerProvider"
+        }
+
+        // Regression guard (2026-09): the internal CodeFenceGeneratingProvider EP blocked
+        // every JetBrains Marketplace submission with an INTERNAL_API_USAGES verifier
+        // failure — see KumlMarkdownPreviewExtension's kdoc. Never let it come back.
+        test("kuml-markdown-support.xml never re-registers the internal fenceGeneratingProvider EP") {
+            markdownSupportXml shouldNotContain "fenceGeneratingProvider"
+            markdownSupportXml shouldNotContain "CodeFenceGeneratingProvider"
         }
 
         test("kuml-asciidoc-support.xml is present on the classpath and is a valid fragment root") {
@@ -163,7 +171,7 @@ class KumlPluginDescriptorTest :
                 "KumlFoldingBuilder",
                 "KumlCompletionContributor",
                 "KumlRenameHandler",
-                "KumlMarkdownCodeFenceProvider",
+                "KumlMarkdownPreviewExtension",
                 "KumlMarkdownCodeFenceLanguageProvider",
                 "KumlMarkdownLineMarkerProvider",
                 "KumlAsciidocHtmlPanelProvider",

@@ -51,10 +51,10 @@ class KumlMarkdownLineMarkerProvider : LineMarkerProvider {
         fence: MarkdownCodeFence,
     ) {
         val fenceLanguage = fence.fenceLanguage.orEmpty()
-        val attributes = KumlMarkdownCodeFenceProvider.parseAttributes(fenceLanguage)
+        val attributes = KumlMarkdownFenceInfo.parseAttributes(fenceLanguage)
         val theme = attributes["theme"]?.takeIf { it in KumlPreviewSettings.THEMES } ?: KumlPreviewSettings.theme()
         val name = attributes["name"] ?: "diagram"
-        val scriptText = extractFenceContent(fence)
+        val scriptText = KumlMarkdownFenceInfo.extractFenceContent(fence)
         val project = fence.project
         val vFile = fence.containingFile.virtualFile
 
@@ -124,16 +124,5 @@ class KumlMarkdownLineMarkerProvider : LineMarkerProvider {
             com.intellij.ui.awt
                 .RelativePoint(event),
         )
-    }
-
-    companion object {
-        /**
-         * Extracts the code block text enclosed between the opening and closing fences.
-         */
-        fun extractFenceContent(fence: MarkdownCodeFence): String {
-            val lines = fence.text.lines()
-            if (lines.size <= 2) return ""
-            return lines.subList(1, lines.size - 1).joinToString("\n")
-        }
     }
 }

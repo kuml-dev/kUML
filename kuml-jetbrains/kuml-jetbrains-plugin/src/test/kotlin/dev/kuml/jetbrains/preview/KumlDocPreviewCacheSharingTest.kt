@@ -2,12 +2,10 @@ package dev.kuml.jetbrains.preview
 
 import dev.kuml.jetbrains.KumlPreviewRenderer
 import dev.kuml.jetbrains.asciidoc.KumlAsciidocHtmlRewriter
-import dev.kuml.jetbrains.markdown.KumlMarkdownCodeFenceProvider
+import dev.kuml.jetbrains.markdown.KumlMarkdownFenceHtml
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import org.intellij.markdown.IElementType
-import org.intellij.markdown.ast.ASTNode
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -16,15 +14,6 @@ class KumlDocPreviewCacheSharingTest :
         beforeEach {
             KumlDocPreviewCache.clear()
         }
-
-        fun createDummyNode(): ASTNode =
-            object : ASTNode {
-                override val endOffset: Int = 0
-                override val startOffset: Int = 0
-                override val type: IElementType = IElementType("DUMMY")
-                override val children: List<ASTNode> = emptyList()
-                override val parent: ASTNode? = null
-            }
 
         test("Markdown and AsciiDoc share ONE KumlDocPreviewCache LRU") {
             val source = "classDiagram { classOf(\"Shared\") }"
@@ -38,8 +27,7 @@ class KumlDocPreviewCacheSharingTest :
             KumlDocPreviewCache.size() shouldBe 1
 
             // 2. Verify Markdown uses the cached entry
-            val mdProvider = KumlMarkdownCodeFenceProvider()
-            val mdHtml = mdProvider.generateHtml("kuml name=\"shared-diagram\" theme=plain", source, createDummyNode())
+            val mdHtml = KumlMarkdownFenceHtml.render("kuml name=\"shared-diagram\" theme=plain", source)
             mdHtml shouldContain cachedSvg
 
             // 3. Verify AsciiDoc uses the same cached entry

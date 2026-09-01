@@ -6,6 +6,56 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+**`kuml-jetbrains-plugin`: JetBrains Marketplace publish was blocked by an internal-API verifier failure (0.51.0–0.53.0)**
+
+`KumlMarkdownCodeFenceProvider` implemented `org.intellij.plugins.markdown.extensions.CodeFenceGeneratingProvider`
+— an interface (and, as of IDE build 262, `@ApiStatus.Obsolete`) `@ApiStatus.Internal` — to render
+`kuml` fenced code blocks in the built-in Markdown preview. Every Marketplace submission since 0.51.0
+failed the Plugin Verifier with an `INTERNAL_API_USAGES` problem on all six `recommended()` IDE builds
+(243 through 262), which blocks upload outright; the CI publish step also had no `verifyPlugin` gate,
+so this went unnoticed at release time. Replaced with `MarkdownBrowserPreviewExtension` (the sanctioned,
+non-internal extension point): the standard `<pre><code class="language-kuml">` fence now stays in the
+preview DOM, and a bundled bridge script (`kuml-markdown-preview.js`) finds it, sends its source to the
+IDE over the JCEF `BrowserPipe`, and swaps in the rendered SVG the IDE side computes — same visual
+result, same theme/name/width attribute handling, same error/empty containers. Along the way: a plain
+Java class (`KumlBrowserPipeRequestHandler`) implements `BrowserPipe.Handler` instead of a Kotlin
+`object : ... { }` expression, because Kotlin synthesizes a forwarding override for the interface's
+*other*, untouched default method (`messageReceived`, removed entirely on IDE build 262+) even when only
+`processMessageReceived` is overridden — that synthetic override was itself a second, separate
+`COMPATIBILITY_PROBLEMS` verifier failure (an unresolved-method `invokespecial`, confirmed via `javap`),
+only found once the internal-API problem was fixed and `verifyPlugin` could run cleanly enough to surface
+it. `./gradlew :kuml-jetbrains:kuml-jetbrains-plugin:verifyPlugin` now passes (exit 0) against all six
+`recommended()` IDE builds with zero internal-API and zero compatibility-problem findings. Two
+pre-existing, non-blocking findings remain unchanged and are explicitly out of scope for this fix: the
+`supportsKotlinPluginMode` compatibility warning (the verifier appears not to read optional config-file
+fragments — `kuml-kotlin-support.xml` already declares it) and a `ReadAction.compute(ThrowableComputable)`
+deprecated-API usage on IDE builds 261/262 introduced by the new PSI lookup (informational only, does not
+fail verification). The release workflow's `publish-jetbrains-plugin` job now runs `verifyPlugin` before
+`publishPlugin` in the same `clean` invocation, so a future internal-API/compatibility regression fails
+CI instead of silently reaching the Marketplace queue.
+
+Three defects in the new bridge itself were found and fixed during review, all of them in the
+fence-identity path the browser and the IDE have to agree on:
+
+- **A rendered fence's `<pre>` is now hidden in place instead of being removed from the DOM.** The
+  ordinal the browser sends is a count over the live `pre > code` set, while the IDE side counts over
+  the pristine PSI — removing each fence as it rendered made the two counts diverge by exactly the
+  number of already-rendered fences, so from the second render pass onward *every* ordinal was wrong
+  and the content-match fallback was silently load-bearing for correctness.
+- **`resolveFence` no longer falls back to the positional guess when nothing matches by content.** That
+  fallback returned another fence's `(infoString, source)` pair, and the `source` half is what actually
+  gets rendered — so a fence could display a *different* fence's diagram. Reachable whenever the preview
+  DOM lags the PSI (mid-typing debounce), where the browser legitimately sends a source no PSI fence
+  matches yet. It now returns `null`, and the caller renders the browser's own source under the default
+  info string: worst case is the default theme/name for one pass, never someone else's diagram.
+- **Every accepted render request now produces exactly one response.** An unexpected failure was
+  swallowed with no reply, and the bridge script skips a fence while its in-flight request still matches
+  its content — so a single failure left that fence permanently blank, with no retry and no error shown.
+  Unexpected failures now render an error container, and the in-flight marker is cleared on every
+  terminal path.
+
 ## [0.53.0] — 2026-08-25
 
 ### Security

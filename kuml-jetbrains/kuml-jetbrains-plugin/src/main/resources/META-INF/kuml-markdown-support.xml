@@ -1,7 +1,7 @@
 <idea-plugin>
     <extensions defaultExtensionNs="org.intellij.markdown">
-        <fenceGeneratingProvider
-            implementation="dev.kuml.jetbrains.markdown.KumlMarkdownCodeFenceProvider"/>
+        <browserPreviewExtensionProvider
+            implementation="dev.kuml.jetbrains.markdown.KumlMarkdownPreviewExtension$Provider"/>
         <fenceLanguageProvider
             implementation="dev.kuml.jetbrains.markdown.KumlMarkdownCodeFenceLanguageProvider"/>
     </extensions>
