@@ -1,6 +1,6 @@
 package dev.kuml.renderer.kuiver
 
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.dk.kuiver.model.Kuiver
 import com.dk.kuiver.model.KuiverEdge
@@ -25,11 +25,19 @@ import dev.kuml.layout.LayoutResult
  *   for the `LayoutConfig.Custom` provider. Edge IDs are passed through directly.
  * - `KuiverNode.dimensions` uses `Dp`, not raw `Float`. Values from the
  *   `LayoutResult` are in abstract pixels; they are wrapped in `.dp` so Kuiver
- *   treats them as density-independent points.
+ *   treats them as density-independent points. `KuiverNode.position` is
+ *   `DpOffset` (not `androidx.compose.ui.geometry.Offset`) — both axes are
+ *   converted via `.dp` individually, same as the dimensions above.
  * - `LayoutConfig.Custom` accepts a `(Kuiver, LayoutConfig) -> Kuiver` provider
- *   (not `(Kuiver) -> Map<id, Offset>`). The provider returns the *same* Kuiver
- *   with node positions already set — our positions come from the `LayoutResult`,
- *   so we update each node's `position` field in place.
+ *   (not `(Kuiver) -> Map<id, Offset>`). The provider returns a *new* Kuiver
+ *   with node positions already set — our positions come from the `LayoutResult`.
+ *   Since kuiver 0.4.1, `Kuiver` itself is immutable: the mutable `addNode`/
+ *   `addEdge` pair now lives on `com.dk.kuiver.model.KuiverBuilder` (the
+ *   `buildKuiver { }` lambda receiver, used in [toKuiver] below), while code
+ *   that already holds a `Kuiver` instance builds the updated graph functionally
+ *   via `withNodes`/`withEdges` — nodes first, because `withEdge`/`withEdges`
+ *   validate that both endpoints already exist and throw `IllegalArgumentException`
+ *   otherwise.
  */
 internal object KuiverGraphAdapter {
     /**
@@ -51,9 +59,9 @@ internal object KuiverGraphAdapter {
                                 height = nodeLayout.bounds.size.height.dp,
                             ),
                         position =
-                            Offset(
-                                x = nodeLayout.bounds.origin.x,
-                                y = nodeLayout.bounds.origin.y,
+                            DpOffset(
+                                x = nodeLayout.bounds.origin.x.dp,
+                                y = nodeLayout.bounds.origin.y.dp,
                             ),
                     ),
                 )
@@ -82,26 +90,26 @@ internal object KuiverGraphAdapter {
                 // Positions are already baked into the KuiverNodes by toKuiver().
                 // We only need to apply the LayoutResult positions onto the measured
                 // graph (which may have had null dimensions filled in by Kuiver).
-                val positioned = Kuiver()
-                kuiver.nodes.forEach { (id, node) ->
-                    val nodeId = dev.kuml.layout.NodeId(id)
-                    val nodeLayout = layoutResult.nodes[nodeId]
-                    if (nodeLayout != null) {
-                        positioned.addNode(
+                // Kuiver is immutable since 0.4.1, so the updated graph is built
+                // functionally instead of via the old addNode/addEdge mutation —
+                // nodes before edges, since withEdges validates both endpoints exist.
+                val positionedNodes =
+                    kuiver.nodes.map { (id, node) ->
+                        val nodeId = dev.kuml.layout.NodeId(id)
+                        val nodeLayout = layoutResult.nodes[nodeId]
+                        if (nodeLayout != null) {
                             node.copy(
                                 position =
-                                    Offset(
-                                        x = nodeLayout.bounds.origin.x,
-                                        y = nodeLayout.bounds.origin.y,
+                                    DpOffset(
+                                        x = nodeLayout.bounds.origin.x.dp,
+                                        y = nodeLayout.bounds.origin.y.dp,
                                     ),
-                            ),
-                        )
-                    } else {
-                        positioned.addNode(node)
+                            )
+                        } else {
+                            node
+                        }
                     }
-                }
-                kuiver.edges.forEach { edge -> positioned.addEdge(edge) }
-                positioned
+                Kuiver().withNodes(positionedNodes).withEdges(kuiver.edges)
             },
         )
 }

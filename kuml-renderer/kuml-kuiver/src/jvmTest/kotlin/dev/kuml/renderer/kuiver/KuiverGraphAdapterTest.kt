@@ -85,8 +85,8 @@ class KuiverGraphAdapterTest {
         val kuiver = KuiverGraphAdapter.toKuiver(result)
         val node = kuiver.nodes["N1"]
         node shouldNotBe null
-        node!!.position.x shouldBe 10f
-        node.position.y shouldBe 20f
+        node!!.position.x.value shouldBe 10f
+        node.position.y.value shouldBe 20f
         node.dimensions shouldNotBe null
         node.dimensions!!.width.value shouldBe 120f
         node.dimensions!!.height.value shouldBe 60f
@@ -107,9 +107,13 @@ class KuiverGraphAdapterTest {
         val original = KuiverGraphAdapter.toKuiver(result)
         val positioned = config.provider.invoke(original, config)
         positioned.nodes["P1"] shouldNotBe null
-        positioned.nodes["P1"]!!.position.x shouldBe 50f
-        positioned.nodes["P1"]!!.position.y shouldBe 75f
-        positioned.nodes["P2"]!!.position.x shouldBe 200f
-        positioned.nodes["P2"]!!.position.y shouldBe 75f
+        positioned.nodes["P1"]!!
+            .position.x.value shouldBe 50f
+        positioned.nodes["P1"]!!
+            .position.y.value shouldBe 75f
+        positioned.nodes["P2"]!!
+            .position.x.value shouldBe 200f
+        positioned.nodes["P2"]!!
+            .position.y.value shouldBe 75f
     }
 }

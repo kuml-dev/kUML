@@ -23,13 +23,27 @@ this repo deliberately pins to (see the comment above `detekt-api` in
 `./gradlew clean check` passes across the whole monorepo (1984 tasks) with all
 thirteen bumps applied.
 
-**Not bumped: `kuiver` 0.3.0 → 0.4.1 (reverted after a failed attempt)** — despite
-looking like a routine minor bump, kuiver 0.4.1 is a real breaking change against
-`kuml-renderer/kuml-kuiver/src/jvmMain/kotlin/dev/kuml/renderer/kuiver/KuiverGraphAdapter.kt`:
-`addNode`/`addEdge` no longer resolve, and the graph API now expects `DpOffset`
-where it previously took `Offset`. Fixing the adapter for the new API is a
-separate, scoped task, not a version-catalog edit — left at 0.3.0 pending that
-work.
+**Bumped `kuiver` 0.3.0 → 0.4.1** — the breaking change flagged in the previous
+(reverted) attempt is now migrated: `Kuiver` became immutable in 0.4.1 (only
+`withNode`/`withNodes`/`withEdge`/`withEdges`/`withoutNode`/`withoutEdge`/
+`rebuild{}` remain; the mutable `addNode`/`addEdge` pair moved to a new
+`KuiverBuilder` class, which is also the `buildKuiver { }` lambda receiver — so
+the node/edge construction loop in `KuiverGraphAdapter.toKuiver()` needed no
+change beyond the position type below). The real fix is in
+`KuiverGraphAdapter.layoutConfig()`, which previously mutated a bare `Kuiver()`
+via `addNode`/`addEdge` — that no longer compiles, so it now builds the
+positioned node list functionally and applies it via
+`Kuiver().withNodes(...).withEdges(...)` (nodes before edges — `withEdge`/
+`withEdges` validate that both endpoints already exist and throw
+`IllegalArgumentException` otherwise). Also, `KuiverNode.position` changed from
+`androidx.compose.ui.geometry.Offset` to `androidx.compose.ui.unit.DpOffset`;
+both call sites in `KuiverGraphAdapter.kt` now convert the `LayoutResult`'s raw
+pixel floats via `.dp` per axis. `KuiverViewer`'s `edgeContent` callback
+(`source`/`target: Offset`) is unaffected — that stayed on `Offset` in 0.4.1, so
+`EdgeContentDispatcher`, `GenericFallbackEdge`, `C4Edges`, `UmlEdges` and the UML
+node-drawing Composables needed no changes. No other module in the monorepo
+depends on `:kuml-renderer:kuml-kuiver`. `./gradlew clean check` verified green
+across the whole monorepo.
 
 **Major-version dependency/plugin updates (the remaining, higher-risk candidates from the same sweep)**
 
