@@ -6,6 +6,31 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Changed
+
+**Routine dependency/plugin updates (13 of 14 candidates from a full `dependencyUpdates` sweep)**
+
+Bumped to the latest stable release: `ktor` 3.5.1 → 3.5.2, `kotest` 6.2.1 → 6.2.4,
+`sqlite-jdbc` 3.53.2.0 → 3.53.4.0, `elk` (layout engine) 0.11.0 → 0.12.0, `coil`
+3.5.0 → 3.6.1, `markdown-renderer` (multiplatform-markdown-renderer-m3) 0.43.0 →
+0.45.0, `xtext-xbase-lib` 2.43.0 → 2.44.0, `eclipse-emf-ecore` 2.40.0 → 2.43.0,
+`eclipse-emf-ecore-xmi` 2.40.0 → 2.41.0, the `graalvm-native` Gradle plugin/library
+1.1.3 → 1.1.11, the `shadow` Gradle plugin 9.4.3 → 9.6.1, and the
+`intellij-platform` Gradle plugin 2.17.0 → 2.18.1. Also re-verified and bumped
+`detekt` 2.0.0-alpha.5 → 2.0.0-alpha.6, staying on the alpha K2/Analysis-API line
+this repo deliberately pins to (see the comment above `detekt-api` in
+`gradle/libs.versions.toml`) — the pinning rationale still holds unchanged.
+`./gradlew clean check` passes across the whole monorepo (1984 tasks) with all
+thirteen bumps applied.
+
+**Not bumped: `kuiver` 0.3.0 → 0.4.1 (reverted after a failed attempt)** — despite
+looking like a routine minor bump, kuiver 0.4.1 is a real breaking change against
+`kuml-renderer/kuml-kuiver/src/jvmMain/kotlin/dev/kuml/renderer/kuiver/KuiverGraphAdapter.kt`:
+`addNode`/`addEdge` no longer resolve, and the graph API now expects `DpOffset`
+where it previously took `Offset`. Fixing the adapter for the new API is a
+separate, scoped task, not a version-catalog edit — left at 0.3.0 pending that
+work.
+
 ### Fixed
 
 **`kuml-jetbrains-plugin`: JetBrains Marketplace publish was blocked by an internal-API verifier failure (0.51.0–0.53.0)**
