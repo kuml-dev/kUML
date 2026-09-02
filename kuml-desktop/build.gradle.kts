@@ -43,7 +43,7 @@ kotlin {
                     implementation(libs.kotlin.scripting.jvm)
                     implementation(libs.kotlin.scripting.jvm.host)
                     implementation(libs.kotlin.reflect)
-                    implementation("com.fifesoft:rsyntaxtextarea:3.5.3")
+                    implementation("com.fifesoft:rsyntaxtextarea:4.0.1")
                     // V3.0.24 — AI panel integration
                     implementation(project(":kuml-ai:kuml-ai-core"))
                     implementation(project(":kuml-ai:kuml-ai-tools"))

@@ -12,7 +12,7 @@ dependencies {
     implementation(project(":kuml-plugin-api:kuml-plugin-api-renderer"))
     implementation(project(":kuml-plugin-api:kuml-plugin-api-core"))
     implementation(project(":kuml-core:kuml-core-model"))
-    implementation("org.apache.pdfbox:pdfbox:3.0.2")
+    implementation("org.apache.pdfbox:pdfbox:3.0.8")
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
 }

@@ -31,6 +31,32 @@ where it previously took `Offset`. Fixing the adapter for the new API is a
 separate, scoped task, not a version-catalog edit — left at 0.3.0 pending that
 work.
 
+**Major-version dependency/plugin updates (the remaining, higher-risk candidates from the same sweep)**
+
+Bumped four dependencies that looked like they needed real migration work but turned
+out to compile and test clean as-is: `koog`/`koog-agents` 1.0.0 → 1.2.0 (with
+`koog-mcp`/`koog-google` following from `1.0.0-beta-preview7` to `1.2.0-beta` — the
+AI executor, tool-calling, provider settings and desktop AI panel all exercise this),
+`org.eclipse.lsp4j` 0.24.0 → 1.0.0 (`kuml-language-server`), the
+`com.gradle.plugin-publish` Gradle plugin 1.3.1 → 2.1.1 (`kuml-gradle-plugin`'s
+Gradle Plugin Portal publishing, `gradlePlugin { website/vcsUrl/tags }` DSL
+unchanged across the major version), and `com.fifesoft:rsyntaxtextarea` 3.5.3 →
+4.0.1 (the desktop DSL editor pane and its find controller). Also bumped
+`org.apache.pdfbox:pdfbox` 3.0.2 → 3.0.8 (`plugin-renderer-pdf` example plugin,
+patch-level within the 3.x line). `./gradlew clean check` verified green across the
+whole monorepo (1984 tasks) with all five applied.
+
+Two further "large jump" candidates from the sweep were investigated and found to be
+**not independently actionable**: `io.github.oshai:kotlin-logging` (5.1.0 → 8.0.4 in
+the report) and the `org.junit.platform:junit-platform-console/-launcher/-reporting`
+family (1.13.4 → 6.1.3) are both purely transitive in this repo — neither is declared
+in any `build.gradle.kts`/`libs.versions.toml`, and `KotlinLogging`/`io.github.oshai`
+has no call sites anywhere in the codebase (kUML's own code logs through the SLF4J
+facade directly, per the `logback-classic` comment in `gradle/libs.versions.toml`).
+Both will move only as a side effect of bumping whatever pulls them in transitively
+(`koog` for kotlin-logging; likely `graalvm-native`/JUnit BOM alignment for the
+platform artifacts) — no standalone catalog entry to bump.
+
 ### Fixed
 
 **`kuml-jetbrains-plugin`: JetBrains Marketplace publish was blocked by an internal-API verifier failure (0.51.0–0.53.0)**
