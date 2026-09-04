@@ -73,6 +73,35 @@ platform artifacts) — no standalone catalog entry to bump.
 
 ### Fixed
 
+**Implemented `C4DslPrinter` and `Sysml2DslPrinter`, closing the two `ScriptSerializer` TODO stubs**
+
+The desktop AI agent could not write C4 or SysML 2 model changes back into the editor —
+`ScriptSerializer.toDsl()` returned only a `// TODO V3.0.26` comment for `AnyKumlModel.C4`/
+`.Sysml2`, so any agent edit to those two model kinds vanished instead of appearing in the
+script. Both model kinds now round-trip through a real printer, mirroring the existing
+`UmlModelDslPrinter`. `C4DslPrinter` (new, `kuml-core-dsl`,
+`dev.kuml.c4.dsl.print`) reconstructs the nested Person/SoftwareSystem/Container/Component/
+DeploymentNode structure — including a `lateinit var` hoisting scheme for container/component
+references that only exist inside their enclosing DSL lambda — and all six C4 diagram types:
+SystemContext/SystemLandscape/Deployment/Dynamic reconstruct exactly, while Container/Component
+diagrams are best-effort (the builder only exposes coarse `show*`/`exclude()` flags, no
+per-element `include()`) with a `// TODO` fallback when the reachable reconstruction doesn't
+match the original element set bit-for-bit. `Sysml2DslPrinter` (new, `kuml-metamodel-sysml2`,
+`dev.kuml.sysml2.dsl.print`) reconstructs all 12 definition types (with explicit `id =`, since
+unlike C4 the SysML 2 DSL preserves ids) and all 8 diagram types exactly via `includeById(...)`;
+`PartDefinition`/`LifelineDefinition`/`ActivityPartitionDefinition` are always bound to a `val`
+so the three DSL calls that need an object reference (`ibd(owner =)`, `executionSpec(lifeline =)`,
+`actionDef(partition =)`) can always resolve one. Both printers document their known
+non-round-tripping fields in their class KDoc (e.g. `C4Model.description` is accepted but never
+stored by the builder; `AttributeUsage.defaultExpression` has no public parser back from its
+spec-form string) rather than silently dropping data — every unreachable field becomes a visible
+`// TODO` comment in the printed script. Verified with new `C4DslPrinterTest`/
+`Sysml2DslPrinterTest` unit tests plus two new `ScriptSerializerTest` cases that round-trip a
+non-trivial model through the real `KumlScriptHost` compiler. `AgentRunner` still uses
+`KumlToolRegistry.forUml()` (not `.full()`) — switching to a C4/SysML2-aware tool registry is an
+explicit follow-up, deferred because the Container/Component diagram best-effort gap means an
+agent editing one of those two diagram types could still see a stale preview.
+
 **`kuml-jetbrains-plugin`: JetBrains Marketplace publish was blocked by an internal-API verifier failure (0.51.0–0.53.0)**
 
 `KumlMarkdownCodeFenceProvider` implemented `org.intellij.plugins.markdown.extensions.CodeFenceGeneratingProvider`

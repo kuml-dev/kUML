@@ -104,11 +104,16 @@ class AgentRunner(
                     }
 
                 // V3.2.x — real tool-calling: only UML editing/inspection tools are offered.
-                // KumlToolRegistry.full() also pulls in C4/SysML2 tools whose ScriptSerializer
-                // paths are still TODO stubs (see ScriptSerializer.kt) — offering tools whose
-                // result can never be written back to the script would be a second lie in the
-                // UI (design review). withMcpBridge() is also a documented no-op — not worth
-                // the surface either.
+                // ScriptSerializer's C4/SysML2 printers are no longer TODO stubs (C4DslPrinter /
+                // Sysml2DslPrinter, see ScriptSerializer.kt) — C4/SysML2 tools would technically be
+                // writable back to the script now. Still deliberately NOT switching to
+                // KumlToolRegistry.full() here: (1) it also pulls in CodeGenAiTools and a
+                // withMcpBridge() no-op, neither in scope; (2) C4's ContainerDiagram/ComponentDiagram
+                // reconstruction is best-effort with a `// TODO` fallback (see C4DslPrinter KDoc) — an
+                // agent editing one of those two diagram types could still see the UI-lie the original
+                // comment warned about. Left as an explicit follow-up: a narrower
+                // KumlToolRegistry.forUmlC4Sysml2(ctx) (UML + C4 + SysML2 + rendering/inspection, no
+                // CodeGen/MCP) is the natural next step once that residual gap is acceptable or closed.
                 val toolRegistry: ToolRegistry? = editingContext?.let { KumlToolRegistry.forUml(it) }
                 val toolDescriptors = toolRegistry?.tools?.map { it.descriptor } ?: emptyList()
 
