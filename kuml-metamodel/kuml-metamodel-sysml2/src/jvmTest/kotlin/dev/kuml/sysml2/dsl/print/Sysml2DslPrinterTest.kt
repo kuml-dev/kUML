@@ -243,31 +243,44 @@ class Sysml2DslPrinterTest :
             dsl shouldContain "constraint(name = \"hasMass\", body = \"self.mass->notEmpty()\")"
         }
 
-        test("isAbstract on AttributeDefinition cannot be reconstructed and becomes a TODO") {
-            val base = sysml2Model(name = "Test") { attributeDef(name = "Mass") }
-            val withAbstract =
-                base.copy(
-                    definitions =
-                        listOf((base.definitions.first() as dev.kuml.sysml2.AttributeDefinition).copy(isAbstract = true)),
-                )
-            val dsl = Sysml2DslPrinter.print(withAbstract)
-            dsl shouldContain "TODO: AttributeDefinition Mass"
-            dsl shouldContain "has no isAbstract parameter"
+        test("isAbstract on AttributeDefinition/PortDefinition/ConnectionDefinition round-trips (ADR-0017 Wave B)") {
+            val model =
+                sysml2Model(name = "Test") {
+                    attributeDef(name = "Mass", isAbstract = true)
+                    portDef(name = "Inlet", isAbstract = true)
+                    connectionDef(name = "PowerLine", isAbstract = true)
+                }
+            val dsl = Sysml2DslPrinter.print(model)
+            dsl shouldContain "attributeDef(name = \"Mass\", id = \"Mass\", isAbstract = true)"
+            dsl shouldContain "portDef(name = \"Inlet\", id = \"Inlet\", isAbstract = true)"
+            dsl shouldContain "connectionDef(name = \"PowerLine\", id = \"PowerLine\", isAbstract = true)"
+            dsl shouldNotContain "// TODO"
         }
 
         test("a Sysml2Usage type without a DSL constructor becomes a TODO instead of a crash") {
+            // IncludeUsage/ExtendUsage remain intentionally unsupported by any top-level usage
+            // constructor (the diagram-level UcDiagram edges are the DSL-supported path for that
+            // relationship) — unlike the 8 Wave B usage types (ActorUsage etc.), which now have
+            // DSL constructors and so no longer exercise this fallback.
             val base =
                 sysml2Model(name = "Test") {
-                    actorDef(name = "Reader")
+                    useCaseDef(name = "BorrowBook")
+                    useCaseDef(name = "Authenticate")
                 }
-            val actorUsage =
-                dev.kuml.sysml2.ActorUsage(id = "orphan-actor-usage", name = "reader", definitionId = "Reader")
-            val withOrphanUsage = base.copy(usages = base.usages + actorUsage)
+            val includeUsage =
+                dev.kuml.sysml2.IncludeUsage(
+                    id = "orphan-include-usage",
+                    name = "borrowIncludesAuth",
+                    definitionId = "Authenticate",
+                    sourceUseCaseId = "BorrowBook",
+                    targetUseCaseId = "Authenticate",
+                )
+            val withOrphanUsage = base.copy(usages = base.usages + includeUsage)
             val dsl = Sysml2DslPrinter.print(withOrphanUsage)
-            dsl shouldContain "TODO: Sysml2Usage of type 'ActorUsage'"
+            dsl shouldContain "TODO: Sysml2Usage of type 'IncludeUsage'"
         }
 
-        test("PartDefinition with more than one specialization cannot be reconstructed and becomes a TODO") {
+        test("PartDefinition with more than one specialization still becomes a TODO (malformed data, not DSL-reachable)") {
             val base = sysml2Model(name = "Test") { partDef(name = "Vehicle") }
             val vehicleDef = base.definitions.first() as PartDefinition
             val withSpecializations =
@@ -290,7 +303,7 @@ class Sysml2DslPrinterTest :
             dsl shouldContain "val s2v0 = partDef(name = \"Vehicle\", id = \"Vehicle\")"
         }
 
-        test("PartDefinition with a foreign specificId specialization cannot be reconstructed and becomes a TODO") {
+        test("PartDefinition with a foreign specificId specialization still becomes a TODO (malformed data, not DSL-reachable)") {
             val base = sysml2Model(name = "Test") { partDef(name = "Vehicle") }
             val vehicleDef = base.definitions.first() as PartDefinition
             val withForeignSpec =
@@ -375,6 +388,84 @@ class Sysml2DslPrinterTest :
             dsl shouldContain "seqDiagram(\"seq\")"
             dsl shouldContain "parDiagram(\"par\")"
             dsl shouldNotContain "// TODO"
+        }
+
+        // ── ADR-0017 Wave B: specializesId on all 12 definition types ──────────
+
+        test("specializesId round-trips on attributeDef/portDef/connectionDef (previously unsupportedSpecializationTodo)") {
+            val model =
+                sysml2Model(name = "Test") {
+                    val length = attributeDef(name = "Length")
+                    attributeDef(name = "Mass", specializesId = length.id)
+                    val genericPort = portDef(name = "GenericPort")
+                    portDef(name = "Inlet", specializesId = genericPort.id)
+                    val genericConn = connectionDef(name = "GenericLine")
+                    connectionDef(name = "PowerLine", specializesId = genericConn.id)
+                }
+            val dsl = Sysml2DslPrinter.print(model)
+            dsl shouldContain "attributeDef(name = \"Mass\", id = \"Mass\", specializesId = \"Length\")"
+            dsl shouldContain "portDef(name = \"Inlet\", id = \"Inlet\", specializesId = \"GenericPort\")"
+            dsl shouldContain "connectionDef(name = \"PowerLine\", id = \"PowerLine\", specializesId = \"GenericLine\")"
+            dsl shouldNotContain "// TODO"
+        }
+
+        test("specializesId round-trips on stateDef and constraintDef") {
+            val model =
+                sysml2Model(name = "Test") {
+                    val genericState = stateDef(name = "GenericState")
+                    stateDef(name = "Red", specializesId = genericState.id)
+                    val genericConstraint = constraintDef(name = "GenericConstraint")
+                    constraintDef(name = "NewtonsLaw", specializesId = genericConstraint.id)
+                }
+            val dsl = Sysml2DslPrinter.print(model)
+            dsl shouldContain "stateDef(name = \"Red\", id = \"Red\", specializesId = \"GenericState\")"
+            dsl shouldContain "constraintDef(name = \"NewtonsLaw\", id = \"NewtonsLaw\", specializesId = \"GenericConstraint\")"
+            dsl shouldNotContain "// TODO"
+        }
+
+        // ── ADR-0017 Wave B: 8 previously-missing Sysml2Usage DSL constructors ─
+
+        test("all 8 Wave B top-level usage types print without any TODO fallback") {
+            val model =
+                sysml2Model(name = "WaveBUsages") {
+                    val actor = actorDef(name = "Reader")
+                    val useCase = useCaseDef(name = "BorrowBook")
+                    val requirement = requirementDef(name = "TopSpeed")
+                    val state = stateDef(name = "Red")
+                    val action = actionDef(name = "Validate")
+                    val partition = activityPartition(name = "Customer")
+                    val lifeline = lifelineDef(name = "Browser")
+                    val constraint = constraintDef(name = "NewtonsLaw")
+                    actorUsage(name = "reader1", actor = actor)
+                    useCaseUsage(name = "borrow1", useCase = useCase)
+                    requirementUsage(name = "topSpeed1", requirement = requirement)
+                    stateUsage(name = "red1", state = state)
+                    actionUsage(name = "validate1", action = action)
+                    activityPartitionUsage(name = "customer1", partition = partition)
+                    lifelineUsage(name = "browser1", lifeline = lifeline)
+                    constraintUsage(name = "newton1", constraint = constraint)
+                }
+            val dsl = Sysml2DslPrinter.print(model)
+            dsl shouldContain "actorUsageById(name = \"reader1\", definitionId = \"Reader\""
+            dsl shouldContain "useCaseUsageById(name = \"borrow1\", definitionId = \"BorrowBook\""
+            dsl shouldContain "requirementUsageById(name = \"topSpeed1\", definitionId = \"TopSpeed\""
+            dsl shouldContain "stateUsageById(name = \"red1\", definitionId = \"Red\""
+            dsl shouldContain "actionUsageById(name = \"validate1\", definitionId = \"Validate\""
+            dsl shouldContain "activityPartitionUsageById(name = \"customer1\", definitionId = \"Customer\""
+            dsl shouldContain "lifelineUsageById(name = \"browser1\", definitionId = \"Browser\""
+            dsl shouldContain "constraintUsageById(name = \"newton1\", definitionId = \"NewtonsLaw\""
+            dsl shouldNotContain "// TODO"
+        }
+
+        test("non-default multiplicity on a Wave B usage type triggers the KermlMultiplicity import") {
+            val model =
+                sysml2Model(name = "Test") {
+                    val state = stateDef(name = "Red")
+                    stateUsage(name = "reds", state = state, multiplicity = KermlMultiplicity.ZERO_OR_MORE)
+                }
+            val dsl = Sysml2DslPrinter.print(model)
+            dsl shouldContain "import dev.kuml.kerml.KermlMultiplicity"
+            dsl shouldContain "stateUsageById(name = \"reds\", definitionId = \"Red\", multiplicity = KermlMultiplicity.ZERO_OR_MORE"
         }
 
         // ── comment-injection regression tests ─────────────────────────────

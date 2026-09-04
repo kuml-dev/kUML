@@ -5,9 +5,12 @@ import dev.kuml.kerml.KermlSpecialization
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActionPin
+import dev.kuml.sysml2.ActionUsage
 import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActivityPartitionDefinition
+import dev.kuml.sysml2.ActivityPartitionUsage
 import dev.kuml.sysml2.ActorDefinition
+import dev.kuml.sysml2.ActorUsage
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
@@ -19,10 +22,12 @@ import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ConstraintParameter
+import dev.kuml.sysml2.ConstraintUsage
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
+import dev.kuml.sysml2.LifelineUsage
 import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
@@ -37,8 +42,10 @@ import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.ReqSatisfy
 import dev.kuml.sysml2.ReqVerify
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.RequirementUsage
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StateUsage
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Diagram
@@ -50,6 +57,7 @@ import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UcExtend
 import dev.kuml.sysml2.UcInclude
 import dev.kuml.sysml2.UseCaseDefinition
+import dev.kuml.sysml2.UseCaseUsage
 import dev.kuml.sysml2.units.UnitValue
 
 /**
@@ -116,6 +124,8 @@ class Sysml2ModelBuilder(
     fun attributeDef(
         name: String,
         id: String = name,
+        isAbstract: Boolean = false,
+        specializesId: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): AttributeDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -123,7 +133,9 @@ class Sysml2ModelBuilder(
             AttributeDefinition(
                 id = id,
                 name = name,
+                isAbstract = isAbstract,
                 features = builder.features(),
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
             )
         definitions += def
         return def
@@ -133,6 +145,8 @@ class Sysml2ModelBuilder(
     fun portDef(
         name: String,
         id: String = name,
+        isAbstract: Boolean = false,
+        specializesId: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): PortDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -140,7 +154,9 @@ class Sysml2ModelBuilder(
             PortDefinition(
                 id = id,
                 name = name,
+                isAbstract = isAbstract,
                 features = builder.features(),
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
             )
         definitions += def
         return def
@@ -150,6 +166,8 @@ class Sysml2ModelBuilder(
     fun connectionDef(
         name: String,
         id: String = name,
+        isAbstract: Boolean = false,
+        specializesId: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): ConnectionDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -157,7 +175,9 @@ class Sysml2ModelBuilder(
             ConnectionDefinition(
                 id = id,
                 name = name,
+                isAbstract = isAbstract,
                 features = builder.features(),
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
             )
         definitions += def
         return def
@@ -174,6 +194,7 @@ class Sysml2ModelBuilder(
         name: String,
         id: String = name,
         isAbstract: Boolean = false,
+        specializesId: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): ActorDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -183,6 +204,7 @@ class Sysml2ModelBuilder(
                 name = name,
                 isAbstract = isAbstract,
                 features = builder.features(),
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
             )
         definitions += def
         return def
@@ -198,6 +220,7 @@ class Sysml2ModelBuilder(
         name: String,
         id: String = name,
         isAbstract: Boolean = false,
+        specializesId: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): UseCaseDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -207,6 +230,7 @@ class Sysml2ModelBuilder(
                 name = name,
                 isAbstract = isAbstract,
                 features = builder.features(),
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
             )
         definitions += def
         return def
@@ -236,6 +260,7 @@ class Sysml2ModelBuilder(
         text: String = "",
         subject: String? = null,
         isAbstract: Boolean = false,
+        specializesId: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): RequirementDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -248,6 +273,7 @@ class Sysml2ModelBuilder(
                 text = text,
                 reqId = reqId,
                 subject = subject,
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
             )
         definitions += def
         return def
@@ -275,6 +301,7 @@ class Sysml2ModelBuilder(
         exitAction: String? = null,
         doAction: String? = null,
         isAbstract: Boolean = false,
+        specializesId: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): StateDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -289,6 +316,7 @@ class Sysml2ModelBuilder(
                 entryAction = entryAction,
                 exitAction = exitAction,
                 doAction = doAction,
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
             )
         definitions += def
         return def
@@ -519,6 +547,7 @@ class Sysml2ModelBuilder(
         action: String? = null,
         kind: ActivityNodeKind = ActivityNodeKind.Action,
         isAbstract: Boolean = false,
+        specializesId: String? = null,
         partition: ActivityPartitionDefinition? = null,
         pins: List<ActionPin> = emptyList(),
         block: DefinitionBuilder.() -> Unit = {},
@@ -534,6 +563,7 @@ class Sysml2ModelBuilder(
                 action = action,
                 partitionId = partition?.id,
                 pins = pins,
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
             )
         definitions += def
         return def
@@ -659,6 +689,7 @@ class Sysml2ModelBuilder(
         id: String = name,
         represents: String? = null,
         isAbstract: Boolean = false,
+        specializesId: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): ActivityPartitionDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -669,6 +700,7 @@ class Sysml2ModelBuilder(
                 isAbstract = isAbstract,
                 features = builder.features(),
                 represents = represents,
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
             )
         definitions += def
         return def
@@ -820,6 +852,7 @@ class Sysml2ModelBuilder(
         id: String = name,
         represents: String? = null,
         isAbstract: Boolean = false,
+        specializesId: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): LifelineDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -830,6 +863,7 @@ class Sysml2ModelBuilder(
                 isAbstract = isAbstract,
                 features = builder.features(),
                 represents = represents,
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
             )
         definitions += def
         return def
@@ -1058,6 +1092,7 @@ class Sysml2ModelBuilder(
         expression: String = "",
         parameters: List<ConstraintParameter> = emptyList(),
         isAbstract: Boolean = false,
+        specializesId: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): ConstraintDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -1069,6 +1104,7 @@ class Sysml2ModelBuilder(
                 features = builder.features(),
                 expression = expression,
                 parameters = parameters,
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
             )
         definitions += def
         return def
@@ -1136,6 +1172,206 @@ class Sysml2ModelBuilder(
         val diagram = ParDiagram(name = name, elementIds = builder.ids())
         diagrams += diagram
         return diagram
+    }
+
+    // ── Top-level usage-only DSL constructors (ADR-0017 Wave B) ─────────────
+
+    /**
+     * `actor reader : Reader` — top-level [ActorUsage] typed by an
+     * [ActorDefinition]. Closes one of the 8 `Sysml2Usage` DSL-completeness
+     * gaps from ADR-0017 Wave B: the type already existed in the metamodel
+     * (for symmetry with [PartUsage]) but had no DSL constructor. Not
+     * currently consumed by the renderer/bridge — [UcDiagram] renders
+     * [ActorDefinition]s directly — this only closes the DSL-construction gap.
+     */
+    fun actorUsage(
+        name: String,
+        actor: ActorDefinition,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): ActorUsage = actorUsageById(name = name, definitionId = actor.id, id = id, multiplicity = multiplicity)
+
+    /** Id-only variant of [actorUsage] — for forward refs / id-only setups. */
+    fun actorUsageById(
+        name: String,
+        definitionId: String,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): ActorUsage {
+        val usage = ActorUsage(id = id, name = name, qualifiedName = name, definitionId = definitionId, multiplicity = multiplicity)
+        registerUsage(usage)
+        return usage
+    }
+
+    /**
+     * `usecase borrowBook : BorrowBook` — top-level [UseCaseUsage] typed by a
+     * [UseCaseDefinition]. See [actorUsage] KDoc for the ADR-0017 Wave B
+     * rationale.
+     */
+    fun useCaseUsage(
+        name: String,
+        useCase: UseCaseDefinition,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): UseCaseUsage = useCaseUsageById(name = name, definitionId = useCase.id, id = id, multiplicity = multiplicity)
+
+    /** Id-only variant of [useCaseUsage] — for forward refs / id-only setups. */
+    fun useCaseUsageById(
+        name: String,
+        definitionId: String,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): UseCaseUsage {
+        val usage = UseCaseUsage(id = id, name = name, qualifiedName = name, definitionId = definitionId, multiplicity = multiplicity)
+        registerUsage(usage)
+        return usage
+    }
+
+    /**
+     * `requirement topSpeed : TopSpeedRequirement` — top-level
+     * [RequirementUsage] typed by a [RequirementDefinition]. See [actorUsage]
+     * KDoc for the ADR-0017 Wave B rationale.
+     */
+    fun requirementUsage(
+        name: String,
+        requirement: RequirementDefinition,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): RequirementUsage = requirementUsageById(name = name, definitionId = requirement.id, id = id, multiplicity = multiplicity)
+
+    /** Id-only variant of [requirementUsage] — for forward refs / id-only setups. */
+    fun requirementUsageById(
+        name: String,
+        definitionId: String,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): RequirementUsage {
+        val usage =
+            RequirementUsage(id = id, name = name, qualifiedName = name, definitionId = definitionId, multiplicity = multiplicity)
+        registerUsage(usage)
+        return usage
+    }
+
+    /**
+     * `state s1 : State1` — top-level [StateUsage] typed by a
+     * [StateDefinition]. See [actorUsage] KDoc for the ADR-0017 Wave B
+     * rationale.
+     */
+    fun stateUsage(
+        name: String,
+        state: StateDefinition,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): StateUsage = stateUsageById(name = name, definitionId = state.id, id = id, multiplicity = multiplicity)
+
+    /** Id-only variant of [stateUsage] — for forward refs / id-only setups. */
+    fun stateUsageById(
+        name: String,
+        definitionId: String,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): StateUsage {
+        val usage = StateUsage(id = id, name = name, qualifiedName = name, definitionId = definitionId, multiplicity = multiplicity)
+        registerUsage(usage)
+        return usage
+    }
+
+    /**
+     * `action act1 : Action1` — top-level [ActionUsage] typed by an
+     * [ActionDefinition]. See [actorUsage] KDoc for the ADR-0017 Wave B
+     * rationale.
+     */
+    fun actionUsage(
+        name: String,
+        action: ActionDefinition,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): ActionUsage = actionUsageById(name = name, definitionId = action.id, id = id, multiplicity = multiplicity)
+
+    /** Id-only variant of [actionUsage] — for forward refs / id-only setups. */
+    fun actionUsageById(
+        name: String,
+        definitionId: String,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): ActionUsage {
+        val usage = ActionUsage(id = id, name = name, qualifiedName = name, definitionId = definitionId, multiplicity = multiplicity)
+        registerUsage(usage)
+        return usage
+    }
+
+    /**
+     * `partition p : Customer` — top-level [ActivityPartitionUsage] typed by
+     * an [ActivityPartitionDefinition]. See [actorUsage] KDoc for the
+     * ADR-0017 Wave B rationale.
+     */
+    fun activityPartitionUsage(
+        name: String,
+        partition: ActivityPartitionDefinition,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): ActivityPartitionUsage = activityPartitionUsageById(name = name, definitionId = partition.id, id = id, multiplicity = multiplicity)
+
+    /** Id-only variant of [activityPartitionUsage] — for forward refs / id-only setups. */
+    fun activityPartitionUsageById(
+        name: String,
+        definitionId: String,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): ActivityPartitionUsage {
+        val usage =
+            ActivityPartitionUsage(id = id, name = name, qualifiedName = name, definitionId = definitionId, multiplicity = multiplicity)
+        registerUsage(usage)
+        return usage
+    }
+
+    /**
+     * `lifeline browser : Browser` — top-level [LifelineUsage] typed by a
+     * [LifelineDefinition]. See [actorUsage] KDoc for the ADR-0017 Wave B
+     * rationale.
+     */
+    fun lifelineUsage(
+        name: String,
+        lifeline: LifelineDefinition,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): LifelineUsage = lifelineUsageById(name = name, definitionId = lifeline.id, id = id, multiplicity = multiplicity)
+
+    /** Id-only variant of [lifelineUsage] — for forward refs / id-only setups. */
+    fun lifelineUsageById(
+        name: String,
+        definitionId: String,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): LifelineUsage {
+        val usage = LifelineUsage(id = id, name = name, qualifiedName = name, definitionId = definitionId, multiplicity = multiplicity)
+        registerUsage(usage)
+        return usage
+    }
+
+    /**
+     * `constraint c1 : ConstraintDef` — top-level [ConstraintUsage] typed by
+     * a [ConstraintDefinition]. See [actorUsage] KDoc for the ADR-0017 Wave B
+     * rationale.
+     */
+    fun constraintUsage(
+        name: String,
+        constraint: ConstraintDefinition,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): ConstraintUsage = constraintUsageById(name = name, definitionId = constraint.id, id = id, multiplicity = multiplicity)
+
+    /** Id-only variant of [constraintUsage] — for forward refs / id-only setups. */
+    fun constraintUsageById(
+        name: String,
+        definitionId: String,
+        id: String = name,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): ConstraintUsage {
+        val usage =
+            ConstraintUsage(id = id, name = name, qualifiedName = name, definitionId = definitionId, multiplicity = multiplicity)
+        registerUsage(usage)
+        return usage
     }
 
     fun build(): Sysml2Model =

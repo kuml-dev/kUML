@@ -4,9 +4,12 @@ import dev.kuml.kerml.KermlMultiplicity
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActionPin
+import dev.kuml.sysml2.ActionUsage
 import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActivityPartitionDefinition
+import dev.kuml.sysml2.ActivityPartitionUsage
 import dev.kuml.sysml2.ActorDefinition
+import dev.kuml.sysml2.ActorUsage
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
@@ -14,14 +17,17 @@ import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.CombinedFragmentOperand
 import dev.kuml.sysml2.CombinedFragmentOperator
 import dev.kuml.sysml2.CombinedFragmentUsage
+import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ConstraintParameter
 import dev.kuml.sysml2.ConstraintParameterDirection
+import dev.kuml.sysml2.ConstraintUsage
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
+import dev.kuml.sysml2.LifelineUsage
 import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
@@ -33,12 +39,15 @@ import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.RequirementUsage
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StateUsage
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
+import dev.kuml.sysml2.UseCaseUsage
 import dev.kuml.sysml2.units.kW
 import dev.kuml.sysml2.units.kWh
 import dev.kuml.sysml2.units.kg
@@ -138,6 +147,21 @@ class Sysml2DslTest :
             model.definitions.filterIsInstance<PartDefinition>() shouldHaveSize 2
         }
 
+        "attributeDef/portDef/connectionDef isAbstract sets isAbstract on the resulting KermlType (ADR-0017 Wave B)" {
+            val model =
+                sysml2Model(name = "Test") {
+                    attributeDef(name = "Mass", isAbstract = true)
+                    portDef(name = "Inlet", isAbstract = true)
+                    connectionDef(name = "PowerLine", isAbstract = true)
+                }
+            val mass = model.definitions.filterIsInstance<AttributeDefinition>().single()
+            mass.isAbstract shouldBe true
+            val inlet = model.definitions.filterIsInstance<PortDefinition>().single()
+            inlet.isAbstract shouldBe true
+            val powerLine = model.definitions.filterIsInstance<ConnectionDefinition>().single()
+            powerLine.isAbstract shouldBe true
+        }
+
         "attribute(default = unitValue) records the SysML 2 concrete-syntax form" {
             val model =
                 sysml2Model(name = "M") {
@@ -183,6 +207,59 @@ class Sysml2DslTest :
                     .single { it.name == "HybridVehicle" }
             hybrid.specializations shouldHaveSize 1
             hybrid.specializations.single().generalId shouldBe "Vehicle"
+        }
+
+        "specializesId works uniformly on the 11 other definition builders (ADR-0017 Wave B)" {
+            val model =
+                sysml2Model(name = "Test") {
+                    val length = attributeDef(name = "Length")
+                    val mass = attributeDef(name = "Mass", specializesId = length.id)
+
+                    val genericPort = portDef(name = "GenericPort")
+                    val inlet = portDef(name = "Inlet", specializesId = genericPort.id)
+
+                    val genericConn = connectionDef(name = "GenericLine")
+                    val powerLine = connectionDef(name = "PowerLine", specializesId = genericConn.id)
+
+                    val genericActor = actorDef(name = "GenericActor")
+                    val reader = actorDef(name = "Reader", specializesId = genericActor.id)
+
+                    val genericUseCase = useCaseDef(name = "GenericUseCase")
+                    val borrow = useCaseDef(name = "BorrowBook", specializesId = genericUseCase.id)
+
+                    val genericReq = requirementDef(name = "GenericRequirement")
+                    val topSpeed = requirementDef(name = "TopSpeed", specializesId = genericReq.id)
+
+                    val genericState = stateDef(name = "GenericState")
+                    val red = stateDef(name = "Red", specializesId = genericState.id)
+
+                    val genericAction = actionDef(name = "GenericAction")
+                    val validate = actionDef(name = "Validate", specializesId = genericAction.id)
+
+                    val genericPartition = activityPartition(name = "GenericPartition")
+                    val customer = activityPartition(name = "Customer", specializesId = genericPartition.id)
+
+                    val genericLifeline = lifelineDef(name = "GenericLifeline")
+                    val browser = lifelineDef(name = "Browser", specializesId = genericLifeline.id)
+
+                    val genericConstraint = constraintDef(name = "GenericConstraint")
+                    val newton = constraintDef(name = "NewtonsLaw", specializesId = genericConstraint.id)
+
+                    mass.specializations.single().generalId shouldBe length.id
+                    inlet.specializations.single().generalId shouldBe genericPort.id
+                    powerLine.specializations.single().generalId shouldBe genericConn.id
+                    reader.specializations.single().generalId shouldBe genericActor.id
+                    borrow.specializations.single().generalId shouldBe genericUseCase.id
+                    topSpeed.specializations.single().generalId shouldBe genericReq.id
+                    red.specializations.single().generalId shouldBe genericState.id
+                    validate.specializations.single().generalId shouldBe genericAction.id
+                    customer.specializations.single().generalId shouldBe genericPartition.id
+                    browser.specializations.single().generalId shouldBe genericLifeline.id
+                    newton.specializations.single().generalId shouldBe genericConstraint.id
+                    // Every produced KermlSpecialization is self-specific — specificId == the
+                    // specializing definition's own id, matching the partDef precedent exactly.
+                    mass.specializations.single().specificId shouldBe mass.id
+                }
         }
 
         "bdd collects definitions in insertion order" {
@@ -1194,6 +1271,93 @@ class Sysml2DslTest :
                 .filterIsInstance<MessageUsage>()
                 .single { it.seqNo == 2 }
                 .kind shouldBe MessageKind.Destroy
+        }
+
+        // ── ADR-0017 Wave B: 8 previously-missing Sysml2Usage DSL constructors ─
+
+        "the 8 Wave B usage builders (object-form) register with correct definitionId, default id, and multiplicity" {
+            val model =
+                sysml2Model(name = "WaveBUsages") {
+                    val actor = actorDef(name = "Reader")
+                    val useCase = useCaseDef(name = "BorrowBook")
+                    val requirement = requirementDef(name = "TopSpeed")
+                    val state = stateDef(name = "Red")
+                    val action = actionDef(name = "Validate")
+                    val partition = activityPartition(name = "Customer")
+                    val lifeline = lifelineDef(name = "Browser")
+                    val constraint = constraintDef(name = "NewtonsLaw")
+
+                    actorUsage(name = "reader1", actor = actor)
+                    useCaseUsage(name = "borrow1", useCase = useCase)
+                    requirementUsage(name = "topSpeed1", requirement = requirement)
+                    stateUsage(name = "red1", state = state, multiplicity = KermlMultiplicity.ZERO_OR_MORE)
+                    actionUsage(name = "validate1", action = action)
+                    activityPartitionUsage(name = "customer1", partition = partition)
+                    lifelineUsage(name = "browser1", lifeline = lifeline)
+                    constraintUsage(name = "newton1", constraint = constraint)
+                }
+
+            val actorUsage = model.usages.filterIsInstance<ActorUsage>().single()
+            actorUsage.id shouldBe "reader1"
+            actorUsage.definitionId shouldBe "Reader"
+            actorUsage.multiplicity shouldBe KermlMultiplicity.EXACTLY_ONE
+
+            val useCaseUsage = model.usages.filterIsInstance<UseCaseUsage>().single()
+            useCaseUsage.definitionId shouldBe "BorrowBook"
+            val requirementUsage = model.usages.filterIsInstance<RequirementUsage>().single()
+            requirementUsage.definitionId shouldBe "TopSpeed"
+
+            val stateUsage = model.usages.filterIsInstance<StateUsage>().single()
+            stateUsage.definitionId shouldBe "Red"
+            stateUsage.multiplicity shouldBe KermlMultiplicity.ZERO_OR_MORE
+
+            val actionUsage = model.usages.filterIsInstance<ActionUsage>().single()
+            actionUsage.definitionId shouldBe "Validate"
+            val activityPartitionUsage = model.usages.filterIsInstance<ActivityPartitionUsage>().single()
+            activityPartitionUsage.definitionId shouldBe "Customer"
+            val lifelineUsage = model.usages.filterIsInstance<LifelineUsage>().single()
+            lifelineUsage.definitionId shouldBe "Browser"
+            val constraintUsage = model.usages.filterIsInstance<ConstraintUsage>().single()
+            constraintUsage.definitionId shouldBe "NewtonsLaw"
+        }
+
+        "the 8 Wave B usage builders' …ById(...) siblings accept forward-/id-only references" {
+            val model =
+                sysml2Model(name = "WaveBUsagesById") {
+                    actorDef(name = "Reader")
+                    useCaseDef(name = "BorrowBook")
+                    requirementDef(name = "TopSpeed")
+                    stateDef(name = "Red")
+                    actionDef(name = "Validate")
+                    activityPartition(name = "Customer")
+                    lifelineDef(name = "Browser")
+                    constraintDef(name = "NewtonsLaw")
+
+                    actorUsageById(name = "reader1", definitionId = "Reader")
+                    useCaseUsageById(name = "borrow1", definitionId = "BorrowBook")
+                    requirementUsageById(name = "topSpeed1", definitionId = "TopSpeed")
+                    stateUsageById(name = "red1", definitionId = "Red")
+                    actionUsageById(name = "validate1", definitionId = "Validate")
+                    activityPartitionUsageById(name = "customer1", definitionId = "Customer")
+                    lifelineUsageById(name = "browser1", definitionId = "Browser")
+                    constraintUsageById(name = "newton1", definitionId = "NewtonsLaw")
+                }
+            val actorUsageById = model.usages.filterIsInstance<ActorUsage>().single()
+            actorUsageById.definitionId shouldBe "Reader"
+            val useCaseUsageById = model.usages.filterIsInstance<UseCaseUsage>().single()
+            useCaseUsageById.definitionId shouldBe "BorrowBook"
+            val requirementUsageById = model.usages.filterIsInstance<RequirementUsage>().single()
+            requirementUsageById.definitionId shouldBe "TopSpeed"
+            val stateUsageById = model.usages.filterIsInstance<StateUsage>().single()
+            stateUsageById.definitionId shouldBe "Red"
+            val actionUsageById = model.usages.filterIsInstance<ActionUsage>().single()
+            actionUsageById.definitionId shouldBe "Validate"
+            val activityPartitionUsageById = model.usages.filterIsInstance<ActivityPartitionUsage>().single()
+            activityPartitionUsageById.definitionId shouldBe "Customer"
+            val lifelineUsageById = model.usages.filterIsInstance<LifelineUsage>().single()
+            lifelineUsageById.definitionId shouldBe "Browser"
+            val constraintUsageById = model.usages.filterIsInstance<ConstraintUsage>().single()
+            constraintUsageById.definitionId shouldBe "NewtonsLaw"
         }
 
         "DSL is sysml2Dsl-scoped — inner scopes can't reach outer builders accidentally" {

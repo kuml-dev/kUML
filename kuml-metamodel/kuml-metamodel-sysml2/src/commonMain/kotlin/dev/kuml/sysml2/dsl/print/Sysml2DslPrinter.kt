@@ -4,9 +4,12 @@ import dev.kuml.kerml.KermlMultiplicity
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActionPin
+import dev.kuml.sysml2.ActionUsage
 import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActivityPartitionDefinition
+import dev.kuml.sysml2.ActivityPartitionUsage
 import dev.kuml.sysml2.ActorDefinition
+import dev.kuml.sysml2.ActorUsage
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
@@ -17,10 +20,12 @@ import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ConstraintParameter
 import dev.kuml.sysml2.ConstraintParameterDirection
+import dev.kuml.sysml2.ConstraintUsage
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
+import dev.kuml.sysml2.LifelineUsage
 import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
@@ -32,8 +37,10 @@ import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.RequirementUsage
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StateUsage
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Diagram
@@ -42,6 +49,7 @@ import dev.kuml.sysml2.Sysml2Usage
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
+import dev.kuml.sysml2.UseCaseUsage
 
 /**
  * Pretty-prints a [Sysml2Model] as a `*.kuml.kts` source string.
@@ -92,21 +100,16 @@ import dev.kuml.sysml2.UseCaseDefinition
  *   [dev.kuml.sysml2.units.UnitValue.toSpecForm]'s raw string
  *   (`"1500.0[kg]"`); there is no public parser back from that string to a
  *   [dev.kuml.sysml2.units.UnitValue], so `default = …` cannot be
- *   reconstructed. Flagged with a `// TODO` instead of guessed at.
- * - `specializations` — only [PartDefinition] exposes a `specializesId`
- *   parameter (via [dev.kuml.sysml2.dsl.Sysml2ModelBuilder.partDef]); a
- *   non-empty `specializations` list on any other definition type, or more
- *   than one specialization / a foreign `specificId` on a [PartDefinition],
- *   cannot be expressed and is flagged with a `// TODO`.
- * - `isAbstract` — [AttributeDefinition] / [PortDefinition] /
- *   [ConnectionDefinition] have no `isAbstract` builder parameter; `true` on
- *   one of these is flagged with a `// TODO`.
- * - 8 of the 21 [dev.kuml.sysml2.Sysml2Usage] subtypes have no DSL
- *   constructor at all (`ActorUsage`, `UseCaseUsage`, `RequirementUsage`,
- *   `StateUsage`, `ActionUsage`, `ActivityPartitionUsage`, `LifelineUsage`,
- *   `ConstraintUsage`), plus `IncludeUsage`/`ExtendUsage` (the diagram-level
- *   [UcDiagram] edges are the DSL-supported path for that relationship) —
- *   any instance of these found as a top-level usage is flagged with a
+ *   reconstructed. Flagged with a `// TODO` instead of guessed at. This is the
+ *   one remaining gap after Wave B (ADR-0017) — see CHANGELOG for the three
+ *   DSL-builder gaps closed in that wave (`isAbstract` on
+ *   AttributeDefinition/PortDefinition/ConnectionDefinition, `specializesId`
+ *   on all 12 definition types, and DSL constructors for the 8
+ *   previously-missing `Sysml2Usage` subtypes). `IncludeUsage`/`ExtendUsage`
+ *   remain intentionally unsupported by any top-level usage constructor —
+ *   the diagram-level [UcDiagram] edges are the DSL-supported path for that
+ *   relationship — and any instance of these (or any other still-unsupported
+ *   `Sysml2Usage` subtype) found as a top-level usage is flagged with a
  *   `// TODO` rather than silently dropped.
  *
  * All 8 diagram kinds ([BdDiagram], [IbdDiagram], [UcDiagram], [ReqDiagram],
@@ -187,17 +190,15 @@ public object Sysml2DslPrinter {
         when (def) {
             is PartDefinition -> {
                 if (def.isAbstract) args += "isAbstract = true"
-                val spec = specializesIdForPart(def)
-                spec.arg?.let { args += "specializesId = ${quote(it)}" }
-                spec.todo?.let { todos += it }
+                appendSpecializesArg(def = def, builderName = "partDef", args = args, todos = todos)
                 printDefCall(sb = sb, fnName = "partDef", varName = varName, args = args, todos = todos) { body ->
                     printNestedFeatures(sb = body, def = def, model = model)
                     printPartConstraints(sb = body, def = def)
                 }
             }
             is AttributeDefinition -> {
-                unsupportedAbstractTodo(def = def, builderName = "attributeDef")?.let { todos += it }
-                unsupportedSpecializationTodo(def = def, builderName = "attributeDef")?.let { todos += it }
+                if (def.isAbstract) args += "isAbstract = true"
+                appendSpecializesArg(def = def, builderName = "attributeDef", args = args, todos = todos)
                 printDefCall(
                     sb = sb,
                     fnName = "attributeDef",
@@ -207,8 +208,8 @@ public object Sysml2DslPrinter {
                 ) { body -> printNestedFeatures(sb = body, def = def, model = model) }
             }
             is PortDefinition -> {
-                unsupportedAbstractTodo(def = def, builderName = "portDef")?.let { todos += it }
-                unsupportedSpecializationTodo(def = def, builderName = "portDef")?.let { todos += it }
+                if (def.isAbstract) args += "isAbstract = true"
+                appendSpecializesArg(def = def, builderName = "portDef", args = args, todos = todos)
                 printDefCall(
                     sb = sb,
                     fnName = "portDef",
@@ -218,8 +219,8 @@ public object Sysml2DslPrinter {
                 ) { body -> printNestedFeatures(sb = body, def = def, model = model) }
             }
             is ConnectionDefinition -> {
-                unsupportedAbstractTodo(def = def, builderName = "connectionDef")?.let { todos += it }
-                unsupportedSpecializationTodo(def = def, builderName = "connectionDef")?.let { todos += it }
+                if (def.isAbstract) args += "isAbstract = true"
+                appendSpecializesArg(def = def, builderName = "connectionDef", args = args, todos = todos)
                 printDefCall(
                     sb = sb,
                     fnName = "connectionDef",
@@ -230,7 +231,7 @@ public object Sysml2DslPrinter {
             }
             is ActorDefinition -> {
                 if (def.isAbstract) args += "isAbstract = true"
-                unsupportedSpecializationTodo(def = def, builderName = "actorDef")?.let { todos += it }
+                appendSpecializesArg(def = def, builderName = "actorDef", args = args, todos = todos)
                 printDefCall(
                     sb = sb,
                     fnName = "actorDef",
@@ -241,7 +242,7 @@ public object Sysml2DslPrinter {
             }
             is UseCaseDefinition -> {
                 if (def.isAbstract) args += "isAbstract = true"
-                unsupportedSpecializationTodo(def = def, builderName = "useCaseDef")?.let { todos += it }
+                appendSpecializesArg(def = def, builderName = "useCaseDef", args = args, todos = todos)
                 printDefCall(
                     sb = sb,
                     fnName = "useCaseDef",
@@ -255,7 +256,7 @@ public object Sysml2DslPrinter {
                 if (def.text.isNotEmpty()) args += "text = ${quote(def.text)}"
                 def.subject?.let { args += "subject = ${quote(it)}" }
                 if (def.isAbstract) args += "isAbstract = true"
-                unsupportedSpecializationTodo(def = def, builderName = "requirementDef")?.let { todos += it }
+                appendSpecializesArg(def = def, builderName = "requirementDef", args = args, todos = todos)
                 printDefCall(
                     sb = sb,
                     fnName = "requirementDef",
@@ -271,7 +272,7 @@ public object Sysml2DslPrinter {
                 def.exitAction?.let { args += "exitAction = ${quote(it)}" }
                 def.doAction?.let { args += "doAction = ${quote(it)}" }
                 if (def.isAbstract) args += "isAbstract = true"
-                unsupportedSpecializationTodo(def = def, builderName = "stateDef")?.let { todos += it }
+                appendSpecializesArg(def = def, builderName = "stateDef", args = args, todos = todos)
                 printDefCall(
                     sb = sb,
                     fnName = "stateDef",
@@ -284,6 +285,7 @@ public object Sysml2DslPrinter {
                 def.action?.let { args += "action = ${quote(it)}" }
                 if (def.kind != ActivityNodeKind.Action) args += "kind = ActivityNodeKind.${def.kind.name}"
                 if (def.isAbstract) args += "isAbstract = true"
+                appendSpecializesArg(def = def, builderName = "actionDef", args = args, todos = todos)
                 if (def.partitionId != null) {
                     val partitionVar = ctx.partitionDefVars[def.partitionId]
                     if (partitionVar != null) {
@@ -295,7 +297,6 @@ public object Sysml2DslPrinter {
                     }
                 }
                 if (def.pins.isNotEmpty()) args += "pins = listOf(${def.pins.joinToString(", ") { pinExpr(it) }})"
-                unsupportedSpecializationTodo(def = def, builderName = "actionDef")?.let { todos += it }
                 printDefCall(
                     sb = sb,
                     fnName = "actionDef",
@@ -307,7 +308,7 @@ public object Sysml2DslPrinter {
             is ActivityPartitionDefinition -> {
                 def.represents?.let { args += "represents = ${quote(it)}" }
                 if (def.isAbstract) args += "isAbstract = true"
-                unsupportedSpecializationTodo(def = def, builderName = "activityPartition")?.let { todos += it }
+                appendSpecializesArg(def = def, builderName = "activityPartition", args = args, todos = todos)
                 printDefCall(
                     sb = sb,
                     fnName = "activityPartition",
@@ -319,7 +320,7 @@ public object Sysml2DslPrinter {
             is LifelineDefinition -> {
                 def.represents?.let { args += "represents = ${quote(it)}" }
                 if (def.isAbstract) args += "isAbstract = true"
-                unsupportedSpecializationTodo(def = def, builderName = "lifelineDef")?.let { todos += it }
+                appendSpecializesArg(def = def, builderName = "lifelineDef", args = args, todos = todos)
                 printDefCall(
                     sb = sb,
                     fnName = "lifelineDef",
@@ -332,7 +333,7 @@ public object Sysml2DslPrinter {
                 if (def.expression.isNotEmpty()) args += "expression = ${quote(def.expression)}"
                 if (def.parameters.isNotEmpty()) args += "parameters = listOf(${def.parameters.joinToString(", ") { paramExpr(it) }})"
                 if (def.isAbstract) args += "isAbstract = true"
-                unsupportedSpecializationTodo(def = def, builderName = "constraintDef")?.let { todos += it }
+                appendSpecializesArg(def = def, builderName = "constraintDef", args = args, todos = todos)
                 printDefCall(
                     sb = sb,
                     fnName = "constraintDef",
@@ -365,48 +366,38 @@ public object Sysml2DslPrinter {
         }
     }
 
-    private data class SpecResult(
-        val arg: String?,
-        val todo: String?,
-    )
-
-    private fun specializesIdForPart(d: PartDefinition): SpecResult {
-        if (d.specializations.isEmpty()) return SpecResult(arg = null, todo = null)
-        val onlySelf = d.specializations.singleOrNull { it.specificId == d.id }
-        return if (onlySelf != null && d.specializations.size == 1) {
-            SpecResult(arg = onlySelf.generalId, todo = null)
+    /**
+     * Emits `specializesId = "..."` into [args] when [def]'s `specializations`
+     * list is exactly one self-specific [dev.kuml.kerml.KermlSpecialization]
+     * (the only shape any of the 12 `…Def(specializesId = ...)` builders can
+     * produce), otherwise appends a `// TODO` explanation to [todos].
+     *
+     * More than one specialization, or a specialization whose `specificId`
+     * isn't [def]'s own id, is malformed-relative-to-the-DSL data — it can
+     * only arise from hand-crafted/`.copy(...)`-mutated models, never from
+     * normal DSL use (every `…Def(specializesId = ...)` builder call
+     * constructs exactly one self-specific entry). Treated the same
+     * defensive way the printer already treats a dangling [IbdDiagram] owner
+     * id or a dangling [ExecutionSpecificationUsage] lifeline id: a `// TODO`
+     * fallback rather than a crash.
+     */
+    private fun appendSpecializesArg(
+        def: Sysml2Definition,
+        builderName: String,
+        args: MutableList<String>,
+        todos: MutableList<String>,
+    ) {
+        if (def.specializations.isEmpty()) return
+        val onlySelf = def.specializations.singleOrNull { it.specificId == def.id }
+        if (onlySelf != null && def.specializations.size == 1) {
+            args += "specializesId = ${quote(onlySelf.generalId)}"
         } else {
-            SpecResult(
-                arg = null,
-                todo =
-                    "PartDefinition ${d.name} (id = ${d.id}) has ${d.specializations.size} specialization(s) that cannot be " +
-                        "fully reconstructed via partDef(specializesId = ...) (only a single, self-specific specialization is " +
-                        "supported) — specialization data is lost.",
-            )
+            todos +=
+                "${def::class.simpleName} ${def.name} (id = ${def.id}) has ${def.specializations.size} specialization(s) that " +
+                "cannot be fully reconstructed via $builderName(specializesId = ...) (only a single, self-specific " +
+                "specialization is supported) — specialization data is lost."
         }
     }
-
-    private fun unsupportedSpecializationTodo(
-        def: Sysml2Definition,
-        builderName: String,
-    ): String? =
-        if (def.specializations.isNotEmpty()) {
-            "${def::class.simpleName} ${def.name} (id = ${def.id}) has ${def.specializations.size} specialization(s), but " +
-                "$builderName(...) has no specializesId parameter — these cannot be reconstructed."
-        } else {
-            null
-        }
-
-    private fun unsupportedAbstractTodo(
-        def: Sysml2Definition,
-        builderName: String,
-    ): String? =
-        if (def.isAbstract) {
-            "${def::class.simpleName} ${def.name} (id = ${def.id}) has isAbstract = true, but $builderName(...) has no " +
-                "isAbstract parameter — this cannot be reconstructed."
-        } else {
-            null
-        }
 
     private fun pinExpr(p: ActionPin): String {
         val args = mutableListOf("name = ${quote(p.name)}")
@@ -577,6 +568,14 @@ public object Sysml2DslPrinter {
                     )
                 }
             }
+            is ActorUsage -> printSimpleTopLevelUsage(sb = sb, fnName = "actorUsageById", usage = usage)
+            is UseCaseUsage -> printSimpleTopLevelUsage(sb = sb, fnName = "useCaseUsageById", usage = usage)
+            is RequirementUsage -> printSimpleTopLevelUsage(sb = sb, fnName = "requirementUsageById", usage = usage)
+            is StateUsage -> printSimpleTopLevelUsage(sb = sb, fnName = "stateUsageById", usage = usage)
+            is ActionUsage -> printSimpleTopLevelUsage(sb = sb, fnName = "actionUsageById", usage = usage)
+            is ActivityPartitionUsage -> printSimpleTopLevelUsage(sb = sb, fnName = "activityPartitionUsageById", usage = usage)
+            is LifelineUsage -> printSimpleTopLevelUsage(sb = sb, fnName = "lifelineUsageById", usage = usage)
+            is ConstraintUsage -> printSimpleTopLevelUsage(sb = sb, fnName = "constraintUsageById", usage = usage)
             else -> {
                 sb.appendLine(
                     "    // TODO: Sysml2Usage of type '${usage::class.simpleName}' (id = ${quote(usage.id)}) cannot be " +
@@ -702,6 +701,26 @@ public object Sysml2DslPrinter {
         sb.appendLine("    }")
     }
 
+    /**
+     * Shared printer for the 8 ADR-0017 Wave B top-level usage types
+     * ([ActorUsage] / [UseCaseUsage] / [RequirementUsage] / [StateUsage] /
+     * [ActionUsage] / [ActivityPartitionUsage] / [LifelineUsage] /
+     * [ConstraintUsage]) — they're all structurally identical (`name`,
+     * `definitionId`, optional `multiplicity`, `id`), differing only in
+     * their [dev.kuml.sysml2.dsl.Sysml2ModelBuilder]-side `…UsageById(...)`
+     * function name.
+     */
+    private fun printSimpleTopLevelUsage(
+        sb: StringBuilder,
+        fnName: String,
+        usage: Sysml2Usage,
+    ) {
+        val args = mutableListOf("name = ${quote(usage.name)}", "definitionId = ${quote(usage.definitionId)}")
+        multiplicityExpr(usage.multiplicity)?.let { args += "multiplicity = $it" }
+        args += "id = ${quote(usage.id)}"
+        sb.appendLine("    $fnName(${args.joinToString(", ")})")
+    }
+
     // ── helpers ────────────────────────────────────────────────────────────
 
     private fun multiplicityExpr(m: KermlMultiplicity): String? {
@@ -715,10 +734,7 @@ public object Sysml2DslPrinter {
     }
 
     private fun needsKermlMultiplicityImport(model: Sysml2Model): Boolean =
-        model.usages.any { u ->
-            (u is AttributeUsage || u is PartUsage || u is PortUsage || u is ConnectionUsage) &&
-                u.multiplicity != KermlMultiplicity.EXACTLY_ONE
-        }
+        model.usages.any { it.multiplicity != KermlMultiplicity.EXACTLY_ONE }
 
     private fun quote(s: String): String =
         buildString {

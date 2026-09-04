@@ -6,6 +6,7 @@ import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4Model
 import dev.kuml.core.dsl.layout.layout
 import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.sysml2.ActorUsage
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.dsl.sysml2Model
@@ -89,13 +90,21 @@ class ScriptSerializerTest :
         test("non-trivial SysML2 model round-trips through the real script host") {
             val original =
                 sysml2Model(name = "HybridVehicle") {
+                    val genericVehicle = attributeDef(name = "GenericMass", isAbstract = true)
                     val engine = partDef(name = "Engine")
+                    val actor = actorDef(name = "Driver")
                     partDef(name = "Vehicle") {
                         part(name = "engine", typeId = engine.id)
                     }
+                    // ADR-0017 Wave B: a top-level usage of one of the 8 previously-DSL-unreachable
+                    // Sysml2Usage subtypes exercises the new actorUsage(...) constructor end-to-end
+                    // through the real script host, not just the printer/builder unit tests.
+                    actorUsage(name = "driver1", actor = actor)
                     bdd(name = "Structural overview") {
+                        includeById("GenericMass")
                         includeById("Engine")
                         includeById("Vehicle")
+                        includeById("Driver")
                     }
                 }
             val dsl = ScriptSerializer.toDsl(AnyKumlModel.Sysml2(model = original))
@@ -112,5 +121,8 @@ class ScriptSerializerTest :
             reparsed.definitions.map { it.id }.toSet() shouldBe original.definitions.map { it.id }.toSet()
             val reparsedVehicle = reparsed.definitions.filterIsInstance<PartDefinition>().first { it.id == "Vehicle" }
             reparsedVehicle.features shouldHaveSize 1
+            reparsed.definitions.first { it.id == "GenericMass" }.isAbstract shouldBe true
+            val reparsedActorUsage = reparsed.usages.filterIsInstance<ActorUsage>().single()
+            reparsedActorUsage.definitionId shouldBe "Driver"
         }
     })

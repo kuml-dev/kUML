@@ -73,6 +73,36 @@ platform artifacts) — no standalone catalog entry to bump.
 
 ### Fixed
 
+**SysML 2 DSL completeness gap closed per ADR-0017 (3 known non-round-tripping data points, Wave B)**
+
+`Sysml2DslPrinter`'s "Known non-round-tripping data" KDoc section documented three DSL-builder
+gaps below the SysML 2 metamodel's actual capability (plus one printer-side parsing gap that
+stays out of scope, see below) — per ADR-0017 those three count as bugs, not optional
+enhancements. All three are now fixed:
+
+- `isAbstract` is now settable on `attributeDef`/`portDef`/`connectionDef` — the three definition
+  builders that previously lacked it (all other 9 definition types already had the parameter).
+- `specializesId` is now available on all 12 definition builders (previously only `partDef`),
+  mirroring the existing single, self-specific-specialization pattern exactly. More than one
+  specialization or a foreign (non-self) `specificId` on a definition remains unreachable through
+  the DSL by construction and still surfaces as a `// TODO` when hand-crafted data forces it
+  (same defensive-fallback treatment the printer already gives a dangling `IbdDiagram` owner id
+  or `ExecutionSpecificationUsage` lifeline id) — no longer documented as a DSL completeness gap
+  in the printer's KDoc, since it can no longer occur via normal DSL use.
+- 8 of the 21 `Sysml2Usage` subtypes gained DSL constructors: `actorUsage`/`useCaseUsage`/
+  `requirementUsage`/`stateUsage`/`actionUsage`/`activityPartitionUsage`/`lifelineUsage`/
+  `constraintUsage`, each with an object-taking overload and an `…ById(...)` id-only sibling,
+  mirroring the existing `transition`/`controlFlow`/`objectFlow` pattern. `IncludeUsage`/
+  `ExtendUsage` remain intentionally unsupported — their diagram-level edges
+  (`UcDiagram.includeById`/`extendById`) are the DSL-supported path for that relationship.
+
+`AttributeUsage.defaultExpression` remains the one documented gap — it is a printer-side
+`UnitValue` string-parsing limitation, not a missing DSL capability, and stays out of scope.
+
+New/updated tests across `Sysml2DslTest` and `Sysml2DslPrinterTest`, plus an extended real-script-
+host round-trip in `ScriptSerializerTest` exercising `isAbstract` and the new `actorUsage(...)`
+constructor. `./gradlew clean check` passes across the monorepo.
+
 **C4 DSL completeness gap closed per ADR-0017 (5 known non-round-tripping fields, Wave A)**
 
 `C4DslPrinter`'s "Known non-round-tripping fields" KDoc section documented five DSL
