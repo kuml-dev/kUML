@@ -4,6 +4,7 @@ import dev.kuml.c4.model.C4Component
 import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.ComponentDiagram
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.shouldBe
@@ -279,5 +280,46 @@ class ComponentDiagramBuilderTest :
             model.diagrams shouldHaveSize 1
             val diag = model.diagrams[0].shouldBeInstanceOf<ComponentDiagram>()
             diag.relationships shouldHaveSize 0
+        }
+
+        test(name = "include() adds an external container unreachable by any relationship") {
+            lateinit var apiRef: C4Container
+            lateinit var unrelatedRef: C4Container
+            val model =
+                c4Model(name = "Test") {
+                    softwareSystem(name = "System") {
+                        apiRef = container(name = "API") { component(name = "Handler") }
+                        unrelatedRef = container(name = "Unrelated Container")
+                    }
+
+                    componentDiagram(name = "Components") {
+                        this.container = apiRef
+                        showExternalReferences = false
+                        include(unrelatedRef)
+                    }
+                }
+            val diag = model.diagrams[0].shouldBeInstanceOf<ComponentDiagram>()
+            val elemNames = diag.elements.map { id -> model.elements.find { it.id == id }?.name }
+            elemNames shouldContain "Unrelated Container"
+        }
+
+        test(name = "include() rejects an invalid element type") {
+            var thrown: Throwable? = null
+            try {
+                c4Model(name = "Test") {
+                    val node = deploymentNode(name = "AWS")
+                    lateinit var apiRef: C4Container
+                    softwareSystem(name = "System") {
+                        apiRef = container(name = "API") { component(name = "Handler") }
+                    }
+                    componentDiagram(name = "Components") {
+                        this.container = apiRef
+                        include(node)
+                    }
+                }
+            } catch (e: IllegalArgumentException) {
+                thrown = e
+            }
+            thrown.shouldBeInstanceOf<IllegalArgumentException>()
         }
     })

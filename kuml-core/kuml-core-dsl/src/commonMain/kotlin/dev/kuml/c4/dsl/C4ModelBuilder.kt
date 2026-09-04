@@ -1,5 +1,6 @@
 package dev.kuml.c4.dsl
 
+import dev.kuml.c4.model.C4CodeElement
 import dev.kuml.c4.model.C4Component
 import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4DeploymentNode
@@ -22,6 +23,7 @@ import dev.kuml.core.dsl.layout.LayoutHintsBuilder
 @KumlDsl
 class C4ModelBuilder(
     private val name: String,
+    private val description: String? = null,
 ) : C4ModelScope {
     override val takenIds: MutableSet<String> = mutableSetOf()
     override val elements: MutableList<C4Element> = mutableListOf()
@@ -153,6 +155,7 @@ class C4ModelBuilder(
                 instances = scope.instances,
                 containerInstances = scope.containerInstances.map { it.id },
                 children = childrenIds,
+                metadata = scope.layoutHintsBuilder.toMetadata(),
             )
         addElement(node)
         return node
@@ -302,6 +305,7 @@ class C4ModelBuilder(
             C4Model(
                 id = C4Ids.generateId(),
                 name = name,
+                description = description,
                 elements = elements.toList(),
                 relationships = relationships.toList(),
                 // Will be populated below
@@ -440,7 +444,13 @@ class ContainerScopeImpl(
         block: ComponentScope.() -> Unit,
     ): C4Component {
         val componentId = C4Ids.generateId()
-        val scope = ComponentScopeImpl()
+        val scope =
+            ComponentScopeImpl(
+                componentId = componentId,
+                takenIds = takenIds,
+                elements = elements,
+                relationships = relationships,
+            )
         scope.apply(block)
 
         val component =
@@ -450,6 +460,7 @@ class ContainerScopeImpl(
                 description = scope.description,
                 technology = scope.technology,
                 container = containerId,
+                codeElements = scope.codeElements.map { it.id },
                 metadata = scope.layoutHintsBuilder.toMetadata(),
             )
         components += component
@@ -459,7 +470,43 @@ class ContainerScopeImpl(
 }
 
 @KumlDsl
-private class ComponentScopeImpl : ComponentScope {
+private class ComponentScopeImpl(
+    override val componentId: String,
+    override val takenIds: MutableSet<String>,
+    override val elements: MutableList<C4Element>,
+    override val relationships: MutableList<C4Relationship>,
+) : ComponentScope {
+    override var description: String? = null
+    override var technology: String? = null
+    override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
+
+    val codeElements: MutableList<C4CodeElement> = mutableListOf()
+
+    override fun codeElement(
+        name: String,
+        block: CodeElementScope.() -> Unit,
+    ): C4CodeElement {
+        val ceId = C4Ids.generateId()
+        val scope = CodeElementScopeImpl()
+        scope.apply(block)
+
+        val ce =
+            C4CodeElement(
+                id = ceId,
+                name = name,
+                description = scope.description,
+                technology = scope.technology,
+                component = componentId,
+                metadata = scope.layoutHintsBuilder.toMetadata(),
+            )
+        codeElements += ce
+        addElement(ce)
+        return ce
+    }
+}
+
+@KumlDsl
+private class CodeElementScopeImpl : CodeElementScope {
     override var description: String? = null
     override var technology: String? = null
     override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
@@ -475,6 +522,7 @@ class DeploymentNodeScopeImpl(
     override var description: String? = null
     override var technology: String? = null
     override var instances: Int = 1
+    override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 
     val children: MutableList<C4DeploymentNode> = mutableListOf()
     val containerInstances: MutableList<C4Container> = mutableListOf()
@@ -497,6 +545,7 @@ class DeploymentNodeScopeImpl(
                 instances = scope.instances,
                 containerInstances = scope.containerInstances.map { it.id },
                 children = childrenIds,
+                metadata = scope.layoutHintsBuilder.toMetadata(),
             )
         children += node
         addElement(node)
@@ -512,6 +561,7 @@ class DeploymentNodeScopeImpl(
                 id = C4Ids.generateId(),
                 name = name,
                 system = null,
+                instanceOf = containerId,
                 components = emptyList(),
             )
         containerInstances += instance

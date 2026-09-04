@@ -69,32 +69,25 @@ import dev.kuml.core.model.KumlMetaValue
  * `relationship(...)` / diagram call. If the model does reference one (a
  * relationship or diagram touches a container-instance id), that reference
  * is printed as a `// TODO` comment instead of a dangling/incorrect call.
+ * `containerId` itself *does* round-trip — as `containerId = <var>.id`, a
+ * live Kotlin expression reading the original container's freshly
+ * regenerated id at script-eval time (ids are not user-pinnable in the C4
+ * DSL — see [dev.kuml.c4.dsl.C4Ids.generateId]) — as long as the original
+ * container ([C4Container.instanceOf]) is itself printed; otherwise the
+ * printer falls back to an empty placeholder and a `// TODO` comment.
  *
- * ## Known non-round-tripping fields
+ * ## Known non-round-tripping cases (per ADR-0017, kept intentionally narrow)
  *
- * - [C4Model.description] — `c4Model(name, description, block)` accepts a
- *   `description` parameter but [dev.kuml.c4.dsl.C4ModelBuilder] never reads
- *   it; there is no way to set [C4Model.description] via the DSL at all.
- * - `containerInstance(name, containerId)`'s `containerId` parameter is
- *   never stored by [dev.kuml.c4.dsl.DeploymentNodeScopeImpl] — the printer
- *   emits an empty placeholder and a trailing comment.
- * - [C4CodeElement] — [dev.kuml.c4.dsl.C4ModelBuilder] has no `codeElement()`
- *   entry point at any level; every code element becomes a `// TODO`.
- * - [C4DeploymentNode.metadata] layout hints (`GRID_COL`/`GRID_ROW`/`PINNED`/
- *   etc.) — unlike [dev.kuml.c4.dsl.PersonScope], [dev.kuml.c4.dsl.SoftwareSystemScope],
- *   [dev.kuml.c4.dsl.ContainerScope] and [dev.kuml.c4.dsl.ComponentScope],
- *   [dev.kuml.c4.dsl.DeploymentNodeScope] does not extend
- *   [dev.kuml.core.dsl.layout.LayoutHintsScope], so no `layout { … }` call is
- *   available inside `node(...)` / `deploymentNode(...)`; any such metadata
- *   becomes a `// TODO` instead.
- * - [ContainerDiagram] / [ComponentDiagram] — the builders only expose
- *   coarse `show*` boolean flags plus `exclude(...)`, never a per-element
- *   `include(...)` for external systems/persons/containers. The printer
- *   reimplements the builders' own filter logic to find the best reachable
- *   `system =` / `container =` + flags + `exclude(...)` combination and
- *   verifies it reproduces the stored `elements`/`relationships`; on any
- *   residual mismatch it still emits the best-effort call and appends a
- *   `// TODO` naming the missing/extra element ids.
+ * - [ContainerDiagram] / [ComponentDiagram] — the printer reconstructs these
+ *   exactly whenever the diagram's stored `elements` genuinely exist in the
+ *   model (via the builders' `show*`/`exclude(...)` flags plus
+ *   [dev.kuml.c4.dsl.ContainerDiagramBuilder.include] /
+ *   [dev.kuml.c4.dsl.ComponentDiagramBuilder.include] for whatever the flags
+ *   can't reach on their own). The only residual gap is a truly dangling
+ *   element id (one that does not resolve to any printed C4 element at all)
+ *   or a relationship subset that the diagram's coarse `showRelationships`
+ *   boolean cannot express — both still fall back to a `// TODO` naming the
+ *   missing/extra ids.
  *
  * Format:
  * ```kotlin
@@ -114,14 +107,7 @@ public object C4DslPrinter {
         if (hasAnyPrintableLayoutHints(model.elements)) {
             sb.appendLine("import dev.kuml.core.dsl.layout.layout")
         }
-        sb.appendLine("c4Model(name = ${quote(model.name)}) {")
-        model.description?.let { modelDescription ->
-            sb.appendLine(
-                "    // TODO: C4Model.description ${quote(modelDescription)} not serialized — " +
-                    "the c4Model(...) DSL builder ignores its `description` parameter " +
-                    "(see C4ModelBuilder.build()); C4Model.description cannot currently be set via the DSL.",
-            )
-        }
+        sb.appendLine("c4Model(name = ${quote(model.name)}${descArg(model.description)}) {")
 
         val elementById: Map<ElementId, C4Element> = model.elements.associateBy { it.id }
         val allDeploymentNodes = model.elements.filterIsInstance<C4DeploymentNode>()
@@ -131,7 +117,14 @@ public object C4DslPrinter {
                 .filter { it is C4Person || it is C4SoftwareSystem || (it is C4DeploymentNode && it.id !in childNodeIds) }
                 .map { it.id }
                 .toSet()
-        val orderedTop = model.elements.filter { it.id in topLevelIds }
+        // Stable sort: Person/SoftwareSystem always printed before DeploymentNode, so a
+        // containerInstance(...) call (which references an already-assigned Container
+        // lateinit var, see printDeploymentNode) never runs before that var's assignment.
+        // Within each group, the original model order is preserved (sortedBy is stable).
+        val orderedTop =
+            model.elements
+                .filter { it.id in topLevelIds }
+                .sortedBy { if (it is C4DeploymentNode) 1 else 0 }
 
         val referencedIds = computeReferencedIds(model)
         val ctx = Ctx()
@@ -161,6 +154,10 @@ public object C4DslPrinter {
                         indent = "    ",
                         funcName = "deploymentNode",
                         varName = v,
+                        // Top-level root node: never predeclared via a `lateinit var` (only its
+                        // descendants can be — see declareLateinitForNode), so this must be a
+                        // fresh `val` declaration, not a bare assignment to an undeclared name.
+                        isFreshDeclaration = true,
                         n = el,
                         elementById = elementById,
                         ctx = ctx,
@@ -173,18 +170,11 @@ public object C4DslPrinter {
         model.relationships.forEach { printRelationship(sb = sb, r = it, ctx = ctx) }
         model.diagrams.forEach { printDiagram(sb = sb, d = it, model = model, ctx = ctx, elementById = elementById) }
 
-        val nonCode = model.elements.filterNot { it is C4CodeElement }
-        nonCode.filterNot { it.id in ctx.printed }.forEach { el ->
+        model.elements.filterNot { it.id in ctx.printed }.forEach { el ->
             sb.appendLine(
                 "    // TODO: ${el::class.simpleName} ${quote(el.name)} (id = ${quote(el.id)}) not serialized — " +
-                    "element is not reachable from any top-level DSL entry point " +
-                    "(orphaned container/component, or a dangling parent reference).",
-            )
-        }
-        model.elements.filterIsInstance<C4CodeElement>().forEach { ce ->
-            sb.appendLine(
-                "    // TODO: C4CodeElement ${quote(ce.name)} (id = ${quote(ce.id)}) not serialized — " +
-                    "no DSL builder exists for C4CodeElement (C4ModelBuilder has no codeElement() entry point).",
+                    "element is not reachable from any top-level DSL entry point (orphaned container/component/code " +
+                    "element, or a dangling parent reference).",
             )
         }
 
@@ -218,6 +208,10 @@ public object C4DslPrinter {
             ids += it.source
             ids += it.target
         }
+        // A containerInstance(...) call round-trips its containerId as `<var>.id` (see
+        // printDeploymentNode), so the original container it points to must always have a
+        // lateinit var predeclared for it, even if nothing else in the model references it.
+        model.elements.filterIsInstance<C4Container>().forEach { c -> c.instanceOf?.let { ids += it } }
         val allContainers = model.elements.filterIsInstance<C4Container>()
         val allComponents = model.elements.filterIsInstance<C4Component>()
         model.diagrams.forEach { d ->
@@ -261,6 +255,14 @@ public object C4DslPrinter {
                     val v = ctx.freshVar()
                     ctx.varNames[comp.id] = v
                     sb.appendLine("    lateinit var $v: C4Component")
+                }
+                val codeElements = comp.codeElements.mapNotNull { elementById[it] as? C4CodeElement }
+                for (ce in codeElements) {
+                    if (ce.id in referencedIds) {
+                        val v = ctx.freshVar()
+                        ctx.varNames[ce.id] = v
+                        sb.appendLine("    lateinit var $v: C4CodeElement")
+                    }
                 }
             }
         }
@@ -342,7 +344,7 @@ public object C4DslPrinter {
         val inner = StringBuilder()
         c.description?.let { inner.appendLine("$indent    description = ${quote(it)}") }
         c.technology?.let { inner.appendLine("$indent    technology = ${quote(it)}") }
-        for (comp in comps) printComponent(sb = inner, indent = "$indent    ", c = comp, ctx = ctx)
+        for (comp in comps) printComponent(sb = inner, indent = "$indent    ", c = comp, elementById = elementById, ctx = ctx)
         printLayoutHints(sb = inner, metadata = c.metadata, indent = "$indent    ")
         if (inner.isBlank()) {
             sb.appendLine("${prefix}container(${quote(c.name)})")
@@ -357,19 +359,44 @@ public object C4DslPrinter {
         sb: StringBuilder,
         indent: String,
         c: C4Component,
+        elementById: Map<ElementId, C4Element>,
         ctx: Ctx,
     ) {
         ctx.printed += c.id
         val assignedVar = ctx.varNames[c.id]
         val prefix = if (assignedVar != null) "$indent$assignedVar = " else indent
+        val codeElements = c.codeElements.mapNotNull { elementById[it] as? C4CodeElement }
         val inner = StringBuilder()
         c.description?.let { inner.appendLine("$indent    description = ${quote(it)}") }
         c.technology?.let { inner.appendLine("$indent    technology = ${quote(it)}") }
+        for (ce in codeElements) printCodeElement(sb = inner, indent = "$indent    ", ce = ce, ctx = ctx)
         printLayoutHints(sb = inner, metadata = c.metadata, indent = "$indent    ")
         if (inner.isBlank()) {
             sb.appendLine("${prefix}component(${quote(c.name)})")
         } else {
             sb.appendLine("${prefix}component(${quote(c.name)}) {")
+            sb.append(inner)
+            sb.appendLine("$indent}")
+        }
+    }
+
+    private fun printCodeElement(
+        sb: StringBuilder,
+        indent: String,
+        ce: C4CodeElement,
+        ctx: Ctx,
+    ) {
+        ctx.printed += ce.id
+        val assignedVar = ctx.varNames[ce.id]
+        val prefix = if (assignedVar != null) "$indent$assignedVar = " else indent
+        val inner = StringBuilder()
+        ce.description?.let { inner.appendLine("$indent    description = ${quote(it)}") }
+        ce.technology?.let { inner.appendLine("$indent    technology = ${quote(it)}") }
+        printLayoutHints(sb = inner, metadata = ce.metadata, indent = "$indent    ")
+        if (inner.isBlank()) {
+            sb.appendLine("${prefix}codeElement(${quote(ce.name)})")
+        } else {
+            sb.appendLine("${prefix}codeElement(${quote(ce.name)}) {")
             sb.append(inner)
             sb.appendLine("$indent}")
         }
@@ -383,9 +410,20 @@ public object C4DslPrinter {
         n: C4DeploymentNode,
         elementById: Map<ElementId, C4Element>,
         ctx: Ctx,
+        isFreshDeclaration: Boolean = false,
     ) {
         ctx.printed += n.id
-        val prefix = if (varName != null) "$indent$varName = " else indent
+        val prefix =
+            when {
+                varName == null -> indent
+                // Top-level root node: freshly assigned in print()'s main loop, never predeclared
+                // via a `lateinit var` — needs its own `val` here, unlike the nested case below.
+                isFreshDeclaration -> "${indent}val $varName = "
+                // Nested child node: varName is non-null only when declareLateinitForNode
+                // already emitted `lateinit var $varName: C4DeploymentNode` for it — plain
+                // assignment, no `val`.
+                else -> "$indent$varName = "
+            }
         val inner = StringBuilder()
         n.description?.let { inner.appendLine("$indent    description = ${quote(it)}") }
         n.technology?.let { inner.appendLine("$indent    technology = ${quote(it)}") }
@@ -407,17 +445,28 @@ public object C4DslPrinter {
         for (ci in instances) {
             ctx.printed += ci.id
             // containerInstance(...) returns Unit — can never be assigned to a var, see class KDoc.
-            inner.appendLine(
-                "$indent    containerInstance(${quote(ci.name)}, containerId = \"\") " +
-                    "// NOTE: containerId is ignored by DeploymentNodeScopeImpl.containerInstance()",
-            )
+            // The referenced container's id is round-tripped as `<var>.id` — a live Kotlin
+            // expression reading the freshly regenerated id at script-eval time — rather than a
+            // literal, since C4 ids are not user-pinnable (see C4Ids.generateId()).
+            val instanceOf: ElementId? = ci.instanceOf
+            val originalVar = instanceOf?.let { ctx.varNames[it] }
+            if (originalVar != null) {
+                inner.appendLine("$indent    containerInstance(${quote(ci.name)}, containerId = $originalVar.id)")
+            } else {
+                val reason =
+                    if (instanceOf == null) {
+                        "C4Container.instanceOf is null (no source container recorded for this instance)."
+                    } else {
+                        "container id '${sanitizeForComment(instanceOf)}' does not resolve to a printed C4 element."
+                    }
+                inner.appendLine(
+                    "$indent    // TODO: containerInstance ${quote(ci.name)} (id = ${quote(ci.id)}) not serialized with its " +
+                        "original containerId — $reason",
+                )
+                inner.appendLine("$indent    containerInstance(${quote(ci.name)}, containerId = \"\")")
+            }
         }
-        if (hasLayoutHints(n.metadata)) {
-            inner.appendLine(
-                "$indent    // TODO: layout metadata on C4DeploymentNode ${quote(n.name)} not serialized — " +
-                    "DeploymentNodeScope does not extend LayoutHintsScope, so no layout { … } call is available here.",
-            )
-        }
+        printLayoutHints(sb = inner, metadata = n.metadata, indent = "$indent    ")
         if (inner.isBlank()) {
             sb.appendLine("$prefix$funcName(${quote(n.name)})")
         } else {
@@ -563,50 +612,64 @@ public object C4DslPrinter {
         return relatedIds
     }
 
-    private fun computeContainerDiagramResult(
-        model: C4Model,
-        systemId: ElementId,
-        excluded: Set<ElementId>,
-        showExternalSystems: Boolean,
-        showRelatedPersons: Boolean,
-        showRelationships: Boolean,
-    ): Pair<Set<ElementId>, Set<ElementId>> {
-        val systemContainers =
-            model.elements
-                .filterIsInstance<C4Container>()
-                .filter { it.system == systemId && it.id !in excluded }
-                .map { it.id }
-        val externalSystems =
-            if (showExternalSystems) {
-                findExternalSystemsFor(
-                    model = model,
-                    systemId = systemId,
-                    systemContainers = systemContainers,
-                )
-            } else {
-                emptySet()
-            }
-        val relatedPersons =
-            if (showRelatedPersons) {
-                findRelatedPersonsFor(
-                    model = model,
-                    systemId = systemId,
-                    systemContainers = systemContainers,
-                )
-            } else {
-                emptySet()
-            }
-        val allElements = (setOf(systemId) + systemContainers + externalSystems + relatedPersons)
-        val filteredRelationships =
-            if (showRelationships) {
-                model.relationships
-                    .filter { it.source in allElements && it.target in allElements }
-                    .map { it.id }
-                    .toSet()
-            } else {
-                emptySet()
-            }
-        return allElements to filteredRelationships
+    /**
+     * Decides a diagram builder boolean flag's printed value plus any elements that must be
+     * added on top of it via `include(...)`, given the elements the original diagram actually
+     * contains ([target]) versus what the flag's auto-reconstruction logic would find on its
+     * own ([auto]):
+     *
+     * - `target == auto` → the flag can stay at its default `true`; nothing else needed. This
+     *   is the common case that mirrors hand-written scripts (no `include(...)` noise).
+     * - `target` is empty (and thus different from a non-empty [auto]) → the flag must be
+     *   turned off (`false`) to suppress [auto]'s elements; no `include(...)` needed since
+     *   nothing is meant to be shown.
+     * - otherwise → the flag is turned off and the *entire* [target] set is re-added via
+     *   `include(...)`, since turning the flag off also suppresses whatever overlap [auto] had
+     *   with [target].
+     *
+     * In every branch the returned pair's "effective" element set (flag-contributed elements
+     * when `true`, else the returned extra set) equals [target] exactly — see call sites.
+     */
+    private fun reconcile(
+        target: Set<ElementId>,
+        auto: Set<ElementId>,
+    ): Pair<Boolean, Set<ElementId>> =
+        when {
+            target == auto -> true to emptySet()
+            target.isEmpty() -> false to emptySet()
+            else -> false to target
+        }
+
+    /**
+     * Emits an `include(...)` call for [extraIds] (elements a coarse show*-flag/exclude() flag
+     * cannot reach on its own) if every id resolves to a printed variable, or a `// TODO`
+     * naming the ids that don't (a genuinely dangling/non-existent element reference) — omitted
+     * entirely rather than partially, mirroring the existing `exclude(...)` fallback.
+     *
+     * @return [extraIds] unchanged if the `include(...)` call was emitted, or an empty set if a
+     *   `// TODO` was emitted instead — callers use this to compute the *actually reconstructed*
+     *   element set for the final `matches` check, so a genuinely dangling id correctly fails
+     *   that check instead of being silently counted as "included".
+     */
+    private fun printInclude(
+        sb: StringBuilder,
+        diagramName: String,
+        extraIds: Set<ElementId>,
+        ctx: Ctx,
+    ): Set<ElementId> {
+        if (extraIds.isEmpty()) return emptySet()
+        val extraVars = extraIds.mapNotNull { ctx.varNames[it] }
+        return if (extraVars.size == extraIds.size) {
+            sb.appendLine("        include(${extraVars.joinToString(", ")})")
+            extraIds
+        } else {
+            val unresolved = extraIds.filter { ctx.varNames[it] == null }
+            sb.appendLine(
+                "        // TODO: ${unresolved.size} element(s) of ${quote(diagramName)} could not be referenced by " +
+                    "variable for include() — ids: ${sanitizeForComment(unresolved)}.",
+            )
+            emptySet()
+        }
     }
 
     private fun printContainerDiagram(
@@ -634,36 +697,28 @@ public object C4DslPrinter {
         val diagElements = d.elements.toSet()
         val excluded = allSystemContainers.toSet() - diagElements
         val includedContainers = allSystemContainers.filter { it !in excluded }
+
         val externalPresent = diagElements - includedContainers.toSet() - setOf(d.system)
-        val actualExternalSystems = externalPresent.filter { id -> model.elements.find { it.id == id } is C4SoftwareSystem }.toSet()
-        val actualPersons = externalPresent.filter { id -> model.elements.find { it.id == id } is C4Person }.toSet()
+        val diagExternalSystems = externalPresent.filter { id -> model.elements.find { it.id == id } is C4SoftwareSystem }.toSet()
+        val diagPersons = externalPresent.filter { id -> model.elements.find { it.id == id } is C4Person }.toSet()
 
-        val showExternalSystems = actualExternalSystems.isNotEmpty()
-        val showRelatedPersons = actualPersons.isNotEmpty()
+        val autoExternalSystems = findExternalSystemsFor(model = model, systemId = d.system, systemContainers = includedContainers)
+        val autoPersons = findRelatedPersonsFor(model = model, systemId = d.system, systemContainers = includedContainers)
 
-        val (elementsWithRels, relsAllOn) =
-            computeContainerDiagramResult(
-                model = model,
-                systemId = d.system,
-                excluded = excluded,
-                showExternalSystems = showExternalSystems,
-                showRelatedPersons = showRelatedPersons,
-                showRelationships = true,
-            )
-        val showRelationships = if (d.relationships.isEmpty() && relsAllOn.isNotEmpty()) false else true
-        val (finalElements, finalRelationships) =
-            if (showRelationships) {
-                elementsWithRels to relsAllOn
-            } else {
-                computeContainerDiagramResult(
-                    model = model,
-                    systemId = d.system,
-                    excluded = excluded,
-                    showExternalSystems = showExternalSystems,
-                    showRelatedPersons = showRelatedPersons,
-                    showRelationships = false,
-                )
-            }
+        val (showExternalSystems, extraExternal) = reconcile(target = diagExternalSystems, auto = autoExternalSystems)
+        val (showRelatedPersons, extraPersons) = reconcile(target = diagPersons, auto = autoPersons)
+
+        // Used only to decide showRelationships/finalRelationships below: whether a dangling
+        // extra id is nominally present here has no effect on that filter, since a relationship
+        // endpoint always refers to a real element and can never equal a non-existent id.
+        val allElementsForRelFilter = setOf(d.system) + includedContainers + extraExternal + extraPersons
+        val relsIfOn =
+            model.relationships
+                .filter { it.source in allElementsForRelFilter && it.target in allElementsForRelFilter }
+                .map { it.id }
+                .toSet()
+        val showRelationships = !(d.relationships.isEmpty() && relsIfOn.isNotEmpty())
+        val finalRelationships = if (showRelationships) relsIfOn else emptySet()
 
         sb.appendLine("        system = $systemVar")
         if (!showExternalSystems) sb.appendLine("        showExternalSystems = false")
@@ -680,13 +735,18 @@ public object C4DslPrinter {
                 )
             }
         }
-        val matches = finalElements == diagElements && finalRelationships == d.relationships.toSet()
+        val printedExtra = printInclude(sb = sb, diagramName = d.name, extraIds = extraExternal + extraPersons, ctx = ctx)
+        // The final, *actually reconstructed* element set — unlike allElementsForRelFilter above,
+        // this only counts extraExternal/extraPersons if printInclude actually emitted them.
+        val effectiveExternal = if (showExternalSystems) autoExternalSystems else printedExtra.intersect(extraExternal)
+        val effectivePersons = if (showRelatedPersons) autoPersons else printedExtra.intersect(extraPersons)
+        val allElements = setOf(d.system) + includedContainers + effectiveExternal + effectivePersons
+        val matches = allElements == diagElements && finalRelationships == d.relationships.toSet()
         if (!matches) {
             sb.appendLine(
-                "        // TODO: ContainerDiagram ${quote(d.name)} could not be reconstructed exactly via the C4 DSL " +
-                    "builder API (only global show*/exclude() flags are available, no per-element include()). " +
-                    "Missing from reconstruction: ${sanitizeForComment(diagElements - finalElements)}. " +
-                    "Extra in reconstruction: ${sanitizeForComment(finalElements - diagElements)}.",
+                "        // TODO: ContainerDiagram ${quote(d.name)} could not be reconstructed exactly. " +
+                    "Missing: ${sanitizeForComment(diagElements - allElements)}. " +
+                    "Extra: ${sanitizeForComment(allElements - diagElements)}.",
             )
         }
         sb.appendLine("    }")
@@ -708,41 +768,6 @@ public object C4DslPrinter {
             if (sourceIsContainer && rel.source != containerId && toThisContainer) relatedIds.add(rel.source)
         }
         return relatedIds
-    }
-
-    private fun computeComponentDiagramResult(
-        model: C4Model,
-        containerId: ElementId,
-        excluded: Set<ElementId>,
-        showExternalReferences: Boolean,
-        showRelationships: Boolean,
-    ): Pair<Set<ElementId>, Set<ElementId>> {
-        val comps =
-            model.elements
-                .filterIsInstance<C4Component>()
-                .filter { it.container == containerId && it.id !in excluded }
-                .map { it.id }
-        val ext =
-            if (showExternalReferences) {
-                findExternalContainersFor(
-                    model = model,
-                    containerId = containerId,
-                    containerComponents = comps,
-                )
-            } else {
-                emptySet()
-            }
-        val allElements = setOf(containerId) + comps + ext
-        val filteredRels =
-            if (showRelationships) {
-                model.relationships
-                    .filter { it.source in allElements && it.target in allElements }
-                    .map { it.id }
-                    .toSet()
-            } else {
-                emptySet()
-            }
-        return allElements to filteredRels
     }
 
     private fun printComponentDiagram(
@@ -770,30 +795,22 @@ public object C4DslPrinter {
         val diagElements = d.elements.toSet()
         val excluded = allContainerComponents.toSet() - diagElements
         val includedComponents = allContainerComponents.filter { it !in excluded }
-        val externalPresent = diagElements - includedComponents.toSet() - setOf(d.container)
-        val showExternalReferences = externalPresent.isNotEmpty()
 
-        val (elementsWithRels, relsAllOn) =
-            computeComponentDiagramResult(
-                model = model,
-                containerId = d.container,
-                excluded = excluded,
-                showExternalReferences = showExternalReferences,
-                showRelationships = true,
-            )
-        val showRelationships = if (d.relationships.isEmpty() && relsAllOn.isNotEmpty()) false else true
-        val (finalElements, finalRelationships) =
-            if (showRelationships) {
-                elementsWithRels to relsAllOn
-            } else {
-                computeComponentDiagramResult(
-                    model = model,
-                    containerId = d.container,
-                    excluded = excluded,
-                    showExternalReferences = showExternalReferences,
-                    showRelationships = false,
-                )
-            }
+        val externalPresent = diagElements - includedComponents.toSet() - setOf(d.container)
+        val autoExternal = findExternalContainersFor(model = model, containerId = d.container, containerComponents = includedComponents)
+        val (showExternalReferences, extraExternal) = reconcile(target = externalPresent, auto = autoExternal)
+
+        // Used only to decide showRelationships/finalRelationships below: whether a dangling
+        // extra id is nominally present here has no effect on that filter, since a relationship
+        // endpoint always refers to a real element and can never equal a non-existent id.
+        val allElementsForRelFilter = setOf(d.container) + includedComponents + extraExternal
+        val relsIfOn =
+            model.relationships
+                .filter { it.source in allElementsForRelFilter && it.target in allElementsForRelFilter }
+                .map { it.id }
+                .toSet()
+        val showRelationships = !(d.relationships.isEmpty() && relsIfOn.isNotEmpty())
+        val finalRelationships = if (showRelationships) relsIfOn else emptySet()
 
         sb.appendLine("        container = $containerVar")
         if (!showExternalReferences) sb.appendLine("        showExternalReferences = false")
@@ -809,13 +826,17 @@ public object C4DslPrinter {
                 )
             }
         }
-        val matches = finalElements == diagElements && finalRelationships == d.relationships.toSet()
+        val printedExtra = printInclude(sb = sb, diagramName = d.name, extraIds = extraExternal, ctx = ctx)
+        // The final, *actually reconstructed* element set — unlike allElementsForRelFilter above,
+        // this only counts extraExternal if printInclude actually emitted it.
+        val effectiveExternal = if (showExternalReferences) autoExternal else printedExtra.intersect(extraExternal)
+        val allElements = setOf(d.container) + includedComponents + effectiveExternal
+        val matches = allElements == diagElements && finalRelationships == d.relationships.toSet()
         if (!matches) {
             sb.appendLine(
-                "        // TODO: ComponentDiagram ${quote(d.name)} could not be reconstructed exactly via the C4 DSL " +
-                    "builder API (only global show*/exclude() flags are available, no per-element include()). " +
-                    "Missing from reconstruction: ${sanitizeForComment(diagElements - finalElements)}. " +
-                    "Extra in reconstruction: ${sanitizeForComment(finalElements - diagElements)}.",
+                "        // TODO: ComponentDiagram ${quote(d.name)} could not be reconstructed exactly. " +
+                    "Missing: ${sanitizeForComment(diagElements - allElements)}. " +
+                    "Extra: ${sanitizeForComment(allElements - diagElements)}.",
             )
         }
         sb.appendLine("    }")
@@ -930,12 +951,9 @@ public object C4DslPrinter {
             metadata.containsKey(LayoutMetadataKeys.GRID_ROW_SPAN) ||
             metadata.containsKey(LayoutMetadataKeys.PINNED)
 
-    // Only element kinds whose scope actually exposes a `layout { … }` DSL entry point (see
-    // printLayoutHints call sites above) are considered here. C4DeploymentNode carries layout
-    // metadata too, but DeploymentNodeScope has no `layout { … }` entry point — printDeploymentNode
-    // falls back to a `// TODO` comment instead (see hasLayoutHints usage there) — so a model whose
-    // only layout-hint-bearing element is a deployment node must NOT trigger this import: no
-    // `layout { … }` call is ever emitted, and the import would be unused dead code.
+    // All element kinds whose scope exposes a `layout { … }` DSL entry point are considered
+    // here — DeploymentNodeScope now extends LayoutHintsScope too (see printDeploymentNode),
+    // so C4DeploymentNode.metadata is included alongside the others.
     private fun hasAnyPrintableLayoutHints(elements: List<C4Element>): Boolean =
         elements.any { el ->
             val meta =
@@ -944,8 +962,8 @@ public object C4DslPrinter {
                     is C4SoftwareSystem -> el.metadata
                     is C4Container -> el.metadata
                     is C4Component -> el.metadata
-                    // No `layout { … }` DSL entry point exists for deployment nodes — see comment above.
-                    is C4DeploymentNode -> emptyMap()
+                    is C4CodeElement -> el.metadata
+                    is C4DeploymentNode -> el.metadata
                     else -> emptyMap()
                 }
             hasLayoutHints(meta)

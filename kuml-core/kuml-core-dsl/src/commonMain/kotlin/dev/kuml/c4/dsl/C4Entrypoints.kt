@@ -35,7 +35,7 @@ fun c4Model(
     description: String? = null,
     block: C4ModelBuilder.() -> Unit = {},
 ): C4Model {
-    val builder = C4ModelBuilder(name)
+    val builder = C4ModelBuilder(name = name, description = description)
     builder.apply(block)
     return builder.build()
 }

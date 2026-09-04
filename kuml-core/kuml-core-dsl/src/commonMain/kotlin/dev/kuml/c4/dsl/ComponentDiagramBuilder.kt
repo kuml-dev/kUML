@@ -2,7 +2,10 @@ package dev.kuml.c4.dsl
 
 import dev.kuml.c4.model.C4Component
 import dev.kuml.c4.model.C4Container
+import dev.kuml.c4.model.C4Element
 import dev.kuml.c4.model.C4Model
+import dev.kuml.c4.model.C4Person
+import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.c4.model.ComponentDiagram
 import dev.kuml.c4.model.ElementId
 import dev.kuml.core.dsl.KumlDsl
@@ -23,6 +26,14 @@ interface ComponentDiagramBuilder {
     var showExternalReferences: Boolean
 
     var showRelationships: Boolean
+
+    /**
+     * Adds specific elements to the diagram regardless of [showExternalReferences] — for
+     * elements the coarse show*-flags/exclude() flags cannot reach on their own (e.g. one external
+     * container not connected by any modeled relationship). Accepts [C4Person],
+     * [C4SoftwareSystem], [C4Container], [C4Component].
+     */
+    fun include(vararg elements: C4Element)
 
     fun exclude(vararg components: C4Component)
 
@@ -47,9 +58,26 @@ class ComponentDiagramBuilderImpl(
     override var showRelationships: Boolean = true
 
     private val excludedComponents = mutableSetOf<ElementId>()
+    private val includedElements = mutableSetOf<ElementId>()
+
+    override fun include(vararg elements: C4Element) {
+        elements.forEach { elem ->
+            validateElementType(elem)
+            includedElements.add(elem.id)
+        }
+    }
 
     override fun exclude(vararg components: C4Component) {
         components.forEach { excludedComponents.add(it.id) }
+    }
+
+    private fun validateElementType(elem: C4Element) {
+        if (elem !is C4Person && elem !is C4SoftwareSystem && elem !is C4Container && elem !is C4Component) {
+            throw IllegalArgumentException(
+                "Component Diagram include() only accepts C4Person, C4SoftwareSystem, C4Container or C4Component, " +
+                    "but received: ${elem::class.simpleName}",
+            )
+        }
     }
 
     override fun title(text: String) {
@@ -89,6 +117,7 @@ class ComponentDiagramBuilderImpl(
             listOf(targetContainer.id)
                 .plus(containerComponents)
                 .plus(externalContainers)
+                .plus(includedElements)
                 .distinct()
 
         // 4. Filtere Relationships

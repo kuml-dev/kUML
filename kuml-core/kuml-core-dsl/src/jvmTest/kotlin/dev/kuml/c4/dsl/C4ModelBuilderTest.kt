@@ -1,5 +1,6 @@
 package dev.kuml.c4.dsl
 
+import dev.kuml.c4.model.C4CodeElement
 import dev.kuml.c4.model.C4Component
 import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4DeploymentNode
@@ -371,5 +372,50 @@ class C4ModelBuilderTest :
             model.elements.filterIsInstance<C4Component>().shouldHaveSize(3)
             model.elements.filterIsInstance<C4DeploymentNode>().shouldHaveSize(1)
             model.relationships.shouldHaveSize(2)
+        }
+
+        test(name = "DSL: c4Model description is stored on C4Model") {
+            val model = c4Model(name = "X", description = "Y") {}
+            model.description shouldBe "Y"
+        }
+
+        test(name = "DSL: containerInstance stores containerId as instanceOf") {
+            lateinit var webAppRef: C4Container
+            val model =
+                c4Model(name = "Test") {
+                    softwareSystem(name = "System") { webAppRef = container(name = "Web App") }
+                    deploymentNode(name = "AWS") {
+                        containerInstance(name = "Web App Instance", containerId = webAppRef.id)
+                    }
+                }
+            val instance =
+                model.elements
+                    .filterIsInstance<C4Container>()
+                    .single { it.system == null }
+            instance.instanceOf shouldBe webAppRef.id
+        }
+
+        test(name = "DSL: codeElement creates a C4CodeElement nested in a component") {
+            val model =
+                c4Model(name = "Test") {
+                    softwareSystem(name = "System") {
+                        container(name = "Web App") {
+                            component(name = "X") {
+                                codeElement(name = "Y") {
+                                    technology = "Kotlin"
+                                }
+                            }
+                        }
+                    }
+                }
+            val codeElements = model.elements.filterIsInstance<C4CodeElement>()
+            codeElements.shouldHaveSize(1)
+            codeElements.first().name shouldBe "Y"
+            codeElements.first().technology shouldBe "Kotlin"
+
+            val component = model.elements.filterIsInstance<C4Component>().first()
+            codeElements.first().component shouldBe component.id
+            component.codeElements shouldHaveSize 1
+            component.codeElements.first() shouldBe codeElements.first().id
         }
     })

@@ -1,6 +1,7 @@
 package dev.kuml.c4.dsl
 
 import dev.kuml.c4.model.C4Container
+import dev.kuml.c4.model.C4Element
 import dev.kuml.c4.model.C4Model
 import dev.kuml.c4.model.C4Person
 import dev.kuml.c4.model.C4SoftwareSystem
@@ -33,6 +34,14 @@ interface ContainerDiagramBuilder {
 
     var showRelationships: Boolean
 
+    /**
+     * Adds specific elements to the diagram regardless of [showExternalSystems] /
+     * [showRelatedPersons] — for elements the coarse show*-flags/exclude() flags cannot reach on
+     * their own (e.g. one external system not connected by any modeled relationship).
+     * Accepts [C4Person], [C4SoftwareSystem], [C4Container].
+     */
+    fun include(vararg elements: C4Element)
+
     fun exclude(vararg containers: C4Container)
 
     fun title(text: String)
@@ -57,9 +66,26 @@ class ContainerDiagramBuilderImpl(
     override var showRelationships: Boolean = true
 
     private val excludedContainers = mutableSetOf<ElementId>()
+    private val includedElements = mutableSetOf<ElementId>()
+
+    override fun include(vararg elements: C4Element) {
+        elements.forEach { elem ->
+            validateElementType(elem)
+            includedElements.add(elem.id)
+        }
+    }
 
     override fun exclude(vararg containers: C4Container) {
         containers.forEach { excludedContainers.add(it.id) }
+    }
+
+    private fun validateElementType(elem: C4Element) {
+        if (elem !is C4Person && elem !is C4SoftwareSystem && elem !is C4Container) {
+            throw IllegalArgumentException(
+                "Container Diagram include() only accepts C4Person, C4SoftwareSystem or C4Container, " +
+                    "but received: ${elem::class.simpleName}",
+            )
+        }
     }
 
     override fun title(text: String) {
@@ -103,6 +129,7 @@ class ContainerDiagramBuilderImpl(
                 .plus(systemContainers)
                 .plus(externalSystems)
                 .plus(relatedPersons)
+                .plus(includedElements)
                 .distinct()
 
         // 5. Filtere Relationships

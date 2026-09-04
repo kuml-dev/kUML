@@ -1,5 +1,6 @@
 package dev.kuml.c4.dsl
 
+import dev.kuml.c4.model.C4CodeElement
 import dev.kuml.c4.model.C4Component
 import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4DeploymentNode
@@ -107,18 +108,58 @@ interface ContainerScope :
  *     layout { col = 1; row = 2 }
  * }
  * ```
+ *
+ * Extends [C4ModelScope] so that `codeElement(...)` can register code-level elements
+ * (C4's optional Code level) nested inside this component.
  */
 @KumlDsl
-interface ComponentScope : LayoutHintsScope {
+interface ComponentScope :
+    C4ModelScope,
+    LayoutHintsScope {
+    var description: String?
+    var technology: String?
+    val componentId: String
+
+    fun codeElement(
+        name: String,
+        block: CodeElementScope.() -> Unit = {},
+    ): C4CodeElement
+}
+
+/**
+ * Scope for building code-level elements (C4's optional Code level) inside a component.
+ *
+ * Extends [LayoutHintsScope] so that `layout { … }` is available, mirroring the other C4
+ * element scopes.
+ *
+ * ```kotlin
+ * component("Auth Service") {
+ *     codeElement("AuthController") {
+ *         technology = "Kotlin"
+ *     }
+ * }
+ * ```
+ */
+@KumlDsl
+interface CodeElementScope : LayoutHintsScope {
     var description: String?
     var technology: String?
 }
 
 /**
  * Scope for building deployment nodes in a C4 model.
+ *
+ * Extends [LayoutHintsScope] so that `layout { … }` is available:
+ * ```kotlin
+ * deploymentNode("AWS") {
+ *     layout { col = 1; row = 1 }
+ * }
+ * ```
  */
 @KumlDsl
-interface DeploymentNodeScope : C4ModelScope {
+interface DeploymentNodeScope :
+    C4ModelScope,
+    LayoutHintsScope {
     var description: String?
     var technology: String?
     var instances: Int

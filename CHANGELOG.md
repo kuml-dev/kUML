@@ -73,6 +73,60 @@ platform artifacts) — no standalone catalog entry to bump.
 
 ### Fixed
 
+**C4 DSL completeness gap closed per ADR-0017 (5 known non-round-tripping fields, Wave A)**
+
+`C4DslPrinter`'s "Known non-round-tripping fields" KDoc section documented five DSL
+gaps below the C4 metamodel's actual capability — per ADR-0017 those count as bugs,
+not optional enhancements. All five are now fixed:
+
+- `c4Model(name, description, block)`'s `description` parameter is now actually
+  read by `C4ModelBuilder` and stored on `C4Model.description`.
+- `containerInstance(name, containerId)` no longer drops `containerId` — `C4Container`
+  gained a new `instanceOf: ElementId?` field, and the printer now round-trips it as
+  `containerId = <var>.id` (referencing the original container's freshly regenerated
+  id at script-eval time, since ids are not user-pinnable in the C4 DSL). The
+  `containerInstance(...)` return-value limitation (still `Unit`, so an instance still
+  cannot be a relationship/diagram endpoint) remains open; a partial relationship-subset
+  diagram (a coarse `showRelationships` boolean can't express "some but not all"
+  relationships) remains a separate, undocumented-until-now edge case out of scope for
+  this wave.
+- `C4CodeElement` (C4's optional Code level) now has a DSL entry point:
+  `ComponentScope.codeElement(name) { … }`, nested inside `component { }`. `C4Component`
+  gained a `codeElements: List<ElementId>` field mirroring the existing
+  container/component parent-list pattern. No C4 diagram type currently *shows* code
+  elements (C4 conventionally renders the Code level with UML class-diagram notation,
+  not a dedicated C4 diagram) — out of scope for this wave.
+- `DeploymentNodeScope` now extends `LayoutHintsScope`, so `layout { … }` (grid
+  col/row/span/pinned hints) is available inside `deploymentNode(...)` / `node(...)`,
+  matching `PersonScope`/`SoftwareSystemScope`/`ContainerScope`/`ComponentScope`.
+- `ContainerDiagramBuilder`/`ComponentDiagramBuilder` gained `include(vararg elements: C4Element)`,
+  mirroring `SystemContextDiagramBuilder`'s existing pattern — lets a diagram pull in
+  specific external systems/persons/containers the coarse `show*`/`exclude()` flags
+  can't reach on their own. `C4DslPrinter`'s reconstruction logic for these two
+  diagram types was rewritten to use it: it now reconstructs *exactly* whenever the
+  referenced elements genuinely exist in the model, falling back to a `// TODO` only
+  for a truly dangling/non-existent element reference (or one whose variable can't be
+  resolved for `include(...)`).
+
+`C4DslPrinter`'s top-level print order now always emits persons/software systems
+before deployment nodes (stable sort, relative order preserved within each group) —
+required so a `containerInstance(...)`'s referenced container variable is always
+already assigned by the time it's read, avoiding a `lateinit`
+`UninitializedPropertyAccessException` in the generated script. Along the way, a
+pre-existing bug surfaced by the new, more thorough round-trip test: a top-level
+`C4DeploymentNode` was printed as a bare `c4vN = deploymentNode(...)` assignment with
+no matching `val`/`lateinit var` declaration (only *nested* child nodes can be
+`lateinit`-predeclared) — the generated script failed to compile with an unresolved
+reference whenever a root deployment node's variable was ever assigned at all. Fixed
+by giving top-level deployment nodes their own fresh `val $varName = ` declaration,
+mirroring how `person`/`softwareSystem` are already printed.
+
+New/updated tests across `C4ModelBuilderTest`, `LayoutHintsTest`,
+`ContainerDiagramBuilderTest`, `ComponentDiagramBuilderTest`, `C4DslPrinterTest`, and
+the real-script-host round-trip in `ScriptSerializerTest` (now also exercises
+`description`, `containerInstance`, `codeElement`, and deployment-node `layout {}` in
+one non-trivial model). `./gradlew clean check` passes across the monorepo.
+
 **Implemented `C4DslPrinter` and `Sysml2DslPrinter`, closing the two `ScriptSerializer` TODO stubs**
 
 The desktop AI agent could not write C4 or SysML 2 model changes back into the editor —

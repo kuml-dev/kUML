@@ -3,6 +3,7 @@ package dev.kuml.core.dsl.layout
 import dev.kuml.c4.dsl.c4Model
 import dev.kuml.c4.model.C4Component
 import dev.kuml.c4.model.C4Container
+import dev.kuml.c4.model.C4DeploymentNode
 import dev.kuml.c4.model.C4Person
 import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.core.dsl.componentDiagram
@@ -408,5 +409,20 @@ class LayoutHintsTest :
             val component = model.elements.filterIsInstance<C4Component>().first()
             component.metadata[LayoutMetadataKeys.GRID_COL] shouldBe KumlMetaValue.Integer(1L)
             component.metadata[LayoutMetadataKeys.GRID_ROW] shouldBe KumlMetaValue.Integer(3L)
+        }
+
+        test("smoke: DeploymentNodeScope layout hint stored on C4DeploymentNode") {
+            val model =
+                c4Model(name = "Shop") {
+                    deploymentNode(name = "AWS") {
+                        layout {
+                            col = 1
+                            row = 2
+                        }
+                    }
+                }
+            val node = model.elements.filterIsInstance<C4DeploymentNode>().first()
+            node.metadata[LayoutMetadataKeys.GRID_COL] shouldBe KumlMetaValue.Integer(1L)
+            node.metadata[LayoutMetadataKeys.GRID_ROW] shouldBe KumlMetaValue.Integer(2L)
         }
     })

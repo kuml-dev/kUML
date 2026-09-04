@@ -2,7 +2,9 @@ package dev.kuml.desktop.ai
 
 import dev.kuml.ai.tools.context.AnyKumlModel
 import dev.kuml.c4.dsl.c4Model
+import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4Model
+import dev.kuml.core.dsl.layout.layout
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.Sysml2Model
@@ -44,15 +46,29 @@ class ScriptSerializerTest :
 
         test("non-trivial C4 model round-trips through the real script host") {
             val original =
-                c4Model(name = "Internet Banking System") {
+                c4Model(name = "Internet Banking System", description = "Online banking for retail customers") {
                     val customer = person(name = "Customer") { description = "A customer" }
+                    lateinit var webAppRef: C4Container
                     val system =
                         softwareSystem(name = "Internet Banking") {
                             description = "The main banking system"
-                            container(name = "Web Application") { technology = "React" }
+                            webAppRef =
+                                container(name = "Web Application") {
+                                    technology = "React"
+                                    component(name = "Auth Module") {
+                                        codeElement(name = "AuthController") { technology = "Kotlin" }
+                                    }
+                                }
                         }
                     relationship(source = customer, target = system) { technology = "HTTPS" }
                     systemContextDiagram(name = "Context") { include(customer, system) }
+                    deploymentNode(name = "AWS") {
+                        layout {
+                            col = 1
+                            row = 1
+                        }
+                        containerInstance(name = "Web App Instance", containerId = webAppRef.id)
+                    }
                 }
             val dsl = ScriptSerializer.toDsl(AnyKumlModel.C4(model = original))
 
@@ -63,6 +79,7 @@ class ScriptSerializerTest :
             val returnValue = success.value.returnValue
             val reparsed = (returnValue as? ResultValue.Value)?.value as? C4Model ?: error("script did not return a C4Model")
 
+            reparsed.description shouldBe original.description
             reparsed.elements shouldHaveSize original.elements.size
             reparsed.relationships shouldHaveSize original.relationships.size
             reparsed.diagrams shouldHaveSize original.diagrams.size

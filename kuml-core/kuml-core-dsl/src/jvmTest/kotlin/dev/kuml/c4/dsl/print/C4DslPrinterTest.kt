@@ -97,6 +97,63 @@ class C4DslPrinterTest :
             dsl shouldContain "containerInstance(\"Web App Instance\""
         }
 
+        test("c4Model with a description round-trips") {
+            val model = c4Model(name = "Test", description = "Y") { person(name = "A") }
+            val dsl = C4DslPrinter.print(model)
+            dsl shouldContain "description = \"Y\""
+            dsl shouldNotContain "TODO: C4Model.description"
+        }
+
+        test("containerInstance with a resolvable containerId round-trips it via <var>.id") {
+            lateinit var webAppRef: C4Container
+            val model =
+                c4Model(name = "Test") {
+                    softwareSystem(name = "System") { webAppRef = container(name = "Web App") }
+                    deploymentNode(name = "AWS") {
+                        containerInstance(name = "Web App Instance", containerId = webAppRef.id)
+                    }
+                }
+            val dsl = C4DslPrinter.print(model)
+            dsl shouldContain "containerId ="
+            dsl shouldContain ".id)"
+            dsl shouldNotContain "NOTE: containerId is ignored"
+            dsl shouldNotContain "TODO: containerInstance"
+        }
+
+        test("containerInstance with a dangling containerId still falls back to a TODO, safely commented") {
+            val maliciousContainerId = "evil-id\nval injected = \"code\""
+            val model =
+                c4Model(name = "Test") {
+                    deploymentNode(name = "AWS") {
+                        containerInstance(name = "Web App Instance", containerId = maliciousContainerId)
+                    }
+                }
+            val dsl = C4DslPrinter.print(model)
+            dsl shouldContain "TODO: containerInstance"
+            // The raw newline must not survive verbatim — it would split the injected text onto
+            // its own, uncommented line.
+            dsl shouldNotContain "evil-id\nval injected"
+            dsl shouldContain "evil-id\\nval injected"
+            dsl.lines().filter { "injected" in it }.forEach { line -> line.trimStart() shouldStartWith "//" }
+        }
+
+        test("codeElement round-trips through the printer") {
+            val model =
+                c4Model(name = "Test") {
+                    softwareSystem(name = "System") {
+                        container(name = "Web App") {
+                            component(name = "Auth") {
+                                codeElement(name = "AuthController") { technology = "Kotlin" }
+                            }
+                        }
+                    }
+                }
+            val dsl = C4DslPrinter.print(model)
+            dsl shouldContain "codeElement(\"AuthController\")"
+            dsl shouldContain "technology = \"Kotlin\""
+            dsl shouldNotContain "no DSL builder exists for C4CodeElement"
+        }
+
         test("systemContextDiagram round trips its included elements") {
             val model =
                 c4Model(name = "Test") {
@@ -238,7 +295,7 @@ class C4DslPrinterTest :
             dsl shouldContain "pinned = true"
         }
 
-        test("C4CodeElement has no DSL entry point and becomes a TODO comment") {
+        test("an orphaned C4CodeElement not reachable from any component becomes a TODO comment") {
             val base = c4Model(name = "Test") { person(name = "A") }
             val withCode =
                 base.copy(
@@ -250,55 +307,35 @@ class C4DslPrinterTest :
             dsl shouldContain "TODO: C4CodeElement \"OrderService\""
         }
 
-        test("C4Model.description is not settable via the DSL and becomes a TODO comment") {
+        test("C4Model.description set outside the DSL builder still round-trips") {
             val base = c4Model(name = "Test") { person(name = "A") }
             val withDescription: C4Model = base.copy(description = "Some description")
             val dsl = C4DslPrinter.print(withDescription)
-            dsl shouldContain "TODO: C4Model.description"
+            dsl shouldContain "description = \"Some description\""
+            dsl shouldNotContain "TODO: C4Model.description"
         }
 
-        test("layout metadata on a deployment node has no DSL entry point and becomes a TODO comment") {
-            val base = c4Model(name = "Test") { deploymentNode(name = "AWS") }
-            val node = base.elements.filterIsInstance<C4DeploymentNode>().single()
-            val withLayout =
-                base.copy(
-                    elements =
-                        base.elements.map { el ->
-                            if (el.id == node.id) {
-                                node.copy(
-                                    metadata =
-                                        mapOf(
-                                            LayoutMetadataKeys.GRID_COL to KumlMetaValue.Integer(2),
-                                            LayoutMetadataKeys.PINNED to KumlMetaValue.Flag(true),
-                                        ),
-                                )
-                            } else {
-                                el
-                            }
-                        },
-                )
-            val dsl = C4DslPrinter.print(withLayout)
-            dsl shouldContain "deploymentNode(\"AWS\")"
-            dsl shouldContain "TODO: layout metadata on C4DeploymentNode \"AWS\""
-            // No actual layout { … } call is emitted (only mentioned in the TODO prose) — DeploymentNodeScope
-            // has no such DSL entry point, so none of the concrete field assignments appear either.
-            dsl shouldNotContain "col = 2"
-            dsl shouldNotContain "pinned = true"
-            // Nor should the `layout { … }` import be emitted — it would be unused dead code since no
-            // layout { … } call is ever printed for this model.
-            dsl shouldNotContain "import dev.kuml.core.dsl.layout.layout"
-        }
-
-        test("layout hints import is still emitted when a printable element AND a deployment node both carry hints") {
-            val base =
+        test("deploymentNode layout hints round-trip via layout {}") {
+            val model =
                 c4Model(name = "Test") {
-                    person(name = "Customer") {
+                    deploymentNode(name = "AWS") {
                         layout {
                             col = 2
+                            pinned = true
                         }
                     }
-                    deploymentNode(name = "AWS")
                 }
+            val dsl = C4DslPrinter.print(model)
+            dsl shouldContain "import dev.kuml.core.dsl.layout.layout"
+            dsl shouldContain "deploymentNode(\"AWS\")"
+            dsl shouldContain "layout {"
+            dsl shouldContain "col = 2"
+            dsl shouldContain "pinned = true"
+            dsl shouldNotContain "layout metadata"
+        }
+
+        test("layout hints import is emitted when only a deployment node carries hints") {
+            val base = c4Model(name = "Test") { deploymentNode(name = "AWS") }
             val node = base.elements.filterIsInstance<C4DeploymentNode>().single()
             val withNodeLayout =
                 base.copy(
@@ -312,10 +349,8 @@ class C4DslPrinterTest :
                         },
                 )
             val dsl = C4DslPrinter.print(withNodeLayout)
-            // The import is still needed for the person's printable layout { … } call.
             dsl shouldContain "import dev.kuml.core.dsl.layout.layout"
-            dsl shouldContain "col = 2"
-            dsl shouldContain "TODO: layout metadata on C4DeploymentNode \"AWS\""
+            dsl shouldContain "pinned = true"
         }
 
         test("a relationship targeting a container-instance id becomes a TODO comment") {
@@ -347,7 +382,7 @@ class C4DslPrinterTest :
             dsl shouldContain "container-instance id"
         }
 
-        test("containerDiagram with an unresolvable external system triggers a reconstruction TODO") {
+        test("containerDiagram reconstructs an external system unreachable by relationship via include()") {
             lateinit var systemRef: C4SoftwareSystem
             val base =
                 c4Model(name = "Test") {
@@ -364,10 +399,25 @@ class C4DslPrinterTest :
             val mutatedDiagram = diagram.copy(elements = diagram.elements + externalId)
             val withMutatedDiagram = base.copy(diagrams = base.diagrams.map { if (it.id == diagram.id) mutatedDiagram else it })
             val dsl = C4DslPrinter.print(withMutatedDiagram)
+            dsl shouldContain "include("
+            dsl shouldNotContain "TODO: ContainerDiagram"
+        }
+
+        test("containerDiagram include() falls back to a TODO for a genuinely non-existent element id") {
+            lateinit var systemRef: C4SoftwareSystem
+            val base =
+                c4Model(name = "Test") {
+                    systemRef = softwareSystem(name = "System") { container(name = "Web App") }
+                    containerDiagram(name = "Containers") { this.system = systemRef }
+                }
+            val diagram = base.diagrams.filterIsInstance<ContainerDiagram>().single()
+            val mutatedDiagram = diagram.copy(elements = diagram.elements + "does-not-exist")
+            val withMutatedDiagram = base.copy(diagrams = base.diagrams.map { if (it.id == diagram.id) mutatedDiagram else it })
+            val dsl = C4DslPrinter.print(withMutatedDiagram)
             dsl shouldContain "TODO: ContainerDiagram"
         }
 
-        test("componentDiagram with an unresolvable external container triggers a reconstruction TODO") {
+        test("componentDiagram reconstructs an external container unreachable by relationship via include()") {
             lateinit var webAppRef: C4Container
             val base =
                 c4Model(name = "Test") {
@@ -384,6 +434,23 @@ class C4DslPrinterTest :
                     .id
             val diagram = base.diagrams.filterIsInstance<ComponentDiagram>().single()
             val mutatedDiagram = diagram.copy(elements = diagram.elements + externalContainerId)
+            val withMutatedDiagram = base.copy(diagrams = base.diagrams.map { if (it.id == diagram.id) mutatedDiagram else it })
+            val dsl = C4DslPrinter.print(withMutatedDiagram)
+            dsl shouldContain "include("
+            dsl shouldNotContain "TODO: ComponentDiagram"
+        }
+
+        test("componentDiagram include() falls back to a TODO for a genuinely non-existent element id") {
+            lateinit var webAppRef: C4Container
+            val base =
+                c4Model(name = "Test") {
+                    softwareSystem(name = "System") {
+                        webAppRef = container(name = "Web App") { component(name = "Controller") }
+                    }
+                    componentDiagram(name = "Components") { this.container = webAppRef }
+                }
+            val diagram = base.diagrams.filterIsInstance<ComponentDiagram>().single()
+            val mutatedDiagram = diagram.copy(elements = diagram.elements + "does-not-exist")
             val withMutatedDiagram = base.copy(diagrams = base.diagrams.map { if (it.id == diagram.id) mutatedDiagram else it })
             val dsl = C4DslPrinter.print(withMutatedDiagram)
             dsl shouldContain "TODO: ComponentDiagram"

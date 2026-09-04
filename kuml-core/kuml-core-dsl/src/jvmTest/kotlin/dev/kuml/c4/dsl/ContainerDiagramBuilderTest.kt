@@ -1,7 +1,10 @@
 package dev.kuml.c4.dsl
 
+import dev.kuml.c4.model.C4Component
 import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4Model
+import dev.kuml.c4.model.C4Person
+import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.c4.model.ContainerDiagram
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContain
@@ -338,5 +341,62 @@ class ContainerDiagramBuilderTest :
             elemNames shouldContain "DB 1"
             elemNames shouldNotContain "System 2"
             elemNames shouldNotContain "API 2"
+        }
+
+        test(name = "include() adds an external system unreachable by any relationship") {
+            lateinit var external: C4SoftwareSystem
+            val model =
+                c4Model(name = "Test") {
+                    val system = softwareSystem(name = "System") { container(name = "API") }
+                    external = softwareSystem(name = "Unrelated External")
+
+                    containerDiagram(name = "Containers") {
+                        this.system = system
+                        include(external)
+                    }
+                }
+            val diag = model.diagrams[0].shouldBeInstanceOf<ContainerDiagram>()
+            val elemNames = diag.elements.map { id -> model.elements.find { it.id == id }?.name }
+            elemNames shouldContain "Unrelated External"
+        }
+
+        test(name = "include() adds a person even with showRelatedPersons = false") {
+            lateinit var customer: C4Person
+            val model =
+                c4Model(name = "Test") {
+                    val system = softwareSystem(name = "System") { container(name = "API") }
+                    customer = person(name = "Customer")
+
+                    containerDiagram(name = "Containers") {
+                        this.system = system
+                        showRelatedPersons = false
+                        include(customer)
+                    }
+                }
+            val diag = model.diagrams[0].shouldBeInstanceOf<ContainerDiagram>()
+            val elemNames = diag.elements.map { id -> model.elements.find { it.id == id }?.name }
+            elemNames shouldContain "Customer"
+        }
+
+        test(name = "include() rejects an invalid element type") {
+            var thrown: Throwable? = null
+            try {
+                c4Model(name = "Test") {
+                    val system =
+                        softwareSystem(name = "System") {
+                            container(name = "API") {
+                                component(name = "Handler")
+                            }
+                        }
+                    val comp = elements.filterIsInstance<C4Component>().first()
+                    containerDiagram(name = "Containers") {
+                        this.system = system
+                        include(comp)
+                    }
+                }
+            } catch (e: IllegalArgumentException) {
+                thrown = e
+            }
+            thrown.shouldBeInstanceOf<IllegalArgumentException>()
         }
     })
