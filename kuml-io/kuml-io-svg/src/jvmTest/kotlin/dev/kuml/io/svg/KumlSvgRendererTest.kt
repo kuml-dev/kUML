@@ -63,13 +63,18 @@ class KumlSvgRendererTest :
         test("KumlSvgRenderer renders a class diagram with 2 classes and 1 association") {
             val cls1 = UmlClass(id = "cls1", name = "Order")
             val cls2 = UmlClass(id = "cls2", name = "Customer")
+            // Target end marked non-navigable so this smoke test keeps exercising
+            // arrowhead rendering (fix/uml-association-navigable-arrows: an
+            // association with both ends navigable — the DSL default — now
+            // draws no arrowhead at all, since an arrowhead expresses a
+            // navigability *restriction*).
             val assoc =
                 UmlAssociation(
                     id = "assoc1",
                     ends =
                         listOf(
                             UmlAssociationEnd(typeId = "cls1"),
-                            UmlAssociationEnd(typeId = "cls2"),
+                            UmlAssociationEnd(typeId = "cls2", navigable = false),
                         ),
                 )
             val diagram =

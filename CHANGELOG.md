@@ -73,6 +73,47 @@ platform artifacts) — no standalone catalog entry to bump.
 
 ### Fixed
 
+**UML-Assoziations-`navigable` wird jetzt von beiden Renderern respektiert (ADR-0017)**
+
+Standard-Assoziationen (beide Enden navigierbar, der DSL-Default) werden ab sofort **ohne
+Pfeilspitze** gezeichnet; bestehende Klassendiagramme im Vault, im kuml.dev-Playground und in
+den Präsentations-SVGs ändern damit sichtbar ihr Aussehen. Bisher zeichneten sowohl
+`kuml-io-svg` (`renderUmlAssociation`) als auch `kuml-kuiver` (`AssociationEdge`) unbedingt
+einen offenen Pfeilkopf am Zielende — unabhängig von `UmlAssociationEnd.navigable`, obwohl
+die DSL, der Drucker (`source { navigable = false }`) und der EMF/UML2-Exporter dieses
+Attribut längst vollständig unterstützen. Per ADR-0017 ist das ein Bug, kein Nice-to-have.
+
+Fallmatrix (Ends-Zuordnung `ends[0]` = Source, `ends[1]` = Target, bestätigt über
+`AssociationBuilder.build()` und die Kuiver-Edge-ID-Konvention `"sourceId--targetId"`):
+
+- beide navigierbar (Default) **und** beide nicht-navigierbar → keine Pfeilspitze (kein
+  UML-Kreuz-Glyph — bewusste Design-Entscheidung, siehe unten).
+- genau ein Ende nicht-navigierbar → offener Pfeilkopf ausschließlich am navigierbaren Ende.
+- Kollisionsvermeidung (SVG-Renderer): trifft ein Pfeilkopf am Quellenende auf eine
+  Aggregations-/Kompositionsraute (beide werden am selben Punkt verankert), wird die
+  Pfeilspitze um `DIAMOND_LEN` (16px, bestehende Konstante, keine neue) entlang der Kante
+  nach innen versetzt statt unterdrückt.
+- `NEITHER` (beide Enden nicht-navigierbar) wird **bewusst** wie `BOTH` behandelt — kein
+  separates UML-Kreuz-Glyph, um eine seltene Modellierungssituation nicht mit einer neuen,
+  mit Multiplizitätslabels kollidierenden Notation zu belasten. Modellierungsseitig ist
+  `NEITHER` fast immer ein Fehler — eine `kuml validate`-Warnung dafür ist als Folgewelle
+  vorgemerkt, nicht Teil dieses Fixes.
+
+Neue geteilte Ableitung `UmlAssociation.navigability(): UmlNavigability` in
+`kuml-metamodel-uml` — reine Semantik, keine Zeichenentscheidung; beide Renderer bilden sie
+lokal auf ihre jeweilige Notation ab. Kuiver zeichnet weiterhin keine
+Aggregations-/Kompositionsrauten (eigene, ältere Lücke, unverändert von diesem Fix) — der
+Kollisionsfall betrifft daher nur den SVG-Renderer.
+
+Neue/erweiterte Tests: `AssociationNavigabilityTest` (Metamodell, alle 4 Kombinationen +
+Degenerate-Fälle), `AssociationArrowTest` (Kuiver, reine Funktion ohne Compose-Harness),
+`UmlAssociationDecorationSvgTest` (5 neue Fälle inkl. Kollisionsnachweis). `./gradlew clean
+check` grün über das gesamte Monorepo. Renderer-Validierungs-Routine durchlaufen, SVGs neu
+ins Präsentations-Repo übertragen.
+
+**Ausdrücklich nicht in dieser Welle**: Kuiver-Aggregations-/Kompositionsdiamanten (eigene
+Lücke, eigene Welle), `kuml validate`-Warnung für `NEITHER`-Assoziationen.
+
 **SysML 2 DSL completeness gap closed per ADR-0017 (3 known non-round-tripping data points, Wave B)**
 
 `Sysml2DslPrinter`'s "Known non-round-tripping data" KDoc section documented three DSL-builder

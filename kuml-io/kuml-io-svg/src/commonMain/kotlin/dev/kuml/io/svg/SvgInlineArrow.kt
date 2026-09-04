@@ -48,7 +48,7 @@ private const val ARROW_LEN = 12f
 private const val ARROW_WING = 5f
 
 /** Tip-to-back length of an aggregation/composition diamond, in pixels. */
-private const val DIAMOND_LEN = 16f
+internal const val DIAMOND_LEN = 16f
 
 /** Half-width of the diamond at its widest (mid) point, in pixels. */
 private const val DIAMOND_WING = 5f
@@ -69,6 +69,26 @@ internal fun EdgeRoute.arrowDirection(): Pair<Point, Point> =
         is EdgeRoute.Bezier ->
             (controlPoints.lastOrNull() ?: source) to target
     }
+
+/**
+ * Moves [tip] back toward [from] by [by] pixels along the `from → tip`
+ * direction — used to avoid an arrowhead tip colliding with an aggregation/
+ * composition diamond drawn at the same node-border point (both decorations
+ * anchor at the association's source end).
+ */
+internal fun insetTip(
+    from: Point,
+    tip: Point,
+    by: Float,
+): Point {
+    val dx = tip.x - from.x
+    val dy = tip.y - from.y
+    val len = sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+    if (len < 0.001f) return tip
+    val nx = dx / len
+    val ny = dy / len
+    return Point(x = tip.x - nx * by, y = tip.y - ny * by)
+}
 
 /**
  * Mirror of [arrowDirection] for the **source** end: returns `(from, tip)` with

@@ -1,11 +1,13 @@
 package dev.kuml.io.svg.uml
 
 import dev.kuml.io.svg.ArrowStyle
+import dev.kuml.io.svg.DIAMOND_LEN
 import dev.kuml.io.svg.EdgeLabelGeometry
 import dev.kuml.io.svg.EdgePathBuilder
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.arrowDirection
 import dev.kuml.io.svg.fmt2
+import dev.kuml.io.svg.insetTip
 import dev.kuml.io.svg.renderEdgeLabelWithHalo
 import dev.kuml.io.svg.renderInlineArrow
 import dev.kuml.io.svg.sourceArrowDirection
@@ -22,6 +24,8 @@ import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInterfaceRealization
 import dev.kuml.uml.UmlLink
+import dev.kuml.uml.UmlNavigability
+import dev.kuml.uml.navigability
 import kotlin.math.abs
 
 // ── UML Edge Renderer ─────────────────────────────────────────────────────────
@@ -85,8 +89,31 @@ internal fun renderUmlAssociation(
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge"))
-    val (arrowFrom, arrowTip) = route.arrowDirection()
-    renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.OPEN, theme = theme, builder = builder)
+
+    // Open arrowhead: only drawn at a navigable-only end (fix/uml-association-
+    // navigable-arrows). Standard associations (both ends navigable, the DSL
+    // default) and the degenerate "neither end navigable" case draw no
+    // arrowhead — an arrowhead expresses a *restriction*, and neither case
+    // restricts navigation to one direction. See [UmlNavigability]'s KDoc.
+    val nav = rel.navigability()
+    val hasDiamond = rel.aggregation != AggregationKind.NONE
+    when (nav) {
+        UmlNavigability.TARGET_ONLY -> {
+            val (arrowFrom, arrowTip) = route.arrowDirection()
+            renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.OPEN, theme = theme, builder = builder)
+        }
+        UmlNavigability.SOURCE_ONLY -> {
+            // The arrowhead lands at the same end as an aggregation/composition
+            // diamond, if one is drawn below — inset the tip so the two
+            // decorations don't collide (both anchor at the node border).
+            val (arrowFrom, arrowTip) = route.sourceArrowDirection()
+            val tip = if (hasDiamond) insetTip(from = arrowFrom, tip = arrowTip, by = DIAMOND_LEN) else arrowTip
+            renderInlineArrow(from = arrowFrom, tip = tip, style = ArrowStyle.OPEN, theme = theme, builder = builder)
+        }
+        UmlNavigability.BOTH, UmlNavigability.NEITHER -> {
+            // No arrowhead — see class KDoc on [UmlNavigability].
+        }
+    }
 
     // Aggregation/composition diamond at the SOURCE end (the "whole"). UML places
     // the rhombus on the aggregating classifier: SHARED → hollow, COMPOSITE →

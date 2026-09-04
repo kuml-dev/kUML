@@ -17,6 +17,8 @@ import dev.kuml.uml.UmlExtend
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInterfaceRealization
+import dev.kuml.uml.UmlNavigability
+import dev.kuml.uml.navigability
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -37,12 +39,38 @@ internal fun AssociationEdge(
 ) {
     EdgeCanvas(source = source, target = target) {
         drawSolidLine(source = source, target = target, color = theme.colors.edge, strokeWidth = theme.borders.regular.value)
-        drawOpenArrow(source = source, target = target, color = theme.colors.edge, strokeWidth = theme.borders.regular.value)
+        associationArrow(nav = relationship.navigability(), source = source, target = target)?.let { (s, t) ->
+            drawOpenArrow(source = s, target = t, color = theme.colors.edge, strokeWidth = theme.borders.regular.value)
+        }
     }
     relationship.name?.let { label ->
         Text(text = label, style = theme.typography.small, color = theme.colors.muted)
     }
 }
+
+/**
+ * Resolves which (from, to) pair — if any — [drawOpenArrow] should be
+ * called with for an association end [nav]. Returns `null` when no
+ * arrowhead should be drawn ([UmlNavigability.BOTH] / [UmlNavigability.NEITHER]).
+ * [drawOpenArrow] always places the tip at its `target` parameter, so
+ * [UmlNavigability.SOURCE_ONLY] returns the pair reversed ([target] then
+ * [source]) to point the arrowhead at the association's actual source end.
+ *
+ * Kuiver draws no aggregation/composition diamonds (unlike the SVG
+ * renderer) — no tip-inset collision case exists here; see the
+ * fix/uml-association-navigable-arrows CHANGELOG entry's "explicitly not in
+ * this wave" note for the follow-up scope.
+ */
+internal fun associationArrow(
+    nav: UmlNavigability,
+    source: Offset,
+    target: Offset,
+): Pair<Offset, Offset>? =
+    when (nav) {
+        UmlNavigability.BOTH, UmlNavigability.NEITHER -> null
+        UmlNavigability.TARGET_ONLY -> source to target
+        UmlNavigability.SOURCE_ONLY -> target to source
+    }
 
 /**
  * UML Generalization (inheritance) — solid line with a hollow triangle arrowhead.
