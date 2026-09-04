@@ -15,6 +15,7 @@ import dev.kuml.layout.PortId
 import dev.kuml.layout.Size
 import dev.kuml.uml.UmlActivityNode
 import dev.kuml.uml.UmlActivityNodeKind
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
@@ -162,6 +163,24 @@ public object UmlLayoutBridge {
     public const val ACTIVITY_BAR_HEIGHT: Float = 12f
 
     /**
+     * ID-Suffix der unsichtbaren Anker-Kante einer [UmlAssociationClass].
+     *
+     * Eine Assoziationsklasse ist gleichzeitig Knoten (Klassenbox) und Kante
+     * (Assoziationslinie) unter derselben Element-ID. Damit ELK die Klassenbox
+     * in der Naehe ihrer Assoziationslinie platziert, wird zusaetzlich eine
+     * dritte, rein layout-interne Kante von der Assoziationsklasse zu ihrem
+     * ersten Ende emittiert -- eine reine Schwerkraft-Kante ohne visuelles
+     * Gegenstueck.
+     *
+     * Das Suffix ist im ID-Alphabet von UmlIds nicht erzeugbar (`#` kommt in
+     * keinem der dort erzeugten Muster vor), kollidiert also nie mit einer
+     * echten Element-ID. KumlSvgRenderer ueberspringt eine unbekannte
+     * Kanten-ID beim Rendern still -- die Anker-Kante wird daher nie
+     * gezeichnet.
+     */
+    internal const val ASSOCIATION_CLASS_ANCHOR_SUFFIX: String = "#assocClassAnchor"
+
+    /**
      * Übersetzt [diagram] in einen [LayoutGraph].
      *
      * Elemente in [KumlDiagram.elements] werden wie folgt verarbeitet:
@@ -267,7 +286,21 @@ public object UmlLayoutBridge {
                                     ),
                                 )
                                 for (subMember in member.members) {
-                                    if (subMember !is UmlPackage && subMember !is UmlRelationship) {
+                                    if (subMember is UmlAssociationClass) {
+                                        // Must come BEFORE the `!is UmlPackage && !is UmlRelationship`
+                                        // filter below — UmlAssociationClass IS a UmlRelationship, so
+                                        // without this branch it falls through that filter entirely
+                                        // (no node, no edges, no tether) instead of getting the same
+                                        // node+2-edges registration the 1-level and top-level branches
+                                        // already give it. See ASSOCIATION_CLASS_ANCHOR_SUFFIX KDoc.
+                                        addAssociationClass(
+                                            ac = subMember,
+                                            groupId = subGroupId,
+                                            sizeProvider = sizeProvider,
+                                            nodes = nodes,
+                                            edges = edges,
+                                        )
+                                    } else if (subMember !is UmlPackage && subMember !is UmlRelationship) {
                                         nodes.add(
                                             LayoutNode(
                                                 id = NodeId(subMember.id),
@@ -282,6 +315,18 @@ public object UmlLayoutBridge {
                                         )
                                     }
                                 }
+                            }
+                            is UmlAssociationClass -> {
+                                // Must come BEFORE the generic `is UmlRelationship` branch below —
+                                // UmlAssociationClass also matches it, which would register only
+                                // an edge and silently drop the classifier box. See ASSOCIATION_CLASS_ANCHOR_SUFFIX KDoc.
+                                addAssociationClass(
+                                    ac = member,
+                                    groupId = groupId,
+                                    sizeProvider = sizeProvider,
+                                    nodes = nodes,
+                                    edges = edges,
+                                )
                             }
                             is UmlRelationship -> {
                                 // Relationships inside packages are treated as edges
@@ -307,6 +352,15 @@ public object UmlLayoutBridge {
                             }
                         }
                     }
+                }
+                is UmlAssociationClass -> {
+                    // Must come BEFORE the generic `is UmlRelationship` branch below —
+                    // UmlAssociationClass also matches it, which would register only an
+                    // edge and silently drop the classifier box (no class box in the
+                    // diagram). It also matches `is UmlNamedElement` further below, which
+                    // would register only a node with no association line at all. See
+                    // ASSOCIATION_CLASS_ANCHOR_SUFFIX KDoc for the one-ID, two-roles design.
+                    addAssociationClass(ac = element, groupId = null, sizeProvider = sizeProvider, nodes = nodes, edges = edges)
                 }
                 is UmlRelationship -> {
                     // Skip UmlConnectors whose BOTH endpoint nodeIds are nested
@@ -661,6 +715,51 @@ public object UmlLayoutBridge {
                     ),
                 )
             }
+        }
+    }
+
+    /**
+     * Registers a [UmlAssociationClass] under its single ID both as a
+     * [LayoutNode] (classifier role) and, when it has exactly two [ends], as
+     * two [LayoutEdge]s (relationship role): the real association line
+     * (same edge ID as the node ID — distinct maps, no collision, see
+     * [ASSOCIATION_CLASS_ANCHOR_SUFFIX] KDoc) plus an invisible anchor edge
+     * from the association class to its first end, purely so the ELK layout
+     * engine has a reason to place the class box near its association line.
+     *
+     * `ends.size != 2` (never produced by the DSL, but constructible for
+     * defensive-handling tests) registers only the node — analogous to how a
+     * [dev.kuml.uml.UmlAssociation] with fewer than two ends is skipped
+     * entirely by [EndpointResolver.resolve].
+     */
+    private fun addAssociationClass(
+        ac: UmlAssociationClass,
+        groupId: GroupId?,
+        sizeProvider: SizeProvider,
+        nodes: MutableList<LayoutNode>,
+        edges: MutableList<LayoutEdge>,
+    ) {
+        nodes.add(
+            LayoutNode(
+                id = NodeId(ac.id),
+                intrinsicSize = sizeProvider.sizeOf(elementId = ac.id, elementKind = "UmlAssociationClass"),
+                hints = HintsReader.read(ac.metadata),
+                groupId = groupId,
+            ),
+        )
+        if (ac.ends.size == 2) {
+            edges.add(
+                toEdge(
+                    edgeId = ac.id,
+                    endpoints = ResolvedEndpoints(sourceNodeId = ac.ends[0].typeId, targetNodeId = ac.ends[1].typeId),
+                ),
+            )
+            edges.add(
+                toEdge(
+                    edgeId = ac.id + ASSOCIATION_CLASS_ANCHOR_SUFFIX,
+                    endpoints = ResolvedEndpoints(sourceNodeId = ac.id, targetNodeId = ac.ends[0].typeId),
+                ),
+            )
         }
     }
 

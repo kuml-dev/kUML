@@ -8,6 +8,7 @@ import dev.kuml.uml.UmlInterface
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.Visibility
 import dev.kuml.uml.dsl.AssociationBuilder
+import dev.kuml.uml.dsl.AssociationClassBuilder
 import dev.kuml.uml.dsl.AssociationEndBuilder
 import dev.kuml.uml.dsl.ClassBuilder
 import dev.kuml.uml.dsl.ClassDiagramBuilder
@@ -15,6 +16,7 @@ import dev.kuml.uml.dsl.EnumerationBuilder
 import dev.kuml.uml.dsl.InterfaceBuilder
 import dev.kuml.uml.dsl.OperationBuilder
 import dev.kuml.uml.dsl.association
+import dev.kuml.uml.dsl.associationClass
 import dev.kuml.uml.dsl.attribute
 import dev.kuml.uml.dsl.classOf
 import dev.kuml.uml.dsl.comment
@@ -219,6 +221,7 @@ internal object DslInterpreter {
                 buildAssociation(builder = builder, env = env, call = call)
                 Unit
             }
+            "associationClass" -> buildAssociationClass(builder = builder, env = env, call = call)
             "generalization" -> {
                 val specific = requireClassifierArg(env = env, call = call, named = "specific", positionalIndex = 0)
                 val general = requireClassifierArg(env = env, call = call, named = "general", positionalIndex = 1)
@@ -499,6 +502,77 @@ internal object DslInterpreter {
                 }
                 is DslValBinding ->
                     throw DslInterpretException(message = "'val' bindings are not supported inside an association end", line = s.line)
+            }
+        }
+    }
+
+    // ── Association class ────────────────────────────────────────────────────────
+
+    /**
+     * Interprets an `associationClass(name = ..., source = ..., target = ...)` call.
+     * Unlike [buildAssociation] (which is relationship-only), the result is a
+     * genuine classifier handle — returned so `val` bindings work and later
+     * `attribute`/`operation`/`extends`/`implements` calls elsewhere in the
+     * script can reference it exactly like a `classOf(...)` handle.
+     */
+    private fun buildAssociationClass(
+        builder: ClassDiagramBuilder,
+        env: Env,
+        call: DslCall,
+    ): dev.kuml.uml.UmlAssociationClass {
+        val nm = requireStringArg(call = call, named = "name", positionalIndex = 0)
+        val source = requireClassifierArg(env = env, call = call, named = "source", positionalIndex = 1)
+        val target = requireClassifierArg(env = env, call = call, named = "target", positionalIndex = 2)
+        val explicitId = optStringArg(call = call, named = "id")
+        return builder.associationClass(name = nm, source = source, target = target, id = explicitId) {
+            call.body?.forEach { s -> interpretAssociationClassStatement(ac = this, env = env, stmt = s) }
+        }
+    }
+
+    /**
+     * Union of [interpretClassStatement] (attributes/operations/constraints,
+     * `extends`/`implements`, `isAbstract`/`visibility`) and
+     * [interpretAssociationStatement] (`source`/`target` end bodies,
+     * `aggregation`) — an association class body accepts everything both a
+     * class body and an association body accept, mirroring
+     * [dev.kuml.uml.dsl.AssociationClassBuilder]'s double nature.
+     */
+    private fun interpretAssociationClassStatement(
+        ac: AssociationClassBuilder,
+        env: Env,
+        stmt: DslStatement,
+    ) {
+        when (stmt) {
+            is DslValBinding ->
+                throw DslInterpretException(
+                    message = "'val' bindings are not supported inside an associationClass body",
+                    line = stmt.line,
+                )
+            is DslPropertyAssignment -> {
+                when (stmt.property) {
+                    "isAbstract" -> ac.isAbstract = asBool(e = stmt.value, line = stmt.line)
+                    "visibility" -> ac.visibility = asVisibility(e = stmt.value, line = stmt.line)
+                    "aggregation" -> ac.aggregation = asAggregation(e = stmt.value, line = stmt.line)
+                    else ->
+                        throw DslInterpretException(
+                            message =
+                                "Unknown associationClass property '${stmt.property}' — supported: isAbstract, visibility, aggregation",
+                            line = stmt.line,
+                        )
+                }
+            }
+            is DslCallStatement -> {
+                val call = stmt.call
+                when (call.name) {
+                    "attribute" -> addAttribute(scope = ac, env = env, call = call)
+                    "operation" -> addOperation(scope = ac, call = call)
+                    "constraint" -> addConstraint(scope = ac, call = call)
+                    "extends" -> ac.extends(requireClassifierArg(env = env, call = call, named = "general", positionalIndex = 0))
+                    "implements" -> ac.implements(requireInterfaceArg(env = env, call = call, named = "iface", positionalIndex = 0))
+                    "source" -> ac.source { applyEnd(end = this, call = call) }
+                    "target" -> ac.target { applyEnd(end = this, call = call) }
+                    else -> throw unknownBuilder(call = call, where = "an associationClass body")
+                }
             }
         }
     }

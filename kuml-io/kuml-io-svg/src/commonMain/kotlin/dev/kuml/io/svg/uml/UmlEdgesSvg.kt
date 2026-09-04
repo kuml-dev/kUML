@@ -12,11 +12,15 @@ import dev.kuml.io.svg.renderEdgeLabelWithHalo
 import dev.kuml.io.svg.renderInlineArrow
 import dev.kuml.io.svg.sourceArrowDirection
 import dev.kuml.layout.EdgeRoute
+import dev.kuml.layout.Point
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.AggregationKind
 import dev.kuml.uml.Multiplicity
+import dev.kuml.uml.Stereotypable
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
+import dev.kuml.uml.UmlAssociationEnd
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlExtend
@@ -78,9 +82,20 @@ internal fun umlEndpointFaceBucket(tangent: Pair<Float, Float>): String {
  *
  * In V1.1: Wenn [UmlAssociation.appliedStereotypes] gesetzt sind, wird ein
  * `«stereotype»`-Label am Mittelpunkt der Kante gerendert.
+ *
+ * Shared kernel for both [UmlAssociation] and [UmlAssociationClass] — the two
+ * association-shaped relationships draw an **identical** line (navigability
+ * arrowheads, aggregation diamond, stereotype/name label, endpoint role/
+ * multiplicity labels). [renderUmlAssociation] (both overloads below)
+ * delegates here so an association class inherits Welle-C's full navigability
+ * logic, diamonds, and label fan-out without any duplicated drawing code.
  */
-internal fun renderUmlAssociation(
-    rel: UmlAssociation,
+private fun renderAssociationLine(
+    ends: List<UmlAssociationEnd>,
+    aggregation: AggregationKind,
+    name: String?,
+    navigability: UmlNavigability,
+    stereotypable: Stereotypable,
     route: EdgeRoute,
     theme: KumlTheme,
     builder: SvgBuilder,
@@ -95,8 +110,8 @@ internal fun renderUmlAssociation(
     // default) and the degenerate "neither end navigable" case draw no
     // arrowhead — an arrowhead expresses a *restriction*, and neither case
     // restricts navigation to one direction. See [UmlNavigability]'s KDoc.
-    val nav = rel.navigability()
-    val hasDiamond = rel.aggregation != AggregationKind.NONE
+    val nav = navigability
+    val hasDiamond = aggregation != AggregationKind.NONE
     when (nav) {
         UmlNavigability.TARGET_ONLY -> {
             val (arrowFrom, arrowTip) = route.arrowDirection()
@@ -119,7 +134,7 @@ internal fun renderUmlAssociation(
     // the rhombus on the aggregating classifier: SHARED → hollow, COMPOSITE →
     // filled. NONE leaves the source end undecorated.
     val diamondStyle =
-        when (rel.aggregation) {
+        when (aggregation) {
             AggregationKind.SHARED -> ArrowStyle.DIAMOND
             AggregationKind.COMPOSITE -> ArrowStyle.DIAMOND_FILLED
             AggregationKind.NONE -> null
@@ -131,9 +146,9 @@ internal fun renderUmlAssociation(
 
     // Stereotype label takes precedence over association name; name is appended below it
     val (mx, my) = routeLabelMid(route)
-    val hadStereo = StereotypeHelper.renderEdgeStereotype(element = rel, theme = theme, builder = builder, midX = mx, midY = my)
+    val hadStereo = StereotypeHelper.renderEdgeStereotype(element = stereotypable, theme = theme, builder = builder, midX = mx, midY = my)
     val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else my
-    rel.name?.let { label ->
+    name?.let { label ->
         renderEdgeLabel(label = label, route = route, theme = theme, builder = builder, overrideY = if (hadStereo) labelY else null)
     }
 
@@ -169,9 +184,9 @@ internal fun renderUmlAssociation(
     // step to that end's along-edge margins, so converging siblings fan apart
     // instead of stacking. `stackIndex == 0` (the default) reproduces the
     // pre-fix geometry byte-for-byte.
-    if (rel.ends.size >= 2) {
-        val sourceEnd = rel.ends[0]
-        val targetEnd = rel.ends[1]
+    if (ends.size >= 2) {
+        val sourceEnd = ends[0]
+        val targetEnd = ends[1]
         val mulMargin = 14f
         val roleMargin = 30f
         val perpOff = 10f
@@ -218,6 +233,82 @@ internal fun renderUmlAssociation(
             )
         }
     }
+}
+
+internal fun renderUmlAssociation(
+    rel: UmlAssociation,
+    route: EdgeRoute,
+    theme: KumlTheme,
+    builder: SvgBuilder,
+    sourceStackIndex: Int = 0,
+    targetStackIndex: Int = 0,
+) = renderAssociationLine(
+    ends = rel.ends,
+    aggregation = rel.aggregation,
+    name = rel.name,
+    navigability = rel.navigability(),
+    stereotypable = rel,
+    route = route,
+    theme = theme,
+    builder = builder,
+    sourceStackIndex = sourceStackIndex,
+    targetStackIndex = targetStackIndex,
+)
+
+/**
+ * Renders a [UmlAssociationClass]'s association line — identical drawing
+ * logic to [UmlAssociation] (see [renderAssociationLine] KDoc): the class's
+ * own [UmlAssociationClass.navigability] (shared derivation with
+ * [UmlAssociation.navigability]), aggregation diamond, name/stereotype
+ * label, and endpoint role/multiplicity labels. The dashed tether from this
+ * line to the association class's box is a separate draw pass — see
+ * [renderUmlAssociationClassTether].
+ */
+internal fun renderUmlAssociation(
+    rel: UmlAssociationClass,
+    route: EdgeRoute,
+    theme: KumlTheme,
+    builder: SvgBuilder,
+    sourceStackIndex: Int = 0,
+    targetStackIndex: Int = 0,
+) = renderAssociationLine(
+    ends = rel.ends,
+    aggregation = rel.aggregation,
+    name = rel.name,
+    navigability = rel.navigability(),
+    stereotypable = rel,
+    route = route,
+    theme = theme,
+    builder = builder,
+    sourceStackIndex = sourceStackIndex,
+    targetStackIndex = targetStackIndex,
+)
+
+/**
+ * Tether of a [UmlAssociationClass]: a dashed line from the arc-length
+ * midpoint of the association line ([from]) to the border of the class box
+ * ([to]). UML 2.5 draws this — like a comment anchor — as a plain dashed
+ * line: NO arrowhead, NO label, NO new CSS class or theme constant. The
+ * visual distinction from [renderUmlCommentLink] is carried by the shape of
+ * the two endpoints (a dog-eared note vs. a compartmented class box), not by
+ * the line itself — hence reusing the existing `kuml-edge-dashed` class.
+ */
+internal fun renderUmlAssociationClassTether(
+    from: Point,
+    to: Point,
+    builder: SvgBuilder,
+) {
+    builder.tag(
+        name = "line",
+        attrs =
+            mapOf(
+                "x1" to fmt(from.x),
+                "y1" to fmt(from.y),
+                "x2" to fmt(to.x),
+                "y2" to fmt(to.y),
+                "class" to "kuml-edge-dashed",
+            ),
+    )
 }
 
 /**

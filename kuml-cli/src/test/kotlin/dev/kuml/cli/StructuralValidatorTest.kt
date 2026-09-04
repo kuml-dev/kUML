@@ -8,6 +8,7 @@ import dev.kuml.uml.AggregationKind
 import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.TagValue
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlAssociationEnd
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlGeneralization
@@ -21,13 +22,15 @@ import java.io.File
 /**
  * V2.0.31 — Unit tests for [StructuralValidator] and the `--no-check-structure` flag.
  *
- * Twelve tests total:
+ * Fourteen tests total:
  *  1.  Duplicate ID → error reported
  *  2.  Unique IDs → no violations
  *  3.  Circular inheritance A→B→A → error
  *  4.  Non-circular A→B→C → no violations
  *  5.  Dangling association target → warning
+ *  5b. Dangling association-class target → warning
  *  6.  Valid association both ends known → no violations
+ *  6b. Valid association class both ends known → no violations
  *  7.  Missing required stereotype property → warning
  *  8.  Present required stereotype property → no violations
  *  9.  Empty diagram → no violations
@@ -163,6 +166,62 @@ class StructuralValidatorTest :
                     name = "Test",
                     type = DiagramType.CLASS,
                     elements = listOf(classA, classB, assoc),
+                )
+            StructuralValidator
+                .validate(diagram)
+                .filter { it.id == "DANGLING_REFERENCE" }
+                .shouldBeEmpty()
+        }
+
+        // ── 5b. Dangling association-class target → warning ───────────────────
+
+        test("Association class referencing unknown type ID produces a dangling-reference warning") {
+            val classA = UmlClass(id = "Party", name = "Party")
+            val assocClass =
+                UmlAssociationClass(
+                    id = "Tally",
+                    name = "Tally",
+                    ends =
+                        listOf(
+                            UmlAssociationEnd(typeId = "Party"),
+                            UmlAssociationEnd(typeId = "Distrikt"),
+                        ),
+                )
+            val diagram =
+                KumlDiagram(
+                    name = "Test",
+                    type = DiagramType.CLASS,
+                    elements = listOf(classA, assocClass),
+                )
+            val warnings =
+                StructuralValidator
+                    .validate(diagram)
+                    .filter { it.id == "DANGLING_REFERENCE" && it.severity == "warning" }
+            warnings shouldHaveSize 1
+            warnings.first().message shouldContain "Distrikt"
+            warnings.first().location shouldBe "Tally"
+        }
+
+        // ── 6b. Valid association class both ends known → no violations ───────
+
+        test("Association class with both ends resolving to known IDs produces no dangling-reference warnings") {
+            val classA = UmlClass(id = "Party", name = "Party")
+            val classB = UmlClass(id = "District", name = "District")
+            val assocClass =
+                UmlAssociationClass(
+                    id = "Tally",
+                    name = "Tally",
+                    ends =
+                        listOf(
+                            UmlAssociationEnd(typeId = "Party"),
+                            UmlAssociationEnd(typeId = "District"),
+                        ),
+                )
+            val diagram =
+                KumlDiagram(
+                    name = "Test",
+                    type = DiagramType.CLASS,
+                    elements = listOf(classA, classB, assocClass),
                 )
             StructuralValidator
                 .validate(diagram)

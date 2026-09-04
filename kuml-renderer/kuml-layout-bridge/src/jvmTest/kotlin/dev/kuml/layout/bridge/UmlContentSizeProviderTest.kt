@@ -3,9 +3,13 @@ package dev.kuml.layout.bridge
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.layout.LayoutDirection
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlAssociationEnd
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlGeneralization
+import dev.kuml.uml.UmlOperation
+import dev.kuml.uml.UmlProperty
+import dev.kuml.uml.UmlTypeRef
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.floats.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
@@ -177,5 +181,47 @@ class UmlContentSizeProviderTest :
             val baseSize = provider.sizeOf(elementId = withoutStereo.id, elementKind = "UmlClass")
             val stereoSize = provider.sizeOf(elementId = withStereo.id, elementKind = "UmlClass")
             stereoSize.width shouldBeGreaterThan baseSize.width
+        }
+
+        // ADR-0017 Wave D: an association class shares its box-sizing math with UmlClass
+        // (both delegate to the same classLikeSize kernel) but additionally counts a
+        // connection for its own tether (ASSOCIATION_CLASS_ANCHOR_SUFFIX), on top of the
+        // two connections its ends contribute to the *other* nodes.
+        test("association class box size matches an equally-filled UmlClass plus one tether connection step") {
+            val attrs = listOf(UmlProperty(id = "ac::votes", name = "votes", type = UmlTypeRef(name = "Int")))
+            val ops = listOf(UmlOperation(id = "ac::recount", name = "recount"))
+            val equivalentClass = UmlClass(id = "PlainEquivalent", name = "Tally", attributes = attrs, operations = ops)
+            val ac =
+                UmlAssociationClass(
+                    id = "Tally",
+                    name = "Tally",
+                    ends = listOf(UmlAssociationEnd(typeId = "Party"), UmlAssociationEnd(typeId = "District")),
+                    attributes = attrs,
+                    operations = ops,
+                )
+            val diagram =
+                KumlDiagram(
+                    name = "AC",
+                    elements =
+                        listOf(
+                            equivalentClass,
+                            UmlClass(id = "Party", name = "Party"),
+                            UmlClass(id = "District", name = "District"),
+                            ac,
+                        ),
+                )
+            val provider = UmlContentSizeProvider(diagram = diagram, layoutDirection = LayoutDirection.TopToBottom)
+            val plainSize = provider.sizeOf(elementId = "PlainEquivalent", elementKind = "UmlClass")
+            val acSize = provider.sizeOf(elementId = "Tally", elementKind = "UmlAssociationClass")
+            (acSize.width - plainSize.width) shouldBe UmlContentSizeProvider.CONNECTION_PUFFER_PX
+            acSize.height shouldBe plainSize.height
+        }
+
+        test("association class with != 2 ends is sized without throwing (defensive)") {
+            val degenerate = UmlAssociationClass(id = "Broken", name = "Broken", ends = listOf(UmlAssociationEnd(typeId = "Only")))
+            val diagram = KumlDiagram(name = "Degenerate", elements = listOf(degenerate))
+            val provider = UmlContentSizeProvider(diagram = diagram, layoutDirection = LayoutDirection.TopToBottom)
+            val size = provider.sizeOf(elementId = "Broken", elementKind = "UmlAssociationClass")
+            (size.width >= UmlContentSizeProvider.DEFAULT_W) shouldBe true
         }
     })

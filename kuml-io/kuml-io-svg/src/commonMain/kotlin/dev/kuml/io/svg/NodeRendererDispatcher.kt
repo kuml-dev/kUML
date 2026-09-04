@@ -56,6 +56,7 @@ import dev.kuml.sysml2.Sysml2Usage
 import dev.kuml.uml.UmlActivityNode
 import dev.kuml.uml.UmlActor
 import dev.kuml.uml.UmlArtifact
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlCollaboration
 import dev.kuml.uml.UmlComment
@@ -112,6 +113,7 @@ internal object NodeRendererDispatcher {
     ) {
         when (element) {
             is UmlClass -> renderUmlClass(element = element, layout = layout, theme = theme, builder = builder)
+            is UmlAssociationClass -> renderUmlClass(element = element, layout = layout, theme = theme, builder = builder)
             is UmlComment -> renderUmlComment(element = element, layout = layout, theme = theme, builder = builder)
             is UmlInterface -> renderUmlInterface(element = element, layout = layout, theme = theme, builder = builder)
             is UmlEnumeration -> renderUmlEnum(element = element, layout = layout, theme = theme, builder = builder)

@@ -10,6 +10,7 @@ import dev.kuml.uml.UmlActivityNodeKind
 import dev.kuml.uml.UmlActor
 import dev.kuml.uml.UmlArtifact
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlComponent
@@ -107,6 +108,7 @@ public class UmlContentSizeProvider
                 when (e) {
                     is UmlStereotype -> out[e.id] = stereotypeSize(e)
                     is UmlClass -> out[e.id] = classSize(e)
+                    is UmlAssociationClass -> out[e.id] = associationClassSize(e)
                     is UmlInterface -> out[e.id] = interfaceSize(e)
                     is UmlEnumeration -> out[e.id] = enumSize(e)
                     is UmlInstanceSpecification -> out[e.id] = instanceSize(e)
@@ -167,6 +169,14 @@ public class UmlContentSizeProvider
                 when (e) {
                     is UmlAssociation -> {
                         e.ends.forEach { bump(it.typeId) }
+                    }
+                    is UmlAssociationClass -> {
+                        // Both the two association ends AND the association class node
+                        // itself get a connection bump — the latter for the invisible
+                        // tether (ASSOCIATION_CLASS_ANCHOR_SUFFIX anchor edge) the SVG
+                        // renderer draws from its box to the association line's midpoint.
+                        e.ends.forEach { bump(it.typeId) }
+                        bump(e.id)
                     }
                     is UmlGeneralization -> {
                         bump(e.specificId)
@@ -252,14 +262,30 @@ public class UmlContentSizeProvider
             return Size(width = w + wExtra, height = DEFAULT_H + hExtra)
         }
 
-        private fun classSize(c: UmlClass): Size {
-            val nameLine = c.name
+        /**
+         * Shared sizing kernel for anything that renders as a class-shaped box
+         * with a stereotype header, a name, and attribute/operation
+         * compartments — currently [UmlClass] and [UmlAssociationClass], which
+         * intentionally reuse the *exact same* box rendering (see
+         * `dev.kuml.io.svg.uml.UmlClassSvg.renderClassBox`). [classSize] and
+         * [associationClassSize] both delegate here so the two can never drift
+         * apart on width/height math, mirroring how the SVG renderer shares
+         * one box-drawing routine for both element kinds.
+         */
+        private fun classLikeSize(
+            id: String,
+            name: String,
+            stereotypes: List<String>,
+            appliedStereotypes: List<AppliedStereotype>,
+            attributes: List<UmlProperty>,
+            operations: List<UmlOperation>,
+        ): Size {
             // V2.x: stereoLabel() only covered appliedStereotypes (typed, via profiles).
             // Plain `stereotypes: List<String>` (e.g. "metaclass" set by ProfileDiagramBuilder)
             // was silently dropped from the width estimate even though StereotypeHelper renders
             // it. We now combine both — same merging logic as StereotypeHelper.headerLabel().
-            val appliedLabel = stereoLabel(c.appliedStereotypes)
-            val plainNames = c.stereotypes.filter { it.isNotBlank() }
+            val appliedLabel = stereoLabel(appliedStereotypes)
+            val plainNames = stereotypes.filter { it.isNotBlank() }
             val stereoLine =
                 when {
                     appliedLabel != null && plainNames.isEmpty() -> appliedLabel
@@ -267,7 +293,7 @@ public class UmlContentSizeProvider
                         "«" + plainNames.joinToString(", ") + "»"
                     appliedLabel != null && plainNames.isNotEmpty() -> {
                         val merged =
-                            (c.appliedStereotypes.map { it.stereotypeName } + plainNames).distinct()
+                            (appliedStereotypes.map { it.stereotypeName } + plainNames).distinct()
                         "«" + merged.joinToString(", ") + "»"
                     }
                     // isAbstract alone is NOT a stereotype header (UML 2.5): the renderer
@@ -276,16 +302,42 @@ public class UmlContentSizeProvider
                     else -> ""
                 }
 
-            val attrLines = c.attributes.map { it.toFormattedLine() }
-            val opLines = c.operations.map { it.toFormattedLine() }
+            val attrLines = attributes.map { it.toFormattedLine() }
+            val opLines = operations.map { it.toFormattedLine() }
 
-            val w = boxWidth(nameLine = nameLine, stereoLine = stereoLine, bodyLines = attrLines + opLines)
-            val attrs = c.attributes.size
-            val ops = c.operations.size
-            val h = boxHeight(hasStereo = stereoLine.isNotEmpty(), attrs = attrs, ops = ops)
-            val (wExtra, hExtra) = connectionPuffer(c.id)
+            val w = boxWidth(nameLine = name, stereoLine = stereoLine, bodyLines = attrLines + opLines)
+            val h = boxHeight(hasStereo = stereoLine.isNotEmpty(), attrs = attributes.size, ops = operations.size)
+            val (wExtra, hExtra) = connectionPuffer(id)
             return Size(width = w + wExtra, height = h + hExtra)
         }
+
+        private fun classSize(c: UmlClass): Size =
+            classLikeSize(
+                id = c.id,
+                name = c.name,
+                stereotypes = c.stereotypes,
+                appliedStereotypes = c.appliedStereotypes,
+                attributes = c.attributes,
+                operations = c.operations,
+            )
+
+        /**
+         * Association-class sizing — identical box shape to [classSize] (same
+         * renderer, see [classLikeSize] KDoc). The extra connection an
+         * association class carries for its tether (see [countConnections])
+         * is already folded into [connectionsById] before this runs, so no
+         * additional adjustment is needed here beyond what [classLikeSize]
+         * already applies via [connectionPuffer].
+         */
+        private fun associationClassSize(ac: UmlAssociationClass): Size =
+            classLikeSize(
+                id = ac.id,
+                name = ac.name,
+                stereotypes = ac.stereotypes,
+                appliedStereotypes = ac.appliedStereotypes,
+                attributes = ac.attributes,
+                operations = ac.operations,
+            )
 
         /**
          * Enum-Größe — entspricht dem cy-Akkumulator in

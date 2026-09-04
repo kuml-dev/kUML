@@ -12,12 +12,12 @@ package dev.kuml.uml
 enum class UmlNavigability { BOTH, SOURCE_ONLY, TARGET_ONLY, NEITHER }
 
 /**
- * Derives [UmlNavigability] from `ends[0]` (source) / `ends[1]` (target).
- * Defensive: an association with fewer than 2 ends treats the missing
- * end(s) as navigable (default `true`), so degenerate fixtures resolve to
- * [BOTH] rather than throwing.
+ * Shared derivation used by both [UmlAssociation.navigability] and
+ * [UmlAssociationClass.navigability]. Defensive: fewer than 2 ends treats the
+ * missing end(s) as navigable (default `true`), so degenerate fixtures resolve
+ * to [UmlNavigability.BOTH] rather than throwing.
  */
-fun UmlAssociation.navigability(): UmlNavigability {
+private fun navigabilityOf(ends: List<UmlAssociationEnd>): UmlNavigability {
     val sourceNav = ends.getOrNull(0)?.navigable ?: true
     val targetNav = ends.getOrNull(1)?.navigable ?: true
     return when {
@@ -27,3 +27,18 @@ fun UmlAssociation.navigability(): UmlNavigability {
         else -> UmlNavigability.NEITHER
     }
 }
+
+/**
+ * Derives [UmlNavigability] from `ends[0]` (source) / `ends[1]` (target).
+ * Defensive: an association with fewer than 2 ends treats the missing
+ * end(s) as navigable (default `true`), so degenerate fixtures resolve to
+ * [UmlNavigability.BOTH] rather than throwing.
+ */
+fun UmlAssociation.navigability(): UmlNavigability = navigabilityOf(ends = ends)
+
+/**
+ * Derives [UmlNavigability] from `ends[0]` (source) / `ends[1]` (target) of an
+ * association class — identical semantics to [UmlAssociation.navigability],
+ * shared via [navigabilityOf] so the two can never drift apart.
+ */
+fun UmlAssociationClass.navigability(): UmlNavigability = navigabilityOf(ends = ends)

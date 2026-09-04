@@ -55,6 +55,11 @@ class UmlSerializersModuleTest :
                 UmlFinalState(id = "fs", name = "fs"),
                 UmlTransition(id = "tr", sourceId = "a", targetId = "b"),
                 UmlAssociation(id = "assoc", ends = listOf(UmlAssociationEnd(typeId = "a"), UmlAssociationEnd(typeId = "b"))),
+                UmlAssociationClass(
+                    id = "ac",
+                    name = "ac",
+                    ends = listOf(UmlAssociationEnd(typeId = "a"), UmlAssociationEnd(typeId = "b")),
+                ),
                 UmlGeneralization(id = "gen", specificId = "a", generalId = "b"),
                 UmlInterfaceRealization(id = "ir", implementingId = "a", interfaceId = "b"),
                 UmlDependency(id = "dep", clientId = "a", supplierId = "b"),

@@ -8,6 +8,7 @@ import dev.kuml.core.model.ModelingLanguage
 import dev.kuml.uml.AggregationKind
 import dev.kuml.uml.Multiplicity
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlAssociationEnd
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComment
@@ -529,5 +530,51 @@ class InterpreterUmlModelDslPrinterTest :
             // observed timings, same style as OclBenchmarkTest) to avoid CI flakiness
             // while still catching an accidental reversion to the O(n^2) filter.
             duration.inWholeMilliseconds shouldBeLessThan 5000L
+        }
+
+        // ── UmlAssociationClass — declaredSoFar guard (review finding) ─────────
+
+        test("association class referencing already-declared classifiers resolves via their val identifiers") {
+            val party = UmlClass(id = "Party", name = "Party")
+            val district = UmlClass(id = "District", name = "District")
+            val tally =
+                UmlAssociationClass(
+                    id = "Tally",
+                    name = "Tally",
+                    ends = listOf(UmlAssociationEnd(typeId = "Party"), UmlAssociationEnd(typeId = "District")),
+                )
+            val out = InterpreterUmlModelDslPrinter.print(makeModel(listOf(party, district, tally)))
+            out shouldContain "val tally = associationClass(name = \"Tally\", source = party, target = district, id = \"Tally\")"
+        }
+
+        test(
+            "association class referencing another classifier declared LATER (forward reference) falls back " +
+                "to a TODO marker instead of referencing an undeclared val",
+        ) {
+            val party = UmlClass(id = "Party", name = "Party")
+            val district = UmlClass(id = "District", name = "District")
+            // "First" is printed before "Second" (elements order), but one of its
+            // ends targets "Second" — a valid UmlClassifier, and therefore present
+            // in `identOf` from the start, but NOT YET printed as a `val` at the
+            // point "First" is emitted. Before the fix this produced
+            // `target = second` referencing a not-yet-declared identifier.
+            val first =
+                UmlAssociationClass(
+                    id = "AC1",
+                    name = "First",
+                    ends = listOf(UmlAssociationEnd(typeId = "Party"), UmlAssociationEnd(typeId = "AC2")),
+                )
+            val second =
+                UmlAssociationClass(
+                    id = "AC2",
+                    name = "Second",
+                    ends = listOf(UmlAssociationEnd(typeId = "Party"), UmlAssociationEnd(typeId = "District")),
+                )
+            val out = InterpreterUmlModelDslPrinter.print(makeModel(listOf(party, district, first, second)))
+
+            out shouldContain "// TODO: associationClass \"AC1\" references a classifier not yet declared"
+            out shouldNotContain "target = second"
+            // "Second" itself has no forward reference — it still prints normally.
+            out shouldContain "val second = associationClass(name = \"Second\", source = party, target = district, id = \"AC2\")"
         }
     })

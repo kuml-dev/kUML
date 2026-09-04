@@ -21,6 +21,7 @@ import dev.kuml.layout.EdgeRoute
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
@@ -63,6 +64,15 @@ internal object EdgeRendererDispatcher {
     ) {
         when (relationship) {
             is UmlAssociation ->
+                renderUmlAssociation(
+                    rel = relationship,
+                    route = route,
+                    theme = theme,
+                    builder = builder,
+                    sourceStackIndex = sourceStackIndex,
+                    targetStackIndex = targetStackIndex,
+                )
+            is UmlAssociationClass ->
                 renderUmlAssociation(
                     rel = relationship,
                     route = route,

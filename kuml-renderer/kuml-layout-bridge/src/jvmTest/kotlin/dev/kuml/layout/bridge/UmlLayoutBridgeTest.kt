@@ -1,12 +1,14 @@
 package dev.kuml.layout.bridge
 
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.layout.EdgeId
 import dev.kuml.layout.GroupId
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.PortId
 import dev.kuml.uml.PseudostateKind
 import dev.kuml.uml.UmlArtifact
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlAssociationEnd
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComponent
@@ -510,5 +512,87 @@ class UmlLayoutBridgeTest :
             edge.source.portId.shouldBeNull()
             edge.target.nodeId shouldBe NodeId("Other")
             edge.target.portId.shouldBeNull()
+        }
+
+        // ── UmlAssociationClass (ADR-0017 Wave D) ────────────────────────────
+
+        test("UmlLayoutBridge registers an association class as one node plus two edges") {
+            val party = UmlClass(id = "Party", name = "Party")
+            val district = UmlClass(id = "District", name = "District")
+            val tally =
+                UmlAssociationClass(
+                    id = "Tally",
+                    name = "Tally",
+                    ends = listOf(UmlAssociationEnd(typeId = "Party"), UmlAssociationEnd(typeId = "District")),
+                )
+            val diagram = KumlDiagram(name = "AC", elements = listOf(party, district, tally))
+
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
+
+            graph.nodes.map { it.id } shouldBe listOf(NodeId("Party"), NodeId("District"), NodeId("Tally"))
+            graph.edges shouldHaveSize 2
+
+            val realEdge = graph.edges.first { it.id == EdgeId("Tally") }
+            realEdge.source.nodeId shouldBe NodeId("Party")
+            realEdge.target.nodeId shouldBe NodeId("District")
+
+            val anchorEdge = graph.edges.first { it.id == EdgeId("Tally#assocClassAnchor") }
+            anchorEdge.source.nodeId shouldBe NodeId("Tally")
+            anchorEdge.target.nodeId shouldBe NodeId("Party")
+        }
+
+        test("UmlLayoutBridge registers an association class with != 2 ends as a node only, no edges") {
+            val tally = UmlAssociationClass(id = "Broken", name = "Broken", ends = listOf(UmlAssociationEnd(typeId = "Only")))
+            val diagram = KumlDiagram(name = "AC", elements = listOf(tally))
+
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
+
+            graph.nodes shouldHaveSize 1
+            graph.nodes[0].id shouldBe NodeId("Broken")
+            graph.edges shouldHaveSize 0
+        }
+
+        test("UmlLayoutBridge registers a package-nested association class as node + 2 edges") {
+            val party = UmlClass(id = "Party", name = "Party")
+            val district = UmlClass(id = "District", name = "District")
+            val tally =
+                UmlAssociationClass(
+                    id = "Tally",
+                    name = "Tally",
+                    ends = listOf(UmlAssociationEnd(typeId = "Party"), UmlAssociationEnd(typeId = "District")),
+                )
+            val pkg = UmlPackage(id = "pkg1", name = "election", members = listOf(party, district, tally))
+            val diagram = KumlDiagram(name = "AC", elements = listOf(pkg))
+
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
+
+            graph.nodes.map { it.id }.toSet() shouldBe setOf(NodeId("Party"), NodeId("District"), NodeId("Tally"))
+            graph.nodes.first { it.id == NodeId("Tally") }.groupId shouldBe GroupId("pkg1")
+            graph.edges.map { it.id }.toSet() shouldBe setOf(EdgeId("Tally"), EdgeId("Tally#assocClassAnchor"))
+        }
+
+        test("UmlLayoutBridge registers a sub-package-nested association class as node + 2 edges (review finding)") {
+            // Regression: the sub-package loop's `if (subMember !is UmlPackage &&
+            // subMember !is UmlRelationship)` filter used to drop UmlAssociationClass
+            // entirely (it IS a UmlRelationship) — no node, no edges, no tether,
+            // and no warning. Every other classifier at this nesting depth got a box;
+            // an association class silently vanished.
+            val party = UmlClass(id = "Party", name = "Party")
+            val district = UmlClass(id = "District", name = "District")
+            val tally =
+                UmlAssociationClass(
+                    id = "Tally",
+                    name = "Tally",
+                    ends = listOf(UmlAssociationEnd(typeId = "Party"), UmlAssociationEnd(typeId = "District")),
+                )
+            val subPkg = UmlPackage(id = "pkg2", name = "b", members = listOf(party, district, tally))
+            val topPkg = UmlPackage(id = "pkg1", name = "a", members = listOf(subPkg))
+            val diagram = KumlDiagram(name = "AC", elements = listOf(topPkg))
+
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram)
+
+            graph.nodes.map { it.id }.toSet() shouldBe setOf(NodeId("Party"), NodeId("District"), NodeId("Tally"))
+            graph.nodes.first { it.id == NodeId("Tally") }.groupId shouldBe GroupId("pkg2")
+            graph.edges.map { it.id }.toSet() shouldBe setOf(EdgeId("Tally"), EdgeId("Tally#assocClassAnchor"))
         }
     })

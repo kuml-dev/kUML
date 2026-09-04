@@ -6,6 +6,7 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlAssociationEnd
 import dev.kuml.uml.UmlGeneralization
 import io.kotest.core.spec.style.FunSpec
@@ -59,6 +60,67 @@ class SelfLoopRouterTest :
                 )
             SelfLoopRouter.isSelfLoop(regularAssoc) shouldBe false
             SelfLoopRouter.selfLoopNodeId(regularAssoc).shouldBeNull()
+        }
+
+        test("UmlAssociationClass mit identischen Endpunkt-Typ-IDs ist ein Self-Loop") {
+            val selfAssocClass =
+                UmlAssociationClass(
+                    id = "Reports",
+                    name = "Reports",
+                    ends =
+                        listOf(
+                            UmlAssociationEnd(typeId = "Employee"),
+                            UmlAssociationEnd(typeId = "Employee"),
+                        ),
+                )
+            SelfLoopRouter.isSelfLoop(selfAssocClass) shouldBe true
+            SelfLoopRouter.selfLoopNodeId(selfAssocClass) shouldBe "Employee"
+        }
+
+        test("UmlAssociationClass mit unterschiedlichen Typ-IDs ist kein Self-Loop") {
+            val regularAssocClass =
+                UmlAssociationClass(
+                    id = "Tally",
+                    name = "Tally",
+                    ends =
+                        listOf(
+                            UmlAssociationEnd(typeId = "Party"),
+                            UmlAssociationEnd(typeId = "District"),
+                        ),
+                )
+            SelfLoopRouter.isSelfLoop(regularAssocClass) shouldBe false
+            SelfLoopRouter.selfLoopNodeId(regularAssocClass).shouldBeNull()
+        }
+
+        test("adjust ersetzt Self-Loop-Route einer UmlAssociationClass durch C-Loop") {
+            val selfAssocClass =
+                UmlAssociationClass(
+                    id = "Reports",
+                    name = "Reports",
+                    ends =
+                        listOf(
+                            UmlAssociationEnd(typeId = "Employee"),
+                            UmlAssociationEnd(typeId = "Employee"),
+                        ),
+                )
+            val originalRoute =
+                EdgeRoute.OrthogonalRounded(
+                    source = Point(x = 300f, y = 60f),
+                    target = Point(x = 300f, y = 70f),
+                    waypoints = listOf(Point(x = 290f, y = 60f), Point(x = 290f, y = 70f)),
+                    cornerRadiusPx = 4f,
+                )
+
+            val adjusted =
+                SelfLoopRouter.adjust(element = selfAssocClass, originalRoute = originalRoute) { id ->
+                    if (id == "Employee") nodeLayout else null
+                }
+
+            adjusted.shouldBeInstanceOf<EdgeRoute.OrthogonalRounded>()
+            (adjusted.source.x == 300f) shouldBe true
+            adjusted.waypoints.forEach { wp ->
+                (wp.x > 300f) shouldBe true
+            }
         }
 
         test("UmlGeneralization mit specificId == generalId ist ein Self-Loop") {

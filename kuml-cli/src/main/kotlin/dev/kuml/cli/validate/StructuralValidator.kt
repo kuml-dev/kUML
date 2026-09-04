@@ -2,6 +2,7 @@ package dev.kuml.cli.validate
 
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlGeneralization
 
@@ -151,6 +152,25 @@ internal object StructuralValidator {
                                     severity = "warning",
                                     message =
                                         "Association '${element.id}' references unknown type '${end.typeId}'.",
+                                    location = element.id,
+                                ),
+                            )
+                        }
+                    }
+                }
+                is UmlAssociationClass -> {
+                    // Same check as UmlAssociation above — an association class's ends
+                    // reference classifiers by ID just like a plain association's do, and
+                    // a mistyped endpoint ID should not go undetected just because the
+                    // relationship is also a classifier.
+                    for (end in element.ends) {
+                        if (end.typeId !in knownIds) {
+                            violations.add(
+                                StructuralViolation(
+                                    id = "DANGLING_REFERENCE",
+                                    severity = "warning",
+                                    message =
+                                        "Association class '${element.id}' references unknown type '${end.typeId}'.",
                                     location = element.id,
                                 ),
                             )

@@ -60,6 +60,7 @@ import dev.kuml.io.svg.erm.renderIdef1xCategoryCircle
 import dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
 import dev.kuml.io.svg.sysml2.sysml2SeqFragmentLeftPad
 import dev.kuml.io.svg.uml.UmlEndpointSide
+import dev.kuml.io.svg.uml.renderUmlAssociationClassTether
 import dev.kuml.io.svg.uml.toLabel
 import dev.kuml.io.svg.uml.umlEndpointFaceBucket
 import dev.kuml.layout.EdgeId
@@ -70,6 +71,8 @@ import dev.kuml.layout.NodeId
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.arcLengthMidpoint
+import dev.kuml.layout.borderIntersectionTowards
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
@@ -104,6 +107,7 @@ import dev.kuml.sysml2.edge.StmEdgeAdapter
 import dev.kuml.sysml2.edge.Sysml2EdgeAdapter
 import dev.kuml.sysml2.edge.UcEdgeAdapter
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
@@ -542,6 +546,27 @@ public object KumlSvgRenderer {
                                     }
                                 }
                             }
+                            is UmlAssociationClass -> {
+                                // Mirrors the UmlAssociation branch above — an association
+                                // class's ends carry the exact same role/multiplicity labels
+                                // and must fan out identically against converging neighbours.
+                                if (el.ends.size >= 2) {
+                                    val sourceEnd = el.ends[0]
+                                    val targetEnd = el.ends[1]
+                                    if (sourceEnd.role != null || sourceEnd.multiplicity.toLabel() != null) {
+                                        val face = umlEndpointFaceBucket(EdgeLabelGeometry.sourceSegmentTangent(route))
+                                        buckets
+                                            .getOrPut(sourceEnd.typeId to face) { mutableListOf() }
+                                            .add(edgeId.value to UmlEndpointSide.SOURCE)
+                                    }
+                                    if (targetEnd.role != null || targetEnd.multiplicity.toLabel() != null) {
+                                        val face = umlEndpointFaceBucket(EdgeLabelGeometry.targetSegmentTangent(route))
+                                        buckets
+                                            .getOrPut(targetEnd.typeId to face) { mutableListOf() }
+                                            .add(edgeId.value to UmlEndpointSide.TARGET)
+                                    }
+                                }
+                            }
                             is UmlLink -> {
                                 if (el.sourceRoleName != null) {
                                     val face = umlEndpointFaceBucket(EdgeLabelGeometry.sourceSegmentTangent(route))
@@ -625,6 +650,37 @@ public object KumlSvgRenderer {
                         targetStackIndex = tgtStackIdx,
                     )
                 }
+            }
+
+            // Tether pass — runs AFTER every edge above so the dashed line from
+            // each UmlAssociationClass box to its association line is drawn on
+            // top of that line, not underneath it. Iterates flatElementIndex
+            // (not diagram.elements directly) so association classes nested
+            // inside packageOf { ... } are found too — diagram.elements only
+            // holds top-level elements, same reasoning as buildKumlElementIndex's
+            // own KDoc. Sorted by id for a stable SVG output order across renders
+            // (flatElementIndex is a plain Map, whose iteration order is not
+            // itself a documented contract).
+            for (element in flatElementIndex.values.filterIsInstance<UmlAssociationClass>().sortedBy { it.id }) {
+                val rawRoute = effectiveLayoutResult.edges[EdgeId(element.id)] ?: continue
+                val box = effectiveLayoutResult.nodes[NodeId(element.id)] ?: continue
+                // Self-association classes (both ends on the same classifier) need the
+                // same widened C-loop route the edge-drawing loop above applies via
+                // SelfLoopRouter.adjust — without it the tether points at ELK's raw,
+                // cramped self-loop route instead of the actually-rendered C-loop.
+                val route = SelfLoopRouter.adjust(element = element, originalRoute = rawRoute, nodeLookup = nodeLookup)
+                val shiftedRoute = shiftRoute(route = route, dx = padding)
+                val shiftedBounds =
+                    box.bounds.copy(
+                        origin =
+                            box.bounds.origin.copy(
+                                x = box.bounds.origin.x + padding,
+                                y = box.bounds.origin.y + padding,
+                            ),
+                    )
+                val mid = shiftedRoute.arcLengthMidpoint()
+                val anchor = shiftedBounds.borderIntersectionTowards(from = mid)
+                renderUmlAssociationClassTether(from = mid, to = anchor, builder = edgesBuilder)
             }
         }
     }

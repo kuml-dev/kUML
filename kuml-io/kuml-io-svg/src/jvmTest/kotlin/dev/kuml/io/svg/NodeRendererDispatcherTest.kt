@@ -5,6 +5,8 @@ import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4Person
 import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.uml.UmlActor
+import dev.kuml.uml.UmlAssociationClass
+import dev.kuml.uml.UmlAssociationEnd
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlEnumeration
@@ -46,6 +48,14 @@ class NodeRendererDispatcherTest :
             NodeRendererDispatcher.dispatchKey(
                 UmlState(id = "s1", name = "Active"),
             ) shouldBe "UmlState"
+
+            NodeRendererDispatcher.dispatchKey(
+                UmlAssociationClass(
+                    id = "ac1",
+                    name = "Tally",
+                    ends = listOf(UmlAssociationEnd(typeId = "A"), UmlAssociationEnd(typeId = "B")),
+                ),
+            ) shouldBe "UmlAssociationClass"
 
             // C4 × 4
             NodeRendererDispatcher.dispatchKey(

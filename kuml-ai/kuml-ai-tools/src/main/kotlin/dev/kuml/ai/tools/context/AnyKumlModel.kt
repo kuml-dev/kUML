@@ -39,8 +39,18 @@ public sealed interface AnyKumlModel {
     ) : AnyKumlModel {
         /** Build the runtime KumlModel for rendering / simulation. */
         public fun toKumlModel(): KumlModel {
+            // [dev.kuml.uml.UmlAssociationClass] implements BOTH UmlNamedElement and
+            // UmlRelationship (see its KDoc: "one thing with one name and one id"), so it is
+            // present in both [elements] and [relationships] by construction (see
+            // [fromKumlDiagram]). A naive concatenation would therefore duplicate it in
+            // KumlDiagram.elements — one copy from each bucket, same id. Drop relationships
+            // whose id already appears in [elements] so every element is emitted exactly once;
+            // ordinary relationships (whose id never collides with a classifier id) are
+            // unaffected.
+            val elementIds = elements.map { it.id }.toSet()
             val allKumlElements: List<KumlElement> =
-                elements.map { it as KumlElement } + relationships.map { it as KumlElement }
+                elements.map { it as KumlElement } +
+                    relationships.filter { it.id !in elementIds }.map { it as KumlElement }
             val diagram =
                 KumlDiagram(
                     id = diagramId,

@@ -73,6 +73,105 @@ platform artifacts) — no standalone catalog entry to bump.
 
 ### Fixed
 
+**UML kennt Assoziationsklassen — kUML bisher nicht (ADR-0017, Welle D)**
+
+UML 2.5 kennt die Assoziationsklasse (`AssociationClass`, §11.5.3) als Standardkonzept —
+ein Modellelement mit echter Doppelnatur: gleichzeitig Klassifizierer (Attribute,
+Operationen, Vererbung) und Beziehung (verbindet zwei Klassifizierer wie eine
+Assoziation). kUML kannte dieses Konzept bisher nicht — per ADR-0017 ein Bug, keine
+Nice-to-have-Erweiterung.
+
+Formentscheidung: **ein Ding, ein Name, eine ID.** `UmlAssociationClass` implementiert
+sowohl `UmlClassifier` als auch `UmlRelationship` (plus `Stereotypable`) direkt, statt
+eine `UmlClass` mit einer separaten `UmlAssociation` plus einem synthetischen Link-Objekt
+zu koppeln. Der Zwei-Objekt-Ansatz hätte demselben UML-Konzept zwei Identitäten im Modell
+gegeben — zwei IDs, die auseinanderdriften können, und einen ungültigen Zwischenzustand
+(Klasse ohne ihre Assoziation oder umgekehrt), den der Typ nicht ausschließt. Eine
+API, die auf Maven Central veröffentlicht ist, sollte diese Redundanz nicht erst nach dem
+ersten Release wieder entfernen müssen.
+
+Registrierungs-Mechanik: dieselbe Element-ID steht **einmal** in `KumlDiagram.elements`
+und erscheint im `LayoutResult` gleichzeitig als Knoten-ID (`nodes`) und als Kanten-ID
+(`edges`) — zwei getrennte Maps, keine Kollision. Zusätzlich emittiert die Layout-Bridge
+eine unsichtbare dritte Kante (ID-Suffix `#assocClassAnchor`) rein als ELK-Schwerkraft,
+damit die Klassenbox in der Nähe ihrer Assoziationslinie platziert wird; der SVG-Renderer
+überspringt unbekannte Kanten-IDs beim Zeichnen still, die Anker-Kante bleibt also
+unsichtbar.
+
+Notationsentscheidung für den Tether (die Verbindungslinie Klassenbox ↔ Assoziationslinie):
+gestrichelt (`kuml-edge-dashed`, dieselbe CSS-Klasse wie der bestehende Notiz-Anker), kein
+Pfeilkopf, kein Label, keine neue Theme-Konstante. Der Ankerpunkt auf der Assoziationslinie
+ist der **Bogenlängen-Mittelpunkt** (`EdgeRoute.arcLengthMidpoint()`), nicht der mittlere
+Wegpunkt-Index — ELK liefert orthogonale Routen mit stark ungleichen Segmentlängen, ein
+Index-basierter Mittelpunkt würde bei jeder Layout-Änderung sichtbar springen. Der
+Andockpunkt auf der Klassenbox ist der Rand-Schnittpunkt des Strahls von der Box-Mitte zum
+Bogenlängen-Mittelpunkt (`Rect.borderIntersectionTowards(...)`), nicht die Box-Mitte selbst.
+Beide Funktionen leben als einzige, geteilte Geometrie-Implementierung in
+`kuml-layout-api/RouteGeometry.kt` — Klassenbox-Rendering und Assoziationslinie
+(Navigability, Aggregationsraute, Labels) sind ebenfalls über gemeinsame Kernel
+(`renderClassBox`, `renderAssociationLine`) mit `UmlClass`/`UmlAssociation` geteilt, keine
+Duplikate.
+
+Neu: `UmlAssociationClass` (`kuml-metamodel-uml`) mit geteilter `navigability()`-Ableitung
+(dieselbe private Funktion wie `UmlAssociation.navigability()`); `associationClass(...)`-
+DSL-Builder (`kuml-core-dsl`) mit drei Overloads (`UmlTypeRef`/String-ID/Klassifizierer-
+Handle), vollem Klassen-Body (`attribute`/`operation`/`constraint`/`extends`/`implements`/
+`stereotypes`/`layout`) und den beiden Assoziationsenden (`source { }`/`target { }`);
+Drucker-Unterstützung in beiden Dialekten (`UmlModelDslPrinter`, `InterpreterUmlModelDslPrinter`
+inkl. `DslInterpreter`); Layout-Bridge-Registrierung (`UmlLayoutBridge`,
+`EndpointResolver`, `UmlContentSizeProvider` mit geteiltem `classLikeSize`-Kernel); volles
+SVG-Rendering (Klassenbox, Assoziationslinie mit Welle-C-Navigability/Aggregationsrauten/
+Labels, Tether-Pass). `StructuralValidator` erkennt jetzt auch bei Assoziationsklassen
+hängende Endpunkt-Referenzen (`DANGLING_REFERENCE`).
+
+Neue Tests: `AssociationClassModelTest`, `AssociationClassBuilderTest`,
+`PrinterRoundTripTest`/`InterpreterPrinterRoundTripTest` (Assoziationsklassen-Fixtures,
+inkl. TODO-Marker-Negativfall für < 2 Enden), `EndpointResolverTest`, erweiterte
+`UmlLayoutBridgeTest`/`UmlContentSizeProviderTest`, `RouteGeometryTest`,
+`UmlAssociationClassSvgTest`. `./gradlew clean check` grün über das gesamte Monorepo.
+
+> [!warning] Breaking Change für Drittanbieter-Code (Quellcode-Ebene)
+> `UmlRelationship` (`kuml-metamodel-uml/Relationships.kt`) und `UmlClassifier`
+> (`kuml-metamodel-uml/Classifiers.kt`) sind öffentliche **sealed interfaces** in einem
+> auf Maven Central veröffentlichten Modul. `UmlAssociationClass` ist ein neuer Subtyp
+> beider — jedes erschöpfende `when (rel) { is UmlAssociation -> …; is UmlGeneralization
+> -> …; … }` bzw. `when (classifier) { is UmlClass -> …; is UmlInterface -> …; … }` in
+> Drittanbieter-Code (Plugins, Renderer-Erweiterungen, eigene Analysen) kompiliert nach
+> diesem Update **nicht mehr** ("'when' expression must be exhaustive"), bis der neue
+> Zweig ergänzt wird. Kein Laufzeit-Bug, kein binärer Bruch — reiner Kompilierzeit-Fehler
+> beim nächsten Build gegen die neue Version. Betroffen sind nur `sealed` `when`-Ausdrücke
+> ohne `else`-Zweig; Code mit `else -> …` ist unberührt. Migration: einen `is
+> UmlAssociationClass -> …`-Zweig ergänzen (siehe `UmlAssociationClass`s KDoc für die
+> Ein-ID-zwei-Rollen-Semantik).
+
+**Ausdrücklich nicht in dieser Welle** — namentlich, nicht in einer Fußnote:
+
+- **Codegen** (Java/Kotlin/TypeScript/C#/C++/Exposed, JPA-M2M, UML→ERM) — alle filtern über
+  `is UmlClass` und überspringen eine Assoziationsklasse still, keine Fehlermeldung.
+- **Kuiver-Rendering** (Klassenbox + Tether im Compose-Renderer) — `KuiverGraphAdapter`
+  zeichnet für ein echtes Klassendiagramm heute **keine einzige** UML-Assoziationskante
+  (die Edge-ID-Konvention `fromId + "--" + toId` passt auf keine reale Assoziations-ID,
+  `Kuiver.addEdge` gibt still `false` zurück) — ein Kuiver-Zweig für Assoziationsklassen
+  hätte also nur einen freistehenden Kasten ohne Linie erzeugt. Bewusst zurückgestellt bis
+  zu einer eigenen Welle *„KuiverGraphAdapter: Edge-ID-Konvention reparieren"*.
+- **Grid-Engine-Platzierung**: unter der Default-Layout-Engine für Klassendiagramme
+  (`kuml.grid`) beeinflusst die unsichtbare `#assocClassAnchor`-Kante die Platzierung nicht
+  (`GridPlacement.placeOnGrid` liest nur `graph.nodes`), und ein `RelativeConstraint`
+  degradiert auf Slot (0,0), solange der Zielknoten noch nicht platziert ist — Assoziations-
+  klassen ohne explizite `layout { }`-Hints landen daher an beliebiger Stelle, wirksam nur
+  unter der ELK-Engine. Ein zweiphasiger Relative-Pass in der Grid-Engine ist als eigene
+  Welle vorgemerkt (fixt nebenbei einen latenten Bug in jedem heutigen
+  `layout { below(...) }`-Hint auf einen noch unplatzierten Knoten).
+- N-äre Assoziationsklassen (> 2 Enden) — die DSL erzeugt sie nicht; Drucker/Bridge
+  behandeln `ends.size != 2` defensiv (TODO-Marker bzw. reiner Knoten ohne Kante).
+- `UmlMetaclass.AssociationClass` + Profil-/Stereotyp-Validierung — `AssociationClassBuilder`
+  nutzt `UmlMetaclass.Class` als Kompromiss; ein eigenes Enum-Literal würde jeden `when`
+  über `UmlMetaclass` zur Anpassung zwingen.
+- EMF/UML2-Export, OCL-Navigation (`kuml-core-ocl`), MCP `list`/`describe`-Tools,
+  LaTeX-Compartments (`UmlClassLatexRenderer` fällt auf `renderFallback` zurück — Box ohne
+  Compartments, aber kein Absturz) — alle mit stillem `else`-Fallback, kein Fehler.
+- Die bereits aus Welle C offene Kuiver-Aggregationsrauten-Lücke bleibt unverändert offen.
+
 **UML-Assoziations-`navigable` wird jetzt von beiden Renderern respektiert (ADR-0017)**
 
 Standard-Assoziationen (beide Enden navigierbar, der DSL-Default) werden ab sofort **ohne

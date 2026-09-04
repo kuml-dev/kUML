@@ -8,6 +8,7 @@ import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlExtend
@@ -60,6 +61,13 @@ internal object SelfLoopRouter {
     fun selfLoopNodeId(element: KumlElement): String? =
         when (element) {
             is UmlAssociation ->
+                element.ends
+                    .takeIf { it.size >= 2 }
+                    ?.let { if (it[0].typeId == it[1].typeId) it[0].typeId else null }
+            is UmlAssociationClass ->
+                // Same self-loop detection as UmlAssociation — a self-association
+                // class (both ends on the same classifier) needs the same widened
+                // C-loop route, not ELK's cramped ~10px U-shape.
                 element.ends
                     .takeIf { it.size >= 2 }
                     ?.let { if (it[0].typeId == it[1].typeId) it[0].typeId else null }

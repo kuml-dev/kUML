@@ -1,15 +1,19 @@
 package dev.kuml.core.script.print
 
 import dev.kuml.core.dsl.classDiagram
+import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.script.EvaluatedScript
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.InProcessScriptEvaluator
 import dev.kuml.uml.AggregationKind
 import dev.kuml.uml.ParameterDirection
+import dev.kuml.uml.UmlAssociationClass
+import dev.kuml.uml.UmlAssociationEnd
 import dev.kuml.uml.UmlConstraintKind
 import dev.kuml.uml.Visibility
 import dev.kuml.uml.dsl.association
+import dev.kuml.uml.dsl.associationClass
 import dev.kuml.uml.dsl.attribute
 import dev.kuml.uml.dsl.classOf
 import dev.kuml.uml.dsl.comment
@@ -25,6 +29,7 @@ import dev.kuml.uml.dsl.realization
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 
 /**
  * Full-equality round-trip tests for [UmlModelDslPrinter]: build a
@@ -48,9 +53,9 @@ import io.kotest.matchers.string.shouldContain
  * ## Element-ordering discipline
  *
  * [UmlModelDslPrinter] re-emits `diagram.elements` grouped by kind, in a
- * fixed canonical order: enumerations, interfaces, classes, generalizations,
- * realizations, associations, dependencies, comments (with their anchor
- * links). Because `KumlDiagram.elements` is a flat, order-sensitive list
+ * fixed canonical order: enumerations, interfaces, classes, association
+ * classes, generalizations, realizations, associations, dependencies,
+ * comments (with their anchor links). Because `KumlDiagram.elements` is a flat, order-sensitive list
  * containing every element regardless of kind, a re-parsed diagram's
  * `elements` list follows that same canonical order (it is simply the order
  * the printed script's top-level statements run in). For full data-class
@@ -284,6 +289,58 @@ class PrinterRoundTripTest :
 
             val printed = UmlModelDslPrinter.print(original)
             reparse(printed) shouldBe original
+        }
+
+        "associationClass with attribute/constraint/aggregation/ends round-trips (ADR-0017 Wave D)" {
+            val original =
+                classDiagram(name = "D") {
+                    val party = classOf(name = "Party")
+                    val district = classOf(name = "District")
+                    associationClass(name = "Tally", source = party, target = district) {
+                        isAbstract = true
+                        aggregation = AggregationKind.SHARED
+                        stereotypes += "Auditable"
+                        attribute(name = "votes", type = "Int")
+                        constraint(name = "nonNegative", body = "votes >= 0")
+                        source { multiplicity("1") }
+                        target {
+                            multiplicity("0..*")
+                            role = "districts"
+                        }
+                    }
+                }
+
+            val printed = UmlModelDslPrinter.print(original)
+            printed shouldContain "associationClass(name = \"Tally\""
+            reparse(printed) shouldBe original
+        }
+
+        "an association class as the endpoint of a normal association round-trips" {
+            // NOTE: same element-ordering discipline as above — UmlModelDslPrinter
+            // groups ALL classes together before any associationClass, so this
+            // fixture declares Party/District/Auditor together first (matching the
+            // printer's canonical order), not interleaved with the associationClass.
+            val original =
+                classDiagram(name = "D") {
+                    val party = classOf(name = "Party")
+                    val district = classOf(name = "District")
+                    val auditor = classOf(name = "Auditor")
+                    val tally = associationClass(name = "Tally", source = party, target = district)
+                    association(source = tally, target = auditor)
+                }
+
+            val printed = UmlModelDslPrinter.print(original)
+            reparse(printed) shouldBe original
+        }
+
+        "an association class with fewer than 2 ends prints a TODO marker, not a broken call" {
+            val degenerate =
+                UmlAssociationClass(id = "Broken", name = "Broken", ends = listOf(UmlAssociationEnd(typeId = "Only")))
+            val diagram = KumlDiagram(name = "D", type = DiagramType.CLASS, elements = listOf(degenerate))
+
+            val printed = UmlModelDslPrinter.print(diagram)
+            printed shouldContain "// TODO: UmlAssociationClass \"Broken\""
+            printed shouldNotContain "associationClass(name = \"Broken\""
         }
 
         "adversarial string content (quotes, backslashes, template-injection payloads, embedded newlines) round-trips byte-identically" {

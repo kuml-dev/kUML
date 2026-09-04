@@ -10,6 +10,7 @@ import dev.kuml.uml.ParameterDirection
 import dev.kuml.uml.UmlConstraintKind
 import dev.kuml.uml.Visibility
 import dev.kuml.uml.dsl.association
+import dev.kuml.uml.dsl.associationClass
 import dev.kuml.uml.dsl.attribute
 import dev.kuml.uml.dsl.classOf
 import dev.kuml.uml.dsl.comment
@@ -250,6 +251,29 @@ class InterpreterPrinterRoundTripTest :
                 }
 
             val printed = InterpreterUmlModelDslPrinter.print(original)
+            reparse(printed) shouldBe original
+        }
+
+        "associationClass round-trips via val handles (ADR-0017 Wave D)" {
+            val original =
+                classDiagram(name = "D") {
+                    val party = classOf(name = "Party")
+                    val district = classOf(name = "District")
+                    associationClass(name = "Tally", source = party, target = district) {
+                        isAbstract = true
+                        aggregation = AggregationKind.SHARED
+                        attribute(name = "votes", type = "Int")
+                        constraint(name = "nonNegative", body = "votes >= 0")
+                        source { multiplicity("1") }
+                        target {
+                            multiplicity("0..*")
+                            role = "districts"
+                        }
+                    }
+                }
+
+            val printed = InterpreterUmlModelDslPrinter.print(original)
+            printed shouldContain "val tally = associationClass(name = \"Tally\", source = party, target = district"
             reparse(printed) shouldBe original
         }
 

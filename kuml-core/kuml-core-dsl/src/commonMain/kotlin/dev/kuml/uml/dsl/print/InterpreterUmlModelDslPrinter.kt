@@ -7,6 +7,7 @@ import dev.kuml.uml.AggregationKind
 import dev.kuml.uml.Multiplicity
 import dev.kuml.uml.ParameterDirection
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlAssociationEnd
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComment
@@ -150,6 +151,9 @@ import dev.kuml.uml.Visibility
  *   grammar limitation, not something this printer could route around.
  * - [UmlPackage] — out of scope, exactly as in [UmlModelDslPrinter]; a
  *   `// TODO` marker is emitted instead of a `packageOf(...)` call.
+ * - N-ary [UmlAssociationClass] instances (`ends.size != 2`), and association
+ *   classes whose ends reference a classifier outside this diagram — both
+ *   fall back to a `// TODO` marker, exactly as in [UmlModelDslPrinter].
  *
  * Format:
  * ```
@@ -187,15 +191,16 @@ public object InterpreterUmlModelDslPrinter {
         val enums = elements.filterIsInstance<UmlEnumeration>()
         val ifaces = elements.filterIsInstance<UmlInterface>()
         val classes = elements.filterIsInstance<UmlClass>()
+        val assocClasses = elements.filterIsInstance<UmlAssociationClass>()
 
         // Identifiers for ALL classifiers are computed up front, in the same
-        // enum -> interface -> class order they will be declared in, so naming
-        // is deterministic and collision-safe regardless of which classifier
-        // ends up referencing which.
+        // enum -> interface -> class -> associationClass order they will be
+        // declared in, so naming is deterministic and collision-safe regardless
+        // of which classifier ends up referencing which.
         val used = mutableSetOf<String>()
         val nextSuffixForBase = mutableMapOf<String, Int>()
         val identOf = mutableMapOf<String, String>()
-        (enums.asSequence() + ifaces.asSequence() + classes.asSequence()).forEach { classifier ->
+        (enums.asSequence() + ifaces.asSequence() + classes.asSequence() + assocClasses.asSequence()).forEach { classifier ->
             identOf[classifier.id] = identifierFor(name = classifier.name, used = used, nextSuffixForBase = nextSuffixForBase)
         }
 
@@ -215,6 +220,10 @@ public object InterpreterUmlModelDslPrinter {
         classes.forEach { c ->
             printClass(sb = sb, c = c, ident = identOf.getValue(c.id), identOf = identOf, declaredSoFar = declaredSoFar)
             declaredSoFar += c.id
+        }
+        assocClasses.forEach { ac ->
+            printAssociationClass(sb = sb, ac = ac, ident = identOf.getValue(ac.id), identOf = identOf, declaredSoFar = declaredSoFar)
+            declaredSoFar += ac.id
         }
         elements.filterIsInstance<UmlPackage>().forEach { pkg -> printPackageTodo(sb = sb, pkg = pkg) }
 
@@ -282,6 +291,71 @@ public object InterpreterUmlModelDslPrinter {
         c.attributes.forEach { printAttribute(sb = sb, p = it, indent = "        ", identOf = identOf, declaredSoFar = declaredSoFar) }
         c.operations.forEach { printOperation(sb = sb, o = it, indent = "        ") }
         c.constraints.forEach { printConstraint(sb = sb, c = it, indent = "        ") }
+        sb.appendLine("    }")
+    }
+
+    /**
+     * Emits `val <ident> = associationClass(name = …, source = …, target = …, id = …) { … }`.
+     *
+     * Three ways this can fall back to a `// TODO` marker instead of a real
+     * builder call, matching the analogous [printAssociation] fallback:
+     * - `ends.size != 2` (never produced by the DSL, but constructible for
+     *   defensive-handling tests) — n-ary association classes are not
+     *   DSL-expressible at all, compiler dialect or interpreter dialect alike.
+     * - an end references a classifier `identOf` has no entry for (outside
+     *   this diagram) — the interpreter's `associationClass(...)` production
+     *   requires `val` handles, so there is nothing to reference.
+     * - an end references a classifier that IS in this diagram but has not
+     *   been printed as a `val` yet — e.g. two association classes AC1/AC2
+     *   where AC1 (printed first, in `elements` order) has an end whose
+     *   `typeId` is AC2 (printed after it). `identOf` is populated for every
+     *   classifier up front (see the caller), so it alone can't distinguish
+     *   "not in this diagram" from "in this diagram but declared later" —
+     *   only `declaredSoFar` (which grows incrementally as each classifier is
+     *   printed, mirroring [printAttribute]'s `attributeTypeArg` guard) can.
+     *   Without this check the printer would emit `source = ac2` before
+     *   `val ac2 = …` exists, and the re-parsed script would fail with an
+     *   unknown-identifier error instead of falling back to the TODO marker.
+     *
+     * Stereotypes are never printed here — same reasoning as every other
+     * element in this file (no `+=` operator in the interpreter grammar).
+     */
+    private fun printAssociationClass(
+        sb: StringBuilder,
+        ac: UmlAssociationClass,
+        ident: String,
+        identOf: Map<String, String>,
+        declaredSoFar: Set<String>,
+    ) {
+        if (ac.ends.size != 2) {
+            sb.appendLine(
+                "    // TODO: UmlAssociationClass ${quote(ac.name)} (id = ${quote(ac.id)}) has " +
+                    "${ac.ends.size} end(s) — n-ary association classes are not DSL-expressible.",
+            )
+            return
+        }
+        val srcIdent = identOf[ac.ends[0].typeId]?.takeIf { ac.ends[0].typeId in declaredSoFar }
+        val tgtIdent = identOf[ac.ends[1].typeId]?.takeIf { ac.ends[1].typeId in declaredSoFar }
+        if (srcIdent == null || tgtIdent == null) {
+            sb.appendLine(
+                "    // TODO: associationClass ${quote(ac.id)} references a classifier not yet declared as a " +
+                    "val in this diagram (forward reference) or outside this diagram entirely — " +
+                    "not representable by the interpreter dialect",
+            )
+            return
+        }
+        sb.appendLine(
+            "    val $ident = associationClass(name = ${quote(ac.name)}, source = $srcIdent, target = $tgtIdent, " +
+                "id = ${quote(ac.id)}) {",
+        )
+        if (ac.visibility != Visibility.PUBLIC) sb.appendLine("        visibility = Visibility.${ac.visibility.name}")
+        if (ac.isAbstract) sb.appendLine("        isAbstract = true")
+        if (ac.aggregation != AggregationKind.NONE) sb.appendLine("        aggregation = AggregationKind.${ac.aggregation.name}")
+        ac.attributes.forEach { printAttribute(sb = sb, p = it, indent = "        ", identOf = identOf, declaredSoFar = declaredSoFar) }
+        ac.operations.forEach { printOperation(sb = sb, o = it, indent = "        ") }
+        ac.constraints.forEach { printConstraint(sb = sb, c = it, indent = "        ") }
+        endBody(ac.ends[0])?.let { sb.appendLine("        source { $it }") }
+        endBody(ac.ends[1])?.let { sb.appendLine("        target { $it }") }
         sb.appendLine("    }")
     }
 

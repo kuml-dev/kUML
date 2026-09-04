@@ -151,6 +151,68 @@ classDiagram(name = "Domain") {
 | Aggregation kind on an `association { ... }`.
 |===
 
+=== Association classes
+
+UML 2.5 (§11.5.3) defines the association class — a modelling element with a genuine
+double nature: it is simultaneously a classifier (owns attributes, operations,
+constraints, and can take part in generalisation/realisation like `classOf`) *and* a
+relationship (connects exactly two classifiers, like `association`). kUML models this as
+**one thing with one name and one ID** — `associationClass(...)` — rather than a plain
+class paired with a separate association.
+
+[source,kotlin]
+----
+classDiagram(name = "Elections") {
+    val party = classOf(name = "Party")
+    val district = classOf(name = "District")
+
+    val tally = associationClass(name = "Tally", source = party, target = district) {
+        attribute(name = "votes", type = "Int")
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "0..*") }
+    }
+}
+----
+
+Three overloads resolve the two ends the same way `association(...)` does:
+
+[cols="1,2"]
+|===
+| Overload | When to use it
+
+| `associationClass(name, source: UmlClassifier, target: UmlClassifier, id?) { ... }`
+| Both ends already have a builder `val` handle in scope (most common).
+
+| `associationClass(name, sourceId: String, targetId: String, id?) { ... }`
+| Referencing a classifier declared elsewhere by ID (e.g. across a larger script, or
+  when reconstructing a diagram programmatically).
+
+| `associationClass(name, source: UmlTypeRef, target: UmlTypeRef, id?) { ... }`
+| Lowest-level form the other two delegate to; rarely called directly.
+|===
+
+Inside the block, an association class exposes the full classifier surface
+(`attribute`, `operation`, `constraint`, `extends`, `implements`, `stereotypes`,
+`layout { }`) plus the two association ends (`source { }` / `target { }`, each
+accepting `multiplicity(...)`, `role`, and `navigable`) and `aggregation =
+AggregationKind.{NONE,SHARED,COMPOSITE}` — everything a plain `association(...)` or
+`classOf(...)` supports individually.
+
+Rendering draws the classifier as a normal class box, the association line between its
+two ends exactly like `association(...)` (navigability arrowheads, aggregation
+diamonds, role/multiplicity labels included), and a dashed tether line connecting the
+box to the association line's midpoint — the visual cue that both belong to the same
+element. Self-association classes (both ends on the same classifier) get the same
+widened C-loop routing as a self-association. `kuml validate` flags an end referencing
+an unknown classifier ID as a `DANGLING_REFERENCE` warning, same as a plain association.
+
+**Current scope**: `ends` always has exactly two entries — the DSL exposes no way to
+construct an n-ary association class. `UmlMetaclass.AssociationClass` does not exist yet
+(profile/stereotype validation treats an association class as `UmlMetaclass.Class`);
+codegen (Java/Kotlin/TypeScript/C#/C++/Exposed, JPA-M2M, UML→ERM), the Kuiver
+(Compose) renderer, EMF/UML2 export, OCL navigation, MCP `list`/`describe` tools, and
+LaTeX compartment rendering do not yet have dedicated association-class handling.
+
 === Worked example — Order Domain
 
 A larger, fully working class diagram exercising enums, interfaces, abstract

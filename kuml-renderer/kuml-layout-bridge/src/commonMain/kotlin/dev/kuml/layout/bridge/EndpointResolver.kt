@@ -2,6 +2,7 @@ package dev.kuml.layout.bridge
 
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
@@ -52,6 +53,14 @@ internal object EndpointResolver {
                     relationship.ends[0].typeId to relationship.ends[1].typeId
                 } else {
                     // UmlAssociation with != 2 ends → skip (spec requirement)
+                    null
+                }
+            }
+            is UmlAssociationClass -> {
+                if (relationship.ends.size == 2) {
+                    relationship.ends[0].typeId to relationship.ends[1].typeId
+                } else {
+                    // UmlAssociationClass with != 2 ends → skip (spec requirement, analogous to UmlAssociation)
                     null
                 }
             }

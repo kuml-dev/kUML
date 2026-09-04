@@ -9,6 +9,7 @@ import dev.kuml.uml.AggregationKind
 import dev.kuml.uml.Multiplicity
 import dev.kuml.uml.ParameterDirection
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlAssociationEnd
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComment
@@ -71,6 +72,15 @@ import dev.kuml.uml.Visibility
  *   at diagram scope via `applyProfile(...)`, which this printer does not
  *   attempt to reconstruct. The simple string `stereotypes` list (`stereotypes
  *   += "…"`) is unaffected and round-trips normally.
+ * - N-ary [UmlAssociationClass] instances (`ends.size != 2`) — the
+ *   `associationClass(...)` DSL builder always produces exactly two ends;
+ *   there is no builder call that can express a third. An association class
+ *   with fewer than two ends is printed as a `// TODO` marker, analogous to
+ *   [UmlPackage] below.
+ * - [dev.kuml.uml.UmlAssociationClass] built via `associationClass(...)` is
+ *   always printed with `UmlMetaclass.Class` as its effective metaclass for
+ *   profile validation — there is no dedicated association-class metaclass
+ *   in [dev.kuml.profile.UmlMetaclass] (V1.1 scope).
  * - [UmlPackage] — out of scope for this printer (the interpreter's grammar,
  *   which defines this wave's charter, does not support `packageOf` at all;
  *   a compiler-only implementation would additionally have to contend with
@@ -143,6 +153,9 @@ public object UmlModelDslPrinter {
         elements.filterIsInstance<UmlClass>().forEach { c ->
             printClass(sb = sb, c = c)
         }
+        elements.filterIsInstance<UmlAssociationClass>().forEach { ac ->
+            printAssociationClass(sb = sb, ac = ac)
+        }
         elements.filterIsInstance<UmlPackage>().forEach { pkg ->
             printPackageTodo(sb = sb, pkg = pkg)
         }
@@ -206,6 +219,42 @@ public object UmlModelDslPrinter {
         c.operations.forEach { printOperation(sb = sb, o = it, indent = "        ") }
         c.constraints.forEach { printConstraint(sb = sb, c = it, indent = "        ") }
         printLayoutHints(sb = sb, element = c, indent = "        ")
+        sb.appendLine("    }")
+    }
+
+    /**
+     * Emits an `associationClass(...)` call. `ends.size != 2` (never produced
+     * by the DSL, but constructible for defensive-handling tests) prints a
+     * `// TODO` marker instead of a broken call — see the class KDoc "Known
+     * non-round-tripping fields" section.
+     */
+    private fun printAssociationClass(
+        sb: StringBuilder,
+        ac: UmlAssociationClass,
+    ) {
+        if (ac.ends.size != 2) {
+            sb.appendLine(
+                "    // TODO: UmlAssociationClass ${quote(ac.name)} (id = ${quote(ac.id)}) has " +
+                    "${ac.ends.size} end(s) — n-ary association classes are not DSL-expressible.",
+            )
+            return
+        }
+        val srcId = ac.ends[0].typeId
+        val tgtId = ac.ends[1].typeId
+        sb.appendLine(
+            "    associationClass(name = ${quote(ac.name)}, sourceId = ${quote(srcId)}, " +
+                "targetId = ${quote(tgtId)}, id = ${quote(ac.id)}) {",
+        )
+        if (ac.visibility != Visibility.PUBLIC) sb.appendLine("        visibility = Visibility.${ac.visibility.name}")
+        if (ac.isAbstract) sb.appendLine("        isAbstract = true")
+        if (ac.aggregation != AggregationKind.NONE) sb.appendLine("        aggregation = AggregationKind.${ac.aggregation.name}")
+        stereotypesLines(s = ac.stereotypes, indent = "        ").forEach(sb::appendLine)
+        ac.attributes.forEach { printAttribute(sb = sb, p = it, indent = "        ") }
+        ac.operations.forEach { printOperation(sb = sb, o = it, indent = "        ") }
+        ac.constraints.forEach { printConstraint(sb = sb, c = it, indent = "        ") }
+        endBody(ac.ends[0])?.let { sb.appendLine("        source { $it }") }
+        endBody(ac.ends[1])?.let { sb.appendLine("        target { $it }") }
+        printLayoutHints(sb = sb, element = ac, indent = "        ")
         sb.appendLine("    }")
     }
 

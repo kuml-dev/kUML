@@ -86,6 +86,7 @@ public val UmlSerializersModule: SerializersModule =
 
             // Relationships
             subclass(UmlAssociation::class, UmlAssociation.serializer())
+            subclass(UmlAssociationClass::class, UmlAssociationClass.serializer())
             subclass(UmlGeneralization::class, UmlGeneralization.serializer())
             subclass(UmlInterfaceRealization::class, UmlInterfaceRealization.serializer())
             subclass(UmlDependency::class, UmlDependency.serializer())
@@ -115,6 +116,7 @@ public val UmlSerializersModule: SerializersModule =
             // Only the subset of the above that is also a KumlNamespaceMember
             // (i.e. extends UmlNamedElement, not just UmlElement).
             subclass(UmlClass::class, UmlClass.serializer())
+            subclass(UmlAssociationClass::class, UmlAssociationClass.serializer())
             subclass(UmlInterface::class, UmlInterface.serializer())
             subclass(UmlEnumeration::class, UmlEnumeration.serializer())
             subclass(UmlEnumerationLiteral::class, UmlEnumerationLiteral.serializer())
