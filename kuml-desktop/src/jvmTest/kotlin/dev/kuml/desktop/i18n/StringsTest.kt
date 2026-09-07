@@ -312,4 +312,39 @@ class StringsTest :
         test("EN findNoMatch is non-empty") { Strings.EN.findNoMatch.isNotEmpty() shouldBe true }
         test("DE findNoMatch is non-empty") { Strings.DE.findNoMatch.isNotEmpty() shouldBe true }
         test("EN and DE differ on findNoMatch") { Strings.EN.findNoMatch shouldNotBe Strings.DE.findNoMatch }
+
+        // --- V3.x — Live-Simulation von Zustandsautomaten im Editor ---
+        test("EN menuToolsSimulate is non-empty") { Strings.EN.menuToolsSimulate.isNotEmpty() shouldBe true }
+        test("DE menuToolsSimulate is non-empty") { Strings.DE.menuToolsSimulate.isNotEmpty() shouldBe true }
+        test("EN and DE differ on menuToolsSimulate") { Strings.EN.menuToolsSimulate shouldNotBe Strings.DE.menuToolsSimulate }
+
+        test("EN menuToolsSimulateStop is non-empty") { Strings.EN.menuToolsSimulateStop.isNotEmpty() shouldBe true }
+        test("DE menuToolsSimulateStop is non-empty") { Strings.DE.menuToolsSimulateStop.isNotEmpty() shouldBe true }
+
+        test("EN simUnsupportedDiagram is non-empty") { Strings.EN.simUnsupportedDiagram.isNotEmpty() shouldBe true }
+        test("DE simUnsupportedDiagram is non-empty") { Strings.DE.simUnsupportedDiagram.isNotEmpty() shouldBe true }
+
+        test("EN simScrubbing contains positional %1\$d and %2\$d placeholders") {
+            Strings.EN.simScrubbing shouldContain "%1\$d"
+            Strings.EN.simScrubbing shouldContain "%2\$d"
+        }
+        test("DE simScrubbing contains positional %1\$d and %2\$d placeholders") {
+            Strings.DE.simScrubbing shouldContain "%1\$d"
+            Strings.DE.simScrubbing shouldContain "%2\$d"
+        }
+
+        test("EN simDiscardedSteps contains a %d placeholder") { Strings.EN.simDiscardedSteps shouldContain "%d" }
+        test("DE simDiscardedSteps contains a %d placeholder") { Strings.DE.simDiscardedSteps shouldContain "%d" }
+
+        test("EN simGuardFailed contains positional %1\$s and %2\$s placeholders") {
+            Strings.EN.simGuardFailed shouldContain "%1\$s"
+            Strings.EN.simGuardFailed shouldContain "%2\$s"
+        }
+        test("DE simGuardFailed contains positional %1\$s and %2\$s placeholders") {
+            Strings.DE.simGuardFailed shouldContain "%1\$s"
+            Strings.DE.simGuardFailed shouldContain "%2\$s"
+        }
+
+        test("EN and DE differ on simTerminated") { Strings.EN.simTerminated shouldNotBe Strings.DE.simTerminated }
+        test("EN and DE differ on simTraceTitle") { Strings.EN.simTraceTitle shouldNotBe Strings.DE.simTraceTitle }
     })

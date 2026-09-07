@@ -84,6 +84,9 @@ fun IconTooltipButton(
     iconSize: Dp = COMPACT_ICON_SIZE,
     buttonSize: Dp = COMPACT_ICON_BUTTON_SIZE,
     tooltipPlacement: TooltipPlacement = tooltipAbove(),
+    // V3.x — Live-Simulation: SimulationBar's Step button is disabled unless exactly one event
+    // is currently enabled. Defaults to true so every pre-existing call site is unaffected.
+    enabled: Boolean = true,
 ) {
     TooltipArea(
         tooltip = {
@@ -102,7 +105,7 @@ fun IconTooltipButton(
         },
         tooltipPlacement = tooltipPlacement,
     ) {
-        IconButton(onClick = onClick, modifier = modifier.size(buttonSize)) {
+        IconButton(onClick = onClick, enabled = enabled, modifier = modifier.size(buttonSize)) {
             Icon(imageVector = icon, contentDescription = description, modifier = Modifier.size(iconSize))
         }
     }

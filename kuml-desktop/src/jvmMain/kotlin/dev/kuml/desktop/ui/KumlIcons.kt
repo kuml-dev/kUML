@@ -53,6 +53,20 @@ object KumlIcons {
     /** Zwei kreuzende Linien ("×") — Schließen, z. B. [dev.kuml.desktop.editor.FindBar]. */
     val Close: ImageVector by lazy { buildCloseIcon() }
 
+    // V3.x — Live-Simulation von Zustandsautomaten im Editor (SimulationBar).
+
+    /** Pfeil auf Endanschlag — "Schritt" (ein Event manuell feuern). */
+    val SimStep: ImageVector by lazy { buildSimStepIcon() }
+
+    /** Doppeldreieck nach rechts (Vorspul-Symbol, KEIN Play-Dreieck) — "Automatisch weiter". */
+    val SimAutoAdvance: ImageVector by lazy { buildSimAutoAdvanceIcon() }
+
+    /** Zwei senkrechte Balken — "Pause" (ersetzt [SimAutoAdvance], solange Auto-Advance läuft). */
+    val SimPause: ImageVector by lazy { buildSimPauseIcon() }
+
+    /** Kreispfeil (Reset) — "Zurücksetzen". */
+    val SimReset: ImageVector by lazy { buildSimResetIcon() }
+
     private const val VIEWPORT = 24f
     private const val STROKE_WIDTH = 2f
     private val PLACEHOLDER = SolidColor(Color.Black)
@@ -285,6 +299,120 @@ object KumlIcons {
                 ) {
                     moveTo(18f, 6f)
                     lineTo(6f, 18f)
+                }
+            }.build()
+
+    /** Horizontal bar with an arrowhead against a vertical end-stop — "fire one step". */
+    private fun buildSimStepIcon(): ImageVector =
+        builder("KumlSimStep")
+            .apply {
+                path(
+                    name = "KumlSimStep.shaft",
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                ) {
+                    moveTo(4f, 12f)
+                    lineTo(15f, 12f)
+                    moveTo(11f, 7f)
+                    lineTo(16f, 12f)
+                    lineTo(11f, 17f)
+                }
+                path(
+                    name = "KumlSimStep.stop",
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                ) {
+                    moveTo(20f, 6f)
+                    lineTo(20f, 18f)
+                }
+            }.build()
+
+    /** Two right-pointing triangles ("fast-forward") — deliberately NOT a single play triangle. */
+    private fun buildSimAutoAdvanceIcon(): ImageVector =
+        builder("KumlSimAutoAdvance")
+            .apply {
+                path(name = "KumlSimAutoAdvance.tri1", fill = PLACEHOLDER) {
+                    moveTo(3f, 6f)
+                    lineTo(11f, 12f)
+                    lineTo(3f, 18f)
+                    close()
+                }
+                path(name = "KumlSimAutoAdvance.tri2", fill = PLACEHOLDER) {
+                    moveTo(12f, 6f)
+                    lineTo(20f, 12f)
+                    lineTo(12f, 18f)
+                    close()
+                }
+            }.build()
+
+    /** Two vertical bars — "pause", replacing [SimAutoAdvance] while auto-advance is running. */
+    private fun buildSimPauseIcon(): ImageVector =
+        builder("KumlSimPause")
+            .apply {
+                path(name = "KumlSimPause.bar1", fill = PLACEHOLDER) {
+                    moveTo(6f, 5f)
+                    lineTo(10f, 5f)
+                    lineTo(10f, 19f)
+                    lineTo(6f, 19f)
+                    close()
+                }
+                path(name = "KumlSimPause.bar2", fill = PLACEHOLDER) {
+                    moveTo(14f, 5f)
+                    lineTo(18f, 5f)
+                    lineTo(18f, 19f)
+                    lineTo(14f, 19f)
+                    close()
+                }
+            }.build()
+
+    /** Circular arrow — "reset the simulation to its initial state". */
+    private fun buildSimResetIcon(): ImageVector =
+        builder("KumlSimReset")
+            .apply {
+                path(
+                    name = "KumlSimReset.arc",
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                ) {
+                    // Nearly-full circle (open at the top-right, where the arrowhead sits).
+                    moveTo(18.36f, 7.64f)
+                    arcTo(
+                        horizontalEllipseRadius = 7f,
+                        verticalEllipseRadius = 7f,
+                        theta = 0f,
+                        isMoreThanHalf = true,
+                        isPositiveArc = true,
+                        x1 = 12f,
+                        y1 = 19f,
+                    )
+                    arcTo(
+                        horizontalEllipseRadius = 7f,
+                        verticalEllipseRadius = 7f,
+                        theta = 0f,
+                        isMoreThanHalf = false,
+                        isPositiveArc = true,
+                        x1 = 17.32f,
+                        y1 = 9f,
+                    )
+                }
+                path(
+                    name = "KumlSimReset.arrowhead",
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                ) {
+                    moveTo(18.36f, 3.64f)
+                    lineTo(18.36f, 7.64f)
+                    lineTo(14.36f, 7.64f)
                 }
             }.build()
 }

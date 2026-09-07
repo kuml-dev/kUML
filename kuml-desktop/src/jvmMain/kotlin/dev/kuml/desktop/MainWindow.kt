@@ -51,6 +51,9 @@ import dev.kuml.desktop.plugins.PluginManagerPane
 import dev.kuml.desktop.preview.PreviewPane
 import dev.kuml.desktop.render.DesktopRenderController
 import dev.kuml.desktop.render.RenderInputs
+import dev.kuml.desktop.simulation.SimulationSession
+import dev.kuml.desktop.simulation.SimulationStartResult
+import dev.kuml.desktop.simulation.SimulationStatus
 import dev.kuml.desktop.state.rememberAppSettingsBinding
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
@@ -68,6 +71,7 @@ import dev.kuml.workspace.OkfWorkspace
 import dev.kuml.workspace.WorkspaceMode
 import dev.kuml.workspace.WorkspaceScanner
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -221,6 +225,53 @@ fun FrameWindowScope.MainWindow(
         }
     }
 
+    // V3.x — Live-Simulation von Zustandsautomaten im Editor (Werkzeuge ▸ Simulieren, Ctrl+R).
+    fun stopSimulation() {
+        state.simulation?.close()
+        state.simulation = null
+    }
+
+    fun startSimulation() {
+        // Review fix — re-entrancy guard. The menu item's own `enabled` check below already
+        // keeps a second Ctrl+R/click from firing while a start is in flight, but this is a
+        // second, independent line of defense (belt-and-braces, not "either/or"): if this
+        // function is ever invoked a second time before the first `scope.launch` below has
+        // resolved — e.g. a future caller that doesn't go through the menu item at all — bail
+        // out instead of racing two SimulationSession.start() calls, each spinning up its own
+        // TimeLimitedGuardEvaluator thread pool, for `state.simulation` to overwrite one with
+        // the other and leak the loser's pool for the JVM's lifetime.
+        if (state.simulationStarting) return
+        stopSimulation()
+        // Spez. A4 — a simulation needs the diagram visible; SOURCE-only leaves nothing to
+        // highlight, so switch to SPLIT (never DIAGRAM — the user might still want the editor).
+        if (state.viewMode == AppState.ViewMode.SOURCE) state.viewMode = AppState.ViewMode.SPLIT
+        state.simulationStarting = true
+        scope.launch {
+            try {
+                when (
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            SimulationSession.start(script = state.script, themeName = state.theme)
+                        }
+                ) {
+                    is SimulationStartResult.Started -> state.simulation = result.session
+                    is SimulationStartResult.Unsupported -> state.lastError = strings.simUnsupportedDiagram
+                    is SimulationStartResult.Failed -> state.lastError = strings.simStartFailed.format(result.message)
+                }
+            } finally {
+                state.simulationStarting = false
+            }
+        }
+    }
+
+    // V3.x — every session that ends without close() leaks a kuml-sandbox-guard-* thread pool.
+    DisposableEffect(Unit) {
+        onDispose {
+            state.simulation?.close()
+            state.simulation = null
+        }
+    }
+
     // P2, design review — Undo/Redo/Find are only meaningful while an EditorPane is
     // actually mounted (null or Engineering workspace mode, not the read-only Knowledge
     // workspace viewer).
@@ -348,6 +399,7 @@ fun FrameWindowScope.MainWindow(
             Separator()
             Item(strings.menuFileQuit, onClick = {
                 confirmUnsavedAndThen {
+                    stopSimulation()
                     store.save(state.toSettings())
                     onQuit()
                 }
@@ -496,6 +548,27 @@ fun FrameWindowScope.MainWindow(
         }
         // V3.0.13 — Tools menu
         Menu(strings.menuTools) {
+            // V3.x — Live-Simulation von Zustandsautomaten im Editor. Additive to Spez. A5's
+            // Esc + close-icon: the editor's RSyntaxTextArea is a heavyweight Swing component
+            // that can swallow Esc before Window(onKeyEvent) ever sees it (see Main.kt), so a
+            // menu item is the one route that always works.
+            Item(
+                strings.menuToolsSimulate,
+                // Review fix — also gated on `!state.simulationStarting`: `state.simulation`
+                // isn't assigned until the async start (script eval + ELK layout, 1-3s) actually
+                // finishes, so without this the item stayed enabled for that whole window and a
+                // second Ctrl+R started a second SimulationSession (see `startSimulation()`'s
+                // KDoc-level comment and `AppState.simulationStarting`'s KDoc).
+                enabled = state.simulation == null && !state.simulationStarting && state.lastDiagramSimulatable,
+                shortcut = KeyShortcut(key = Key.R, ctrl = true),
+                onClick = { startSimulation() },
+            )
+            Item(
+                strings.menuToolsSimulateStop,
+                enabled = state.simulation != null,
+                onClick = { stopSimulation() },
+            )
+            Separator()
             Item(strings.menuToolsPluginManager, onClick = { showPluginManager = true })
         }
     }
@@ -650,10 +723,27 @@ private fun StatusBar(
     showsEditor: Boolean,
 ) {
     val strings = Strings.forLanguage(state.language)
+    val session = state.simulation
+
+    // V3.x — a short-lived DiscardedSteps notice (Spez. E23) auto-dismisses back to Idle so it
+    // doesn't linger and get mistaken for a persistent warning.
+    LaunchedEffect(session, session?.status) {
+        if (session != null && session.status is SimulationStatus.DiscardedSteps) {
+            delay(4_000)
+            session.clearDiscardedStepsNotice()
+        }
+    }
+
+    val simLine = session?.let { simulationStatusLine(status = it.status, strings = strings) }
     val (text, color) =
         when {
+            simLine != null -> simLine
             state.lastError != null -> state.lastError!! to Color(0xFFCC0000)
             state.isRendering -> strings.statusRendering to Color.Gray
+            // V3.x — Nortons "deaktiviertes Element ohne Begründung ist eine Beleidigung":
+            // explain why Werkzeuge ▸ Simulieren is greyed out for the current diagram.
+            session == null && !state.lastDiagramSimulatable && state.lastSvg.isNotBlank() ->
+                strings.simUnsupportedDiagram to Color.Gray
             state.lastSvg.isNotBlank() -> strings.statusReady to Color(0xFF228822)
             else -> strings.statusNoDiagram to Color.Gray
         }
@@ -682,6 +772,27 @@ private fun StatusBar(
         }
     }
 }
+
+/**
+ * Translates a [SimulationStatus] into a status-bar (text, color) pair — `null` for
+ * [SimulationStatus.Idle], which falls through to the regular render-status line above it.
+ */
+private fun simulationStatusLine(
+    status: SimulationStatus,
+    strings: Strings,
+): Pair<String, Color>? =
+    when (status) {
+        SimulationStatus.Idle -> null
+        is SimulationStatus.Stayed -> strings.simStayed.format(status.reason) to Color.Gray
+        is SimulationStatus.GuardFailed ->
+            strings.simGuardFailed.format(status.transitionId, status.message) to Color(0xFFCC0000)
+        is SimulationStatus.GuardTimeout ->
+            strings.simGuardTimeout.format(status.transitionId, status.message) to Color(0xFFCC0000)
+        is SimulationStatus.Error -> strings.simError.format(status.message) to Color(0xFFCC0000)
+        SimulationStatus.Terminated -> strings.simTerminated to Color.Gray
+        is SimulationStatus.AutoStopped -> strings.simAutoStopped.format(status.reason.name) to Color.Gray
+        is SimulationStatus.DiscardedSteps -> strings.simDiscardedSteps.format(status.count) to Color.Gray
+    }
 
 /**
  * Compact three-way segmented control for [AppState.ViewMode] (P5, design review). Uses

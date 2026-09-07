@@ -10,8 +10,10 @@ import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.core.script.ScriptEvaluationException
+import dev.kuml.desktop.simulation.isSimulatable
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SvgRenderOptions
+import dev.kuml.layout.KumlLayoutEngine
 import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.bridge.C4ContentSizeProvider
@@ -21,7 +23,9 @@ import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
+import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
+import dev.kuml.runtime.sysml2.Sysml2StateMachineAdapter
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
@@ -30,42 +34,93 @@ import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.UcDiagram
+import dev.kuml.uml.UmlState
+import dev.kuml.uml.UmlStateMachine
+import dev.kuml.uml.UmlVertex
 import java.io.File
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
 
+/** Result of [DesktopRenderPipeline.prepareSimulation] — see its KDoc. */
+internal sealed interface SimulationPrepareResult {
+    data class Ready(
+        val stateMachine: UmlStateMachine,
+        val svg: String,
+    ) : SimulationPrepareResult
+
+    data class Unsupported(
+        val message: String,
+    ) : SimulationPrepareResult
+
+    data class Failed(
+        val message: String,
+    ) : SimulationPrepareResult
+}
+
 internal object DesktopRenderPipeline {
+    /** Shared eval → extract → theme → ELK-engine front for [render] and [prepareSimulation]. */
+    private sealed interface PipelineContext {
+        data class Ready(
+            val extracted: ExtractedDiagram,
+            val theme: KumlTheme,
+            val elkEngine: KumlLayoutEngine,
+        ) : PipelineContext
+
+        data class Failure(
+            val message: String,
+        ) : PipelineContext
+    }
+
+    /**
+     * Evaluates [script], extracts its diagram, and resolves [themeName] + the ELK engine —
+     * the front half every render (and simulation start) needs, factored out once so [render]
+     * and [prepareSimulation] never duplicate the eval/extract/theme-lookup logic (Rams:
+     * "nicht zweimal fast gleich").
+     */
+    private fun prepare(
+        script: String,
+        themeName: String,
+    ): PipelineContext {
+        DesktopEngineInit.ensure()
+        val evalResult = KumlScriptHost.eval(code = script)
+        val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
+        if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
+            val msg = errors.joinToString("\n") { it.message }
+            return PipelineContext.Failure(msg.ifBlank { "Script-Auswertung fehlgeschlagen" })
+        }
+        val success =
+            evalResult as? ResultWithDiagnostics.Success
+                ?: return PipelineContext.Failure("Kein Ergebnis aus dem Script")
+
+        val extracted =
+            DiagramExtractor.extractAny(
+                returnValue = success.value.returnValue,
+                input = File("inline.kuml.kts"),
+            )
+
+        val theme =
+            ThemeRegistry.get(themeName)
+                ?: ThemeRegistry.get("kuml")
+                ?: return PipelineContext.Failure("Theme '$themeName' nicht gefunden")
+
+        val elkEngine =
+            LayoutEngineRegistry.get("elk.layered")
+                ?: return PipelineContext.Failure("ELK-Layout-Engine nicht verfügbar")
+
+        return PipelineContext.Ready(extracted = extracted, theme = theme, elkEngine = elkEngine)
+    }
+
     fun render(
         script: String,
         themeName: String,
         watermark: Boolean = false,
     ): DesktopRenderResult {
-        DesktopEngineInit.ensure()
         return try {
-            val evalResult = KumlScriptHost.eval(code = script)
-            val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
-            if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
-                val msg = errors.joinToString("\n") { it.message }
-                return DesktopRenderResult.Error(msg.ifBlank { "Script-Auswertung fehlgeschlagen" })
-            }
-            val success =
-                evalResult as? ResultWithDiagnostics.Success
-                    ?: return DesktopRenderResult.Error("Kein Ergebnis aus dem Script")
-
-            val extracted =
-                DiagramExtractor.extractAny(
-                    returnValue = success.value.returnValue,
-                    input = File("inline.kuml.kts"),
-                )
-
-            val theme =
-                ThemeRegistry.get(themeName)
-                    ?: ThemeRegistry.get("kuml")
-                    ?: return DesktopRenderResult.Error("Theme '$themeName' nicht gefunden")
-
-            val elkEngine =
-                LayoutEngineRegistry.get("elk.layered")
-                    ?: return DesktopRenderResult.Error("ELK-Layout-Engine nicht verfügbar")
+            val (extracted, theme, elkEngine) =
+                when (val ctx = prepare(script = script, themeName = themeName)) {
+                    is PipelineContext.Failure -> return DesktopRenderResult.Error(ctx.message)
+                    is PipelineContext.Ready -> Triple(ctx.extracted, ctx.theme, ctx.elkEngine)
+                }
 
             // V3.7.4 (design review P9) — opt-in "Powered by kUML" watermark, threaded through
             // every SvgRenderOptions use below so the toggle applies uniformly across diagram
@@ -306,11 +361,108 @@ internal object DesktopRenderPipeline {
                                 "V3.4.1 unterstützt für ERM-Skripte nur `kuml validate`.",
                         )
                 }
-            DesktopRenderResult.Svg(svg)
+            DesktopRenderResult.Svg(svg = svg, simulatable = isSimulatable(extracted))
         } catch (e: ScriptEvaluationException) {
             DesktopRenderResult.Error(e.message ?: "Script-Fehler")
         } catch (e: Exception) {
             DesktopRenderResult.Error(e.message ?: "Unerwarteter Fehler")
         }
+    }
+
+    /**
+     * Prepares a live simulation session for [script]: evaluates it, extracts a
+     * [UmlStateMachine] (UML STATE diagram, or SysML-2 STM translated via
+     * [Sysml2StateMachineAdapter]), lays it out exactly like [render] would, and renders one
+     * SVG with EVERY vertex's highlight ring present but hidden
+     * ([SvgRenderOptions.preparedHighlightVertexIds]) — the desktop then flips rings
+     * visible/invisible per simulation step via a DOM patch instead of re-rendering.
+     *
+     * `paddingPx = 64f` for the SysML-2 STM path is INTENTIONAL and must stay identical to the
+     * `paddingOpts` used by the regular STM branch above — otherwise the preview jumps when a
+     * simulation starts (see the render pipeline's own `paddingOpts` comment).
+     *
+     * `watermark` is always `false` here regardless of the app's watermark setting — a
+     * simulation session is a working view, not an export (see plan §7.2).
+     */
+    fun prepareSimulation(
+        script: String,
+        themeName: String,
+    ): SimulationPrepareResult =
+        try {
+            when (val ctx = prepare(script = script, themeName = themeName)) {
+                is PipelineContext.Failure -> SimulationPrepareResult.Failed(ctx.message)
+                is PipelineContext.Ready -> prepareSimulationFromContext(ctx)
+            }
+        } catch (e: ScriptEvaluationException) {
+            SimulationPrepareResult.Failed(e.message ?: "Script-Fehler")
+        } catch (e: Exception) {
+            SimulationPrepareResult.Failed(e.message ?: "Unerwarteter Fehler")
+        }
+
+    private fun prepareSimulationFromContext(ctx: PipelineContext.Ready): SimulationPrepareResult {
+        val theme = ctx.theme
+        val elkEngine = ctx.elkEngine
+        return when (val extracted = ctx.extracted) {
+            is ExtractedDiagram.Uml -> {
+                if (extracted.diagram.type != DiagramType.STATE) {
+                    return SimulationPrepareResult.Unsupported("diagram type is not simulatable")
+                }
+                val sm =
+                    extracted.diagram.elements
+                        .filterIsInstance<UmlStateMachine>()
+                        .firstOrNull()
+                        ?: return SimulationPrepareResult.Failed("STATE diagram has no UmlStateMachine element")
+                val graph = UmlLayoutBridge.toLayoutGraph(diagram = extracted.diagram)
+                val layout = elkEngine.layout(graph = graph, hints = LayoutHints.DEFAULT)
+                val svg =
+                    KumlSvgRenderer.toSvg(
+                        diagram = extracted.diagram,
+                        layoutResult = layout,
+                        theme = theme,
+                        options = SvgRenderOptions(watermark = false, preparedHighlightVertexIds = allVertexIds(sm)),
+                    )
+                SimulationPrepareResult.Ready(stateMachine = sm, svg = svg)
+            }
+            is ExtractedDiagram.Sysml2 -> {
+                val diagram = extracted.diagram
+                if (diagram !is StmDiagram) return SimulationPrepareResult.Unsupported("diagram type is not simulatable")
+                val model = extracted.model
+                val sm = Sysml2StateMachineAdapter.toUmlStateMachine(model = model, diagram = diagram)
+                val layout =
+                    elkEngine.layout(
+                        graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                        hints = LayoutHints.DEFAULT,
+                    )
+                val svg =
+                    KumlSvgRenderer.toSvg(
+                        model = model,
+                        diagram = diagram,
+                        layoutResult = layout,
+                        theme = theme,
+                        options =
+                            SvgRenderOptions(
+                                paddingPx = 64f,
+                                watermark = false,
+                                preparedHighlightVertexIds = allVertexIds(sm),
+                            ),
+                    )
+                SimulationPrepareResult.Ready(stateMachine = sm, svg = svg)
+            }
+            else -> SimulationPrepareResult.Unsupported("diagram type is not simulatable")
+        }
+    }
+
+    /** Recursively collects every vertex ID in [sm], including nested [UmlState.substates]. */
+    private fun allVertexIds(sm: UmlStateMachine): Set<String> {
+        val ids = mutableSetOf<String>()
+
+        fun collect(vertices: List<UmlVertex>) {
+            for (v in vertices) {
+                ids += v.id
+                if (v is UmlState && v.substates.isNotEmpty()) collect(v.substates)
+            }
+        }
+        collect(sm.vertices)
+        return ids
     }
 }

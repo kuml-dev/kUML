@@ -35,6 +35,10 @@ kotlin {
                     implementation(project(":kuml-io:kuml-io-svg"))
                     // P3, design review — PNG export (Export PNG… in the File menu)
                     implementation(project(":kuml-io:kuml-io-png"))
+                    // V3.x — Live-Simulation von Zustandsautomaten im Editor (Werkzeuge ▸ Simulieren).
+                    implementation(project(":kuml-runtime:kuml-runtime-core"))
+                    implementation(project(":kuml-runtime:kuml-runtime-sandbox"))
+                    implementation(project(":kuml-widget:kuml-widget-compose"))
                     implementation(libs.batik.swing)
                     implementation(compose.desktop.currentOs)
                     implementation(libs.kotlinx.coroutines.core)

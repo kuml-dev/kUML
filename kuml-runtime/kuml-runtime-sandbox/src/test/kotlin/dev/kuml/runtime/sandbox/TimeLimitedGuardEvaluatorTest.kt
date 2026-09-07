@@ -6,6 +6,7 @@ import dev.kuml.runtime.OclGuardEvaluator
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldStartWith
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class TimeLimitedGuardEvaluatorTest :
@@ -29,6 +30,11 @@ class TimeLimitedGuardEvaluatorTest :
             val result = ev.evaluate(guard = "slow", instance = instance, event = noEvent)
             result.shouldBeInstanceOf<GuardResult.Failed>()
             result.message shouldContain "timed out"
+            // Locks down the exact prefix callers outside this module match against (e.g.
+            // dev.kuml.desktop.simulation.SimulationSession.statusFor) to distinguish a sandbox
+            // timeout from any other guard failure — a future reword of this message must fail
+            // THIS test, not silently degrade that caller's timeout detection.
+            result.message shouldStartWith TimeLimitedGuardEvaluator.TIMEOUT_MESSAGE_PREFIX
             ev.close()
         }
 

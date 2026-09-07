@@ -6,6 +6,26 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+**Live-Simulation von Zustandsautomaten im kUML-Desktop-Editor** — neuer Menüpunkt
+`Werkzeuge ▸ Simulieren` (Strg+R) für UML-Zustandsautomaten und SysML-2-STM-Diagramme.
+Startet eine sandboxed Live-Sitzung direkt im Vorschau-Bereich: eine Werkzeugleiste
+über dem Diagramm bietet Schritt/Automatisch-weiter/Zurücksetzen sowie eine Liste der
+im aktuellen Zustand möglichen Events, eine Ablauf-Spalte rechts zeigt den Trace und
+erlaubt Scrubben. Aktive Zustände werden per Live-DOM-Patch im bestehenden Batik-SVG
+hervorgehoben (Zoom/Pan bleiben erhalten) statt bei jedem Schritt neu zu rendern.
+Guard-Auswertung und Effekt-Ausführung laufen ausnahmslos über die bestehende Sandbox
+(`TimeLimitedGuardEvaluator` + `SandboxEffectInvoker`), ohne Ausschalter. Ein geändertes
+Skript während einer laufenden Sitzung zeigt ein Veraltet-Banner statt die Simulation
+unbemerkt gegen ein anderes Modell laufen zu lassen.
+
+`SvgRenderOptions.preparedHighlightVertexIds` (neu, `kuml-io-svg`) emittiert für jede
+genannte Vertex-ID einen Highlight-Ring mit `visibility="hidden"` — für die Desktop-
+Simulation gedacht, in statischen Ausgaben (`kuml render`, Export, Website, Handbuch)
+nicht gesetzt. Das SysML-2-STM-Highlighting im SVG-Renderer schließt damit die bisherige
+Lücke gegenüber dem UML-Zustandsautomaten-Pfad.
+
 ### Changed
 
 **Routine dependency/plugin updates (13 of 14 candidates from a full `dependencyUpdates` sweep)**

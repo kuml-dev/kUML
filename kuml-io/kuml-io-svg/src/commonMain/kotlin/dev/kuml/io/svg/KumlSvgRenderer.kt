@@ -1445,6 +1445,66 @@ public object KumlSvgRenderer {
     }
 
     /**
+     * Emittiert Highlight-Ringe für [SvgRenderOptions.highlightVertexIds] (sichtbar) und
+     * [SvgRenderOptions.preparedHighlightVertexIds] (`visibility="hidden"`, für Live-DOM-Patching
+     * durch die kUML-Desktop-Simulation — siehe `dev.kuml.desktop.preview.SimulationHighlightPatcher`).
+     *
+     * Muss mit dem BEREITS verbreiterten [LayoutResult] aufgerufen werden — beide Aufrufer
+     * ([renderUmlStateDiagram], [renderSysml2Synthetic]) verbreitern vorher
+     * (`umlStmWidenForLabelOverhang` / `sysml2WidenForLabelOverhang`), und die Ring-Geometrie
+     * muss auf denselben Koordinaten liegen wie die der gerenderten Knoten.
+     *
+     * Ist eine Vertex-ID in beiden Mengen, gewinnt [SvgRenderOptions.highlightVertexIds]
+     * (sichtbar) — es wird nie mehr als ein `<rect>` pro Vertex emittiert.
+     */
+    private fun emitHighlightRings(
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+        padding: Float,
+        builder: SvgBuilder,
+    ) {
+        if (options.highlightVertexIds.isEmpty() && options.preparedHighlightVertexIds.isEmpty()) return
+
+        // Explicit option wins; the theme token only fills in the DEFAULT.
+        val stroke =
+            if (options.highlightStrokeColor == SvgRenderOptions.DEFAULT_HIGHLIGHT_STROKE_COLOR) {
+                theme.colors.activeStateStroke?.toHex() ?: SvgRenderOptions.DEFAULT_HIGHLIGHT_STROKE_COLOR
+            } else {
+                options.highlightStrokeColor
+            }
+
+        for ((nodeId, nodeLayout) in layoutResult.nodes) {
+            val visible = nodeId.value in options.highlightVertexIds
+            val prepared = nodeId.value in options.preparedHighlightVertexIds
+            if (!visible && !prepared) continue
+
+            val gx = nodeLayout.bounds.origin.x + padding - options.highlightRingOffsetPx
+            val gy = nodeLayout.bounds.origin.y + padding - options.highlightRingOffsetPx
+            val gw = nodeLayout.bounds.size.width + 2 * options.highlightRingOffsetPx
+            val gh = nodeLayout.bounds.size.height + 2 * options.highlightRingOffsetPx
+
+            val attrs =
+                mutableMapOf(
+                    "id" to xmlEscapeAttr("highlight-ring-${nodeId.value}"),
+                    "class" to "kuml-highlight-ring kuml-active-state",
+                    "x" to fmt(gx),
+                    "y" to fmt(gy),
+                    "width" to fmt(gw),
+                    "height" to fmt(gh),
+                    "fill" to "none",
+                    "stroke" to stroke,
+                    "stroke-width" to fmt(options.highlightStrokeWidthPx),
+                    "rx" to "4",
+                    "ry" to "4",
+                )
+            if (!visible && prepared) attrs["visibility"] = "hidden"
+
+            builder.tag(name = "rect", attrs = attrs)
+        }
+    }
+
+    /**
      * Rendert ein UML STATE-Diagramm als SVG.
      *
      * Flat-layout: der [UmlStateMachine]-Rahmen wird als LayoutGroup gerendert,
@@ -1562,33 +1622,8 @@ public object KumlSvgRenderer {
                 NodeRendererDispatcher.dispatch(element = vertex, layout = shifted, theme = theme, builder = nodesBuilder)
             }
 
-            // V2.0.43: highlight ring overlay — injected AFTER vertices, BEFORE transitions
-            if (options.highlightVertexIds.isNotEmpty()) {
-                for ((nodeId, nodeLayout) in layoutResult.nodes) {
-                    if (nodeId.value !in options.highlightVertexIds) continue
-                    val gx = nodeLayout.bounds.origin.x + padding - options.highlightRingOffsetPx
-                    val gy = nodeLayout.bounds.origin.y + padding - options.highlightRingOffsetPx
-                    val gw = nodeLayout.bounds.size.width + 2 * options.highlightRingOffsetPx
-                    val gh = nodeLayout.bounds.size.height + 2 * options.highlightRingOffsetPx
-                    nodesBuilder.tag(
-                        name = "rect",
-                        attrs =
-                            mapOf(
-                                "id" to xmlEscapeAttr("highlight-ring-${nodeId.value}"),
-                                "class" to "kuml-highlight-ring",
-                                "x" to fmt(gx),
-                                "y" to fmt(gy),
-                                "width" to fmt(gw),
-                                "height" to fmt(gh),
-                                "fill" to "none",
-                                "stroke" to options.highlightStrokeColor,
-                                "stroke-width" to fmt(options.highlightStrokeWidthPx),
-                                "rx" to "4",
-                                "ry" to "4",
-                            ),
-                    )
-                }
-            }
+            // V2.0.43 / V3.x: highlight ring overlay — injected AFTER vertices, BEFORE transitions
+            emitHighlightRings(layoutResult = layoutResult, theme = theme, options = options, padding = padding, builder = nodesBuilder)
 
             // 3. Render transitions with labels
             // V11.x — Stack-Indizes für parallele Edges vorberechnen, damit
@@ -1729,6 +1764,11 @@ public object KumlSvgRenderer {
                     NodeRendererDispatcher.dispatch(element = element, layout = shifted, theme = theme, builder = nodesBuilder)
                 }
             }
+
+            // V3.x — highlight ring overlay (see emitHighlightRings KDoc). Injected AFTER
+            // nodes, BEFORE edges, same z-order as the UML STATE path above — extends the
+            // Behaviour-Widget highlight mechanism to SysML-2 STM (previously UML-only).
+            emitHighlightRings(layoutResult = layoutResult, theme = theme, options = options, padding = padding, builder = nodesBuilder)
 
             // Edges — adapter-aware three-way fallback.
             val elementIndex = synthetic.elements.associateBy { it.id }

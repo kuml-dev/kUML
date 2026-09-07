@@ -41,6 +41,15 @@ public data class KumlColors(
      * — z. B. weißer Canvas mit subtil getönter Knoten-Füllung.
      */
     public val nodeFill: KumlColor? = null,
+    /**
+     * Strichfarbe des Aktiv-Zustands-Rings in der Live-Simulation (Desktop).
+     * `null` → der Renderer fällt auf [dev.kuml.io.svg.SvgRenderOptions]'s
+     * `DEFAULT_HIGHLIGHT_STROKE_COLOR` zurück. Bewusst getrennt von [accent]: „aktiv" ist eine
+     * Laufzeit-Aussage, kein Auswahl-Zustand. Nullable mit Default am Ende der Parameterliste,
+     * damit jedes bestehende Theme-JSON und jeder `KumlColors(...)`-Aufruf im Repo unverändert
+     * gültig bleibt (V3.x — Live-Simulation von Zustandsautomaten im Editor).
+     */
+    public val activeStateStroke: KumlColor? = null,
 ) {
     /** Effektive Knoten-Füllung: [nodeFill] wenn gesetzt, sonst [background]. */
     public val effectiveNodeFill: KumlColor get() = nodeFill ?: background

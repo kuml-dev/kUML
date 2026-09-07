@@ -24,6 +24,11 @@ kotlin {
             getByName("jvmMain") {
                 dependencies {
                     api(project(":kuml-runtime:kuml-runtime-core"))
+                    // V3.x — Live-Simulation: BehaviourWidgetDemo builds its StateMachineRuntime
+                    // through the sandbox (TimeLimitedGuardEvaluator + SandboxEffectInvoker)
+                    // instead of unguarded defaults, so the one shipped demo never doubles as a
+                    // template for unprotected guard/effect execution (see its own KDoc).
+                    implementation(project(":kuml-runtime:kuml-runtime-sandbox"))
                     api(project(":kuml-metamodel:kuml-metamodel-uml"))
                     api(project(":kuml-metamodel:kuml-metamodel-sysml2"))
                     implementation(project(":kuml-io:kuml-io-svg"))

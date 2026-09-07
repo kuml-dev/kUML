@@ -13,8 +13,13 @@ package dev.kuml.io.svg
  * @property includeXmlDeclaration Wenn `true`, wird `<?xml version="1.0" encoding="UTF-8"?>` vorangestellt.
  * @property paddingPx Innenabstand um das gesamte Diagramm in Pixeln. Default: `16`.
  * @property embedThemeAsComment Wenn `true`, wird `<!-- theme: … · engine: … -->` eingebettet.
- * @property highlightVertexIds Menge von Vertex-IDs, die mit einem Highlight-Ring markiert werden. Default: leer.
- * @property highlightStrokeColor Farbe des Highlight-Rings als CSS-Farbwert. Default: `"#FF6B35"`.
+ * @property highlightVertexIds Menge von Vertex-IDs, die mit einem SICHTBAREN Highlight-Ring markiert werden. Default: leer.
+ * @property preparedHighlightVertexIds Menge von Vertex-IDs, für die ein Highlight-Ring emittiert
+ *   wird, aber mit `visibility="hidden"` — bestimmt für Live-DOM-Patching (kUML Desktop-Simulation,
+ *   siehe `dev.kuml.desktop.preview.SimulationHighlightPatcher`). Für statische Ausgaben
+ *   (`kuml render`, Export, Website, Handbuch) **nicht** setzen. Default: leer.
+ * @property highlightStrokeColor Farbe des Highlight-Rings als CSS-Farbwert. Default: `"#FF6B35"`
+ *   (siehe [DEFAULT_HIGHLIGHT_STROKE_COLOR]).
  * @property highlightStrokeWidthPx Stärke des Highlight-Rings in Pixeln. Default: `3`.
  * @property highlightRingOffsetPx Abstand des Highlight-Rings zum Knoten-Rand in Pixeln. Default: `4`.
  * @property paintCanvasBackground Wenn `true`, wird vor allen anderen Elementen
@@ -33,9 +38,13 @@ public data class SvgRenderOptions(
     public val embedThemeAsComment: Boolean = true,
     // V2.0.43 — Behaviour Widget
     public val highlightVertexIds: Set<String> = emptySet(),
-    public val highlightStrokeColor: String = "#FF6B35",
+    public val highlightStrokeColor: String = DEFAULT_HIGHLIGHT_STROKE_COLOR,
     public val highlightStrokeWidthPx: Float = 3f,
     public val highlightRingOffsetPx: Float = 4f,
+    // V3.x — Live-Simulation von Zustandsautomaten im Editor (kUML Desktop). Rings for these
+    // IDs are emitted but hidden (visibility="hidden") so the desktop can flip them
+    // visible/invisible per simulation step via a DOM patch, without a second render pass.
+    public val preparedHighlightVertexIds: Set<String> = emptySet(),
     // V3.0.11 — Canvas-Background gegen transparenten SVG-Hintergrund auf
     // dunklen Host-Flächen (Obsidian Dark, Browser Dark Mode etc.).
     public val paintCanvasBackground: Boolean = true,
@@ -48,5 +57,13 @@ public data class SvgRenderOptions(
     public companion object {
         /** Standard-Optionen: Pretty-Print an, XML-Deklaration an, 16 px Padding, Theme-Kommentar an. */
         public val DEFAULT: SvgRenderOptions = SvgRenderOptions()
+
+        /**
+         * Default-Strichfarbe des Highlight-Rings — als benannte Konstante, damit
+         * [dev.kuml.io.svg.KumlSvgRenderer]'s Farbauflösung erkennen kann, ob [highlightStrokeColor]
+         * explizit vom Aufrufer gesetzt wurde oder noch den Default trägt (V3.x — Live-Simulation,
+         * `KumlColors.activeStateStroke` füllt in letzterem Fall den Default).
+         */
+        public const val DEFAULT_HIGHLIGHT_STROKE_COLOR: String = "#FF6B35"
     }
 }

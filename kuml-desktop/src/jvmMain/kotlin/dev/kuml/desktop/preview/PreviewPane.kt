@@ -4,25 +4,35 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.AppState
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.simulation.SimulationBar
+import dev.kuml.desktop.simulation.SimulationTracePane
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
 import dev.kuml.desktop.ui.tooltipBelow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.apache.batik.bridge.UpdateManagerAdapter
+import org.apache.batik.bridge.UpdateManagerEvent
 import org.apache.batik.swing.JSVGCanvas
-import org.w3c.dom.svg.SVGDocument
+import org.apache.batik.swing.svg.JSVGComponent
 import java.awt.geom.AffineTransform
 import javax.swing.SwingUtilities
 
@@ -41,6 +51,14 @@ private const val ZOOM_STEP = 1.25
  * parameter carries `TooltipPlacement` (an experimental Compose Foundation type) into its own
  * public signature, so every caller — not just `IconTooltipButton`'s own body — must opt in,
  * even calls (like the three below) that never name `TooltipPlacement` explicitly.
+ *
+ * V3.x (Live-Simulation) — while [AppState.simulation] is active, the canvas shows the
+ * session's one-time-rendered `baseSvg` instead of [AppState.lastSvg], and highlight rings are
+ * flipped visible/hidden per step via [SimulationHighlightPatcher] (a live DOM patch through
+ * Batik's [org.apache.batik.bridge.UpdateManager]) rather than a fresh `setSVGDocument` per
+ * step — the latter would reset Batik's `renderingTransform`, throwing away the user's zoom/pan.
+ * [SimulationBar] sits ABOVE the `SwingPanel`, [SimulationTracePane] to its right — both plain
+ * Compose, never overlaid on top of the heavyweight canvas.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -49,18 +67,49 @@ fun PreviewPane(
     modifier: Modifier = Modifier,
 ) {
     val canvas = remember { JSVGCanvas() }
+    val patcher = remember { SimulationHighlightPatcher() }
+    var documentReady by remember { mutableStateOf(false) }
     val strings = Strings.forLanguage(state.language)
+    val session = state.simulation
 
-    LaunchedEffect(state.lastSvg) {
-        if (state.lastSvg.isNotBlank()) {
-            val doc: SVGDocument? =
-                withContext(Dispatchers.IO) {
-                    parseSvg(state.lastSvg)
+    // Genau EIN Dokument pro Sitzung (Spez. C12): während einer laufenden Simulation ist
+    // effectiveSvg konstant (baseSvg), spätere state.lastSvg-Renders (Editor weiter getippt)
+    // lassen das Preview in Ruhe (Spez. D18 — der Nutzer sieht stattdessen das Veraltet-Banner).
+    val effectiveSvg = session?.baseSvg ?: state.lastSvg
+
+    DisposableEffect(canvas) {
+        val listener =
+            object : UpdateManagerAdapter() {
+                override fun managerStarted(e: UpdateManagerEvent) {
+                    SwingUtilities.invokeLater { documentReady = true }
                 }
-            if (doc != null) {
-                SwingUtilities.invokeLater { canvas.setSVGDocument(doc) }
+
+                override fun managerStopped(e: UpdateManagerEvent) {
+                    SwingUtilities.invokeLater { documentReady = false }
+                }
             }
+        canvas.addUpdateManagerListener(listener)
+        onDispose { canvas.removeUpdateManagerListener(listener) }
+    }
+
+    LaunchedEffect(effectiveSvg, session != null) {
+        if (effectiveSvg.isBlank()) return@LaunchedEffect
+        val doc = withContext(Dispatchers.IO) { parseSvg(effectiveSvg) } ?: return@LaunchedEffect
+        SwingUtilities.invokeLater {
+            documentReady = false
+            patcher.resetBaseline()
+            // Batik builds NO UpdateManager at all for a static (AUTODETECT + script-free SVG)
+            // document — every highlight-ring DOM patch would silently fail without this. Only
+            // dynamic during a session, back to AUTODETECT afterwards: minimizes the time
+            // Batik's script/event machinery is armed at all (see SimulationHighlightPatcher KDoc).
+            canvas.setDocumentState(if (session != null) JSVGComponent.ALWAYS_DYNAMIC else JSVGComponent.AUTODETECT)
+            canvas.setSVGDocument(doc)
         }
+    }
+
+    val highlights = session?.activeVertexIds() ?: emptySet()
+    LaunchedEffect(session, documentReady, highlights) {
+        if (session != null && documentReady) patcher.apply(canvas = canvas, target = highlights)
     }
 
     Column(modifier = modifier.testTag("kuml-preview")) {
@@ -101,10 +150,22 @@ fun PreviewPane(
                 tooltipPlacement = tooltipBelow(),
             )
         }
-        SwingPanel(
-            factory = { canvas },
-            modifier = Modifier.fillMaxSize(),
-        )
+        if (session != null) {
+            SimulationBar(state = state, session = session, strings = strings)
+        }
+        Row(Modifier.fillMaxSize()) {
+            SwingPanel(
+                factory = { canvas },
+                modifier = Modifier.weight(1f).fillMaxSize(),
+            )
+            if (session != null) {
+                SimulationTracePane(
+                    session = session,
+                    strings = strings,
+                    modifier = Modifier.width(260.dp).fillMaxHeight(),
+                )
+            }
+        }
     }
 }
 

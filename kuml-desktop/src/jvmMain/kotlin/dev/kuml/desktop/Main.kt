@@ -3,6 +3,10 @@ package dev.kuml.desktop
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
@@ -76,11 +80,27 @@ fun main() {
             onCloseRequest = {
                 // Settings synchron speichern und beenden.
                 // Vollständiger Dirty-Guard läuft über Quit-Menü-Item in MainWindow.
+                // V3.x — every open simulation must release its sandbox thread pool before exit.
+                appState.simulation?.close()
                 store.save(appState.toSettings())
                 exitApplication()
             },
             title = title,
             state = windowState,
+            // V3.x — Live-Simulation: Esc closes a running simulation (Spez. A5). This is an
+            // ACCELERATOR, not the only way out — the editor's RSyntaxTextArea is a heavyweight
+            // Swing component that can consume Esc before it ever reaches this handler, so the
+            // Werkzeuge ▸ Simulation beenden menu item and SimulationBar's close icon are the
+            // reliable routes (see MainWindow.kt).
+            onKeyEvent = { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.Escape && appState.simulation != null) {
+                    appState.simulation?.close()
+                    appState.simulation = null
+                    true
+                } else {
+                    false
+                }
+            },
         ) {
             MainWindow(state = appState, store = store, vault = vault, onQuit = ::exitApplication)
         }

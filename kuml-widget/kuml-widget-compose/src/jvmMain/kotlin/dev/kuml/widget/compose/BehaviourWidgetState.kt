@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import dev.kuml.runtime.Event
 import dev.kuml.runtime.StateMachineInstance
 import dev.kuml.runtime.StateMachineRuntime
+import dev.kuml.runtime.StepResult
 import dev.kuml.runtime.snapshot.MigrationPolicy
 import dev.kuml.runtime.snapshot.StateMachineSnapshot
 import dev.kuml.uml.UmlStateMachine
@@ -87,11 +88,15 @@ public class BehaviourWidgetState(
      *
      * @param eventName the event name.
      * @param payloadJson optional JSON payload string (informational, not parsed in MVP).
+     * @return the [StepResult] of the dispatched event — V3.x (Desktop live simulation) needs
+     *   this to distinguish `Stayed`/`Terminated`/`Error` outcomes from a normal transition
+     *   without re-deriving it from the trace. Source-compatible: the sole in-module caller
+     *   ([dev.kuml.widget.compose.ControlPanel]) calls this as a statement.
      */
     public fun sendEvent(
         eventName: String,
         @Suppress("UNUSED_PARAMETER") payloadJson: String = "{}",
-    ) {
+    ): StepResult {
         if (isScrubbing) {
             forkAtScrubPosition()
         }
@@ -100,9 +105,10 @@ public class BehaviourWidgetState(
                 name = eventName,
                 payload = JsonObject(emptyMap()),
             )
-        runtime.step(instance = runningInstance, event = event)
+        val result = runtime.step(instance = runningInstance, event = event)
         trace = runningInstance.trace.toList()
         tracePosition = trace.size
+        return result
     }
 
     /**

@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import dev.kuml.desktop.io.AppSettings
 import dev.kuml.desktop.io.RecentFiles
+import dev.kuml.desktop.simulation.SimulationSession
 import dev.kuml.desktop.workspace.OpenWorkspace
 import java.io.File
 
@@ -93,6 +94,31 @@ class AppState(
     // below): an open search bar is not session state a user expects to see again after
     // restarting the app, unlike viewMode/showWatermark/theme/language.
     var findBarOpen by mutableStateOf(false)
+
+    // V3.x — Live-Simulation von Zustandsautomaten im Editor. Deliberately NOT persisted (like
+    // findBarOpen above): a running simulation is not state a user expects to see resumed after
+    // an app restart — the sandboxed runtime/thread pool behind it doesn't survive a restart
+    // anyway. `internal` (not public, unlike every other AppState property) because
+    // SimulationSession itself is internal to this module — a public var can't expose an
+    // internal type. AppState is only ever used from within kuml-desktop, so this costs nothing.
+    internal var simulation by mutableStateOf<SimulationSession?>(null)
+
+    /**
+     * Review fix — `true` while `MainWindow.startSimulation()`'s script-eval + ELK-layout work
+     * (dispatched on `Dispatchers.IO`, see `SimulationSession.start`) is in flight, i.e. the
+     * window between the user triggering "Werkzeuge ▸ Simulieren"/Ctrl+R and [simulation]
+     * actually being assigned. Without this, the menu item's `enabled` check
+     * (`simulation == null && lastDiagramSimulatable`) stayed true for that entire 1-3s window,
+     * so a second Ctrl+R (the async start gives no visible feedback) started a SECOND
+     * `SimulationSession` — including its own `TimeLimitedGuardEvaluator` cached thread pool —
+     * whose result then silently overwrote the first in [simulation] without ever closing it: a
+     * `kuml-sandbox-guard-*` thread-pool leak for the JVM's lifetime. Deliberately NOT persisted,
+     * same reasoning as [simulation] itself.
+     */
+    internal var simulationStarting by mutableStateOf(false)
+
+    /** Whether the last successfully rendered diagram type can be simulated (Spez. A3). */
+    var lastDiagramSimulatable by mutableStateOf(false)
 
     /**
      * Lädt Dateiinhalt in den Editor und aktualisiert Metadaten.

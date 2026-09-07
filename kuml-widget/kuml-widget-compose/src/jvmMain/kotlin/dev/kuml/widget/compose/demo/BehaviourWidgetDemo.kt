@@ -5,7 +5,12 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import dev.kuml.core.model.KumlMetaValue
+import dev.kuml.runtime.OclGuardEvaluator
 import dev.kuml.runtime.StateMachineRuntime
+import dev.kuml.runtime.sandbox.EffectExecutor
+import dev.kuml.runtime.sandbox.SandboxEffectInvoker
+import dev.kuml.runtime.sandbox.SandboxPolicy
+import dev.kuml.runtime.sandbox.TimeLimitedGuardEvaluator
 import dev.kuml.uml.PseudostateKind
 import dev.kuml.uml.TransitionMetadataKeys
 import dev.kuml.uml.UmlPseudostate
@@ -29,7 +34,12 @@ import dev.kuml.widget.compose.EditPolicy
  */
 public fun main() {
     val model = buildTrafficLightMachine()
-    val runtime = StateMachineRuntime()
+    // V3.x — sandboxed by construction (Spez. F30): this is the one shipped demo of
+    // BehaviourWidgetState, so it must never model unguarded guard/effect execution as "the
+    // normal way to build a runtime". Same construction kUML Desktop's live simulation uses.
+    val policy = SandboxPolicy()
+    val guards = TimeLimitedGuardEvaluator(delegate = OclGuardEvaluator(), policy = policy)
+    val runtime = StateMachineRuntime(guards = guards, effects = SandboxEffectInvoker(EffectExecutor(policy)))
     val widgetState =
         BehaviourWidgetState(
             initialModel = model,

@@ -174,4 +174,20 @@ class AppStateTest :
             state.showWatermark = true
             state.toSettings().showWatermark shouldBe true
         }
+
+        // --- V3.x — Live-Simulation: transient state, never persisted (like findBarOpen) ---
+
+        test("default simulation is null") {
+            AppState().simulation shouldBe null
+        }
+
+        test("default lastDiagramSimulatable is false") {
+            AppState().lastDiagramSimulatable shouldBe false
+        }
+
+        test("lastDiagramSimulatable mutation is observable") {
+            val s = AppState()
+            s.lastDiagramSimulatable = true
+            s.lastDiagramSimulatable shouldBe true
+        }
     })

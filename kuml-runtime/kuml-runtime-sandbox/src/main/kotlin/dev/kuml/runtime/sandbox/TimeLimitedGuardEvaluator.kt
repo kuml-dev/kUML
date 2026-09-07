@@ -50,7 +50,7 @@ public class TimeLimitedGuardEvaluator(
             future.get(policy.guardTimeoutMs, TimeUnit.MILLISECONDS)
         } catch (ex: TimeoutException) {
             future.cancel(true)
-            GuardResult.Failed("Guard timed out after ${policy.guardTimeoutMs} ms")
+            GuardResult.Failed("$TIMEOUT_MESSAGE_PREFIX${policy.guardTimeoutMs} ms")
         } catch (ex: java.util.concurrent.ExecutionException) {
             GuardResult.Failed("Guard threw: ${ex.cause?.message ?: ex.message}")
         } catch (ex: InterruptedException) {
@@ -64,6 +64,19 @@ public class TimeLimitedGuardEvaluator(
     }
 
     public companion object {
+        /**
+         * Prefix of the [GuardResult.Failed] message produced when a guard is cancelled for
+         * exceeding [SandboxPolicy.guardTimeoutMs] (see [evaluate]'s `TimeoutException` branch).
+         *
+         * Public so callers that need to distinguish a sandbox timeout from any other guard
+         * failure (e.g. `dev.kuml.desktop.simulation.SimulationSession.statusFor`, which maps a
+         * timeout to a distinct `GuardTimeout` status) can match against this constant instead of
+         * duplicating the literal — a `message.contains("timed out")` at the call site would
+         * silently degrade to "just another GuardFailed" the next time this string is reworded,
+         * with no test anywhere failing to catch the drift.
+         */
+        public const val TIMEOUT_MESSAGE_PREFIX: String = "Guard timed out after "
+
         /**
          * Creates a cached thread pool with daemon threads named
          * `kuml-sandbox-guard-<N>`.

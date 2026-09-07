@@ -59,9 +59,13 @@ class DesktopRenderController(
                         is DesktopRenderResult.Svg -> {
                             state.lastSvg = result.svg
                             state.lastError = null
+                            // V3.x — Live-Simulation: drives Werkzeuge ▸ Simulieren's enabled state
+                            // and the "not simulatable" status-bar hint (see MainWindow.kt).
+                            state.lastDiagramSimulatable = result.simulatable
                         }
                         is DesktopRenderResult.Error -> {
                             state.lastError = result.message
+                            state.lastDiagramSimulatable = false
                         }
                     }
                 } catch (e: Exception) {

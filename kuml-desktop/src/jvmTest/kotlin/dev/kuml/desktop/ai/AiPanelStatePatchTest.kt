@@ -47,7 +47,7 @@ private fun makeState(
     // Fast, deterministic stand-in for the real ELK/theme render pipeline — lets tests drive
     // checkForTurnPatches's success AND render-failure branches (review finding 3) without the
     // cost/flakiness of a full DesktopRenderPipeline.render() call.
-    renderFn: (String, String) -> DesktopRenderResult = { _, _ -> DesktopRenderResult.Svg("<svg/>") },
+    renderFn: (String, String) -> DesktopRenderResult = { _, _ -> DesktopRenderResult.Svg(svg = "<svg/>") },
 ): AiPanelState {
     val settings =
         KumlAiSettings(
@@ -219,7 +219,7 @@ class AiPanelStatePatchTest :
         test("checkForTurnPatches with a real mutation and a successful render opens the dialog with a preview") {
             runTest {
                 Dispatchers.setMain(UnconfinedTestDispatcher())
-                val state = makeState(renderFn = { _, _ -> DesktopRenderResult.Svg("<svg>ok</svg>") })
+                val state = makeState(renderFn = { _, _ -> DesktopRenderResult.Svg(svg = "<svg>ok</svg>") })
                 val ctx = AgentEditingContext(initialModel = AnyKumlModel.emptyUml())
                 state.editingContext = ctx
                 addTestClass(ctx = ctx, id = "c1", name = "Foo")

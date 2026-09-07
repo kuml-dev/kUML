@@ -17,9 +17,14 @@ class KumlIconsTest :
                 "ViewSource" to KumlIcons.ViewSource,
                 "ViewSplit" to KumlIcons.ViewSplit,
                 "ViewDiagram" to KumlIcons.ViewDiagram,
+                // V3.x — Live-Simulation (SimulationBar)
+                "SimStep" to KumlIcons.SimStep,
+                "SimAutoAdvance" to KumlIcons.SimAutoAdvance,
+                "SimPause" to KumlIcons.SimPause,
+                "SimReset" to KumlIcons.SimReset,
             )
 
-        test("all six icons use a 24x24 viewport") {
+        test("all icons use a 24x24 viewport") {
             allIcons.forEach { (name, icon) ->
                 withClue(name) {
                     icon.viewportWidth shouldBe 24f
@@ -28,7 +33,7 @@ class KumlIconsTest :
             }
         }
 
-        test("all six icons contain at least one drawn path (not an empty vector)") {
+        test("all icons contain at least one drawn path (not an empty vector)") {
             allIcons.forEach { (name, icon) ->
                 withClue(name) {
                     (icon.root.size > 0) shouldBe true
@@ -42,6 +47,10 @@ class KumlIconsTest :
 
         test("ViewSource and ViewDiagram are distinct vectors (mirrored, not identical)") {
             KumlIcons.ViewSource shouldNotBe KumlIcons.ViewDiagram
+        }
+
+        test("SimAutoAdvance and SimPause are distinct vectors") {
+            KumlIcons.SimAutoAdvance shouldNotBe KumlIcons.SimPause
         }
 
         test("repeated access returns the same cached instance (lazy val, not rebuilt per call)") {
