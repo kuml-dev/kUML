@@ -39,7 +39,11 @@ public data class Frontmatter(
  *   colons (e.g. ISO timestamps `2026-06-16T10:00:00Z`) are preserved intact.
  * - Inline list: `tags: [a, b, c]` — comma-separated, brackets stripped, entries trimmed.
  * - Block list: a `tags:` line (no inline value) followed by one or more `- value` lines.
- * - Surrounding double or single quotes on scalar values are stripped.
+ * - Surrounding double or single quotes on scalar values are stripped. Within a
+ *   double-quoted value, `\"` and `\\` are un-escaped back to `"` and `\` — the exact
+ *   inverse of [FrontmatterWriter.escapeScalar] — so a value written via
+ *   [FrontmatterWriter.setField] round-trips byte-for-byte. Single-quoted values are not
+ *   un-escaped (no writer in this codebase produces backslash-escapes inside single quotes).
  * - Blank lines and lines that match neither pattern are ignored (lenient — this parser
  *   never throws on unrecognised input).
  * - The block ends at the next line that is exactly `---`. If no closing `---` is found,
@@ -105,12 +109,30 @@ public object FrontmatterParser {
         return Frontmatter(fields = fields, tags = tags, present = true, bodyStartLine = bodyStartLine)
     }
 
-    private fun unquote(value: String): String =
-        if (value.length >= 2 &&
-            ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'")))
-        ) {
-            value.substring(1, value.length - 1)
-        } else {
-            value
+    private fun unquote(value: String): String {
+        if (value.length >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+            return unescapeDoubleQuoted(value.substring(1, value.length - 1))
         }
+        if (value.length >= 2 && value.startsWith("'") && value.endsWith("'")) {
+            return value.substring(1, value.length - 1)
+        }
+        return value
+    }
+
+    /** Inverse of [FrontmatterWriter.escapeScalar]'s inner escaping: `\\` -> `\`, `\"` -> `"`. */
+    private fun unescapeDoubleQuoted(value: String): String {
+        val sb = StringBuilder(value.length)
+        var i = 0
+        while (i < value.length) {
+            val c = value[i]
+            if (c == '\\' && i + 1 < value.length && (value[i + 1] == '\\' || value[i + 1] == '"')) {
+                sb.append(value[i + 1])
+                i += 2
+            } else {
+                sb.append(c)
+                i += 1
+            }
+        }
+        return sb.toString()
+    }
 }

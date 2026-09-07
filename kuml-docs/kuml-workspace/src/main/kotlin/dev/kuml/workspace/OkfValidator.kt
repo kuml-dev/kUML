@@ -48,15 +48,33 @@ public object OkfValidator {
         val findings = mutableListOf<OkfFinding>()
 
         for (doc in ws.documents) {
-            findings += checkFrontmatterPresence(doc)
-            findings += checkKnownType(doc = doc, strictVocabulary = strictVocabulary)
-            findings += checkDiagramBlockPresence(doc)
-            findings += checkBlockCount(doc)
-            findings += checkLinks(root = ws.root, doc = doc)
+            findings += validateDocument(root = ws.root, doc = doc, strictVocabulary = strictVocabulary)
         }
 
         findings += checkIndexDocument(ws)
 
+        return findings
+    }
+
+    /**
+     * All dokumentlokalen checks (`OKF-E-001`, `OKF-W-002`, `OKF-E-003`, `OKF-W-004`,
+     * `OKF-E-005`) for exactly [doc] — everything [validate] runs per document, minus
+     * [checkIndexDocument] (workspace-wide, `OKF-W-006`), which deliberately stays outside
+     * this function: calling it per document would make every non-index document falsely
+     * report a missing workspace index each time it alone is (re-)validated (e.g. by the
+     * kUML Desktop document editor's save gate).
+     */
+    public fun validateDocument(
+        root: File,
+        doc: OkfDocument,
+        strictVocabulary: Boolean = false,
+    ): List<OkfFinding> {
+        val findings = mutableListOf<OkfFinding>()
+        findings += checkFrontmatterPresence(doc)
+        findings += checkKnownType(doc = doc, strictVocabulary = strictVocabulary)
+        findings += checkDiagramBlockPresence(doc)
+        findings += checkBlockCount(doc)
+        findings += checkLinks(root = root, doc = doc)
         return findings
     }
 

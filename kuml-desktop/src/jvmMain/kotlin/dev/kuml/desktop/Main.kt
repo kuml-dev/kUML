@@ -16,6 +16,7 @@ import dev.kuml.ai.vault.ApiKeyVault
 import dev.kuml.desktop.io.AppPaths
 import dev.kuml.desktop.io.AppSettingsStore
 import dev.kuml.desktop.render.DesktopEngineInit
+import dev.kuml.desktop.workspace.OpenWorkspace
 import java.nio.file.Path
 
 fun main() {
@@ -70,10 +71,13 @@ fun main() {
             }
         }
 
+        // V-next — an unsaved Knowledge Workspace document also earns the dirty dot: without
+        // this, the title bar stayed clean while `WorkspaceState.isDirty` was already true.
         val title by derivedStateOf {
+            val knowledgeDirty = (appState.openWorkspace as? OpenWorkspace.Knowledge)?.state?.isDirty == true
             "kUML Desktop" +
                 (appState.currentFile?.name?.let { " — $it" } ?: "") +
-                (if (appState.isDirty) " •" else "")
+                (if (appState.isDirty || knowledgeDirty) " •" else "")
         }
 
         Window(

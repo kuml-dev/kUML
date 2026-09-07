@@ -167,6 +167,21 @@ data class Strings(
     val simStartFailed: String,
     val simAutoStopped: String,
     val simTraceTitle: String,
+    // V-next — editable OKF Knowledge Workspace documents (Read/Edit toggle, save gate)
+    val docEditRead: String,
+    val docEditEdit: String,
+    val docEditType: String,
+    val docEditTitle: String,
+    val docEditCustomType: String,
+    val docEditDirty: String,
+    val docSaveIoError: String,
+    val docSaveOutsideRoot: String,
+    // Bugfix (review finding) — one message per WorkspaceWriteGuard.Rejection reason,
+    // replacing docSaveOutsideRoot being (mis)used for every rejection regardless of cause.
+    val docSaveRejectedSymlink: String,
+    val docSaveRejectedNotRegularFile: String,
+    val docSaveRejectedUnknownDocument: String,
+    val docSaveRejectedIoError: String,
 ) {
     companion object {
         val DE =
@@ -331,6 +346,18 @@ data class Strings(
                 simStartFailed = "Simulation konnte nicht gestartet werden: %s",
                 simAutoStopped = "Automatisch angehalten: %s",
                 simTraceTitle = "Ablauf",
+                docEditRead = "Lesen",
+                docEditEdit = "Bearbeiten",
+                docEditType = "Typ",
+                docEditTitle = "Titel",
+                docEditCustomType = "Eigener Typ…",
+                docEditDirty = "Ungespeicherte Änderungen",
+                docSaveIoError = "Speichern fehlgeschlagen: %s",
+                docSaveOutsideRoot = "Speichern abgelehnt: Ziel liegt außerhalb der Workspace-Wurzel.",
+                docSaveRejectedSymlink = "Speichern abgelehnt: Ziel ist ein symbolischer Link.",
+                docSaveRejectedNotRegularFile = "Speichern abgelehnt: Ziel ist keine reguläre Datei.",
+                docSaveRejectedUnknownDocument = "Speichern abgelehnt: Datei ist dem Workspace nicht bekannt.",
+                docSaveRejectedIoError = "Speichern abgelehnt: Dateisystemfehler beim Prüfen des Ziels.",
             )
 
         val EN =
@@ -493,6 +520,18 @@ data class Strings(
                 simStartFailed = "Could not start simulation: %s",
                 simAutoStopped = "Auto-advance stopped: %s",
                 simTraceTitle = "Trace",
+                docEditRead = "Read",
+                docEditEdit = "Edit",
+                docEditType = "Type",
+                docEditTitle = "Title",
+                docEditCustomType = "Custom type…",
+                docEditDirty = "Unsaved changes",
+                docSaveIoError = "Save failed: %s",
+                docSaveOutsideRoot = "Save refused: target is outside the workspace root.",
+                docSaveRejectedSymlink = "Save refused: target is a symbolic link.",
+                docSaveRejectedNotRegularFile = "Save refused: target is not a regular file.",
+                docSaveRejectedUnknownDocument = "Save refused: file is not known to the workspace.",
+                docSaveRejectedIoError = "Save refused: a filesystem error occurred while checking the target.",
             )
 
         fun forLanguage(lang: String): Strings = if (lang == "de") DE else EN

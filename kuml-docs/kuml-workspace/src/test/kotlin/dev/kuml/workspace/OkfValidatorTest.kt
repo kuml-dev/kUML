@@ -125,4 +125,55 @@ class OkfValidatorTest :
 
             root.deleteRecursively()
         }
+
+        test("validate(ws) equals the per-document flatMap of validateDocument, plus OKF-W-006") {
+            val root = tempWorkspace()
+            File(root, "checkout.md").writeText(
+                """
+                |---
+                |type: UmlClassDiagram
+                |---
+                |# No diagram block at all.
+                """.trimMargin(),
+            )
+            File(root, "typo.md").writeText(
+                """
+                |---
+                |type: UmlClassDigram
+                |---
+                |Body.
+                """.trimMargin(),
+            )
+
+            val ws = WorkspaceScanner.scan(root = root)
+            val expected =
+                ws.documents.flatMap { OkfValidator.validateDocument(root = ws.root, doc = it) } +
+                    listOf(
+                        OkfFinding(
+                            code = "OKF-W-006",
+                            severity = OkfSeverity.WARNING,
+                            file = "index.md",
+                            line = 1,
+                            message = "Workspace root has no index.md with 'type: KumlWorkspace'.",
+                            suggestion = "Add an index.md at the workspace root with 'type: KumlWorkspace' as a navigational entry point.",
+                        ),
+                    )
+
+            OkfValidator.validate(ws = ws) shouldBe expected
+
+            root.deleteRecursively()
+        }
+
+        test("validateDocument never reports OKF-W-006 (workspace-wide, not dokumentlokal)") {
+            val root = tempWorkspace()
+            val doc =
+                OkfDocumentParser.parse(
+                    root = root,
+                    file = File(root, "index.md"),
+                    text = "# No frontmatter, no index type.",
+                )
+            OkfValidator.validateDocument(root = root, doc = doc).map { it.code } shouldNotContain "OKF-W-006"
+
+            root.deleteRecursively()
+        }
     })

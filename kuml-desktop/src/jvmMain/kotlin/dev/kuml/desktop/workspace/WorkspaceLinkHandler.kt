@@ -1,7 +1,6 @@
 package dev.kuml.desktop.workspace
 
 import dev.kuml.workspace.OkfDocument
-import dev.kuml.workspace.OkfWorkspace
 import java.io.File
 import java.net.URI
 
@@ -9,7 +8,7 @@ import java.net.URI
  * Resolves and dispatches a Markdown link click inside a rendered [OkfDocument] (V3.6.4).
  *
  * A clean `fun interface` seam so a future cross-link resolver (FT-6) can swap in a
- * richer implementation without touching [dev.kuml.desktop.workspace.MarkdownDocPane].
+ * richer implementation without touching [dev.kuml.desktop.workspace.DocumentEditorPane].
  */
 fun interface WorkspaceLinkHandler {
     fun onLink(target: String)
@@ -20,17 +19,26 @@ private val EXTERNAL_SCHEME_ALLOWLIST = setOf("http", "https", "mailto")
 /**
  * Default [WorkspaceLinkHandler]: external links are opened via the system
  * browser/mail client, restricted to a scheme allowlist; internal relative links
- * are resolved **only** against the already-scanned [OkfWorkspace.documents] set —
- * never against the filesystem directly.
+ * are resolved **only** against the already-scanned document set returned by
+ * [documents] — never against the filesystem directly.
  *
  * This is a security-relevant seam: a crafted link target such as
  * `../../../../etc/passwd` must never cause an arbitrary file read. Internal
  * navigation is a pure in-memory lookup by normalized `relativePath`, reusing
  * [dev.kuml.workspace.WorkspaceScanner]'s existing scan (hidden-dir/symlink/DoS
  * guarantees) instead of adding a second, unguarded read path.
+ *
+ * [documents] is a supplier, not a captured snapshot (V-next, editable-workspace
+ * welle) — [dev.kuml.desktop.workspace.WorkspaceState.save] replaces a document's
+ * `OkfDocument` object in place after a successful save, and a handler holding a
+ * frozen `List<OkfDocument>` from workspace-open time would keep resolving links
+ * against a stale object forever (a stale `==` comparison against
+ * [dev.kuml.desktop.workspace.WorkspaceState.selected] breaks the tree's
+ * highlight, and a stale frontmatter/kuml-block breaks navigation into the
+ * document that was just edited).
  */
 class DefaultWorkspaceLinkHandler(
-    private val workspace: OkfWorkspace,
+    private val documents: () -> List<OkfDocument>,
     private val currentDoc: () -> OkfDocument?,
     private val onNavigate: (OkfDocument) -> Unit,
     private val openExternal: (URI) -> Unit = { uri ->
@@ -82,6 +90,6 @@ class DefaultWorkspaceLinkHandler(
         val normalizedPath = combined.normalize().path.replace(File.separatorChar, '/')
         if (normalizedPath.startsWith("../") || normalizedPath == "..") return null
 
-        return workspace.documents.firstOrNull { it.relativePath == normalizedPath }
+        return documents().firstOrNull { it.relativePath == normalizedPath }
     }
 }

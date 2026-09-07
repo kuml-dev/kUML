@@ -1,28 +1,16 @@
 package dev.kuml.desktop.editor
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.awt.SwingPanel
-import androidx.compose.ui.platform.testTag
 import dev.kuml.desktop.AppState
-import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants
-import org.fife.ui.rtextarea.RTextScrollPane
 import org.fife.ui.rtextarea.SearchContext
-import javax.swing.event.DocumentEvent
-import javax.swing.event.DocumentListener
 
 /**
- * Undo/Redo + Find callbacks exposed by a mounted [EditorPane]'s underlying `RSyntaxTextArea`
+ * Undo/Redo + Find callbacks exposed by a mounted [SyntaxTextEditor]'s underlying `RSyntaxTextArea`
  * (P2/P8, design review). The host (`MainWindow`'s Edit menu / [dev.kuml.desktop.editor.FindBar])
- * doesn't own the Swing text area, so it receives this small handle via [onEditorReady] instead
+ * doesn't own the Swing text area, so it receives this small handle via `onEditorReady` instead
  * of reaching into Swing internals itself.
  */
 class EditorActions(
@@ -71,105 +59,39 @@ internal fun buildSearchContext(
         ctx.setSearchWrap(true)
     }
 
+/**
+ * Single-file script editor, bound to [AppState.script]/[AppState.isDirty] (V-next,
+ * editable-workspace welle: now a thin adapter over the source-agnostic [SyntaxTextEditor],
+ * which also backs the OKF document editor — `DocumentEditorPane`).
+ *
+ * Regression guard: [AppState.isDirty] is set to `true` **before** [AppState.script] is
+ * overwritten, and the comparison is against the OLD `state.script` value — exactly the order
+ * the pre-extraction `EditorPane` used (`state.isDirty = true` precedes `state.script =
+ * newScript`, compared against the pre-assignment value). Reordering this would falsely mark
+ * the document dirty on a purely programmatic load (e.g. File ▸ Open): opening a file sets a
+ * new `state.script`, which flows into [SyntaxTextEditor] as a new `text` and is synced into
+ * the Swing text area; the resulting `DocumentEvent` calls this lambda with `newText` already
+ * equal to the freshly loaded `state.script`, so `newText != state.script` is `false` and
+ * neither branch fires — dirty stays untouched. Getting the equality check's operand order
+ * wrong here is exactly [AppState.isDirty] leaking a false positive.
+ */
 @Composable
 fun EditorPane(
     state: AppState,
     modifier: Modifier = Modifier,
-    // V3.7.4 (design review P6) — nullable: EditorPane now reports `null` on unmount (see the
-    // DisposableEffect below), so a stale handle can no longer point at an abandoned Swing
-    // component after a view-mode switch away from an editor-visible mode (the bug the plan
-    // calls out: Undo/Redo in the Edit menu staying "enabled" and acting on a disposed
-    // RSyntaxTextArea once the DIAGRAM-only view mode unmounts this composable).
     onEditorReady: (EditorActions?) -> Unit = {},
 ) {
-    val textArea =
-        remember {
-            RSyntaxTextArea().apply {
-                syntaxEditingStyle = SyntaxConstants.SYNTAX_STYLE_KOTLIN
-                antiAliasingEnabled = true
-                isCodeFoldingEnabled = true
-                tabSize = 4
-                text = state.script
-                // Undo history starts here, not before — otherwise the very first
-                // Undo would clear the initial content (P2, design review).
-                discardAllEdits()
+    SyntaxTextEditor(
+        text = state.script,
+        onTextChange = { newText ->
+            if (newText != state.script) {
+                state.isDirty = true
             }
-        }
-    val canUndoState = remember { mutableStateOf(false) }
-    val canRedoState = remember { mutableStateOf(false) }
-
-    // P8, design review (V3.7.5: extracted into EditorFindController -- see its KDoc for the
-    // anchor/advance semantics and why the original in-line closures here got both incremental
-    // typing and backward navigation wrong).
-    val findController = remember(textArea) { EditorFindController(textArea) }
-
-    LaunchedEffect(textArea) {
-        onEditorReady(
-            EditorActions(
-                undo = { if (textArea.canUndo()) textArea.undoLastAction() },
-                redo = { if (textArea.canRedo()) textArea.redoLastAction() },
-                canUndo = canUndoState,
-                canRedo = canRedoState,
-                beginFind = { findController.beginFind() },
-                find = { query, forward, matchCase, advance ->
-                    findController.find(query = query, forward = forward, matchCase = matchCase, advance = advance)
-                },
-                endFind = { findController.endFind() },
-            ),
-        )
-    }
-
-    // Sync editor text when state.script is changed programmatically (e.g. Open action)
-    LaunchedEffect(state.script) {
-        if (textArea.text != state.script) {
-            textArea.text = state.script
-            // A different file/script was swapped in — undoing shouldn't cross that
-            // boundary back into the previous document's history.
-            textArea.discardAllEdits()
-            canUndoState.value = false
-            canRedoState.value = false
-        }
-    }
-
-    DisposableEffect(textArea) {
-        val listener =
-            object : DocumentListener {
-                override fun insertUpdate(e: DocumentEvent) = onChanged()
-
-                override fun removeUpdate(e: DocumentEvent) = onChanged()
-
-                override fun changedUpdate(e: DocumentEvent) = onChanged()
-
-                private fun onChanged() {
-                    val newScript = textArea.text
-                    if (newScript != state.script) {
-                        state.isDirty = true
-                    }
-                    // V3.7.4 (design review P6): rendering is no longer triggered from here.
-                    // This listener's only job is keeping AppState in sync with the Swing text
-                    // area; MainWindow.kt derives ONE render trigger from
-                    // RenderInputs(state.script, state.theme, state.showWatermark) via
-                    // snapshotFlow, so script changes, theme changes, and watermark toggles all
-                    // go through the exact same path instead of only script edits doing so.
-                    state.script = newScript
-                    canUndoState.value = textArea.canUndo()
-                    canRedoState.value = textArea.canRedo()
-                }
-            }
-        textArea.document.addDocumentListener(listener)
-        onDispose {
-            textArea.document.removeDocumentListener(listener)
-            // V3.7.4 (design review P8/undo-redo verification) — report the handle as gone the
-            // moment this editor unmounts (e.g. switching to ViewMode.DIAGRAM), so the Edit menu
-            // cannot keep calling undo()/redo() against an abandoned RSyntaxTextArea.
-            onEditorReady(null)
-        }
-    }
-
-    SwingPanel(
-        factory = { RTextScrollPane(textArea) },
-        // P5 — testTag so view-mode tests can assert the editor's presence/absence per mode
-        // (analogous to PreviewPane's existing "kuml-preview" tag).
-        modifier = modifier.testTag("kuml-editor"),
+            state.script = newText
+        },
+        syntaxStyle = SyntaxConstants.SYNTAX_STYLE_KOTLIN,
+        modifier = modifier,
+        testTag = "kuml-editor",
+        onEditorReady = onEditorReady,
     )
 }

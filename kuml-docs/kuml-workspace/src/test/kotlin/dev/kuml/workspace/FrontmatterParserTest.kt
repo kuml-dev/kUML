@@ -109,4 +109,56 @@ class FrontmatterParserTest :
             val fm = FrontmatterParser.parse(md)
             fm.title shouldBe "Quoted Title"
         }
+
+        test("a double-quoted value un-escapes \\\" back to a literal double quote") {
+            val md =
+                """
+                |---
+                |type: Concept
+                |title: "He said \"hi\""
+                |---
+                |Body
+                """.trimMargin()
+            val fm = FrontmatterParser.parse(md)
+            fm.title shouldBe "He said \"hi\""
+        }
+
+        test("a double-quoted value un-escapes \\\\ back to a single backslash") {
+            val md =
+                """
+                |---
+                |type: Concept
+                |title: "C:\\Users\\irakli"
+                |---
+                |Body
+                """.trimMargin()
+            val fm = FrontmatterParser.parse(md)
+            fm.title shouldBe "C:\\Users\\irakli"
+        }
+
+        test("a single-quoted value is NOT un-escaped (no writer in this codebase produces one)") {
+            val md =
+                """
+                |---
+                |type: Concept
+                |title: 'literal \"backslash-quote\"'
+                |---
+                |Body
+                """.trimMargin()
+            val fm = FrontmatterParser.parse(md)
+            fm.title shouldBe """literal \"backslash-quote\""""
+        }
+
+        test("a backslash outside of double quotes is left alone") {
+            val md =
+                """
+                |---
+                |type: Concept
+                |title: C:\Users\irakli
+                |---
+                |Body
+                """.trimMargin()
+            val fm = FrontmatterParser.parse(md)
+            fm.title shouldBe """C:\Users\irakli"""
+        }
     })

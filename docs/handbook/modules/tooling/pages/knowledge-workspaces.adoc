@@ -314,18 +314,22 @@ error by default — custom types are allowed — but see `--strict-vocabulary` 
 
 `kuml workspace validate` runs a fixed structural rule set:
 
-[cols="1,1,3"]
+[cols="1,1,3,1"]
 |===
-| Code | Severity | Meaning
+| Code | Severity | Meaning | Blocks a Desktop save?
 
-| `OKF-E-001` | ERROR | Frontmatter missing or has no `type:` field.
-| `OKF-W-002` | WARNING (or ERROR under `--strict-vocabulary`) | Unrecognised `type:` value.
-| `OKF-E-003` | ERROR | A diagram type has no ```kuml block.
-| `OKF-W-004` | WARNING | A document has more than one ```kuml block ("one file = one diagram").
-| `OKF-E-005` | ERROR | A relative Markdown link to a `.md` target that does not exist.
-| `OKF-W-006` | WARNING | The workspace root has no `index.md` with `type: KumlWorkspace`.
-| `OKF-E-007` | ERROR | A ```kuml block failed to render (`kuml workspace render` only).
+| `OKF-E-001` | ERROR | Frontmatter missing or has no `type:` field. | Yes
+| `OKF-W-002` | WARNING (or ERROR under `--strict-vocabulary`) | Unrecognised `type:` value. | Yes
+| `OKF-E-003` | ERROR | A diagram type has no ```kuml block. | No
+| `OKF-W-004` | WARNING | A document has more than one ```kuml block ("one file = one diagram"). | No
+| `OKF-E-005` | ERROR | A relative Markdown link to a `.md` target that does not exist. | No
+| `OKF-W-006` | WARNING | The workspace root has no `index.md` with `type: KumlWorkspace`. | n/a — workspace-wide, never raised for a single document
+| `OKF-E-007` | ERROR | A ```kuml block failed to render (`kuml workspace render` only). | n/a — render-only, not raised by validate
 |===
+
+The last column refers to kUML Desktop's editable Knowledge Workspace document editor —
+see "Editing documents in kUML Desktop" below. `kuml workspace validate` itself never
+blocks anything; it only assigns severities.
 
 `kuml workspace convert` (FT-7) reports its own, disjoint code space:
 
@@ -364,3 +368,53 @@ regardless of strictness.
 the same pipeline as `kuml render` — this is arbitrary code execution by design, not
 something introduced by workspace rendering. Only run it over workspaces you already
 trust, exactly like `kuml render` itself.
+
+== Editing documents in kUML Desktop
+
+Opening a Knowledge-mode workspace in kUML Desktop shows the usual document
+tree | document | SVG-preview three-column layout, and the middle column is editable.
+Every document has an independent *Read* / *Edit* toggle (a small segmented control
+above the document, or a double-click on the rendered prose to jump straight into Edit;
+Esc returns to Read as long as the buffer has no unsaved changes). The raw Markdown
+editor is the same `RSyntaxTextArea` widget the single-file script editor uses — full
+Undo/Redo and Ctrl+F find/replace work identically.
+
+The header above the document also carries the `type:` and `title:` frontmatter fields
+as first-class controls (a dropdown listing the full `type:` vocabulary — see
+"The `type:` vocabulary" above — and a text field), so retyping YAML by hand is never
+required for the two fields every OKF document has. Changing either splices the
+corresponding line into the in-memory buffer directly — the rest of the frontmatter
+(comments, unrelated keys, their order) is left byte-identical.
+
+=== The save gate
+
+Saving (Ctrl+S, or the Save button that appears once a document has unsaved changes)
+does *not* write whatever is in the buffer unconditionally. A persistent banner above
+the document — never a pop-up dialog, so it can't be dismissed and forgotten — shows
+every current OKF finding (see "OKF finding codes" above) for the buffer, and exactly
+two of them **refuse the save outright**:
+
+[cols="1,3"]
+|===
+| Code | Why it blocks
+
+| `OKF-E-001` | Frontmatter missing or has no `type:` field — the desktop editor's own header controls have nowhere to write to.
+| `OKF-W-002` | An unrecognised `type:` value — treated as blocking here regardless of the workspace marker's `strict` setting, because it is always fixable with a single click in the `type:` dropdown.
+|===
+
+There is deliberately **no "save anyway" override** for these two — the fix is one
+click away, and a workspace-local document silently drifting out of OKF conformance
+serves no one. Every other finding (`OKF-E-003` no diagram block yet, `OKF-W-004`
+multiple diagram blocks, `OKF-E-005` a broken link) is shown as a warning in the same
+banner but does **not** block the write: a document may legitimately point at a file
+that's about to be created next, or be saved mid-edit while its diagram block is being
+cut and pasted back in.
+
+Saving is atomic (write to a temporary file in the same directory, then rename over the
+original) and re-validates the buffer immediately before writing — the same
+`kuml workspace validate` rule set the CLI runs, invoked on exactly the one document
+being saved. A successful save re-parses only that file and updates the workspace's
+in-memory document set and cross-link index accordingly; it never re-scans the whole
+workspace tree, and — same as `kuml workspace render` — it never introduces a second
+trust prompt: opening the workspace is still the only gate for evaluating a
+` ```kuml ` block's script.

@@ -47,6 +47,8 @@ import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.io.AppSettingsStore
 import dev.kuml.desktop.io.FileMenu
 import dev.kuml.desktop.io.UnsavedChoice
+import dev.kuml.desktop.io.UnsavedSaveTarget
+import dev.kuml.desktop.io.unsavedSaveTargetFor
 import dev.kuml.desktop.plugins.PluginManagerPane
 import dev.kuml.desktop.preview.PreviewPane
 import dev.kuml.desktop.render.DesktopRenderController
@@ -68,14 +70,17 @@ import dev.kuml.desktop.workspace.WorkspaceTrust
 import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.workspace.OkfWorkspace
+import dev.kuml.workspace.OkfWriteResult
 import dev.kuml.workspace.WorkspaceMode
 import dev.kuml.workspace.WorkspaceScanner
+import dev.kuml.workspace.WorkspaceWriteGuard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import javax.swing.JOptionPane
 
 /**
  * Pure decision of how long to debounce a render for the given [RenderInputs] transition
@@ -96,6 +101,26 @@ internal fun renderDelayFor(
         DesktopRenderController.DEFAULT_DEBOUNCE_MS
     } else {
         0L
+    }
+
+/**
+ * Pure mapping from a [WorkspaceWriteGuard.Rejection] reason to its user-facing message
+ * (bugfix, review finding) — extracted out of `reportKnowledgeSaveResult`'s `when` so the
+ * exact cause→message mapping is unit-testable without a Compose/Swing harness, same
+ * reasoning as [renderDelayFor] above. Every rejection used to be reported with
+ * [Strings.docSaveOutsideRoot] regardless of the actual [WorkspaceWriteGuard.Rejection]
+ * value, actively misleading the diagnosis for e.g. a `SYMLINK` rejection.
+ */
+internal fun rejectionMessage(
+    rejection: WorkspaceWriteGuard.Rejection,
+    strings: Strings,
+): String =
+    when (rejection) {
+        WorkspaceWriteGuard.Rejection.OUTSIDE_ROOT -> strings.docSaveOutsideRoot
+        WorkspaceWriteGuard.Rejection.SYMLINK -> strings.docSaveRejectedSymlink
+        WorkspaceWriteGuard.Rejection.NOT_A_REGULAR_FILE -> strings.docSaveRejectedNotRegularFile
+        WorkspaceWriteGuard.Rejection.UNKNOWN_DOCUMENT -> strings.docSaveRejectedUnknownDocument
+        WorkspaceWriteGuard.Rejection.IO_ERROR -> strings.docSaveRejectedIoError
     }
 
 /**
@@ -213,13 +238,88 @@ fun FrameWindowScope.MainWindow(
         }
     }
 
+    // V-next — editable Knowledge Workspace documents: surfaces a save outcome the
+    // banner/tree dirty-marker can't show on their own (a refused write, an I/O failure, or
+    // the too-large cap) as a modal dialog. `Written`/`Blocked` need no dialog here — the
+    // banner and the tree's dirty marker already reflect them (see `WorkspaceState.save`).
+    fun reportKnowledgeSaveResult(result: OkfWriteResult) {
+        val message =
+            when (result) {
+                is OkfWriteResult.Written, is OkfWriteResult.Blocked -> null
+                is OkfWriteResult.Rejected -> rejectionMessage(rejection = result.rejection, strings = strings)
+                is OkfWriteResult.TooLarge -> strings.docSaveIoError.format("${result.bytes} > ${result.limit} bytes")
+                is OkfWriteResult.Failed -> strings.docSaveIoError.format(result.cause.message ?: result.cause.javaClass.simpleName)
+            }
+        if (message != null) {
+            JOptionPane.showMessageDialog(windowHandle, message)
+        }
+    }
+
+    // V-next — saves the currently open Knowledge Workspace document, if any. Unlike
+    // `saveCurrentFile` this is inherently asynchronous (`WorkspaceState.save` is `suspend`
+    // — it validates and writes on `Dispatchers.IO`), so callers that need to gate a
+    // follow-up action on success (`confirmUnsavedAndThen`) do so inside the `scope.launch`
+    // block themselves rather than through this function's return value.
+    fun saveKnowledgeDoc(knowledgeState: WorkspaceState) {
+        scope.launch {
+            val result = knowledgeState.save(themeName = state.theme, strings = strings, watermark = state.showWatermark)
+            reportKnowledgeSaveResult(result)
+        }
+    }
+
     fun confirmUnsavedAndThen(action: () -> Unit) {
-        if (!state.isDirty) {
+        val knowledgeState = (state.openWorkspace as? OpenWorkspace.Knowledge)?.state
+        val knowledgeDirtyNow = knowledgeState?.isDirty == true
+        // Bugfix (review finding) — this used to branch on "is a Knowledge Workspace open at
+        // all" (`knowledgeState != null`), not on whether IT is actually dirty; see
+        // `unsavedSaveTargetFor`'s KDoc for the failure this caused.
+        val saveTarget = unsavedSaveTargetFor(scriptDirty = state.isDirty, knowledgeDirty = knowledgeDirtyNow)
+        if (saveTarget == UnsavedSaveTarget.NONE) {
             action()
             return
         }
         val choice = FileMenu.confirmUnsaved(parent = windowHandle, strings = strings)
+        val needsKnowledgeSave = saveTarget == UnsavedSaveTarget.KNOWLEDGE || saveTarget == UnsavedSaveTarget.BOTH
+        if (choice == UnsavedChoice.SAVE && needsKnowledgeSave && knowledgeState != null) {
+            // Async save path: the follow-up `action` only runs once the write(s) have
+            // actually succeeded — a `Blocked`/`Rejected`/`Failed` result must NOT proceed
+            // with whatever the user was about to do (switch documents, close the workspace,
+            // quit). When BOTH buffers are dirty, the single-file script is saved right after
+            // the Knowledge document, in sequence, before `action` runs.
+            scope.launch {
+                val result = knowledgeState.save(themeName = state.theme, strings = strings, watermark = state.showWatermark)
+                reportKnowledgeSaveResult(result)
+                if (result is OkfWriteResult.Written) {
+                    val scriptSaveOk = saveTarget != UnsavedSaveTarget.BOTH || saveCurrentFile()
+                    if (scriptSaveOk) action()
+                }
+            }
+            return
+        }
         val saveSucceeded = choice == UnsavedChoice.SAVE && saveCurrentFile()
+        // Bugfix (review finding) — DISCARD used to proceed with `action()` while leaving
+        // whichever buffer(s) `saveTarget` identified as dirty untouched: the plain script's
+        // `state.isDirty` stayed `true` forever (nothing here ever reset it outside of a
+        // fresh load), and an open Knowledge document's derived `isDirty` stayed `true`
+        // because its `buffer` was never reverted. Either one re-armed this very dialog on
+        // the very next guarded action (e.g. the next tree click), so "Verwerfen" never
+        // actually let the user proceed past it.
+        //
+        // Bugfix (review finding, round 3) — `state.isDirty = false` alone cleared the FLAG
+        // but left `state.script` holding the discarded edits: an action that doesn't
+        // overwrite `script` itself (Workspace öffnen/schließen, Beenden) then carried those
+        // edits forward with no dirty marker to warn about them — silently reappearing if the
+        // user came back to the plain editor, or silently dropped with no further prompt on
+        // quit. `discardScriptChanges()` reverts `script` to its last saved/loaded baseline
+        // AND clears the flag, mirroring `knowledgeState.discardChanges()` on the line below.
+        if (choice == UnsavedChoice.DISCARD) {
+            if (saveTarget == UnsavedSaveTarget.SCRIPT || saveTarget == UnsavedSaveTarget.BOTH) {
+                state.discardScriptChanges()
+            }
+            if ((saveTarget == UnsavedSaveTarget.KNOWLEDGE || saveTarget == UnsavedSaveTarget.BOTH) && knowledgeState != null) {
+                knowledgeState.discardChanges()
+            }
+        }
         if (FileMenu.shouldProceedAfterUnsavedChoice(choice = choice, saveSucceeded = saveSucceeded)) {
             action()
         }
@@ -272,10 +372,20 @@ fun FrameWindowScope.MainWindow(
         }
     }
 
-    // P2, design review — Undo/Redo/Find are only meaningful while an EditorPane is
-    // actually mounted (null or Engineering workspace mode, not the read-only Knowledge
-    // workspace viewer).
+    // P2, design review — `showsEditor` gates the plain single-file script editor's own
+    // View-menu concepts (the ViewMode submenu, the status bar's segmented control): the
+    // Knowledge Workspace's three-column layout never reads `state.viewMode` at all,
+    // editing or not, so this stays exactly "not a Knowledge workspace" (unchanged since
+    // V3.6.4 — see its remaining usages below).
     val showsEditor = state.openWorkspace !is OpenWorkspace.Knowledge
+
+    // V-next — editable Knowledge Workspace documents: a second, INDEPENDENT editor
+    // (`DocumentEditorPane`'s `SyntaxTextEditor`) is now mounted while a Knowledge document
+    // is open AND its Read/Edit toggle is set to Edit — `editorActions` (Undo/Redo/Find)
+    // wires to whichever of the two editors is actually mounted (never both at once: the
+    // Knowledge screen replaces the single-file editor entirely — see `MainWindow`'s Row
+    // below).
+    val knowledgeEditing = (state.openWorkspace as? OpenWorkspace.Knowledge)?.state?.editing == true
 
     // Review fix — `showsEditor` alone doesn't cover ViewMode.DIAGRAM: EditorPane (and FindBar)
     // aren't composed at all there either (see the `if (state.viewMode != DIAGRAM)` gate around
@@ -285,16 +395,17 @@ fun FrameWindowScope.MainWindow(
     // `state.findBarOpen = true` regardless of whether an editor existed to show it against,
     // so pressing Ctrl+F in Diagram mode silently armed a find bar that popped up unannounced
     // the next time the user switched back to Split/Source.
-    val showsEditorPane = showsEditor && state.viewMode != AppState.ViewMode.DIAGRAM
+    //
+    // V-next: widened with `|| knowledgeEditing` so Undo/Redo/Find (which now also reads
+    // `showsEditorPane`, not just `showsEditor` — see the Undo/Redo `Item`s below) become
+    // available the moment a Knowledge document's Read/Edit toggle switches to Edit, exactly
+    // like they would for the plain script editor.
+    val showsEditorPane = (showsEditor && state.viewMode != AppState.ViewMode.DIAGRAM) || knowledgeEditing
 
     MenuBar {
         Menu(strings.menuFile) {
             Item(strings.menuFileNew, onClick = {
-                confirmUnsavedAndThen {
-                    state.script = ""
-                    state.currentFile = null
-                    state.isDirty = false
-                }
+                confirmUnsavedAndThen { state.newScript() }
             })
             Item(strings.menuFileOpen, onClick = {
                 confirmUnsavedAndThen {
@@ -322,9 +433,41 @@ fun FrameWindowScope.MainWindow(
                 }
             })
             if (state.openWorkspace != null) {
-                Item(strings.menuFileCloseWorkspace, onClick = { state.openWorkspace = null })
+                // V-next — closing a workspace with unsaved OKF-document changes now goes
+                // through the same guard as everything else (previously ungated: a
+                // still-dirty knowledge document was silently discarded).
+                Item(strings.menuFileCloseWorkspace, onClick = { confirmUnsavedAndThen { state.openWorkspace = null } })
             }
-            Item(strings.menuFileSave, onClick = { saveCurrentFile() })
+            // V-next — Ctrl+S now also saves the open Knowledge Workspace document, if any;
+            // `menuFileSave` never had a shortcut before this welle.
+            Item(
+                strings.menuFileSave,
+                shortcut = KeyShortcut(key = Key.S, ctrl = true),
+                onClick = {
+                    val knowledgeState = (state.openWorkspace as? OpenWorkspace.Knowledge)?.state
+                    // Bugfix (review finding) — this used to route on "is a Knowledge
+                    // Workspace open at all" (`knowledgeState != null`), ignoring which of
+                    // the two independent dirty buffers (plain script vs. Knowledge
+                    // document) actually needs saving; see `unsavedSaveTargetFor`'s KDoc for
+                    // the identical bug already fixed in `confirmUnsavedAndThen`. A dirty
+                    // script with a workspace merely open (nothing selected, or a clean
+                    // document selected) used to route here and fail with "No document
+                    // selected" instead of ever reaching `saveCurrentFile()`. When NEITHER
+                    // buffer is dirty, fall back to the same choice this made before the fix
+                    // (still harmless either way — both saves are idempotent) rather than
+                    // forcing a Save-As dialog onto a workspace with no plain script file.
+                    when (unsavedSaveTargetFor(scriptDirty = state.isDirty, knowledgeDirty = knowledgeState?.isDirty == true)) {
+                        UnsavedSaveTarget.KNOWLEDGE -> knowledgeState?.let { saveKnowledgeDoc(it) }
+                        UnsavedSaveTarget.SCRIPT -> saveCurrentFile()
+                        UnsavedSaveTarget.BOTH -> {
+                            knowledgeState?.let { saveKnowledgeDoc(it) }
+                            saveCurrentFile()
+                        }
+                        UnsavedSaveTarget.NONE ->
+                            if (knowledgeState != null) saveKnowledgeDoc(knowledgeState) else saveCurrentFile()
+                    }
+                },
+            )
             Item(strings.menuFileSaveAs, onClick = {
                 val chosen =
                     FileMenu.chooseSave(
@@ -410,13 +553,15 @@ fun FrameWindowScope.MainWindow(
             // (EditorPane.EditorActions) instead of the previous no-op placeholders.
             Item(
                 strings.menuEditUndo,
-                enabled = showsEditor && (editorActions?.canUndo?.value ?: false),
+                // V-next: `showsEditorPane` (not bare `showsEditor`) so this also enables
+                // while editing a Knowledge document — see `showsEditorPane`'s KDoc above.
+                enabled = showsEditorPane && (editorActions?.canUndo?.value ?: false),
                 shortcut = KeyShortcut(key = Key.Z, ctrl = true),
                 onClick = { editorActions?.undo?.invoke() },
             )
             Item(
                 strings.menuEditRedo,
-                enabled = showsEditor && (editorActions?.canRedo?.value ?: false),
+                enabled = showsEditorPane && (editorActions?.canRedo?.value ?: false),
                 shortcut = KeyShortcut(key = Key.Z, ctrl = true, shift = true),
                 onClick = { editorActions?.redo?.invoke() },
             )
@@ -485,9 +630,9 @@ fun FrameWindowScope.MainWindow(
             // to the platform-native modifier itself, no separate `meta` flag anywhere in
             // this codebase yet), so `ctrl = true` here too rather than introducing `meta`.
             //
-            // Review fix — same `showsEditor` guard as Undo/Redo above: the Knowledge
-            // workspace viewer (KnowledgeWorkspaceScreen) ignores state.viewMode entirely
-            // and always renders its fixed tree|markdown|SVG three-column layout, so the
+            // Review fix — the Knowledge workspace viewer (KnowledgeWorkspaceScreen) ignores
+            // state.viewMode entirely and always renders its fixed tree|editor|SVG
+            // three-column layout (editing or not — see `showsEditor`'s KDoc above), so the
             // submenu (and its Ctrl+1/2/3 shortcuts) is hidden rather than shown-but-inert
             // while a Knowledge workspace is open. EngineeringWorkspaceScreen DOES read
             // state.viewMode (see its editorWeight/previewWeight), so the submenu stays
@@ -586,6 +731,9 @@ fun FrameWindowScope.MainWindow(
                                 strings = strings,
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
                                 showWatermark = state.showWatermark,
+                                confirmUnsavedAndThen = { action -> confirmUnsavedAndThen(action) },
+                                onEditorReady = { editorActions = it },
+                                onSaveResult = { result -> reportKnowledgeSaveResult(result) },
                             )
                         is OpenWorkspace.Engineering ->
                             EngineeringWorkspaceScreen(
@@ -764,9 +912,10 @@ private fun StatusBar(
         // Engineering workspace (EngineeringWorkspaceScreen reads the same state.viewMode
         // for its own editor/preview weights). Review fix — the Knowledge workspace viewer
         // (KnowledgeWorkspaceScreen) never reads state.viewMode at all and always renders
-        // its fixed tree|markdown|SVG three-column layout, so the control is hidden rather
+        // its fixed tree|editor|SVG three-column layout, so the control is hidden rather
         // than shown-but-inert while a Knowledge workspace is open. Same `showsEditor` gate
-        // used for Undo/Redo and the View ▸ Ansichtsmodus submenu above.
+        // used for the View ▸ Ansichtsmodus submenu above (Undo/Redo/Find use the wider
+        // `showsEditorPane`, which also covers editing a Knowledge document — see its KDoc).
         if (showsEditor) {
             ViewModeSegmentedControl(state = state, strings = strings)
         }

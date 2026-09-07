@@ -9,6 +9,36 @@ import javax.swing.filechooser.FileNameExtensionFilter
 
 enum class UnsavedChoice { SAVE, DISCARD, CANCEL }
 
+/**
+ * Which dirty buffer(s) a [UnsavedChoice.SAVE] must persist before the originally-requested
+ * action may proceed (bugfix, review finding — pure decision extracted out of
+ * [dev.kuml.desktop.MainWindow]'s `confirmUnsavedAndThen`, alongside
+ * [FileMenu.shouldProceedAfterUnsavedChoice], so it is unit-testable without a
+ * Swing/AWT/Compose harness).
+ *
+ * The single-file script editor (`AppState.script`/`isDirty`) and an open Knowledge
+ * Workspace document (`WorkspaceState.isDirty`) are two INDEPENDENT dirty buffers — a
+ * Knowledge Workspace merely being OPEN is not the same as its current document being
+ * DIRTY. `confirmUnsavedAndThen` used to route every SAVE to the Knowledge document
+ * whenever a workspace was open at all (even a perfectly clean one), so a genuinely dirty
+ * single-file script was never saved: `WorkspaceState.save()` failed with "No document
+ * selected" (or silently saved the wrong buffer), and the originally-requested action never
+ * ran.
+ */
+enum class UnsavedSaveTarget { NONE, SCRIPT, KNOWLEDGE, BOTH }
+
+/** Pure routing decision for [UnsavedSaveTarget] — see its KDoc for the bug this fixes. */
+fun unsavedSaveTargetFor(
+    scriptDirty: Boolean,
+    knowledgeDirty: Boolean,
+): UnsavedSaveTarget =
+    when {
+        scriptDirty && knowledgeDirty -> UnsavedSaveTarget.BOTH
+        knowledgeDirty -> UnsavedSaveTarget.KNOWLEDGE
+        scriptDirty -> UnsavedSaveTarget.SCRIPT
+        else -> UnsavedSaveTarget.NONE
+    }
+
 object FileMenu {
     fun chooseOpen(
         parent: java.awt.Window?,

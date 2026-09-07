@@ -23,6 +23,23 @@ class AppState(
     /** Aktueller kUML-Script-Quelltext im Editor. */
     var script by mutableStateOf(WELCOME_SCRIPT)
 
+    /**
+     * The script's content at the last [loadFrom]/[markSaved]/[newScript] — the discard
+     * baseline for [discardScriptChanges] (bugfix, review finding). Before this field
+     * existed, "Verwerfen" (Discard) in `MainWindow.confirmUnsavedAndThen` reset only
+     * [isDirty] to `false` and left [script] itself holding the very edits the user had just
+     * asked to discard — invisible in the moment (the dialog closes, nothing looks wrong),
+     * but a single further keystroke re-armed [isDirty] and a subsequent Ctrl+S would write
+     * the "discarded" text to disk after all; worse, an action that doesn't touch [script]
+     * (Workspace öffnen/schließen) would leave the discarded edits sitting silently in the
+     * background editor with no dirty marker to warn about them, so quitting the app right
+     * after would drop them with no prompt at all. Kept in lockstep with [script] by every
+     * function here that also updates [isDirty] to `false`; deliberately NOT touched by plain
+     * script edits (only [discardScriptChanges] itself reads it) so it always reflects the
+     * last known-saved-or-explicitly-abandoned state.
+     */
+    private var savedScript by mutableStateOf(WELCOME_SCRIPT)
+
     /** Zuletzt erfolgreich gerenderter SVG-String; leer wenn noch kein Render. */
     var lastSvg by mutableStateOf("")
 
@@ -129,6 +146,7 @@ class AppState(
         content: String,
     ) {
         script = content
+        savedScript = content
         currentFile = file
         isDirty = false
         lastDir = file.parentFile?.absolutePath
@@ -142,12 +160,37 @@ class AppState(
      * Setzt isDirty=false, aktualisiert currentFile, lastDir und recentFiles.
      */
     fun markSaved(file: File) {
+        savedScript = script
         currentFile = file
         isDirty = false
         lastDir = file.parentFile?.absolutePath
         val updated = RecentFiles.add(list = recentFiles.toList(), path = file.absolutePath)
         recentFiles.clear()
         recentFiles.addAll(updated)
+    }
+
+    /**
+     * Resets [script] to an empty document, as if nothing were open (Datei ▸ Neu). Bundles
+     * [savedScript] into the reset (bugfix, review finding — see that field's KDoc) so a
+     * subsequent [discardScriptChanges] can't resurrect content from whatever was open
+     * before "Neu" was chosen.
+     */
+    fun newScript() {
+        script = ""
+        savedScript = ""
+        currentFile = null
+        isDirty = false
+    }
+
+    /**
+     * Reverts [script] to [savedScript] — i.e. discards any in-memory edits without writing
+     * anything to disk (bugfix, review finding — see [savedScript]'s KDoc for the failure
+     * this fixes). Mirrors `WorkspaceState.discardChanges()`'s role for the Knowledge
+     * Workspace's document buffer.
+     */
+    fun discardScriptChanges() {
+        script = savedScript
+        isDirty = false
     }
 
     /** Serialisiert den aktuellen State in persistierbare AppSettings. */

@@ -1,6 +1,5 @@
 package dev.kuml.workspace
 
-import dev.kuml.markdown.CodeBlockExtractor
 import java.io.File
 import java.nio.file.Files
 
@@ -16,23 +15,20 @@ import java.nio.file.Files
  *    else an `index.md` plus other `*.md` files with frontmatter → [WorkspaceMode.KNOWLEDGE];
  *    else [WorkspaceMode.UNKNOWN].
  * 3. Every `*.md` file in the tree is parsed into an [OkfDocument] — frontmatter,
- *    resolved [OkfType], ` ```kuml ` blocks, and Markdown links.
+ *    resolved [OkfType], ` ```kuml ` blocks, and Markdown links — via [OkfDocumentParser].
  *
  * Hidden directories (name starts with `.`) and any directory in [excludeDirs]
  * (typically the render output directory) are skipped so that a second
  * `workspace render` run over the same root does not re-scan its own mirrored output.
  */
 public object WorkspaceScanner {
-    private val MARKDOWN_LINK = Regex("""\[[^\]]*]\(([^)]+)\)""")
-
     /**
-     * DoS guardrails (defence-in-depth, ADR-0011 spike security review): a workspace scan
+     * DoS guardrail (defence-in-depth, ADR-0011 spike security review): a workspace scan
      * should never be able to hang or exhaust memory/disk on adversarial or accidental input
-     * (a directory symlink cycle, a symlink escaping the root, a huge Markdown file, or an
-     * enormous number of files).
+     * (a directory symlink cycle, a symlink escaping the root, or an enormous number of files).
+     * The per-document size cap lives on [OkfDocumentParser.MAX_MD_FILE_SIZE_BYTES].
      */
     private const val MAX_MD_FILE_COUNT = 20_000
-    private const val MAX_MD_FILE_SIZE_BYTES = 20L * 1024 * 1024 // 20 MiB per document
 
     public fun scan(
         root: File,
@@ -73,67 +69,8 @@ public object WorkspaceScanner {
         val documents =
             mdFiles
                 .sortedBy { it.relativeTo(root).path }
-                .map { parseDocument(root = root, file = it) }
+                .map { OkfDocumentParser.parseFile(root = root, file = it) }
 
         return OkfWorkspace(root = root, mode = mode, markerFound = markerFound, documents = documents, marker = marker)
-    }
-
-    private fun parseDocument(
-        root: File,
-        file: File,
-    ): OkfDocument {
-        require(file.length() <= MAX_MD_FILE_SIZE_BYTES) {
-            "Refusing to parse ${file.relativeTo(root).path}: ${file.length()} bytes exceeds " +
-                "the safety cap of $MAX_MD_FILE_SIZE_BYTES bytes."
-        }
-        val text = file.readText(Charsets.UTF_8)
-        val frontmatter = FrontmatterParser.parse(text)
-        val rawType = frontmatter.type
-        val type = OkfType.fromId(rawType)
-        val kumlBlocks = CodeBlockExtractor.extract(text)
-        val links = extractLinks(text)
-        val relativePath = file.relativeTo(root).path.replace(File.separatorChar, '/')
-        return OkfDocument(
-            file = file,
-            relativePath = relativePath,
-            frontmatter = frontmatter,
-            type = type,
-            rawType = rawType,
-            kumlBlocks = kumlBlocks,
-            links = links,
-        )
-    }
-
-    private fun extractLinks(text: String): List<MarkdownLink> {
-        val lines = text.split('\n')
-        // Precompute cumulative offsets so we can map a match's char index to a 1-based line.
-        val lineStartOffsets = IntArray(lines.size)
-        var offset = 0
-        for (i in lines.indices) {
-            lineStartOffsets[i] = offset
-            offset += lines[i].length + 1 // +1 for the '\n' consumed by split
-        }
-
-        fun lineOf(charIndex: Int): Int {
-            var lo = 0
-            var hi = lineStartOffsets.size - 1
-            var result = 0
-            while (lo <= hi) {
-                val mid = (lo + hi) / 2
-                if (lineStartOffsets[mid] <= charIndex) {
-                    result = mid
-                    lo = mid + 1
-                } else {
-                    hi = mid - 1
-                }
-            }
-            return result + 1 // 1-based
-        }
-
-        return MARKDOWN_LINK
-            .findAll(text)
-            .map { m ->
-                MarkdownLink(target = m.groupValues[1].trim(), line = lineOf(m.range.first))
-            }.toList()
     }
 }

@@ -190,4 +190,92 @@ class AppStateTest :
             s.lastDiagramSimulatable = true
             s.lastDiagramSimulatable shouldBe true
         }
+
+        // --- V-next, review fix round 3 — discardScriptChanges()/newScript() baseline ---
+
+        test("discardScriptChanges() reverts an edit made after loadFrom() and clears isDirty") {
+            val tempDir = Files.createTempDirectory("kuml-appstate-test").toFile()
+            val file = File(tempDir, "test.kuml.kts").also { it.writeText("classDiagram {}") }
+            try {
+                val state = AppState()
+                state.loadFrom(file = file, content = "classDiagram {}")
+                state.script = "classDiagram { /* unsaved edit */ }"
+                state.isDirty = true
+
+                state.discardScriptChanges()
+
+                state.script shouldBe "classDiagram {}"
+                state.isDirty shouldBe false
+            } finally {
+                tempDir.deleteRecursively()
+            }
+        }
+
+        test("discardScriptChanges() reverts to the content markSaved() last snapshotted") {
+            val tempDir = Files.createTempDirectory("kuml-appstate-test").toFile()
+            val file = File(tempDir, "saved.kuml.kts").also { it.writeText("") }
+            try {
+                val state = AppState()
+                state.script = "classDiagram { A }"
+                state.markSaved(file) // snapshots "classDiagram { A }" as the discard baseline
+                state.script = "classDiagram { A; B }" // further, unsaved edit
+                state.isDirty = true
+
+                state.discardScriptChanges()
+
+                state.script shouldBe "classDiagram { A }"
+                state.isDirty shouldBe false
+            } finally {
+                tempDir.deleteRecursively()
+            }
+        }
+
+        test("discardScriptChanges() before any load/save reverts to the welcome script") {
+            val state = AppState()
+            state.script = "classDiagram { /* unsaved */ }"
+            state.isDirty = true
+
+            state.discardScriptChanges()
+
+            state.script shouldBe AppState.WELCOME_SCRIPT
+            state.isDirty shouldBe false
+        }
+
+        test("newScript() clears script, currentFile and isDirty") {
+            val tempDir = Files.createTempDirectory("kuml-appstate-test").toFile()
+            val file = File(tempDir, "test.kuml.kts").also { it.writeText("classDiagram {}") }
+            try {
+                val state = AppState()
+                state.loadFrom(file = file, content = "classDiagram {}")
+                state.script = "classDiagram { edited }"
+                state.isDirty = true
+
+                state.newScript()
+
+                state.script shouldBe ""
+                state.currentFile shouldBe null
+                state.isDirty shouldBe false
+            } finally {
+                tempDir.deleteRecursively()
+            }
+        }
+
+        test("newScript() moves the discard baseline too, so a later discardScriptChanges() can't resurrect the old file's content") {
+            val tempDir = Files.createTempDirectory("kuml-appstate-test").toFile()
+            val file = File(tempDir, "test.kuml.kts").also { it.writeText("classDiagram {}") }
+            try {
+                val state = AppState()
+                state.loadFrom(file = file, content = "classDiagram {}")
+                state.newScript()
+                state.script = "some new draft"
+                state.isDirty = true
+
+                state.discardScriptChanges()
+
+                state.script shouldBe ""
+                state.isDirty shouldBe false
+            } finally {
+                tempDir.deleteRecursively()
+            }
+        }
     })

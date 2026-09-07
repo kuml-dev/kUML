@@ -347,4 +347,57 @@ class StringsTest :
 
         test("EN and DE differ on simTerminated") { Strings.EN.simTerminated shouldNotBe Strings.DE.simTerminated }
         test("EN and DE differ on simTraceTitle") { Strings.EN.simTraceTitle shouldNotBe Strings.DE.simTraceTitle }
+
+        // --- V-next — editable OKF Knowledge Workspace documents ---
+        test("EN docEditRead is non-empty") { Strings.EN.docEditRead.isNotEmpty() shouldBe true }
+        test("DE docEditRead is non-empty") { Strings.DE.docEditRead.isNotEmpty() shouldBe true }
+        test("EN docEditEdit is non-empty") { Strings.EN.docEditEdit.isNotEmpty() shouldBe true }
+        test("DE docEditEdit is non-empty") { Strings.DE.docEditEdit.isNotEmpty() shouldBe true }
+        test("EN docEditType is non-empty") { Strings.EN.docEditType.isNotEmpty() shouldBe true }
+        test("DE docEditType is non-empty") { Strings.DE.docEditType.isNotEmpty() shouldBe true }
+        test("EN docEditTitle is non-empty") { Strings.EN.docEditTitle.isNotEmpty() shouldBe true }
+        test("DE docEditTitle is non-empty") { Strings.DE.docEditTitle.isNotEmpty() shouldBe true }
+        test("EN docEditCustomType is non-empty") { Strings.EN.docEditCustomType.isNotEmpty() shouldBe true }
+        test("DE docEditCustomType is non-empty") { Strings.DE.docEditCustomType.isNotEmpty() shouldBe true }
+        test("EN docEditDirty is non-empty") { Strings.EN.docEditDirty.isNotEmpty() shouldBe true }
+        test("DE docEditDirty is non-empty") { Strings.DE.docEditDirty.isNotEmpty() shouldBe true }
+        test("EN docSaveIoError contains a %s placeholder") { Strings.EN.docSaveIoError shouldContain "%s" }
+        test("DE docSaveIoError contains a %s placeholder") { Strings.DE.docSaveIoError shouldContain "%s" }
+        test("EN docSaveOutsideRoot is non-empty") { Strings.EN.docSaveOutsideRoot.isNotEmpty() shouldBe true }
+        test("DE docSaveOutsideRoot is non-empty") { Strings.DE.docSaveOutsideRoot.isNotEmpty() shouldBe true }
+        test("EN and DE differ on docEditEdit") { Strings.EN.docEditEdit shouldNotBe Strings.DE.docEditEdit }
+
+        // --- bugfix, review finding — one message per WorkspaceWriteGuard.Rejection reason ---
+        test("EN docSaveRejectedSymlink is non-empty and distinct from docSaveOutsideRoot") {
+            Strings.EN.docSaveRejectedSymlink.isNotEmpty() shouldBe true
+            Strings.EN.docSaveRejectedSymlink shouldNotBe Strings.EN.docSaveOutsideRoot
+        }
+        test("DE docSaveRejectedSymlink is non-empty and distinct from docSaveOutsideRoot") {
+            Strings.DE.docSaveRejectedSymlink.isNotEmpty() shouldBe true
+            Strings.DE.docSaveRejectedSymlink shouldNotBe Strings.DE.docSaveOutsideRoot
+        }
+        test("EN docSaveRejectedNotRegularFile is non-empty and distinct from docSaveOutsideRoot") {
+            Strings.EN.docSaveRejectedNotRegularFile.isNotEmpty() shouldBe true
+            Strings.EN.docSaveRejectedNotRegularFile shouldNotBe Strings.EN.docSaveOutsideRoot
+        }
+        test("DE docSaveRejectedNotRegularFile is non-empty and distinct from docSaveOutsideRoot") {
+            Strings.DE.docSaveRejectedNotRegularFile.isNotEmpty() shouldBe true
+            Strings.DE.docSaveRejectedNotRegularFile shouldNotBe Strings.DE.docSaveOutsideRoot
+        }
+        test("EN docSaveRejectedUnknownDocument is non-empty and distinct from docSaveOutsideRoot") {
+            Strings.EN.docSaveRejectedUnknownDocument.isNotEmpty() shouldBe true
+            Strings.EN.docSaveRejectedUnknownDocument shouldNotBe Strings.EN.docSaveOutsideRoot
+        }
+        test("DE docSaveRejectedUnknownDocument is non-empty and distinct from docSaveOutsideRoot") {
+            Strings.DE.docSaveRejectedUnknownDocument.isNotEmpty() shouldBe true
+            Strings.DE.docSaveRejectedUnknownDocument shouldNotBe Strings.DE.docSaveOutsideRoot
+        }
+        test("EN docSaveRejectedIoError is non-empty and distinct from docSaveOutsideRoot") {
+            Strings.EN.docSaveRejectedIoError.isNotEmpty() shouldBe true
+            Strings.EN.docSaveRejectedIoError shouldNotBe Strings.EN.docSaveOutsideRoot
+        }
+        test("DE docSaveRejectedIoError is non-empty and distinct from docSaveOutsideRoot") {
+            Strings.DE.docSaveRejectedIoError.isNotEmpty() shouldBe true
+            Strings.DE.docSaveRejectedIoError shouldNotBe Strings.DE.docSaveOutsideRoot
+        }
     })

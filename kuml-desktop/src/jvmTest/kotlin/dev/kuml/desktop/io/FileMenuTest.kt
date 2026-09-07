@@ -29,6 +29,24 @@ class FileMenuTest :
             FileMenu.shouldProceedAfterUnsavedChoice(choice = UnsavedChoice.SAVE, saveSucceeded = false) shouldBe false
         }
 
+        // ── unsavedSaveTargetFor() — bugfix, review finding ────────────────────
+
+        test("neither buffer dirty -> NONE") {
+            unsavedSaveTargetFor(scriptDirty = false, knowledgeDirty = false) shouldBe UnsavedSaveTarget.NONE
+        }
+
+        test("only the script is dirty -> SCRIPT (regression: used to be routed to KNOWLEDGE whenever a workspace was merely open)") {
+            unsavedSaveTargetFor(scriptDirty = true, knowledgeDirty = false) shouldBe UnsavedSaveTarget.SCRIPT
+        }
+
+        test("only the Knowledge document is dirty -> KNOWLEDGE") {
+            unsavedSaveTargetFor(scriptDirty = false, knowledgeDirty = true) shouldBe UnsavedSaveTarget.KNOWLEDGE
+        }
+
+        test("both buffers dirty -> BOTH") {
+            unsavedSaveTargetFor(scriptDirty = true, knowledgeDirty = true) shouldBe UnsavedSaveTarget.BOTH
+        }
+
         // ── exportBaseName() — P3 ──────────────────────────────────────────────
 
         test("exportBaseName() strips the full .kuml.kts suffix, not just .kts") {

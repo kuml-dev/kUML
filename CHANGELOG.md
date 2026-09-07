@@ -26,6 +26,27 @@ Simulation gedacht, in statischen Ausgaben (`kuml render`, Export, Website, Hand
 nicht gesetzt. Das SysML-2-STM-Highlighting im SVG-Renderer schließt damit die bisherige
 Lücke gegenüber dem UML-Zustandsautomaten-Pfad.
 
+**OKF-Knowledge-Workspace-Dokumente im kUML-Desktop-Editor jetzt bearbeitbar** — bisher
+rein lesbarer Markdown-Viewer, jetzt mit Lesen/Bearbeiten-Umschaltung (Segmented Control
+oder Doppelklick, Esc zurück bei sauberem Puffer) direkt im selben `RSyntaxTextArea`-Editor
+wie das einzelne `.kuml.kts`-Skript — inklusive Undo/Redo und Ctrl+F-Suche. `type:`- und
+`title:`-Frontmatter sind eigene Kopfleisten-Steuerelemente (Dropdown über das volle
+29-Typen-OKF-Vokabular bzw. Textfeld), die chirurgisch in den bestehenden Puffer spleißen
+(`FrontmatterWriter`, neu in `kuml-docs:kuml-workspace`) statt YAML neu zu serialisieren —
+Kommentare, unbekannte Keys und deren Reihenfolge bleiben dabei byteidentisch erhalten.
+
+Speichern (Strg+S) läuft durch ein festes Save-Gate: `OKF-E-001` (fehlendes Frontmatter)
+und `OKF-W-002` (unbekannter `type:`, hier immer blockierend statt nur Warnung) verhindern
+das Schreiben — beide sind mit einem Klick im `type:`-Dropdown behoben, es gibt bewusst
+keinen "Trotzdem speichern"-Knopf. `OKF-E-003`/`OKF-W-004`/`OKF-E-005` werden weiterhin als
+Banner-Hinweis angezeigt, blockieren aber nicht. Geschrieben wird atomar (Temp-Datei im
+selben Verzeichnis + Rename), mit einer neuen, sicherheitsgeprüften Schreib-Sperre
+(`WorkspaceWriteGuard`, neu) gegen Pfad-Traversal, Symlink-Eskalation und das Schreiben
+außerhalb der Workspace-Wurzel oder in unbekannte Dateien. Ein erfolgreicher Save
+parst nur das gespeicherte Dokument neu und aktualisiert Dokumentenliste und
+Cross-Link-Index (`WorkspaceGraphIndex`) rein im Speicher — kein erneuter Workspace-Scan,
+kein zweites Trust-Gate.
+
 ### Changed
 
 **Routine dependency/plugin updates (13 of 14 candidates from a full `dependencyUpdates` sweep)**
