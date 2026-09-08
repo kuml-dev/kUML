@@ -62,6 +62,7 @@ import dev.kuml.desktop.ui.KumlIcons
 import dev.kuml.desktop.workspace.EngineeringFileScanner
 import dev.kuml.desktop.workspace.EngineeringWorkspaceScreen
 import dev.kuml.desktop.workspace.KnowledgeWorkspaceScreen
+import dev.kuml.desktop.workspace.NewWorkspaceDialog
 import dev.kuml.desktop.workspace.OpenWorkspace
 import dev.kuml.desktop.workspace.TrustDialog
 import dev.kuml.desktop.workspace.WorkspaceModeChooserDialog
@@ -150,6 +151,9 @@ fun FrameWindowScope.MainWindow(
     // V3.6.4 — Knowledge Workspace viewer: pending dialogs gate opening a workspace.
     var pendingTrustWorkspace by remember { mutableStateOf<OkfWorkspace?>(null) }
     var pendingUnknownWorkspace by remember { mutableStateOf<OkfWorkspace?>(null) }
+
+    // V3.x (FT-Desktop-New-Workspace) — "New Workspace…" scaffold dialog.
+    var showNewWorkspaceDialog by remember { mutableStateOf(false) }
 
     rememberAppSettingsBinding(state = state, store = store)
 
@@ -420,6 +424,9 @@ fun FrameWindowScope.MainWindow(
                         state.isDirty = false
                     }
                 }
+            })
+            Item(strings.menuFileNewWorkspace, onClick = {
+                confirmUnsavedAndThen { showNewWorkspaceDialog = true }
             })
             Item(strings.menuFileOpenWorkspace, onClick = {
                 confirmUnsavedAndThen {
@@ -855,6 +862,28 @@ fun FrameWindowScope.MainWindow(
                 state.openWorkspace = OpenWorkspace.Engineering(root = workspace.root, scriptFiles = files)
             },
             onCancel = { pendingUnknownWorkspace = null },
+        )
+    }
+
+    // V3.x (FT-Desktop-New-Workspace) — "New Workspace…" scaffold dialog.
+    if (showNewWorkspaceDialog) {
+        NewWorkspaceDialog(
+            strings = strings,
+            initialParentDir = state.lastDir?.let { File(it) } ?: File(System.getProperty("user.home")),
+            chooseParentDir = { initial ->
+                FileMenu.chooseOpenDirectory(
+                    parent = windowHandle,
+                    initialDir = initial,
+                    strings = strings,
+                    title = strings.newWorkspaceChooseParentTitle,
+                )
+            },
+            onCreated = { dir ->
+                state.lastDir = dir.parentFile?.absolutePath
+                showNewWorkspaceDialog = false
+                openWorkspaceDirectory(dir)
+            },
+            onCancel = { showNewWorkspaceDialog = false },
         )
     }
 }

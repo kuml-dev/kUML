@@ -14,8 +14,8 @@ import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.mordant.terminal.prompt
 import dev.kuml.cli.ExitCodes
 import dev.kuml.cli.KumlVersion
-import dev.kuml.cli.scaffold.Scaffolder
-import dev.kuml.cli.scaffold.TemplateFile
+import dev.kuml.scaffold.Scaffolder
+import dev.kuml.scaffold.TemplateFile
 import java.io.File
 
 // ── Constants ─────────────────────────────────────────────────────────────────

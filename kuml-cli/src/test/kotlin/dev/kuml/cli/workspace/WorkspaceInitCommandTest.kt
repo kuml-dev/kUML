@@ -19,49 +19,11 @@ class WorkspaceInitCommandTest :
 
         fun tempDir(prefix: String): File = Files.createTempDirectory(prefix).toFile()
 
-        // ── WorkspaceInitSpec.slugify ────────────────────────────────────────
-
-        context("WorkspaceInitSpec.slugify") {
-            test("lowercases and collapses spaces/punctuation to a single dash") {
-                WorkspaceInitSpec.slugify("My Club Bylaws") shouldBe "my-club-bylaws"
-            }
-
-            test("collapses unicode/punctuation runs") {
-                WorkspaceInitSpec.slugify("Müster   Verein!!!") shouldBe "m-ster-verein"
-            }
-
-            test("trims leading and trailing dashes") {
-                WorkspaceInitSpec.slugify("--Hello--") shouldBe "hello"
-            }
-
-            test("falls back to 'workspace' when nothing safe remains") {
-                WorkspaceInitSpec.slugify("!!!") shouldBe "workspace"
-            }
-
-            test("falls back to 'workspace' for an empty name") {
-                WorkspaceInitSpec.slugify("") shouldBe "workspace"
-            }
-        }
-
-        // ── WorkspaceScaffolder.templateFiles — resource existence guard ────────
-
-        context("WorkspaceScaffolder.templateFiles") {
-            test("knowledge template resources all load from the classpath") {
-                val tmpDir = tempDir("kuml-ws-templates-knowledge")
-                val spec = WorkspaceInitSpec.from(name = "Test", mode = "knowledge")
-                WorkspaceScaffolder.scaffold(spec = spec, targetDir = tmpDir, force = true, echo = {})
-                WorkspaceScaffolder.templateFiles("knowledge").size shouldBe 5
-                tmpDir.deleteRecursively()
-            }
-
-            test("engineering template resources all load from the classpath") {
-                val tmpDir = tempDir("kuml-ws-templates-engineering")
-                val spec = WorkspaceInitSpec.from(name = "Test", mode = "engineering")
-                WorkspaceScaffolder.scaffold(spec = spec, targetDir = tmpDir, force = true, echo = {})
-                WorkspaceScaffolder.templateFiles("engineering").size shouldBe 3
-                tmpDir.deleteRecursively()
-            }
-        }
+        // WorkspaceInitSpec.slugify and WorkspaceScaffolder.templateFiles tests moved
+        // (V3.x, FT-Desktop-New-Workspace) to
+        // kuml-docs/kuml-workspace/src/test/kotlin/dev/kuml/workspace/scaffold/WorkspaceScaffolderTest.kt
+        // alongside the two types themselves — only the CLI-level command-integration tests
+        // (via KumlCli().test(...)) remain here.
 
         // ── CLI integration: knowledge mode ──────────────────────────────────
 

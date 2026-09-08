@@ -204,6 +204,7 @@ val nonPublishedModules =
         "kuml-web",
         "kuml-desktop",        // V3.0.10 — Compose Desktop app (not published to Maven Central)
         "kuml-detekt-rules",   // build tooling — custom Detekt ruleset, never published
+        "kuml-scaffold",       // V3.x (FT-Desktop-New-Workspace) — internal {{var}} template-scaffold engine, never published
         // Test sub-modules (path-aware listing — Gradle subprojects iteration
         // sees them as separate projects with these leaf names).
         "kuml-cli-tests",

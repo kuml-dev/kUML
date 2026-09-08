@@ -1,4 +1,4 @@
-package dev.kuml.cli.scaffold
+package dev.kuml.scaffold
 
 import java.io.File
 
@@ -11,15 +11,24 @@ import java.io.File
  * [Scaffolder] so a second command (`workspace init`) can reuse the exact same
  * mechanics (force-guard, classpath resource loading, `{{var}}` rendering of both
  * content and output path, directory creation) without duplicating them.
+ *
+ * Moved a second time (V3.x, FT-Desktop-New-Workspace) from `kuml-cli` into this
+ * standalone module, so that `kuml-desktop`'s "New Workspace…" dialog can call the
+ * exact same scaffold mechanics as the `kuml workspace init` CLI command without
+ * depending on `kuml-cli` itself (which would be a backwards module dependency —
+ * `kuml-cli` already depends on `kuml-desktop`'s sibling module `kuml-docs:kuml-workspace`).
+ * Behavior is unchanged again here — this is a mechanical package rename plus
+ * `internal` → `public` visibility (required for cross-module access under
+ * `explicitApi()`).
  */
-internal object TemplateEngine {
+public object TemplateEngine {
     private val TOKEN_REGEX = Regex("""\{\{([^}]+)}}""")
 
     /**
      * Replaces `{{var}}` tokens with values from [vars].
      * Throws [IllegalArgumentException] for unknown tokens.
      */
-    fun render(
+    public fun render(
         template: String,
         vars: Map<String, String>,
     ): String =
@@ -38,27 +47,27 @@ internal object TemplateEngine {
  *  `plugin-templates/` or `workspace-templates/`), e.g. `theme/build.gradle.kts.tmpl`
  * @param outputPath   Path relative to the target dir, e.g. `build.gradle.kts`; may contain `{{var}}`
  */
-internal data class TemplateFile(
+public data class TemplateFile(
     val resourcePath: String,
     val outputPath: String,
 )
 
 /**
  * Generic scaffold write loop, reused by [dev.kuml.cli.plugin.PluginScaffolder] and
- * `dev.kuml.cli.workspace.WorkspaceScaffolder`.
+ * `dev.kuml.workspace.scaffold.WorkspaceScaffolder`.
  *
  * Mechanics (byte-for-byte identical to the original `PluginScaffolder.scaffold`):
  * force-guard against a non-empty [targetDir], load each template from the classpath,
  * render `{{var}}` tokens in both content and output path via [TemplateEngine], create
  * parent directories, write the file, and report it via [echo].
  */
-internal object Scaffolder {
+public object Scaffolder {
     /**
      * Renders and writes all [templates] for [vars] into [targetDir].
      *
      * @param force When `false`, aborts if [targetDir] already exists and is non-empty.
      */
-    fun scaffold(
+    public fun scaffold(
         templates: List<TemplateFile>,
         vars: Map<String, String>,
         targetDir: File,
@@ -86,7 +95,7 @@ internal object Scaffolder {
         val stream =
             Scaffolder::class.java.classLoader.getResourceAsStream(path)
                 ?: throw IllegalStateException(
-                    "Missing classpath resource: $path — this is a bug in kuml-cli",
+                    "Missing classpath resource: $path — this is a bug in kuml-scaffold's caller",
                 )
         return stream.use { it.bufferedReader().readText() }
     }

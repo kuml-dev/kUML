@@ -400,4 +400,84 @@ class StringsTest :
             Strings.DE.docSaveRejectedIoError.isNotEmpty() shouldBe true
             Strings.DE.docSaveRejectedIoError shouldNotBe Strings.DE.docSaveOutsideRoot
         }
+
+        // --- V3.x — "New Workspace…" dialog (FT-Desktop-New-Workspace) ---
+        test("EN menuFileNewWorkspace is non-empty") { Strings.EN.menuFileNewWorkspace.isNotEmpty() shouldBe true }
+        test("DE menuFileNewWorkspace is non-empty") { Strings.DE.menuFileNewWorkspace.isNotEmpty() shouldBe true }
+        test("EN and DE differ on menuFileNewWorkspace") { Strings.EN.menuFileNewWorkspace shouldNotBe Strings.DE.menuFileNewWorkspace }
+
+        test("EN newWorkspaceTitle is non-empty") { Strings.EN.newWorkspaceTitle.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceTitle is non-empty") { Strings.DE.newWorkspaceTitle.isNotEmpty() shouldBe true }
+        test("EN and DE differ on newWorkspaceTitle") { Strings.EN.newWorkspaceTitle shouldNotBe Strings.DE.newWorkspaceTitle }
+
+        // newWorkspaceNameLabel is deliberately identical in both languages ("Name") — no
+        // shouldNotBe parity test for this key.
+        test("EN newWorkspaceNameLabel is non-empty") { Strings.EN.newWorkspaceNameLabel.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceNameLabel is non-empty") { Strings.DE.newWorkspaceNameLabel.isNotEmpty() shouldBe true }
+
+        test("EN newWorkspaceNameHint is non-empty") { Strings.EN.newWorkspaceNameHint.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceNameHint is non-empty") { Strings.DE.newWorkspaceNameHint.isNotEmpty() shouldBe true }
+        test("EN and DE differ on newWorkspaceNameHint") { Strings.EN.newWorkspaceNameHint shouldNotBe Strings.DE.newWorkspaceNameHint }
+
+        test("EN newWorkspaceNameEmpty is non-empty") { Strings.EN.newWorkspaceNameEmpty.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceNameEmpty is non-empty") { Strings.DE.newWorkspaceNameEmpty.isNotEmpty() shouldBe true }
+        test("EN and DE differ on newWorkspaceNameEmpty") { Strings.EN.newWorkspaceNameEmpty shouldNotBe Strings.DE.newWorkspaceNameEmpty }
+
+        test("EN newWorkspaceModeLabel is non-empty") { Strings.EN.newWorkspaceModeLabel.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceModeLabel is non-empty") { Strings.DE.newWorkspaceModeLabel.isNotEmpty() shouldBe true }
+        test("EN and DE differ on newWorkspaceModeLabel") { Strings.EN.newWorkspaceModeLabel shouldNotBe Strings.DE.newWorkspaceModeLabel }
+
+        // newWorkspaceModeKnowledge/newWorkspaceModeEngineering are deliberately identical in
+        // both languages ("Knowledge"/"Engineering", established OKF terms) — no shouldNotBe
+        // parity test for these two keys.
+        test("EN newWorkspaceModeKnowledge is non-empty") { Strings.EN.newWorkspaceModeKnowledge.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceModeKnowledge is non-empty") { Strings.DE.newWorkspaceModeKnowledge.isNotEmpty() shouldBe true }
+        test("EN newWorkspaceModeEngineering is non-empty") { Strings.EN.newWorkspaceModeEngineering.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceModeEngineering is non-empty") { Strings.DE.newWorkspaceModeEngineering.isNotEmpty() shouldBe true }
+
+        test("EN newWorkspaceModeKnowledgeHint is non-empty") { Strings.EN.newWorkspaceModeKnowledgeHint.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceModeKnowledgeHint is non-empty") { Strings.DE.newWorkspaceModeKnowledgeHint.isNotEmpty() shouldBe true }
+        test("EN and DE differ on newWorkspaceModeKnowledgeHint") {
+            Strings.EN.newWorkspaceModeKnowledgeHint shouldNotBe Strings.DE.newWorkspaceModeKnowledgeHint
+        }
+
+        test("EN newWorkspaceModeEngineeringHint is non-empty") { Strings.EN.newWorkspaceModeEngineeringHint.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceModeEngineeringHint is non-empty") { Strings.DE.newWorkspaceModeEngineeringHint.isNotEmpty() shouldBe true }
+        test("EN and DE differ on newWorkspaceModeEngineeringHint") {
+            Strings.EN.newWorkspaceModeEngineeringHint shouldNotBe Strings.DE.newWorkspaceModeEngineeringHint
+        }
+
+        test("EN newWorkspaceTargetLabel is non-empty") { Strings.EN.newWorkspaceTargetLabel.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceTargetLabel is non-empty") { Strings.DE.newWorkspaceTargetLabel.isNotEmpty() shouldBe true }
+        test("EN and DE differ on newWorkspaceTargetLabel") {
+            Strings.EN.newWorkspaceTargetLabel shouldNotBe Strings.DE.newWorkspaceTargetLabel
+        }
+
+        test("EN newWorkspaceBrowse is non-empty") { Strings.EN.newWorkspaceBrowse.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceBrowse is non-empty") { Strings.DE.newWorkspaceBrowse.isNotEmpty() shouldBe true }
+        test("EN and DE differ on newWorkspaceBrowse") { Strings.EN.newWorkspaceBrowse shouldNotBe Strings.DE.newWorkspaceBrowse }
+
+        test("EN newWorkspaceChooseParentTitle is non-empty") { Strings.EN.newWorkspaceChooseParentTitle.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceChooseParentTitle is non-empty") { Strings.DE.newWorkspaceChooseParentTitle.isNotEmpty() shouldBe true }
+        test("EN and DE differ on newWorkspaceChooseParentTitle") {
+            Strings.EN.newWorkspaceChooseParentTitle shouldNotBe Strings.DE.newWorkspaceChooseParentTitle
+        }
+
+        test("EN newWorkspaceTargetNotEmpty is non-empty") { Strings.EN.newWorkspaceTargetNotEmpty.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceTargetNotEmpty is non-empty") { Strings.DE.newWorkspaceTargetNotEmpty.isNotEmpty() shouldBe true }
+        test("EN and DE differ on newWorkspaceTargetNotEmpty") {
+            Strings.EN.newWorkspaceTargetNotEmpty shouldNotBe Strings.DE.newWorkspaceTargetNotEmpty
+        }
+
+        test("EN newWorkspaceCreate is non-empty") { Strings.EN.newWorkspaceCreate.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceCreate is non-empty") { Strings.DE.newWorkspaceCreate.isNotEmpty() shouldBe true }
+        test("EN and DE differ on newWorkspaceCreate") { Strings.EN.newWorkspaceCreate shouldNotBe Strings.DE.newWorkspaceCreate }
+
+        test("EN newWorkspaceCancel is non-empty") { Strings.EN.newWorkspaceCancel.isNotEmpty() shouldBe true }
+        test("DE newWorkspaceCancel is non-empty") { Strings.DE.newWorkspaceCancel.isNotEmpty() shouldBe true }
+        test("EN and DE differ on newWorkspaceCancel") { Strings.EN.newWorkspaceCancel shouldNotBe Strings.DE.newWorkspaceCancel }
+
+        test("EN newWorkspaceFailed contains a %s placeholder") { Strings.EN.newWorkspaceFailed shouldContain "%s" }
+        test("DE newWorkspaceFailed contains a %s placeholder") { Strings.DE.newWorkspaceFailed shouldContain "%s" }
+        test("EN and DE differ on newWorkspaceFailed") { Strings.EN.newWorkspaceFailed shouldNotBe Strings.DE.newWorkspaceFailed }
     })

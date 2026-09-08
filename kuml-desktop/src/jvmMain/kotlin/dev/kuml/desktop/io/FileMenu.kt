@@ -55,16 +55,22 @@ object FileMenu {
             if (chooser.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
         }
 
-    /** V3.6.4 — directory picker for File → Open Workspace…. */
+    /**
+     * V3.6.4 — directory picker for File → Open Workspace…, reused (V3.x,
+     * FT-Desktop-New-Workspace) by the "New Workspace…" dialog's parent-folder picker via an
+     * explicit [title] override (defaults to the Open-Workspace title for source compat with
+     * that original single call site).
+     */
     fun chooseOpenDirectory(
         parent: java.awt.Window?,
         initialDir: File?,
         strings: Strings,
+        title: String = strings.dialogOpenWorkspaceTitle,
     ): File? =
         runOnEdtBlocking {
             val chooser =
                 JFileChooser(initialDir).apply {
-                    dialogTitle = strings.dialogOpenWorkspaceTitle
+                    dialogTitle = title
                     fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
                 }
             if (chooser.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
