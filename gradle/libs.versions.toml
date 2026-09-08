@@ -7,7 +7,7 @@ koog-google            = "1.2.0-beta"
 koog-gonka             = "0.1.0"
 jna                    = "5.19.1"
 batik                  = "1.19"
-compose-multiplatform  = "1.11.1"
+compose-multiplatform  = "1.12.0"
 compose-material3      = "1.9.0"
 kuiver                 = "0.4.1"
 elk                    = "0.12.0"
@@ -15,16 +15,26 @@ xtext-xbase-lib        = "2.44.0"
 kotlinx-serialization  = "1.11.0"
 kotlinx-coroutines     = "1.11.0"
 ktor                   = "3.5.2"
-coil                   = "3.6.1"
+coil                   = "3.6.2"
 kotest                 = "6.2.4"
 junit                  = "6.1.1"
 ktlint-plugin          = "14.2.0"
 clikt                  = "5.1.0"
-graalvm-native         = "1.1.11"
+graalvm-native         = "1.1.12"
 vanniktech-publish     = "0.37.0"
 gradle-publish-plugin  = "2.1.1"
 intellij-platform      = "2.18.1"
 intellij-idea          = "2025.1.7.2"
+# Marketplace-only plugin (not bundled with the IDE), used optionally by
+# kuml-jetbrains-plugin's AsciiDoc preview integration. Pinned to 0.43.6
+# deliberately: newer releases (0.44.1+) raise the minimum supported IDE
+# build to 251.0.0+/251.23536.34+ and 0.45.x further raises it to
+# 253.25908+ (IntelliJ 2025.3+) — verified against the JetBrains Marketplace
+# API on 2026-09-08. Our pinned intellij-idea (2025.1.7.2, build 251.x) sits
+# right at that boundary; bumping without also re-verifying/raising
+# intellij-idea is a real IDE-compatibility risk, not a routine catalog bump,
+# so it is deliberately left at 0.43.6 for this wave.
+asciidoctor-intellij-plugin = "0.43.6"
 javaparser             = "3.28.2"
 jsqlparser             = "5.3"
 eclipse-emf-ecore      = "2.43.0"
