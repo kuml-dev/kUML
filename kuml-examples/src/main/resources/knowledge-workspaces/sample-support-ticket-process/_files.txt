@@ -1,0 +1,24 @@
+# Rot-guard manifest for the "sample-support-ticket-process" OKF demo workspace.
+#
+# Second demo workspace (fictional), alongside "sample-association-charter" —
+# same purpose (OKF format demonstration, ADR-0011), different domain (a
+# software support-ticket process instead of an association charter), added
+# to give manual UI testing (kUML Desktop) more content variety, especially a
+# UmlStateMachine document that is well-suited for the Desktop's
+# State-Machine-Simulation feature. See _files.txt in sample-association-charter
+# for the manifest's purpose (drift/deletion guard against WorkspaceScanner).
+#
+# When adding/removing/renaming a file in this workspace, update this file too.
+
+.kuml-workspace.toml
+index.md
+articles/01-sla-definition.md
+articles/02-eskalationsregeln.md
+concepts/index.md
+concepts/Ticket.md
+concepts/Kunde.md
+concepts/Supportmitarbeiter.md
+models/ticket-datenmodell.md
+models/ticket-lebenszyklus.md
+models/eskalationsprozess.md
+glossary/index.md

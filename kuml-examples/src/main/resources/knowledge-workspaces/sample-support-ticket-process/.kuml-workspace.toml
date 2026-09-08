@@ -1,0 +1,9 @@
+[workspace]
+mode = "knowledge"
+name = "Support-Ticket-Prozess (Muster, fiktiv)"
+kuml-version = "0.53.0"
+
+[okf]
+version = "0.1"
+vocabulary = "1.0"
+strict = true
