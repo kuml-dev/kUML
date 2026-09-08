@@ -8,6 +8,29 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+**`kuml simulate` für BPMN-Prozessdiagramme (ADR-0015) — neue `TokenFlowEngine`**
+
+Neues Modul `kuml-runtime-tokenflow` mit einer modellunabhängigen `TokenFlowEngine`,
+die BPMN-2.0-Prozessdiagramme, UML-Activity-Diagramme und (über
+`ActivityRuntimeSpec.toTokenFlowSpec`) SysML-2-ACT-Diagramme gegen dieselbe
+Petri-Netz-artige Token-Flow-Semantik ausführt. `kuml simulate <script.kuml.kts>
+<events.json>` erkennt BPMN-Prozessdiagramme automatisch und routet sie über die
+neue Engine; `--process <id>` wählt einen Prozess aus, wenn ein Modell mehrere
+deklariert, `--max-tokens` und `--time-budget-ms` begrenzen Token-Explosion bzw.
+Laufzeit in zyklischen Modellen. Guard-Auswertung läuft ausnahmslos sandboxed
+(`TimeLimitedGuardEvaluator`, kein Ausschalter — ADR-0015 Security-Fix B2).
+Unterstützt werden EXCLUSIVE/PARALLEL/INCLUSIVE-Gateways (konvergierend,
+divergierend, gemischt), Terminate-/Flow-Final sowie BPMN-Default-Flows
+(`default="…"`-Attribut). Ein Sub-Prozess **ohne** eigenen Inhalt (collapsed) wird als
+einzelner opaker Knoten ausgeführt; ein **expandierter** Sub-Prozess mit eigenem Inhalt,
+Loop-Characteristics (Standard-/Multi-Instance-Loop) sowie Boundary Events werden dagegen
+nicht ausgeführt — `kuml simulate` bricht mit einem `UNSUPPORTED_SUBPROCESS_CONTENT`/
+`UNSUPPORTED_LOOP_CHARACTERISTICS`/`UNSUPPORTED_BOUNDARY_EVENT`-Fehler ab, statt die
+fehlende Semantik still zu ignorieren und einen materiell falschen Lauf als Erfolg zu
+melden. Die neue Engine emittiert dieselben `TraceEntry`-Varianten wie der bestehende
+`ActivityRuntime`-Interpreter, sodass `BpmnTokenTimelineBuilder` und
+`TraceFlavourDetector` ohne Änderung auch BPMN-Traces verarbeiten.
+
 **Live-Simulation von Zustandsautomaten im kUML-Desktop-Editor** — neuer Menüpunkt
 `Werkzeuge ▸ Simulieren` (Strg+R) für UML-Zustandsautomaten und SysML-2-STM-Diagramme.
 Startet eine sandboxed Live-Sitzung direkt im Vorschau-Bereich: eine Werkzeugleiste
@@ -113,6 +136,50 @@ Both will move only as a side effect of bumping whatever pulls them in transitiv
 platform artifacts) — no standalone catalog entry to bump.
 
 ### Fixed
+
+**TokenFlowEngine (ADR-0015) — Security-Review-Nachbesserungen**
+
+Ein Security-Review dieses Branches fand fünf offene Punkte im neuen `TokenFlowEngine`
+und den damit verbundenen ACT-Aufrufstellen, alle behoben:
+
+- `kuml trace replay` (`TraceReplayCommand.runActivityReplay`) war die einzige der vier
+  ACT-Ausführungsstellen, die noch den ungesandboxten Default-`ActivityGuardEvaluator`
+  nutzte und weder `--sandbox` noch `--guard-timeout-ms` kannte. Sandboxing ist hier jetzt
+  unconditional (wie bei `RunSessionManager`/`RuntimeSessionManager`), ein neues
+  `--guard-timeout-ms` tunt den Timeout.
+- Ein expandierter BPMN-Sub-Prozess mit eigenem Inhalt, Loop-Characteristics oder ein
+  Boundary Event fielen bisher stillschweigend auf einen einzelnen opaken Aktions-Knoten
+  zusammen — `kuml simulate` lief den Happy Path und meldete Erfolg (Exit 0), obwohl die
+  eigentliche Modelllogik nie ausgeführt wurde. `BpmnTokenFlowAdapter` meldet das jetzt als
+  harten `UNSUPPORTED_SUBPROCESS_CONTENT`/`UNSUPPORTED_LOOP_CHARACTERISTICS`/
+  `UNSUPPORTED_BOUNDARY_EVENT`-Fehler statt eines materiell falschen Erfolgs.
+- Ein INCLUSIVE-Diverge ohne passenden Guard und ohne Default-Edge verwarf den Token still,
+  ohne Warnung oder Laufzeitsignal. Die `NO_DEFAULT_BRANCH`-Warnung von `TokenFlowSpec.validate()`
+  deckt jetzt auch INCLUSIVE ab (bisher nur EXCLUSIVE), und `kuml simulate` hat ein neues
+  `--strict-guard-coverage`, das einen unabgedeckten EXCLUSIVE/INCLUSIVE-Split zu einem harten
+  Fehler statt zum stillen Token-Verlust macht (`TokenFlowOptions.strictGuardCoverage` existierte
+  bereits, war aber von der CLI aus nicht erreichbar).
+- `--max-steps`, `--max-tokens`, `--time-budget-ms` und `--guard-timeout-ms` akzeptierten
+  bisher jeden `Int`/`Long`-Wert einschließlich `0` und negativer Zahlen; ein extremer
+  `--time-budget-ms`-Wert ließ die Nanosekunden-Umrechnung in `TokenFlowEngine.run`
+  überlaufen und erzeugte eine widersinnige Abbruchmeldung. Alle vier Optionen validieren
+  jetzt `>= 1` direkt beim CLI-Parsing; die Wall-Clock-Deadline wird zusätzlich
+  überlaufsicher als Elapsed-Time (`nanoClock() - startNanos`) statt als absoluter
+  Vergleich berechnet.
+- Ein Guard-Timeout und eine Guard-Exception waren von einem legitim auf `false`
+  ausgewertetem Guard nicht unterscheidbar — kein Trace-Eintrag, keine Warnung, kein
+  eigener Exit-Code (`ExitCodes.SANDBOX_TIMEOUT` war deklariert, aber nirgends referenziert).
+  `TokenFlowEngine` hat jetzt einen `guardResultListener`-Seitenkanal (bewusst außerhalb des
+  `TraceEntry`-Formats, um `TraceFlavourDetector` nicht zu verwirren), über den
+  `SimulateCommand` einen Guard-Fehlschlag als Warnung meldet und einen reinen
+  Sandbox-Timeout auf `ExitCodes.SANDBOX_TIMEOUT` abbildet, statt ihn wie einen normalen
+  Erfolg zu behandeln.
+
+Zusätzlich als Härtung dokumentiert statt nur behauptet: `ActivityRuntime.restoreFrom`
+lehnt jetzt einen Snapshot mit gesetztem `ActivityInstance.joinEdgeTokens` (nur vom
+`TokenFlowEngine` geschrieben) mit einer `MigrationException` ab — die KDoc auf
+`ActivityInstance.joinEdgeTokens` verwies bisher auf eine Absicherung, die nirgends
+implementiert war.
 
 **UML kennt Assoziationsklassen — kUML bisher nicht (ADR-0017, Welle D)**
 

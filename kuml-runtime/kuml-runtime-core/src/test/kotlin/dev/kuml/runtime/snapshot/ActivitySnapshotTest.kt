@@ -90,6 +90,28 @@ class ActivitySnapshotTest :
             }
         }
 
+        test("restoreFrom rejects a snapshot with joinEdgeTokens populated, even under a permissive policy") {
+            // Security review (feature/tokenflow-execution-engine, finding "KDoc verweist auf
+            // eine Schutzmassnahme, die es nicht gibt"): joinEdgeTokens is written exclusively by
+            // TokenFlowEngine; ActivityRuntime's own join-readiness check never looks at it, so
+            // restoring such a snapshot here would silently strand any AND-join's tokens forever.
+            // This must be rejected unconditionally — unlike a fingerprint mismatch, it is not a
+            // MigrationPolicy question, so even `AcceptIfVerticesPresent()` must not let it pass.
+            val instanceWithJoinEdgeTokens =
+                ActivityInstance(
+                    tokenCounts = mapOf("n_action" to 1),
+                    clock = 4L,
+                    joinEdgeTokens = mapOf("n_action" to mapOf("e1" to 1)),
+                )
+            val currentFingerprint = fingerprintActivity(nodeIds = specV1.nodes.keys, edgeIds = specV1.edges.map { it.id }.toSet())
+            val snap =
+                runtimeV1.snapshotFull(instance = instanceWithJoinEdgeTokens, modelId = modelId, modelFingerprint = currentFingerprint)
+
+            shouldThrow<MigrationException> {
+                runtimeV1.restoreFrom(snapshot = snap, policy = MigrationPolicy.AcceptIfVerticesPresent())
+            }
+        }
+
         test("restoreFrom accepts identical model") {
             val instanceWithToken = ActivityInstance(tokenCounts = mapOf("n_action" to 1), clock = 7L)
             val currentFingerprint = fingerprintActivity(nodeIds = specV1.nodes.keys, edgeIds = specV1.edges.map { it.id }.toSet())

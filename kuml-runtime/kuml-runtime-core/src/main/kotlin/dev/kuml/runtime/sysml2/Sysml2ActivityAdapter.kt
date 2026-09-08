@@ -1,8 +1,9 @@
 package dev.kuml.runtime.sysml2
 
 import dev.kuml.expr.OclLikeExpressionParser
-import dev.kuml.runtime.OclGuardEvaluator
+import dev.kuml.runtime.GuardEvaluator
 import dev.kuml.runtime.activity.ActivityEdgeSpec
+import dev.kuml.runtime.activity.ActivityGuardEvaluator
 import dev.kuml.runtime.activity.ActivityNodeSpec
 import dev.kuml.runtime.activity.ActivityRuntime
 import dev.kuml.runtime.activity.ActivityRuntimeSpec
@@ -41,11 +42,21 @@ public object Sysml2ActivityAdapter {
      * @param model the SysML 2 model containing [ActionDefinition]s and flow usages.
      * @param diagram the ACT diagram whose [ActDiagram.elementIds] select the
      *   participating action nodes.
+     * @param guardEvaluator Guard-evaluation strategy. Defaults to
+     *   [ActivityGuardEvaluator] (bare-identifier-friendly, unsandboxed — matches
+     *   historical behaviour). Callers that need a bounded evaluation time (e.g.
+     *   `kuml simulate --sandbox`, `kuml run`, `kuml trace replay`, the MCP
+     *   `kuml.run.*` tools) should pass a
+     *   `dev.kuml.runtime.sandbox.TimeLimitedGuardEvaluator` wrapping
+     *   [ActivityGuardEvaluator] instead (ADR-0015 / security fix B2 — this
+     *   parameter previously existed on [ActivityRuntime] but was never
+     *   consulted at evaluation time).
      * @return a ready-to-use [ActivityRuntime] instance.
      */
     public fun runtimeFor(
         model: Sysml2Model,
         diagram: ActDiagram,
+        guardEvaluator: GuardEvaluator = ActivityGuardEvaluator(),
     ): ActivityRuntime {
         val spec = toSpec(model = model, diagram = diagram)
 
@@ -63,7 +74,7 @@ public object Sysml2ActivityAdapter {
             }
         }
 
-        return ActivityRuntime(spec = spec, guardEvaluator = OclGuardEvaluator())
+        return ActivityRuntime(spec = spec, guardEvaluator = guardEvaluator)
     }
 
     /**

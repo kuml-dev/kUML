@@ -24,6 +24,10 @@ dependencies {
     implementation(project(":kuml-core:kuml-core-script"))
     // V2.0.27 — Behaviour-Runtime MCP tools
     implementation(project(":kuml-runtime:kuml-runtime-core"))
+    // ADR-0015 / security fix B2 — sandboxed guard evaluation (TimeLimitedGuardEvaluator)
+    // for ACT sessions started via kuml.run.* MCP tools. Previously missing entirely,
+    // so ACT guard evaluation here had no time bound at all.
+    implementation(project(":kuml-runtime:kuml-runtime-sandbox"))
     implementation(libs.kotlin.scripting.common)
     implementation(libs.kotlin.scripting.jvm)
     implementation(libs.kotlin.scripting.jvm.host)

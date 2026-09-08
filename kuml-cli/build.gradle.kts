@@ -51,6 +51,7 @@ dependencies {
     implementation(project(path = ":kuml-runtime:kuml-runtime-core"))
     implementation(project(path = ":kuml-runtime:kuml-runtime-trace")) // V2.0.39 — kuml trace replay/export
     implementation(project(path = ":kuml-runtime:kuml-runtime-sandbox")) // V2.0.40 — Sandbox-Garantien
+    implementation(project(path = ":kuml-runtime:kuml-runtime-tokenflow")) // ADR-0015 — Token-Flow-Ausführungs-Engine
     implementation(project(path = ":kuml-runtime:kuml-runtime-chain-api")) // V3.0.1 — fmt --canonical + ModelHasher
     implementation(project(path = ":kuml-runtime:kuml-runtime-chain-evm")) // V3.0.4 — kuml chain subcommand (EvmChainAdapter)
     implementation(project(path = ":kuml-core:kuml-core-ocl"))

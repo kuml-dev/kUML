@@ -201,7 +201,7 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 | `kuml plugin init` scaffolding command — generates a starter project for all five plugin categories (Theme / Renderer / Layout / Codegen / Reverse) with build config, SPI registration, and example code. `kuml plugin update` / `kuml plugin upgrade` — update a plugin to its latest published version or upgrade the plugin API contract. Plugin Registry with ratings, reviews, and screenshots — discoverable via `kuml plugin search` and the Desktop Plugin Manager UI. (V3.1.x)
 
 | *BPMN 2.0 first-class*
-| Process, Collaboration, Events (Event-Matrix: 13 definitions × 3 positions × 2 behaviours), Gateways (5 types), Tasks (7 types), Sub-Processes, Call Activities, Pools, Lanes, Message Flows. DSL (@BpmnDsl), SVG renderer with all OMG symbols, BPMN 2.0 XML import/export (XXE-safe), LaTeX/TikZ renderer. Constraint checker with 7 rules.
+| Process, Collaboration, Events (Event-Matrix: 13 definitions × 3 positions × 2 behaviours), Gateways (5 types), Tasks (7 types), Sub-Processes, Call Activities, Pools, Lanes, Message Flows. DSL (@BpmnDsl), SVG renderer with all OMG symbols, BPMN 2.0 XML import/export (XXE-safe), LaTeX/TikZ renderer. Constraint checker with 7 rules. Process diagrams are executable — ✅ `kuml simulate` (ADR-0015).
 
 | *BPMN 2.0 XML Import/Export*
 | `kuml-io-bpmn` — bidirectional BPMN 2.0 XML (OMG namespace), no JAXB, XXE-protected DOM parser. `BpmnXml.export(model)` / `BpmnXml.import(xml)`. Round-trip consistent.
@@ -499,7 +499,7 @@ An ERM model can be authored directly (`ermModel { … }`) or derived from an ex
 | Emit shell completion scripts for `bash`, `zsh`, or `fish` (Clikt built-in).
 
 | `kuml simulate <script> --events <file>`
-| Execute a simulation trace against a UML or SysML 2 behavioural model. Supports STM (state-machine semantics) and ACT (token-flow activity semantics) for both UML and SysML 2. SysML 2 STM added in V2.0.17; SysML 2 ACT added in V2.0.18.
+| Execute a simulation trace against a UML, SysML 2, or BPMN 2.0 behavioural model. Supports STM (state-machine semantics) for UML and SysML 2, and token-flow activity semantics (UML Activity, SysML 2 ACT, and BPMN Process — exclusive/parallel/inclusive gateways, sub-processes, terminate/flow-final) via the shared `TokenFlowEngine`. SysML 2 STM added in V2.0.17; SysML 2 ACT added in V2.0.18; BPMN Process added in ADR-0015 (`--process <id>` selects among multiple declared processes, `--max-tokens`/`--time-budget-ms` bound token-flow execution).
 
 | `kuml transform <script> --transformer <id> --output <dir>`
 | M2M transformation: transform a source model to a target artefact. Five built-in transformers: `uml-to-jpa`, `uml-to-rest` (OpenAPI 3.0 YAML), `uml-to-k8s` (Kubernetes manifests), `uml-to-docker` (Dockerfiles), `c4-to-uml`. `--list-transformers` lists all registered transformers (discovered via ServiceLoader). V2.0.21–V2.0.25.

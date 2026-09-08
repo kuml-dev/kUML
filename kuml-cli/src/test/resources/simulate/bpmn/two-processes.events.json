@@ -1,0 +1,6 @@
+{
+    "schema": "kuml.events.v1",
+    "events": [
+        { "name": "start", "payload": {} }
+    ]
+}

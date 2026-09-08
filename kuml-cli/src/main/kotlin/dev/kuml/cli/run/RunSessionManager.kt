@@ -10,6 +10,9 @@ import dev.kuml.runtime.Snapshot
 import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.runtime.StepResult
 import dev.kuml.runtime.activity.ActivityDeadlockException
+import dev.kuml.runtime.activity.ActivityGuardEvaluator
+import dev.kuml.runtime.sandbox.SandboxPolicy
+import dev.kuml.runtime.sandbox.TimeLimitedGuardEvaluator
 import dev.kuml.runtime.snapshot.ActivityInstanceSnapshot
 import dev.kuml.runtime.snapshot.MigrationException
 import dev.kuml.runtime.snapshot.MigrationPolicy
@@ -175,9 +178,18 @@ internal class RunSessionManager {
         restoreFrom: File?,
         policy: MigrationPolicy,
     ): SessionResult {
+        // ADR-0015 / security fix B2: `kuml run` ACT sessions are long-lived and
+        // reachable via the CLI/MCP adapter, so guard evaluation is always
+        // sandboxed with a bounded timeout — never the bare, unsandboxed
+        // ActivityGuardEvaluator. Daemon threads (see TimeLimitedGuardEvaluator
+        // KDoc) make it safe not to explicitly close this per session.
         val runtime =
             try {
-                Sysml2ActivityAdapter.runtimeFor(model = extracted.model, diagram = actDiagram)
+                Sysml2ActivityAdapter.runtimeFor(
+                    model = extracted.model,
+                    diagram = actDiagram,
+                    guardEvaluator = TimeLimitedGuardEvaluator(delegate = ActivityGuardEvaluator(), policy = SandboxPolicy()),
+                )
             } catch (e: IllegalArgumentException) {
                 return SessionResult.Error(message = "SysML 2 ACT adapter error: ${e.message}")
             }

@@ -10,8 +10,11 @@ import dev.kuml.runtime.StateMachineInstance
 import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.runtime.StepResult
 import dev.kuml.runtime.TraceEntry
+import dev.kuml.runtime.activity.ActivityGuardEvaluator
 import dev.kuml.runtime.activity.ActivityInstance
 import dev.kuml.runtime.activity.ActivityRuntime
+import dev.kuml.runtime.sandbox.SandboxPolicy
+import dev.kuml.runtime.sandbox.TimeLimitedGuardEvaluator
 import dev.kuml.runtime.sysml2.Sysml2ActivityAdapter
 import dev.kuml.runtime.sysml2.Sysml2StateMachineAdapter
 import dev.kuml.sysml2.ActDiagram
@@ -376,7 +379,18 @@ internal class RuntimeSessionManager(
                     ?: error("No ActDiagram found in script")
             }
 
-        val actRuntime = Sysml2ActivityAdapter.runtimeFor(model = extracted.model, diagram = diagram)
+        // ADR-0015 / security fix B2: MCP ACT sessions are exposed to remote
+        // callers, so guard evaluation must always be sandboxed with a bounded
+        // timeout. Previously this module had no dependency on
+        // kuml-runtime-sandbox at all, so an unsandboxed evaluator was the only
+        // option. Daemon threads (see TimeLimitedGuardEvaluator KDoc) make it
+        // safe not to explicitly close this per session.
+        val actRuntime =
+            Sysml2ActivityAdapter.runtimeFor(
+                model = extracted.model,
+                diagram = diagram,
+                guardEvaluator = TimeLimitedGuardEvaluator(delegate = ActivityGuardEvaluator(), policy = SandboxPolicy()),
+            )
         val (initialInstance, startTrace) = actRuntime.start()
 
         val (finalInstance, runTrace) =

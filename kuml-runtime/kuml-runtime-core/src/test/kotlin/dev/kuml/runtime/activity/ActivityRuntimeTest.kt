@@ -1,5 +1,7 @@
 package dev.kuml.runtime.activity
 
+import dev.kuml.runtime.GuardEvaluator
+import dev.kuml.runtime.GuardResult
 import dev.kuml.runtime.KumlRuntimeJson
 import dev.kuml.runtime.TraceEntry
 import dev.kuml.sysml2.ActivityNodeKind
@@ -384,5 +386,50 @@ class ActivityRuntimeTest :
 
             val invoked = trace.filterIsInstance<TraceEntry.ActivityActionInvoked>()
             invoked.any { it.body == "myAction(42)" } shouldBe true
+        }
+
+        // ── 15. Security fix B2 regression — injected guardEvaluator is actually used ──
+
+        test("security fix B2: injected guardEvaluator is actually invoked, not bypassed by a direct OCL call") {
+            // Before the B2 fix, ActivityRuntime.evaluateGuard called
+            // dev.kuml.core.ocl.OclExpressions.evaluate directly and never consulted
+            // the injected `guardEvaluator` constructor parameter at all — a caller
+            // wrapping it in e.g. TimeLimitedGuardEvaluator had no effect whatsoever.
+            var invoked = false
+            val forceFalse =
+                GuardEvaluator { _, _, _ ->
+                    invoked = true
+                    GuardResult.False
+                }
+            val spec =
+                ActivityRuntimeSpec(
+                    nodes =
+                        listOf(
+                            node("init", ActivityNodeKind.Initial),
+                            node("dec", ActivityNodeKind.Decision),
+                            node("yes", ActivityNodeKind.Action, body = "yes()"),
+                            node("fin", ActivityNodeKind.Final),
+                        ).associateBy { it.id },
+                    edges =
+                        listOf(
+                            edge("e1", "init", "dec"),
+                            edge("e2", "dec", "yes", guard = "allow"),
+                            edge("e3", "yes", "fin"),
+                        ),
+                )
+            val rt = ActivityRuntime(spec = spec, guardEvaluator = forceFalse)
+
+            // The guard "allow" would normally evaluate to True given
+            // eventContext = {"allow": true} — but `forceFalse` always returns False
+            // regardless of the expression it's asked to evaluate. If ActivityRuntime
+            // genuinely routes through the injected evaluator, the decision's only
+            // outgoing edge is rejected and the activity deadlocks; if the wiring
+            // regressed back to a direct OclExpressions.evaluate call, "allow" would
+            // resolve to True from the event context and the run would terminate
+            // normally instead — silently proving the injected evaluator dead again.
+            shouldThrow<ActivityDeadlockException> {
+                rt.run(eventContext = mapOf("allow" to true))
+            }
+            invoked shouldBe true
         }
     })

@@ -10,14 +10,19 @@ import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
+import com.github.ajalt.clikt.parameters.types.long
+import com.github.ajalt.clikt.parameters.types.restrictTo
 import dev.kuml.cli.ExitCodes
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.runtime.TraceFile
 import dev.kuml.runtime.activity.ActivityDeadlockException
+import dev.kuml.runtime.activity.ActivityGuardEvaluator
 import dev.kuml.runtime.loadEvents
 import dev.kuml.runtime.loadTrace
+import dev.kuml.runtime.sandbox.SandboxPolicy
+import dev.kuml.runtime.sandbox.TimeLimitedGuardEvaluator
 import dev.kuml.runtime.sysml2.Sysml2ActivityAdapter
 import dev.kuml.runtime.sysml2.Sysml2StateMachineAdapter
 import dev.kuml.runtime.trace.ActivityContextFromTrace
@@ -67,7 +72,20 @@ internal class TraceReplayCommand : CliktCommand(name = "replay") {
     private val maxSteps by option(
         "--max-steps",
         help = "Max steps for activity replay (default 1000).",
-    ).int().default(1000)
+    ).int().restrictTo(min = 1).default(1000)
+
+    // Security review (feature/tokenflow-execution-engine, finding "Security-Fix B2
+    // unvollstaendig"): `kuml trace replay` is the fourth ACT execution call site through
+    // `Sysml2ActivityAdapter.runtimeFor` and, unlike the other three (SimulateCommand's
+    // `--sandbox` path, RunSessionManager, MCP RuntimeSessionManager), was left on the
+    // unsandboxed default `ActivityGuardEvaluator` with no CLI option to bound guard evaluation
+    // at all. Replay has no legitimate reason to run a guard unsandboxed — like
+    // RunSessionManager/RuntimeSessionManager, sandboxing here is therefore unconditional, not an
+    // opt-in flag; `--guard-timeout-ms` only tunes the bound, matching SimulateCommand's naming.
+    private val guardTimeoutMs by option(
+        "--guard-timeout-ms",
+        help = "Guard evaluation timeout in milliseconds for Activity replay (default ${SandboxPolicy.DEFAULT_GUARD_TIMEOUT_MS}).",
+    ).long().restrictTo(min = 1L).default(SandboxPolicy.DEFAULT_GUARD_TIMEOUT_MS)
 
     override fun help(context: Context): String = "Replay a recorded STM or Activity trace against its source model and compare the result."
 
@@ -165,46 +183,59 @@ internal class TraceReplayCommand : CliktCommand(name = "replay") {
                 }
             }
 
-        val runtime =
-            try {
-                Sysml2ActivityAdapter.runtimeFor(model = sysml2Model, diagram = actDiagram)
-            } catch (ex: IllegalArgumentException) {
-                System.err.println("SysML 2 ACT adapter error: ${ex.message}")
-                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+        // ADR-0015 / security fix B2: this was the one ACT execution call site left on the
+        // unsandboxed default `ActivityGuardEvaluator` (see the KDoc on
+        // `Sysml2ActivityAdapter.runtimeFor`'s `guardEvaluator` parameter). `kuml trace replay`
+        // re-evaluates every guard along the replayed trace with no CLI-reachable bound, so a
+        // pathological guard expression (e.g. an OclEvaluator `closure()` navigation over a large
+        // model) hung the process indefinitely under `--max-steps`' step count alone. Sandboxing
+        // is unconditional here — like RunSessionManager/RuntimeSessionManager, there is no
+        // legitimate reason to replay a guard unsandboxed — `--guard-timeout-ms` only tunes it.
+        TimeLimitedGuardEvaluator(
+            delegate = ActivityGuardEvaluator(),
+            policy = SandboxPolicy(guardTimeoutMs = guardTimeoutMs),
+        ).use { guardEvaluator ->
+            val runtime =
+                try {
+                    Sysml2ActivityAdapter.runtimeFor(model = sysml2Model, diagram = actDiagram, guardEvaluator = guardEvaluator)
+                } catch (ex: IllegalArgumentException) {
+                    System.err.println("SysML 2 ACT adapter error: ${ex.message}")
+                    throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                }
+
+            val eventContext = buildEventContext()
+
+            val report =
+                try {
+                    ActivityTraceReplayer().replay(
+                        runtime = runtime,
+                        original = traceData,
+                        eventContext = eventContext,
+                        maxSteps = maxSteps,
+                        failOnDeadlock = true,
+                        modelId = actDiagram.name,
+                    )
+                } catch (e: ActivityDeadlockException) {
+                    System.err.println(
+                        "Activity replay deadlocked: ${e.message}",
+                    )
+                    throw ProgramResult(ExitCodes.TRACE_REPLAY_MISMATCH)
+                } catch (e: IllegalArgumentException) {
+                    System.err.println("Replay error: ${e.message}")
+                    throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                }
+
+            echo(report.toHumanReadable(verbose = verbose))
+
+            if (verbose && !report.isMatch) {
+                val ctx = ActivityContextFromTrace.extract(traceData)
+                echo("")
+                echo(ctx.toHumanReadable())
             }
 
-        val eventContext = buildEventContext()
-
-        val report =
-            try {
-                ActivityTraceReplayer().replay(
-                    runtime = runtime,
-                    original = traceData,
-                    eventContext = eventContext,
-                    maxSteps = maxSteps,
-                    failOnDeadlock = true,
-                    modelId = actDiagram.name,
-                )
-            } catch (e: ActivityDeadlockException) {
-                System.err.println(
-                    "Activity replay deadlocked: ${e.message}",
-                )
+            if (!report.isMatch) {
                 throw ProgramResult(ExitCodes.TRACE_REPLAY_MISMATCH)
-            } catch (e: IllegalArgumentException) {
-                System.err.println("Replay error: ${e.message}")
-                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
-
-        echo(report.toHumanReadable(verbose = verbose))
-
-        if (verbose && !report.isMatch) {
-            val ctx = ActivityContextFromTrace.extract(traceData)
-            echo("")
-            echo(ctx.toHumanReadable())
-        }
-
-        if (!report.isMatch) {
-            throw ProgramResult(ExitCodes.TRACE_REPLAY_MISMATCH)
         }
     }
 

@@ -1,12 +1,12 @@
 package dev.kuml.runtime.activity
 
-import dev.kuml.core.ocl.OclEvaluationException
-import dev.kuml.core.ocl.OclExpressions
+import dev.kuml.runtime.Event
+import dev.kuml.runtime.GuardEvaluator
 import dev.kuml.runtime.GuardResult
 import dev.kuml.runtime.ModelInstance
-import dev.kuml.runtime.OclGuardEvaluator
 import dev.kuml.runtime.TraceEntry
 import dev.kuml.runtime.snapshot.ActivityInstanceSnapshot
+import dev.kuml.runtime.snapshot.MigrationException
 import dev.kuml.runtime.snapshot.MigrationPolicy
 import dev.kuml.runtime.snapshot.fingerprintActivity
 import dev.kuml.sysml2.ActivityNodeKind
@@ -55,7 +55,7 @@ import dev.kuml.sysml2.ActivityNodeKind
  */
 public class ActivityRuntime(
     public val spec: ActivityRuntimeSpec,
-    private val guardEvaluator: OclGuardEvaluator = OclGuardEvaluator(),
+    private val guardEvaluator: GuardEvaluator = ActivityGuardEvaluator(),
 ) {
     // ── public API ────────────────────────────────────────────────────────────
 
@@ -200,6 +200,25 @@ public class ActivityRuntime(
         snapshot: ActivityInstanceSnapshot,
         policy: MigrationPolicy = MigrationPolicy.Reject,
     ): ActivityInstance {
+        // Security review (feature/tokenflow-execution-engine, finding "KDoc verweist auf eine
+        // Schutzmassnahme, die es nicht gibt"): ActivityInstance.joinEdgeTokens' KDoc documents "a
+        // snapshot must not be restored by the other engine" as an existing restriction, but
+        // nothing enforced it before this check — isJoinReady below reads only
+        // joinTokensReceived, so a snapshot with joinEdgeTokens populated (written by
+        // dev.kuml.runtime.tokenflow.TokenFlowEngine, were it ever to gain a snapshot path) would
+        // have its AND-join edge arrivals silently ignored, leaving those tokens permanently stuck
+        // at the join (isJoinReady demands every incoming edge again, which never happens because
+        // this engine never populates joinTokensReceived from joinEdgeTokens). Unconditional, like
+        // onPatch's vertex-removal check — not policy-gated, because no MigrationPolicy question
+        // ("did the model change acceptably") applies to a structurally wrong snapshot kind.
+        if (snapshot.instance.joinEdgeTokens.isNotEmpty()) {
+            throw MigrationException(
+                reason = "snapshot was written by the TokenFlowEngine (joinEdgeTokens populated) and cannot be restored by ActivityRuntime",
+                expected = "joinEdgeTokens empty",
+                actual = "joinEdgeTokens has ${snapshot.instance.joinEdgeTokens.size} join node(s) with edge-level arrivals",
+            )
+        }
+
         val currentFingerprint =
             fingerprintActivity(
                 nodeIds = spec.nodes.keys,
@@ -442,42 +461,25 @@ public class ActivityRuntime(
      * Evaluate a guard expression against the event context.
      * On evaluator exception → return [GuardResult.False] (per plan: don't throw).
      *
-     * The evaluation environment is built to allow bare-identifier guards
-     * (`"valid"`, `"!valid"`) to work: the eventContext entries are merged
-     * directly into the OCL env so `valid` resolves to `env["valid"]`.
+     * **Security fix (ADR-0015 / B2, was dead code before):** this now actually
+     * routes through the injected [guardEvaluator] instead of calling
+     * [dev.kuml.core.ocl.OclExpressions.evaluate] directly. A caller that wraps
+     * the evaluator in `dev.kuml.runtime.sandbox.TimeLimitedGuardEvaluator` can
+     * therefore bound guard-evaluation time — previously that wrapper had no
+     * effect on [ActivityRuntime] because the constructor parameter was never
+     * consulted at all.
+     *
+     * The evaluation environment (built by the default [ActivityGuardEvaluator])
+     * allows bare-identifier guards (`"valid"`, `"!valid"`) to keep working:
+     * the eventContext entries are merged directly into the OCL env so `valid`
+     * resolves to `env["valid"]`.
      */
     private fun evaluateGuard(
         guard: String,
         eventContext: Map<String, Any>,
     ): GuardResult {
-        // Strip square-bracket wrapping if present: "[valid]" → "valid"
-        val cleaned =
-            guard.trim().let {
-                if (it.startsWith("[") && it.endsWith("]")) it.substring(1, it.length - 1).trim() else it
-            }
-        return try {
-            // Build env with eventContext entries at top level so bare guards
-            // like "valid" resolve directly. Also expose under "event" and "vars"
-            // for compatibility with STM-style OCL expressions like "event.allow".
-            val syntheticInstance = ActivityEvalContext(eventContext)
-            val env: Map<String, Any?> =
-                eventContext +
-                    mapOf(
-                        "event" to eventContext,
-                        "vars" to eventContext,
-                    )
-            val raw = OclExpressions.evaluate(expression = cleaned, self = syntheticInstance, env = env)
-            when (raw) {
-                true -> GuardResult.True
-                false -> GuardResult.False
-                null -> GuardResult.False
-                else -> GuardResult.Failed("Guard did not evaluate to Boolean (got $raw)")
-            }
-        } catch (ex: OclEvaluationException) {
-            GuardResult.False
-        } catch (ex: Exception) {
-            GuardResult.False
-        }
+        val syntheticInstance = ActivityEvalContext(eventContext)
+        return guardEvaluator.evaluate(guard = guard, instance = syntheticInstance, event = Event.of("advance"))
     }
 
     // ── trace entry factories ─────────────────────────────────────────────────

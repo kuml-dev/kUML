@@ -66,6 +66,23 @@ internal object ExitCodes {
     /** A guard evaluation timed out during sandboxed simulate. */
     internal const val SANDBOX_TIMEOUT: Int = 13
 
+    // ── `kuml simulate` — TokenFlowEngine (ADR-0015) ─────────────────────────
+
+    /**
+     * `kuml simulate` on a BPMN process or UML Activity diagram — a
+     * [dev.kuml.runtime.tokenflow.TokenFlowLimits] threshold (`maxSteps`,
+     * `maxTokens`, `maxTraceEntries`, or wall-clock budget) was exceeded.
+     * Distinct from [TRACE_DIFF]/[SANDBOX_TIMEOUT]: this means execution did
+     * not converge at all, not that its output differed from a goldfile.
+     */
+    internal const val TOKEN_FLOW_LIMIT_EXCEEDED: Int = 26
+
+    /**
+     * `kuml simulate` on a BPMN process or UML Activity diagram — the token
+     * flow deadlocked (no node could fire and the marking was non-empty).
+     */
+    internal const val TOKEN_FLOW_DEADLOCK: Int = 27
+
     // ── `kuml reverse` (V3.0.9) ──────────────────────────────────────────────
 
     /** `kuml reverse --lang <id>` referenced an unknown reverse engine. */
