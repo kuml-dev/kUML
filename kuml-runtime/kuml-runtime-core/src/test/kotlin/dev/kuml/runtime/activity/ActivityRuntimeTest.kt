@@ -106,6 +106,41 @@ class ActivityRuntimeTest :
             bodies.contains("no()") shouldBe false
         }
 
+        // ── 2b. Decision with negated guard — the other branch is taken ────────
+        // Regression test for the bugfix: before it, "!allow" silently evaluated
+        // to False on every input, so this case (allow=false, expecting the
+        // "!allow" edge to fire) failed on unfixed code — the "correct guarded
+        // branch is taken" test above (allow=true) could not catch this, because
+        // "!allow" being False when allow=true is also the (coincidentally)
+        // correct answer on the broken code path.
+
+        test("decision: negated guard takes the other branch when the variable is false") {
+            val rt =
+                runtime(
+                    node("init", ActivityNodeKind.Initial),
+                    node("dec", ActivityNodeKind.Decision),
+                    node("yes", ActivityNodeKind.Action, body = "yes()"),
+                    node("no", ActivityNodeKind.Action, body = "no()"),
+                    node("fin", ActivityNodeKind.Final),
+                    edges =
+                        listOf(
+                            edge("e1", "init", "dec"),
+                            edge("e2", "dec", "yes", guard = "allow"),
+                            edge("e3", "dec", "no", guard = "!allow"),
+                            edge("e4", "yes", "fin"),
+                            edge("e5", "no", "fin"),
+                        ),
+                )
+
+            val (instance, trace) = rt.run(eventContext = mapOf("allow" to false))
+
+            instance.isTerminated shouldBe true
+            val actionInvoked = trace.filterIsInstance<TraceEntry.ActivityActionInvoked>()
+            val bodies = actionInvoked.map { it.body }
+            bodies.contains("no()") shouldBe true
+            bodies.contains("yes()") shouldBe false
+        }
+
         // ── 3. Decision default branch ─────────────────────────────────────────
 
         test("decision: first unguarded edge taken when no guard matches") {

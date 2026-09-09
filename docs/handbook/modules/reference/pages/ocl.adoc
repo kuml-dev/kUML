@@ -122,6 +122,16 @@ The runtime parses the guard at evaluation time, navigates `event.totalCents` ag
 event's payload map, and `self.itemCount` against the machine's variables map. Both are
 populated by the simulator's event stream — see xref:simulate.adoc[simulate].
 
+NOTE: Guard expressions (on state machine transitions, activity/BPMN decision and gateway
+edges alike) additionally accept the C-like operators `!`, `!=`, `&&`, `||` alongside the
+OCL keywords `not`, `<>`, `and`, `or` from the table above — `!allow` and `not allow` are
+both valid and equivalent for a bare identifier. Both spellings bind identically in longer
+expressions too: `!` and `not` both bind **looser** than comparison, so `!a == b` (C-like)
+and `not a = b` (OCL) each negate the whole comparison — `!(a == b)` / `not (a = b)`, not
+`(!a) == b`. Still, pick one dialect per expression rather than mixing `!` and `not` (or
+`&&`/`and`, `||`/`or`, `!=`/`<>`) in the same guard — each front-end only recognizes its
+own operator tokens.
+
 == Profile-level constraints
 
 Stereotypes can carry constraints that apply automatically to any element with that

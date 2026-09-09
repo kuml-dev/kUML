@@ -459,7 +459,14 @@ public class ActivityRuntime(
 
     /**
      * Evaluate a guard expression against the event context.
-     * On evaluator exception → return [GuardResult.False] (per plan: don't throw).
+     * A genuinely false-evaluating guard, or one whose variable is missing,
+     * returns [GuardResult.False]; a guard the evaluator could not parse or
+     * evaluate at all returns [GuardResult.Failed] instead of throwing — this
+     * branch never propagates an exception (per plan: don't throw). Branch
+     * selection above only compares `== GuardResult.True`, so `False` and
+     * `Failed` both mean "this edge is not taken"; a `Failed` additionally
+     * surfaces as a `GUARD_EVALUATION_FAILED` warning via the existing
+     * `TokenFlowEngine.guardResultListener` side-channel where one is wired up.
      *
      * **Security fix (ADR-0015 / B2, was dead code before):** this now actually
      * routes through the injected [guardEvaluator] instead of calling
@@ -471,8 +478,8 @@ public class ActivityRuntime(
      *
      * The evaluation environment (built by the default [ActivityGuardEvaluator])
      * allows bare-identifier guards (`"valid"`, `"!valid"`) to keep working:
-     * the eventContext entries are merged directly into the OCL env so `valid`
-     * resolves to `env["valid"]`.
+     * the eventContext entries are merged directly into the evaluation env so
+     * `valid` resolves to `env["valid"]`.
      */
     private fun evaluateGuard(
         guard: String,

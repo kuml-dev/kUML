@@ -18,6 +18,7 @@ class SimulateCommandUmlActivityTest :
     FunSpec({
         val script = File("src/test/resources/simulate/uml/activity-decision.kuml.kts")
         val events = File("src/test/resources/simulate/uml/activity-decision.events.json")
+        val eventsNoGo = File("src/test/resources/simulate/uml/activity-decision-nogo.events.json")
 
         test("kuml simulate executes a UML Activity diagram with a Decision node") {
             val out = Files.createTempFile("kuml-simulate-uml-activity-", ".trace.json").toFile()
@@ -28,6 +29,25 @@ class SimulateCommandUmlActivityTest :
 
                 val trace = loadTrace(out)
                 trace.entries.filterIsInstance<TraceEntry.ActivityActionInvoked>().map { it.body } shouldBe listOf("yes")
+                trace.entries.filterIsInstance<TraceEntry.ActivityTerminated>().size shouldBe 1
+            } finally {
+                out.delete()
+            }
+        }
+
+        // Regression test for the '!'-negation bugfix: before it, the "!go" guard
+        // on this exact fixture silently evaluated to False on every input, so
+        // the "no" branch never fired — end-to-end through the CLI, TokenFlowEngine,
+        // and the sandboxed guard evaluator.
+        test("kuml simulate takes the negated-guard branch when the variable is false") {
+            val out = Files.createTempFile("kuml-simulate-uml-activity-nogo-", ".trace.json").toFile()
+            try {
+                val result =
+                    KumlCli().test(listOf("simulate", script.absolutePath, eventsNoGo.absolutePath, "--out", out.absolutePath))
+                result.statusCode shouldBe 0
+
+                val trace = loadTrace(out)
+                trace.entries.filterIsInstance<TraceEntry.ActivityActionInvoked>().map { it.body } shouldBe listOf("no")
                 trace.entries.filterIsInstance<TraceEntry.ActivityTerminated>().size shouldBe 1
             } finally {
                 out.delete()

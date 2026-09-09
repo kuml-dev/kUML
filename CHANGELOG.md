@@ -181,6 +181,55 @@ lehnt jetzt einen Snapshot mit gesetztem `ActivityInstance.joinEdgeTokens` (nur 
 `ActivityInstance.joinEdgeTokens` verwies bisher auf eine Absicherung, die nirgends
 implementiert war.
 
+**`!`-negierte Guards auf dem Activity-/BPMN-Pfad waren stiller toter Code**
+
+`ActivityGuardEvaluator` (Activity-Runtime und `TokenFlowEngine` gleichermaßen) werteten
+einen `!`-negierten Guard (`"!allow"`) auf **jedem** Eingabewert zu `false` aus, weil dieser
+Evaluator ausschließlich das `dev.kuml.core.ocl`-Frontend nutzte, das `!` als Lexer-Fehler
+behandelt — der Zweig war faktisch tot, egal was `allow` enthielt. Auf dem STM-Pfad
+(`dev.kuml.runtime.OclGuardEvaluator`) funktionierte dieselbe Schreibweise bereits korrekt,
+weil dieser Evaluator seit V2.0.20a zusätzlich ein typisiertes AST-Frontend probiert, das
+`!` kennt. `ActivityGuardEvaluator` bekommt jetzt dieselbe Zwei-Frontend-Strategie (AST
+zuerst, OCL-Legacy als Fallback) — betroffen waren u. a. das Order-Processing-Beispiel
+(`!valid` → `CancelOrder`) und die CLI-Fixture `activity-decision.kuml.kts` (`!go`), die
+beide bisher nie den negierten Zweig genommen hatten. Zusätzlich: ein echter Parse-/
+Auswertungsfehler in einem Guard wird jetzt als `GuardResult.Failed` gemeldet (sichtbar als
+`GUARD_EVALUATION_FAILED`-Warnung) statt still als `false` — vorher war ein kaputter Guard
+von einem legitim falschen Guard nicht zu unterscheiden, was genau diese Fehlerklasse hat
+unbemerkt bleiben lassen. Die Zweigauswahl selbst ändert sich dadurch nicht
+(`Failed` wählt wie `False` weiterhin keinen Zweig).
+
+Zwei Review-Befunde an der neuen Zwei-Frontend-Strategie selbst wurden vor dem Merge noch
+behoben: Erstens war `x != 1` bzw. `x != 'DONE'` mit **fehlender** Variable `x` fail-*offen*
+statt fail-geschlossen — `ExpressionEvaluator`s nulltolerantes `==`/`!=` behandelt eine
+fehlende Variable wie eine vorhandene-aber-`null`e, wodurch `!=` einen definiten (falschen)
+`true` lieferte und die Kante feuerte, obwohl die Daten nie gesetzt waren. Ein `true`-Ergebnis
+wird jetzt zusätzlich gegen die tatsächlich referenzierten Variablen geprüft und bei einer
+fehlenden Variable verworfen (Fallback auf OCL, das `!=` mangels `!`-Unterstützung als
+`Failed` meldet) — ein `false`-Ergebnis bleibt unverändert vertrauenswürdig, weil es ohnehin
+die sichere Richtung ist. Zweitens fing der abschließende Catch in `evaluateViaOcl` nur vier
+konkrete Exception-Typen ab; `OclEvaluator` wirft für einzelne Konstrukte (`x->includes()`
+ohne Argument, `x->forAll(1)` ohne `v | ...`-Lambda) aber unchecked `NoSuchElementException`
+bzw. `NullPointerException`, die daran vorbeiliefen und den Aufrufer abstürzen ließen — ein
+abschließender `catch (ex: RuntimeException)` schließt diese Lücke.
+
+Ein zweiter Review-Durchlauf deckte auf, dass der `<>`-Fix oben nur die Bare-Identifier-
+Schreibweise (`x <> 1`) abdeckte: die im Handbuch dokumentierte Punkt-Schreibweise
+(`vars.x <> 1`, `event.x <> 1`) navigiert stattdessen `OclExpression.Navigate` auf eine
+`Map`-Receiver-Instanz, deren `map[prop]`-Zugriff für einen fehlenden Schlüssel genauso
+still `null` liefert wie ein fehlender `env`-Eintrag — und blieb dadurch fail-*offen*, obwohl
+Handbuch und KDoc `!=`/`<>` sowie Bare-Identifier/Punkt-Schreibweise ausdrücklich als
+gleichwertig bewarben. `OclEvaluator` trackt jetzt auch einen fehlenden Map-Schlüssel bei
+`Navigate` und beim `PropertyAccessor`-Fallback in `evalOperationCall` (deckt z. B.
+`vars.getStatus() <> 'x'` ab). Zusätzlich war der Fehlende-Variable-Merker selbst nicht
+ergebnis-relevanz-bewusst: `evalBinaryOp` wertete `and`/`or`/`implies` bisher eager aus (beide
+Seiten immer), sodass ein legitim wahres `urgent or vip` fail-geschlossen als `Failed` endete,
+sobald nur die niemals tatsächlich konsultierte andere Seite eine fehlende Variable
+referenzierte. Die drei Operatoren werten jetzt lazy/kurzschließend aus — was nebenbei auch
+näher an der OCL-2.4-Standardbibliothek-Semantik liegt (`false and invalid = false`,
+`true or invalid = true`), analog zur bereits vorhandenen kurzschluss-bewussten Prüfung auf
+dem AST-Dialekt (`ActivityGuardEvaluator.referencesUnresolvedVariableInBinary`).
+
 **UML kennt Assoziationsklassen — kUML bisher nicht (ADR-0017, Welle D)**
 
 UML 2.5 kennt die Assoziationsklasse (`AssociationClass`, §11.5.3) als Standardkonzept —

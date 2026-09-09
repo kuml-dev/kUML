@@ -98,6 +98,31 @@ class TokenFlowParityTest :
             assertParity(spec, mapOf("allow" to true))
         }
 
+        // Regression companion to the fixture above: both engines must choose the
+        // same branch via the negated guard too, not just the un-negated one.
+        test("parity: decision — correct guarded branch (negated)") {
+            val spec =
+                ActivityRuntimeSpec(
+                    nodes =
+                        listOf(
+                            node("init", ActivityNodeKind.Initial),
+                            node("dec", ActivityNodeKind.Decision),
+                            node("yes", ActivityNodeKind.Action, "yes()"),
+                            node("no", ActivityNodeKind.Action, "no()"),
+                            node("fin", ActivityNodeKind.Final),
+                        ).associateBy { it.id },
+                    edges =
+                        listOf(
+                            edge("e1", "init", "dec"),
+                            edge("e2", "dec", "yes", "allow"),
+                            edge("e3", "dec", "no", "!allow"),
+                            edge("e4", "yes", "fin"),
+                            edge("e5", "no", "fin"),
+                        ),
+                )
+            assertParity(spec, mapOf("allow" to false))
+        }
+
         test("parity: decision — first unguarded edge as default") {
             val spec =
                 ActivityRuntimeSpec(

@@ -123,6 +123,18 @@ options at all, always got the unsandboxed default. Fixed the same way as
 legitimate reason to run a guard unsandboxed), with a `--guard-timeout-ms` option — matching
 `SimulateCommand`'s naming — to tune the bound.
 
+**Note (later fix, `!`-negation):** the B2 extraction above preserved
+`ActivityGuardEvaluator`'s *historical* env-building and evaluation semantics verbatim —
+including a latent bug in them: `!`-negated guards (`"!allow"`) silently evaluated to
+`false` on every input, because this evaluator used only the `dev.kuml.core.ocl` front-end,
+which lexes `!` as an error. This was invisible in `TokenFlowParityTest` and the "correct
+guarded branch" fixtures above, because they only ever exercised the *un-negated* branch of
+a guard pair — the negated edge happened to also correctly evaluate to `false` whenever the
+un-negated one was `true`. `ActivityGuardEvaluator` was later given the same two-front-end
+strategy `dev.kuml.runtime.OclGuardEvaluator` already had (typed AST first, OCL fallback),
+so this ADR should not be read as evidence that the evaluator's dialect was ever fully
+correct — only that its env-building (the actual subject of B2) was faithfully preserved.
+
 ### B5 — `maxSteps` alone does not stop a token-explosion DoS
 
 A cyclic Fork (a `PARALLEL` diverging gateway inside a loop) can double the token count

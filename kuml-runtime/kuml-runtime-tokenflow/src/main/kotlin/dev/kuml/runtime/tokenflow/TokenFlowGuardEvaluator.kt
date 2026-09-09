@@ -15,7 +15,10 @@ import dev.kuml.runtime.activity.ActivityGuardEvaluator
  * resolve directly" behaviour (`condition = "verfuegbar"` in the BPMN OKF
  * examples, `guard = "allow"` in `ActivityRuntimeTest`) because
  * `dev.kuml.runtime.OclGuardEvaluator`'s default `{event, vars}`-only env
- * would silently fail every such guard and choose the wrong branch.
+ * would silently fail every such guard and choose the wrong branch — and the
+ * same guard dialect (`!`, `!=`, `&&`, `||` via the typed AST front-end,
+ * `not`/`and`/`or`/`<>` via the OCL front-end), so a negated guard chooses
+ * the same branch on this engine as it does on [ActivityRuntime].
  *
  * Never constructed bare by [TokenFlowEngine.sandboxed] — it is always wrapped
  * in `dev.kuml.runtime.sandbox.TimeLimitedGuardEvaluator` (ADR-0015 doctrine:
