@@ -2,7 +2,13 @@ package dev.kuml.core.script
 
 import java.io.BufferedReader
 import java.io.File
+import java.io.IOException
+import java.nio.file.FileVisitResult
 import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.attribute.BasicFileAttributes
+import java.util.concurrent.TimeUnit
 
 /**
  * Shared helpers for launching and talking to a script-evaluation child JVM
@@ -34,10 +40,77 @@ internal object WorkerProcessSupport {
          * Closes the post-start OS cage (on Windows this kills the caged process
          * via `KILL_ON_JOB_CLOSE`) and recursively removes the per-worker temp
          * directory. Idempotent, best-effort.
+         *
+         * **Sandbox-escape hardening:** two properties matter here and both used
+         * to be missing.
+         *
+         * 1. Callers destroy the child with `process.destroyForcibly()`, which is
+         *    *asynchronous* — the call returns before the child has actually
+         *    exited. If [cleanup] deleted [workDir] immediately afterwards, a
+         *    still-alive child could plant e.g. a symlink into [workDir] in the
+         *    window between `destroyForcibly()` and this delete. So we first wait
+         *    (bounded) for the child to actually exit before touching the
+         *    sandbox-writable directory at all.
+         * 2. `File.deleteRecursively()` walks via `File.isDirectory()` /
+         *    `File.listFiles()`, which **follow symbolic links** — a directory
+         *    symlink planted inside [workDir] (the *only* read-write path bound
+         *    into the OS cage, see [launch]) would cause a recursive delete of
+         *    whatever it points to, running with the *parent* JVM's privileges,
+         *    i.e. outside the OS sandbox entirely. [deleteRecursivelySafely] uses
+         *    `Files.walkFileTree` without `FOLLOW_LINKS`, which visits a symlink
+         *    as a leaf (deleting only the link) instead of descending into its
+         *    target.
          */
         fun cleanup() {
             runCatching { cage.close() }
-            runCatching { workDir.deleteRecursively() }
+            runCatching { process.waitFor(WorkerProcessSupport.PROCESS_EXIT_WAIT_MILLIS, TimeUnit.MILLISECONDS) }
+            runCatching { WorkerProcessSupport.deleteRecursivelySafely(workDir) }
+        }
+    }
+
+    /** Bounded wait for a just-destroyed child to actually exit before [LaunchedWorker.cleanup] touches its workdir. */
+    private const val PROCESS_EXIT_WAIT_MILLIS: Long = 2_000
+
+    /**
+     * Recursively deletes [root] **without following symbolic links** — a
+     * directory symlink is deleted as the link itself, never traversed into.
+     * `Files.walkFileTree` only follows symlinks when `FileVisitOption.FOLLOW_LINKS`
+     * is passed, which it deliberately is not here. Best-effort: failures to
+     * delete an individual entry are swallowed so one stubborn file can't abort
+     * the rest of the cleanup (matching the previous `deleteRecursively()`
+     * best-effort contract).
+     */
+    private fun deleteRecursivelySafely(root: File) {
+        if (!root.exists() && !Files.isSymbolicLink(root.toPath())) return
+        runCatching {
+            Files.walkFileTree(
+                root.toPath(),
+                object : SimpleFileVisitor<Path>() {
+                    override fun visitFile(
+                        file: Path,
+                        attrs: BasicFileAttributes,
+                    ): FileVisitResult {
+                        runCatching { Files.deleteIfExists(file) }
+                        return FileVisitResult.CONTINUE
+                    }
+
+                    override fun visitFileFailed(
+                        file: Path,
+                        exc: IOException,
+                    ): FileVisitResult {
+                        runCatching { Files.deleteIfExists(file) }
+                        return FileVisitResult.CONTINUE
+                    }
+
+                    override fun postVisitDirectory(
+                        dir: Path,
+                        exc: IOException?,
+                    ): FileVisitResult {
+                        runCatching { Files.deleteIfExists(dir) }
+                        return FileVisitResult.CONTINUE
+                    }
+                },
+            )
         }
     }
 

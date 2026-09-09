@@ -137,6 +137,12 @@ platform artifacts) — no standalone catalog entry to bump.
 
 ### Fixed
 
+**Worker-Pool-Shutdown konnte Kind-JVMs des Skript-Sandbox-Pools leaken**
+
+Worker-Pool-Shutdown: Kind-JVMs des Skript-Sandbox-Pools konnten unter Last überleben,
+wenn ein Worker exakt im Moment des Herunterfahrens ersetzt wurde. Der Shutdown beendet
+jetzt zuverlässig jeden Worker-Prozess.
+
 **`OclGuardEvaluator` (STM-Guard-Pfad) hatte dieselben Fail-Open-Lücken wie zuvor `ActivityGuardEvaluator`**
 
 Der vorherige Fix für `ActivityGuardEvaluator` (siehe „`!`-negierte Guards auf dem

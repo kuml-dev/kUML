@@ -1,15 +1,22 @@
 package dev.kuml.core.script
 
+import io.kotest.assertions.throwables.shouldNotThrowAny
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.ints.shouldBeLessThanOrEqual
 import io.kotest.matchers.longs.shouldBeLessThanOrEqual
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.system.measureTimeMillis
 
 /**
@@ -175,28 +182,201 @@ class WorkerPoolTest :
 
         test("orderly shutdown terminates every worker process — no zombie leak") {
             val pool = WorkerPool(poolSize = 3, maxConcurrentWorkers = 4)
-            awaitIdle(pool, 3).shouldBeTrue()
+            try {
+                awaitIdle(pool, 3).shouldBeTrue()
 
-            val pids = pool.livePidsForTest()
-            pids.size.shouldBeGreaterThan(0)
+                val pids = pool.livePidsForTest()
+                pids.size.shouldBeGreaterThan(0)
 
-            pool.close()
+                pool.close()
 
-            // Give the OS a moment to reap the killed children, then assert every
-            // worker pid is gone. This is the concrete "no zombie process leak".
-            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15)
-            var stillAlive = pids.filter { ProcessHandle.of(it).map { h -> h.isAlive }.orElse(false) }
-            while (stillAlive.isNotEmpty() && System.nanoTime() < deadline) {
-                Thread.sleep(100)
-                stillAlive = pids.filter { ProcessHandle.of(it).map { h -> h.isAlive }.orElse(false) }
+                // Give the OS a moment to reap the killed children, then assert every
+                // worker pid is gone. This is the concrete "no zombie process leak".
+                val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15)
+                var stillAlive = pids.filter { ProcessHandle.of(it).map { h -> h.isAlive }.orElse(false) }
+                while (stillAlive.isNotEmpty() && System.nanoTime() < deadline) {
+                    Thread.sleep(100)
+                    stillAlive = pids.filter { ProcessHandle.of(it).map { h -> h.isAlive }.orElse(false) }
+                }
+                println("[shutdown] launched pids=$pids stillAlive=$stillAlive")
+                stillAlive.isEmpty().shouldBeTrue()
+
+                // Evaluating after close fails closed (SANDBOX), never runs in-process.
+                val afterClose = pool.evaluate(source = minimalUml)
+                val failure = afterClose.shouldBeInstanceOf<EvaluatedScript.Failure>()
+                failure.kind shouldBe FailureKind.SANDBOX
+            } finally {
+                // Safety net: if an assertion above fails before the explicit
+                // pool.close() runs (e.g. awaitIdle times out on a loaded CI
+                // runner), this still shuts the pool down instead of leaking the
+                // warm worker JVMs the test just launched — close() is idempotent.
+                pool.close()
             }
-            println("[shutdown] launched pids=$pids stillAlive=$stillAlive")
-            stillAlive.isEmpty().shouldBeTrue()
+        }
 
-            // Evaluating after close fails closed (SANDBOX), never runs in-process.
-            val afterClose = pool.evaluate(source = minimalUml)
-            val failure = afterClose.shouldBeInstanceOf<EvaluatedScript.Failure>()
-            failure.kind shouldBe FailureKind.SANDBOX
+        test("shutdown drain survives the size==1 toList() trap that leaked worker processes") {
+            val vanishing = VanishingSingletonSet()
+
+            // Dokumentiert den Bug: der alte close()-Snapshot wirft hier deterministisch.
+            shouldThrow<NoSuchElementException> { (vanishing as Iterable<String>).toList() }
+
+            // Der Drain darf das nicht — sonst bliebe close() unfertig stehen, das
+            // closed-Flag wäre gesetzt und die Worker-Prozesse würden geleakt.
+            var destroyed = 0
+            shouldNotThrowAny {
+                WorkerPool.drainAndDestroy(workers = vanishing, maxIterations = 16) { destroyed++ }
+            }
+            destroyed shouldBe 0
+        }
+
+        test("shutdown drain terminates every worker, including one added mid-drain") {
+            val live = ConcurrentHashMap.newKeySet<String>()
+            (1..50).forEach { live.add("w$it") }
+            val destroyed = ConcurrentHashMap.newKeySet<String>()
+            val injectedLateArrival = AtomicBoolean(false)
+
+            // Simuliert genau Leak-Pfad 2a: ein Worker, der WÄHREND des Drains noch
+            // in `live` eingetragen wird (z. B. der Refiller registriert ihn kurz vor
+            // seinem awaitTermination-Ende). Die Injektion passiert deterministisch
+            // beim ersten Callback-Aufruf, sodass die Erwartung nicht von der
+            // (undefinierten) Iterationsreihenfolge einer ConcurrentHashMap abhängt.
+            val terminated =
+                WorkerPool.drainAndDestroy(workers = live, maxIterations = 200) { victim ->
+                    if (injectedLateArrival.compareAndSet(false, true)) {
+                        live.add("late-arrival")
+                    }
+                    destroyed.add(victim)
+                }
+
+            live.shouldBeEmpty()
+            terminated shouldBe 51 // 50 ursprüngliche + 1 mitten im Drain nachgelegter Worker
+            destroyed.size shouldBe 51
+        }
+
+        test("registerOrReap: pool not closed — worker stays registered in live") {
+            val live = ConcurrentHashMap.newKeySet<String>()
+            var destroyed = false
+
+            val result = WorkerPool.registerOrReap(worker = "w1", live = live, closed = { false }) { destroyed = true }
+
+            result shouldBe "w1"
+            live shouldBe setOf("w1")
+            destroyed shouldBe false
+        }
+
+        test("registerOrReap: pool closed — worker is reaped, live stays empty, destroy is called") {
+            val live = ConcurrentHashMap.newKeySet<String>()
+            var destroyed = false
+
+            val result = WorkerPool.registerOrReap(worker = "w1", live = live, closed = { true }) { destroyed = true }
+
+            result shouldBe null
+            live.shouldBeEmpty()
+            destroyed shouldBe true
+        }
+
+        test("registerOrReap: publishes to live BEFORE consulting the closed supplier (call-site-argument-order regression guard)") {
+            // This test pins the exact contract that the Runde-2 regression broke:
+            // registerOrReap must call `live.add(worker)` before it ever invokes
+            // the `closed` supplier. If a caller (or a future refactor of the
+            // function body) evaluates `closed` before publishing to `live`, the
+            // close()-drain/register race becomes possible again — see the KDoc
+            // on `registerOrReap` for the full happens-before argument.
+            val live = ConcurrentHashMap.newKeySet<String>()
+            val order = java.util.Collections.synchronizedList(mutableListOf<String>())
+
+            val closedSupplier = {
+                order.add("closed")
+                // Assert from *inside* the supplier: by the time anyone reads the
+                // flag, the worker must already be visible in `live`.
+                live shouldBe setOf("w1")
+                false
+            }
+
+            WorkerPool.registerOrReap(worker = "w1", live = live, closed = closedSupplier) {
+                order.add("destroy")
+            }
+
+            // live.add happens inside the function body, so it never appears in
+            // `order` itself — what we can observe directly is that `closed` was
+            // read at all (proving the supplier form is actually used, not a
+            // pre-computed Boolean) and that the in-supplier assertion above held.
+            order shouldBe listOf("closed")
+            live shouldBe setOf("w1")
+        }
+
+        test("enqueueReadyOrReap: pool not closed — worker is enqueued idle, live untouched") {
+            val idle = java.util.concurrent.ConcurrentLinkedQueue<String>()
+            val live = ConcurrentHashMap.newKeySet<String>().apply { add("w1") }
+            var destroyed = false
+
+            val enqueued = WorkerPool.enqueueReadyOrReap(worker = "w1", idle = idle, live = live, closed = { false }) { destroyed = true }
+
+            enqueued shouldBe true
+            idle.toList() shouldBe listOf("w1")
+            live shouldBe setOf("w1")
+            destroyed shouldBe false
+        }
+
+        test("enqueueReadyOrReap: pool closed — worker is reaped from live, never enqueued idle") {
+            val idle = java.util.concurrent.ConcurrentLinkedQueue<String>()
+            val live = ConcurrentHashMap.newKeySet<String>().apply { add("w1") }
+            var destroyed = false
+
+            val enqueued = WorkerPool.enqueueReadyOrReap(worker = "w1", idle = idle, live = live, closed = { true }) { destroyed = true }
+
+            enqueued shouldBe false
+            idle.shouldBeEmpty()
+            live.shouldBeEmpty()
+            destroyed shouldBe true
+        }
+
+        test("second close() call after a normal shutdown does not throw and leaves no live worker") {
+            val pool = WorkerPool(poolSize = 2, maxConcurrentWorkers = 4)
+            try {
+                awaitIdle(pool, 2).shouldBeTrue()
+
+                shouldNotThrowAny { pool.close() }
+                shouldNotThrowAny { pool.close() }
+                pool.stats().live shouldBe 0
+            } finally {
+                // Safety net: if awaitIdle times out before either close() call
+                // runs, this still terminates the launched workers instead of
+                // leaking them — close() is idempotent, so a third call here is
+                // harmless whether or not the test body's own calls already ran.
+                pool.close()
+            }
+        }
+
+        test("concurrent close() under refiller churn never throws and leaks no worker process") {
+            repeat(30) {
+                val pool =
+                    WorkerPool(
+                        poolSize = 2,
+                        maxConcurrentWorkers = 4,
+                        checkoutTimeoutMillis = 100,
+                        readyTimeoutMillis = 500,
+                        classpath = "/nonexistent-classpath-so-the-child-dies-immediately",
+                        log = { },
+                    )
+                Thread.sleep(60) // Refiller in die add/retire-Schleife kommen lassen
+
+                // Mehrere Threads schließen gleichzeitig — kein Aufruf darf werfen.
+                val start = CountDownLatch(1)
+                val failure = AtomicReference<Throwable?>(null)
+                val closers =
+                    (1..4).map {
+                        Thread {
+                            start.await()
+                            runCatching { pool.close() }.onFailure { t -> failure.compareAndSet(null, t) }
+                        }.apply { this.start() }
+                    }
+                start.countDown()
+                closers.forEach { it.join(20_000) }
+
+                failure.get() shouldBe null
+                pool.stats().live shouldBe 0
+            }
         }
 
         test("fail-closed: a pool that can never start a worker returns SANDBOX, not in-process") {
@@ -231,3 +411,19 @@ class WorkerPoolTest :
             }
         }
     })
+
+/**
+ * Meldet `size == 1`, liefert aber einen leeren Iterator — die exakte Form,
+ * die eine `ConcurrentHashMap.KeySetView` `toList()` präsentiert, wenn ihr
+ * einziges Element zwischen dem `size`-Read und `iterator().next()` von einem
+ * nebenläufigen `retire()` entfernt wird.
+ */
+private class VanishingSingletonSet : AbstractMutableSet<String>() {
+    private val backing = ConcurrentHashMap.newKeySet<String>()
+
+    override val size: Int get() = 1
+
+    override fun add(element: String): Boolean = backing.add(element)
+
+    override fun iterator(): MutableIterator<String> = backing.iterator()
+}

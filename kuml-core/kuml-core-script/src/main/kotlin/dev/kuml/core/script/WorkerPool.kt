@@ -208,7 +208,12 @@ internal class WorkerPool(
             val worker = newWorker() ?: break
             // Ready-await happens off the caller path (we are on the refiller thread).
             if (worker.awaitReady(readyTimeoutMillis) && worker.isIdle) {
-                idle.add(worker)
+                // The pool can have been closed while we waited for the ready
+                // line. That worker sits behind close()'s drain and would never
+                // be terminated — reap it instead of leaking a child JVM.
+                if (!enqueueReadyOrReap(worker = worker, idle = idle, live = live, closed = closed::get) { it.destroy() }) {
+                    return
+                }
                 logState("worker ready pid=${worker.pid()}")
             } else {
                 // Diagnostic: a worker that dies before the ready sentinel (e.g. a
@@ -234,8 +239,18 @@ internal class WorkerPool(
         try {
             startingCount.incrementAndGet()
             val w = WarmScriptWorker(timeoutSeconds = timeoutSeconds, maxHeapMb = maxHeapMb, javaBinary = javaBinary, classpath = classpath)
-            live.add(w)
-            w
+            // close() can have drained `live` while this worker was starting. A
+            // worker registered after the drain would never be terminated by
+            // anyone — reap it here instead of leaking a child JVM.
+            //
+            // `closed` is passed as a supplier (`closed::get`), NOT a pre-computed
+            // Boolean: Kotlin evaluates call-site arguments before entering the
+            // function body, so a `closed = closed.get()` argument would read the
+            // flag BEFORE `registerOrReap`'s body runs `live.add(worker)` — exactly
+            // the publish-then-check order that makes the reap-guard race-proof
+            // (see `registerOrReap`'s KDoc). Passing a supplier lets the body read
+            // the flag AFTER publishing to `live`, restoring that guarantee.
+            registerOrReap(worker = w, live = live, closed = closed::get) { it.destroy() }
         } catch (e: Exception) {
             log("failed to launch worker: ${e::class.simpleName}: ${e.message}")
             null
@@ -268,7 +283,7 @@ internal class WorkerPool(
     )
 
     /** OS pids of all currently-live worker processes (test use). */
-    internal fun livePidsForTest(): List<Long> = live.toList().map { it.pid() }
+    internal fun livePidsForTest(): List<Long> = live.concurrentSnapshot().map { it.pid() }
 
     /**
      * Forcibly kills every currently-live worker process (test use), simulating
@@ -276,21 +291,70 @@ internal class WorkerPool(
      * tracking — the pool must *detect* the deaths on its own.
      */
     internal fun killAllLiveForTest() {
-        live.toList().forEach { it.destroy() }
+        live.concurrentSnapshot().forEach { runCatching { it.destroy() } }
     }
 
     /**
      * Orderly shutdown: stop refilling and forcibly terminate **every** live
      * worker process, so no child JVM outlives the pool (zombie-process leak).
+     *
+     * Idempotent **and effective on every call**: the one-time parts (stopping
+     * the refiller, the closing log line) run only on the first call, but the
+     * drain itself runs on every call. An earlier call that broke off halfway,
+     * or lost a race against the refiller, must not leave a later call doing
+     * nothing just because the `closed` flag is already set — on an empty set
+     * the drain costs one `firstOrNull()`.
+     *
+     * Bewusst **nicht** `@Synchronized`: `close()` wird sowohl explizit als auch
+     * aus dem JVM-Shutdown-Hook aufgerufen ([ScriptEvaluators.registerShutdownHook]);
+     * ein Lock, der über den gesamten Drain hinweg blockiert, wäre schlimmer als
+     * zwei parallel laufende Drains (die sich über die atomare `remove`-Operation
+     * sauber aufteilen). Das schließt ein **beschränktes** Warten im Hook nicht
+     * aus: der erste `close()`-Aufruf wartet vor dem Drain bis zu
+     * [REFILLER_SHUTDOWN_MILLIS] (2 s) auf die Refiller-Terminierung — dieses
+     * kurze, obergrenzenbeschränkte Warten wird im Hook bewusst in Kauf
+     * genommen, weil ohne es der Refiller einen gerade gestarteten Worker nach
+     * dem Drain in `live` eintragen könnte (siehe [REFILLER_SHUTDOWN_MILLIS]).
      */
     override fun close() {
-        if (!closed.compareAndSet(false, true)) return
-        refiller.shutdownNow()
-        val victims = live.toList()
+        val firstClose = closed.compareAndSet(false, true)
+        if (firstClose) {
+            // Refiller VOR dem Drain stoppen und auf sein Ende warten: shutdownNow()
+            // unterbricht nur, wartet aber nicht — ohne dieses Warten kann der
+            // Refiller einen gerade gestarteten Worker nach dem Drain in `live`
+            // eintragen, wo ihn niemand mehr beendet.
+            runCatching { refiller.shutdownNow() }
+            try {
+                refiller.awaitTermination(REFILLER_SHUTDOWN_MILLIS, TimeUnit.MILLISECONDS)
+            } catch (_: InterruptedException) {
+                // The calling thread was itself interrupted while waiting (e.g. a
+                // shutdown path that unblocks close() by interrupting its caller).
+                // Restore the flag instead of swallowing it — see
+                // WarmScriptWorker.awaitReady for the same convention.
+                Thread.currentThread().interrupt()
+            }
+        }
         idle.clear()
-        victims.forEach { runCatching { it.destroy() } }
-        live.clear()
-        log("closed; terminated ${victims.size} worker process(es)")
+        val terminated =
+            drainAndDestroy(
+                workers = live,
+                maxIterations = maxConcurrentWorkers + DRAIN_ITERATION_SLACK,
+            ) { worker -> worker.destroy() }
+        // drainAndDestroy silently gives up once it hits its livelock guard
+        // (maxIterations) — if that happened while `live` was still non-empty,
+        // those worker JVMs were neither terminated nor logged, i.e. exactly the
+        // zombie-process leak this method exists to prevent, just now invisible
+        // instead of loud. Surface it so an operator can investigate, even though
+        // `close()` itself still returns normally (best-effort shutdown).
+        val stillLive = live.size
+        if (stillLive > 0) {
+            log(
+                "close() drain hit its iteration cap ($DRAIN_ITERATION_SLACK slack) with " +
+                    "$stillLive worker(s) still tracked in `live` — they were NOT terminated; " +
+                    "possible zombie child JVM(s), investigate",
+            )
+        }
+        if (firstClose) log("closed; terminated $terminated worker process(es)")
     }
 
     internal companion object {
@@ -298,6 +362,149 @@ internal class WorkerPool(
         const val DEFAULT_CHECKOUT_TIMEOUT_MILLIS: Long = 4_000
         const val DEFAULT_READY_TIMEOUT_MILLIS: Long = 30_000
         private const val POLL_INTERVAL_MILLIS: Long = 20
+
+        /**
+         * Wartebudget für den Refiller-Thread beim Shutdown. `shutdownNow()`
+         * unterbricht nur; ohne dieses Warten kann der Refiller einen gerade
+         * gestarteten Worker NACH dem Drain in `live` eintragen (→ ungetrackte,
+         * nie beendete Kind-JVM).
+         */
+        private const val REFILLER_SHUTDOWN_MILLIS: Long = 2_000
+
+        /**
+         * Zusätzliche Iterationen über [maxConcurrentWorkers] hinaus, die der
+         * Shutdown-Drain toleriert, bevor er abbricht. Reine Livelock-Schranke
+         * für den pathologischen Fall, dass ein Thread während des Drains noch
+         * Worker nachlegt — normal wird sie nie erreicht.
+         */
+        private const val DRAIN_ITERATION_SLACK: Int = 64
+
+        /**
+         * Leert [workers] Element für Element und beendet jedes über [destroy].
+         *
+         * **Warum kein `toList()`-Snapshot:** Kotlins `Iterable<T>.toList()` hat einen
+         * `size == 1`-Schnellpfad (`listOf(iterator().next())`, kotlin-stdlib 2.4.0
+         * `_Collections.kt:1499`), der `size` und `iterator().next()` als zwei
+         * unabhängige Operationen ausführt. Auf einer schwach konsistenten
+         * `ConcurrentHashMap.KeySetView` lässt eine nebenläufige Entfernung zwischen
+         * beiden Schritten `next()` mit `NoSuchElementException` fehlschlagen. Weil
+         * der Shutdown das `closed`-Flag bereits gesetzt hat, würde ein zweiter
+         * `close()` sofort zurückkehren und die destroy-Sequenz liefe **nie** — die
+         * Kind-JVMs überlebten den Pool (genau der Zombie-Leak, den diese Klasse
+         * ausschließt). `firstOrNull()` dagegen benutzt `hasNext()`/`next()` auf
+         * demselben, vorausschauenden CHM-Iterator und ist deshalb race-frei.
+         *
+         * Beendet ein Element, das ein nebenläufiger `retire()` bereits entfernt hat,
+         * gegebenenfalls ein zweites Mal — [WarmScriptWorker.destroy] ist idempotent.
+         * Gezählt werden nur Entfernungen, die dieser Drain selbst gewonnen hat.
+         *
+         * @param maxIterations harte Livelock-Schranke.
+         * @return Anzahl der von diesem Aufruf beendeten Worker.
+         */
+        internal fun <T : Any> drainAndDestroy(
+            workers: MutableSet<T>,
+            maxIterations: Int,
+            destroy: (T) -> Unit,
+        ): Int {
+            var terminated = 0
+            var iterations = 0
+            while (iterations < maxIterations) {
+                iterations++
+                val victim = workers.firstOrNull() ?: break
+                val wonRemoval = workers.remove(victim)
+                runCatching { destroy(victim) }
+                if (wonRemoval) terminated++
+            }
+            return terminated
+        }
+
+        /**
+         * Registers [worker] into [live] unless the pool has already been closed,
+         * in which case it is removed again and destroyed instead of being left
+         * as an untracked child JVM that no one will ever terminate.
+         *
+         * **Publish-then-check order is load-bearing.** [worker] is added to
+         * [live] *first*, and only then is [closed] consulted — as a *supplier*
+         * invoked from inside this function body, not a pre-computed `Boolean`.
+         * This makes the race impossible: `close()` sets its flag via CAS
+         * ([WorkerPool.close]) strictly *before* it drains [live]. So either
+         * the drain runs after this function's `live.add`, in which case it
+         * will see and destroy [worker] — or [closed] is read as `true` here
+         * (meaning the CAS, and therefore eventually the drain, already
+         * happened-before this call), in which case this function itself
+         * removes and destroys [worker]. There is no interleaving that leaves
+         * [worker] in [live] with neither the drain nor this function ever
+         * having destroyed it.
+         *
+         * A caller that instead evaluates the closed flag at the *call site*
+         * (e.g. `closed = closed.get()`) breaks this guarantee: Kotlin
+         * evaluates arguments before entering the function body, so the flag
+         * would be read *before* `live.add` runs here — reopening exactly the
+         * leak this function exists to close. Always pass a supplier
+         * (`closed::get`), never a pre-computed value.
+         *
+         * Extracted as the deterministic, dependency-free seam behind
+         * [newWorker]'s close-race reap-guard so it can be unit-tested without
+         * spawning a real worker process — see `registerOrReap` tests in
+         * `WorkerPoolTest`.
+         *
+         * @return [worker] if it is now tracked in [live], or `null` if it was
+         *   reaped because the pool is closed.
+         */
+        internal fun <T : Any> registerOrReap(
+            worker: T,
+            live: MutableSet<T>,
+            closed: () -> Boolean,
+            destroy: (T) -> Unit,
+        ): T? {
+            live.add(worker)
+            if (!closed()) return worker
+            live.remove(worker)
+            destroy(worker)
+            return null
+        }
+
+        /**
+         * Enqueues [worker] into [idle] unless the pool has already been closed,
+         * in which case it is removed from [live] and destroyed instead — the
+         * mirror of [registerOrReap] for the ready-callback path in
+         * [refillToTarget], which fires later (after `awaitReady()` returns) and
+         * so races a concurrent `close()` independently.
+         *
+         * [closed] is a *supplier*, invoked from inside this function body, for
+         * the same reason as [registerOrReap]'s `closed` parameter: it keeps the
+         * call site from being able to read the flag before this function runs.
+         * By the time this is called, [worker] is already published in [live]
+         * (via [registerOrReap] in [newWorker]), so unlike [registerOrReap] the
+         * ordering here is not itself load-bearing for correctness — a
+         * concurrent `close()` drain would still find and destroy [worker] via
+         * [live] regardless of exactly when this reads [closed]. The supplier
+         * form is kept anyway so both reap-guards follow one discipline and a
+         * future refactor can't quietly reintroduce a pre-computed-argument bug
+         * by copying the "wrong" sibling.
+         *
+         * Extracted for the same reason as [registerOrReap]: a deterministic seam
+         * that unit tests can drive with plain values instead of a real worker
+         * process — see `enqueueReadyOrReap` tests in `WorkerPoolTest`.
+         *
+         * @return `true` if [worker] is now enqueued in [idle], `false` if it was
+         *   reaped because the pool is closed.
+         */
+        internal fun <T : Any> enqueueReadyOrReap(
+            worker: T,
+            idle: MutableCollection<T>,
+            live: MutableSet<T>,
+            closed: () -> Boolean,
+            destroy: (T) -> Unit,
+        ): Boolean {
+            if (closed()) {
+                live.remove(worker)
+                destroy(worker)
+                return false
+            }
+            idle.add(worker)
+            return true
+        }
 
         /** Pool size from `KUML_MCP_SANDBOX_POOL_SIZE`, clamped to [1, 16], default 3. */
         fun defaultPoolSize(): Int {
@@ -318,4 +525,20 @@ internal class WorkerPool(
         const val ENV_POOL_SIZE: String = "KUML_MCP_SANDBOX_POOL_SIZE"
         const val ENV_MAX_WORKERS: String = "KUML_MCP_SANDBOX_MAX_WORKERS"
     }
+}
+
+/**
+ * Snapshot einer schwach konsistenten nebenläufigen Menge.
+ *
+ * Bewusst **nicht** `toList()` — siehe [WorkerPool.drainAndDestroy] für den
+ * `size == 1`-Schnellpfad, der auf einer `ConcurrentHashMap.KeySetView` mit
+ * `NoSuchElementException` fehlschlagen kann. `hasNext()`/`next()` auf
+ * demselben Iterator ist dagegen sicher, und die `ArrayList` verkraftet
+ * nebenläufiges Wachstum wie Schrumpfen.
+ */
+private fun <T> Set<T>.concurrentSnapshot(): List<T> {
+    val out = ArrayList<T>(size + 4)
+    val iterator = iterator()
+    while (iterator.hasNext()) out.add(iterator.next())
+    return out
 }

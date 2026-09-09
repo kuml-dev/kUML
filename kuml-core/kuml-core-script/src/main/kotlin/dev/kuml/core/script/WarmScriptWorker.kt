@@ -61,36 +61,54 @@ internal class WarmScriptWorker(
     private val stderrBuf = StringBuilder()
 
     init {
-        // Drain stderr so a chatty child can never fill the pipe buffer and
-        // deadlock. Bounded for diagnostics.
-        thread(isDaemon = true, name = "kuml-warm-worker-stderr") {
-            try {
-                process.errorStream.bufferedReader(Charsets.UTF_8).forEachLine { line ->
-                    synchronized(stderrBuf) {
-                        if (stderrBuf.length < MAX_STDERR_CAPTURE) stderrBuf.append(line).append('\n')
-                    }
-                }
-            } catch (_: Exception) {
-                // Child closed the stream / was killed — nothing to drain.
-            }
-        }
-
-        // Wait for the ready line on a daemon thread. When it arrives, flip to
-        // IDLE; on EOF / crash before it, flip to DEAD.
-        thread(isDaemon = true, name = "kuml-warm-worker-ready") {
-            val readyLine =
+        // The child process is already running at this point (launched by the
+        // `launched` property initializer above, before this init block runs).
+        // Everything below only starts bookkeeping threads for it — but
+        // `thread(...)` itself can throw (e.g. OutOfMemoryError: unable to
+        // create native thread under thread exhaustion). That is an Error, not
+        // an Exception: callers such as WorkerPool.newWorker() only catch
+        // Exception, so it would propagate straight through this constructor.
+        // The constructor never finishing means this WarmScriptWorker instance
+        // is never assigned anywhere — the already-launched child process would
+        // be orphaned: not in the pool's `live` set, never destroyed by anyone,
+        // an untracked/unreapable leaked JVM. So this block owns its own
+        // cleanup on any Throwable, independent of what the caller catches.
+        try {
+            // Drain stderr so a chatty child can never fill the pipe buffer and
+            // deadlock. Bounded for diagnostics.
+            thread(isDaemon = true, name = "kuml-warm-worker-stderr") {
                 try {
-                    WorkerProcessSupport.readBoundedLine(reader)
+                    process.errorStream.bufferedReader(Charsets.UTF_8).forEachLine { line ->
+                        synchronized(stderrBuf) {
+                            if (stderrBuf.length < MAX_STDERR_CAPTURE) stderrBuf.append(line).append('\n')
+                        }
+                    }
                 } catch (_: Exception) {
-                    null
+                    // Child closed the stream / was killed — nothing to drain.
                 }
-            if (readyLine == ScriptWorkerMain.READY_SENTINEL) {
-                // Only STARTING → IDLE; if we were already killed, stay dead.
-                stateRef.compareAndSet(State.STARTING, State.IDLE)
-            } else {
-                markDead()
             }
-            readyLatch.countDown()
+
+            // Wait for the ready line on a daemon thread. When it arrives, flip to
+            // IDLE; on EOF / crash before it, flip to DEAD.
+            thread(isDaemon = true, name = "kuml-warm-worker-ready") {
+                val readyLine =
+                    try {
+                        WorkerProcessSupport.readBoundedLine(reader)
+                    } catch (_: Exception) {
+                        null
+                    }
+                if (readyLine == ScriptWorkerMain.READY_SENTINEL) {
+                    // Only STARTING → IDLE; if we were already killed, stay dead.
+                    stateRef.compareAndSet(State.STARTING, State.IDLE)
+                } else {
+                    markDead()
+                }
+                readyLatch.countDown()
+            }
+        } catch (t: Throwable) {
+            runCatching { process.destroyForcibly() }
+            runCatching { launched.cleanup() }
+            throw t
         }
     }
 
