@@ -132,6 +132,53 @@ and `not a = b` (OCL) each negate the whole comparison — `!(a == b)` / `not (a
 `&&`/`and`, `||`/`or`, `!=`/`<>`) in the same guard — each front-end only recognizes its
 own operator tokens.
 
+NOTE: Guards are **fail-closed** with respect to variables that were never provided. A
+comparison against a variable that is missing from `event`'s payload or from the model
+instance's variables map — `event.status <> 'rejected'`, `vars.approved != true`, or the
+bare-identifier equivalents — never evaluates to a trusted `true` just because a missing
+lookup resolves to `null` the same way a present-but-`null` value would. Instead the guard
+evaluates to `GuardResult.Failed` (the transition or edge does not fire), so a guard can
+never silently take the "allowed" branch on data the event stream never sent. This
+fail-closed *result* applies uniformly to state machine transitions and to activity/BPMN
+decision and gateway edges alike — but how the failure is surfaced for diagnosis differs
+by runtime path. On state machine transitions (`StateMachineRuntime`) it is recorded as a
+`TraceEntry.GuardWarning` in the trace. On activity/BPMN decision and gateway edges
+(`ActivityRuntime`, `TokenFlowEngine`) no trace entry is written — `ActivityRuntime` simply
+skips the edge with no diagnostic at all, and `TokenFlowEngine` only reports the failure
+through its optional `guardResultListener` callback, which is a no-op unless a caller wires
+it up; the `kuml simulate` CLI does, printing `Warning [GUARD_EVALUATION_FAILED]: ...` to
+stderr.
+A function call anywhere in a guard expression (`audit() != 1`) is treated the same way,
+since call results are not resolved by the expression evaluator. `&&`/`||`/`and`/`or` remain
+short-circuiting: `isVip || spendOver1000` still fires on `isVip = true` even when
+`spendOver1000` was never set, because the right-hand side is never consulted.
+
+`vars.x <> null` and `vars.x != null` are unaffected by the fail-closed rule above and
+remain a valid "is X set?" idiom: a missing `x` makes the comparison evaluate to `false`
+(not `true`), so it is never a candidate for the fail-closed downgrade in the first place —
+the transition or edge simply does not fire, exactly as when `x` is present and `null`.
+Because of that, `<> null`/`!= null` cannot distinguish "missing" from "present but `null`"
+— both read as `false`. `oclIsUndefined()` does not draw that line either: it evaluates to
+`receiver == null`, so it is `true` both for a genuinely missing variable and for one that
+is present with an explicit `null` value — `not vars.x.oclIsUndefined()` is therefore exactly
+equivalent to `vars.x <> null`, not a way around its blind spot. This OCL subset has no
+operator that tells "never set" apart from "set to `null`"; a guard that must make that
+distinction needs the model to carry an explicit sentinel (e.g. a separate boolean variable
+such as `vars.cancelReasonProvided`) rather than relying on the value of `x` alone.
+
+WARNING: The mirror-image idiom is **not** symmetric. `vars.x = null`, `vars.x == null`,
+and `not (vars.x <> null)` — the "is X *not* set?" spelling — are exactly the shape the
+fail-closed rule above targets: a missing `x` makes the comparison evaluate to a `true`
+that is built on data that was never provided, so it is downgraded from `GuardResult.True`
+to `GuardResult.Failed` (transition/edge does not fire, instead of firing on a silent
+`true`) — surfaced as a `GuardWarning` trace entry on the state machine path, or through
+the diagnostic channel described above on the activity/BPMN path. This is a behavior
+change from before this rule existed, where a missing `x` made `vars.x = null` evaluate to
+a trusted `true`. A guard
+written to mean "fire when X has never been set" must use `vars.x.oclIsUndefined()`
+instead — it evaluates to `true` for a genuinely missing variable without going through a
+null-tolerant comparison at all.
+
 == Profile-level constraints
 
 Stereotypes can carry constraints that apply automatically to any element with that

@@ -263,7 +263,12 @@ internal class RuntimeSessionManager(
 
     // ── internal helpers ──────────────────────────────────────────────────────
 
-    private fun getSession(sessionId: String): RuntimeSession? {
+    // Visibility is `internal`, not `private`, solely so
+    // RuntimeSessionManagerSandboxWiringTest can retrieve a just-started
+    // session and inspect its runtime's guard-evaluator wiring without
+    // reaching into the private `sessions` map via reflection. Not part of
+    // the public MCP surface (RuntimeSessionManager itself is `internal`).
+    internal fun getSession(sessionId: String): RuntimeSession? {
         val session = sessions[sessionId] ?: return null
         val now = System.currentTimeMillis()
         if (now - session.lastAccessMs > ttlMs) {
@@ -348,7 +353,21 @@ internal class RuntimeSessionManager(
                 is ExtractedDiagram.Erm -> error("ERM diagrams cannot be simulated as STM")
             }
 
-        val runtime = StateMachineRuntime(guards = OclGuardEvaluator())
+        // ADR-0015 / security fix B2 (STM counterpart): MCP STM sessions are
+        // exposed to remote callers via the same startSession entry point as
+        // ACT sessions, so guard evaluation must always be sandboxed with a
+        // bounded timeout here too. Without this, a crafted script with a
+        // long left-nested &&/|| guard chain (parseable under
+        // OclLikeExpressionParser.MAX_NESTING_DEPTH, which bounds recursion
+        // depth but not chain length) drives OclGuardEvaluator's taint check
+        // into quadratic re-evaluation per step() call, burning CPU on the
+        // server thread with no timeout to cut it off. Daemon threads (see
+        // TimeLimitedGuardEvaluator KDoc) make it safe not to explicitly
+        // close this per session.
+        val runtime =
+            StateMachineRuntime(
+                guards = TimeLimitedGuardEvaluator(delegate = OclGuardEvaluator(), policy = SandboxPolicy()),
+            )
         val instance = runtime.start(sm)
         return RuntimeSession.Stm(
             id = sessionId,

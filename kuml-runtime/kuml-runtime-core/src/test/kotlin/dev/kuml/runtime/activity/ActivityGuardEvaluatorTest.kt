@@ -279,6 +279,54 @@ class ActivityGuardEvaluatorTest :
                 GuardResult.False
         }
 
+        // ── Null-comparison presence-check idiom: '<> null'/'!= null' contract ──
+        // (Runde-2-Review-Befund: pins the documented "is X set?" idiom — missing
+        // → False, present-and-non-null → True, present-and-null → False — on the
+        // Activity/BPMN path too, parity with OclGuardEvaluatorTest.)
+
+        test("'x <> null' presence-check idiom: missing, non-null, and null states") {
+            ev.evaluate(guard = "x <> null", instance = instance(), event = Event.of("advance")) shouldBe
+                GuardResult.False
+            ev.evaluate(guard = "x <> null", instance = instance(mapOf("x" to 5)), event = Event.of("advance")) shouldBe
+                GuardResult.True
+            ev.evaluate(guard = "x <> null", instance = instance(mapOf("x" to null)), event = Event.of("advance")) shouldBe
+                GuardResult.False
+        }
+
+        test("'x != null' presence-check idiom: missing, non-null, and null states") {
+            ev.evaluate(guard = "x != null", instance = instance(), event = Event.of("advance")) shouldBe
+                GuardResult.False
+            ev.evaluate(guard = "x != null", instance = instance(mapOf("x" to 5)), event = Event.of("advance")) shouldBe
+                GuardResult.True
+            ev.evaluate(guard = "x != null", instance = instance(mapOf("x" to null)), event = Event.of("advance")) shouldBe
+                GuardResult.False
+        }
+
+        // ── Mirror-image idiom: '= null'/'== null' ("is X *not* set?") IS a ──────
+        // breaking change (Runde-2-Review-Befund 1), parity with
+        // OclGuardEvaluatorTest's identical pin on the STM path. A missing 'x'
+        // makes this comparison evaluate to a true built on data that was never
+        // provided — exactly the shape the fail-closed rule downgrades. Before
+        // this rule existed this was GuardResult.True; it must now be
+        // GuardResult.Failed.
+
+        test("'x = null' with missing 'x' is Failed, not True (breaking change vs. pre-fix behavior)") {
+            val result = ev.evaluate(guard = "x = null", instance = instance(), event = Event.of("advance"))
+            result shouldNotBe GuardResult.True
+            result.shouldBeInstanceOf<GuardResult.Failed>()
+        }
+
+        test("'x == null' with missing 'x' is Failed, not True (breaking change vs. pre-fix behavior)") {
+            val result = ev.evaluate(guard = "x == null", instance = instance(), event = Event.of("advance"))
+            result shouldNotBe GuardResult.True
+            result.shouldBeInstanceOf<GuardResult.Failed>()
+        }
+
+        test("'x == null' evaluates True when 'x' is present and genuinely null") {
+            ev.evaluate(guard = "x == null", instance = instance(mapOf("x" to null)), event = Event.of("advance")) shouldBe
+                GuardResult.True
+        }
+
         // ── Negative / tamper tests (security-loop requirement) ───────────────
 
         test("a guard that is a huge chained '!' does not blow the stack") {

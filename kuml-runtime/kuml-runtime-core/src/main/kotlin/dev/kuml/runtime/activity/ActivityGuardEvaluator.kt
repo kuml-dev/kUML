@@ -2,24 +2,14 @@ package dev.kuml.runtime.activity
 
 import dev.kuml.core.ocl.OclEvaluationException
 import dev.kuml.core.ocl.OclExpressions
-import dev.kuml.expr.AttributeRef
-import dev.kuml.expr.BinaryOp
-import dev.kuml.expr.BinaryOperator
 import dev.kuml.expr.EvaluationException
 import dev.kuml.expr.ExpressionEvaluator
-import dev.kuml.expr.FunctionCall
-import dev.kuml.expr.KumlExpression
-import dev.kuml.expr.LiteralBool
-import dev.kuml.expr.LiteralInt
-import dev.kuml.expr.LiteralNull
-import dev.kuml.expr.LiteralReal
-import dev.kuml.expr.LiteralString
 import dev.kuml.expr.OclLikeExpressionParser
-import dev.kuml.expr.UnaryOp
 import dev.kuml.runtime.Event
 import dev.kuml.runtime.GuardEvaluator
 import dev.kuml.runtime.GuardResult
 import dev.kuml.runtime.ModelInstance
+import dev.kuml.runtime.internal.GuardAstTaint
 
 /**
  * Default [GuardEvaluator] for [ActivityRuntime] token-flow guards (ADR-0015 /
@@ -98,15 +88,17 @@ import dev.kuml.runtime.ModelInstance
  *   failure rather than a silent `False` (same outcome [dev.kuml.runtime.OclGuardEvaluator]
  *   already had for this exact case on the STM path) |
  * | `not allow` | `false` | `True` — unchanged, routes through the OCL front-end |
- * | `x != 1` | missing | `Failed` — fail-closed, see [referencesUnresolvedVariable] below |
+ * | `x != 1` | missing | `Failed` — fail-closed, see [GuardAstTaint.referencesUnresolvedVariable] |
  * | `x <> 1` (OCL spelling of `!=`) | missing | `Failed` — fail-closed, same reasoning applied to the OCL front-end, see [evaluateViaOcl] |
- * | `foo() != 1` (any guard containing a function call) | — | `Failed` — fail-closed; function calls are never resolved by [ExpressionEvaluator], see [referencesUnresolvedVariable] |
+ * | `foo() != 1` (any guard containing a function call) | — | `Failed` — fail-closed; function calls are never resolved by [ExpressionEvaluator], see [GuardAstTaint.referencesUnresolvedVariable] |
  * | `not (vars.a and vars.b)` (OCL front-end) | `a=true`, `b` present but non-Boolean | `Failed` — fail-closed; `true and <non-Boolean>` is an unresolved OCL truth value ("invalid"), not a trustworthy `false`, so the negation cannot become an untainted `True` — see the three-valued truth table in `OclEvaluator.evalBinaryOp` |
  * | `42` (non-boolean) | — | `Failed` |
- * | genuine syntax error | — | `Failed` — a parse failure is now distinguishable from a legitimate `false`
- *   (surfaced to the caller as a `GUARD_EVALUATION_FAILED` warning via the existing
- *   `TokenFlowEngine.guardResultListener` side-channel; branch selection is unaffected
- *   because callers only compare `== GuardResult.True`)
+ * | genuine syntax error | — | `Failed` — a parse failure is now distinguishable from a legitimate `false`.
+ *   Whether that reaches the caller depends on the caller: via
+ *   `dev.kuml.runtime.tokenflow.TokenFlowGuardEvaluator` → `TokenFlowEngine.guardResultListener`
+ *   (surfaced as a `GUARD_EVALUATION_FAILED` warning by `kuml simulate`); via [ActivityRuntime]
+ *   directly, not at all. Branch selection is unaffected either way, because callers only
+ *   compare `== GuardResult.True`
  * | a guard whose parsed AST has thousands of chained `&&`/`||`/`and`/`or` operands | — | `Failed` — fail-closed; see the `StackOverflowError` catch in [evaluate] |
  *
  * ## Fail-closed comparisons against a missing variable
@@ -119,16 +111,20 @@ import dev.kuml.runtime.ModelInstance
  * unchecked this would make a guard fire on data that was never set —
  * exactly the class of silent-wrong-branch bug this evaluator exists to
  * close, only inverted (fail-*open* instead of fail-closed). [evaluateViaAst]
- * therefore only trusts a `true` AST result once [referencesUnresolvedVariable]
- * confirms every variable the expression *actually visited* (respecting
- * `&&`/`||` short-circuiting, see below) was present; a `true` built on a
- * missing variable is downgraded to "cannot decide" and deferred to the OCL
- * fallback, which for `!=`/`!` — characters the OCL lexer cannot tokenize at
- * all — surfaces as [GuardResult.Failed], same as `!<missing>` above. A
- * `false` AST result is trusted unchanged: it is already the safe direction
- * (the edge is not taken) whether the variable was missing or
- * present-and-genuinely-`false`, so no extra check is needed or performed
- * there.
+ * therefore only trusts a `true` AST result once
+ * [GuardAstTaint.referencesUnresolvedVariable] confirms every variable the
+ * expression *actually visited* (respecting `&&`/`||` short-circuiting) was
+ * present; a `true` built on a missing variable is downgraded to "cannot
+ * decide" and deferred to the OCL fallback, which for `!=`/`!` — characters
+ * the OCL lexer cannot tokenize at all — surfaces as [GuardResult.Failed],
+ * same as `!<missing>` above. A `false` AST result is trusted unchanged: it
+ * is already the safe direction (the edge is not taken) whether the variable
+ * was missing or present-and-genuinely-`false`, so no extra check is needed
+ * or performed there. See [GuardAstTaint] for the full reasoning (including
+ * the `FunctionCall` and short-circuit handling) — this evaluator and
+ * [dev.kuml.runtime.OclGuardEvaluator] share that single implementation so
+ * the AST-path check cannot again drift out of sync between the two guard
+ * evaluators the way it did before this class existed.
  *
  * The identical fail-open shape exists on the OCL front-end too: OCL's `<>`
  * (the keyword-dialect spelling of `!=`) is evaluated by
@@ -139,28 +135,6 @@ import dev.kuml.runtime.ModelInstance
  * against a `Map` receiver exactly as null-tolerant as an `env` lookup.
  * [evaluateViaOcl] closes both spellings the same way, via
  * `OclExpressions.evaluateTracked` instead of the plain `evaluate`.
- *
- * A [FunctionCall] is a third source of the same fail-open shape:
- * [ExpressionEvaluator.evaluate] resolves *every* [FunctionCall] to `null`
- * unconditionally (function resolution is not implemented yet), which is
- * indistinguishable from a missing variable for the purposes of a
- * null-tolerant `!=`/`==`. [referencesUnresolvedVariable] therefore treats
- * any [FunctionCall] the same way it treats an unresolved [AttributeRef] —
- * as "cannot decide" — regardless of what its arguments resolve to.
- *
- * ## Short-circuit-aware missing-variable check
- *
- * [ExpressionEvaluator.evalBinary] short-circuits `&&`/`||`: the right
- * operand of `isVip || spendOver1000` is never evaluated when `isVip` is
- * already `true`. [referencesUnresolvedVariable] mirrors this exactly
- * (re-deriving which branch a real evaluation would have taken from the
- * *actual* value of the left operand under the same `env`) instead of
- * statically walking the whole parsed tree — a static walk would flag a
- * missing `spendOver1000` even though it was never touched, downgrading a
- * legitimately-`true` guard to a spurious `GUARD_EVALUATION_FAILED` warning.
- * Every other binary operator is eager in [ExpressionEvaluator] (both sides
- * are always evaluated), so both operands are still checked unconditionally
- * for those.
  */
 public class ActivityGuardEvaluator : GuardEvaluator {
     override fun evaluate(
@@ -227,114 +201,18 @@ public class ActivityGuardEvaluator : GuardEvaluator {
                 // regardless of whether a referenced variable was missing or was
                 // present-and-genuinely-false, exactly like the existing bare
                 // "missing identifier -> False" convention below.
-                true -> if (referencesUnresolvedVariable(expr = parsed, env = env)) null else GuardResult.True
+                true ->
+                    if (GuardAstTaint.referencesUnresolvedVariable(expr = parsed, env = env)) {
+                        null
+                    } else {
+                        GuardResult.True
+                    }
                 false -> GuardResult.False
                 else -> null
             }
         } catch (_: EvaluationException) {
             null
         }
-    }
-
-    /**
-     * `true` if [expr], evaluated the same way [ExpressionEvaluator.evaluate]
-     * actually evaluates it (including `&&`/`||` short-circuiting — see
-     * [referencesUnresolvedVariableInBinary]), touches an [AttributeRef]
-     * whose path does not fully resolve against [env] (the variable is
-     * *missing*, not merely present-and-`null`) or a [FunctionCall] anywhere
-     * (which [ExpressionEvaluator] always resolves to `null`, indistinguishable
-     * from a missing variable). See the class KDoc sections "Fail-closed
-     * comparisons against a missing variable" and "Short-circuit-aware
-     * missing-variable check" for why this matters: without it,
-     * [ExpressionEvaluator]'s null-tolerant `==`/`!=` would let a comparison
-     * against a missing variable, or against an unresolved function call,
-     * return a trusted (and wrong) definite Boolean instead of falling back.
-     */
-    private fun referencesUnresolvedVariable(
-        expr: KumlExpression,
-        env: Map<String, Any?>,
-    ): Boolean =
-        when (expr) {
-            is AttributeRef -> isUnresolved(ref = expr, env = env)
-            is UnaryOp -> referencesUnresolvedVariable(expr = expr.operand, env = env)
-            is BinaryOp -> referencesUnresolvedVariableInBinary(expr = expr, env = env)
-            // ExpressionEvaluator.evaluate resolves every FunctionCall to `null`
-            // unconditionally (function resolution is not implemented — see
-            // ExpressionEvaluator's "V2.0.20b adds function resolution" comment),
-            // so a FunctionCall anywhere in the expression makes the surrounding
-            // comparison exactly as untrustworthy as a missing variable would —
-            // regardless of what its own arguments resolve to.
-            is FunctionCall -> true
-            is LiteralBool, is LiteralInt, is LiteralReal, is LiteralString, LiteralNull -> false
-        }
-
-    /**
-     * Short-circuit-aware [referencesUnresolvedVariable] for [BinaryOp]s.
-     *
-     * [ExpressionEvaluator.evalBinary] short-circuits `OR`/`AND`: the right
-     * operand is only evaluated when the left one does not already decide
-     * the result (`left == true` for `OR`, `left == false` for `AND`). A
-     * static "check both sides unconditionally" walk would flag a missing
-     * variable on a branch a real evaluation never touches — e.g.
-     * `isVip || spendOver1000` with `isVip == true` and `spendOver1000`
-     * missing is a legitimate, trustworthy `true` (the right side is never
-     * evaluated), but a static walk would downgrade it to "cannot decide"
-     * anyway. This re-derives the same branch a real evaluation would take
-     * (by re-evaluating the left operand against the same, side-effect-free
-     * [env] — cheap, since guard expressions are small) and only recurses
-     * into the operand(s) that were actually visited:
-     *  - `OR` with `left == true`: only `left` was visited.
-     *  - `OR` with `left != true` (so `left` is `false`, or unresolved and
-     *    thus not a definite Boolean by [ExpressionEvaluator]'s own rules):
-     *    a `true` overall result can only come from `right`, and `left`'s
-     *    `false` is already the safe/trusted direction per the class KDoc
-     *    ("Fail-closed comparisons against a missing variable"), so only
-     *    `right` needs checking.
-     *  - `AND` with `left == false`: only `left` was visited (defensive —
-     *    unreachable when the caller already knows the overall `AND` result
-     *    is `true`, since that requires `left == true`).
-     *  - `AND` otherwise: both operands were visited and both must be
-     *    trustworthy for the `true` result to be trustworthy.
-     *  - every other operator (`==`, `!=`, `<`, ...): eager in
-     *    [ExpressionEvaluator] — both operands are always visited.
-     *
-     * Re-evaluating [BinaryOp.left] here cannot itself throw: this function
-     * is only ever reached (transitively) from [evaluateViaAst]'s `true`
-     * branch, i.e. after [ExpressionEvaluator.evaluate] already evaluated
-     * this exact subexpression, against this exact (immutable) [env],
-     * without throwing.
-     */
-    private fun referencesUnresolvedVariableInBinary(
-        expr: BinaryOp,
-        env: Map<String, Any?>,
-    ): Boolean {
-        fun left() = referencesUnresolvedVariable(expr = expr.left, env = env)
-
-        fun right() = referencesUnresolvedVariable(expr = expr.right, env = env)
-
-        return when (expr.op) {
-            BinaryOperator.OR ->
-                if (ExpressionEvaluator.evaluate(expr = expr.left, context = env) == true) left() else right()
-            BinaryOperator.AND ->
-                if (ExpressionEvaluator.evaluate(expr = expr.left, context = env) == false) left() else left() || right()
-            else -> left() || right()
-        }
-    }
-
-    /** Mirrors [ExpressionEvaluator]'s own path-navigation, but reports "not present" explicitly. */
-    private fun isUnresolved(
-        ref: AttributeRef,
-        env: Map<String, Any?>,
-    ): Boolean {
-        if (ref.path.isEmpty()) return false
-        if (!env.containsKey(ref.path[0])) return true
-        var current: Any? = env[ref.path[0]]
-        for (i in 1 until ref.path.size) {
-            val map = current as? Map<*, *> ?: return true
-            if (!map.containsKey(ref.path[i])) return true
-            current = map[ref.path[i]]
-        }
-        return false
     }
 
     /**

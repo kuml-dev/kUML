@@ -464,9 +464,15 @@ public class ActivityRuntime(
      * evaluate at all returns [GuardResult.Failed] instead of throwing — this
      * branch never propagates an exception (per plan: don't throw). Branch
      * selection above only compares `== GuardResult.True`, so `False` and
-     * `Failed` both mean "this edge is not taken"; a `Failed` additionally
-     * surfaces as a `GUARD_EVALUATION_FAILED` warning via the existing
-     * `TokenFlowEngine.guardResultListener` side-channel where one is wired up.
+     * `Failed` both mean "this edge is not taken". **On this path a `Failed`
+     * is not surfaced anywhere**: [ActivityRuntime] writes no trace entry
+     * (`TraceEntry.GuardWarning` is only ever produced by
+     * [dev.kuml.runtime.StateMachineRuntime]), has no listener of its own,
+     * and does not log. The `guardResultListener` side-channel belongs to the
+     * separate `dev.kuml.runtime.tokenflow.TokenFlowEngine` engine; a `Failed`
+     * produced here never reaches it. See
+     * `docs/handbook/modules/reference/pages/ocl.adoc` (fail-closed guards
+     * section) for the authoritative per-path breakdown.
      *
      * **Security fix (ADR-0015 / B2, was dead code before):** this now actually
      * routes through the injected [guardEvaluator] instead of calling

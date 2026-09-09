@@ -137,6 +137,63 @@ platform artifacts) — no standalone catalog entry to bump.
 
 ### Fixed
 
+**`OclGuardEvaluator` (STM-Guard-Pfad) hatte dieselben Fail-Open-Lücken wie zuvor `ActivityGuardEvaluator`**
+
+Der vorherige Fix für `ActivityGuardEvaluator` (siehe „`!`-negierte Guards auf dem
+Activity-/BPMN-Pfad waren stiller toter Code" weiter unten) schloss `<>`/`!=`-Vergleiche
+gegen eine fehlende Variable nur auf dem Activity-/BPMN-Pfad. Der ältere STM-Guard-Pfad
+(`dev.kuml.runtime.OclGuardEvaluator`) hatte dieselbe Fail-Open-Klasse auf **beiden**
+internen Auswertungswegen: `vars.missing <> 1` bzw. `vars.missing != 1` mit nie gesetzter
+Variable `missing` evaluierte bisher zu einem vertrauenswürdigen `true` (`null <> 1` bzw.
+`null != 1`) und die Transition feuerte auf Daten, die der Event-Stream nie geliefert hat —
+identisch für `event.x`-Punktnavigation und Bare-Identifier-Schreibweise. Ein Vergleich
+gegen einen Funktionsaufruf (`audit() != 1`) war aus demselben Grund betroffen: der AST-
+Evaluator löst jeden `FunctionCall` unbedingt zu `null` auf.
+
+Der bereits für den Activity-Pfad implementierte kurzschluss-bewusste
+Fehlende-Variable-Check (`GuardAstTaint.referencesUnresolvedVariable`, jetzt aus
+`ActivityGuardEvaluator` heraus in ein gemeinsames `dev.kuml.runtime.internal`-Objekt
+extrahiert statt ein zweites Mal dupliziert zu werden) läuft jetzt auch auf dem AST-Pfad
+von `OclGuardEvaluator`; der Legacy-OCL-Fallback nutzt jetzt `OclExpressions.evaluateTracked`
+statt der ungetrackten `evaluate`, sodass ein `true`-Ergebnis, das auf einer fehlenden
+`env`-Variable beruht, zu `GuardResult.Failed` herabgestuft wird statt vertraut zu werden.
+Ein `false`-Ergebnis bleibt unverändert vertrauenswürdig (sichere Richtung), und
+`&&`/`||`/`and`/`or`/`implies` bleiben kurzschließend — `isVip || spendOver1000` feuert
+weiterhin bei `isVip = true`, auch wenn `spendOver1000` nie gesetzt wurde.
+
+Zusätzlich schließt `OclGuardEvaluator.evaluate` jetzt dieselbe Vertrags-Lücke, die
+`ActivityGuardEvaluator` bereits hatte: ein `StackOverflowError` aus einer sehr langen
+`&&`/`and`-Verkettung sowie eine `InterruptedException` und beliebige unchecked
+`RuntimeException`s aus `OclEvaluator` (z. B. `x->includes()` ohne Argument,
+`x->forAll(1)` ohne `v | …`-Lambda) werden jetzt als `GuardResult.Failed` statt als
+durchschlagende Exception behandelt — relevant, weil `OclGuardEvaluator` an mehreren
+Stellen ungesandboxt direkt hängt (`StateMachineRuntime`-Default, `RunSessionManager`,
+die MCP-`RuntimeSessionManager`, `TraceReplayer`).
+
+Klarstellung: `vars.x <> null` bzw. `vars.x != null` als „ist X gesetzt?"-Idiom bleibt von
+diesem Fix unberührt — ein Vergleich gegen `null` liefert bei fehlendem `x` weiterhin
+`false` (nicht `true`), also `GuardResult.False`, und bei gesetztem, nicht-null `x`
+weiterhin `true`. Die Failed-Herabstufung greift nur, wenn die fehlende Variable ein
+`true`-Ergebnis erzeugt hätte (z. B. `vars.x <> 1` mit fehlendem `x`) — genau der Fall, den
+dieser Fix schließt. `<> null`/`!= null` behandeln „fehlt" und „ist gesetzt, aber `null`"
+gleich (`false`) und können die beiden Fälle daher nicht unterscheiden — `oclIsUndefined()`
+schafft diese Unterscheidung ebenfalls nicht, denn es liefert `receiver == null` und ist
+damit für beide Fälle gleichermaßen `true` (`not vars.x.oclIsUndefined()` ist folglich exakt
+äquivalent zu `vars.x <> null`). Dieses OCL-Subset hat keinen Operator, der „nie gesetzt"
+von „auf `null` gesetzt" trennt; wer das braucht, muss ein eigenes Sentinel-Feld modellieren
+(z. B. eine zusätzliche boolesche Variable wie `vars.cancelReasonProvided`).
+
+**Achtung, Breaking Change im spiegelbildlichen Idiom**: Das gilt **nicht** symmetrisch für
+`vars.x = null` bzw. `vars.x == null` (und damit auch für `not (vars.x <> null)`) als „ist X
+*nicht* gesetzt?"-Idiom — hier liefert ein fehlendes `x` genau das `true`-Ergebnis, das
+dieser Fix abfängt: Vor diesem Fix war `vars.x = null` mit fehlendem `x` `GuardResult.True`,
+jetzt ist es `GuardResult.Failed`. Ein Modell mit
+`guard = "vars.rejectionReason = null"`, das bisher feuerte solange nie ein
+Ablehnungsgrund gesetzt wurde, feuert nach diesem Upgrade nicht mehr — es entsteht nur noch
+ein `GuardWarning` im Trace, kein Fehler, der sofort auffällt. Bestehende Guards mit diesem
+Muster müssen auf `vars.x.oclIsUndefined()` umgestellt werden, um das ursprüngliche
+Verhalten (fehlend **und** explizit-null gelten beide als „nicht gesetzt") zu erhalten.
+
 **TokenFlowEngine (ADR-0015) — Security-Review-Nachbesserungen**
 
 Ein Security-Review dieses Branches fand fünf offene Punkte im neuen `TokenFlowEngine`
@@ -193,11 +250,13 @@ weil dieser Evaluator seit V2.0.20a zusätzlich ein typisiertes AST-Frontend pro
 zuerst, OCL-Legacy als Fallback) — betroffen waren u. a. das Order-Processing-Beispiel
 (`!valid` → `CancelOrder`) und die CLI-Fixture `activity-decision.kuml.kts` (`!go`), die
 beide bisher nie den negierten Zweig genommen hatten. Zusätzlich: ein echter Parse-/
-Auswertungsfehler in einem Guard wird jetzt als `GuardResult.Failed` gemeldet (sichtbar als
-`GUARD_EVALUATION_FAILED`-Warnung) statt still als `false` — vorher war ein kaputter Guard
-von einem legitim falschen Guard nicht zu unterscheiden, was genau diese Fehlerklasse hat
-unbemerkt bleiben lassen. Die Zweigauswahl selbst ändert sich dadurch nicht
-(`Failed` wählt wie `False` weiterhin keinen Zweig).
+Auswertungsfehler in einem Guard wird jetzt als `GuardResult.Failed` gemeldet statt still
+als `false` — vorher war ein kaputter Guard von einem legitim falschen Guard nicht zu
+unterscheiden, was genau diese Fehlerklasse unbemerkt bleiben lassen hat. Sichtbar wird das
+allerdings nur auf dem `TokenFlowEngine`-Pfad (`guardResultListener` →
+`GUARD_EVALUATION_FAILED`-Warnung von `kuml simulate`); auf dem `ActivityRuntime`-Pfad
+bleibt ein `Failed` ohne jede Diagnoseausgabe. Die Zweigauswahl selbst ändert sich in
+beiden Fällen nicht (`Failed` wählt wie `False` weiterhin keinen Zweig).
 
 Zwei Review-Befunde an der neuen Zwei-Frontend-Strategie selbst wurden vor dem Merge noch
 behoben: Erstens war `x != 1` bzw. `x != 'DONE'` mit **fehlender** Variable `x` fail-*offen*

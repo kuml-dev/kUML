@@ -58,9 +58,9 @@ public object OclExpressions {
      * (`x <> 1`) and the dot-navigation spelling used throughout guards
      * (`vars.x <> 1`, `event.x <> 1`) — evaluate to a trusted `true` instead
      * of signalling "unknown" — the same fail-open class of bug that
-     * `dev.kuml.runtime.activity.ActivityGuardEvaluator.referencesUnresolvedVariable`
+     * `dev.kuml.runtime.internal.GuardAstTaint.referencesUnresolvedVariable`
      * already closes for the typed-AST (`!=`) dialect on the C-like side of
-     * that same two-dialect guard evaluator. Callers that need fail-closed
+     * both the Activity/BPMN and STM guard evaluators. Callers that need fail-closed
      * semantics for a `true` result should use this instead of [evaluate] and
      * downgrade a `true` value built on [OclTrackedResult.referencedMissingVariable].
      */
