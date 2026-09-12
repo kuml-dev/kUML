@@ -7,6 +7,7 @@ import dev.kuml.io.svg.EdgeLabelGeometry
 import dev.kuml.io.svg.EdgePathBuilder
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt2
+import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -36,6 +37,18 @@ import dev.kuml.renderer.theme.core.KumlTheme
  *   respective end, when present.
  */
 internal fun renderErmIdef1xRelationship(
+    rel: ErmRelationship,
+    route: EdgeRoute,
+    theme: KumlTheme,
+    b: SvgBuilder,
+    labelStackIndex: Int = 0,
+) {
+    b.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(rel.id))) {
+        renderErmIdef1xRelationshipContent(rel = rel, route = route, theme = theme, b = this, labelStackIndex = labelStackIndex)
+    }
+}
+
+private fun renderErmIdef1xRelationshipContent(
     rel: ErmRelationship,
     route: EdgeRoute,
     theme: KumlTheme,

@@ -3,6 +3,7 @@ package dev.kuml.io.svg.blueprint.edge
 import dev.kuml.blueprint.model.ConnectionStyle
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.blueprint.f
+import dev.kuml.io.svg.xmlEscapeAttr
 
 /**
  * Draws a [StepConnection] as a straight line between two cell centres, with an
@@ -16,15 +17,18 @@ import dev.kuml.io.svg.blueprint.f
  * V3.1.24
  */
 internal fun SvgBuilder.renderConnection(
+    id: String,
     from: Pair<Double, Double>,
     to: Pair<Double, Double>,
     style: ConnectionStyle,
 ) {
-    val (x1, y1) = from
-    val (x2, y2) = to
-    val dash = if (style == ConnectionStyle.DASHED) """ stroke-dasharray="6,4"""" else ""
-    rawXml(
-        """<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" """ +
-            """stroke="#555" stroke-width="1.5"$dash marker-end="url(#bp-arrow)"/>""",
-    )
+    tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(id))) {
+        val (x1, y1) = from
+        val (x2, y2) = to
+        val dash = if (style == ConnectionStyle.DASHED) """ stroke-dasharray="6,4"""" else ""
+        rawXml(
+            """<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" """ +
+                """stroke="#555" stroke-width="1.5"$dash marker-end="url(#bp-arrow)"/>""",
+        )
+    }
 }

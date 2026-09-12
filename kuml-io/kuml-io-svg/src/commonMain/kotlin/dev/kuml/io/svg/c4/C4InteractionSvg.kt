@@ -8,6 +8,7 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.arrowDirection
 import dev.kuml.io.svg.renderEdgeLabelWithHalo
 import dev.kuml.io.svg.renderInlineArrow
+import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.renderer.theme.core.KumlTheme
 
@@ -49,6 +50,17 @@ import dev.kuml.renderer.theme.core.KumlTheme
  * Nachbar-Edges, bleibt also robust gegen neue Diagrammvarianten.
  */
 internal fun renderC4Interaction(
+    interaction: C4Interaction,
+    route: EdgeRoute,
+    theme: KumlTheme,
+    builder: SvgBuilder,
+) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(interaction.id))) {
+        renderC4InteractionContent(interaction = interaction, route = route, theme = theme, builder = this)
+    }
+}
+
+private fun renderC4InteractionContent(
     interaction: C4Interaction,
     route: EdgeRoute,
     theme: KumlTheme,

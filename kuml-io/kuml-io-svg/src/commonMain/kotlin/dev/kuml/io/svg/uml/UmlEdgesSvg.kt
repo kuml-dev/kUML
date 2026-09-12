@@ -292,6 +292,16 @@ internal fun renderUmlAssociation(
  * visual distinction from [renderUmlCommentLink] is carried by the shape of
  * the two endpoints (a dog-eared note vs. a compartmented class box), not by
  * the line itself — hence reusing the existing `kuml-edge-dashed` class.
+ *
+ * **fix/edge-svg-element-ids — deliberately no `<g id="…">` wrapper here.**
+ * Unlike every other edge renderer, this one draws a second, purely visual
+ * decoration of an association *already* rendered (and already wrapped in
+ * `<g id="element.id">`) by [dev.kuml.io.svg.EdgeRendererDispatcher] via
+ * [renderUmlAssociation] earlier in the same render pass. Wrapping the
+ * tether in its own `<g id="element.id">` would duplicate that id on a
+ * second `<g>` in the same document — an invalid SVG document. The tether
+ * therefore stays unaddressed by its own id; selecting the association
+ * class's id already selects the association line it belongs to.
  */
 internal fun renderUmlAssociationClassTether(
     from: Point,

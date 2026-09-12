@@ -221,6 +221,27 @@ internal const val CHEN_CARDINALITY_MAX_STACK_INDEX: Int = 2
  * grown until the point clears.
  */
 internal fun renderChenConnector(
+    id: String,
+    route: EdgeRoute,
+    cardinality: Cardinality?,
+    b: SvgBuilder,
+    entitySide: ConnectorEntitySide = ConnectorEntitySide.TARGET,
+    stackIndex: Int = 0,
+    entityBounds: Rect? = null,
+) {
+    b.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(id))) {
+        renderChenConnectorContent(
+            route = route,
+            cardinality = cardinality,
+            b = this,
+            entitySide = entitySide,
+            stackIndex = stackIndex,
+            entityBounds = entityBounds,
+        )
+    }
+}
+
+private fun renderChenConnectorContent(
     route: EdgeRoute,
     cardinality: Cardinality?,
     b: SvgBuilder,

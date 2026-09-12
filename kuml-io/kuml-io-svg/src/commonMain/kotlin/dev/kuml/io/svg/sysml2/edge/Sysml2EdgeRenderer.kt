@@ -7,6 +7,7 @@ import dev.kuml.io.svg.arrowDirection
 import dev.kuml.io.svg.fmt2
 import dev.kuml.io.svg.renderInlineArrow
 import dev.kuml.io.svg.sysml2.wrapWords
+import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
@@ -88,8 +89,34 @@ internal object Sysml2EdgeRenderer {
      *   `SvgDocument.buildDefs`). Kept in the signature so future polish
      *   waves can add theme-aware shape choices without an API break.
      * @param builder Edges-group [SvgBuilder].
+     * @param id Stable element id for this edge — wrapped as `<g id="…">`
+     *   around the rendered fragment (fix/edge-svg-element-ids) so downstream
+     *   consumers (e.g. kUML Portal's click-to-select) can address the edge
+     *   in the DOM. Callers pass the synthetic [dev.kuml.layout.EdgeId] value
+     *   the layout result assigned to this edge.
      */
     fun render(
+        id: String,
+        route: EdgeRoute,
+        metadata: Sysml2EdgeMetadata,
+        theme: KumlTheme,
+        builder: SvgBuilder,
+        labelStackIndex: Int = 0,
+        overrideLabelAnchor: Pair<Float, Float>? = null,
+    ) {
+        builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(id))) {
+            renderContent(
+                route = route,
+                metadata = metadata,
+                theme = theme,
+                builder = this,
+                labelStackIndex = labelStackIndex,
+                overrideLabelAnchor = overrideLabelAnchor,
+            )
+        }
+    }
+
+    private fun renderContent(
         route: EdgeRoute,
         metadata: Sysml2EdgeMetadata,
         theme: KumlTheme,

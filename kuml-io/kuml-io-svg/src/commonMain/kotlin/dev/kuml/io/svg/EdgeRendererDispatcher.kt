@@ -46,13 +46,25 @@ internal object EdgeRendererDispatcher {
     fun dispatchKey(element: KumlElement): String = element::class.simpleName ?: "Unknown"
 
     /**
-     * Rendert das passende SVG-Fragment für [relationship].
+     * Rendert das passende SVG-Fragment für [relationship], gewrappt in ein
+     * `<g id="…">` (fix/edge-svg-element-ids) so downstream DOM consumers
+     * (e.g. kUML Portal's click-to-select) can address the rendered edge the
+     * same way node renderers already let them address nodes.
      *
      * [sourceStackIndex] / [targetStackIndex] (fix/uml-association-label-
      * overlap) are forwarded only to the two label-bearing UML relationship
      * kinds that support converging-endpoint fan-out — [UmlAssociation] and
      * [UmlLink]. All other branches ignore them; see
      * `dev.kuml.io.svg.uml.renderUmlAssociation`'s KDoc for the rationale.
+     *
+     * **Pre-existing id-collision risk (not introduced by this fix):** if the
+     * diagram DSL assigns a node and a relationship the same explicit custom
+     * `id`, both wrappers end up as `<g id="…">` with an identical value —
+     * an invalid SVG document (duplicate ids). This risk already existed
+     * between two nodes with the same custom id before edges carried an id
+     * at all; giving edges an id merely widens the surface it's visible on.
+     * There is no `KUML-E-xxx` duplicate-id validator yet (see
+     * `UmlIds.kt`'s KDoc) — tracked as a follow-up, out of scope here.
      */
     fun dispatch(
         relationship: KumlElement,
@@ -62,48 +74,56 @@ internal object EdgeRendererDispatcher {
         sourceStackIndex: Int = 0,
         targetStackIndex: Int = 0,
     ) {
-        when (relationship) {
-            is UmlAssociation ->
-                renderUmlAssociation(
-                    rel = relationship,
-                    route = route,
-                    theme = theme,
-                    builder = builder,
-                    sourceStackIndex = sourceStackIndex,
-                    targetStackIndex = targetStackIndex,
-                )
-            is UmlAssociationClass ->
-                renderUmlAssociation(
-                    rel = relationship,
-                    route = route,
-                    theme = theme,
-                    builder = builder,
-                    sourceStackIndex = sourceStackIndex,
-                    targetStackIndex = targetStackIndex,
-                )
-            is UmlGeneralization -> renderUmlGeneralization(rel = relationship, route = route, theme = theme, builder = builder)
-            is UmlInterfaceRealization -> renderUmlInterfaceRealization(rel = relationship, route = route, theme = theme, builder = builder)
-            is UmlDependency -> renderUmlDependency(rel = relationship, route = route, theme = theme, builder = builder)
-            is UmlConnector -> renderUmlConnector(rel = relationship, route = route, theme = theme, builder = builder)
-            is UmlInclude -> renderUmlInclude(rel = relationship, route = route, theme = theme, builder = builder)
-            is UmlExtend -> renderUmlExtend(rel = relationship, route = route, theme = theme, builder = builder)
-            is UmlLink ->
-                renderUmlLink(
-                    rel = relationship,
-                    route = route,
-                    theme = theme,
-                    builder = builder,
-                    sourceStackIndex = sourceStackIndex,
-                    targetStackIndex = targetStackIndex,
-                )
-            is UmlActivityEdge -> renderUmlActivityEdge(rel = relationship, route = route, theme = theme, builder = builder)
-            is UmlCommentLink -> renderUmlCommentLink(route = route, builder = builder)
-            is C4Relationship -> renderC4Relationship(rel = relationship, route = route, theme = theme, builder = builder)
-            // BPMN — V3.1.3
-            is SequenceFlow -> renderBpmnSequenceFlow(flow = relationship, route = route, builder = builder, theme = theme)
-            // BPMN — V3.1.5 Collaboration
-            is MessageFlow -> renderBpmnMessageFlow(flow = relationship, route = route, builder = builder, theme = theme)
-            else -> renderFallbackEdge(route = route, builder = builder)
+        builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(relationship.id))) {
+            when (relationship) {
+                is UmlAssociation ->
+                    renderUmlAssociation(
+                        rel = relationship,
+                        route = route,
+                        theme = theme,
+                        builder = this,
+                        sourceStackIndex = sourceStackIndex,
+                        targetStackIndex = targetStackIndex,
+                    )
+                is UmlAssociationClass ->
+                    renderUmlAssociation(
+                        rel = relationship,
+                        route = route,
+                        theme = theme,
+                        builder = this,
+                        sourceStackIndex = sourceStackIndex,
+                        targetStackIndex = targetStackIndex,
+                    )
+                is UmlGeneralization -> renderUmlGeneralization(rel = relationship, route = route, theme = theme, builder = this)
+                is UmlInterfaceRealization ->
+                    renderUmlInterfaceRealization(
+                        rel = relationship,
+                        route = route,
+                        theme = theme,
+                        builder = this,
+                    )
+                is UmlDependency -> renderUmlDependency(rel = relationship, route = route, theme = theme, builder = this)
+                is UmlConnector -> renderUmlConnector(rel = relationship, route = route, theme = theme, builder = this)
+                is UmlInclude -> renderUmlInclude(rel = relationship, route = route, theme = theme, builder = this)
+                is UmlExtend -> renderUmlExtend(rel = relationship, route = route, theme = theme, builder = this)
+                is UmlLink ->
+                    renderUmlLink(
+                        rel = relationship,
+                        route = route,
+                        theme = theme,
+                        builder = this,
+                        sourceStackIndex = sourceStackIndex,
+                        targetStackIndex = targetStackIndex,
+                    )
+                is UmlActivityEdge -> renderUmlActivityEdge(rel = relationship, route = route, theme = theme, builder = this)
+                is UmlCommentLink -> renderUmlCommentLink(route = route, builder = this)
+                is C4Relationship -> renderC4Relationship(rel = relationship, route = route, theme = theme, builder = this)
+                // BPMN — V3.1.3
+                is SequenceFlow -> renderBpmnSequenceFlow(flow = relationship, route = route, builder = this, theme = theme)
+                // BPMN — V3.1.5 Collaboration
+                is MessageFlow -> renderBpmnMessageFlow(flow = relationship, route = route, builder = this, theme = theme)
+                else -> renderFallbackEdge(route = route, builder = this)
+            }
         }
     }
 

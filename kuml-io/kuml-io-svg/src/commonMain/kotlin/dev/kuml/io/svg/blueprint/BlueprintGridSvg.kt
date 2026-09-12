@@ -184,7 +184,7 @@ internal fun renderBlueprintJourney(
             val src = cellCenterOf(model = model, geo = geo, elementId = conn.sourceRef)
             val dst = cellCenterOf(model = model, geo = geo, elementId = conn.targetRef)
             if (src != null && dst != null) {
-                renderConnection(from = src, to = dst, style = conn.style)
+                renderConnection(id = conn.id, from = src, to = dst, style = conn.style)
             }
         }
 

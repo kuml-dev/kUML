@@ -459,6 +459,17 @@ internal fun renderChoreoSequenceFlow(
     builder: SvgBuilder,
     theme: KumlTheme,
 ) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(flow.id))) {
+        renderChoreoSequenceFlowContent(flow = flow, route = route, builder = this, theme = theme)
+    }
+}
+
+private fun renderChoreoSequenceFlowContent(
+    flow: ChoreographySequenceFlow,
+    route: EdgeRoute,
+    builder: SvgBuilder,
+    theme: KumlTheme,
+) {
     val src = route.source
     val tgt = route.target
 

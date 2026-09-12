@@ -201,6 +201,17 @@ internal fun renderConversationLink(
     builder: SvgBuilder,
     theme: KumlTheme,
 ) {
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(link.id))) {
+        renderConversationLinkContent(link = link, route = route, builder = this, theme = theme)
+    }
+}
+
+private fun renderConversationLinkContent(
+    link: ConversationLink,
+    route: EdgeRoute,
+    builder: SvgBuilder,
+    theme: KumlTheme,
+) {
     val src = route.source
     val tgt = route.target
 

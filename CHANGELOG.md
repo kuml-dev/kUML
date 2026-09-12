@@ -6,6 +6,23 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+**SVG-Kanten hatten keine adressierbare Element-ID — Klick-Selektion in kUML Portal traf nur Knoten, nie Kanten**
+
+Alle Kanten-/Relationship-Renderer in `kuml-io-svg` wickeln ihre Ausgabe jetzt — analog
+zu den Knoten-Renderern — in ein `<g id="…">` mit der stabilen Element-ID der jeweiligen
+Relationship. Betroffen: UML-Assoziationen/-Generalisierungen/-Realisierungen/
+-Abhängigkeiten/-Konnektoren/-Include/-Extend/-Links/-Aktivitätskanten/-Kommentarlinks
+(zentral über `EdgeRendererDispatcher`), C4-Relationships und -Interactions (Dynamic
+Diagram), BPMN Sequence-/Message-/Choreography-Sequence-Flows und Conversation-Links,
+alle vier ERM-Notationen (Martin, Bachman, Chen — inkl. beider Diamond-Connector-Hälften
+mit je eigener, kollisionsfreier ID —, IDEF1X inkl. Kategorie-Kanten), SysML-2-Kanten
+(dispatcher-, adapter- und reine Fallback-Pfade) sowie Service-Blueprint-Verbindungen
+(`33_Blueprint_PdV_Mitglieder-Journey.svg` ist das Referenzbeispiel dafür). IDs werden
+konsequent über `xmlEscapeAttr` escaped. Reine Markup-Erweiterung ohne geometrische
+Änderung — bestehende Renderer-Tests (Substring-Assertions) bleiben unverändert grün.
+
 ## [0.54.0] — 2026-09-12
 
 ### Added

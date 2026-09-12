@@ -1660,6 +1660,7 @@ public object KumlSvgRenderer {
 
                 dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
                     .render(
+                        id = edgeId.value,
                         route = shiftedRoute,
                         metadata = meta,
                         theme = theme,
@@ -1797,6 +1798,7 @@ public object KumlSvgRenderer {
                     val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
                     if (meta != null) {
                         Sysml2EdgeRenderer.render(
+                            id = edgeId.value,
                             route = shiftedRoute,
                             metadata = meta,
                             theme = theme,
@@ -1808,8 +1810,10 @@ public object KumlSvgRenderer {
                         // the adapter doesn't claim the edge, which should not
                         // happen for the five SysML-2 diagram kinds the
                         // adapters cover — kept for safety.
-                        val (tag, attrs) = EdgePathBuilder.build(shiftedRoute)
-                        edgesBuilder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge"))
+                        edgesBuilder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(edgeId.value))) {
+                            val (tagName, attrs) = EdgePathBuilder.build(shiftedRoute)
+                            tag(name = tagName, attrs = attrs + mapOf("class" to "kuml-edge"))
+                        }
                     }
                 }
             }
@@ -2277,6 +2281,7 @@ public object KumlSvgRenderer {
                     val meta = adapter.metadataFor(edgeId.value)
                     if (meta != null) {
                         Sysml2EdgeRenderer.render(
+                            id = edgeId.value,
                             route = clippedRoute,
                             metadata = meta,
                             theme = theme,
@@ -2284,8 +2289,10 @@ public object KumlSvgRenderer {
                             labelStackIndex = actStackIndices[edgeId] ?: 0,
                         )
                     } else {
-                        val (tag, attrs) = EdgePathBuilder.build(clippedRoute)
-                        edgesBuilder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge"))
+                        edgesBuilder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(edgeId.value))) {
+                            val (tagName, attrs) = EdgePathBuilder.build(clippedRoute)
+                            tag(name = tagName, attrs = attrs + mapOf("class" to "kuml-edge"))
+                        }
                     }
                 }
             }
@@ -2889,12 +2896,13 @@ public object KumlSvgRenderer {
                 val id = edgeId.value
                 when {
                     id.startsWith(ErmChenLayoutBridge.ATTR_EDGE_PREFIX) ->
-                        renderChenConnector(route = shiftedRoute, cardinality = null, b = edgesBuilder)
+                        renderChenConnector(id = id, route = shiftedRoute, cardinality = null, b = edgesBuilder)
                     id.startsWith(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX) -> {
                         val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX)] ?: continue
                         // ErmChenLayoutBridge points this edge sourceEntity -> diamond,
                         // so the entity sits at the route's source, not its target.
                         renderChenConnector(
+                            id = id,
                             route = shiftedRoute,
                             cardinality = rel.sourceCardinality,
                             b = edgesBuilder,
@@ -2906,6 +2914,7 @@ public object KumlSvgRenderer {
                     id.startsWith(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX) -> {
                         val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX)] ?: continue
                         renderChenConnector(
+                            id = id,
                             route = shiftedRoute,
                             cardinality = rel.targetCardinality,
                             b = edgesBuilder,
@@ -3034,8 +3043,10 @@ public object KumlSvgRenderer {
                     id.startsWith(ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUP_PREFIX) ||
                         id.startsWith(ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUB_PREFIX) -> {
                         val shiftedRoute = shiftRoute(route = route, dx = padding)
-                        val (tagName, attrs) = EdgePathBuilder.build(shiftedRoute)
-                        edgesBuilder.tag(name = tagName, attrs = attrs + mapOf("class" to "kuml-edge"))
+                        edgesBuilder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(id))) {
+                            val (tagName, attrs) = EdgePathBuilder.build(shiftedRoute)
+                            tag(name = tagName, attrs = attrs + mapOf("class" to "kuml-edge"))
+                        }
                     }
                     else -> {
                         val rel = relationshipsById[id] ?: continue
