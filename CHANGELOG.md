@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.54.1] — 2026-09-12
+
 ### Fixed
 
 **SVG-Kanten hatten keine adressierbare Element-ID — Klick-Selektion in kUML Portal traf nur Knoten, nie Kanten**
