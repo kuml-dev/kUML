@@ -71,14 +71,30 @@ public object OkfDocumentWriter {
             return OkfWriteResult.TooLarge(bytes = byteSize, limit = OkfDocumentParser.MAX_MD_FILE_SIZE_BYTES)
         }
 
-        val candidate = OkfDocumentParser.parse(root = root, file = resolved, text = content)
+        // `resolved` (canonicalised by WorkspaceWriteGuard, resolving any symlink in the
+        // path — e.g. macOS's `/var` -> `/private/var`) is used ONLY for the security
+        // check above and for the physical write below (writing through the fully-resolved
+        // path is the right defence-in-depth choice: it can't be redirected by a symlink
+        // swapped in between the check and the write). It must NOT leak into the parsed
+        // `OkfDocument`/the returned result: `root` here (and everywhere else in this
+        // object's caller, `WorkspaceState`) is the ORIGINAL, non-canonicalised workspace
+        // root from `WorkspaceScanner.scan`, so computing `relativePath` against `resolved`
+        // instead of the original `target` mixes two different path "coordinate systems" —
+        // `file.relativeTo(root)` then can't find `resolved` under `root` by simple prefix
+        // and falls back to a `..`-laden absolute-to-absolute relative path instead of the
+        // plain `foo.md` every other document in `documents` has. `target` and `resolved`
+        // name the identical file on disk (one via a symlink, one via its real path), so
+        // using `target` here changes nothing about what gets read/written — only which
+        // path string downstream identity/equality checks see (bugfix, found running
+        // `WorkspaceStateEditingTest` on macOS).
+        val candidate = OkfDocumentParser.parse(root = root, file = target, text = content)
         val findings = OkfValidator.validateDocument(root = root, doc = candidate, strictVocabulary = true)
         when (val decision = OkfSaveGate.decide(findings)) {
             is OkfSaveDecision.Block -> return OkfWriteResult.Blocked(blocking = decision.blocking, warnings = decision.warnings)
             is OkfSaveDecision.Allow -> {
                 return try {
                     writeAtomically(target = resolved, content = content)
-                    OkfWriteResult.Written(file = resolved, warnings = decision.warnings)
+                    OkfWriteResult.Written(file = target, warnings = decision.warnings)
                 } catch (e: Exception) {
                     OkfWriteResult.Failed(cause = e)
                 }
