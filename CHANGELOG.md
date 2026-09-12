@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.54.0] — 2026-09-12
+
 ### Added
 
 **`kuml simulate` für BPMN-Prozessdiagramme (ADR-0015) — neue `TokenFlowEngine`**
@@ -136,6 +138,30 @@ Both will move only as a side effect of bumping whatever pulls them in transitiv
 platform artifacts) — no standalone catalog entry to bump.
 
 ### Fixed
+
+**`kuml-desktop`: OKF-Workspace-Speichern erzeugte auf macOS ein kaputtes `relativePath` (`WorkspaceStateEditingTest` deterministisch rot)**
+
+`OkfDocumentWriter.save` reichte das von `WorkspaceWriteGuard.resolveWritable` kanonisierte
+(`File.canonicalFile`, löst Symlinks auf) Zieldatei-Objekt sowohl im zurückgegebenen
+`OkfWriteResult.Written.file` als auch für die Vor-Schreib-Validierung
+(`OkfDocumentParser.parse(root = root, file = resolved, ...)`) weiter — während `root`
+selbst nirgends kanonisiert wird. Auf macOS, wo `/var` ein Symlink auf `/private/var`
+ist (u. a. der Standard-`TMPDIR`), driftet dadurch die kanonisierte Datei
+(`/private/var/folders/.../doc.md`) vom nicht-kanonisierten `root`
+(`/var/folders/...`) auseinander: `file.relativeTo(root)` findet die Datei nicht mehr
+als einfaches Präfix und liefert einen `../../../../../../private/var/folders/...`-
+Pfad statt `doc.md`. Der frisch re-geparste `OkfDocument` nach einem Speichern hatte
+dadurch ein anderes `relativePath` als jedes andere Dokument in `documents`, was
+Selektions-Identität, `graphIndex`-Backlinks und Puffer-Neuladen nach dem Speichern
+korrumpierte — deterministisch reproduzierbar mit `./gradlew
+:kuml-desktop:jvmTest --tests "*WorkspaceStateEditingTest*"` auf macOS, unabhängig von
+System-Last. Der Sicherheits-Check selbst (`WorkspaceWriteGuard`) und der physische
+Schreibvorgang (`writeAtomically`, weiterhin über den kanonisierten Pfad — TOCTOU-sicher)
+bleiben unverändert; nur das an den Aufrufer zurückgegebene bzw. zur Validierung genutzte
+`File`-Objekt zeigt jetzt wieder auf das ursprüngliche, mit `root` konsistente `target`.
+Gefunden beim Pre-Release-`clean check` für v0.54.0, nicht durch die ursprüngliche
+Review-/Security-Loop der Welle (die vermutlich auf einer Umgebung ohne
+`/var`→`/private/var`-Symlink lief).
 
 **Worker-Pool-Shutdown konnte Kind-JVMs des Skript-Sandbox-Pools leaken**
 

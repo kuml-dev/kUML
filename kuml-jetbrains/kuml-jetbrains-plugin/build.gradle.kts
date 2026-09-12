@@ -171,6 +171,18 @@ intellijPlatform {
         }
         changeNotes =
             """
+            <h4>0.54.0</h4>
+            <ul>
+              <li>Fixed the Marketplace-verifier <code>INTERNAL_API_USAGES</code> failure that silently
+                  blocked every submission from 0.51.0 through 0.53.0: the Markdown preview integration
+                  now uses the sanctioned <code>MarkdownBrowserPreviewExtension</code> extension point
+                  instead of the internal/obsolete <code>CodeFenceGeneratingProvider</code> — same
+                  rendered result, no behavior change for users. CI now runs the Plugin Verifier before
+                  every publish, so this class of regression can't reach the Marketplace unnoticed again.</li>
+              <li>Markdown preview: a rendering <code>kuml</code> fence now reserves its previous height
+                  (or a sane default) instead of collapsing to zero, removing the layout jump that
+                  appeared on every keystroke while editing a diagram inside a Markdown document.</li>
+            </ul>
             <h4>0.51.1</h4>
             <ul>
               <li>Internal fix, no user-visible behavior change: the diagram export dialog no longer
