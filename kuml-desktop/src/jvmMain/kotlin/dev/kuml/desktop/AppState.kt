@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import dev.kuml.desktop.io.AppSettings
 import dev.kuml.desktop.io.RecentFiles
+import dev.kuml.desktop.mcp.McpNotice
 import dev.kuml.desktop.simulation.SimulationSession
 import dev.kuml.desktop.workspace.OpenWorkspace
 import java.io.File
@@ -106,6 +107,20 @@ class AppState(
     // V3.7.4 — opt-in "Powered by kUML" watermark (View ▸ Wasserzeichen). See
     // AppSettings.showWatermark's KDoc for the default-off rationale.
     var showWatermark by mutableStateOf(initialSettings.showWatermark)
+
+    // Local MCP server (Werkzeuge ▸ MCP-Server…) -- persisted switch + remembered port.
+    var mcpServerEnabled by mutableStateOf(initialSettings.mcpServerEnabled)
+    var mcpServerPort by mutableStateOf(initialSettings.mcpServerPort)
+
+    /**
+     * Stops the local MCP server; installed by `MainWindow`, invoked by `Main.kt`'s
+     * `onCloseRequest` (the HttpServer's dispatcher thread is not a daemon, so the JVM would
+     * otherwise not exit). Not Compose state, not persisted.
+     */
+    internal var mcpShutdown: (() -> Unit)? = null
+
+    /** Transient, non-persisted notice raised when an MCP client changed the script. */
+    internal var mcpNotice by mutableStateOf<McpNotice?>(null)
 
     // P8 — editor find bar. Deliberately transient (NOT persisted in AppSettings/toSettings()
     // below): an open search bar is not session state a user expects to see again after
@@ -209,6 +224,8 @@ class AppState(
             trustedWorkspaces = trustedWorkspaces.toList(),
             viewMode = viewMode.name,
             showWatermark = showWatermark,
+            mcpServerEnabled = mcpServerEnabled,
+            mcpServerPort = mcpServerPort,
         )
 
     /** Ansichtsmodus zwischen Editor (Quelltext) und Vorschau (Diagramm). Siehe [viewMode]. */

@@ -39,6 +39,8 @@ fun rememberAppSettingsBinding(
         // gap, not introduced here); fixed alongside since it is the same class of bug.
         state.viewMode,
         state.showWatermark,
+        state.mcpServerEnabled,
+        state.mcpServerPort,
     ) {
         saveJob?.cancel()
         saveJob =

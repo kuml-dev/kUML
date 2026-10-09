@@ -2,10 +2,10 @@ package dev.kuml.desktop.render
 
 import dev.kuml.desktop.AppState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -27,7 +27,7 @@ class DesktopRenderController(
     private val scope: CoroutineScope,
     private val debounceMs: Long = DEFAULT_DEBOUNCE_MS,
 ) {
-    private var debounceJob: Job? = null
+    private var debounceJob: Deferred<DesktopRenderResult?>? = null
 
     /**
      * @param delayMs pass `0` for a menu/toggle-driven trigger (theme, watermark, view mode) --
@@ -37,9 +37,25 @@ class DesktopRenderController(
         inputs: RenderInputs,
         delayMs: Long = debounceMs,
     ) {
+        startRender(inputs = inputs, delayMs = delayMs)
+    }
+
+    /**
+     * Renders [inputs] immediately (no debounce) and hands back the in-flight job so a caller
+     * (the MCP `render` tool) can await the outcome. Same semantics as `scheduleRender(inputs, 0)`:
+     * a later [scheduleRender]/[renderNow] cancels this job, which the awaiting caller observes
+     * as a cancelled [Deferred]. Yields `null` when the render failed with an unexpected exception
+     * (the message is then in [AppState.lastError]).
+     */
+    fun renderNow(inputs: RenderInputs): Deferred<DesktopRenderResult?> = startRender(inputs = inputs, delayMs = 0)
+
+    private fun startRender(
+        inputs: RenderInputs,
+        delayMs: Long,
+    ): Deferred<DesktopRenderResult?> {
         debounceJob?.cancel()
-        debounceJob =
-            scope.launch {
+        val job =
+            scope.async {
                 if (delayMs > 0) delay(delayMs)
                 state.isRendering = true
                 try {
@@ -55,27 +71,35 @@ class DesktopRenderController(
                                 watermark = inputs.watermark,
                             )
                         }
-                    when (result) {
-                        is DesktopRenderResult.Svg -> {
-                            state.lastSvg = result.svg
-                            state.lastError = null
-                            // V3.x — Live-Simulation: drives Werkzeuge ▸ Simulieren's enabled state
-                            // and the "not simulatable" status-bar hint (see MainWindow.kt).
-                            state.lastDiagramSimulatable = result.simulatable
-                        }
-                        is DesktopRenderResult.Error -> {
-                            state.lastError = result.message
-                            state.lastDiagramSimulatable = false
-                        }
-                    }
+                    applyResult(result)
+                    result
                 } catch (e: Exception) {
                     // CancellationException NIEMALS verschlucken — bricht Structured Concurrency
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     state.lastError = "Unerwarteter Fehler: ${e.message ?: e.javaClass.simpleName}"
+                    null
                 } finally {
                     state.isRendering = false
                 }
             }
+        debounceJob = job
+        return job
+    }
+
+    private fun applyResult(result: DesktopRenderResult) {
+        when (result) {
+            is DesktopRenderResult.Svg -> {
+                state.lastSvg = result.svg
+                state.lastError = null
+                // V3.x — Live-Simulation: drives Werkzeuge ▸ Simulieren's enabled state
+                // and the "not simulatable" status-bar hint (see MainWindow.kt).
+                state.lastDiagramSimulatable = result.simulatable
+            }
+            is DesktopRenderResult.Error -> {
+                state.lastError = result.message
+                state.lastDiagramSimulatable = false
+            }
+        }
     }
 
     /** Compatibility overload for existing tests/callers that only vary [state]'s script. */

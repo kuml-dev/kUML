@@ -57,7 +57,67 @@ internal sealed interface SimulationPrepareResult {
     ) : SimulationPrepareResult
 }
 
+/** One diagnostic of [DesktopRenderPipeline.validate]; [line]/[column] are 1-based when known. */
+internal data class DesktopDiagnostic(
+    val severity: String,
+    val message: String,
+    val line: Int? = null,
+    val column: Int? = null,
+)
+
+/** Outcome of [DesktopRenderPipeline.validate]. */
+internal data class DesktopValidationResult(
+    val ok: Boolean,
+    val diagnostics: List<DesktopDiagnostic>,
+)
+
 internal object DesktopRenderPipeline {
+    /**
+     * Evaluates [script] and extracts its diagram -- no layout, no SVG, no state change. Backs
+     * the MCP `validate` tool; shares the evaluation entry point ([KumlScriptHost.eval]) with
+     * [render], so a script is accepted here exactly when it would evaluate there.
+     */
+    fun validate(script: String): DesktopValidationResult =
+        try {
+            DesktopEngineInit.ensure()
+            val evalResult = KumlScriptHost.eval(code = script)
+            val diagnostics =
+                evalResult.reports
+                    .filter { it.severity >= ScriptDiagnostic.Severity.WARNING }
+                    .map { report ->
+                        DesktopDiagnostic(
+                            severity = report.severity.name,
+                            message = report.message,
+                            line = report.location?.start?.line,
+                            column = report.location?.start?.col,
+                        )
+                    }
+            val hasErrors = diagnostics.any { it.severity == ScriptDiagnostic.Severity.ERROR.name }
+            val success = evalResult as? ResultWithDiagnostics.Success
+            if (hasErrors || success == null) {
+                DesktopValidationResult(
+                    ok = false,
+                    diagnostics =
+                        diagnostics.ifEmpty {
+                            listOf(DesktopDiagnostic(severity = "ERROR", message = "Script-Auswertung fehlgeschlagen"))
+                        },
+                )
+            } else {
+                DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = File("inline.kuml.kts"))
+                DesktopValidationResult(ok = true, diagnostics = diagnostics)
+            }
+        } catch (e: ScriptEvaluationException) {
+            DesktopValidationResult(
+                ok = false,
+                diagnostics = listOf(DesktopDiagnostic(severity = "ERROR", message = e.message ?: "Script-Fehler")),
+            )
+        } catch (e: Exception) {
+            DesktopValidationResult(
+                ok = false,
+                diagnostics = listOf(DesktopDiagnostic(severity = "ERROR", message = e.message ?: "Unerwarteter Fehler")),
+            )
+        }
+
     /** Shared eval → extract → theme → ELK-engine front for [render] and [prepareSimulation]. */
     private sealed interface PipelineContext {
         data class Ready(

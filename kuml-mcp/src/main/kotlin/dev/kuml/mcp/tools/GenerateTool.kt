@@ -22,8 +22,8 @@ import java.nio.file.Files
  * model (`ermModel(…) { … }`) — dispatching to [CodeGenRegistry] or
  * [ErmCodeGenRegistry] respectively, mirroring `GenerateCommand` in `kuml-cli`.
  */
-internal object GenerateTool : McpTool {
-    override val descriptor: McpToolDescriptor =
+public object GenerateTool : McpTool {
+    public override val descriptor: McpToolDescriptor =
         McpToolDescriptor(
             name = "kuml.generate",
             description =
@@ -56,7 +56,7 @@ internal object GenerateTool : McpTool {
                 },
         )
 
-    override fun call(arguments: JsonObject): List<McpContent> {
+    public override fun call(arguments: JsonObject): List<McpContent> {
         val script =
             arguments["script"]?.jsonPrimitive?.content
                 ?: throw IllegalArgumentException("Missing required argument: script")

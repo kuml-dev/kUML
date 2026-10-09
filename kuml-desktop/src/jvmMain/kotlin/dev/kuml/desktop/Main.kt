@@ -86,6 +86,8 @@ fun main() {
                 // Vollständiger Dirty-Guard läuft über Quit-Menü-Item in MainWindow.
                 // V3.x — every open simulation must release its sandbox thread pool before exit.
                 appState.simulation?.close()
+                // The MCP HttpServer's dispatcher is a non-daemon thread -- stop it or the JVM lingers.
+                appState.mcpShutdown?.invoke()
                 store.save(appState.toSettings())
                 exitApplication()
             },

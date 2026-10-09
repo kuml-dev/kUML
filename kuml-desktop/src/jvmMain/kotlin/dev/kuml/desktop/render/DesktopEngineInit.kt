@@ -6,20 +6,20 @@ import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.renderer.theme.core.ThemeRegistry
 
 internal object DesktopEngineInit {
-    @Volatile private var initialized = false
-
+    /**
+     * Idempotent and cheap: re-checks the registries on every call instead of latching a
+     * one-shot flag, so a registry that was emptied afterwards (tests that clear
+     * [ThemeRegistry], a plugin reload) is repopulated by the next render rather than leaving
+     * every later render stuck on "Theme not found".
+     */
+    @Synchronized
     fun ensure() {
-        if (initialized) return
-        synchronized(this) {
-            if (initialized) return
-            if (LayoutEngineRegistry.ids().isEmpty()) {
-                LayoutEngineRegistry.register(GridLayoutEngineProvider())
-                LayoutEngineRegistry.register(ElkLayoutEngineProvider())
-            }
-            if (ThemeRegistry.names().isEmpty()) {
-                ThemeRegistry.loadFromClasspath()
-            }
-            initialized = true
+        if (LayoutEngineRegistry.ids().isEmpty()) {
+            LayoutEngineRegistry.register(GridLayoutEngineProvider())
+            LayoutEngineRegistry.register(ElkLayoutEngineProvider())
+        }
+        if (ThemeRegistry.names().isEmpty()) {
+            ThemeRegistry.loadFromClasspath()
         }
     }
 }

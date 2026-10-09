@@ -32,6 +32,12 @@ data class AppSettings(
     // field, no schemaVersion bump (same reasoning as trustedWorkspaces/viewMode above — no
     // code path actually reads schemaVersion; see AppSettingsStore.load()).
     val showWatermark: Boolean = false,
+    // Local MCP server (Werkzeuge ▸ MCP-Server…). Off by default; the port is remembered so the
+    // `claude mcp add …` command stays valid across restarts (0 = pick a free port). Additive
+    // fields, no schemaVersion bump. The bearer token is deliberately NOT stored here -- it
+    // lives in its own 0600 file (see McpTokenStore) so settings.json stays shareable.
+    val mcpServerEnabled: Boolean = false,
+    val mcpServerPort: Int = 0,
 ) {
     companion object {
         val DEFAULT = AppSettings()

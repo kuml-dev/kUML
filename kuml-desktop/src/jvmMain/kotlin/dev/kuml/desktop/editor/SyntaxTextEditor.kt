@@ -91,6 +91,23 @@ internal fun applyExternalTextChangeSilently(
 }
 
 /**
+ * Replaces the entire content of [textArea] with [newText] as a single undoable edit (one Undo
+ * restores the previous text). Deliberately NOT routed through [applyExternalTextChangeSilently]:
+ * the document listener must report this change outward so the dirty flag is set.
+ */
+internal fun replaceAllAsSingleUndoableEdit(
+    textArea: RSyntaxTextArea,
+    newText: String,
+) {
+    textArea.beginAtomicEdit()
+    try {
+        textArea.replaceRange(newText, 0, textArea.document.length)
+    } finally {
+        textArea.endAtomicEdit()
+    }
+}
+
+/**
  * A single `RSyntaxTextArea`-backed Compose editor, generic over its text source (V-next,
  * editable-workspace welle) — extracted out of [EditorPane] so the OKF document editor
  * (`DocumentEditorPane`) can reuse the exact same RSTA plumbing (undo history, find
@@ -193,6 +210,7 @@ internal fun SyntaxTextEditor(
                     findController.find(query = query, forward = forward, matchCase = matchCase, advance = advance)
                 },
                 endFind = { findController.endFind() },
+                replaceAllUndoable = { newText -> replaceAllAsSingleUndoableEdit(textArea = textArea, newText = newText) },
             ),
         )
     }

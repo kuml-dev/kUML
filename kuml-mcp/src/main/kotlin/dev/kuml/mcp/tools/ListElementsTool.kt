@@ -21,8 +21,8 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
-internal object ListElementsTool : McpTool {
-    override val descriptor: McpToolDescriptor =
+public object ListElementsTool : McpTool {
+    public override val descriptor: McpToolDescriptor =
         McpToolDescriptor(
             name = "kuml.list_elements",
             description = "List all model elements (classifiers, relationships) in a kUML script. Returns a human-readable summary.",
@@ -39,7 +39,7 @@ internal object ListElementsTool : McpTool {
                 },
         )
 
-    override fun call(arguments: JsonObject): List<McpContent> {
+    public override fun call(arguments: JsonObject): List<McpContent> {
         val script =
             arguments["script"]?.jsonPrimitive?.content
                 ?: throw IllegalArgumentException("Missing required argument: script")

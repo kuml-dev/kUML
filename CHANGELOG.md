@@ -6,6 +6,50 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.55.0] — 2026-10-10
+
+### Added
+
+- **kUML Desktop: optional local MCP server** (Tools ▸ MCP server…). Off by default; when enabled it
+  serves MCP over Streamable HTTP (POST `/mcp`) on `127.0.0.1` only, so an agent such as Claude Code
+  can work on the script that is open in the running app. Seven live tools —
+  `kuml_desktop_get_script`, `kuml_desktop_set_script` (optimistic concurrency via `baseRevision`;
+  in-memory and undoable only, never saves), `kuml_desktop_render`, `kuml_desktop_validate`,
+  `kuml_desktop_get_last_error`, `kuml_desktop_get_theme`, `kuml_desktop_set_theme` — plus the four
+  stateless authoring tools (`kuml.describe`, `kuml.examples`, `kuml.generate`, `kuml.list_elements`).
+  A non-modal notice with an "Undo" button appears whenever a client replaced the script. The dialog
+  copies a ready-made `claude mcp add …` command; the token is never displayed.
+- Security of the desktop MCP server: 256-bit bearer token stored in its own file with owner-only
+  permissions (never in `settings.json`), constant-time comparison, strict `Host`/`Origin` checks
+  (DNS-rebinding defence), `405` for everything but POST, 1 MiB body limit (also when chunked),
+  request/response timeouts, a single script-evaluation slot, no logging of tokens or bodies. If the
+  remembered port is taken at startup, the server moves to a free port and rotates the token.
+- `kuml-mcp` now has a public API for embedding: `McpRequestHandler` (transport-independent JSON-RPC
+  handler), `McpToolRegistry`, `McpTool`, `KumlAuthoringTools`, the JSON-RPC/MCP protocol types and
+  optional tool `annotations`. The stdio server's wire output is unchanged.
+- The packaged desktop runtime now includes the `jdk.httpserver` jlink module.
+
+### Changed
+
+- Dependency refresh: Gradle 9.8.1, Koog 1.3.0, Ktor 3.6.0, Compose Multiplatform 1.12.1, Kuiver 0.4.2,
+  Coil 3.6.3, Kotest 6.2.5, JUnit 6.1.3, Logback 1.6.5, GraalVM native plugin 1.1.14, Gradle plugin-publish
+  2.2.1, IntelliJ Platform plugin 2.19.0, Kotlin 2.4.10. Held back deliberately: Kotlin 2.4.20/2.4.21
+  (break `kuml-codegen-reverse-kotlin` and the detekt analysis-API based `kuml-style-worker`) and
+  JSqlParser 5.4 (changes FK constraint parsing, breaks `kuml-codegen-reverse-sql`).
+
+### Fixed
+
+**kUML Desktop (installierte App): Vorschau blieb leer, Statusleiste zeigte `java.lang.ExceptionInInitializerError`**
+
+Die jlink-Runtime der gepackten Desktop-App (DMG/MSI/DEB/RPM) enthielt nur acht JDK-Module;
+`jdk.unsupported` fehlte. Der Kotlin-Scripting-Stack braucht `sun.misc.Unsafe`, daher scheiterte
+in der installierten App **jedes** Rendern — auch das Standardskript beim Start und das Öffnen
+eines neu angelegten OKF-Workspaces. `./gradlew run` (volles JDK) und die CLI waren nicht
+betroffen, weshalb der Fehler unbemerkt blieb. `kuml-desktop/build.gradle.kts` pinnt die
+Runtime-Module jetzt explizit (`jdk.unsupported`, `java.scripting`, `java.management`,
+`java.naming`, `java.net.http`, `java.sql`, `jdk.zipfs`), analog zur CLI. Regressionsguard:
+`RuntimeModulesConfigTest`.
+
 ## [0.54.1] — 2026-09-12
 
 ### Fixed

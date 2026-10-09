@@ -10,28 +10,40 @@ import dev.kuml.mcp.runtime.tools.RunStartTool
 import dev.kuml.mcp.runtime.tools.RunStopTool
 import kotlinx.serialization.json.JsonObject
 
+/**
+ * Registry of the stdio server's tools.
+ *
+ * NOTE: `kuml-ai-tools`' `InProcessMcpTransport` reaches this object by reflection
+ * (`INSTANCE`, `dispatch*`, `getDescriptors*` — all declared directly on this class).
+ * Keep it an `object` with self-declared (not inherited) members that merely delegate.
+ */
 internal object ToolRegistry {
     /** Shared session manager — singleton, lives for the lifetime of the MCP server process. */
     private val sessionManager = RuntimeSessionManager()
 
-    internal val tools: List<McpTool> =
-        listOf(
-            RenderTool,
-            ValidateTool,
-            ListElementsTool,
-            DescribeTool,
-            GenerateTool,
-            // V3.3.1 — curated per-type DSL examples
-            ExamplesTool,
-            // V2.0.27 — Behaviour-Runtime tools
-            RunStartTool(sessionManager),
-            RunEventTool(sessionManager),
-            RunSnapshotTool(sessionManager),
-            RunPatchTool(sessionManager),
-            RunStopTool(sessionManager),
+    internal val registry: McpToolRegistry =
+        McpToolRegistry(
+            tools =
+                listOf(
+                    RenderTool,
+                    ValidateTool,
+                    ListElementsTool,
+                    DescribeTool,
+                    GenerateTool,
+                    // V3.3.1 — curated per-type DSL examples
+                    ExamplesTool,
+                    // V2.0.27 — Behaviour-Runtime tools
+                    RunStartTool(sessionManager),
+                    RunEventTool(sessionManager),
+                    RunSnapshotTool(sessionManager),
+                    RunPatchTool(sessionManager),
+                    RunStopTool(sessionManager),
+                ),
         )
 
-    internal val descriptors: List<McpToolDescriptor> get() = tools.map { it.descriptor }
+    internal val tools: List<McpTool> get() = registry.tools
+
+    internal val descriptors: List<McpToolDescriptor> get() = registry.descriptors
 
     /**
      * Dispatches a tool call by name.
@@ -40,15 +52,5 @@ internal object ToolRegistry {
     internal fun dispatch(
         name: String,
         arguments: JsonObject,
-    ): List<McpContent> {
-        val tool =
-            tools.firstOrNull { it.descriptor.name == name }
-                ?: throw McpToolException(message = "Unknown tool: '$name'")
-        return tool.call(arguments)
-    }
+    ): List<McpContent> = registry.dispatch(name = name, arguments = arguments)
 }
-
-internal class McpToolException(
-    message: String,
-    cause: Throwable? = null,
-) : RuntimeException(message, cause)

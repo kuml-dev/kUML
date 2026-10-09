@@ -72,6 +72,14 @@ Add to your MCP client configuration:
 }
 ----
 
+== Embedding (public API)
+
+The protocol logic is transport-independent and public: `McpRequestHandler` (JSON-RPC handler,
+`handle(requestJson): String?`), `McpToolRegistry`, `McpTool`, and `KumlAuthoringTools.all`
+(the four stateless authoring tools). The stdio server is a thin loop around it. kUML Desktop
+uses it to host an optional local HTTP server — see
+xref:reference:authoring-mcp.adoc[Authoring MCP Interface].
+
 == Protocol
 
 * Transport: *stdio*, newline-delimited JSON

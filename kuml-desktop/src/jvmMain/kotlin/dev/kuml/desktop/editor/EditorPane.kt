@@ -32,6 +32,13 @@ class EditorActions(
     val find: (query: String, forward: Boolean, matchCase: Boolean, advance: Boolean) -> Boolean,
     /** Clears highlights, leaves the caret at the last match, returns focus to the editor. */
     val endFind: () -> Unit,
+    /**
+     * Replaces the whole buffer with the given text as ONE undoable edit. Goes through the text
+     * area's document (not through `AppState.script`), so the `DocumentListener` reports it like
+     * a user edit (dirty flag, re-render) and the undo history is kept — used by the MCP
+     * server's `set_script`.
+     */
+    val replaceAllUndoable: (String) -> Unit = {},
 )
 
 /**

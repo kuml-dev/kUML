@@ -22,7 +22,7 @@ The binary is installed at:
 kuml-mcp/build/install/kuml-mcp/bin/kuml-mcp
 ----
 
-Claude Desktop (and other MCP clients) connect to this process over stdio.
+Claude Desktop (and other MCP clients) connect to this process over stdio. kUML Desktop offers an HTTP variant for the open script, see <<Driving kUML Desktop over MCP>>.
 
 == The six authoring tools
 
@@ -237,6 +237,43 @@ be simplified to just `"kuml-mcp"` (resolved via `PATH` after `brew install kuml
 Restart Claude Desktop after editing the config. Both authoring tools (this page) and
 Behaviour-Runtime tools (xref:runtime-mcp.adoc[Behaviour-Runtime MCP]) are exposed by the
 same `kuml-mcp` process — there is no separate binary or config entry per tool group.
+
+== Driving kUML Desktop over MCP
+
+kUML Desktop can host its own MCP server, so an agent works on the script that is open in the
+running app and sees the live preview. It is *off by default*: enable it under
+*Tools ▸ MCP server…*. The dialog shows the status and port and copies a ready-made
+`claude mcp add` command; the bearer token is never displayed.
+
+[source,bash]
+----
+claude mcp add --transport http kuml-desktop http://127.0.0.1:<port>/mcp \
+  --header "Authorization: Bearer <token>"
+----
+
+The server speaks Streamable HTTP (`POST /mcp` only, protocol version `2025-03-26`) and binds to
+`127.0.0.1` exclusively. The port is remembered across restarts, so the command stays valid. If that port is taken at startup, the server picks a free one and rotates the token; the dialog says so and you copy the new command.
+
+.Live tools (operate on the open script)
+[cols="2,5"]
+|===
+| Tool | Purpose
+
+| `kuml_desktop_get_script` | Current script, its `revision`, whether it has unsaved changes and the file path.
+| `kuml_desktop_set_script` | Replaces the editor buffer. Requires the `baseRevision` the agent last read; on a mismatch the call fails with `CONFLICT` and the current revision, so a concurrent edit by you is never overwritten. The change is in-memory and undoable (one Undo step); it never saves a file.
+| `kuml_desktop_render` | Renders the open script and returns the SVG.
+| `kuml_desktop_validate` | Evaluates the script and returns diagnostics with line and column.
+| `kuml_desktop_get_last_error` | The last render error shown in the status bar, if any.
+| `kuml_desktop_get_theme` / `kuml_desktop_set_theme` | Reads or changes the preview theme.
+|===
+
+The four stateless authoring tools (`kuml.describe`, `kuml.examples`, `kuml.generate`,
+`kuml.list_elements`) are available on the same endpoint.
+
+.Security
+* The token is 256 bits from `SecureRandom`, stored in its own owner-only file (`mcp-token`; POSIX permissions, best effort on Windows), never in the settings file, and compared in constant time.
+* `Host` and `Origin` headers are checked (DNS-rebinding defence); request bodies are limited to 1 MiB; requests have timeouts; only one script evaluation runs at a time.
+* *Anyone holding the token can execute Kotlin code in the Desktop process* — script evaluation is the feature. Treat the token like a password and keep the server off when you do not need it.
 
 == See also
 

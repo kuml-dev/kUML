@@ -1,6 +1,7 @@
 package dev.kuml.desktop
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -49,9 +51,19 @@ import dev.kuml.desktop.io.FileMenu
 import dev.kuml.desktop.io.UnsavedChoice
 import dev.kuml.desktop.io.UnsavedSaveTarget
 import dev.kuml.desktop.io.unsavedSaveTargetFor
+import dev.kuml.desktop.mcp.DesktopMcpServerManager
+import dev.kuml.desktop.mcp.DesktopMcpTools
+import dev.kuml.desktop.mcp.McpNotice
+import dev.kuml.desktop.mcp.McpRenderPort
+import dev.kuml.desktop.mcp.McpServerDialog
+import dev.kuml.desktop.mcp.McpServerStatus
+import dev.kuml.desktop.mcp.McpTokenStore
+import dev.kuml.desktop.mcp.McpValidatePort
+import dev.kuml.desktop.mcp.desktopMcpRegistry
 import dev.kuml.desktop.plugins.PluginManagerPane
 import dev.kuml.desktop.preview.PreviewPane
 import dev.kuml.desktop.render.DesktopRenderController
+import dev.kuml.desktop.render.DesktopRenderPipeline
 import dev.kuml.desktop.render.RenderInputs
 import dev.kuml.desktop.simulation.SimulationSession
 import dev.kuml.desktop.simulation.SimulationStartResult
@@ -69,6 +81,8 @@ import dev.kuml.desktop.workspace.WorkspaceModeChooserDialog
 import dev.kuml.desktop.workspace.WorkspaceState
 import dev.kuml.desktop.workspace.WorkspaceTrust
 import dev.kuml.io.png.KumlPngRenderer
+import dev.kuml.mcp.McpRequestHandler
+import dev.kuml.mcp.McpServerInfo
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.workspace.OkfWorkspace
 import dev.kuml.workspace.OkfWriteResult
@@ -124,6 +138,12 @@ internal fun rejectionMessage(
         WorkspaceWriteGuard.Rejection.IO_ERROR -> strings.docSaveRejectedIoError
     }
 
+/** Protocol revision of the desktop's Streamable-HTTP MCP endpoint (tool annotations need >= 2025-03-26). */
+private const val DESKTOP_MCP_PROTOCOL_VERSION = "2025-03-26"
+
+/** Best-effort app version for the MCP `serverInfo` (manifest value; "dev" when run from classes). */
+private val DESKTOP_VERSION: String = AppState::class.java.`package`?.implementationVersion ?: "dev"
+
 /**
  * Top-Level-Composable für das kUML Desktop Hauptfenster.
  * Deklariert die native [MenuBar] und legt [EditorPane] + [PreviewPane] nebeneinander.
@@ -147,6 +167,7 @@ fun FrameWindowScope.MainWindow(
     // P2, design review — handle to the currently-mounted EditorPane's undo/redo, so the
     // Edit menu can wire real Undo/Redo instead of the previous `/* V3.0.11 */` no-ops.
     var editorActions by remember { mutableStateOf<EditorActions?>(null) }
+    var showMcpDialog by remember { mutableStateOf(false) }
 
     // V3.6.4 — Knowledge Workspace viewer: pending dialogs gate opening a workspace.
     var pendingTrustWorkspace by remember { mutableStateOf<OkfWorkspace?>(null) }
@@ -156,6 +177,42 @@ fun FrameWindowScope.MainWindow(
     var showNewWorkspaceDialog by remember { mutableStateOf(false) }
 
     rememberAppSettingsBinding(state = state, store = store)
+
+    // Local MCP server (Werkzeuge ▸ MCP-Server…). Off unless the persisted switch is on; the
+    // tools read/write this window's live script through the same controller/editor handle the
+    // UI itself uses.
+    val mcpTools =
+        remember(controller) {
+            DesktopMcpTools(
+                state = state,
+                render = McpRenderPort { inputs -> controller.renderNow(inputs = inputs) },
+                validate = McpValidatePort { script -> DesktopRenderPipeline.validate(script = script) },
+                editorActions = { editorActions },
+                onNotice = { notice -> state.mcpNotice = notice },
+            )
+        }
+    val mcpManager =
+        remember(mcpTools) {
+            DesktopMcpServerManager(
+                state = state,
+                tokenStore = McpTokenStore(),
+                handlerFactory = {
+                    McpRequestHandler(
+                        registry = desktopMcpRegistry(tools = mcpTools),
+                        serverInfo = McpServerInfo(name = "kuml-desktop", version = DESKTOP_VERSION),
+                        protocolVersion = DESKTOP_MCP_PROTOCOL_VERSION,
+                    )
+                },
+            )
+        }
+    LaunchedEffect(mcpManager, state.mcpServerEnabled) { mcpManager.apply(enabled = state.mcpServerEnabled) }
+    DisposableEffect(mcpManager) {
+        state.mcpShutdown = { mcpManager.stop() }
+        onDispose {
+            mcpManager.stop()
+            state.mcpShutdown = null
+        }
+    }
 
     DisposableEffect(controller) {
         onDispose { controller.cancel() }
@@ -550,6 +607,7 @@ fun FrameWindowScope.MainWindow(
             Item(strings.menuFileQuit, onClick = {
                 confirmUnsavedAndThen {
                     stopSimulation()
+                    state.mcpShutdown?.invoke()
                     store.save(state.toSettings())
                     onQuit()
                 }
@@ -721,6 +779,8 @@ fun FrameWindowScope.MainWindow(
                 onClick = { stopSimulation() },
             )
             Separator()
+            Item(strings.menuToolsMcpServer, onClick = { showMcpDialog = true })
+            Separator()
             Item(strings.menuToolsPluginManager, onClick = { showPluginManager = true })
         }
     }
@@ -800,8 +860,23 @@ fun FrameWindowScope.MainWindow(
                         )
                     }
                 }
+                // MCP notice -- plain Compose row ABOVE the status bar (never an overlay on the
+                // heavyweight editor SwingPanel).
+                state.mcpNotice?.let { notice ->
+                    McpNoticeBar(
+                        notice = notice,
+                        state = state,
+                        strings = strings,
+                        editorActions = { editorActions },
+                    )
+                }
                 // StatusBar — reines Compose, KEIN SwingPanel → immer sichtbar
-                StatusBar(state = state, showsEditor = showsEditor)
+                StatusBar(
+                    state = state,
+                    showsEditor = showsEditor,
+                    mcpStatus = mcpManager.status.value,
+                    onOpenMcp = { showMcpDialog = true },
+                )
             }
         }
     }
@@ -825,6 +900,10 @@ fun FrameWindowScope.MainWindow(
                 aiState.reloadSettings()
             },
         )
+    }
+
+    if (showMcpDialog) {
+        McpServerDialog(state = state, manager = mcpManager, strings = strings, onClose = { showMcpDialog = false })
     }
 
     // P6, design review — About dialog.
@@ -889,6 +968,45 @@ fun FrameWindowScope.MainWindow(
 }
 
 /**
+ * Non-modal notice shown when an MCP client replaced the script, with an explicit "Undo"
+ * (offered only while the buffer still holds exactly the revision the client wrote -- so it can
+ * never clobber edits the user made afterwards). Works in every view mode, including diagram-only
+ * where no editor (and hence no Edit ▸ Undo) is mounted.
+ */
+@Composable
+private fun McpNoticeBar(
+    notice: McpNotice,
+    state: AppState,
+    strings: Strings,
+    editorActions: () -> EditorActions?,
+) {
+    LaunchedEffect(notice) {
+        delay(6_000)
+        if (state.mcpNotice === notice) state.mcpNotice = null
+    }
+    HorizontalDivider()
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = strings.mcpScriptReplacedNotice, fontSize = 11.sp, modifier = Modifier.weight(1f))
+        if (notice is McpNotice.ScriptReplaced && DesktopMcpTools.revisionOf(state.script) == notice.newRevision) {
+            TextButton(onClick = {
+                val actions = editorActions()
+                if (actions != null && state.viewMode != AppState.ViewMode.DIAGRAM) {
+                    actions.replaceAllUndoable(notice.previousScript)
+                }
+                if (state.script != notice.previousScript) {
+                    state.isDirty = true
+                    state.script = notice.previousScript
+                }
+                state.mcpNotice = null
+            }) { Text(strings.mcpUndo, fontSize = 11.sp) }
+        }
+    }
+}
+
+/**
  * Statusleiste am unteren Rand.
  *
  * Zeigt Fehler (rot) oder Render-Status (grau). Liegt AUSSERHALB jedes SwingPanel,
@@ -898,6 +1016,8 @@ fun FrameWindowScope.MainWindow(
 private fun StatusBar(
     state: AppState,
     showsEditor: Boolean,
+    mcpStatus: McpServerStatus,
+    onOpenMcp: () -> Unit,
 ) {
     val strings = Strings.forLanguage(state.language)
     val session = state.simulation
@@ -937,6 +1057,14 @@ private fun StatusBar(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
+        if (mcpStatus is McpServerStatus.Running) {
+            Text(
+                text = strings.mcpStatusBarIndicator.format(mcpStatus.port),
+                color = Color(0xFF228822),
+                fontSize = 11.sp,
+                modifier = Modifier.clickable(onClick = onOpenMcp).padding(horizontal = 8.dp),
+            )
+        }
         // P5 — view-mode segmented control, only meaningful in single-file mode and the
         // Engineering workspace (EngineeringWorkspaceScreen reads the same state.viewMode
         // for its own editor/preview weights). Review fix — the Knowledge workspace viewer

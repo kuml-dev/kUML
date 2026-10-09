@@ -4,8 +4,9 @@ import dev.kuml.mcp.McpContent
 import dev.kuml.mcp.McpToolDescriptor
 import kotlinx.serialization.json.JsonObject
 
-internal interface McpTool {
-    val descriptor: McpToolDescriptor
+/** A single MCP tool: a [descriptor] advertised via `tools/list` and a [call] implementation. */
+public interface McpTool {
+    public val descriptor: McpToolDescriptor
 
     /**
      * Execute the tool.
@@ -13,5 +14,14 @@ internal interface McpTool {
      * @throws java.io.IOException on I/O error
      * @throws IllegalArgumentException on bad arguments
      */
-    fun call(arguments: JsonObject): List<McpContent>
+    public fun call(arguments: JsonObject): List<McpContent>
 }
+
+/**
+ * Thrown by a tool to report a failure to the client as an `isError = true` tool result.
+ * The [message] is delivered verbatim as the result text.
+ */
+public open class McpToolException(
+    message: String,
+    cause: Throwable? = null,
+) : RuntimeException(message, cause)

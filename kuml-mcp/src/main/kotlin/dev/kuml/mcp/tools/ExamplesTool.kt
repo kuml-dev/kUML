@@ -29,7 +29,7 @@ import kotlinx.serialization.json.putJsonObject
  *  - `{language, diagramType}` → retrieval: returns the matching example script(s), each
  *    with a one-sentence description and the source note title.
  */
-internal object ExamplesTool : McpTool {
+public object ExamplesTool : McpTool {
     private val json = Json { prettyPrint = false }
 
     /**
@@ -45,7 +45,7 @@ internal object ExamplesTool : McpTool {
         val all = listOf(MISSING_LANGUAGE, UNKNOWN_LANGUAGE, UNKNOWN_DIAGRAM_TYPE)
     }
 
-    override val descriptor: McpToolDescriptor =
+    public override val descriptor: McpToolDescriptor =
         McpToolDescriptor(
             name = "kuml.examples",
             description =
@@ -80,7 +80,7 @@ internal object ExamplesTool : McpTool {
                 },
         )
 
-    override fun call(arguments: JsonObject): List<McpContent> {
+    public override fun call(arguments: JsonObject): List<McpContent> {
         val language =
             arguments["language"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
                 ?: throw McpToolException(message = missingLanguageError())

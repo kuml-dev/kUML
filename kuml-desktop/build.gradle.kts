@@ -51,6 +51,10 @@ kotlin {
                     // V3.0.24 — AI panel integration
                     implementation(project(":kuml-ai:kuml-ai-core"))
                     implementation(project(":kuml-ai:kuml-ai-tools"))
+                    // Local MCP server (Werkzeuge ▸ MCP-Server…): reuses kuml-mcp's public
+                    // McpRequestHandler / McpToolRegistry / KumlAuthoringTools. Previously only on the
+                    // runtime classpath transitively via kuml-ai-tools, not at compile time.
+                    implementation(project(":kuml-mcp"))
                     // V3.0.25 — DSL serializer (UmlModelDslPrinter)
                     implementation(project(":kuml-cli"))
                     // V3.0.13 — Plugin Manager: explizite Dependency für TransformerRegistry
@@ -134,6 +138,23 @@ compose.desktop {
             description = "kUML Desktop — UML/SysML2 modelling with AI"
             copyright = "© 2024-2026 kUML contributors"
             vendor = "kuml.dev"
+
+            // Explicit jlink module list. Compose's auto-detected runtime (jdeps over the app jar
+            // only) omitted jdk.unsupported, so every script render in the packaged app died with
+            // java.lang.ExceptionInInitializerError (sun.misc.Unsafe, used by the Kotlin
+            // scripting stack) — the editor opened but the preview stayed blank. Kept in sync
+            // with the CLI's jlinkModules in kuml-cli/build.gradle.kts, plus jdk.httpserver, which
+            // only the desktop needs (its local MCP server uses com.sun.net.httpserver).
+            modules(
+                "java.scripting",
+                "java.management",
+                "java.naming",
+                "java.net.http",
+                "java.sql",
+                "jdk.httpserver",
+                "jdk.unsupported",
+                "jdk.zipfs",
+            )
             licenseFile.set(rootProject.file("LICENSE"))
 
             macOS {

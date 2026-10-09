@@ -34,7 +34,7 @@ Das Metamodell ist **pure Kotlin** (`sealed`/`data class`), keine EMF-Abhängigk
 | Web-UI | Ktor + KVision + Kilua RPC |
 | Desktop-UI | Kotlin Compose Multiplatform |
 | CLI | Kotlinx CLI |
-| MCP-Server | Ktor (Stdio + SSE Transport) |
+| MCP-Server | Stdio (`kuml-mcp`); Streamable HTTP via `com.sun.net.httpserver` im Desktop |
 | LLM-Integration | Eigenes `LlmBackend`-Interface (Anthropic, OpenAI, Ollama) |
 | Tests (Unit/Integration) | Kotlin Test + JUnit 5 + Kotest + AssertJ |
 | Tests (Web-UI) | Playwright (JVM) — Headless-Browser-Tests für `kuml-web` |
@@ -677,6 +677,45 @@ Lokaler Start für Entwicklung:
 ```bash
 ./gradlew :kuml-mcp:run
 ```
+
+### Öffentliche API von `kuml-mcp` (Embedding)
+
+Die Protokolllogik ist transportunabhängig und öffentlich (`explicitApi`):
+`McpRequestHandler` (JSON-RPC-Handler, `handle(requestJson): String?`), `McpToolRegistry`,
+`McpTool` / `McpToolException`, `KumlAuthoringTools.all` (`kuml.describe`, `kuml.examples`,
+`kuml.generate`, `kuml.list_elements` — zustandslos), die JSON-RPC-/MCP-Datentypen und
+`McpToolAnnotations` (optional, `null` wird nicht serialisiert). `McpServer` (stdio) ist nur noch die
+Lese-/Schreib-Schleife um einen `McpRequestHandler` (Protokollversion `2024-11-05`, mit Resources).
+
+> [!danger] Reflection-Stolperfalle
+> `kuml-ai-tools` (`InProcessMcpTransport`) greift per **Reflection** auf `dev.kuml.mcp.tools.ToolRegistry`
+> zu (`INSTANCE`, `declaredMethods` mit Präfix `dispatch` / `getDescriptors`). `ToolRegistry` muss deshalb
+> ein `object` mit **selbst deklarierten** (nicht geerbten) Methoden bleiben, die nur an eine
+> `McpToolRegistry` delegieren. Ein Umbau zu `class` oder zu einem `object` mit geerbtem `dispatch` bricht
+> das KI-Panel zur Laufzeit stillschweigend (`InProcessMcpTransportTest` / `McpBridgeToolSetTest` sind die
+> Absicherung). Folgearbeit: die Bridge auf direkte Aufrufe der öffentlichen API umstellen.
+
+### Desktop-MCP-Server (`kuml-desktop`, Paket `dev.kuml.desktop.mcp`)
+
+Optional (Tools ▸ MCP-Server…, Default **aus**), damit ein Agent wie Claude Code am Skript der
+laufenden App arbeitet.
+
+- **Transport:** Streamable HTTP, nur `POST /mcp`, `com.sun.net.httpserver` (daher `jdk.httpserver` in den
+  jlink-Modulen von `kuml-desktop/build.gradle.kts`), gebunden an das Literal `127.0.0.1` (nicht
+  `getLoopbackAddress()`), Protokollversion `2025-03-26`. Port wird in `desktop-settings.json` gemerkt.
+- **Sicherheit:** 256-Bit-Bearer-Token in eigener Datei `mcp-token` (0600, atomar geschrieben, nie in den
+  Settings), Prüfkette Pfad → Methode → `Host` → `Origin` → Token → Größe → Content-Type, Body wird erst
+  nach erfolgreicher Authentifizierung gelesen, 1-MiB-Limit (auch chunked), Timeouts, 4 Daemon-Threads,
+  ein gemeinsamer Evaluations-Slot (`Semaphore`). Belegter Port beim Start ⇒ anderer Port **und** neues
+  Token. Wer das Token hat, kann über Skript-Auswertung Kotlin-Code im Desktop-Prozess ausführen — das
+  steht so im Dialog. Logging nur Methode/Pfad/Status/Tool-Name.
+- **Tools:** `kuml_desktop_get_script`, `_set_script` (`baseRevision`, ersetzt den Puffer als **ein**
+  Undo-Schritt, speichert nie), `_render`, `_validate`, `_get_last_error`, `_get_theme`, `_set_theme`
+  sowie die vier `KumlAuthoringTools` (seriell geschützt). Zugriffe auf `AppState` laufen auf dem
+  UI-Dispatcher (Timeout ⇒ `UI_BUSY`).
+- **Lifecycle-Falle:** Der Dispatcher-Thread des `HttpServer` ist kein Daemon — `stop()` muss auf allen
+  Exit-Pfaden laufen (`DisposableEffect`, `onCloseRequest` über `AppState.mcpShutdown`, Beenden-Menü),
+  sonst beendet sich die JVM nicht.
 
 ---
 

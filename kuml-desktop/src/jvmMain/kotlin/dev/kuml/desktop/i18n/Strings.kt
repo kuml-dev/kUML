@@ -145,7 +145,7 @@ data class Strings(
     val findClose: String,
     val findMatchCase: String,
     val findNoMatch: String,
-    // V3.x — Live-Simulation von Zustandsautomaten im Editor (Werkzeuge ▸ Simulieren)
+    // V3.x — Live-Simulation von Zustandsautomaten im Editor (Tools ▸ Simulieren)
     val menuToolsSimulate: String,
     val menuToolsSimulateStop: String,
     val simUnsupportedDiagram: String,
@@ -200,6 +200,26 @@ data class Strings(
     val newWorkspaceCreate: String,
     val newWorkspaceCancel: String,
     val newWorkspaceFailed: String,
+    // Local MCP server (Tools ▸ MCP-Server…)
+    val menuToolsMcpServer: String,
+    val mcpDialogTitle: String,
+    val mcpEnabled: String,
+    val mcpStatusOff: String,
+    val mcpStatusRunning: String,
+    val mcpStatusError: String,
+    val mcpPortLabel: String,
+    val mcpPortChanged: String,
+    val mcpTokenLabel: String,
+    val mcpCopyToken: String,
+    val mcpRegenerateToken: String,
+    val mcpRegenerateWarning: String,
+    val mcpCopyCommand: String,
+    val mcpCommandWarning: String,
+    val mcpCopied: String,
+    val mcpScriptReplacedNotice: String,
+    val mcpStatusBarIndicator: String,
+    val mcpUndo: String,
+    val mcpSecurityNotice: String,
 ) {
     companion object {
         val DE =
@@ -393,6 +413,29 @@ data class Strings(
                 newWorkspaceCreate = "Erstellen",
                 newWorkspaceCancel = "Abbrechen",
                 newWorkspaceFailed = "Erstellen fehlgeschlagen: %s",
+                menuToolsMcpServer = "MCP-Server…",
+                mcpDialogTitle = "MCP-Server",
+                mcpEnabled = "MCP-Server aktivieren",
+                mcpStatusOff = "Aus",
+                mcpStatusRunning = "Läuft auf 127.0.0.1:%d",
+                mcpStatusError = "Fehler: %s",
+                mcpPortLabel = "Port",
+                mcpPortChanged =
+                    "Der bisherige Port war belegt. Port und Token wurden neu " +
+                        "vergeben — bitte kopieren Sie den Befehl erneut.",
+                mcpTokenLabel = "Token",
+                mcpCopyToken = "Token kopieren",
+                mcpRegenerateToken = "Token neu erzeugen",
+                mcpRegenerateWarning = "Das bisherige Token wird ungültig; verbundene Clients müssen neu eingerichtet werden.",
+                mcpCopyCommand = "Befehl kopieren",
+                mcpCommandWarning =
+                    "Der Befehl enthält das Token im Klartext. Teilen Sie ihn mit niemandem; die " +
+                        "Zwischenablage kann von anderen Programmen und Clipboard-Managern mitgelesen werden.",
+                mcpCopied = "Kopiert",
+                mcpScriptReplacedNotice = "Ein MCP-Client hat das Skript ersetzt. Nichts wurde gespeichert.",
+                mcpStatusBarIndicator = "● MCP :%d",
+                mcpUndo = "Rückgängig",
+                mcpSecurityNotice = "Clients mit diesem Token können kUML-Skripte (Kotlin-Code) auf diesem Rechner ausführen.",
             )
 
         val EN =
@@ -584,6 +627,27 @@ data class Strings(
                 newWorkspaceCreate = "Create",
                 newWorkspaceCancel = "Cancel",
                 newWorkspaceFailed = "Failed to create workspace: %s",
+                menuToolsMcpServer = "MCP server…",
+                mcpDialogTitle = "MCP server",
+                mcpEnabled = "Enable MCP server",
+                mcpStatusOff = "Off",
+                mcpStatusRunning = "Running on 127.0.0.1:%d",
+                mcpStatusError = "Error: %s",
+                mcpPortLabel = "Port",
+                mcpPortChanged = "The previous port was in use. Port and token were reassigned — please copy the command again.",
+                mcpTokenLabel = "Token",
+                mcpCopyToken = "Copy token",
+                mcpRegenerateToken = "Regenerate token",
+                mcpRegenerateWarning = "The current token becomes invalid; connected clients must be set up again.",
+                mcpCopyCommand = "Copy command",
+                mcpCommandWarning =
+                    "The command contains the token in plain text. Do not share it; other " +
+                        "programs and clipboard managers can read the clipboard.",
+                mcpCopied = "Copied",
+                mcpScriptReplacedNotice = "An MCP client replaced the script. Nothing was saved.",
+                mcpStatusBarIndicator = "● MCP :%d",
+                mcpUndo = "Undo",
+                mcpSecurityNotice = "Clients holding this token can run kUML scripts (Kotlin code) on this computer.",
             )
 
         fun forLanguage(lang: String): Strings = if (lang == "de") DE else EN

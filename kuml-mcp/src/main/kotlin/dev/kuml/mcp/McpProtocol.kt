@@ -6,52 +6,70 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 
+/** A JSON-RPC 2.0 request (or notification, when no `id` is present). */
 @Serializable
-internal data class JsonRpcRequest(
-    val jsonrpc: String = "2.0",
-    val id: JsonElement = JsonNull,
-    val method: String,
-    val params: JsonElement? = null,
+public data class JsonRpcRequest(
+    public val jsonrpc: String = "2.0",
+    public val id: JsonElement = JsonNull,
+    public val method: String,
+    public val params: JsonElement? = null,
 )
 
+/** A JSON-RPC 2.0 response carrying either [result] or [error]. */
 @Serializable
-internal data class JsonRpcResponse(
-    val jsonrpc: String = "2.0",
-    val id: JsonElement = JsonNull,
-    val result: JsonElement? = null,
-    val error: JsonRpcError? = null,
+public data class JsonRpcResponse(
+    public val jsonrpc: String = "2.0",
+    public val id: JsonElement = JsonNull,
+    public val result: JsonElement? = null,
+    public val error: JsonRpcError? = null,
 )
 
+/** A JSON-RPC 2.0 error object. */
 @Serializable
-internal data class JsonRpcError(
-    val code: Int,
-    val message: String,
-    val data: JsonElement? = null,
+public data class JsonRpcError(
+    public val code: Int,
+    public val message: String,
+    public val data: JsonElement? = null,
 )
 
 /** A content block returned by a tool. */
 @Serializable
-internal data class McpContent(
-    val type: String,
-    val text: String? = null,
-    val data: String? = null,
+public data class McpContent(
+    public val type: String,
+    public val text: String? = null,
+    public val data: String? = null,
     @SerialName("mimeType")
-    val mimeType: String? = null,
+    public val mimeType: String? = null,
 )
 
 /** Standard MCP tool result payload. */
 @Serializable
-internal data class McpToolResult(
-    val content: List<McpContent>,
-    val isError: Boolean = false,
+public data class McpToolResult(
+    public val content: List<McpContent>,
+    public val isError: Boolean = false,
+)
+
+/**
+ * Optional behavioural hints for a tool (MCP spec 2025-03-26, `ToolAnnotations`).
+ *
+ * `null` fields are omitted from the wire format.
+ */
+@Serializable
+public data class McpToolAnnotations(
+    public val title: String? = null,
+    public val readOnlyHint: Boolean? = null,
+    public val destructiveHint: Boolean? = null,
+    public val idempotentHint: Boolean? = null,
+    public val openWorldHint: Boolean? = null,
 )
 
 /** A single tool descriptor returned by tools/list. */
 @Serializable
-internal data class McpToolDescriptor(
-    val name: String,
-    val description: String,
-    val inputSchema: JsonObject,
+public data class McpToolDescriptor(
+    public val name: String,
+    public val description: String,
+    public val inputSchema: JsonObject,
+    public val annotations: McpToolAnnotations? = null,
 )
 
 /** A single resource descriptor returned by resources/list. */
