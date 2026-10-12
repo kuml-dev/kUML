@@ -13,10 +13,13 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.io.File
 import java.nio.file.Files
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 
 /**
  * Tests for the editable-workspace additions to [WorkspaceState] (V-next): the in-memory
@@ -71,7 +74,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "prose.md" }
 
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
@@ -87,7 +90,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "prose.md" }
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
                 val original = state.buffer
@@ -111,7 +114,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "prose.md" }
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
                 val original = state.buffer
@@ -134,7 +137,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
 
                 state.discardChanges()
 
@@ -149,7 +152,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "prose.md" }
                 val originalFileContent = doc.file.readText(Charsets.UTF_8)
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
@@ -168,7 +171,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val proseDoc = state.documents.first { it.relativePath == "prose.md" }
                 state.select(doc = proseDoc, themeName = "plain", strings = Strings.EN)
 
@@ -215,7 +218,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 // Has a ```kuml block (unlike prose.md) so applySaved's post-write
                 // renderCurrentBlock() actually runs the render pipeline instead of returning
                 // immediately -- see renderCurrentBlock's early `?: return` for a blockless buffer.
@@ -279,7 +282,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val docA = state.documents.first { it.relativePath == "prose.md" }
                 val docB = state.documents.first { it.relativePath == "index.md" }
                 val originalBContent = docB.file.readText(Charsets.UTF_8)
@@ -341,7 +344,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val preSaveDoc = state.documents.first { it.relativePath == "prose.md" }
                 state.select(doc = preSaveDoc, themeName = "plain", strings = Strings.EN)
 
@@ -369,7 +372,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "prose.md" }
                 val original = doc.file.readText(Charsets.UTF_8)
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
@@ -389,7 +392,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "prose.md" }
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
 
@@ -407,7 +410,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "prose.md" }
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
 
@@ -426,7 +429,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "prose.md" }
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
 
@@ -468,7 +471,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "diagram.md" }
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
 
@@ -500,7 +503,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val diagramDoc = state.documents.first { it.relativePath == "diagram.md" }
                 val proseDoc = state.documents.first { it.relativePath == "prose.md" }
 
@@ -554,17 +557,32 @@ class WorkspaceStateEditingTest :
                 "`relativePath`, never by data-class equality on the whole `OkfDocument`.",
         ) {
             val root = writeSampleWorkspace()
+            // All of WorkspaceState's file I/O runs on this single thread, which the test can
+            // stall: the select()/save() interleaving below is then decided by FIFO order on
+            // this executor, not by whether the OS happens to preempt the test thread between
+            // two statements (on a loaded CI runner save() could otherwise complete -- write,
+            // reparse, `selected = reparsed` -- before select() even started).
+            val ioExecutor = Executors.newSingleThreadExecutor()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace, ioDispatcher = ioExecutor.asCoroutineDispatcher())
                 val doc = state.documents.first { it.relativePath == "prose.md" }
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
 
                 state.setFrontmatterField(key = "title", value = "Neuer Titel")
 
+                val ioStalled = CountDownLatch(1)
+                val releaseIo = CountDownLatch(1)
+                ioExecutor.execute {
+                    ioStalled.countDown()
+                    releaseIo.await()
+                }
+                ioStalled.await()
+
                 coroutineScope {
                     // UNDISPATCHED: runs save()'s synchronous prefix -- snapshotting its own
-                    // `token` from `selectionToken` -- right here, before `launch` returns.
+                    // `token` from `selectionToken` -- right here, before `launch` returns; the
+                    // write itself then queues behind the stalled I/O thread.
                     val saving =
                         launch(context = Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) {
                             state.save(themeName = "plain", strings = Strings.EN)
@@ -572,13 +590,19 @@ class WorkspaceStateEditingTest :
 
                     // Re-click the SAME, already-selected row (the Probe-C scenario: title
                     // edited, Ctrl+S pressed, then the identical tree row clicked again before
-                    // the save finishes). Called directly (not launched), its synchronous prefix
-                    // -- `++selectionToken` and `selected = resolved` -- runs immediately, i.e.
-                    // strictly after save()'s snapshot above, deterministically moving
-                    // `selectionToken` past it before `applySaved`'s guard can ever see a match.
-                    state.select(doc = state.selected!!, themeName = "plain", strings = Strings.EN)
+                    // the save finishes). Its synchronous prefix -- `++selectionToken` and
+                    // `selected = resolved` -- runs immediately, strictly after save()'s
+                    // snapshot above and strictly before the stalled write can even start, so
+                    // `selectionToken` has deterministically moved past it before
+                    // `applySaved`'s guard can ever see a match.
+                    val reselecting =
+                        launch(context = Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) {
+                            state.select(doc = state.selected!!, themeName = "plain", strings = Strings.EN)
+                        }
 
+                    releaseIo.countDown()
                     saving.join()
+                    reselecting.join()
                 }
 
                 val reparsed = state.documents.first { it.relativePath == "prose.md" }
@@ -597,6 +621,7 @@ class WorkspaceStateEditingTest :
                 // selected, unlike a plain `doc == selected`.
                 (reparsed.relativePath == state.selected?.relativePath) shouldBe true
             } finally {
+                ioExecutor.shutdownNow()
                 root.deleteRecursively()
             }
         }
@@ -605,7 +630,7 @@ class WorkspaceStateEditingTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "diagram.md" }
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
                 state.docSvg.shouldNotBeNull() // sanity: it rendered as UmlClassDiagram first

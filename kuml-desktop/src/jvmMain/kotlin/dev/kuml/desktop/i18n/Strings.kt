@@ -38,6 +38,7 @@ data class Strings(
     val dialogIoError: String,
     val aboutTitle: String,
     val aboutBody: String,
+    val aboutVersion: String,
     val dialogClose: String,
     // V3.7.x — Export (design-review P3)
     val menuFileExportSvg: String,
@@ -220,6 +221,7 @@ data class Strings(
     val mcpStatusBarIndicator: String,
     val mcpUndo: String,
     val mcpSecurityNotice: String,
+    val splitDividerDescription: String,
 ) {
     companion object {
         val DE =
@@ -257,6 +259,7 @@ data class Strings(
                 dialogIoError = "Fehler beim Lesen/Schreiben der Datei",
                 aboutTitle = "Über kUML Desktop",
                 aboutBody = "kUML Desktop — die native Desktop-App für die kUML-Modellierungssprache.\nhttps://kuml.dev",
+                aboutVersion = "Version",
                 dialogClose = "Schließen",
                 menuFileExportSvg = "SVG exportieren…",
                 menuFileExportPng = "PNG exportieren…",
@@ -436,6 +439,7 @@ data class Strings(
                 mcpStatusBarIndicator = "● MCP :%d",
                 mcpUndo = "Rückgängig",
                 mcpSecurityNotice = "Clients mit diesem Token können kUML-Skripte (Kotlin-Code) auf diesem Rechner ausführen.",
+                splitDividerDescription = "Trennlinie zwischen Editor und Vorschau, ziehen zum Anpassen der Breite",
             )
 
         val EN =
@@ -473,6 +477,7 @@ data class Strings(
                 dialogIoError = "Error reading/writing file",
                 aboutTitle = "About kUML Desktop",
                 aboutBody = "kUML Desktop — the native desktop app for the kUML modelling language.\nhttps://kuml.dev",
+                aboutVersion = "Version",
                 dialogClose = "Close",
                 menuFileExportSvg = "Export SVG…",
                 menuFileExportPng = "Export PNG…",
@@ -648,6 +653,7 @@ data class Strings(
                 mcpStatusBarIndicator = "● MCP :%d",
                 mcpUndo = "Undo",
                 mcpSecurityNotice = "Clients holding this token can run kUML scripts (Kotlin code) on this computer.",
+                splitDividerDescription = "Divider between editor and preview, drag to resize",
             )
 
         fun forLanguage(lang: String): Strings = if (lang == "de") DE else EN

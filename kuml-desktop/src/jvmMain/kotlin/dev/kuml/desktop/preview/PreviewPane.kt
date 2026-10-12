@@ -26,7 +26,7 @@ import dev.kuml.desktop.simulation.SimulationBar
 import dev.kuml.desktop.simulation.SimulationTracePane
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
-import dev.kuml.desktop.ui.tooltipBelow
+import dev.kuml.desktop.ui.tooltipEnd
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.batik.bridge.UpdateManagerAdapter
@@ -37,7 +37,7 @@ import java.awt.geom.AffineTransform
 import javax.swing.SwingUtilities
 
 /** Zoom step for the preview's Zoom In / Zoom Out buttons (P4, design review). */
-private const val ZOOM_STEP = 1.25
+private const val ZOOM_STEP = PREVIEW_ZOOM_STEP
 
 /**
  * Vorschau-Pane: JSVGCanvas via SwingPanel plus a zoom/fit control strip (P4, design review —
@@ -66,7 +66,7 @@ fun PreviewPane(
     state: AppState,
     modifier: Modifier = Modifier,
 ) {
-    val canvas = remember { JSVGCanvas() }
+    val canvas = remember { createPreviewCanvas() }
     val patcher = remember { SimulationHighlightPatcher() }
     var documentReady by remember { mutableStateOf(false) }
     val strings = Strings.forLanguage(state.language)
@@ -128,26 +128,26 @@ fun PreviewPane(
             // family (see KumlIcons.kt) — no material-icons dependency covers this exact set.
             // Each button is wrapped in a TooltipArea (same pattern as WorkspaceTreePane's
             // TypeBadge) so the icon-only affordance still names itself on hover for a11y.
-            // V3.7.4 (design review P5): this strip sits at the TOP of the pane -- a
-            // tooltip anchored above the button would be clipped at the window edge, so it
-            // is anchored BELOW instead (see tooltipBelow's KDoc).
+            // This strip sits directly above the heavyweight SwingPanel canvas, which hides any
+            // Compose popup overlapping it -- so the tooltip goes to the RIGHT of the button, inside
+            // the strip's own band (see the warning in IconTooltipButton.kt).
             IconTooltipButton(
                 icon = KumlIcons.ZoomIn,
                 description = strings.previewZoomIn,
                 onClick = { zoomCanvas(canvas = canvas, factor = ZOOM_STEP) },
-                tooltipPlacement = tooltipBelow(),
+                tooltipPlacement = tooltipEnd(),
             )
             IconTooltipButton(
                 icon = KumlIcons.ZoomOut,
                 description = strings.previewZoomOut,
                 onClick = { zoomCanvas(canvas = canvas, factor = 1.0 / ZOOM_STEP) },
-                tooltipPlacement = tooltipBelow(),
+                tooltipPlacement = tooltipEnd(),
             )
             IconTooltipButton(
                 icon = KumlIcons.FitToWindow,
                 description = strings.previewFit,
                 onClick = { canvas.resetRenderingTransform() },
-                tooltipPlacement = tooltipBelow(),
+                tooltipPlacement = tooltipEnd(),
             )
         }
         if (session != null) {

@@ -13,10 +13,10 @@ import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.preview.createPreviewCanvas
 import dev.kuml.desktop.preview.parseSvg
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.apache.batik.swing.JSVGCanvas
 import org.w3c.dom.svg.SVGDocument
 import javax.swing.SwingUtilities
 
@@ -52,7 +52,7 @@ private fun SvgCanvas(
     svg: String,
     modifier: Modifier,
 ) {
-    val canvas = remember { JSVGCanvas() }
+    val canvas = remember { createPreviewCanvas() }
     LaunchedEffect(svg) {
         val doc: SVGDocument? = withContext(Dispatchers.IO) { parseSvg(svg) }
         if (doc != null) {

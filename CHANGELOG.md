@@ -6,6 +6,81 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.55.1] — 2026-10-12
+
+### Added
+
+**Resizable editor/preview split (kUML Desktop)**
+
+In split view mode the divider between source editor and diagram preview can now be dragged
+(minimum 15 % and 200 dp per pane), nudged with the arrow keys when focused (Shift for larger
+steps, Home/End for the limits), and reset to 50/50 by double-click or Enter. The position is
+saved with the other settings when the drag is released.
+
+### Fixed
+
+**JetBrains plugin: `NoSuchMethodError` risk on IntelliJ 2024.3 / 2025.1**
+
+Built with Kotlin 2.4.10, `sequenceOf(def)` in `KumlScriptDefinitionsSource` compiled to a
+single-element overload that the kotlin-stdlib bundled with older IDEs does not have. The
+Marketplace gate (`verifyPlugin`) caught it before publishing, so no broken plugin shipped;
+v0.55.0 therefore has no JetBrains plugin build. The call now uses `listOf(def).asSequence()`.
+Everything else in v0.55.0 is unchanged.
+
+**macOS installer and runtimes missing from v0.55.0**
+
+Apple's notarization service rejected the uploads of v0.55.0 (HTTP 403: an account agreement had to be
+renewed), so the release has no macOS DMG and no Darwin runtimes and the Homebrew tap stayed on 0.54.1.
+The agreement is renewed; v0.55.1 is the first release to ship them again.
+
+**kUML Desktop: sporadic `NoSuchElementException` when closing the AI provider settings**
+
+`AiProviderSettingsState.awaitPendingWrites()` copied its queue of tracked writes with
+`toList()`, which for exactly one element reads `size` and then `iterator().next()`; a write
+finishing in between made `next()` throw. The queue is now snapshotted with `ArrayList(...)`.
+This was also the sporadic CI failure of `AiProviderSettingsStateTest`; a stress test now guards it.
+`WorkspaceState` takes an injectable I/O dispatcher (default `Dispatchers.IO`, no behaviour
+change) so the select/save interleaving test is deterministic, and `SimulationSessionTest` tracks
+its own sandbox-guard threads instead of JVM-global thread counts.
+
+**kUML Desktop: tooltips on the toolbars show up again (and stay out of the editor and preview)**
+
+Compose popups are not drawn over a heavyweight `SwingPanel`, and the editor and the Batik preview are
+exactly that. After the previous tooltip fix the zoom, simulation, find and view-mode tooltips were
+placed above or below their buttons, i.e. over those panels, and vanished. They now appear beside the
+button inside the toolbar's own band (`tooltipEnd`/`tooltipStart`); `IconTooltipButton` requires the
+placement explicitly and documents the restriction. `IconTooltipButtonPlacementTest` models the panel
+and asserts the tooltip never touches it.
+
+**kUML Desktop: tooltips no longer cover their own button**
+
+The "Source" tooltip of the view-mode buttons in the status bar sat on top of the button it
+describes. `TooltipPlacement.ComponentRect` takes `alignment` as the popup's position relative to the
+anchor point, so `tooltipAbove()` (anchor = top edge, alignment = BottomCenter) put the popup *below* the
+top edge, over the button; `tooltipBelow()` had the mirror-image mistake. Both now use the matching
+alignment. `IconTooltipButtonPlacementTest` measures the placement in a headless Compose scene.
+
+**kUML Desktop: the diagram preview can be moved and zoomed with the mouse**
+
+The preview (a Batik canvas) only reacted to the arrow keys; its own mouse interactors hide behind
+Shift/Ctrl+Shift chords. Dragging with the left button now pans, the mouse wheel / trackpad scroll
+pans (Shift: horizontally), Ctrl or Cmd + wheel zooms around the pointer, and a double-click fits the
+diagram to the window. Batik's Shift-drag pan and Ctrl+Shift zoom keep working. Applies to the editor
+preview, the Knowledge Workspace viewer and the AI patch preview. `PreviewMouseNavigationTest` covers it.
+
+**kUML Desktop: application icon is the official kUML logo**
+
+The icon showed a differently proportioned `{k}` on a plain white square, which macOS then wrapped in its own
+plate. It now uses the logo from `docs/images/logo.svg` (identical to the one on kuml.dev: `{k}` plus the
+"kUML" wordmark) on a proper macOS icon tile; sizes below 64 px show the `{k}` alone because the wordmark is
+unreadable there. `kuml-desktop/scripts/generate-app-icon.py` regenerates the `.icns`, `.ico` and `.png`.
+
+**kUML Desktop: Help ▸ About now shows the version**
+
+The About dialog showed no version, and the MCP server's `serverInfo` reported `dev`: the version was
+read from the JAR manifest, which the packaged app does not carry. It now comes from a
+`version.properties` resource that Gradle expands from the project version; `AppVersionTest` guards it.
+
 ## [0.55.0] — 2026-10-10
 
 ### Added

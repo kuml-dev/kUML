@@ -93,6 +93,9 @@ kotlin {
                     implementation(libs.kotest.runner.junit5)
                     implementation(libs.kotest.assertions.core)
                     implementation(libs.kotlinx.coroutines.test)
+                    // runComposeUiTest + onNode* matchers (desktop actual), driven with kotest — same
+                    // setup as kuml-widget-compose. Used for popup/tooltip placement tests.
+                    implementation(libs.compose.ui.test.junit4)
                     // Explicit: whether jvmTestRuntimeClasspath inherits jvmMain's runtimeOnly
                     // is a KMP configuration detail — declared here so the logging tests below
                     // don't depend on it. `implementation` (not `runtimeOnly`) because
@@ -206,6 +209,17 @@ compose.desktop {
                 menuGroup = "Development"
             }
         }
+    }
+}
+
+// Expands the ${kumlVersion} placeholder in AppVersion's resource from the project version.
+// The version is a LOCAL val on purpose: a script-level val captured by the filesMatching lambda
+// would drag the build script into the configuration cache and fail serialization.
+tasks.named<ProcessResources>("jvmProcessResources") {
+    val desktopVersion = project.version.toString()
+    inputs.property("kumlDesktopVersion", desktopVersion)
+    filesMatching("dev/kuml/desktop/version.properties") {
+        expand("kumlVersion" to desktopVersion)
     }
 }
 

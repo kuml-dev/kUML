@@ -441,7 +441,10 @@ internal class AiProviderSettingsState(
      */
     internal suspend fun awaitPendingWrites() {
         while (true) {
-            val jobs = pendingWrites.toList()
+            // NOT `pendingWrites.toList()`: for a size-1 collection Kotlin reads `size` and then calls
+            // iterator().next(); a tracked job completing in between empties the queue and next()
+            // throws NoSuchElementException. ArrayList(...) snapshots via the weakly-consistent toArray().
+            val jobs = ArrayList(pendingWrites)
             if (jobs.isEmpty()) return
             jobs.forEach { it.join() }
         }

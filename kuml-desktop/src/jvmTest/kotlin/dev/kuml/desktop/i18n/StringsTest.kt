@@ -4,6 +4,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotBeBlank
 
 class StringsTest :
     FunSpec({
@@ -480,4 +481,9 @@ class StringsTest :
         test("EN newWorkspaceFailed contains a %s placeholder") { Strings.EN.newWorkspaceFailed shouldContain "%s" }
         test("DE newWorkspaceFailed contains a %s placeholder") { Strings.DE.newWorkspaceFailed shouldContain "%s" }
         test("EN and DE differ on newWorkspaceFailed") { Strings.EN.newWorkspaceFailed shouldNotBe Strings.DE.newWorkspaceFailed }
+
+        test("splitDividerDescription is set in both languages") {
+            Strings.EN.splitDividerDescription.shouldNotBeBlank()
+            Strings.DE.splitDividerDescription.shouldNotBeBlank()
+        }
     })

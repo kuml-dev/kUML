@@ -170,4 +170,11 @@ class AppSettingsTest :
             val decoded = json.decodeFromString<AppSettings>(jsonWithoutWatermark)
             decoded.showWatermark shouldBe false
         }
+
+        test("editorSplitFraction defaults to 0.5, round-trips and tolerates old files") {
+            AppSettings.DEFAULT.editorSplitFraction shouldBe 0.5
+            val back = json.decodeFromString<AppSettings>(json.encodeToString(AppSettings(editorSplitFraction = 0.3)))
+            back.editorSplitFraction shouldBe 0.3
+            json.decodeFromString<AppSettings>("""{"theme":"dark"}""").editorSplitFraction shouldBe 0.5
+        }
     })

@@ -2,6 +2,7 @@
 * xref:gradle.adoc[Gradle plugin]
 * xref:intellij.adoc[JetBrains plugin]
 * xref:vscode.adoc[VS Code extension]
+* xref:desktop.adoc[Desktop app]
 * xref:asciidoc.adoc[AsciiDoc & Antora]
 * xref:markdown.adoc[Markdown]
 * xref:knowledge-workspaces.adoc[Knowledge Workspaces]

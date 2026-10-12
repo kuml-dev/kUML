@@ -151,7 +151,10 @@ public class KumlScriptDefinitionsSource(
                     "kUML scriptDefinitionsSource OK: fileExtension='${def.fileExtension}', " +
                         "kumlClasspathEntries=${kumlClasspath.size} -> ${kumlClasspath.map { it.name }}",
                 )
-                sequenceOf(def)
+                // Not `sequenceOf(def)`: since Kotlin 2.4 that resolves to a single-element overload
+                // missing from the kotlin-stdlib bundled with IDEs 2024.3/2025.1 (verifyPlugin:
+                // "unresolved method sequenceOf(Object)", NoSuchMethodError at runtime).
+                listOf(def).asSequence()
             } catch (t: Throwable) {
                 LOG.warn("kUML scriptDefinitionsSource FAILED to build definition", t)
                 emptySequence()

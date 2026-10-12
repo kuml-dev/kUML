@@ -22,6 +22,7 @@ import dev.kuml.workspace.OkfWriteResult
 import dev.kuml.workspace.WorkspaceGraphIndex
 import dev.kuml.workspace.WorkspaceScanner
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -45,6 +46,12 @@ import java.io.File
  */
 class WorkspaceState(
     initialWorkspace: OkfWorkspace,
+    /**
+     * Dispatcher for every blocking file read/write/parse. Defaults to [Dispatchers.IO]; tests
+     * inject a single-threaded dispatcher they can stall, so the interleaving of a concurrent
+     * [select] and [save] is decided by the test rather than by thread scheduling.
+     */
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     var workspace: OkfWorkspace by mutableStateOf(initialWorkspace)
         private set
@@ -170,7 +177,7 @@ class WorkspaceState(
         buffer = null
         savedBuffer = null
 
-        val text = withContext(Dispatchers.IO) { runCatching { resolved.file.readText(Charsets.UTF_8) }.getOrDefault("") }
+        val text = withContext(ioDispatcher) { runCatching { resolved.file.readText(Charsets.UTF_8) }.getOrDefault("") }
         if (token != selectionToken) return // superseded by a newer selection
 
         buffer = text
@@ -282,7 +289,7 @@ class WorkspaceState(
         isRendering = true
         try {
             val result =
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     DesktopRenderPipeline.render(script = block.source, themeName = themeName, watermark = watermark)
                 }
             if (token != renderToken) return // superseded by a newer selection/render
@@ -317,7 +324,7 @@ class WorkspaceState(
         // Captured BEFORE the write suspends (bugfix, review finding, CRITICAL): `select()`
         // increments `selectionToken` synchronously as its very first statement, so if a tree
         // click / wikilink / backlink navigation switches the selection while THIS save's
-        // `withContext(Dispatchers.IO)` write is still in flight, `selectionToken` will have
+        // `withContext(ioDispatcher)` write is still in flight, `selectionToken` will have
         // moved on by the time that write returns. Everything below that would otherwise touch
         // fields now owned by the NEWLY selected document (`savedBuffer`, `findings`, and
         // `applySaved`'s `selected`/render step) is gated on `token == selectionToken` — see
@@ -329,7 +336,7 @@ class WorkspaceState(
         val knownDocuments = documents.map { it.file }
 
         val result =
-            withContext(Dispatchers.IO) {
+            withContext(ioDispatcher) {
                 OkfDocumentWriter.save(root = root, target = doc.file, content = content, knownDocuments = knownDocuments)
             }
 
@@ -419,7 +426,7 @@ class WorkspaceState(
     ) {
         val previousRelativePath = selected?.relativePath
         val reparsed =
-            withContext(Dispatchers.IO) {
+            withContext(ioDispatcher) {
                 runCatching { OkfDocumentParser.parseFile(root = workspace.root, file = savedFile) }
             }.getOrNull()
 
@@ -431,7 +438,7 @@ class WorkspaceState(
             if (token == selectionToken) selected = reparsed
         } else {
             val rescanned =
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     runCatching { WorkspaceScanner.scan(root = workspace.root) }
                 }.getOrNull()
             if (rescanned != null) {

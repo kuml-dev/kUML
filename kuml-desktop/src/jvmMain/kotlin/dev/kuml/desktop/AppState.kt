@@ -9,6 +9,7 @@ import dev.kuml.desktop.io.AppSettings
 import dev.kuml.desktop.io.RecentFiles
 import dev.kuml.desktop.mcp.McpNotice
 import dev.kuml.desktop.simulation.SimulationSession
+import dev.kuml.desktop.ui.clampSplitFraction
 import dev.kuml.desktop.workspace.OpenWorkspace
 import java.io.File
 
@@ -103,6 +104,18 @@ class AppState(
     var viewMode by mutableStateOf(
         runCatching { ViewMode.valueOf(initialSettings.viewMode) }.getOrDefault(ViewMode.SPLIT),
     )
+
+    /** Live editor share in SPLIT mode (changes on every drag frame). Clamped on load. */
+    var editorSplitFraction by mutableStateOf(
+        clampSplitFraction(
+            fraction = initialSettings.editorSplitFraction,
+            totalPx = Float.POSITIVE_INFINITY,
+            minPanePx = 0f,
+        ),
+    )
+
+    /** Persistence trigger only: set once per drag gesture (see AppSettingsBinding). */
+    var editorSplitFractionCommitted by mutableStateOf(editorSplitFraction)
 
     // V3.7.4 — opt-in "Powered by kUML" watermark (View ▸ Wasserzeichen). See
     // AppSettings.showWatermark's KDoc for the default-off rationale.
@@ -226,6 +239,7 @@ class AppState(
             showWatermark = showWatermark,
             mcpServerEnabled = mcpServerEnabled,
             mcpServerPort = mcpServerPort,
+            editorSplitFraction = editorSplitFraction,
         )
 
     /** Ansichtsmodus zwischen Editor (Quelltext) und Vorschau (Diagramm). Siehe [viewMode]. */

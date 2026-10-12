@@ -1,0 +1,46 @@
+= kUML Desktop
+:description: The kUML Desktop app — editor with live preview, resizable split, mouse pan/zoom in the preview, simulation, workspaces and the optional local MCP server.
+
+kUML Desktop is the native desktop app for kUML: a script editor with a live diagram preview, a
+Knowledge Workspace viewer, state-machine simulation, an AI panel and an optional local MCP server.
+It ships as a DMG (macOS), MSI (Windows) and DEB/RPM (Linux); see xref:ROOT:install.adoc[Installation].
+
+== Layout: editor and preview
+
+The view buttons in the status bar switch between three layouts: only the source, editor and
+preview side by side, or only the diagram. In the side-by-side layout the divider between the two
+panes can be moved:
+
+* *Drag* the divider with the mouse. Each pane keeps at least 15 % of the width and 200 dp.
+* *Arrow keys* move the focused divider (Shift for larger steps), *Home* and *End* jump to the limits.
+* *Double-click* the divider, or press *Enter* while it is focused, to reset it to 50/50.
+
+The position is saved when you release the mouse and restored on the next start.
+
+== Moving and zooming the diagram
+
+In the preview (and in the Knowledge Workspace viewer and the AI patch preview):
+
+[cols="2,3"]
+|===
+| Gesture | Effect
+
+| Drag with the left mouse button | Pan the diagram
+| Mouse wheel or trackpad scroll | Pan (hold Shift to pan horizontally)
+| Ctrl or Cmd + scroll | Zoom around the pointer
+| Double-click | Fit the diagram to the window
+| Zoom buttons above the preview | Zoom in, zoom out, fit
+|===
+
+Batik's own gestures keep working: Shift + drag pans, Ctrl + Shift + drag zooms, the arrow keys
+move the diagram.
+
+== Version
+
+*Help ▸ About kUML…* shows the installed version.
+
+== Local MCP server
+
+Desktop can host an optional, local MCP server so an AI agent works on the script that is open in
+the app; see xref:reference:authoring-mcp.adoc#_driving_kuml_desktop_over_mcp[Driving kUML Desktop over MCP].
+It is off by default.

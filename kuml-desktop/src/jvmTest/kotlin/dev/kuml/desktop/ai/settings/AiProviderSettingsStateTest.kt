@@ -16,6 +16,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import java.nio.file.Files
 
 /**
@@ -529,6 +530,35 @@ class AiProviderSettingsStateTest :
                 state.currentSettings().privacyMode shouldBe true
                 val reloaded = KumlAiSettingsStore(path = path).load()
                 reloaded.privacyMode shouldBe true
+            }
+        }
+
+        // Regression test for a CI-only flake ("launchTracked + awaitPendingWrites ..." failed with
+        // NoSuchElementException from awaitPendingWrites()): Kotlin's Iterable.toList() on a
+        // ConcurrentLinkedQueue reads `size`, and for size == 1 then calls iterator().next(). A tracked
+        // job that completes (and removes itself from the queue) between those two steps made next()
+        // throw. Many instantly-completing jobs against a real dispatcher hit that window reliably.
+        test("awaitPendingWrites never throws while tracked jobs complete concurrently") {
+            runTest {
+                val path = Files.createTempDirectory("kuml-provider-settings-await-race").resolve("ai-settings.json")
+                val store = KumlAiSettingsStore(path = path)
+                store.save(KumlAiSettings(privacyMode = false))
+                val state =
+                    AiProviderSettingsState(
+                        settingsStore = store,
+                        vault = ApiKeyVault.detect(),
+                        registry = ProviderRegistry.builtIns(),
+                        pricingTable = PricingTable.forTest("ollama" to listOf("llama3.2")),
+                        ioDispatcher = Dispatchers.IO,
+                    )
+                state.load()
+
+                withContext(Dispatchers.Default) {
+                    repeat(100_000) {
+                        state.launchTracked { }
+                        state.awaitPendingWrites()
+                    }
+                }
             }
         }
 

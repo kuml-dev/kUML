@@ -41,6 +41,9 @@ fun rememberAppSettingsBinding(
         state.showWatermark,
         state.mcpServerEnabled,
         state.mcpServerPort,
+        // Only the commit trigger, never the live editorSplitFraction: saving must happen once
+        // per drag gesture (on release), not on every drag frame.
+        state.editorSplitFractionCommitted,
     ) {
         saveJob?.cancel()
         saveJob =

@@ -30,7 +30,7 @@ import dev.kuml.desktop.AppState
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
-import dev.kuml.desktop.ui.tooltipBelow
+import dev.kuml.desktop.ui.tooltipEnd
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -100,14 +100,14 @@ internal fun SimulationBar(
                 description = strings.simStep,
                 enabled = !stale && !terminated && enabledEvents.size == 1,
                 onClick = { enabledEvents.singleOrNull()?.let { session.send(eventName = it) } },
-                tooltipPlacement = tooltipBelow(),
+                tooltipPlacement = tooltipEnd(),
             )
             if (session.autoAdvancing) {
                 IconTooltipButton(
                     icon = KumlIcons.SimPause,
                     description = strings.simPause,
                     onClick = { session.autoAdvancing = false },
-                    tooltipPlacement = tooltipBelow(),
+                    tooltipPlacement = tooltipEnd(),
                 )
             } else {
                 IconTooltipButton(
@@ -115,14 +115,14 @@ internal fun SimulationBar(
                     description = strings.simAutoAdvance,
                     enabled = !stale && !terminated,
                     onClick = { session.autoAdvancing = true },
-                    tooltipPlacement = tooltipBelow(),
+                    tooltipPlacement = tooltipEnd(),
                 )
             }
             IconTooltipButton(
                 icon = KumlIcons.SimReset,
                 description = strings.simReset,
                 onClick = { session.reset() },
-                tooltipPlacement = tooltipBelow(),
+                tooltipPlacement = tooltipEnd(),
             )
             VerticalDivider(modifier = Modifier.padding(horizontal = 2.dp))
             // Takes all remaining width so the close button below naturally lands at the row's
@@ -151,7 +151,7 @@ internal fun SimulationBar(
                     session.close()
                     state.simulation = null
                 },
-                tooltipPlacement = tooltipBelow(),
+                tooltipPlacement = tooltipEnd(),
             )
         }
         if (expanded) {
@@ -190,7 +190,7 @@ private fun EventButton(
                 }
             }
         },
-        tooltipPlacement = tooltipBelow(),
+        tooltipPlacement = tooltipEnd(),
     ) {
         if (enabled) {
             Button(onClick = onClick, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {

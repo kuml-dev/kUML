@@ -87,14 +87,29 @@ class SimulationSessionTest :
         // the ID scheme ever changes.
         fun SimulationSession.vertexIdNamed(name: String): String = stateMachine.vertices.first { it.name == name }.id
 
-        fun guardThreadCount(): Int = Thread.getAllStackTraces().keys.count { it.name.startsWith("kuml-sandbox-guard-") }
+        // The sandbox guard pool is JVM-global in the sense that Thread.getAllStackTraces() sees
+        // every `kuml-sandbox-guard-*` thread of every session ever started in this test JVM,
+        // including daemon threads of EARLIER tests that are still winding down after their own
+        // shutdownNow(). Comparing raw counts before/after therefore fails whenever such a
+        // straggler exits in between (count drops below `before`). Track the thread OBJECTS
+        // instead: whatever this test's own session added to the set is what must disappear.
+        fun guardThreads(): Set<Thread> = Thread.getAllStackTraces().keys.filterTo(HashSet()) { it.name.startsWith("kuml-sandbox-guard-") }
 
-        /** Polls up to ~2s for [guardThreadCount] to settle at [expected] after shutdownNow(). */
-        fun awaitGuardThreadCount(expected: Int) {
-            val deadline = System.currentTimeMillis() + 2_000
-            while (guardThreadCount() != expected && System.currentTimeMillis() < deadline) {
-                Thread.sleep(25)
+        /** Threads that appeared since [before] and are still alive. */
+        fun leakedSince(before: Set<Thread>): List<Thread> = (guardThreads() - before).filter { it.isAlive }
+
+        /**
+         * Waits for every guard thread created since [before] to terminate after shutdownNow().
+         * Joins each thread (up to 5s total) rather than polling a count, so the wait ends the
+         * moment the threads are gone and a genuine leak still fails with the thread names.
+         */
+        fun awaitNoLeakedGuardThreads(before: Set<Thread>) {
+            val deadline = System.nanoTime() + 5_000_000_000L
+            for (t in guardThreads() - before) {
+                val remainingMs = (deadline - System.nanoTime()) / 1_000_000
+                if (remainingMs > 0) t.join(remainingMs)
             }
+            leakedSince(before).map { it.name } shouldBe emptyList()
         }
 
         // ── Happy path ───────────────────────────────────────────────────────
@@ -146,11 +161,10 @@ class SimulationSessionTest :
         }
 
         test("A state machine with no INITIAL pseudostate returns Failed, not a thrown exception, and leaks no thread") {
-            val before = guardThreadCount()
+            val before = guardThreads()
             val result = SimulationSession.start(script = noInitialScript, themeName = "plain")
             result.shouldBeInstanceOf<SimulationStartResult.Failed>()
-            awaitGuardThreadCount(before)
-            guardThreadCount() shouldBe before
+            awaitNoLeakedGuardThreads(before)
         }
 
         // ── Guard failure surfaces as status, not silent Stayed (Spez. F29) ──
@@ -176,13 +190,13 @@ class SimulationSessionTest :
         // ── close() / leak ───────────────────────────────────────────────────
 
         test("close() releases the sandbox guard thread pool") {
-            val before = guardThreadCount()
+            val before = guardThreads()
             val result = SimulationSession.start(script = guardFailureScript, themeName = "plain")
             val session = (result as SimulationStartResult.Started).session
             session.send(eventName = "go") // forces at least one guard evaluation, spawning a pool thread
+            (guardThreads() - before).isNotEmpty() shouldBe true // sanity: the session really did spawn one
             session.close()
-            awaitGuardThreadCount(before)
-            guardThreadCount() shouldBe before
+            awaitNoLeakedGuardThreads(before)
         }
 
         // ── Discard semantics (Spez. E23) ────────────────────────────────────

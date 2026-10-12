@@ -35,10 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.rememberDialogState
+import dev.kuml.desktop.preview.createPreviewCanvas
 import dev.kuml.desktop.preview.parseSvg
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.apache.batik.swing.JSVGCanvas
 import javax.swing.SwingUtilities
 
 /** Fixed height of the turn-mode SVG preview strip above the patch list (design review, 3.4). */
@@ -154,7 +154,7 @@ private fun TurnPreviewSvg(
     svg: String,
     modifier: Modifier,
 ) {
-    val canvas = remember { JSVGCanvas() }
+    val canvas = remember { createPreviewCanvas() }
     LaunchedEffect(svg) {
         val doc = withContext(Dispatchers.IO) { parseSvg(svg) }
         if (doc != null) {

@@ -738,7 +738,7 @@ kuml-widget/
                            OclGuardEditor: interactive, syntax-highlighted OCL guard
                            editing with protected-transition confirmation gate (v0.29.0)
 
-kuml-desktop/          ✅  Compose Desktop app (V3.0.10–14)
+kuml-desktop/          ✅  Compose Desktop app (V3.0.10–14); resizable editor/preview split and mouse pan/zoom in the preview (v0.55.1)
                            Editor (RSyntaxTextArea) + Live preview (JSVGCanvas/Batik)
                            File I/O + MRU recent-files + persistent settings
                            Plugin Manager UI (ServiceLoader introspection)

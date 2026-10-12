@@ -38,6 +38,9 @@ data class AppSettings(
     // lives in its own 0600 file (see McpTokenStore) so settings.json stays shareable.
     val mcpServerEnabled: Boolean = false,
     val mcpServerPort: Int = 0,
+    // Editor share of the width in view mode SPLIT (draggable divider). Additive, no
+    // schemaVersion bump; clamped to 0.15..0.85 when loaded into AppState.
+    val editorSplitFraction: Double = 0.5,
 ) {
     companion object {
         val DEFAULT = AppSettings()

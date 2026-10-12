@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
+import dev.kuml.desktop.ui.tooltipEnd
 
 /**
  * Inline incremental find bar (P8, design review) — a slim [Row] BELOW the editor, not an
@@ -138,11 +139,13 @@ fun FindBar(
             icon = KumlIcons.ChevronUp,
             description = strings.findPrevious,
             onClick = { runFind(forward = false, advance = true) },
+            tooltipPlacement = tooltipEnd(),
         )
         IconTooltipButton(
             icon = KumlIcons.ChevronDown,
             description = strings.findNext,
             onClick = { runFind(forward = true, advance = true) },
+            tooltipPlacement = tooltipEnd(),
         )
         Spacer(Modifier.width(4.dp))
         Checkbox(checked = matchCase, onCheckedChange = {
@@ -158,6 +161,7 @@ fun FindBar(
                 actions?.endFind?.invoke()
                 onClose()
             },
+            tooltipPlacement = tooltipEnd(),
         )
         if (noMatch) {
             Spacer(Modifier.width(8.dp))

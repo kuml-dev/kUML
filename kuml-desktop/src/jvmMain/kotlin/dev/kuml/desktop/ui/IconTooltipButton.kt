@@ -30,29 +30,71 @@ val COMPACT_ICON_BUTTON_SIZE: Dp = 32.dp
  */
 val COMPACT_ICON_SIZE: Dp = 18.dp
 
+/*
+ * WARNUNG — schwere (AWT-)Komponenten verdecken Compose-Popups.
+ *
+ * Editor ([dev.kuml.desktop.editor.SyntaxTextEditor]) und Vorschau ([dev.kuml.desktop.preview.PreviewPane])
+ * sind `SwingPanel`s, also heavyweight AWT: Ein Compose-Popup (und damit jeder Tooltip), das über
+ * ihre Fläche ragt, wird dort NICHT gezeichnet, sondern von der AWT-Komponente verdeckt. Alle
+ * Leisten dieser App grenzen direkt an eine solche Fläche (Zoom-/Simulations-/Suchleiste liegen
+ * darüber, die Statusleiste darunter). Ein Tooltip über oder unter einem Button dieser Leisten
+ * verschwindet deshalb komplett. Unser Tooltip muss daher im eigenen Leistenband bleiben, also
+ * seitlich vom Button: [tooltipEnd] (rechts) bzw. [tooltipStart] (links, für rechtsbündige Buttons).
+ * [tooltipAbove]/[tooltipBelow] sind nur dort zulässig, wo oberhalb/unterhalb garantiert reine
+ * Compose-Fläche liegt (z. B. in Dialogen).
+ *
+ * Semantik von [TooltipPlacement.ComponentRect], per Messung belegt (`IconTooltipButtonPlacementTest`):
+ * `alignment` sagt, wo das POPUP relativ zum Ankerpunkt sitzt — `TopCenter` heißt "das Popup liegt
+ * oberhalb des Ankers", `CenterEnd` "rechts vom Anker, vertikal mittig". Der Abstand zum Button kommt
+ * vom äußeren `padding` des Tooltip-Surface, deshalb sind die Offsets 0.
+ */
+
 /**
- * Tooltip über dem Button, mittig, 4 dp Luft (V3.7.4, design review P5) — Default für Controls,
- * die nicht am oberen Fensterrand sitzen (z. B. die Statusleisten-Segmented-Control).
+ * Tooltip über dem Button, mittig — nur für Controls, über denen reine Compose-Fläche liegt (siehe
+ * Warnung oben; für Leisten neben Editor/Vorschau stattdessen [tooltipEnd]/[tooltipStart]).
  */
 @OptIn(ExperimentalFoundationApi::class)
 internal fun tooltipAbove(): TooltipPlacement =
     TooltipPlacement.ComponentRect(
         anchor = Alignment.TopCenter,
-        alignment = Alignment.BottomCenter,
-        offset = DpOffset(0.dp, (-4).dp),
+        alignment = Alignment.TopCenter,
+        offset = DpOffset(0.dp, 0.dp),
     )
 
 /**
- * Tooltip unter dem Button (V3.7.4, design review P5) — für Leisten, die am oberen Rand ihres
- * Panes sitzen (z. B. PreviewPane's Zoom-Leiste), wo ein Tooltip darüber am Fensterrand
- * abgeschnitten würde.
+ * Tooltip unter dem Button, mittig — Gegenstück zu [tooltipAbove], mit derselben Einschränkung (nur
+ * über reiner Compose-Fläche).
  */
 @OptIn(ExperimentalFoundationApi::class)
 internal fun tooltipBelow(): TooltipPlacement =
     TooltipPlacement.ComponentRect(
         anchor = Alignment.BottomCenter,
-        alignment = Alignment.TopCenter,
-        offset = DpOffset(0.dp, 4.dp),
+        alignment = Alignment.BottomCenter,
+        offset = DpOffset(0.dp, 0.dp),
+    )
+
+/**
+ * Tooltip rechts neben dem Button, vertikal mittig — bleibt im Band der eigenen Leiste und kommt so
+ * nie auf eine SwingPanel (Default für linksbündige Leisten: Zoom-, Simulations-, Suchleiste).
+ */
+@OptIn(ExperimentalFoundationApi::class)
+internal fun tooltipEnd(): TooltipPlacement =
+    TooltipPlacement.ComponentRect(
+        anchor = Alignment.CenterEnd,
+        alignment = Alignment.CenterEnd,
+        offset = DpOffset(0.dp, 0.dp),
+    )
+
+/**
+ * Tooltip links neben dem Button, vertikal mittig — für rechtsbündige Buttons (Statusleiste), wo ein
+ * Tooltip rechts aus dem Fenster liefe.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+internal fun tooltipStart(): TooltipPlacement =
+    TooltipPlacement.ComponentRect(
+        anchor = Alignment.CenterStart,
+        alignment = Alignment.CenterStart,
+        offset = DpOffset(0.dp, 0.dp),
     )
 
 /**
@@ -83,7 +125,7 @@ fun IconTooltipButton(
     modifier: Modifier = Modifier,
     iconSize: Dp = COMPACT_ICON_SIZE,
     buttonSize: Dp = COMPACT_ICON_BUTTON_SIZE,
-    tooltipPlacement: TooltipPlacement = tooltipAbove(),
+    tooltipPlacement: TooltipPlacement,
     // V3.x — Live-Simulation: SimulationBar's Step button is disabled unless exactly one event
     // is currently enabled. Defaults to true so every pre-existing call site is unaffected.
     enabled: Boolean = true,

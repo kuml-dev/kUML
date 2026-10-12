@@ -68,7 +68,7 @@ class WorkspaceStateTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "prose.md" }
 
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
@@ -85,7 +85,7 @@ class WorkspaceStateTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "diagram.md" }
 
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
@@ -102,7 +102,7 @@ class WorkspaceStateTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "erm.md" }
 
                 state.select(doc = doc, themeName = "plain", strings = Strings.EN)
@@ -118,7 +118,7 @@ class WorkspaceStateTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 state.documents.map { it.relativePath } shouldBe state.documents.map { it.relativePath }.sorted()
             } finally {
                 root.deleteRecursively()
@@ -129,7 +129,7 @@ class WorkspaceStateTest :
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
-                val state = WorkspaceState(workspace)
+                val state = WorkspaceState(initialWorkspace = workspace)
                 val doc = state.documents.first { it.relativePath == "index.md" }
 
                 state.graphIndex.outgoing(doc).shouldBeEmpty()

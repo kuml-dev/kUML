@@ -71,6 +71,8 @@ import dev.kuml.desktop.simulation.SimulationStatus
 import dev.kuml.desktop.state.rememberAppSettingsBinding
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
+import dev.kuml.desktop.ui.ResizableSplit
+import dev.kuml.desktop.ui.tooltipStart
 import dev.kuml.desktop.workspace.EngineeringFileScanner
 import dev.kuml.desktop.workspace.EngineeringWorkspaceScreen
 import dev.kuml.desktop.workspace.KnowledgeWorkspaceScreen
@@ -141,9 +143,6 @@ internal fun rejectionMessage(
 /** Protocol revision of the desktop's Streamable-HTTP MCP endpoint (tool annotations need >= 2025-03-26). */
 private const val DESKTOP_MCP_PROTOCOL_VERSION = "2025-03-26"
 
-/** Best-effort app version for the MCP `serverInfo` (manifest value; "dev" when run from classes). */
-private val DESKTOP_VERSION: String = AppState::class.java.`package`?.implementationVersion ?: "dev"
-
 /**
  * Top-Level-Composable für das kUML Desktop Hauptfenster.
  * Deklariert die native [MenuBar] und legt [EditorPane] + [PreviewPane] nebeneinander.
@@ -199,7 +198,7 @@ fun FrameWindowScope.MainWindow(
                 handlerFactory = {
                     McpRequestHandler(
                         registry = desktopMcpRegistry(tools = mcpTools),
-                        serverInfo = McpServerInfo(name = "kuml-desktop", version = DESKTOP_VERSION),
+                        serverInfo = McpServerInfo(name = "kuml-desktop", version = AppVersion.current),
                         protocolVersion = DESKTOP_MCP_PROTOCOL_VERSION,
                     )
                 },
@@ -255,7 +254,7 @@ fun FrameWindowScope.MainWindow(
     // any document is selected/rendered, i.e. before any `kuml` block is evaluated.
     fun dispatchWorkspace(workspace: OkfWorkspace) {
         when (workspace.mode) {
-            WorkspaceMode.KNOWLEDGE -> state.openWorkspace = OpenWorkspace.Knowledge(WorkspaceState(workspace))
+            WorkspaceMode.KNOWLEDGE -> state.openWorkspace = OpenWorkspace.Knowledge(WorkspaceState(initialWorkspace = workspace))
             WorkspaceMode.ENGINEERING -> {
                 val files = EngineeringFileScanner.scan(workspace.root)
                 state.openWorkspace = OpenWorkspace.Engineering(root = workspace.root, scriptFiles = files)
@@ -819,8 +818,8 @@ fun FrameWindowScope.MainWindow(
                             // PreviewPane setzt bei jeder Änderung von state.lastSvg ohnehin ein
                             // frisches SVGDocument, der Zoom wird also heute schon bei jedem
                             // Rendern zurückgesetzt (design review, Bill Atkinson/Alan Kay).
-                            if (state.viewMode != AppState.ViewMode.DIAGRAM) {
-                                Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                            val editorColumn: @Composable (Modifier) -> Unit = { mod ->
+                                Column(modifier = mod) {
                                     EditorPane(
                                         state = state,
                                         modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -838,14 +837,27 @@ fun FrameWindowScope.MainWindow(
                                     }
                                 }
                             }
-                            if (state.viewMode == AppState.ViewMode.SPLIT) {
-                                HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
-                            }
-                            if (state.viewMode != AppState.ViewMode.SOURCE) {
-                                PreviewPane(
-                                    state = state,
-                                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                                )
+                            when (state.viewMode) {
+                                AppState.ViewMode.SOURCE ->
+                                    editorColumn(Modifier.weight(1f).fillMaxHeight())
+                                AppState.ViewMode.DIAGRAM ->
+                                    PreviewPane(state = state, modifier = Modifier.weight(1f).fillMaxHeight())
+                                // Draggable divider between editor and preview. Batik keeps the
+                                // image centre on resize (recenterOnResize) and re-renders per
+                                // frame, so a briefly stale image while dragging is accepted.
+                                AppState.ViewMode.SPLIT ->
+                                    ResizableSplit(
+                                        fraction = state.editorSplitFraction,
+                                        onFractionChange = { state.editorSplitFraction = it },
+                                        onFractionCommit = {
+                                            state.editorSplitFraction = it
+                                            state.editorSplitFractionCommitted = it
+                                        },
+                                        dividerDescription = strings.splitDividerDescription,
+                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                        start = { editorColumn(Modifier.fillMaxSize()) },
+                                        end = { PreviewPane(state = state, modifier = Modifier.fillMaxSize()) },
+                                    )
                             }
                         }
                     }
@@ -933,7 +945,7 @@ fun FrameWindowScope.MainWindow(
             strings = strings,
             onChooseKnowledge = {
                 pendingUnknownWorkspace = null
-                state.openWorkspace = OpenWorkspace.Knowledge(WorkspaceState(workspace))
+                state.openWorkspace = OpenWorkspace.Knowledge(WorkspaceState(initialWorkspace = workspace))
             },
             onChooseEngineering = {
                 pendingUnknownWorkspace = null
@@ -1152,6 +1164,9 @@ private fun ViewModeSegment(
             icon = icon,
             description = description,
             onClick = { state.viewMode = mode },
+            // Status bar, right-aligned, directly beneath the heavyweight editor/preview panels: a
+            // tooltip above would be hidden by them, to the right it would leave the window.
+            tooltipPlacement = tooltipStart(),
         )
     }
 }
@@ -1169,7 +1184,7 @@ private fun AboutDialog(
     DialogWindow(
         onCloseRequest = onClose,
         title = strings.aboutTitle,
-        state = rememberDialogState(width = 420.dp, height = 220.dp),
+        state = rememberDialogState(width = 420.dp, height = 250.dp),
     ) {
         MaterialTheme {
             Surface(modifier = Modifier.fillMaxSize()) {
@@ -1177,7 +1192,7 @@ private fun AboutDialog(
                     modifier = Modifier.fillMaxSize().padding(16.dp),
                     verticalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(strings.aboutBody)
+                    Text("${strings.aboutBody}\n${strings.aboutVersion} ${AppVersion.current}")
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         Button(onClick = onClose) { Text(strings.dialogClose) }
                     }

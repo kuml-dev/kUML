@@ -9,8 +9,8 @@ import javax.imageio.ImageIO
 
 /**
  * P6 — verifies the three application-icon assets committed under
- * `src/jvmMain/resources/icons/` (generated once, locally, from `docs/images/logo.svg`'s "{k}"
- * mark — see the P6 commit message for the generation pipeline). `build.gradle.kts`'s
+ * `src/jvmMain/resources/icons/` (generated from the official logo `docs/images/logo.svg` by
+ * `kuml-desktop/scripts/generate-app-icon.py`; rerun it whenever the logo changes). `build.gradle.kts`'s
  * `macOS`/`windows`/`linux` blocks only set `iconFile` when each file `.exists()` — before this
  * commit none of the three files existed, so jpackage silently fell back to its own generic
  * default icon on every platform.
