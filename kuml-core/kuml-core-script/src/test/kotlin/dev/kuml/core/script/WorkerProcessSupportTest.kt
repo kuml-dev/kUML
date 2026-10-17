@@ -37,7 +37,15 @@ class WorkerProcessSupportTest :
             // the finding's PoC does).
             val workDir = Files.createTempDirectory("wps-workdir-").toFile()
             val escapeLink = File(workDir, "escape")
-            Files.createSymbolicLink(escapeLink.toPath(), victim.toPath())
+            try {
+                Files.createSymbolicLink(escapeLink.toPath(), victim.toPath())
+            } catch (e: java.nio.file.FileSystemException) {
+                // Windows without Developer Mode/admin rights refuses symlink creation.
+                if (!System.getProperty("os.name").startsWith("Windows")) throw e
+                workDir.deleteRecursively()
+                victim.deleteRecursively()
+                return@test
+            }
 
             // A short-lived, already-exited process — cleanup()'s bounded waitFor
             // must not hang on it.

@@ -34,8 +34,11 @@ class DesktopLoggingConfigTest :
 
         fun classpathResource(name: String) = Thread.currentThread().contextClassLoader.getResource(name)
 
+        val openContexts = mutableListOf<LoggerContext>()
+
         fun loadIsolatedConfig(logDir: String): LoggerContext {
             val context = LoggerContext()
+            openContexts += context
             context.name = "desktop-logging-config-test"
             context.putProperty("kuml.desktop.logDir", logDir)
             val configurator = JoranConfigurator()
@@ -55,6 +58,9 @@ class DesktopLoggingConfigTest :
         }
 
         fun deleteRecursively(dir: Path) {
+            // Windows cannot delete a log file that an open FileAppender still holds.
+            openContexts.forEach { it.stop() }
+            openContexts.clear()
             if (!Files.exists(dir)) return
             Files.walk(dir).sorted(Comparator.reverseOrder()).forEach { Files.deleteIfExists(it) }
         }

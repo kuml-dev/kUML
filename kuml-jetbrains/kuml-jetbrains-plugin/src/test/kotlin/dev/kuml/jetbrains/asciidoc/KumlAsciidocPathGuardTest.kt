@@ -77,7 +77,11 @@ class KumlAsciidocPathGuardTest :
                 val symlink = realAdocParent.resolve("escape.kuml.kts")
                 try {
                     Files.createSymbolicLink(symlink, secret)
-                } catch (e: UnsupportedOperationException) {
+                } catch (e: Exception) {
+                    // Windows without Developer Mode/admin rights refuses symlinks (FileSystemException).
+                    val windows = System.getProperty("os.name").startsWith("Windows")
+                    val noSymlinks = e is UnsupportedOperationException || (windows && e is java.nio.file.FileSystemException)
+                    if (!noSymlinks) throw e
                     // Symlinks unsupported on this filesystem/platform — nothing to verify.
                     return@test
                 }
@@ -99,7 +103,11 @@ class KumlAsciidocPathGuardTest :
                 val symlink = realAdocParent.resolve("linked.kuml.kts")
                 try {
                     Files.createSymbolicLink(symlink, target)
-                } catch (e: UnsupportedOperationException) {
+                } catch (e: Exception) {
+                    // Windows without Developer Mode/admin rights refuses symlinks (FileSystemException).
+                    val windows = System.getProperty("os.name").startsWith("Windows")
+                    val noSymlinks = e is UnsupportedOperationException || (windows && e is java.nio.file.FileSystemException)
+                    if (!noSymlinks) throw e
                     return@test
                 }
 

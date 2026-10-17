@@ -13,7 +13,7 @@ class AppPathsTest :
                     env = emptyMap(),
                     userHome = "/Users/testuser",
                 )
-            path.toString() shouldBe "/Users/testuser/Library/Application Support/kUML"
+            path.toString().replace(java.io.File.separatorChar, '/') shouldBe "/Users/testuser/Library/Application Support/kUML"
         }
 
         test("Windows resolves to APPDATA/kUML") {
@@ -38,7 +38,7 @@ class AppPathsTest :
                     env = mapOf("XDG_CONFIG_HOME" to "/home/testuser/.config-custom"),
                     userHome = "/home/testuser",
                 )
-            path.toString() shouldBe "/home/testuser/.config-custom/kuml"
+            path.toString().replace(java.io.File.separatorChar, '/') shouldBe "/home/testuser/.config-custom/kuml"
         }
 
         test("Linux without XDG_CONFIG_HOME falls back to ~/.config/kuml") {
@@ -48,6 +48,6 @@ class AppPathsTest :
                     env = emptyMap(),
                     userHome = "/home/testuser",
                 )
-            path.toString() shouldBe "/home/testuser/.config/kuml"
+            path.toString().replace(java.io.File.separatorChar, '/') shouldBe "/home/testuser/.config/kuml"
         }
     })

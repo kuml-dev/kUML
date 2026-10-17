@@ -70,11 +70,11 @@ class KumlExportActionTest :
 
             args shouldBe
                 arrayOf(
-                    "/usr/local/bin/kuml",
+                    binary.absolutePath,
                     "render",
-                    "/tmp/test.kuml.kts",
+                    script.absolutePath,
                     "-o",
-                    "/tmp/test.svg",
+                    output.absolutePath,
                     "-f",
                     "svg",
                     "--theme",

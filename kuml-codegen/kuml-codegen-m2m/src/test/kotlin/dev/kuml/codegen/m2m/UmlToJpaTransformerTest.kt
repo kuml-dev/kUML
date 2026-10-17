@@ -256,6 +256,7 @@ class UmlToJpaTransformerTest :
                 this::class.java.classLoader
                     .getResource("golden/blog-domain/User.kt")
                     ?.readText()
+                    ?.replace("\r\n", "\n")
             if (golden != null) {
                 content shouldBe golden
             } else {
@@ -294,6 +295,7 @@ class UmlToJpaTransformerTest :
                 this::class.java.classLoader
                     .getResource("golden/blog-domain/Post.kt")
                     ?.readText()
+                    ?.replace("\r\n", "\n")
             if (golden != null) {
                 postFile.content shouldBe golden
             } else {

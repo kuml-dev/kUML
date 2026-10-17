@@ -85,6 +85,10 @@ Response body:
 
 == Build
 
+NOTE: Building and running `kuml-web` with Gradle needs Node.js (`^20.19` or `>=22.12`) with npm. The editor
+frontend is bundled with Vite during `processResources` (`npm ci`; network access on the first build). See
+`DEVELOPMENT.adoc` for details.
+
 [source,bash]
 ----
 # Compile only

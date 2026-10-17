@@ -107,7 +107,11 @@ class WorkspaceWriteGuardTest :
                     val symlink = File(root, "escape.md")
                     try {
                         Files.createSymbolicLink(symlink.toPath(), secret.toPath())
-                    } catch (e: UnsupportedOperationException) {
+                    } catch (e: Exception) {
+                        // Windows without Developer Mode/admin rights refuses symlinks (FileSystemException).
+                        val windows = System.getProperty("os.name").startsWith("Windows")
+                        val noSymlinks = e is UnsupportedOperationException || (windows && e is java.nio.file.FileSystemException)
+                        if (!noSymlinks) throw e
                         return@test
                     }
                     val result = WorkspaceWriteGuard.resolveWritable(root = root, target = symlink, knownDocuments = listOf(symlink))
@@ -127,7 +131,11 @@ class WorkspaceWriteGuardTest :
                 val symlink = File(root, "linked.md")
                 try {
                     Files.createSymbolicLink(symlink.toPath(), real.toPath())
-                } catch (e: UnsupportedOperationException) {
+                } catch (e: Exception) {
+                    // Windows without Developer Mode/admin rights refuses symlinks (FileSystemException).
+                    val windows = System.getProperty("os.name").startsWith("Windows")
+                    val noSymlinks = e is UnsupportedOperationException || (windows && e is java.nio.file.FileSystemException)
+                    if (!noSymlinks) throw e
                     return@test
                 }
                 val result = WorkspaceWriteGuard.resolveWritable(root = root, target = symlink, knownDocuments = listOf(symlink, real))
@@ -147,7 +155,11 @@ class WorkspaceWriteGuardTest :
                     val symlinkDir = File(root, "linked-dir")
                     try {
                         Files.createSymbolicLink(symlinkDir.toPath(), outside.toPath())
-                    } catch (e: UnsupportedOperationException) {
+                    } catch (e: Exception) {
+                        // Windows without Developer Mode/admin rights refuses symlinks (FileSystemException).
+                        val windows = System.getProperty("os.name").startsWith("Windows")
+                        val noSymlinks = e is UnsupportedOperationException || (windows && e is java.nio.file.FileSystemException)
+                        if (!noSymlinks) throw e
                         return@test
                     }
                     val target = File(symlinkDir, "note.md")
@@ -171,7 +183,11 @@ class WorkspaceWriteGuardTest :
                 try {
                     Files.createSymbolicLink(a.toPath(), b.toPath())
                     Files.createSymbolicLink(b.toPath(), a.toPath())
-                } catch (e: UnsupportedOperationException) {
+                } catch (e: Exception) {
+                    // Windows without Developer Mode/admin rights refuses symlinks (FileSystemException).
+                    val windows = System.getProperty("os.name").startsWith("Windows")
+                    val noSymlinks = e is UnsupportedOperationException || (windows && e is java.nio.file.FileSystemException)
+                    if (!noSymlinks) throw e
                     return@test
                 }
                 // The exact Rejection is platform-dependent: `a` being a symlink at all is
@@ -201,7 +217,11 @@ class WorkspaceWriteGuardTest :
                 val insideLoop = File(loopedRoot, "self")
                 try {
                     Files.createSymbolicLink(loopedRoot.toPath(), insideLoop.toPath())
-                } catch (e: UnsupportedOperationException) {
+                } catch (e: Exception) {
+                    // Windows without Developer Mode/admin rights refuses symlinks (FileSystemException).
+                    val windows = System.getProperty("os.name").startsWith("Windows")
+                    val noSymlinks = e is UnsupportedOperationException || (windows && e is java.nio.file.FileSystemException)
+                    if (!noSymlinks) throw e
                     return@test
                 } catch (e: java.nio.file.FileAlreadyExistsException) {
                     return@test
@@ -235,7 +255,11 @@ class WorkspaceWriteGuardTest :
                 val insideLoop = File(loopedDir, "self")
                 try {
                     Files.createSymbolicLink(loopedDir.toPath(), insideLoop.toPath())
-                } catch (e: UnsupportedOperationException) {
+                } catch (e: Exception) {
+                    // Windows without Developer Mode/admin rights refuses symlinks (FileSystemException).
+                    val windows = System.getProperty("os.name").startsWith("Windows")
+                    val noSymlinks = e is UnsupportedOperationException || (windows && e is java.nio.file.FileSystemException)
+                    if (!noSymlinks) throw e
                     return@test
                 } catch (e: java.nio.file.FileAlreadyExistsException) {
                     return@test

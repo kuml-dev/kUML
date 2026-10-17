@@ -26,7 +26,7 @@ class XdgPathsTest :
             System.setProperty("kuml.config.home", "/tmp/test-xdg")
             val dir = XdgPaths.kumlConfigDir().toString()
             dir shouldContain "kuml"
-            dir shouldContain "/tmp/test-xdg"
+            dir.replace('\\', '/') shouldContain "/tmp/test-xdg"
         }
 
         test("windows config dir uses APPDATA") {

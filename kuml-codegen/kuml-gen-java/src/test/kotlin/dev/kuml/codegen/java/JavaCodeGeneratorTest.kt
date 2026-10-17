@@ -78,7 +78,7 @@ class JavaCodeGeneratorTest :
                     )
                 files.size shouldBe 1
                 val file = files.single()
-                file.path shouldContain "com/example/domain"
+                file.path.replace(java.io.File.separatorChar, '/') shouldContain "com/example/domain"
                 file.name shouldBe "Order.java"
                 file.readText() shouldContain "package com.example.domain;"
             } finally {

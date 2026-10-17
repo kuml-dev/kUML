@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.55.2] — 2026-10-17
+
 ### Fixed
 
 **Kotlin reverse engine ignored `--include`/`--exclude`**
@@ -28,6 +30,10 @@ test runs the packaged distribution in a container (`kuml-web/DEVELOPMENT.adoc`)
 
 ### Changed
 
+- Tests are portable to Windows: path-separator and CRLF assumptions removed from assertions, Logback
+  contexts are stopped before temporary log directories are deleted, the MCP on/off test polls instead of
+  sleeping a fixed 500 ms, and the symlink guard tests skip themselves where Windows refuses symlinks
+  (no Developer Mode or administrator right). Test code only, no behaviour change.
 - Building kUML now requires Node.js (`^20.19` or `>=22.12`) with npm, because `kuml-web` bundles its frontend
   with Vite during `processResources` (`npm ci`; network access on the first build). All CI, release and docs
   workflows set up Node 22 (the docs workflow moved up from Node 20, which is end-of-life), and on Windows

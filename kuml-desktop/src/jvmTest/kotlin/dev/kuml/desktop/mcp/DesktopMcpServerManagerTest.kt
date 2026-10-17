@@ -122,6 +122,11 @@ class DesktopMcpServerManagerTest :
             try {
                 m.apply(enabled = true)
                 m.apply(enabled = false)
+                // Server start is slower on Windows than the old fixed 500 ms: poll until the queued
+                // start->stop sequence has drained, then re-check that the final state holds.
+                val deadline = System.nanoTime() + 10_000_000_000L
+                Thread.sleep(500)
+                while (m.status.value != McpServerStatus.Off && System.nanoTime() < deadline) Thread.sleep(50)
                 Thread.sleep(500)
                 m.status.value shouldBe McpServerStatus.Off
                 m.currentToken() shouldBe null

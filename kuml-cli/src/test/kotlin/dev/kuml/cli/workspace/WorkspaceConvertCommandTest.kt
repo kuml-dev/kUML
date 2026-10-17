@@ -77,9 +77,11 @@ class WorkspaceConvertCommandTest :
             val originalBlock =
                 File(demoRoot, "models/domain-classes.md")
                     .readText()
+                    .replace("\r\n", "\n")
                     .substringAfter("```kuml\n")
                     .substringBefore("\n```")
-            extracted.readText().trimEnd('\n') shouldBe originalBlock.trimEnd('\n')
+            // The extractor keeps the fixture's line endings verbatim (CRLF after a Windows checkout).
+            extracted.readText().replace("\r\n", "\n").trimEnd('\n', '\r') shouldBe originalBlock.trimEnd('\n', '\r')
 
             outDir.deleteRecursively()
         }
