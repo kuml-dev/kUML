@@ -10,7 +10,7 @@ import io.ktor.server.routing.routing
  * Routes:
  * - `GET /`           → index.html
  * - `GET /app.css`    → app.css
- * - `GET /app.js`     → app.js
+ * - `GET /assets/app.js` → the Vite bundle generated from `frontend/app.js` (see `kuml-web/DEVELOPMENT.adoc`)
  */
 internal fun Application.configureStaticRoutes() {
     routing {

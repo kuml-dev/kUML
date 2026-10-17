@@ -58,13 +58,18 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+// On Windows `npm` is a .cmd shim that Gradle's Exec cannot start directly; go through cmd.exe there.
+// (Plain value, evaluated at configuration time -- nothing here is captured by an execution-time lambda.)
+val npmCommand: List<String> =
+    if (System.getProperty("os.name").lowercase().contains("win")) listOf("cmd", "/c", "npm") else listOf("npm")
+
 val installWebDependencies =
     tasks.register<Exec>("installWebDependencies") {
         group = "build"
         description = "Installs the locked kUML Web frontend dependencies."
 
         workingDir = projectDir
-        commandLine("npm", "ci")
+        commandLine(npmCommand + "ci")
 
         inputs.files("package.json", "package-lock.json")
         outputs.dir("node_modules")
@@ -77,7 +82,7 @@ val buildWebFrontend =
 
         dependsOn(installWebDependencies)
         workingDir = projectDir
-        commandLine("npm", "run", "build:web")
+        commandLine(npmCommand + listOf("run", "build:web"))
 
         inputs.files(
             "package.json",

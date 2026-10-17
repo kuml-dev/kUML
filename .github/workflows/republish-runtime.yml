@@ -55,6 +55,10 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           architecture: ${{ inputs.target == 'darwin-arm64' && 'aarch64' || 'x64' }}
+      - name: Set up Node.js (kuml-web frontend build, Vite requires ^20.19 or >=22.12)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4

@@ -16,6 +16,23 @@ matched against the file name or the path relative to the source root (`*Test.kt
 excludes win over includes, excluded files are not parsed, and an invalid glob fails with the new
 diagnostic `REV-CORE-003`. The Java engine is unchanged. Fixes #6.
 
+**`kuml serve`: the web editor did not start**
+
+The Web editor loaded CodeMirror from esm.sh and combined the legacy `@codemirror/basic-setup@0.20.0` with
+CodeMirror 6 packages, which pulled in two instances of `@codemirror/state`; the browser reported
+"Unrecognized extension value in extension set" and the editor was never created. The frontend is now built
+from one locked npm dependency graph and bundled with Vite (`kuml-web/frontend/app.js` →
+`/assets/app.js`), so the page no longer loads any script from a third-party CDN. A Playwright regression
+test runs the packaged distribution in a container (`kuml-web/DEVELOPMENT.adoc`). Contributed by
+@WhereJuly in #5, which fixes #4.
+
+### Changed
+
+- Building kUML now requires Node.js (`^20.19` or `>=22.12`) with npm, because `kuml-web` bundles its frontend
+  with Vite during `processResources` (`npm ci`; network access on the first build). The build, CI and release
+  workflows that run Gradle set up Node 22 (the docs workflow keeps its own Node 20), and on Windows Gradle
+  starts npm through `cmd /c`.
+
 ## [0.55.1] — 2026-10-12
 
 ### Added

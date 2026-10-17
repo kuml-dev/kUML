@@ -2,7 +2,12 @@
 set -euo pipefail
 
 mkdir -p /workspace /output
-cp -a /source/. /workspace/
+# Copy the sources without host build output: .git, Gradle/IDE state, build directories and
+# node_modules (the host's macOS/Windows node_modules would not run in this Linux container).
+tar -C /source \
+  --exclude=.git --exclude=.gradle --exclude=.kotlin --exclude=.idea --exclude=.intellijPlatform \
+  --exclude='*/build' --exclude='*/bin' --exclude=node_modules --exclude=kuml-web/tests/.output \
+  -cf - . | tar -C /workspace -xf -
 cd /workspace
 
 chmod +x gradlew

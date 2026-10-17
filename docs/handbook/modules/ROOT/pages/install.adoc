@@ -107,6 +107,13 @@ cd kUML
 ./kuml-cli/build/install/kuml-cli/bin/kuml --version
 ----
 
+[NOTE]
+====
+Building needs JDK 21 and, since v0.55.2, Node.js `^20.19` or `>=22.12` with npm: the `kuml-web`
+module bundles its browser frontend with Vite while its resources are processed (`npm ci`, so
+network access is required on the first build). See `kuml-web/DEVELOPMENT.adoc`.
+====
+
 == Gradle plugin
 
 [NOTE]

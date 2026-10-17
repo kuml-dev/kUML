@@ -1,5 +1,12 @@
 = kUML Web Development
 
+== Requirements
+
+* Node.js `^20.19` or `>=22.12` with npm on the `PATH` (Vite 8 requirement; the CI workflows use Node 22).
+  Every Gradle build that processes the `kuml-web` resources, i.e. also `:kuml-cli:installDist`, runs `npm ci` and
+  `vite build`, so the first build needs network access.
+* On Windows Gradle starts npm through `cmd /c`, because `npm` is a `.cmd` shim there.
+
 == Added Parts
 
 * A pinned npm/CodeMirror dependency graph and Vite bundle to prevent duplicate `@codemirror/state` instances in the browser.
