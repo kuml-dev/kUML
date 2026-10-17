@@ -58,6 +58,40 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+val installWebDependencies =
+    tasks.register<Exec>("installWebDependencies") {
+        group = "build"
+        description = "Installs the locked kUML Web frontend dependencies."
+
+        workingDir = projectDir
+        commandLine("npm", "ci")
+
+        inputs.files("package.json", "package-lock.json")
+        outputs.dir("node_modules")
+    }
+
+val buildWebFrontend =
+    tasks.register<Exec>("buildWebFrontend") {
+        group = "build"
+        description = "Bundles the kUML Web frontend."
+
+        dependsOn(installWebDependencies)
+        workingDir = projectDir
+        commandLine("npm", "run", "build:web")
+
+        inputs.files(
+            "package.json",
+            "package-lock.json",
+            "vite.config.mjs",
+        )
+        inputs.dir("frontend")
+        outputs.dir("src/main/resources/web/static/assets")
+    }
+
+tasks.named<ProcessResources>("processResources") {
+    dependsOn(buildWebFrontend)
+}
+
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     jvmArgs("-Xmx512m")

@@ -1,0 +1,7 @@
+services:
+  kuml-web:
+    build:
+      context: ../../..
+      dockerfile: kuml-web/.delivery/runtime/Dockerfile
+    ports:
+      - "127.0.0.1:8080:8080"

@@ -1,0 +1,18 @@
+services:
+  browser-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    volumes:
+      - ../../..:/source:ro
+      - ../../tests/.output:/output
+      - gradle-cache:/root/.gradle
+      - npm-cache:/root/.npm
+    environment:
+      KUML_WEB_URL: http://127.0.0.1:8080
+    command: ["/opt/kuml/scripts/test-browser.sh"]
+
+volumes:
+  gradle-cache:
+  npm-cache:

@@ -130,6 +130,12 @@ gradle-app.setting
 .env.local
 *.env
 
+# Local Node.js dependencies for kuml-web browser tests.
+kuml-web/node_modules/
+
+# Generated Vite bundle; built in the ephemeral Docker workspace.
+kuml-web/src/main/resources/web/static/assets/
+
 # IntelliJ Platform Gradle Plugin caches (V1.1.10 — kuml-jetbrains-plugin)
 .intellijPlatform/
 .DS_Store

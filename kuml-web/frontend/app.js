@@ -1,14 +1,12 @@
-// kUML Web UI — ES module, CodeMirror 6 via CDN
+// kUML Web UI — bundled ES module, CodeMirror 6
 // Provides: editor, live SVG preview, examples/theme/layout dropdowns,
 //           SVG and PNG download
 
-// ── CodeMirror 6 from CDN (importmap in index.html would be cleaner,
-//    but CDN ESM bundles avoid a build step entirely)
-import { basicSetup } from 'https://esm.sh/@codemirror/basic-setup@0.20.0';
-import { EditorView, keymap } from 'https://esm.sh/@codemirror/view@6.36.3';
-import { EditorState } from 'https://esm.sh/@codemirror/state@6.5.2';
-import { defaultKeymap } from 'https://esm.sh/@codemirror/commands@6.8.1';
-import { oneDark } from 'https://esm.sh/@codemirror/theme-one-dark@6.1.2';
+import { basicSetup } from 'codemirror';
+import { EditorView, keymap } from '@codemirror/view';
+import { EditorState } from '@codemirror/state';
+import { defaultKeymap } from '@codemirror/commands';
+import { oneDark } from '@codemirror/theme-one-dark';
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
 const previewEl = document.getElementById('preview');

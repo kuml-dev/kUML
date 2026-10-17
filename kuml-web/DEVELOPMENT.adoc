@@ -1,0 +1,50 @@
+= kUML Web Development
+
+== Added Parts
+
+* A pinned npm/CodeMirror dependency graph and Vite bundle to prevent duplicate `@codemirror/state` instances in the browser.
+* A Playwright regression test for editor startup, typing, SVG rendering, and CodeMirror browser errors.
+* Gradle tasks that build the frontend before packaging Web resources.
+* Docker workflows for browser testing and local self-hosting.
+
+== Files
+
+* `frontend/app.js` — browser application source.
+* `src/main/resources/web/static/` — Ktor static resources.
+* `src/main/resources/web/static/assets/` — generated Vite bundle; ignored by Git.
+* `tests/editor.spec.mjs` — browser regression test.
+* `tests/.output/` — generated test reports, artifacts, and server log.
+
+== Containerized Testing
+
+=== Browser
+
+From the repository root:
+
+[source,bash]
+----
+docker compose -f kuml-web/.delivery/development/compose.yml run --rm --build browser-test
+----
+
+The source is mounted read-only, copied into a container workspace, built, and tested there. Inspect results in `kuml-web/tests/.output/`:
+
+* `playwright-report/index.html`
+* `playwright-test-results/`
+* `kuml-web.log`
+
+== Manual Runtime
+
+From the repository root:
+
+[source,bash]
+----
+docker compose -f kuml-web/.delivery/runtime/compose.yml up --build
+----
+
+Open `http://127.0.0.1:8080`. The Compose mapping is localhost-only. Stop it with `Ctrl+C`.
+
+== Build flow
+
+`processResources` depends on `installWebDependencies` and `buildWebFrontend`. Therefore every Gradle distribution build packages the Vite-generated `/assets/app.js` bundle.
+
+Do not expose `kuml serve` publicly without authentication, restricted networking, resource limits, and isolated runtime storage: submitted kUML scripts execute Kotlin code.
