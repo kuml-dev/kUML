@@ -19,6 +19,7 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.JvmTarget
 import org.jetbrains.kotlin.psi.KtFile
+import java.nio.file.Path
 
 /**
  * Wraps a [KotlinCoreEnvironment] with proper Disposable lifecycle.
@@ -27,6 +28,7 @@ import org.jetbrains.kotlin.psi.KtFile
  */
 internal class KotlinAnalysisSession(
     request: ReverseRequest,
+    sourceFiles: List<Path>,
     private val diagnostics: DiagnosticCollector,
 ) {
     private val disposable = Disposer.newDisposable("kuml-reverse-kotlin")
@@ -40,9 +42,9 @@ internal class KotlinAnalysisSession(
         val collector = CollectingMessageCollector(diagnostics)
         config.put(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY, collector)
 
-        // Add source roots
-        for (root in request.sourceRoots) {
-            config.addKotlinSourceRoot(root.toString())
+        // Add the pre-filtered individual source files (include/exclude globs already applied)
+        for (file in sourceFiles) {
+            config.addKotlinSourceRoot(file.toString())
         }
 
         env =

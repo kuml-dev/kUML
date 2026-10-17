@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+**Kotlin reverse engine ignored `--include`/`--exclude`**
+
+`kuml reverse --lang kotlin` passed whole source roots to the Kotlin compiler and never applied the
+`--include`/`--exclude` globs, so test and spec files could not be left out of the model. Globs are now
+matched against the file name or the path relative to the source root (`*Test.kt`, `**/test/**`),
+excludes win over includes, excluded files are not parsed, and an invalid glob fails with the new
+diagnostic `REV-CORE-003`. The Java engine is unchanged. Fixes #6.
+
 ## [0.55.1] — 2026-10-12
 
 ### Added

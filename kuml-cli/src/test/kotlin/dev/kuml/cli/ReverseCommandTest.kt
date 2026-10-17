@@ -5,6 +5,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotBeEmpty
+import io.kotest.matchers.string.shouldNotContain
 import java.nio.file.Files
 
 class ReverseCommandTest :
@@ -51,6 +52,43 @@ class ReverseCommandTest :
             val result = KumlCli().test(listOf("reverse", tmp.toString(), "--lang", "kotlin"))
             result.statusCode shouldBe 0
             result.stdout shouldContain "'kotlin' engine"
+        }
+
+        fun kotlinFixture(): java.nio.file.Path {
+            val tmp = Files.createTempDirectory("rev-filter-kt-")
+            Files.writeString(tmp.resolve("Foo.kt"), "class Foo")
+            Files.writeString(tmp.resolve("FooTest.kt"), "class WidgetTest")
+            Files.writeString(tmp.resolve("BarSpec.kt"), "class Gadget")
+            return tmp
+        }
+
+        test("--exclude drops matching kotlin files from the model") {
+            val tmp = kotlinFixture()
+            val result = KumlCli().test(listOf("reverse", tmp.toString(), "--lang", "kotlin", "--exclude", "*Test.kt"))
+            result.statusCode shouldBe 0
+            result.stdout shouldContain "classOf(name = \"Foo\""
+            result.stdout shouldContain "classOf(name = \"Gadget\""
+            result.stdout shouldNotContain "WidgetTest"
+        }
+
+        test("two --exclude options drop both files") {
+            val tmp = kotlinFixture()
+            val result =
+                KumlCli().test(
+                    listOf("reverse", tmp.toString(), "--lang", "kotlin", "--exclude", "*Test.kt", "--exclude", "*Spec.kt"),
+                )
+            result.statusCode shouldBe 0
+            result.stdout shouldContain "classOf(name = \"Foo\""
+            result.stdout shouldNotContain "WidgetTest"
+            result.stdout shouldNotContain "Gadget"
+        }
+
+        test("--include restricts kotlin files") {
+            val tmp = kotlinFixture()
+            val result = KumlCli().test(listOf("reverse", tmp.toString(), "--lang", "kotlin", "--include", "Foo.kt"))
+            result.statusCode shouldBe 0
+            result.stdout shouldContain "classOf(name = \"Foo\""
+            result.stdout shouldNotContain "Gadget"
         }
 
         test("unknown --lang exits with REVERSE_ENGINE_NOT_FOUND") {

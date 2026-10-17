@@ -64,11 +64,18 @@ internal class ReverseCommand : CliktCommand(name = "reverse") {
 
     private val includeGlobs by option("--include")
         .multiple()
-        .help("File include glob (repeatable). Defaults per --lang")
+        .help(
+            "File include glob (repeatable). Matched against the file name or the path relative to the " +
+                "source root ('/' separator; '**/' also matches root files). Excludes win over includes. " +
+                "Defaults per --lang. Currently applied by the Kotlin engine",
+        )
 
     private val excludeGlobs by option("--exclude")
         .multiple()
-        .help("File exclude glob (repeatable)")
+        .help(
+            "File exclude glob (repeatable), e.g. '*Test.kt' or '**/test/**'. Same matching as --include; " +
+                "wins over includes. Currently applied by the Kotlin engine",
+        )
 
     private val modelName by option("--model-name")
         .help("Name for the resulting model (default: ReverseEngineered)")

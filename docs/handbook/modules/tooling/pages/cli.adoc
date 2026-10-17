@@ -280,10 +280,19 @@ Options:
 * `--lang java|kotlin|auto` — source language. Default: `auto` (file-extension majority, ≥ 60 % share required).
 * `--output <file>` — write the generated `*.kuml.kts` here; defaults to stdout.
 * `--include "<glob>"` (repeatable) — file include patterns. Defaults: `+**/*.java+` / `+**/*.kt+` per `--lang`.
-* `--exclude "<glob>"` (repeatable) — file exclude patterns.
+  A glob matches if it matches the file name _or_ the path relative to the source root (always compared with `/`
+  separators; `+**/+` also matches files directly in the root). Supported syntax: `*`, `**`, `?`, `[abc]`, `{a,b}`.
+  Matching is case-sensitive; a backslash is treated as a path separator, not as an escape.
+* `--exclude "<glob>"` (repeatable) — file exclude patterns, same matching as `--include`. Excludes always win over includes.
+  Examples: `--exclude "*Test.kt"` (by file name), `--exclude "+**/test/**+"` (by path).
+  Excluded files are not parsed and do not appear in the model; references to their types stay as plain type names.
 * `--model-name <name>` — name of the generated model (default `ReverseEngineered`).
 * `--list-engines` — print available reverse engines (id + description) and exit.
 * `--verbose-diagnostics` — print every WARN/INFO diagnostic on stderr (default: one-line summary).
+
+NOTE: `--include`/`--exclude` are currently applied by the Kotlin engine only. The Java engine still
+compares globs with the file name only (path globs such as `+**/test/**+` have no effect there). With
+`--lang kotlin` an include of exactly `+**/*.java+` (the Java default) is ignored.
 
 The Kotlin engine is JVM-only (it bundles `kotlin-compiler-embeddable`), so the
 reverse subcommand is available in the Fat-JAR / `installDist` / `distTar` /

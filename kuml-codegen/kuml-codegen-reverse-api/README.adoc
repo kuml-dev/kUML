@@ -105,8 +105,9 @@ ReverseEngineRegistry.detectLanguage(roots)  // heuristic auto-detect
 |===
 | Code | Severity | Meaning
 
-| `REV-CORE-001` | ERROR | No source files found in source roots
+| `REV-CORE-001` | ERROR | No source files found in source roots (or none left after include/exclude globs)
 | `REV-CORE-002` | WARN  | A source file could not be parsed
+| `REV-CORE-003` | ERROR | Kotlin engine: invalid include/exclude glob
 |===
 
 === Engine-specific ranges

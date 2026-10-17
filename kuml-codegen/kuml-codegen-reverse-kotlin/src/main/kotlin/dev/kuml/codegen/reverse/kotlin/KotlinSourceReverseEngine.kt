@@ -1,8 +1,10 @@
 package dev.kuml.codegen.reverse.kotlin
 
 import dev.kuml.codegen.reverse.KumlReverseEngine
+import dev.kuml.codegen.reverse.ReverseDiagnostic
 import dev.kuml.codegen.reverse.ReverseRequest
 import dev.kuml.codegen.reverse.ReverseResult
+import dev.kuml.codegen.reverse.SourceFileFilter
 import dev.kuml.codegen.reverse.kotlin.mapper.KtAssociationDetector
 import dev.kuml.codegen.reverse.kotlin.mapper.KtClassMapper
 import dev.kuml.codegen.reverse.kotlin.mapper.KtEnumerationMapper
@@ -48,22 +50,35 @@ public class KotlinSourceReverseEngine : KumlReverseEngine {
         val startMs = System.currentTimeMillis()
         val diagnostics = DiagnosticCollector()
 
-        val session = KotlinAnalysisSession(request = request, diagnostics = diagnostics)
+        val includes = request.includeGlobs.filterNot { it in ReverseRequest.DEFAULT_INCLUDE_GLOBS }
+        val filter =
+            try {
+                SourceFileFilter(includeGlobs = includes, excludeGlobs = request.excludeGlobs)
+            } catch (e: IllegalArgumentException) {
+                return failure(code = "REV-CORE-003", message = "Invalid include/exclude glob: ${e.message}")
+            }
+        val sourceFiles = filter.select(roots = request.sourceRoots, extensions = KOTLIN_EXTENSIONS)
+        if (sourceFiles.isEmpty()) {
+            val total =
+                SourceFileFilter(includeGlobs = emptyList(), excludeGlobs = emptyList())
+                    .select(roots = request.sourceRoots, extensions = KOTLIN_EXTENSIONS)
+                    .size
+            val message =
+                if (total == 0) {
+                    "No Kotlin source files found in source roots: ${request.sourceRoots}"
+                } else {
+                    "No Kotlin source files left after applying include/exclude globs " +
+                        "($total .kt file(s) found; include=$includes, exclude=${request.excludeGlobs})"
+                }
+            return failure(code = "REV-CORE-001", message = message)
+        }
+
+        val session = KotlinAnalysisSession(request = request, sourceFiles = sourceFiles, diagnostics = diagnostics)
         try {
             val ktFiles = session.loadKtFiles()
 
             if (ktFiles.isEmpty()) {
-                return ReverseResult.Failure(
-                    buildList {
-                        add(
-                            dev.kuml.codegen.reverse.ReverseDiagnostic(
-                                severity = dev.kuml.codegen.reverse.ReverseDiagnostic.Severity.ERROR,
-                                code = "REV-CORE-001",
-                                message = "No Kotlin source files found in source roots: ${request.sourceRoots}",
-                            ),
-                        )
-                    },
-                )
+                return failure(code = "REV-CORE-001", message = "No Kotlin source files found in source roots: ${request.sourceRoots}")
             }
 
             // Pass 1: build FQN pool
@@ -198,5 +213,17 @@ public class KotlinSourceReverseEngine : KumlReverseEngine {
         } finally {
             session.dispose()
         }
+    }
+
+    private fun failure(
+        code: String,
+        message: String,
+    ): ReverseResult.Failure =
+        ReverseResult.Failure(
+            listOf(ReverseDiagnostic(severity = ReverseDiagnostic.Severity.ERROR, code = code, message = message)),
+        )
+
+    private companion object {
+        val KOTLIN_EXTENSIONS: Set<String> = setOf("kt")
     }
 }
