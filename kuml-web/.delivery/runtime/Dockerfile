@@ -1,7 +1,7 @@
 # The image tag is kept in lockstep with "@playwright/test" in kuml-web/package.json. Here the image is
 # only a Node + build base, but one Playwright version everywhere keeps dependency bumps simple.
 # PlaywrightVersionSyncTest (kuml-web) fails the build when the versions drift apart.
-FROM mcr.microsoft.com/playwright:v1.64.0-noble AS build
+FROM mcr.microsoft.com/playwright:v1.64.1-noble AS build
 
 USER root
 

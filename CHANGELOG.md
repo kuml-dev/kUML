@@ -33,8 +33,8 @@ test runs the packaged distribution in a container (`kuml-web/DEVELOPMENT.adoc`)
   workflows set up Node 22 (the docs workflow moved up from Node 20, which is end-of-life), and on Windows
   Gradle starts npm through `cmd /c`. Dependabot now watches the `kuml-web` npm dependencies.
 - `kuml-web` frontend dependencies updated by Dependabot (`@codemirror/view` 6.43.14, Vite 8.3.4,
-  Playwright 1.64.0, plus transitive patch updates; osv.dev audit clean). The Playwright Docker images of the
-  browser test moved to v1.64.0 with it, and a new `PlaywrightVersionSyncTest` keeps `@playwright/test` and
+  Playwright 1.64.1, plus transitive patch updates; osv.dev audit clean). The Playwright Docker images of the
+  browser test moved to v1.64.1 with it, and a new `PlaywrightVersionSyncTest` keeps `@playwright/test` and
   the image tags in lockstep (a mismatch makes the container test fail with "Executable doesn't exist").
 
 ## [0.55.1] — 2026-10-12
