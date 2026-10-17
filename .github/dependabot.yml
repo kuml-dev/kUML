@@ -1,0 +1,25 @@
+# Dependabot version updates.
+#
+# Only the npm dependencies of the kuml-web frontend (CodeMirror, Vite, Playwright) are watched:
+# they are pinned in kuml-web/package-lock.json and would otherwise age silently. The Gradle
+# dependencies are managed through the version catalog (gradle/libs.versions.toml) by hand, because
+# some upgrades are deliberately held back (see the comments there).
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/kuml-web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      codemirror:
+        patterns:
+          - "@codemirror/*"
+          - "codemirror"
+      build-and-test:
+        patterns:
+          - "vite"
+          - "@playwright/*"

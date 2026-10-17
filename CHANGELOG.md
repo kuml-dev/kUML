@@ -29,9 +29,9 @@ test runs the packaged distribution in a container (`kuml-web/DEVELOPMENT.adoc`)
 ### Changed
 
 - Building kUML now requires Node.js (`^20.19` or `>=22.12`) with npm, because `kuml-web` bundles its frontend
-  with Vite during `processResources` (`npm ci`; network access on the first build). The build, CI and release
-  workflows that run Gradle set up Node 22 (the docs workflow keeps its own Node 20), and on Windows Gradle
-  starts npm through `cmd /c`.
+  with Vite during `processResources` (`npm ci`; network access on the first build). All CI, release and docs
+  workflows set up Node 22 (the docs workflow moved up from Node 20, which is end-of-life), and on Windows
+  Gradle starts npm through `cmd /c`. Dependabot now watches the `kuml-web` npm dependencies.
 
 ## [0.55.1] — 2026-10-12
 
