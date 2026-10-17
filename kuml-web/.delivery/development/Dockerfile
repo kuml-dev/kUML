@@ -1,4 +1,7 @@
-FROM mcr.microsoft.com/playwright:v1.63.0-noble
+# Keep the image tag in lockstep with "@playwright/test" in kuml-web/package.json: the browsers baked
+# into this image are exactly the ones that Playwright version expects, and a different npm version
+# cannot find them. PlaywrightVersionSyncTest (kuml-web) fails the build when they drift apart.
+FROM mcr.microsoft.com/playwright:v1.64.0-noble
 
 USER root
 

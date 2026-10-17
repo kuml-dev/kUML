@@ -7,6 +7,14 @@
   `vite build`, so the first build needs network access.
 * On Windows Gradle starts npm through `cmd /c`, because `npm` is a `.cmd` shim there.
 
+== Playwright versions
+
+The npm package `@playwright/test` (`package.json`) and the Docker image `mcr.microsoft.com/playwright`
+(`.delivery/development/Dockerfile` and `.delivery/runtime/Dockerfile`) must always be the same Playwright
+version: each release expects specific browser builds, and a different npm version cannot find the browsers
+in the image. Dependabot bumps only the npm side, so `PlaywrightVersionSyncTest` fails the build when they
+drift apart. When a Dependabot PR bumps Playwright, change the image tags in both Dockerfiles in the same PR.
+
 == Added Parts
 
 * A pinned npm/CodeMirror dependency graph and Vite bundle to prevent duplicate `@codemirror/state` instances in the browser.

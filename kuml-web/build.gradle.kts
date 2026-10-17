@@ -100,6 +100,16 @@ tasks.named<ProcessResources>("processResources") {
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     jvmArgs("-Xmx512m")
+    // PlaywrightVersionSyncTest reads these files at run time. Declared as inputs, otherwise the build
+    // cache would replay a green result after a Dependabot PR changed only package.json or a Dockerfile.
+    inputs
+        .files(
+            "package.json",
+            "package-lock.json",
+            ".delivery/development/Dockerfile",
+            ".delivery/runtime/Dockerfile",
+        ).withPropertyName("playwrightVersionSyncFiles")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
