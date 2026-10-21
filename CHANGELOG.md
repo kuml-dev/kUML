@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.55.3] — 2026-10-21
+
 ### Fixed
 
 **kUML Desktop: menu shortcuts use ⌘ on macOS**

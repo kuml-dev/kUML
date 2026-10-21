@@ -373,14 +373,15 @@ trust, exactly like `kuml render` itself.
 
 Opening a Knowledge-mode workspace in kUML Desktop shows the usual document
 tree | document | SVG-preview three-column layout, and the middle column is editable.
-Every document has an independent *Read* / *Edit* toggle (a small segmented control
-above the document, or a double-click on the rendered prose to jump straight into Edit;
+Every document has an independent *Read* / *Edit* tab pair (directly above the document
+content, or a double-click on the rendered prose to jump straight into Edit;
 Esc returns to Read as long as the buffer has no unsaved changes). The raw Markdown
 editor is the same `RSyntaxTextArea` widget the single-file script editor uses — full
-Undo/Redo and Ctrl+F find/replace work identically.
+Undo/Redo and find/replace work identically. Menu shortcuts follow the platform
+convention: Ctrl on Windows and Linux, ⌘ (Command) on macOS (for example Ctrl+F / ⌘F for find).
 
-The header above the document also carries the `type:` and `title:` frontmatter fields
-as first-class controls (a dropdown listing the full `type:` vocabulary — see
+The header above the tabs also carries the `type:` and `title:` frontmatter fields
+as first-class controls, shared by both views (a dropdown listing the full `type:` vocabulary — see
 "The `type:` vocabulary" above — and a text field), so retyping YAML by hand is never
 required for the two fields every OKF document has. Changing either splices the
 corresponding line into the in-memory buffer directly — the rest of the frontmatter
@@ -388,7 +389,7 @@ corresponding line into the in-memory buffer directly — the rest of the frontm
 
 === The save gate
 
-Saving (Ctrl+S, or the Save button that appears once a document has unsaved changes)
+Saving (Ctrl+S, ⌘S on macOS, or the Save button that appears once a document has unsaved changes)
 does *not* write whatever is in the buffer unconditionally. A persistent banner above
 the document — never a pop-up dialog, so it can't be dismissed and forgotten — shows
 every current OKF finding (see "OKF finding codes" above) for the buffer, and exactly
