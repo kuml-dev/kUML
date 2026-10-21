@@ -15,6 +15,12 @@ inside the main window. Compose popups are not painted over heavyweight Swing co
 and the SVG preview are exactly that, so the dialogs opened invisibly or were cut off at the preview edge.
 They are now real dialog windows (shared `WindowAlertDialog`), like the About dialog.
 
+**kUML Desktop: new scripts did not appear in the Engineering workspace tree**
+
+The file tree was scanned once when the workspace was opened. A script created via Save / Save As stayed
+invisible in the navigation. The tree now rescans (off the UI thread) when the current file changes or a
+save completes.
+
 ### Changed
 
 **kUML Desktop: workspace document header uses tabs and aligns its controls**

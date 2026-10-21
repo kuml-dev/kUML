@@ -21,6 +21,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -801,15 +802,30 @@ fun FrameWindowScope.MainWindow(
                                 onEditorReady = { editorActions = it },
                                 onSaveResult = { result -> reportKnowledgeSaveResult(result) },
                             )
-                        is OpenWorkspace.Engineering ->
+                        is OpenWorkspace.Engineering -> {
+                            // The tree was scanned once when the workspace was opened, so a script
+                            // created via Save / Save As never showed up. Rescan (off the UI thread)
+                            // whenever the current file changes or a save clears the dirty flag.
+                            val scriptFiles by produceState(
+                                initialValue = ws.scriptFiles,
+                                ws.root,
+                                state.currentFile,
+                                state.isDirty,
+                            ) {
+                                value =
+                                    withContext(
+                                        Dispatchers.IO,
+                                    ) { runCatching { EngineeringFileScanner.scan(ws.root) }.getOrDefault(ws.scriptFiles) }
+                            }
                             EngineeringWorkspaceScreen(
                                 state = state,
                                 strings = strings,
-                                scriptFiles = ws.scriptFiles,
+                                scriptFiles = scriptFiles,
                                 confirmUnsavedAndThen = { action -> confirmUnsavedAndThen(action) },
                                 onEditorReady = { editorActions = it },
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
                             )
+                        }
                         null -> {
                             // P5 — Ansichtsmodus: der ausgeblendete Bereich wird NICHT komponiert
                             // (echtes if, keine Nullbreite). Das setzt bei jedem Umschalten den
