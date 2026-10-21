@@ -8,6 +8,12 @@ All notable changes to this project are documented here. Format follows
 
 ### Fixed
 
+**kUML Desktop: menu shortcuts use ⌘ on macOS**
+
+Save, Undo, Redo, Find, the view-mode switches and Simulate were defined with `ctrl = true`, so a Mac
+needed ⌃S instead of the expected ⌘S. Compose Desktop does not translate `ctrl` to ⌘. All menu shortcuts
+now go through one helper (`platformShortcut`): ⌘ on macOS, Ctrl on Windows and Linux.
+
 **kUML Desktop: File → New Workspace… showed no dialog**
 
 The "New Workspace…", "Trust this workspace?" and "Open as…" dialogs were Material `AlertDialog`s drawn

@@ -31,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyShortcut
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,6 +72,7 @@ import dev.kuml.desktop.state.rememberAppSettingsBinding
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
 import dev.kuml.desktop.ui.ResizableSplit
+import dev.kuml.desktop.ui.platformShortcut
 import dev.kuml.desktop.ui.tooltipStart
 import dev.kuml.desktop.workspace.EngineeringFileScanner
 import dev.kuml.desktop.workspace.EngineeringWorkspaceScreen
@@ -506,7 +506,7 @@ fun FrameWindowScope.MainWindow(
             // `menuFileSave` never had a shortcut before this welle.
             Item(
                 strings.menuFileSave,
-                shortcut = KeyShortcut(key = Key.S, ctrl = true),
+                shortcut = platformShortcut(key = Key.S),
                 onClick = {
                     val knowledgeState = (state.openWorkspace as? OpenWorkspace.Knowledge)?.state
                     // Bugfix (review finding) — this used to route on "is a Knowledge
@@ -621,13 +621,13 @@ fun FrameWindowScope.MainWindow(
                 // V-next: `showsEditorPane` (not bare `showsEditor`) so this also enables
                 // while editing a Knowledge document — see `showsEditorPane`'s KDoc above.
                 enabled = showsEditorPane && (editorActions?.canUndo?.value ?: false),
-                shortcut = KeyShortcut(key = Key.Z, ctrl = true),
+                shortcut = platformShortcut(key = Key.Z),
                 onClick = { editorActions?.undo?.invoke() },
             )
             Item(
                 strings.menuEditRedo,
                 enabled = showsEditorPane && (editorActions?.canRedo?.value ?: false),
-                shortcut = KeyShortcut(key = Key.Z, ctrl = true, shift = true),
+                shortcut = platformShortcut(key = Key.Z, shift = true),
                 onClick = { editorActions?.redo?.invoke() },
             )
             Separator()
@@ -640,7 +640,7 @@ fun FrameWindowScope.MainWindow(
             Item(
                 strings.menuEditFind,
                 enabled = showsEditorPane,
-                shortcut = KeyShortcut(key = Key.F, ctrl = true),
+                shortcut = platformShortcut(key = Key.F),
                 onClick = {
                     if (showsEditorPane) {
                         editorActions?.beginFind?.invoke()
@@ -690,10 +690,8 @@ fun FrameWindowScope.MainWindow(
             )
             Separator()
             // P5 — view-mode submenu, mirrors the segmented control in the status bar.
-            // Shortcuts follow this repo's existing convention (Undo/Redo above use
-            // `ctrl = true` for BOTH Windows/Linux and macOS — Compose Desktop maps `ctrl`
-            // to the platform-native modifier itself, no separate `meta` flag anywhere in
-            // this codebase yet), so `ctrl = true` here too rather than introducing `meta`.
+            // Shortcuts go through `platformShortcut` like every other menu item: ⌘ on macOS,
+            // Ctrl on Windows/Linux (Compose does not translate `ctrl` to ⌘ on its own).
             //
             // Review fix — the Knowledge workspace viewer (KnowledgeWorkspaceScreen) ignores
             // state.viewMode entirely and always renders its fixed tree|editor|SVG
@@ -707,19 +705,19 @@ fun FrameWindowScope.MainWindow(
                     RadioButtonItem(
                         strings.viewModeSource,
                         selected = state.viewMode == AppState.ViewMode.SOURCE,
-                        shortcut = KeyShortcut(key = Key.One, ctrl = true),
+                        shortcut = platformShortcut(key = Key.One),
                         onClick = { state.viewMode = AppState.ViewMode.SOURCE },
                     )
                     RadioButtonItem(
                         strings.viewModeSplit,
                         selected = state.viewMode == AppState.ViewMode.SPLIT,
-                        shortcut = KeyShortcut(key = Key.Two, ctrl = true),
+                        shortcut = platformShortcut(key = Key.Two),
                         onClick = { state.viewMode = AppState.ViewMode.SPLIT },
                     )
                     RadioButtonItem(
                         strings.viewModeDiagram,
                         selected = state.viewMode == AppState.ViewMode.DIAGRAM,
-                        shortcut = KeyShortcut(key = Key.Three, ctrl = true),
+                        shortcut = platformShortcut(key = Key.Three),
                         onClick = { state.viewMode = AppState.ViewMode.DIAGRAM },
                     )
                 }
@@ -770,7 +768,7 @@ fun FrameWindowScope.MainWindow(
                 // second Ctrl+R started a second SimulationSession (see `startSimulation()`'s
                 // KDoc-level comment and `AppState.simulationStarting`'s KDoc).
                 enabled = state.simulation == null && !state.simulationStarting && state.lastDiagramSimulatable,
-                shortcut = KeyShortcut(key = Key.R, ctrl = true),
+                shortcut = platformShortcut(key = Key.R),
                 onClick = { startSimulation() },
             )
             Item(
