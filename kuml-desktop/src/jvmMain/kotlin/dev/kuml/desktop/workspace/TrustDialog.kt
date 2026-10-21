@@ -1,10 +1,10 @@
 package dev.kuml.desktop.workspace
 
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.i18n.Strings
 import java.io.File
 
@@ -29,10 +29,11 @@ fun TrustDialog(
     onTrust: () -> Unit,
     onDecline: () -> Unit,
 ) {
-    AlertDialog(
+    WindowAlertDialog(
+        title = strings.workspaceTrustTitle,
         onDismissRequest = onDecline,
-        title = { Text(strings.workspaceTrustTitle) },
-        text = { Text(strings.workspaceTrustMessage.format(root.absolutePath)) },
+        height = 300.dp,
+        content = { Text(strings.workspaceTrustMessage.format(root.absolutePath)) },
         confirmButton = {
             Button(onClick = onTrust) { Text(strings.workspaceTrustAccept) }
         },

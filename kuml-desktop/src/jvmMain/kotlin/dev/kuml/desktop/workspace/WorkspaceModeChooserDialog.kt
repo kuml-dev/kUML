@@ -3,7 +3,6 @@ package dev.kuml.desktop.workspace
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -32,10 +31,11 @@ fun WorkspaceModeChooserDialog(
     onChooseEngineering: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    AlertDialog(
+    WindowAlertDialog(
+        title = strings.workspaceUnknownTitle,
         onDismissRequest = onCancel,
-        title = { Text(strings.workspaceUnknownTitle) },
-        text = { Text(strings.workspaceUnknownMessage) },
+        height = 300.dp,
+        content = { Text(strings.workspaceUnknownMessage) },
         confirmButton = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Button(onClick = onChooseKnowledge) { Text(strings.workspaceOpenAsKnowledge) }

@@ -1,5 +1,6 @@
 package dev.kuml.desktop.workspace
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -8,18 +9,23 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
@@ -152,14 +159,18 @@ fun DocumentEditorPane(
 }
 
 /**
- * Read/Edit segmented toggle, `type:`/`title:` projection fields, and the dirty indicator.
+ * Document header: row 1 holds the `type:`/`title:` projection fields, which are shared by both
+ * views; row 2 holds the Read/Edit [TabRow] (two views of the same document, so tabs rather than
+ * push buttons) plus the dirty indicator and Save, directly above the content the tabs switch. Both fields are outlined text fields with an in-border label, so they share
+ * one height and centre on the same line — the former label-above dropdown was taller than the
+ * title field and pushed the controls out of vertical alignment.
  *
  * The `type:` control is a plain dropdown ([DropdownMenu]), not an
  * `ExposedDropdownMenuBox` — verify in the running app (`./gradlew :kuml-desktop:run`) that
  * it isn't visually clipped by the editor's `SwingPanel` while [editing] is `true` (Compose
  * popups are lightweight and heavyweight AWT components always paint on top of them). If it
- * is, fall back to a small `AlertDialog`-based picker (its own top-level window, always on
- * top) instead of chasing `compose.interop.blending`.
+ * is, fall back to a picker in its own window (see `WindowAlertDialog`) instead of chasing
+ * `compose.interop.blending`.
  */
 @Composable
 private fun DocumentHeaderBar(
@@ -173,55 +184,60 @@ private fun DocumentHeaderBar(
     onSave: () -> Unit,
     strings: Strings,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        ReadEditToggle(editing = editing, onToggleEditing = onToggleEditing, strings = strings)
-        TypeDropdown(rawType = rawType, onTypeChange = onTypeChange, strings = strings)
-        OutlinedTextField(
-            value = title,
-            onValueChange = onTitleChange,
-            label = { Text(strings.docEditTitle, fontSize = 11.sp) },
-            singleLine = true,
-            modifier = Modifier.weight(1f),
-        )
-        if (isDirty) {
-            Text(
-                text = "• ${strings.docEditDirty}",
-                color = Color(0xFFCC7A00),
-                fontSize = 11.sp,
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            TypeDropdown(rawType = rawType, onTypeChange = onTypeChange, strings = strings, modifier = Modifier.width(200.dp))
+            OutlinedTextField(
+                value = title,
+                onValueChange = onTitleChange,
+                label = { Text(strings.docEditTitle, fontSize = 11.sp) },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = onSave) { Text(strings.menuFileSave) }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ReadEditTabs(editing = editing, onToggleEditing = onToggleEditing, strings = strings)
+            Spacer(modifier = Modifier.weight(1f))
+            if (isDirty) {
+                Text(
+                    text = "• ${strings.docEditDirty}",
+                    color = Color(0xFFCC7A00),
+                    fontSize = 11.sp,
+                )
+                TextButton(onClick = onSave) { Text(strings.menuFileSave) }
+            }
         }
     }
 }
 
 @Composable
-private fun ReadEditToggle(
+private fun ReadEditTabs(
     editing: Boolean,
     onToggleEditing: (Boolean) -> Unit,
     strings: Strings,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        SegmentButton(label = strings.docEditRead, selected = !editing, onClick = { onToggleEditing(false) })
-        SegmentButton(label = strings.docEditEdit, selected = editing, onClick = { onToggleEditing(true) })
-    }
-}
-
-@Composable
-private fun SegmentButton(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    Surface(
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-        shape = MaterialTheme.shapes.small,
-        modifier = Modifier.clickable(onClick = onClick),
+    TabRow(
+        selectedTabIndex = if (editing) 1 else 0,
+        containerColor = Color.Transparent,
+        modifier = Modifier.width(200.dp),
     ) {
-        Text(text = label, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+        Tab(
+            selected = !editing,
+            onClick = { onToggleEditing(false) },
+            text = { Text(text = strings.docEditRead, fontSize = 13.sp) },
+        )
+        Tab(
+            selected = editing,
+            onClick = { onToggleEditing(true) },
+            text = { Text(text = strings.docEditEdit, fontSize = 13.sp) },
+        )
     }
 }
 
@@ -230,41 +246,59 @@ private fun TypeDropdown(
     rawType: String?,
     onTypeChange: (String) -> Unit,
     strings: Strings,
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val isKnown = OkfType.fromId(rawType) != null
     val label = rawType ?: "—"
-    // Bugfix (review finding) — `strings.docEditType` existed as a translated string but was
-    // never actually read anywhere, leaving this control the only one in the header bar
-    // (unlike the title field's `OutlinedTextField.label`) without a label at all.
-    Column {
-        Text(
-            text = strings.docEditType,
-            fontSize = 9.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+    val shown = if (isKnown || rawType == null) label else "$label (${strings.docEditCustomType})"
+    Box(modifier = modifier) {
+        // Read-only outlined field = same height/shape as the title field; a transparent overlay
+        // makes the whole field open the menu (a disabled field would swallow the click itself).
+        OutlinedTextField(
+            value = shown,
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            label = { Text(strings.docEditType, fontSize = 11.sp) },
+            trailingIcon = { DropdownArrow() },
+            textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
+            modifier = Modifier.fillMaxWidth(),
         )
-        Box {
-            OutlinedButton(onClick = { expanded = true }) {
-                Text(text = if (isKnown || rawType == null) label else "$label (${strings.docEditCustomType})", fontSize = 12.sp)
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                OkfType.entries.forEach { type ->
-                    DropdownMenuItem(
-                        text = { Text(type.id) },
-                        onClick = {
-                            onTypeChange(type.id)
-                            expanded = false
-                        },
-                    )
-                }
-                HorizontalDivider()
+        Box(modifier = Modifier.matchParentSize().clickable { expanded = true })
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            OkfType.entries.forEach { type ->
                 DropdownMenuItem(
-                    text = { Text(strings.docEditCustomType) },
-                    enabled = false,
-                    onClick = {},
+                    text = { Text(type.id) },
+                    onClick = {
+                        onTypeChange(type.id)
+                        expanded = false
+                    },
                 )
             }
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text(strings.docEditCustomType) },
+                enabled = false,
+                onClick = {},
+            )
         }
+    }
+}
+
+/** Small down-pointing triangle, drawn: the "▾" glyph is missing from the default UI font. */
+@Composable
+private fun DropdownArrow() {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    Canvas(modifier = Modifier.size(10.dp, 6.dp)) {
+        val path =
+            Path().apply {
+                moveTo(0f, 0f)
+                lineTo(size.width, 0f)
+                lineTo(size.width / 2f, size.height)
+                close()
+            }
+        drawPath(path, color)
     }
 }
 

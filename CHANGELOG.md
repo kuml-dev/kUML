@@ -6,6 +6,24 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+**kUML Desktop: File → New Workspace… showed no dialog**
+
+The "New Workspace…", "Trust this workspace?" and "Open as…" dialogs were Material `AlertDialog`s drawn
+inside the main window. Compose popups are not painted over heavyweight Swing components, and the editor
+and the SVG preview are exactly that, so the dialogs opened invisibly or were cut off at the preview edge.
+They are now real dialog windows (shared `WindowAlertDialog`), like the About dialog.
+
+### Changed
+
+**kUML Desktop: workspace document header uses tabs and aligns its controls**
+
+Read/Edit is now a real tab pair, placed directly above the content it switches (type and title are shared
+by both views and sit above the tabs). The `type:` dropdown became an outlined
+field like the title field, so both share one height and sit on the same line; dirty indicator and Save
+moved to the tab row.
+
 ## [0.55.2] — 2026-10-17
 
 ### Fixed
