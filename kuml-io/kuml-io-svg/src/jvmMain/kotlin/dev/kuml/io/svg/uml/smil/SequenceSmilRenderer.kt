@@ -3,7 +3,7 @@ package dev.kuml.io.svg.uml.smil
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SvgRenderOptions
-import dev.kuml.io.svg.uml.UML_SEQ_FRAGMENT_PADDING
+import dev.kuml.io.svg.uml.umlSeqEffectivePaddingPx
 import dev.kuml.layout.LayoutResult
 import dev.kuml.render.smil.SmilEmitter
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -37,8 +37,9 @@ import dev.kuml.uml.UmlInteraction
  *
  * The renderer replicates the **padding-shift logic** from `KumlSvgRenderer.renderUmlSequence`
  * exactly: when the interaction contains combined fragments, the effective padding is raised to
- * `max(paddingPx, UML_SEQ_FRAGMENT_PADDING + 4)`. This ensures the dot coordinates match the
- * painted arrow positions pixel-exactly.
+ * `max(paddingPx, UML_SEQ_FRAGMENT_PADDING + 16)` (see `umlSeqEffectivePaddingPx`), and the dot's Y adds the
+ * same per-operand header band (`umlSeqRowOffset`) as the painted arrow. This ensures the dot coordinates match
+ * the painted arrow positions pixel-exactly.
  *
  * ## Self-messages
  *
@@ -93,11 +94,7 @@ public object SequenceSmilRenderer {
         // The shifted lifeline layouts must use the SAME padding as the static renderer,
         // otherwise dots are offset from the painted arrow lines.
         val effectivePadding =
-            if (interaction.fragments.isNotEmpty()) {
-                maxOf(options.paddingPx, UML_SEQ_FRAGMENT_PADDING + 4f)
-            } else {
-                options.paddingPx
-            }
+            umlSeqEffectivePaddingPx(hasFragments = interaction.fragments.isNotEmpty(), paddingPx = options.paddingPx)
 
         // Build the shifted-layouts map for lifelines only (mirrors renderUmlSequence step 1)
         val shiftedLayouts =

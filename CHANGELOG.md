@@ -6,6 +6,17 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+**Animated sequence diagrams: the message dot drifted away from its arrow**
+
+In sequence diagrams with combined fragments (`alt`, `opt`, `loop`, …) the animated dot ran above the painted
+arrows, and the offset grew with every fragment operand (24 px each) on top of a constant 12 px. The static renderer
+inserts a header band above each operand and widens the canvas padding when fragments are present, but the animation
+used neither. Both renderers now share one padding function and the dot adds the same per-operand offset;
+a regression test compares the dot path with the painted arrow of every message. The animation in the README is
+re-rendered.
+
 ### Removed
 
 **Outdated guides `docs/getting-started.adoc` and `docs/diagram-types.adoc`**

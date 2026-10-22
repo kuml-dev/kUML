@@ -28,6 +28,21 @@ private const val SEQ_ROW_HEIGHT = 32f
  * `KumlSvgRenderer.renderUmlSequence`.
  */
 internal const val UML_SEQ_FRAGMENT_PADDING = 24f
+
+/**
+ * Canvas padding the sequence renderer uses. With combined fragments the frame sticks out
+ * [UML_SEQ_FRAGMENT_PADDING] px beyond the outer lifelines, so the padding is raised to
+ * `FRAGMENT_PADDING + 16` (a 16 px margin to the canvas edge).
+ *
+ * This is the single source of truth: the static renderer (`KumlSvgRenderer.renderUmlSequence`)
+ * and the SMIL animation (`SequenceSmilRenderer`) must shift the lifeline layouts by exactly the same
+ * amount, otherwise the animated dot is offset from the painted arrow.
+ */
+internal fun umlSeqEffectivePaddingPx(
+    hasFragments: Boolean,
+    paddingPx: Float,
+): Float = if (hasFragments) maxOf(paddingPx, UML_SEQ_FRAGMENT_PADDING + 16f) else paddingPx
+
 private const val FRAGMENT_PADDING_H = UML_SEQ_FRAGMENT_PADDING
 
 /** Horizontal inset applied on each side of a nested (inner) fragment frame.

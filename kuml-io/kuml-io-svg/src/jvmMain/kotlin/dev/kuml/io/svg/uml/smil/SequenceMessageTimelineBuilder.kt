@@ -1,5 +1,7 @@
 package dev.kuml.io.svg.uml.smil
 
+import dev.kuml.io.svg.uml.umlOperandFirstSeqs
+import dev.kuml.io.svg.uml.umlSeqRowOffset
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
 import dev.kuml.render.smil.SmilAnimation
@@ -36,7 +38,7 @@ internal data class MessageDot(
  *
  * ## Message-Y formula
  *
- * `y = srcLayout.bounds.origin.y + SEQ_HEAD_HEIGHT + msg.sequence * SEQ_ROW_HEIGHT`
+ * `y = srcLayout.bounds.origin.y + SEQ_HEAD_HEIGHT + msg.sequence * SEQ_ROW_HEIGHT + umlSeqRowOffset(...)`
  *
  * Sequence is 1-based, matching the static renderer exactly. Self-messages (`from == to`)
  * are skipped in V3.2 — they have an L-shaped path that cannot be expressed as a straight
@@ -70,6 +72,7 @@ internal object SequenceMessageTimelineBuilder {
         context: SequenceAnimationContext,
     ): Pair<SmilTimeline, List<MessageDot>> {
         val msgById: Map<String, UmlMessage> = interaction.messages.associateBy { it.id }
+        val operandFirstSeqs = umlOperandFirstSeqs(fragments = interaction.fragments, msgById = msgById)
 
         val sentEntries =
             trace.entries
@@ -117,7 +120,10 @@ internal object SequenceMessageTimelineBuilder {
                 stepIndex++
                 continue
             }
-            val msgY = srcLayout.bounds.origin.y + SEQ_HEAD_HEIGHT + msg.sequence * SEQ_ROW_HEIGHT
+            // Same formula as renderUmlMessage: every combined-fragment operand inserts a header band above its first
+            // message, pushing this row (and all later ones) further down.
+            val rowOffset = umlSeqRowOffset(sequence = msg.sequence, operandFirstSeqs = operandFirstSeqs)
+            val msgY = srcLayout.bounds.origin.y + SEQ_HEAD_HEIGHT + msg.sequence * SEQ_ROW_HEIGHT + rowOffset
 
             val dotId = "kuml-seq-dot-$dotSeq"
             dots += MessageDot(id = dotId, color = context.dotColor)

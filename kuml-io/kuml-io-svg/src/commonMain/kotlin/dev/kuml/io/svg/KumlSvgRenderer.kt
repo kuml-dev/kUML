@@ -901,13 +901,13 @@ public object KumlSvgRenderer {
         // der Frame berührte optisch den Rand. Mit +16 bleibt ein komfortabler
         // 16-px-Puffer auf jeder Seite.
         val effectiveOptions =
-            if (interaction.fragments.isNotEmpty()) {
-                options.copy(
-                    paddingPx = maxOf(options.paddingPx, dev.kuml.io.svg.uml.UML_SEQ_FRAGMENT_PADDING + 16f),
-                )
-            } else {
-                options
-            }
+            options.copy(
+                paddingPx =
+                    dev.kuml.io.svg.uml.umlSeqEffectivePaddingPx(
+                        hasFragments = interaction.fragments.isNotEmpty(),
+                        paddingPx = options.paddingPx,
+                    ),
+            )
 
         // V3.x — self-call labels overflowing the right frame edge. renderUmlSelfCall
         // (UmlSequenceSvg) draws a self-message's label unconstrained — no maxWidth clamp,
