@@ -44,7 +44,7 @@ Run:
 
 [source,bash]
 ----
-kuml simulate order-lifecycle.kuml.kts --events events.json
+kuml simulate order-lifecycle.kuml.kts events.json
 ----
 
 You'll get a trace listing every step: the initial transition fired, `draft` entered,
@@ -99,20 +99,20 @@ Capture an expected trace and diff against it on each run:
 [source,bash]
 ----
 # Capture once
-kuml simulate order-lifecycle.kuml.kts --events events.json \
-    --output expected.trace.json
+kuml simulate order-lifecycle.kuml.kts events.json \
+    --out expected.trace.json
 
 # Verify thereafter
-kuml simulate order-lifecycle.kuml.kts --events events.json \
+kuml simulate order-lifecycle.kuml.kts events.json \
     --expected expected.trace.json
 ----
 
 The exit code tells you what happened:
 
 * `0` — trace matches the expected file.
-* `6` (`TRACE_DIFF`) — trace differs; the CLI prints a human-readable diff showing every
+* `7` (`TRACE_DIFF`) — trace differs; the CLI prints a human-readable diff showing every
   difference grouped by entry index.
-* `1` — script or input error.
+* `3` — script error, `4` — input could not be read.
 
 Use this as a regression test in CI: when you change a transition or guard, the diff
 flags it instantly.
@@ -125,14 +125,14 @@ to lock the clock to monotonic epoch ms starting from 0:
 
 [source,bash]
 ----
-kuml simulate order-lifecycle.kuml.kts --events events.json --epoch-clock
+kuml simulate order-lifecycle.kuml.kts events.json --epoch-clock
 ----
 
 Now the trace is byte-identical across machines and across runs.
 
 == Interactive mode
 
-For exploration, run without `--events`:
+For exploration, run with `--interactive` and no events file:
 
 [source,bash]
 ----

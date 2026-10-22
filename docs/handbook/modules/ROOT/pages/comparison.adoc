@@ -1,0 +1,56 @@
+= How kUML compares
+:description: Feature comparison with PlantUML, Mermaid, D2, Structurizr, MagicDraw, Modelio and Python Diagrams, and where kUML is not the best choice.
+
+[cols="3,^1,^1,^1,^1,^1,^1,^1,^1", options="header"]
+|===
+| Feature
+| kUML
+| PlantUML
+| Mermaid
+| D2
+| Structurizr
+| MagicDraw
+| Modelio
+| Diagrams (Py)
+
+| UML 2.x (all diagram types)  | ✅ | ⚠️ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌
+| SysML 2 first-class          | ✅ | ⚠️ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌
+| C4 first-class               | ✅ | ⚠️ | ⚠️ | ❌ | ✅ | ❌ | ❌ | ⚠️
+| BPMN 2.0 first-class         | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌
+| ERM / DB modelling (4 notations) | ✅ | ⚠️ | ⚠️ | ⚠️ | ❌ | ⚠️ | ⚠️ | ❌
+| Type-safe DSL                | ✅ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌ | ⚠️
+| Real metamodel               | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌
+| OCL constraints              | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌
+| AUTOSAR profile (built-in)   | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌
+| Built-in UML profiles (5)    | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌
+| Code generation (M2T)        | ✅ | ❌ | ❌ | ❌ | ⚠️ | ✅ | ✅ | ❌
+| MDA transforms (M2M)         | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ⚠️ | ❌
+| Executable behaviour simulation | ✅ | ❌ | ❌ | ❌ | ❌ | ◐ | ❌ | ❌
+| M2M code generation (transformers) | ✅ | ❌ | ❌ | ❌ | ❌ | ◐ | ◐ | ❌
+| Typed expression validation  | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌
+| Git-native                   | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ⚠️ | ✅
+| Open source                  | ✅ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ✅ | ✅
+| LLM-first design             | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌
+| CLI + Gradle + IDE + Web     | ✅ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ✅ | ✅ | ⚠️
+| Beautiful auto-layouts       | ✅ | ❌ | ⚠️ | ✅ | ✅ | ⚠️ | ⚠️ | ✅
+| Grid layout (opt-in, experimental)    | ✅ | ❌ | ❌ | ⚠️ | ❌ | ⚠️ | ⚠️ | ❌
+| M2M code generation (5 transformers)  | ✅ | ❌ | ❌ | ❌ | ❌ | ◐ | ◐ | ❌
+| Native installers (DEB/RPM/DMG/MSI/Docker) | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ◐ | ❌
+|===
+
+✅ present · ⚠️ limited or partial · ◐ proprietary/closed · ❌ absent
+
+== Where kUML wins
+
+* *Modelling depth, Git-versionability and LLM friendliness in one tool.* Nobody else combines all three.
+* *Type-safe DSL as the model substrate* — structurally superior for toolchain integration and AI-assisted generation.
+* *UML, SysML 2, C4 and BPMN 2.0 as equal first-class languages.* Every other tool forces you to pick one.
+* *Apache 2.0 with a modern stack* (Kotlin, Compose). No Eclipse legacy.
+* *Designed for the LLM era from day one* — structural, not accidental, fitness for AI-assisted modelling.
+
+== Where we acknowledge the competition
+
+* *PlantUML's ecosystem is enormous* — wikis, IDEs, AsciiDoc tooling, CI plugins. kUML builds bridges (AsciiDoc extension, Gradle plugin, IDE plugins) rather than fighting on volume.
+* *Structurizr owns C4 emotionally.* kUML offers Structurizr DSL round-trip — interoperate, don't compete.
+* *Mermaid has GitHub-native rendering* — the lowest possible barrier. kUML targets value from step two onward.
+* *MagicDraw and Cameo dominate enterprise automotive — but their AUTOSAR support is a paid add-on.* kUML ships the AUTOSAR profile in the box: `«SoftwareComponent»` with kind/packageName, `«ComInterface»` with version/isService, `«AutosarPort»` with direction (D17 — deliberately not `Port` to avoid the UML metaclass clash), `«Runnable»` with periodic/event-triggered/init/shutdown kinds, and `«BehaviorSpec»` on state machines feeding into `kuml simulate` for trace-based RTE verification.

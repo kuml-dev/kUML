@@ -284,7 +284,7 @@ kUML can export to and import from https://structurizr.com[Structurizr DSL]:
 kuml export workspace.kuml.kts --format structurizr --output workspace.dsl
 
 # Read back (parse-only — for verification)
-kuml parse workspace.dsl --format structurizr
+kuml import --format structurizr workspace.dsl
 ----
 
 The export emits valid Structurizr DSL that the Structurizr CLI and the Structurizr Lite

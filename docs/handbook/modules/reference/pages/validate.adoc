@@ -2,18 +2,18 @@
 :description: kuml validate — exit codes, flags, output format, OCL violations, CI integration.
 
 `kuml validate` checks a `.kuml.kts` script for structural integrity and OCL constraint
-violations. It exits non-zero on the first failed constraint, making it suitable as a
-blocking CI step.
+violations and reports all of them. It exits non-zero when any check fails, making it suitable
+as a blocking CI step.
 
 == Synopsis
 
 [source,bash]
 ----
-kuml validate [options] <script>...
+kuml validate [options] <script>
 ----
 
-Multiple scripts can be passed in a single invocation — all are evaluated before the
-process exits.
+`kuml validate` takes one script per invocation. To check several, call it once per file, for
+example in a shell loop.
 
 == Flag reference
 
@@ -23,9 +23,14 @@ process exits.
 
 | `--strict`
 | off
-| Also evaluate profile-level stereotype constraints (e.g. `MustHaveIdAttribute` from a
-  custom profile). Without `--strict`, only element-level `constraint(name, body)` calls
-  in the script are checked.
+| Fail on any expression parse warning (guards, effects, parametric constraints) in
+  addition to OCL violations.
+
+| `--check-stereotypes`
+| off
+| Additionally validate stereotype applications: required properties and the OCL
+  constraints a custom profile attaches (e.g. `MustHaveIdAttribute`). Without it, only
+  element-level `constraint(name, body)` calls in the script are checked.
 
 | `--no-check-structure`
 | off
@@ -33,9 +38,14 @@ process exits.
   classifier references). Evaluate OCL constraints only. Useful when the structural
   issues are known and you only care about OCL correctness.
 
-| `--json`
+| `--no-check-style`
 | off
-| Emit all violations as a JSON array to stdout instead of human-readable text. Exit
+| Skip the named-argument source-style check (calls into `dev.kuml.*` with more than one
+  value parameter must use named arguments).
+
+| `-o`, `--output`, `--format`
+| `text`
+| `text` or `json`. With `json`, all violations are written to stdout as a JSON array. Exit
   code semantics are unchanged. Useful for tooling integration (IDE plugins, custom
   reporters).
 |===
@@ -49,13 +59,16 @@ process exits.
 | 0
 | All checks passed — no structural violations, no OCL violations.
 
-| 1
-| Script error — compilation failed, missing imports, or the script threw at build time.
-
 | 2
-| User error — bad argument combination, file not found.
+| Usage error — bad argument combination.
 
 | 3
+| Script error — compilation failed, missing imports, or the script threw at build time.
+
+| 4
+| I/O error — input file not found or unreadable.
+
+| 5
 | Validation error — at least one structural or OCL violation found.
 |===
 
@@ -107,9 +120,9 @@ OCL VIOLATION
   Reason     : Invariant evaluated to false for instance 'order42' (total = -5.00)
 ----
 
-== JSON output (`--json`)
+== JSON output (`--format json`)
 
-With `--json`, all violations are written to stdout as a JSON array:
+With `--format json`, all violations are written to stdout as a JSON array:
 
 [source,json]
 ----
@@ -141,11 +154,10 @@ The following GitHub Actions step fails the build on any validation violation:
 ----
 - name: Validate kUML models
   run: |
-    kuml validate --strict --json \
-      docs/architecture/domain.kuml.kts \
-      docs/architecture/services.kuml.kts \
-      | tee /tmp/kuml-violations.json
-    # Exit code from kuml validate propagates — non-zero fails the step.
+    for f in docs/architecture/domain.kuml.kts docs/architecture/services.kuml.kts; do
+      kuml validate --strict "$f" || status=1
+    done
+    exit ${status:-0}
 ----
 
 To capture structured output for a custom reporter:
@@ -153,7 +165,10 @@ To capture structured output for a custom reporter:
 [source,yaml]
 ----
 - name: Validate and upload report
-  run: kuml validate --json src/**/*.kuml.kts > kuml-violations.json || true
+  run: |
+    for f in src/**/*.kuml.kts; do
+      kuml validate --format json "$f" || true
+    done > kuml-violations.json
 - name: Upload violation report
   uses: actions/upload-artifact@v4
   with:

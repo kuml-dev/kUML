@@ -113,7 +113,7 @@ kUML can also *parse* Structurizr DSL back into a kUML C4 workspace:
 
 [source,bash]
 ----
-kuml parse workspace.dsl --format structurizr --output workspace.kuml.kts
+kuml import --format structurizr --output workspace.kuml.kts workspace.dsl
 ----
 
 The round-trip is *structurally lossless* for the elements in the mapping table above.
@@ -132,7 +132,7 @@ What does NOT round-trip:
   through `export`. They author in Structurizr if they prefer; you re-import on demand.
 * *Lite viewer* — `kuml export` + `structurizr/lite` Docker = a free interactive C4 viewer.
 * *Migration* — moving a Structurizr workspace into kUML for git-native authoring and
-  CI validation? Run `kuml parse` once, commit the result.
+  CI validation? Run `kuml import` once, commit the result.
 
 The export and parse codecs live in `kuml-export-structurizr` — a tiny module with two
 sealed types (`StructurizrToken`, `StructurizrNode`) and a pair of emitter / parser

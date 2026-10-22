@@ -1,0 +1,302 @@
+= Architecture and modules
+:description: How the kUML Gradle modules fit together, and what each one does.
+
+kUML is a Gradle multi-module project. Every module is published to Maven Central under
+`dev.kuml` (see xref:install.adoc[Installation]); you normally depend on a handful of them, or just
+install the CLI. This page maps the modules by layer so you can find the one you need.
+
+== The pipeline
+
+A model travels left to right through four layers:
+
+[cols="1,3"]
+|===
+| Layer | Role
+
+| *Core and metamodels*
+| The type-safe Kotlin DSL builds a pure-Kotlin metamodel (sealed hierarchies, no EMF in the core).
+`*.kuml.kts` scripts are evaluated by the scripting host.
+
+| *Layout and rendering*
+| A layout bridge turns a model into an engine-agnostic layout graph, an engine (ELK by default,
+or the pure-Kotlin grid engine) positions it, and a writer emits SVG, PNG, LaTeX/TikZ or an
+animated SVG.
+
+| *Transformation and I/O*
+| Code generators, M2M transformers, reverse engineers and import/export adapters read and write
+models and other formats (Java, Kotlin, SQL, XMI, ARXML, Structurizr, BPMN XML).
+
+| *Runtime and tooling*
+| Behaviour simulation and live execution, the CLI, Gradle plugin, IDE plugins, Desktop app, web
+editor, MCP server and the AI assistant sit on top.
+|===
+
+== Core
+
+[cols="2,3"]
+|===
+| Module | Purpose
+
+| `kuml-core-model`
+| Sealed Kotlin metamodel base types shared by all notations.
+
+| `kuml-core-dsl`
+| DSL builder infrastructure and the UML and C4 builders. The SysML 2 and BPMN DSLs live with their metamodels (`kuml-metamodel-sysml2`, `kuml-metamodel-bpmn`).
+
+| `kuml-core-script`
+| Kotlin scripting host for `*.kuml.kts` files (`KumlScriptDefinition`, diagram extraction).
+
+| `kuml-core-config`
+| The `kuml.config.kts` configuration DSL and its script host.
+
+| `kuml-core-ocl`
+| OCL 2.4/2.5 interpreter that evaluates constraints directly on the Kotlin model.
+
+| `kuml-core-expr`
+| Typed expression AST, parser and evaluator for guards, effects and parametric constraints.
+|===
+
+== Metamodels
+
+[cols="2,3"]
+|===
+| Module | Purpose
+
+| `kuml-metamodel-uml`
+| UML 2.x hierarchy, all 14 diagram types.
+
+| `kuml-metamodel-c4`
+| C4 hierarchy and `C4Model`, all 6 diagram types.
+
+| `kuml-metamodel-kerml`, `kuml-metamodel-sysml2`
+| KerML foundation and SysML 2 on top of it, all 8 diagram types.
+
+| `kuml-metamodel-bpmn`
+| BPMN 2.0: processes, collaborations, events, gateways, tasks, pools and lanes, with a constraint checker.
+
+| `kuml-metamodel-erm`
+| Entity-relationship model for database schemas.
+
+| `kuml-metamodel-blueprint`
+| User journey maps and service blueprints.
+|===
+
+== Layout and rendering
+
+[cols="2,3"]
+|===
+| Module | Purpose
+
+| `kuml-layout-api`
+| Engine-agnostic layout contract (`LayoutGraph`, `LayoutResult`, `EdgeRoute`).
+
+| `kuml-layout-bridge`
+| Translates UML, C4, SysML 2 and BPMN models into a layout graph.
+
+| `kuml-layout-elk`
+| Adapter for the Eclipse Layout Kernel (layered/Sugiyama, the default).
+
+| `kuml-layout-grid`
+| Pure-Kotlin grid layout engine (multiplatform; opt-in with `--layout grid`).
+
+| `kuml-themes-core`, `kuml-themes`
+| Framework-neutral theme data (Plain, kUML, Elegant, Playful) and its Compose adapter.
+
+| `kuml-kuiver`
+| Compose Multiplatform rendering backend.
+
+| `kuml-io-svg`
+| Direct SVG writer for UML, SysML 2, C4, BPMN and blueprints.
+
+| `kuml-io-png`
+| SVG to PNG via Apache Batik.
+
+| `kuml-io-latex`
+| LaTeX/TikZ export for UML, SysML 2, C4 and BPMN.
+
+| `kuml-render-smil`, `kuml-io-anim`
+| Pure-SMIL animated SVG from execution traces, and export of animations to APNG, WebP or MP4 (the JVM distribution only; WebP and MP4 need external `img2webp` or `ffmpeg`).
+
+| `kuml-wasm-playground`
+| Browser-hosted (wasm) entry points that turn an already parsed diagram plus a layout, both as JSON from `kuml dump-json`, into SVG. It does not parse scripts or run ELK itself.
+|===
+
+== Import, export and I/O
+
+[cols="2,3"]
+|===
+| Module | Purpose
+
+| `kuml-io-json`
+| Model persistence through kotlinx.serialization.
+
+| `kuml-io-bpmn`
+| BPMN 2.0 XML import and export (no JAXB, XXE-protected).
+
+| `kuml-io-emf`
+| XMI import/export through Eclipse EMF/UML2 (JVM only).
+
+| `kuml-io-arxml`
+| AUTOSAR ARXML import and export.
+
+| `kuml-io-structurizr`
+| Structurizr DSL round-trip for C4.
+|===
+
+== Code generation, transformation and reverse engineering
+
+[cols="2,3"]
+|===
+| Module | Purpose
+
+| `kuml-codegen-api`
+| Plugin interface for code generators (`ServiceLoader` SPI).
+
+| `kuml-gen-kotlin`, `kuml-gen-java`, `kuml-gen-sql`
+| Kotlin, Java (POJO, records, Lombok) and SQL DDL generators.
+
+| `kuml-codegen-m2m`
+| Model-to-model transformation foundation with the built-in transformers.
+
+| `kuml-codegen-m2m-exposed`, `kuml-transform-uml-to-erm`, `kuml-transform-bpmn-to-uml`
+| Class diagram to Kotlin Exposed tables, UML to ERM, and BPMN to UML activity.
+
+| `kuml-codegen-reverse-api`
+| Language-agnostic reverse-engineering interface and source-file filtering.
+
+| `kuml-codegen-reverse-java`, `kuml-codegen-reverse-kotlin`, `kuml-codegen-reverse-sql`
+| Java (JavaParser), Kotlin (compiler PSI) and SQL DDL (JSqlParser) reverse engines.
+|===
+
+== Profiles
+
+[cols="2,3"]
+|===
+| Module | Purpose
+
+| `kuml-profile-api`
+| Profile SPI and stereotype application.
+
+| `kuml-profile-autosar`, `kuml-profile-javaee`, `kuml-profile-spring`, `kuml-profile-openapi`, `kuml-profile-soaml`
+| The built-in UML profiles. See xref:reference:profiles.adoc[Profiles].
+
+| `kuml-profile-erm`, `kuml-profile-exposed`
+| Mapping profiles used by the ERM and Exposed generators.
+|===
+
+== Behaviour runtime
+
+[cols="2,3"]
+|===
+| Module | Purpose
+
+| `kuml-runtime-core`
+| State-machine and activity runtime with snapshot/restore and migration policies.
+
+| `kuml-runtime-tokenflow`
+| Token-flow engine shared by UML activities, SysML 2 ACT and BPMN processes.
+
+| `kuml-runtime-trace`
+| Trace replay and OTLP-JSON export.
+
+| `kuml-runtime-sandbox`
+| Sandbox guarantees for guards and effects (time limits, validation).
+
+| `kuml-runtime-chain-api` and `-evm`, `-cosmos`, `-wasm`, `-move`
+| Blockchain adapters; see xref:chain-adapters.adoc[Chain Adapters].
+|===
+
+== Documentation and workspaces
+
+[cols="2,3"]
+|===
+| Module | Purpose
+
+| `kuml-markdown`, `kuml-asciidoc`
+| Pre-renderers for Markdown and AsciiDoc/Antora (see xref:tooling:markdown.adoc[Markdown] and xref:tooling:asciidoc.adoc[AsciiDoc & Antora]).
+
+| `kuml-workspace`
+| Open Knowledge Format workspaces (see xref:tooling:knowledge-workspaces.adoc[Knowledge Workspaces]).
+
+| `kuml-scaffold`
+| Shared scaffolding engine behind `kuml plugin init` and `kuml workspace init`.
+|===
+
+== Plugins
+
+[cols="2,3"]
+|===
+| Module | Purpose
+
+| `kuml-plugin-api-core` and `-theme`, `-renderer`, `-layout`, `-codegen`, `-reverse`
+| The plugin API: one core module plus one per plugin category.
+
+| `kuml-plugin-loader`
+| Discovery, Ed25519 signature verification and permission handling for plugin JARs.
+
+| `kuml-plugin-examples`
+| Example plugins (themes, renderers, generators and reverse engines) used as templates.
+|===
+
+== AI
+
+[cols="2,3"]
+|===
+| Module | Purpose
+
+| `kuml-ai-core`
+| Koog-based multi-LLM agent, API-key vault, audit log and multi-agent orchestration.
+
+| `kuml-ai-tools`
+| The DSL exposed as Koog tool sets, including the MCP bridge.
+
+| `kuml-ai-spi`
+| `KumlLlmProviderSpi` and `KumlToolSetFactory` for custom providers and tool sets.
+
+| `kuml-llm-core`, `-anthropic`, `-openai`, `-ollama`, `-spec`, `-bench`
+| LLM backend abstraction, provider backends and the accuracy benchmark.
+
+| `kuml-mcp`
+| MCP server over stdio: 6 authoring tools and 5 behaviour-runtime tools.
+|===
+
+== Applications and integrations
+
+[cols="2,3"]
+|===
+| Module | Purpose
+
+| `kuml-cli`
+| The command-line interface (see xref:tooling:cli.adoc[CLI]).
+
+| `kuml-web`
+| Browser editor served by `kuml serve` (Ktor, CodeMirror 6).
+
+| `kuml-desktop`
+| Compose Desktop editor with live preview, workspaces, plugin manager and AI panel.
+
+| `kuml-widget-compose`
+| Executable behaviour widget for Compose Multiplatform.
+
+| `kuml-gradle-plugin`
+| Gradle plugin with `kumlRender`, `kumlGenerate` and `kumlValidate` tasks.
+
+| `kuml-jetbrains-plugin`
+| JetBrains IDE plugin: annotator, quick fixes, live preview, structure view.
+
+| `kuml-lang-support`, `kuml-language-server`
+| Editor-agnostic completion and diagnostics, and the LSP server used by the IDE plugin and the
+separate https://github.com/kuml-dev/kuml-vscode[VS Code extension].
+
+| `kuml-packaging`
+| jpackage installers (DMG, MSI, DEB, RPM), Docker image and jlink runtime bundles.
+
+| `kuml-style-worker`
+| Child JVM that runs style checks in isolation.
+|===
+
+== Build and test support
+
+`kuml-detekt-rules` holds the project's own static-analysis rules, `kuml-examples` the runnable
+examples, and `kuml-tests/*` the cross-module test suites (DSL, renderer snapshots, codegen, CLI
+end-to-end, MCP, OCL, LLM and the vault-examples smoke tests that render every documented example).

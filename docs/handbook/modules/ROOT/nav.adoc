@@ -2,6 +2,8 @@
 * xref:install.adoc[Installation]
 * xref:quickstart.adoc[Quick Start]
 * xref:concepts.adoc[Core Concepts]
+* xref:architecture.adoc[Architecture and modules]
+* xref:comparison.adoc[How kUML compares]
 * xref:chain-adapters.adoc[Chain Adapters]
 * xref:user-journey.adoc[User Journey Maps]
 * xref:showcases/index.adoc[Showcases]

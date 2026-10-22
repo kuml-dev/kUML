@@ -1,0 +1,112 @@
+= kUML Roadmap
+:description: What kUML has delivered phase by phase, and where to find what is new.
+:toc:
+
+This page records the phases kUML has completed. It is a history, not a promise: for what changed
+in each release, read link:CHANGELOG.md[CHANGELOG.md] or the
+https://github.com/kuml-dev/kUML/releases[release notes]; https://kuml.dev/whats-new[kuml.dev/whats-new]
+presents the same releases in a shorter form.
+
+[NOTE]
+====
+The table below ends at v0.19.0 and has not been continued release by release since then.
+Everything from v0.20.0 onwards (BPMN XML, ERM, SMIL animation, the web editor, Desktop workspaces,
+the MCP server in Desktop, plugin signing, and more) is documented in the CHANGELOG.
+====
+
+== Delivered
+
+[cols="1,4,1"]
+|===
+| Phase | Scope | Status
+
+| *Phase 0*
+| Gradle multimodule setup, Kotlin Scripting host, `diagram{}` DSL entry-point
+| ✅ Done
+
+| *Phase 1*
+| UML metamodel + UML DSL (5 diagram types: class, sequence, state, component, use-case) +
+C4 metamodel + C4 DSL (6 diagram builders) +
+Layout API/Bridge/ELK + Kuiver renderer + Theme system (Plain) +
+SVG export + PNG export (Batik)
+| ✅ Done
+
+| *Phase 2*
+| CLI (`render` ✅, `watch` ✅, `validate` ✅, `fmt` ✅, `generate` ✅, `completion` ✅, `import` ✅, `markdown` ✅) +
+OCL 2.4/2.5 expression language ✅ + Markdown code block ✅ + MCP server ✅ +
+`kuml-gen-kotlin` ✅ + LLM Benchmark ✅ (100 % vs. Haiku 4.5) +
+GraalVM Native Image 🚧 (deferred V1.1, ADR-0009) +
+Maven Central ✅ infra + Homebrew ✅ tap live
+| ✅ Done
+
+| *V1.0.1*
+| `kuml render` for C4 scripts + SVG Locale-fix +
+jlink runtime bundle (self-contained, no JDK dep) +
+cleanup: stale Commit-SHAs out of READMEs, DSL-README named-param sweep
+| ✅ Done (`v0.1.1`)
+
+| *V1.1*
+| All 9 remaining UML 2.x diagram types (object ✅, package ✅, composite-structure ✅,
+deployment ✅, profile ✅, activity ✅, communication ✅, timing ✅, interaction-overview ✅) +
+profiles ✅, Grid-Layout engine ✅, 4 themes ✅, codegen Java+SQL ✅, Structurizr export ✅,
+Gradle plugin ✅, AsciiDoc ✅, Antora handbook ✅, JetBrains plugin ✅, VS Code plugin ✅, `kuml simulate` ✅
+| ✅ Done (`v0.3.0`)
+
+| *V2*
+| SysML 2 (all 8 diagram types ✅) + `kuml simulate` for STM + ACT ✅ +
+`kuml transform` (5 transformers: uml-to-jpa, uml-to-rest, uml-to-k8s, uml-to-docker, c4-to-uml) ✅ +
+`kuml validate --strict` typed expressions ✅ +
+`kuml render --layout=grid\|elk\|auto` (elk default, grid opt-in) ✅ +
+JetBrains plugin — annotator, quick fixes, live SVG preview, structure view, code folding ✅ +
+`kuml-runtime-mcp` (5 runtime tools) ✅ +
+Web UI: `kuml serve` Ktor/Netty + CodeMirror 6 SPA + SVG/PNG/LaTeX ✅ +
+Snapshot/Restore + MigrationPolicy ✅ +
+`kuml run` (stdin/mcp/batch adapters) ✅ +
+Distribution Phase 1: DEB/RPM/DMG/MSI + Docker ✅, SDKMAN! packaging built (not live, see below), Windows/ARM64 ✅
+| ✅ Done (`v0.4.0–v0.11.0`)
+
+| *V3.0*
+| `kuml reverse` — Java→UML (JavaParser, V3.0.7) + Kotlin→UML (Compiler PSI, V3.0.8) ✅ +
+`kuml-desktop` — file I/O, MRU recent-files, Plugin Manager UI, jpackage distribution (DMG/MSI/DEB/RPM) ✅ +
+AI assistant — Koog multi-LLM agent (OpenAI, Anthropic, Google, DeepSeek, OpenRouter, Ollama),
+AI panel in Desktop app, patch-preview workflow ✅ +
+`kuml-io-emf` — XMI import/export (EA, Papyrus, MagicDraw interop), Class/Interface/Enum/Association/
+Generalization/InterfaceRealization/Dependency ✅ +
+`kuml-runtime-trace` — OTLP-JSON trace export ✅ +
+`kuml-runtime-sandbox` — EffectExecutor, TimeLimitedGuardEvaluator, SandboxValidator ✅ +
+`kuml-ai-tools` — @Tool DSL builder suite + MCP bridge + AgentEditingContext ✅ +
+`kuml-core-config` — kuml.config.kts DSL + Script Host ✅ +
+`kuml-core-expr` — Typed Expression AST + Parser + Evaluator ✅ +
+`kuml-metamodel-kerml` + `kuml-metamodel-sysml2` — KerML foundation + SysML 2 sealed hierarchy ✅ +
+`kuml-widget-compose` — Executable behaviour widget (Compose Multiplatform) ✅ +
+`kuml-vault-examples-tests` — 47 CI smoke tests rendering all vault examples ✅
+| ✅ Done (`v0.12.0`)
+
+| *V3.x*
+| Plugin ecosystem — `kuml-plugin-api` marketplace SPI, plugin registry, CLI plugin manager, Desktop plugin manager ✅ +
+AUTOSAR ARXML import/export (`kuml-io-arxml`) ✅ +
+Chain-backed models — `kuml-runtime-chain-api` + EVM adapter + Move adapter ✅ +
+AI Assistant — Koog multi-LLM agent, AI panel, patch-preview ✅ +
+*BPMN 2.0* — Process/Collaboration metamodel, DSL, SVG renderer, XML I/O, LaTeX renderer ✅ +
+C4 LaTeX/TikZ renderer ✅ +
+*v0.17.0*: AI Assistant SPI (`KumlLlmProviderSpi`, `KumlToolSetFactory`) ✅ +
+`kuml ai bench` / `kuml ai pricing` ✅ +
+Multi-agent orchestration + compliance audit log + master-password vault ✅ +
+`kuml plugin init` scaffolding + `update`/`upgrade` commands + Plugin Registry (ratings/reviews/screenshots) ✅ +
+Windows Chocolatey package (`choco install kuml`) ✅ +
+Diagram fixes: State Machine composite states, Deployment nested nodes, IBD boundary ports ✅ +
+*v0.18.0*: Chain adapters CosmWasm + ink! (`kuml-runtime-chain-cosmos`, `kuml-runtime-chain-wasm`) ✅ +
+User Journey / Service Blueprint (`blueprint{}` DSL, SVG + LaTeX renderers) ✅ +
+*v0.19.0*: JetBrains plugin published to JetBrains Marketplace (`dev.kuml.ide`) ✅ +
+Scroll Pane + hand-drag interactor in SVG preview ✅ +
+Outer UML diagram frame for all 33 diagram types ✅ +
+Blueprint SVG fixes (emotion curve, step cards) ✅
+| ✅ Done (v0.12.0–v0.19.0)
+|===
+
+== Known open items
+
+* *GraalVM Native Image* is deferred (ADR-0009). Release binaries are JVM-based (jlink runtime
+  bundles, no separate JDK needed).
+* *SDKMAN!* distribution is built but not live: vendor onboarding is still pending. Use Homebrew,
+  Chocolatey or the native installers meanwhile.

@@ -19,7 +19,7 @@ image:https://img.shields.io/maven-central/v/dev.kuml/kuml-core-dsl[Maven Centra
 image:https://img.shields.io/jetbrains/plugin/v/dev.kuml.ide?label=JetBrains%20Plugin&logo=intellijidea[JetBrains Marketplace,link=https://plugins.jetbrains.com/plugin/dev.kuml.ide]
 image:https://img.shields.io/github/actions/workflow/status/kuml-dev/kUML/ci.yml?branch=master&label=CI&logo=github[CI,link=https://github.com/kuml-dev/kUML/actions/workflows/ci.yml]
 image:https://img.shields.io/github/actions/workflow/status/kuml-dev/kUML/codeql.yml?branch=master&label=CodeQL&logo=github[CodeQL,link=https://github.com/kuml-dev/kUML/actions/workflows/codeql.yml]
-image:https://img.shields.io/badge/Kotlin-2.4.0-7F52FF.svg?logo=kotlin&logoColor=white[Kotlin 2.4.0,link=https://kotlinlang.org]
+image:https://img.shields.io/badge/Kotlin-2.4-7F52FF.svg?logo=kotlin&logoColor=white[Kotlin 2.4,link=https://kotlinlang.org]
 image:https://img.shields.io/badge/JDK-21+-ED8B00.svg?logo=openjdk&logoColor=white[Java 21+,link=https://adoptium.net]
 image:https://img.shields.io/github/license/kuml-dev/kUML[Apache 2.0,link=https://github.com/kuml-dev/kUML/blob/master/LICENSE]
 
@@ -130,703 +130,106 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 | *Homebrew* (macOS/Linux)
 | `brew install kuml-dev/kuml/kuml`
 
-| *Homebrew Cask* (macOS, `kuml-desktop`)
-| `brew install --cask kuml-dev/kuml/kuml-desktop` — installs the Compose Multiplatform desktop app (`kuml-desktop.app`), Developer ID signed and notarized as of v0.24.3.
+| *Homebrew Cask* (macOS desktop app)
+| `brew install --cask kuml-dev/kuml/kuml-desktop`
 
 | *Chocolatey* (Windows)
-| `choco install kuml` — self-contained, bundles a Java 21 runtime (no JDK required). Published automatically on each release; the first version of a new package enters Chocolatey community moderation (typically 1–3 days) before it installs without an explicit source.
-
-| *SDKMAN!* (coming soon)
-| `sdk install kuml` — *not available yet*; SDKMAN! vendor onboarding (API keys) is still pending. Planned platforms: Linux x86_64, Linux ARM64, macOS, Windows x86_64. Use Homebrew or the native installers in the meantime.
+| `choco install kuml` — bundles a Java 21 runtime, no JDK needed.
 
 | *Docker*
-| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.43.0` — minimal CLI image.
+| `docker pull ghcr.io/kuml-dev/kuml-cli:<version>` — minimal CLI image.
 
-| *Native installers*
-| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.43.0). Download from the GitHub Releases page.
+| *Native installers and runtime bundles*
+| DMG, MSI, DEB, RPM and self-contained ZIPs on the https://github.com/kuml-dev/kUML/releases[GitHub Releases] page.
 
 | *Maven Central* (library modules)
-| `implementation("dev.kuml:kuml-core-dsl:0.43.0")` — library modules published to Maven Central.
+| `implementation("dev.kuml:kuml-core-dsl:<version>")` — use the version shown in the badge above.
 |===
 
-== Features
+SDKMAN! is built but not live yet (vendor onboarding is pending). The full guide, including the Gradle
+plugin, the JetBrains plugin, the VS Code extension and building from source, is in
+link:docs/handbook/modules/ROOT/pages/install.adoc[Installation].
 
-[cols="1,3"]
+== What is in the box
+
+* *One DSL, five notations.* UML 2.x, SysML 2, C4, BPMN 2.0 and ERM are first-class peers, plus user journey maps and service blueprints.
+* *Real metamodel.* A pure-Kotlin sealed hierarchy, no EMF in the core; XMI interop is an optional module.
+* *OCL and typed expressions.* Constraints are evaluated directly on the model, `kuml validate --strict` type-checks guards and effects.
+* *Executable behaviour.* Simulate and run state machines, activities and BPMN processes (`kuml simulate`, `kuml run`), with snapshot/restore and OTLP trace export.
+* *Model-driven architecture.* M2M transformers and code generators for Kotlin, Java/JPA, SQL, Exposed, OpenAPI, Kubernetes and Docker; reverse engineering from Java, Kotlin and SQL.
+* *Built for the LLM era.* Named parameters, a canonical formatter, structured diagnostics, an MCP server and a `kuml ai` toolbox with a benchmark.
+* *Where you work.* CLI, Gradle plugin, JetBrains plugin, VS Code extension, a Compose Desktop app, a browser editor (`kuml serve`), Markdown (also via a link:tools/pandoc/README.adoc[Pandoc filter]), AsciiDoc/Antora and Obsidian (https://github.com/kuml-dev/obsidian-kuml[obsidian-kuml]).
+* *Chain-backed models.* Connect behaviour models to EVM, CosmWasm, ink! and Move contracts (see link:docs/handbook/modules/ROOT/pages/chain-adapters.adoc[Chain Adapters]).
+* *Interop.* Structurizr DSL, XMI, AUTOSAR ARXML and BPMN XML in and out; five built-in UML profiles (AUTOSAR, JavaEE, Spring, OpenAPI, SoaML).
+* *Extensible.* A signed plugin system for themes, renderers, layout engines, generators and reverse engines.
+
+== Supported notations
+
+[cols="2,1,3"]
 |===
-| Feature | Description
+| Notation | Diagram types | Reference
 
-| *Type-safe DSL*
-| UML 2.x, SysML 2, C4 and BPMN 2.0 as idiomatic Kotlin — compile-time validation, full IDE support.
+| *UML 2.x*
+| 14
+| link:docs/handbook/modules/reference/pages/uml-dsl.adoc[UML DSL]
 
-| *LLM-native*
-| Named parameters, canonical formatter, structured JSON errors, MCP server — designed for reliable LLM code generation.
+| *SysML 2*
+| 8
+| link:docs/handbook/modules/reference/pages/sysml2.adoc[SysML 2 DSL]
 
-| *Model Driven Architecture*
-| M2M transformations (Design → Implementation → Deployment) and M2T code generation. Five built-in transformers: `uml-to-jpa`, `uml-to-rest` (OpenAPI 3.0 YAML), `uml-to-k8s` (Kubernetes manifests), `uml-to-docker` (Dockerfiles), `c4-to-uml`. Additional transformers registered via ServiceLoader.
+| *C4*
+| 6
+| link:docs/handbook/modules/reference/pages/c4-dsl.adoc[C4 DSL]
 
-| *Pure Kotlin metamodel*
-| No EMF in the core — `sealed`/`data class` hierarchy only. XMI interop available as optional `kuml-io-emf` module.
+| *BPMN 2.0*
+| process, collaboration, choreography, conversation
+| link:docs/handbook/modules/reference/pages/bpmn-dsl.adoc[BPMN DSL]
 
-| *OCL 2.4/2.5 expression language*
-| Full Object Constraint Language expressions — iterators, let/if, type operations, association navigation — directly on the Kotlin model.
+| *ERM*
+| 4 notations (Martin, Bachman, Chen, IDEF1X)
+| link:docs/handbook/modules/reference/pages/erm-dsl.adoc[ERM DSL]
 
-| *Built-in UML profiles*
-| Five profiles ship with v0.3.0 — *AUTOSAR* (Classic Platform R22-11), JavaEE / Jakarta EE, Spring, OpenAPI, SoaML. Discovered through `ServiceLoader`; add your own without touching the CLI.
-
-| *UML Comments (Notes)*
-| Free-text annotation boxes with a folded corner, optionally anchored to one or more elements by a dashed line. `comment(text = ..., firstAnchor = ...)` on class, sequence, and state-machine diagrams (v0.23.1).
-
-| *Web UI (Browser)*
-| `kuml serve` starts a Ktor/Netty HTTP server with a CodeMirror 6 editor, 300 ms live SVG preview, theme and layout dropdowns, and SVG / PNG / LaTeX download buttons. No IDE required. (V2.0.34)
-
-| *Snapshot / Restore*
-| `StateMachineRuntime.snapshotFull()` and `restoreFrom()` persist and resume complete runtime state — vertices, variable scope, internal event queue, trace. `MigrationPolicy` controls compatibility on model changes: `Reject` · `AcceptIfFingerprintMatches` · `AcceptIfVerticesPresent`. (V2.0.35)
-
-| *Interactive execution (`kuml run`)*
-| Drive state machines and activity diagrams interactively. Three adapters: `stdin` (REPL), `mcp` (local REST server for programmatic event injection), `batch` (replay events JSON). Supports `--restore` / `--snapshot-out` for persistent sessions. UML, SysML 2 STM and ACT all supported. (V2.0.38)
-
-| *Reverse Engineering*
-| `kuml reverse` reconstructs a UML class diagram from existing source code. Supports Java (via JavaParser, V3.0.7) and Kotlin (via Compiler PSI, V3.0.8). Optional `--transformer` flag passes the recovered model through any registered M2M transformer.
-
-| *XMI Import / Export*
-| Full bidirectional XMI (Eclipse EMF/UML2) via `kuml-io-emf`. Supports Class, Interface, Enum, Association, Generalization, InterfaceRealization, Dependency. Compatible with Enterprise Architect, Papyrus, and MagicDraw. (V3.0.15–17)
-
-| *AI Assistant*
-| `kuml-ai` module embeds a Koog-based multi-LLM agent (OpenAI, Anthropic, Google, DeepSeek, OpenRouter, Ollama) with an AI panel in the Desktop app and patch-preview workflow. (V3.0.22–23)
-
-| *AI Assistant SPI*
-| `KumlLlmProviderSpi` — plug in custom LLM providers without touching the core. `KumlToolSetFactory` — register custom agent tool sets via ServiceLoader. `kuml ai bench` runs the accuracy benchmark against any registered provider. `kuml ai pricing` displays per-token cost tables for all configured providers. Multi-agent orchestration (planner / implementer / reviewer / security-auditor pipeline). Compliance audit log (GDPR / HIPAA / SOC-2 annotation on every LLM call). Master-password vault for API keys (AES-256-GCM, unlocked once per session). (V3.1.x)
-
-| *Plugin Ecosystem*
-| `kuml plugin init` scaffolding command — generates a starter project for all five plugin categories (Theme / Renderer / Layout / Codegen / Reverse) with build config, SPI registration, and example code. `kuml plugin update` / `kuml plugin upgrade` — update a plugin to its latest published version or upgrade the plugin API contract. Plugin Registry with ratings, reviews, and screenshots — discoverable via `kuml plugin search` and the Desktop Plugin Manager UI. (V3.1.x)
-
-| *BPMN 2.0 first-class*
-| Process, Collaboration, Events (Event-Matrix: 13 definitions × 3 positions × 2 behaviours), Gateways (5 types), Tasks (7 types), Sub-Processes, Call Activities, Pools, Lanes, Message Flows. DSL (@BpmnDsl), SVG renderer with all OMG symbols, BPMN 2.0 XML import/export (XXE-safe), LaTeX/TikZ renderer. Constraint checker with 7 rules. Process diagrams are executable — ✅ `kuml simulate` (ADR-0015).
-
-| *BPMN 2.0 XML Import/Export*
-| `kuml-io-bpmn` — bidirectional BPMN 2.0 XML (OMG namespace), no JAXB, XXE-protected DOM parser. `BpmnXml.export(model)` / `BpmnXml.import(xml)`. Round-trip consistent.
-
-| *C4 + BPMN LaTeX/TikZ Renderer*
-| `kuml-io-latex` now covers all four modelling languages: UML, SysML 2, C4 (all 5 diagram types, 6 element types, 10 TikZ styles), and BPMN (all flow-node types, 15 TikZ styles). Self-contained `--latex-standalone` output included.
-
-| *Diagram Fixes (v0.17.0)*
-| State Machine: composite states render correctly with nested sub-states and entry/exit pseudo-state connectors. Deployment Diagram: nested nodes (artefact-in-node-in-node) are now laid out with proper containment borders. IBD (SysML 2 Internal Block Diagram): boundary ports on the outer block frame are positioned on the correct edge and no longer overlap internal connectors.
-
-| *CosmWasm Chain Adapter (`kuml-runtime-chain-cosmos`)*
-| Connect behaviour-runtime state machines to live Cosmos SDK / CosmWasm smart contracts. `onChain { execute(msg, args) }` inside any transition broadcasts a `CosmWasm ExecuteMsg` via RPC. Supports dry-run mode (logs JSON without broadcasting), configurable retry / back-off, `awaitTx` / `awaitEvent` semantics, and SSRF-safe URL validation. Config via `kuml-chain-cosmos.properties` or environment variables. (v0.18.0)
-
-| *WASM / ink! Chain Adapter (`kuml-runtime-chain-wasm`)*
-| Connect behaviour-runtime state machines to Substrate-based WASM smart contracts (ink!, Polkadot, Astar, Moonbeam). `onChain { call(selector, args) }` SCALE-encodes and submits the call. Same dry-run, retry, and SSRF-safe guards as the CosmWasm adapter. Config via `kuml-chain-wasm.properties` or environment variables. (v0.18.0)
-
-| *User Journey Maps & Service Blueprint (`blueprint {}` DSL)*
-| Model end-to-end customer experiences as a four-layer Service Blueprint (Shostack): Customer Actions / Frontstage / Backstage / Support Processes, separated by the three standard dividing lines (Interaction / Visibility / Internal Interaction). Each step carries an optional `Sentiment` annotation (POSITIVE / NEUTRAL / NEGATIVE / PAINPOINT) that drives colour coding in the SVG swimlane output. Renderable with `kuml render`, validatable with `kuml validate`. (v0.18.0)
-
-| *JetBrains Plugin (Marketplace)*
-| `dev.kuml.ide` — available on the JetBrains Marketplace. Install via *Settings → Plugins → Marketplace*, search for `kUML`. Provides live SVG preview with scroll pane (automatic scrollbars for large diagrams), hand-drag panning, zoom toolbar (Fit Width / Fit Height / Zoom Out / Fit to Window), inline error highlighting via `kuml diagnostics`, structure view, and code completion for all DSL builders. (v0.19.0)
-
-| *Outer UML Diagram Frame*
-| All 33 diagram types now render with a standard outer UML frame (rectangle with a name tab in the top-left corner), consistent with the UML 2.x notation specification. (v0.19.0)
-
-| *SMIL Animation (`--animated`)*
-| Render any state machine (UML STM, SysML 2 STM, UML Activity) or BPMN process diagram as an animated SVG that plays back an execution trace in the browser. Pure SMIL — no JavaScript. `BpmnSmilRenderer`, `StmSmilRenderer`, `ActivitySmilRenderer` in `kuml-render-smil`. `--speed` factor, `StaticSnapshotMode.STRIPPED` for PNG pipelines. (v0.20.0)
-
-| *SMIL cross-browser fix (v0.20.1)*
-| Animated SVGs now play in Chrome and Safari in addition to Firefox. `SmilEmitter` now emits `xlink:href` (instead of bare `href`) on all SMIL elements and injects `xmlns:xlink` into the `<svg>` root tag — required by browser SMIL implementations based on SVG 1.1. (v0.20.1)
-
-| *`kuml` is now the default theme (v0.20.5)*
-| Rendering without an explicit `--theme` flag or `kuml.config.kts` now uses the full-featured `kuml` house theme (brand colours, blue accents, Inter font) instead of the minimal grayscale `plain` theme — across CLI, Web/Server (Obsidian auto mode), Gradle plugin, and Desktop. BPMN renderers now honour the active theme as well (previously hardcoded black-and-white). Pass `--theme plain` to restore the old grayscale look. This release also polishes label placement across notations: BPMN MessageFlow / event / gateway labels and UML/SysML state-machine back-edge labels no longer collide with edges, nodes, or the canvas border, and C4 Component/Container diagrams render their boundary labels. (v0.20.5)
-
-| *AUTOSAR / ARXML I/O*
-| `kuml export --format arxml` writes AUTOSAR Classic ARXML R22-11 from any `componentDiagram` or `UmlPackage`-returning script. `kuml reverse --format arxml ./dir/` imports and merges multiple `.arxml` files with recursive package deduplication. Supports R19-11 through R23-11 schema versions. (v0.20.0)
-
-| *C# Reverse Engineering*
-| `kuml reverse --format csharp` reconstructs a UML class diagram from C# 10 source. Handwritten four-phase structural parser: strip preprocessor / strings / comments, tokenise. Supports class/interface/struct/record/enum, auto-properties, generic collections, file-scoped namespaces, base-list classification. Safety limits: 10 MB/file, 2000 files/run. (v0.20.0)
-
-| *EMF Profile Conversion*
-| `kuml export --format profile-uml` writes a `KumlProfile` to a `.profile.uml` XMI file (Eclipse UML2 `uml:Profile` root). `ProfileXmiImporter` reads it back. Round-trip preserves stereotype names, metaclass, tag properties, namespace, and version. (v0.20.0)
-
-| *EVM Chain Adapter (`kuml run --adapter chain-evm`)*
-| Connect `kuml run` interactive sessions to any EVM-compatible blockchain (Ethereum, Polygon, Arbitrum, …) via JSON-RPC. Verifies on-chain `modelHash` against the local script before streaming events. `--from-block` replays history; without it, subscribes to live events. SSRF-safe URL validation, HTTP timeouts, 4 MB response cap, `CHAIN_HASH_MISMATCH` (50) and `CHAIN_CONNECT_ERROR` (51) exit codes. (v0.20.0)
-
-| *BPMN ⇌ UML Activity M2M Bridge*
-| `kuml transform --from bpmn --to uml-activity` converts a `BpmnProcess` to a kUML Activity diagram script and vice versa. Bidirectional: `BpmnToUmlActivityTransformer` / `UmlActivityToBpmnTransformer`. Mixed gateways (multiple-in AND multiple-out) are split into MERGE+DECISION or JOIN+FORK pairs sharing a `"bpmn.sourceId"` metadata key for lossless round-trip reconstruction. (v0.20.0)
-
-| *ERM (Entity-Relationship) first-class*
-| `ermModel { entity { … } }` — kUML's seventh first-class metamodel, dedicated to database schema design. Entities (incl. weak entities), attributes, relationships with cardinalities, plus views, indexes, and check constraints as first-class elements (not tagged values). Four rendering notations — Martin (crow's-foot, default), Bachman, Chen, IDEF1X — chosen in the DSL or overridden per render (`kuml render --notation chen`). `UML → ERM` transform derives a schema from an existing class diagram; `ERM → SQL DDL` (PostgreSQL/MySQL/SQLite) and `ERM → Kotlin Exposed` code generation; `SQL → ERM` reverse-engineers an existing database as a crow's-foot diagram.
+| *Service blueprint*
+| user journey maps
+| link:docs/handbook/modules/ROOT/pages/user-journey.adoc[User Journey Maps]
 |===
 
-== UML 2.x Support
+How kUML compares with PlantUML, Mermaid, D2, Structurizr and the big CASE tools, including where
+those tools are the better choice, is in link:docs/handbook/modules/ROOT/pages/comparison.adoc[How kUML compares].
+A shorter table is on https://kuml.dev/comparison[kuml.dev/comparison].
 
-kUML implements all 14 UML 2.x diagram types as first-class peers alongside SysML 2 and C4:
+== Essential commands
 
-[cols="1,3,1"]
-|===
-| Diagram type | Description | Simulate
-
-| *Class Diagram*
-| Classes, interfaces, enumerations, associations, generalisations, dependencies, realisations
-| —
-
-| *Object Diagram*
-| Snapshots of instance-level object graphs and slot values
-| —
-
-| *Package Diagram*
-| Package hierarchy, imports, merges, and namespace dependencies
-| —
-
-| *Component Diagram*
-| Logical components, provided/required interfaces, and connectors
-| —
-
-| *Composite Structure Diagram*
-| Internal part/port structure of a classifier and its connectors
-| —
-
-| *Deployment Diagram*
-| Node topology, artefact deployment, and communication paths
-| —
-
-| *Profile Diagram*
-| Metaclass extensions, stereotypes, tagged values, and constraints
-| —
-
-| *Use Case Diagram*
-| Actor/use-case relationships, include/extend associations, and system boundaries
-| —
-
-| *Activity Diagram*
-| Token-flow activity semantics, partitions (swimlanes), decision and fork/join nodes
-| ✅ `kuml simulate`
-
-| *State Machine Diagram*
-| Hierarchical state machines with guards, effects, internal transitions, and history pseudo-states
-| ✅ `kuml simulate`
-
-| *Sequence Diagram*
-| Lifeline interactions, synchronous/asynchronous messages, and Combined Fragments (alt/opt/loop/par)
-| —
-
-| *Communication Diagram*
-| Object interactions with numbered message flows along associations
-| —
-
-| *Timing Diagram*
-| State/condition timelines across multiple lifelines with timing constraints
-| —
-
-| *Interaction Overview Diagram*
-| Control flow overview combining activity and sequence diagram fragments
-| —
-|===
-
-== SysML 2 Support
-
-kUML implements all 8 SysML 2 diagram types as first-class peers alongside UML 2.x and C4:
-
-[cols="1,3,1"]
-|===
-| Diagram type | Description | Simulate
-
-| *BDD* — Block Definition Diagram | System structure, blocks, value properties, associations | —
-| *IBD* — Internal Block Diagram | Internal connections and port bindings | —
-| *UC* — Use Case Diagram | Actor/use-case relationships in system context | —
-| *REQ* — Requirements Diagram | Requirement hierarchy, satisfy/refine/derive traces | —
-| *STM* — State Machine Diagram | Hierarchical state machines with guards and effects | ✅ `kuml simulate`
-| *ACT* — Activity Diagram | Token-flow activity semantics with partitions (swimlanes) | ✅ `kuml simulate`
-| *SEQ* — Sequence Diagram | Lifeline interactions with Combined Fragments | —
-| *PAR* — Parametric Diagram | Constraint blocks and parametric equations | —
-|===
-
-Notable features added since v0.5.0:
-
-* `kuml simulate` supports SysML 2 *STM* (V2.0.17) and *ACT* (V2.0.18) end-to-end — event-driven state-machine execution and token-flow activity simulation.
-* *Combined Fragments* (alt, opt, loop, par, …) in SEQ diagrams (V2.0.15).
-* *Activity Partitions / Swimlanes* in ACT diagrams (V2.0.16).
-* *Typed expression validation* (`kuml validate --strict`) parses OCL-like guards, effects, and PAR constraints through a typed AST with type inference (V2.0.20b).
-* *Web UI LaTeX download* — `POST /api/render` in `kuml serve` accepts `format = "latex"` for all 10 diagram types, including all 8 SysML 2 kinds (V2.0.36).
-* *Snapshot/Restore for SysML 2* — `snapshotFull` / `restoreFrom` preserve complete runtime state for SysML 2 STM and ACT instances (V2.0.35).
-* *`kuml run` SysML 2 support* — all three adapters (stdin / mcp / batch) accept SysML 2 STM and ACT scripts (V2.0.38).
-
-== C4 Support
-
-kUML implements all 6 C4 diagram types as first-class peers alongside UML 2.x and SysML 2:
-
-[cols="1,3"]
-|===
-| Diagram type | Description
-
-| *Context Diagram*
-| System boundaries, external actors (persons and external systems), and their relationships
-
-| *Container Diagram*
-| Applications, services, and databases within a system boundary and their interactions
-
-| *Component Diagram*
-| Internal components within a container and their dependencies
-
-| *Deployment Diagram*
-| Deployment topology with nodes, infrastructure elements, and container instances
-
-| *Dynamic Diagram*
-| Numbered interaction sequences between persons, systems, containers, or components
-
-| *Landscape Diagram*
-| Multi-system enterprise overview — persons and systems across organisational boundaries
-|===
-
-Structurizr DSL round-trip is supported via `kuml import --format structurizr` and `kuml export --format structurizr`, allowing interoperability with existing Structurizr workspaces.
-
-== ERM Support
-
-kUML implements ERM (Entity-Relationship Modelling) as a first-class metamodel alongside UML 2.x, SysML 2, C4, and BPMN 2.0 — dedicated to database schema design, not a UML profile. Entities, weak entities, attributes (PK/FK/unique/nullable/default), relationships with cardinalities, and views/indexes/check constraints as first-class elements.
-
-[cols="1,3"]
-|===
-| Notation | Description
-
-| *Martin (crow's-foot)*
-| The default and most widely recognised ERD notation — cardinality glyphs on the connecting line.
-
-| *Bachman*
-| Directed-arrow relationships, common in older CASE tools and database-design textbooks.
-
-| *Chen*
-| The original 1976 ER notation — attributes as ovals, relationships as their own diamond-shaped nodes.
-
-| *IDEF1X*
-| Solid lines for identifying relationships, dashed for non-identifying, rounded corners for dependent (weak) entities, plus subtype/supertype category clusters.
-|===
-
-An ERM model can be authored directly (`ermModel { … }`) or derived from an existing UML class diagram (`kuml transform --transformer uml-to-erm-script`). From there, `kuml generate --plugin sql` produces SQL DDL (PostgreSQL, MySQL, SQLite) and `kuml generate --plugin exposed` produces Kotlin Exposed tables — both consuming the ERM model, not the UML model directly, so mapping decisions (inheritance strategy, M:N junction tables, FK naming) stay inspectable. `kuml reverse --format sql` runs the chain in reverse, reconstructing an ERM model from existing SQL DDL. The SQL/Exposed generators also recognize PostGIS geometry columns (`ErmDataType.Custom("geometry(Point,4326)")`) and TimescaleDB hypertables (`hypertable(timeColumn, chunkInterval?)`) on Postgres, and `kuml generate --sql-migration --from old.kuml.kts --to new.kuml.kts` emits an additive-only Flyway schema-diff migration (refusing on any destructive change). Full reference: link:docs/handbook/modules/reference/pages/erm-dsl.adoc[ERM DSL].
-
-== How kUML compares
-
-[cols="3,^1,^1,^1,^1,^1,^1,^1,^1", options="header"]
-|===
-| Feature
-| kUML
-| PlantUML
-| Mermaid
-| D2
-| Structurizr
-| MagicDraw
-| Modelio
-| Diagrams (Py)
-
-| UML 2.x (all diagram types)  | ✅ | ⚠️ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌
-| SysML 2 first-class          | ✅ | ⚠️ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌
-| C4 first-class               | ✅ | ⚠️ | ⚠️ | ❌ | ✅ | ❌ | ❌ | ⚠️
-| BPMN 2.0 first-class         | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌
-| ERM / DB modelling (4 notations) | ✅ | ⚠️ | ⚠️ | ⚠️ | ❌ | ⚠️ | ⚠️ | ❌
-| Type-safe DSL                | ✅ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌ | ⚠️
-| Real metamodel               | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌
-| OCL constraints              | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌
-| AUTOSAR profile (built-in)   | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌
-| Built-in UML profiles (5)    | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌
-| Code generation (M2T)        | ✅ | ❌ | ❌ | ❌ | ⚠️ | ✅ | ✅ | ❌
-| MDA transforms (M2M)         | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ⚠️ | ❌
-| Executable behaviour simulation | ✅ | ❌ | ❌ | ❌ | ❌ | ◐ | ❌ | ❌
-| M2M code generation (transformers) | ✅ | ❌ | ❌ | ❌ | ❌ | ◐ | ◐ | ❌
-| Typed expression validation  | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌
-| Git-native                   | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ⚠️ | ✅
-| Open source                  | ✅ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ✅ | ✅
-| LLM-first design             | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌
-| CLI + Gradle + IDE + Web     | ✅ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ✅ | ✅ | ⚠️
-| Beautiful auto-layouts       | ✅ | ❌ | ⚠️ | ✅ | ✅ | ⚠️ | ⚠️ | ✅
-| Grid layout (opt-in, experimental)    | ✅ | ❌ | ❌ | ⚠️ | ❌ | ⚠️ | ⚠️ | ❌
-| M2M code generation (5 transformers)  | ✅ | ❌ | ❌ | ❌ | ❌ | ◐ | ◐ | ❌
-| Native installers (DEB/RPM/DMG/MSI/Docker) | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ◐ | ❌
-|===
-
-✅ present · ⚠️ limited or partial · ◐ proprietary/closed · ❌ absent
-
-=== Where kUML wins
-
-* *Modelling depth, Git-versionability and LLM friendliness in one tool.* Nobody else combines all three.
-* *Type-safe DSL as the model substrate* — structurally superior for toolchain integration and AI-assisted generation.
-* *UML, SysML 2, C4 and BPMN 2.0 as equal first-class languages.* Every other tool forces you to pick one.
-* *Apache 2.0 with a modern stack* (Kotlin, GraalVM Native Image, Compose). No Eclipse legacy.
-* *Designed for the LLM era from day one* — structural, not accidental, fitness for AI-assisted modelling.
-
-=== Where we acknowledge the competition
-
-* *PlantUML's ecosystem is enormous* — wikis, IDEs, AsciiDoc tooling, CI plugins. kUML builds bridges (AsciiDoc extension, Gradle plugin, IDE plugins) rather than fighting on volume.
-* *Structurizr owns C4 emotionally.* kUML offers Structurizr DSL round-trip — interoperate, don't compete.
-* *Mermaid has GitHub-native rendering* — the lowest possible barrier. kUML targets value from step two onward.
-* *MagicDraw and Cameo dominate enterprise automotive — but their AUTOSAR support is a paid add-on.* kUML ships the AUTOSAR profile in the box (v0.3.0): `«SoftwareComponent»` with kind/packageName, `«ComInterface»` with version/isService, `«AutosarPort»` with direction (D17 — deliberately not `Port` to avoid the UML metaclass clash), `«Runnable»` with periodic/event-triggered/init/shutdown kinds, and `«BehaviorSpec»` on state machines feeding into `kuml simulate` for trace-based RTE verification.
-
-== CLI Commands
-
-[cols="1,3"]
-|===
-| Command | Description
-
-| `kuml render`
-| Render a `*.kuml.kts` model to SVG or PNG (ELK layout + KumlSvgRenderer / KumlPngRenderer).
-
-| `kuml watch`
-| Re-render on file change; 500 ms polling, never exits on script errors.
-
-| `kuml validate`
-| Evaluate OCL `constraint(name, body)` declarations; `--output text\|json`, exit code `4` on violations.
-
-| `kuml diagnostics`
-| Emit script compile/eval diagnostics with source locations as TSV (`severity⇥startLine⇥startCol⇥endLine⇥endCol⇥message`), for editor/IDE integration. Always exits `0`. Used by the JetBrains plugin for inline error highlighting. (v0.18.0)
-
-| `kuml fmt`
-| Idempotent text formatter for `*.kuml.kts`; `--check` mode exits `5` if reformat needed.
-
-| `kuml generate`
-| Code generation via plugin (`--plugin kotlin\|java\|sql\|exposed` built-in). `sql` and `exposed` consume an ERM model (directly or via the UML→ERM transform); see xref:docs/handbook/modules/reference/pages/erm-dsl.adoc[ERM DSL].
-
-| `kuml import`
-| Import a diagram from another format: `--format structurizr` (Structurizr DSL → `*.kuml.kts`) or `--format xmi` (XMI/EMF → `*.kuml.kts`).
-
-| `kuml export`
-| Export a model to another format: `--format structurizr` (Structurizr DSL) or `--format xmi` (XMI/EMF).
-
-| `kuml reverse`
-| Reconstruct a UML class diagram from existing source code (`--lang java\|kotlin\|auto`, JavaParser / Kotlin Compiler PSI, optional `--transformer <id>`, V3.0.9), or an ERM model from existing SQL DDL (`--format sql --sql-dialect postgres`, JSqlParser-based, V3.4.9). `kuml reverse --format sql` prints the recovered model as `ermModel { }` DSL source.
-
-| `kuml workspace init\|info\|validate\|render\|convert`
-| Treat an Obsidian-vault-style directory of Markdown files with YAML frontmatter and embedded ` ```kuml ` blocks as an Open Knowledge Format (OKF) workspace (ADR-0011): `init` scaffolds a new workspace (`--name`, `--mode knowledge\|engineering`, `--output`), `info <dir>` summarises documents by type, `validate <dir>` checks frontmatter/structure, `render <dir>` renders the embedded diagrams to SVG, `convert <src> --to okf\|kts` (v0.38.0) wraps/unwraps a workspace note ⇔ a bare `.kuml.kts` script.
-
-| `kuml markdown`
-| Render `kuml`-fenced code blocks in a Markdown file to inline SVG, linked SVG, or linked PNG.
-
-| `kuml completion`
-| Emit shell completion scripts for `bash`, `zsh`, or `fish` (Clikt built-in).
-
-| `kuml simulate <script> --events <file>`
-| Execute a simulation trace against a UML, SysML 2, or BPMN 2.0 behavioural model. Supports STM (state-machine semantics) for UML and SysML 2, and token-flow activity semantics (UML Activity, SysML 2 ACT, and BPMN Process — exclusive/parallel/inclusive gateways, sub-processes, terminate/flow-final) via the shared `TokenFlowEngine`. SysML 2 STM added in V2.0.17; SysML 2 ACT added in V2.0.18; BPMN Process added in ADR-0015 (`--process <id>` selects among multiple declared processes, `--max-tokens`/`--time-budget-ms` bound token-flow execution).
-
-| `kuml transform <script> --transformer <id> --output <dir>`
-| M2M transformation: transform a source model to a target artefact. Five built-in transformers: `uml-to-jpa`, `uml-to-rest` (OpenAPI 3.0 YAML), `uml-to-k8s` (Kubernetes manifests), `uml-to-docker` (Dockerfiles), `c4-to-uml`. `--list-transformers` lists all registered transformers (discovered via ServiceLoader). V2.0.21–V2.0.25.
-
-| `kuml render <script> --layout=grid\|elk\|auto`
-| Override the per-diagram layout engine. `elk` (ELK Sugiyama layered) is the default for all diagram types. `grid` opts in to the experimental `kuml.grid` engine. Added in V2.0.26.
-
-| `kuml render <script> --latex-standalone`
-| Produce a self-contained compilable `.tex` file (previously the LaTeX output was library-only). Added in V2.0.31.
-
-| `kuml validate <script> --no-check-structure`
-| Skip structural checks (duplicate IDs, circular inheritance, dangling references). By default `kuml validate` now includes these checks in addition to OCL evaluation. Added in V2.0.31.
-
-| `kuml validate --strict <script>`
-| Extended validation mode (V2.0.20b): in addition to model consistency checks, parses and type-checks typed expressions — OCL-like guards, effects, and PAR constraints — through a typed AST with type inference.
-
-| `kuml serve [--port N] [--host H]`
-| Start the kUML Web UI — a Ktor/Netty HTTP server with a CodeMirror 6 browser editor, 300 ms live SVG preview, theme and layout dropdowns, and SVG / PNG / LaTeX download buttons. Added in V2.0.34.
-
-| `kuml run <script> [--adapter stdin\|mcp\|batch]`
-| Interactive and live-mirror execution of state machines and activity diagrams. `--adapter stdin` (default) — interactive REPL with built-in `snapshot` / `status` / `quit` commands. `--adapter mcp` — starts a local REST server (`POST /run/event`, `GET /run/snapshot`, `POST /run/patch`, `POST /run/stop`, `GET /run/health`). `--adapter batch` — replays `--events <file.json>`, writes trace via `--out`. `--restore <snapshot.json>` resumes from a prior snapshot; `--snapshot-out <path>` persists on exit. Added in V2.0.38.
-
-| `kuml profile list\|show\|validate`
-| List all registered profiles, inspect a specific profile's stereotypes and tagged values, or validate a model against a profile's constraints.
-
-| `kuml update check` / `kuml update notes`
-| Poll GitHub Releases for the latest version (`check`) or display release notes for a specific version (`notes`). Added in V2.0.1.
-
-| `kuml plugin init [--category theme\|renderer\|layout\|codegen\|reverse]`
-| Scaffold a new plugin project for the given category. Generates `build.gradle.kts`, the SPI registration file, and example source. (V3.1.x)
-
-| `kuml plugin update <id>` / `kuml plugin upgrade <id>`
-| Update a locally installed plugin to its latest published version (`update`) or upgrade to a newer plugin API major version (`upgrade`). (V3.1.x)
-
-| `kuml plugin search [query]`
-| Search the Plugin Registry for published plugins; shows ratings, review count, and screenshot previews in the terminal. (V3.1.x)
-
-| `kuml ai bench [--provider <id>] [--tasks <n>]`
-| Run the LLM accuracy benchmark against a registered provider (or all providers if `--provider` is omitted). Reports per-task pass/fail and an aggregate score. (V3.1.x)
-
-| `kuml ai pricing [--provider <id>]`
-| Display per-token input/output cost tables for all configured LLM providers (or a specific one). Reads live pricing from the provider SPI. (V3.1.x)
-
-| `kuml ai audit [--output text\|json]`
-| Read the compliance audit log (`~/.kuml/audit/`) of every LLM call — IDs and timestamps only, never prompts or model responses. (V3.1.x)
-
-| `kuml ai vault unlock\|lock\|status`
-| Manage the API-key vault's master-password encryption: derive the key and re-encrypt stored keys (`unlock`), zero-fill the in-memory key (`lock`), or show the current backend/encryption state (`status`). (V3.1.20)
-
-| `kuml dump-json <script> --diagram-out <f> --layout-out <f> [--model-out <f>]`
-| Dump the parsed diagram, its owning model, and the computed `LayoutResult` as JSON — the prerequisite input for the wasm playground render path. Supports UML, C4, SysML 2, BPMN, Blueprint.
-
-| `kuml asciidoc --input <f> --output <f>` / `--input-dir <d> --output-dir <d>`
-| Pre-render `[source,kuml]` blocks and `kuml::path[]` macros in AsciiDoc files to SVG/PNG, producing plain AsciiDoc that Antora's Node.js Asciidoctor pipeline can consume directly (Antora cannot load the JVM `kuml-asciidoc` extension itself). Directory mode mirrors an entire tree, copying non-`.adoc` files through unchanged.
-
-| `kuml trace replay <trace> <script> [--verbose]` / `kuml trace export [--format otlp-json]`
-| Inspect, replay, and export behaviour traces (V2.0.39).
-
-| `kuml sandbox validate <script> [--strict] [--guard-timeout-ms N]`
-| Validate guards/actions against the sandbox policy (V2.0.40).
-
-| `kuml chain connect\|verify\|events\|sign\|verify-sig`
-| Connect a behaviour-runtime state machine to a live on-chain contract (EVM by default, pluggable adapter), verify the on-chain `modelHash`, stream events, and sign/verify off-chain payloads. (V3.0.5)
-
-| `kuml version`
-| Print the installed kUML version and build metadata.
-|===
-
-== Roadmap
-
-[cols="1,4,1"]
-|===
-| Phase | Scope | Status
-
-| *Phase 0*
-| Gradle multimodule setup, Kotlin Scripting host, `diagram{}` DSL entry-point
-| ✅ Done
-
-| *Phase 1*
-| UML metamodel + UML DSL (5 diagram types: class, sequence, state, component, use-case) +
-C4 metamodel + C4 DSL (6 diagram builders) +
-Layout API/Bridge/ELK + Kuiver renderer + Theme system (Plain) +
-SVG export + PNG export (Batik)
-| ✅ Done
-
-| *Phase 2*
-| CLI (`render` ✅, `watch` ✅, `validate` ✅, `fmt` ✅, `generate` ✅, `completion` ✅, `import` ✅, `markdown` ✅) +
-OCL 2.4/2.5 expression language ✅ + Markdown code block ✅ + MCP server ✅ +
-`kuml-gen-kotlin` ✅ + LLM Benchmark ✅ (100 % vs. Haiku 4.5) +
-GraalVM Native Image 🚧 (deferred V1.1, ADR-0009) +
-Maven Central ✅ infra + Homebrew ✅ tap live
-| ✅ Done
-
-| *V1.0.1*
-| `kuml render` for C4 scripts + SVG Locale-fix +
-jlink runtime bundle (self-contained, no JDK dep) +
-cleanup: stale Commit-SHAs out of READMEs, DSL-README named-param sweep
-| ✅ Done (`v0.1.1`)
-
-| *V1.1*
-| All 9 remaining UML 2.x diagram types (object ✅, package ✅, composite-structure ✅,
-deployment ✅, profile ✅, activity ✅, communication ✅, timing ✅, interaction-overview ✅) +
-profiles ✅, Grid-Layout engine ✅, 4 themes ✅, codegen Java+SQL ✅, Structurizr export ✅,
-Gradle plugin ✅, AsciiDoc ✅, Antora handbook ✅, JetBrains plugin ✅, VS Code plugin ✅, `kuml simulate` ✅
-| ✅ Done (`v0.3.0`)
-
-| *V2*
-| SysML 2 (all 8 diagram types ✅) + `kuml simulate` for STM + ACT ✅ +
-`kuml transform` (5 transformers: uml-to-jpa, uml-to-rest, uml-to-k8s, uml-to-docker, c4-to-uml) ✅ +
-`kuml validate --strict` typed expressions ✅ +
-`kuml render --layout=grid\|elk\|auto` (elk default, grid opt-in) ✅ +
-JetBrains plugin — annotator, quick fixes, live SVG preview, structure view, code folding ✅ +
-`kuml-runtime-mcp` (5 runtime tools) ✅ +
-Web UI: `kuml serve` Ktor/Netty + CodeMirror 6 SPA + SVG/PNG/LaTeX ✅ +
-Snapshot/Restore + MigrationPolicy ✅ +
-`kuml run` (stdin/mcp/batch adapters) ✅ +
-Distribution Phase 1: DEB/RPM/DMG/MSI + Docker + SDKMAN! Windows/ARM64 ✅
-| ✅ Done (`v0.4.0–v0.11.0`)
-
-| *V3.0*
-| `kuml reverse` — Java→UML (JavaParser, V3.0.7) + Kotlin→UML (Compiler PSI, V3.0.8) ✅ +
-`kuml-desktop` — file I/O, MRU recent-files, Plugin Manager UI, jpackage distribution (DMG/MSI/DEB/RPM) ✅ +
-AI assistant — Koog multi-LLM agent (OpenAI, Anthropic, Google, DeepSeek, OpenRouter, Ollama),
-AI panel in Desktop app, patch-preview workflow ✅ +
-`kuml-io-emf` — XMI import/export (EA, Papyrus, MagicDraw interop), Class/Interface/Enum/Association/
-Generalization/InterfaceRealization/Dependency ✅ +
-`kuml-runtime-trace` — OTLP-JSON trace export ✅ +
-`kuml-runtime-sandbox` — EffectExecutor, TimeLimitedGuardEvaluator, SandboxValidator ✅ +
-`kuml-ai-tools` — @Tool DSL builder suite + MCP bridge + AgentEditingContext ✅ +
-`kuml-core-config` — kuml.config.kts DSL + Script Host ✅ +
-`kuml-core-expr` — Typed Expression AST + Parser + Evaluator ✅ +
-`kuml-metamodel-kerml` + `kuml-metamodel-sysml2` — KerML foundation + SysML 2 sealed hierarchy ✅ +
-`kuml-widget-compose` — Executable behaviour widget (Compose Multiplatform) ✅ +
-`kuml-vault-examples-tests` — 47 CI smoke tests rendering all vault examples ✅
-| ✅ Done (`v0.12.0`)
-
-| *V3.x*
-| Plugin ecosystem — `kuml-plugin-api` marketplace SPI, plugin registry, CLI plugin manager, Desktop plugin manager ✅ +
-AUTOSAR ARXML import/export (`kuml-io-arxml`) ✅ +
-Chain-backed models — `kuml-runtime-chain-api` + EVM adapter + Move adapter ✅ +
-AI Assistant — Koog multi-LLM agent, AI panel, patch-preview ✅ +
-*BPMN 2.0* — Process/Collaboration metamodel, DSL, SVG renderer, XML I/O, LaTeX renderer ✅ +
-C4 LaTeX/TikZ renderer ✅ +
-*v0.17.0*: AI Assistant SPI (`KumlLlmProviderSpi`, `KumlToolSetFactory`) ✅ +
-`kuml ai bench` / `kuml ai pricing` ✅ +
-Multi-agent orchestration + compliance audit log + master-password vault ✅ +
-`kuml plugin init` scaffolding + `update`/`upgrade` commands + Plugin Registry (ratings/reviews/screenshots) ✅ +
-Windows Chocolatey package (`choco install kuml`) ✅ +
-Diagram fixes: State Machine composite states, Deployment nested nodes, IBD boundary ports ✅ +
-*v0.18.0*: Chain adapters CosmWasm + ink! (`kuml-runtime-chain-cosmos`, `kuml-runtime-chain-wasm`) ✅ +
-User Journey / Service Blueprint (`blueprint{}` DSL, SVG + LaTeX renderers) ✅ +
-*v0.19.0*: JetBrains plugin published to JetBrains Marketplace (`dev.kuml.ide`) ✅ +
-Scroll Pane + hand-drag interactor in SVG preview ✅ +
-Outer UML diagram frame for all 33 diagram types ✅ +
-Blueprint SVG fixes (emotion curve, step cards) ✅
-| ✅ Done (v0.12.0–v0.19.0)
-|===
-
-== Modules
-
-[source]
+[source,bash]
 ----
-kuml-core/
-  kuml-core-model    ✅  Sealed Kotlin metamodel base types
-  kuml-core-dsl      ✅  DSL builders: UML (14 diagram types) + C4 (6 builders) + SysML 2 (8 diagram types)
-  kuml-core-script   ✅  Kotlin Scripting host + KumlScriptDefinition + DiagramExtractor
-  kuml-core-config   ✅  kuml.config.kts DSL + Script Host (V1.1.3)
-  kuml-core-ocl      ✅  OCL 2.4/2.5 expression language interpreter
-  kuml-core-expr     ✅  Typed Expression AST + Parser + Evaluator (V2.0.20a)
-
-kuml-metamodel/
-  kuml-metamodel-uml    ✅  UML 2.x sealed hierarchy (all 14 diagram types)
-  kuml-metamodel-c4     ✅  C4 sealed hierarchy + C4Model (all 6 diagram types)
-  kuml-metamodel-kerml  ✅  KerML foundation for SysML 2 (V2.0.3)
-  kuml-metamodel-sysml2 ✅  SysML 2 on KerML (all 8 diagram types, V2.0.3+)
-  kuml-metamodel-bpmn   ✅  BPMN 2.0 sealed hierarchy — Process, Collaboration, Events
-                            (Event-Matrix: 13 definitions × 3 positions), Gateways (5 types),
-                            Tasks (7 types), SubProcess, CallActivity, Pool, Lane, MessageFlow
-                            BpmnConstraintChecker (7 rules), DSL (@BpmnDsl, V3.1.1–V3.1.6)
-
-kuml-renderer/
-  kuml-layout-api    ✅  Engine-agnostic layout contract (LayoutGraph, LayoutResult, EdgeRoute)
-  kuml-layout-bridge ✅  KumlDiagram / C4 / SysML 2 / BPMN → LayoutGraph bridge (BpmnLayoutBridge V3.1.3)
-  kuml-layout-elk    ✅  ELK 0.11.0 adapter (Sugiyama layered, default)
-  kuml-layout-grid   ✅  Pure-Kotlin grid layout engine, multiplatform
-                         (common/jvm/js/wasmJs, V1.1.12, multiplatform since V3.2.9+)
-  kuml-kuiver        ✅  Compose Multiplatform renderer backend
-  kuml-themes-core   ✅  Framework-neutral theme data
-  kuml-themes        ✅  4 themes: Plain, kUML, Elegant, Playful
-
-kuml-io/
-  kuml-io-svg        ✅  Direct SVG writer (GraalVM-ready) — UML, SysML 2, C4, BPMN
-                         BPMN: all OMG symbols (Events, Gateways, Tasks, Swimlanes,
-                         MessageFlow), BpmnLayoutBridge (V3.1.3+V3.1.5)
-  kuml-io-png        ✅  SVG → PNG via Apache Batik 1.19 (Fat-JAR only)
-  kuml-io-json       ✅  Model persistence via kotlinx.serialization
-  kuml-io-latex      ✅  LaTeX / TikZ export — UML, SysML 2, C4 (V3.1, all 5 diagram types,
-                         10 styles), BPMN (V3.1.8, all flow-node types, 15 kuml-bpmn-* styles)
-  kuml-io-bpmn       ✅  BPMN 2.0 XML Import/Export (V3.1.7)
-                         BpmnXmlExporter: OMG namespace, no JAXB, XSS-safe (xmlAttr/xmlText)
-                         BpmnXmlImporter: namespace-aware DOM, XXE-protected
-                         BpmnXml convenience API: export(model) / import(xml/stream)
-  kuml-io-emf        ✅  XMI import/export via Eclipse EMF/UML2 (JVM-only, V3.0.15–17)
-                         kuml import --format xmi / kuml export --format xmi
-                         Full bidirectional: Class, Interface, Enum, Association,
-                         Generalization, InterfaceRealization, Dependency
-
-kuml-codegen/
-  kuml-codegen-api          ✅  KumlCodeGenerator plugin interface (ServiceLoader SPI)
-  kuml-codegen-m2m          ✅  M2M Transformer Foundation: KumlTransformer, rule-DSL,
-                                5 built-in transformers (V2.0.21+)
-  kuml-gen-kotlin           ✅  Kotlin code generator (data class / interface / enum)
-  kuml-gen-java             ✅  Java POJO / Records / Lombok generator
-  kuml-gen-sql              ✅  SQL DDL generator (Postgres / MySQL / H2 / SQLite)
-  kuml-codegen-reverse-api  ✅  Language-agnostic KumlReverseEngine interface (V3.0.7)
-  kuml-codegen-reverse-java ✅  JavaParser-based Java → UML engine (V3.0.7)
-  kuml-codegen-reverse-kotlin ✅ Kotlin Compiler PSI → UML engine (V3.0.8)
-
-kuml-runtime/
-  kuml-runtime-core    ✅  StateMachineRuntime + ActivityRuntime + Snapshot/Restore + MigrationPolicy
-  kuml-runtime-trace   ✅  Trace replay + OTLP-JSON export (V2.0.39)
-  kuml-runtime-sandbox ✅  Sandbox guarantees: EffectExecutor, TimeLimitedGuardEvaluator,
-                           SandboxValidator (V2.0.40)
-
-kuml-mcp/              ✅  MCP server — stdio JSON-RPC 2.0; embeddable `McpRequestHandler`, also hosted by kUML Desktop over local HTTP (v0.55.0)
-                           Authoring tools (6): kuml.render / validate / list_elements / describe / generate / examples
-                           Runtime tools (5): kuml.run.start / event / snapshot / patch / stop
-
-kuml-web/              ✅  Browser-based editing environment (V2.0.34)
-                           Ktor/Netty HTTP + CodeMirror 6 SPA + SVG/PNG/LaTeX REST API
-                           Drag-and-drop node placement for class diagrams (v0.29.0)
-                           ERM diagrams end-to-end, all four notations (v0.29.0)
-
-kuml-widget/
-  kuml-widget-compose  ✅  Executable behaviour widget (Compose Multiplatform, V2.0.43)
-                           OclGuardEditor: interactive, syntax-highlighted OCL guard
-                           editing with protected-transition confirmation gate (v0.29.0)
-
-kuml-desktop/          ✅  Compose Desktop app (V3.0.10–14); resizable editor/preview split and mouse pan/zoom in the preview (v0.55.1); tabbed document header, dialogs as real windows, ⌘ shortcuts on macOS (v0.55.3)
-                           Editor (RSyntaxTextArea) + Live preview (JSVGCanvas/Batik)
-                           File I/O + MRU recent-files + persistent settings
-                           Plugin Manager UI (ServiceLoader introspection)
-                           jpackage distribution: DMG / MSI / DEB / RPM
-
-kuml-ai/
-  kuml-ai-core         ✅  Koog-based AI agent: Multi-LLM executor (OpenAI, Anthropic,
-                           Google, DeepSeek, OpenRouter, Ollama), API key vault (V3.0.22)
-                           Master-password vault (AES-256-GCM), compliance audit log,
-                           multi-agent orchestration pipeline (V3.1.x)
-  kuml-ai-tools        ✅  @Tool DSL builder suite + MCP bridge + AgentEditingContext (V3.0.23)
-  kuml-ai-spi          ✅  KumlLlmProviderSpi (custom LLM providers via ServiceLoader) +
-                           KumlToolSetFactory (custom agent tool sets) +
-                           `kuml ai bench` accuracy benchmark + `kuml ai pricing` cost tables (V3.1.x)
-
-kuml-plugin/
-  kuml-plugin-api      ✅  Plugin marketplace SPI: KumlPlugin, KumlPluginDescriptor,
-                           ServiceLoader-based discovery (V3.1.x)
-  kuml-plugin-registry ✅  Plugin Registry client: search, ratings, reviews, screenshots,
-                           `kuml plugin search` CLI + Desktop Plugin Manager UI (V3.1.x)
-
-kuml-wasm-playground/  ✅  Browser-hosted wasmJs render entry points: UML class diagrams
-                           (real multiplatform grid layout via kuml-layout-grid), C4,
-                           SysML 2 (all 8 diagram kinds), BPMN (process/collaboration/
-                           choreography/conversation), Blueprint (V3.2.9+)
-
-kuml-cli/              ✅  Command-line interface (all commands above)
-
-kuml-gradle/           ✅  Gradle plugin (plugin ID: dev.kuml)
-                           Tasks: kumlRender, kumlGenerate, kumlValidate (@CacheableTask)
-
-kuml-jetbrains/        ✅  JetBrains IDE plugin (IntelliJ IDEA 2024.3+)
-                           Annotator + 4 quick fixes, live SVG preview, structure view, code folding
-
-kuml-lang-support/     ✅  Editor-agnostic completion/rename/diagnostics/CLI-locator
-                           logic, shared by kuml-jetbrains and kuml-language-server (v0.29.0)
-
-kuml-language-server/  ✅  LSP4J-based Language Server: diagnostics via CLI subprocess,
-                           full 38-item DSL completion catalogue (v0.29.0)
-                           Consumed by kuml-jetbrains and by the VS Code extension, which
-                           lives in its own repository: https://github.com/kuml-dev/kuml-vscode
-
-kuml-llm/
-  kuml-llm-core        ✅  LlmBackend interface
-  kuml-llm-anthropic   ✅  Claude API backend
-  kuml-llm-bench       ✅  10-task benchmark suite
-
-kuml-docs/
-  kuml-markdown        ✅  Markdown kuml code block processor
-  kuml-asciidoc        ✅  AsciiDoc [source,kuml]/kuml::path[] pre-renderer (Antora-integrated, V3.2.19)
-
-kuml-profile/
-  kuml-profile-api     ✅  KumlProfile SPI + KumlStereotypeApplication
-  kuml-profile-autosar ✅  AUTOSAR Classic R22-11 profile
-  kuml-profile-javaee  ✅  JavaEE / Jakarta EE profile
-  kuml-profile-spring  ✅  Spring Framework profile
-  kuml-profile-openapi ✅  OpenAPI 3.x profile
-  kuml-profile-soaml   ✅  SoaML profile
-
-kuml-packaging/        ✅  jpackage DEB/RPM/DMG/MSI + Docker + SDKMAN! packaging built
-                           (SDKMAN! candidate not yet live — vendor onboarding pending,
-                           see Installation table). GraalVM Native Image still deferred,
-                           see Roadmap — ADR-0009.
-
-kuml-tests/
-  kuml-dsl-tests              ✅  DSL unit tests
-  kuml-renderer-tests         ✅  SVG snapshot tests
-  kuml-codegen-tests          ✅  Codegen tests
-  kuml-cli-tests              ✅  CLI end-to-end tests
-  kuml-vault-examples-tests   ✅  47 CI smoke tests: render all vault examples incl. BPMN + ERM (V3.0.x+)
-  kuml-mcp-tests, kuml-ocl-tests, kuml-llm-tests  ✅
+kuml render model.kuml.kts            # SVG (also --format png|latex)
+kuml watch model.kuml.kts             # re-render on every save
+kuml validate model.kuml.kts          # OCL constraints (add --strict for typed expressions)
+kuml fmt model.kuml.kts               # canonical formatting (--check for CI)
+kuml generate --plugin kotlin ...     # code generation (kotlin, java, sql, exposed)
+kuml simulate model.kuml.kts          # execute a state machine, activity or BPMN process
+kuml reverse --lang kotlin ./src      # recover a class diagram from source
+kuml serve                            # browser editor with live preview
 ----
+
+All commands, options and exit codes: link:docs/handbook/modules/tooling/pages/cli.adoc[CLI reference].
 
 == Documentation
 
-* https://docs.kuml.dev[*Handbook*] (online) — full DSL reference, diagram
-  types, CLI, Gradle plugin, MDA, plugin API. Built with Antora from
+* https://docs.kuml.dev[*Handbook*] — DSL reference, CLI, Gradle plugin, MDA, plugin API, and the
+  link:docs/handbook/modules/ROOT/pages/architecture.adoc[module overview]. Built with Antora from
   `docs/handbook/` on every push to `master`.
-* link:docs/getting-started.adoc[Getting Started] — install kUML, your first
-  class diagram, your first C4 diagram, watch mode, OCL, codegen, Markdown.
-* link:docs/diagram-types.adoc[Diagram-Type Reference] — every UML and C4
-  diagram type with a runnable snippet.
-* link:docs/benchmark/README.adoc[LLM Benchmark Guide] — run the 10-task
-  benchmark against the LLM of your choice.
-* link:docs/release.md[Release & Distribution] — Maven Central, Homebrew,
-  release workflow.
-* link:tools/pandoc/README.adoc[Pandoc filter] — generate HTML/PDF with kuml
-  diagrams via Pandoc.
+* https://kuml.dev[*Website*] — playground, release notes, feature overview, comparison.
+* link:CHANGELOG.md[Changelog] and link:ROADMAP.adoc[Roadmap].
+* link:docs/getting-started.adoc[Getting Started] and link:docs/diagram-types.adoc[Diagram-Type Reference].
+* link:docs/benchmark/README.adoc[LLM Benchmark Guide].
+* link:docs/release.md[Release & Distribution].
+
+== Contributing
+
+Issues and pull requests are welcome on https://github.com/kuml-dev/kUML/issues[GitHub]. Building from
+source needs JDK 21 and, for the `kuml-web` frontend, Node.js `^20.19` or `>=22.12` with npm
+(`./gradlew clean check`). Release binaries, Homebrew, Chocolatey and the Maven artifacts do not need Node.
 
 == License
 
