@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+**kUML Desktop: shortcuts for New, Open and Save As**
+
+File ▸ New (⌘N / Ctrl+N), Open… (⌘O / Ctrl+O) and Save As… (⇧⌘S / Ctrl+Shift+S) now have keyboard
+shortcuts, following the platform convention (⌘ on macOS, Ctrl elsewhere). The handbook's Desktop page lists
+all menu shortcuts.
+
 ## [0.55.3] — 2026-10-21
 
 ### Fixed

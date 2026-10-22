@@ -35,6 +35,25 @@ In the preview (and in the Knowledge Workspace viewer and the AI patch preview):
 Batik's own gestures keep working: Shift + drag pans, Ctrl + Shift + drag zooms, the arrow keys
 move the diagram.
 
+== Keyboard shortcuts
+
+Menu shortcuts follow the platform convention: *⌘ (Command)* on macOS, *Ctrl* on Windows and Linux.
+
+[cols="2,2,2"]
+|===
+| Action | macOS | Windows / Linux
+
+| New | ⌘N | Ctrl+N
+| Open… | ⌘O | Ctrl+O
+| Save | ⌘S | Ctrl+S
+| Save As… | ⇧⌘S | Ctrl+Shift+S
+| Undo | ⌘Z | Ctrl+Z
+| Redo | ⇧⌘Z | Ctrl+Shift+Z
+| Find | ⌘F | Ctrl+F
+| View: source / split / diagram | ⌘1 / ⌘2 / ⌘3 | Ctrl+1 / Ctrl+2 / Ctrl+3
+| Simulate (state machines) | ⌘R | Ctrl+R
+|===
+
 == Version
 
 *Help ▸ About kUML…* shows the installed version.

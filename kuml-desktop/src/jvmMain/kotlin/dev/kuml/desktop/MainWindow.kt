@@ -465,10 +465,12 @@ fun FrameWindowScope.MainWindow(
 
     MenuBar {
         Menu(strings.menuFile) {
-            Item(strings.menuFileNew, onClick = {
-                confirmUnsavedAndThen { state.newScript() }
-            })
-            Item(strings.menuFileOpen, onClick = {
+            Item(
+                strings.menuFileNew,
+                shortcut = platformShortcut(key = Key.N),
+                onClick = { confirmUnsavedAndThen { state.newScript() } },
+            )
+            Item(strings.menuFileOpen, shortcut = platformShortcut(key = Key.O), onClick = {
                 confirmUnsavedAndThen {
                     val file =
                         FileMenu.chooseOpen(
@@ -532,7 +534,7 @@ fun FrameWindowScope.MainWindow(
                     }
                 },
             )
-            Item(strings.menuFileSaveAs, onClick = {
+            Item(strings.menuFileSaveAs, shortcut = platformShortcut(key = Key.S, shift = true), onClick = {
                 val chosen =
                     FileMenu.chooseSave(
                         parent = windowHandle,
