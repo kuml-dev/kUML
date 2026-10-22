@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Removed
+
+**Outdated guides `docs/getting-started.adoc` and `docs/diagram-types.adoc`**
+
+Both dated from v0.1 to v0.4 and no longer matched the tool (wrong clone URL and dependency coordinates,
+options such as `kuml validate --rule` and `kuml generate --target` that do not exist, and 7 of 20 diagram
+examples that no longer compile). The handbook replaces them: Quick Start, Installation, UML DSL and C4 DSL.
+
 ### Added
 
 **kUML Desktop: shortcuts for New, Open and Save As**

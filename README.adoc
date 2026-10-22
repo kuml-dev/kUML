@@ -221,7 +221,7 @@ All commands, options and exit codes: link:docs/handbook/modules/tooling/pages/c
   `docs/handbook/` on every push to `master`.
 * https://kuml.dev[*Website*] — playground, release notes, feature overview, comparison.
 * link:CHANGELOG.md[Changelog] and link:ROADMAP.adoc[Roadmap].
-* link:docs/getting-started.adoc[Getting Started] and link:docs/diagram-types.adoc[Diagram-Type Reference].
+* link:docs/handbook/modules/ROOT/pages/quickstart.adoc[Quick Start], link:docs/handbook/modules/reference/pages/uml-dsl.adoc[UML DSL] and link:docs/handbook/modules/reference/pages/c4-dsl.adoc[C4 DSL] in the handbook.
 * link:docs/benchmark/README.adoc[LLM Benchmark Guide].
 * link:docs/release.md[Release & Distribution].
 
