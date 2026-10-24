@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.file
@@ -17,6 +18,8 @@ import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.erm.model.ErmModel
+import dev.kuml.transform.umlerm.UmlModelMergeException
+import dev.kuml.transform.umlerm.UmlModelMerger
 import java.io.File
 import java.io.IOException
 import kotlin.script.experimental.api.ResultWithDiagnostics
@@ -47,8 +50,12 @@ import kotlin.script.experimental.api.ScriptDiagnostic
  * `-i`/`--input` and the classic single-script mode.
  */
 internal class GenerateCommand : CliktCommand(name = "generate") {
-    private val input by option("-i", "--input", help = "Path to *.kuml.kts script (classic mode)")
-        .file(mustExist = true, canBeDir = false)
+    private val input by option(
+        "-i",
+        "--input",
+        help = "Path to *.kuml.kts script (classic mode); repeat to merge several UML class scripts into one model",
+    ).file(mustExist = true, canBeDir = false)
+        .multiple()
 
     private val output by option("-o", "--output", help = "Output directory for generated files")
         .path()
@@ -102,11 +109,15 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
     // ── Classic single-script generate ──────────────────────────────────────
 
     private fun runClassicGenerate() {
-        val inputFile =
-            input ?: run {
-                echo("generate: missing option \"-i\" / \"--input\" (or pass --sql-migration).", err = true)
-                throw ProgramResult(ExitCodes.USAGE)
-            }
+        if (input.isEmpty()) {
+            echo("generate: missing option \"-i\" / \"--input\" (or pass --sql-migration).", err = true)
+            throw ProgramResult(ExitCodes.USAGE)
+        }
+        if (input.size > 1) {
+            runMultiScriptGenerate()
+            return
+        }
+        val inputFile = input.single()
 
         val evalResult = KumlScriptHost.eval(file = inputFile)
         val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
@@ -146,6 +157,31 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
 
         generated.forEach { file -> echo("Generated: ${file.path}") }
         echo("${generated.size} file(s) generated in ${outputDir.path}")
+    }
+
+    /** Several `-i` scripts: merge the UML class diagrams, then run the generator once. */
+    private fun runMultiScriptGenerate() {
+        val sources = MultiScriptLoader.loadUmlClassSources(files = input, echoErr = { echo(it, err = true) })
+        val merged =
+            try {
+                UmlModelMerger.merge(sources = sources)
+            } catch (e: UmlModelMergeException) {
+                echo("generate: ${e.message}", err = true)
+                throw ProgramResult(ExitCodes.MODEL_MERGE_CONFLICT)
+            }
+        val outputDir = output.toFile()
+        val generated =
+            try {
+                generate(extracted = ExtractedDiagram.Uml(merged), outputDir = outputDir, options = parseOptions())
+            } catch (e: IOException) {
+                echo("I/O error: ${e.message}", err = true)
+                throw ProgramResult(ExitCodes.IO_ERROR)
+            } catch (e: CodeGenerationException) {
+                echo("Code generation error: ${e.message}", err = true)
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
+        generated.forEach { file -> echo("Generated: ${file.path}") }
+        echo("Merged ${input.size} script(s) into one model; ${generated.size} file(s) generated in ${outputDir.path}")
     }
 
     private fun generate(
@@ -195,7 +231,7 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
     // ── --sql-migration: additive-only ERM schema-diff migration ───────────
 
     private fun runSqlMigration() {
-        if (input != null) {
+        if (input.isNotEmpty()) {
             echo("generate: --sql-migration is mutually exclusive with -i/--input.", err = true)
             throw ProgramResult(ExitCodes.USAGE)
         }
@@ -287,14 +323,6 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
     private fun parseOptions(): Map<String, String> =
         buildMap {
             packageName?.let { put("package", it) }
-            rawOptions?.split(",")?.forEach { pair ->
-                val trimmed = pair.trim()
-                if (trimmed.isEmpty()) return@forEach
-                val (k, v) =
-                    trimmed
-                        .split("=", limit = 2)
-                        .let { if (it.size == 2) it[0].trim() to it[1].trim() else it[0].trim() to "" }
-                put(k, v)
-            }
+            putAll(CliOptions.parseKeyValuePairs(rawOptions))
         }
 }

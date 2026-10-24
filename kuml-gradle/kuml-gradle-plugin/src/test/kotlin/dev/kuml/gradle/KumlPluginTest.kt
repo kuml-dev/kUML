@@ -44,7 +44,7 @@ class KumlPluginTest :
             return dir
         }
 
-        test("plugin registers the three kuml tasks") {
+        test("plugin registers the four kuml tasks") {
             val project = newProject(emptyMap())
             try {
                 val result =
@@ -57,6 +57,7 @@ class KumlPluginTest :
                 result.output shouldContain "kumlRender"
                 result.output shouldContain "kumlGenerate"
                 result.output shouldContain "kumlValidate"
+                result.output shouldContain "kumlTransform"
             } finally {
                 project.deleteRecursively()
             }

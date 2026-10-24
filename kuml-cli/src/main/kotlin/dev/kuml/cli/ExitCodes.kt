@@ -112,6 +112,14 @@ internal object ExitCodes {
      */
     internal const val FORMAT_NOT_AVAILABLE: Int = 24
 
+    // ── `kuml transform` / `kuml generate` multi-script mode (kUML#10) ──────
+
+    /**
+     * Several scripts could not be merged into one model: two declarations of the same entity
+     * (same `«Entity».tableName`) are irreconcilable. Nothing is written.
+     */
+    internal const val MODEL_MERGE_CONFLICT: Int = 18
+
     // ── `kuml plugin` (V3.0.29) ──────────────────────────────────────────────────
 
     /** Plugin ID not found in [dev.kuml.plugin.loader.registry.PluginRegistry]. */

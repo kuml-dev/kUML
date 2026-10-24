@@ -3,6 +3,8 @@ package dev.kuml.gradle
 import dev.kuml.codegen.api.CodeGenRegistry
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.gradle.internal.GradlePipeline
+import dev.kuml.gradle.internal.MergedModelLoader
+import dev.kuml.gradle.internal.ScriptDiscovery
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
@@ -47,9 +49,19 @@ public abstract class KumlGenerateTask
         @get:Input
         public abstract val options: MapProperty<String, String>
 
+        /** When `true`, all scripts are merged into one model and the generator runs once on it. */
+        @get:Input
+        public abstract val mergeScripts: Property<Boolean>
+
+        /** Name of the merged model (only used with [mergeScripts]). */
+        @get:Input
+        public abstract val modelName: Property<String>
+
         init {
             group = "kuml"
             description = "Generiere Code aus *.kuml.kts-Skripten (Kotlin/Java/SQL)."
+            mergeScripts.convention(false)
+            modelName.convention("merged")
         }
 
         @TaskAction
@@ -75,9 +87,39 @@ public abstract class KumlGenerateTask
                     options.get().forEach { (k, v) -> put(k, v) }
                 }
 
-            val scripts = src.walkTopDown().filter { it.isFile && it.name.endsWith(".kuml.kts") }.toList()
+            val scripts =
+                src
+                    .walkTopDown()
+                    .filter { it.isFile && it.name.endsWith(".kuml.kts") }
+                    .sortedBy { it.relativeTo(src).invariantSeparatorsPath }
+                    .toList()
             if (scripts.isEmpty()) {
                 logger.warn("kumlGenerate: no *.kuml.kts under '{}'.", src.path)
+                return
+            }
+
+            if (mergeScripts.get()) {
+                val merged =
+                    MergedModelLoader.load(
+                        scripts = ScriptDiscovery.discover(sourceDir = src),
+                        skipNonUml = true,
+                        mergedName = modelName.get(),
+                        onSkip = {
+                            logger.warn(
+                                "kumlGenerate: mergeScripts only generates from UML class scripts; " +
+                                    "skipping non-UML-class script '{}' (ERM scripts are not generated in merge mode)",
+                                it,
+                            )
+                        },
+                    )
+                if (merged == null) {
+                    logger.warn("kumlGenerate: no UML class scripts to generate from.")
+                    return
+                }
+                val written = gen.generate(diagram = merged.diagram, outputDir = out, options = opts)
+                logger.lifecycle(
+                    "kumlGenerate: merged ${merged.scriptCount} script(s) -> ${written.size} file(s) in ${out.path} using '$name'",
+                )
                 return
             }
 

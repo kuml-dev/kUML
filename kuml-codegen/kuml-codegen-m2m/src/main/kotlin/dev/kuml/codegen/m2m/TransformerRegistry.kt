@@ -49,6 +49,17 @@ public object TransformerRegistry {
             register(it.transformer())
         }
     }
+
+    /**
+     * Like [loadFromClasspath], but discovers providers through the given [classLoader] instead of
+     * the thread-context class loader. Needed where the context class loader does not see the
+     * providers (for example inside a Gradle plugin's isolated class loader).
+     */
+    public fun loadFromClasspath(classLoader: ClassLoader) {
+        ServiceLoader.load(KumlTransformerProvider::class.java, classLoader).forEach {
+            register(it.transformer())
+        }
+    }
 }
 
 /**

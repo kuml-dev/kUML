@@ -29,6 +29,7 @@ import org.gradle.api.Project
  * |-----------------|---------------|---------------------------------------------------|
  * | `kumlRender`    | `kuml`        | Rendert `*.kuml.kts` zu SVG/PNG.                  |
  * | `kumlGenerate`  | `kuml`        | Generiert Code via `CodeGenRegistry`.             |
+ * | `kumlTransform` | `kuml`        | Merged alle UML-Klassen-Skripte, wendet Transformer an. |
  * | `kumlValidate`  | `verification`| Prüft OCL-Invarianten; hängt an `check`.          |
  *
  * Defaults werden über die [KumlExtension] als Conventions an die Tasks
@@ -58,6 +59,17 @@ public class KumlPlugin : Plugin<Project> {
             t.generator.convention(ext.generator)
             t.packageName.convention(ext.generatePackage)
             t.options.convention(ext.generateOptions)
+            t.mergeScripts.convention(ext.mergeScripts)
+            t.modelName.convention(ext.transformModelName)
+        }
+
+        project.tasks.register("kumlTransform", KumlTransformTask::class.java) { t ->
+            t.sourceDir.convention(ext.sourceDir)
+            t.outputDir.convention(ext.outputDir.map { it.dir("transform") })
+            t.transformer.convention(ext.transformer)
+            t.options.convention(ext.transformOptions)
+            t.modelName.convention(ext.transformModelName)
+            t.skipNonUmlScripts.convention(ext.skipNonUmlScripts)
         }
 
         val validate =

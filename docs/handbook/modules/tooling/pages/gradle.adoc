@@ -47,6 +47,11 @@ kuml {
     generateOptions.put("java-style", "records")
     generateOptions.put("sql-dialect", "postgres")
     failOnValidationViolations.set(true)      // fail the build on OCL violations
+    transformer.set("uml-to-exposed-via-erm") // kumlTransform: transformer id (no default)
+    transformOptions.put("idType", "uuid")    // kumlTransform: transformer context options
+    transformModelName.set("merged")          // name of the merged model
+    skipNonUmlScripts.set(false)              // kumlTransform: skip C4/SysML scripts instead of failing
+    mergeScripts.set(false)                   // kumlGenerate: merge all scripts into one model first
 }
 ----
 
@@ -111,6 +116,46 @@ tasks.named<JavaCompile>("compileJava") {
 ----
 
 For Kotlin source, point `srcDirs` of the `main` source set at the same directory.
+
+By default the generator runs once per script. With `mergeScripts.set(true)` all UML class scripts are merged into
+one model first (see <<_kumltransform,`kumlTransform`>> for the merge rules) and the generator runs once on it.
+Scripts that are not UML class diagrams are skipped.
+
+[#_kumltransform]
+== `kumlTransform`
+
+[source,bash]
+----
+./gradlew kumlTransform
+----
+
+Merges all `*.kuml.kts` UML class scripts below `sourceDir` into one model and applies the configured
+`transformer` once. Stub entities that scripts declare only to reference a foreign entity are removed. The merge
+rules are the same as for xref:cli.adoc#_multi_script_models[`kuml transform` with several scripts]; a conflict
+fails the build with a message that names the table, both classes, both scripts and the attributes.
+
+[source,kotlin]
+----
+kuml {
+    sourceDir.set(file("src/main/kuml"))
+    transformer.set("uml-to-exposed-via-erm")
+    transformOptions.putAll(mapOf("idType" to "uuid", "package" to "com.example.db.generated"))
+}
+
+// Wires the output as a source directory and adds the task dependency.
+kotlin.sourceSets.named("main") { kotlin.srcDir(tasks.named("kumlTransform")) }
+----
+
+* Output goes to `outputDir/transform/` by default. The directory is cleaned before every run, so outputs of
+  removed scripts disappear. `outputDir` must not be, lie inside, or contain `sourceDir`.
+* Scripts are processed in sorted order of their path relative to `sourceDir`; the result is deterministic.
+* The task is cacheable and compatible with the configuration cache.
+* Limits: at most 1000 scripts and 1 MiB per script by default (`maxScripts`, `maxScriptBytes` on the task).
+  Symbolic links that lead out of `sourceDir` fail the build.
+* A script that is not a UML class diagram (for example C4) fails the build and names the file. Set
+  `skipNonUmlScripts.set(true)` to skip such scripts instead.
+* The Exposed transformers (`uml-to-exposed-via-erm`, `uml-to-exposed`) ship with the plugin. Compiling the
+  generated Exposed code needs the Exposed libraries on your own compile classpath.
 
 == `kumlValidate`
 

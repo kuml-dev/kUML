@@ -5,12 +5,14 @@ import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.file
 import dev.kuml.bpmn.model.BpmnProcess
 import dev.kuml.codegen.m2m.GeneratedFile
+import dev.kuml.codegen.m2m.GeneratedFileWriter
 import dev.kuml.codegen.m2m.TransformContext
 import dev.kuml.codegen.m2m.TransformResult
 import dev.kuml.codegen.m2m.TransformerRegistry
@@ -18,6 +20,8 @@ import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.transform.umlerm.UmlModelMergeException
+import dev.kuml.transform.umlerm.UmlModelMerger
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -28,20 +32,26 @@ import kotlin.script.experimental.api.ScriptDiagnostic
 /**
  * The `transform` subcommand.
  *
- * Evaluates a `*.kuml.kts` script, extracts the UML diagram, and applies the
+ * Evaluates one or more `*.kuml.kts` scripts, extracts the UML diagram, and applies the
  * selected M2M/M2T transformer to produce output files (or a transformed model).
+ *
+ * With several scripts, their UML class diagrams are merged into one model first
+ * ([UmlModelMerger]; stub entities are de-duplicated by `«Entity».tableName`) and the transformer
+ * runs once on the merged model. Exit code [ExitCodes.MODEL_MERGE_CONFLICT] signals an
+ * irreconcilable merge conflict.
  *
  * Usage:
  * ```
- * kuml transform <script> --transformer uml-to-jpa --output build/jpa-gen/
+ * kuml transform <script>... --transformer uml-to-jpa --output build/jpa-gen/
  * kuml transform --list-transformers
  * ```
  *
  * V2.0.21 — first production release. Opens the M2M transformation track.
  */
 internal class TransformCommand : CliktCommand(name = "transform") {
-    private val input by argument("script", help = "Path to *.kuml.kts script")
+    private val inputs by argument("script", help = "One or more *.kuml.kts scripts; several are merged into one model")
         .file(mustExist = true, canBeDir = false)
+        .multiple(required = true)
 
     private val transformerOption by option("--transformer", "-t")
         .help("Transformer id (e.g. uml-to-jpa). Required unless --list-transformers is set.")
@@ -65,7 +75,14 @@ internal class TransformCommand : CliktCommand(name = "transform") {
     private val packageName by option("--package")
         .help("Override the output package name (transformer-specific)")
 
-    override fun help(context: Context): String = "Apply an M2M or M2T transformer to a kUML script."
+    private val rawOptions by option("--options")
+        .help("Transformer context options as comma-separated key=value pairs, e.g. idType=uuid")
+
+    private val modelName by option("--model-name")
+        .help("Name of the merged model (multi-script mode only, default: ${UmlModelMerger.DEFAULT_MERGED_NAME})")
+
+    override fun help(context: Context): String =
+        "Apply an M2M or M2T transformer to one or more kUML scripts (several are merged into one model)."
 
     override fun run() {
         // ── List transformers ─────────────────────────────────────────────────
@@ -103,6 +120,16 @@ internal class TransformCommand : CliktCommand(name = "transform") {
         // ── Load transformers ─────────────────────────────────────────────────
         TransformerRegistry.loadFromClasspath()
 
+        // ── Context options (--options plus the --package shorthand) ──────────
+        val ctxOptions = resolveContextOptions()
+        val ctx = TransformContext(options = ctxOptions)
+
+        if (inputs.size > 1) {
+            runMultiScript(transformerId = transformerId, outDir = outDir, ctx = ctx)
+            return
+        }
+        val input = inputs.single()
+
         // ── Evaluate the script ───────────────────────────────────────────────
         val evalResult = KumlScriptHost.eval(file = input)
         val scriptErrors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
@@ -117,14 +144,6 @@ internal class TransformCommand : CliktCommand(name = "transform") {
                     System.err.println("Script evaluation produced no result")
                     throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                 }
-
-        val ctx =
-            TransformContext(
-                options =
-                    buildMap {
-                        packageName?.let { put("package", it) }
-                    },
-            )
 
         // ── Dispatch: BPMN source requires extractAny → ExtractedDiagram.Bpmn ─
         val isBpmnSource =
@@ -183,12 +202,7 @@ internal class TransformCommand : CliktCommand(name = "transform") {
         // ── Transform ─────────────────────────────────────────────────────────
         when (val result = transformResult) {
             is TransformResult.Success -> {
-                val dir = File(outDir).also { it.mkdirs() }
-                for (file in result.output) {
-                    val out = File(dir, file.relativePath)
-                    out.parentFile?.mkdirs()
-                    out.writeText(file.content)
-                }
+                writeOutput(output = result.output as Any?, transformerId = transformerId, outDir = outDir, rejectDuplicates = false)
                 echo("Generated ${result.output.size} file(s) in $outDir")
                 traceOut?.let { path ->
                     val traceJson = Json.encodeToString(TraceJson.from(result.trace))
@@ -200,6 +214,87 @@ internal class TransformCommand : CliktCommand(name = "transform") {
                 for (e in result.errors) echo("Error: ${e.message}", err = true)
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
+        }
+    }
+
+    // ── Multi-script mode ────────────────────────────────────────────────────
+
+    private fun runMultiScript(
+        transformerId: String,
+        outDir: String,
+        ctx: TransformContext,
+    ) {
+        if (fromFormat != null || toFormat != null || transformerId == "bpmn-to-uml-activity") {
+            echo("Multi-script mode merges UML class diagrams only; --from/--to and BPMN transformers need exactly one script.", err = true)
+            throw ProgramResult(ExitCodes.USAGE)
+        }
+        val transformer =
+            TransformerRegistry.get<KumlDiagram, List<GeneratedFile>>(transformerId)
+                ?: throw UsageError(
+                    "Unknown transformer: '$transformerId'. Use --list-transformers to see available transformers.",
+                )
+        val sources = MultiScriptLoader.loadUmlClassSources(files = inputs, echoErr = { echo(it, err = true) })
+        val merged =
+            try {
+                UmlModelMerger.merge(sources = sources, mergedName = modelName ?: UmlModelMerger.DEFAULT_MERGED_NAME)
+            } catch (e: UmlModelMergeException) {
+                echo("Error: ${e.message}", err = true)
+                throw ProgramResult(ExitCodes.MODEL_MERGE_CONFLICT)
+            }
+        val transformed =
+            try {
+                transformer.transform(source = merged, ctx = ctx)
+            } catch (e: ClassCastException) {
+                // The registry lookup is an unchecked cast; e.g. `erm-to-exposed` expects an ErmModel.
+                echo(
+                    "Transformer '$transformerId' does not accept a merged UML class diagram as input " +
+                        "(${e.message}). Multi-script mode needs a transformer that consumes UML class diagrams, " +
+                        "for example 'uml-to-exposed-via-erm'.",
+                    err = true,
+                )
+                throw ProgramResult(ExitCodes.USAGE)
+            }
+        when (val result = transformed) {
+            is TransformResult.Success -> {
+                writeOutput(output = result.output as Any?, transformerId = transformerId, outDir = outDir, rejectDuplicates = true)
+                echo("Merged ${inputs.size} script(s) into one model; generated ${result.output.size} file(s) in $outDir")
+                traceOut?.let { path ->
+                    File(path).writeText(Json.encodeToString(TraceJson.from(result.trace)))
+                    echo("Trace written to $path")
+                }
+            }
+            is TransformResult.Failure -> {
+                for (e in result.errors) echo("Error: ${e.message}", err = true)
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
+        }
+    }
+
+    private fun resolveContextOptions(): Map<String, String> {
+        val parsed = CliOptions.parseKeyValuePairs(rawOptions)
+        val pkg = packageName
+        if (pkg != null && parsed["package"] != null && parsed["package"] != pkg) {
+            echo("--package '$pkg' conflicts with --options package='${parsed["package"]}'.", err = true)
+            throw ProgramResult(ExitCodes.USAGE)
+        }
+        return buildMap {
+            putAll(parsed)
+            pkg?.let { put("package", it) }
+        }
+    }
+
+    private fun writeOutput(
+        output: Any?,
+        transformerId: String,
+        outDir: String,
+        rejectDuplicates: Boolean,
+    ) {
+        try {
+            val files = GeneratedFileWriter.requireFiles(output = output, transformerId = transformerId)
+            GeneratedFileWriter.write(files = files, outputDir = File(outDir), rejectDuplicates = rejectDuplicates)
+        } catch (e: IllegalArgumentException) {
+            echo("Error: ${e.message}", err = true)
+            throw ProgramResult(ExitCodes.SCRIPT_ERROR)
         }
     }
 

@@ -19,6 +19,9 @@ import javax.inject.Inject
  *     generatePackage.set("com.example.domain")
  *     generateOptions.put("java-style", "records")
  *     failOnValidationViolations.set(true)
+ *     transformer.set("uml-to-exposed-via-erm")       // kumlTransform
+ *     transformOptions.put("idType", "uuid")
+ *     mergeScripts.set(true)                           // kumlGenerate: one merged model
  * }
  * ```
  *
@@ -60,6 +63,25 @@ public abstract class KumlExtension
         /** Weitere Codegen-Optionen (z.B. `java-style=records`). */
         public val generateOptions: org.gradle.api.provider.MapProperty<String, String> =
             objects.mapProperty(String::class.java, String::class.java)
+
+        /** Transformer id for `kumlTransform` (for example `uml-to-exposed-via-erm`). No default. */
+        public val transformer: Property<String> = objects.property(String::class.java)
+
+        /** Context options for `kumlTransform` (for example `idType=uuid`, `package=com.example.db`). */
+        public val transformOptions: org.gradle.api.provider.MapProperty<String, String> =
+            objects.mapProperty(String::class.java, String::class.java)
+
+        /** Name of the merged model in `kumlTransform` and merged `kumlGenerate`. Default `"merged"`. */
+        public val transformModelName: Property<String> = objects.property(String::class.java).convention("merged")
+
+        /** `kumlTransform`: skip scripts that are not UML class diagrams instead of failing. Default `false`. */
+        public val skipNonUmlScripts: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+
+        /**
+         * `kumlGenerate`: treat all scripts of the source directory as one model (merge, then generate
+         * once) instead of generating per script. Default `false`.
+         */
+        public val mergeScripts: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 
         /** Bei `kumlValidate`: bei Violations den Build mit Fehler abbrechen. Default `true`. */
         public val failOnValidationViolations: Property<Boolean> =

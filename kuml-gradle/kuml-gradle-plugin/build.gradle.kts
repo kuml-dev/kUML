@@ -39,6 +39,12 @@ dependencies {
     implementation(project(":kuml-metamodel:kuml-metamodel-sysml2")) // V2.0.6 — SysML 2 BDD/IBD in gradle pipeline
     implementation(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.6 — BPMN in gradle pipeline
     implementation(project(":kuml-codegen:kuml-codegen-api"))
+    // kUML#10 — kumlTransform: transformer registry, multi-script merge, shared file writer.
+    implementation(project(":kuml-codegen:kuml-codegen-m2m"))
+    implementation(project(":kuml-codegen:kuml-transform-uml-to-erm"))
+    // Scripts import `ermMappingProfile`; script compilation sees the plugin class loader's classpath.
+    implementation(project(":kuml-profile:kuml-profile-erm"))
+    runtimeOnly(project(":kuml-codegen:kuml-codegen-m2m-exposed"))
     // Built-in code generators discovered via ServiceLoader at runtime.
     runtimeOnly(project(":kuml-codegen:kuml-gen-kotlin"))
     runtimeOnly(project(":kuml-codegen:kuml-gen-java"))
@@ -65,8 +71,9 @@ gradlePlugin {
             displayName = "kUML Gradle Plugin"
             description =
                 "Renders *.kuml.kts diagrams (UML & C4) to SVG/PNG, generates code " +
-                "(Kotlin/Java/SQL) and validates OCL constraints from the Gradle build."
-            tags = listOf("kuml", "uml", "c4", "documentation", "diagram", "codegen", "ocl")
+                "(Kotlin/Java/SQL), merges several scripts into one model for M2M transformers " +
+                "and validates OCL constraints from the Gradle build."
+            tags = listOf("kuml", "uml", "c4", "documentation", "diagram", "codegen", "ocl", "transform")
         }
     }
 }

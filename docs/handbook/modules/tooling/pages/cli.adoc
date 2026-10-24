@@ -72,7 +72,9 @@ kuml generate --input <script> [options]
 
 Options:
 
-* `-i, --input <script>` — path to the `*.kuml.kts` script (classic mode)
+* `-i, --input <script>` — path to the `*.kuml.kts` script (classic mode). Repeat the option to merge several
+  UML class scripts into one model first (same rules as xref:#_multi_script_models[`kuml transform`]); the
+  generator then runs once on the merged model. Several ERM scripts are not supported.
 * `-o, --output <dir>` — output directory (created if missing)
 * `--plugin <name>` — generator name (`kotlin`, `java`, `sql`, `exposed`, or custom)
 * `--package <fqn>` — target package (Java/Kotlin)
@@ -202,7 +204,7 @@ script and writes the result into an output directory.
 
 [source,bash]
 ----
-kuml transform [options] <script>
+kuml transform [options] <script>...
 ----
 
 Options:
@@ -212,6 +214,9 @@ Options:
 * `-o`, `--output <dir>` — output directory for the generated files
 * `--from bpmn|uml-activity`, `--to uml-activity|bpmn` — shorthand for the two BPMN bridge transformers
 * `--package <name>` — override the output package name (transformer-specific)
+* `--options key=value,key=value` — transformer context options, for example `idType=uuid`. `--package` is
+  shorthand for `package=`; giving both with different values is a usage error.
+* `--model-name <name>` — name of the merged model (several scripts only, default `merged`)
 * `--trace-out <file>` — write the transform trace as JSON
 
 Built-in transformers: `uml-to-jpa`, `uml-to-rest` (OpenAPI 3.0), `uml-to-k8s`, `uml-to-docker`,
@@ -230,6 +235,49 @@ kuml transform process.kuml.kts --from bpmn --to uml-activity --output out/
 ----
 
 See xref:reference:sysml2.adoc[SysML 2 DSL Reference] for the SysML 2 transformer targets.
+
+[#_multi_script_models]
+=== Multi-script models
+
+Large models are often split across several scripts. A script that needs an entity owned by another script
+declares a minimal stub of it (at least the id) so that associations can point at it. Passing several scripts
+merges their UML class diagrams into one model, removes those stubs, and runs the transformer once:
+
+[source,bash]
+----
+kuml transform 00-members.kuml.kts 10-orders.kuml.kts 20-tags.kuml.kts \
+    --transformer uml-to-exposed-via-erm --options idType=uuid --package com.example.db --output gen/
+----
+
+Merge rules:
+
+* Scripts are processed in sorted order of their canonical path, so the result does not depend on the order of the
+  arguments.
+* Classes with an `«Entity»` stereotype and a non-blank `tableName` tag are grouped by that tag. The declaration
+  with the most attributes is canonical; on a tie the first one in sorted script order wins.
+* Every other declaration of the group must only have attributes the canonical one also has. Otherwise the merge
+  fails with exit code 18, naming the table, both classes, both scripts and the offending attributes. Nothing is
+  written.
+* Classes without that tag and interfaces are de-duplicated by name (per kind) across scripts with the same rule:
+  the declaration with the most members (attributes plus operations) is canonical, and every declaration from
+  another script may only have members the canonical one has, otherwise exit code 18. Same-named declarations
+  inside one script are left alone. This also applies to `kuml generate` with several `-i` scripts, so that a stub
+  never overwrites the full declaration in the generated file.
+* Enumerations are de-duplicated by name: the declaration with the most literals is canonical, and every other
+  declaration may only have literals the canonical one has. Otherwise the merge fails with exit code 18.
+* References to removed stubs (association ends, generalizations, realizations, dependencies) are redirected to the
+  canonical class. Associations that become identical afterwards (same unordered pairs of `(type, role)` ends) are
+  kept once. If such duplicates from different scripts differ in name, applied stereotypes (for example a foreign
+  key with `onDelete`), multiplicity, navigability or aggregation, the merge fails with exit code 18 instead of
+  silently picking one.
+* Output order: the elements of all scripts in sorted order (the canonical declaration keeps its own position),
+  followed by all associations. The merged model is therefore equivalent to a single script that contains the
+  same elements in this order without the stubs, and generates byte-identical output.
+
+Multi-script mode accepts UML class diagrams only. A BPMN transformer, `--from`/`--to`, a C4 or ERM script, a
+repeated file or more than 1000 scripts is rejected. The transformer must consume UML class diagrams (for example
+`uml-to-exposed-via-erm` or `uml-to-jpa`); one that needs another input type, such as `erm-to-exposed`, is rejected
+with a usage error. With a single script the behaviour is unchanged.
 
 == `kuml version`
 
@@ -660,6 +708,11 @@ verbosity.
 
 | 17
 | `kuml reverse --format sql`: the DDL could not be parsed.
+
+| 18
+| `kuml transform` / `kuml generate` with several scripts: two declarations of the same entity
+  (same `«Entity».tableName`), class, interface or enumeration, or two duplicate associations, cannot be merged.
+  Nothing is written.
 
 | 20 / 21
 | `kuml run`: the requested port is busy / `--restore` was rejected by the migration policy.

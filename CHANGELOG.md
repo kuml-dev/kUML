@@ -27,6 +27,27 @@ examples that no longer compile). The handbook replaces them: Quick Start, Insta
 
 ### Added
 
+**Multi-script models: merge several `.kuml.kts` scripts into one model (#10)**
+
+Large models split across scripts needed stub entities, and generating from the plain union produced colliding
+declarations. `UmlModelMerger` (module `kuml-transform-uml-to-erm`) now merges UML class diagrams into one model:
+stubs are de-duplicated by `«Entity».tableName` (the declaration with the most attributes wins, ties go to the
+first script in sorted order); plain classes, interfaces and enumerations are de-duplicated by name across scripts
+with the same subset rule, references are redirected, identical associations are kept once, and irreconcilable
+declarations (including associations that differ in name, stereotypes, multiplicity, navigability or aggregation)
+fail with a message naming the declaration, scripts and offending members. The result does not depend on the
+order of the inputs, and a merged model generates byte-identical output to the equivalent single script.
+
+* `kuml transform <script>...` and `kuml generate -i a -i b ...` accept several scripts. `kuml transform` gains
+  `--options key=value,...` (for example `idType=uuid`) and `--model-name`. A merge conflict exits with the new
+  exit code 18, and a transformer that does not consume UML class diagrams is rejected with a clear message. Single-script runs are unchanged.
+* Gradle plugin: new task `kumlTransform` (extension: `transformer`, `transformOptions`, `transformModelName`,
+  `skipNonUmlScripts`) merges all scripts of `sourceDir` and applies a transformer; build-cache and
+  configuration-cache compatible. `kumlGenerate` gains `mergeScripts`, and now processes scripts in sorted order.
+* `GeneratedFileWriter` (module `kuml-codegen-m2m`) is the shared writer for generated files. It rejects absolute
+  paths and paths that leave the output directory, which now also applies to single-script `kuml transform`.
+* `TransformerRegistry.loadFromClasspath(classLoader)` loads providers through an explicit class loader.
+
 **kUML Desktop: shortcuts for New, Open and Save As**
 
 File ▸ New (⌘N / Ctrl+N), Open… (⌘O / Ctrl+O) and Save As… (⇧⌘S / Ctrl+Shift+S) now have keyboard
