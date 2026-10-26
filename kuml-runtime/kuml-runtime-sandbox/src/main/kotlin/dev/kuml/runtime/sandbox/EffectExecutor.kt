@@ -86,6 +86,7 @@ public class EffectExecutor(
         event: Event,
     ) {
         val key = effect.receiver.joinToString(".")
+        if (policy.skipAbstractActions && key !in policy.allowedFunctions) return
         val context = buildContext(instance = instance, event = event)
         val evaluatedArgs = effect.args.map { evaluateExpr(expr = it, context = context) }
 
@@ -181,6 +182,7 @@ public class EffectExecutor(
         val context = buildContext(instance = instance, event = event)
         // For function calls in expression position, also enforce the whitelist
         if (expr is FunctionCall && expr.name !in policy.allowedFunctions) {
+            if (policy.skipAbstractActions) return
             throw SandboxException.DisallowedFunction(expr.name)
         }
         evaluateExpr(expr = expr, context = context)

@@ -1,10 +1,17 @@
 package dev.kuml.runtime
 
+import kotlinx.serialization.builtins.ListSerializer
 import java.io.File
 
-/** Lädt eine Event-Liste aus einer JSON-Datei (Schema `kuml.events.v1`). */
+/**
+ * Lädt eine Event-Liste aus einer JSON-Datei (Schema `kuml.events.v1`).
+ * Akzeptiert zusätzlich ein nacktes JSON-Array von Events (`[{"name":"confirm"}]`).
+ */
 public fun loadEvents(file: File): List<Event> {
     val raw = file.readText()
+    if (raw.trimStart().startsWith("[")) {
+        return KumlRuntimeJson.decodeFromString(ListSerializer(Event.serializer()), raw)
+    }
     val ef = KumlRuntimeJson.decodeFromString(EventFile.serializer(), raw)
     require(ef.schema == EventFile.SCHEMA) {
         "Unexpected events schema '${ef.schema}', expected '${EventFile.SCHEMA}'"

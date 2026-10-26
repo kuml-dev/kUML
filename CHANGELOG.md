@@ -8,6 +8,16 @@ All notable changes to this project are documented here. Format follows
 
 ### Fixed
 
+**Desktop simulator: modelled actions such as `validate()` no longer abort the start**
+The sandbox rejected every function outside its allowlist, so shipped examples like "Order Lifecycle"
+(`entry = "validate()"`, `effect = "notifyCustomer()"`) failed with "Function 'validate' is not in the
+sandbox allowlist". The Desktop now treats a bare call of an unknown function as an abstract action:
+it is recorded in the trace and skipped (new `SandboxPolicy.skipAbstractActions`). Unknown functions
+inside expressions or assignments, and all limits, still fail.
+
+**Events file: `kuml simulate` also accepts a bare JSON array**
+The handbook showed `[{"name":"confirm"}]`, but only `{"events":[...]}` was accepted. Both forms load now.
+
 **Animated sequence diagrams: the message dot drifted away from its arrow**
 
 In sequence diagrams with combined fragments (`alt`, `opt`, `loop`, …) the animated dot ran above the painted

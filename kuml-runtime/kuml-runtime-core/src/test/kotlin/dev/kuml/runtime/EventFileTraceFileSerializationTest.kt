@@ -11,6 +11,14 @@ import java.nio.file.Files
 class EventFileTraceFileSerializationTest :
     FunSpec({
 
+        test("loadEvents accepts a bare JSON array as well as the wrapped schema") {
+            val dir = Files.createTempDirectory("kuml-events")
+            val bare = dir.resolve("bare.json").toFile().apply { writeText("""[{"name":"confirm"},{"name":"ship"}]""") }
+            val wrapped = dir.resolve("wrapped.json").toFile().apply { writeText("""{"events":[{"name":"confirm"}]}""") }
+            loadEvents(bare).map { it.name } shouldBe listOf("confirm", "ship")
+            loadEvents(wrapped).map { it.name } shouldBe listOf("confirm")
+        }
+
         test("EventFile JSON roundtrip") {
             val original =
                 EventFile(

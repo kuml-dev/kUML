@@ -327,7 +327,12 @@ internal class SimulationSession private constructor(
                 is SimulationPrepareResult.Unsupported -> SimulationStartResult.Unsupported(prepared.message)
                 is SimulationPrepareResult.Failed -> SimulationStartResult.Failed(prepared.message)
                 is SimulationPrepareResult.Ready -> {
-                    val policy = SandboxPolicy(guardTimeoutMs = SandboxPolicy.DEFAULT_GUARD_TIMEOUT_MS)
+                    val policy =
+                        SandboxPolicy(
+                            guardTimeoutMs = SandboxPolicy.DEFAULT_GUARD_TIMEOUT_MS,
+                            // Modelled actions like validate() have no implementation; record them, don't abort.
+                            skipAbstractActions = true,
+                        )
                     val guards = TimeLimitedGuardEvaluator(delegate = OclGuardEvaluator(), policy = policy)
                     try {
                         val effects = SandboxEffectInvoker(EffectExecutor(policy))

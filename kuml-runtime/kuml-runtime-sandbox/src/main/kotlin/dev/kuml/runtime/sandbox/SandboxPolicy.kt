@@ -18,6 +18,16 @@ public data class SandboxPolicy(
     public val maxEffectsPerAction: Int = DEFAULT_MAX_EFFECTS_PER_ACTION,
     /** Maximum nesting depth of any single expression or effect AST. */
     public val maxExpressionDepth: Int = DEFAULT_MAX_EXPRESSION_DEPTH,
+    /**
+     * When `true`, a bare call statement of a function that is not on the allowlist
+     * (e.g. `validate()`) is treated as an *abstract action*: it has no executable
+     * implementation, so it is skipped (the runtime still records it in the trace)
+     * instead of aborting with [SandboxException.DisallowedFunction].
+     *
+     * Only whole call statements are affected. Unknown functions inside expressions
+     * or assignments (`x = evil()`), and every other limit, still fail.
+     */
+    public val skipAbstractActions: Boolean = false,
 ) {
     public companion object {
         public const val DEFAULT_GUARD_TIMEOUT_MS: Long = 100L

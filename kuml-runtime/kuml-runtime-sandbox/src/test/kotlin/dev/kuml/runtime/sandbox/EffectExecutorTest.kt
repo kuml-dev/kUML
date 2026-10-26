@@ -44,6 +44,20 @@ class EffectExecutorTest :
             ex.name shouldBe "log.info"
         }
 
+        test("skipAbstractActions skips a bare unknown call and keeps executing the rest") {
+            val lenient = EffectExecutor(SandboxPolicy(skipAbstractActions = true))
+            val instance = emptyInstance()
+            lenient.execute(actionBody = "validate(); n = 2", instance = instance, event = noEvent)
+            instance.variables["n"] shouldBe 2L
+        }
+
+        test("skipAbstractActions still rejects unknown functions inside an assignment") {
+            val lenient = EffectExecutor(SandboxPolicy(skipAbstractActions = true))
+            shouldThrow<SandboxException.DisallowedFunction> {
+                lenient.execute(actionBody = "x = evil(1)", instance = emptyInstance(), event = noEvent)
+            }
+        }
+
         test("reserved variable name throws ReservedVariableName") {
             val instance = emptyInstance()
             shouldThrow<SandboxException.ReservedVariableName> {

@@ -43,6 +43,10 @@ the panel's left edge to resize it (280 to 520 dp; the width is not saved). *Too
 inspector* (or the panel button in the simulation bar) shows or hides the panel; hidden, only the
 trace remains.
 
+Actions without an implementation, such as `entry = "validate()"` or `effect = "notifyCustomer()"`,
+are _abstract_: the simulator records them in the trace and carries on. Guards and assignments still
+run in the sandbox, which accepts only its allowlisted functions (`log.*`, `math.*`, `str.*`, ...).
+
 === Inspector
 
 The inspector lists the transitions that leave the active states, innermost state first, followed by

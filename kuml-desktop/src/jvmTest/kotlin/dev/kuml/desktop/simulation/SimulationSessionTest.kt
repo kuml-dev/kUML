@@ -131,6 +131,31 @@ class SimulationSessionTest :
             }
         }
 
+        test("Abstract actions (entry validate(), effect notifyCustomer()) do not block the start") {
+            val orderScript =
+                """
+                stateDiagram(name = "Order Lifecycle") {
+                    val start = initialState()
+                    val draft = state(name = "Draft") { entry = "validate()" }
+                    val confirmed = state(name = "Confirmed")
+                    transition(start, draft)
+                    transition(draft, confirmed) {
+                        trigger = "confirm()"
+                        effect = "notifyCustomer()"
+                    }
+                }
+                """.trimIndent()
+            val result = SimulationSession.start(script = orderScript, themeName = "plain")
+            result.shouldBeInstanceOf<SimulationStartResult.Started>()
+            val session = result.session
+            try {
+                session.send(eventName = "confirm").shouldBeInstanceOf<StepResult.Transitioned>()
+                session.activeVertexIds() shouldContain session.vertexIdNamed("Confirmed")
+            } finally {
+                session.close()
+            }
+        }
+
         test("Happy path SysML-2 STM: Started, vertex IDs from the SVG match the runtime") {
             val result = SimulationSession.start(script = sysml2Script, themeName = "plain")
             result.shouldBeInstanceOf<SimulationStartResult.Started>()
