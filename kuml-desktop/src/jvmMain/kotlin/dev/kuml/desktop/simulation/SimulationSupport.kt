@@ -12,9 +12,8 @@ import dev.kuml.uml.UmlVertex
 // V3.x — Live-Simulation von Zustandsautomaten im Editor.
 //
 // Pure, Compose-free helper functions for [SimulationSession] / [SimulationBar]. Kept separate
-// so they are unit-testable without a Compose runtime — `kuml-desktop` has no Compose UI test
-// harness (see [dev.kuml.desktop.MainWindowRenderTriggerTest] and this module's other
-// pure-function extractions for the same reasoning).
+// so they are unit-testable without a Compose runtime (the Compose parts have their own
+// `runComposeUiTest` specs; logic that needs no UI stays here, in plain functions).
 
 /** `true` only for UML [DiagramType.STATE] and SysML-2 [StmDiagram] — the two simulatable kinds. */
 internal fun isSimulatable(extracted: ExtractedDiagram): Boolean =
@@ -45,15 +44,8 @@ internal fun allEventNames(model: UmlStateMachine): List<String> {
     return seen.toList()
 }
 
-/**
- * Recursively collects [activeVertexIds] plus every composite-state ANCESTOR of each active
- * vertex (via [UmlState.substates]) — a transition declared on a composite state is reachable
- * from any of its currently active substates.
- */
-internal fun withAncestors(
-    model: UmlStateMachine,
-    activeVertexIds: Set<String>,
-): Set<String> {
+/** Child to parent map over all vertices of [model], including nested [UmlState.substates]. */
+private fun parentMap(model: UmlStateMachine): Map<String, String> {
     val parentOf = mutableMapOf<String, String>()
 
     fun index(
@@ -66,15 +58,41 @@ internal fun withAncestors(
         }
     }
     index(model.vertices, null)
+    return parentOf
+}
 
-    val result = mutableSetOf<String>()
-    for (id in activeVertexIds) {
-        var cur: String? = id
-        while (cur != null) {
-            result += cur
-            cur = parentOf[cur]
-        }
+/** [vertexId] followed by its composite-state ancestors: innermost first, outermost last. */
+internal fun ancestorChain(
+    model: UmlStateMachine,
+    vertexId: String,
+): List<String> = ancestorChain(parentOf = parentMap(model), vertexId = vertexId)
+
+private fun ancestorChain(
+    parentOf: Map<String, String>,
+    vertexId: String,
+): List<String> {
+    val chain = mutableListOf<String>()
+    var cur: String? = vertexId
+    // The visited check guards against a (malformed) cyclic parent map.
+    while (cur != null && cur !in chain) {
+        chain += cur
+        cur = parentOf[cur]
     }
+    return chain
+}
+
+/**
+ * Recursively collects [activeVertexIds] plus every composite-state ANCESTOR of each active
+ * vertex (via [UmlState.substates]) — a transition declared on a composite state is reachable
+ * from any of its currently active substates.
+ */
+internal fun withAncestors(
+    model: UmlStateMachine,
+    activeVertexIds: Set<String>,
+): Set<String> {
+    val parentOf = parentMap(model)
+    val result = mutableSetOf<String>()
+    for (id in activeVertexIds) result += ancestorChain(parentOf = parentOf, vertexId = id)
     return result
 }
 

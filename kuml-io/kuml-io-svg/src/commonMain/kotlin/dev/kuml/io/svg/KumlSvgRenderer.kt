@@ -1444,6 +1444,54 @@ public object KumlSvgRenderer {
         )
     }
 
+    /** Explicit option wins; the theme token only fills in the DEFAULT. */
+    private fun resolveHighlightStroke(
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+    ): String =
+        if (options.highlightStrokeColor == SvgRenderOptions.DEFAULT_HIGHLIGHT_STROKE_COLOR) {
+            theme.colors.activeStateStroke?.toHex() ?: SvgRenderOptions.DEFAULT_HIGHLIGHT_STROKE_COLOR
+        } else {
+            options.highlightStrokeColor
+        }
+
+    /**
+     * Emits one hidden overlay path per id in [SvgRenderOptions.preparedHighlightEdgeIds]
+     * (`id="highlight-edge-<id>"`) so the desktop simulation can show the selected transition by a
+     * DOM patch. Must be called with the already widened [LayoutResult] and the same padding the
+     * edges were drawn with. A no-op when the option is empty, so static output stays unchanged.
+     */
+    private fun emitHighlightEdges(
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+        padding: Float,
+        builder: SvgBuilder,
+    ) {
+        if (options.preparedHighlightEdgeIds.isEmpty()) return
+        val stroke = resolveHighlightStroke(theme = theme, options = options)
+        for ((edgeId, route) in layoutResult.edges) {
+            if (edgeId.value !in options.preparedHighlightEdgeIds) continue
+            val (tagName, pathAttrs) = EdgePathBuilder.build(shiftRoute(route = route, dx = padding))
+            val attrs =
+                pathAttrs +
+                    mapOf(
+                        // SvgBuilder.tag escapes attribute values itself; escaping here too would double-escape and
+                        // make getElementById miss ids containing special characters.
+                        "id" to "highlight-edge-${edgeId.value}",
+                        "class" to "kuml-highlight-edge",
+                        "stroke" to stroke,
+                        "stroke-width" to "4",
+                        "stroke-opacity" to "0.85",
+                        "stroke-linecap" to "round",
+                        "fill" to "none",
+                        "visibility" to "hidden",
+                        "pointer-events" to "none",
+                    )
+            builder.tag(name = tagName, attrs = attrs)
+        }
+    }
+
     /**
      * Emittiert Highlight-Ringe für [SvgRenderOptions.highlightVertexIds] (sichtbar) und
      * [SvgRenderOptions.preparedHighlightVertexIds] (`visibility="hidden"`, für Live-DOM-Patching
@@ -1466,13 +1514,7 @@ public object KumlSvgRenderer {
     ) {
         if (options.highlightVertexIds.isEmpty() && options.preparedHighlightVertexIds.isEmpty()) return
 
-        // Explicit option wins; the theme token only fills in the DEFAULT.
-        val stroke =
-            if (options.highlightStrokeColor == SvgRenderOptions.DEFAULT_HIGHLIGHT_STROKE_COLOR) {
-                theme.colors.activeStateStroke?.toHex() ?: SvgRenderOptions.DEFAULT_HIGHLIGHT_STROKE_COLOR
-            } else {
-                options.highlightStrokeColor
-            }
+        val stroke = resolveHighlightStroke(theme = theme, options = options)
 
         for ((nodeId, nodeLayout) in layoutResult.nodes) {
             val visible = nodeId.value in options.highlightVertexIds
@@ -1670,6 +1712,8 @@ public object KumlSvgRenderer {
                     )
             }
 
+            emitHighlightEdges(layoutResult = layoutResult, theme = theme, options = options, padding = padding, builder = edgesBuilder)
+
             // 4. V0.23.1 — UML Comments. Same rationale as in renderUmlSequence:
             //    UmlLayoutBridge lays out UmlComment nodes and UmlCommentLink
             //    edges for STATE diagrams exactly like it does for CLASS
@@ -1817,6 +1861,7 @@ public object KumlSvgRenderer {
                     }
                 }
             }
+            emitHighlightEdges(layoutResult = layoutResult, theme = theme, options = options, padding = padding, builder = edgesBuilder)
         }
     }
 

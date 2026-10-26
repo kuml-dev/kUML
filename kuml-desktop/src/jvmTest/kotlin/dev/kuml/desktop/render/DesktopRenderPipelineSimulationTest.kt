@@ -114,4 +114,37 @@ class DesktopRenderPipelineSimulationTest :
             val result = DesktopRenderPipeline.render(script = umlScript, themeName = "plain") as DesktopRenderResult.Svg
             result.svg shouldNotContain "kuml-highlight-ring"
         }
+
+        // ── transition overlays for the inspector's selection ────────────────
+
+        fun xmlAttr(s: String) =
+            s
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;")
+
+        test("the UML base SVG holds a hidden overlay for every transition") {
+            val result = DesktopRenderPipeline.prepareSimulation(script = umlScript, themeName = "plain")
+            result.shouldBeInstanceOf<SimulationPrepareResult.Ready>()
+            result.stateMachine.transitions.isNotEmpty() shouldBe true
+            for (t in result.stateMachine.transitions) {
+                result.svg shouldContain "id=\"highlight-edge-${xmlAttr(t.id)}\""
+            }
+        }
+
+        test("the SysML-2 STM base SVG holds a hidden overlay for every transition") {
+            val result = DesktopRenderPipeline.prepareSimulation(script = sysml2Script, themeName = "plain")
+            result.shouldBeInstanceOf<SimulationPrepareResult.Ready>()
+            result.stateMachine.transitions.isNotEmpty() shouldBe true
+            for (t in result.stateMachine.transitions) {
+                result.svg shouldContain "id=\"highlight-edge-${xmlAttr(t.id)}\""
+            }
+        }
+
+        test("a regular render() contains no edge overlay") {
+            val result = DesktopRenderPipeline.render(script = umlScript, themeName = "plain") as DesktopRenderResult.Svg
+            result.svg shouldNotContain "kuml-highlight-edge"
+        }
     })

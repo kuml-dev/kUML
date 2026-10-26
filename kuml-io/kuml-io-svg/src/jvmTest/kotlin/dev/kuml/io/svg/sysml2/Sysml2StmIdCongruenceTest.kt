@@ -101,4 +101,23 @@ class Sysml2StmIdCongruenceTest :
             nodeIds shouldBe vertexIds
             nodeIds shouldBe setOf("Initial", "Red", "Green")
         }
+
+        "layout edge IDs equal runtime transition IDs for the traffic-light model" {
+            val (model, stm) = trafficLightModel()
+
+            val edgeIds =
+                Sysml2LayoutBridge
+                    .toLayoutGraph(model = model, diagram = stm)
+                    .edges
+                    .map { it.id.value }
+                    .toSet()
+            val transitionIds =
+                Sysml2StateMachineAdapter
+                    .toUmlStateMachine(model = model, diagram = stm)
+                    .transitions
+                    .map { it.id }
+                    .toSet()
+
+            edgeIds shouldBe transitionIds
+        }
     })

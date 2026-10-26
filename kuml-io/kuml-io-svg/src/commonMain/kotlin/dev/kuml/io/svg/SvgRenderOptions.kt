@@ -18,6 +18,9 @@ package dev.kuml.io.svg
  *   wird, aber mit `visibility="hidden"` — bestimmt für Live-DOM-Patching (kUML Desktop-Simulation,
  *   siehe `dev.kuml.desktop.preview.SimulationHighlightPatcher`). Für statische Ausgaben
  *   (`kuml render`, Export, Website, Handbuch) **nicht** setzen. Default: leer.
+ * @property preparedHighlightEdgeIds Menge von Kanten-IDs (Transition-IDs), für die ein Kanten-Overlay
+ *   `highlight-edge-<id>` emittiert wird, mit `visibility="hidden"` — nur für die Desktop-Simulation
+ *   (Live-DOM-Patching). Für statische Ausgaben **nicht** setzen. Default: leer.
  * @property highlightStrokeColor Farbe des Highlight-Rings als CSS-Farbwert. Default: `"#FF6B35"`
  *   (siehe [DEFAULT_HIGHLIGHT_STROKE_COLOR]).
  * @property highlightStrokeWidthPx Stärke des Highlight-Rings in Pixeln. Default: `3`.
@@ -53,6 +56,9 @@ public data class SvgRenderOptions(
     // constructor. See SvgDocument.render for the always-on attribution comment,
     // which is independent of this flag.
     public val watermark: Boolean = false,
+    // Appended last so positional callers stay source compatible. Hidden per-transition overlays
+    // (id "highlight-edge-<id>") for the desktop simulation's transition selection.
+    public val preparedHighlightEdgeIds: Set<String> = emptySet(),
 ) {
     public companion object {
         /** Standard-Optionen: Pretty-Print an, XML-Deklaration an, 16 px Padding, Theme-Kommentar an. */

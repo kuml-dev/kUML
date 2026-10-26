@@ -486,4 +486,106 @@ class StringsTest :
             Strings.EN.splitDividerDescription.shouldNotBeBlank()
             Strings.DE.splitDividerDescription.shouldNotBeBlank()
         }
+
+        // --- Simulator inspector / variables / payload (every new field non-empty in both languages) ---
+        val simulatorFields: List<Pair<String, (Strings) -> String>> =
+            listOf(
+                "simInspectorTitle" to { it.simInspectorTitle },
+                "simVariablesTitle" to { it.simVariablesTitle },
+                "simInspectorToggle" to { it.simInspectorToggle },
+                "menuToolsSimInspector" to { it.menuToolsSimInspector },
+                "simSectionCollapsed" to { it.simSectionCollapsed },
+                "simSectionExpanded" to { it.simSectionExpanded },
+                "simSidePanelResize" to { it.simSidePanelResize },
+                "simInheritedFrom" to { it.simInheritedFrom },
+                "simCompletionTrigger" to { it.simCompletionTrigger },
+                "simNoGuard" to { it.simNoGuard },
+                "simGuardTrue" to { it.simGuardTrue },
+                "simGuardFalse" to { it.simGuardFalse },
+                "simGuardError" to { it.simGuardError },
+                "simEvaluating" to { it.simEvaluating },
+                "simNoTransitionsHere" to { it.simNoTransitionsHere },
+                "simDraftPayloadFootnote" to { it.simDraftPayloadFootnote },
+                "simScrubbingFootnote" to { it.simScrubbingFootnote },
+                "simNotEnabledTitle" to { it.simNotEnabledTitle },
+                "simWhyNoTransition" to { it.simWhyNoTransition },
+                "simWhyGuardFalse" to { it.simWhyGuardFalse },
+                "simWhyGuardError" to { it.simWhyGuardError },
+                "simNotSet" to { it.simNotSet },
+                "simEditGuard" to { it.simEditGuard },
+                "simEditGuardReturnLive" to { it.simEditGuardReturnLive },
+                "simGuardEdited" to { it.simGuardEdited },
+                "simRevertGuard" to { it.simRevertGuard },
+                "simOriginalGuard" to { it.simOriginalGuard },
+                "simTemporaryBand" to { it.simTemporaryBand },
+                "simProtectedConfirmTitle" to { it.simProtectedConfirmTitle },
+                "simProtectedConfirmBody" to { it.simProtectedConfirmBody },
+                "simConfirm" to { it.simConfirm },
+                "simCancel" to { it.simCancel },
+                "simGuardField" to { it.simGuardField },
+                "simApply" to { it.simApply },
+                "simGuardTooLong" to { it.simGuardTooLong },
+                "simVarSet" to { it.simVarSet },
+                "simVarUnset" to { it.simVarUnset },
+                "simVarAdd" to { it.simVarAdd },
+                "simVarName" to { it.simVarName },
+                "simVarValue" to { it.simVarValue },
+                "simVarTypeBool" to { it.simVarTypeBool },
+                "simVarTypeNumber" to { it.simVarTypeNumber },
+                "simVarTypeText" to { it.simVarTypeText },
+                "simVarReadOnly" to { it.simVarReadOnly },
+                "simViewingHistory" to { it.simViewingHistory },
+                "simVarNone" to { it.simVarNone },
+                "simVarReferenced" to { it.simVarReferenced },
+                "simVarSwitchA11y" to { it.simVarSwitchA11y },
+                "simVarErrEmpty" to { it.simVarErrEmpty },
+                "simVarErrNotNumber" to { it.simVarErrNotNumber },
+                "simVarErrRange" to { it.simVarErrRange },
+                "simVarErrNotFinite" to { it.simVarErrNotFinite },
+                "simVarErrTooLong" to { it.simVarErrTooLong },
+                "simVarErrName" to { it.simVarErrName },
+                "simVarErrTooMany" to { it.simVarErrTooMany },
+                "simVarErrExists" to { it.simVarErrExists },
+                "simVarErrReadOnly" to { it.simVarErrReadOnly },
+                "simPayloadLabel" to { it.simPayloadLabel },
+                "simPayloadErrTooLarge" to { it.simPayloadErrTooLarge },
+                "simPayloadErrTooDeep" to { it.simPayloadErrTooDeep },
+                "simPayloadErrSyntax" to { it.simPayloadErrSyntax },
+                "simPayloadErrNotObject" to { it.simPayloadErrNotObject },
+                "simPayloadErrReserved" to { it.simPayloadErrReserved },
+                "simPayloadAtPosition" to { it.simPayloadAtPosition },
+                "simInvalidPayload" to { it.simInvalidPayload },
+            )
+        for ((fieldName, read) in simulatorFields) {
+            test("EN $fieldName is non-empty") { read(Strings.EN).isNotBlank() shouldBe true }
+            test("DE $fieldName is non-empty") { read(Strings.DE).isNotBlank() shouldBe true }
+        }
+
+        test("format placeholders of the simulator texts are present in both languages") {
+            val withPlaceholder =
+                listOf<(Strings) -> String>(
+                    { it.simInheritedFrom },
+                    { it.simGuardError },
+                    { it.simWhyNoTransition },
+                    { it.simWhyGuardError },
+                    { it.simOriginalGuard },
+                    { it.simTemporaryBand },
+                    { it.simProtectedConfirmBody },
+                    { it.simGuardTooLong },
+                    { it.simVarSwitchA11y },
+                    { it.simVarErrTooLong },
+                    { it.simVarErrTooMany },
+                    { it.simPayloadErrTooLarge },
+                    { it.simPayloadErrTooDeep },
+                    { it.simPayloadErrReserved },
+                    { it.simPayloadAtPosition },
+                    { it.simInvalidPayload },
+                )
+            for (read in withPlaceholder) {
+                read(Strings.EN) shouldContain "%"
+                read(Strings.DE) shouldContain "%"
+            }
+        }
+
+        test("the German trace section is called Verlauf") { Strings.DE.simTraceTitle shouldBe "Verlauf" }
     })

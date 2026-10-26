@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,6 +29,19 @@ import kotlinx.coroutines.delay
 
 /** Debounce window (ms) before the live type-check re-runs after a keystroke. */
 internal const val OCL_TYPECHECK_DEBOUNCE_MS: Long = 250L
+
+/**
+ * Visible texts of the guard editor, so a host app can localize it. The English defaults keep the
+ * widget's own behaviour unchanged.
+ *
+ * @property tooLong shown (with [MAX_GUARD_LENGTH] as `%d`) when the input was cut at the limit.
+ */
+public data class GuardEditorLabels(
+    public val field: String = "Guard (OCL)",
+    public val save: String = "Save",
+    public val cancel: String = "Cancel",
+    public val tooLong: String = "Guard limited to %d characters",
+)
 
 /** Save is offered only when the current static check passed. */
 internal fun guardSaveEnabled(check: OclCheckResult): Boolean = check is OclCheckResult.Ok
@@ -56,7 +70,9 @@ internal fun OclGuardEditor(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     colors: OclHighlightColors = OclHighlightColors.Default,
+    labels: GuardEditorLabels = GuardEditorLabels(),
 ) {
+    var truncated by remember(initial) { mutableStateOf(false) }
     var value by remember(initial) { mutableStateOf(TextFieldValue(initial)) }
     // Seed synchronously so Save-enabled state is correct on the first frame.
     var check by remember(initial) { mutableStateOf(OclSyntax.typeCheck(expr = initial, scope = scope)) }
@@ -76,8 +92,16 @@ internal fun OclGuardEditor(
     Column(modifier = modifier.padding(8.dp)) {
         OutlinedTextField(
             value = value,
-            onValueChange = { value = it },
-            label = { Text("Guard (OCL)") },
+            onValueChange = {
+                if (it.text.length > MAX_GUARD_LENGTH) {
+                    truncated = true
+                    value = it.copy(text = it.text.take(MAX_GUARD_LENGTH), selection = TextRange(MAX_GUARD_LENGTH))
+                } else {
+                    truncated = false
+                    value = it
+                }
+            },
+            label = { Text(labels.field) },
             singleLine = true,
             isError = error != null,
             visualTransformation = transformation,
@@ -85,7 +109,7 @@ internal fun OclGuardEditor(
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = error?.message ?: " ",
+            text = if (truncated) labels.tooLong.format(MAX_GUARD_LENGTH) else error?.message ?: " ",
             color = colors.errorText,
             fontSize = 12.sp,
             modifier = Modifier.testTag(EditorTestTags.GUARD_ERROR),
@@ -96,9 +120,9 @@ internal fun OclGuardEditor(
                 onClick = { onSave(value.text) },
                 enabled = guardSaveEnabled(check),
                 modifier = Modifier.testTag(EditorTestTags.GUARD_SAVE),
-            ) { Text("Save") }
+            ) { Text(labels.save) }
             Spacer(Modifier.width(8.dp))
-            Button(onClick = onCancel, modifier = Modifier.testTag(EditorTestTags.GUARD_CANCEL)) { Text("Cancel") }
+            Button(onClick = onCancel, modifier = Modifier.testTag(EditorTestTags.GUARD_CANCEL)) { Text(labels.cancel) }
         }
     }
 }

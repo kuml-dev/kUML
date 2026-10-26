@@ -24,13 +24,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.kuml.desktop.AppState
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
+import dev.kuml.desktop.ui.isSendShortcut
 import dev.kuml.desktop.ui.tooltipEnd
+import dev.kuml.widget.compose.EventPayloads
+import dev.kuml.widget.compose.PayloadParseResult
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -124,6 +135,12 @@ internal fun SimulationBar(
                 onClick = { session.reset() },
                 tooltipPlacement = tooltipEnd(),
             )
+            IconTooltipButton(
+                icon = KumlIcons.SimInspector,
+                description = strings.simInspectorToggle,
+                onClick = { session.inspectorVisible = !session.inspectorVisible },
+                tooltipPlacement = tooltipEnd(),
+            )
             VerticalDivider(modifier = Modifier.padding(horizontal = 2.dp))
             // Takes all remaining width so the close button below naturally lands at the row's
             // trailing edge without a second fillMaxWidth-in-a-Row footgun.
@@ -204,15 +221,33 @@ private fun EventButton(
     }
 }
 
+/** Debounce (ms) before an invalid payload is reported inline. */
+internal const val PAYLOAD_DEBOUNCE_MS: Long = 250L
+
 /** "Weitere…" expandable freetext event sender — mirrors `ControlPanel`'s existing behaviour. */
 @Composable
-private fun FreeformEventRow(
+internal fun FreeformEventRow(
     session: SimulationSession,
     strings: Strings,
     enabled: Boolean,
 ) {
     var eventName by remember { mutableStateOf("") }
-    var payloadJson by remember { mutableStateOf("{}") }
+    // The payload text lives in the session so the inspector can evaluate guards against it.
+    val payloadJson = session.payloadDraft
+    // Validity gates Send immediately; the inline message follows a debounce so typing is not nagged.
+    val payloadResult = remember(payloadJson) { EventPayloads.parse(payloadJson) }
+    var payloadError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(payloadJson) {
+        delay(PAYLOAD_DEBOUNCE_MS)
+        payloadError = (payloadResult as? PayloadParseResult.Invalid)?.let { payloadErrorText(result = it, strings = strings) }
+    }
+    val canSend = enabled && eventName.isNotBlank() && payloadResult is PayloadParseResult.Valid
+
+    fun send() {
+        if (!canSend) return
+        session.send(eventName = eventName, payloadJson = payloadJson)
+        eventName = ""
+    }
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -224,24 +259,40 @@ private fun FreeformEventRow(
             label = { Text("Event") },
             singleLine = true,
             enabled = enabled,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).testTag(SimTestTags.EVENT_FIELD),
         )
         OutlinedTextField(
             value = payloadJson,
-            onValueChange = { payloadJson = it },
-            label = { Text("Payload JSON") },
-            singleLine = true,
+            // One character beyond the limit is kept so an oversized paste still reports TOO_LARGE, but a
+            // multi-megabyte paste never sits in the session.
+            onValueChange = { session.payloadDraft = it.take(EventPayloads.MAX_BYTES + 1) },
+            label = { Text(strings.simPayloadLabel) },
+            maxLines = 4,
+            textStyle = TextStyle(fontSize = 12.sp, fontFamily = FontFamily.Monospace),
             enabled = enabled,
-            modifier = Modifier.weight(1f),
+            isError = payloadError != null,
+            supportingText =
+                payloadError?.let { message -> { Text(text = message, modifier = Modifier.testTag(SimTestTags.PAYLOAD_ERROR)) } },
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .testTag(SimTestTags.PAYLOAD_FIELD)
+                    .onPreviewKeyEvent { event ->
+                        val isSend =
+                            isSendShortcut(
+                                key = event.key,
+                                isMetaPressed = event.isMetaPressed,
+                                isCtrlPressed = event.isCtrlPressed,
+                                type = event.type,
+                            )
+                        if (isSend) send()
+                        isSend
+                    },
         )
         Button(
-            enabled = enabled && eventName.isNotBlank(),
-            onClick = {
-                if (eventName.isNotBlank()) {
-                    session.send(eventName = eventName, payloadJson = payloadJson)
-                    eventName = ""
-                }
-            },
+            enabled = canSend,
+            onClick = { send() },
+            modifier = Modifier.testTag(SimTestTags.SEND),
         ) {
             Text(strings.aiSend)
         }

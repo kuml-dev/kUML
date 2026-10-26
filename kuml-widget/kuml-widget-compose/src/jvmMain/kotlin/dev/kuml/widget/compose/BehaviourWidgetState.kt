@@ -8,10 +8,12 @@ import dev.kuml.runtime.Event
 import dev.kuml.runtime.StateMachineInstance
 import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.runtime.StepResult
+import dev.kuml.runtime.runtimeValueToJson
 import dev.kuml.runtime.snapshot.MigrationPolicy
 import dev.kuml.runtime.snapshot.StateMachineSnapshot
+import dev.kuml.runtime.toRuntimeValue
 import dev.kuml.uml.UmlStateMachine
-import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonElement
 
 /**
  * Compose-observable state holder for a running [UmlStateMachine] simulation.
@@ -19,13 +21,13 @@ import kotlinx.serialization.json.JsonObject
  * Holds the runtime, instance, trace, and scrub position. All mutable fields
  * are backed by [mutableStateOf] so Compose recomposition is triggered automatically.
  *
- * @param initialModel the [UmlStateMachine] to simulate.
+ * @param initialModel the [UmlStateMachine] to simulate; also the baseline [resetAll] and [editedGuardIds] compare against.
  * @param runtime the [StateMachineRuntime] driving the instance.
  * @param editPolicy editing permissions for the widget.
  */
 @Stable
 public class BehaviourWidgetState(
-    initialModel: UmlStateMachine,
+    public val initialModel: UmlStateMachine,
     internal val runtime: StateMachineRuntime,
     public val editPolicy: EditPolicy = EditPolicy.None,
 ) {
@@ -54,11 +56,35 @@ public class BehaviourWidgetState(
     /** `true` when the scrub position is behind the live end of the trace. */
     public val isScrubbing: Boolean get() = tracePosition < trace.size
 
+    /**
+     * Variables of the live instance as JSON. Observable; refreshed after every step, fork, reset,
+     * guard edit and variable edit (also when the variables were changed by an effect).
+     */
+    public var liveVariables: Map<String, JsonElement> by mutableStateOf(emptyMap())
+        private set
+
     init {
         initialSnapshot = runtime.snapshotFull(runningInstance)
-        trace = runningInstance.trace.toList()
-        tracePosition = trace.size
+        syncFromInstance()
     }
+
+    /** Variables the simulation started with (the baseline [resetAll] restores). */
+    public val initialVariables: Map<String, JsonElement> get() = initialSnapshot.variables
+
+    /**
+     * IDs of transitions whose guard currently differs from the guard in [initialModel]
+     * (blank and `null` count as the same, "no guard"). Derived, so it can never drift.
+     */
+    public val editedGuardIds: Set<String>
+        get() {
+            val original = initialModel.transitions.associate { it.id to it.guard?.ifBlank { null } }
+            return model.transitions
+                .filter { original.containsKey(it.id) && original[it.id] != it.guard?.ifBlank { null } }
+                .mapTo(LinkedHashSet()) { it.id }
+        }
+
+    /** The guard of [transitionId] as written in the original model, or `null` when it had none (or is unknown). */
+    public fun originalGuard(transitionId: String): String? = initialModel.transitions.firstOrNull { it.id == transitionId }?.guard
 
     /**
      * The initial set of active vertex IDs (captured right after `runtime.start`).
@@ -87,27 +113,28 @@ public class BehaviourWidgetState(
      * the trace branches correctly from the scrub point.
      *
      * @param eventName the event name.
-     * @param payloadJson optional JSON payload string (informational, not parsed in MVP).
+     * @param payloadJson JSON object delivered as `event.<key>` to guards; validated by
+     *   [EventPayloads.parse] BEFORE anything is forked or changed.
      * @return the [StepResult] of the dispatched event — V3.x (Desktop live simulation) needs
      *   this to distinguish `Stayed`/`Terminated`/`Error` outcomes from a normal transition
-     *   without re-deriving it from the trace. Source-compatible: the sole in-module caller
-     *   ([dev.kuml.widget.compose.ControlPanel]) calls this as a statement.
+     *   without re-deriving it from the trace.
+     * @throws InvalidEventPayloadException when [payloadJson] is invalid; the state is untouched.
      */
     public fun sendEvent(
         eventName: String,
-        @Suppress("UNUSED_PARAMETER") payloadJson: String = "{}",
+        payloadJson: String = "{}",
     ): StepResult {
+        val payload =
+            when (val parsed = EventPayloads.parse(payloadJson)) {
+                is PayloadParseResult.Valid -> parsed.payload
+                is PayloadParseResult.Invalid -> throw InvalidEventPayloadException(parsed)
+            }
         if (isScrubbing) {
             forkAtScrubPosition()
         }
-        val event =
-            Event(
-                name = eventName,
-                payload = JsonObject(emptyMap()),
-            )
+        val event = Event(name = eventName, payload = payload)
         val result = runtime.step(instance = runningInstance, event = event)
-        trace = runningInstance.trace.toList()
-        tracePosition = trace.size
+        syncFromInstance()
         return result
     }
 
@@ -126,8 +153,42 @@ public class BehaviourWidgetState(
      */
     public fun reset() {
         runningInstance = runtime.restoreFrom(model = model, snapshot = initialSnapshot, policy = MigrationPolicy.Reject)
-        trace = runningInstance.trace.toList()
-        tracePosition = trace.size
+        syncFromInstance()
+    }
+
+    /**
+     * Full reset: like [reset], but also restores the ORIGINAL model, i.e. every guard edit is
+     * undone (and the initial variables come back). [reset] keeps edited guards.
+     */
+    public fun resetAll() {
+        model = initialModel
+        runningInstance = runtime.restoreFrom(model = initialModel, snapshot = initialSnapshot, policy = MigrationPolicy.Reject)
+        syncFromInstance()
+    }
+
+    /**
+     * Sets variable [name] of the live instance to [value] (same JSON to value mapping as
+     * snapshot restore). Rejected while scrubbing, for names outside `[A-Za-z_][A-Za-z0-9_]{0,63}`
+     * and when it would create a 65th variable.
+     */
+    public fun setVariable(
+        name: String,
+        value: JsonElement,
+    ): VariableEditOutcome {
+        if (isScrubbing) return VariableEditOutcome.RejectedScrubbing
+        if (!VARIABLE_NAME.matches(name)) return VariableEditOutcome.InvalidName
+        if (name !in runningInstance.variables && runningInstance.variables.size >= MAX_VARIABLES) return VariableEditOutcome.TooMany
+        runningInstance.variables[name] = value.toRuntimeValue()
+        syncFromInstance()
+        return VariableEditOutcome.Applied
+    }
+
+    /** Removes variable [name] from the live instance (a missing variable is a no-op that still reports [VariableEditOutcome.Applied]). */
+    public fun removeVariable(name: String): VariableEditOutcome {
+        if (isScrubbing) return VariableEditOutcome.RejectedScrubbing
+        runningInstance.variables.remove(name)
+        syncFromInstance()
+        return VariableEditOutcome.Applied
     }
 
     /**
@@ -135,8 +196,12 @@ public class BehaviourWidgetState(
      *
      * Restores the instance to a snapshot reconstructed at [tracePosition] so that
      * new events diverge from that point rather than continuing from the live end.
+     *
+     * @param variables when non-null, the forked instance starts with exactly these variables
+     *   (a caller that tracks variable history passes the values as of the scrub position);
+     *   `null` keeps the initial snapshot's variables, the original behaviour.
      */
-    public fun forkAtScrubPosition() {
+    public fun forkAtScrubPosition(variables: Map<String, JsonElement>? = null) {
         val partialTrace = trace.subList(0, tracePosition)
         val activeIds =
             HighlightHelpers.replayActiveVertices(
@@ -151,10 +216,10 @@ public class BehaviourWidgetState(
                 seqCounter = if (partialTrace.isEmpty()) 0L else partialTrace.last().seqNo + 1,
                 internalQueue = emptyList(),
                 isTerminated = false,
+                variables = variables ?: initialSnapshot.variables,
             )
         runningInstance = runtime.restoreFrom(model = model, snapshot = forkedSnapshot, policy = MigrationPolicy.Reject)
-        trace = runningInstance.trace.toList()
-        tracePosition = trace.size
+        syncFromInstance()
     }
 
     /**
@@ -163,8 +228,32 @@ public class BehaviourWidgetState(
      * (e.g. [changeGuard]) where the swap itself doesn't go through
      * [sendEvent]/[reset]/[forkAtScrubPosition].
      */
-    internal fun syncTrace() {
+    internal fun syncTrace() = syncFromInstance()
+
+    /** Re-derives [trace], [tracePosition] (live) and [liveVariables] from [runningInstance]. */
+    internal fun syncFromInstance() {
         trace = runningInstance.trace.toList()
         tracePosition = trace.size
+        liveVariables = runningInstance.variables.mapValues { (_, v) -> runtimeValueToJson(v) }
     }
+
+    private companion object {
+        val VARIABLE_NAME = Regex("^[A-Za-z_][A-Za-z0-9_]{0,63}$")
+        const val MAX_VARIABLES = 64
+    }
+}
+
+/** Outcome of [BehaviourWidgetState.setVariable] / [BehaviourWidgetState.removeVariable]. */
+public sealed interface VariableEditOutcome {
+    /** The edit was applied. */
+    public data object Applied : VariableEditOutcome
+
+    /** Variables are read-only while the history is being scrubbed. */
+    public data object RejectedScrubbing : VariableEditOutcome
+
+    /** The name does not match `[A-Za-z_][A-Za-z0-9_]{0,63}`. */
+    public data object InvalidName : VariableEditOutcome
+
+    /** The instance already holds the maximum of 64 variables. */
+    public data object TooMany : VariableEditOutcome
 }

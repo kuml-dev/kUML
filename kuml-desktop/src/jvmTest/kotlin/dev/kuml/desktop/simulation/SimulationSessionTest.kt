@@ -364,4 +364,194 @@ class SimulationSessionTest :
         // reachable through this class's public surface. The message-prefix contract that
         // `statusFor` keys off of is instead locked down directly on the producer, see
         // TimeLimitedGuardEvaluatorTest's "slow guard times out" test.
+
+        // ── Wave A: inspector, variables, payload, temporary guards ──────────
+
+        val payloadUmlScript =
+            """
+            stateDiagram(name = "Payload") {
+                val init = initialState()
+                val a = state(name = "A")
+                val b = state(name = "B")
+                val c = state(name = "C")
+                transition(source = init, target = a)
+                transition(source = a, target = b) { trigger = "go()"; guard = "event.amount > 5" }
+                transition(source = a, target = c) { trigger = "alt()" }
+                transition(source = b, target = a) { trigger = "back()" }
+            }
+            """.trimIndent()
+
+        val payloadSysmlScript =
+            """
+            import dev.kuml.sysml2.dsl.sysml2Model
+
+            sysml2Model("Payload") {
+                val initial = stateDef("Initial", isInitial = true)
+                val a = stateDef("A")
+                val b = stateDef("B")
+
+                transition("init", initial, a)
+                transition("go", a, b, trigger = "go", guard = "event.amount > 5")
+
+                stmDiagram("Cycle") {
+                    include(initial)
+                    include(a)
+                    include(b)
+                }
+            }
+            """.trimIndent()
+
+        fun withSession(
+            script: String,
+            block: (SimulationSession) -> Unit,
+        ) {
+            val session = (SimulationSession.start(script = script, themeName = "plain") as SimulationStartResult.Started).session
+            try {
+                block(session)
+            } finally {
+                session.close()
+            }
+        }
+
+        fun SimulationSession.idOf(name: String) = stateMachine.vertices.first { it.name == name }.id
+
+        test("the session runs with the guard-edit policy") {
+            withSession(payloadUmlScript) { it.widgetState.editPolicy shouldBe dev.kuml.widget.compose.EditPolicy.GuardsOnly }
+        }
+
+        test("UML: a payload above the threshold fires the guarded transition, below it does not") {
+            withSession(payloadUmlScript) { session ->
+                session.send(eventName = "go", payloadJson = "{\"amount\": 1}")
+                session.activeVertexIds() shouldBe setOf(session.idOf("A"))
+                session.send(eventName = "go", payloadJson = "{\"amount\": 10}")
+                session.activeVertexIds() shouldBe setOf(session.idOf("B"))
+            }
+        }
+
+        test("SysML STM: the payload reaches the guard too") {
+            withSession(payloadSysmlScript) { session ->
+                session.send(eventName = "go", payloadJson = "{\"amount\": 1}")
+                session.activeVertexIds() shouldBe setOf("A")
+                session.send(eventName = "go", payloadJson = "{\"amount\": 10}")
+                session.activeVertexIds() shouldBe setOf("B")
+            }
+        }
+
+        test("an invalid payload sets InvalidPayload and leaves the trace and lastResult alone") {
+            withSession(payloadUmlScript) { session ->
+                session.send(eventName = "alt")
+                val traceBefore = session.widgetState.trace
+                val lastBefore = session.lastResult
+                val r = session.send(eventName = "go", payloadJson = "{nope")
+                r.shouldBeInstanceOf<StepResult.Error>()
+                session.status.shouldBeInstanceOf<SimulationStatus.InvalidPayload>()
+                session.widgetState.trace shouldBe traceBefore
+                session.lastResult shouldBe lastBefore
+            }
+        }
+
+        test("an invalid payload while scrubbing does not fork") {
+            withSession(payloadUmlScript) { session ->
+                session.send(eventName = "alt")
+                session.scrubTo(1)
+                val traceBefore = session.widgetState.trace
+                session.send(eventName = "go", payloadJson = "[1]")
+                session.widgetState.trace shouldBe traceBefore
+                session.widgetState.isScrubbing shouldBe true
+            }
+        }
+
+        test("a variable set before a step survives a scrub-back fork (the variables of that position are restored)") {
+            withSession(payloadUmlScript) { session ->
+                val v1 = kotlinx.serialization.json.JsonPrimitive(1)
+                val v2 = kotlinx.serialization.json.JsonPrimitive(2)
+                session.setVariable(name = "x", value = v1)
+                session.send(eventName = "go", payloadJson = "{\"amount\": 10}") // A -> B, x = 1
+                session.setVariable(name = "x", value = v2) // live edit at the end of the history
+                session.variablesAtPosition()["x"] shouldBe kotlinx.serialization.json.JsonPrimitive(2L)
+
+                // Scrub back to just before the step: x was 1 there.
+                session.scrubTo(session.widgetState.trace.indexOfFirst { it is dev.kuml.runtime.TraceEntry.EventReceived })
+                session.variablesAtPosition()["x"] shouldBe kotlinx.serialization.json.JsonPrimitive(1L)
+
+                session.send(eventName = "alt") // forks at that position
+                session.widgetState.isScrubbing shouldBe false
+                session.widgetState.liveVariables["x"] shouldBe kotlinx.serialization.json.JsonPrimitive(1L)
+                session.activeVertexIds() shouldBe setOf(session.idOf("C"))
+            }
+        }
+
+        test("variables are read-only while scrubbing") {
+            withSession(payloadUmlScript) { session ->
+                session.send(eventName = "alt")
+                session.scrubTo(0)
+                session.setVariable(name = "x", value = kotlinx.serialization.json.JsonPrimitive(1)) shouldBe
+                    dev.kuml.widget.compose.VariableEditOutcome.RejectedScrubbing
+            }
+        }
+
+        test("reset restores guards and variables, and keeps the payload draft") {
+            withSession(payloadUmlScript) { session ->
+                val go = session.stateMachine.transitions.first { it.trigger == "go()" }
+                session.payloadDraft = "{\"amount\": 3}"
+                session.setVariable(name = "x", value = kotlinx.serialization.json.JsonPrimitive(1))
+                session.applyGuard(transitionId = go.id, newOcl = "true", confirmed = false) shouldBe
+                    dev.kuml.widget.compose.PatchOutcome.Applied
+                session.editedGuardCount shouldBe 1
+                session.send(eventName = "go")
+                session.activeVertexIds() shouldBe setOf(session.idOf("B"))
+
+                session.reset()
+
+                session.editedGuardCount shouldBe 0
+                session.widgetState.model.transitions
+                    .first { it.id == go.id }
+                    .guard shouldBe "event.amount > 5"
+                session.widgetState.liveVariables shouldBe emptyMap()
+                session.variablesAtPosition() shouldBe emptyMap()
+                session.activeVertexIds() shouldBe setOf(session.idOf("A"))
+                session.payloadDraft shouldBe "{\"amount\": 3}"
+            }
+        }
+
+        test("selectedTransitionId is cleared by send, reset and scrub") {
+            withSession(payloadUmlScript) { session ->
+                val go =
+                    session.stateMachine.transitions
+                        .first { it.trigger == "go()" }
+                        .id
+                session.selectedTransitionId = go
+                session.send(eventName = "alt")
+                session.selectedTransitionId shouldBe null
+                session.selectedTransitionId = go
+                session.scrubTo(0)
+                session.selectedTransitionId shouldBe null
+                session.selectedTransitionId = go
+                session.reset()
+                session.selectedTransitionId shouldBe null
+            }
+        }
+
+        test("a guard edit never touches the script text, and revert restores the original") {
+            withSession(payloadUmlScript) { session ->
+                val before = session.modelSource
+                val go =
+                    session.stateMachine.transitions
+                        .first { it.trigger == "go()" }
+                        .id
+                session.applyGuard(transitionId = go, newOcl = "event.amount > 1", confirmed = false)
+                session.revertGuard(go) shouldBe dev.kuml.widget.compose.PatchOutcome.Applied
+                session.editedGuardCount shouldBe 0
+                session.modelSource shouldBe before
+            }
+        }
+
+        test("the draft payload is empty for an invalid draft and parsed for a valid one") {
+            withSession(payloadUmlScript) { session ->
+                session.payloadDraft = "{broken"
+                session.draftPayload().isEmpty() shouldBe true
+                session.payloadDraft = "{\"amount\": 7}"
+                session.draftPayload().containsKey("amount") shouldBe true
+            }
+        }
     })

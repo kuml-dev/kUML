@@ -18,10 +18,34 @@ import org.apache.batik.swing.JSVGCanvas
  */
 internal class SimulationHighlightPatcher {
     private var applied: Set<String> = emptySet()
+    private var appliedEdge: String? = null
 
     /** Call after every `setSVGDocument` — the previous diff baseline no longer applies. */
     fun resetBaseline() {
         applied = emptySet()
+        appliedEdge = null
+    }
+
+    /**
+     * Shows the transition overlay `highlight-edge-<id>` for [transitionId] (and hides the one
+     * shown before); `null` hides it. Same readiness contract as [apply]: returns `false` when the
+     * canvas cannot take a DOM patch yet. An id without an overlay element is a silent no-op.
+     */
+    fun showEdge(
+        canvas: JSVGCanvas,
+        transitionId: String?,
+    ): Boolean {
+        val manager = canvas.updateManager ?: return false
+        if (!manager.isRunning) return false
+        val doc = canvas.svgDocument ?: return false
+        if (transitionId == appliedEdge) return true
+        val previous = appliedEdge
+        manager.updateRunnableQueue.invokeLater {
+            if (previous != null) doc.getElementById("highlight-edge-$previous")?.setAttribute("visibility", "hidden")
+            if (transitionId != null) doc.getElementById("highlight-edge-$transitionId")?.setAttribute("visibility", "visible")
+        }
+        appliedEdge = transitionId
+        return true
     }
 
     /**

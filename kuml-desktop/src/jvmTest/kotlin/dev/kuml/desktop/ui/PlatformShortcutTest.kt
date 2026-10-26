@@ -31,4 +31,22 @@ class PlatformShortcutTest :
             commandKeyLabel("Mac OS X") shouldBe "⌘"
             commandKeyLabel("Linux") shouldBe "Ctrl"
         }
+
+        test("isSendShortcut needs the command modifier of the platform plus Enter on key down") {
+            val down = androidx.compose.ui.input.key.KeyEventType.KeyDown
+            val up = androidx.compose.ui.input.key.KeyEventType.KeyUp
+            isSendShortcut(key = Key.Enter, isMetaPressed = true, isCtrlPressed = false, type = down, os = "Mac OS X") shouldBe true
+            isSendShortcut(key = Key.Enter, isMetaPressed = false, isCtrlPressed = true, type = down, os = "Mac OS X") shouldBe false
+            isSendShortcut(key = Key.Enter, isMetaPressed = false, isCtrlPressed = true, type = down, os = "Linux") shouldBe true
+            isSendShortcut(key = Key.Enter, isMetaPressed = true, isCtrlPressed = false, type = down, os = "Windows 11") shouldBe false
+            isSendShortcut(key = Key.NumPadEnter, isMetaPressed = false, isCtrlPressed = true, type = down, os = "Linux") shouldBe true
+        }
+
+        test("isSendShortcut ignores plain Enter, other keys and key up") {
+            val down = androidx.compose.ui.input.key.KeyEventType.KeyDown
+            val up = androidx.compose.ui.input.key.KeyEventType.KeyUp
+            isSendShortcut(key = Key.Enter, isMetaPressed = false, isCtrlPressed = false, type = down, os = "Linux") shouldBe false
+            isSendShortcut(key = Key.A, isMetaPressed = true, isCtrlPressed = true, type = down, os = "Linux") shouldBe false
+            isSendShortcut(key = Key.Enter, isMetaPressed = true, isCtrlPressed = true, type = up, os = "Linux") shouldBe false
+        }
     })

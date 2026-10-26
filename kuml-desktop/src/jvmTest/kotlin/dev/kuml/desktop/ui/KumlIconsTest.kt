@@ -22,6 +22,9 @@ class KumlIconsTest :
                 "SimAutoAdvance" to KumlIcons.SimAutoAdvance,
                 "SimPause" to KumlIcons.SimPause,
                 "SimReset" to KumlIcons.SimReset,
+                "SimInspector" to KumlIcons.SimInspector,
+                "EditGuard" to KumlIcons.EditGuard,
+                "RevertGuard" to KumlIcons.RevertGuard,
             )
 
         test("all icons use a 24x24 viewport") {

@@ -168,6 +168,9 @@ data class Strings(
     val simStartFailed: String,
     val simAutoStopped: String,
     val simTraceTitle: String,
+    // Simulator inspector, variables and payload texts: a separate class because a JVM constructor
+    // is limited to 255 parameters and this one would exceed it.
+    val simulator: SimulatorStrings,
     // V-next — editable OKF Knowledge Workspace documents (Read/Edit toggle, save gate)
     val docEditRead: String,
     val docEditEdit: String,
@@ -223,6 +226,72 @@ data class Strings(
     val mcpSecurityNotice: String,
     val splitDividerDescription: String,
 ) {
+    val simInspectorTitle: String get() = simulator.simInspectorTitle
+    val simVariablesTitle: String get() = simulator.simVariablesTitle
+    val simInspectorToggle: String get() = simulator.simInspectorToggle
+    val menuToolsSimInspector: String get() = simulator.menuToolsSimInspector
+    val simSectionCollapsed: String get() = simulator.simSectionCollapsed
+    val simSectionExpanded: String get() = simulator.simSectionExpanded
+    val simSidePanelResize: String get() = simulator.simSidePanelResize
+    val simInheritedFrom: String get() = simulator.simInheritedFrom
+    val simCompletionTrigger: String get() = simulator.simCompletionTrigger
+    val simNoGuard: String get() = simulator.simNoGuard
+    val simGuardTrue: String get() = simulator.simGuardTrue
+    val simGuardFalse: String get() = simulator.simGuardFalse
+    val simGuardError: String get() = simulator.simGuardError
+    val simEvaluating: String get() = simulator.simEvaluating
+    val simNoTransitionsHere: String get() = simulator.simNoTransitionsHere
+    val simDraftPayloadFootnote: String get() = simulator.simDraftPayloadFootnote
+    val simScrubbingFootnote: String get() = simulator.simScrubbingFootnote
+    val simNotEnabledTitle: String get() = simulator.simNotEnabledTitle
+    val simWhyNoTransition: String get() = simulator.simWhyNoTransition
+    val simWhyGuardFalse: String get() = simulator.simWhyGuardFalse
+    val simWhyGuardError: String get() = simulator.simWhyGuardError
+    val simNotSet: String get() = simulator.simNotSet
+    val simEditGuard: String get() = simulator.simEditGuard
+    val simEditGuardReturnLive: String get() = simulator.simEditGuardReturnLive
+    val simGuardEdited: String get() = simulator.simGuardEdited
+    val simRevertGuard: String get() = simulator.simRevertGuard
+    val simOriginalGuard: String get() = simulator.simOriginalGuard
+    val simTemporaryBand: String get() = simulator.simTemporaryBand
+    val simProtectedConfirmTitle: String get() = simulator.simProtectedConfirmTitle
+    val simProtectedConfirmBody: String get() = simulator.simProtectedConfirmBody
+    val simConfirm: String get() = simulator.simConfirm
+    val simCancel: String get() = simulator.simCancel
+    val simGuardField: String get() = simulator.simGuardField
+    val simApply: String get() = simulator.simApply
+    val simGuardTooLong: String get() = simulator.simGuardTooLong
+    val simVarSet: String get() = simulator.simVarSet
+    val simVarUnset: String get() = simulator.simVarUnset
+    val simVarAdd: String get() = simulator.simVarAdd
+    val simVarName: String get() = simulator.simVarName
+    val simVarValue: String get() = simulator.simVarValue
+    val simVarTypeBool: String get() = simulator.simVarTypeBool
+    val simVarTypeNumber: String get() = simulator.simVarTypeNumber
+    val simVarTypeText: String get() = simulator.simVarTypeText
+    val simVarReadOnly: String get() = simulator.simVarReadOnly
+    val simViewingHistory: String get() = simulator.simViewingHistory
+    val simVarNone: String get() = simulator.simVarNone
+    val simVarReferenced: String get() = simulator.simVarReferenced
+    val simVarSwitchA11y: String get() = simulator.simVarSwitchA11y
+    val simVarErrEmpty: String get() = simulator.simVarErrEmpty
+    val simVarErrNotNumber: String get() = simulator.simVarErrNotNumber
+    val simVarErrRange: String get() = simulator.simVarErrRange
+    val simVarErrNotFinite: String get() = simulator.simVarErrNotFinite
+    val simVarErrTooLong: String get() = simulator.simVarErrTooLong
+    val simVarErrName: String get() = simulator.simVarErrName
+    val simVarErrTooMany: String get() = simulator.simVarErrTooMany
+    val simVarErrExists: String get() = simulator.simVarErrExists
+    val simVarErrReadOnly: String get() = simulator.simVarErrReadOnly
+    val simPayloadLabel: String get() = simulator.simPayloadLabel
+    val simPayloadErrTooLarge: String get() = simulator.simPayloadErrTooLarge
+    val simPayloadErrTooDeep: String get() = simulator.simPayloadErrTooDeep
+    val simPayloadErrSyntax: String get() = simulator.simPayloadErrSyntax
+    val simPayloadErrNotObject: String get() = simulator.simPayloadErrNotObject
+    val simPayloadErrReserved: String get() = simulator.simPayloadErrReserved
+    val simPayloadAtPosition: String get() = simulator.simPayloadAtPosition
+    val simInvalidPayload: String get() = simulator.simInvalidPayload
+
     companion object {
         val DE =
             Strings(
@@ -386,7 +455,77 @@ data class Strings(
                 simError = "Simulationsfehler: %s",
                 simStartFailed = "Simulation konnte nicht gestartet werden: %s",
                 simAutoStopped = "Automatisch angehalten: %s",
-                simTraceTitle = "Ablauf",
+                simTraceTitle = "Verlauf",
+                simulator =
+                    SimulatorStrings(
+                        simInspectorTitle = "Inspektor",
+                        simVariablesTitle = "Variablen",
+                        simInspectorToggle = "Inspektor ein- oder ausblenden",
+                        menuToolsSimInspector = "Simulations-Inspektor",
+                        simSectionCollapsed = "eingeklappt",
+                        simSectionExpanded = "aufgeklappt",
+                        simSidePanelResize = "Breite des Seitenbereichs ändern",
+                        simInheritedFrom = "geerbt von %s",
+                        simCompletionTrigger = "(automatisch)",
+                        simNoGuard = "kein Guard",
+                        simGuardTrue = "wahr",
+                        simGuardFalse = "falsch",
+                        simGuardError = "Fehler: %s",
+                        simEvaluating = "wird ausgewertet…",
+                        simNoTransitionsHere = "Keine Übergänge aus dem aktuellen Zustand",
+                        simDraftPayloadFootnote = "Ausgewertet mit dem Payload-Entwurf",
+                        simScrubbingFootnote = "Mit den aktuellen Guards ausgewertet",
+                        simNotEnabledTitle = "Nicht aktiv",
+                        simWhyNoTransition = "Kein Übergang aus %s",
+                        simWhyGuardFalse = "Alle Guards sind falsch",
+                        simWhyGuardError = "Guard nicht auswertbar: %s",
+                        simNotSet = "nicht gesetzt",
+                        simEditGuard = "Guard bearbeiten",
+                        simEditGuardReturnLive = "Zum Live-Stand zurückkehren, um zu bearbeiten",
+                        simGuardEdited = "bearbeitet",
+                        simRevertGuard = "Ursprünglichen Guard wiederherstellen",
+                        simOriginalGuard = "Original: %s",
+                        simTemporaryBand = "Temporär, nicht im Skript gespeichert (%d)",
+                        simProtectedConfirmTitle = "Geschützten Übergang bearbeiten?",
+                        simProtectedConfirmBody =
+                            "Der Übergang %s ist geschützt. " +
+                                "Bestätigen Sie, um seinen Guard in dieser Simulation zu ändern.",
+                        simConfirm = "Bestätigen",
+                        simCancel = "Abbrechen",
+                        simGuardField = "Guard (OCL)",
+                        simApply = "Übernehmen",
+                        simGuardTooLong = "Guard auf %d Zeichen begrenzt",
+                        simVarSet = "Setzen",
+                        simVarUnset = "Entfernen",
+                        simVarAdd = "+ Variable hinzufügen",
+                        simVarName = "Name",
+                        simVarValue = "Wert",
+                        simVarTypeBool = "Wahrheitswert",
+                        simVarTypeNumber = "Zahl",
+                        simVarTypeText = "Text",
+                        simVarReadOnly = "in dieser Version schreibgeschützt",
+                        simViewingHistory = "Verlauf wird angezeigt, zum Bearbeiten abzweigen",
+                        simVarNone = "Keine Variablen",
+                        simVarReferenced = "Von Guards gelesen, nicht gesetzt",
+                        simVarSwitchA11y = "Wert von %s",
+                        simVarErrEmpty = "Bitte einen Wert eingeben",
+                        simVarErrNotNumber = "Keine gültige Zahl",
+                        simVarErrRange = "Zahl außerhalb des Wertebereichs",
+                        simVarErrNotFinite = "Zahl ist nicht endlich",
+                        simVarErrTooLong = "Text zu lang (höchstens %d Zeichen)",
+                        simVarErrName = "Ungültiger Name (Buchstaben, Ziffern, Unterstrich; höchstens 64 Zeichen)",
+                        simVarErrTooMany = "Zu viele Variablen (höchstens %d)",
+                        simVarErrExists = "Name ist schon vergeben",
+                        simVarErrReadOnly = "Dieser Typ ist schreibgeschützt",
+                        simPayloadLabel = "Payload (JSON)",
+                        simPayloadErrTooLarge = "Payload zu groß (höchstens %d Byte)",
+                        simPayloadErrTooDeep = "Payload zu tief verschachtelt (höchstens %d Ebenen)",
+                        simPayloadErrSyntax = "Ungültiges JSON",
+                        simPayloadErrNotObject = "Der Payload muss ein JSON-Objekt sein",
+                        simPayloadErrReserved = "Schlüssel '%s' ist reserviert",
+                        simPayloadAtPosition = " an Position %d",
+                        simInvalidPayload = "Payload ungültig, nichts gesendet: %s",
+                    ),
                 docEditRead = "Lesen",
                 docEditEdit = "Bearbeiten",
                 docEditType = "Typ",
@@ -603,6 +742,74 @@ data class Strings(
                 simStartFailed = "Could not start simulation: %s",
                 simAutoStopped = "Auto-advance stopped: %s",
                 simTraceTitle = "Trace",
+                simulator =
+                    SimulatorStrings(
+                        simInspectorTitle = "Inspector",
+                        simVariablesTitle = "Variables",
+                        simInspectorToggle = "Show or hide the inspector",
+                        menuToolsSimInspector = "Simulation inspector",
+                        simSectionCollapsed = "collapsed",
+                        simSectionExpanded = "expanded",
+                        simSidePanelResize = "Resize the side panel",
+                        simInheritedFrom = "inherited from %s",
+                        simCompletionTrigger = "(completion)",
+                        simNoGuard = "no guard",
+                        simGuardTrue = "true",
+                        simGuardFalse = "false",
+                        simGuardError = "error: %s",
+                        simEvaluating = "evaluating…",
+                        simNoTransitionsHere = "No transitions from the current state",
+                        simDraftPayloadFootnote = "Evaluated with the draft payload",
+                        simScrubbingFootnote = "Evaluated with the current guards",
+                        simNotEnabledTitle = "Not enabled",
+                        simWhyNoTransition = "No transition from %s",
+                        simWhyGuardFalse = "All guards are false",
+                        simWhyGuardError = "Guard could not be evaluated: %s",
+                        simNotSet = "not set",
+                        simEditGuard = "Edit guard",
+                        simEditGuardReturnLive = "Return to live to edit",
+                        simGuardEdited = "edited",
+                        simRevertGuard = "Restore the original guard",
+                        simOriginalGuard = "Original: %s",
+                        simTemporaryBand = "Temporary, not saved to the script (%d)",
+                        simProtectedConfirmTitle = "Edit protected transition?",
+                        simProtectedConfirmBody = "Transition %s is protected. Confirm to change its guard in this simulation.",
+                        simConfirm = "Confirm",
+                        simCancel = "Cancel",
+                        simGuardField = "Guard (OCL)",
+                        simApply = "Apply",
+                        simGuardTooLong = "Guard limited to %d characters",
+                        simVarSet = "Set",
+                        simVarUnset = "Unset",
+                        simVarAdd = "+ Add variable",
+                        simVarName = "Name",
+                        simVarValue = "Value",
+                        simVarTypeBool = "Boolean",
+                        simVarTypeNumber = "Number",
+                        simVarTypeText = "Text",
+                        simVarReadOnly = "read-only in this version",
+                        simViewingHistory = "Viewing history, fork to edit",
+                        simVarNone = "No variables",
+                        simVarReferenced = "Read by guards, not set",
+                        simVarSwitchA11y = "Value of %s",
+                        simVarErrEmpty = "Please enter a value",
+                        simVarErrNotNumber = "Not a valid number",
+                        simVarErrRange = "Number out of range",
+                        simVarErrNotFinite = "Number is not finite",
+                        simVarErrTooLong = "Text too long (max %d characters)",
+                        simVarErrName = "Invalid name (letters, digits, underscore; at most 64 characters)",
+                        simVarErrTooMany = "Too many variables (max %d)",
+                        simVarErrExists = "Name already in use",
+                        simVarErrReadOnly = "This type is read-only",
+                        simPayloadLabel = "Payload (JSON)",
+                        simPayloadErrTooLarge = "Payload too large (max %d bytes)",
+                        simPayloadErrTooDeep = "Payload nested too deeply (max %d levels)",
+                        simPayloadErrSyntax = "Invalid JSON",
+                        simPayloadErrNotObject = "Payload must be a JSON object",
+                        simPayloadErrReserved = "Key '%s' is reserved",
+                        simPayloadAtPosition = " at position %d",
+                        simInvalidPayload = "Invalid payload, nothing sent: %s",
+                    ),
                 docEditRead = "Read",
                 docEditEdit = "Edit",
                 docEditType = "Type",
@@ -659,3 +866,72 @@ data class Strings(
         fun forLanguage(lang: String): Strings = if (lang == "de") DE else EN
     }
 }
+
+/** Simulator inspector, variables and payload texts (see [Strings.simulator]). */
+data class SimulatorStrings(
+    val simInspectorTitle: String,
+    val simVariablesTitle: String,
+    val simInspectorToggle: String,
+    val menuToolsSimInspector: String,
+    val simSectionCollapsed: String,
+    val simSectionExpanded: String,
+    val simSidePanelResize: String,
+    val simInheritedFrom: String,
+    val simCompletionTrigger: String,
+    val simNoGuard: String,
+    val simGuardTrue: String,
+    val simGuardFalse: String,
+    val simGuardError: String,
+    val simEvaluating: String,
+    val simNoTransitionsHere: String,
+    val simDraftPayloadFootnote: String,
+    val simScrubbingFootnote: String,
+    val simNotEnabledTitle: String,
+    val simWhyNoTransition: String,
+    val simWhyGuardFalse: String,
+    val simWhyGuardError: String,
+    val simNotSet: String,
+    val simEditGuard: String,
+    val simEditGuardReturnLive: String,
+    val simGuardEdited: String,
+    val simRevertGuard: String,
+    val simOriginalGuard: String,
+    val simTemporaryBand: String,
+    val simProtectedConfirmTitle: String,
+    val simProtectedConfirmBody: String,
+    val simConfirm: String,
+    val simCancel: String,
+    val simGuardField: String,
+    val simApply: String,
+    val simGuardTooLong: String,
+    val simVarSet: String,
+    val simVarUnset: String,
+    val simVarAdd: String,
+    val simVarName: String,
+    val simVarValue: String,
+    val simVarTypeBool: String,
+    val simVarTypeNumber: String,
+    val simVarTypeText: String,
+    val simVarReadOnly: String,
+    val simViewingHistory: String,
+    val simVarNone: String,
+    val simVarReferenced: String,
+    val simVarSwitchA11y: String,
+    val simVarErrEmpty: String,
+    val simVarErrNotNumber: String,
+    val simVarErrRange: String,
+    val simVarErrNotFinite: String,
+    val simVarErrTooLong: String,
+    val simVarErrName: String,
+    val simVarErrTooMany: String,
+    val simVarErrExists: String,
+    val simVarErrReadOnly: String,
+    val simPayloadLabel: String,
+    val simPayloadErrTooLarge: String,
+    val simPayloadErrTooDeep: String,
+    val simPayloadErrSyntax: String,
+    val simPayloadErrNotObject: String,
+    val simPayloadErrReserved: String,
+    val simPayloadAtPosition: String,
+    val simInvalidPayload: String,
+)

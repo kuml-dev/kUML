@@ -13,6 +13,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,6 +25,10 @@ import androidx.compose.ui.unit.sp
 import dev.kuml.runtime.defaultGuardScope
 import dev.kuml.uml.UmlTransition
 import dev.kuml.uml.isProtected
+import kotlinx.coroutines.delay
+
+/** Debounce (ms) before an invalid payload is reported inline. */
+internal const val PAYLOAD_VALIDATION_DEBOUNCE_MS: Long = 250L
 
 /**
  * Control panel composable for the [BehaviourWidget].
@@ -47,6 +52,13 @@ internal fun ControlPanel(
     var eventName by remember { mutableStateOf("") }
     var payloadJson by remember { mutableStateOf("{}") }
     val activeIds = state.currentHighlightIds()
+    // Immediate validity gates Send; the inline message follows a debounce so typing is not nagged.
+    val payloadResult = remember(payloadJson) { EventPayloads.parse(payloadJson) }
+    var payloadError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(payloadJson) {
+        delay(PAYLOAD_VALIDATION_DEBOUNCE_MS)
+        payloadError = (payloadResult as? PayloadParseResult.Invalid)?.message
+    }
 
     Column(modifier = modifier.padding(8.dp)) {
         Text("Send Event", fontSize = 14.sp)
@@ -67,13 +79,17 @@ internal fun ControlPanel(
             onValueChange = { payloadJson = it },
             label = { Text("Payload JSON") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            isError = payloadError != null,
+            supportingText = payloadError?.let { message -> { Text(message, modifier = Modifier.testTag(EditorTestTags.PAYLOAD_ERROR)) } },
+            modifier = Modifier.fillMaxWidth().testTag(EditorTestTags.PAYLOAD_INPUT),
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Row {
             Button(
+                enabled = payloadResult is PayloadParseResult.Valid,
+                modifier = Modifier.testTag(EditorTestTags.SEND_BUTTON),
                 onClick = {
                     if (eventName.isNotBlank()) {
                         state.sendEvent(eventName = eventName, payloadJson = payloadJson)

@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.AppState
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.simulation.SimulationBar
+import dev.kuml.desktop.simulation.SimulationSidePanel
 import dev.kuml.desktop.simulation.SimulationTracePane
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
@@ -112,6 +113,13 @@ fun PreviewPane(
         if (session != null && documentReady) patcher.apply(canvas = canvas, target = highlights)
     }
 
+    // The inspector's selected transition: a hidden overlay path per edge is flipped visible
+    // (same live DOM patch as the rings, so zoom and pan survive).
+    val selectedEdge = session?.selectedTransitionId
+    LaunchedEffect(session, documentReady, selectedEdge) {
+        if (session != null && documentReady) patcher.showEdge(canvas = canvas, transitionId = selectedEdge)
+    }
+
     Column(modifier = modifier.testTag("kuml-preview")) {
         // Design-Review (UI-Team-Session, siehe CLAUDE.md "UI/UX-Design-Team"): '100%' und 'Fit'
         // waren identischer Code (Batik JGVTComponent.resetRenderingTransform() setzt intern ebenfalls
@@ -159,11 +167,15 @@ fun PreviewPane(
                 modifier = Modifier.weight(1f).fillMaxSize(),
             )
             if (session != null) {
-                SimulationTracePane(
-                    session = session,
-                    strings = strings,
-                    modifier = Modifier.width(260.dp).fillMaxHeight(),
-                )
+                if (session.inspectorVisible) {
+                    SimulationSidePanel(session = session, strings = strings, modifier = Modifier.fillMaxHeight())
+                } else {
+                    SimulationTracePane(
+                        session = session,
+                        strings = strings,
+                        modifier = Modifier.width(260.dp).fillMaxHeight(),
+                    )
+                }
             }
         }
     }

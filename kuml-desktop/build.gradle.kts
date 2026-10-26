@@ -19,6 +19,10 @@ kotlin {
             getByName("jvmMain") {
                 dependencies {
                     implementation(project(":kuml-core:kuml-core-script"))
+                    // Simulator inspector: typed guard AST (OclLikeExpressionParser, AttributeRef, ...) and
+                    // KumlEvalContext for the frozen evaluation copy. Both were only transitive before.
+                    implementation(project(":kuml-core:kuml-core-expr"))
+                    implementation(project(":kuml-core:kuml-core-model"))
                     // V3.6.4 — Knowledge Workspace viewer: OKF workspace scanner (transitively
                     // brings kuml-docs:kuml-markdown's KumlCodeBlock via its `api` dependency)
                     implementation(project(":kuml-docs:kuml-workspace"))

@@ -47,4 +47,18 @@ class SimulationHighlightPatcherTest :
             patcher.resetBaseline() // must not throw
             patcher.apply(canvas = canvas, target = setOf("Red")) shouldBe false
         }
+
+        test("showEdge returns false before any SVG document has ever been set") {
+            val canvas = JSVGCanvas()
+            val patcher = SimulationHighlightPatcher()
+            patcher.showEdge(canvas = canvas, transitionId = "t1") shouldBe false
+            patcher.showEdge(canvas = canvas, transitionId = null) shouldBe false
+        }
+
+        test("resetBaseline also clears the shown edge and is safe before any showEdge") {
+            val canvas = JSVGCanvas()
+            val patcher = SimulationHighlightPatcher()
+            patcher.resetBaseline()
+            patcher.showEdge(canvas = canvas, transitionId = "t1") shouldBe false
+        }
     })

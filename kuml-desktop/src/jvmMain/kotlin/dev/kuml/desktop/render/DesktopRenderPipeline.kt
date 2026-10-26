@@ -458,7 +458,12 @@ internal object DesktopRenderPipeline {
                         diagram = extracted.diagram,
                         layoutResult = layout,
                         theme = theme,
-                        options = SvgRenderOptions(watermark = false, preparedHighlightVertexIds = allVertexIds(sm)),
+                        options =
+                            SvgRenderOptions(
+                                watermark = false,
+                                preparedHighlightVertexIds = allVertexIds(sm),
+                                preparedHighlightEdgeIds = sm.transitions.map { it.id }.toSet(),
+                            ),
                     )
                 SimulationPrepareResult.Ready(stateMachine = sm, svg = svg)
             }
@@ -483,6 +488,7 @@ internal object DesktopRenderPipeline {
                                 paddingPx = DIAGRAM_PADDING_PX,
                                 watermark = false,
                                 preparedHighlightVertexIds = allVertexIds(sm),
+                                preparedHighlightEdgeIds = sm.transitions.map { it.id }.toSet(),
                             ),
                     )
                 SimulationPrepareResult.Ready(stateMachine = sm, svg = svg)

@@ -35,6 +35,69 @@ In the preview (and in the Knowledge Workspace viewer and the AI patch preview):
 Batik's own gestures keep working: Shift + drag pans, Ctrl + Shift + drag zooms, the arrow keys
 move the diagram.
 
+== Simulator: inspector, variables, payload, temporary guard editing
+
+*Tools ▸ Simulate* runs a UML state machine or a SysML 2 state diagram against the diagram. Next to
+the preview a side panel shows three collapsible sections: *Inspector*, *Variables* and *Trace*. Drag
+the panel's left edge to resize it (280 to 520 dp; the width is not saved). *Tools ▸ Simulation
+inspector* (or the panel button in the simulation bar) shows or hides the panel; hidden, only the
+trace remains.
+
+=== Inspector
+
+The inspector lists the transitions that leave the active states, innermost state first, followed by
+the transitions inherited from composite parents ("inherited from ..."). Each row shows the result of
+its guard as a glyph and a word (`✓ true`, `✗ false`, `⚠ error: ...`), never by colour alone, and its
+trigger or "(completion)".
+
+* Click a row to highlight its transition in the diagram; click again to clear it. Send, Reset and
+  scrubbing clear the highlight.
+* *Not enabled* lists every event that cannot fire right now and why: no transition leaves the active
+  states, every guard is false (with the values the guards read, "not set" for missing ones), or a guard
+  could not be evaluated.
+* Guards are evaluated off the UI thread against a frozen copy of the instance, through the same
+  sandbox (time limit per guard) as a real step, and re-evaluated shortly after every change. They use
+  the payload text currently in the event row (marked as a draft payload).
+
+=== Variables
+
+Every variable of the instance is shown with an editor for its type: a switch for booleans, a field for
+numbers (decimal numbers, 64-bit integers; `NaN`, `Infinity` and similar are rejected) and a field for
+text (at most 1000 characters). *Enter* or leaving the field applies, *Esc* discards, a bad value shows
+an inline message and changes nothing. Lists, objects and `null` are shown read-only, as are variables
+whose name the editor would not accept. Variables that guards read but nobody has set appear as
+"not set" with a *Set* action that prefills the add row; *+ Add variable* creates new ones (names `[A-Za-z_][A-Za-z0-9_]*`, at
+most 64 characters, at most 64 variables).
+
+While you scrub the trace, variables are read-only and show their values as of that position; the
+inspector then evaluates the guards with the current (possibly edited) guards, and says so. Sending an event from a scrub position forks the history there and the fork starts
+with those variables. A position in the middle of a step shows the variables from the start of that
+step, because changes made by effects are not part of the trace.
+
+=== Event payload
+
+*More...* in the simulation bar opens the free event row. Its payload field takes a JSON object whose
+keys guards read as `event.<key>`. The payload is validated before anything is sent: at most 16 KiB,
+at most 8 levels of nesting, a JSON object at the top level, and no top-level key named `name`, `id` or
+`timestamp`. An invalid payload shows a message and disables *Send*; nothing is sent. *⌘+Enter* or
+*Ctrl+Enter* in the payload field sends. The event buttons always send an empty payload.
+
+=== Temporary guard editing
+
+The pencil in an inspector row edits that guard with a syntax-highlighted, type-checked editor (at most
+4096 characters). Editing a protected transition asks for confirmation first. An edited guard carries an
+"edited" chip with the original struck through and a *Restore* button; a band above the list counts the
+edits. Edits live only in the running simulation: *Reset* restores every guard, variable and the trace to
+the script's state. While you scrub, guard editing is disabled.
+
+=== What it does not do
+
+* Nothing is written back to the script, and nothing goes to the clipboard.
+* The diagram is not re-rendered: its labels keep showing the guards from the script.
+* Lists and objects cannot be edited, only shown.
+* The event buttons cannot carry a payload; use the event row.
+* The panel width is not remembered between sessions.
+
 == Keyboard shortcuts
 
 Menu shortcuts follow the platform convention: *⌘ (Command)* on macOS, *Ctrl* on Windows and Linux.
@@ -52,6 +115,8 @@ Menu shortcuts follow the platform convention: *⌘ (Command)* on macOS, *Ctrl* 
 | Find | ⌘F | Ctrl+F
 | View: source / split / diagram | ⌘1 / ⌘2 / ⌘3 | Ctrl+1 / Ctrl+2 / Ctrl+3
 | Simulate (state machines) | ⌘R | Ctrl+R
+| Show or hide the simulation inspector | ⇧⌘I | Ctrl+Shift+I
+| Send the event in the payload field (simulation) | ⌘↩ | Ctrl+Enter
 |===
 
 == Version

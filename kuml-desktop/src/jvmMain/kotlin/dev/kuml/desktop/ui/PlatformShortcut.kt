@@ -1,6 +1,7 @@
 package dev.kuml.desktop.ui
 
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.KeyShortcut
 
 /**
@@ -29,3 +30,19 @@ internal fun isMacOs(os: String = System.getProperty("os.name", "")): Boolean = 
 
 /** Display label of the command modifier for texts that mention a shortcut: "⌘" on macOS, "Ctrl" elsewhere. */
 internal fun commandKeyLabel(os: String = System.getProperty("os.name", "")): String = if (isMacOs(os)) "⌘" else "Ctrl"
+
+/**
+ * `true` for the "send event" chord in a text field: Enter (or numpad Enter) key-down with the
+ * platform's command modifier, i.e. ⌘ on macOS and Ctrl elsewhere. Pure, so it is unit-testable
+ * without a window; the key event itself is read in `onPreviewKeyEvent`.
+ */
+internal fun isSendShortcut(
+    key: Key,
+    isMetaPressed: Boolean,
+    isCtrlPressed: Boolean,
+    type: KeyEventType,
+    os: String = System.getProperty("os.name", ""),
+): Boolean =
+    type == KeyEventType.KeyDown &&
+        (key == Key.Enter || key == Key.NumPadEnter) &&
+        (if (isMacOs(os)) isMetaPressed else isCtrlPressed)

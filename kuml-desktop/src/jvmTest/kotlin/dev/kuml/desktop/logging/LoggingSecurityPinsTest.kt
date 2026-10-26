@@ -71,4 +71,21 @@ class LoggingSecurityPinsTest :
                 System.clearProperty("KUML_LOG_LEVEL")
             }
         }
+
+        test("simulator sources never log payload, variable or guard content, and never print") {
+            val dir = java.io.File("src/jvmMain/kotlin/dev/kuml/desktop/simulation")
+            dir.isDirectory shouldBe true
+            val logCall = Regex("""\b(logger|log)\s*\.\s*(info|warn|error|trace)\b""")
+            val sensitive = Regex("(?i)payload|variable|guard|json")
+            val offending =
+                dir
+                    .walkTopDown()
+                    .filter { it.extension == "kt" }
+                    .flatMap { f -> f.readLines().mapIndexed { index, line -> "${f.name}:${index + 1}: $line" } }
+                    .filter { line ->
+                        val code = line.substringAfter(": ")
+                        (logCall.containsMatchIn(code) && sensitive.containsMatchIn(code)) || code.contains("println(")
+                    }.toList()
+            offending shouldBe emptyList()
+        }
     })

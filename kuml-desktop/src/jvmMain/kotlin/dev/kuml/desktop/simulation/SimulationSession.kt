@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.kuml.desktop.render.DesktopRenderPipeline
 import dev.kuml.desktop.render.SimulationPrepareResult
+import dev.kuml.runtime.GuardEvaluator
 import dev.kuml.runtime.OclGuardEvaluator
 import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.runtime.StepResult
@@ -16,6 +17,16 @@ import dev.kuml.runtime.sandbox.SandboxPolicy
 import dev.kuml.runtime.sandbox.TimeLimitedGuardEvaluator
 import dev.kuml.uml.UmlStateMachine
 import dev.kuml.widget.compose.BehaviourWidgetState
+import dev.kuml.widget.compose.EditPolicy
+import dev.kuml.widget.compose.EventPayloads
+import dev.kuml.widget.compose.InvalidEventPayloadException
+import dev.kuml.widget.compose.PatchOutcome
+import dev.kuml.widget.compose.PayloadParseResult
+import dev.kuml.widget.compose.VariableEditOutcome
+import dev.kuml.widget.compose.changeGuard
+import dev.kuml.widget.compose.revertGuard
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 
 /**
  * Outcome of the last [SimulationSession.send] call, or an ambient session condition — drives
@@ -53,6 +64,11 @@ internal sealed interface SimulationStatus {
     /** Sending an event while scrubbing forked the trace and discarded [count] later steps. */
     data class DiscardedSteps(
         val count: Int,
+    ) : SimulationStatus
+
+    /** The event payload was rejected before anything was sent (nothing changed). */
+    data class InvalidPayload(
+        val result: PayloadParseResult.Invalid,
     ) : SimulationStatus
 }
 
@@ -97,6 +113,22 @@ internal class SimulationSession private constructor(
 
     var autoAdvancing: Boolean by mutableStateOf(false)
 
+    /** Whether the inspector/variables column is shown next to the trace. Session-only, not persisted. */
+    var inspectorVisible: Boolean by mutableStateOf(true)
+
+    /** Transition the inspector selected; its edge is highlighted in the diagram. Cleared by send, reset and scrub. */
+    var selectedTransitionId: String? by mutableStateOf(null)
+
+    /** Text of the event payload field, kept here so the inspector can evaluate guards against it. */
+    var payloadDraft: String by mutableStateOf("")
+
+    /** The session's sandboxed guard evaluator, also used (on a frozen copy) by the inspector. Never a bypass. */
+    internal val inspectorEvaluator: GuardEvaluator get() = guardEvaluator
+
+    // Variable values per trace position (see VariableTimeline). Not observable on its own: every
+    // read goes through variablesAtPosition(), which depends on observable widget state.
+    private val timeline = VariableTimeline(initialTraceSize = widgetState.trace.size, initial = widgetState.liveVariables)
+
     /** The [StepResult] of the last [send] call, if any — read by [autoAdvanceDecision]. */
     var lastResult: StepResult? by mutableStateOf(null)
         private set
@@ -134,9 +166,23 @@ internal class SimulationSession private constructor(
         eventName: String,
         payloadJson: String = "{}",
     ): StepResult {
+        // An invalid payload is rejected up front: no fork, no trace change, no lastResult.
+        val parsed = EventPayloads.parse(payloadJson)
+        if (parsed is PayloadParseResult.Invalid) {
+            status = SimulationStatus.InvalidPayload(parsed)
+            return StepResult.Error(InvalidEventPayloadException(parsed))
+        }
         val discarded = widgetState.trace.size - widgetState.tracePosition
         val beforeSize = widgetState.tracePosition
+        if (widgetState.isScrubbing) {
+            // sendEvent would fork by itself, but without variables: fork here first so the
+            // variables as of the scrub position survive, then cut the history behind it.
+            widgetState.forkAtScrubPosition(variables = timeline.at(beforeSize))
+            timeline.truncateAfter(beforeSize)
+        }
         val result = widgetState.sendEvent(eventName = eventName, payloadJson = payloadJson)
+        timeline.record(traceSize = widgetState.trace.size, variables = widgetState.liveVariables)
+        selectedTransitionId = null
         lastResult = result
         val warnings = newGuardWarnings(trace = widgetState.trace, beforeSize = beforeSize)
         status =
@@ -147,6 +193,47 @@ internal class SimulationSession private constructor(
             }
         return result
     }
+
+    /** Variables as of the current scrub position (live variables when not scrubbing). */
+    fun variablesAtPosition(): Map<String, JsonElement> =
+        if (widgetState.isScrubbing) timeline.at(widgetState.tracePosition) else widgetState.liveVariables
+
+    /** Event payload parsed from [payloadDraft]; an invalid or empty draft counts as an empty payload. */
+    fun draftPayload(): JsonObject = (EventPayloads.parse(payloadDraft) as? PayloadParseResult.Valid)?.payload ?: JsonObject(emptyMap())
+
+    fun setVariable(
+        name: String,
+        value: JsonElement,
+    ): VariableEditOutcome =
+        widgetState.setVariable(name = name, value = value).also {
+            if (it ==
+                VariableEditOutcome.Applied
+            ) {
+                timeline.record(traceSize = widgetState.trace.size, variables = widgetState.liveVariables)
+            }
+        }
+
+    fun removeVariable(name: String): VariableEditOutcome =
+        widgetState.removeVariable(name).also {
+            if (it ==
+                VariableEditOutcome.Applied
+            ) {
+                timeline.record(traceSize = widgetState.trace.size, variables = widgetState.liveVariables)
+            }
+        }
+
+    /** Temporary guard edit (never written to the script). Protected transitions need [confirmed]. */
+    fun applyGuard(
+        transitionId: String,
+        newOcl: String,
+        confirmed: Boolean,
+    ): PatchOutcome = widgetState.changeGuard(transitionId = transitionId, newOcl = newOcl, confirmed = confirmed)
+
+    /** Restores the original guard of [transitionId]. */
+    fun revertGuard(transitionId: String): PatchOutcome = widgetState.revertGuard(transitionId)
+
+    /** Number of guards that currently differ from the script's. */
+    val editedGuardCount: Int get() = widgetState.editedGuardIds.size
 
     /** Called by the auto-advance loop in `SimulationBar.kt` when it decides to stop. */
     fun reportAutoStop(reason: AutoAdvanceStopReason) {
@@ -160,7 +247,10 @@ internal class SimulationSession private constructor(
     }
 
     fun reset() {
-        widgetState.reset()
+        // Full reset: guards, variables and trace go back to the script's state (payloadDraft stays).
+        widgetState.resetAll()
+        timeline.reset(initialTraceSize = widgetState.trace.size, initial = widgetState.liveVariables)
+        selectedTransitionId = null
         lastResult = null
         status = SimulationStatus.Idle
         autoAdvancing = false
@@ -168,6 +258,7 @@ internal class SimulationSession private constructor(
 
     fun scrubTo(position: Int) {
         autoAdvancing = false
+        selectedTransitionId = null
         widgetState.scrubTo(position)
     }
 
@@ -241,7 +332,12 @@ internal class SimulationSession private constructor(
                     try {
                         val effects = SandboxEffectInvoker(EffectExecutor(policy))
                         val runtime = StateMachineRuntime(guards = guards, effects = effects)
-                        val widgetState = BehaviourWidgetState(initialModel = prepared.stateMachine, runtime = runtime)
+                        val widgetState =
+                            BehaviourWidgetState(
+                                initialModel = prepared.stateMachine,
+                                runtime = runtime,
+                                editPolicy = EditPolicy.GuardsOnly,
+                            )
                         SimulationStartResult.Started(
                             SimulationSession(
                                 stateMachine = prepared.stateMachine,

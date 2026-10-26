@@ -67,6 +67,15 @@ object KumlIcons {
     /** Kreispfeil (Reset) — "Zurücksetzen". */
     val SimReset: ImageVector by lazy { buildSimResetIcon() }
 
+    /** Rahmen mit senkrechter Trennlinie (Seitenbereich) — Inspektor ein-/ausblenden. */
+    val SimInspector: ImageVector by lazy { buildSimInspectorIcon() }
+
+    /** Stift — Guard bearbeiten. */
+    val EditGuard: ImageVector by lazy { buildEditGuardIcon() }
+
+    /** Rückwärtspfeil — ursprünglichen Guard wiederherstellen. */
+    val RevertGuard: ImageVector by lazy { buildRevertGuardIcon() }
+
     private const val VIEWPORT = 24f
     private const val STROKE_WIDTH = 2f
     private val PLACEHOLDER = SolidColor(Color.Black)
@@ -413,6 +422,75 @@ object KumlIcons {
                     moveTo(18.36f, 3.64f)
                     lineTo(18.36f, 7.64f)
                     lineTo(14.36f, 7.64f)
+                }
+            }.build()
+
+    /** Frame with a vertical divider on its right third — "side panel". */
+    private fun buildSimInspectorIcon(): ImageVector =
+        builder("KumlSimInspector")
+            .apply {
+                path(
+                    name = "KumlSimInspector.frame",
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                ) {
+                    moveTo(4f, 5f)
+                    lineTo(20f, 5f)
+                    lineTo(20f, 19f)
+                    lineTo(4f, 19f)
+                    close()
+                    moveTo(14f, 5f)
+                    lineTo(14f, 19f)
+                }
+            }.build()
+
+    /** Pencil — "edit the guard". */
+    private fun buildEditGuardIcon(): ImageVector =
+        builder("KumlEditGuard")
+            .apply {
+                path(
+                    name = "KumlEditGuard.pencil",
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                ) {
+                    moveTo(4f, 20f)
+                    lineTo(5f, 15f)
+                    lineTo(16f, 4f)
+                    lineTo(20f, 8f)
+                    lineTo(9f, 19f)
+                    close()
+                    moveTo(14f, 6f)
+                    lineTo(18f, 10f)
+                }
+            }.build()
+
+    /** Hooked arrow pointing back — "restore the original". */
+    private fun buildRevertGuardIcon(): ImageVector =
+        builder("KumlRevertGuard")
+            .apply {
+                path(
+                    name = "KumlRevertGuard.arrow",
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                ) {
+                    moveTo(9f, 6f)
+                    lineTo(4f, 11f)
+                    lineTo(9f, 16f)
+                    moveTo(4f, 11f)
+                    lineTo(14f, 11f)
+                    lineTo(19f, 13f)
+                    lineTo(19f, 17f)
+                    lineTo(15f, 19f)
+                    lineTo(9f, 19f)
                 }
             }.build()
 }

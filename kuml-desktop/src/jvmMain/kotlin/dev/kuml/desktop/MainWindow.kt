@@ -68,6 +68,7 @@ import dev.kuml.desktop.render.RenderInputs
 import dev.kuml.desktop.simulation.SimulationSession
 import dev.kuml.desktop.simulation.SimulationStartResult
 import dev.kuml.desktop.simulation.SimulationStatus
+import dev.kuml.desktop.simulation.payloadErrorText
 import dev.kuml.desktop.state.rememberAppSettingsBinding
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
@@ -778,6 +779,14 @@ fun FrameWindowScope.MainWindow(
                 enabled = state.simulation != null,
                 onClick = { stopSimulation() },
             )
+            // Cmd/Ctrl+Shift+I lives here, not in a key handler: the editor's RSyntaxTextArea
+            // swallows key presses, a menu accelerator is the one route that always works.
+            Item(
+                strings.menuToolsSimInspector,
+                enabled = state.simulation != null,
+                shortcut = platformShortcut(key = Key.I, shift = true),
+                onClick = { state.simulation?.let { it.inspectorVisible = !it.inspectorVisible } },
+            )
             Separator()
             Item(strings.menuToolsMcpServer, onClick = { showMcpDialog = true })
             Separator()
@@ -1126,6 +1135,8 @@ private fun simulationStatusLine(
         SimulationStatus.Terminated -> strings.simTerminated to Color.Gray
         is SimulationStatus.AutoStopped -> strings.simAutoStopped.format(status.reason.name) to Color.Gray
         is SimulationStatus.DiscardedSteps -> strings.simDiscardedSteps.format(status.count) to Color.Gray
+        is SimulationStatus.InvalidPayload ->
+            strings.simInvalidPayload.format(payloadErrorText(result = status.result, strings = strings)) to Color(0xFFCC0000)
     }
 
 /**

@@ -28,6 +28,9 @@ public sealed interface PatchOutcome {
     ) : PatchOutcome
 }
 
+/** Maximum length (characters) of a guard expression accepted by [changeGuard] and the guard editor. */
+public const val MAX_GUARD_LENGTH: Int = 4096
+
 /** A guard edit awaiting user confirmation because its target transition is protected. */
 public data class PendingGuardEdit(
     public val transitionId: String,
@@ -64,6 +67,9 @@ public fun BehaviourWidgetState.changeGuard(
     if (isScrubbing) {
         return PatchOutcome.Rejected("cannot edit a guard while scrubbing; return to live first")
     }
+    if (newOcl.length > MAX_GUARD_LENGTH) {
+        return PatchOutcome.Rejected("guard too long (max $MAX_GUARD_LENGTH characters)")
+    }
 
     val result =
         runtime.applyPatch(
@@ -82,6 +88,47 @@ public fun BehaviourWidgetState.changeGuard(
         is PatchResult.Rejected.ProtectedNotConfirmed -> PatchOutcome.NeedsConfirmation
         is PatchResult.Rejected -> PatchOutcome.Rejected(result.message)
     }
+}
+
+/**
+ * Restores the ORIGINAL guard of [transitionId] (as written in
+ * [BehaviourWidgetState.initialModel]) while keeping the live state.
+ *
+ * Deliberately does NOT go through [ModelPatch.ChangeGuard]: that path type-checks every
+ * expression as a NEW user input (OCL dialect of `kuml-core-ocl`), but an original guard comes
+ * from the script and may be written in the AST dialect (for example with `&&`) which that check
+ * can reject. The original is trusted, so no type check and no confirmation is needed, even for a
+ * protected transition. The instance is rebuilt over the patched model via snapshot/restore (the
+ * model fingerprint covers vertex and transition IDs only, never guards, so this is safe).
+ *
+ * Same preconditions as [changeGuard]: the policy must allow guard edits and the widget must be live.
+ */
+public fun BehaviourWidgetState.revertGuard(transitionId: String): PatchOutcome {
+    if (!editPolicy.allowsGuardEdit) {
+        return PatchOutcome.Rejected("guard editing not permitted by policy")
+    }
+    if (isScrubbing) {
+        return PatchOutcome.Rejected("cannot edit a guard while scrubbing; return to live first")
+    }
+    val original =
+        initialModel.transitions.firstOrNull { it.id == transitionId }
+            ?: return PatchOutcome.Rejected("unknown transition '$transitionId'")
+    val idx = model.transitions.indexOfFirst { it.id == transitionId }
+    if (idx < 0) return PatchOutcome.Rejected("unknown transition '$transitionId'")
+
+    val newModel =
+        model.copy(
+            transitions = model.transitions.toMutableList().apply { this[idx] = this[idx].copy(guard = original.guard) },
+        )
+    runningInstance =
+        runtime.restoreFrom(
+            model = newModel,
+            snapshot = runtime.snapshotFull(runningInstance),
+            policy = MigrationPolicy.Reject,
+        )
+    model = newModel
+    syncFromInstance()
+    return PatchOutcome.Applied
 }
 
 /**

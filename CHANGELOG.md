@@ -27,6 +27,22 @@ examples that no longer compile). The handbook replaces them: Quick Start, Insta
 
 ### Added
 
+**Desktop simulator: inspector, variables, event payloads and temporary guard editing**
+
+The simulation side panel now has an inspector (guard results per reachable transition, the events that are not
+enabled and why, the selected transition highlighted in the diagram), a variables editor (typed and validated,
+read-only while scrubbing, the fork keeps the variables of its position), real event payloads (`event.<key>` in
+guards; 16 KiB, 8 levels, reserved keys rejected, validated before anything is sent, ⌘/Ctrl+Enter sends) and
+temporary guard editing with confirmation for protected transitions, an "edited" marker, restore and a full reset.
+Nothing is ever written back to the script. Guards are evaluated against a frozen copy through the sandbox.
+
+- Widget (`kuml-widget-compose`): `EventPayloads`, `sendEvent` parses its payload (it was ignored before),
+  `BehaviourWidgetState.resetAll`, `setVariable`, `removeVariable`, `liveVariables`, `editedGuardIds`,
+  `forkAtScrubPosition(variables)`, `revertGuard`, and the localizable public `GuardEditorField`.
+- SVG (`kuml-io-svg`): `SvgRenderOptions.preparedHighlightEdgeIds` (hidden `highlight-edge-<id>` overlays for the
+  desktop simulation; static output is unchanged).
+- Runtime (`kuml-runtime-core`): `JsonElement.toRuntimeValue()` and `runtimeValueToJson()`.
+
 **Multi-script models: merge several `.kuml.kts` scripts into one model (#10)**
 
 Large models split across scripts needed stub entities, and generating from the plain union produced colliding
