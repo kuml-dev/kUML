@@ -1,7 +1,9 @@
 package dev.kuml.desktop.workspace
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -13,6 +15,7 @@ import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.preview.ZoomToolbar
 import dev.kuml.desktop.preview.createPreviewCanvas
 import dev.kuml.desktop.preview.parseSvg
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +42,7 @@ fun WorkspacePreviewPane(
     modifier: Modifier = Modifier,
 ) {
     when {
-        docSvg != null -> SvgCanvas(svg = docSvg, modifier = modifier)
+        docSvg != null -> SvgCanvas(svg = docSvg, strings = strings, modifier = modifier)
         docError != null -> MessageBox(text = docError, color = Color(0xFFCC0000), modifier = modifier)
         isRendering -> MessageBox(text = strings.statusRendering, color = Color.Gray, modifier = modifier)
         hasSelection -> MessageBox(text = strings.previewProseEmpty, color = Color.Gray, modifier = modifier)
@@ -50,6 +53,7 @@ fun WorkspacePreviewPane(
 @Composable
 private fun SvgCanvas(
     svg: String,
+    strings: Strings,
     modifier: Modifier,
 ) {
     val canvas = remember { createPreviewCanvas() }
@@ -59,7 +63,10 @@ private fun SvgCanvas(
             SwingUtilities.invokeLater { canvas.setSVGDocument(doc) }
         }
     }
-    SwingPanel(factory = { canvas }, modifier = modifier.fillMaxSize())
+    Column(modifier = modifier.fillMaxSize()) {
+        ZoomToolbar(canvas = canvas, strings = strings)
+        SwingPanel(factory = { canvas }, modifier = Modifier.weight(1f).fillMaxWidth())
+    }
 }
 
 @Composable

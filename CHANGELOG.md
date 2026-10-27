@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+**Desktop: workspaces refresh themselves when files change on disk**
+A Knowledge or Engineering workspace is checked every two seconds. New, deleted and edited
+documents and scripts appear without reopening the workspace. The open document reloads when it has
+no unsaved edits; unsaved edits are never overwritten, and a document deleted while it has unsaved
+changes stays open. Detection is a polled fingerprint over `*.md` and `*.kuml.kts` files, identical on
+macOS, Linux and Windows.
+
 ### Fixed
 
 **Desktop simulator: modelled actions such as `validate()` no longer abort the start**
@@ -14,6 +23,14 @@ The sandbox rejected every function outside its allowlist, so shipped examples l
 sandbox allowlist". The Desktop now treats a bare call of an unknown function as an abstract action:
 it is recorded in the trace and skipped (new `SandboxPolicy.skipAbstractActions`). Unknown functions
 inside expressions or assignments, and all limits, still fail.
+
+**Desktop workspace: documents could not be scrolled**
+The Markdown read view of a Knowledge workspace document did not scroll, so everything below the
+first screen was cut off. It now scrolls (with a scrollbar) and starts at the top for each document.
+
+**Desktop workspace: diagram preview had no zoom buttons**
+The diagram column of a Knowledge workspace now has the same zoom in / zoom out / fit strip as the
+single-file preview (shared `ZoomToolbar`).
 
 **Events file: `kuml simulate` also accepts a bare JSON array**
 The handbook showed `[{"name":"confirm"}]`, but only `{"events":[...]}` was accepted. Both forms load now.

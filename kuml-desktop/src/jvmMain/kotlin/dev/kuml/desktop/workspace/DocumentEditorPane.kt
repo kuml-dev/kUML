@@ -1,6 +1,7 @@
 package dev.kuml.desktop.workspace
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -10,13 +11,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -30,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -145,8 +150,22 @@ fun DocumentEditorPane(
                             detectTapGestures(onDoubleTap = { onToggleEditing(true) })
                         },
             ) {
-                CompositionLocalProvider(LocalUriHandler provides uriHandler) {
-                    Markdown(content = buffer, modifier = Modifier.weight(1f).fillMaxSize())
+                // The Markdown renderer lays its blocks out in a plain Column that does not scroll
+                // by itself, so anything past the viewport was simply cut off. Scroll state is
+                // keyed by document so a newly selected document starts at the top.
+                val scrollState = rememberScrollState()
+                LaunchedEffect(doc.relativePath) { scrollState.scrollTo(0) }
+                Row(modifier = Modifier.weight(1f).fillMaxSize()) {
+                    CompositionLocalProvider(LocalUriHandler provides uriHandler) {
+                        Markdown(
+                            content = buffer,
+                            modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(scrollState),
+                        )
+                    }
+                    VerticalScrollbar(
+                        adapter = rememberScrollbarAdapter(scrollState),
+                        modifier = Modifier.fillMaxHeight().padding(horizontal = 2.dp),
+                    )
                 }
             }
         }

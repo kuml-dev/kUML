@@ -1,13 +1,9 @@
 package dev.kuml.desktop.preview
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -25,20 +21,13 @@ import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.simulation.SimulationBar
 import dev.kuml.desktop.simulation.SimulationSidePanel
 import dev.kuml.desktop.simulation.SimulationTracePane
-import dev.kuml.desktop.ui.IconTooltipButton
-import dev.kuml.desktop.ui.KumlIcons
-import dev.kuml.desktop.ui.tooltipEnd
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.batik.bridge.UpdateManagerAdapter
 import org.apache.batik.bridge.UpdateManagerEvent
-import org.apache.batik.swing.JSVGCanvas
 import org.apache.batik.swing.svg.JSVGComponent
 import java.awt.geom.AffineTransform
 import javax.swing.SwingUtilities
-
-/** Zoom step for the preview's Zoom In / Zoom Out buttons (P4, design review). */
-private const val ZOOM_STEP = PREVIEW_ZOOM_STEP
 
 /**
  * Vorschau-Pane: JSVGCanvas via SwingPanel plus a zoom/fit control strip (P4, design review —
@@ -61,7 +50,6 @@ private const val ZOOM_STEP = PREVIEW_ZOOM_STEP
  * [SimulationBar] sits ABOVE the `SwingPanel`, [SimulationTracePane] to its right — both plain
  * Compose, never overlaid on top of the heavyweight canvas.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PreviewPane(
     state: AppState,
@@ -121,43 +109,7 @@ fun PreviewPane(
     }
 
     Column(modifier = modifier.testTag("kuml-preview")) {
-        // Design-Review (UI-Team-Session, siehe CLAUDE.md "UI/UX-Design-Team"): '100%' und 'Fit'
-        // waren identischer Code (Batik JGVTComponent.resetRenderingTransform() setzt intern ebenfalls
-        // nur die AffineTransform-Identität; das eigentliche Fit-to-Viewport läuft separat über eine
-        // interne viewingTransform, die bei jedem Resize automatisch neu berechnet wird — unabhängig
-        // vom gedrückten Knopf). '100%' wurde entfernt, nicht 'Fit', weil es beschreibt was der Nutzer
-        // erwartet statt was der Code tut. Bewusst keine Zoomfaktor-Anzeige in dieser Leiste — es gab
-        // nie eine korrekte, und eine neue einzuführen ist eine separate Entscheidung.
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
-        ) {
-            // P2 (design review): "+"/"–" text glyphs replaced with a proper kUML-owned icon
-            // family (see KumlIcons.kt) — no material-icons dependency covers this exact set.
-            // Each button is wrapped in a TooltipArea (same pattern as WorkspaceTreePane's
-            // TypeBadge) so the icon-only affordance still names itself on hover for a11y.
-            // This strip sits directly above the heavyweight SwingPanel canvas, which hides any
-            // Compose popup overlapping it -- so the tooltip goes to the RIGHT of the button, inside
-            // the strip's own band (see the warning in IconTooltipButton.kt).
-            IconTooltipButton(
-                icon = KumlIcons.ZoomIn,
-                description = strings.previewZoomIn,
-                onClick = { zoomCanvas(canvas = canvas, factor = ZOOM_STEP) },
-                tooltipPlacement = tooltipEnd(),
-            )
-            IconTooltipButton(
-                icon = KumlIcons.ZoomOut,
-                description = strings.previewZoomOut,
-                onClick = { zoomCanvas(canvas = canvas, factor = 1.0 / ZOOM_STEP) },
-                tooltipPlacement = tooltipEnd(),
-            )
-            IconTooltipButton(
-                icon = KumlIcons.FitToWindow,
-                description = strings.previewFit,
-                onClick = { canvas.resetRenderingTransform() },
-                tooltipPlacement = tooltipEnd(),
-            )
-        }
+        ZoomToolbar(canvas = canvas, strings = strings)
         if (session != null) {
             SimulationBar(state = state, session = session, strings = strings)
         }
@@ -179,17 +131,6 @@ fun PreviewPane(
             }
         }
     }
-}
-
-/** Zooms [canvas] by [factor] around its own viewport centre. */
-private fun zoomCanvas(
-    canvas: JSVGCanvas,
-    factor: Double,
-) {
-    val width = canvas.width.takeIf { it > 0 } ?: 400
-    val height = canvas.height.takeIf { it > 0 } ?: 300
-    val current = canvas.renderingTransform ?: AffineTransform()
-    canvas.renderingTransform = zoomedTransform(current = current, factor = factor, centerX = width / 2.0, centerY = height / 2.0)
 }
 
 /**

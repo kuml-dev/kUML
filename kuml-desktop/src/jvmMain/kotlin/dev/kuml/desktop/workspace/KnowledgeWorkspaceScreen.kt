@@ -99,6 +99,11 @@ fun KnowledgeWorkspaceScreen(
             .collect { state.renderCurrentBlock(themeName = themeName, strings = strings, watermark = showWatermark) }
     }
 
+    // Picks up files created, changed or deleted outside the app (editor, git, sync tool).
+    WorkspaceChangeEffect(root = state.workspace.root) {
+        state.refreshFromDisk(themeName = themeName, strings = strings, watermark = showWatermark)
+    }
+
     // Bugfix (review finding) — this used to be a plain `OkfType?`, which can't tell "no
     // buffer yet" apart from "buffer's `type:` doesn't resolve to a known OkfType"; both
     // collapsed onto `null` and made WorkspaceTreePane fall back to the document's stale,

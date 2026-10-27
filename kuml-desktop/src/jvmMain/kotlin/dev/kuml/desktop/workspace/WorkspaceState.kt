@@ -39,10 +39,9 @@ import java.io.File
  * with `rememberCoroutineScope`) is responsible for launching `select`/`save` in response
  * to a tree click / Ctrl+S.
  *
- * The document **set** is invariant over a [WorkspaceState]'s lifetime — this welle never
- * creates, deletes, or renames a document, only edits the content of one that already
- * exists (see [applySaved]). A future welle that adds create/delete must replace the
- * incremental [applySaved] path with a full [dev.kuml.workspace.WorkspaceScanner.scan].
+ * Saving through this class edits the content of an existing document only (see [applySaved]);
+ * documents created, deleted or renamed by other tools are picked up by [refreshFromDisk], which
+ * does a full [dev.kuml.workspace.WorkspaceScanner.scan].
  */
 class WorkspaceState(
     initialWorkspace: OkfWorkspace,
@@ -184,6 +183,58 @@ class WorkspaceState(
         savedBuffer = text
 
         renderCurrentBlock(themeName = themeName, strings = strings, watermark = watermark)
+    }
+
+    /**
+     * Re-scans the workspace directory after files changed on disk (created, deleted, edited
+     * by another tool) and brings the tree, the link index and the open document up to date.
+     *
+     * The open document is only reloaded when the buffer is clean and the file's text really
+     * differs from what was loaded — unsaved edits are never overwritten, and a save of our own
+     * (which also changes the file's timestamp) does not cause a pointless reload. A document
+     * that disappeared while it has unsaved changes stays open so the work is not lost; a clean
+     * one is deselected.
+     */
+    suspend fun refreshFromDisk(
+        themeName: String,
+        strings: Strings,
+        watermark: Boolean = false,
+    ) {
+        val token = selectionToken
+        val rescanned =
+            withContext(ioDispatcher) { runCatching { WorkspaceScanner.scan(root = workspace.root) } }.getOrNull() ?: return
+        workspace = rescanned
+        documents = rescanned.documents.sortedBy { it.relativePath }
+        graphIndex = WorkspaceGraphIndex.build(ws = rescanned)
+
+        val current = selected ?: return
+        if (token != selectionToken) return // a newer selection owns the buffer now
+        val fresh = documents.find { it.relativePath == current.relativePath }
+        if (fresh == null) {
+            if (!isDirty) clearSelection()
+            return
+        }
+        if (isDirty) {
+            selected = fresh
+            return
+        }
+        val onDisk = withContext(ioDispatcher) { runCatching { fresh.file.readText(Charsets.UTF_8) }.getOrNull() }
+        if (token != selectionToken || isDirty) return
+        if (onDisk != null && onDisk != savedBuffer) {
+            select(doc = fresh, themeName = themeName, strings = strings, watermark = watermark)
+        } else {
+            selected = fresh
+        }
+    }
+
+    private fun clearSelection() {
+        selectionToken++
+        selected = null
+        buffer = null
+        savedBuffer = null
+        docSvg = null
+        docError = null
+        findings = emptyList()
     }
 
     /** Toggles the Read/Edit view for the current document, remembered by [editModes]. */

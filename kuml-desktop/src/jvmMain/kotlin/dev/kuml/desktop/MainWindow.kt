@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -81,6 +82,7 @@ import dev.kuml.desktop.workspace.KnowledgeWorkspaceScreen
 import dev.kuml.desktop.workspace.NewWorkspaceDialog
 import dev.kuml.desktop.workspace.OpenWorkspace
 import dev.kuml.desktop.workspace.TrustDialog
+import dev.kuml.desktop.workspace.WorkspaceChangeEffect
 import dev.kuml.desktop.workspace.WorkspaceModeChooserDialog
 import dev.kuml.desktop.workspace.WorkspaceState
 import dev.kuml.desktop.workspace.WorkspaceTrust
@@ -815,11 +817,27 @@ fun FrameWindowScope.MainWindow(
                             // The tree was scanned once when the workspace was opened, so a script
                             // created via Save / Save As never showed up. Rescan (off the UI thread)
                             // whenever the current file changes or a save clears the dirty flag.
+                            //
+                            // Scripts created, renamed, deleted or edited outside the app are picked
+                            // up by the change poll below: it bumps [diskChangeTick] (re-running the
+                            // rescan) and reloads the open script if it has no unsaved edits.
+                            var diskChangeTick by remember { mutableIntStateOf(0) }
+                            WorkspaceChangeEffect(root = ws.root) {
+                                diskChangeTick++
+                                val openFile = state.currentFile
+                                if (openFile != null && !state.isDirty) {
+                                    val onDisk = withContext(Dispatchers.IO) { runCatching { FileMenu.readScript(openFile) }.getOrNull() }
+                                    if (onDisk != null && !state.isDirty && onDisk != state.script) {
+                                        state.loadFrom(file = openFile, content = onDisk)
+                                    }
+                                }
+                            }
                             val scriptFiles by produceState(
                                 initialValue = ws.scriptFiles,
                                 ws.root,
                                 state.currentFile,
                                 state.isDirty,
+                                diskChangeTick,
                             ) {
                                 value =
                                     withContext(
