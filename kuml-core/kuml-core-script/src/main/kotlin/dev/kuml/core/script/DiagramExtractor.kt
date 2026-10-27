@@ -397,6 +397,63 @@ object DiagramExtractor {
         )
     }
 
+    /**
+     * Number of distinct renderable diagrams the script produced — the script's return value plus
+     * all properties of the script instance, deduplicated by object identity (a model that is both
+     * returned and bound to a `val` counts once).
+     *
+     * A [KumlDiagram] counts 1; [C4Model], [Sysml2Model], [BpmnModel], [BlueprintModel] and
+     * [ErmModel] count their `diagrams.size` (an [ErmModel] at least 1, because its builder
+     * synthesizes a default diagram). Bare sub-diagrams (e.g. [BdDiagram]) are not renderable on
+     * their own and do not count. Never throws: property getters that throw are ignored.
+     *
+     * [extractAny] still renders only the first diagram; callers use this count to warn about
+     * the ones that are silently dropped.
+     */
+    fun countRenderableDiagrams(returnValue: ResultValue): Int {
+        val seen = java.util.IdentityHashMap<Any, Boolean>()
+        var total = 0
+
+        fun add(value: Any?) {
+            if (value == null || seen.put(value, true) != null) return
+            total +=
+                try {
+                    when (value) {
+                        is KumlDiagram -> 1
+                        is C4Model -> value.diagrams.size
+                        is Sysml2Model -> value.diagrams.size
+                        is BpmnModel -> value.diagrams.size
+                        is BlueprintModel -> value.diagrams.size
+                        is ErmModel -> maxOf(1, value.diagrams.size)
+                        else -> 0
+                    }
+                } catch (_: Throwable) {
+                    0
+                }
+        }
+
+        if (returnValue is ResultValue.Value) add(returnValue.value)
+
+        val instance = returnValue.scriptInstance
+        if (instance != null) {
+            val properties =
+                try {
+                    instance::class.members.filterIsInstance<kotlin.reflect.KProperty1<Any, *>>()
+                } catch (_: Throwable) {
+                    emptyList()
+                }
+            for (prop in properties) {
+                try {
+                    add(prop.get(instance))
+                } catch (_: Throwable) {
+                    // ignore getters that throw (including Errors such as StackOverflowError from
+                    // a recursive `by lazy` or ExceptionInInitializerError)
+                }
+            }
+        }
+        return total
+    }
+
     private fun C4Model.firstDiagramOrNull(): C4Diagram? = diagrams.firstOrNull()
 
     /**

@@ -24,10 +24,11 @@ Point `kuml workspace` commands directly at the vault (or a subfolder of it):
 [source,bash]
 ----
 kuml workspace validate ~/ObsidianVault/03\ Bereiche/kUML
-kuml workspace render   ~/ObsidianVault/03\ Bereiche/kUML --mirror -o .kuml-out
+kuml workspace render   ~/ObsidianVault/03\ Bereiche/kUML --mirror
 ----
 
-Add `.kuml-out/` (or whatever `--output` directory you choose) to the vault's
+Without `-o`, the output goes to `.kuml-out` inside the workspace root (a relative `-o` path,
+by contrast, is resolved against the current directory, not the workspace). Add `.kuml-out/` (or whatever `--output` directory you choose) to the vault's
 `.gitignore` — the scanner already skips hidden directories and any directory named in
 a render's `excludeDirs`, so a second `render` run over the same root does not re-scan
 its own mirrored output. The everyday loop is: edit diagrams and prose in Obsidian →

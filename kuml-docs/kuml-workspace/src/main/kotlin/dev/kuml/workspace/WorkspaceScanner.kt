@@ -17,7 +17,8 @@ import java.nio.file.Files
  * 3. Every `*.md` file in the tree is parsed into an [OkfDocument] — frontmatter,
  *    resolved [OkfType], ` ```kuml ` blocks, and Markdown links — via [OkfDocumentParser].
  *
- * Hidden directories (name starts with `.`) and any directory in [excludeDirs]
+ * The scan root is first normalised via [canonicalRoot], so `.`, `..` and symlinked roots work.
+ * Hidden directories (name starts with `.`, except the root itself) and any directory in [excludeDirs]
  * (typically the render output directory) are skipped so that a second
  * `workspace render` run over the same root does not re-scan its own mirrored output.
  */
@@ -28,30 +29,85 @@ public object WorkspaceScanner {
      * (a directory symlink cycle, a symlink escaping the root, or an enormous number of files).
      * The per-document size cap lives on [OkfDocumentParser.MAX_MD_FILE_SIZE_BYTES].
      */
-    private const val MAX_MD_FILE_COUNT = 20_000
+    internal const val MAX_MD_FILE_COUNT = 20_000
+
+    /**
+     * Absolute + lexically normalised form of [root] (`.`, `..` and `sub/..` segments resolved).
+     * Deliberately NOT `toRealPath`: that would turn `/var` into `/private/var` on macOS and break
+     * callers (Desktop, tests) that compare [OkfDocument.file] against non-resolved paths.
+     */
+    public fun canonicalRoot(root: File): File = root.absoluteFile.normalize()
+
+    /**
+     * Single source of truth for "is this directory descended into?" — shared by [scan] and
+     * [WorkspaceDocumentResolver]. The scan root itself is always walkable (even if its own name
+     * starts with `.`, such as `.` or `~/.notes`, or if it is itself a symbolic link);
+     * hidden sub-directories, excluded directories and symbolic-link directories are not.
+     */
+    internal fun isWalkableDir(
+        dir: File,
+        scanRoot: File,
+        excludeCanonical: Set<File>,
+    ): Boolean =
+        dir == scanRoot ||
+            (
+                !dir.name.startsWith(".") &&
+                    dir.absoluteFile.normalize() !in excludeCanonical &&
+                    !Files.isSymbolicLink(dir.toPath())
+            )
+
+    internal fun canonicalExcludes(excludeDirs: Set<File>): Set<File> = excludeDirs.map { it.absoluteFile.normalize() }.toSet()
+
+    /**
+     * Parses exactly one document ([relativePath], relative to [root]) without scanning the rest of
+     * the workspace. The path is validated by [WorkspaceDocumentResolver.resolve]; any violation is
+     * returned as a failure carrying a [WorkspaceDocumentResolver.DocumentResolutionException].
+     */
+    public fun scanDocument(
+        root: File,
+        relativePath: String,
+        excludeDirs: Set<File> = emptySet(),
+    ): Result<OkfDocument> {
+        val scanRoot = canonicalRoot(root)
+        val file =
+            WorkspaceDocumentResolver
+                .resolve(root = scanRoot, requested = relativePath, excludeDirs = excludeDirs)
+                .getOrElse { return Result.failure(it) }
+        return try {
+            Result.success(OkfDocumentParser.parseFile(root = scanRoot, file = file))
+        } catch (_: java.io.IOException) {
+            Result.failure(
+                WorkspaceDocumentResolver.DocumentResolutionException(
+                    rejection = WorkspaceDocumentResolver.Rejection.IO_ERROR,
+                    requested = relativePath,
+                    suggestion = null,
+                ),
+            )
+        } catch (e: IllegalArgumentException) {
+            Result.failure(e)
+        }
+    }
 
     public fun scan(
         root: File,
         excludeDirs: Set<File> = emptySet(),
     ): OkfWorkspace {
-        val excludeCanonical = excludeDirs.map { it.absoluteFile.normalize() }.toSet()
-        val markerFile = File(root, ".kuml-workspace.toml")
+        val scanRoot = canonicalRoot(root)
+        val excludeCanonical = canonicalExcludes(excludeDirs)
+        val markerFile = File(scanRoot, ".kuml-workspace.toml")
         val markerFound = markerFile.isFile
         val marker = if (markerFound) WorkspaceMarkerParser.parse(markerFile.readText()) else null
 
         val allFiles =
-            root
+            scanRoot
                 .walkTopDown()
-                .onEnter { dir ->
-                    !dir.name.startsWith(".") &&
-                        dir.absoluteFile.normalize() !in excludeCanonical &&
-                        !Files.isSymbolicLink(dir.toPath())
-                }.filter { it.isFile }
+                .onEnter { dir -> isWalkableDir(dir = dir, scanRoot = scanRoot, excludeCanonical = excludeCanonical) }
+                .filter { it.isFile }
                 .toList()
 
         val mdFiles = allFiles.filter { it.extension == "md" }
         require(mdFiles.size <= MAX_MD_FILE_COUNT) {
-            "Workspace scan aborted: $root contains ${mdFiles.size} Markdown files, " +
+            "Workspace scan aborted: $scanRoot contains ${mdFiles.size} Markdown files, " +
                 "exceeding the safety cap of $MAX_MD_FILE_COUNT."
         }
         val hasKumlScripts = allFiles.any { it.name.endsWith(".kuml.kts") }
@@ -68,9 +124,9 @@ public object WorkspaceScanner {
 
         val documents =
             mdFiles
-                .sortedBy { it.relativeTo(root).path }
-                .map { OkfDocumentParser.parseFile(root = root, file = it) }
+                .sortedBy { it.relativeTo(scanRoot).path }
+                .map { OkfDocumentParser.parseFile(root = scanRoot, file = it) }
 
-        return OkfWorkspace(root = root, mode = mode, markerFound = markerFound, documents = documents, marker = marker)
+        return OkfWorkspace(root = scanRoot, mode = mode, markerFound = markerFound, documents = documents, marker = marker)
     }
 }

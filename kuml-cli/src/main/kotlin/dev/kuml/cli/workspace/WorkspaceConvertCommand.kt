@@ -259,10 +259,10 @@ internal class WorkspaceConvertCommand : CliktCommand(name = "convert") {
         val converted = mutableListOf<String>()
         val skipped = mutableListOf<String>()
         val findings = mutableListOf<OkfFinding>()
-        val scanRoot = if (src.isDirectory) src else (src.absoluteFile.parentFile ?: File("."))
+        val scanRoot = WorkspaceScanner.canonicalRoot(if (src.isDirectory) src else (src.absoluteFile.parentFile ?: File(".")))
         val ws = WorkspaceScanner.scan(root = scanRoot, excludeDirs = setOf(outputDir))
         val documents: List<OkfDocument> =
-            if (src.isDirectory) ws.documents else ws.documents.filter { it.file.absoluteFile == src.absoluteFile }
+            if (src.isDirectory) ws.documents else ws.documents.filter { it.file.absoluteFile == src.absoluteFile.normalize() }
 
         for (doc in documents) {
             val scripts = OkfConverter.extractBlocks(doc)

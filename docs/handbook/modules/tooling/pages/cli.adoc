@@ -421,8 +421,8 @@ documents with `type:` frontmatter and ` ```kuml ` diagram blocks:
 ----
 kuml workspace init [--name <name>] [--mode knowledge|engineering] [--output <dir>]
 kuml workspace info <dir>
-kuml workspace validate <dir> [--strict-vocabulary]
-kuml workspace render <dir> [-f svg|png] [--strict] [--no-mirror]
+kuml workspace validate <dir> [--strict-vocabulary] [--document <path>]... [--evaluate] [--strict]
+kuml workspace render <dir> [-f svg|png] [-o <dir>] [--document <path>]... [--strict] [--no-mirror]
 kuml workspace convert <src> --to okf|kts [--force] [--output <dir>] [--strict]
 ----
 

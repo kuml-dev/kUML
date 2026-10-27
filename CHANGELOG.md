@@ -8,6 +8,15 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+**Workspace CLI: single documents, multi-diagram warning**
+`kuml workspace validate` and `render` accept a repeatable `--document <path>` (relative to the
+workspace root, confined to it; no symlinks, no hidden or excluded directories) and then handle only
+those documents. New finding `OKF-W-008` reports a ```kuml block that produces more than one diagram
+(only the first is rendered); `render` reports it, `validate --evaluate` (opt-in, executes block
+code) does too, and `--strict` promotes it to an error. `validate --evaluate` also reports
+evaluation failures as `OKF-E-007`, and blocks that evaluate but yield no renderable diagram. JSON output of `validate` gained `scope` and, for `--document`
+runs, `documents`.
+
 **Notes for SysML 2, BPMN and ERM**
 SysML 2 comments (`comment(...)` / `note(...)`, model level or inside any of the eight diagram kinds),
 BPMN text annotations (`textAnnotation(...)` with dotted associations, in processes and collaborations)
@@ -26,6 +35,10 @@ macOS, Linux and Windows.
 
 ### Changed
 
+**Workspace render output**
+`kuml workspace render` prints `Output: <path>`, a warning count in the summary, and a hint when
+the default `.kuml-out` lies inside the workspace. Warnings go to stderr.
+
 **Note display limits, also for UML comments**
 Note text is cut at 2000 characters and 30 lines (ellipsis, warning `NOTE_TRUNCATED` in `kuml render` and
 `kuml validate`), and single words longer than the note width are broken hard instead of overflowing the
@@ -41,6 +54,17 @@ over-long words. UML comments keep no hard length limit.
 * Note diagnostics are reported by the CLI only (not by the web, desktop or MCP validate).
 
 ### Fixed
+
+**Workspace commands: `.` and other relative roots found no documents**
+`kuml workspace info/validate/render .` (also `dir/.`, `dir/sub/..`, a symlinked root or a root named
+like a hidden directory) treated the root itself as hidden, scanned 0 documents and reported
+`OKF-W-006`. The root is now normalised and always scanned.
+
+**Workspace render: `-o <root>` with `--mirror` overwrote the source documents**
+Mirroring into the workspace root or one of its ancestors now fails with exit code 2 before
+anything is written. The same applies to a root sub-directory that already holds source documents;
+output directories written by an earlier render (marker file `.kuml-render-output`, or any hidden
+directory such as the default `.kuml-out`) remain reusable.
 
 **Desktop simulator: modelled actions such as `validate()` no longer abort the start**
 The sandbox rejected every function outside its allowlist, so shipped examples like "Order Lifecycle"

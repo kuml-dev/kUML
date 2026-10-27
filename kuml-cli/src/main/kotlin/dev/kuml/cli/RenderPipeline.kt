@@ -104,6 +104,16 @@ private fun DiagramType.toDiagramKind(): DiagramKind =
     }
 
 /**
+ * Result of a successful [RenderPipeline.run].
+ *
+ * @property diagramCount Number of distinct renderable diagrams the script produced. Only the
+ *   first is rendered; callers (e.g. `workspace render`) may warn when this is greater than 1.
+ */
+internal data class RenderOutcome(
+    val diagramCount: Int,
+)
+
+/**
  * Orchestrates the kUML render pipeline: Script → Layout → Renderer → File.
  *
  * Branches on UML vs C4 at the extraction step. The downstream stages
@@ -211,7 +221,7 @@ internal object RenderPipeline {
         speed: Double = 1.0,
         notation: String? = null,
         watermark: Boolean = false,
-    ) {
+    ): RenderOutcome {
         // 1. Evaluate script
         val evalResult = KumlScriptHost.eval(file = input)
 
@@ -228,6 +238,12 @@ internal object RenderPipeline {
                 ?: throw ScriptEvaluationException(message = "Script evaluation did not produce a result")
 
         val extracted = DiagramExtractor.extractAny(returnValue = successResult.value.returnValue, input = input)
+        // Computed from the same evaluation (no second script run) so callers can warn about
+        // diagrams beyond the first, which extractAny silently drops.
+        val outcome =
+            RenderOutcome(
+                diagramCount = runCatching { DiagramExtractor.countRenderableDiagrams(successResult.value.returnValue) }.getOrDefault(1),
+            )
 
         // 3. Theme — layering: CLI flag > config file > built-in default "kuml"
         if (ThemeRegistry.names().isEmpty()) {
@@ -333,6 +349,7 @@ internal object RenderPipeline {
             if (e is AnimEncoderException) throw e
             throw IOException("Failed to write output file: ${e.message}", e)
         }
+        return outcome
     }
 
     private fun renderUml(

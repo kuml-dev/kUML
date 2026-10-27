@@ -13,8 +13,8 @@ The canonical entry point is the `kuml workspace` subcommand group:
 ----
 kuml workspace init [--name <name>] [--mode knowledge|engineering]   # scaffold a new workspace (see below)
 kuml workspace info <dir>                     # mode + document inventory
-kuml workspace validate <dir>                 # structural OKF conformance checks
-kuml workspace render <dir>                   # render every ```kuml block to SVG/PNG
+kuml workspace validate <dir> [--document <path>]... [--evaluate [--strict]]   # OKF conformance checks
+kuml workspace render <dir> [--document <path>]... [-o <dir>] [--strict]       # render every ```kuml block to SVG/PNG
 kuml workspace convert <src> --to okf|kts     # convert between OKF notes and .kuml.kts scripts
 ----
 
@@ -22,9 +22,58 @@ kuml workspace convert <src> --to okf|kts     # convert between OKF notes and .k
 directory argument; `info`, `validate` and `render` each take the workspace root as a
 positional `<dir>`.
 
+The workspace root may be given as `.`, `..`, `dir/.` or any relative or symlinked path; it is
+normalised before scanning. (Earlier versions treated `.` as a hidden directory and found no
+documents.)
+
 There are no top-level `kuml validate`/`kuml render` aliases for workspace operations —
 `kuml validate`/`kuml render` operate on a single `*.kuml.kts` script, `kuml workspace
 validate`/`render` operate on a whole document tree. Keep the two mental models separate.
+
+== Validating or rendering a single document
+
+`validate` and `render` accept the repeatable option `--document <path>`. Only the named
+documents are parsed — the rest of the workspace is not scanned, so authors do not depend on
+other documents, and workspace-wide checks such as `OKF-W-006` do not run.
+
+[source,bash]
+----
+kuml workspace validate ./vault --document models/checkout-state.md
+kuml workspace render   ./vault --document models/a.md --document models/b.md
+----
+
+The path is relative to the workspace root and is confined to it:
+
+* absolute paths (`/etc/passwd`, `C:/x.md`, UNC) and any path that leaves the root via `..` are refused;
+* a path that is, or passes through, a symbolic link is refused (the scanner does not follow
+  symlinked directories either);
+* hidden directories (`.hidden/`), the render output directory and non-`.md` files count as
+  unknown documents.
+
+A rejected path ends the command with exit code 2 and a message that names only the requested
+path (with a "did you mean" suggestion for typos) — never any file content.
+
+== Output directory
+
+`kuml workspace render` writes to `<root>/.kuml-out` by default and prints the resolved
+location (`Output: ...`). The default stays inside the workspace on purpose: hidden
+directories are invisible to Obsidian and ignored by the scanner (so a second run never
+re-scans its own output), the scaffolded `.gitignore` already lists `.kuml-out/`, and the
+output moves together with the workspace. Pass `-o <dir>` for anything else; a visible
+directory inside the root (`-o <root>/rendered`) is excluded from scans as well. A relative
+`-o` is resolved against the current working directory, not the workspace root.
+
+With `--mirror` (the default), the output directory must not be the workspace root or one of
+its ancestors: mirroring writes `<output>/<relative path>` and would overwrite the source
+documents. Such a request is refused with exit code 2. The same applies when the output
+directory is a sub-directory of the root that already contains files the mirror would
+overwrite (for example a source `docs/index.md` for `-o <root>/docs`), unless the directory was
+created by an earlier `kuml workspace render` (it carries a `.kuml-render-output` marker) or lies
+below a hidden directory such as the default `.kuml-out` (the scanner skips hidden directories, so
+nothing there is a source document, even for output written without a marker by an older release).
+A visible output directory from an earlier release has no marker and is refused; delete it or
+create an empty `.kuml-render-output` file in it. With `--no-mirror` (images only) any
+directory is allowed.
 
 == `kuml workspace init`
 
@@ -149,7 +198,8 @@ A few UML 2.x and C4 diagram kinds do not (e.g. `packageDiagram`, `objectDiagram
 custom `type:` (e.g. `UmlPackageDiagram`) and reports `OKF-C-003`.
 
 A script that declares multiple diagrams in one model only yields its *first* diagram
-on `--to okf` — the same "first diagram" behaviour as `kuml render`.
+on `--to okf` — the same "first diagram" behaviour as `kuml render`. `kuml workspace render`
+makes this visible by reporting `OKF-W-008` for such a block.
 
 === Multi-block documents
 
@@ -324,7 +374,8 @@ error by default — custom types are allowed — but see `--strict-vocabulary` 
 | `OKF-W-004` | WARNING | A document has more than one ```kuml block ("one file = one diagram"). | No
 | `OKF-E-005` | ERROR | A relative Markdown link to a `.md` target that does not exist. | No
 | `OKF-W-006` | WARNING | The workspace root has no `index.md` with `type: KumlWorkspace`. | n/a — workspace-wide, never raised for a single document
-| `OKF-E-007` | ERROR | A ```kuml block failed to render (`kuml workspace render` only). | n/a — render-only, not raised by validate
+| `OKF-E-007` | ERROR | A ```kuml block failed to render, or (`validate --evaluate`) failed to evaluate or evaluates without producing a renderable diagram. | n/a — render, or validate with `--evaluate`
+| `OKF-W-008` | WARNING (or ERROR under `--strict`) | A ```kuml block produces more than one diagram; only the first is rendered. Reported by `render` and by `validate --evaluate`. | n/a — needs script evaluation
 |===
 
 The last column refers to kUML Desktop's editable Knowledge Workspace document editor —
@@ -363,6 +414,11 @@ consumer parsing `kuml workspace validate -o json` output keys on a stable code 
 regardless of strictness.
 
 == Trust model
+
+`kuml workspace validate` is purely structural and executes no code. The opt-in flag
+`--evaluate` (needed for `OKF-W-008`, and for `OKF-E-007` outside of `render`) evaluates every
+` ```kuml ` block and therefore *does* run block code, exactly like `render`. `--strict` only
+affects `OKF-W-008`, and only together with `--evaluate`.
 
 `kuml workspace render` executes every ` ```kuml ` block's Kotlin script source through
 the same pipeline as `kuml render` — this is arbitrary code execution by design, not
