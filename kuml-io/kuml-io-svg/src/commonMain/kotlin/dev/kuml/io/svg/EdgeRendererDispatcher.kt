@@ -1,9 +1,11 @@
 package dev.kuml.io.svg
 
+import dev.kuml.bpmn.model.BpmnAssociation
 import dev.kuml.bpmn.model.MessageFlow
 import dev.kuml.bpmn.model.SequenceFlow
 import dev.kuml.c4.model.C4Relationship
 import dev.kuml.core.model.KumlElement
+import dev.kuml.erm.model.ErmNoteLink
 import dev.kuml.io.svg.bpmn.edge.renderBpmnMessageFlow
 import dev.kuml.io.svg.bpmn.edge.renderBpmnSequenceFlow
 import dev.kuml.io.svg.c4.renderC4Relationship
@@ -19,6 +21,7 @@ import dev.kuml.io.svg.uml.renderUmlInterfaceRealization
 import dev.kuml.io.svg.uml.renderUmlLink
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.sysml2.Sysml2CommentLink
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlAssociationClass
@@ -117,8 +120,11 @@ internal object EdgeRendererDispatcher {
                     )
                 is UmlActivityEdge -> renderUmlActivityEdge(rel = relationship, route = route, theme = theme, builder = this)
                 is UmlCommentLink -> renderUmlCommentLink(route = route, builder = this)
+                is Sysml2CommentLink -> renderNoteAnchor(route = route, style = NoteAnchorStyle.DASHED, builder = this)
                 is C4Relationship -> renderC4Relationship(rel = relationship, route = route, theme = theme, builder = this)
                 // BPMN — V3.1.3
+                is ErmNoteLink -> renderNoteAnchor(route = route, style = NoteAnchorStyle.DASHED, builder = this)
+                is BpmnAssociation -> renderNoteAnchor(route = route, style = NoteAnchorStyle.DOTTED, builder = this)
                 is SequenceFlow -> renderBpmnSequenceFlow(flow = relationship, route = route, builder = this, theme = theme)
                 // BPMN — V3.1.5 Collaboration
                 is MessageFlow -> renderBpmnMessageFlow(flow = relationship, route = route, builder = this, theme = theme)

@@ -1,8 +1,10 @@
 package dev.kuml.bpmn.dsl
 
+import dev.kuml.bpmn.model.BpmnAssociation
 import dev.kuml.bpmn.model.BpmnCollaboration
 import dev.kuml.bpmn.model.BpmnLane
 import dev.kuml.bpmn.model.BpmnParticipant
+import dev.kuml.bpmn.model.BpmnTextAnnotation
 import dev.kuml.bpmn.model.MessageFlow
 
 /**
@@ -34,6 +36,9 @@ class CollaborationBuilder(
     private val participants = mutableListOf<BpmnParticipant>()
     private val messageFlows = mutableListOf<MessageFlow>()
     private var mfCounter = 0
+    private val textAnnotations = mutableListOf<BpmnTextAnnotation>()
+    private val associations = mutableListOf<BpmnAssociation>()
+    private var annotationCounter = 0
 
     /**
      * Declares a White-Box Pool (participant with visible internal process).
@@ -92,12 +97,43 @@ class CollaborationBuilder(
         return mfId
     }
 
+    /**
+     * Adds a text annotation on collaboration level. Valid anchors are flow nodes
+     * of the referenced processes and data objects (not pools or lanes).
+     */
+    fun textAnnotation(
+        text: String,
+        vararg anchors: String,
+        id: String? = null,
+    ): String {
+        val (annotation, links) =
+            buildTextAnnotation(
+                ownerId = this.id,
+                counter = ++annotationCounter,
+                text = text,
+                anchors = anchors,
+                id = id,
+            )
+        textAnnotations += annotation
+        associations += links
+        return annotation.id
+    }
+
+    /** Alias of [textAnnotation]. */
+    fun note(
+        text: String,
+        vararg anchors: String,
+        id: String? = null,
+    ): String = textAnnotation(text = text, *anchors, id = id)
+
     internal fun build(): BpmnCollaboration =
         BpmnCollaboration(
             id = id,
             name = name,
             participants = participants.toList(),
             messageFlows = messageFlows.toList(),
+            textAnnotations = textAnnotations.toList(),
+            associations = associations.toList(),
         )
 }
 

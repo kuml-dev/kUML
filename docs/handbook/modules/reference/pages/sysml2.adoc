@@ -562,6 +562,45 @@ sysml2Model(name = "NewtonModel") {
 }
 ----
 
+== Notes
+
+SysML 2 models carry free-text comments. Use `comment(...)` (alias `note(...)`) either on the model or
+inside a diagram block:
+
+[source,kotlin]
+----
+sysml2Model(name = "Vehicle") {
+    val vehicle = partDef(name = "Vehicle")
+    val engine = partDef(name = "Engine")
+
+    // model level: shown in every diagram in which one of its anchors is visible
+    comment(text = "Engine and vehicle are developed by different teams.", vehicle, engine)
+
+    bdd(name = "Overview") {
+        include(definition = vehicle)
+        include(definition = engine)
+        // diagram level: stored in the model and listed in this diagram
+        comment(text = "Free-standing note", id = "legend")
+    }
+}
+----
+
+* Anchors are element ids (`comment(text = "...", "Vehicle", "Engine")`) or element handles
+  (`comment(text = "...", firstAnchor = vehicle)`). Without anchors the note is free-standing.
+* A comment appears in a diagram if its id is listed in the diagram's `noteIds` (via a comment inside the
+  diagram block, `include(comment)` or `includeCommentById(id)`), or if at least one anchor is visible there.
+  Links to invisible targets are not drawn. Note ids never go into `elementIds`, because an empty
+  `elementIds` means "show everything" for some diagram kinds.
+* Notes are laid out with the diagram (BDD, IBD, UC, REQ, STM, ACT, PAR). In a sequence diagram they are
+  placed after the layout in a column right of the rightmost lifeline.
+* Anchor limits: ports (IBD) and activity partitions (ACT) cannot be anchored; anchor the part usage or
+  the action instead.
+* Body limit: 65 536 characters (hard), display limit 2000 characters / 30 lines.
+* `kuml validate` reports `SYSML2_NOTE_ANCHOR_UNKNOWN`, `SYSML2_NOTE_DUPLICATE_ID` (errors) and
+  `SYSML2_NOTE_NOT_SHOWN` (warning: an unanchored comment is listed in no diagram).
+
+NOTE: The LaTeX/TikZ export does not draw notes yet.
+
 == M2M transforms from UML to SysML 2
 
 `kuml transform` supports model-to-model (M2M) transformations. As of V2.x, UML models

@@ -144,6 +144,6 @@ public object ErmIdef1xLayoutBridge {
             }
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges, groups = emptyList())
+        return LayoutGraph(nodes = nodes, edges = edges, groups = emptyList()).withErmNotes(model = model) { it }
     }
 }

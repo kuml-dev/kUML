@@ -249,6 +249,11 @@ internal object RenderPipeline {
                 ?.let { patch -> baseTheme.copy(stereotypes = patch.applyTo(baseTheme.stereotypes)) }
                 ?: baseTheme
 
+        // Note diagnostics (unknown anchors, NOTE_TRUNCATED) — printed as warnings, never abort the render.
+        NoteChecks.of(extracted).forEach { f ->
+            System.err.println("[kuml] ${if (f.isError) "ERROR" else "WARNING"} [${f.code}] ${f.message}")
+        }
+
         // 4–6. Branch on diagram kind: layout → render → write
         try {
             when (extracted) {

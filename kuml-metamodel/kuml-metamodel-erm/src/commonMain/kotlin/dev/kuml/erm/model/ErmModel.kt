@@ -26,6 +26,10 @@ data class ErmModel(
      */
     val categories: List<ErmCategory> = emptyList(),
     val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    /** Free-text notes; an ERM diagram always shows the whole model, so all notes are shown. */
+    val notes: List<ErmNote> = emptyList(),
+    /** Anchor links from [notes] to entities / views. */
+    val noteLinks: List<ErmNoteLink> = emptyList(),
 ) {
     /** Looks up an entity by id. */
     fun entityById(id: String): ErmEntity? = entities.firstOrNull { it.id == id }
@@ -65,11 +69,17 @@ data class ErmModel(
             ?: relationships.firstOrNull { it.id == id }
             ?: views.firstOrNull { it.id == id }
             ?: categoryById(id)
+            ?: notes.firstOrNull { it.id == id }
+            ?: noteLinks.firstOrNull { it.id == id }
 
     /** All relationships with an end (source or target) on the given entity. */
     fun relationshipsOf(entityId: String): List<ErmRelationship> =
         relationships.filter { it.sourceEntityId == entityId || it.targetEntityId == entityId }
 
+    /** Ids a note may be anchored to: entities and views. */
+    fun anchorableIds(): Set<String> = (entities.map { it.id } + views.map { it.id }).toSet()
+
     /** The first declared diagram, or `null` if none was declared. */
+
     fun firstDiagramOrNull(): ErmDiagram? = diagrams.firstOrNull()
 }

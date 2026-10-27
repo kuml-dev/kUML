@@ -314,6 +314,32 @@ kuml render order-process.kuml.kts --format latex --latex-standalone
 BPMN models also round-trip through standard BPMN 2.0 XML — see
 xref:bpmn-xml.adoc[BPMN 2.0 XML I/O].
 
+== Text annotations
+
+`textAnnotation(text, anchors...)` (alias `note(...)`) adds a BPMN text annotation to a process or a
+collaboration and returns its id. It is drawn as an open square bracket with the text next to it,
+connected to its anchors by dotted associations without arrowheads.
+
+[source,kotlin]
+----
+process(id = "order") {
+    val check = task(name = "Check order")
+    textAnnotation(text = "Credit limit is checked by finance.", check)
+}
+----
+
+* Valid anchors: flow nodes (including nodes of expanded sub-processes), data objects and data stores.
+  Pools, lanes and sequence flows throw `IllegalArgumentException` when the model is built.
+* Annotations declared inside a `subProcess { }` block are hoisted into the enclosing process. For a
+  collapsed sub-process, associations to its inner nodes point to the sub-process itself.
+* In a collaboration, annotations of the collaboration and of all referenced processes are drawn outside
+  the pools.
+* A diagram with an empty `elementIds` shows all annotations; with a filter, an annotation is shown if it
+  is listed or one of its anchors is visible.
+* Limits: 65 536 characters (hard), 2000 characters / 30 lines displayed (`NOTE_TRUNCATED`).
+* There is no BPMN DSL printer; BPMN models round-trip via BPMN XML (see xref:bpmn-xml.adoc[]) and JSON.
+* `kuml validate`: `BPMN_ASSOCIATION_UNKNOWN_REF` (error), `BPMN_ASSOCIATION_UNSUPPORTED_TARGET` (warning).
+
 == Worked examples — all four diagram types
 
 === Process

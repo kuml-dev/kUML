@@ -8,12 +8,37 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+**Notes for SysML 2, BPMN and ERM**
+SysML 2 comments (`comment(...)` / `note(...)`, model level or inside any of the eight diagram kinds),
+BPMN text annotations (`textAnnotation(...)` with dotted associations, in processes and collaborations)
+and ERM notes (`note(...)`, all four notations) are modelled, laid out, rendered and serialised
+(JSON, SysML 2 DSL printer, SQL-reverse ERM printer). BPMN XML export and import now cover
+`textAnnotation` and `association`; associations are normalised to annotation to target on import.
+Notes share a new `KumlNote` core in `kuml-core-model` with a hard 64 KiB body limit. `kuml validate`
+and `kuml render` report new note diagnostics (see the handbook, validate page).
+
 **Desktop: workspaces refresh themselves when files change on disk**
 A Knowledge or Engineering workspace is checked every two seconds. New, deleted and edited
 documents and scripts appear without reopening the workspace. The open document reloads when it has
 no unsaved edits; unsaved edits are never overwritten, and a document deleted while it has unsaved
 changes stays open. Detection is a polled fingerprint over `*.md` and `*.kuml.kts` files, identical on
 macOS, Linux and Windows.
+
+### Changed
+
+**Note display limits, also for UML comments**
+Note text is cut at 2000 characters and 30 lines (ellipsis, warning `NOTE_TRUNCATED` in `kuml render` and
+`kuml validate`), and single words longer than the note width are broken hard instead of overflowing the
+box. This also applies to UML comments; it only changes notes above roughly 1000 characters and
+over-long words. UML comments keep no hard length limit.
+
+### Known limitations
+
+* C4 `note(text)` is a no-op (nothing stored, nothing drawn).
+* LaTeX/TikZ export draws no notes; BPMN choreographies and conversations, KerML and Blueprint have no notes.
+* SysML 2 notes cannot be anchored to ports or activity partitions; BPMN annotations cannot be
+  anchored to pools, lanes or sequence flows; ERM notes only to entities and views.
+* Note diagnostics are reported by the CLI only (not by the web, desktop or MCP validate).
 
 ### Fixed
 

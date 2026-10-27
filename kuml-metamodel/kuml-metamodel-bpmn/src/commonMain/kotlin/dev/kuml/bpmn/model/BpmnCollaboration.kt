@@ -24,6 +24,10 @@ data class BpmnCollaboration(
     override val name: String? = null,
     val participants: List<BpmnParticipant> = emptyList(),
     val messageFlows: List<MessageFlow> = emptyList(),
+    /** Text annotations declared on the collaboration level. */
+    val textAnnotations: List<BpmnTextAnnotation> = emptyList(),
+    /** Associations from [textAnnotations] to flow nodes / data objects of the referenced processes. */
+    val associations: List<BpmnAssociation> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : BpmnElement
 

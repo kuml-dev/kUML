@@ -114,7 +114,7 @@ public object Sysml2LayoutBridge {
             }
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges)
+        return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
     }
 
     /**
@@ -900,7 +900,7 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges)
+        return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
     }
 
     /**
@@ -991,7 +991,7 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges)
+        return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
     }
 
     /**
@@ -1101,7 +1101,7 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges)
+        return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
     }
 
     /**
@@ -1188,7 +1188,7 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges)
+        return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
     }
 
     /**
@@ -1375,7 +1375,7 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges, groups = groups)
+        return LayoutGraph(nodes = nodes, edges = edges, groups = groups).withSysml2Notes(model = model, diagram = diagram)
     }
 
     /**
@@ -1839,7 +1839,7 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges)
+        return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
     }
 
     /**
@@ -1976,9 +1976,12 @@ public object Sysml2LayoutBridge {
                 .filter { it.id.startsWith(ownerPrefix) }
         if (connections.isEmpty()) return layoutResult
 
+        // Note nodes are never port owners: exclude them so a note id can't act as a port-id prefix.
+        val noteIds = model.comments.map { it.id }.toSet()
         val visibleNodeIds =
             layoutResult.nodes.keys
                 .map { it.value }
+                .filter { it !in noteIds }
                 .toSet()
         // portPositions[nodeId][portId] = local Point (relative to node origin)
         val portPositions = mutableMapOf<NodeId, MutableMap<PortId, Point>>()

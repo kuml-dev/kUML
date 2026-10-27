@@ -335,7 +335,11 @@ public object BpmnLayoutBridge {
             }
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges, groups = groups)
+        return LayoutGraph(nodes = nodes, edges = edges, groups = groups).withBpmnNotes(
+            annotations = process?.textAnnotations.orEmpty(),
+            associations = process?.associations.orEmpty(),
+            filterIds = diagram.elementIds.takeIf { it.isNotEmpty() }?.toSet(),
+        )
     }
 
     /**
@@ -532,7 +536,14 @@ public object BpmnLayoutBridge {
             }
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges, groups = groups)
+        val referencedProcesses =
+            collaboration.participants
+                .mapNotNull { p -> p.processRef?.let { ref -> model.processes.firstOrNull { it.id == ref } } }
+        return LayoutGraph(nodes = nodes, edges = edges, groups = groups).withBpmnNotes(
+            annotations = collaboration.textAnnotations + referencedProcesses.flatMap { it.textAnnotations },
+            associations = collaboration.associations + referencedProcesses.flatMap { it.associations },
+            filterIds = diagram.elementIds.takeIf { it.isNotEmpty() }?.toSet(),
+        )
     }
 
     /**

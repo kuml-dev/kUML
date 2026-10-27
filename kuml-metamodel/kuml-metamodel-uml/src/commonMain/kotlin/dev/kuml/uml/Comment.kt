@@ -41,8 +41,10 @@ import kotlinx.serialization.Serializable
 // use-case, activity, composite-structure, communication, timing,
 // interaction-overview, profile) as well: the layout bridge and renderer
 // dispatch handle [UmlComment]/[UmlCommentLink] generically, independent of
-// diagram type. Only BPMN, SysML 2, C4, and ERM remain out of scope — see the
-// kUML CHANGELOG for details.
+// diagram type. SysML 2 (`Sysml2Comment`), BPMN (`BpmnTextAnnotation`) and ERM
+// (`ErmNote`) have their own notes built on `dev.kuml.core.model.note.KumlNote`.
+// C4 is still open: `note(text)` in the C4 diagram builders is a no-op. KerML
+// and Blueprint have no notes.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**

@@ -98,6 +98,16 @@ nested event-definition element (`<messageEventDefinition/>`, `<timerEventDefini
 
 | Collaboration
 | `<collaboration>` with `<participant processRef>` and `<messageFlow sourceRef targetRef>`.
+
+| Text annotations
+| `<textAnnotation id><text>…</text></textAnnotation>` and
+`<association id sourceRef targetRef associationDirection>`, in processes and collaborations.
+Export writes `sourceRef` = annotation and `targetRef` = anchor. On import an association is kept only if
+one side is a text annotation; it is normalised to annotation → other side, so an association written the
+other way round (`sourceRef` = flow node) is read correctly. `associationDirection` (`None`/`One`/`Both`)
+is preserved in the model but the renderer always draws a plain dotted line. Associations between two
+other artifacts are ignored. An annotation text above 65 536 characters aborts the import with an error
+naming the annotation id.
 |===
 
 A round-trip (export → import) is structurally consistent for ids, names, and element types.

@@ -53,6 +53,8 @@ kotlin {
             implementation(project(":kuml-profile:kuml-profile-api"))
             // PNG co-generation in SampleOutput: converts each SVG sample to PNG for visual regression
             implementation(project(":kuml-io:kuml-io-png"))
+            // Notes e2e tests lay out SysML 2 / BPMN / ERM diagrams with the real ELK engine
+            implementation(project(":kuml-renderer:kuml-layout-elk"))
             // V3.1.36 — ArxmlComponentRenderTest: render an imported ARXML composition as SVG
             implementation(project(":kuml-io:kuml-io-arxml"))
         }

@@ -323,6 +323,11 @@ umlModel(name = "Banking system") {
 }
 ----
 
+== Notes
+
+`note(text)` exists in the C4 diagram builders but is a no-op: nothing is stored and nothing is drawn.
+C4 notes are not implemented yet.
+
 == Stereotypes and styling
 
 C4 elements accept stereotypes for thematic styling. The default themes (`plain`, `kuml`,

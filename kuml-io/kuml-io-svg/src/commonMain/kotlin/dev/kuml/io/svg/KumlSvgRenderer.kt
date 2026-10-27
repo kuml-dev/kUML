@@ -76,6 +76,7 @@ import dev.kuml.layout.borderIntersectionTowards
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
+import dev.kuml.layout.bridge.placeSeqNotes
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.ActDiagram
@@ -1749,6 +1750,16 @@ public object KumlSvgRenderer {
     }
 
     /**
+     * All SysML 2 comments and their anchor links of [model], to be appended to a
+     * synthetic diagram hull. Nodes and edges that the layout did not place are
+     * never drawn (the render loops iterate the layout result), so visibility is
+     * decided once, by the layout bridge, and not duplicated here.
+     */
+    private fun sysml2NoteElements(model: Sysml2Model): List<dev.kuml.core.model.KumlElement> =
+        model.comments.filter { c -> model.definitions.none { it.id == c.id } && model.usages.none { it.id == c.id } } +
+            model.commentLinks
+
+    /**
      * Renders a synthetic SysML 2 [KumlDiagram] hull with an adapter-driven
      * edge dispatch (V2.0.13).
      *
@@ -1892,7 +1903,7 @@ public object KumlSvgRenderer {
             KumlDiagram(
                 name = diagram.name,
                 type = DiagramType.CLASS,
-                elements = elements,
+                elements = elements + sysml2NoteElements(model),
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
@@ -1932,7 +1943,7 @@ public object KumlSvgRenderer {
             KumlDiagram(
                 name = diagram.name,
                 type = DiagramType.CLASS,
-                elements = visible,
+                elements = visible + sysml2NoteElements(model),
             )
         val enrichedLayout = Sysml2LayoutBridge.enrichIbdPortPositions(model = model, diagram = diagram, layoutResult = layoutResult)
         return renderSysml2Synthetic(
@@ -1979,7 +1990,7 @@ public object KumlSvgRenderer {
             KumlDiagram(
                 name = diagram.name,
                 type = DiagramType.CLASS,
-                elements = elements,
+                elements = elements + sysml2NoteElements(model),
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
@@ -2032,7 +2043,7 @@ public object KumlSvgRenderer {
             KumlDiagram(
                 name = diagram.name,
                 type = DiagramType.CLASS,
-                elements = elements,
+                elements = elements + sysml2NoteElements(model),
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
@@ -2079,7 +2090,7 @@ public object KumlSvgRenderer {
             KumlDiagram(
                 name = diagram.name,
                 type = DiagramType.CLASS,
-                elements = elements,
+                elements = elements + sysml2NoteElements(model),
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
@@ -2134,7 +2145,7 @@ public object KumlSvgRenderer {
             KumlDiagram(
                 name = diagram.name,
                 type = DiagramType.CLASS,
-                elements = elements,
+                elements = elements + sysml2NoteElements(model),
             )
         // V2.0.16: Partitions are looked up from the full model (not the
         //          diagram-visible filter) so a partition that is referenced
@@ -2380,6 +2391,21 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme = PlainTheme(),
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String =
+        renderSysml2Seq(
+            model = model,
+            diagram = diagram,
+            layoutResult = Sysml2LayoutBridge.placeSeqNotes(model = model, diagram = diagram, layoutResult = layoutResult),
+            theme = theme,
+            options = options,
+        )
+
+    private fun renderSysml2Seq(
+        model: Sysml2Model,
+        diagram: SeqDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
     ): String {
         val visibleIds = diagram.elementIds.toSet()
         val visibleLifelines: List<LifelineDefinition> =
@@ -2554,6 +2580,32 @@ public object KumlSvgRenderer {
                 builder = edgesBuilder,
                 operandStartSeqs = operandStartSeqs,
             )
+
+            // 6. Notes + anchor links, placed by Sysml2LayoutBridge.placeSeqNotes.
+            for (comment in model.comments) {
+                val nodeLayout = layoutResult.nodes[NodeId(comment.id)] ?: continue
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y = nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
+                NodeRendererDispatcher.dispatch(element = comment, layout = shifted, theme = theme, builder = nodesBuilder)
+            }
+            for (link in model.commentLinks) {
+                val route = layoutResult.edges[dev.kuml.layout.EdgeId(link.id)] ?: continue
+                EdgeRendererDispatcher.dispatch(
+                    relationship = link,
+                    route = shiftRoute(route = route, dx = padding),
+                    theme = theme,
+                    builder = edgesBuilder,
+                )
+            }
         }
     }
 
@@ -2593,7 +2645,7 @@ public object KumlSvgRenderer {
             KumlDiagram(
                 name = diagram.name,
                 type = DiagramType.CLASS,
-                elements = elements,
+                elements = elements + sysml2NoteElements(model),
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
@@ -2728,6 +2780,46 @@ public object KumlSvgRenderer {
         )
 
     /**
+     * Draws the notes and note links of an ERM model. Done in one pass for all
+     * four notations because the notation-specific node/edge loops only know
+     * their own element kinds; note ids are plain (never prefixed), so they
+     * are looked up directly in the layout result.
+     */
+    private fun renderErmNotes(
+        model: ErmModel,
+        layoutResult: LayoutResult,
+        padding: Float,
+        theme: KumlTheme,
+        nodesBuilder: SvgBuilder,
+        edgesBuilder: SvgBuilder,
+    ) {
+        for (note in model.notes) {
+            val nodeLayout = layoutResult.nodes[NodeId(note.id)] ?: continue
+            val shifted =
+                nodeLayout.copy(
+                    bounds =
+                        nodeLayout.bounds.copy(
+                            origin =
+                                nodeLayout.bounds.origin.copy(
+                                    x = nodeLayout.bounds.origin.x + padding,
+                                    y = nodeLayout.bounds.origin.y + padding,
+                                ),
+                        ),
+                )
+            NodeRendererDispatcher.dispatch(element = note, layout = shifted, theme = theme, builder = nodesBuilder)
+        }
+        for (link in model.noteLinks) {
+            val route = layoutResult.edges[dev.kuml.layout.EdgeId(link.id)] ?: continue
+            EdgeRendererDispatcher.dispatch(
+                relationship = link,
+                route = shiftRoute(route = route, dx = padding),
+                theme = theme,
+                builder = edgesBuilder,
+            )
+        }
+    }
+
+    /**
      * Shared ERM render body for [renderErmMartin] and [renderErmBachman] —
      * entity/view boxes, layout shifting, and relationship-label stacking are
      * notation-neutral (see [KumlSvgRenderer.toSvg]'s KDoc); only the
@@ -2807,6 +2899,14 @@ public object KumlSvgRenderer {
                     stackIndices[edgeId] ?: 0,
                 )
             }
+            renderErmNotes(
+                model = model,
+                layoutResult = layoutResult,
+                padding = padding,
+                theme = theme,
+                nodesBuilder = nodesBuilder,
+                edgesBuilder = edgesBuilder,
+            )
         }
     }
 
@@ -2970,6 +3070,14 @@ public object KumlSvgRenderer {
                     }
                 }
             }
+            renderErmNotes(
+                model = model,
+                layoutResult = layoutResult,
+                padding = padding,
+                theme = theme,
+                nodesBuilder = nodesBuilder,
+                edgesBuilder = edgesBuilder,
+            )
         }
     }
 
@@ -3109,6 +3217,14 @@ public object KumlSvgRenderer {
                     }
                 }
             }
+            renderErmNotes(
+                model = model,
+                layoutResult = layoutResult,
+                padding = padding,
+                theme = theme,
+                nodesBuilder = nodesBuilder,
+                edgesBuilder = edgesBuilder,
+            )
         }
     }
 
@@ -4031,8 +4147,19 @@ public object KumlSvgRenderer {
                 }
             }
 
+        // Text annotations + associations: collaboration level and those of the referenced processes.
+        val referencedProcesses =
+            collaboration.participants.mapNotNull { p ->
+                p.processRef?.let { ref -> model.processes.firstOrNull { it.id == ref } }
+            }
+        val noteIndex: Map<String, dev.kuml.core.model.KumlElement> =
+            (
+                collaboration.textAnnotations + collaboration.associations +
+                    referencedProcesses.flatMap { it.textAnnotations + it.associations }
+            ).associateBy { it.id }
+
         val allElementIndex: Map<String, dev.kuml.core.model.KumlElement> =
-            participantIndex + laneIndex + messageFlowIndex + flowNodeIndex
+            participantIndex + laneIndex + messageFlowIndex + flowNodeIndex + noteIndex
 
         // Track lane orientation per parent pool
         val laneHorizontalByParticipantId: Map<String, Boolean> =

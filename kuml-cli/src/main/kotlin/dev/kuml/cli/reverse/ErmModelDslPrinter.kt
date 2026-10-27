@@ -7,6 +7,7 @@ import dev.kuml.erm.model.ErmEntity
 import dev.kuml.erm.model.ErmIndex
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ErmNotation
+import dev.kuml.erm.model.ErmNote
 import dev.kuml.erm.model.ErmRelationship
 import dev.kuml.erm.model.ErmView
 import dev.kuml.erm.model.ReferentialAction
@@ -58,6 +59,11 @@ internal object ErmModelDslPrinter {
         if (model.categories.isNotEmpty()) sb.appendLine()
         for (category in model.categories) {
             renderCategory(sb = sb, category = category, valNames = valNames)
+        }
+
+        if (model.notes.isNotEmpty()) sb.appendLine()
+        for (note in model.notes) {
+            renderNote(sb = sb, model = model, note = note, valNames = valNames)
         }
 
         val notation = model.diagrams.firstOrNull()?.notation ?: ErmNotation.MARTIN
@@ -188,6 +194,20 @@ internal object ErmModelDslPrinter {
         val refs = view.referencedEntityIds.mapNotNull { valNames[it] }
         if (refs.isNotEmpty()) parts += "references = listOf(${refs.joinToString(", ")})"
         sb.appendLine("    view(${parts.joinToString(", ")})")
+    }
+
+    /** `note("text", anchor…, id = "…")`; entity anchors use their `val`, view anchors their id string. */
+    private fun renderNote(
+        sb: StringBuilder,
+        model: ErmModel,
+        note: ErmNote,
+        valNames: Map<String, String>,
+    ) {
+        val anchors =
+            model.noteLinks
+                .filter { it.link.noteId == note.id }
+                .joinToString("") { ", " + (valNames[it.link.targetId] ?: "\"${escape(it.link.targetId)}\"") }
+        sb.appendLine("    note(\"${escape(note.note.body)}\"$anchors, id = \"${escape(note.id)}\")")
     }
 
     private fun renderCategory(

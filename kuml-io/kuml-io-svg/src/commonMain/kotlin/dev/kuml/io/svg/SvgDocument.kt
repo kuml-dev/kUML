@@ -286,6 +286,19 @@ internal object SvgDocument {
                     ".kuml-edge-dashed { stroke: ${c.edgeMuted.toHex()}; stroke-width: ${bo.regularPx};" +
                         " fill: none; stroke-dasharray: 8 4; }\n",
                 )
+                // Notes of SysML 2 / ERM anchor lines (distinct from UML's `.kuml-edge-dashed` 8 4 pattern),
+                // BPMN association and text annotation. `.kuml-sysml2-comment` / `.kuml-erm-note` inherit
+                // from `.kuml-comment` and have no rule of their own.
+                append(
+                    ".kuml-note-anchor { stroke: ${c.edgeMuted.toHex()}; stroke-width: ${bo.regularPx};" +
+                        " fill: none; stroke-dasharray: 6 4; }\n",
+                )
+                append(
+                    ".kuml-bpmn-association { stroke: ${c.edgeMuted.toHex()}; stroke-width: ${bo.regularPx};" +
+                        " fill: none; stroke-dasharray: 2 3; }\n",
+                )
+                append(".kuml-bpmn-text-annotation { fill: none; stroke: ${c.border.toHex()}; stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-bpmn-text-annotation-area { fill: none; stroke: none; }\n")
                 append(".kuml-divider { stroke: ${c.border.toHex()}; stroke-width: ${bo.thinPx}; }\n")
                 append(".kuml-actor { stroke: ${c.foreground.toHex()}; stroke-width: ${bo.regularPx}; fill: none; }\n")
                 append(".kuml-frame { fill: none; stroke: ${c.border.toHex()}; stroke-width: ${bo.regularPx}; }\n")

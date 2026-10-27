@@ -185,6 +185,15 @@ public object ErmChenLayoutBridge {
             }
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges, groups = emptyList())
+        val chenNodeIds = nodes.map { it.id.value }.toSet()
+        return LayoutGraph(nodes = nodes, edges = edges, groups = emptyList()).withErmNotes(model = model) { id ->
+            if (ENTITY_PREFIX + id in
+                chenNodeIds
+            ) {
+                ENTITY_PREFIX + id
+            } else {
+                VIEW_PREFIX + id
+            }
+        }
     }
 }

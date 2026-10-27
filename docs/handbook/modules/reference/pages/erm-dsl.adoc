@@ -228,6 +228,26 @@ kuml render schema.kuml.kts --notation idef1x
 `--notation` overrides whatever `notation = …` the script's `diagram(…)` call set; it is
 ignored for non-ERM diagrams.
 
+== Notes
+
+`note(text, anchors...)` adds a free-text note to the model; it returns the note id (`note_<n>`).
+Anchors are entity or view ids; without anchors the note is free-standing. Notes are drawn with a folded
+corner and dashed anchor lines in all four notations (Martin, Bachman, Chen, IDEF1X). An ERM diagram always
+shows the whole model, so every note is shown.
+
+[source,kotlin]
+----
+ermModel(name = "Shop") {
+    val customer = entity(name = "Customer") { id() }
+    note(text = "Soft-deleted after 24 months.", customer)
+}
+----
+
+Anchoring an attribute, a relationship or an unknown id throws when the model is built. Limits: 65 536
+characters (hard), 2000 characters / 30 lines displayed (`NOTE_TRUNCATED`). `kuml validate` reports
+`ERM_NOTE_ANCHOR_UNKNOWN` and `ERM_NOTE_ANCHOR_UNSUPPORTED`. The SQL-reverse printer writes notes back
+as `note(...)` calls; the UML→ERM transformation never creates notes.
+
 == Full example
 
 A complete schema exercising every first-class element — entity, weak entity,

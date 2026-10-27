@@ -325,11 +325,17 @@ classDiagram(name = "Order Domain") {
 }
 ----
 
-TIP: `comment(...)` is available on class, sequence (`UmlInteractionScope`), and
-state-machine (`UmlStateMachineScope`) diagram bodies as of v0.23.1. Other diagram
-types (object, package, component, deployment, use case, activity, BPMN, SysML 2,
-C4, ...) do not have a `comment()` DSL function yet — this is a known, intentional
-scope limitation, not an oversight.
+TIP: `comment(...)` is available on all UML diagram bodies. SysML 2, BPMN and ERM have
+their own note verbs, see xref:sysml2.adoc#_notes[SysML 2 notes], xref:bpmn-dsl.adoc#_text_annotations[BPMN
+text annotations] and xref:erm-dsl.adoc#_notes[ERM notes]. C4 has none yet: `note(text)` in the C4
+diagram builders is accepted but draws nothing.
+
+.Display limits
+All note kinds share the same display limits: a note body is cut at 2000 characters and 30 lines
+(the last visible line ends on an ellipsis), and a single word longer than the note width is broken
+hard instead of running out of the box. `kuml render` and `kuml validate` report a cut note as the
+warning `NOTE_TRUNCATED`. UML comments have no hard length limit; SysML 2, BPMN and ERM notes reject
+bodies above 65 536 characters.
 
 == Object diagrams
 

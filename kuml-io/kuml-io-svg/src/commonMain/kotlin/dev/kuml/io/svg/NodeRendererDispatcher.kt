@@ -8,12 +8,14 @@ import dev.kuml.bpmn.model.BpmnLane
 import dev.kuml.bpmn.model.BpmnParticipant
 import dev.kuml.bpmn.model.BpmnSubProcess
 import dev.kuml.bpmn.model.BpmnTask
+import dev.kuml.bpmn.model.BpmnTextAnnotation
 import dev.kuml.c4.model.C4Component
 import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4DeploymentNode
 import dev.kuml.c4.model.C4Person
 import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.core.model.KumlElement
+import dev.kuml.erm.model.ErmNote
 import dev.kuml.io.svg.bpmn.renderBpmnCallActivity
 import dev.kuml.io.svg.bpmn.renderBpmnDataObject
 import dev.kuml.io.svg.bpmn.renderBpmnEvent
@@ -50,7 +52,9 @@ import dev.kuml.io.svg.uml.renderUmlStereotype
 import dev.kuml.io.svg.uml.renderUmlTimingLifeline
 import dev.kuml.io.svg.uml.renderUmlUseCase
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.bridge.NoteFrameStyle
 import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.sysml2.Sysml2Comment
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Usage
 import dev.kuml.uml.UmlActivityNode
@@ -144,9 +148,36 @@ internal object NodeRendererDispatcher {
             is C4Container -> renderC4Container(element = element, layout = layout, theme = theme, builder = builder)
             is C4Component -> renderC4Component(element = element, layout = layout, theme = theme, builder = builder)
             is C4DeploymentNode -> renderC4DeploymentNode(element = element, layout = layout, theme = theme, builder = builder)
+            is Sysml2Comment ->
+                renderNote(
+                    id = element.id,
+                    body = element.note.body,
+                    layout = layout,
+                    frame = NoteFrameStyle.DOG_EAR,
+                    frameClasses = "kuml-comment kuml-sysml2-comment",
+                    builder = builder,
+                )
             is Sysml2Definition -> renderSysml2Definition(element = element, layout = layout, theme = theme, builder = builder)
             is Sysml2Usage -> renderSysml2Usage(element = element, layout = layout, theme = theme, builder = builder)
             // BPMN — V3.1.3
+            is ErmNote ->
+                renderNote(
+                    id = element.id,
+                    body = element.note.body,
+                    layout = layout,
+                    frame = NoteFrameStyle.DOG_EAR,
+                    frameClasses = "kuml-comment kuml-erm-note",
+                    builder = builder,
+                )
+            is BpmnTextAnnotation ->
+                renderNote(
+                    id = element.id,
+                    body = element.note.body,
+                    layout = layout,
+                    frame = NoteFrameStyle.BRACKET,
+                    frameClasses = "kuml-bpmn-text-annotation",
+                    builder = builder,
+                )
             is BpmnEvent -> renderBpmnEvent(event = element, layout = layout, theme = theme, builder = builder)
             is BpmnGateway -> renderBpmnGateway(gw = element, layout = layout, theme = theme, builder = builder)
             is BpmnTask -> renderBpmnTask(task = element, layout = layout, theme = theme, builder = builder)

@@ -8,7 +8,8 @@ import dev.kuml.uml.ids.UmlIds
 // ─────────────────────────────────────────────────────────────────────────────
 // UML Comment / Note (V0.23.1, extended to all UML diagram types thereafter).
 //
-// Scope: all UML diagram types except BPMN, SysML 2, C4, and ERM. Sequence
+// Scope: all UML diagram types. SysML 2, BPMN and ERM have their own note verbs
+// (see KumlNote); C4 `note(text)` is a no-op. Sequence
 // and state-machine diagrams get their own dedicated overloads below (via
 // [UmlInteractionScope] and [UmlStateMachineScope]); every other UML diagram
 // type — Class, Component, Use Case, Object, Package, Deployment, Profile,

@@ -1,5 +1,6 @@
 package dev.kuml.bpmn.dsl
 
+import dev.kuml.bpmn.model.BpmnAssociation
 import dev.kuml.bpmn.model.BpmnCallActivity
 import dev.kuml.bpmn.model.BpmnDataObject
 import dev.kuml.bpmn.model.BpmnEvent
@@ -8,6 +9,7 @@ import dev.kuml.bpmn.model.BpmnGateway
 import dev.kuml.bpmn.model.BpmnProcess
 import dev.kuml.bpmn.model.BpmnSubProcess
 import dev.kuml.bpmn.model.BpmnTask
+import dev.kuml.bpmn.model.BpmnTextAnnotation
 import dev.kuml.bpmn.model.DataAssociation
 import dev.kuml.bpmn.model.EventBehaviour
 import dev.kuml.bpmn.model.EventDefinition
@@ -38,6 +40,9 @@ class ProcessBuilder(
     private val dataObjects: MutableList<BpmnDataObject> = mutableListOf()
     private val dataAssociations: MutableList<DataAssociation> = mutableListOf()
     private val constraints: MutableList<UmlConstraint> = mutableListOf()
+    private val textAnnotations: MutableList<BpmnTextAnnotation> = mutableListOf()
+    private val associations: MutableList<BpmnAssociation> = mutableListOf()
+    private var annotationCounter = 0
 
     private var nodeCounter = 0
     private var flowCounter = 0
@@ -199,6 +204,17 @@ class ProcessBuilder(
     ): String {
         val nodeId = nextNodeId("sub")
         val inner = ProcessBuilder(id = nodeId, name = name).apply(block)
+        // Hoist inner annotations so they are never lost with a collapsed sub-process.
+        textAnnotations += inner.textAnnotations
+        if (expanded) {
+            associations += inner.associations
+        } else {
+            // A collapsed sub-process keeps none of its inner nodes: re-target associations
+            // that pointed inside it to the sub-process node itself.
+            val innerIds = collectInnerIds(inner)
+            associations +=
+                inner.associations.map { a -> if (a.link.targetId in innerIds) a.copy(link = a.link.copy(targetId = nodeId)) else a }
+        }
         flowNodes +=
             BpmnSubProcess(
                 id = nodeId,
@@ -214,6 +230,20 @@ class ProcessBuilder(
             )
         return nodeId
     }
+
+    /** All flow node and data object ids inside [inner], including those of nested expanded sub-processes. */
+    private fun collectInnerIds(inner: ProcessBuilder): Set<String> =
+        buildSet {
+            fun addNode(node: BpmnFlowNode) {
+                add(node.id)
+                if (node is BpmnSubProcess) {
+                    node.flowElementNodes.forEach { addNode(it) }
+                    node.innerDataObjects.forEach { add(it.id) }
+                }
+            }
+            inner.flowNodes.forEach { addNode(it) }
+            inner.dataObjects.forEach { add(it.id) }
+        }
 
     /**
      * Declare a call activity — reuses a globally defined process or global task.
@@ -291,6 +321,41 @@ class ProcessBuilder(
         return assocId
     }
 
+    // ── Text annotations ─────────────────────────────────────────────────────
+
+    /**
+     * Adds a text annotation, associated with the given flow nodes / data objects
+     * (none = free-standing). Returns the annotation id.
+     *
+     * Annotations declared inside a `subProcess { }` block are hoisted into the
+     * enclosing process (expanded or not), so none is lost. For a collapsed
+     * sub-process, associations to its inner nodes point to the sub-process itself.
+     */
+    fun textAnnotation(
+        text: String,
+        vararg anchors: String,
+        id: String? = null,
+    ): String {
+        val (annotation, links) =
+            buildTextAnnotation(
+                ownerId = this.id,
+                counter = ++annotationCounter,
+                text = text,
+                anchors = anchors,
+                id = id,
+            )
+        textAnnotations += annotation
+        associations += links
+        return annotation.id
+    }
+
+    /** Alias of [textAnnotation]. */
+    fun note(
+        text: String,
+        vararg anchors: String,
+        id: String? = null,
+    ): String = textAnnotation(text = text, *anchors, id = id)
+
     // ── Constraints (V3.2.23) ───────────────────────────────────────────────────
 
     /**
@@ -366,5 +431,7 @@ class ProcessBuilder(
             dataObjects = dataObjects.toList(),
             dataAssociations = dataAssociations.toList(),
             constraints = constraints.toList(),
+            textAnnotations = textAnnotations.toList(),
+            associations = associations.toList(),
         )
 }

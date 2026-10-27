@@ -27,6 +27,11 @@ import dev.kuml.erm.model.RelationshipKind
  * `autoIncrement`/`unique`/`default` are never silently dropped for primary keys.
  *
  * V3.4.6
+ *
+ * Notes: this renderer deliberately knows no `note(...)` calls. The UML→ERM
+ * transformation never produces [dev.kuml.erm.model.ErmNote]s, so there is
+ * nothing to print; the SQL-reverse printer (`ErmModelDslPrinter` in kuml-cli)
+ * is the one that prints notes.
  */
 internal object ErmScriptRenderer {
     fun render(model: ErmModel): String {

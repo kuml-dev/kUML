@@ -144,6 +144,8 @@ public object Sysml2DslPrinter {
         val topLevelUsages = model.usages.filter { it.id !in consumedFeatureIds }
         topLevelUsages.forEach { printTopLevelUsage(sb = sb, usage = it, ctx = ctx) }
 
+        printComments(sb = sb, model = model)
+
         model.diagrams.forEach { printDiagram(sb = sb, d = it, ctx = ctx) }
 
         sb.appendLine("}")
@@ -585,6 +587,26 @@ public object Sysml2DslPrinter {
         }
     }
 
+    // ── comments ───────────────────────────────────────────────────────────
+
+    /**
+     * Model-level `comment(text, anchors…, id = …)`. Ids are printed explicitly so
+     * the round trip keeps them stable; anchors are printed as id strings (no
+     * handle mapping needed).
+     */
+    private fun printComments(
+        sb: StringBuilder,
+        model: Sysml2Model,
+    ) {
+        for (c in model.comments) {
+            val anchors =
+                model.commentLinks
+                    .filter { it.link.noteId == c.id }
+                    .joinToString("") { ", ${quote(it.link.targetId)}" }
+            sb.appendLine("    comment(${quote(c.note.body)}$anchors, id = ${quote(c.id)})")
+        }
+    }
+
     // ── diagrams ───────────────────────────────────────────────────────────
 
     private fun printDiagram(
@@ -593,14 +615,42 @@ public object Sysml2DslPrinter {
         ctx: Ctx,
     ) {
         when (d) {
-            is BdDiagram -> printSimpleIdDiagram(sb = sb, fnName = "bdd", name = d.name, elementIds = d.elementIds)
+            is BdDiagram -> printSimpleIdDiagram(sb = sb, fnName = "bdd", name = d.name, elementIds = d.elementIds, noteIds = d.noteIds)
             is IbdDiagram -> printIbdDiagram(sb = sb, d = d, ctx = ctx)
             is UcDiagram -> printUcDiagram(sb = sb, d = d)
             is ReqDiagram -> printReqDiagram(sb = sb, d = d)
-            is StmDiagram -> printSimpleIdDiagram(sb = sb, fnName = "stmDiagram", name = d.name, elementIds = d.elementIds)
-            is ActDiagram -> printSimpleIdDiagram(sb = sb, fnName = "actDiagram", name = d.name, elementIds = d.elementIds)
-            is SeqDiagram -> printSimpleIdDiagram(sb = sb, fnName = "seqDiagram", name = d.name, elementIds = d.elementIds)
-            is ParDiagram -> printSimpleIdDiagram(sb = sb, fnName = "parDiagram", name = d.name, elementIds = d.elementIds)
+            is StmDiagram ->
+                printSimpleIdDiagram(
+                    sb = sb,
+                    fnName = "stmDiagram",
+                    name = d.name,
+                    elementIds = d.elementIds,
+                    noteIds = d.noteIds,
+                )
+            is ActDiagram ->
+                printSimpleIdDiagram(
+                    sb = sb,
+                    fnName = "actDiagram",
+                    name = d.name,
+                    elementIds = d.elementIds,
+                    noteIds = d.noteIds,
+                )
+            is SeqDiagram ->
+                printSimpleIdDiagram(
+                    sb = sb,
+                    fnName = "seqDiagram",
+                    name = d.name,
+                    elementIds = d.elementIds,
+                    noteIds = d.noteIds,
+                )
+            is ParDiagram ->
+                printSimpleIdDiagram(
+                    sb = sb,
+                    fnName = "parDiagram",
+                    name = d.name,
+                    elementIds = d.elementIds,
+                    noteIds = d.noteIds,
+                )
         }
     }
 
@@ -609,12 +659,14 @@ public object Sysml2DslPrinter {
         fnName: String,
         name: String,
         elementIds: List<String>,
+        noteIds: List<String>,
     ) {
-        if (elementIds.isEmpty()) {
+        if (elementIds.isEmpty() && noteIds.isEmpty()) {
             sb.appendLine("    $fnName(${quote(name)})")
         } else {
             sb.appendLine("    $fnName(${quote(name)}) {")
             elementIds.forEach { sb.appendLine("        includeById(${quote(it)})") }
+            noteIds.forEach { sb.appendLine("        includeCommentById(${quote(it)})") }
             sb.appendLine("    }")
         }
     }
@@ -632,11 +684,12 @@ public object Sysml2DslPrinter {
             )
             return
         }
-        if (d.elementIds.isEmpty()) {
+        if (d.elementIds.isEmpty() && d.noteIds.isEmpty()) {
             sb.appendLine("    ibd(${quote(d.name)}, owner = $ownerVar)")
         } else {
             sb.appendLine("    ibd(${quote(d.name)}, owner = $ownerVar) {")
             d.elementIds.forEach { sb.appendLine("        includeById(${quote(it)})") }
+            d.noteIds.forEach { sb.appendLine("        includeCommentById(${quote(it)})") }
             sb.appendLine("    }")
         }
     }
@@ -645,13 +698,19 @@ public object Sysml2DslPrinter {
         sb: StringBuilder,
         d: UcDiagram,
     ) {
-        val hasBody = d.elementIds.isNotEmpty() || d.associations.isNotEmpty() || d.includes.isNotEmpty() || d.extends.isNotEmpty()
+        val hasBody =
+            d.elementIds.isNotEmpty() ||
+                d.noteIds.isNotEmpty() ||
+                d.associations.isNotEmpty() ||
+                d.includes.isNotEmpty() ||
+                d.extends.isNotEmpty()
         if (!hasBody) {
             sb.appendLine("    ucDiagram(${quote(d.name)})")
             return
         }
         sb.appendLine("    ucDiagram(${quote(d.name)}) {")
         d.elementIds.forEach { sb.appendLine("        includeById(${quote(it)})") }
+        d.noteIds.forEach { sb.appendLine("        includeCommentById(${quote(it)})") }
         d.associations.forEach {
             sb.appendLine("        associationById(actorId = ${quote(it.actorId)}, useCaseId = ${quote(it.useCaseId)})")
         }
@@ -670,6 +729,7 @@ public object Sysml2DslPrinter {
     ) {
         val hasBody =
             d.elementIds.isNotEmpty() ||
+                d.noteIds.isNotEmpty() ||
                 d.satisfies.isNotEmpty() ||
                 d.verifies.isNotEmpty() ||
                 d.derives.isNotEmpty() ||
@@ -680,6 +740,7 @@ public object Sysml2DslPrinter {
         }
         sb.appendLine("    reqDiagram(${quote(d.name)}) {")
         d.elementIds.forEach { sb.appendLine("        includeById(${quote(it)})") }
+        d.noteIds.forEach { sb.appendLine("        includeCommentById(${quote(it)})") }
         d.satisfies.forEach {
             sb.appendLine("        satisfyById(sourceId = ${quote(it.sourceId)}, requirementId = ${quote(it.requirementId)})")
         }

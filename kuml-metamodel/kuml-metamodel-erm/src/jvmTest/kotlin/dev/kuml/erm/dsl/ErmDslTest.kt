@@ -245,4 +245,22 @@ class ErmDslTest :
             val model = ermModel(name = "Plain") { entity(name = "A") { id() } }
             model.entityById("entity_0")!!.metadata shouldBe emptyMap()
         }
+
+        "auto note ids skip explicit ids and duplicates are rejected" {
+            val model =
+                ermModel(name = "N") {
+                    note(text = "a", id = "note_1")
+                    note(text = "b")
+                }
+            model.notes
+                .map { it.id }
+                .distinct()
+                .size shouldBe 2
+            io.kotest.assertions.throwables.shouldThrow<IllegalArgumentException> {
+                ermModel(name = "N") {
+                    note(text = "a", id = "x")
+                    note(text = "b", id = "x")
+                }
+            }
+        }
     })

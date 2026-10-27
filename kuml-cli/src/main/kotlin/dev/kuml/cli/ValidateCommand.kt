@@ -274,6 +274,28 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
             }
         }
 
+        // 7b'. Note validation — structural note findings plus NOTE_TRUNCATED display-limit warnings
+        //      for SysML 2 / BPMN / ERM / UML notes. Same StructuralViolation shape, category "notes".
+        val noteViolations: List<StructuralViolation> =
+            extracted?.let { ex ->
+                NoteChecks.of(ex).map { f ->
+                    StructuralViolation(
+                        id = f.code,
+                        severity = if (f.isError) "error" else "warning",
+                        message = f.message,
+                        location = f.subjectId,
+                        category = "notes",
+                    )
+                }
+            } ?: emptyList()
+        val noteErrors = noteViolations.filter { it.severity == "error" }
+        val noteWarnings = noteViolations.filter { it.severity == "warning" }
+        if (noteViolations.isNotEmpty()) {
+            echo("\nNote validation:")
+            for (nv in noteErrors) echo("  ERROR [${nv.id}] ${nv.message}")
+            for (nv in noteWarnings) echo("  WARN  [${nv.id}] ${nv.message}")
+        }
+
         // 7c. Style validation output (V0.50.0) — see step 0/1b above for where
         //     styleViolations/styleErrors/styleWarnings were computed. Kept as its
         //     own section (not folded into "Structural validation:") so the
@@ -293,10 +315,15 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         // 8. Output
         val allViolations =
             modelResult.violations + (stereotypeResult?.violations ?: emptyList())
-        val allStructuralLikeViolations = structuralViolations + ermViolations + styleViolations
+        val allStructuralLikeViolations = structuralViolations + ermViolations + noteViolations + styleViolations
         val combined =
             KumlValidationResult(
-                valid = allViolations.isEmpty() && structuralErrors.isEmpty() && ermErrors.isEmpty() && styleErrors.isEmpty(),
+                valid =
+                    allViolations.isEmpty() &&
+                        structuralErrors.isEmpty() &&
+                        ermErrors.isEmpty() &&
+                        noteErrors.isEmpty() &&
+                        styleErrors.isEmpty(),
                 violations = allViolations,
             )
 

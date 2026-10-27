@@ -1,5 +1,7 @@
 package dev.kuml.sysml2.dsl
 
+import dev.kuml.core.model.note.KumlNote
+import dev.kuml.core.model.note.KumlNoteLink
 import dev.kuml.kerml.KermlMultiplicity
 import dev.kuml.kerml.KermlSpecialization
 import dev.kuml.sysml2.ActDiagram
@@ -47,8 +49,11 @@ import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StateUsage
 import dev.kuml.sysml2.StmDiagram
+import dev.kuml.sysml2.Sysml2Comment
+import dev.kuml.sysml2.Sysml2CommentLink
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Diagram
+import dev.kuml.sysml2.Sysml2Element
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.Sysml2Usage
 import dev.kuml.sysml2.TransitionUsage
@@ -88,6 +93,8 @@ class Sysml2ModelBuilder(
     private val definitions = mutableListOf<Sysml2Definition>()
     private val usages = mutableListOf<Sysml2Usage>()
     private val diagrams = mutableListOf<Sysml2Diagram>()
+    private val comments = mutableListOf<Sysml2Comment>()
+    private val commentLinks = mutableListOf<Sysml2CommentLink>()
 
     // ── Definitions ──────────────────────────────────────────────────────
 
@@ -389,6 +396,69 @@ class Sysml2ModelBuilder(
         return usage
     }
 
+    // ── Comments (notes) ─────────────────────────────────────────────────
+
+    /**
+     * Adds a model-level comment. It appears in every diagram that shows one of
+     * its anchors; to show a free-standing comment, list it in a diagram via
+     * `include(comment)`.
+     */
+    fun comment(
+        text: String,
+        vararg anchors: String,
+        id: String? = null,
+    ): Sysml2Comment = addComment(text = text, anchorIds = anchors.toList(), id = id)
+
+    /** Adds a model-level comment anchored to the given elements. */
+    fun comment(
+        text: String,
+        firstAnchor: Sysml2Element,
+        vararg moreAnchors: Sysml2Element,
+        id: String? = null,
+    ): Sysml2Comment = addComment(text = text, anchorIds = (listOf(firstAnchor) + moreAnchors).map { it.id }, id = id)
+
+    /** Alias of [comment]. */
+    fun note(
+        text: String,
+        vararg anchors: String,
+        id: String? = null,
+    ): Sysml2Comment = addComment(text = text, anchorIds = anchors.toList(), id = id)
+
+    /** Alias of [comment]. */
+    fun note(
+        text: String,
+        firstAnchor: Sysml2Element,
+        vararg moreAnchors: Sysml2Element,
+        id: String? = null,
+    ): Sysml2Comment = addComment(text = text, anchorIds = (listOf(firstAnchor) + moreAnchors).map { it.id }, id = id)
+
+    internal fun addComment(
+        text: String,
+        anchorIds: List<String>,
+        id: String?,
+    ): Sysml2Comment {
+        val noteId = id ?: nextCommentId()
+        val comment = Sysml2Comment(note = KumlNote(id = noteId, body = text))
+        comments += comment
+        for (target in anchorIds.distinct()) {
+            commentLinks +=
+                Sysml2CommentLink(link = KumlNoteLink(id = "note-link:$noteId::$target", noteId = noteId, targetId = target))
+        }
+        return comment
+    }
+
+    private fun nextCommentId(): String {
+        val used =
+            buildSet {
+                definitions.forEach { add(it.id) }
+                usages.forEach { add(it.id) }
+                comments.forEach { add(it.id) }
+            }
+        var n = 1
+        while ("comment-$n" in used) n++
+        return "comment-$n"
+    }
+
     /**
      * Register a typed [Sysml2Usage] so the model's `usages` list carries the
      * full typed view alongside the KerML `features`. V2.0.6 added this so the
@@ -414,8 +484,8 @@ class Sysml2ModelBuilder(
         name: String,
         block: BdDiagramBuilder.() -> Unit = {},
     ): BdDiagram {
-        val builder = BdDiagramBuilder().apply(block)
-        val diagram = BdDiagram(name = name, elementIds = builder.ids())
+        val builder = BdDiagramBuilder(this).apply(block)
+        val diagram = BdDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds())
         diagrams += diagram
         return diagram
     }
@@ -434,12 +504,13 @@ class Sysml2ModelBuilder(
         owner: PartDefinition,
         block: IbdDiagramBuilder.() -> Unit = {},
     ): IbdDiagram {
-        val builder = IbdDiagramBuilder().apply(block)
+        val builder = IbdDiagramBuilder(this).apply(block)
         val diagram =
             IbdDiagram(
                 name = name,
                 ownerId = owner.id,
                 elementIds = builder.ids(),
+                noteIds = builder.noteIds(),
             )
         diagrams += diagram
         return diagram
@@ -459,11 +530,12 @@ class Sysml2ModelBuilder(
         name: String,
         block: UcDiagramBuilder.() -> Unit = {},
     ): UcDiagram {
-        val builder = UcDiagramBuilder().apply(block)
+        val builder = UcDiagramBuilder(this).apply(block)
         val diagram =
             UcDiagram(
                 name = name,
                 elementIds = builder.ids(),
+                noteIds = builder.noteIds(),
                 associations = builder.associations(),
                 includes = builder.includes(),
                 extends = builder.extends(),
@@ -487,11 +559,12 @@ class Sysml2ModelBuilder(
         name: String,
         block: ReqDiagramBuilder.() -> Unit = {},
     ): ReqDiagram {
-        val builder = ReqDiagramBuilder().apply(block)
+        val builder = ReqDiagramBuilder(this).apply(block)
         val diagram =
             ReqDiagram(
                 name = name,
                 elementIds = builder.ids(),
+                noteIds = builder.noteIds(),
                 satisfies = builder.satisfies(),
                 verifies = builder.verifies(),
                 derives = builder.derives(),
@@ -518,8 +591,8 @@ class Sysml2ModelBuilder(
         name: String,
         block: StmDiagramBuilder.() -> Unit = {},
     ): StmDiagram {
-        val builder = StmDiagramBuilder().apply(block)
-        val diagram = StmDiagram(name = name, elementIds = builder.ids())
+        val builder = StmDiagramBuilder(this).apply(block)
+        val diagram = StmDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds())
         diagrams += diagram
         return diagram
     }
@@ -825,8 +898,8 @@ class Sysml2ModelBuilder(
         name: String,
         block: ActDiagramBuilder.() -> Unit = {},
     ): ActDiagram {
-        val builder = ActDiagramBuilder().apply(block)
-        val diagram = ActDiagram(name = name, elementIds = builder.ids())
+        val builder = ActDiagramBuilder(this).apply(block)
+        val diagram = ActDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds())
         diagrams += diagram
         return diagram
     }
@@ -952,8 +1025,8 @@ class Sysml2ModelBuilder(
         name: String,
         block: SeqDiagramBuilder.() -> Unit = {},
     ): SeqDiagram {
-        val builder = SeqDiagramBuilder().apply(block)
-        val diagram = SeqDiagram(name = name, elementIds = builder.ids())
+        val builder = SeqDiagramBuilder(this).apply(block)
+        val diagram = SeqDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds())
         diagrams += diagram
         return diagram
     }
@@ -1168,8 +1241,8 @@ class Sysml2ModelBuilder(
         name: String,
         block: ParDiagramBuilder.() -> Unit = {},
     ): ParDiagram {
-        val builder = ParDiagramBuilder().apply(block)
-        val diagram = ParDiagram(name = name, elementIds = builder.ids())
+        val builder = ParDiagramBuilder(this).apply(block)
+        val diagram = ParDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds())
         diagrams += diagram
         return diagram
     }
@@ -1374,13 +1447,36 @@ class Sysml2ModelBuilder(
         return usage
     }
 
-    fun build(): Sysml2Model =
-        Sysml2Model(
-            name = name,
-            definitions = definitions.toList(),
-            usages = usages.toList(),
-            diagrams = diagrams.toList(),
-        )
+    fun build(): Sysml2Model {
+        val model =
+            Sysml2Model(
+                name = name,
+                definitions = definitions.toList(),
+                usages = usages.toList(),
+                diagrams = diagrams.toList(),
+                comments = comments.toList(),
+                commentLinks = commentLinks.toList(),
+            )
+        // Checked here (not at comment()) so forward references via ids stay possible.
+        val anchorable = model.allAnchorableIds()
+        for (l in model.commentLinks) {
+            require(l.link.targetId in anchorable) {
+                "comment '${l.link.noteId}' anchors unknown element '${l.link.targetId}'"
+            }
+        }
+        val seenCommentIds = mutableSetOf<String>()
+        for (c in model.comments) {
+            require(seenCommentIds.add(c.id)) { "duplicate comment id '${c.id}'" }
+            require(c.id !in anchorable) { "comment id '${c.id}' collides with a definition / usage id" }
+        }
+        val noteIds = seenCommentIds
+        for (d in model.diagrams) {
+            for (nid in d.noteIds) {
+                require(nid in noteIds) { "diagram '${d.name}' lists unknown comment '$nid'" }
+            }
+        }
+        return model
+    }
 }
 
 /**
@@ -1542,7 +1638,9 @@ class DefinitionBuilder internal constructor(
 
 /** Scope for `bdd("…") { include(Vehicle); include(Engine) }`. */
 @Sysml2Dsl
-class BdDiagramBuilder internal constructor() {
+class BdDiagramBuilder internal constructor(
+    modelBuilder: Sysml2ModelBuilder,
+) : Sysml2NoteBuilderBase(modelBuilder) {
     private val ids = mutableListOf<String>()
 
     /** Add a SysML 2 element (by reference) to the diagram. */
@@ -1567,7 +1665,9 @@ class BdDiagramBuilder internal constructor() {
  * empty-list semantics.
  */
 @Sysml2Dsl
-class IbdDiagramBuilder internal constructor() {
+class IbdDiagramBuilder internal constructor(
+    modelBuilder: Sysml2ModelBuilder,
+) : Sysml2NoteBuilderBase(modelBuilder) {
     private val ids = mutableListOf<String>()
 
     /** Add a SysML 2 usage (by reference) to the IBD's visible set. */
@@ -1606,7 +1706,9 @@ class IbdDiagramBuilder internal constructor() {
  *  - extend relationship:  `extend:<sourceUcId>::<targetUcId>`
  */
 @Sysml2Dsl
-class UcDiagramBuilder internal constructor() {
+class UcDiagramBuilder internal constructor(
+    modelBuilder: Sysml2ModelBuilder,
+) : Sysml2NoteBuilderBase(modelBuilder) {
     private val ids = mutableListOf<String>()
     private val associations = mutableListOf<UcAssociation>()
     private val includes = mutableListOf<UcInclude>()
@@ -1720,7 +1822,9 @@ class UcDiagramBuilder internal constructor() {
  *  - contains: `contains:<parentRequirementId>::<childRequirementId>`
  */
 @Sysml2Dsl
-class ReqDiagramBuilder internal constructor() {
+class ReqDiagramBuilder internal constructor(
+    modelBuilder: Sysml2ModelBuilder,
+) : Sysml2NoteBuilderBase(modelBuilder) {
     private val ids = mutableListOf<String>()
     private val satisfies = mutableListOf<ReqSatisfy>()
     private val verifies = mutableListOf<ReqVerify>()
@@ -1861,7 +1965,9 @@ class ReqDiagramBuilder internal constructor() {
  * diagram-only assertion).
  */
 @Sysml2Dsl
-class StmDiagramBuilder internal constructor() {
+class StmDiagramBuilder internal constructor(
+    modelBuilder: Sysml2ModelBuilder,
+) : Sysml2NoteBuilderBase(modelBuilder) {
     private val ids = mutableListOf<String>()
 
     /** Add a [StateDefinition] (regular state or pseudo-state) as a node. */
@@ -1888,7 +1994,9 @@ class StmDiagramBuilder internal constructor() {
  * (token flow ARE the model, not a diagram-only assertion).
  */
 @Sysml2Dsl
-class ActDiagramBuilder internal constructor() {
+class ActDiagramBuilder internal constructor(
+    modelBuilder: Sysml2ModelBuilder,
+) : Sysml2NoteBuilderBase(modelBuilder) {
     private val ids = mutableListOf<String>()
 
     /** Add an [ActionDefinition] (any [ActivityNodeKind]) as a node. */
@@ -1917,7 +2025,9 @@ class ActDiagramBuilder internal constructor() {
  * renderer (directly, bypassing the LayoutGraph edge slot).
  */
 @Sysml2Dsl
-class SeqDiagramBuilder internal constructor() {
+class SeqDiagramBuilder internal constructor(
+    modelBuilder: Sysml2ModelBuilder,
+) : Sysml2NoteBuilderBase(modelBuilder) {
     private val ids = mutableListOf<String>()
 
     /** Add a [LifelineDefinition] as a node (left-to-right declaration order). */
@@ -1950,7 +2060,9 @@ class SeqDiagramBuilder internal constructor() {
  * concrete attribute references to bind to.
  */
 @Sysml2Dsl
-class ParDiagramBuilder internal constructor() {
+class ParDiagramBuilder internal constructor(
+    modelBuilder: Sysml2ModelBuilder,
+) : Sysml2NoteBuilderBase(modelBuilder) {
     private val ids = mutableListOf<String>()
 
     /**

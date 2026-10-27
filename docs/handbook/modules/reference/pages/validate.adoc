@@ -100,6 +100,27 @@ STRUCTURAL VIOLATION (circular-inheritance)
   Message  : Circular generalisation detected: A → B → C → A
 ----
 
+== Note validation output
+
+For SysML 2, BPMN and ERM scripts (and UML comments) `kuml validate` prints a `Note validation:` section and
+folds the findings into the structural part of the JSON output (`category: "notes"`).
+
+[cols="2,1,3"]
+|===
+| Code | Severity | Meaning
+
+| `NOTE_TRUNCATED` | warning | A note exceeds the display limit of 2000 characters / 30 lines and is rendered cut. The message names the note id and the limits, never the text.
+| `SYSML2_NOTE_ANCHOR_UNKNOWN` | error | A comment link points to an unknown comment or element.
+| `SYSML2_NOTE_DUPLICATE_ID` | error | A comment id collides with another element.
+| `SYSML2_NOTE_NOT_SHOWN` | warning | An unanchored comment is listed in no diagram.
+| `BPMN_ASSOCIATION_UNKNOWN_REF` | error | An association refers to an unknown annotation or element.
+| `BPMN_ASSOCIATION_UNSUPPORTED_TARGET` | warning | The target is a pool, lane or sequence flow; not rendered.
+| `ERM_NOTE_ANCHOR_UNKNOWN` | error | A note link refers to an unknown note or element.
+| `ERM_NOTE_ANCHOR_UNSUPPORTED` | error | The anchor is neither an entity nor a view.
+|===
+
+`kuml render` prints the same findings as warnings on stderr and still renders.
+
 == OCL violation output
 
 OCL violations appear after structural checks pass. Each violation prints:

@@ -1,5 +1,7 @@
 package dev.kuml.io.bpmn
 
+import dev.kuml.bpmn.model.BpmnAssociation
+import dev.kuml.bpmn.model.BpmnAssociationDirection
 import dev.kuml.bpmn.model.BpmnCallActivity
 import dev.kuml.bpmn.model.BpmnCollaboration
 import dev.kuml.bpmn.model.BpmnDataObject
@@ -13,6 +15,7 @@ import dev.kuml.bpmn.model.BpmnParticipant
 import dev.kuml.bpmn.model.BpmnProcess
 import dev.kuml.bpmn.model.BpmnSubProcess
 import dev.kuml.bpmn.model.BpmnTask
+import dev.kuml.bpmn.model.BpmnTextAnnotation
 import dev.kuml.bpmn.model.DataAssociation
 import dev.kuml.bpmn.model.EventBehaviour
 import dev.kuml.bpmn.model.EventDefinition
@@ -21,6 +24,8 @@ import dev.kuml.bpmn.model.GatewayType
 import dev.kuml.bpmn.model.MessageFlow
 import dev.kuml.bpmn.model.SequenceFlow
 import dev.kuml.bpmn.model.TaskType
+import dev.kuml.core.model.note.KumlNote
+import dev.kuml.core.model.note.KumlNoteLink
 import org.w3c.dom.Element
 import org.xml.sax.InputSource
 import java.io.InputStream
@@ -85,6 +90,8 @@ public class BpmnXmlImporter {
         val sequenceFlows = mutableListOf<SequenceFlow>()
         val dataObjects = mutableListOf<BpmnDataObject>()
         val dataAssociations = mutableListOf<DataAssociation>()
+        val annotations = mutableListOf<BpmnTextAnnotation>()
+        val rawAssociations = mutableListOf<RawAssociation>()
 
         el.childElements().forEach { child ->
             when (child.localName) {
@@ -107,6 +114,8 @@ public class BpmnXmlImporter {
                 "dataInputAssociation", "dataOutputAssociation",
                 "dataAssociation",
                 -> dataAssociations += parseDataAssociation(child)
+                "textAnnotation" -> annotations += parseTextAnnotation(child)
+                "association" -> rawAssociations += parseRawAssociation(child)
                 // Unknown elements are silently ignored — forward-compatible
             }
         }
@@ -118,7 +127,63 @@ public class BpmnXmlImporter {
             sequenceFlows = sequenceFlows,
             dataObjects = dataObjects,
             dataAssociations = dataAssociations,
+            textAnnotations = annotations,
+            associations = normalizeAssociations(raw = rawAssociations, annotations = annotations),
         )
+    }
+
+    private data class RawAssociation(
+        val id: String,
+        val sourceRef: String,
+        val targetRef: String,
+        val direction: BpmnAssociationDirection,
+    )
+
+    private fun parseTextAnnotation(el: Element): BpmnTextAnnotation {
+        val id = el.getAttribute("id").ifBlank { "annotation_1" }
+        val text =
+            el
+                .childElements()
+                .firstOrNull { it.localName == "text" }
+                ?.textContent
+                .orEmpty()
+        // KumlNote enforces the 64 KiB hard limit; its message names the id, never the body.
+        return BpmnTextAnnotation(note = KumlNote(id = id, body = text))
+    }
+
+    private fun parseRawAssociation(el: Element): RawAssociation =
+        RawAssociation(
+            id = el.getAttribute("id").ifBlank { "association_1" },
+            sourceRef = el.getAttribute("sourceRef"),
+            targetRef = el.getAttribute("targetRef"),
+            direction =
+                when (el.getAttribute("associationDirection").lowercase()) {
+                    "one" -> BpmnAssociationDirection.ONE
+                    "both" -> BpmnAssociationDirection.BOTH
+                    else -> BpmnAssociationDirection.NONE
+                },
+        )
+
+    /**
+     * Keeps only associations that touch a text annotation and normalises them to
+     * note = annotation, target = the other side. Associations between other
+     * artifacts (e.g. groups) are ignored, as before.
+     */
+    private fun normalizeAssociations(
+        raw: List<RawAssociation>,
+        annotations: List<BpmnTextAnnotation>,
+    ): List<BpmnAssociation> {
+        val noteIds = annotations.map { it.id }.toSet()
+        return raw.mapNotNull { a ->
+            val (note, target) =
+                when {
+                    a.sourceRef in noteIds -> a.sourceRef to a.targetRef
+                    a.targetRef in noteIds -> a.targetRef to a.sourceRef
+                    else -> return@mapNotNull null
+                }
+            if (target.isBlank()) return@mapNotNull null
+            BpmnAssociation(link = KumlNoteLink(id = a.id, noteId = note, targetId = target), direction = a.direction)
+        }
     }
 
     private fun parseEvent(el: Element): BpmnEvent {
@@ -284,6 +349,8 @@ public class BpmnXmlImporter {
     private fun parseCollaboration(el: Element): BpmnCollaboration {
         val participants = mutableListOf<BpmnParticipant>()
         val messageFlows = mutableListOf<MessageFlow>()
+        val annotations = mutableListOf<BpmnTextAnnotation>()
+        val rawAssociations = mutableListOf<RawAssociation>()
 
         el.childElements().forEach { child ->
             when (child.localName) {
@@ -308,6 +375,8 @@ public class BpmnXmlImporter {
                             sourceRef = child.getAttribute("sourceRef"),
                             targetRef = child.getAttribute("targetRef"),
                         )
+                "textAnnotation" -> annotations += parseTextAnnotation(child)
+                "association" -> rawAssociations += parseRawAssociation(child)
                 // Unknown elements are silently ignored
             }
         }
@@ -317,6 +386,8 @@ public class BpmnXmlImporter {
             name = el.getAttribute("name").ifBlank { null },
             participants = participants,
             messageFlows = messageFlows,
+            textAnnotations = annotations,
+            associations = normalizeAssociations(raw = rawAssociations, annotations = annotations),
         )
     }
 

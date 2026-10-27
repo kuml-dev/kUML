@@ -1,7 +1,10 @@
 package dev.kuml.bpmn.dsl
 
 import dev.kuml.bpmn.model.BpmnDataStore
+import dev.kuml.bpmn.model.BpmnFlowNode
+import dev.kuml.bpmn.model.BpmnLane
 import dev.kuml.bpmn.model.BpmnModel
+import dev.kuml.bpmn.model.BpmnSubProcess
 
 /**
  * Top-level builder for a [BpmnModel].
@@ -191,7 +194,62 @@ class BpmnModelBuilder(
         diagramBuilders += ConversationDiagramBuilder(name = name, conversationId = conversationId).apply(block)
     }
 
-    fun build(): BpmnModel =
+    fun build(): BpmnModel {
+        val model = buildUnchecked()
+        val anchorable = model.allAnchorableIds()
+        val annotations = model.processes.flatMap { it.textAnnotations } + model.collaborations.flatMap { it.textAnnotations }
+        val seenAnnotationIds = mutableSetOf<String>()
+        val otherIds = nonAnchorableIds(model)
+        for (t in annotations) {
+            require(seenAnnotationIds.add(t.id)) { "duplicate textAnnotation id '${t.id}'" }
+            require(t.id !in anchorable) { "textAnnotation id '${t.id}' collides with a flow node / data object id" }
+            require(t.id !in otherIds) {
+                "textAnnotation id '${t.id}' collides with a sequence flow, message flow, participant, lane or association id"
+            }
+        }
+        val associations = model.processes.flatMap { it.associations } + model.collaborations.flatMap { it.associations }
+        for (a in associations) {
+            require(a.link.targetId in anchorable) {
+                "textAnnotation '${a.link.noteId}' cannot be associated with '${a.link.targetId}': " +
+                    "unknown id, or not a flow node / data object (pools, lanes and sequence flows are not supported)"
+            }
+        }
+        return model
+    }
+
+    /** Ids of non-anchorable elements that share the renderer's element index with annotations. */
+    private fun nonAnchorableIds(model: BpmnModel): Set<String> =
+        buildSet {
+            fun lane(l: BpmnLane) {
+                add(l.id)
+                l.childLanes.forEach { lane(it) }
+            }
+
+            fun sub(n: BpmnFlowNode) {
+                if (n is BpmnSubProcess) {
+                    n.innerSequenceFlows.forEach { add(it.id) }
+                    n.innerDataAssociations.forEach { add(it.id) }
+                    n.flowElementNodes.forEach { sub(it) }
+                }
+            }
+            model.processes.forEach { p ->
+                p.sequenceFlows.forEach { add(it.id) }
+                p.dataAssociations.forEach { add(it.id) }
+                p.associations.forEach { add(it.id) }
+                p.flowNodes.forEach { sub(it) }
+            }
+            model.collaborations.forEach { c ->
+                add(c.id)
+                c.messageFlows.forEach { add(it.id) }
+                c.associations.forEach { add(it.id) }
+                c.participants.forEach { pt ->
+                    add(pt.id)
+                    pt.lanes.forEach { lane(it) }
+                }
+            }
+        }
+
+    private fun buildUnchecked(): BpmnModel =
         BpmnModel(
             name = name,
             processes = processBuilders.map { it.build() },

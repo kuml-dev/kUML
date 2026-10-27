@@ -55,3 +55,23 @@ class ErmModelDslPrinterTest :
             printed shouldContain "where = \"note = \\\"x\\\" AND active\""
         }
     })
+
+class ErmModelDslPrinterNotesTest :
+    FunSpec({
+
+        test("notes print with entity vals, view ids, escaped bodies and explicit ids") {
+            val model =
+                ermModel(name = "M") {
+                    val users =
+                        entity(name = "users") {
+                            id(name = "id", type = ErmDataType.Integer(64))
+                        }
+                    val v = view(name = "v", query = "select 1")
+                    note(text = "say \"hi\" \\ \$x\nline2", users, v, id = "n1")
+                    note(text = "free", id = "n2")
+                }
+            val printed = ErmModelDslPrinter.print(model)
+            printed shouldContain "note(\"say \\\"hi\\\" \\\\ \${'$'}x\\nline2\", users, \"view_0\", id = \"n1\")"
+            printed shouldContain "note(\"free\", id = \"n2\")"
+        }
+    })

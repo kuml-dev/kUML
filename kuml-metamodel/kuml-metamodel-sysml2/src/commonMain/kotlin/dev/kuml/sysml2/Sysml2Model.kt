@@ -30,6 +30,10 @@ data class Sysml2Model(
     /** Diagrams tagged for rendering. */
     val diagrams: List<Sysml2Diagram> = emptyList(),
     val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    /** Free-text comments (notes). Shown per diagram, see [notesVisibleIn]. */
+    val comments: List<Sysml2Comment> = emptyList(),
+    /** Anchor links from [comments] to definitions / usages. */
+    val commentLinks: List<Sysml2CommentLink> = emptyList(),
 ) {
     /** Indexed lookup by element id. Computed lazily; rebuilt per instance. */
     fun elementById(id: String): Sysml2Element? {
@@ -37,7 +41,40 @@ data class Sysml2Model(
         // top-level usages. Returns the first match — ids are expected unique.
         definitions.firstOrNull { it.id == id }?.let { return it }
         usages.firstOrNull { it.id == id }?.let { return it }
+        comments.firstOrNull { it.id == id }?.let { return it }
         return null
+    }
+
+    /**
+     * Ids a comment may be anchored to: all definitions, their owned features
+     * (the part usages an IBD shows) and the top-level usages.
+     */
+    fun allAnchorableIds(): Set<String> =
+        buildSet {
+            definitions.forEach { def ->
+                add(def.id)
+                def.features.forEach { add(it.id) }
+            }
+            usages.forEach { add(it.id) }
+        }
+
+    /**
+     * Notes shown in [diagram], given the ids of the nodes the layout shows
+     * ([visibleNodeIds]). A comment is visible when its id is listed in
+     * [Sysml2Diagram.noteIds] or when at least one of its anchors is visible.
+     * Links to invisible targets are dropped.
+     */
+    fun notesVisibleIn(
+        diagram: Sysml2Diagram,
+        visibleNodeIds: Set<String>,
+    ): Sysml2VisibleNotes {
+        if (comments.isEmpty()) return Sysml2VisibleNotes.EMPTY
+        val explicit = diagram.noteIds.toSet()
+        val anchored = commentLinks.filter { it.link.targetId in visibleNodeIds }
+        val anchoredNoteIds = anchored.map { it.link.noteId }.toSet()
+        val shown = comments.filter { it.id in explicit || it.id in anchoredNoteIds }
+        val shownIds = shown.map { it.id }.toSet()
+        return Sysml2VisibleNotes(comments = shown, links = anchored.filter { it.link.noteId in shownIds })
     }
 }
 
@@ -56,6 +93,13 @@ sealed interface Sysml2Diagram {
 
     /** Ids of the SysML 2 elements the diagram is allowed to display. */
     val elementIds: List<String>
+
+    /**
+     * Ids of [Sysml2Comment]s the diagram shows explicitly. Kept apart from
+     * [elementIds] because an empty [elementIds] means "show everything" for
+     * some diagram kinds.
+     */
+    val noteIds: List<String>
 }
 
 /**
@@ -72,6 +116,7 @@ sealed interface Sysml2Diagram {
 data class BdDiagram(
     override val name: String,
     override val elementIds: List<String> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
 ) : Sysml2Diagram
 
 /**
@@ -106,6 +151,7 @@ data class IbdDiagram(
      * If non-empty, only the listed usage ids survive the bridge's selection.
      */
     override val elementIds: List<String> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
 ) : Sysml2Diagram
 
 /**
@@ -155,6 +201,7 @@ data class UcDiagram(
     val includes: List<UcInclude> = emptyList(),
     /** `«extend»` relationships between two use-case definitions. */
     val extends: List<UcExtend> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
 ) : Sysml2Diagram
 
 /**
@@ -259,6 +306,7 @@ data class ActDiagram(
      * Order is preserved so layout / serialisation / diff stay deterministic.
      */
     override val elementIds: List<String> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
 ) : Sysml2Diagram
 
 /**
@@ -305,6 +353,7 @@ data class StmDiagram(
      * serialisation / diff stay deterministic.
      */
     override val elementIds: List<String> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
 ) : Sysml2Diagram
 
 /**
@@ -360,6 +409,7 @@ data class ReqDiagram(
     val derives: List<ReqDerive> = emptyList(),
     /** Parent Requirement containing a sub-Requirement. */
     val contains: List<ReqContains> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
 ) : Sysml2Diagram
 
 /**
@@ -480,6 +530,7 @@ data class SeqDiagram(
      * serialisation / diff stay deterministic.
      */
     override val elementIds: List<String> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
 ) : Sysml2Diagram
 
 /**
@@ -563,4 +614,5 @@ data class ParDiagram(
      * serialisation / diff stay deterministic.
      */
     override val elementIds: List<String> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
 ) : Sysml2Diagram

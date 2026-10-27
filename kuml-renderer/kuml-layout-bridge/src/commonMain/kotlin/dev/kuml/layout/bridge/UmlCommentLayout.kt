@@ -1,7 +1,6 @@
 package dev.kuml.layout.bridge
 
 import dev.kuml.layout.Size
-import dev.kuml.layout.TextWrap
 import dev.kuml.uml.UmlComment
 
 /**
@@ -17,62 +16,39 @@ import dev.kuml.uml.UmlComment
  * ("dog-ear"). [DOG_EAR_SIZE] is the side length of the folded triangle.
  */
 public object UmlCommentLayout {
-    /** Avg width of an 11pt regular sans-serif char (note body — `kuml-body`). */
-    public const val BODY_CHAR_PX: Float = 6.6f
+    /** Avg width of an 11pt regular sans-serif char (note body, `kuml-body`). */
+    public const val BODY_CHAR_PX: Float = NoteLayout.BODY_CHAR_PX
 
     /** Horizontal padding (left + right) inside the note box. */
-    public const val H_PADDING: Float = 16f
+    public const val H_PADDING: Float = NoteLayout.H_PADDING
 
     /** Vertical padding (top + bottom) inside the note box. */
-    public const val V_PADDING: Float = 16f
+    public const val V_PADDING: Float = NoteLayout.V_PADDING
 
     /** Line height for note body text. */
-    public const val LINE_H: Float = 15f
+    public const val LINE_H: Float = NoteLayout.LINE_H
 
     /** Side length of the folded top-right corner ("dog-ear"). */
-    public const val DOG_EAR_SIZE: Float = 14f
+    public const val DOG_EAR_SIZE: Float = NoteLayout.DOG_EAR_SIZE
 
     /** Default note width when the body is empty or very short. */
-    public const val DEFAULT_W: Float = 140f
+    public const val DEFAULT_W: Float = NoteLayout.DEFAULT_W
 
     /** Default note height when the body is empty or very short. */
-    public const val DEFAULT_H: Float = 60f
+    public const val DEFAULT_H: Float = NoteLayout.DEFAULT_H
+
+    /** Maximum note width. */
+    public const val MAX_W: Float = NoteLayout.MAX_W
 
     /**
-     * Maximum width a note is allowed to grow to before wrapping kicks in
-     * more aggressively. Keeps very long single-paragraph bodies from
-     * producing an absurdly wide, short box.
-     */
-    public const val MAX_W: Float = 260f
-
-    /**
-     * Wraps [body] into display lines, honouring explicit newlines as hard
-     * paragraph breaks and word-wrapping each paragraph to [maxInnerWidth].
-     *
-     * Both [UmlContentSizeProvider] (sizing) and the SVG renderer (drawing)
-     * must call this with the same [maxInnerWidth] to stay in sync — see the
-     * class KDoc.
+     * Wraps [body] into display lines; delegates to [NoteLayout.displayText], so
+     * the shared display limits (2000 chars, 30 lines, hard word break) apply.
      */
     public fun wrapBody(
         body: String,
         maxInnerWidth: Float = MAX_W - H_PADDING,
-    ): List<String> =
-        body
-            .split("\n")
-            .flatMap { paragraph ->
-                if (paragraph.isBlank()) {
-                    listOf("")
-                } else {
-                    TextWrap.wrapToWidth(text = paragraph, maxWidthPx = maxInnerWidth, charPx = BODY_CHAR_PX)
-                }
-            }
+    ): List<String> = NoteLayout.displayText(body = body, maxInnerWidth = maxInnerWidth).lines
 
-    /** Computes the note box [Size] for [comment], per [wrapBody] + padding rules. */
-    public fun sizeOf(comment: UmlComment): Size {
-        val lines = wrapBody(body = comment.body)
-        val widestLine = lines.maxOfOrNull { it.length * BODY_CHAR_PX } ?: 0f
-        val w = maxOf(DEFAULT_W, minOf(MAX_W, widestLine + H_PADDING))
-        val h = maxOf(DEFAULT_H, lines.size * LINE_H + V_PADDING)
-        return Size(width = w, height = h)
-    }
+    /** Computes the note box [Size] for [comment]. */
+    public fun sizeOf(comment: UmlComment): Size = NoteLayout.sizeOf(body = comment.body)
 }

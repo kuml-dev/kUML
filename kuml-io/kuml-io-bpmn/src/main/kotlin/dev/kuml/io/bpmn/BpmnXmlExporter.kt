@@ -1,5 +1,7 @@
 package dev.kuml.io.bpmn
 
+import dev.kuml.bpmn.model.BpmnAssociation
+import dev.kuml.bpmn.model.BpmnAssociationDirection
 import dev.kuml.bpmn.model.BpmnCallActivity
 import dev.kuml.bpmn.model.BpmnCollaboration
 import dev.kuml.bpmn.model.BpmnDataObject
@@ -11,6 +13,7 @@ import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.bpmn.model.BpmnProcess
 import dev.kuml.bpmn.model.BpmnSubProcess
 import dev.kuml.bpmn.model.BpmnTask
+import dev.kuml.bpmn.model.BpmnTextAnnotation
 import dev.kuml.bpmn.model.EventBehaviour
 import dev.kuml.bpmn.model.EventDefinition
 import dev.kuml.bpmn.model.EventPosition
@@ -82,6 +85,8 @@ public class BpmnXmlExporter {
             sb.append(xmlAttr(da.targetRef))
             sb.appendLine("/>")
         }
+        process.textAnnotations.forEach { appendTextAnnotation(annotation = it, sb = sb) }
+        process.associations.forEach { appendAssociation(association = it, sb = sb) }
 
         sb.appendLine("  </process>")
     }
@@ -327,7 +332,39 @@ public class BpmnXmlExporter {
             sb.appendLine("/>")
         }
         collab.messageFlows.forEach { mf -> appendMessageFlow(mf = mf, sb = sb) }
+        collab.textAnnotations.forEach { appendTextAnnotation(annotation = it, sb = sb) }
+        collab.associations.forEach { appendAssociation(association = it, sb = sb) }
         sb.appendLine("  </collaboration>")
+    }
+
+    private fun appendTextAnnotation(
+        annotation: BpmnTextAnnotation,
+        sb: StringBuilder,
+    ) {
+        sb.append("    <textAnnotation id=")
+        sb.append(xmlAttr(annotation.id))
+        sb.append("><text>")
+        sb.append(xmlText(annotation.note.body))
+        sb.appendLine("</text></textAnnotation>")
+    }
+
+    private fun appendAssociation(
+        association: BpmnAssociation,
+        sb: StringBuilder,
+    ) {
+        val direction =
+            when (association.direction) {
+                BpmnAssociationDirection.NONE -> "None"
+                BpmnAssociationDirection.ONE -> "One"
+                BpmnAssociationDirection.BOTH -> "Both"
+            }
+        sb.append("    <association id=")
+        sb.append(xmlAttr(association.id))
+        sb.append(" sourceRef=")
+        sb.append(xmlAttr(association.link.noteId))
+        sb.append(" targetRef=")
+        sb.append(xmlAttr(association.link.targetId))
+        sb.appendLine(" associationDirection=\"$direction\"/>")
     }
 
     private fun appendMessageFlow(

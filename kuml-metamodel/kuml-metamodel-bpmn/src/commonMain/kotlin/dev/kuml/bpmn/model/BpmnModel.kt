@@ -48,10 +48,35 @@ data class BpmnModel(
             ?: conversations.firstOrNull { it.id == id }
             ?: conversations.firstNotNullOfOrNull { it.elementById(id) }
 
+    /**
+     * Ids a text annotation may be associated with: flow nodes (including those
+     * nested in sub-processes), data objects and data stores. Pools, lanes and
+     * sequence flows are not valid anchors.
+     */
+    fun allAnchorableIds(): Set<String> =
+        buildSet {
+            dataStores.forEach { add(it.id) }
+            processes.forEach { p ->
+                p.dataObjects.forEach { add(it.id) }
+                p.flowNodes.forEach { addFlowNode(it) }
+            }
+        }
+
+    private fun MutableSet<String>.addFlowNode(node: BpmnFlowNode) {
+        add(node.id)
+        if (node is BpmnSubProcess) {
+            node.flowElementNodes.forEach { addFlowNode(it) }
+            node.innerDataObjects.forEach { add(it.id) }
+        }
+    }
+
     /** Looks up an element within a specific collaboration by ID. */
+
     private fun BpmnCollaboration.elementById(id: String): BpmnElement? =
         participants.firstOrNull { it.id == id }
             ?: messageFlows.firstOrNull { it.id == id }
+            ?: textAnnotations.firstOrNull { it.id == id }
+            ?: associations.firstOrNull { it.id == id }
             ?: participants.firstNotNullOfOrNull { participant -> participant.laneById(id) }
 
     private fun BpmnParticipant.laneById(id: String): BpmnElement? =

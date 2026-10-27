@@ -1,11 +1,15 @@
 package dev.kuml.erm.dsl
 
+import dev.kuml.core.model.note.KumlNote
+import dev.kuml.core.model.note.KumlNoteLink
 import dev.kuml.erm.model.Cardinality
 import dev.kuml.erm.model.ErmCategory
 import dev.kuml.erm.model.ErmDiagram
 import dev.kuml.erm.model.ErmEntity
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ErmNotation
+import dev.kuml.erm.model.ErmNote
+import dev.kuml.erm.model.ErmNoteLink
 import dev.kuml.erm.model.ErmRelationship
 import dev.kuml.erm.model.ErmView
 import dev.kuml.erm.model.RelationshipKind
@@ -34,6 +38,8 @@ class ErmModelBuilder(
     private val views = mutableListOf<ErmView>()
     private val diagrams = mutableListOf<ErmDiagram>()
     private val categories = mutableListOf<ErmCategory>()
+    private val notes = mutableListOf<ErmNote>()
+    private val noteLinks = mutableListOf<ErmNoteLink>()
 
     /** Declares an entity (table). [weak] marks it as a weak entity (see [ErmEntity.weak]). */
     fun entity(
@@ -114,6 +120,24 @@ class ErmModelBuilder(
         return id
     }
 
+    /**
+     * Declares a free-text note, anchored to entities / views (by id; none =
+     * free-standing). Returns the note id (`note_<n>`). Anchors are checked in
+     * [build]: unknown ids and anchors that are neither entity nor view throw.
+     */
+    fun note(
+        text: String,
+        vararg anchors: String,
+        id: String? = null,
+    ): String {
+        val noteId = id ?: nextNoteId()
+        notes += ErmNote(note = KumlNote(id = noteId, body = text))
+        anchors.distinct().forEachIndexed { k, target ->
+            noteLinks += ErmNoteLink(link = KumlNoteLink(id = "note_link_${notes.size - 1}_${k + 1}", noteId = noteId, targetId = target))
+        }
+        return noteId
+    }
+
     /** Declares a diagram projection over this model. */
     fun diagram(
         name: String,
@@ -145,6 +169,18 @@ class ErmModelBuilder(
     /** Looks up an already-declared entity by id — used by [EntityBuilder.foreignKey] for type inference. */
     internal fun entityById(id: String): ErmEntity? = entities.firstOrNull { it.id == id }
 
+    private fun nextNoteId(): String {
+        val used =
+            buildSet {
+                notes.forEach { add(it.id) }
+                entities.forEach { add(it.id) }
+                views.forEach { add(it.id) }
+            }
+        var n = notes.size
+        while ("note_$n" in used) n++
+        return "note_$n"
+    }
+
     private fun autoId(
         prefix: String,
         n: Int,
@@ -155,14 +191,30 @@ class ErmModelBuilder(
             diagrams.ifEmpty {
                 listOf(ErmDiagram(name = name, notation = ErmNotation.MARTIN))
             }
-        return ErmModel(
-            name = name,
-            entities = entities.toList(),
-            relationships = relationships.toList(),
-            views = views.toList(),
-            diagrams = finalDiagrams,
-            categories = categories.toList(),
-        )
+        val model =
+            ErmModel(
+                name = name,
+                entities = entities.toList(),
+                relationships = relationships.toList(),
+                views = views.toList(),
+                diagrams = finalDiagrams,
+                categories = categories.toList(),
+                notes = notes.toList(),
+                noteLinks = noteLinks.toList(),
+            )
+        val seenNoteIds = mutableSetOf<String>()
+        val otherIds = (model.entities.map { it.id } + model.views.map { it.id }).toSet()
+        for (n in model.notes) {
+            require(seenNoteIds.add(n.id)) { "duplicate note id '${n.id}'" }
+            require(n.id !in otherIds) { "note id '${n.id}' collides with an entity or view id" }
+        }
+        val anchorable = model.anchorableIds()
+        for (l in model.noteLinks) {
+            require(l.link.targetId in anchorable) {
+                "note '${l.link.noteId}' cannot be anchored to '${l.link.targetId}': unknown id, or neither an entity nor a view"
+            }
+        }
+        return model
     }
 }
 

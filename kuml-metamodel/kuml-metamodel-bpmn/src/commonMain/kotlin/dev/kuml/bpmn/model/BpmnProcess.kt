@@ -30,6 +30,10 @@ data class BpmnProcess(
     val dataObjects: List<BpmnDataObject> = emptyList(),
     val dataAssociations: List<DataAssociation> = emptyList(),
     val constraints: List<UmlConstraint> = emptyList(),
+    /** Text annotations of this process (also those declared inside sub-processes). */
+    val textAnnotations: List<BpmnTextAnnotation> = emptyList(),
+    /** Associations from [textAnnotations] to flow nodes / data objects. */
+    val associations: List<BpmnAssociation> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : BpmnElement {
     /**
@@ -47,6 +51,8 @@ data class BpmnProcess(
             ?: sequenceFlows.firstOrNull { it.id == id }
             ?: dataObjects.firstOrNull { it.id == id }
             ?: dataAssociations.firstOrNull { it.id == id }
+            ?: textAnnotations.firstOrNull { it.id == id }
+            ?: associations.firstOrNull { it.id == id }
             ?: flowNodes.filterIsInstance<BpmnSubProcess>().firstNotNullOfOrNull { sp ->
                 sp.flowElementNodes.firstOrNull { it.id == id }
                     ?: sp.innerSequenceFlows.firstOrNull { it.id == id }
@@ -74,6 +80,8 @@ data class BpmnProcess(
             .filterIsInstance<BpmnSubProcess>()
             .filter { it.expanded }
             .forEach { collectExpandedSubProcess(sp = it, acc = acc) }
+        acc += textAnnotations
+        acc += associations
         return acc
     }
 
