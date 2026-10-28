@@ -41,6 +41,7 @@ import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.rememberDialogState
 import dev.kuml.ai.vault.ApiKeyVault
+import dev.kuml.cli.workspace.WorkspacePdfExport
 import dev.kuml.desktop.ai.AiPanel
 import dev.kuml.desktop.ai.AiPanelState
 import dev.kuml.desktop.ai.settings.AiProviderSettingsDialog
@@ -82,6 +83,7 @@ import dev.kuml.desktop.workspace.EngineeringWorkspaceScreen
 import dev.kuml.desktop.workspace.KnowledgeWorkspaceScreen
 import dev.kuml.desktop.workspace.NewWorkspaceDialog
 import dev.kuml.desktop.workspace.OpenWorkspace
+import dev.kuml.desktop.workspace.PdfExportDialog
 import dev.kuml.desktop.workspace.TrustDialog
 import dev.kuml.desktop.workspace.WorkspaceChangeEffect
 import dev.kuml.desktop.workspace.WorkspaceModeChooserDialog
@@ -179,6 +181,9 @@ fun FrameWindowScope.MainWindow(
 
     // V3.x (FT-Desktop-New-Workspace) — "New Workspace…" scaffold dialog.
     var showNewWorkspaceDialog by remember { mutableStateOf(false) }
+
+    // Wave F — "Export Workspace ▸ As PDF…" dialog.
+    var showPdfExportDialog by remember { mutableStateOf(false) }
 
     rememberAppSettingsBinding(state = state, store = store)
 
@@ -594,6 +599,15 @@ fun FrameWindowScope.MainWindow(
                     }
                 },
             )
+            Menu(strings.menuFileExportWorkspace) {
+                // Engineering workspaces are not exported (no document tree); the dialog explains why when opened
+                // for an untrusted workspace, and the menu stays disabled here for engineering mode.
+                Item(
+                    strings.menuFileExportWorkspacePdf,
+                    enabled = state.openWorkspace is OpenWorkspace.Knowledge,
+                    onClick = { showPdfExportDialog = true },
+                )
+            }
             Separator()
             Menu(strings.menuFileRecent) {
                 if (state.recentFiles.isEmpty()) {
@@ -1001,6 +1015,43 @@ fun FrameWindowScope.MainWindow(
             },
             onCancel = { pendingUnknownWorkspace = null },
         )
+    }
+
+    // Wave F — workspace PDF export.
+    if (showPdfExportDialog) {
+        val knowledge = state.openWorkspace as? OpenWorkspace.Knowledge
+        if (knowledge == null) {
+            showPdfExportDialog = false
+        } else {
+            val root = knowledge.state.workspace.root
+            PdfExportDialog(
+                strings = strings,
+                workspaceRoot = root,
+                trusted = WorkspaceTrust.isTrusted(trustedPaths = state.trustedWorkspaces.toList(), root = root),
+                producerVersion = WorkspacePdfExport.producer,
+                evalGate = mcpTools.evalGate,
+                initialDir = state.lastDir?.let { File(it) },
+                chooseSaveFile = { name, initial ->
+                    FileMenu.chooseExport(
+                        parent = windowHandle,
+                        initialDir = initial,
+                        suggestedName = name,
+                        description = "PDF (*.pdf)",
+                        extension = "pdf",
+                        strings = strings,
+                    )
+                },
+                chooseSaveDirectory = { initial ->
+                    FileMenu.chooseOpenDirectory(
+                        parent = windowHandle,
+                        initialDir = initial,
+                        strings = strings,
+                        title = strings.pdfExportTitle,
+                    )
+                },
+                onDismiss = { showPdfExportDialog = false },
+            )
+        }
     }
 
     // V3.x (FT-Desktop-New-Workspace) — "New Workspace…" scaffold dialog.

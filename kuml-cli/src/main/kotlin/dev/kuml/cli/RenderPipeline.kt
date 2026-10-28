@@ -114,6 +114,13 @@ internal data class RenderOutcome(
     val diagramCount: Int,
 )
 
+/** SVG text plus the extracted model of one rendered diagram, see [RenderPipeline.renderToSvg]. */
+internal data class SvgRender(
+    val svg: String,
+    val extracted: ExtractedDiagram,
+    val diagramCount: Int,
+)
+
 /**
  * Orchestrates the kUML render pipeline: Script → Layout → Renderer → File.
  *
@@ -222,6 +229,7 @@ internal object RenderPipeline {
         speed: Double = 1.0,
         notation: String? = null,
         watermark: Boolean = false,
+        extractedSink: ((ExtractedDiagram) -> Unit)? = null,
     ): RenderOutcome {
         // 1. Evaluate script
         val evalResult = KumlScriptHost.eval(file = input)
@@ -239,6 +247,7 @@ internal object RenderPipeline {
                 ?: throw ScriptEvaluationException(message = "Script evaluation did not produce a result")
 
         val extracted = DiagramExtractor.extractAny(returnValue = successResult.value.returnValue, input = input)
+        extractedSink?.invoke(extracted)
         // Computed from the same evaluation (no second script run) so callers can warn about
         // diagrams beyond the first, which extractAny silently drops.
         val outcome =
@@ -351,6 +360,44 @@ internal object RenderPipeline {
             throw IOException("Failed to write output file: ${e.message}", e)
         }
         return outcome
+    }
+
+    /**
+     * Renders [input] to an in-memory SVG string and also hands back the extracted model, for callers (the
+     * workspace PDF export) that need the SVG plus facts about the diagram. Goes through exactly the same
+     * [run] path as `kuml render`; only the output location is a throw-away temporary file.
+     */
+    internal fun renderToSvg(
+        input: File,
+        themeName: String?,
+        config: KumlConfig = KumlConfig.DEFAULT,
+    ): SvgRender {
+        val tempDir =
+            java.nio.file.Files
+                .createTempDirectory("kuml-svg-render")
+        try {
+            val out = tempDir.resolve("diagram.svg")
+            var extracted: ExtractedDiagram? = null
+            val outcome =
+                run(
+                    input = input,
+                    output = out,
+                    format = "svg",
+                    width = 0,
+                    themeName = themeName,
+                    config = config,
+                    extractedSink = { extracted = it },
+                )
+            return SvgRender(
+                svg =
+                    java.nio.file.Files
+                        .readString(out),
+                extracted = extracted ?: throw IOException("Render produced no diagram model"),
+                diagramCount = outcome.diagramCount,
+            )
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
     }
 
     private fun renderUml(

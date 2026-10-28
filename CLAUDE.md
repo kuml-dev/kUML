@@ -105,7 +105,8 @@ kuml/
 ├── kuml-desktop/           # Compose Desktop UI
 ├── kuml-docs/
 │   ├── kuml-markdown/      # Markdown kuml-Codeblock → SVG
-│   └── kuml-asciidoc/      # Asciidoctor Extension
+│   ├── kuml-asciidoc/      # Asciidoctor Extension
+│   └── kuml-workspace-pdf/ # Workspace-PDF-Export (PDFBox, Batik-GVT → PDF-Vektoren, Inter/JetBrains Mono eingebettet; führt selbst keine Skripte aus, Diagramme über den DiagramSource-Port aus kuml-cli)
 ├── kuml-intellij-plugin/   # JetBrains IDE Plugin
 ├── kuml-tests/             # Alle Tests (Unit, Integration, System, UI)
 │   ├── kuml-dsl-tests/             # Unit: alle 14 UML + SysML 2 + C4 Diagrammtypen

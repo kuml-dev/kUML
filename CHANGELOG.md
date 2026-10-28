@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added (Workspace PDF export, wave F)
+
+- `kuml workspace export <dir> --format pdf`: exports a knowledge workspace as a handbook (cover, table of contents, chapters in `index.md` order, traceability, open items, glossary, appendix), one PDF per document, or a diagram folio (`--split` for one PDF per diagram). Options for A4/A3, orientation (`auto` turns diagram pages to landscape when that gains scale), cover, table of contents, header/footer, `--draft` watermark, author/version/date/language, scope, `--force`, `--strict`. Diagrams stay vector graphics; a diagram shrunk below 40 % produces a warning with a suggestion; a failed diagram becomes a placeholder box. Bookmarks, internal links, metadata (Info + XMP) included.
+- kUML Desktop: *File > Export Workspace > As PDF...* dialog (presets, disabled options with reasons, progress, cancel, scale-warning bar) and the MCP tool `kuml_desktop_workspace_export_pdf`.
+- New module `kuml-docs:kuml-workspace-pdf` (no script execution; diagrams come through the `DiagramSource` port). `RenderPipeline.renderToSvg` and the public `DiagramFactsExtractor` / `WorkspacePdfExport` in `kuml-cli` are the single code path for CLI, Desktop and MCP.
+- New dependencies: Apache PDFBox 3.0.8 (+ XmpBox), pdfbox-graphics2d 3.0.5, JetBrains markdown 0.7.9, slf4j-api. Bundled fonts Inter 4.1 and JetBrains Mono 2.304 (SIL OFL 1.1; license texts in the module). New `NOTICE` file in the repository root.
+
 ### Added (Desktop MCP workspace mode)
 
 - kUML Desktop MCP server: ten `kuml_desktop_workspace_*` tools for an open OKF Knowledge workspace -- `info`, `list_documents`, `get_document`, `set_document` (revision-guarded write/create to disk through the Ctrl+S save gate), `delete_document` (`confirm:true`), `validate`, `render_document` (SVG, or PNG as image content), `render_all`, `open_document` and `reload`. Path confinement (`..`, absolute/UNC/drive paths, symlinks, hidden folders), trusted-workspace requirement for write/render/evaluate, size limits, and a never-overwrite rule for documents with unsaved editor changes (`DOCUMENT_DIRTY`).

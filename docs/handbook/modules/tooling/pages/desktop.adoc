@@ -123,6 +123,11 @@ Menu shortcuts follow the platform convention: *⌘ (Command)* on macOS, *Ctrl* 
 | Send the event in the payload field (simulation) | ⌘↩ | Ctrl+Enter
 |===
 
+== Exporting a workspace as PDF
+
+With a knowledge workspace open, *File ▸ Export Workspace ▸ As PDF...* exports it as a handbook, one PDF per document or a
+diagram folio; see xref:workspace-pdf-export.adoc[Workspace PDF export].
+
 == Version
 
 *Help ▸ About kUML…* shows the installed version.

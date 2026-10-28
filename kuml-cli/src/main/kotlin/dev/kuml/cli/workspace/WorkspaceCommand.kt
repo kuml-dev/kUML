@@ -69,6 +69,7 @@ internal fun CliktCommand.loadSelectedDocuments(
  * - `validate` — run [OkfValidator]'s structural conformance checks.
  * - `render`   — render every ```kuml block through the full [dev.kuml.cli.RenderPipeline].
  * - `convert`  — convert between OKF notes and bare `.kuml.kts` scripts (FT-7).
+ * - `export`   — export to PDF: handbook, per-document or diagram folio (wave F).
  */
 internal class WorkspaceCommand : CliktCommand(name = "workspace") {
     init {
@@ -78,6 +79,7 @@ internal class WorkspaceCommand : CliktCommand(name = "workspace") {
             WorkspaceValidateCommand(),
             WorkspaceRenderCommand(),
             WorkspaceConvertCommand(),
+            WorkspaceExportCommand(),
         )
     }
 

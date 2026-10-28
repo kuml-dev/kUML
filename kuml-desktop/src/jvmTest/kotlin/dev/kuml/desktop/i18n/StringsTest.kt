@@ -589,3 +589,27 @@ class StringsTest :
 
         test("the German trace section is called Verlauf") { Strings.DE.simTraceTitle shouldBe "Verlauf" }
     })
+
+class PdfExportStringsTest :
+    io.kotest.core.spec.style.FunSpec({
+        val keys =
+            Strings::class.java.declaredFields
+                .filter { it.name.startsWith("pdf") || it.name.startsWith("menuFileExportWorkspace") }
+        test("all PDF export strings exist and are non-empty in German and English") {
+            (keys.size >= 30) shouldBe true
+            keys.forEach {
+                it.isAccessible = true
+                (it.get(Strings.EN) as String).isNotBlank() shouldBe true
+                (it.get(Strings.DE) as String).isNotBlank() shouldBe true
+            }
+        }
+        test("placeholders are consistent between languages") {
+            keys.forEach {
+                it.isAccessible = true
+                val en = it.get(Strings.EN) as String
+                val de = it.get(Strings.DE) as String
+                Regex("%\\d\\$[ds]").findAll(en).map { m -> m.value }.toSet() shouldBe
+                    Regex("%\\d\\$[ds]").findAll(de).map { m -> m.value }.toSet()
+            }
+        }
+    })

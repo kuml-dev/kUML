@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="260" viewBox="0 0 480 260">
+  <defs>
+    <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1F4E8C"/><stop offset="1" stop-color="#F4B400"/>
+    </linearGradient>
+    <radialGradient id="rg" cx="0.5" cy="0.5" r="0.5" spreadMethod="reflect">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="0.6" stop-color="#d00080"/><stop offset="1" stop-color="#1d2968"/>
+    </radialGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#222"/>
+    </marker>
+  </defs>
+  <rect x="10" y="10" width="200" height="100" rx="8" fill="url(#lg)" stroke="#222" stroke-width="2"/>
+  <ellipse cx="340" cy="60" rx="110" ry="50" fill="url(#rg)" opacity="0.8"/>
+  <line x1="20" y1="150" x2="300" y2="150" stroke="#222" stroke-width="2" stroke-dasharray="8 4" marker-end="url(#arrow)"/>
+  <path d="M20,190 C120,230 220,170 320,210" fill="none" stroke="#186CB4" stroke-width="3" opacity="0.5" marker-end="url(#arrow)"/>
+  <text x="20" y="245" font-family="Geist, Inter, system-ui, sans-serif" font-size="18" fill="#111">Ärger ÖÜ äöü ß € — Größe</text>
+  <text x="230" y="140" font-family="Geist, Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#111">Semibold label</text>
+</svg>

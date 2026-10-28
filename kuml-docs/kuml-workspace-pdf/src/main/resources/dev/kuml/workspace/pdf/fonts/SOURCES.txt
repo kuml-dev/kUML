@@ -1,0 +1,8 @@
+Bundled fonts (downloaded 2026-10-28 from the official releases, unmodified TTF files).
+Inter v4.1: https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip (extras/ttf)
+JetBrains Mono v2.304: https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip (fonts/ttf)
+SHA-256:
+bbc051dd204b5019a1aa0bc0ae2aa8a05ab13e7a3f979fa357631dc7feb6833a  Inter-Italic.ttf
+40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82  Inter-Regular.ttf
+78a843fade9d4612a5567302fb595b56976eb5fcebf4fea5a5912d638bafcde3  Inter-SemiBold.ttf
+a0bf60ef0f83c5ed4d7a75d45838548b1f6873372dfac88f71804491898d138f  JetBrainsMono-Regular.ttf

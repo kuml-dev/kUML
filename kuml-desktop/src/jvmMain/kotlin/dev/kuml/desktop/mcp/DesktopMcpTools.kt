@@ -99,6 +99,7 @@ internal class DesktopMcpTools(
     strings: () -> Strings = { Strings.EN },
     workspaceRender: McpWorkspaceRenderPort = DefaultWorkspaceRenderPort,
     workspaceEvaluate: McpWorkspaceEvaluatePort = DefaultWorkspaceEvaluatePort,
+    workspacePdfExport: McpWorkspacePdfExportPort = DefaultWorkspacePdfExportPort,
 ) {
     private val evalScope = CoroutineScope(SupervisorJob() + evalDispatcher)
     private val ui = McpUiBridge(uiDispatcher = uiDispatcher, uiTimeoutMs = uiTimeoutMs)
@@ -110,6 +111,7 @@ internal class DesktopMcpTools(
             strings = strings,
             renderPort = workspaceRender,
             evaluatePort = workspaceEvaluate,
+            pdfExportPort = workspacePdfExport,
             evalGate = evalGate,
             onNotice = onNotice,
             evalDispatcher = evalDispatcher,

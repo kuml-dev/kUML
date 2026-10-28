@@ -92,6 +92,7 @@ dependencies {
     implementation(project(path = ":kuml-metamodel:kuml-metamodel-erm")) // V3.4.9 — ErmModelDslPrinter (kuml reverse --format sql)
     implementation(project(path = ":kuml-docs:kuml-markdown"))
     implementation(project(path = ":kuml-docs:kuml-asciidoc")) // V3.2.19 — `kuml asciidoc` subcommand, Antora pre-render step
+    api(project(path = ":kuml-docs:kuml-workspace-pdf")) // Wave F — workspace PDF export (API types appear on WorkspacePdfExport)
     implementation(project(path = ":kuml-docs:kuml-workspace")) // V3.6.1 — OKF workspace core module + vocabulary (FT-2)
     implementation(project(path = ":kuml-scaffold")) // generic template-scaffold engine, extracted from this module
 
@@ -112,6 +113,7 @@ dependencies {
     // NopStatusListener so Logback's own status output can never reach stdout either.
     runtimeOnly(libs.logback.classic)
 
+    testImplementation(libs.pdfbox) // WorkspaceExportCommandTest inspects the exported PDFs
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
     // CliLoggingConfigTest inspects the parsed Logback configuration directly

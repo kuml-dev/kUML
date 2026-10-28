@@ -6,4 +6,5 @@
 * xref:asciidoc.adoc[AsciiDoc & Antora]
 * xref:markdown.adoc[Markdown]
 * xref:knowledge-workspaces.adoc[Knowledge Workspaces]
+* xref:workspace-pdf-export.adoc[Workspace PDF export]
 * xref:obsidian-sync.adoc[Obsidian Sync]

@@ -26,6 +26,7 @@ kotlin {
                     // V3.6.4 — Knowledge Workspace viewer: OKF workspace scanner (transitively
                     // brings kuml-docs:kuml-markdown's KumlCodeBlock via its `api` dependency)
                     implementation(project(":kuml-docs:kuml-workspace"))
+                    implementation(project(":kuml-docs:kuml-workspace-pdf")) // Wave F — workspace PDF export dialog + MCP tool
                     implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
                     implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
                     implementation(project(":kuml-metamodel:kuml-metamodel-sysml2"))

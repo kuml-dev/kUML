@@ -16,6 +16,7 @@ kuml workspace info <dir>                     # mode + document inventory
 kuml workspace validate <dir> [--document <path>]... [--evaluate [--strict]]   # OKF conformance checks
 kuml workspace render <dir> [--document <path>]... [-o <dir>] [--strict]       # render every ```kuml block to SVG/PNG
 kuml workspace convert <src> --to okf|kts     # convert between OKF notes and .kuml.kts scripts
+kuml workspace export <dir> --format pdf      # handbook / per-document / diagram folio (see Workspace PDF export)
 ----
 
 `init` takes its target from the `--output` option (default `./<slug>`), *not* a positional

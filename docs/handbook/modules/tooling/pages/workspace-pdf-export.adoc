@@ -1,0 +1,135 @@
+= Workspace PDF export
+:description: Export an OKF knowledge workspace to PDF — handbook, one PDF per document, or a diagram folio — from the CLI, kUML Desktop or the Desktop MCP server.
+
+A knowledge workspace can be exported as PDF in three shapes. All three entry points (CLI, Desktop,
+MCP) use the same code path: the diagrams are rendered by the full render pipeline, then laid out by
+the script-free `kuml-workspace-pdf` module.
+
+[WARNING]
+====
+Exporting *runs the Kotlin script of every ```` ```kuml ```` block*, exactly like `kuml workspace render`.
+Only export workspaces you trust. Desktop and MCP refuse untrusted workspaces.
+====
+
+== The three kinds
+
+Handbook (`--kind handbook`, default)::
+One book: cover page, table of contents, the chapters in the reading order given by the links of the
+workspace's `index.md`, then _Traceability_ (only when requirement diagrams carry satisfy/verify/derive
+links), _Open items_, the glossary and an appendix _Further documents_ with every document that
+`index.md` does not link, sorted by path. Each diagram is followed by an element table (kind, name, detail)
+extracted from its model.
+
+Per document (`--kind per-document`)::
+One PDF per Markdown document. No cover page unless `--cover`; a table of contents only for documents
+with at least two headings.
+
+Diagram folio (`--kind diagrams`)::
+Every diagram on its own page with its title above and its source (`path:line`) below. With `--split`,
+one PDF per diagram. No cover, no table of contents.
+
+== CLI
+
+[source,bash]
+----
+kuml workspace export <dir> --format pdf
+    [--kind handbook|per-document|diagrams] [--scope all|folder:<path>|<document>]...
+    [--page a4|a3] [--orientation portrait|landscape|auto]
+    [--cover|--no-cover] [--no-toc] [--no-header-footer] [--draft]
+    [--author <text>] [--version <text>] [--date YYYY-MM-DD] [--lang de|en] [--theme <name>]
+    [-o <file-or-dir>] [--force] [--strict] [--split]
+----
+
+The default output is `<root>/.kuml-out/export/<workspace>.pdf` (handbook, folio) or
+`<root>/.kuml-out/export/pdf/` (per document, `--split`). The CLI may write outside the workspace root with `-o`,
+like `kuml render -o`. An existing file is only replaced with `--force`.
+
+Warnings and diagram failures are printed to stderr. A diagram that must be scaled below 40 % produces
+`WARN scale 28% ... suggestion: A3 landscape`. A failed diagram becomes a placeholder box in the PDF
+(`OKF-E-007`). With `--strict`, any warning or failed diagram ends the command with exit code 3 *before* anything
+is written.
+
+.Exit codes
+[cols="1,3"]
+|===
+|0 |Success (possibly with warnings)
+|2 |Usage error: bad option, unknown or escaping scope, existing output without `--force`, a limit exceeded
+|3 |`--strict` violation or export timeout
+|4 |I/O error while writing
+|===
+
+`--ai-notes` is reserved: the library supports an optional "AI draft" box under each diagram, but no AI provider is
+wired into the CLI yet, so the option is refused with exit code 2 rather than silently ignored.
+
+== Frontmatter of `index.md`
+
+The cover page and the footer read `title`, `subtitle`, `author`, `version`, `date` (ISO-8601), `status`, `logo`
+(a PNG or JPEG inside the workspace, at most 2 MB and 4000 px) and `lang` (`de` or `en`). Command-line options override them.
+Without `lang`, labels follow the system language (German, otherwise English).
+
+== Layout rules
+
+* A4 (default) or A3, portrait; with `auto` orientation a diagram gets a landscape page only when that gains at
+  least 15 percentage points of scale. A3 is never chosen automatically.
+* A diagram is never enlarged beyond 100 % and never cut off.
+* Text is real, embedded text (Inter and JetBrains Mono subsets); diagram text becomes outlines, so diagrams look the
+  same everywhere.
+* Bookmarks follow the headings (levels 1 to 3); table of contents entries, cross-document links and the open-items
+  line on the cover are clickable. Only `http`, `https` and `mailto` links become external links.
+* Images are embedded only from inside the workspace (PNG or JPEG, at most 10 MB and 8000 x 8000 px); remote images
+  become their alt text.
+* `--draft` adds a diagonal watermark.
+
+=== Open items
+
+The _Open items_ chapter collects: unchecked tasks (`- [ ]`), `TODO:`, `FIXME:`, `OFFEN:` and `OPEN:` markers outside
+code, `[!todo]` and `[!question]` callouts, documents whose frontmatter `status` is `open`, `offen`, `draft` or
+`entwurf`, and model notes that start with `TODO`, `OFFEN` or `OPEN`.
+
+== Limits
+
+2000 pages, 500 documents, 300 diagrams, 200 MB output, 20 MB per SVG, 5 MB per Markdown document, 60 s per diagram and
+15 minutes in total. A diagram timeout cannot forcibly stop an in-process script; the export moves on and the thread
+may finish later.
+
+== kUML Desktop
+
+*File ▸ Export Workspace ▸ As PDF...* opens a dialog with three presets, folded-away advanced options, and options
+that do not apply shown disabled with the reason. *Check and export* renders first (with progress, cancellable); a
+too-small diagram offers *Use A3 landscape* or *Export anyway* before the save dialog opens. The menu entry is
+disabled for engineering workspaces, which have no document tree to export. While rendering, the dialog holds the same
+evaluation slot as the MCP tools.
+
+== MCP tool
+
+`kuml_desktop_workspace_export_pdf` exports the open, trusted knowledge workspace. Output stays below the workspace root
+(default `.kuml-out/export/`); an existing file needs `overwrite:true`. It returns
+`{ok, output, files, pageCount, documentCount, diagramCount, warnings, failed}` and never file contents. It holds the shared
+evaluation slot for up to 15 minutes, so other evaluating tools may answer `BUSY` meanwhile. Errors:
+`INVALID_PATH`, `OUTPUT_EXISTS`, `OUTPUT_INVALID`, `EMPTY_SCOPE`, `TOO_MANY_DOCUMENTS`, `TOO_MANY_DIAGRAMS`, `PAGE_LIMIT`,
+`OUTPUT_TOO_LARGE`, `SCALE_TOO_SMALL` (with `strict`), `EXPORT_TIMEOUT`, `BUSY`, `WORKSPACE_NOT_TRUSTED`,
+`WORKSPACE_MODE_UNSUPPORTED`.
+
+== Known limits
+
+* Diagram text is converted to outlines and is therefore not searchable; body text is.
+* The PDF is not PDF/A.
+* The traceability chapter needs SysML 2 requirement diagrams; without them it is omitted (and the CLI prints a note).
+* The GraalVM native CLI image is not supported for this command (AWT and PDFBox).
+
+== Third-party components
+
+[cols="2,2,3"]
+|===
+|Component |License |Use
+
+|Apache PDFBox, FontBox, XmpBox |Apache-2.0 |PDF writing and metadata
+|pdfbox-graphics2d |Apache-2.0 |Vector bridge from SVG to PDF
+|Apache Batik |Apache-2.0 |SVG parsing and drawing
+|JetBrains markdown |Apache-2.0 |Markdown parsing
+|Inter |SIL OFL 1.1 |Body text (bundled subset)
+|JetBrains Mono |SIL OFL 1.1 |Code text (bundled subset)
+|===
+
+The license texts of the bundled fonts live next to them in the `kuml-workspace-pdf` module; the repository root `NOTICE`
+lists all components.

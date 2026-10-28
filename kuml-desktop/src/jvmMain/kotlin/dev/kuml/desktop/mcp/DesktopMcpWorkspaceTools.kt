@@ -1,6 +1,7 @@
 package dev.kuml.desktop.mcp
 
 import dev.kuml.cli.workspace.WorkspaceBlockEvaluator
+import dev.kuml.cli.workspace.WorkspacePdfExport
 import dev.kuml.cli.workspace.WorkspaceRenderer
 import dev.kuml.desktop.AppState
 import dev.kuml.desktop.i18n.Strings
@@ -20,8 +21,19 @@ import dev.kuml.workspace.OkfDocument
 import dev.kuml.workspace.OkfFinding
 import dev.kuml.workspace.OkfSeverity
 import dev.kuml.workspace.OkfValidator
+import dev.kuml.workspace.OkfWorkspace
 import dev.kuml.workspace.WorkspaceDocumentResolver
 import dev.kuml.workspace.WorkspaceScanner
+import dev.kuml.workspace.pdf.ExportMetadata
+import dev.kuml.workspace.pdf.ExportScope
+import dev.kuml.workspace.pdf.PageFormat
+import dev.kuml.workspace.pdf.PageOrientation
+import dev.kuml.workspace.pdf.PdfExportException
+import dev.kuml.workspace.pdf.PdfExportKind
+import dev.kuml.workspace.pdf.PdfExportOptions
+import dev.kuml.workspace.pdf.PdfExportResult
+import dev.kuml.workspace.pdf.PdfLanguage
+import dev.kuml.workspace.pdf.ScaleWarning
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +61,8 @@ import kotlinx.serialization.json.putJsonObject
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Files
+import java.time.LocalDate
+import java.time.format.DateTimeParseException
 import java.util.Base64
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
@@ -73,6 +87,38 @@ internal fun interface McpWorkspaceEvaluatePort {
         strict: Boolean,
     ): List<OkfFinding>
 }
+
+/** Raised by the default PDF port when `strict` is set and the export has warnings or failed diagrams (nothing is written). */
+internal class PdfStrictViolation(
+    val warnings: List<ScaleWarning>,
+    val failures: List<OkfFinding>,
+) : Exception("strict export violation")
+
+/** Exports a workspace to PDF (EXECUTES block code); production: [WorkspacePdfExport]. */
+internal fun interface McpWorkspacePdfExportPort {
+    fun export(
+        workspace: OkfWorkspace,
+        options: PdfExportOptions,
+        target: File,
+        overwrite: Boolean,
+        restrictToRoot: File,
+        themeName: String?,
+        strict: Boolean,
+        cancelled: () -> Boolean,
+    ): PdfExportResult
+}
+
+internal val DefaultWorkspacePdfExportPort =
+    McpWorkspacePdfExportPort { workspace, options, target, overwrite, restrictToRoot, themeName, strict, cancelled ->
+        WorkspacePdfExport
+            .prepare(workspace = workspace, options = options, themeName = themeName, cancelled = cancelled)
+            .use { prepared ->
+                if (strict && (prepared.warnings.isNotEmpty() || prepared.failures.isNotEmpty())) {
+                    throw PdfStrictViolation(warnings = prepared.warnings, failures = prepared.failures)
+                }
+                WorkspacePdfExport.write(prepared = prepared, target = target, overwrite = overwrite, restrictToRoot = restrictToRoot)
+            }
+    }
 
 internal val DefaultWorkspaceRenderPort =
     McpWorkspaceRenderPort { documents, outputDir, format, width, themeName, strict ->
@@ -110,6 +156,8 @@ internal class DesktopMcpWorkspaceTools(
     private val evalGate: Semaphore,
     private val onNotice: (McpNotice) -> Unit,
     evalDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val pdfExportPort: McpWorkspacePdfExportPort = DefaultWorkspacePdfExportPort,
+    private val exportTimeoutMs: Long = EXPORT_PDF_TIMEOUT_MS,
     private val ioTimeoutMs: Long = IO_TIMEOUT_MS,
     private val renderTimeoutMs: Long = DesktopMcpTools.RENDER_TIMEOUT_MS,
     private val renderAllTimeoutMs: Long = RENDER_ALL_TIMEOUT_MS,
@@ -296,6 +344,70 @@ internal class DesktopMcpWorkspaceTools(
                         openWorldHint = false,
                     ),
                 body = ::renderAll,
+            ),
+            tool(
+                name = "kuml_desktop_workspace_export_pdf",
+                description =
+                    "Exports the knowledge workspace (as saved ON DISK) to PDF: kind handbook (one book with cover, table of " +
+                        "contents, chapters, open items, glossary), per-document (one PDF per document) or diagrams (folio). " +
+                        "Writes only below the workspace root (default .kuml-out/export/); an existing file needs overwrite:true. " +
+                        "Returns {ok, output, files, pageCount, documentCount, diagramCount, warnings:[{path,blockIndex,scale}], " +
+                        "failed}. Executes scripts (trusted workspace required) and occupies the shared evaluation slot for up to " +
+                        "15 minutes, so other evaluating tools answer BUSY meanwhile. Limits: 500 documents, 300 diagrams, 2000 pages. " +
+                        "Errors: INVALID_PATH, OUTPUT_EXISTS, OUTPUT_INVALID, EMPTY_SCOPE, TOO_MANY_DOCUMENTS, TOO_MANY_DIAGRAMS, " +
+                        "PAGE_LIMIT, OUTPUT_TOO_LARGE, SCALE_TOO_SMALL (strict), EXPORT_TIMEOUT, BUSY, WORKSPACE_NOT_TRUSTED.",
+                schema =
+                    schema(
+                        Prop(
+                            name = "kind",
+                            type = "string",
+                            description = "handbook (default), per-document or diagrams.",
+                            enum = listOf("handbook", "per-document", "diagrams"),
+                        ),
+                        Prop(
+                            name = "scope",
+                            type = "array",
+                            description = "Documents (relative .md paths) or folder:<path> entries; default: everything.",
+                            items = "string",
+                        ),
+                        Prop(name = "folder", type = "string", description = "Export only this workspace folder."),
+                        Prop(name = "page", type = "string", description = "a4 (default) or a3.", enum = listOf("a4", "a3")),
+                        Prop(
+                            name = "orientation",
+                            type = "string",
+                            description = "portrait, landscape or auto (default).",
+                            enum = listOf("portrait", "landscape", "auto"),
+                        ),
+                        Prop(name = "cover", type = "boolean", description = "Cover page (default: handbook yes, per-document no)."),
+                        Prop(name = "toc", type = "boolean", description = "Table of contents (default true)."),
+                        Prop(name = "headerFooter", type = "boolean", description = "Running header and footer (default true)."),
+                        Prop(name = "draft", type = "boolean", description = "DRAFT watermark (default false)."),
+                        Prop(name = "split", type = "boolean", description = "diagrams only: one PDF per diagram."),
+                        Prop(name = "author", type = "string", description = "Author for the cover and metadata."),
+                        Prop(name = "version", type = "string", description = "Document version for cover and footer."),
+                        Prop(name = "date", type = "string", description = "ISO-8601 date."),
+                        Prop(name = "lang", type = "string", description = "Label language, de or en.", enum = listOf("de", "en")),
+                        Prop(name = "theme", type = "string", description = "Theme name (default: the active theme)."),
+                        Prop(
+                            name = "output",
+                            type = "string",
+                            description = "Root-relative output .pdf file, or folder for per-document/split.",
+                        ),
+                        Prop(name = "overwrite", type = "boolean", description = "Replace an existing output file (default false)."),
+                        Prop(
+                            name = "strict",
+                            type = "boolean",
+                            description = "Fail with SCALE_TOO_SMALL instead of writing when a diagram is too small or fails.",
+                        ),
+                    ),
+                annotations =
+                    McpToolAnnotations(
+                        readOnlyHint = false,
+                        destructiveHint = true,
+                        idempotentHint = false,
+                        openWorldHint = false,
+                    ),
+                body = ::exportPdf,
             ),
             tool(
                 name = "kuml_desktop_workspace_open_document",
@@ -807,6 +919,185 @@ internal class DesktopMcpWorkspaceTools(
         val warnings: List<OkfFinding>,
     )
 
+    private fun exportPdf(args: JsonObject): JsonObject {
+        val snap = snapshot()
+        snap.requireKnowledge()
+        snap.requireTrusted()
+        val kind =
+            when (optString(args = args, key = "kind") ?: "handbook") {
+                "handbook" -> PdfExportKind.HANDBOOK
+                "per-document" -> PdfExportKind.PER_DOCUMENT
+                "diagrams" -> PdfExportKind.DIAGRAMS
+                else -> throw err(code = "INVALID_ARGUMENT", "argument" to "kind")
+            }
+        val split = boolArg(args = args, key = "split", default = false)
+        if (split && kind != PdfExportKind.DIAGRAMS) throw err(code = "INVALID_ARGUMENT", "argument" to "split")
+        val entries =
+            (args["scope"] as? JsonArray)
+                ?.map {
+                    (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content
+                        ?: throw err(code = "INVALID_ARGUMENT", "argument" to "scope")
+                }.orEmpty()
+        val folderArg = optString(args = args, key = "folder")
+        val scope = pdfScope(entries = entries, folder = folderArg)
+        val page =
+            when (optString(args = args, key = "page") ?: "a4") {
+                "a4" -> PageFormat.A4
+                "a3" -> PageFormat.A3
+                else -> throw err(code = "INVALID_ARGUMENT", "argument" to "page")
+            }
+        val orientation =
+            when (optString(args = args, key = "orientation") ?: "auto") {
+                "portrait" -> PageOrientation.PORTRAIT
+                "landscape" -> PageOrientation.LANDSCAPE
+                "auto" -> PageOrientation.AUTO
+                else -> throw err(code = "INVALID_ARGUMENT", "argument" to "orientation")
+            }
+        val lang =
+            when (optString(args = args, key = "lang")) {
+                null -> null
+                "de" -> PdfLanguage.DE
+                "en" -> PdfLanguage.EN
+                else -> throw err(code = "INVALID_ARGUMENT", "argument" to "lang")
+            }
+        val date =
+            optString(args = args, key = "date")?.let {
+                try {
+                    LocalDate.parse(it)
+                } catch (_: DateTimeParseException) {
+                    throw err(code = "INVALID_ARGUMENT", "argument" to "date")
+                }
+            }
+        val overwrite = boolArg(args = args, key = "overwrite", default = false)
+        val strict = boolArg(args = args, key = "strict", default = false)
+        val theme = themeArg(args = args, snap = snap)
+        val options =
+            PdfExportOptions(
+                kind = kind,
+                scope = scope,
+                page = page,
+                orientation = orientation,
+                cover = boolArg(args = args, key = "cover", default = kind != PdfExportKind.PER_DOCUMENT),
+                toc = boolArg(args = args, key = "toc", default = true),
+                headerFooter = boolArg(args = args, key = "headerFooter", default = true),
+                draft = boolArg(args = args, key = "draft", default = false),
+                split = split,
+                language = lang,
+                metadata =
+                    ExportMetadata(
+                        author = optString(args = args, key = "author"),
+                        version = optString(args = args, key = "version"),
+                        date = date,
+                    ),
+                producerVersion = WorkspacePdfExport.producer,
+            )
+        val asDirectory = kind == PdfExportKind.PER_DOCUMENT || split
+        val outputRel =
+            optString(args = args, key = "output")?.let { checkedPath(it) }
+                ?: if (asDirectory) ".kuml-out/export/pdf" else ".kuml-out/export/${exportSlug(snap.root)}.pdf"
+        val target = File(snap.root, outputRel)
+        val ws =
+            try {
+                WorkspaceScanner.scan(root = snap.root)
+            } catch (e: Exception) {
+                throw err(code = "SCAN_FAILED", "errorClass" to e.javaClass.simpleName)
+            }
+        // Count only what the requested scope exports; the exporter re-checks exactly (LIMIT_*), this is an early guard.
+        val scoped =
+            when (scope) {
+                ExportScope.All -> ws.documents
+                is ExportScope.Folder -> {
+                    val prefix = scope.relativePath.replace('\\', '/').trim('/') + "/"
+                    ws.documents.filter { it.relativePath.startsWith(prefix) }
+                }
+                is ExportScope.Documents -> {
+                    val wanted = scope.relativePaths.map { it.replace('\\', '/').trim('/') }.toSet()
+                    ws.documents.filter { it.relativePath in wanted }
+                }
+            }
+        if (scoped.size > MAX_EXPORT_DOCUMENTS) throw err(code = "TOO_MANY_DOCUMENTS", "max" to MAX_EXPORT_DOCUMENTS)
+        if (scoped.sumOf { it.kumlBlocks.size } > MAX_EXPORT_DIAGRAMS) throw err(code = "TOO_MANY_DIAGRAMS", "max" to MAX_EXPORT_DIAGRAMS)
+        val result =
+            runGated(timeoutMs = exportTimeoutMs) { cancelled ->
+                try {
+                    pdfExportPort.export(
+                        workspace = ws,
+                        options = options,
+                        target = target,
+                        overwrite = overwrite,
+                        restrictToRoot = snap.root,
+                        themeName = theme,
+                        strict = strict,
+                        cancelled = { cancelled.get() },
+                    )
+                } catch (e: PdfStrictViolation) {
+                    throw errJson(code = "SCALE_TOO_SMALL") {
+                        putJsonArray("warnings") { e.warnings.forEach { add(pdfWarning(it)) } }
+                        putJsonArray("failed") { e.failures.forEach { addFinding(it) } }
+                    }
+                } catch (e: PdfExportException) {
+                    throw pdfExportError(e)
+                }
+            }
+        val root = WorkspaceScanner.canonicalRoot(snap.root)
+        return buildJsonObject {
+            put("ok", result.failures.isEmpty())
+            put("output", outputRel)
+            putJsonArray(
+                "files",
+            ) { result.files.forEach { add(JsonPrimitive(posixRelativePath(root = root, file = it.absoluteFile.normalize()))) } }
+            put("pageCount", result.pageCount)
+            put("documentCount", result.documentCount)
+            put("diagramCount", result.diagramCount)
+            putJsonArray("warnings") { result.warnings.forEach { add(pdfWarning(it)) } }
+            putJsonArray("failed") { result.failures.forEach { addFinding(it) } }
+        }
+    }
+
+    private fun pdfWarning(w: ScaleWarning): JsonObject =
+        buildJsonObject {
+            put("path", w.documentPath.replace('\\', '/'))
+            put("blockIndex", w.blockIndex)
+            put("scale", w.scale)
+            put("suggestion", w.suggestion)
+        }
+
+    private fun pdfScope(
+        entries: List<String>,
+        folder: String?,
+    ): ExportScope {
+        val folders =
+            entries.filter { it.startsWith("folder:") }.map { checkedPath(it.removePrefix("folder:")) } +
+                listOfNotNull(folder?.let { checkedPath(it) })
+        val docs = entries.filterNot { it.startsWith("folder:") }.filter { it != "all" }.map { checkedPath(it) }
+        if (folders.isNotEmpty() && docs.isNotEmpty() || folders.size > 1) throw err(code = "INVALID_ARGUMENT", "argument" to "scope")
+        return when {
+            folders.isNotEmpty() -> ExportScope.Folder(relativePath = folders.single())
+            docs.isNotEmpty() -> ExportScope.Documents(relativePaths = docs)
+            else -> ExportScope.All
+        }
+    }
+
+    private fun exportSlug(root: File): String =
+        root.name
+            .replace(Regex("[^A-Za-z0-9._-]+"), "_")
+            .trim('_')
+            .ifEmpty { "workspace" }
+
+    private fun pdfExportError(e: PdfExportException): McpToolException =
+        when (e.code) {
+            PdfExportException.Code.OUTPUT_EXISTS -> err(code = "OUTPUT_EXISTS", "hint" to "Pass overwrite:true to replace the file.")
+            PdfExportException.Code.OUTPUT_INVALID -> err(code = "OUTPUT_INVALID")
+            PdfExportException.Code.PATH_OUTSIDE_ROOT -> err(code = "INVALID_PATH")
+            PdfExportException.Code.EMPTY_SCOPE -> err(code = "EMPTY_SCOPE")
+            PdfExportException.Code.LIMIT_DOCUMENTS -> err(code = "TOO_MANY_DOCUMENTS", "max" to MAX_EXPORT_DOCUMENTS)
+            PdfExportException.Code.LIMIT_DIAGRAMS -> err(code = "TOO_MANY_DIAGRAMS", "max" to MAX_EXPORT_DIAGRAMS)
+            PdfExportException.Code.LIMIT_PAGES -> err(code = "PAGE_LIMIT")
+            PdfExportException.Code.LIMIT_OUTPUT_SIZE -> err(code = "OUTPUT_TOO_LARGE")
+            PdfExportException.Code.TIMEOUT, PdfExportException.Code.CANCELLED -> err(code = "EXPORT_TIMEOUT")
+            PdfExportException.Code.IO -> err(code = "WRITE_FAILED")
+        }
+
     private fun renderAll(args: JsonObject): JsonObject {
         val format = formatArg(args)
         val width = intArg(args = args, key = "width", default = DEFAULT_PNG_WIDTH, min = MIN_PNG_WIDTH, max = MAX_PNG_WIDTH)
@@ -1116,6 +1407,7 @@ internal class DesktopMcpWorkspaceTools(
         val description: String,
         val required: Boolean = false,
         val enum: List<String>? = null,
+        val items: String? = null,
     )
 
     private fun schema(vararg props: Prop): JsonObject =
@@ -1126,6 +1418,7 @@ internal class DesktopMcpWorkspaceTools(
                     putJsonObject(p.name) {
                         put("type", p.type)
                         put("description", p.description)
+                        p.items?.let { t -> putJsonObject("items") { put("type", t) } }
                         p.enum?.let { values -> put("enum", buildJsonArray { values.forEach { add(JsonPrimitive(it)) } }) }
                     }
                 }
@@ -1138,6 +1431,9 @@ internal class DesktopMcpWorkspaceTools(
     companion object {
         const val IO_TIMEOUT_MS = 10_000L
         const val RENDER_ALL_TIMEOUT_MS = 120_000L
+        const val EXPORT_PDF_TIMEOUT_MS = 900_000L
+        const val MAX_EXPORT_DOCUMENTS = 500
+        const val MAX_EXPORT_DIAGRAMS = 300
         const val MAX_DOCUMENT_BYTES = 512 * 1024
         const val MAX_RENDER_BYTES = 4L * 1024 * 1024
         const val DEFAULT_LIST_LIMIT = 500
@@ -1157,6 +1453,7 @@ internal class DesktopMcpWorkspaceTools(
                 "kuml_desktop_workspace_validate",
                 "kuml_desktop_workspace_render_document",
                 "kuml_desktop_workspace_render_all",
+                "kuml_desktop_workspace_export_pdf",
                 "kuml_desktop_workspace_open_document",
                 "kuml_desktop_workspace_reload",
             )

@@ -1,0 +1,14 @@
+kUML
+Copyright 2025-2026 the kUML authors
+Licensed under the Apache License, Version 2.0.
+
+This product bundles or depends on the following third-party components:
+
+- Apache PDFBox, FontBox, XmpBox (Apache-2.0) - https://pdfbox.apache.org/
+- pdfbox-graphics2d by Emmeran Seehuber (Apache-2.0) - https://github.com/rototor/pdfbox-graphics2d
+- JetBrains markdown (Apache-2.0) - https://github.com/JetBrains/markdown
+- Apache Batik (Apache-2.0) - https://xmlgraphics.apache.org/batik/
+- Inter typeface (SIL Open Font License 1.1) - https://github.com/rsms/inter
+  license text: kuml-docs/kuml-workspace-pdf/src/main/resources/dev/kuml/workspace/pdf/fonts/Inter-OFL.txt
+- JetBrains Mono typeface (SIL Open Font License 1.1) - https://github.com/JetBrains/JetBrainsMono
+  license text: kuml-docs/kuml-workspace-pdf/src/main/resources/dev/kuml/workspace/pdf/fonts/JetBrainsMono-OFL.txt
