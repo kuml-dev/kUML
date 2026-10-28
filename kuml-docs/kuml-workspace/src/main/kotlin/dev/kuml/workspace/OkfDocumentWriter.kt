@@ -31,10 +31,30 @@ public sealed interface OkfWriteResult {
         public val limit: Long,
     ) : OkfWriteResult
 
+    /** [OkfDocumentWriter.create] refused the path ([WorkspaceDocumentResolver.resolveForCreate]); nothing was created. */
+    public data class CreateRejected(
+        public val rejection: WorkspaceDocumentResolver.Rejection,
+    ) : OkfWriteResult
+
     /** An unexpected I/O failure occurred. The file may or may not have been left untouched — see [cause]. */
     public data class Failed(
         public val cause: Throwable,
     ) : OkfWriteResult
+}
+
+/** The outcome of [OkfDocumentWriter.delete]. */
+public sealed interface OkfDeleteResult {
+    public data class Deleted(
+        public val file: File,
+    ) : OkfDeleteResult
+
+    public data class Rejected(
+        public val rejection: WorkspaceWriteGuard.Rejection,
+    ) : OkfDeleteResult
+
+    public data class Failed(
+        public val cause: Throwable,
+    ) : OkfDeleteResult
 }
 
 /**
@@ -99,6 +119,105 @@ public object OkfDocumentWriter {
                     OkfWriteResult.Failed(cause = e)
                 }
             }
+        }
+    }
+
+    /**
+     * Creates a NEW document at [relativePath] (below [root]), including missing parent
+     * directories. Order: path validation ([WorkspaceDocumentResolver.resolveForCreate]), size
+     * limit, OKF validation + [OkfSaveGate] (a blocked document creates nothing, not even a
+     * directory), then directories one by one (each re-checked for symlink / real-root escape),
+     * the leaf exclusively via [Files.createFile], and finally the content via the atomic-write
+     * path. Directories created before a later failure are left in place.
+     */
+    public fun create(
+        root: File,
+        relativePath: String,
+        content: String,
+        excludeDirs: Set<File> = emptySet(),
+    ): OkfWriteResult {
+        val scanRoot = WorkspaceScanner.canonicalRoot(root)
+        val target =
+            WorkspaceDocumentResolver
+                .resolveForCreate(root = scanRoot, requested = relativePath, excludeDirs = excludeDirs)
+                .getOrElse { e ->
+                    val rejection = (e as? WorkspaceDocumentResolver.DocumentResolutionException)?.rejection
+                    return if (rejection != null) OkfWriteResult.CreateRejected(rejection = rejection) else OkfWriteResult.Failed(cause = e)
+                }
+
+        val byteSize = content.toByteArray(StandardCharsets.UTF_8).size.toLong()
+        if (byteSize > OkfDocumentParser.MAX_MD_FILE_SIZE_BYTES) {
+            return OkfWriteResult.TooLarge(bytes = byteSize, limit = OkfDocumentParser.MAX_MD_FILE_SIZE_BYTES)
+        }
+
+        val candidate = OkfDocumentParser.parse(root = scanRoot, file = target, text = content)
+        val findings = OkfValidator.validateDocument(root = scanRoot, doc = candidate, strictVocabulary = true)
+        val warnings =
+            when (val decision = OkfSaveGate.decide(findings)) {
+                is OkfSaveDecision.Block -> return OkfWriteResult.Blocked(blocking = decision.blocking, warnings = decision.warnings)
+                is OkfSaveDecision.Allow -> decision.warnings
+            }
+
+        return try {
+            val realRoot = scanRoot.toPath().toRealPath()
+            val segments = relativePath.replace('\\', '/').split('/')
+            var dir: File = scanRoot
+            for (seg in segments.dropLast(1)) {
+                dir = File(dir, seg)
+                if (!dir.exists()) Files.createDirectory(dir.toPath())
+                // Re-check after every step (TOCTOU): never follow a symlink, never leave the root.
+                if (Files.isSymbolicLink(dir.toPath()) || !Files.isDirectory(dir.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                    return OkfWriteResult.CreateRejected(rejection = WorkspaceDocumentResolver.Rejection.SYMLINK_ESCAPE)
+                }
+                if (!dir.toPath().toRealPath().startsWith(realRoot)) {
+                    return OkfWriteResult.CreateRejected(rejection = WorkspaceDocumentResolver.Rejection.SYMLINK_ESCAPE)
+                }
+            }
+            val resolved =
+                WorkspaceWriteGuard
+                    .resolveCreatable(root = scanRoot, target = target)
+                    .getOrElse { e ->
+                        return OkfWriteResult.Failed(cause = e)
+                    }
+            try {
+                Files.createFile(resolved.toPath())
+            } catch (_: java.nio.file.FileAlreadyExistsException) {
+                return OkfWriteResult.CreateRejected(rejection = WorkspaceDocumentResolver.Rejection.ALREADY_EXISTS)
+            }
+            try {
+                writeAtomically(target = resolved, content = content)
+            } catch (e: Exception) {
+                runCatching { Files.deleteIfExists(resolved.toPath()) }
+                return OkfWriteResult.Failed(cause = e)
+            }
+            OkfWriteResult.Written(file = target, warnings = warnings)
+        } catch (e: Exception) {
+            OkfWriteResult.Failed(cause = e)
+        }
+    }
+
+    /**
+     * Deletes the existing document [target] (hard delete, no recursion, no directories). Only a
+     * regular, non-symlink file that is a member of [knownDocuments] and lies inside [root] is
+     * deleted -- the same [WorkspaceWriteGuard.resolveWritable] gate as [save].
+     */
+    public fun delete(
+        root: File,
+        target: File,
+        knownDocuments: Collection<File>,
+    ): OkfDeleteResult {
+        val resolved =
+            WorkspaceWriteGuard
+                .resolveWritable(root = root, target = target, knownDocuments = knownDocuments)
+                .getOrElse { e ->
+                    val rejection = (e as? WorkspaceWriteGuard.WriteGuardException)?.rejection
+                    return if (rejection != null) OkfDeleteResult.Rejected(rejection = rejection) else OkfDeleteResult.Failed(cause = e)
+                }
+        return try {
+            Files.delete(resolved.toPath())
+            OkfDeleteResult.Deleted(file = target)
+        } catch (e: Exception) {
+            OkfDeleteResult.Failed(cause = e)
         }
     }
 

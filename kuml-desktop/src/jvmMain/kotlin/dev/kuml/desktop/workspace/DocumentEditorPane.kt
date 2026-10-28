@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mikepenz.markdown.m3.Markdown
@@ -95,6 +96,8 @@ fun DocumentEditorPane(
     modifier: Modifier = Modifier,
     backlinks: List<ResolvedLink> = emptyList(),
     onNavigateBacklink: (OkfDocument) -> Unit = {},
+    diskConflict: Boolean = false,
+    onResolveDiskConflict: (keepMine: Boolean) -> Unit = {},
 ) {
     if (doc == null || buffer == null) return
 
@@ -122,6 +125,9 @@ fun DocumentEditorPane(
             onSave = onSave,
             strings = strings,
         )
+        if (diskConflict) {
+            DiskConflictBanner(strings = strings, onResolve = onResolveDiskConflict)
+        }
         ValidationBanner(findings = findings, blockingFindings = blockingFindings)
         HorizontalDivider()
 
@@ -318,6 +324,32 @@ private fun DropdownArrow() {
                 close()
             }
         drawPath(path, color)
+    }
+}
+
+/** Plain Compose row (no overlay: the content area may host a heavyweight SwingPanel). */
+@Composable
+private fun DiskConflictBanner(
+    strings: Strings,
+    onResolve: (keepMine: Boolean) -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFFFF3CD))
+                .padding(horizontal = 10.dp, vertical = 4.dp)
+                .testTag("kuml-doc-disk-conflict"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = strings.workspaceDiskConflictMessage,
+            color = Color(0xFF7A5900),
+            fontSize = 11.sp,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = { onResolve(false) }) { Text(strings.workspaceDiskConflictReload, fontSize = 11.sp) }
+        TextButton(onClick = { onResolve(true) }) { Text(strings.workspaceDiskConflictKeep, fontSize = 11.sp) }
     }
 }
 

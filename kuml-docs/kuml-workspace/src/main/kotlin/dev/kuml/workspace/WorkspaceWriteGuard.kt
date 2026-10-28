@@ -99,4 +99,37 @@ public object WorkspaceWriteGuard {
 
         return Result.success(canonicalTarget)
     }
+
+    /**
+     * Counterpart to [resolveWritable] for a document that does not exist yet. Same canonical
+     * containment and no-symlink rules, but the target must NOT exist and the known-documents
+     * check is deliberately skipped: a new document is by definition not known to the scanner.
+     * The path-shape checks (`..`, names, `.md`) are done earlier by
+     * [WorkspaceDocumentResolver.resolveForCreate]; this is the independent second line of defence.
+     */
+    public fun resolveCreatable(
+        root: File,
+        target: File,
+    ): Result<File> {
+        val canonicalRoot =
+            runCatching { root.canonicalFile }
+                .getOrElse { return Result.failure(WriteGuardException(rejection = Rejection.IO_ERROR)) }
+        val canonicalTarget =
+            runCatching { target.canonicalFile }
+                .getOrElse { return Result.failure(WriteGuardException(rejection = Rejection.IO_ERROR)) }
+        if (!canonicalTarget.path.startsWith(canonicalRoot.path + File.separator)) {
+            return Result.failure(WriteGuardException(rejection = Rejection.OUTSIDE_ROOT))
+        }
+        if (Files.isSymbolicLink(target.toPath())) {
+            return Result.failure(WriteGuardException(rejection = Rejection.SYMLINK))
+        }
+        if (Files.exists(target.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            return Result.failure(WriteGuardException(rejection = Rejection.NOT_A_REGULAR_FILE))
+        }
+        val parent = canonicalTarget.parentFile
+        if (parent == null || !parent.isDirectory) {
+            return Result.failure(WriteGuardException(rejection = Rejection.NOT_A_REGULAR_FILE))
+        }
+        return Result.success(canonicalTarget)
+    }
 }

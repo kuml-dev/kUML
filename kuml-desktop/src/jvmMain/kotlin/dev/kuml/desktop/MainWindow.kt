@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -184,10 +185,12 @@ fun FrameWindowScope.MainWindow(
     // Local MCP server (Werkzeuge ▸ MCP-Server…). Off unless the persisted switch is on; the
     // tools read/write this window's live script through the same controller/editor handle the
     // UI itself uses.
+    val currentStrings = rememberUpdatedState(strings)
     val mcpTools =
         remember(controller) {
             DesktopMcpTools(
                 state = state,
+                strings = { currentStrings.value },
                 render = McpRenderPort { inputs -> controller.renderNow(inputs = inputs) },
                 validate = McpValidatePort { script -> DesktopRenderPipeline.validate(script = script) },
                 editorActions = { editorActions },
@@ -311,6 +314,7 @@ fun FrameWindowScope.MainWindow(
             when (result) {
                 is OkfWriteResult.Written, is OkfWriteResult.Blocked -> null
                 is OkfWriteResult.Rejected -> rejectionMessage(rejection = result.rejection, strings = strings)
+                is OkfWriteResult.CreateRejected -> strings.docSaveIoError.format(result.rejection.name)
                 is OkfWriteResult.TooLarge -> strings.docSaveIoError.format("${result.bytes} > ${result.limit} bytes")
                 is OkfWriteResult.Failed -> strings.docSaveIoError.format(result.cause.message ?: result.cause.javaClass.simpleName)
             }
@@ -1044,7 +1048,14 @@ private fun McpNoticeBar(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = strings.mcpScriptReplacedNotice, fontSize = 11.sp, modifier = Modifier.weight(1f))
+        val message =
+            when (notice) {
+                is McpNotice.ScriptReplaced -> strings.mcpScriptReplacedNotice
+                is McpNotice.WorkspaceDocumentWritten ->
+                    (if (notice.created) strings.mcpNoticeWorkspaceCreated else strings.mcpNoticeWorkspaceWritten).format(notice.path)
+                is McpNotice.WorkspaceDocumentDeleted -> strings.mcpNoticeWorkspaceDeleted.format(notice.path)
+            }
+        Text(text = message, fontSize = 11.sp, modifier = Modifier.weight(1f))
         if (notice is McpNotice.ScriptReplaced && DesktopMcpTools.revisionOf(state.script) == notice.newRevision) {
             TextButton(onClick = {
                 val actions = editorActions()

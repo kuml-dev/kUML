@@ -37,6 +37,18 @@ public object WorkspaceDocumentResolver {
         NOT_A_REGULAR_FILE,
         EXCLUDED,
         IO_ERROR,
+
+        /** A path segment is `.` or `..` ([resolveForCreate] only). */
+        PARENT_SEGMENT,
+
+        /** A segment contains forbidden characters, is a reserved name or too long ([resolveForCreate] only). */
+        INVALID_NAME,
+
+        /** The create target already exists ([resolveForCreate] only). */
+        ALREADY_EXISTS,
+
+        /** The create path exceeds the depth or length limit ([resolveForCreate] only). */
+        TOO_DEEP,
     }
 
     public class DocumentResolutionException(
@@ -47,6 +59,114 @@ public object WorkspaceDocumentResolver {
     ) : Exception(buildMessage(rejection = rejection, requested = requested, suggestion = suggestion, rootPath = rootPath))
 
     private val WINDOWS_DRIVE = Regex("^[A-Za-z]:")
+
+    private val RESERVED_WINDOWS_NAMES: Set<String> =
+        setOf("CON", "PRN", "AUX", "NUL") + (1..9).map { "COM$it" } + (1..9).map { "LPT$it" }
+
+    private const val FORBIDDEN_NAME_CHARS = "<>:\"|?*"
+    private const val MAX_CREATE_SEGMENTS = 16
+    private const val MAX_CREATE_PATH_CHARS = 1024
+    private const val MAX_SEGMENT_CHARS = 255
+
+    /**
+     * Like [resolve], but for a document that must NOT exist yet (create). Returns the
+     * scanner-equivalent absolute (non-real) target file. Stricter than [resolve] on purpose:
+     * any `.` / `..` segment is refused (not merely normalised), segment names must be valid on
+     * every supported OS (no `<>:"|?*`, no control characters, no reserved Windows device names,
+     * no trailing space or dot), hidden and excluded directories are refused, and no existing
+     * prefix segment may be a symbolic link or leave the real root.
+     *
+     * Intermediate directories are NOT created here; this only validates. The caller must
+     * re-check every directory it creates (TOCTOU) and create the leaf exclusively.
+     */
+    public fun resolveForCreate(
+        root: File,
+        requested: String,
+        excludeDirs: Set<File> = emptySet(),
+    ): Result<File> =
+        try {
+            Result.success(resolveForCreateOrThrow(root = root, requested = requested, excludeDirs = excludeDirs))
+        } catch (e: DocumentResolutionException) {
+            Result.failure(e)
+        }
+
+    private fun resolveForCreateOrThrow(
+        root: File,
+        requested: String,
+        excludeDirs: Set<File>,
+    ): File {
+        val scanRoot = WorkspaceScanner.canonicalRoot(root)
+        val excludeCanonical = WorkspaceScanner.canonicalExcludes(excludeDirs)
+
+        fun fail(rejection: Rejection): Nothing =
+            throw DocumentResolutionException(
+                rejection = rejection,
+                requested = requested,
+                suggestion = null,
+                rootPath = null,
+            )
+
+        if (requested.isBlank() || requested.any { it.isISOControl() }) fail(Rejection.EMPTY)
+        if (requested.length > MAX_CREATE_PATH_CHARS) fail(Rejection.TOO_DEEP)
+        val req = requested.replace('\\', '/')
+        if (req.startsWith("/") || WINDOWS_DRIVE.containsMatchIn(req)) fail(Rejection.ABSOLUTE_PATH)
+
+        val segments = req.split('/')
+        if (segments.any { it == ".." || it == "." }) fail(Rejection.PARENT_SEGMENT)
+        if (segments.any { it.isEmpty() }) fail(Rejection.INVALID_NAME)
+        if (segments.size > MAX_CREATE_SEGMENTS) fail(Rejection.TOO_DEEP)
+        for (seg in segments) {
+            if (seg.length > MAX_SEGMENT_CHARS) fail(Rejection.INVALID_NAME)
+            if (seg.any { it.isISOControl() || it in FORBIDDEN_NAME_CHARS }) fail(Rejection.INVALID_NAME)
+            if (seg.endsWith(" ") || seg.endsWith(".")) fail(Rejection.INVALID_NAME)
+            if (seg.substringBefore('.').uppercase() in RESERVED_WINDOWS_NAMES) fail(Rejection.INVALID_NAME)
+        }
+        val dirs = segments.dropLast(1)
+        if (dirs.any { it.startsWith(".") } || segments.last().startsWith(".")) fail(Rejection.EXCLUDED)
+        if (!segments.last().endsWith(".md") || segments.last().length <= ".md".length) fail(Rejection.NOT_MARKDOWN)
+        dirs.indices.forEach { i ->
+            if (File(scanRoot, segments.subList(0, i + 1).joinToString("/")).absoluteFile.normalize() in excludeCanonical) {
+                fail(Rejection.EXCLUDED)
+            }
+        }
+
+        val realRoot =
+            try {
+                scanRoot.toPath().toRealPath()
+            } catch (_: IOException) {
+                fail(Rejection.IO_ERROR)
+            }
+        var cur: Path = realRoot
+        for (seg in dirs) {
+            cur =
+                try {
+                    cur.resolve(seg)
+                } catch (_: InvalidPathException) {
+                    fail(Rejection.INVALID_NAME)
+                }
+            if (Files.isSymbolicLink(cur)) fail(Rejection.SYMLINK_ESCAPE)
+            if (Files.exists(cur, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                if (!Files.isDirectory(cur, java.nio.file.LinkOption.NOFOLLOW_LINKS)) fail(Rejection.INVALID_NAME)
+                val real =
+                    try {
+                        cur.toRealPath()
+                    } catch (_: IOException) {
+                        fail(Rejection.IO_ERROR)
+                    }
+                if (!real.startsWith(realRoot)) fail(Rejection.SYMLINK_ESCAPE)
+            }
+        }
+        val leaf =
+            try {
+                cur.resolve(segments.last())
+            } catch (_: InvalidPathException) {
+                fail(Rejection.INVALID_NAME)
+            }
+        if (Files.isSymbolicLink(leaf)) fail(Rejection.SYMLINK_ESCAPE)
+        if (Files.exists(leaf, java.nio.file.LinkOption.NOFOLLOW_LINKS)) fail(Rejection.ALREADY_EXISTS)
+
+        return File(scanRoot, segments.joinToString("/"))
+    }
 
     /** Returns the scanner-equivalent absolute (non-real) file for [requested], or a failure. */
     public fun resolve(
@@ -193,6 +313,10 @@ public object WorkspaceDocumentResolver {
             Rejection.NOT_MARKDOWN -> "Unknown document '$p': not a Markdown (.md) file.$hint"
             Rejection.NOT_A_REGULAR_FILE -> "Unknown document '$p': not a regular file."
             Rejection.IO_ERROR -> "Cannot resolve document '$p': I/O error."
+            Rejection.PARENT_SEGMENT -> "Refusing document '$p': '.' and '..' path segments are not allowed."
+            Rejection.INVALID_NAME -> "Refusing document '$p': the path contains an invalid file or directory name."
+            Rejection.ALREADY_EXISTS -> "Refusing document '$p': it already exists."
+            Rejection.TOO_DEEP -> "Refusing document '$p': the path is too long or nested too deeply."
         }
     }
 }

@@ -6,6 +6,17 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added (Desktop MCP workspace mode)
+
+- kUML Desktop MCP server: ten `kuml_desktop_workspace_*` tools for an open OKF Knowledge workspace -- `info`, `list_documents`, `get_document`, `set_document` (revision-guarded write/create to disk through the Ctrl+S save gate), `delete_document` (`confirm:true`), `validate`, `render_document` (SVG, or PNG as image content), `render_all`, `open_document` and `reload`. Path confinement (`..`, absolute/UNC/drive paths, symlinks, hidden folders), trusted-workspace requirement for write/render/evaluate, size limits, and a never-overwrite rule for documents with unsaved editor changes (`DOCUMENT_DIRTY`).
+- Desktop: a banner offers "reload" or "keep my version" when the open document has unsaved edits and its file changed on disk; all disk writes of a workspace are serialised.
+- `kuml-workspace`: `WorkspaceDocumentResolver.resolveForCreate` (new rejections `PARENT_SEGMENT`, `INVALID_NAME`, `ALREADY_EXISTS`, `TOO_DEEP`), `WorkspaceWriteGuard.resolveCreatable`, `OkfDocumentWriter.create` / `delete`, `OkfWriteResult.CreateRejected`, `OkfDeleteResult`.
+
+### Changed (Desktop MCP workspace mode)
+
+- `kuml-cli`: `WorkspaceRenderer` and `WorkspaceBlockEvaluator` are now public API (reused by Desktop); `WorkspaceRenderer.render` takes an optional `themeName` (default `null`, CLI behaviour unchanged).
+- Desktop MCP: `WORKSPACE_MODE_UNSUPPORTED` additionally carries `mode`, `hint` and the workspace tool names; `kuml_desktop_get_last_error` reports the document error in knowledge mode and has a new `source` field (`script`/`workspace`); a UI thread that does not answer in time now releases the waiting tool call immediately with `UI_BUSY`.
+
 ### Fixed
 
 - SysML-2-SEQ (L9): lifelines are laid out in declaration order regardless of their widths (`preserveNodeOrder` hint plus a post-layout normalisation); `«destroy»` label no longer touches the X marker (marker 16x16).

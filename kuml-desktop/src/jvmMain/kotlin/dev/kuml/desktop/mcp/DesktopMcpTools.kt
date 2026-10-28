@@ -2,9 +2,12 @@ package dev.kuml.desktop.mcp
 
 import dev.kuml.desktop.AppState
 import dev.kuml.desktop.editor.EditorActions
+import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.render.DesktopRenderResult
 import dev.kuml.desktop.render.DesktopValidationResult
 import dev.kuml.desktop.render.RenderInputs
+import dev.kuml.desktop.workspace.DocumentRevision
+import dev.kuml.desktop.workspace.OpenWorkspace
 import dev.kuml.mcp.McpContent
 import dev.kuml.mcp.McpToolAnnotations
 import dev.kuml.mcp.McpToolDescriptor
@@ -14,7 +17,6 @@ import dev.kuml.mcp.tools.McpToolException
 import dev.kuml.mcp.tools.McpToolRegistry
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -25,7 +27,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
@@ -36,11 +37,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
-import java.security.MessageDigest
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import javax.swing.SwingUtilities
 
 /** Asks the render controller to render [RenderInputs] right now (no debounce) and hands back the job. */
 internal fun interface McpRenderPort {
@@ -54,6 +53,17 @@ internal fun interface McpValidatePort {
 
 /** Transient events the UI surfaces to the user when an MCP client changed something. */
 internal sealed interface McpNotice {
+    /** A client wrote (or created) a workspace document on disk; informational only, there is no undo. */
+    data class WorkspaceDocumentWritten(
+        val path: String,
+        val created: Boolean,
+    ) : McpNotice
+
+    /** A client deleted a workspace document from disk; informational only. */
+    data class WorkspaceDocumentDeleted(
+        val path: String,
+    ) : McpNotice
+
     /** A client replaced the whole script; [previousScript] allows an explicit "Undo". */
     data class ScriptReplaced(
         val previousScript: String,
@@ -86,10 +96,31 @@ internal class DesktopMcpTools(
     /** Shared by every tool that evaluates scripts (render, validate, the wrapped `kuml.*` tools). */
     val evalGate: Semaphore = Semaphore(1),
     private val gateWaitMs: Long = GATE_WAIT_MS,
+    strings: () -> Strings = { Strings.EN },
+    workspaceRender: McpWorkspaceRenderPort = DefaultWorkspaceRenderPort,
+    workspaceEvaluate: McpWorkspaceEvaluatePort = DefaultWorkspaceEvaluatePort,
 ) {
     private val evalScope = CoroutineScope(SupervisorJob() + evalDispatcher)
+    private val ui = McpUiBridge(uiDispatcher = uiDispatcher, uiTimeoutMs = uiTimeoutMs)
+
+    private val workspaceTools =
+        DesktopMcpWorkspaceTools(
+            state = state,
+            ui = ui,
+            strings = strings,
+            renderPort = workspaceRender,
+            evaluatePort = workspaceEvaluate,
+            evalGate = evalGate,
+            onNotice = onNotice,
+            evalDispatcher = evalDispatcher,
+            renderTimeoutMs = renderTimeoutMs,
+            gateWaitMs = gateWaitMs,
+        )
 
     val tools: List<McpTool> =
+        scriptTools() + workspaceTools.tools
+
+    private fun scriptTools(): List<McpTool> =
         listOf(
             tool(
                 name = "kuml_desktop_get_script",
@@ -315,7 +346,20 @@ internal class DesktopMcpTools(
         @Suppress("UNUSED_PARAMETER") args: JsonObject,
     ): JsonObject =
         onUi {
-            buildJsonObject { put("error", state.lastError?.let { JsonPrimitive(it) } ?: JsonNull) }
+            val knowledge = (state.openWorkspace as? OpenWorkspace.Knowledge)?.state
+            if (knowledge != null) {
+                // Knowledge mode: the error lives in the document pane's state, not in the script's.
+                buildJsonObject {
+                    put("error", knowledge.docError?.let { JsonPrimitive(it) } ?: JsonNull)
+                    put("source", "workspace")
+                    put("path", knowledge.selected?.relativePath?.let { JsonPrimitive(it) } ?: JsonNull)
+                }
+            } else {
+                buildJsonObject {
+                    put("error", state.lastError?.let { JsonPrimitive(it) } ?: JsonNull)
+                    put("source", "script")
+                }
+            }
         }
 
     private fun getTheme(
@@ -340,44 +384,18 @@ internal class DesktopMcpTools(
     // ── plumbing ─────────────────────────────────────────────────────────────
 
     private fun requireNoWorkspace() {
-        if (state.openWorkspace != null) throw err(code = "WORKSPACE_MODE_UNSUPPORTED")
+        val ws = state.openWorkspace ?: return
+        throw err(
+            code = "WORKSPACE_MODE_UNSUPPORTED",
+            "mode" to (if (ws is OpenWorkspace.Knowledge) "knowledge" else "engineering"),
+            "hint" to "A workspace is open; use the kuml_desktop_workspace_* tools instead of the script tools.",
+            "tools" to DesktopMcpWorkspaceTools.TOOL_NAMES,
+        )
     }
 
-    /** Runs [block] on the UI dispatcher with a timeout; `UI_BUSY` if the UI does not get to it in time. */
-    private fun <T> onUi(block: () -> T): T {
-        check(!SwingUtilities.isEventDispatchThread()) { "MCP tools must not run on the event dispatch thread" }
-        return try {
-            runBlocking { withTimeout(uiTimeoutMs) { withContext(uiDispatcher) { block() } } }
-        } catch (_: TimeoutCancellationException) {
-            throw err(code = "UI_BUSY")
-        }
-    }
+    private fun <T> onUi(block: () -> T): T = ui.onUi(block)
 
-    /**
-     * Like [onUi], but for state-mutating blocks: the timeout only applies while the block is still
-     * queued. Once it has started on the UI thread it runs to the end and its result is returned,
-     * so the client never sees `UI_BUSY` for a change that was in fact applied.
-     */
-    private fun <T> onUiMutating(block: () -> T): T {
-        check(!SwingUtilities.isEventDispatchThread()) { "MCP tools must not run on the event dispatch thread" }
-        return runBlocking {
-            val started = CompletableDeferred<Unit>()
-            val job =
-                async(uiDispatcher) {
-                    started.complete(Unit)
-                    block()
-                }
-            try {
-                withTimeout(uiTimeoutMs) { started.await() }
-            } catch (_: TimeoutCancellationException) {
-                if (!started.isCompleted) {
-                    job.cancel()
-                    throw err(code = "UI_BUSY")
-                }
-            }
-            job.await()
-        }
-    }
+    private fun <T> onUiMutating(block: () -> T): T = ui.onUiMutating(block)
 
     private fun tool(
         name: String,
@@ -418,12 +436,7 @@ internal class DesktopMcpTools(
         const val MAX_SVG_BYTES = 4 * 1024 * 1024
 
         /** First 16 hex chars of SHA-256 over the UTF-8 bytes (new digest instance per call -- thread safe). */
-        fun revisionOf(script: String): String =
-            MessageDigest
-                .getInstance("SHA-256")
-                .digest(script.toByteArray(Charsets.UTF_8))
-                .joinToString("") { "%02x".format(it) }
-                .take(16)
+        fun revisionOf(script: String): String = DocumentRevision.of(script)
 
         fun err(
             code: String,

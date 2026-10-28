@@ -87,7 +87,7 @@ class DesktopMcpToolsTest :
             put("baseRevision", base)
         }
 
-        test("exposes the seven live tools with annotations") {
+        test("exposes the seven script tools plus the ten workspace tools with annotations") {
             val f = Fixture()
             f.tools.tools.map { it.descriptor.name } shouldBe
                 listOf(
@@ -98,7 +98,8 @@ class DesktopMcpToolsTest :
                     "kuml_desktop_get_last_error",
                     "kuml_desktop_get_theme",
                     "kuml_desktop_set_theme",
-                )
+                ) + DesktopMcpWorkspaceTools.TOOL_NAMES
+            f.tools.tools.size shouldBe 17
             f.tools.tools.associate { it.descriptor.name to it.descriptor.annotations!! }.let { a ->
                 a["kuml_desktop_get_script"]!!.readOnlyHint shouldBe true
                 a["kuml_desktop_set_script"]!!.destructiveHint shouldBe true
@@ -165,6 +166,9 @@ class DesktopMcpToolsTest :
             f.error("kuml_desktop_get_script")["error"]!!.jsonPrimitive.content shouldBe "WORKSPACE_MODE_UNSUPPORTED"
             f.error("kuml_desktop_set_script", set("x", "y"))["error"]!!.jsonPrimitive.content shouldBe "WORKSPACE_MODE_UNSUPPORTED"
             f.error("kuml_desktop_render")["error"]!!.jsonPrimitive.content shouldBe "WORKSPACE_MODE_UNSUPPORTED"
+            val refusal = f.error("kuml_desktop_get_script")
+            refusal["mode"]!!.jsonPrimitive.content shouldBe "engineering"
+            refusal["tools"]!!.jsonArray.map { it.jsonPrimitive.content } shouldBe DesktopMcpWorkspaceTools.TOOL_NAMES
             f.call("kuml_desktop_get_theme")["theme"]!!.jsonPrimitive.content shouldBe f.state.theme
             val other = ThemeRegistry.names().first { it != f.state.theme }
             f.call("kuml_desktop_set_theme", buildJsonObject { put("theme", other) })

@@ -20,15 +20,17 @@ import kotlin.script.experimental.api.ScriptDiagnostic
  * `kuml render`. [evaluateDocuments] is therefore only ever called when the user passes
  * `--evaluate` explicitly; a plain `validate` stays purely structural.
  *
+ * Public so that kUML Desktop's MCP workspace tools reuse exactly the CLI's evaluation logic.
+ *
  * Log hygiene: findings carry only code, path, line, block index and counts — never diagram
  * names or other block content.
  */
-internal object WorkspaceBlockEvaluator {
+public object WorkspaceBlockEvaluator {
     /**
      * Writes [source] to a temporary `<stem>.kuml.kts`, runs [block] with it, and always deletes
      * the temporary directory afterwards.
      */
-    fun <T> withTempScript(
+    internal fun <T> withTempScript(
         stem: String,
         source: String,
         block: (File) -> T,
@@ -53,7 +55,7 @@ internal object WorkspaceBlockEvaluator {
      * This is the primary defence against path traversal via `name="../../etc/passwd"`
      * in a ` ```kuml {name="..."} ` block — see ADR-0011 spike security review.
      */
-    fun sanitizeStem(raw: String): String {
+    internal fun sanitizeStem(raw: String): String {
         val lastSegment = raw.substringAfterLast('/').substringAfterLast('\\')
         val cleaned = lastSegment.replace(Regex("[^A-Za-z0-9._-]"), "_")
         val trimmed = cleaned.trim('.', '_', '-')
@@ -65,7 +67,7 @@ internal object WorkspaceBlockEvaluator {
      * [base] after normalization — a defence-in-depth backstop in case
      * [sanitizeStem] is ever bypassed or a future caller forgets to apply it.
      */
-    fun resolveWithin(
+    internal fun resolveWithin(
         base: File,
         childName: String,
     ): File {
@@ -82,7 +84,7 @@ internal object WorkspaceBlockEvaluator {
      * Evaluates [block] and returns the number of renderable diagrams it produces, or a failure
      * whose message describes the script error.
      */
-    fun countDiagrams(
+    public fun countDiagrams(
         doc: OkfDocument,
         block: KumlCodeBlock,
         blockIdx: Int,
@@ -108,7 +110,7 @@ internal object WorkspaceBlockEvaluator {
      * [documents]. Evaluation failures become `OKF-E-007`; blocks yielding more than one diagram
      * become `OKF-W-008` (promoted to ERROR when [strict]).
      */
-    fun evaluateDocuments(
+    public fun evaluateDocuments(
         documents: List<OkfDocument>,
         strict: Boolean,
     ): List<OkfFinding> {
@@ -146,7 +148,7 @@ internal object WorkspaceBlockEvaluator {
         return findings
     }
 
-    fun multiDiagramFinding(
+    public fun multiDiagramFinding(
         doc: OkfDocument,
         block: KumlCodeBlock,
         blockIdx: Int,

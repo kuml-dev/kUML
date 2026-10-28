@@ -23,6 +23,8 @@ import java.nio.file.Files
  * [RenderReport.failures] entry — it does not abort the run. A single broken
  * diagram must not prevent the rest of an OKF workspace from rendering.
  *
+ * Public so that kUML Desktop's MCP workspace tools reuse exactly the CLI's render logic.
+ *
  * Trust model (ADR-0011 spike security review): [RenderPipeline.run] executes the
  * ` ```kuml ` block's Kotlin script source directly — this is arbitrary code execution
  * by design, inherited from `kuml render` and pre-existing in the render pipeline, not
@@ -32,7 +34,7 @@ import java.nio.file.Files
  * parties without additional sandboxing (separate OS user/container, no ambient credentials,
  * resource limits) around the whole process, not just this class.
  */
-internal object WorkspaceRenderer {
+public object WorkspaceRenderer {
     /**
      * @property rendered Output files (SVG/PNG) successfully written.
      * @property skipped Relative paths of documents with no ```kuml block (prose/collection docs).
@@ -40,7 +42,7 @@ internal object WorkspaceRenderer {
      * @property warnings One [OkfFinding] (code `OKF-W-008`) per block that produced more than one
      *  diagram (only the first is rendered). Severity is ERROR instead of WARNING under `strict`.
      */
-    data class RenderReport(
+    public data class RenderReport(
         val rendered: List<File>,
         val skipped: List<String>,
         val failures: List<OkfFinding>,
@@ -56,15 +58,17 @@ internal object WorkspaceRenderer {
      *  [outputDir] with its ```kuml blocks replaced by `![title](stem.svg)` image links —
      *  producing a GitHub-renderable output workspace. When `false`, only the rendered
      *  diagram assets are written.
+     * @param themeName Optional theme name passed through to the render pipeline (`null` = default).
      * @param strict Promotes the multi-diagram finding (`OKF-W-008`) from WARNING to ERROR.
      */
-    fun render(
+    public fun render(
         documents: List<OkfDocument>,
         outputDir: File,
         format: String,
         width: Int,
         mirror: Boolean,
         strict: Boolean = false,
+        themeName: String? = null,
     ): RenderReport {
         outputDir.mkdirs()
         if (mirror) runCatching { File(outputDir, OUTPUT_MARKER).writeText("kuml workspace render output\n", Charsets.UTF_8) }
@@ -99,7 +103,7 @@ internal object WorkspaceRenderer {
                                 output = outFile.toPath(),
                                 format = format,
                                 width = width,
-                                themeName = null,
+                                themeName = themeName,
                                 config = KumlConfig.DEFAULT,
                                 layoutEngineOverride = null,
                             )
@@ -204,7 +208,7 @@ internal object WorkspaceRenderer {
      * Compared on real paths (symlinks resolved); a not-yet-existing output is resolved via its
      * nearest existing ancestor.
      */
-    fun isSafeOutputDir(
+    internal fun isSafeOutputDir(
         root: File,
         outputDir: File,
     ): Boolean {
@@ -222,7 +226,7 @@ internal object WorkspaceRenderer {
      * scanner skips hidden directories, so they are not collisions. An output directory carrying
      * [OUTPUT_MARKER] was produced by an earlier render and may be overwritten freely.
      */
-    fun mirrorCollisions(
+    internal fun mirrorCollisions(
         root: File,
         outputDir: File,
         documents: List<OkfDocument>,

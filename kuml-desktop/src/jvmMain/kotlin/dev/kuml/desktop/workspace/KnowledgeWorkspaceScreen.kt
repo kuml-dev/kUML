@@ -152,6 +152,12 @@ fun KnowledgeWorkspaceScreen(
                 }
             },
             strings = strings,
+            diskConflict = state.diskConflict,
+            onResolveDiskConflict = { keepMine ->
+                scope.launch {
+                    state.resolveDiskConflict(keepMine = keepMine, themeName = themeName, strings = strings, watermark = showWatermark)
+                }
+            },
             onEditorReady = onEditorReady,
             modifier = Modifier.weight(2f).fillMaxHeight(),
         )

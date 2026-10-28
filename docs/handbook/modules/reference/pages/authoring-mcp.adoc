@@ -275,6 +275,48 @@ The four stateless authoring tools (`kuml.describe`, `kuml.examples`, `kuml.gene
 * `Host` and `Origin` headers are checked (DNS-rebinding defence); request bodies are limited to 1 MiB; requests have timeouts; only one script evaluation runs at a time.
 * *Anyone holding the token can execute Kotlin code in the Desktop process* — script evaluation is the feature. Treat the token like a password and keep the server off when you do not need it.
 
+=== Workspace mode
+
+When an OKF workspace is open (*File ▸ Open Workspace...*), the script tools above answer
+`WORKSPACE_MODE_UNSUPPORTED` (with the list of workspace tools) and the `kuml_desktop_workspace_*`
+tools take over. They read and edit the Markdown documents of the workspace on disk, so an agent can
+browse, write, validate and render a knowledge workspace while you watch it in the app. Paths are
+always relative to the workspace root and use `/`. Without an open workspace they answer
+`NO_WORKSPACE_OPEN`.
+
+.Workspace tools
+[cols="2,5"]
+|===
+| Tool | Purpose
+
+| `kuml_desktop_workspace_info` | Name, root, mode (`knowledge`/`engineering`), whether the workspace is trusted, document counts by type, the open document and whether it has unsaved changes. Works in both modes.
+| `kuml_desktop_workspace_list_documents` | Paged list (`offset`, `limit` up to 2000, `prefix`) with path, type, title, number of kuml blocks, `revision`, `dirty` and size. In engineering mode it lists the `.kuml.kts` scripts.
+| `kuml_desktop_workspace_get_document` | Content and `revision` of one document (max 512 KiB). If the document is open with unsaved changes, you get that unsaved buffer plus `dirty:true` and the `diskRevision`.
+| `kuml_desktop_workspace_set_document` | Writes a document to disk through the same save gate as Ctrl+S. With `baseRevision` it updates an existing document, without it creates a new one (missing folders are created).
+| `kuml_desktop_workspace_delete_document` | Permanently deletes a document. Needs `confirm:true`; there is no trash.
+| `kuml_desktop_workspace_validate` | OKF findings for the documents on disk (one document or all). `evaluate:true` additionally runs the kuml blocks.
+| `kuml_desktop_workspace_render_document` | Renders one kuml block of a document as SVG (text) or PNG (image content); `width` 64-8192, optional `theme`.
+| `kuml_desktop_workspace_render_all` | Renders every block into a temporary location and reports rendered, skipped and failed blocks; nothing is written into the workspace.
+| `kuml_desktop_workspace_open_document` | Shows a document in the editor (`edit:true` for the raw editor).
+| `kuml_desktop_workspace_reload` | Re-scans the folder; `onDirty` = `fail` (default), `keep` or `discard` decides what happens to unsaved editor changes.
+|===
+
+.Revisions and unsaved changes
+* A `revision` is the first 16 hex characters of the SHA-256 of the document's UTF-8 content. Pass the revision you last read as `baseRevision`; a mismatch fails with `REVISION_CONFLICT` and the `currentRevision`, and the file stays untouched.
+* `set_document` without `baseRevision` only creates: if the file exists it fails with `REVISION_CONFLICT` and `reason:"EXISTS"`.
+* A document with unsaved changes in the editor is never overwritten or deleted: `set_document` and `delete_document` answer `DOCUMENT_DIRTY`, even with a matching revision. Save or discard in the app, or call `kuml_desktop_workspace_reload` with `onDirty:"discard"`. `open_document` likewise refuses to replace a different dirty document.
+* If a file changes on disk while you have unsaved edits, the editor shows a banner offering to reload from disk or keep your version; your edits are never overwritten silently. Changes on disk (including the agent's) appear in the tree within a couple of seconds.
+* `set_document` saves to disk (unlike `kuml_desktop_set_script`, which only changes the buffer), so there is no Undo; a notice in the status area tells you what was written or deleted.
+
+.Errors of the workspace tools
+`INVALID_PATH` (with a `reason` such as `PARENT_SEGMENT`, `ABSOLUTE_PATH`, `SYMLINK_ESCAPE`, `NOT_MARKDOWN`, `EXCLUDED`), `DOCUMENT_NOT_FOUND` (with a `suggestion` when a similar path exists), `DOCUMENT_TOO_LARGE`, `CONTENT_TOO_LARGE`, `REVISION_CONFLICT`, `DOCUMENT_DIRTY`, `SAVE_BLOCKED` (with the blocking `findings`), `CONFIRMATION_REQUIRED`, `WORKSPACE_NOT_TRUSTED`, `BLOCK_NOT_FOUND`, `UNKNOWN_THEME`, `BUSY`, `RENDER_TIMEOUT`, `SVG_TOO_LARGE`/`PNG_TOO_LARGE`, `TOO_MANY_BLOCKS`, `WRITE_FAILED`, `UI_BUSY` and `OPERATION_TIMEOUT` (the operation may still have been applied; check with `list_documents`).
+
+.Security of workspace mode
+* Paths: `..`, absolute paths, UNC paths, drive letters and `~` are rejected before the file system is touched; then containment, symbolic links, hidden and excluded folders are checked again against the real file system. Only `.md` files inside the workspace root can be read, written or deleted; error messages never contain the absolute root path.
+* Writing, deleting, rendering and `evaluate:true` need a *trusted* workspace (the trust you confirm when opening it). Rendering and evaluating execute the kuml blocks of the documents, exactly like the CLI; they share the single evaluation slot, so while `render_all` runs (up to 120 s) other evaluating tools may answer `BUSY`.
+* Limits: 512 KiB per document, 4 MiB per rendered image, 500 blocks for `render_all`, path length 1024. Logs contain tool names and error codes only, never document content, tokens or absolute paths.
+* `render_document` and `render_all` render the documents as saved on disk, not unsaved editor buffers.
+
 == See also
 
 * xref:runtime-mcp.adoc[Behaviour-Runtime MCP] — the other 5 tools (`kuml.run.*`),

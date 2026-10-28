@@ -10,6 +10,7 @@ import dev.kuml.desktop.render.DesktopRenderResult
 import dev.kuml.markdown.CodeBlockExtractor
 import dev.kuml.workspace.FrontmatterParser
 import dev.kuml.workspace.FrontmatterWriter
+import dev.kuml.workspace.OkfDeleteResult
 import dev.kuml.workspace.OkfDocument
 import dev.kuml.workspace.OkfDocumentParser
 import dev.kuml.workspace.OkfDocumentWriter
@@ -19,13 +20,102 @@ import dev.kuml.workspace.OkfType
 import dev.kuml.workspace.OkfValidator
 import dev.kuml.workspace.OkfWorkspace
 import dev.kuml.workspace.OkfWriteResult
+import dev.kuml.workspace.WorkspaceDocumentResolver
 import dev.kuml.workspace.WorkspaceGraphIndex
 import dev.kuml.workspace.WorkspaceScanner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.security.MessageDigest
+
+/**
+ * Content revision shared by the UI model and the MCP workspace tools: the first 16 hex characters
+ * of SHA-256 over the UTF-8 bytes. A new [MessageDigest] per call keeps it thread safe.
+ */
+internal object DocumentRevision {
+    fun of(text: String): String = hex(MessageDigest.getInstance("SHA-256").digest(text.toByteArray(Charsets.UTF_8)))
+
+    /** Same value as [of] for the file's UTF-8 content, computed from a stream (no String copy). */
+    fun ofFile(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val chunk = ByteArray(8192)
+            while (true) {
+                val n = input.read(chunk)
+                if (n < 0) break
+                digest.update(chunk, 0, n)
+            }
+        }
+        return hex(digest.digest())
+    }
+
+    private fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }.take(16)
+}
+
+/** Outcome of an MCP-initiated write ([WorkspaceState.writeDocument] / [WorkspaceState.createDocument]). */
+internal sealed interface WorkspaceWriteOutcome {
+    data class Written(
+        val revision: String,
+        val created: Boolean,
+        val warnings: List<OkfFinding>,
+    ) : WorkspaceWriteOutcome
+
+    /** [currentRevision] is `null` when nothing exists at the path; [exists] distinguishes "exists" for creates. */
+    data class RevisionConflict(
+        val currentRevision: String?,
+        val exists: Boolean,
+    ) : WorkspaceWriteOutcome
+
+    /** The target is the open document and has unsaved edits; nothing was written. */
+    data object Dirty : WorkspaceWriteOutcome
+
+    data class Blocked(
+        val findings: List<OkfFinding>,
+    ) : WorkspaceWriteOutcome
+
+    data object NotFound : WorkspaceWriteOutcome
+
+    /** Path refused; [reason] is a stable code (see `WorkspacePathPolicy`). */
+    data class PathRejected(
+        val reason: String,
+    ) : WorkspaceWriteOutcome
+
+    data class TooLarge(
+        val limit: Long,
+    ) : WorkspaceWriteOutcome
+
+    /** Only the exception class name is kept -- messages may contain absolute paths. */
+    data class Failed(
+        val errorClass: String,
+    ) : WorkspaceWriteOutcome
+}
+
+/** Outcome of [WorkspaceState.deleteDocument]. */
+internal sealed interface WorkspaceDeleteOutcome {
+    data class Deleted(
+        val relativePath: String,
+    ) : WorkspaceDeleteOutcome
+
+    data object Dirty : WorkspaceDeleteOutcome
+
+    data class RevisionConflict(
+        val currentRevision: String,
+    ) : WorkspaceDeleteOutcome
+
+    data object NotFound : WorkspaceDeleteOutcome
+
+    data class PathRejected(
+        val reason: String,
+    ) : WorkspaceDeleteOutcome
+
+    data class Failed(
+        val errorClass: String,
+    ) : WorkspaceDeleteOutcome
+}
 
 /**
  * Holds an opened Knowledge-mode [OkfWorkspace], the currently selected document, its
@@ -39,9 +129,14 @@ import java.io.File
  * with `rememberCoroutineScope`) is responsible for launching `select`/`save` in response
  * to a tree click / Ctrl+S.
  *
- * Saving through this class edits the content of an existing document only (see [applySaved]);
- * documents created, deleted or renamed by other tools are picked up by [refreshFromDisk], which
- * does a full [dev.kuml.workspace.WorkspaceScanner.scan].
+ * Saving through the UI ([save]) edits the content of an existing document only (see [applySaved]);
+ * the document set keeps its size there. Documents created, deleted or renamed by other tools --
+ * including the MCP workspace tools ([createDocument], [deleteDocument]) -- are picked up by
+ * [refreshFromDisk], which does a full [dev.kuml.workspace.WorkspaceScanner.scan]. The size of
+ * [documents] therefore only changes through [refreshFromDisk], never through [applySaved].
+ *
+ * All disk writes (UI save and MCP writes) are serialised by [writeMutex], so a Ctrl+S cannot fall
+ * between an MCP revision check and its write.
  */
 class WorkspaceState(
     initialWorkspace: OkfWorkspace,
@@ -53,6 +148,16 @@ class WorkspaceState(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     var workspace: OkfWorkspace by mutableStateOf(initialWorkspace)
+        private set
+
+    /** Serialises every disk write of this workspace (UI save and MCP write/create/delete). */
+    internal val writeMutex = Mutex()
+
+    /**
+     * `true` when the selected document has unsaved edits AND its file changed on disk behind our
+     * back. The buffer is never overwritten; the UI shows a banner offering to reload or keep.
+     */
+    var diskConflict: Boolean by mutableStateOf(false)
         private set
 
     /** Documents sorted by relativePath (matches [dev.kuml.workspace.WorkspaceScanner]'s order). */
@@ -175,6 +280,7 @@ class WorkspaceState(
         findings = emptyList()
         buffer = null
         savedBuffer = null
+        diskConflict = false
 
         val text = withContext(ioDispatcher) { runCatching { resolved.file.readText(Charsets.UTF_8) }.getOrDefault("") }
         if (token != selectionToken) return // superseded by a newer selection
@@ -216,6 +322,8 @@ class WorkspaceState(
         }
         if (isDirty) {
             selected = fresh
+            val onDiskDirty = withContext(ioDispatcher) { runCatching { fresh.file.readText(Charsets.UTF_8) }.getOrNull() }
+            if (token == selectionToken && isDirty && onDiskDirty != null) diskConflict = onDiskDirty != savedBuffer
             return
         }
         val onDisk = withContext(ioDispatcher) { runCatching { fresh.file.readText(Charsets.UTF_8) }.getOrNull() }
@@ -229,6 +337,7 @@ class WorkspaceState(
 
     private fun clearSelection() {
         selectionToken++
+        diskConflict = false
         selected = null
         buffer = null
         savedBuffer = null
@@ -261,6 +370,208 @@ class WorkspaceState(
      */
     fun discardChanges() {
         buffer = savedBuffer
+        diskConflict = false
+    }
+
+    /**
+     * Resolves a [diskConflict]. `keepMine`: the buffer stays, the baseline moves to the file's
+     * current text (so the banner does not come back and the next save deliberately overwrites the
+     * external change). Otherwise the buffer is dropped and the document is reloaded from disk.
+     */
+    suspend fun resolveDiskConflict(
+        keepMine: Boolean,
+        themeName: String,
+        strings: Strings,
+        watermark: Boolean = false,
+    ) {
+        val doc = selected ?: return
+        if (keepMine) {
+            val onDisk = withContext(ioDispatcher) { runCatching { doc.file.readText(Charsets.UTF_8) }.getOrNull() }
+            if (onDisk != null) savedBuffer = onDisk
+            diskConflict = false
+        } else {
+            discardChanges()
+            select(doc = doc, themeName = themeName, strings = strings, watermark = watermark)
+        }
+    }
+
+    /** The unsaved buffer of [relativePath] if it is the selected document and dirty, else `null`. */
+    internal fun dirtyBufferOf(relativePath: String): String? = if (selected?.relativePath == relativePath && isDirty) buffer else null
+
+    /**
+     * MCP update of an EXISTING document on disk (same gate as Ctrl+S: [OkfDocumentWriter.save]).
+     * Never touches unsaved work: a dirty open target yields [WorkspaceWriteOutcome.Dirty]. The
+     * revision is compared against the file's current content under [writeMutex].
+     */
+    internal suspend fun writeDocument(
+        relativePath: String,
+        content: String,
+        baseRevision: String,
+        themeName: String,
+        strings: Strings,
+        watermark: Boolean = false,
+    ): WorkspaceWriteOutcome =
+        writeMutex.withLock {
+            if (selected?.relativePath == relativePath && isDirty) return@withLock WorkspaceWriteOutcome.Dirty
+            val root = workspace.root
+            val file =
+                withContext(ioDispatcher) { WorkspaceDocumentResolver.resolve(root = root, requested = relativePath) }
+                    .getOrElse { e -> return@withLock resolveFailureToWrite(e) }
+            val currentRevision =
+                withContext(ioDispatcher) { runCatching { DocumentRevision.ofFile(file) }.getOrNull() }
+                    ?: return@withLock WorkspaceWriteOutcome.NotFound
+            if (currentRevision != baseRevision) {
+                return@withLock WorkspaceWriteOutcome.RevisionConflict(currentRevision = currentRevision, exists = true)
+            }
+            val known = documents.map { it.file }
+            val token = selectionToken
+            val result =
+                withContext(ioDispatcher) {
+                    OkfDocumentWriter.save(root = root, target = file, content = content, knownDocuments = known)
+                }
+            when (result) {
+                is OkfWriteResult.Written -> {
+                    applyExternalWrite(
+                        file = result.file,
+                        relativePath = relativePath,
+                        content = content,
+                        warnings = result.warnings,
+                        token = token,
+                        themeName = themeName,
+                        strings = strings,
+                        watermark = watermark,
+                    )
+                    WorkspaceWriteOutcome.Written(
+                        revision = DocumentRevision.of(content),
+                        created = false,
+                        warnings = result.warnings,
+                    )
+                }
+                else -> writeResultToOutcome(result)
+            }
+        }
+
+    /** MCP creation of a NEW document (with missing parent directories); the document set is re-scanned. */
+    internal suspend fun createDocument(
+        relativePath: String,
+        content: String,
+        themeName: String,
+        strings: Strings,
+        watermark: Boolean = false,
+    ): WorkspaceWriteOutcome =
+        writeMutex.withLock {
+            val root = workspace.root
+            val result = withContext(ioDispatcher) { OkfDocumentWriter.create(root = root, relativePath = relativePath, content = content) }
+            when (result) {
+                is OkfWriteResult.Written -> {
+                    refreshFromDisk(themeName = themeName, strings = strings, watermark = watermark)
+                    WorkspaceWriteOutcome.Written(revision = DocumentRevision.of(content), created = true, warnings = result.warnings)
+                }
+                is OkfWriteResult.CreateRejected ->
+                    if (result.rejection == WorkspaceDocumentResolver.Rejection.ALREADY_EXISTS) {
+                        val file = File(WorkspaceScanner.canonicalRoot(root), relativePath.replace('\\', '/'))
+                        val rev = withContext(ioDispatcher) { runCatching { DocumentRevision.ofFile(file) }.getOrNull() }
+                        WorkspaceWriteOutcome.RevisionConflict(currentRevision = rev, exists = true)
+                    } else {
+                        WorkspaceWriteOutcome.PathRejected(reason = result.rejection.name)
+                    }
+                else -> writeResultToOutcome(result)
+            }
+        }
+
+    /** MCP hard-delete of an existing document. [baseRevision], when given, must match the file's content. */
+    internal suspend fun deleteDocument(
+        relativePath: String,
+        baseRevision: String?,
+        themeName: String,
+        strings: Strings,
+        watermark: Boolean = false,
+    ): WorkspaceDeleteOutcome =
+        writeMutex.withLock {
+            if (selected?.relativePath == relativePath && isDirty) return@withLock WorkspaceDeleteOutcome.Dirty
+            val root = workspace.root
+            val file =
+                withContext(ioDispatcher) { WorkspaceDocumentResolver.resolve(root = root, requested = relativePath) }
+                    .getOrElse { e ->
+                        val rej = (e as? WorkspaceDocumentResolver.DocumentResolutionException)?.rejection
+                        return@withLock when (rej) {
+                            WorkspaceDocumentResolver.Rejection.NOT_FOUND -> WorkspaceDeleteOutcome.NotFound
+                            null -> WorkspaceDeleteOutcome.Failed(errorClass = e.javaClass.simpleName)
+                            else -> WorkspaceDeleteOutcome.PathRejected(reason = rej.name)
+                        }
+                    }
+            if (baseRevision != null) {
+                val current =
+                    withContext(ioDispatcher) { runCatching { DocumentRevision.ofFile(file) }.getOrNull() }
+                        ?: return@withLock WorkspaceDeleteOutcome.NotFound
+                if (current != baseRevision) return@withLock WorkspaceDeleteOutcome.RevisionConflict(currentRevision = current)
+            }
+            val known = documents.map { it.file }
+            when (val r = withContext(ioDispatcher) { OkfDocumentWriter.delete(root = root, target = file, knownDocuments = known) }) {
+                is OkfDeleteResult.Deleted -> {
+                    refreshFromDisk(themeName = themeName, strings = strings, watermark = watermark)
+                    WorkspaceDeleteOutcome.Deleted(relativePath = relativePath)
+                }
+                is OkfDeleteResult.Rejected -> WorkspaceDeleteOutcome.PathRejected(reason = r.rejection.name)
+                is OkfDeleteResult.Failed -> WorkspaceDeleteOutcome.Failed(errorClass = r.cause.javaClass.simpleName)
+            }
+        }
+
+    private fun resolveFailureToWrite(e: Throwable): WorkspaceWriteOutcome {
+        val rej = (e as? WorkspaceDocumentResolver.DocumentResolutionException)?.rejection
+        return when (rej) {
+            WorkspaceDocumentResolver.Rejection.NOT_FOUND -> WorkspaceWriteOutcome.NotFound
+            null -> WorkspaceWriteOutcome.Failed(errorClass = e.javaClass.simpleName)
+            else -> WorkspaceWriteOutcome.PathRejected(reason = rej.name)
+        }
+    }
+
+    private fun writeResultToOutcome(result: OkfWriteResult): WorkspaceWriteOutcome =
+        when (result) {
+            is OkfWriteResult.Written -> WorkspaceWriteOutcome.Failed(errorClass = "UnexpectedWritten")
+            is OkfWriteResult.Blocked -> WorkspaceWriteOutcome.Blocked(findings = result.blocking + result.warnings)
+            is OkfWriteResult.Rejected -> WorkspaceWriteOutcome.PathRejected(reason = result.rejection.name)
+            is OkfWriteResult.CreateRejected -> WorkspaceWriteOutcome.PathRejected(reason = result.rejection.name)
+            is OkfWriteResult.TooLarge -> WorkspaceWriteOutcome.TooLarge(limit = result.limit)
+            is OkfWriteResult.Failed -> WorkspaceWriteOutcome.Failed(errorClass = result.cause.javaClass.simpleName)
+        }
+
+    /**
+     * Swaps a document written by [writeDocument] into [documents] in place (same size) and, if it
+     * is the selected, clean document, moves [buffer]/[savedBuffer] to the new content and re-renders.
+     */
+    private suspend fun applyExternalWrite(
+        file: File,
+        relativePath: String,
+        content: String,
+        warnings: List<OkfFinding>,
+        token: Int,
+        themeName: String,
+        strings: Strings,
+        watermark: Boolean,
+    ) {
+        val root = workspace.root
+        val parsed = withContext(ioDispatcher) { runCatching { OkfDocumentParser.parseFile(root = root, file = file) } }
+        val reparsed = parsed.getOrNull()
+        if (reparsed == null) {
+            refreshFromDisk(themeName = themeName, strings = strings, watermark = watermark)
+            return
+        }
+        val newDocs = documents.map { if (it.relativePath == reparsed.relativePath) reparsed else it }
+        workspace = workspace.copy(documents = newDocs)
+        documents = newDocs
+        graphIndex = WorkspaceGraphIndex.build(ws = workspace)
+        if (token == selectionToken && selected?.relativePath == relativePath && !isDirty) {
+            selected = reparsed
+            savedBuffer = content
+            buffer = content
+            diskConflict = false
+            findings = warnings
+            renderCurrentBlock(themeName = themeName, strings = strings, watermark = watermark)
+        } else if (selected?.relativePath == relativePath && isDirty) {
+            // Editor became dirty during the write: never let Ctrl+S silently overwrite it.
+            diskConflict = true
+        }
     }
 
     /**
@@ -387,8 +698,10 @@ class WorkspaceState(
         val knownDocuments = documents.map { it.file }
 
         val result =
-            withContext(ioDispatcher) {
-                OkfDocumentWriter.save(root = root, target = doc.file, content = content, knownDocuments = knownDocuments)
+            writeMutex.withLock {
+                withContext(ioDispatcher) {
+                    OkfDocumentWriter.save(root = root, target = doc.file, content = content, knownDocuments = knownDocuments)
+                }
             }
 
         when (result) {
@@ -415,6 +728,7 @@ class WorkspaceState(
                 if (token == selectionToken) {
                     savedBuffer = content
                     findings = result.warnings
+                    diskConflict = false
                 }
                 applySaved(savedFile = result.file, token = token, themeName = themeName, strings = strings, watermark = watermark)
             }
@@ -426,7 +740,7 @@ class WorkspaceState(
                     findings = result.blocking + result.warnings
                 }
             }
-            is OkfWriteResult.Rejected, is OkfWriteResult.TooLarge, is OkfWriteResult.Failed -> {
+            is OkfWriteResult.Rejected, is OkfWriteResult.CreateRejected, is OkfWriteResult.TooLarge, is OkfWriteResult.Failed -> {
                 // Surfaced by the caller (a modal dialog in MainWindow) — nothing in this
                 // state needs to change, the file was never touched.
             }
@@ -441,7 +755,7 @@ class WorkspaceState(
      * "is this the selected row" check pinned to a stale instance), and re-renders.
      *
      * See this class's KDoc: valid ONLY because the document set itself never changes size
-     * in this welle.
+     * here; sizes change solely via [refreshFromDisk].
      *
      * Both the read and the parse run on `Dispatchers.IO` (bugfix, review finding) — this
      * function used to run [OkfDocumentParser.parseFile] on the CALLER's dispatcher, which

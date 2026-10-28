@@ -131,4 +131,6 @@ Menu shortcuts follow the platform convention: *⌘ (Command)* on macOS, *Ctrl* 
 
 Desktop can host an optional, local MCP server so an AI agent works on the script that is open in
 the app; see xref:reference:authoring-mcp.adoc#_driving_kuml_desktop_over_mcp[Driving kUML Desktop over MCP].
-It is off by default.
+It is off by default. With a knowledge workspace open, the agent can also list, read, write, validate
+and render the workspace's documents; if a file changes on disk while you have unsaved edits, the editor
+shows a banner to reload or keep your version.
