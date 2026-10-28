@@ -27,6 +27,34 @@ public data class LayoutNode(
     val intrinsicSize: Size,
     val hints: NodeHints = NodeHints.NONE,
     val groupId: GroupId? = null,
+    /** Ports am Knotenrand (C3-1). Engines mit [LayoutCapabilities.supportsPorts] verankern Kanten daran. */
+    val ports: List<LayoutPort> = emptyList(),
+    /**
+     * Optionale Größe eines externen Namens-Labels (OUTSIDE, oben zentriert), z. B. Fork/Join-Name.
+     * Die Engine reserviert dafür Platz; die berechnete Position steht in [NodeLayout.labels] unter `"node"`.
+     */
+    val externalLabelSize: Size? = null,
+)
+
+/** Seite eines Knotenrands, an dem ein [LayoutPort] andockt. */
+@Serializable
+public enum class PortSide { North, East, South, West }
+
+/**
+ * Ein Port am Rand eines [LayoutNode].
+ *
+ * @property order Reihenfolge entlang der Seite (feste Port-Reihenfolge, [PortSide]-weise aufsteigend).
+ * @property size Größe des Port-Markers; der Port-Mittelpunkt liegt auf der Knotenkante.
+ * @property labelSize Größe des Port-Labels (OUTSIDE); reserviert Platz, die Position steht in
+ *     [NodeLayout.labels] unter `"port:<id>"`.
+ */
+@Serializable
+public data class LayoutPort(
+    val id: PortId,
+    val side: PortSide,
+    val order: Int,
+    val size: Size = Size(width = 8f, height = 8f),
+    val labelSize: Size? = null,
 )
 
 /**

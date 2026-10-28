@@ -100,6 +100,9 @@ sealed interface Sysml2Diagram {
      * some diagram kinds.
      */
     val noteIds: List<String>
+
+    /** Layout steering hints (wave C3); `null` = none. */
+    val layout: Sysml2LayoutSpec?
 }
 
 /**
@@ -117,6 +120,7 @@ data class BdDiagram(
     override val name: String,
     override val elementIds: List<String> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    override val layout: Sysml2LayoutSpec? = null,
 ) : Sysml2Diagram
 
 /**
@@ -152,6 +156,7 @@ data class IbdDiagram(
      */
     override val elementIds: List<String> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    override val layout: Sysml2LayoutSpec? = null,
 ) : Sysml2Diagram
 
 /**
@@ -206,6 +211,7 @@ data class UcDiagram(
     val subjects: List<UcSubject> = emptyList(),
     /** C1: actor-to-actor generalisation arrows (hollow triangle). */
     val actorGeneralizations: List<UcActorGeneralization> = emptyList(),
+    override val layout: Sysml2LayoutSpec? = null,
 ) : Sysml2Diagram
 
 /**
@@ -334,6 +340,7 @@ data class ActDiagram(
      */
     override val elementIds: List<String> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    override val layout: Sysml2LayoutSpec? = null,
 ) : Sysml2Diagram
 
 /**
@@ -381,6 +388,7 @@ data class StmDiagram(
      */
     override val elementIds: List<String> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    override val layout: Sysml2LayoutSpec? = null,
 ) : Sysml2Diagram
 
 /**
@@ -445,6 +453,7 @@ data class ReqDiagram(
     val copies: List<ReqCopy> = emptyList(),
     /** C1: nested requirement groups (packages), drawn as frames with a tab. */
     val groups: List<RequirementGroup> = emptyList(),
+    override val layout: Sysml2LayoutSpec? = null,
 ) : Sysml2Diagram
 
 /** **Refine** edge (C1): [sourceId] refines requirement [requirementId]. Id: `refine:<src>::<tgt>`. */
@@ -602,6 +611,7 @@ data class SeqDiagram(
      */
     override val elementIds: List<String> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    override val layout: Sysml2LayoutSpec? = null,
 ) : Sysml2Diagram
 
 /**
@@ -686,4 +696,5 @@ data class ParDiagram(
      */
     override val elementIds: List<String> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    override val layout: Sysml2LayoutSpec? = null,
 ) : Sysml2Diagram

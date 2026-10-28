@@ -725,6 +725,13 @@ data class CombinedFragmentUsage(
     /** Operands ordered top-to-bottom. At least one is expected. */
     val operands: List<CombinedFragmentOperand>,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    /**
+     * C3: id of the enclosing [CombinedFragmentUsage] when this fragment is nested inside an operand
+     * of another fragment; `null` for a top-level fragment (the default, also for all older models).
+     */
+    val parentFragmentId: String? = null,
+    /** C3: index into the parent's [operands] that contains this fragment; only meaningful with [parentFragmentId]. */
+    val parentOperandIndex: Int? = null,
 ) : Sysml2Usage
 
 /**
@@ -762,5 +769,56 @@ data class ExecutionSpecificationUsage(
     val startSeqNo: Int,
     /** Sequence number when the activation ends (inclusive). */
     val endSeqNo: Int,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/**
+ * C3 — Interaction use (`ref`): a frame that references another interaction and spans the given
+ * [lifelineIds] at row [seqNo]. The reference is plain text, never a link.
+ */
+@Serializable
+data class InteractionUseUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String = "sysml2.interactionUse",
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    /** Name of the referenced interaction (shown inside the frame). */
+    val refersTo: String,
+    /** Covered lifelines; the frame spans from the leftmost to the rightmost of them. */
+    val lifelineIds: List<String>,
+    val seqNo: Int,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/**
+ * C3 — Duration constraint (`{0..3s}`) on one [lifelineId], drawn as a vertical bracket from row
+ * [fromSeqNo] to row [toSeqNo] next to the lifeline.
+ */
+@Serializable
+data class DurationConstraintUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String = "sysml2.durationConstraint",
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    val lifelineId: String,
+    val fromSeqNo: Int,
+    val toSeqNo: Int,
+    /** Constraint text without braces, e.g. `0..3s`. */
+    val expression: String,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/** C3 — Time observation (`t = now`): a small tick on [lifelineId] at row [seqNo], labelled with [name]. */
+@Serializable
+data class TimeObservationUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String = "sysml2.timeObservation",
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    val lifelineId: String,
+    val seqNo: Int,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Usage

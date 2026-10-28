@@ -115,6 +115,41 @@ classOf("Item") { layout { below(order) } }       // Typed reference
 classOf("Item") { layout { below("Order") } }      // String — looser, also works
 ----
 
+== SysML 2 layout hints
+
+Every SysML 2 diagram accepts a `layout { }` block with coarse steering hints. There are deliberately
+no pixel positions and no pairwise relative constraints.
+
+[source,kotlin]
+----
+reqDiagram("Requirements") {
+    // include(...)
+    layout {
+        direction = Right      // Down (default), Right, Up, Left
+        wrapColumns = 4        // at most 4 nodes per layer
+        sameLayer(a, b)        // same layer
+        first(root)            // first layer
+        last(leaf)             // last layer
+    }
+}
+----
+
+* `wrapColumns` moves the nodes of an over-full layer (declaration order) into additional layers.
+  Layers are computed by longest-path layering; back edges are ignored.
+* `first` and `last` use ELK's layer constraints when no wrap/`sameLayer` is given and the edges allow it
+  (a `first` node must have no incoming and a `last` node no outgoing edge, otherwise the pin is dropped).
+  Together with wrapping they are expressed as layer indices.
+* Layer hints are honoured for nodes that are not inside a compound group. ELK ignores them inside
+  compounds and reports `hint.ignored.layerInCompound`.
+* Sequence diagrams ignore all hints (lifeline order is the declaration order); `kuml validate` warns (`LAYOUT412`).
+* The grid engine and the WebAssembly playground do not evaluate these hints.
+* Swimlane (partition) activity diagrams are drawn top to bottom only; another `direction` is reported as `LAYOUT433`.
+* Checks: `LAYOUT431` unknown id, `LAYOUT432` `wrapColumns` outside 1..32, `LAYOUT434` too many groups/ids,
+  `LAYOUT435` id in `first` and `last`, `LAYOUT436` connected elements in one `sameLayer` group.
+
+All SysML 2 render paths (CLI, Gradle, Web, Desktop, Asciidoc, `kuml-ai`) take their ELK hints from the single function
+`Sysml2LayoutBridge.layoutHintsFor`.
+
 == When the engine can't honour a hint
 
 Conflicts produce a `LayoutWarning` in `LayoutResult.warnings`:

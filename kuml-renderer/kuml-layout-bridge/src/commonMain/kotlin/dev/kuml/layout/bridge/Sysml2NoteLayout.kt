@@ -27,6 +27,12 @@ internal fun LayoutGraph.withSysml2Notes(
     model: Sysml2Model,
     diagram: Sysml2Diagram,
     extraVisibleIds: Set<String> = emptySet(),
+): LayoutGraph = withLayoutSpec(diagram = diagram).withNotesOnly(model = model, diagram = diagram, extraVisibleIds = extraVisibleIds)
+
+private fun LayoutGraph.withNotesOnly(
+    model: Sysml2Model,
+    diagram: Sysml2Diagram,
+    extraVisibleIds: Set<String>,
 ): LayoutGraph {
     if (model.comments.isEmpty()) return this
     // Group ids that double as edge endpoints (STM composite states and regions): the ELK

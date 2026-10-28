@@ -175,10 +175,26 @@ internal object HintsMapper {
      */
     fun collectNodeHintWarnings(graph: LayoutGraph): List<LayoutWarning> {
         val warnings = mutableListOf<LayoutWarning>()
+        val compoundIds =
+            graph.groups
+                .filter { it.layoutAsCompound }
+                .map { it.id }
+                .toSet()
 
         for (node in graph.nodes) {
             val hints = node.hints
             val id = node.id
+
+            if ((hints.layerIndex != null || hints.layerPin != null) && node.groupId in compoundIds) {
+                // Spike C3-1: ELK 0.12.0 wertet Partitionen innerhalb von INCLUDE_CHILDREN-Compounds nicht aus.
+                warnings.add(
+                    LayoutWarning(
+                        code = "hint.ignored.layerInCompound",
+                        message = "Node '${id.value}' has a layer hint inside a compound group — ELK ignores it there.",
+                        affectedNodes = listOf(id),
+                    ),
+                )
+            }
 
             if (hints.gridCol != null || hints.gridRow != null) {
                 warnings.add(gridWarning(id))
@@ -287,6 +303,46 @@ internal object HintsMapper {
             while (root?.parent != null) root = root.parent
             root?.setProperty(CoreOptions.HIERARCHY_HANDLING, HierarchyHandling.INCLUDE_CHILDREN)
         }
+    }
+
+    /**
+     * C3-1 — aktiviert, sobald irgendein Knoten einen Ebenen-Hint trägt, das partitionierte Layout
+     * von ELK Layered und trennt Zusammenhangskomponenten nicht mehr. Die Optionen gelten je
+     * Hierarchie-Ebene und werden hier nur auf der Wurzel gesetzt; Mitglieder von Compound-Gruppen
+     * werden von ELK ignoriert (Warnung `hint.ignored.layerInCompound`).
+     *
+     * **Spike-Befund (ELK 0.12.0):** `layering.layerChoiceConstraint` wird von ELK Layered
+     * **nicht** ausgewertet (laut Option-Doku nur vom `InteractiveLayeredGraphVisitor`), ein
+     * Test mit Kette und kantenlosen Knoten zeigte keinerlei Wirkung. Stattdessen wird
+     * [dev.kuml.layout.NodeHints.layerIndex] auf `partitioning.partition` abgebildet: ELK platziert
+     * Knoten mit niedrigerem Partitionsindex in früheren Ebenen. Ohne Ebenen-Hints bleibt der
+     * ELK-Zustand unverändert.
+     */
+    fun applyLayerStrategy(
+        builder: ElkGraphBuilder,
+        root: ElkNode,
+    ) {
+        val withIndex =
+            builder.nodes().filter {
+                (it.hints.layerIndex != null || it.hints.layerPin != null) &&
+                    // flat root members only: swimlane/partition groups are not compounds, their members count
+                    builder.nodeMap[it.id]?.parent == root
+            }
+        if (withIndex.isEmpty()) return
+
+        fun enable(elk: ElkNode) {
+            elk.setProperty(CoreOptions.PARTITIONING_ACTIVATE, true)
+            // Simple node placement packs every layer to the start instead of centring wrapped layers on
+            // the edges to the next layer (Brandes-Koepf would stagger a wrapped grid diagonally).
+            elk.setProperty(
+                LayeredOptions.NODE_PLACEMENT_STRATEGY,
+                org.eclipse.elk.alg.layered.options.NodePlacementStrategy.SIMPLE,
+            )
+            // Ohne diese Option layoutet ELK jede Zusammenhangskomponente einzeln — kantenlose
+            // Knoten landen dann alle in Ebene 0 und Ebenen-Hints laufen ins Leere.
+            elk.setProperty(CoreOptions.SEPARATE_CONNECTED_COMPONENTS, false)
+        }
+        enable(root)
     }
 
     /**

@@ -82,6 +82,8 @@ public class ElkLayoutEngine(
             respectsGridHints = false,
             respectsRelativeConstraints = false,
             maxRecommendedNodes = 500,
+            supportsPorts = true,
+            supportsLayerHints = true,
         )
 
     /**
@@ -145,6 +147,7 @@ public class ElkLayoutEngine(
             passWarnings += HintsMapper.applyGlobalHints(root = root, hints = hints, config = configuration)
             passWarnings += HintsMapper.collectNodeHintWarnings(graph)
             HintsMapper.applyGroupPadding(builder = builder, hints = hints, config = configuration, extraPadding = extraPaddingByGroup)
+            HintsMapper.applyLayerStrategy(builder = builder, root = root)
 
             // 3. Time-budget tracking (accumulated across all re-layout attempts so the
             // warning reflects the real total work performed for this [layout] call).

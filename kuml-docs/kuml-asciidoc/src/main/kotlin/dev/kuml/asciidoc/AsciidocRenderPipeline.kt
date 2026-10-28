@@ -29,6 +29,7 @@ import dev.kuml.layout.bridge.erm.ErmChenSizeProvider
 import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
+import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
@@ -267,37 +268,65 @@ internal object AsciidocRenderPipeline {
         return when (val diagram = extracted.diagram) {
             is BdDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult = layoutEngine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
+                val layoutResult =
+                    layoutEngine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
                 KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme)
             }
             is IbdDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult = layoutEngine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
+                val layoutResult =
+                    layoutEngine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
                 KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme)
             }
             is UcDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult = layoutEngine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
+                val layoutResult =
+                    layoutEngine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
                 KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme)
             }
             is ReqDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult = layoutEngine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
+                val layoutResult =
+                    layoutEngine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
                 KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme)
             }
             is StmDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult = layoutEngine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
+                val layoutResult =
+                    layoutEngine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
                 KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme)
             }
             is ActDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult = layoutEngine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
+                val layoutResult =
+                    layoutEngine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
                 KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme)
             }
             is SeqDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult = layoutEngine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
+                val layoutResult =
+                    layoutEngine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
                 KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme)
             }
             is ParDiagram -> {
@@ -307,7 +336,11 @@ internal object AsciidocRenderPipeline {
                         diagram = diagram,
                         sizeProvider = Sysml2LayoutBridge.parContentAwareSizeProvider(model),
                     )
-                val layoutResult = layoutEngine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
+                val layoutResult =
+                    layoutEngine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
                 KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme)
             }
         }

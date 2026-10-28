@@ -27,12 +27,14 @@ import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ConstraintParameter
 import dev.kuml.sysml2.ConstraintUsage
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.DurationConstraintUsage
 import dev.kuml.sysml2.ExceptionHandlerUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.FlowPropertyUsage
 import dev.kuml.sysml2.FlowUsage
 import dev.kuml.sysml2.GuardKind
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.InteractionUseUsage
 import dev.kuml.sysml2.InterruptibleRegionDefinition
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.LifelineUsage
@@ -73,6 +75,7 @@ import dev.kuml.sysml2.Sysml2Element
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.Sysml2Usage
 import dev.kuml.sysml2.TestCaseDefinition
+import dev.kuml.sysml2.TimeObservationUsage
 import dev.kuml.sysml2.TransitionTimer
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcActorGeneralization
@@ -829,7 +832,7 @@ class Sysml2ModelBuilder(
         block: BdDiagramBuilder.() -> Unit = {},
     ): BdDiagram {
         val builder = BdDiagramBuilder(this).apply(block)
-        val diagram = BdDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds())
+        val diagram = BdDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds(), layout = builder.layoutSpec())
         diagrams += diagram
         return diagram
     }
@@ -855,6 +858,7 @@ class Sysml2ModelBuilder(
                 ownerId = owner.id,
                 elementIds = builder.ids(),
                 noteIds = builder.noteIds(),
+                layout = builder.layoutSpec(),
             )
         diagrams += diagram
         return diagram
@@ -880,6 +884,7 @@ class Sysml2ModelBuilder(
                 name = name,
                 elementIds = builder.ids(),
                 noteIds = builder.noteIds(),
+                layout = builder.layoutSpec(),
                 associations = builder.associations(),
                 includes = builder.includes(),
                 extends = builder.extends(),
@@ -911,6 +916,7 @@ class Sysml2ModelBuilder(
                 name = name,
                 elementIds = builder.ids(),
                 noteIds = builder.noteIds(),
+                layout = builder.layoutSpec(),
                 satisfies = builder.satisfies(),
                 verifies = builder.verifies(),
                 derives = builder.derives(),
@@ -942,7 +948,7 @@ class Sysml2ModelBuilder(
         block: StmDiagramBuilder.() -> Unit = {},
     ): StmDiagram {
         val builder = StmDiagramBuilder(this).apply(block)
-        val diagram = StmDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds())
+        val diagram = StmDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds(), layout = builder.layoutSpec())
         diagrams += diagram
         return diagram
     }
@@ -1421,7 +1427,7 @@ class Sysml2ModelBuilder(
         block: ActDiagramBuilder.() -> Unit = {},
     ): ActDiagram {
         val builder = ActDiagramBuilder(this).apply(block)
-        val diagram = ActDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds())
+        val diagram = ActDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds(), layout = builder.layoutSpec())
         diagrams += diagram
         return diagram
     }
@@ -1548,7 +1554,7 @@ class Sysml2ModelBuilder(
         block: SeqDiagramBuilder.() -> Unit = {},
     ): SeqDiagram {
         val builder = SeqDiagramBuilder(this).apply(block)
-        val diagram = SeqDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds())
+        val diagram = SeqDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds(), layout = builder.layoutSpec())
         diagrams += diagram
         return diagram
     }
@@ -1582,6 +1588,8 @@ class Sysml2ModelBuilder(
         operator: CombinedFragmentOperator,
         operands: List<CombinedFragmentOperand>,
         id: String = "combinedFragment:$name",
+        parentFragmentId: String? = null,
+        parentOperandIndex: Int? = null,
     ): CombinedFragmentUsage {
         val usage =
             CombinedFragmentUsage(
@@ -1590,10 +1598,149 @@ class Sysml2ModelBuilder(
                 qualifiedName = name,
                 operator = operator,
                 operands = operands,
+                parentFragmentId = parentFragmentId,
+                parentOperandIndex = parentOperandIndex,
             )
         registerUsage(usage)
         return usage
     }
+
+    /**
+     * C3 — block form of [combinedFragment] with **nested fragments**:
+     *
+     * ```
+     * combinedFragment("retry", CombinedFragmentOperator.Loop) {
+     *     operand(guard = "attempts < 3", start = 1, end = 5) {
+     *         combinedFragment("cache", CombinedFragmentOperator.Alt) {
+     *             operand(guard = "hit", start = 2, end = 2)
+     *             operand(guard = "miss", start = 3, end = 4)
+     *         }
+     *     }
+     * }
+     * ```
+     *
+     * Children are registered with `parentFragmentId`/`parentOperandIndex` pointing at the enclosing
+     * operand. Hard limits live in [Sysml2Limits]; deeper nesting is rendered flat and reported by the checker.
+     */
+    fun combinedFragment(
+        name: String,
+        operator: CombinedFragmentOperator,
+        id: String = "combinedFragment:$name",
+        parentFragmentId: String? = null,
+        parentOperandIndex: Int? = null,
+        block: CombinedFragmentBuilder.() -> Unit,
+    ): CombinedFragmentUsage {
+        val builder = CombinedFragmentBuilder(modelBuilder = this, fragmentId = id).apply(block)
+        return combinedFragment(
+            name = name,
+            operator = operator,
+            operands = builder.operands.toList(),
+            id = id,
+            parentFragmentId = parentFragmentId,
+            parentOperandIndex = parentOperandIndex,
+        )
+    }
+
+    /** `ref` frame over [lifelines] at row [seqNo], referencing the interaction named [refersTo] (C3). */
+    fun interactionUse(
+        name: String,
+        refersTo: String,
+        lifelines: List<LifelineDefinition>,
+        seqNo: Int,
+        id: String = "interactionUse:$name",
+    ): InteractionUseUsage =
+        interactionUseById(name = name, refersTo = refersTo, lifelineIds = lifelines.map { it.id }, seqNo = seqNo, id = id)
+
+    /** Id-only variant of [interactionUse] (used by the DSL printer). */
+    fun interactionUseById(
+        name: String,
+        refersTo: String,
+        lifelineIds: List<String>,
+        seqNo: Int,
+        id: String = "interactionUse:$name",
+    ): InteractionUseUsage {
+        val usage = InteractionUseUsage(id = id, name = name, refersTo = refersTo, lifelineIds = lifelineIds, seqNo = seqNo)
+        registerUsage(usage)
+        return usage
+    }
+
+    /** Duration constraint `{expression}` on [lifeline] between rows [from] and [to] (C3). */
+    fun durationConstraint(
+        lifeline: LifelineDefinition,
+        from: Int,
+        to: Int,
+        expression: String,
+        id: String = "durationConstraint:${lifeline.id}-$from-$to",
+        name: String = expression,
+    ): DurationConstraintUsage =
+        durationConstraintById(lifelineId = lifeline.id, from = from, to = to, expression = expression, id = id, name = name)
+
+    /** Id-only variant of [durationConstraint]. */
+    fun durationConstraintById(
+        lifelineId: String,
+        from: Int,
+        to: Int,
+        expression: String,
+        id: String = "durationConstraint:$lifelineId-$from-$to",
+        name: String = expression,
+    ): DurationConstraintUsage {
+        val usage =
+            DurationConstraintUsage(id = id, name = name, lifelineId = lifelineId, fromSeqNo = from, toSeqNo = to, expression = expression)
+        registerUsage(usage)
+        return usage
+    }
+
+    /** Time observation (`name = now`) tick on [lifeline] at row [seqNo] (C3). */
+    fun timeObservation(
+        lifeline: LifelineDefinition,
+        seqNo: Int,
+        name: String,
+        id: String = "timeObservation:${lifeline.id}-$seqNo",
+    ): TimeObservationUsage = timeObservationById(lifelineId = lifeline.id, seqNo = seqNo, name = name, id = id)
+
+    /** Id-only variant of [timeObservation]. */
+    fun timeObservationById(
+        lifelineId: String,
+        seqNo: Int,
+        name: String,
+        id: String = "timeObservation:$lifelineId-$seqNo",
+    ): TimeObservationUsage {
+        val usage = TimeObservationUsage(id = id, name = name, lifelineId = lifelineId, seqNo = seqNo)
+        registerUsage(usage)
+        return usage
+    }
+
+    /** Found message: a message from outside the diagram arriving at [target] (C3). */
+    fun foundMessage(
+        label: String,
+        target: LifelineDefinition,
+        seqNo: Int,
+        id: String = "message:found-${target.id}-$seqNo",
+    ): MessageUsage =
+        messageById(
+            label = label,
+            sourceLifelineId = target.id,
+            targetLifelineId = target.id,
+            seqNo = seqNo,
+            kind = MessageKind.Found,
+            id = id,
+        )
+
+    /** Lost message: a message from [source] that never arrives anywhere inside the diagram (C3). */
+    fun lostMessage(
+        label: String,
+        source: LifelineDefinition,
+        seqNo: Int,
+        id: String = "message:lost-${source.id}-$seqNo",
+    ): MessageUsage =
+        messageById(
+            label = label,
+            sourceLifelineId = source.id,
+            targetLifelineId = source.id,
+            seqNo = seqNo,
+            kind = MessageKind.Lost,
+            id = id,
+        )
 
     /**
      * Single-operand convenience overload for [combinedFragment] — typical
@@ -1764,7 +1911,7 @@ class Sysml2ModelBuilder(
         block: ParDiagramBuilder.() -> Unit = {},
     ): ParDiagram {
         val builder = ParDiagramBuilder(this).apply(block)
-        val diagram = ParDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds())
+        val diagram = ParDiagram(name = name, elementIds = builder.ids(), noteIds = builder.noteIds(), layout = builder.layoutSpec())
         diagrams += diagram
         return diagram
     }
@@ -2935,3 +3082,46 @@ internal fun sanitizeFrameName(name: String): String =
                 '_'
             }
         }.joinToString("")
+
+/** C3 — builder for the block form of [Sysml2ModelBuilder.combinedFragment]. */
+class CombinedFragmentBuilder internal constructor(
+    private val modelBuilder: Sysml2ModelBuilder,
+    private val fragmentId: String,
+) {
+    internal val operands: MutableList<CombinedFragmentOperand> = mutableListOf()
+
+    /** Adds an operand covering rows [start]..[end]; the optional [block] declares fragments nested inside it. */
+    fun operand(
+        guard: String? = null,
+        start: Int,
+        end: Int,
+        block: CombinedFragmentOperandBuilder.() -> Unit = {},
+    ) {
+        val index = operands.size
+        operands += CombinedFragmentOperand(guard = guard, startSeqNo = start, endSeqNo = end)
+        CombinedFragmentOperandBuilder(modelBuilder = modelBuilder, parentId = fragmentId, operandIndex = index).apply(block)
+    }
+}
+
+/** C3 — scope inside one operand: fragments declared here become children of that operand. */
+class CombinedFragmentOperandBuilder internal constructor(
+    private val modelBuilder: Sysml2ModelBuilder,
+    private val parentId: String,
+    private val operandIndex: Int,
+) {
+    /** Nested combined fragment (block form). */
+    fun combinedFragment(
+        name: String,
+        operator: CombinedFragmentOperator,
+        id: String = "combinedFragment:$name",
+        block: CombinedFragmentBuilder.() -> Unit,
+    ): CombinedFragmentUsage =
+        modelBuilder.combinedFragment(
+            name = name,
+            operator = operator,
+            id = id,
+            parentFragmentId = parentId,
+            parentOperandIndex = operandIndex,
+            block = block,
+        )
+}

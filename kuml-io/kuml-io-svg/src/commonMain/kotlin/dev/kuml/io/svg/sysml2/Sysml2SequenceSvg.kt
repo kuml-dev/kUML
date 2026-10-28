@@ -8,10 +8,14 @@ import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.CombinedFragmentUsage
+import dev.kuml.sysml2.DurationConstraintUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
+import dev.kuml.sysml2.InteractionUseUsage
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.MessageUsage
+import dev.kuml.sysml2.Sysml2Limits
+import dev.kuml.sysml2.TimeObservationUsage
 import kotlin.math.abs
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -197,7 +201,7 @@ internal fun renderSysml2SeqMessages(
     visibleLifelineIds: Set<String>,
     nodeLayouts: Map<NodeId, NodeLayout>,
     builder: SvgBuilder,
-    operandStartSeqs: List<Int> = emptyList(),
+    rows: SeqRowOffsets = SeqRowOffsets.NONE,
 ) {
     val visible =
         messages
@@ -209,8 +213,19 @@ internal fun renderSysml2SeqMessages(
     for (msg in visible) {
         val srcLayout = nodeLayouts[NodeId(msg.sourceLifelineId)] ?: continue
         val tgtLayout = nodeLayouts[NodeId(msg.targetLifelineId)] ?: continue
-        val rowOffset = sysml2SeqRowOffset(seqNo = msg.seqNo, operandStartSeqs = operandStartSeqs)
-        renderMessage(msg = msg, srcLayout = srcLayout, tgtLayout = tgtLayout, builder = builder, rowOffset = rowOffset)
+        val rowOffset = rows.offsetAt(msg.seqNo)
+        // C3: a found/lost message needs to know on which side of its lifeline there is room.
+        val leftmostX = nodeLayouts.values.minOf { it.bounds.origin.x }
+        val rightmostX = nodeLayouts.values.maxOf { it.bounds.origin.x + it.bounds.size.width }
+        renderMessage(
+            msg = msg,
+            srcLayout = srcLayout,
+            tgtLayout = tgtLayout,
+            builder = builder,
+            rowOffset = rowOffset,
+            leftmostX = leftmostX,
+            rightmostX = rightmostX,
+        )
     }
 }
 
@@ -248,11 +263,28 @@ internal fun renderMessage(
     tgtLayout: NodeLayout,
     builder: SvgBuilder,
     rowOffset: Float = 0f,
+    leftmostX: Float = Float.NEGATIVE_INFINITY,
+    rightmostX: Float = Float.POSITIVE_INFINITY,
 ) {
     val srcCx = srcLayout.bounds.origin.x + srcLayout.bounds.size.width / 2f
     val tgtCx = tgtLayout.bounds.origin.x + tgtLayout.bounds.size.width / 2f
     val srcHeadBottom = srcLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
     val y = srcHeadBottom + (msg.seqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + rowOffset
+
+    // C3: found / lost messages are branched off BEFORE the self-call test — they carry the same
+    // lifeline as source and target but must not be drawn as a U-shaped self-call.
+    if (msg.kind == MessageKind.Found || msg.kind == MessageKind.Lost) {
+        renderFoundLostMessage(
+            msg = msg,
+            cx = tgtCx,
+            y = y,
+            builder = builder,
+            leftmostX = leftmostX,
+            rightmostX = rightmostX,
+            laneW = tgtLayout.bounds.size.width,
+        )
+        return
+    }
 
     val isSelfCall = msg.sourceLifelineId == msg.targetLifelineId
 
@@ -322,7 +354,66 @@ internal fun renderMessage(
             // keeps the compiler happy when MessageKind grows again.
             MessageKind.Create,
             MessageKind.Destroy,
+            MessageKind.Found,
+            MessageKind.Lost,
             -> Unit
+        }
+    }
+}
+
+/**
+ * C3 — found message (sender outside the diagram: filled circle, arrow to the lifeline) and lost
+ * message (arrow from the lifeline to a filled circle). Fixed length [FOUND_LOST_LENGTH]; the side
+ * is chosen so the circle stays inside the diagram: found messages come from the left unless the
+ * lifeline is the leftmost one, lost messages leave to the right unless it is the rightmost one.
+ */
+private fun renderFoundLostMessage(
+    msg: MessageUsage,
+    cx: Float,
+    y: Float,
+    builder: SvgBuilder,
+    leftmostX: Float,
+    rightmostX: Float,
+    laneW: Float,
+) {
+    val isFound = msg.kind == MessageKind.Found
+    val laneLeft = cx - laneW / 2f
+    val laneRight = cx + laneW / 2f
+    val canGoLeft = laneLeft > leftmostX + 1f || leftmostX == Float.NEGATIVE_INFINITY
+    val canGoRight = laneRight < rightmostX - 1f || rightmostX == Float.POSITIVE_INFINITY
+    val toLeft = if (isFound) canGoLeft || !canGoRight else !canGoRight && canGoLeft
+    val dir = if (toLeft) -1f else 1f
+    val farX = cx + dir * FOUND_LOST_LENGTH
+    val (fromX, toX) = if (isFound) farX to cx else cx to farX
+    val arrowDx = if (toX >= fromX) -8f else 8f
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(msg.id))) {
+        tag(
+            name = "line",
+            attrs = mapOf("x1" to fmt(fromX), "y1" to fmt(y), "x2" to fmt(toX), "y2" to fmt(y), "class" to "kuml-edge"),
+        )
+        drawSeqLabelWithWhiteBackground(
+            label = msg.messageLabel,
+            x = (fromX + toX) / 2f,
+            y = y - 4f,
+            anchor = "middle",
+            builder = this,
+            maxWidth = (FOUND_LOST_LENGTH - 12f).coerceAtLeast(20f),
+        )
+        tag(
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(farX),
+                    "cy" to fmt(y),
+                    "r" to fmt(FOUND_LOST_RADIUS),
+                    "class" to "kuml-edge",
+                    "fill" to "currentColor",
+                ),
+        )
+        if (msg.kind == MessageKind.Found) {
+            renderFilledArrowhead(tipX = toX, y = y, baseDx = arrowDx, builder = this)
+        } else {
+            renderFilledArrowhead(tipX = toX - dir * FOUND_LOST_RADIUS, y = y, baseDx = arrowDx, builder = this)
         }
     }
 }
@@ -521,7 +612,7 @@ private fun renderDestroyMessage(
         // 2. Filled arrowhead.
         renderFilledArrowhead(tipX = tgtCx, y = y, baseDx = arrowDx, builder = this)
 
-        // 3. X marker on the target lifeline — two crossing diagonals,
+        // 3. X marker on the target lifeline — two crossing diagonals (C3: 16x16, was 10x10),
         //    centred on (tgtCx, y + DESTROY_X_OFFSET).
         val xCy = y + DESTROY_X_OFFSET
         val half = DESTROY_X_SIZE / 2f
@@ -548,24 +639,29 @@ private fun renderDestroyMessage(
                 ),
         )
 
-        // 4. Stereotype + label above the arrow.
-        val labelX = (srcCx + tgtCx) / 2f
+        // 4. Stereotype + label above the arrow. C3: both labels are centred on the free stretch between the
+        //    source lifeline and a clearance zone in front of the X, so their boxes never run into the marker
+        //    (before, they were centred on the whole arrow and a short arrow made «destroy» touch the X).
+        val dir = if (srcCx <= tgtCx) -1f else 1f // direction from the target back towards the source
+        val available = abs(tgtCx - srcCx) - DESTROY_LABEL_CLEARANCE
+        val labelX = (srcCx + tgtCx + dir * DESTROY_LABEL_CLEARANCE) / 2f
         tag(
             name = "text",
             attrs =
                 mapOf(
                     "class" to "kuml-stereotype",
                     "x" to fmt(labelX),
-                    "y" to fmt(y - 16f),
+                    "y" to fmt(y - 18f),
                     "text-anchor" to "middle",
                 ),
         ) { text("«destroy»") }
         drawSeqLabelWithWhiteBackground(
             label = msg.messageLabel,
             x = labelX,
-            y = y - 4f,
+            y = y - 6f,
             anchor = "middle",
             builder = this,
+            maxWidth = (available - 4f).coerceAtLeast(40f),
         )
     }
 }
@@ -588,7 +684,7 @@ internal fun renderExecutionSpec(
     execSpec: ExecutionSpecificationUsage,
     lifelineLayout: NodeLayout,
     builder: SvgBuilder,
-    operandStartSeqs: List<Int> = emptyList(),
+    rows: SeqRowOffsets = SeqRowOffsets.NONE,
 ) {
     val cx = lifelineLayout.bounds.origin.x + lifelineLayout.bounds.size.width / 2f
     val headBottom = lifelineLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
@@ -596,10 +692,10 @@ internal fun renderExecutionSpec(
     // bar stays aligned with the message arrows that start/end it.
     val yStart =
         headBottom + (execSpec.startSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-            sysml2SeqRowOffset(seqNo = execSpec.startSeqNo, operandStartSeqs = operandStartSeqs)
+            rows.offsetAt(execSpec.startSeqNo)
     val yEnd =
         headBottom + (execSpec.endSeqNo + 1.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-            sysml2SeqRowOffset(seqNo = execSpec.endSeqNo, operandStartSeqs = operandStartSeqs)
+            rows.offsetAt(execSpec.endSeqNo)
     val w = EXEC_SPEC_WIDTH
     val h = (yEnd - yStart).coerceAtLeast(SEQ_RENDERER_MESSAGE_ROW_HEIGHT / 2f)
 
@@ -648,9 +744,11 @@ internal fun renderCombinedFragment(
     fragment: CombinedFragmentUsage,
     visibleLifelineLayouts: List<NodeLayout>,
     builder: SvgBuilder,
-    operandStartSeqs: List<Int> = emptyList(),
+    rows: SeqRowOffsets = SeqRowOffsets.NONE,
+    tree: SeqFragmentTree = SeqFragmentTree(listOf(fragment)),
 ) {
     if (visibleLifelineLayouts.isEmpty() || fragment.operands.isEmpty()) return
+    val place = tree.places[fragment.id] ?: SeqFragmentPlace(depth = 0, height = 0, rootId = fragment.id)
     val minLifelineX = visibleLifelineLayouts.minOf { it.bounds.origin.x }
     val maxLifelineX = visibleLifelineLayouts.maxOf { it.bounds.origin.x + it.bounds.size.width }
     val anyLayout = visibleLifelineLayouts.first()
@@ -664,22 +762,35 @@ internal fun renderCombinedFragment(
     // `minLifelineX - 4f`), so dass die Text-Hintergründe NICHT mehr unter der
     // Zeit-Achse der ersten Lifeline kreuzen. Der Frame-Left-Pad muss breit
     // genug sein, um den längsten Guard-Text aufzunehmen.
-    val leftPad = sysml2SeqFragmentLeftPad(fragment)
-    val rightPad = FRAGMENT_PADDING_H
-    val frameX = minLifelineX - leftPad
-    val frameW = (maxLifelineX - minLifelineX) + leftPad + rightPad
+    //
+    // C3 — nested fragments: the outermost frame gets the padding of the whole tree; a child is inset
+    // by SYSML2_FRAGMENT_INDENT per level on the left and the right, so it always lies inside its parent.
+    val leftPad = tree.rootLeftPad(fragment.id)
+    val rightPadRoot = FRAGMENT_PADDING_H + SYSML2_FRAGMENT_INDENT * tree.heightOfRoot(fragment.id)
+    val frameX = minLifelineX - leftPad + SYSML2_FRAGMENT_INDENT * place.depth
+    val frameRight = maxLifelineX + rightPadRoot - SYSML2_FRAGMENT_INDENT * place.depth
+    val frameW = frameRight - frameX
     // Rendered Y of a message = headBottom + (seqNo + 1) * ROW + header offset.
     // The first message of this fragment (operand 0) is pushed down by exactly
     // one SYSML2_FRAGMENT_HEADER_BAND, which opens the clear corridor between the
     // pentagon/guard row and that first arrow.
     val firstMsgY =
         headBottom + (minStartSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-            sysml2SeqRowOffset(seqNo = minStartSeqNo, operandStartSeqs = operandStartSeqs)
+            rows.offsetAt(minStartSeqNo)
     val lastMsgY =
         headBottom + (maxEndSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-            sysml2SeqRowOffset(seqNo = maxEndSeqNo, operandStartSeqs = operandStartSeqs)
-    val frameY = firstMsgY - SYSML2_FRAGMENT_HEADER_BAND - 13f
-    val frameBottom = lastMsgY + FRAGMENT_BOTTOM_OUTSET
+            rows.offsetAt(maxEndSeqNo)
+    // C3: the operand header bands that precede the first row belong to this fragment and to every
+    // fragment nested at the same start row; the frame starts above the bands of its own subtree only,
+    // so a child's top edge lies one band below its parent's. A flat fragment counts exactly one band.
+    val bandsAtStart =
+        tree
+            .selfAndDescendants(fragment.id)
+            .flatMap { it.operands }
+            .count { it.startSeqNo == minStartSeqNo }
+            .coerceAtLeast(1)
+    val frameY = firstMsgY - SYSML2_FRAGMENT_HEADER_BAND * bandsAtStart - 13f
+    val frameBottom = lastMsgY + FRAGMENT_BOTTOM_OUTSET + SYSML2_FRAGMENT_BOTTOM_STEP * place.height.coerceAtMost(2)
     val frameH = frameBottom - frameY
 
     builder.tag(
@@ -762,11 +873,17 @@ internal fun renderCombinedFragment(
                 // reused) never collide with it.
                 val opFirstMsgY =
                     headBottom + (operand.startSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-                        sysml2SeqRowOffset(seqNo = operand.startSeqNo, operandStartSeqs = operandStartSeqs)
+                        rows.offsetAt(operand.startSeqNo)
                 val prevBottomY =
                     headBottom + (prevEndSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-                        sysml2SeqRowOffset(seqNo = prevEndSeqNo, operandStartSeqs = operandStartSeqs) + FRAGMENT_BOTTOM_OUTSET
-                val naturalSepY = opFirstMsgY - SYSML2_FRAGMENT_HEADER_BAND - 12f
+                        rows.offsetAt(prevEndSeqNo) + FRAGMENT_BOTTOM_OUTSET
+                val opBands =
+                    tree
+                        .selfAndDescendants(fragment.id)
+                        .flatMap { it.operands }
+                        .count { it.startSeqNo == operand.startSeqNo }
+                        .coerceAtLeast(1)
+                val naturalSepY = opFirstMsgY - SYSML2_FRAGMENT_HEADER_BAND * opBands - 12f
                 val sepY = maxOf(naturalSepY, prevBottomY + 8f)
                 tag(
                     name = "line",
@@ -865,6 +982,8 @@ private fun renderSelfCall(
             // arrowhead so the U-shape still looks coherent.
             MessageKind.Create,
             MessageKind.Destroy,
+            MessageKind.Found,
+            MessageKind.Lost,
             -> renderOpenArrowhead(tipX = cx, y = y + h, baseDx = +8f, builder = this)
         }
 
@@ -975,22 +1094,11 @@ private const val SEQ_RENDERER_MESSAGE_ROW_HEIGHT: Float = SYSML2_SEQ_MESSAGE_RO
  */
 internal const val SYSML2_FRAGMENT_HEADER_BAND: Float = 24f
 
-/**
- * Aufsteigend sortierte `startSeqNo`-Liste aller Operanden über alle
- * Combined-Fragments hinweg. Jeder Eintrag steht für ein oberhalb dieser Zeile
- * eingefügtes [SYSML2_FRAGMENT_HEADER_BAND].
- */
-internal fun sysml2OperandStartSeqs(fragments: List<dev.kuml.sysml2.CombinedFragmentUsage>): List<Int> =
-    fragments
-        .flatMap { frag -> frag.operands }
-        .map { op -> op.startSeqNo }
-        .sorted()
+/** Length of a found/lost message arrow (C3). */
+private const val FOUND_LOST_LENGTH: Float = 80f
 
-/** Kumulativer vertikaler Offset (px) für die gegebene SysML-2-Sequenz-Zeile. */
-internal fun sysml2SeqRowOffset(
-    seqNo: Int,
-    operandStartSeqs: List<Int>,
-): Float = SYSML2_FRAGMENT_HEADER_BAND * operandStartSeqs.count { it <= seqNo }
+/** Radius of the filled end circle of a found/lost message (C3). */
+private const val FOUND_LOST_RADIUS: Float = 5f
 
 /** Self-Call U-Pfeil: Breite des Ausschwungs nach rechts. */
 private const val SELF_CALL_WIDTH: Float = 24f
@@ -1088,6 +1196,142 @@ private const val LABEL_BG_HPAD: Float = 3f
 private const val DESTROY_X_OFFSET: Float = 8f
 
 /** Pixelgröße des X-Markers auf der Destroy-Lifeline (V2.0.15). */
-private const val DESTROY_X_SIZE: Float = 10f
+private const val DESTROY_X_SIZE: Float = 16f
+
+/** Minimum distance between the «destroy»/message label boxes and the target lifeline (half the X + gap, C3). */
+private const val DESTROY_LABEL_CLEARANCE: Float = 12f
 
 private fun fmt(v: Float): String = fmt3(v)
+
+/**
+ * C3 — interaction use (`ref`): a rectangle from the leftmost to the rightmost covered lifeline (+16 px
+ * on both sides), [SYSML2_REF_HEIGHT] high, with a `ref` pentagon tab and the referenced interaction
+ * name centred in a normal-weight face. Drawn opaque so it covers the lifeline axes behind it. The
+ * name is plain text — never a link. Returns without drawing if no covered lifeline is visible.
+ */
+internal fun renderInteractionUse(
+    use: InteractionUseUsage,
+    nodeLayouts: Map<NodeId, NodeLayout>,
+    rows: SeqRowOffsets,
+    builder: SvgBuilder,
+) {
+    val covered = use.lifelineIds.mapNotNull { nodeLayouts[NodeId(it)] }
+    if (covered.isEmpty()) return
+    val left = covered.minOf { it.bounds.origin.x } - 16f
+    val right = covered.maxOf { it.bounds.origin.x + it.bounds.size.width } + 16f
+    val headBottom =
+        covered
+            .first()
+            .bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
+    val cy = headBottom + (use.seqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + rows.offsetAt(use.seqNo)
+    val top = cy - SYSML2_REF_HEIGHT / 2f
+    val tagW = 34f
+    val tagH = 18f
+    val notch = 6f
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(use.id))) {
+        tag(
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmt(left),
+                    "y" to fmt(top),
+                    "width" to fmt(right - left),
+                    "height" to fmt(SYSML2_REF_HEIGHT),
+                    "class" to "kuml-class",
+                    "fill" to "white",
+                ),
+        )
+        tag(
+            name = "polygon",
+            attrs =
+                mapOf(
+                    "points" to
+                        "${fmt(left)},${fmt(top)} ${fmt(left + tagW)},${fmt(top)} ${fmt(left + tagW)},${fmt(top + tagH - notch)} " +
+                        "${fmt(left + tagW - notch)},${fmt(top + tagH)} ${fmt(left)},${fmt(top + tagH)}",
+                    "class" to "kuml-class",
+                    "fill" to "white",
+                ),
+        )
+        tag(
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-stereotype",
+                    "x" to fmt(left + tagW / 2f),
+                    "y" to fmt(top + tagH / 2f + 4f),
+                    "text-anchor" to "middle",
+                ),
+        ) { text("ref") }
+        tag(
+            name = "text",
+            attrs = mapOf("class" to "kuml-body", "x" to fmt((left + right) / 2f), "y" to fmt(cy + 8f), "text-anchor" to "middle"),
+        ) { text(clipSeqText(text = use.refersTo)) }
+    }
+}
+
+/** Width the right side of a lifeline needs for a duration constraint or time observation text (C3). */
+internal fun sysml2SeqSideTextWidth(text: String): Float =
+    clipSeqText(text = text, max = Sysml2Limits.TIME_EXPR).length * BODY_CHAR_WIDTH + 12f
+
+/**
+ * C3 — duration constraint: a vertical bracket with 6 px hooks between rows `fromSeqNo` and `toSeqNo`,
+ * 14 px right of the lifeline's activation bar (or axis), with the `{expression}` text to its right.
+ * The text is clipped to [Sysml2Limits.TIME_EXPR] characters and rendered through the escaping builder.
+ */
+internal fun renderDurationConstraint(
+    constraint: DurationConstraintUsage,
+    lifelineLayout: NodeLayout,
+    hasActivationBar: Boolean,
+    rows: SeqRowOffsets,
+    builder: SvgBuilder,
+) {
+    val cx = lifelineLayout.bounds.origin.x + lifelineLayout.bounds.size.width / 2f
+    val headBottom = lifelineLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
+    val x = cx + (if (hasActivationBar) EXEC_SPEC_WIDTH / 2f else 0f) + 14f
+    val y1 = headBottom + (constraint.fromSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + rows.offsetAt(constraint.fromSeqNo)
+    val y2 = headBottom + (constraint.toSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + rows.offsetAt(constraint.toSeqNo)
+    val top = minOf(y1, y2)
+    val bottom = maxOf(y1, y2)
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(constraint.id))) {
+        tag(name = "line", attrs = mapOf("x1" to fmt(x), "y1" to fmt(top), "x2" to fmt(x), "y2" to fmt(bottom), "class" to "kuml-edge"))
+        for (yy in listOf(top, bottom)) {
+            tag(
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to fmt(x - 6f),
+                        "y1" to fmt(yy),
+                        "x2" to fmt(x + 6f),
+                        "y2" to fmt(yy),
+                        "class" to "kuml-edge",
+                    ),
+            )
+        }
+        tag(
+            name = "text",
+            attrs = mapOf("class" to "kuml-body", "x" to fmt(x + 8f), "y" to fmt((top + bottom) / 2f + 4f), "text-anchor" to "start"),
+        ) { text("{" + clipSeqText(text = constraint.expression, max = Sysml2Limits.TIME_EXPR) + "}") }
+    }
+}
+
+/** C3 — time observation: an 8 px tick on the lifeline axis at the row with the label `name = now`. */
+internal fun renderTimeObservation(
+    observation: TimeObservationUsage,
+    lifelineLayout: NodeLayout,
+    rows: SeqRowOffsets,
+    builder: SvgBuilder,
+) {
+    val cx = lifelineLayout.bounds.origin.x + lifelineLayout.bounds.size.width / 2f
+    val headBottom = lifelineLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
+    val y = headBottom + (observation.seqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + rows.offsetAt(observation.seqNo)
+    builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(observation.id))) {
+        tag(
+            name = "line",
+            attrs = mapOf("x1" to fmt(cx - 4f), "y1" to fmt(y), "x2" to fmt(cx + 4f), "y2" to fmt(y), "class" to "kuml-edge"),
+        )
+        tag(
+            name = "text",
+            attrs = mapOf("class" to "kuml-body", "x" to fmt(cx + 10f), "y" to fmt(y + 4f), "text-anchor" to "start"),
+        ) { text(clipSeqText(text = observation.name, max = Sysml2Limits.TIME_EXPR) + " = now") }
+    }
+}

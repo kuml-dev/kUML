@@ -1177,7 +1177,10 @@ class Sysml2DslTest :
             val kinds = MessageKind.entries.map { it.name }.toSet()
             kinds shouldContain "Create"
             kinds shouldContain "Destroy"
-            kinds shouldHaveSize 5
+            // C3 added Found and Lost.
+            kinds shouldContain "Found"
+            kinds shouldContain "Lost"
+            kinds shouldHaveSize 7
         }
 
         "combinedFragment with multiple operands captures operator + operands" {

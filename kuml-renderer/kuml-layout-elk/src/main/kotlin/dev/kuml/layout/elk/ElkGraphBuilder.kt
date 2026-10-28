@@ -1,14 +1,26 @@
 package dev.kuml.layout.elk
 
 import dev.kuml.layout.GroupId
+import dev.kuml.layout.LayerPin
 import dev.kuml.layout.LayoutEdge
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutGroup
 import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.NodeId
+import dev.kuml.layout.PortId
+import dev.kuml.layout.PortSide
+import org.eclipse.elk.alg.layered.options.LayerConstraint
+import org.eclipse.elk.alg.layered.options.LayeredOptions
+import org.eclipse.elk.core.options.CoreOptions
+import org.eclipse.elk.core.options.NodeLabelPlacement
+import org.eclipse.elk.core.options.PortConstraints
+import org.eclipse.elk.core.options.PortLabelPlacement
 import org.eclipse.elk.graph.ElkEdge
+import org.eclipse.elk.graph.ElkLabel
 import org.eclipse.elk.graph.ElkNode
+import org.eclipse.elk.graph.ElkPort
 import org.eclipse.elk.graph.util.ElkGraphUtil
+import org.eclipse.elk.core.options.PortSide as ElkPortSide
 
 /**
  * Übersetzt einen [LayoutGraph] in einen ELK-Graphen für die Layoutberechnung.
@@ -24,6 +36,18 @@ internal class ElkGraphBuilder(
 
     /** Mapping von kUML-GroupId → ELK-Gruppen-Knoten. */
     val groupMap: MutableMap<GroupId, ElkNode> = mutableMapOf()
+
+    /** Mapping (Knoten, Port) → ELK-Port (C3-1). */
+    val portMap: MutableMap<Pair<NodeId, PortId>, ElkPort> = mutableMapOf()
+
+    /** Mapping (Knoten, Port) → ELK-Port-Label (C3-1). */
+    val portLabelMap: MutableMap<Pair<NodeId, PortId>, ElkLabel> = mutableMapOf()
+
+    /** Mapping NodeId → externes Knotenlabel (C3-1). */
+    val nodeLabelMap: MutableMap<NodeId, ElkLabel> = mutableMapOf()
+
+    /** Mapping EdgeId → (Quell-ELK-Port, Ziel-ELK-Port); Einträge nur für portgebundene Kanten. */
+    val edgePorts: MutableMap<dev.kuml.layout.EdgeId, Pair<ElkPort?, ElkPort?>> = mutableMapOf()
 
     /** Mapping von kUML-EdgeId → ELK-Kante. */
     val edgeIdToElkEdge: MutableMap<dev.kuml.layout.EdgeId, ElkEdge> = mutableMapOf()
@@ -105,8 +129,76 @@ internal class ElkGraphBuilder(
             elkNode.width = node.intrinsicSize.width.toDouble()
             elkNode.height = node.intrinsicSize.height.toDouble()
             nodeMap[node.id] = elkNode
+            applyLayerHints(elkNode = elkNode, node = node)
+            buildPortsAndLabels(elkNode = elkNode, node = node)
         }
     }
+
+    private fun applyLayerHints(
+        elkNode: ElkNode,
+        node: LayoutNode,
+    ) {
+        node.hints.layerIndex?.let { elkNode.setProperty(CoreOptions.PARTITIONING_PARTITION, it) }
+        node.hints.layerPin?.let {
+            elkNode.setProperty(
+                LayeredOptions.LAYERING_LAYER_CONSTRAINT,
+                when (it) {
+                    LayerPin.First -> LayerConstraint.FIRST
+                    LayerPin.Last -> LayerConstraint.LAST
+                },
+            )
+        }
+    }
+
+    /** Legt ELK-Ports und externe Labels eines Knotens an (C3-1). */
+    private fun buildPortsAndLabels(
+        elkNode: ElkNode,
+        node: LayoutNode,
+    ) {
+        val external = node.externalLabelSize
+        if (external != null) {
+            val label = ElkGraphUtil.createLabel(elkNode)
+            label.width = external.width.toDouble()
+            label.height = external.height.toDouble()
+            label.text = node.id.value
+            nodeLabelMap[node.id] = label
+            elkNode.setProperty(CoreOptions.NODE_LABELS_PLACEMENT, NodeLabelPlacement.outsideTopCenter())
+        }
+        if (node.ports.isEmpty()) return
+        elkNode.setProperty(CoreOptions.PORT_CONSTRAINTS, PortConstraints.FIXED_ORDER)
+        elkNode.setProperty(CoreOptions.PORT_LABELS_PLACEMENT, java.util.EnumSet.of(PortLabelPlacement.OUTSIDE))
+        val perSide = node.ports.groupBy { it.side }
+        for (port in node.ports.sortedWith(compareBy({ it.side.ordinal }, { it.order }))) {
+            val elkPort = ElkGraphUtil.createPort(elkNode)
+            elkPort.identifier = port.id.value
+            elkPort.width = port.size.width.toDouble()
+            elkPort.height = port.size.height.toDouble()
+            elkPort.setProperty(CoreOptions.PORT_SIDE, port.side.toElk())
+            // ELK nummeriert Ports im Uhrzeigersinn (West/Süd: von unten nach oben bzw. rechts nach links).
+            // [LayoutPort.order] ist dagegen in Leserichtung (oben→unten bzw. links→rechts) definiert.
+            val siblings = perSide.getValue(port.side)
+            val rank = siblings.count { it.order < port.order }
+            val index = if (port.side == PortSide.West || port.side == PortSide.South) siblings.size - 1 - rank else rank
+            elkPort.setProperty(CoreOptions.PORT_INDEX, index)
+            elkPort.setProperty(CoreOptions.PORT_BORDER_OFFSET, -(port.size.width.toDouble() / 2.0))
+            port.labelSize?.let {
+                val label = ElkGraphUtil.createLabel(elkPort)
+                label.width = it.width.toDouble()
+                label.height = it.height.toDouble()
+                label.text = port.id.value
+                portLabelMap[node.id to port.id] = label
+            }
+            portMap[node.id to port.id] = elkPort
+        }
+    }
+
+    private fun PortSide.toElk(): ElkPortSide =
+        when (this) {
+            PortSide.North -> ElkPortSide.NORTH
+            PortSide.East -> ElkPortSide.EAST
+            PortSide.South -> ElkPortSide.SOUTH
+            PortSide.West -> ElkPortSide.WEST
+        }
 
     private fun buildEdges(root: ElkNode) {
         for (edge in graph.edges) {
@@ -121,8 +213,19 @@ internal class ElkGraphBuilder(
             // Gruppe trotz korrekt aufgebauter `diagram.relationships`).
             val sourceNode = resolveEndpoint(edge.source.nodeId) ?: continue
             val targetNode = resolveEndpoint(edge.target.nodeId) ?: continue
-            val elkEdge = ElkGraphUtil.createSimpleEdge(sourceNode, targetNode)
+            val sourcePort = edge.source.portId?.let { portMap[edge.source.nodeId to it] }
+            val targetPort = edge.target.portId?.let { portMap[edge.target.nodeId to it] }
+            val elkEdge =
+                if (sourcePort != null || targetPort != null) {
+                    ElkGraphUtil.createEdge(null).also {
+                        it.sources.add(sourcePort ?: sourceNode)
+                        it.targets.add(targetPort ?: targetNode)
+                    }
+                } else {
+                    ElkGraphUtil.createSimpleEdge(sourceNode, targetNode)
+                }
             elkEdge.identifier = edge.id.value
+            if (sourcePort != null || targetPort != null) edgePorts[edge.id] = sourcePort to targetPort
             // updateContainment ensures the edge is in the correct containing node
             ElkGraphUtil.updateContainment(elkEdge)
             edgeIdToElkEdge[edge.id] = elkEdge

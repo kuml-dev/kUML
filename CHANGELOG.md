@@ -8,6 +8,9 @@ All notable changes to this project are documented here. Format follows
 
 ### Fixed
 
+- SysML-2-SEQ (L9): lifelines are laid out in declaration order regardless of their widths (`preserveNodeOrder` hint plus a post-layout normalisation); `«destroy»` label no longer touches the X marker (marker 16x16).
+- SysML 2: Desktop, Asciidoc, Gradle, Web and `kuml-ai` renders now use the same ELK spacings as the CLI for REQ/STM/ACT (central `Sysml2LayoutBridge.layoutHintsFor`); images from those paths for REQ, STM and ACT change accordingly.
+
 - SysML-2-STM: Kantenbeschriftungen werden nach allen Kanten auf einem deckenden Hintergrund gezeichnet und kollisionsfrei neben einem nur der eigenen Kante gehörenden Segment platziert.
 - SysML-2-REQ/UC/ACT (Welle C2b): Kantenbeschriftungen sitzen mittig auf der eigenen Linie (deckender Hintergrund, nach allen Kanten, ohne Überlappung); Rahmen-Beschriftungen (Requirement-Reiter, UC-Titel, Swimlane-Namen) weichen Kanten aus; Pin-Kanten verlaufen achsenparallel mit senkrechtem Eintritt in den Pin; Pin-Beschriftungen kollidieren nicht mehr mit Linie und Pfeilspitze; Rechteck-Endpunkte werden nicht mehr radial verkippt; Fork/Join-Balken wachsen mit der Kantenzahl und verteilen die Anschlüsse; Swimlanes sind echte Compound-Gruppen und überlappen sich nicht mehr.
 
@@ -23,6 +26,12 @@ All notable changes to this project are documented here. Format follows
 - Expression parser: the word operators `and` / `or` / `not` are recognised in lowercase only and never directly after a `.` (so `LogicKind.OR`, `Mode.AND`, `flags.not` are identifiers again). Uppercase `AND` / `OR` / `NOT` are no longer operators; use backticks for identifiers named like operators.
 
 ### Added
+
+**Layout API**: ports (`LayoutPort`, edges end at the port centre, port/node labels reserved OUTSIDE), `NodeHints.layerIndex` / `layerPin`, `NodeLayout.labels`, capabilities `supportsPorts` / `supportsLayerHints` (ELK engine). ELK's `layerChoiceConstraint` is not evaluated by ELK Layered 0.12.0, so `layerIndex` maps to partitioning (flat graphs only).
+
+**SysML 2 layout hints (wave C3)**: `layout { direction; wrapColumns; sameLayer; first; last }` on every diagram, checks `LAYOUT431`-`LAYOUT436`.
+
+**SysML 2 sequence diagrams (wave C3)**: nested combined fragments, interaction use (`ref`), duration constraints, time observations, found/lost messages; checks `SEQ401`-`SEQ411`.
 
 **SysML 2 activity diagrams: signals, regions, exceptions, pins (wave C2)**
 New activity node kinds `SendSignal` (pentagon), `AcceptEvent` (notched rectangle), `AcceptTimeEvent` (hourglass with

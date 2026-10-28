@@ -30,8 +30,10 @@ import dev.kuml.sysml2.CombinedFragmentUsage
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.DurationConstraintUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.InteractionUseUsage
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
@@ -47,6 +49,7 @@ import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.TestCaseDefinition
+import dev.kuml.sysml2.TimeObservationUsage
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
@@ -489,6 +492,9 @@ public object Sysml2LayoutBridge {
      * bleiben.
      */
     public const val SEQ_FRAGMENT_HEADER_BAND: Float = 24f
+
+    /** C3: a `ref` (interaction use) frame is 48 px high, i.e. this much more than one message row. */
+    public const val SEQ_REF_EXTRA_HEIGHT: Float = 16f
 
     /**
      * Content-aware [SizeProvider] for BDD nodes. Computes node height from
@@ -1896,10 +1902,32 @@ public object Sysml2LayoutBridge {
             model.usages
                 .filterIsInstance<CombinedFragmentUsage>()
                 .sumOf { it.operands.size }
+        // C3: a `ref` frame is 48 px high (instead of the 32 px row) and pushes the following rows down.
+        val interactionUseCount: Int =
+            model.usages
+                .filterIsInstance<InteractionUseUsage>()
+                .count { use -> use.lifelineIds.any { it in visibleLifelineIds } }
+        val maxExtraSeqNo: Int =
+            maxOf(
+                model.usages
+                    .filterIsInstance<InteractionUseUsage>()
+                    .filter { use -> use.lifelineIds.any { it in visibleLifelineIds } }
+                    .maxOfOrNull { it.seqNo } ?: -1,
+                model.usages
+                    .filterIsInstance<DurationConstraintUsage>()
+                    .filter { it.lifelineId in visibleLifelineIds }
+                    .maxOfOrNull { maxOf(it.fromSeqNo, it.toSeqNo) } ?: -1,
+                model.usages
+                    .filterIsInstance<TimeObservationUsage>()
+                    .filter { it.lifelineId in visibleLifelineIds }
+                    .maxOfOrNull { it.seqNo } ?: -1,
+            )
+        val rowCountWithExtras: Int = maxOf(rowCount, maxExtraSeqNo + 1)
         val lifelineHeight: Float =
             SEQ_LIFELINE_HEAD_HEIGHT +
-                (rowCount + 1) * SEQ_MESSAGE_ROW_HEIGHT +
+                (rowCountWithExtras + 1) * SEQ_MESSAGE_ROW_HEIGHT +
                 operandBandCount * SEQ_FRAGMENT_HEADER_BAND +
+                interactionUseCount * SEQ_REF_EXTRA_HEIGHT +
                 SEQ_LIFELINE_TAIL_PADDING
 
         // 4. LayoutNodes für die sichtbaren Lifelines — Breite vom SizeProvider,

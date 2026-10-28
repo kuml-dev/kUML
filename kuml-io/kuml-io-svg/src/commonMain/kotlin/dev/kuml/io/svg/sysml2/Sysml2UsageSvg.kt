@@ -19,11 +19,13 @@ import dev.kuml.sysml2.CombinedFragmentUsage
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ConstraintUsage
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.DurationConstraintUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.ExtendUsage
 import dev.kuml.sysml2.FlowPropertyUsage
 import dev.kuml.sysml2.FlowUsage
 import dev.kuml.sysml2.IncludeUsage
+import dev.kuml.sysml2.InteractionUseUsage
 import dev.kuml.sysml2.LifelineUsage
 import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
@@ -33,6 +35,7 @@ import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.RequirementUsage
 import dev.kuml.sysml2.StateUsage
 import dev.kuml.sysml2.Sysml2Usage
+import dev.kuml.sysml2.TimeObservationUsage
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UseCaseUsage
 import dev.kuml.sysml2.projection.Sysml2PathResolver
@@ -143,6 +146,13 @@ internal fun renderSysml2Usage(
             renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "combined fragment")
         is ExecutionSpecificationUsage ->
             renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "execution spec")
+        // C3: ref frames, duration constraints and time observations are renderer-direct as well.
+        is InteractionUseUsage ->
+            renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "interaction use")
+        is DurationConstraintUsage ->
+            renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "duration constraint")
+        is TimeObservationUsage ->
+            renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "time observation")
         // V2.0.16: ACT-Diagramm — ActivityPartition-Usage. Die Bridge zeigt
         // im V2.0.16-MVP keine ActivityPartitionUsages auf der Node-Ebene
         // (ACT-Diagramme rendern ActivityPartitionDefinitions als Gruppen-

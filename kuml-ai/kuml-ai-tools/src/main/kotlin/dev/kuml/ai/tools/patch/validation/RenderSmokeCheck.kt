@@ -19,6 +19,7 @@ import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.sysml2.BdDiagram
 
@@ -60,7 +61,11 @@ internal object RenderSmokeCheck {
                         sysmlModel.diagrams.filterIsInstance<BdDiagram>().firstOrNull()
                             ?: BdDiagram(name = sysmlModel.name, elementIds = sysmlModel.definitions.map { it.id })
                     val graph = Sysml2LayoutBridge.toLayoutGraph(model = sysmlModel, diagram = diagram)
-                    val layoutResult = engine.layout(graph = graph)
+                    val layoutResult =
+                        engine.layout(
+                            graph = graph,
+                            hints = Sysml2LayoutBridge.layoutHintsFor(model = sysmlModel, diagram = diagram),
+                        )
                     KumlSvgRenderer.toSvg(model = sysmlModel, diagram = diagram, layoutResult = layoutResult)
                 }
             }

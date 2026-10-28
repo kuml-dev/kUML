@@ -14,6 +14,8 @@ import kotlinx.serialization.Serializable
  * @property respectsGridHints Wenn true: Engine berücksichtigt [NodeHints.gridCol]/[NodeHints.gridRow].
  * @property respectsRelativeConstraints Wenn true: Engine berücksichtigt [RelativeConstraint]-Listen.
  * @property maxRecommendedNodes Empfohlene Maximalgröße des Graphen; bei Überschreitung kann Qualität sinken.
+ * @property supportsPorts Wenn true: Engine verankert Kanten an [LayoutPort]s und liefert Port-Mittelpunkte/Labels.
+ * @property supportsLayerHints Wenn true: Engine berücksichtigt [NodeHints.layerIndex]/[NodeHints.layerPin].
  */
 @Serializable
 public data class LayoutCapabilities(
@@ -23,6 +25,8 @@ public data class LayoutCapabilities(
     val respectsGridHints: Boolean,
     val respectsRelativeConstraints: Boolean,
     val maxRecommendedNodes: Int,
+    val supportsPorts: Boolean = false,
+    val supportsLayerHints: Boolean = false,
 )
 
 /**

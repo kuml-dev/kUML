@@ -31,12 +31,17 @@ public data class LayoutResult(
  * Berechnete Position und optionale Port-Koordinaten eines einzelnen Knotens.
  *
  * [bounds] enthält die absolute Position und die tatsächliche Größe nach dem Layout.
- * [ports] enthält absolute Koordinaten der Ports, falls der Knoten Ports besitzt.
+ * [ports] enthält absolute Port-Mittelpunkte, falls der Knoten Ports besitzt.
  */
 @Serializable
 public data class NodeLayout(
     val bounds: Rect,
     val ports: Map<PortId, Point> = emptyMap(),
+    /**
+     * Von der Engine platzierte Labels. Schlüssel `"node"` (externes Knotenlabel) bzw.
+     * `"port:<portId>"`. Leer, wenn der Knoten keine Label-Reservierung angefordert hat.
+     */
+    val labels: Map<String, Rect> = emptyMap(),
 )
 
 /**

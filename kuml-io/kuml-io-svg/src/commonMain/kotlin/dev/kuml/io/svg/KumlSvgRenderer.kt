@@ -58,7 +58,6 @@ import dev.kuml.io.svg.erm.renderErmMartinRelationship
 import dev.kuml.io.svg.erm.renderErmView
 import dev.kuml.io.svg.erm.renderIdef1xCategoryCircle
 import dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
-import dev.kuml.io.svg.sysml2.sysml2SeqFragmentLeftPad
 import dev.kuml.io.svg.uml.UmlEndpointSide
 import dev.kuml.io.svg.uml.renderUmlAssociationClassTether
 import dev.kuml.io.svg.uml.toLabel
@@ -76,6 +75,7 @@ import dev.kuml.layout.borderIntersectionTowards
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
+import dev.kuml.layout.bridge.normalizeSeqLayout
 import dev.kuml.layout.bridge.placeSeqNotes
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
@@ -3016,7 +3016,12 @@ public object KumlSvgRenderer {
         renderSysml2Seq(
             model = model,
             diagram = diagram,
-            layoutResult = Sysml2LayoutBridge.placeSeqNotes(model = model, diagram = diagram, layoutResult = layoutResult),
+            layoutResult =
+                Sysml2LayoutBridge.placeSeqNotes(
+                    model = model,
+                    diagram = diagram,
+                    layoutResult = Sysml2LayoutBridge.normalizeSeqLayout(model = model, diagram = diagram, layoutResult = layoutResult),
+                ),
             theme = theme,
             options = options,
         )
@@ -3066,9 +3071,25 @@ public object KumlSvgRenderer {
         // Offset wird an ALLE seqNo→Y-Konsumenten durchgereicht (Messages,
         // Execution Specs, Fragment-Frames UND den Create-Kopf-Offset), damit
         // Pfeile, Aktivierungs-Bars und Rahmen synchron bleiben.
-        val operandStartSeqs =
+        // C3: ref frames, duration constraints and time observations on visible lifelines.
+        val interactionUses =
+            model.usages
+                .filterIsInstance<dev.kuml.sysml2.InteractionUseUsage>()
+                .filter { u -> u.lifelineIds.any { it in visibleIds } }
+        val durationConstraints =
+            model.usages
+                .filterIsInstance<dev.kuml.sysml2.DurationConstraintUsage>()
+                .filter { it.lifelineId in visibleIds }
+        val timeObservations =
+            model.usages
+                .filterIsInstance<dev.kuml.sysml2.TimeObservationUsage>()
+                .filter { it.lifelineId in visibleIds }
+        val fragmentTree =
             dev.kuml.io.svg.sysml2
-                .sysml2OperandStartSeqs(fragments)
+                .SeqFragmentTree(fragments)
+        val rows =
+            dev.kuml.io.svg.sysml2.SeqRowOffsets
+                .of(fragments = fragments, refs = interactionUses)
         val createOffsetById: Map<String, Float> =
             messages
                 .asSequence()
@@ -3077,8 +3098,7 @@ public object KumlSvgRenderer {
                     it.targetLifelineId to
                         (it.seqNo + 1) *
                         dev.kuml.io.svg.sysml2.SYSML2_SEQ_MESSAGE_ROW_HEIGHT +
-                        dev.kuml.io.svg.sysml2
-                            .sysml2SeqRowOffset(seqNo = it.seqNo, operandStartSeqs = operandStartSeqs)
+                        rows.offsetAt(it.seqNo)
                 }
 
         // V3.0.x: Wenn Fragments existieren, ragt der Frame FRAGMENT_PADDING
@@ -3093,7 +3113,7 @@ public object KumlSvgRenderer {
                 // sich nach dem längsten Guard-Text. Canvas-Padding muss
                 // mindestens so groß sein, damit Frames + rechtsbündige Guards
                 // nicht links ge-clippt werden.
-                val maxFragmentLeftPad = fragments.maxOf { sysml2SeqFragmentLeftPad(it) }
+                val maxFragmentLeftPad = fragments.maxOf { fragmentTree.rootLeftPad(it.id) }
                 options.copy(
                     paddingPx = maxOf(options.paddingPx, maxFragmentLeftPad + 4f),
                 )
@@ -3142,12 +3162,15 @@ public object KumlSvgRenderer {
             //    minLifelineX - FRAGMENT_PADDING).
             val visibleLifelineLayouts: List<dev.kuml.layout.NodeLayout> =
                 visibleLifelines.mapNotNull { shiftedLayouts[NodeId(it.id)] }
-            for (fragment in fragments) {
+            // C3: outer frames first — the frame rect's CSS class paints a white fill, so a child drawn
+            // before its parent would be painted over.
+            for (fragment in fragments.sortedBy { fragmentTree.places[it.id]?.depth ?: 0 }) {
                 dev.kuml.io.svg.sysml2.renderCombinedFragment(
                     fragment = fragment,
                     visibleLifelineLayouts = visibleLifelineLayouts,
                     builder = nodesBuilder,
-                    operandStartSeqs = operandStartSeqs,
+                    rows = rows,
+                    tree = fragmentTree,
                 )
             }
 
@@ -3185,8 +3208,44 @@ public object KumlSvgRenderer {
                         execSpec = es,
                         lifelineLayout = lifelineLayout,
                         builder = edgesBuilder,
-                        operandStartSeqs = operandStartSeqs,
+                        rows = rows,
                     )
+            }
+
+            // 4b. C3: ref frames (opaque, drawn above the lifeline axes), duration constraints and
+            //     time observations — renderer-direct like messages and execution bars.
+            for (use in interactionUses) {
+                dev.kuml.io.svg.sysml2.renderInteractionUse(
+                    use = use,
+                    nodeLayouts = shiftedLayouts,
+                    rows = rows,
+                    builder = edgesBuilder,
+                )
+            }
+            for (dc in durationConstraints) {
+                val lifelineLayout = shiftedLayouts[NodeId(dc.lifelineId)] ?: continue
+                val hasBar =
+                    execSpecs.any {
+                        it.lifelineId == dc.lifelineId &&
+                            it.startSeqNo <= minOf(dc.fromSeqNo, dc.toSeqNo) &&
+                            it.endSeqNo >= maxOf(dc.fromSeqNo, dc.toSeqNo)
+                    }
+                dev.kuml.io.svg.sysml2.renderDurationConstraint(
+                    constraint = dc,
+                    lifelineLayout = lifelineLayout,
+                    hasActivationBar = hasBar,
+                    rows = rows,
+                    builder = edgesBuilder,
+                )
+            }
+            for (to in timeObservations) {
+                val lifelineLayout = shiftedLayouts[NodeId(to.lifelineId)] ?: continue
+                dev.kuml.io.svg.sysml2.renderTimeObservation(
+                    observation = to,
+                    lifelineLayout = lifelineLayout,
+                    rows = rows,
+                    builder = edgesBuilder,
+                )
             }
 
             // 5. Direkt-Render der Nachrichten — siehe Architektur-Divergenz
@@ -3199,7 +3258,7 @@ public object KumlSvgRenderer {
                 visibleLifelineIds = visibleIds,
                 nodeLayouts = shiftedLayouts,
                 builder = edgesBuilder,
-                operandStartSeqs = operandStartSeqs,
+                rows = rows,
             )
 
             // 6. Notes + anchor links, placed by Sysml2LayoutBridge.placeSeqNotes.

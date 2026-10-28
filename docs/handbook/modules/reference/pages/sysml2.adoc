@@ -847,6 +847,59 @@ sysml2Model(name = "LoginFlow") {
 }
 ----
 
+=== Nested fragments, `ref`, time constraints, found and lost messages
+
+Combined fragments can be nested with the block form; every nested fragment is registered with
+its parent operand. Fragments nested deeper than 8 levels (or with unknown or cyclic parents) are
+rendered flat, never rejected by the renderer; `kuml validate` reports them.
+
+[source,kotlin]
+----
+combinedFragment("retry", CombinedFragmentOperator.Loop) {
+    operand(guard = "attempts < 3", start = 1, end = 5) {
+        combinedFragment("cache", CombinedFragmentOperator.Alt) {
+            operand(guard = "hit", start = 1, end = 2)
+            operand(guard = "miss", start = 3, end = 4)
+        }
+    }
+}
+interactionUse(name = "auth", refersTo = "Authenticate", lifelines = listOf(user, browser), seqNo = 8)
+durationConstraint(lifeline = user, from = 0, to = 2, expression = "0..3s")
+timeObservation(lifeline = browser, seqNo = 0, name = "t0")
+foundMessage(label = "ping", target = browser, seqNo = 9)
+lostMessage(label = "drop", source = browser, seqNo = 10)
+----
+
+* A nested frame is inset by 10 px per level on both sides and starts one header band below its parent.
+* `interactionUse` (`ref`) draws a 48 px high frame from the leftmost to the rightmost covered lifeline
+  (+16 px); the referenced name is plain text, never a link. Following rows move down by 16 px.
+* `durationConstraint` draws a bracket 14 px right of the lifeline axis (of the activation bar if present);
+  `timeObservation` draws a tick labelled `name = now`. Lifeline spacing grows so the texts do not run
+  into the neighbouring lifeline.
+* Found and lost messages are 80 px long with a filled 5 px circle; the lifeline order of a diagram is
+  always the declaration order.
+* The `«destroy»` label keeps clear of the 16 px X marker.
+
+Not supported in this version: interaction gates, nested fragments and the new constructs in the LaTeX
+output (the LaTeX SEQ renderer keeps its rectangle fallback and draws no fragments at all).
+
+==== Structural checks (`kuml validate`, SEQ)
+
+[cols="1,1,4"]
+|===
+| Code | Severity | Rule
+
+| `SEQ401` | Error | nested fragment's rows are outside the parent operand (or the operand index is missing)
+| `SEQ402` | Error | unknown parent, self reference or cycle
+| `SEQ403` | Error | nesting deeper than 8
+| `SEQ404` | Error | more than 256 fragments
+| `SEQ405` | Error | more than 16 operands in one fragment
+| `SEQ406` | Error | `ref`, duration constraint or time observation on an invisible lifeline
+| `SEQ407` | Warning | `ref` shares its row with a message
+| `SEQ410` | Warning | text longer than 200 (time expressions: 64) characters
+| `SEQ411` | Error | found/lost message with different source and target lifeline
+|===
+
 == Parametric Diagrams (PAR)
 
 Parametric diagrams connect constraint properties to value properties, expressing

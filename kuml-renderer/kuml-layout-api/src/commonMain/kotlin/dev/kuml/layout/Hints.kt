@@ -61,6 +61,8 @@ public data class LayoutHints(
  * @property gridRowSpan Anzahl der belegten Zeilen (mindestens 1).
  * @property pinned Wenn true: Knoten soll nicht verschoben werden.
  * @property relative Liste relativer Positionierungsconstraints gegenüber anderen Knoten.
+ * @property layerIndex Explizite Ebene (0-basiert) im Container; nur Engines mit [LayoutCapabilities.supportsLayerHints].
+ * @property layerPin Knoten auf erste/letzte Ebene festnageln; nur Engines mit [LayoutCapabilities.supportsLayerHints].
  */
 @Serializable
 public data class NodeHints(
@@ -70,12 +72,20 @@ public data class NodeHints(
     val gridRowSpan: Int = 1,
     val pinned: Boolean = false,
     val relative: List<RelativeConstraint> = emptyList(),
+    /** Explizite Ebene (Layer) des Knotens innerhalb seines Containers (ELK: layerChoiceConstraint). */
+    val layerIndex: Int? = null,
+    /** Knoten auf die erste bzw. letzte Ebene festnageln (ELK: layerConstraint). */
+    val layerPin: LayerPin? = null,
 ) {
     public companion object {
         /** NodeHints ohne jegliche Einschränkungen — vollständig automatisches Layout. */
         public val NONE: NodeHints = NodeHints()
     }
 }
+
+/** Festnageln eines Knotens auf die erste oder letzte Ebene des Layouts. */
+@Serializable
+public enum class LayerPin { First, Last }
 
 /**
  * Layout-Hints für eine einzelne Kante.

@@ -22,6 +22,7 @@ import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
+import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
@@ -199,7 +200,7 @@ internal object GradlePipeline {
                         val layout =
                             layoutEngine.layout(
                                 graph = Sysml2LayoutBridge.toLayoutGraph(model = extracted.model, diagram = diagram),
-                                hints = LayoutHints.DEFAULT,
+                                hints = Sysml2LayoutBridge.layoutHintsFor(model = extracted.model, diagram = diagram),
                             )
                         KumlSvgRenderer.toSvg(
                             model = extracted.model,
@@ -213,7 +214,7 @@ internal object GradlePipeline {
                         val layout =
                             layoutEngine.layout(
                                 graph = Sysml2LayoutBridge.toLayoutGraph(model = extracted.model, diagram = diagram),
-                                hints = LayoutHints.DEFAULT,
+                                hints = Sysml2LayoutBridge.layoutHintsFor(model = extracted.model, diagram = diagram),
                             )
                         KumlSvgRenderer.toSvg(
                             model = extracted.model,
@@ -227,7 +228,7 @@ internal object GradlePipeline {
                         val layout =
                             layoutEngine.layout(
                                 graph = Sysml2LayoutBridge.toLayoutGraph(model = extracted.model, diagram = diagram),
-                                hints = LayoutHints.DEFAULT,
+                                hints = Sysml2LayoutBridge.layoutHintsFor(model = extracted.model, diagram = diagram),
                             )
                         KumlSvgRenderer.toSvg(
                             model = extracted.model,
@@ -241,7 +242,7 @@ internal object GradlePipeline {
                         val layout =
                             layoutEngine.layout(
                                 graph = Sysml2LayoutBridge.toLayoutGraph(model = extracted.model, diagram = diagram),
-                                hints = LayoutHints.DEFAULT,
+                                hints = Sysml2LayoutBridge.layoutHintsFor(model = extracted.model, diagram = diagram),
                             )
                         KumlSvgRenderer.toSvg(
                             model = extracted.model,
@@ -255,7 +256,7 @@ internal object GradlePipeline {
                         val layout =
                             layoutEngine.layout(
                                 graph = Sysml2LayoutBridge.toLayoutGraph(model = extracted.model, diagram = diagram),
-                                hints = LayoutHints.DEFAULT,
+                                hints = Sysml2LayoutBridge.layoutHintsFor(model = extracted.model, diagram = diagram),
                             )
                         KumlSvgRenderer.toSvg(
                             model = extracted.model,
@@ -269,7 +270,7 @@ internal object GradlePipeline {
                         val layout =
                             layoutEngine.layout(
                                 graph = Sysml2LayoutBridge.toLayoutGraph(model = extracted.model, diagram = diagram),
-                                hints = LayoutHints.DEFAULT,
+                                hints = Sysml2LayoutBridge.layoutHintsFor(model = extracted.model, diagram = diagram),
                             )
                         KumlSvgRenderer.toSvg(
                             model = extracted.model,
@@ -283,7 +284,7 @@ internal object GradlePipeline {
                         val layout =
                             layoutEngine.layout(
                                 graph = Sysml2LayoutBridge.toLayoutGraph(model = extracted.model, diagram = diagram),
-                                hints = LayoutHints.DEFAULT,
+                                hints = Sysml2LayoutBridge.layoutHintsFor(model = extracted.model, diagram = diagram),
                             )
                         KumlSvgRenderer.toSvg(
                             model = extracted.model,
@@ -297,7 +298,7 @@ internal object GradlePipeline {
                         val layout =
                             layoutEngine.layout(
                                 graph = Sysml2LayoutBridge.toLayoutGraph(model = extracted.model, diagram = diagram),
-                                hints = LayoutHints.DEFAULT,
+                                hints = Sysml2LayoutBridge.layoutHintsFor(model = extracted.model, diagram = diagram),
                             )
                         KumlSvgRenderer.toSvg(
                             model = extracted.model,

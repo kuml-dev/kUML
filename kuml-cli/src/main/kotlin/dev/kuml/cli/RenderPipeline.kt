@@ -63,6 +63,7 @@ import dev.kuml.layout.bridge.erm.ErmChenSizeProvider
 import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
+import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.render.smil.SpeedFactor
@@ -684,7 +685,11 @@ internal object RenderPipeline {
         when (val diagram = extracted.diagram) {
             is BdDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult: LayoutResult = sysml2Engine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
+                val layoutResult: LayoutResult =
+                    sysml2Engine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
                 when (format) {
                     "svg" ->
                         writeText(
@@ -724,7 +729,11 @@ internal object RenderPipeline {
             }
             is IbdDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult: LayoutResult = sysml2Engine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
+                val layoutResult: LayoutResult =
+                    sysml2Engine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
                 when (format) {
                     "svg" ->
                         writeText(
@@ -764,7 +773,11 @@ internal object RenderPipeline {
             }
             is UcDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult: LayoutResult = sysml2Engine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
+                val layoutResult: LayoutResult =
+                    sysml2Engine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
                 when (format) {
                     "svg" ->
                         writeText(
@@ -815,16 +828,11 @@ internal object RenderPipeline {
                 //    inter-layer arrows; the wider gap clears them of node borders.
                 //  - `edgeToEdge = 20f` — multiple parallel satisfy-edges fan out
                 //    from Vehicle; a bit more room reduces ribbon bundling.
-                val reqHints =
-                    LayoutHints.DEFAULT.copy(
-                        spacing =
-                            LayoutHints.DEFAULT.spacing.copy(
-                                nodeToNode = 80f,
-                                edgeToEdge = 20f,
-                                layerToLayer = 100f,
-                            ),
+                val layoutResult: LayoutResult =
+                    sysml2Engine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
                     )
-                val layoutResult: LayoutResult = sysml2Engine.layout(graph = layoutGraph, hints = reqHints)
                 when (format) {
                     "svg" ->
                         writeText(
@@ -869,11 +877,11 @@ internal object RenderPipeline {
                 // other state on `powerOff`). Default spacing of 40px node-to-node
                 // and 12px edge-to-edge causes label overlap. Increase both so the
                 // routing pass has room to place labels without crowding.
-                val stmHints =
-                    LayoutHints.DEFAULT.copy(
-                        spacing = Spacing(nodeToNode = 80f, edgeToEdge = 28f, groupPadding = 24f),
+                val layoutResult: LayoutResult =
+                    sysml2Engine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
                     )
-                val layoutResult: LayoutResult = sysml2Engine.layout(graph = layoutGraph, hints = stmHints)
                 val stmOptions = SvgRenderOptions(paddingPx = 64f, watermark = watermark)
                 when (format) {
                     "svg", "apng", "webp", "mp4" -> {
@@ -955,15 +963,11 @@ internal object RenderPipeline {
                 //    midpoint of inter-layer arrows; the wider gap pushes them
                 //    out of the partition header band (24 px) underneath the
                 //    upstream partition's bottom edge.
-                val actHints =
-                    LayoutHints.DEFAULT.copy(
-                        spacing =
-                            LayoutHints.DEFAULT.spacing.copy(
-                                nodeToNode = 100f,
-                                layerToLayer = 100f,
-                            ),
+                val layoutResult: LayoutResult =
+                    sysml2Engine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
                     )
-                val layoutResult: LayoutResult = sysml2Engine.layout(graph = layoutGraph, hints = actHints)
                 val actOptions = SvgRenderOptions(paddingPx = 64f, watermark = watermark)
                 when (format) {
                     "svg", "apng", "webp", "mp4" -> {
@@ -1057,7 +1061,11 @@ internal object RenderPipeline {
             }
             is SeqDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult: LayoutResult = sysml2Engine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
+                val layoutResult: LayoutResult =
+                    sysml2Engine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
                 when (format) {
                     "svg" ->
                         writeText(
@@ -1102,7 +1110,11 @@ internal object RenderPipeline {
                         diagram = diagram,
                         sizeProvider = Sysml2LayoutBridge.parContentAwareSizeProvider(model),
                     )
-                val layoutResult: LayoutResult = sysml2Engine.layout(graph = layoutGraph, hints = LayoutHints.DEFAULT)
+                val layoutResult: LayoutResult =
+                    sysml2Engine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
                 when (format) {
                     "svg" ->
                         writeText(

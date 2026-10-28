@@ -329,8 +329,12 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         // 7b'''. REQ / UC structure validation (wave C1: copy/subject/group/generalisation rules and limits).
         val reqUcViolations: List<StructuralViolation> =
             (extracted as? ExtractedDiagram.Sysml2)
-                ?.takeIf { it.diagram is ReqDiagram || it.diagram is UcDiagram || it.diagram is dev.kuml.sysml2.ActDiagram }
-                ?.let { ex ->
+                ?.takeIf {
+                    it.diagram is ReqDiagram ||
+                        it.diagram is UcDiagram ||
+                        it.diagram is dev.kuml.sysml2.ActDiagram ||
+                        it.diagram is dev.kuml.sysml2.SeqDiagram
+                }?.let { ex ->
                     Sysml2ReqUcChecker.check(model = ex.model, diagram = ex.diagram).map { i ->
                         StructuralViolation(
                             id = "REQUC${i.code}",
@@ -349,11 +353,35 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                                 location = i.elementId,
                                 category = "act",
                             )
+                        } +
+                        // Wave C3: sequence diagram checks (codes 401-412).
+                        dev.kuml.sysml2.constraint.Sysml2SeqChecker.check(model = ex.model, diagram = ex.diagram).map { i ->
+                            StructuralViolation(
+                                id = "SEQ${i.code}",
+                                severity = if (i.severity == dev.kuml.sysml2.constraint.SeqSeverity.Error) "error" else "warning",
+                                message = "${i.message} Hint: ${i.hint}",
+                                location = i.elementId,
+                                category = "seq",
+                            )
                         }
                 } ?: emptyList()
-        val reqUcErrors = reqUcViolations.filter { it.severity == "error" }
-        val reqUcWarnings = reqUcViolations.filter { it.severity == "warning" }
-        if (reqUcViolations.isNotEmpty()) {
+        // Wave C3: layout hint checks (412, 431-436) for every SysML 2 diagram type.
+        val layoutHintViolations: List<StructuralViolation> =
+            (extracted as? ExtractedDiagram.Sysml2)
+                ?.let { ex ->
+                    dev.kuml.sysml2.constraint.Sysml2LayoutHintChecker.check(model = ex.model, diagram = ex.diagram).map { i ->
+                        StructuralViolation(
+                            id = "LAYOUT${i.code}",
+                            severity = if (i.severity == dev.kuml.sysml2.constraint.LayoutSeverity.Error) "error" else "warning",
+                            message = "${i.message} Hint: ${i.hint}",
+                            location = i.elementId,
+                            category = "layout",
+                        )
+                    }
+                } ?: emptyList()
+        val reqUcErrors = (reqUcViolations + layoutHintViolations).filter { it.severity == "error" }
+        val reqUcWarnings = (reqUcViolations + layoutHintViolations).filter { it.severity == "warning" }
+        if (reqUcViolations.isNotEmpty() || layoutHintViolations.isNotEmpty()) {
             echo("\nRequirement / use case validation:")
             for (rv in reqUcErrors) echo("  ERROR [${rv.id}] ${rv.location}: ${rv.message}")
             for (rv in reqUcWarnings) echo("  WARN  [${rv.id}] ${rv.location}: ${rv.message}")
@@ -379,7 +407,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         val allViolations =
             modelResult.violations + (stereotypeResult?.violations ?: emptyList())
         val allStructuralLikeViolations =
-            structuralViolations + ermViolations + noteViolations + stmViolations + reqUcViolations + styleViolations
+            structuralViolations + ermViolations + noteViolations + stmViolations + reqUcViolations + layoutHintViolations + styleViolations
         val combined =
             KumlValidationResult(
                 valid =

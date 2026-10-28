@@ -15,6 +15,7 @@ import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.runtime.Event
 import dev.kuml.runtime.StateMachineRuntime
@@ -259,7 +260,7 @@ public class RenderingTools internal constructor(
                 )
         val engine = ElkLayoutEngine()
         val graph = Sysml2LayoutBridge.toLayoutGraph(model = sysmlModel, diagram = diagram)
-        val layoutResult = engine.layout(graph = graph)
+        val layoutResult = engine.layout(graph = graph, hints = Sysml2LayoutBridge.layoutHintsFor(model = sysmlModel, diagram = diagram))
         val summary =
             "Rendered SysML2 '${sysmlModel.name}' with ${sysmlModel.definitions.size} definitions"
 

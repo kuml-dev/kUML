@@ -40,6 +40,7 @@ import dev.kuml.layout.bridge.erm.ErmChenSizeProvider
 import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
+import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.sysml2.ActDiagram
@@ -345,7 +346,7 @@ internal object WebRenderPipeline {
                 val layoutResult =
                     engine.layout(
                         graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                        hints = LayoutHints.DEFAULT,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
                     )
                 renderSysml2Bdd(
                     model = model,
@@ -363,7 +364,7 @@ internal object WebRenderPipeline {
                 val layoutResult =
                     engine.layout(
                         graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                        hints = LayoutHints.DEFAULT,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
                     )
                 renderSysml2Ibd(
                     model = model,
@@ -381,7 +382,7 @@ internal object WebRenderPipeline {
                 val layoutResult =
                     engine.layout(
                         graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                        hints = LayoutHints.DEFAULT,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
                     )
                 renderSysml2Uc(
                     model = model,
@@ -428,7 +429,7 @@ internal object WebRenderPipeline {
                 val layoutResult =
                     engine.layout(
                         graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                        hints = LayoutHints.DEFAULT,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
                     )
                 renderSysml2Stm(
                     model = model,
@@ -446,7 +447,7 @@ internal object WebRenderPipeline {
                 val layoutResult =
                     engine.layout(
                         graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                        hints = LayoutHints.DEFAULT,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
                     )
                 renderSysml2Act(
                     model = model,
@@ -464,7 +465,7 @@ internal object WebRenderPipeline {
                 val layoutResult =
                     engine.layout(
                         graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                        hints = LayoutHints.DEFAULT,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
                     )
                 renderSysml2Seq(
                     model = model,
@@ -482,7 +483,7 @@ internal object WebRenderPipeline {
                 val layoutResult =
                     engine.layout(
                         graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                        hints = LayoutHints.DEFAULT,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
                     )
                 renderSysml2Par(
                     model = model,

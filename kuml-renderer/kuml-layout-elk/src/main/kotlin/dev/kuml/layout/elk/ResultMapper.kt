@@ -99,9 +99,45 @@ internal object ResultMapper {
             val (absX, absY) = absolutePosition(elkNode)
             val origin = Point(x = absX, y = absY)
             val size = Size(width = elkNode.width.toFloat(), height = elkNode.height.toFloat())
-            result[nodeId] = NodeLayout(bounds = Rect(origin = origin, size = size))
+            val ports = mutableMapOf<dev.kuml.layout.PortId, Point>()
+            val labels = mutableMapOf<String, Rect>()
+            // C3-1 — Port-Mittelpunkte absolut (Port-Koordinaten sind relativ zum Elternknoten).
+            for (elkPort in elkNode.ports) {
+                val key = elkPort.identifier ?: continue
+                ports[dev.kuml.layout.PortId(key)] =
+                    Point(
+                        x = absX + elkPort.x.toFloat() + elkPort.width.toFloat() / 2f,
+                        y = absY + elkPort.y.toFloat() + elkPort.height.toFloat() / 2f,
+                    )
+                for (label in elkPort.labels) {
+                    labels["port:$key"] =
+                        Rect(
+                            origin =
+                                Point(
+                                    x = absX + elkPort.x.toFloat() + label.x.toFloat(),
+                                    y =
+                                        absY + elkPort.y.toFloat() + label.y.toFloat(),
+                                ),
+                            size = Size(width = label.width.toFloat(), height = label.height.toFloat()),
+                        )
+                }
+            }
+            builder.nodeLabelMap[nodeId]?.let { label ->
+                labels["node"] =
+                    Rect(
+                        origin = Point(x = absX + label.x.toFloat(), y = absY + label.y.toFloat()),
+                        size = Size(width = label.width.toFloat(), height = label.height.toFloat()),
+                    )
+            }
+            result[nodeId] = NodeLayout(bounds = Rect(origin = origin, size = size), ports = ports, labels = labels)
         }
         return result
+    }
+
+    private fun portCentre(port: org.eclipse.elk.graph.ElkPort): Point {
+        val owner = port.parent
+        val (ox, oy) = if (owner != null) absolutePosition(owner) else 0f to 0f
+        return Point(x = ox + port.x.toFloat() + port.width.toFloat() / 2f, y = oy + port.y.toFloat() + port.height.toFloat() / 2f)
     }
 
     /** Walks `node.parent` up to the (root) and accumulates the X/Y offsets so
@@ -140,8 +176,14 @@ internal object ResultMapper {
             val containing = elkEdge.containingNode
             val (offX, offY) =
                 if (containing != null) absolutePosition(containing) else 0f to 0f
-            val source = Point(x = section.startX.toFloat() + offX, y = section.startY.toFloat() + offY)
-            val target = Point(x = section.endX.toFloat() + offX, y = section.endY.toFloat() + offY)
+            var source = Point(x = section.startX.toFloat() + offX, y = section.startY.toFloat() + offY)
+            var target = Point(x = section.endX.toFloat() + offX, y = section.endY.toFloat() + offY)
+            // C3-1 — Kanten enden am Port-MITTELPUNKT (ELK endet am äußeren Portrand; der
+            // Marker wird später über die Kantenspitze gezeichnet).
+            builder.edgePorts[edgeId]?.let { (sp, tp) ->
+                sp?.let { source = portCentre(it) }
+                tp?.let { target = portCentre(it) }
+            }
             val bendPoints = section.bendPoints
 
             val route: EdgeRoute =
@@ -367,6 +409,14 @@ internal object ResultMapper {
             if (r.origin.x + r.size.width > maxX) maxX = r.origin.x + r.size.width
             if (r.origin.y + r.size.height > maxY) maxY = r.origin.y + r.size.height
         }
+        for ((_, layout) in nodes) {
+            for (r in layout.labels.values) {
+                if (r.origin.x < minX) minX = r.origin.x
+                if (r.origin.y < minY) minY = r.origin.y
+                if (r.origin.x + r.size.width > maxX) maxX = r.origin.x + r.size.width
+                if (r.origin.y + r.size.height > maxY) maxY = r.origin.y + r.size.height
+            }
+        }
         for ((_, layout) in groups) {
             val r = layout.bounds
             if (r.origin.x < minX) minX = r.origin.x
@@ -400,6 +450,8 @@ internal object ResultMapper {
             nodes.mapValues { (_, l) ->
                 l.copy(
                     bounds = l.bounds.copy(origin = Point(x = l.bounds.origin.x + dx, y = l.bounds.origin.y + dy)),
+                    ports = l.ports.mapValues { (_, p) -> p.shifted(dx = dx, dy = dy) },
+                    labels = l.labels.mapValues { (_, r) -> r.copy(origin = r.origin.shifted(dx = dx, dy = dy)) },
                 )
             }
         val shiftedGroups =

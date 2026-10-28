@@ -2,6 +2,8 @@ package dev.kuml.sysml2.dsl
 
 import dev.kuml.sysml2.Sysml2Comment
 import dev.kuml.sysml2.Sysml2Element
+import dev.kuml.sysml2.Sysml2LayoutFlow
+import dev.kuml.sysml2.Sysml2LayoutSpec
 
 /**
  * Shared note verbs for every SysML 2 diagram builder. A comment created inside
@@ -58,5 +60,100 @@ abstract class Sysml2NoteBuilderBase internal constructor(
         noteIds += id
     }
 
+    private var layoutSpec: Sysml2LayoutSpec? = null
+
+    /**
+     * Layout steering hints for this diagram (wave C3):
+     *
+     * ```
+     * layout {
+     *     direction = Right
+     *     wrapColumns = 4
+     *     sameLayer(a, b)
+     *     first(start)
+     *     last(end)
+     * }
+     * ```
+     * Several `layout` blocks merge. Hard bounds are checked by `Sysml2LayoutHintChecker`.
+     */
+    fun layout(block: Sysml2LayoutBuilder.() -> Unit) {
+        val built = Sysml2LayoutBuilder().apply(block).build()
+        val prev = layoutSpec
+        layoutSpec =
+            if (prev == null) {
+                built
+            } else {
+                Sysml2LayoutSpec(
+                    direction = built.direction ?: prev.direction,
+                    wrapColumns = built.wrapColumns ?: prev.wrapColumns,
+                    sameLayer = prev.sameLayer + built.sameLayer,
+                    first = prev.first + built.first,
+                    last = prev.last + built.last,
+                )
+            }
+    }
+
+    internal fun layoutSpec(): Sysml2LayoutSpec? = layoutSpec?.takeUnless { it.isEmpty }
+
     internal fun noteIds(): List<String> = noteIds.distinct()
+}
+
+/** Receiver of a diagram's `layout { }` block (wave C3). The four flow values are members so no import is needed. */
+@Sysml2Dsl
+class Sysml2LayoutBuilder internal constructor() {
+    /** Flow directions, usable as `direction = Right`. */
+    @Suppress("ktlint:standard:property-naming")
+    val Down: Sysml2LayoutFlow = Sysml2LayoutFlow.Down
+
+    @Suppress("ktlint:standard:property-naming")
+    val Right: Sysml2LayoutFlow = Sysml2LayoutFlow.Right
+
+    @Suppress("ktlint:standard:property-naming")
+    val Up: Sysml2LayoutFlow = Sysml2LayoutFlow.Up
+
+    @Suppress("ktlint:standard:property-naming")
+    val Left: Sysml2LayoutFlow = Sysml2LayoutFlow.Left
+
+    var direction: Sysml2LayoutFlow? = null
+    var wrapColumns: Int? = null
+    private val sameLayer = mutableListOf<List<String>>()
+    private val first = mutableListOf<String>()
+    private val last = mutableListOf<String>()
+
+    /** Places the given elements in the same layer. */
+    fun sameLayer(vararg elements: Sysml2Element) {
+        sameLayer += elements.map { it.id }
+    }
+
+    /** Id variant of [sameLayer]. */
+    fun sameLayerById(vararg ids: String) {
+        sameLayer += ids.toList()
+    }
+
+    /** Pins the given elements to the first layer. */
+    fun first(vararg elements: Sysml2Element) {
+        first += elements.map { it.id }
+    }
+
+    fun firstById(vararg ids: String) {
+        first += ids.toList()
+    }
+
+    /** Pins the given elements to the last layer. */
+    fun last(vararg elements: Sysml2Element) {
+        last += elements.map { it.id }
+    }
+
+    fun lastById(vararg ids: String) {
+        last += ids.toList()
+    }
+
+    internal fun build(): Sysml2LayoutSpec =
+        Sysml2LayoutSpec(
+            direction = direction,
+            wrapColumns = wrapColumns,
+            sameLayer = sameLayer.filter { it.isNotEmpty() },
+            first = first.toList(),
+            last = last.toList(),
+        )
 }

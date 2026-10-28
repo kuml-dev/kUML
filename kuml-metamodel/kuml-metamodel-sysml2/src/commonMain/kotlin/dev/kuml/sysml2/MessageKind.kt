@@ -37,4 +37,10 @@ enum class MessageKind {
 
     /** Object-destruction message — solid arrow at target end, target lifeline ends with an X marker. */
     Destroy,
+
+    /** C3 — found message: the sender is outside the diagram (filled circle at the start), source == target lifeline. */
+    Found,
+
+    /** C3 — lost message: the receiver is outside the diagram (filled circle at the end), source == target lifeline. */
+    Lost,
 }

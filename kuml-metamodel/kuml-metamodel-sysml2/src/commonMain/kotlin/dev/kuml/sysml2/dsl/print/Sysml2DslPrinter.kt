@@ -24,12 +24,14 @@ import dev.kuml.sysml2.ConstraintParameter
 import dev.kuml.sysml2.ConstraintParameterDirection
 import dev.kuml.sysml2.ConstraintUsage
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.DurationConstraintUsage
 import dev.kuml.sysml2.ExceptionHandlerUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.FlowPropertyUsage
 import dev.kuml.sysml2.FlowUsage
 import dev.kuml.sysml2.GuardKind
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.InteractionUseUsage
 import dev.kuml.sysml2.InterruptibleRegionDefinition
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.LifelineUsage
@@ -57,6 +59,7 @@ import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.Sysml2Usage
 import dev.kuml.sysml2.TestCaseDefinition
+import dev.kuml.sysml2.TimeObservationUsage
 import dev.kuml.sysml2.TransitionTimer
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcDiagram
@@ -754,12 +757,37 @@ public object Sysml2DslPrinter {
                         val guardArg = if (op.guard != null) "guard = ${quote(op.guard)}, " else ""
                         "CombinedFragmentOperand($guardArg" + "startSeqNo = ${op.startSeqNo}, endSeqNo = ${op.endSeqNo})"
                     }
+                val parentArgs =
+                    if (usage.parentFragmentId != null) {
+                        ", parentFragmentId = ${quote(usage.parentFragmentId)}" +
+                            (usage.parentOperandIndex?.let { ", parentOperandIndex = $it" } ?: "")
+                    } else {
+                        ""
+                    }
                 sb.appendLine(
                     "    combinedFragment(name = ${quote(usage.name)}, operator = " +
                         "CombinedFragmentOperator.${usage.operator.name}, operands = listOf($operandsExpr), " +
-                        "id = ${quote(usage.id)})",
+                        "id = ${quote(usage.id)}$parentArgs)",
                 )
             }
+            is InteractionUseUsage -> {
+                val ids = usage.lifelineIds.joinToString(", ") { quote(it) }
+                sb.appendLine(
+                    "    interactionUseById(name = ${quote(usage.name)}, refersTo = ${quote(usage.refersTo)}, " +
+                        "lifelineIds = listOf($ids), seqNo = ${usage.seqNo}, id = ${quote(usage.id)})",
+                )
+            }
+            is DurationConstraintUsage ->
+                sb.appendLine(
+                    "    durationConstraintById(lifelineId = ${quote(usage.lifelineId)}, from = ${usage.fromSeqNo}, " +
+                        "to = ${usage.toSeqNo}, expression = ${quote(usage.expression)}, id = ${quote(usage.id)}" +
+                        (if (usage.name != usage.expression) ", name = ${quote(usage.name)}" else "") + ")",
+                )
+            is TimeObservationUsage ->
+                sb.appendLine(
+                    "    timeObservationById(lifelineId = ${quote(usage.lifelineId)}, seqNo = ${usage.seqNo}, " +
+                        "name = ${quote(usage.name)}, id = ${quote(usage.id)})",
+                )
             is ExecutionSpecificationUsage -> {
                 val lifelineVar = ctx.lifelineDefVars[usage.lifelineId]
                 if (lifelineVar == null) {
@@ -820,6 +848,51 @@ public object Sysml2DslPrinter {
     // ── diagrams ───────────────────────────────────────────────────────────
 
     private fun printDiagram(
+        sb: StringBuilder,
+        d: Sysml2Diagram,
+        ctx: Ctx,
+    ) {
+        val start = sb.length
+        printDiagramBody(sb = sb, d = d, ctx = ctx)
+        printLayoutInto(sb = sb, start = start, spec = d.layout, diagramName = d.name)
+    }
+
+    /**
+     * Wave C3 — inserts a `layout { }` block (id form) just before the closing brace of the diagram that
+     * was printed at [start]; a diagram printed without a block (`fn("name")`) is expanded into a block.
+     */
+    private fun printLayoutInto(
+        sb: StringBuilder,
+        start: Int,
+        spec: dev.kuml.sysml2.Sysml2LayoutSpec?,
+        diagramName: String,
+    ) {
+        if (spec == null || spec.isEmpty) return
+        val text = sb.substring(start)
+        if (text.startsWith("    //")) return // diagram was not serialized (TODO marker)
+        val block = StringBuilder()
+        block.appendLine("        layout {")
+        spec.direction?.let { block.appendLine("            direction = $it") }
+        spec.wrapColumns?.let { block.appendLine("            wrapColumns = $it") }
+        spec.sameLayer.forEach { g -> block.appendLine("            sameLayerById(${g.joinToString(", ") { quote(it) }})") }
+        if (spec.first.isNotEmpty()) block.appendLine("            firstById(${spec.first.joinToString(", ") { quote(it) }})")
+        if (spec.last.isNotEmpty()) block.appendLine("            lastById(${spec.last.joinToString(", ") { quote(it) }})")
+        block.appendLine("        }")
+        val trimmed = text.trimEnd('\n')
+        val newText =
+            if (trimmed.endsWith("{")) {
+                trimmed + "\n" + block + "    }\n"
+            } else if (trimmed.lines().last().trim() == "}") {
+                trimmed.removeSuffix("    }").trimEnd(' ') + block + "    }\n"
+            } else {
+                // single-line form `fn("name")` or `fn("name", owner = x)`: expand into a block
+                trimmed + " {\n" + block + "    }\n"
+            }
+        sb.setLength(start)
+        sb.append(newText)
+    }
+
+    private fun printDiagramBody(
         sb: StringBuilder,
         d: Sysml2Diagram,
         ctx: Ctx,

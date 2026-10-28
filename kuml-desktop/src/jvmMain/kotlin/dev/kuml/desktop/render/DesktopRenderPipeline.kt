@@ -25,6 +25,7 @@ import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
+import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.runtime.sysml2.Sysml2StateMachineAdapter
@@ -302,23 +303,38 @@ internal object DesktopRenderPipeline {
         val model = extracted.model
         return when (val diagram = extracted.diagram) {
             is BdDiagram ->
-                env.layoutThenRender(graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)) {
+                env.layoutThenRender(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                ) {
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
             is IbdDiagram ->
-                env.layoutThenRender(graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)) {
+                env.layoutThenRender(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                ) {
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
             is UcDiagram ->
-                env.layoutThenRender(graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)) {
+                env.layoutThenRender(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                ) {
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
             is ReqDiagram ->
-                env.layoutThenRender(graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)) {
+                env.layoutThenRender(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                ) {
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
             is StmDiagram ->
-                env.layoutThenRender(graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)) {
+                env.layoutThenRender(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                ) {
                     KumlSvgRenderer.toSvg(
                         model = model,
                         diagram = diagram,
@@ -328,7 +344,10 @@ internal object DesktopRenderPipeline {
                     )
                 }
             is ActDiagram ->
-                env.layoutThenRender(graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)) {
+                env.layoutThenRender(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                ) {
                     KumlSvgRenderer.toSvg(
                         model = model,
                         diagram = diagram,
@@ -338,11 +357,17 @@ internal object DesktopRenderPipeline {
                     )
                 }
             is SeqDiagram ->
-                env.layoutThenRender(graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)) {
+                env.layoutThenRender(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                ) {
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
             is ParDiagram ->
-                env.layoutThenRender(graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)) {
+                env.layoutThenRender(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                ) {
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
         }
@@ -483,7 +508,7 @@ internal object DesktopRenderPipeline {
                 val layout =
                     elkEngine.layout(
                         graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                        hints = LayoutHints.DEFAULT,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
                     )
                 val svg =
                     KumlSvgRenderer.toSvg(
