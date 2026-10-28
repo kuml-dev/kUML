@@ -383,6 +383,30 @@ internal object ExampleCatalog {
                     "SysML 2 activity diagram with pins on all four sides of an action and pin-to-pin " +
                         "object flows.",
             ),
+            CuratedExample(
+                fileName = "50 SysML 2 SEQ – Verschachtelte Fragmente, ref, Zeit.md",
+                language = "sysml2",
+                diagramType = "seq",
+                description =
+                    "SysML 2 sequence diagram with an alt fragment containing a nested loop, an interaction " +
+                        "reference, a time constraint and found/lost messages.",
+            ),
+            CuratedExample(
+                fileName = "51 SysML 2 PAR – Verschachtelte Constraints.md",
+                language = "sysml2",
+                diagramType = "par",
+                description =
+                    "SysML 2 parametric diagram with a constraint nested in another constraint, parameter " +
+                        "pins on the frame and bindings that end at the pins (constraint.pin(\"name\")).",
+            ),
+            CuratedExample(
+                fileName = "52 SysML 2 REQ – Breites Diagramm mit wrapColumns.md",
+                language = "sysml2",
+                diagramType = "req",
+                description =
+                    "SysML 2 requirement diagram with twelve requirements wrapped into four columns by the " +
+                        "layout hint wrapColumns.",
+            ),
         )
 
     /** Distinct languages in catalog order: uml, c4, sysml2, bpmn, blueprint, erm. */

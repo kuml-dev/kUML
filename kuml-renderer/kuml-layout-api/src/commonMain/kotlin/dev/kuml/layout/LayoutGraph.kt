@@ -47,6 +47,9 @@ public enum class PortSide { North, East, South, West }
  * @property size Größe des Port-Markers; der Port-Mittelpunkt liegt auf der Knotenkante.
  * @property labelSize Größe des Port-Labels (OUTSIDE); reserviert Platz, die Position steht in
  *     [NodeLayout.labels] unter `"port:<id>"`.
+ * @property offset Feste Lage des Port-Mittelpunkts entlang der Seite (Abstand vom oberen bzw. linken Rand des Knotens).
+ *     Haben **alle** Ports eines Knotens einen [offset], platziert die Engine sie dort (feste Positionen, [order] und
+ *     Gleichverteilung entfallen); sonst bleibt es bei der Reihenfolge-Verteilung.
  */
 @Serializable
 public data class LayoutPort(
@@ -55,6 +58,7 @@ public data class LayoutPort(
     val order: Int,
     val size: Size = Size(width = 8f, height = 8f),
     val labelSize: Size? = null,
+    val offset: Float? = null,
 )
 
 /**

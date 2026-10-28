@@ -110,6 +110,51 @@ class ElkPortsAndLayerHintsTest :
             }
         }
 
+        test("ports with fixed offsets sit exactly there and edges end on them") {
+            val a = LayoutNode(id = NodeId("A"), intrinsicSize = Size(width = 100f, height = 40f))
+            val b =
+                LayoutNode(
+                    id = NodeId("B"),
+                    intrinsicSize = Size(width = 160f, height = 120f),
+                    ports =
+                        listOf(
+                            LayoutPort(id = PortId("B::in1"), side = PortSide.West, order = 0, offset = 56f),
+                            LayoutPort(id = PortId("B::in2"), side = PortSide.West, order = 1, offset = 69f),
+                            LayoutPort(id = PortId("B::out"), side = PortSide.East, order = 0, offset = 82f),
+                        ),
+                )
+            val c = LayoutNode(id = NodeId("C"), intrinsicSize = Size(width = 100f, height = 40f))
+            val graph =
+                LayoutGraph(
+                    nodes = listOf(a, b, c),
+                    edges =
+                        listOf(
+                            LayoutEdge(
+                                id = EdgeId("e1"),
+                                source = EndpointRef(nodeId = NodeId("A")),
+                                target = EndpointRef(nodeId = NodeId("B"), portId = PortId("B::in1")),
+                            ),
+                            LayoutEdge(
+                                id = EdgeId("e2"),
+                                source = EndpointRef(nodeId = NodeId("B"), portId = PortId("B::out")),
+                                target = EndpointRef(nodeId = NodeId("C")),
+                            ),
+                        ),
+                )
+            val result = engine.layout(graph = graph, hints = LayoutHints(direction = LayoutDirection.LeftToRight))
+            val nb = result.nodes.getValue(NodeId("B"))
+            val ports = nb.ports
+            abs(ports.getValue(PortId("B::in1")).y - (nb.bounds.origin.y + 56f)) shouldBeLessThanOrEqual 0.5f
+            abs(ports.getValue(PortId("B::in2")).y - (nb.bounds.origin.y + 69f)) shouldBeLessThanOrEqual 0.5f
+            abs(ports.getValue(PortId("B::out")).y - (nb.bounds.origin.y + 82f)) shouldBeLessThanOrEqual 0.5f
+            abs(ports.getValue(PortId("B::in1")).x - nb.bounds.origin.x) shouldBeLessThanOrEqual 0.5f
+            abs(ports.getValue(PortId("B::out")).x - (nb.bounds.origin.x + 160f)) shouldBeLessThanOrEqual 0.5f
+            val end = route(result.edges.getValue(EdgeId("e1"))).last()
+            abs(end.y - ports.getValue(PortId("B::in1")).y) shouldBeLessThanOrEqual 1f
+            val start = route(result.edges.getValue(EdgeId("e2"))).first()
+            abs(start.y - ports.getValue(PortId("B::out")).y) shouldBeLessThanOrEqual 1f
+        }
+
         test("external node label reserves space above the node") {
             val n =
                 LayoutNode(

@@ -1835,6 +1835,7 @@ class Sysml2ModelBuilder(
         parameters: List<ConstraintParameter> = emptyList(),
         isAbstract: Boolean = false,
         specializesId: String? = null,
+        parent: ConstraintDefinition? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): ConstraintDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -1847,6 +1848,7 @@ class Sysml2ModelBuilder(
                 expression = expression,
                 parameters = parameters,
                 specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
+                ownerConstraintId = parent?.id,
             )
         definitions += def
         return def
@@ -3124,4 +3126,16 @@ class CombinedFragmentOperandBuilder internal constructor(
             parentOperandIndex = operandIndex,
             block = block,
         )
+}
+
+/**
+ * Endpoint id of the parameter pin [name] of this constraint, for use as a `bind(...)` endpoint
+ * (`"<constraintId>::<name>"`). Throws when the constraint declares no such parameter, so a typo is
+ * caught while the model is built instead of surfacing as a binding that silently ends at the box centre.
+ */
+fun ConstraintDefinition.pin(name: String): String {
+    require(parameters.any { it.name == name }) {
+        "Constraint '${this.name}' has no parameter '$name' (declared: ${parameters.joinToString { it.name }})."
+    }
+    return "$id::$name"
 }

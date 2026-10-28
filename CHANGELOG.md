@@ -25,6 +25,20 @@ All notable changes to this project are documented here. Format follows
 
 - Expression parser: the word operators `and` / `or` / `not` are recognised in lowercase only and never directly after a `.` (so `LogicKind.OR`, `Mode.AND`, `flags.not` are identifiers again). Uppercase `AND` / `OR` / `NOT` are no longer operators; use backticks for identifiers named like operators.
 
+### Added (SysML 2 parametric diagrams, wave C4)
+
+- Nested constraint definitions: `constraintDef(..., parent = outer)` (`ConstraintDefinition.ownerConstraintId`, default `null`, old JSON still decodes). The inner box is drawn inside the owner box; depth limit `Sysml2Limits.CONSTRAINT_DEPTH` = 4 (two levels recommended), at most `Sysml2Limits.CONSTRAINT_PARAMETERS` = 64 parameters per constraint.
+- Pin-anchored bindings: every constraint parameter is drawn as a square pin on the frame (`in` left, `out`/`inout` right, at the height of its parameter row) and a binding whose endpoint is `"<constraint>::<parameter>"` ends at that pin. New DSL helper `constraintDef.pin("name")` returns the endpoint id and fails at build time for an unknown parameter. Bindings inside one composite (owner pin to child pin, child to child) run in lanes inside the owner box and carry no label.
+- `Sysml2ParChecker` and `kuml validate`: 437 nesting too deep, 438 ownership cycle, 439 unknown owner, 440 more than 64 parameters, 441 binding names no parameter of its constraint (warning).
+- Layout API: `LayoutPort.offset` fixes a port at an exact position along its side (ELK `FIXED_POS`).
+- `Sysml2LayoutBridge.parEnrich` places nested boxes and inner binding routes; the SVG renderer calls it, so existing callers need no change. `ParConstraintGeometry` is the single source for pin positions.
+- New vault examples 50 (SEQ nested fragments, ref, time), 51 (PAR nested constraints with pins) and 52 (REQ `wrapColumns`), mirrored to the kuml.dev playground sources.
+- Router obstacle invariant test for ACT and PAR examples (`Sysml2RouterInvariantTest`).
+
+### Changed (wave C4)
+
+- Parameter text in constraint boxes starts at x = 18 (was 6) to leave room for the inner lanes; parameter and type names are shortened at `Sysml2Limits.TEXT`.
+
 ### Added
 
 **Layout API**: ports (`LayoutPort`, edges end at the port centre, port/node labels reserved OUTSIDE), `NodeHints.layerIndex` / `layerPin`, `NodeLayout.labels`, capabilities `supportsPorts` / `supportsLayerHints` (ELK engine). ELK's `layerChoiceConstraint` is not evaluated by ELK Layered 0.12.0, so `layerIndex` maps to partitioning (flat graphs only).

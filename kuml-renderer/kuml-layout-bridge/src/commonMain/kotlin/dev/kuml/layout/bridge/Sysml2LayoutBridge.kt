@@ -12,6 +12,7 @@ import dev.kuml.layout.LayoutEdge
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutGroup
 import dev.kuml.layout.LayoutNode
+import dev.kuml.layout.LayoutPort
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
@@ -2301,6 +2302,10 @@ public object Sysml2LayoutBridge {
         diagram: ParDiagram,
         sizeProvider: SizeProvider = parContentAwareSizeProvider(model),
     ): LayoutGraph {
+        val nesting = ParNesting.of(model = model, visibleIds = diagram.elementIds)
+
+        fun ownSize(id: String) = sizeProvider.sizeOf(elementId = id, elementKind = "ConstraintDefinition")
+        val boxMemo = HashMap<String, ParBox>()
         val nodes = mutableListOf<LayoutNode>()
         for (id in diagram.elementIds) {
             val def = model.definitions.firstOrNull { it.id == id } ?: continue
@@ -2308,28 +2313,77 @@ public object Sysml2LayoutBridge {
             // Attribute-Referenzen). Alles andere ist konzeptionell nicht
             // vorgesehen und wird ignoriert.
             if (def !is ConstraintDefinition && def !is PartDefinition) continue
+            // Verschachtelte Constraints sind keine Layout-Knoten: sie liegen im Elternknoten (C4).
+            if (def is ConstraintDefinition && nesting.isNested(def.id)) continue
             val kind = def::class.simpleName ?: "Sysml2Definition"
-            nodes +=
-                LayoutNode(
-                    id = NodeId(def.id),
-                    intrinsicSize = sizeProvider.sizeOf(elementId = def.id, elementKind = kind),
-                )
+            val size =
+                if (def is ConstraintDefinition) {
+                    ParCompositeLayout.box(id = def.id, model = model, nesting = nesting, ownSize = ::ownSize, memo = boxMemo).size
+                } else {
+                    sizeProvider.sizeOf(elementId = def.id, elementKind = kind)
+                }
+            val ports =
+                if (def is ConstraintDefinition) {
+                    val hasExpr = def.expression.isNotEmpty()
+                    val bySide = def.parameters.groupBy { ParConstraintGeometry.pinSide(it.direction) }
+                    def.parameters.mapIndexed { i, p ->
+                        val side = ParConstraintGeometry.pinSide(p.direction)
+                        LayoutPort(
+                            id = ParConstraintGeometry.portId(constraint = def, parameter = p),
+                            side = side,
+                            order = bySide.getValue(side).indexOf(p),
+                            size = Size(width = ParConstraintGeometry.PIN_SIZE, height = ParConstraintGeometry.PIN_SIZE),
+                            offset = ParConstraintGeometry.pinY(hasExpression = hasExpr, index = i),
+                        )
+                    }
+                } else {
+                    emptyList()
+                }
+            nodes += LayoutNode(id = NodeId(def.id), intrinsicSize = size, ports = ports)
         }
-        val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
+        val visibleNodeIds: Set<String> = diagram.elementIds.toSet()
+        val layoutNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
 
         // Bindings aus dem Modell ziehen (nicht aus dem Diagramm) — siehe
         // KDoc-Begründung oben. Eine Binding wird zur Edge, wenn beide
         // Endpunkte per Longest-Prefix-Match auf sichtbare Knoten auflösen;
-        // sonst stillschweigend übersprungen.
+        // sonst stillschweigend übersprungen. Seit C4 endet eine Kante an dem
+        // Parameter-Pin, den der Endpunkt benennt; Bindings innerhalb eines
+        // verschachtelten Constraints (Eltern/Kind, Geschwister) routet
+        // [parEnrich] nach dem Layout.
         val edges = mutableListOf<LayoutEdge>()
         for (binding in model.usages.filterIsInstance<BindingConnectorUsage>()) {
-            val srcNode = longestPrefixNodeId(endpointId = binding.sourceEndId, visibleNodeIds = visibleNodeIds) ?: continue
-            val tgtNode = longestPrefixNodeId(endpointId = binding.targetEndId, visibleNodeIds = visibleNodeIds) ?: continue
+            val src = parResolveEnd(endpoint = binding.sourceEndId, visibleIds = visibleNodeIds, nesting = nesting) ?: continue
+            val tgt = parResolveEnd(endpoint = binding.targetEndId, visibleIds = visibleNodeIds, nesting = nesting) ?: continue
+            val srcRoot = if (src.nodeId in nesting.constraints) nesting.rootOf(src.nodeId) else src.nodeId
+            val tgtRoot = if (tgt.nodeId in nesting.constraints) nesting.rootOf(tgt.nodeId) else tgt.nodeId
+            if (srcRoot !in layoutNodeIds || tgtRoot !in layoutNodeIds) continue
+            if (src.nodeId in nesting.constraints &&
+                tgt.nodeId in nesting.constraints &&
+                srcRoot == tgtRoot &&
+                src.nodeId != tgt.nodeId
+            ) {
+                continue
+            }
+
+            fun ref(
+                end: ParEnd,
+                root: String,
+            ): EndpointRef {
+                val c = nesting.constraints[end.nodeId]
+                val port =
+                    if (c != null && end.nodeId == root && end.parameterIndex != null) {
+                        ParConstraintGeometry.portId(constraint = c, parameter = c.parameters[end.parameterIndex])
+                    } else {
+                        null
+                    }
+                return EndpointRef(nodeId = NodeId(root), portId = port)
+            }
             edges +=
                 LayoutEdge(
                     id = EdgeId(binding.id),
-                    source = EndpointRef(nodeId = NodeId(srcNode)),
-                    target = EndpointRef(nodeId = NodeId(tgtNode)),
+                    source = ref(end = src, root = srcRoot),
+                    target = ref(end = tgt, root = tgtRoot),
                     hints = EdgeHints.NONE,
                 )
         }
@@ -2354,6 +2408,28 @@ public object Sysml2LayoutBridge {
                 else -> dev.kuml.layout.Size(width = PAR_CONSTRAINT_WIDTH, height = PAR_CONSTRAINT_HEIGHT)
             }
         }
+
+    /**
+     * Completes the engine result of a parametric diagram (wave C4): places the nested constraint boxes inside
+     * their owner box, gives them pin positions and routes the bindings that stay inside one composite
+     * (owner pin to child pin, sibling to sibling). Top-level constraints and external bindings are untouched; their
+     * edges already end at the pins because the layout graph declares them as fixed-position ports.
+     *
+     * Idempotent, and the identity for diagrams without nesting. The SVG renderer calls it, so the callers of
+     * `toSvg(model, diagram, layoutResult)` need no extra step; tests and other consumers can call it directly.
+     */
+    public fun parEnrich(
+        model: Sysml2Model,
+        diagram: ParDiagram,
+        layoutResult: LayoutResult,
+        sizeProvider: SizeProvider = parContentAwareSizeProvider(model),
+    ): LayoutResult =
+        ParCompositeLayout.enrich(
+            model = model,
+            visibleIds = diagram.elementIds,
+            layout = layoutResult,
+            ownSize = { id -> sizeProvider.sizeOf(elementId = id, elementKind = "ConstraintDefinition") },
+        )
 
     /**
      * Avg width of an 11pt monospace char (constraint expression compartment,
@@ -3371,21 +3447,6 @@ public object Sysml2LayoutBridge {
             is EdgeRoute.Bezier -> r.copy(source = t(r.source), target = t(r.target), controlPoints = r.controlPoints.map(::t))
         }
     }
-
-    /**
-     * Findet die längste sichtbare Part-Usage-ID, die ein Präfix des
-     * Endpunkts ist. SysML-2-Endpunkte folgen der Form
-     * `Owner::partUsage::portUsage`; das längste Präfix entspricht der
-     * enthaltenden Part-Usage. Gibt `null` zurück, wenn der Endpunkt in
-     * keiner sichtbaren Part-Usage liegt — die Connection wird dann verworfen.
-     */
-    private fun longestPrefixNodeId(
-        endpointId: String,
-        visibleNodeIds: Set<String>,
-    ): String? =
-        visibleNodeIds
-            .filter { endpointId == it || endpointId.startsWith("$it::") }
-            .maxByOrNull { it.length }
 
     @Suppress("unused")
     private fun PartDefinition.featureCount(): Int = features.size

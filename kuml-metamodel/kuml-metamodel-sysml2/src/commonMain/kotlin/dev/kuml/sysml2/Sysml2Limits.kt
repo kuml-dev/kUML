@@ -24,6 +24,9 @@ object Sysml2Limits {
     /** Maximum nesting depth of constraint usages in a parametric diagram. */
     const val CONSTRAINT_DEPTH: Int = 4
 
+    /** Maximum number of parameters of one constraint definition. */
+    const val CONSTRAINT_PARAMETERS: Int = 64
+
     /** Maximum number of layout hint groups and ids per group. */
     const val LAYOUT_GROUPS: Int = 32
     const val LAYOUT_IDS_PER_GROUP: Int = 64

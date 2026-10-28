@@ -56,6 +56,7 @@ import dev.kuml.sysml2.StateUsage
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Diagram
+import dev.kuml.sysml2.Sysml2Limits
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.Sysml2Usage
 import dev.kuml.sysml2.TestCaseDefinition
@@ -144,14 +145,22 @@ public object Sysml2DslPrinter {
         durationUnitImports(model).forEach { sb.appendLine("import kotlin.time.Duration.Companion.$it") }
         sb.appendLine("sysml2Model(${quote(model.name)}) {")
 
+        val nestedConstraintIds: Set<String> =
+            model.definitions
+                .filterIsInstance<ConstraintDefinition>()
+                .flatMap { listOfNotNull(it.id.takeIf { _ -> it.ownerConstraintId != null }, it.ownerConstraintId) }
+                .toSet()
         val (special, rest) =
             model.definitions.partition {
                 it is PartDefinition ||
                     it is LifelineDefinition ||
                     it is ActivityPartitionDefinition ||
-                    it is InterruptibleRegionDefinition
+                    it is InterruptibleRegionDefinition ||
+                    (it is ConstraintDefinition && it.id in nestedConstraintIds)
             }
-        orderRegionsParentFirst(special).forEach { printDefinition(sb = sb, def = it, model = model, ctx = ctx, bindVar = true) }
+        orderConstraintsParentFirst(orderRegionsParentFirst(special)).forEach {
+            printDefinition(sb = sb, def = it, model = model, ctx = ctx, bindVar = true)
+        }
         orderStatesParentFirst(rest).forEach { printDefinition(sb = sb, def = it, model = model, ctx = ctx, bindVar = false) }
 
         val consumedFeatureIds =
@@ -198,6 +207,34 @@ public object Sysml2DslPrinter {
     }
 
     /**
+     * Reorders the nested [ConstraintDefinition]s of [defs] so owners precede their children (the DSL
+     * references the owner through its bound variable). Iterative and cycle-safe (bounded chain walk);
+     * other definitions keep their slots.
+     */
+    private fun orderConstraintsParentFirst(defs: List<Sysml2Definition>): List<Sysml2Definition> {
+        val cs = defs.filterIsInstance<ConstraintDefinition>()
+        if (cs.none { it.ownerConstraintId != null }) return defs
+        val byId = LinkedHashMap<String, ConstraintDefinition>()
+        cs.forEach { if (it.id !in byId) byId[it.id] = it }
+        val emitted = ArrayList<ConstraintDefinition>()
+        val emittedIds = HashSet<String>()
+        for (c in cs) {
+            val chain = ArrayList<ConstraintDefinition>()
+            val seen = HashSet<String>()
+            var cur: ConstraintDefinition? = c
+            while (cur != null && seen.add(cur.id) && cur.id !in emittedIds && chain.size <= Sysml2Limits.CONSTRAINT_DEPTH + 1) {
+                chain += cur
+                cur = cur.ownerConstraintId?.let { byId[it] }
+            }
+            for (x in chain.asReversed()) if (emittedIds.add(x.id)) emitted += x
+            if (emitted.none { it === c } && emittedIds.add(c.id)) emitted += c
+        }
+        val remaining = cs.filter { x -> emitted.none { it === x } }
+        val sorted = ArrayDeque<ConstraintDefinition>(emitted + remaining)
+        return defs.map { if (it is ConstraintDefinition) sorted.removeFirst() else it }
+    }
+
+    /**
      * Reorders the [StateDefinition]s of [defs] so parents precede children
      * (cosmetic: the DSL references parents by id). Iterative and cycle-safe;
      * non-state definitions keep their slots.
@@ -235,6 +272,7 @@ public object Sysml2DslPrinter {
         val lifelineDefVars: MutableMap<String, String> = mutableMapOf()
         val partitionDefVars: MutableMap<String, String> = mutableMapOf()
         val regionDefVars: MutableMap<String, String> = mutableMapOf()
+        val constraintDefVars: MutableMap<String, String> = mutableMapOf()
         private var counter = 0
 
         fun freshVar(): String = "s2v${counter++}"
@@ -257,6 +295,7 @@ public object Sysml2DslPrinter {
                     is LifelineDefinition -> ctx.lifelineDefVars[def.id] = v
                     is ActivityPartitionDefinition -> ctx.partitionDefVars[def.id] = v
                     is InterruptibleRegionDefinition -> ctx.regionDefVars[def.id] = v
+                    is ConstraintDefinition -> ctx.constraintDefVars[def.id] = v
                     else -> Unit
                 }
                 v
@@ -493,6 +532,15 @@ public object Sysml2DslPrinter {
                 if (def.parameters.isNotEmpty()) args += "parameters = listOf(${def.parameters.joinToString(", ") { paramExpr(it) }})"
                 if (def.isAbstract) args += "isAbstract = true"
                 appendSpecializesArg(def = def, builderName = "constraintDef", args = args, todos = todos)
+                def.ownerConstraintId?.let { owner ->
+                    val ownerVar = ctx.constraintDefVars[owner]
+                    if (ownerVar != null) {
+                        args += "parent = $ownerVar"
+                    } else {
+                        todos +=
+                            "ConstraintDefinition ${def.name} (id = ${def.id}) is nested in unknown constraint '$owner' — nesting is lost."
+                    }
+                }
                 printDefCall(
                     sb = sb,
                     fnName = "constraintDef",

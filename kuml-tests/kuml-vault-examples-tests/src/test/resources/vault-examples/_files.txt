@@ -54,3 +54,6 @@
 47 SysML 2 UC – Systemgrenzen und Generalisierung.md
 48 SysML 2 ACT – Signale, Regionen und Ausnahmen.md
 49 SysML 2 ACT – Pins an allen Seiten.md
+50 SysML 2 SEQ – Verschachtelte Fragmente, ref, Zeit.md
+51 SysML 2 PAR – Verschachtelte Constraints.md
+52 SysML 2 REQ – Breites Diagramm mit wrapColumns.md

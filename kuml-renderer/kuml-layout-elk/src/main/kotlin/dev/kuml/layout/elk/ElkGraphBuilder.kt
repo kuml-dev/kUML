@@ -165,7 +165,11 @@ internal class ElkGraphBuilder(
             elkNode.setProperty(CoreOptions.NODE_LABELS_PLACEMENT, NodeLabelPlacement.outsideTopCenter())
         }
         if (node.ports.isEmpty()) return
-        elkNode.setProperty(CoreOptions.PORT_CONSTRAINTS, PortConstraints.FIXED_ORDER)
+        val fixedPositions = node.ports.all { it.offset != null }
+        elkNode.setProperty(
+            CoreOptions.PORT_CONSTRAINTS,
+            if (fixedPositions) PortConstraints.FIXED_POS else PortConstraints.FIXED_ORDER,
+        )
         elkNode.setProperty(CoreOptions.PORT_LABELS_PLACEMENT, java.util.EnumSet.of(PortLabelPlacement.OUTSIDE))
         val perSide = node.ports.groupBy { it.side }
         for (port in node.ports.sortedWith(compareBy({ it.side.ordinal }, { it.order }))) {
@@ -181,6 +185,27 @@ internal class ElkGraphBuilder(
             val index = if (port.side == PortSide.West || port.side == PortSide.South) siblings.size - 1 - rank else rank
             elkPort.setProperty(CoreOptions.PORT_INDEX, index)
             elkPort.setProperty(CoreOptions.PORT_BORDER_OFFSET, -(port.size.width.toDouble() / 2.0))
+            if (fixedPositions) {
+                val offset = port.offset!!.toDouble()
+                when (port.side) {
+                    PortSide.West -> {
+                        elkPort.x = -port.size.width.toDouble() / 2.0
+                        elkPort.y = offset - port.size.height.toDouble() / 2.0
+                    }
+                    PortSide.East -> {
+                        elkPort.x = node.intrinsicSize.width.toDouble() - port.size.width.toDouble() / 2.0
+                        elkPort.y = offset - port.size.height.toDouble() / 2.0
+                    }
+                    PortSide.North -> {
+                        elkPort.x = offset - port.size.width.toDouble() / 2.0
+                        elkPort.y = -port.size.height.toDouble() / 2.0
+                    }
+                    PortSide.South -> {
+                        elkPort.x = offset - port.size.width.toDouble() / 2.0
+                        elkPort.y = node.intrinsicSize.height.toDouble() - port.size.height.toDouble() / 2.0
+                    }
+                }
+            }
             port.labelSize?.let {
                 val label = ElkGraphUtil.createLabel(elkPort)
                 label.width = it.width.toDouble()

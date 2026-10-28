@@ -73,6 +73,9 @@ Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unters
 | 46 | [[46 SysML 2 REQ – Anforderungen mit Gruppen]] | Anforderungen — Gruppen, TestCase, sieben Beziehungen (Welle C1) |
 | 48 | [[48 SysML 2 ACT – Signale, Regionen und Ausnahmen]] | Signale, Zeit-Ereignis, Regionen, Ausnahmen, Blitz-Kante (Welle C2) |
 | 49 | [[49 SysML 2 ACT – Pins an allen Seiten]] | Pins an allen Seiten, Pin-zu-Pin-Objektfluss (Welle C2) |
+| 50 | [[50 SysML 2 SEQ – Verschachtelte Fragmente, ref, Zeit]] | Verschachtelte Fragmente, ref, Zeitconstraint, found/lost (Welle C4) |
+| 51 | [[51 SysML 2 PAR – Verschachtelte Constraints]] | Verschachtelte Constraints, Pin-Bindings (Welle C4) |
+| 52 | [[52 SysML 2 REQ – Breites Diagramm mit wrapColumns]] | Layout-Hint wrapColumns (Welle C4) |
 | 47 | [[47 SysML 2 UC – Systemgrenzen und Generalisierung]] | Anwendungsfälle — Systemgrenzen, Akteur-Generalisierung (Welle C1) |
 | 07 | [[07 SysML 2 ACT – Order Processing]] | Verhalten |
 | 06 | [[06 SysML 2 SEQ – Login Flow]] | Verhalten (Interaktion) |
@@ -180,6 +183,9 @@ Der [Playground auf kuml.dev](https://kuml.dev/playground) speist seine Beispiel
 | 47 | [[47 SysML 2 UC – Systemgrenzen und Generalisierung]] | `sysml2-uc-subject-frames` |
 | 48 | [[48 SysML 2 ACT – Signale, Regionen und Ausnahmen]] | `sysml2-act-signals-regions` |
 | 49 | [[49 SysML 2 ACT – Pins an allen Seiten]] | `sysml2-act-pins` |
+| 50 | [[50 SysML 2 SEQ – Verschachtelte Fragmente, ref, Zeit]] | `sysml2-seq-nested-ref-time` |
+| 51 | [[51 SysML 2 PAR – Verschachtelte Constraints]] | `sysml2-par-nested-pins` |
+| 52 | [[52 SysML 2 REQ – Breites Diagramm mit wrapColumns]] | `sysml2-req-wrap-columns` |
 | 40 | [[40 UML Component – kUML Plugin API]] | *(noch kein Playground-Eintrag — Lücke; aus [[06 Archiv/kUML Präsentation Deutsch|Präsentation]] extrahiert, 2026-07-12)* |
 
 ### Playground-Keys ohne Vault-Anker

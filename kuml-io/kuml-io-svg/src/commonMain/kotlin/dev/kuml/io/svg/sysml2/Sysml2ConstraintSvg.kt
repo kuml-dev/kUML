@@ -4,10 +4,13 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt3
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.PortSide
+import dev.kuml.layout.bridge.ParConstraintGeometry
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ConstraintParameter
 import dev.kuml.sysml2.ConstraintParameterDirection
+import dev.kuml.sysml2.Sysml2Limits
 
 /**
  * Rendert eine SysML-2-[ConstraintDefinition] als drei-kompartimentige
@@ -30,13 +33,14 @@ import dev.kuml.sysml2.ConstraintParameterDirection
  * PAR-Boxen visuell mit BDD/IBD/REQ-Boxen im selben Diagramm harmonieren —
  * Tooling-Konsumenten brauchen keine Spezial-Stylesheets.
  *
- * V2.x-Polish (out of V2.0.12 scope):
- *  - Echte parameter-pin-Marker auf der Box-Außenseite (links für `in`-,
- *    rechts für `out`-Parameter), damit Bindings am Pin statt am Box-
- *    Mittelpunkt andocken.
+ * Pins (wave C4): every parameter gets a hollow square marker centred on the box frame
+ * (`in` left, `out`/`inout` right, at the height of its parameter row). Positions come from
+ * [ParConstraintGeometry], the same numbers the layout bridge uses for the fixed-position ports,
+ * so a binding that ends at the pin and the marker always coincide.
+ *
+ * V2.x-Polish (out of scope):
  *  - Equation-Rendering via MathJax / KaTeX statt monospaced Raw-Text.
  *  - Word-Wrap der Expression statt einfacher Zeichen-Trunkierung.
- *  - Content-aware Höhe statt der starren PAR_CONSTRAINT_HEIGHT.
  */
 internal fun renderConstraintDefinition(
     element: ConstraintDefinition,
@@ -134,10 +138,28 @@ internal fun renderConstraintDefinition(
             for (parameter in element.parameters) {
                 tag(
                     name = "text",
-                    attrs = mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
+                    attrs = mapOf("class" to "kuml-body", "x" to fmt(ParConstraintGeometry.PARAM_TEXT_INDENT), "y" to fmt(cy)),
                 ) { text(parameter.formatParameterLine()) }
-                cy += 13f
+                cy += ParConstraintGeometry.PARAM_ROW_H
             }
+        }
+
+        // Pin markers on the frame, drawn last so they sit on top of the box outline.
+        val half = ParConstraintGeometry.PIN_SIZE / 2f
+        element.parameters.forEachIndexed { index, parameter ->
+            val px = if (ParConstraintGeometry.pinSide(parameter.direction) == PortSide.West) 0f else w
+            val py = ParConstraintGeometry.pinY(hasExpression = hasExpression, index = index)
+            tag(
+                name = "rect",
+                attrs =
+                    mapOf(
+                        "x" to fmt(px - half),
+                        "y" to fmt(py - half),
+                        "width" to fmt(ParConstraintGeometry.PIN_SIZE),
+                        "height" to fmt(ParConstraintGeometry.PIN_SIZE),
+                        "class" to "kuml-class kuml-par-pin",
+                    ),
+            )
         }
     }
 }
@@ -154,8 +176,8 @@ private fun ConstraintParameter.formatParameterLine(): String {
             ConstraintParameterDirection.Out -> "«out»"
             ConstraintParameterDirection.Inout -> "«inout»"
         }
-    val typeSuffix = typeId?.let { " : $it" } ?: ""
-    return "$stereotype $name$typeSuffix"
+    val typeSuffix = typeId?.let { " : ${it.take(Sysml2Limits.TEXT)}" } ?: ""
+    return "$stereotype ${name.take(Sysml2Limits.TEXT)}$typeSuffix"
 }
 
 /**

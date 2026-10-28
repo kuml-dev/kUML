@@ -946,6 +946,107 @@ sysml2Model(name = "NewtonModel") {
 }
 ----
 
+=== Nested constraints and pins
+
+Every constraint parameter is drawn as a small square _pin_ on the box frame: `in` parameters on the
+left, `out` and `inout` on the right, at the height of the parameter's row. A binding whose endpoint is
+`"<constraint>::<parameter>"` ends at that pin. The helper `constraint.pin("name")` builds the endpoint id
+and fails while the model is built if the constraint has no such parameter. An endpoint that names a
+constraint but no existing parameter ends at the box centre and `kuml validate` warns (`PAR441`).
+
+A constraint can be nested in another one with `parent = outer`. The inner box is drawn inside the outer
+box; bindings between the outer pins and the inner pins, and between inner constraints, run inside the outer
+box and carry no label. Two levels are recommended; the hard limit is four levels (the outer constraint counts
+as level one) and 64 parameters per constraint.
+
+Rendered live below (vault source: `03 Bereiche/kUML/Beispiele/51 SysML 2 PAR – Verschachtelte Constraints.md`):
+
+[source,kuml]
+----
+import dev.kuml.sysml2.ConstraintParameter
+import dev.kuml.sysml2.ConstraintParameterDirection.In
+import dev.kuml.sysml2.ConstraintParameterDirection.Out
+import dev.kuml.sysml2.dsl.sysml2Model
+
+sysml2Model(name = "VehicleDynamicsModel") {
+    attributeDef(name = "Mass")
+    attributeDef(name = "Force")
+    attributeDef(name = "Speed")
+    attributeDef(name = "Acceleration")
+
+    val dynamics = constraintDef(
+        name = "VehicleDynamics",
+        expression = "a = (F_drive - k * v^2) / m",
+        parameters = listOf(
+            ConstraintParameter(name = "m", typeId = "Mass", direction = In),
+            ConstraintParameter(name = "F_drive", typeId = "Force", direction = In),
+            ConstraintParameter(name = "v", typeId = "Speed", direction = In),
+            ConstraintParameter(name = "a", typeId = "Acceleration", direction = Out),
+        ),
+    )
+    val drag = constraintDef(
+        name = "Drag",
+        expression = "F_net = F_drive - k * v^2",
+        parameters = listOf(
+            ConstraintParameter(name = "F_drive", typeId = "Force", direction = In),
+            ConstraintParameter(name = "v", typeId = "Speed", direction = In),
+            ConstraintParameter(name = "F_net", typeId = "Force", direction = Out),
+        ),
+        parent = dynamics,
+    )
+    val newton = constraintDef(
+        name = "NewtonsLaw",
+        expression = "a = F / m",
+        parameters = listOf(
+            ConstraintParameter(name = "F", typeId = "Force", direction = In),
+            ConstraintParameter(name = "m", typeId = "Mass", direction = In),
+            ConstraintParameter(name = "a", typeId = "Acceleration", direction = Out),
+        ),
+        parent = dynamics,
+    )
+    val vehicle = partDef(name = "Vehicle") {
+        attribute(name = "mass", typeId = "Mass")
+        attribute(name = "driveForce", typeId = "Force")
+        attribute(name = "speed", typeId = "Speed")
+        attribute(name = "acceleration", typeId = "Acceleration")
+    }
+
+    // Vehicle attributes to the pins of the outer constraint
+    bind(name = "mass_to_m", source = "Vehicle::mass", target = dynamics.pin("m"))
+    bind(name = "drive_to_F", source = "Vehicle::driveForce", target = dynamics.pin("F_drive"))
+    bind(name = "speed_to_v", source = "Vehicle::speed", target = dynamics.pin("v"))
+    bind(name = "a_to_accel", source = dynamics.pin("a"), target = "Vehicle::acceleration")
+    // Outer pins to inner pins
+    bind(name = "F_to_drag", source = dynamics.pin("F_drive"), target = drag.pin("F_drive"))
+    bind(name = "v_to_drag", source = dynamics.pin("v"), target = drag.pin("v"))
+    bind(name = "m_to_newton", source = dynamics.pin("m"), target = newton.pin("m"))
+    // Between the inner constraints
+    bind(name = "net_to_newton", source = drag.pin("F_net"), target = newton.pin("F"))
+    // Inner pin back to the outer pin
+    bind(name = "newton_to_a", source = newton.pin("a"), target = dynamics.pin("a"))
+
+    parDiagram(name = "Vehicle dynamics") {
+        include(definition = dynamics)
+        include(definition = drag)
+        include(definition = newton)
+        include(definition = vehicle)
+    }
+}
+----
+
+[cols="1,1,3",options="header"]
+|===
+| Code | Severity | Rule
+| `PAR437` | Error | nesting deeper than four levels
+| `PAR438` | Error | ownership cycle
+| `PAR439` | Error | `parent` is not a known constraint definition
+| `PAR440` | Error | more than 64 parameters on one constraint
+| `PAR441` | Warning | binding endpoint does not name a parameter of its constraint
+|===
+
+Known limits: a binding that crosses more than one nesting level (outer pin to a grandchild pin) is drawn as a
+straight line between the two pins, and the LaTeX renderer still draws constraint boxes without pins.
+
 == Notes
 
 SysML 2 models carry free-text comments. Use `comment(...)` (alias `note(...)`) either on the model or

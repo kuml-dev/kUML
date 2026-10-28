@@ -3329,7 +3329,8 @@ public object KumlSvgRenderer {
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            rawLayoutResult = layoutResult,
+            // C4: nested constraint boxes and the bindings inside one composite are placed here (idempotent).
+            rawLayoutResult = Sysml2LayoutBridge.parEnrich(model = model, diagram = diagram, layoutResult = layoutResult),
             theme = theme,
             options = options,
             sysml2EdgeAdapter = ParEdgeAdapter(model = model, diagram = diagram),

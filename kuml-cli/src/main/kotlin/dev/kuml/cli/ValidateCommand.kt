@@ -365,6 +365,22 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                             )
                         }
                 } ?: emptyList()
+        // Wave C4: parametric structure checks (codes 437-441): nested constraints and pin bindings.
+        val parViolations: List<StructuralViolation> =
+            (extracted as? ExtractedDiagram.Sysml2)
+                ?.let { ex ->
+                    (ex.diagram as? dev.kuml.sysml2.ParDiagram)?.let { pd ->
+                        dev.kuml.sysml2.constraint.Sysml2ParChecker.check(model = ex.model, diagram = pd).map { i ->
+                            StructuralViolation(
+                                id = "PAR${i.code}",
+                                severity = if (i.severity == dev.kuml.sysml2.constraint.ParSeverity.Error) "error" else "warning",
+                                message = "${i.message} Hint: ${i.hint}",
+                                location = i.elementId,
+                                category = "par",
+                            )
+                        }
+                    }
+                } ?: emptyList()
         // Wave C3: layout hint checks (412, 431-436) for every SysML 2 diagram type.
         val layoutHintViolations: List<StructuralViolation> =
             (extracted as? ExtractedDiagram.Sysml2)
@@ -379,9 +395,9 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                         )
                     }
                 } ?: emptyList()
-        val reqUcErrors = (reqUcViolations + layoutHintViolations).filter { it.severity == "error" }
-        val reqUcWarnings = (reqUcViolations + layoutHintViolations).filter { it.severity == "warning" }
-        if (reqUcViolations.isNotEmpty() || layoutHintViolations.isNotEmpty()) {
+        val reqUcErrors = (reqUcViolations + layoutHintViolations + parViolations).filter { it.severity == "error" }
+        val reqUcWarnings = (reqUcViolations + layoutHintViolations + parViolations).filter { it.severity == "warning" }
+        if (reqUcViolations.isNotEmpty() || layoutHintViolations.isNotEmpty() || parViolations.isNotEmpty()) {
             echo("\nRequirement / use case validation:")
             for (rv in reqUcErrors) echo("  ERROR [${rv.id}] ${rv.location}: ${rv.message}")
             for (rv in reqUcWarnings) echo("  WARN  [${rv.id}] ${rv.location}: ${rv.message}")
@@ -407,7 +423,14 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         val allViolations =
             modelResult.violations + (stereotypeResult?.violations ?: emptyList())
         val allStructuralLikeViolations =
-            structuralViolations + ermViolations + noteViolations + stmViolations + reqUcViolations + layoutHintViolations + styleViolations
+            structuralViolations +
+                ermViolations +
+                noteViolations +
+                stmViolations +
+                reqUcViolations +
+                layoutHintViolations +
+                parViolations +
+                styleViolations
         val combined =
             KumlValidationResult(
                 valid =

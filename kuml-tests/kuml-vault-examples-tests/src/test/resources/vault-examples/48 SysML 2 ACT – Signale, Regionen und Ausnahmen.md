@@ -35,7 +35,7 @@ sysml2Model("OrderHandling") {
             partition = customer,
             pins =
                 listOf(
-                    ActionPin(name = "order", typeId = "Order", direction = PinDirection.Output, side = PinSide.Bottom),
+                    ActionPin(name = "order", typeId = "Order", direction = PinDirection.Output, side = PinSide.Right),
                     ActionPin(name = "budget", typeId = "Money", direction = PinDirection.Output, side = PinSide.Bottom),
                 ),
         )
@@ -54,7 +54,7 @@ sysml2Model("OrderHandling") {
             region = payment,
             pins =
                 listOf(
-                    ActionPin(name = "order", typeId = "Order", direction = PinDirection.Input, side = PinSide.Top),
+                    ActionPin(name = "order", typeId = "Order", direction = PinDirection.Input, side = PinSide.Left),
                 ),
         )
     val retryCharge = actionDef(name = "RetryCharge", partition = shop, region = retry)
@@ -63,7 +63,7 @@ sysml2Model("OrderHandling") {
 
     val split = forkNode(name = "pack and notify", partition = shop, showName = true)
     val pack = actionDef(name = "PackGoods", partition = shop)
-    val notify = actionDef(name = "NotifyCustomer", partition = customer)
+    val notify = actionDef(name = "NotifyCustomer", partition = shop)
     val join = joinNode(name = "done", partition = shop, showName = true)
     val end = finalNode(partition = shop)
     val aborted = flowFinalNode(partition = shop)
@@ -106,6 +106,10 @@ sysml2Model("OrderHandling") {
         include(join)
         include(end)
         include(aborted)
+        layout {
+            sameLayer(pack, notify)
+            last(end, aborted)
+        }
     }
 }
 ```

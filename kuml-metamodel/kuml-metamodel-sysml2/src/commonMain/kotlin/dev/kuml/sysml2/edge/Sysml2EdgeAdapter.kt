@@ -483,15 +483,39 @@ public class ActEdgeAdapter(
  */
 public class ParEdgeAdapter(
     model: Sysml2Model,
-    @Suppress("unused_parameter") diagram: ParDiagram,
+    diagram: ParDiagram,
 ) : Sysml2EdgeAdapter {
+    private val constraints: Map<String, dev.kuml.sysml2.ConstraintDefinition> =
+        model.definitions
+            .filterIsInstance<dev.kuml.sysml2.ConstraintDefinition>()
+            .filter { it.id in diagram.elementIds }
+            .associateBy { it.id }
+
+    private fun constraintOf(endpoint: String): String? =
+        constraints.keys.filter { endpoint == it || endpoint.startsWith("$it::") }.maxByOrNull { it.length }
+
+    private fun familyRoot(id: String): String {
+        var cur = id
+        repeat(dev.kuml.sysml2.Sysml2Limits.CONSTRAINT_DEPTH + 1) {
+            cur = constraints[cur]?.ownerConstraintId?.takeIf { it in constraints } ?: return cur
+        }
+        return cur
+    }
+
+    /** A binding between two constraints of one nesting family is drawn inside the owner box; its pins name it, so no label. */
+    private fun isInner(binding: BindingConnectorUsage): Boolean {
+        val a = constraintOf(binding.sourceEndId) ?: return false
+        val z = constraintOf(binding.targetEndId) ?: return false
+        return a != z && familyRoot(a) == familyRoot(z)
+    }
+
     private val index: Map<String, Sysml2EdgeMetadata> =
         buildMap {
             for (binding in model.usages.filterIsInstance<BindingConnectorUsage>()) {
                 put(
                     binding.id,
                     Sysml2EdgeMetadata(
-                        label = formatBindingLabel(binding),
+                        label = if (isInner(binding)) null else formatBindingLabel(binding),
                         arrowHead = Sysml2ArrowHead.None,
                     ),
                 )

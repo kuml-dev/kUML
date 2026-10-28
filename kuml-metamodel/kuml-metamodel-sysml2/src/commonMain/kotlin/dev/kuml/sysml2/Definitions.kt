@@ -613,10 +613,9 @@ data class StateDefinition(
  *    expression body (monospaced, truncated at ~30 chars with ellipsis if
  *    longer), parameter list (one line per parameter with `«in»` / `«out»` /
  *    `«inout»` direction stereotype prefix).
- *  - Parameter-pin endpoint anchoring on bindings is V2.x polish — V2.0.12
- *    renders bindings as plain edges between the two nodes (same
- *    `EdgeRendererDispatcher` lookup-miss limitation as UC / REQ / STM / ACT).
- *  - Composite constraints (one constraint includes another) are V2.x.
+ *  - Parameter pins are drawn as square markers on the box frame and bindings
+ *    whose endpoint is `"<constraintId>::<parameter>"` end at the pin (wave C4).
+ *  - Nested constraints use [ownerConstraintId] (wave C4).
  *  - Solver hookup (parametric value propagation, equation rewriting) belongs
  *    to the Behaviour-Runtime line; V2.0.12 only captures the structural
  *    projection.
@@ -641,4 +640,10 @@ data class ConstraintDefinition(
     /** Parameter pins of this constraint. */
     val parameters: List<ConstraintParameter> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    /**
+     * Id of the enclosing [ConstraintDefinition] when this constraint is nested inside another one
+     * (wave C4). `null` for a top-level constraint. Nesting is drawn as a box inside the owner box;
+     * the depth is limited by [Sysml2Limits.CONSTRAINT_DEPTH] (the root counts as level 1).
+     */
+    val ownerConstraintId: String? = null,
 ) : Sysml2Definition

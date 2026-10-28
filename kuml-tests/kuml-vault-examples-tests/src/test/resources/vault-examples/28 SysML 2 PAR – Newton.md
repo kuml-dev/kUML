@@ -74,14 +74,13 @@ sysml2Model(name = "NewtonModel") {
 
 ## Out of MVP-Scope
 
-- Composite Constraints (Constraint enthält Constraint)
-- Pin-Endpunkt-Anchoring (Bindings docken am Pin statt Box-Mittelpunkt)
 - Equation-Rendering via KaTeX (heute monospaced)
 - Typed Constraint Expression AST (heute Raw-String)
 - Solver-Hookup (parametrische Wertepropagation — Behaviour-Runtime-Wave)
 
 ## Verwandte Beispiele
 
+- [[51 SysML 2 PAR – Verschachtelte Constraints]] — verschachtelte Constraints mit Pin-Bindings
 - [[03 SysML 2 BDD – Hybrid Vehicle]] — Strukturelle Definitionssicht
 - [[27 SysML 2 IBD – Hybrid Vehicle Wiring]] — Connections statt Constraints
 - [[08 SysML 2 REQ – Vehicle Requirements]] — Anforderungen, die durch Bindings verifiziert werden können
