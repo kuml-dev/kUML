@@ -40,6 +40,7 @@ import dev.kuml.sysml2.edge.Sysml2EdgeMetadata
 internal object Sysml2EdgeRenderer {
     /** Vertical gap between stereotype line and plain label line. */
     private const val LABEL_LINE_HEIGHT_PX: Float = 12f
+    private const val STM_LABEL_PAD: Float = 3f
 
     /**
      * Vertical offset *above* the line where labels start. Picked so the
@@ -104,7 +105,7 @@ internal object Sysml2EdgeRenderer {
         labelStackIndex: Int = 0,
         overrideLabelAnchor: Pair<Float, Float>? = null,
         backdropFill: String? = null,
-        stmBlock: StmLabelBlock? = null,
+        suppressLabels: Boolean = false,
     ) {
         builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(id))) {
             renderContent(
@@ -115,7 +116,7 @@ internal object Sysml2EdgeRenderer {
                 labelStackIndex = labelStackIndex,
                 overrideLabelAnchor = overrideLabelAnchor,
                 backdropFill = backdropFill,
-                stmBlock = stmBlock,
+                suppressLabels = suppressLabels,
             )
         }
     }
@@ -128,7 +129,7 @@ internal object Sysml2EdgeRenderer {
         labelStackIndex: Int = 0,
         overrideLabelAnchor: Pair<Float, Float>? = null,
         backdropFill: String? = null,
-        stmBlock: StmLabelBlock? = null,
+        suppressLabels: Boolean = false,
     ) {
         // 1. Line + dash pattern.
         val (tag, attrs) = EdgePathBuilder.build(route)
@@ -155,10 +156,8 @@ internal object Sysml2EdgeRenderer {
         metadata.endLabel?.let { emitEndLabel(route = route, content = it, builder = builder) }
         if (metadata.midArrows.isNotEmpty()) emitMidArrows(route = route, arrows = metadata.midArrows, builder = builder)
 
-        if (stmBlock != null) {
-            emitStmBlock(block = stmBlock, backdrop = backdropFill ?: "white", builder = builder)
-            return
-        }
+        // STM labels are emitted later by emitStmLabels, after all edges, so no later edge paints over them.
+        if (suppressLabels) return
 
         // 2. Labels (stereotype + plain label). Suppress emission entirely
         //    when both slots are null — most PAR bindings and bare ACT /
@@ -205,37 +204,64 @@ internal object Sysml2EdgeRenderer {
         theme
     }
 
-    /** Halo (theme paper colour, 85 % opaque) plus wrapped, styled label lines; prose guards are italic. */
+    /**
+     * Emits all placed STM labels in one group, after every edge was drawn. [fills] maps an edge id
+     * to the opaque backdrop colour of the container the label sits in; [defaultFill] is used
+     * otherwise. Blocks are written in edge id order.
+     */
+    internal fun emitStmLabels(
+        blocks: Map<String, StmLabelBlock>,
+        fills: Map<String, String>,
+        defaultFill: String,
+        builder: SvgBuilder,
+    ) {
+        if (blocks.isEmpty()) return
+        builder.tag(name = "g", attrs = mapOf("class" to "kuml-edge-labels")) {
+            for (id in blocks.keys.sorted()) {
+                emitStmBlock(edgeId = id, block = blocks.getValue(id), backdrop = fills[id] ?: defaultFill, builder = this)
+            }
+        }
+    }
+
+    /** Opaque backdrop plus wrapped, styled label lines; prose guards are italic. */
     private fun emitStmBlock(
+        edgeId: String,
         block: StmLabelBlock,
         backdrop: String,
         builder: SvgBuilder,
     ) {
-        builder.tag(name = "g", attrs = mapOf("class" to "kuml-edge-label")) {
+        builder.tag(name = "g", attrs = mapOf("class" to "kuml-edge-label", "data-edge-id" to edgeId)) {
             if (block.truncated) tag(name = "title") { text(block.fullText) }
+            val left = block.cx - block.w / 2f
             tag(
                 name = "rect",
                 attrs =
                     mapOf(
-                        "x" to fmt(block.cx - block.w / 2f),
+                        "x" to fmt(left),
                         "y" to fmt(block.cy - block.h / 2f),
                         "width" to fmt(block.w),
                         "height" to fmt(block.h),
                         "fill" to backdrop,
-                        "fill-opacity" to "0.85",
+                        "fill-opacity" to "1",
                         "stroke" to "none",
                     ),
             )
-            val top = block.cy - block.h / 2f + 2f
+            val top = block.cy - block.h / 2f + STM_LABEL_PAD
+            val (textX, anchorName) =
+                when (block.anchor) {
+                    StmLabelAnchor.Left -> (left + STM_LABEL_PAD) to "start"
+                    StmLabelAnchor.Right -> (left + block.w - STM_LABEL_PAD) to "end"
+                    StmLabelAnchor.Center -> block.cx to "middle"
+                }
             block.lines.forEachIndexed { i, line ->
                 tag(
                     name = "text",
                     attrs =
                         mapOf(
                             "class" to "kuml-body",
-                            "x" to fmt(block.cx),
+                            "x" to fmt(textX),
                             "y" to fmt(top + 9f + i * LABEL_LINE_HEIGHT_PX),
-                            "text-anchor" to "middle",
+                            "text-anchor" to anchorName,
                         ),
                 ) {
                     if (line.none { it.kind == dev.kuml.sysml2.edge.EdgeLabelKind.GuardProse }) {

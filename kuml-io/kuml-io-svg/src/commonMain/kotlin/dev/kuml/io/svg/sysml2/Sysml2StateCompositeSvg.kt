@@ -2,6 +2,8 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt3
+import dev.kuml.io.svg.sysml2.edge.StmObstacleKind
+import dev.kuml.io.svg.sysml2.edge.StmObstacleNode
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.GroupId
 import dev.kuml.layout.LayoutResult
@@ -122,24 +124,101 @@ internal fun renderCompositeStateFrames(
                     ) { text(name) }
                 }
             }
-            if (regions.size >= 2) {
-                val rects = regions.map { it.second }
-                val byY = rects.sortedBy { it.origin.y }
-                val stacked = byY.zipWithNext().all { (a, c) -> a.origin.y + a.size.height <= c.origin.y + 0.5f }
-                if (stacked) {
-                    for ((a, c) in byY.zipWithNext()) {
-                        val sy = ((a.origin.y + a.size.height) + c.origin.y) / 2f
-                        separator(x1 = x, y1 = sy, x2 = x + w, y2 = sy)
-                    }
-                } else {
-                    for ((a, c) in rects.sortedBy { it.origin.x }.zipWithNext()) {
-                        val sx = ((a.origin.x + a.size.width) + c.origin.x) / 2f
-                        separator(x1 = sx, y1 = headerBottom, x2 = sx, y2 = y + h)
-                    }
-                }
+            for ((a, c) in compositeSeparators(frame = b, headerBottom = headerBottom, regionRects = regions.map { it.second })) {
+                separator(x1 = a.x, y1 = a.y, x2 = c.x, y2 = c.y)
             }
         }
     }
+}
+
+/**
+ * Dashed separator lines between the orthogonal regions of a composite whose frame is [frame].
+ * Regions stacked vertically get horizontal separators spanning the full width, regions side by
+ * side get vertical ones from [headerBottom] to the bottom. Shared by the drawing code and the
+ * label placer so both see the same geometry.
+ */
+internal fun compositeSeparators(
+    frame: Rect,
+    headerBottom: Float,
+    regionRects: List<Rect>,
+): List<Pair<Point, Point>> {
+    if (regionRects.size < 2) return emptyList()
+    val x = frame.origin.x
+    val y = frame.origin.y
+    val w = frame.size.width
+    val h = frame.size.height
+    val byY = regionRects.sortedBy { it.origin.y }
+    val stacked = byY.zipWithNext().all { (a, c) -> a.origin.y + a.size.height <= c.origin.y + 0.5f }
+    return if (stacked) {
+        byY.zipWithNext().map { (a, c) ->
+            val sy = ((a.origin.y + a.size.height) + c.origin.y) / 2f
+            Point(x = x, y = sy) to Point(x = x + w, y = sy)
+        }
+    } else {
+        regionRects.sortedBy { it.origin.x }.zipWithNext().map { (a, c) ->
+            val sx = ((a.origin.x + a.size.width) + c.origin.x) / 2f
+            Point(x = sx, y = headerBottom) to Point(x = sx, y = y + h)
+        }
+    }
+}
+
+/**
+ * Obstacles for the STM label placer in final canvas coordinates ([paddingPx] applied): every
+ * plain node as [StmObstacleKind.Simple], every composite group with its header, region names
+ * and separators, and every region group.
+ */
+internal fun stmObstacleNodes(
+    model: Sysml2Model,
+    visibleIds: Set<String>,
+    layoutResult: LayoutResult,
+    paddingPx: Float,
+): List<StmObstacleNode> {
+    fun shifted(r: Rect) = Rect(origin = Point(x = r.origin.x + paddingPx, y = r.origin.y + paddingPx), size = r.size)
+    val out = ArrayList<StmObstacleNode>()
+    val states = model.definitions.filterIsInstance<StateDefinition>().filter { it.id in visibleIds }
+    val compositeIds =
+        states
+            .filter { it.effectiveKind == StateKind.State }
+            .map { it.id }
+            .filter {
+                GroupId(
+                    it,
+                ) in layoutResult.groups
+            }.toSet()
+    for ((id, node) in layoutResult.nodes) {
+        if (id.value in compositeIds) continue
+        out += StmObstacleNode(id = id.value, kind = StmObstacleKind.Simple, rect = shifted(node.bounds))
+    }
+    for (def in states) {
+        if (def.id !in compositeIds) continue
+        val frame = shifted(layoutResult.groups.getValue(GroupId(def.id)).bounds)
+        val headerBottom = frame.origin.y + STM_COMPOSITE_HEADER_HEIGHT
+        val regions =
+            def.regions.mapNotNull { r ->
+                layoutResult.groups[GroupId(r.id)]?.let { g -> r to shifted(g.bounds) }
+            }
+        val names =
+            regions.mapNotNull { (r, rect) ->
+                r.name?.takeIf { it.isNotEmpty() }?.let { n ->
+                    // One 11 px italic line at (x + 8, y + 13); width estimated with the placer's character width.
+                    Rect(
+                        origin = Point(x = rect.origin.x + 8f, y = rect.origin.y + 2f),
+                        size = dev.kuml.layout.Size(width = n.length * 7.2f * 11f / 12f, height = 14f),
+                    )
+                }
+            }
+        out +=
+            StmObstacleNode(
+                id = def.id,
+                kind = StmObstacleKind.Composite,
+                rect = frame,
+                headerBottom = headerBottom,
+                regionNameRects = names,
+                dividers = compositeSeparators(frame = frame, headerBottom = headerBottom, regionRects = regions.map { it.second }),
+            )
+        for ((r, rect) in regions) out += StmObstacleNode(id = r.id, kind = StmObstacleKind.Region, rect = rect)
+    }
+    return out
 }
 
 private fun SvgBuilder.separator(

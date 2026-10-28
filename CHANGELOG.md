@@ -6,6 +6,10 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- SysML-2-STM: Kantenbeschriftungen werden nach allen Kanten auf einem deckenden Hintergrund gezeichnet und kollisionsfrei neben einem nur der eigenen Kante gehörenden Segment platziert.
+
 ### Fixed (review of SysML 2 STM wave A2)
 
 - Runtime: a limit hit while a timer fires now rolls the instance back before the exception propagates.

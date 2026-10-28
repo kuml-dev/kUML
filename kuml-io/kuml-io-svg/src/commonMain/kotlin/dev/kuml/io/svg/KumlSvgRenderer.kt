@@ -1085,6 +1085,11 @@ public object KumlSvgRenderer {
      */
     private const val STM_LABEL_FRAME_CLEARANCE_PX: Float = 6f
 
+    // STM label placement: hard top/left limit (below the frame title) and canvas clearance right/bottom.
+    private const val STM_LABEL_FRAME_LEFT_PX: Float = 8f
+    private const val STM_LABEL_FRAME_TOP_PX: Float = 20f
+    private const val STM_LABEL_CANVAS_CLEARANCE_PX: Float = 12f
+
     /** Builds a UML state-machine transition's "trigger [guard] / effect" label text. */
     private fun umlStmTransitionLabel(transition: dev.kuml.uml.UmlTransition): String =
         buildList {
@@ -1335,6 +1340,16 @@ public object KumlSvgRenderer {
         }
         if (leftOverhang <= 0f && rightOverhang <= 0f) return layoutResult
 
+        return sysml2ShiftLayoutX(layoutResult = layoutResult, dx = leftOverhang, growW = leftOverhang + rightOverhang)
+    }
+
+    /** Shifts every node, edge and group by [dx] and grows the canvas width by [growW]. */
+    private fun sysml2ShiftLayoutX(
+        layoutResult: LayoutResult,
+        dx: Float,
+        growW: Float,
+    ): LayoutResult {
+        val leftOverhang = dx
         // Shift every node/edge/group by leftOverhang so nothing lands at a
         // negative x once the canvas grows on the left — the frame itself
         // needs no separate shift, it's redrawn from canvasW at render time.
@@ -1360,7 +1375,7 @@ public object KumlSvgRenderer {
                 )
             }
         return layoutResult.copy(
-            canvas = layoutResult.canvas.copy(width = layoutResult.canvas.width + leftOverhang + rightOverhang),
+            canvas = layoutResult.canvas.copy(width = layoutResult.canvas.width + growW),
             nodes = shiftedNodes,
             edges = shiftedEdges,
             groups = shiftedGroups,
@@ -1445,6 +1460,34 @@ public object KumlSvgRenderer {
             groups = shiftedGroups,
         )
     }
+
+    /** Edge routes shifted by [padding] and passed through [routeTransform] — shared by label placement and drawing. */
+    private fun sysml2ShiftedRoutes(
+        layoutResult: LayoutResult,
+        padding: Float,
+        routeTransform: (
+            (Map<String, dev.kuml.layout.EdgeRoute>, Map<String, dev.kuml.layout.Rect>) -> Map<String, dev.kuml.layout.EdgeRoute>
+        )?,
+    ): Map<String, dev.kuml.layout.EdgeRoute> =
+        layoutResult.edges
+            .mapKeys { it.key.value }
+            .mapValues { shiftRoute(route = it.value, dx = padding) }
+            .let { base ->
+                routeTransform?.invoke(
+                    base,
+                    layoutResult.nodes.entries.associate {
+                        it.key.value to
+                            dev.kuml.layout.Rect(
+                                origin =
+                                    dev.kuml.layout.Point(
+                                        x = it.value.bounds.origin.x + padding,
+                                        y = it.value.bounds.origin.y + padding,
+                                    ),
+                                size = it.value.bounds.size,
+                            )
+                    },
+                ) ?: base
+            }
 
     /** Explicit option wins; the theme token only fills in the DEFAULT. */
     private fun resolveHighlightStroke(
@@ -1790,6 +1833,7 @@ public object KumlSvgRenderer {
         edgeLabelAnchor: ((EdgeId, EdgeRoute, String?) -> Pair<Float, Float>?)? = null,
         edgeBackdropFill: String? = null,
         wrapStmLabels: Boolean = false,
+        stmObstacles: ((LayoutResult, Float) -> List<dev.kuml.io.svg.sysml2.edge.StmObstacleNode>)? = null,
         deferredNodeIds: Set<String> = emptySet(),
         routeTransform: (
             (Map<String, dev.kuml.layout.EdgeRoute>, Map<String, dev.kuml.layout.Rect>) -> Map<String, dev.kuml.layout.EdgeRoute>
@@ -1798,12 +1842,71 @@ public object KumlSvgRenderer {
         // Widen the frame (and canvas) BEFORE computing anything padding-relative
         // below, so every subsequent step already sees the final geometry — see
         // sysml2WidenForLabelOverhang KDoc for why widening beats clamping here.
-        val layoutResult =
-            sysml2WidenForLabelOverhang(
-                layoutResult = rawLayoutResult,
-                sysml2EdgeAdapter = sysml2EdgeAdapter,
-                padding = options.paddingPx,
-            )
+        //
+        // STM: labels are placed first, on the unwidened geometry, then the canvas grows right and
+        // down to fit them; if a label had to overflow the left edge the whole diagram shifts right.
+        var stmBlocks: Map<String, dev.kuml.io.svg.sysml2.edge.StmLabelBlock> = emptyMap()
+        var stmObstacleList: List<dev.kuml.io.svg.sysml2.edge.StmObstacleNode> = emptyList()
+        val layoutResult: LayoutResult
+        if (wrapStmLabels) {
+            val padding = options.paddingPx
+            val routes = sysml2ShiftedRoutes(layoutResult = rawLayoutResult, padding = padding, routeTransform = routeTransform)
+            stmObstacleList = stmObstacles?.invoke(rawLayoutResult, padding).orEmpty()
+            val canvasW = rawLayoutResult.canvas.width + 2 * padding
+            val canvasH = rawLayoutResult.canvas.height + 2 * padding
+            stmBlocks =
+                dev.kuml.io.svg.sysml2.edge.StmLabelPlacer.place(
+                    edges =
+                        rawLayoutResult.edges.keys.map { edgeId ->
+                            Triple(
+                                edgeId.value,
+                                routes.getValue(edgeId.value),
+                                sysml2EdgeAdapter.metadataFor(edgeId.value)?.labelParts.orEmpty(),
+                            )
+                        },
+                    nodes = stmObstacleList,
+                    frame =
+                        dev.kuml.layout.Rect(
+                            origin = dev.kuml.layout.Point(x = STM_LABEL_FRAME_LEFT_PX, y = STM_LABEL_FRAME_TOP_PX),
+                            size = dev.kuml.layout.Size(width = Float.MAX_VALUE / 4f, height = Float.MAX_VALUE / 4f),
+                        ),
+                )
+            val minX0 = stmBlocks.values.minOfOrNull { it.cx - it.w / 2f } ?: STM_LABEL_FRAME_LEFT_PX
+            val dx = maxOf(0f, STM_LABEL_FRAME_LEFT_PX - minX0)
+            if (dx > 0f) {
+                stmBlocks = stmBlocks.mapValues { (_, b) -> b.copy(cx = b.cx + dx) }
+                stmObstacleList =
+                    stmObstacleList.map {
+                        it.copy(rect = it.rect.copy(origin = it.rect.origin.copy(x = it.rect.origin.x + dx)))
+                    }
+            }
+            val maxX = stmBlocks.values.maxOfOrNull { it.cx + it.w / 2f } ?: 0f
+            val maxY = stmBlocks.values.maxOfOrNull { it.cy + it.h / 2f } ?: 0f
+            val growW = maxOf(0f, maxX + STM_LABEL_CANVAS_CLEARANCE_PX - (canvasW + dx - DIAGRAM_FRAME_INSET_PX))
+            val growH = maxOf(0f, maxY + STM_LABEL_CANVAS_CLEARANCE_PX - (canvasH - DIAGRAM_FRAME_INSET_PX))
+            val shiftedLayout =
+                if (dx > 0f) sysml2ShiftLayoutX(layoutResult = rawLayoutResult, dx = dx, growW = dx) else rawLayoutResult
+            layoutResult =
+                if (growW > 0f || growH > 0f) {
+                    shiftedLayout.copy(
+                        canvas =
+                            shiftedLayout.canvas.copy(
+                                width = shiftedLayout.canvas.width + growW,
+                                height =
+                                    shiftedLayout.canvas.height + growH,
+                            ),
+                    )
+                } else {
+                    shiftedLayout
+                }
+        } else {
+            layoutResult =
+                sysml2WidenForLabelOverhang(
+                    layoutResult = rawLayoutResult,
+                    sysml2EdgeAdapter = sysml2EdgeAdapter,
+                    padding = options.paddingPx,
+                )
+        }
         return SvgDocument.render(
             layoutResult = layoutResult,
             theme = theme,
@@ -1866,45 +1969,7 @@ public object KumlSvgRenderer {
                         Triple(edgeId, route, labelText)
                     },
                 )
-            val shiftedRoutes: Map<String, dev.kuml.layout.EdgeRoute> =
-                layoutResult.edges
-                    .mapKeys { it.key.value }
-                    .mapValues { shiftRoute(route = it.value, dx = padding) }
-                    .let { base ->
-                        routeTransform?.invoke(
-                            base,
-                            layoutResult.nodes.entries.associate {
-                                it.key.value to
-                                    dev.kuml.layout.Rect(
-                                        origin =
-                                            dev.kuml.layout.Point(
-                                                x = it.value.bounds.origin.x + padding,
-                                                y = it.value.bounds.origin.y + padding,
-                                            ),
-                                        size = it.value.bounds.size,
-                                    )
-                            },
-                        ) ?: base
-                    }
-            val stmBlocks: Map<String, dev.kuml.io.svg.sysml2.edge.StmLabelBlock> =
-                if (wrapStmLabels) {
-                    dev.kuml.io.svg.sysml2.edge.StmLabelPlacer.place(
-                        edges =
-                            layoutResult.edges.mapNotNull { (edgeId, route) ->
-                                val parts = sysml2EdgeAdapter.metadataFor(edgeId.value)?.labelParts.orEmpty()
-                                if (parts.isEmpty()) null else Triple(edgeId.value, shiftedRoutes.getValue(edgeId.value), parts)
-                            },
-                        obstacles =
-                            layoutResult.nodes.values.map {
-                                dev.kuml.layout.Rect(
-                                    origin = dev.kuml.layout.Point(x = it.bounds.origin.x + padding, y = it.bounds.origin.y + padding),
-                                    size = it.bounds.size,
-                                )
-                            },
-                    )
-                } else {
-                    emptyMap()
-                }
+            val shiftedRoutes = sysml2ShiftedRoutes(layoutResult = layoutResult, padding = padding, routeTransform = routeTransform)
             for ((edgeId, _) in layoutResult.edges) {
                 val shiftedRoute = shiftedRoutes.getValue(edgeId.value)
                 val element = elementIndex[edgeId.value]
@@ -1914,7 +1979,7 @@ public object KumlSvgRenderer {
                     val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
                     if (meta != null) {
                         Sysml2EdgeRenderer.render(
-                            stmBlock = stmBlocks[edgeId.value],
+                            suppressLabels = stmBlocks.containsKey(edgeId.value),
                             id = edgeId.value,
                             route = shiftedRoute,
                             metadata = meta,
@@ -1935,6 +2000,27 @@ public object KumlSvgRenderer {
                         }
                     }
                 }
+            }
+            // STM labels come after ALL edges so no later edge line runs over a label; the backdrop is
+            // opaque and matches the container the label sits in (composite fill or diagram paper).
+            if (stmBlocks.isNotEmpty()) {
+                val composites = stmObstacleList.filter { it.kind == dev.kuml.io.svg.sysml2.edge.StmObstacleKind.Composite }
+                val nodeFill = theme.colors.effectiveNodeFill.toHex()
+                val fills =
+                    stmBlocks.mapValues { (_, b) ->
+                        val inside =
+                            composites.any {
+                                b.cx in it.rect.origin.x..(it.rect.origin.x + it.rect.size.width) &&
+                                    b.cy in it.rect.origin.y..(it.rect.origin.y + it.rect.size.height)
+                            }
+                        if (inside) nodeFill else (edgeBackdropFill ?: theme.colors.background.toHex())
+                    }
+                Sysml2EdgeRenderer.emitStmLabels(
+                    blocks = stmBlocks,
+                    fills = fills,
+                    defaultFill = edgeBackdropFill ?: theme.colors.background.toHex(),
+                    builder = edgesBuilder,
+                )
             }
             // Deferred (pseudo-state) nodes paint after edges and labels so dot, diamond and bar sit on the arrow tips.
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
@@ -2266,6 +2352,10 @@ public object KumlSvgRenderer {
             typeLabel = "state machine",
             edgeBackdropFill = theme.colors.background.toHex(),
             wrapStmLabels = true,
+            stmObstacles = { lr, padding ->
+                dev.kuml.io.svg.sysml2
+                    .stmObstacleNodes(model = model, visibleIds = visible, layoutResult = lr, paddingPx = padding)
+            },
             routeTransform = { routes, rects ->
                 val ends =
                     model.usages.filterIsInstance<dev.kuml.sysml2.TransitionUsage>().map {
