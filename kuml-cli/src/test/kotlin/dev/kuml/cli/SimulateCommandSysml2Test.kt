@@ -63,4 +63,79 @@ class SimulateCommandSysml2Test :
                 out.delete()
             }
         }
+
+        // ── wave A2: virtual time, timers and prose guards ─────────────────────────
+
+        val timerScript = File("src/test/resources/simulate/sysml2/timers.kuml.kts")
+
+        fun runTimers(
+            eventsFile: String,
+            vararg extra: String,
+        ): Triple<com.github.ajalt.clikt.testing.CliktCommandTestResult, File, List<TraceEntry>> {
+            val out = Files.createTempFile("kuml-simulate-timers-", ".trace.json").toFile()
+            val result =
+                KumlCli().test(
+                    listOf(
+                        "simulate",
+                        timerScript.absolutePath,
+                        File("src/test/resources/simulate/sysml2/$eventsFile").absolutePath,
+                        "--out",
+                        out.absolutePath,
+                    ) + extra,
+                )
+            val entries = if (result.statusCode == 0) loadTrace(out).entries else emptyList()
+            return Triple(result, out, entries)
+        }
+
+        test("time events +4s +1s fire the after timer; a blocked prose guard keeps the machine in Green") {
+            val (result, out, entries) = runTimers("timers.events.json")
+            try {
+                result.statusCode shouldBe 0
+                entries.filterIsInstance<TraceEntry.ClockStarted>().single().startTime shouldBe "2000-01-01T00:00:00Z"
+                entries.filterIsInstance<TraceEntry.TimerFired>().single().transitionId shouldBe "redToGreen"
+                entries.filterIsInstance<TraceEntry.GuardNotEvaluable>().single().transitionId shouldBe "greenToDone"
+                entries.none { it is TraceEntry.Terminated } shouldBe true
+            } finally {
+                out.delete()
+            }
+        }
+
+        test("--prose-guards allow lets the prose guard pass") {
+            val (result, out, entries) = runTimers("timers.events.json", "--prose-guards", "allow")
+            try {
+                result.statusCode shouldBe 0
+                entries.filterIsInstance<TraceEntry.Terminated>().single().finalVertexId shouldBe "Done"
+            } finally {
+                out.delete()
+            }
+        }
+
+        test("+next jumps to the next timer and --start-time sets the virtual clock") {
+            val (result, out, entries) = runTimers("timers-next.events.json", "--start-time", "2026-05-01T12:00:00Z")
+            try {
+                result.statusCode shouldBe 0
+                entries.filterIsInstance<TraceEntry.ClockStarted>().single().startTime shouldBe "2026-05-01T12:00:00Z"
+                entries.filterIsInstance<TraceEntry.TimerFired>().single().dueTime shouldBe "2026-05-01T12:00:05Z"
+            } finally {
+                out.delete()
+            }
+        }
+
+        test("an invalid time event is reported and not silently ignored") {
+            val (result, out, _) = runTimers("timers-bad.events.json")
+            out.delete()
+            result.statusCode shouldBe ExitCodes.USAGE
+        }
+
+        test("--epoch-clock together with --start-time is rejected") {
+            val (result, out, _) = runTimers("timers.events.json", "--epoch-clock", "--start-time", "2026-05-01T12:00:00Z")
+            out.delete()
+            result.statusCode shouldBe ExitCodes.USAGE
+        }
+
+        test("--start-time must be a UTC instant") {
+            val (result, out, _) = runTimers("timers.events.json", "--start-time", "2026-05-01T12:00:00+02:00")
+            out.delete()
+            (result.statusCode != 0) shouldBe true
+        }
     })

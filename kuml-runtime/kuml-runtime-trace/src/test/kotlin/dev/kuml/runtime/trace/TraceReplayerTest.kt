@@ -1,11 +1,21 @@
 package dev.kuml.runtime.trace
 
 import dev.kuml.runtime.Event
+import dev.kuml.runtime.OclGuardEvaluator
+import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.runtime.TraceEntry
 import dev.kuml.runtime.TraceFile
+import dev.kuml.uml.PseudostateKind
+import dev.kuml.uml.UmlPseudostate
+import dev.kuml.uml.UmlState
+import dev.kuml.uml.UmlStateMachine
+import dev.kuml.uml.UmlTimer
+import dev.kuml.uml.UmlTransition
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import java.time.Instant
+import kotlin.time.Duration.Companion.seconds
 
 class TraceReplayerTest :
     FunSpec({
@@ -102,5 +112,39 @@ class TraceReplayerTest :
 
             val text = report.toHumanReadable()
             text.contains("match", ignoreCase = true) shouldBe true
+        }
+
+        test("replay restores time advances that fired no timer, so later timers are due at the original time") {
+            val init = UmlPseudostate(id = "init", name = "init", kind = PseudostateKind.INITIAL)
+            val sm =
+                UmlStateMachine(
+                    id = "TimeAdvance",
+                    name = "TimeAdvance",
+                    vertices = listOf(init, UmlState(id = "A", name = "A"), UmlState(id = "B", name = "B"), UmlState(id = "C", name = "C")),
+                    transitions =
+                        listOf(
+                            UmlTransition(id = "t0", sourceId = "init", targetId = "A"),
+                            UmlTransition(id = "t1", sourceId = "A", targetId = "B", trigger = "e"),
+                            UmlTransition(id = "t2", sourceId = "B", targetId = "C", timer = UmlTimer.After(durationMs = 7_000)),
+                        ),
+                )
+            val runtime =
+                StateMachineRuntime(
+                    guards = OclGuardEvaluator(),
+                    clock = { Instant.parse("2026-01-01T00:00:00Z") },
+                    virtualStart = Instant.parse("2026-01-01T00:00:00Z"),
+                )
+            val instance = runtime.start(sm)
+            runtime.advance(instance = instance, by = 4.seconds)
+            runtime.step(instance = instance, event = Event.of("e"))
+            runtime.advanceToNextTimer(instance)
+            val original = TraceFile(modelId = sm.id, entries = instance.trace)
+
+            val report = TraceReplayer().replay(model = sm, original = original)
+
+            val originalDue = original.entries.filterIsInstance<TraceEntry.TimerFired>().map { it.dueTime }
+            originalDue shouldBe listOf("2026-01-01T00:00:11Z")
+            report.actualTrace.filterIsInstance<TraceEntry.TimerFired>().map { it.dueTime } shouldBe originalDue
+            report.isMatch shouldBe true
         }
     })

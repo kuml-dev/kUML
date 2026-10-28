@@ -117,6 +117,68 @@ public sealed class TraceEntry {
         public val finalVertexId: String,
     ) : TraceEntry()
 
+    // ── Wave A2: virtual time, timers, regions ─────────────────────────────────
+
+    /** The virtual clock of a timer-driven run started at [startTime] (ISO-8601, UTC). */
+    @Serializable
+    @SerialName("ClockStarted")
+    public data class ClockStarted(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val startTime: String,
+    ) : TraceEntry()
+
+    /** An armed timer of [transitionId] expired at [dueTime] (ISO-8601, UTC). */
+    @Serializable
+    @SerialName("TimerFired")
+    public data class TimerFired(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val transitionId: String,
+        public val dueTime: String,
+    ) : TraceEntry()
+
+    /** A free-text (prose) guard was not evaluated; [message] says why. */
+    @Serializable
+    @SerialName("GuardNotEvaluable")
+    public data class GuardNotEvaluable(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val transitionId: String,
+        public val guard: String,
+        public val message: String,
+    ) : TraceEntry()
+
+    /** A join could not fire because the sources in [missing] are not active (or not triggered). */
+    @Serializable
+    @SerialName("JoinWaiting")
+    public data class JoinWaiting(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val joinId: String,
+        public val missing: List<String>,
+    ) : TraceEntry()
+
+    /** An enabled transition was pre-empted by [byTransitionId] (it leaves a shared ancestor). */
+    @Serializable
+    @SerialName("Preempted")
+    public data class Preempted(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val transitionId: String,
+        public val byTransitionId: String,
+    ) : TraceEntry()
+
+    /** An enabled transition did not fire; [reason] says why (junction without a valid path, guard at timer expiry). */
+    @Serializable
+    @SerialName("NotFired")
+    public data class NotFired(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val transitionId: String?,
+        public val reason: String,
+    ) : TraceEntry()
+
     // ── Activity-Runtime trace entries (V2.0.18) ──────────────────────────────
 
     @Serializable

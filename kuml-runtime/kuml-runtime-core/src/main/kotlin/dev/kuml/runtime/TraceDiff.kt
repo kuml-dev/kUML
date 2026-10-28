@@ -87,6 +87,13 @@ internal fun TraceEntry.withoutTimestamp(): TraceEntry =
         is TraceEntry.ActionError -> copy(timestamp = "")
         is TraceEntry.Stayed -> copy(timestamp = "")
         is TraceEntry.Terminated -> copy(timestamp = "")
+        // Wave A2 entries
+        is TraceEntry.ClockStarted -> copy(timestamp = "", startTime = "")
+        is TraceEntry.TimerFired -> copy(timestamp = "", dueTime = "")
+        is TraceEntry.GuardNotEvaluable -> copy(timestamp = "")
+        is TraceEntry.JoinWaiting -> copy(timestamp = "")
+        is TraceEntry.Preempted -> copy(timestamp = "")
+        is TraceEntry.NotFired -> copy(timestamp = "")
         // Activity-Runtime entries (V2.0.18) — timestamps are already empty strings
         is TraceEntry.TokenPlaced -> copy(timestamp = "")
         is TraceEntry.TokenConsumed -> copy(timestamp = "")
@@ -120,6 +127,13 @@ internal fun TraceEntry.shortDescr(): String =
         is TraceEntry.ActionError -> "ActionError(t=$transitionId, msg='$message')"
         is TraceEntry.Stayed -> "Stayed(reason='$reason')"
         is TraceEntry.Terminated -> "Terminated($finalVertexId)"
+        // Wave A2 entries
+        is TraceEntry.ClockStarted -> "ClockStarted($startTime)"
+        is TraceEntry.TimerFired -> "TimerFired(t=$transitionId, due=$dueTime)"
+        is TraceEntry.GuardNotEvaluable -> "GuardNotEvaluable(t=$transitionId, msg='$message')"
+        is TraceEntry.JoinWaiting -> "JoinWaiting($joinId, missing=$missing)"
+        is TraceEntry.Preempted -> "Preempted(t=$transitionId, by=$byTransitionId)"
+        is TraceEntry.NotFired -> "NotFired(t=$transitionId, reason='$reason')"
         // Activity-Runtime entries (V2.0.18)
         is TraceEntry.TokenPlaced -> "TokenPlaced($nodeId, clock=$clock)"
         is TraceEntry.TokenConsumed -> "TokenConsumed($nodeId, clock=$clock)"

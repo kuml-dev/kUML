@@ -113,8 +113,9 @@ internal fun renderCompositeStateFrames(
                         attrs =
                             mapOf(
                                 "class" to "kuml-body",
-                                "x" to fmt3(rect.origin.x + 6f),
+                                "x" to fmt3(rect.origin.x + 8f),
                                 "y" to fmt3(rect.origin.y + 13f),
+                                "text-anchor" to "start",
                                 "font-size" to "11",
                                 "font-style" to "italic",
                             ),

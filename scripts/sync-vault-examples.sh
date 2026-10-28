@@ -59,6 +59,10 @@ map_vault_to_web() {
     "33 Blueprint – PdV Mitglieder-Journey.md")   echo "blueprint-pdv-mitglieder-journey.kuml.kts" ;;
     "36 BPMN Conversation – PdV Kommunikation.md") echo "bpmn-conversation-pdv.kuml.kts" ;;
     "37 BPMN Choreography – Bestellprozess.md")  echo "bpmn-choreography-bestellprozess.kuml.kts" ;;
+    "42 SysML 2 STM – Timer.md")                  echo "sysml2-stm-timer.kuml.kts" ;;
+    "43 SysML 2 STM – Regionen mit Fork-Join.md") echo "sysml2-stm-regions-fork-join.kuml.kts" ;;
+    "44 SysML 2 STM – History und Junction.md")   echo "sysml2-stm-history-junction.kuml.kts" ;;
+    "45 SysML 2 STM – Prosa-Guards.md")           echo "sysml2-stm-prose-guards.kuml.kts" ;;
     "07 BPMN animiert – PdV Mitgliedsantrag.md") echo "bpmn-pdv-mitgliedsantrag-animiert.kuml.kts" ;;
     "08 STM animiert – Traffic Light.md")         echo "stm-traffic-light-animiert.kuml.kts" ;;
     "19 UML Sequence animiert – API Submit.md")   echo "uml-sequence-api-submit-animiert.kuml.kts" ;;

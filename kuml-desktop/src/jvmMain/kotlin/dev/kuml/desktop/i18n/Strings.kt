@@ -229,6 +229,21 @@ data class Strings(
     val simInspectorTitle: String get() = simulator.simInspectorTitle
     val simVariablesTitle: String get() = simulator.simVariablesTitle
     val simInspectorToggle: String get() = simulator.simInspectorToggle
+    val simAdvance1s: String get() = simulator.simAdvance1s
+    val simAdvance10s: String get() = simulator.simAdvance10s
+    val simNextTimer: String get() = simulator.simNextTimer
+    val simNextTimerIn: String get() = simulator.simNextTimerIn
+    val simNoTimerArmed: String get() = simulator.simNoTimerArmed
+    val simTimersTitle: String get() = simulator.simTimersTitle
+    val simTimerRow: String get() = simulator.simTimerRow
+    val simActiveLeaves: String get() = simulator.simActiveLeaves
+    val simHistoryTitle: String get() = simulator.simHistoryTitle
+    val simProseTitle: String get() = simulator.simProseTitle
+    val simProseQuestion: String get() = simulator.simProseQuestion
+    val simYes: String get() = simulator.simYes
+    val simNo: String get() = simulator.simNo
+    val simGuardProse: String get() = simulator.simGuardProse
+    val simTimeLimit: String get() = simulator.simTimeLimit
     val menuToolsSimInspector: String get() = simulator.menuToolsSimInspector
     val simSectionCollapsed: String get() = simulator.simSectionCollapsed
     val simSectionExpanded: String get() = simulator.simSectionExpanded
@@ -461,6 +476,21 @@ data class Strings(
                         simInspectorTitle = "Inspektor",
                         simVariablesTitle = "Variablen",
                         simInspectorToggle = "Inspektor ein- oder ausblenden",
+                        simAdvance1s = "+1 s",
+                        simAdvance10s = "+10 s",
+                        simNextTimer = "Nächster Timer",
+                        simNextTimerIn = "Nächster Timer (in %s)",
+                        simNoTimerArmed = "Kein Timer scharf: im aktiven Zustand ist kein after- oder at-Übergang definiert",
+                        simTimersTitle = "Timer",
+                        simTimerRow = "%s (von %s): fällig in %s",
+                        simActiveLeaves = "Aktive Blätter",
+                        simHistoryTitle = "History-Speicher",
+                        simProseTitle = "Freitext-Bedingung",
+                        simProseQuestion = "Ist diese Bedingung erfüllt?",
+                        simYes = "Ja",
+                        simNo = "Nein",
+                        simGuardProse = "Freitext, wird nicht ausgewertet",
+                        simTimeLimit = "Simulationsgrenze erreicht: %s",
                         menuToolsSimInspector = "Simulations-Inspektor",
                         simSectionCollapsed = "eingeklappt",
                         simSectionExpanded = "aufgeklappt",
@@ -747,6 +777,21 @@ data class Strings(
                         simInspectorTitle = "Inspector",
                         simVariablesTitle = "Variables",
                         simInspectorToggle = "Show or hide the inspector",
+                        simAdvance1s = "+1 s",
+                        simAdvance10s = "+10 s",
+                        simNextTimer = "Next timer",
+                        simNextTimerIn = "Next timer (in %s)",
+                        simNoTimerArmed = "No timer armed: the active state has no after or at transition",
+                        simTimersTitle = "Timers",
+                        simTimerRow = "%s (from %s): due in %s",
+                        simActiveLeaves = "Active leaves",
+                        simHistoryTitle = "History memory",
+                        simProseTitle = "Free-text condition",
+                        simProseQuestion = "Is this condition met?",
+                        simYes = "Yes",
+                        simNo = "No",
+                        simGuardProse = "Free text, not evaluated",
+                        simTimeLimit = "Simulation limit reached: %s",
                         menuToolsSimInspector = "Simulation inspector",
                         simSectionCollapsed = "collapsed",
                         simSectionExpanded = "expanded",
@@ -872,6 +917,21 @@ data class SimulatorStrings(
     val simInspectorTitle: String,
     val simVariablesTitle: String,
     val simInspectorToggle: String,
+    val simAdvance1s: String,
+    val simAdvance10s: String,
+    val simNextTimer: String,
+    val simNextTimerIn: String,
+    val simNoTimerArmed: String,
+    val simTimersTitle: String,
+    val simTimerRow: String,
+    val simActiveLeaves: String,
+    val simHistoryTitle: String,
+    val simProseTitle: String,
+    val simProseQuestion: String,
+    val simYes: String,
+    val simNo: String,
+    val simGuardProse: String,
+    val simTimeLimit: String,
     val menuToolsSimInspector: String,
     val simSectionCollapsed: String,
     val simSectionExpanded: String,

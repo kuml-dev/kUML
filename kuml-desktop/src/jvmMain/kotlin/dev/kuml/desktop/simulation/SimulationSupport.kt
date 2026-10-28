@@ -55,6 +55,7 @@ private fun parentMap(model: UmlStateMachine): Map<String, String> {
         for (v in vertices) {
             if (parentId != null) parentOf[v.id] = parentId
             if (v is UmlState && v.substates.isNotEmpty()) index(v.substates, v.id)
+            if (v is UmlState) for (r in v.regions) index(r.vertices, v.id)
         }
     }
     index(model.vertices, null)

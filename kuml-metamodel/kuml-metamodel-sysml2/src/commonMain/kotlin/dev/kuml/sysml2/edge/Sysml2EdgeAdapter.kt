@@ -5,6 +5,7 @@ import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.GuardKind
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.ParDiagram
@@ -114,6 +115,20 @@ public data class Sysml2EdgeMetadata(
     val endLabel: String? = null,
     /** Draw [arrowHead] at the source end instead of the target end (composition / aggregation diamonds). */
     val headAtSource: Boolean = false,
+    /**
+     * Structured parts of [label] (STM: trigger / guard / effect), so renderers can wrap
+     * and style them separately. Empty when [label] is a plain string.
+     */
+    val labelParts: List<EdgeLabelPart> = emptyList(),
+)
+
+/** Kind of one [EdgeLabelPart]. */
+public enum class EdgeLabelKind { Trigger, Guard, GuardProse, Effect }
+
+/** One styled segment of a composed edge label. [text] already contains brackets / slash. */
+public data class EdgeLabelPart(
+    val text: String,
+    val kind: EdgeLabelKind,
 )
 
 /**
@@ -297,6 +312,7 @@ public class StmEdgeAdapter(
                     Sysml2EdgeMetadata(
                         label = formatTransitionLabel(transition),
                         arrowHead = Sysml2ArrowHead.FilledTriangle,
+                        labelParts = transitionLabelParts(transition),
                     ),
                 )
             }
@@ -310,12 +326,20 @@ public class StmEdgeAdapter(
          * slot is dropped if null/blank; if every slot is empty the result is
          * `null` so the renderer emits the bare arrow.
          */
-        public fun formatTransitionLabel(transition: TransitionUsage): String? {
-            val parts = mutableListOf<String>()
-            transition.trigger?.takeIf { it.isNotBlank() }?.let { parts += it }
-            transition.guard?.takeIf { it.isNotBlank() }?.let { parts += "[$it]" }
-            transition.effect?.takeIf { it.isNotBlank() }?.let { parts += "/ $it" }
-            return parts.takeIf { it.isNotEmpty() }?.joinToString(" ")
+        public fun formatTransitionLabel(transition: TransitionUsage): String? =
+            transitionLabelParts(transition).takeIf { it.isNotEmpty() }?.joinToString(" ") { it.text }
+
+        /** Trigger (or timer label), `[guard]` and `/ effect` as separate styled parts. */
+        public fun transitionLabelParts(transition: TransitionUsage): List<EdgeLabelPart> {
+            val parts = mutableListOf<EdgeLabelPart>()
+            (transition.trigger?.takeIf { it.isNotBlank() } ?: transition.timer?.label())
+                ?.let { parts += EdgeLabelPart(text = it, kind = EdgeLabelKind.Trigger) }
+            transition.guard?.takeIf { it.isNotBlank() }?.let {
+                val kind = if (transition.guardKind == GuardKind.Prose) EdgeLabelKind.GuardProse else EdgeLabelKind.Guard
+                parts += EdgeLabelPart(text = "[$it]", kind = kind)
+            }
+            transition.effect?.takeIf { it.isNotBlank() }?.let { parts += EdgeLabelPart(text = "/ $it", kind = EdgeLabelKind.Effect) }
+            return parts
         }
     }
 }

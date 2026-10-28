@@ -222,6 +222,9 @@ internal fun SimulationInspectorPane(
                     )
                 }
             }
+            if (session.hasTimers || widgetState.historyMemory().isNotEmpty() || widgetState.activeLeafIds().size > 1) {
+                item(key = "runtime-state") { RuntimeStateSection(session = session, names = names, strings = strings) }
+            }
             if (whyNot.isNotEmpty()) {
                 item(key = "not-enabled") { NotEnabledSection(whyNot = whyNot, names = names, strings = strings) }
             }
@@ -377,9 +380,49 @@ internal fun guardStatus(
                 GuardEvaluation.True -> "✓ ${strings.simGuardTrue}" to GREEN
                 GuardEvaluation.False -> "✗ ${strings.simGuardFalse}" to Color.Gray
                 is GuardEvaluation.Error -> "⚠ ${strings.simGuardError.format(evaluation.message)}" to RED
+                GuardEvaluation.Prose -> "? ${strings.simGuardProse}" to AMBER
                 GuardEvaluation.Pending, null -> "… ${strings.simEvaluating}" to Color.Gray
             }
     }
+
+/** Armed timers, active leaves of orthogonal regions and what each history pseudostate remembers. */
+@Composable
+private fun RuntimeStateSection(
+    session: SimulationSession,
+    names: Map<String, String>,
+    strings: Strings,
+) {
+    val widgetState = session.widgetState
+    val timers = session.armedTimers()
+    val leaves = widgetState.activeLeafIds()
+    val history = widgetState.historyMemory()
+    Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+        if (session.hasTimers) {
+            Text(text = strings.simTimersTitle, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            if (timers.isEmpty()) {
+                Text(text = strings.simNoTimerArmed, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            for (t in timers) {
+                Text(
+                    text = strings.simTimerRow.format(t.transitionId, names[t.sourceId] ?: t.sourceId, t.remaining.toString()),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+        if (leaves.size > 1) {
+            Text(text = strings.simActiveLeaves, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            Text(text = leaves.joinToString(", ") { names[it] ?: it }, fontSize = 11.sp)
+        }
+        if (history.isNotEmpty()) {
+            Text(text = strings.simHistoryTitle, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            for ((h, mem) in history) {
+                Text(text = "${names[h] ?: h}: ${mem.joinToString(", ") { names[it] ?: it }}", fontSize = 11.sp)
+            }
+        }
+    }
+    HorizontalDivider()
+}
 
 @Composable
 private fun NotEnabledSection(

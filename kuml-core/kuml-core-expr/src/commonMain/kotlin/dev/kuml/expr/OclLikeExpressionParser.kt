@@ -7,17 +7,21 @@ package dev.kuml.expr
  *
  * Grammar (informal, top-to-bottom precedence):
  *   expr     ::= or
- *   or       ::= and ('||' and)*
- *   and      ::= not ('&&' not)*
- *   not      ::= '!' not | compare
+ *   or       ::= and (('||' | 'or') and)*
+ *   and      ::= not (('&&' | 'and') not)*
+ *   not      ::= ('!' | 'not') not | compare
  *   compare  ::= add (('==' | '!=' | '<' | '<=' | '>' | '>=') add)?
  *   add      ::= mul (('+' | '-') mul)*
  *   mul      ::= unary (('*' | '/') unary)*
  *   unary    ::= '-' unary | primary
  *   primary  ::= literal | attrRef | funcCall | '(' expr ')'
  *   attrRef  ::= IDENT ('.' IDENT)*
+ *   IDENT    ::= letter (letter | digit | '_')* | '`' any{1,64} '`'   (backticks allow spaces, umlauts, and/or/not)
  *   funcCall ::= IDENT '(' (expr (',' expr)*)? ')'
  *   literal  ::= INT | REAL | STRING | 'true' | 'false' | 'null'
+ *
+ * `and` / `or` / `not` are case-insensitive aliases of `&&` / `||` / `!`. A variable
+ * with one of these names must be written in backticks.
  */
 public object OclLikeExpressionParser {
     /**
@@ -45,6 +49,9 @@ public object OclLikeExpressionParser {
      * fail fast with a normal [ParseException] instead of recursing further.
      */
     public const val MAX_NESTING_DEPTH: Int = 200
+
+    /** Maximum length of a backtick-quoted identifier (`` `Door open` ``). */
+    public const val MAX_QUOTED_IDENT_LEN: Int = 64
 
     /**
      * Parses [input] into a [KumlExpression].
@@ -486,14 +493,48 @@ public object OclLikeExpressionParser {
                         sb.append(src[i++])
                     }
                     val text = sb.toString()
-                    val kind =
-                        when (text) {
-                            "true" -> TokenKind.TRUE
-                            "false" -> TokenKind.FALSE
-                            "null" -> TokenKind.NULL
-                            else -> TokenKind.IDENT
+                    // Word operators (lowercase only, never directly after '.') map onto the symbolic tokens.
+                    val afterDot = tokens.lastOrNull()?.kind == TokenKind.DOT
+                    when (if (afterDot) "" else text) {
+                        "and" -> tokens += Token(kind = TokenKind.AND, text = "&&", column = startCol)
+                        "or" -> tokens += Token(kind = TokenKind.OR, text = "||", column = startCol)
+                        "not" -> tokens += Token(kind = TokenKind.BANG, text = "!", column = startCol)
+                        else -> {
+                            val kind =
+                                when (text) {
+                                    "true" -> TokenKind.TRUE
+                                    "false" -> TokenKind.FALSE
+                                    "null" -> TokenKind.NULL
+                                    else -> TokenKind.IDENT
+                                }
+                            tokens += Token(kind = kind, text = text, column = startCol)
                         }
-                    tokens += Token(kind = kind, text = text, column = startCol)
+                    }
+                }
+                // Backtick-quoted identifier: `Door open` (1..64 chars, no line break) — also escapes and/or/not.
+                c == '`' -> {
+                    val startCol = col()
+                    i++
+                    val sb = StringBuilder()
+                    while (i < src.length && src[i] != '`') {
+                        if (src[i] == '\n' || src[i] == '\r') {
+                            throw ParseException(ParseError(message = "Line break inside backtick identifier", column = startCol))
+                        }
+                        if (sb.length >= MAX_QUOTED_IDENT_LEN) {
+                            throw ParseException(
+                                ParseError(message = "Backtick identifier longer than $MAX_QUOTED_IDENT_LEN characters", column = startCol),
+                            )
+                        }
+                        sb.append(src[i++])
+                    }
+                    if (i >= src.length) {
+                        throw ParseException(ParseError(message = "Unterminated backtick identifier", column = startCol))
+                    }
+                    i++ // closing backtick
+                    if (sb.isEmpty()) {
+                        throw ParseException(ParseError(message = "Empty backtick identifier", column = startCol))
+                    }
+                    tokens += Token(kind = TokenKind.IDENT, text = sb.toString(), column = startCol)
                 }
                 else -> {
                     throw ParseException(ParseError(message = "Unexpected character '$c'", column = col()))

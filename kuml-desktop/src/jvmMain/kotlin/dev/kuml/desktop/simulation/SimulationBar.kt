@@ -16,6 +16,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,10 +41,13 @@ import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
 import dev.kuml.desktop.ui.isSendShortcut
 import dev.kuml.desktop.ui.tooltipEnd
+import dev.kuml.desktop.workspace.WindowAlertDialog
+import dev.kuml.runtime.TimeStep
 import dev.kuml.widget.compose.EventPayloads
 import dev.kuml.widget.compose.PayloadParseResult
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * V3.x — Live-Simulation von Zustandsautomaten im Editor.
@@ -86,7 +90,7 @@ internal fun SimulationBar(
                     stale = isStale(sessionSource = session.modelSource, currentScript = state.script),
                 )
             when (decision) {
-                is AutoAdvanceDecision.Continue -> session.send(eventName = decision.eventName)
+                is AutoAdvanceDecision.Continue -> if (session.proseDialog == null) session.sendAsking(eventName = decision.eventName)
                 is AutoAdvanceDecision.Stop -> session.reportAutoStop(decision.reason)
             }
         }
@@ -110,7 +114,7 @@ internal fun SimulationBar(
                 icon = KumlIcons.SimStep,
                 description = strings.simStep,
                 enabled = !stale && !terminated && enabledEvents.size == 1,
-                onClick = { enabledEvents.singleOrNull()?.let { session.send(eventName = it) } },
+                onClick = { enabledEvents.singleOrNull()?.let { session.sendAsking(eventName = it) } },
                 tooltipPlacement = tooltipEnd(),
             )
             if (session.autoAdvancing) {
@@ -142,6 +146,30 @@ internal fun SimulationBar(
                 tooltipPlacement = tooltipEnd(),
             )
             VerticalDivider(modifier = Modifier.padding(horizontal = 2.dp))
+            if (session.hasTimers) {
+                // Virtual time: disabled with a stated reason when no timer is armed (never a silent no-op).
+                val timers = session.armedTimers()
+                val canAdvance = !stale && !terminated && timers.isNotEmpty()
+                EventButton(
+                    name = strings.simAdvance1s,
+                    enabled = canAdvance,
+                    disabledHint = strings.simNoTimerArmed,
+                    onClick = { session.advanceAsking(TimeStep.By(1.seconds)) },
+                )
+                EventButton(
+                    name = strings.simAdvance10s,
+                    enabled = canAdvance,
+                    disabledHint = strings.simNoTimerArmed,
+                    onClick = { session.advanceAsking(TimeStep.By(10.seconds)) },
+                )
+                EventButton(
+                    name = timers.firstOrNull()?.let { strings.simNextTimerIn.format(it.remaining.toString()) } ?: strings.simNextTimer,
+                    enabled = canAdvance,
+                    disabledHint = strings.simNoTimerArmed,
+                    onClick = { session.advanceAsking(TimeStep.Next) },
+                )
+                VerticalDivider(modifier = Modifier.padding(horizontal = 2.dp))
+            }
             // Takes all remaining width so the close button below naturally lands at the row's
             // trailing edge without a second fillMaxWidth-in-a-Row footgun.
             Row(
@@ -154,7 +182,7 @@ internal fun SimulationBar(
                         name = name,
                         enabled = enabled,
                         disabledHint = strings.simEventNotEnabled,
-                        onClick = { session.send(eventName = name) },
+                        onClick = { session.sendAsking(eventName = name) },
                     )
                 }
                 OutlinedButton(onClick = { expanded = !expanded }, enabled = !stale) {
@@ -180,6 +208,25 @@ internal fun SimulationBar(
             // confusing "Kein Übergang: state machine terminated" on every click.
             FreeformEventRow(session = session, strings = strings, enabled = !stale && !terminated)
         }
+    }
+    session.proseDialog?.let { dialog -> ProseGuardDialog(dialog = dialog, session = session, strings = strings) }
+}
+
+/** Asks whether a free-text guard holds, in its own window (the preview is a heavyweight component). */
+@Composable
+private fun ProseGuardDialog(
+    dialog: ProseDialogState,
+    session: SimulationSession,
+    strings: Strings,
+) {
+    WindowAlertDialog(
+        title = strings.simProseTitle,
+        onDismissRequest = { session.cancelProse() },
+        confirmButton = { TextButton(onClick = { session.answerProse(true) }) { Text(strings.simYes) } },
+        dismissButton = { TextButton(onClick = { session.answerProse(false) }) { Text(strings.simNo) } },
+    ) {
+        Text(text = strings.simProseQuestion, fontSize = 12.sp)
+        Text(text = dialog.current.guard.orEmpty(), fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
     }
 }
 
@@ -245,7 +292,7 @@ internal fun FreeformEventRow(
 
     fun send() {
         if (!canSend) return
-        session.send(eventName = eventName, payloadJson = payloadJson)
+        session.sendAsking(eventName = eventName, payloadJson = payloadJson)
         eventName = ""
     }
 

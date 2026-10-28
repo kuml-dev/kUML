@@ -66,6 +66,10 @@ Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unters
 | 05 | [[05 SysML 2 UC – Library System]] | Use-Case |
 | 08 | [[08 SysML 2 REQ – Vehicle Requirements]] | Anforderungen |
 | 04 | [[04 SysML 2 STM – Traffic Light]] | Verhalten |
+| 42 | [[42 SysML 2 STM – Timer]] | Verhalten — `after`/`at`-Timer (Welle A2) |
+| 43 | [[43 SysML 2 STM – Regionen mit Fork-Join]] | Verhalten — orthogonale Regionen, Fork, Join (Welle A2) |
+| 44 | [[44 SysML 2 STM – History und Junction]] | Verhalten — History, Junction (Welle A2) |
+| 45 | [[45 SysML 2 STM – Prosa-Guards]] | Verhalten — Freitext-Guards (Welle A2) |
 | 07 | [[07 SysML 2 ACT – Order Processing]] | Verhalten |
 | 06 | [[06 SysML 2 SEQ – Login Flow]] | Verhalten (Interaktion) |
 
@@ -164,7 +168,11 @@ Der [Playground auf kuml.dev](https://kuml.dev/playground) speist seine Beispiel
 | 36 | [[36 BPMN Conversation – PdV Kommunikation]] | `bpmn-conversation-pdv` *(noch kein Playground-Eintrag — V3.2.3 neu)* |
 | 38 | [[38 UML Profil – Exposed]] | `uml-profile-exposed` **und** `uml-profile-exposed-psm` (Profil-Definition + renderbares PSM-Beispiel) |
 | 39 | [[39 ERM Martin – E-Commerce Schema]] | `erm-martin-ecommerce`, `erm-bachman-ecommerce`, `erm-chen-ecommerce`, `erm-idef1x-ecommerce` (alle vier Notationen seit 2026-07-11 im Playground) |
-| 40 | [[40 UML Component – kUML Plugin API]] | *(noch kein Playground-Eintrag — Lücke; aus [[02 Projekte/kUML Präsentation Deutsch|Präsentation]] extrahiert, 2026-07-12)* |
+| 42 | [[42 SysML 2 STM – Timer]] | `sysml2-stm-timer` |
+| 43 | [[43 SysML 2 STM – Regionen mit Fork-Join]] | `sysml2-stm-regions-fork-join` |
+| 44 | [[44 SysML 2 STM – History und Junction]] | `sysml2-stm-history-junction` |
+| 45 | [[45 SysML 2 STM – Prosa-Guards]] | `sysml2-stm-prose-guards` |
+| 40 | [[40 UML Component – kUML Plugin API]] | *(noch kein Playground-Eintrag — Lücke; aus [[06 Archiv/kUML Präsentation Deutsch|Präsentation]] extrahiert, 2026-07-12)* |
 
 ### Playground-Keys ohne Vault-Anker
 
@@ -193,6 +201,7 @@ Audit-Ergebnis vom 2026-07-02: Alle 28 klassischen Diagrammtypen (UML 14, C4 6, 
 | BPMN | `dataStore`/`dataObject`/`dataAssociation`, `callActivity`, `standardLoop`, `GatewayType.EVENT_BASED`/`PARALLEL`/`COMPLEX` | fehlte | [[30 BPMN Process – Order Fulfillment]] |
 | BPMN | `multiInstance`, `subProcess(transactional = true)`, `subProcess(triggeredByEvent = true)` | fehlte | [[31 BPMN Process – Sub-Process Loop]] |
 | BPMN | `lane`, `blackBoxPool` | fehlte | [[32 BPMN Collaboration – Customer und Supplier]] |
+| SysML 2 | `timer = after(duration = …)` / `at(iso = …)`, `guard = prose(text = …)`, Regionen mit Fork/Join, History, Junction (STM) | fehlte (Welle A2: Simulation) | [[42 SysML 2 STM – Timer]], [[43 SysML 2 STM – Regionen mit Fork-Join]], [[44 SysML 2 STM – History und Junction]], [[45 SysML 2 STM – Prosa-Guards]] (2026-10-28) |
 | UML | `objectNode`, `edge(objectFlow = true)` (Activity) | nur in Prosa erwähnt (»Mögliche Erweiterungen«) | [[41 UML Activity – Order Fulfillment (Objektfluss)]] (2026-07-21, nach Audit-Datum ergänzt) |
 
 **Bewusst nicht geschlossen** (Out of scope laut Wellenspezifikation V3.2.18 bzw. objektiv nicht sinnvoll):

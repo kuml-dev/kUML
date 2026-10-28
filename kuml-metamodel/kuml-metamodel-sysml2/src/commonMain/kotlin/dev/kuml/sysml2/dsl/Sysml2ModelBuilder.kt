@@ -30,6 +30,7 @@ import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.FlowPropertyUsage
 import dev.kuml.sysml2.FlowUsage
+import dev.kuml.sysml2.GuardKind
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.LifelineUsage
@@ -49,6 +50,7 @@ import dev.kuml.sysml2.ReqSatisfy
 import dev.kuml.sysml2.ReqVerify
 import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.RequirementUsage
+import dev.kuml.sysml2.STM_MAX_TEXT_LEN
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StateKind
@@ -62,6 +64,7 @@ import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Element
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.Sysml2Usage
+import dev.kuml.sysml2.TransitionTimer
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcAssociation
 import dev.kuml.sysml2.UcDiagram
@@ -69,8 +72,10 @@ import dev.kuml.sysml2.UcExtend
 import dev.kuml.sysml2.UcInclude
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.UseCaseUsage
+import dev.kuml.sysml2.parseTimerInstant
 import dev.kuml.sysml2.projection.Sysml2PathResolver
 import dev.kuml.sysml2.units.UnitValue
+import kotlin.time.Duration
 
 /**
  * Top-level entry — `sysml2Model("HybridVehicle") { … }`.
@@ -519,6 +524,7 @@ class Sysml2ModelBuilder(
         trigger: String? = null,
         guard: String? = null,
         effect: String? = null,
+        timer: TransitionTimer? = null,
         id: String = "transition:${source.id}::${target.id}",
     ): TransitionUsage =
         transitionById(
@@ -528,6 +534,32 @@ class Sysml2ModelBuilder(
             trigger = trigger,
             guard = guard,
             effect = effect,
+            timer = timer,
+            id = id,
+        )
+
+    /**
+     * Variant of [transition] taking a [Sysml2Guard]: `guard = prose("Door is open")` marks the
+     * guard as free-text prose (documentation of intent; not evaluated by the simulator).
+     */
+    fun transition(
+        name: String,
+        source: StateDefinition,
+        target: StateDefinition,
+        trigger: String? = null,
+        guard: Sysml2Guard,
+        effect: String? = null,
+        timer: TransitionTimer? = null,
+        id: String = "transition:${source.id}::${target.id}",
+    ): TransitionUsage =
+        transitionById(
+            name = name,
+            sourceStateId = source.id,
+            targetStateId = target.id,
+            trigger = trigger,
+            guard = guard,
+            effect = effect,
+            timer = timer,
             id = id,
         )
 
@@ -546,8 +578,75 @@ class Sysml2ModelBuilder(
         trigger: String? = null,
         guard: String? = null,
         effect: String? = null,
+        timer: TransitionTimer? = null,
         id: String = "transition:$sourceStateId::$targetStateId",
+    ): TransitionUsage =
+        registerTransition(
+            name = name,
+            sourceStateId = sourceStateId,
+            targetStateId = targetStateId,
+            trigger = trigger,
+            guard = guard,
+            guardKind = GuardKind.Expression,
+            effect = effect,
+            timer = timer,
+            id = id,
+        )
+
+    /** Id-only variant of the [Sysml2Guard] overload of [transition]. */
+    fun transitionById(
+        name: String,
+        sourceStateId: String,
+        targetStateId: String,
+        trigger: String? = null,
+        guard: Sysml2Guard,
+        effect: String? = null,
+        timer: TransitionTimer? = null,
+        id: String = "transition:$sourceStateId::$targetStateId",
+    ): TransitionUsage =
+        registerTransition(
+            name = name,
+            sourceStateId = sourceStateId,
+            targetStateId = targetStateId,
+            trigger = trigger,
+            guard = guard.text,
+            guardKind = if (guard is Sysml2Guard.Prose) GuardKind.Prose else GuardKind.Expression,
+            effect = effect,
+            timer = timer,
+            id = id,
+        )
+
+    /** `after(5.seconds)` — relative timer for a transition (`timer = after(5.seconds)`). */
+    fun after(duration: Duration): TransitionTimer.After {
+        require(duration.isFinite()) { "after(): duration must be finite" }
+        require(duration.inWholeNanoseconds % 1_000_000L == 0L) { "after(): duration must be a whole number of milliseconds" }
+        return TransitionTimer.After(duration)
+    }
+
+    /** `at("2026-01-01T08:00:00Z")` — absolute UTC timer (ISO-8601 with `Z`, millisecond precision). */
+    fun at(iso: String): TransitionTimer.At =
+        TransitionTimer.At(
+            requireNotNull(parseTimerInstant(iso)) {
+                "at(): '${iso.take(40)}' is not an ISO-8601 UTC instant with 'Z' and millisecond precision"
+            },
+        )
+
+    /** Marks a guard as free-text prose: `guard = prose("Door is open")`. */
+    fun prose(text: String): Sysml2Guard.Prose = Sysml2Guard.Prose(text)
+
+    private fun registerTransition(
+        name: String,
+        sourceStateId: String,
+        targetStateId: String,
+        trigger: String?,
+        guard: String?,
+        guardKind: GuardKind,
+        effect: String?,
+        timer: TransitionTimer?,
+        id: String,
     ): TransitionUsage {
+        require((guard?.length ?: 0) <= STM_MAX_TEXT_LEN) { "transition guard longer than $STM_MAX_TEXT_LEN characters" }
+        require((effect?.length ?: 0) <= STM_MAX_TEXT_LEN) { "transition effect longer than $STM_MAX_TEXT_LEN characters" }
         val usage =
             TransitionUsage(
                 id = id,
@@ -558,6 +657,8 @@ class Sysml2ModelBuilder(
                 trigger = trigger,
                 guard = guard,
                 effect = effect,
+                timer = timer,
+                guardKind = guardKind,
             )
         registerUsage(usage)
         return usage
@@ -2385,4 +2486,14 @@ class ParDiagramBuilder internal constructor(
     }
 
     internal fun ids(): List<String> = ids.toList()
+}
+
+/** Guard argument of `transition(...)`: an expression (`String` overload) or free-text [Prose]. */
+sealed interface Sysml2Guard {
+    val text: String
+
+    /** Free-text guard (documentation of intent; see [dev.kuml.sysml2.GuardKind.Prose]). */
+    data class Prose(
+        override val text: String,
+    ) : Sysml2Guard
 }

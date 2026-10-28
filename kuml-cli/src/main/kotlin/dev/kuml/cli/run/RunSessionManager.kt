@@ -9,8 +9,11 @@ import dev.kuml.runtime.OclGuardEvaluator
 import dev.kuml.runtime.Snapshot
 import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.runtime.StepResult
+import dev.kuml.runtime.StmLimitExceededException
+import dev.kuml.runtime.TimeEvents
 import dev.kuml.runtime.activity.ActivityDeadlockException
 import dev.kuml.runtime.activity.ActivityGuardEvaluator
+import dev.kuml.runtime.applyTimeEvent
 import dev.kuml.runtime.sandbox.SandboxPolicy
 import dev.kuml.runtime.sandbox.TimeLimitedGuardEvaluator
 import dev.kuml.runtime.snapshot.ActivityInstanceSnapshot
@@ -141,7 +144,11 @@ internal class RunSessionManager {
         restoreFrom: File?,
         policy: MigrationPolicy,
     ): SessionResult {
-        val runtime = StateMachineRuntime(guards = OclGuardEvaluator())
+        val runtime =
+            StateMachineRuntime(
+                guards = OclGuardEvaluator(),
+                virtualStart = Sysml2StateMachineAdapter.virtualStartFor(machine = sm, explicit = null),
+            )
         val instance =
             if (restoreFrom != null) {
                 val snapshot: StateMachineSnapshot =
@@ -250,7 +257,28 @@ internal class RunSessionManager {
                     )
                 val ev = Event(name = eventName, payload = jsonPayload)
                 val prevTraceSize = s.instance.trace.size
-                val result = s.runtime.step(instance = s.instance, event = ev)
+                val result: StepResult =
+                    if (TimeEvents.isTimeEvent(eventName)) {
+                        // Virtual time: "+next" / "+5s" advance the clock and fire expired timers.
+                        try {
+                            val r = s.runtime.applyTimeEvent(instance = s.instance, name = eventName)
+                            if (r.firedTransitionIds.isEmpty()) {
+                                StepResult.Stayed("time advanced to ${r.now}, no timer fired")
+                            } else {
+                                StepResult.Transitioned(
+                                    fromVertexIds = emptyList(),
+                                    toVertexIds = s.instance.currentVertices.map { it.id },
+                                    transitionIds = r.firedTransitionIds,
+                                )
+                            }
+                        } catch (ex: IllegalArgumentException) {
+                            return SessionResult.Error(message = "Invalid time event: ${ex.message}")
+                        } catch (ex: StmLimitExceededException) {
+                            return SessionResult.Error(message = "Simulation limit: ${ex.message}")
+                        }
+                    } else {
+                        s.runtime.step(instance = s.instance, event = ev)
+                    }
                 val traceDelta = s.instance.trace.drop(prevTraceSize)
 
                 if (s.instance.isTerminated) {

@@ -471,9 +471,9 @@ internal object DesktopRenderPipeline {
                 val diagram = extracted.diagram
                 if (diagram !is StmDiagram) return SimulationPrepareResult.Unsupported("diagram type is not simulatable")
                 val model = extracted.model
-                // Wave A1: composite states / regions / new pseudo-states are not simulatable yet
-                // (the adapter says which construct and why). Surface its message as a Failed start
-                // so the editor shows it, instead of letting the exception escape.
+                // Wave A2 simulates composite states, regions, all pseudo-states, timers and prose guards;
+                // only a state machine the structural checker rejects is refused (the adapter names the
+                // checker code). Surface its message as a Failed start so the editor shows it.
                 val sm =
                     try {
                         Sysml2StateMachineAdapter.toUmlStateMachine(model = model, diagram = diagram)
@@ -513,6 +513,7 @@ internal object DesktopRenderPipeline {
             for (v in vertices) {
                 ids += v.id
                 if (v is UmlState && v.substates.isNotEmpty()) collect(v.substates)
+                if (v is UmlState) v.regions.forEach { collect(it.vertices) }
             }
         }
         collect(sm.vertices)

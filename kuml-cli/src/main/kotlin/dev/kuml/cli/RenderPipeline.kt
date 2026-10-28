@@ -886,10 +886,9 @@ internal object RenderPipeline {
                                 options = stmOptions,
                             )
                         val wantsAnimation = animated || format in setOf("apng", "webp", "mp4")
-                        // Wave A1: composite states / regions / new pseudo-states render fine but are
-                        // not simulatable yet. A plain static render must not trip over the
-                        // simulator adapter's "unsupported" error, so skip the (unused) animation
-                        // preparation for them; asking for an animation still fails loudly.
+                        // A plain static render must not trip over the simulator adapter's error for a
+                        // state machine the structural checker rejects, so skip the (unused) animation
+                        // preparation for it; asking for an animation still fails loudly.
                         if (!wantsAnimation && Sysml2StateMachineAdapter.simulationBlockReason(model = model, diagram = diagram) != null) {
                             writeText(out = output, text = baseSvg)
                         } else {

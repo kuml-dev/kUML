@@ -176,7 +176,10 @@ internal fun flattenVertices(model: UmlStateMachine): List<UmlVertex> {
     while (stack.isNotEmpty()) {
         val v = stack.removeFirst()
         result += v
-        if (v is UmlState) v.substates.asReversed().forEach { stack.addFirst(it) }
+        if (v is UmlState) {
+            v.regions.asReversed().forEach { r -> r.vertices.asReversed().forEach { stack.addFirst(it) } }
+            v.substates.asReversed().forEach { stack.addFirst(it) }
+        }
     }
     return result
 }
@@ -193,6 +196,9 @@ internal sealed interface GuardEvaluation {
 
     /** Not evaluated yet (a new round is running). */
     data object Pending : GuardEvaluation
+
+    /** Free-text (prose) guard: never evaluated automatically, the user is asked when it matters. */
+    data object Prose : GuardEvaluation
 }
 
 internal data class VariableRead(
@@ -268,7 +274,7 @@ internal fun whyNotExplanations(
                         ?: GuardEvaluation.Pending
                 }
             }
-        if (states.any { it == GuardEvaluation.True }) continue
+        if (states.any { it == GuardEvaluation.True || it == GuardEvaluation.Prose }) continue
         if (states.any { it == GuardEvaluation.Pending }) continue
         val failedIndex = states.indexOfFirst { it is GuardEvaluation.Error }
         if (failedIndex >= 0) {
@@ -340,6 +346,10 @@ internal suspend fun evaluateInspectorGuards(
     for (row in rows) {
         val guard = row.transition.guard
         if (guard.isNullOrBlank()) continue
+        if (row.transition.guardIsProse) {
+            result[row.transition.id] = GuardEvaluation.Prose
+            continue
+        }
         coroutineContext.ensureActive()
         val event = Event(name = row.triggerName.orEmpty(), payload = payload)
         result[row.transition.id] =

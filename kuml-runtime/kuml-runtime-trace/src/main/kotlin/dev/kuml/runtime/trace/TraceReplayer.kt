@@ -10,6 +10,7 @@ import dev.kuml.runtime.TraceFile
 import dev.kuml.uml.UmlStateMachine
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Re-executes a [UmlStateMachine] against the event sequence extracted from an
@@ -57,13 +58,46 @@ public class TraceReplayer(
         val clock = AtomicLong(0L)
         val clockFn: () -> Instant = { Instant.ofEpochMilli(clock.getAndIncrement()) }
 
-        val runtime = StateMachineRuntime(guards = guards, clock = clockFn)
+        // Timer-driven traces (wave A2) start with a ClockStarted entry: replay on the same virtual
+        // clock and re-advance time wherever the original recorded an expired timer.
+        val virtualStart =
+            original.entries
+                .filterIsInstance<TraceEntry.ClockStarted>()
+                .firstOrNull()
+                ?.let { Instant.parse(it.startTime) }
+        val runtime = StateMachineRuntime(guards = guards, clock = clockFn, virtualStart = virtualStart)
         val instance = runtime.start(model)
 
         val events = EventsFromTrace.extract(original)
-        for (event in events) {
-            if (instance.isTerminated) break
-            runtime.step(instance = instance, event = event)
+        if (virtualStart == null) {
+            for (event in events) {
+                if (instance.isTerminated) break
+                runtime.step(instance = instance, event = event)
+            }
+        } else {
+            for (entry in original.entries) {
+                if (instance.isTerminated) break
+                when (entry) {
+                    is TraceEntry.EventReceived -> {
+                        // Time advances that fired no timer leave no TimerFired entry; the event's
+                        // virtual timestamp restores them so later timers are armed at the right time.
+                        val at = runCatching { Instant.parse(entry.timestamp) }.getOrNull()
+                        val now = runtime.virtualNow(instance)
+                        if (at != null && now != null && at.toEpochMilli() > now.toEpochMilli()) {
+                            runtime.advance(instance = instance, by = (at.toEpochMilli() - now.toEpochMilli()).milliseconds)
+                        }
+                        if (instance.isTerminated) continue
+                        runtime.step(instance = instance, event = Event(name = entry.eventName, payload = entry.payload))
+                    }
+                    is TraceEntry.TimerFired -> {
+                        val now = runtime.virtualNow(instance) ?: virtualStart
+                        val due = Instant.parse(entry.dueTime)
+                        val by = (due.toEpochMilli() - now.toEpochMilli()).coerceAtLeast(0L)
+                        runtime.advance(instance = instance, by = by.milliseconds)
+                    }
+                    else -> Unit
+                }
+            }
         }
 
         val actualTrace = instance.trace

@@ -9,10 +9,13 @@ import dev.kuml.runtime.Snapshot
 import dev.kuml.runtime.StateMachineInstance
 import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.runtime.StepResult
+import dev.kuml.runtime.StmLimitExceededException
+import dev.kuml.runtime.TimeEvents
 import dev.kuml.runtime.TraceEntry
 import dev.kuml.runtime.activity.ActivityGuardEvaluator
 import dev.kuml.runtime.activity.ActivityInstance
 import dev.kuml.runtime.activity.ActivityRuntime
+import dev.kuml.runtime.applyTimeEvent
 import dev.kuml.runtime.sandbox.SandboxPolicy
 import dev.kuml.runtime.sandbox.TimeLimitedGuardEvaluator
 import dev.kuml.runtime.sysml2.Sysml2ActivityAdapter
@@ -125,8 +128,21 @@ internal class RuntimeSessionManager(
                     JsonObject(
                         payload.entries.associate { (k, v) -> k to v.anyToJsonElement() },
                     )
-                val ev = Event(name = eventName, payload = jsonPayload)
-                val result = session.runtime.step(instance = session.instance, event = ev)
+                val resultLabel: String =
+                    if (TimeEvents.isTimeEvent(eventName)) {
+                        // Virtual time: "+next" / "+5s" advance the clock and fire expired timers.
+                        try {
+                            val r = session.runtime.applyTimeEvent(instance = session.instance, name = eventName)
+                            "Advanced(now=${r.now}, fired=${r.firedTransitionIds})"
+                        } catch (ex: IllegalArgumentException) {
+                            return SessionResult.Error("Invalid time event: ${ex.message}")
+                        } catch (ex: StmLimitExceededException) {
+                            return SessionResult.Error("Simulation limit: ${ex.message}")
+                        }
+                    } else {
+                        val ev = Event(name = eventName, payload = jsonPayload)
+                        session.runtime.step(instance = session.instance, event = ev).toLabel()
+                    }
                 session.stepCount++
 
                 val fullTrace = session.instance.trace
@@ -140,7 +156,7 @@ internal class RuntimeSessionManager(
                     fired = fired,
                     activeStates = session.activeStates(),
                     traceDelta = newEntries,
-                    stepResult = result.toLabel(),
+                    stepResult = resultLabel,
                 )
             }
 
@@ -367,6 +383,7 @@ internal class RuntimeSessionManager(
         val runtime =
             StateMachineRuntime(
                 guards = TimeLimitedGuardEvaluator(delegate = OclGuardEvaluator(), policy = SandboxPolicy()),
+                virtualStart = Sysml2StateMachineAdapter.virtualStartFor(machine = sm, explicit = null),
             )
         val instance = runtime.start(sm)
         return RuntimeSession.Stm(

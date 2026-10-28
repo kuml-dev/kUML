@@ -319,6 +319,38 @@ internal object ExampleCatalog {
                         "objectFlow edges show which data objects pass between actions, not just " +
                         "control-flow order.",
             ),
+            CuratedExample(
+                fileName = "42 SysML 2 STM – Timer.md",
+                language = "sysml2",
+                diagramType = "stm",
+                description =
+                    "SysML 2 state machine with timer transitions: timer = after(duration = ...) and " +
+                        "timer = at(iso = ...), simulated on a virtual clock.",
+            ),
+            CuratedExample(
+                fileName = "43 SysML 2 STM – Regionen mit Fork-Join.md",
+                language = "sysml2",
+                diagramType = "stm",
+                description =
+                    "SysML 2 state machine with orthogonal regions in a composite state, entered " +
+                        "through a fork and synchronised by a join.",
+            ),
+            CuratedExample(
+                fileName = "44 SysML 2 STM – History und Junction.md",
+                language = "sysml2",
+                diagramType = "stm",
+                description =
+                    "SysML 2 state machine with a deep history state and a junction that picks a " +
+                        "branch by guard.",
+            ),
+            CuratedExample(
+                fileName = "45 SysML 2 STM – Prosa-Guards.md",
+                language = "sysml2",
+                diagramType = "stm",
+                description =
+                    "SysML 2 state machine with a free-text guard (prose) next to an evaluable " +
+                        "expression guard.",
+            ),
         )
 
     /** Distinct languages in catalog order: uml, c4, sysml2, bpmn, blueprint, erm. */

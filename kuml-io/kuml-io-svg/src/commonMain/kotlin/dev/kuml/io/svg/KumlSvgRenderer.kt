@@ -1789,6 +1789,11 @@ public object KumlSvgRenderer {
         afterNodes: ((SvgBuilder, LayoutResult, Float) -> Unit)? = null,
         edgeLabelAnchor: ((EdgeId, EdgeRoute, String?) -> Pair<Float, Float>?)? = null,
         edgeBackdropFill: String? = null,
+        wrapStmLabels: Boolean = false,
+        deferredNodeIds: Set<String> = emptySet(),
+        routeTransform: (
+            (Map<String, dev.kuml.layout.EdgeRoute>, Map<String, dev.kuml.layout.Rect>) -> Map<String, dev.kuml.layout.EdgeRoute>
+        )? = null,
     ): String {
         // Widen the frame (and canvas) BEFORE computing anything padding-relative
         // below, so every subsequent step already sees the final geometry — see
@@ -1813,6 +1818,7 @@ public object KumlSvgRenderer {
 
             // Nodes — same logic as the UML/C4 path.
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                if (nodeId.value in deferredNodeIds) continue
                 val element = synthetic.elements.find { it.id == nodeId.value }
                 if (element != null) {
                     val shifted =
@@ -1860,8 +1866,47 @@ public object KumlSvgRenderer {
                         Triple(edgeId, route, labelText)
                     },
                 )
-            for ((edgeId, route) in layoutResult.edges) {
-                val shiftedRoute = shiftRoute(route = route, dx = padding)
+            val shiftedRoutes: Map<String, dev.kuml.layout.EdgeRoute> =
+                layoutResult.edges
+                    .mapKeys { it.key.value }
+                    .mapValues { shiftRoute(route = it.value, dx = padding) }
+                    .let { base ->
+                        routeTransform?.invoke(
+                            base,
+                            layoutResult.nodes.entries.associate {
+                                it.key.value to
+                                    dev.kuml.layout.Rect(
+                                        origin =
+                                            dev.kuml.layout.Point(
+                                                x = it.value.bounds.origin.x + padding,
+                                                y = it.value.bounds.origin.y + padding,
+                                            ),
+                                        size = it.value.bounds.size,
+                                    )
+                            },
+                        ) ?: base
+                    }
+            val stmBlocks: Map<String, dev.kuml.io.svg.sysml2.edge.StmLabelBlock> =
+                if (wrapStmLabels) {
+                    dev.kuml.io.svg.sysml2.edge.StmLabelPlacer.place(
+                        edges =
+                            layoutResult.edges.mapNotNull { (edgeId, route) ->
+                                val parts = sysml2EdgeAdapter.metadataFor(edgeId.value)?.labelParts.orEmpty()
+                                if (parts.isEmpty()) null else Triple(edgeId.value, shiftedRoutes.getValue(edgeId.value), parts)
+                            },
+                        obstacles =
+                            layoutResult.nodes.values.map {
+                                dev.kuml.layout.Rect(
+                                    origin = dev.kuml.layout.Point(x = it.bounds.origin.x + padding, y = it.bounds.origin.y + padding),
+                                    size = it.bounds.size,
+                                )
+                            },
+                    )
+                } else {
+                    emptyMap()
+                }
+            for ((edgeId, _) in layoutResult.edges) {
+                val shiftedRoute = shiftedRoutes.getValue(edgeId.value)
                 val element = elementIndex[edgeId.value]
                 if (element != null) {
                     EdgeRendererDispatcher.dispatch(relationship = element, route = shiftedRoute, theme = theme, builder = edgesBuilder)
@@ -1869,6 +1914,7 @@ public object KumlSvgRenderer {
                     val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
                     if (meta != null) {
                         Sysml2EdgeRenderer.render(
+                            stmBlock = stmBlocks[edgeId.value],
                             id = edgeId.value,
                             route = shiftedRoute,
                             metadata = meta,
@@ -1889,6 +1935,30 @@ public object KumlSvgRenderer {
                         }
                     }
                 }
+            }
+            // Deferred (pseudo-state) nodes paint after edges and labels so dot, diamond and bar sit on the arrow tips.
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                if (nodeId.value !in deferredNodeIds) continue
+                val element = synthetic.elements.find { it.id == nodeId.value } ?: continue
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y =
+                                            nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
+                NodeRendererDispatcher.dispatch(
+                    element = element,
+                    layout = shifted,
+                    theme = theme,
+                    builder = edgesBuilder,
+                    sysml2Context = sysml2Context,
+                )
             }
             emitHighlightEdges(layoutResult = layoutResult, theme = theme, options = options, padding = padding, builder = edgesBuilder)
         }
@@ -2194,6 +2264,41 @@ public object KumlSvgRenderer {
             options = options,
             sysml2EdgeAdapter = StmEdgeAdapter(model = model, diagram = diagram),
             typeLabel = "state machine",
+            edgeBackdropFill = theme.colors.background.toHex(),
+            wrapStmLabels = true,
+            routeTransform = { routes, rects ->
+                val ends =
+                    model.usages.filterIsInstance<dev.kuml.sysml2.TransitionUsage>().map {
+                        Triple(it.id, it.sourceStateId, it.targetStateId)
+                    }
+
+                fun ids(kind: dev.kuml.sysml2.StateKind) =
+                    model.definitions
+                        .filterIsInstance<StateDefinition>()
+                        .filter { it.id in visible && it.effectiveKind == kind }
+                        .mapNotNull { d -> rects[d.id]?.let { d.id to it } }
+                        .toMap()
+                dev.kuml.io.svg.sysml2.edge.StmPseudostateEndpoints.spread(
+                    routes = routes,
+                    ends = ends,
+                    circles = ids(dev.kuml.sysml2.StateKind.Junction),
+                    diamonds = ids(dev.kuml.sysml2.StateKind.Choice),
+                )
+            },
+            deferredNodeIds =
+                model.definitions
+                    .filterIsInstance<StateDefinition>()
+                    .filter {
+                        it.id in visible &&
+                            it.effectiveKind in
+                            setOf(
+                                dev.kuml.sysml2.StateKind.Choice,
+                                dev.kuml.sysml2.StateKind.Junction,
+                                dev.kuml.sysml2.StateKind.Fork,
+                                dev.kuml.sysml2.StateKind.Join,
+                            )
+                    }.map { it.id }
+                    .toSet(),
             // Composite frames are compound groups in the layout; paint them before the nodes.
             beforeNodes = { builder, lr, padding ->
                 dev.kuml.io.svg.sysml2.renderCompositeStateFrames(

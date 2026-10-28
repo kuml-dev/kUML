@@ -6,6 +6,17 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed (review of SysML 2 STM wave A2)
+
+- Runtime: a limit hit while a timer fires now rolls the instance back before the exception propagates.
+- Trace replay: virtual time advances without a timer firing are restored from event timestamps.
+- Desktop simulation: multi-question prose dialogs recompose; time steps after scrubbing keep the variables of the scrub position; prose guards on junction/choice branches and join legs are asked.
+- Timer reconstruction after scrubbing restarts self-loop timers at their last firing; timer legs into a join are no longer ready before their timer fired.
+
+### Changed (potentially breaking)
+
+- Expression parser: the word operators `and` / `or` / `not` are recognised in lowercase only and never directly after a `.` (so `LogicKind.OR`, `Mode.AND`, `flags.not` are identifiers again). Uppercase `AND` / `OR` / `NOT` are no longer operators; use backticks for identifiers named like operators.
+
 ### Added
 
 **SysML 2 state machines: composite states, orthogonal regions, pseudo-states, history (wave A1)**
@@ -20,10 +31,27 @@ header, optional `entry/exit/do` lines and dashed region separators (horizontal 
 side-by-side regions). New structural checker `Sysml2StmChecker` (codes 101-123, wired into `kuml validate`;
 errors fail, warnings only with `--strict`); limits: nesting depth 16, 16 regions per composite, 1000 states,
 256 characters per name. `Sysml2DslPrinter` round-trips the new constructs.
-Not in this wave: the simulator (`kuml simulate`, desktop simulation) rejects composite states, regions and the new
-pseudo-states with an explicit error naming the construct (flat machines are unaffected); the LaTeX backend draws
-every state as a flat box (a comment line says so); no timers, no free-text guards/effects, no Playground/vault
-examples yet.
+Not in this wave: the simulator (rejected composites, regions and pseudo-states until wave A2); the LaTeX backend
+draws every state as a flat box (a comment line says so).
+
+**SysML 2 state machines: timers, simulation, prose guards, edge labels (wave A2)**
+`transition(..., timer = after(duration = 5.seconds))` / `timer = at(iso = "2026-01-01T08:00:00Z")` (UTC, ms precision;
+mutually exclusive with `trigger`), `guard = prose(text = "...")` for free-text guards (`GuardKind.Prose`; kept out of
+`validate --strict`, which also stops parsing transition effects). New checker codes 124-129 (timer+trigger, `after`
+range 1 ms..3650 d, timer on a pseudo-state, duplicate `after`, sub-ms `at`, texts over 512 characters). The guard grammar
+accepts `and`/`or`/`not` (case-insensitive) and backtick identifiers (`` `Tür offen` ``); this also applies to UML
+and activity guards because the parser is shared. JSON/metamodel: `TransitionUsage.timer`/`guardKind` and
+`UmlState.regions`/`UmlTransition.timer`/`guardIsProse` are additive; existing documents serialise unchanged.
+Simulator: composite states, orthogonal regions (one transition per region, inner pre-empts outer), fork, join,
+junction chains, choice and shallow/deep history now run for SysML 2 (`kuml simulate`, `kuml run`, MCP, desktop);
+a deterministic virtual clock drives timers (`--start-time`, time events `+next`/`+5s`/`+1m30s`, REPL command `timers`,
+`ClockStarted`/`TimerFired`/`JoinWaiting`/`Preempted`/`NotFired`/`GuardNotEvaluable` trace entries, trace replay of timer
+traces); `--prose-guards block|allow` (desktop: dialog). Hard limits: 1024 armed timers, 10 000 firings per advance,
+3650-day horizon, 64 active leaves, junction chains of 32; exceeding one aborts with a clear message. Snapshots move to
+schema version 2 (v1 loads, newer is rejected). Desktop: *+1 s*, *+10 s*, *Next timer* buttons, timer/leaf/history
+inspector section, prose-guard dialog. Diagrams: STM edge labels are wrapped (at most three lines, long parts truncated with a tooltip), placed collision-aware beside the line on a halo, prose guards in italics; junction/choice ends are fanned out on the outline; fork/join/junction/choice paint above arrow tips.
+Not in this wave: effects are still only logged; UML `stateDiagram` has no DSL for regions; the LaTeX backend still draws
+flat boxes. Examples 42-45 in the vault and the kuml.dev playground sources.
 
 **SysML 2 ports, flows, IBD frame and richer BDD (wave B)**
 `port(..., direction = PortDirection.In, conjugated = true)`, `flowProperty`, `refPart`, `action`,

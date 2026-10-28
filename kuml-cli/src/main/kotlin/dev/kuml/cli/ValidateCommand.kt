@@ -415,8 +415,10 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         val model = extracted.model
         val messages = mutableListOf<String>()
 
-        // STM transition guards and effects
+        // STM transition guards. Prose guards are free text and never parsed; transition effects are
+        // action descriptions (the simulator only logs them), so they are not parsed either.
         model.usages.filterIsInstance<TransitionUsage>().forEach { tu ->
+            if (tu.guardKind == dev.kuml.sysml2.GuardKind.Prose) return@forEach
             tu.guard?.let { guard ->
                 val errs = mutableListOf<dev.kuml.expr.ParseError>()
                 val parsed = OclLikeExpressionParser.tryParse(input = guard, errors = errs)
@@ -428,15 +430,8 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                     }
                 } else {
                     messages +=
-                        "transition:${tu.id} guard '$guard': ${errs.firstOrNull()?.message ?: "parse error"}"
-                }
-            }
-            tu.effect?.let { effect ->
-                val errs = mutableListOf<dev.kuml.expr.ParseError>()
-                OclLikeExpressionParser.tryParseEffects(input = effect, errors = errs)
-                if (errs.isNotEmpty()) {
-                    messages +=
-                        "transition:${tu.id} effect '$effect': ${errs.first().message}"
+                        "transition:${tu.id} guard '$guard': ${errs.firstOrNull()?.message ?: "parse error"}" +
+                        " (free text? use guard = prose(\"...\"))"
                 }
             }
         }

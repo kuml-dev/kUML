@@ -66,16 +66,15 @@ class SnapshotIoTest :
             content shouldContain "  "
         }
 
-        test("schemaVersion=1 is the default on roundtrip") {
+        test("schemaVersion is 2 (wave A2) on roundtrip") {
             val instance = runtime.start(model)
             val snap = runtime.snapshotFull(instance)
-            snap.schemaVersion shouldBe 1
+            snap.schemaVersion shouldBe 2
             val file = tempFile("version.json")
             writeStateMachineSnapshot(snapshot = snap, file = file)
 
-            // schemaVersion has a default value — readback still yields 1 (via default)
             val restored = readStateMachineSnapshot(file)
-            restored.schemaVersion shouldBe 1
+            restored.schemaVersion shouldBe 2
         }
 
         test("ActivityInstanceSnapshot roundtrip via file") {

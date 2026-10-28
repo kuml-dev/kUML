@@ -558,6 +558,10 @@ data class TransitionUsage(
     val guard: String? = null,
     /** Optional action emitted when the transition fires. */
     val effect: String? = null,
+    /** Optional time trigger (`after` / `at`); mutually exclusive with [trigger] (checker code 124). */
+    val timer: TransitionTimer? = null,
+    /** Whether [guard] is an evaluable expression or free-text prose. */
+    val guardKind: GuardKind = GuardKind.Expression,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Usage
 

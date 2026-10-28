@@ -5,9 +5,11 @@ import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.optional
+import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
@@ -22,12 +24,16 @@ import dev.kuml.runtime.Event
 import dev.kuml.runtime.GuardResult
 import dev.kuml.runtime.KumlRuntimeJson
 import dev.kuml.runtime.OclGuardEvaluator
+import dev.kuml.runtime.ProseGuardPolicy
 import dev.kuml.runtime.StateMachineInstance
 import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.runtime.StepResult
+import dev.kuml.runtime.StmLimitExceededException
+import dev.kuml.runtime.TimeEvents
 import dev.kuml.runtime.TraceDiff
 import dev.kuml.runtime.activity.ActivityDeadlockException
 import dev.kuml.runtime.activity.ActivityGuardEvaluator
+import dev.kuml.runtime.applyTimeEvent
 import dev.kuml.runtime.loadEvents
 import dev.kuml.runtime.loadTrace
 import dev.kuml.runtime.sandbox.EffectExecutor
@@ -108,6 +114,22 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
         .file(mustExist = true, canBeDir = false)
 
     private val interactive by option("--interactive", help = "Run an interactive REPL").flag()
+
+    private val startTime by option(
+        "--start-time",
+        help =
+            "Start of the deterministic virtual clock, ISO-8601 UTC with 'Z' (e.g. 2026-01-01T08:00:00Z). " +
+                "Default for machines with timers: 2000-01-01T00:00:00Z. Time events: +5s, +1m30s, +next.",
+    ).convert { text ->
+        val instant = runCatching { Instant.parse(text) }.getOrNull()
+        if (instant == null || !text.endsWith("Z")) fail("expected an ISO-8601 UTC instant with 'Z', got '${text.take(40)}'")
+        instant
+    }
+
+    private val proseGuards by option(
+        "--prose-guards",
+        help = "How free-text (prose) guards are treated: block = false (default), allow = true",
+    ).choice("block", "allow").default("block")
 
     private val epochClock by option(
         "--epoch-clock",
@@ -233,8 +255,25 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
             } else {
                 dev.kuml.runtime.EffectInvoker.NoOp
             }
-        val runtime = StateMachineRuntime(guards = guardsEvaluator, clock = clock, effects = effectInvoker)
-        val instance = runtime.start(sm)
+        if (epochClock && startTime != null) {
+            System.err.println("--epoch-clock and --start-time are mutually exclusive.")
+            throw ProgramResult(ExitCodes.USAGE)
+        }
+        val runtime =
+            StateMachineRuntime(
+                guards = guardsEvaluator,
+                clock = clock,
+                effects = effectInvoker,
+                proseGuards = if (proseGuards == "allow") ProseGuardPolicy.Allow else ProseGuardPolicy.Block,
+                virtualStart = Sysml2StateMachineAdapter.virtualStartFor(machine = sm, explicit = startTime),
+            )
+        val instance =
+            try {
+                runtime.start(sm)
+            } catch (ex: StmLimitExceededException) {
+                System.err.println("Simulation aborted: ${ex.message}")
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
 
         if (interactive) {
             runInteractive(runtime = runtime, instance = instance)
@@ -253,7 +292,11 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
                 }
             for (ev in evs) {
                 if (instance.isTerminated) break
-                runtime.step(instance = instance, event = ev)
+                if (TimeEvents.isTimeEvent(ev.name)) {
+                    applyTime(runtime = runtime, instance = instance, name = ev.name)
+                } else {
+                    runtime.step(instance = instance, event = ev)
+                }
             }
             outputTrace?.let {
                 try {
@@ -753,6 +796,21 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
                 }
             if (line.isEmpty()) continue
             if (line == "quit" || line == "exit") break
+            if (line == "timers") {
+                val timers = runtime.armedTimers(instance)
+                if (timers.isEmpty()) echo("─ No armed timers.")
+                timers.forEach { echo("─ ${it.transitionId} (from ${it.sourceId}) due ${it.dueAt}, in ${it.remaining}") }
+                continue
+            }
+            if (TimeEvents.isTimeEvent(line)) {
+                applyTime(runtime = runtime, instance = instance, name = line, echoResult = true)
+                echo("  Currently in: ${instance.currentVertices.map { it.id }}")
+                if (instance.isTerminated) {
+                    echo("State machine terminated.")
+                    break
+                }
+                continue
+            }
             val (name, payload) = parseInteractive(line)
             val result = runtime.step(instance = instance, event = Event(name = name, payload = payload))
             when (result) {
@@ -772,6 +830,25 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
         outputTrace?.let {
             writeTrace(trace = instance.trace, file = it.toFile(), modelId = instance.model.id)
             echo("Wrote ${instance.trace.size} trace entries to $it")
+        }
+    }
+
+    /** Applies a `+5s` / `+next` event; malformed input or a runtime limit is reported, never swallowed. */
+    private fun applyTime(
+        runtime: StateMachineRuntime,
+        instance: StateMachineInstance,
+        name: String,
+        echoResult: Boolean = false,
+    ) {
+        try {
+            val r = runtime.applyTimeEvent(instance = instance, name = name)
+            if (echoResult) echo("─ Time is now ${r.now}; fired: ${r.firedTransitionIds.ifEmpty { listOf("nothing") }}")
+        } catch (ex: IllegalArgumentException) {
+            System.err.println("Invalid time event: ${ex.message}")
+            if (!echoResult) throw ProgramResult(ExitCodes.USAGE)
+        } catch (ex: StmLimitExceededException) {
+            System.err.println("Simulation aborted: ${ex.message}")
+            if (!echoResult) throw ProgramResult(ExitCodes.SCRIPT_ERROR)
         }
     }
 

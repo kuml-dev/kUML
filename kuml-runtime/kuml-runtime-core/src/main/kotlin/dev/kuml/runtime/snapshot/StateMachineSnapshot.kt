@@ -1,5 +1,6 @@
 package dev.kuml.runtime.snapshot
 
+import dev.kuml.runtime.ArmedTimer
 import dev.kuml.runtime.Event
 import dev.kuml.runtime.TraceEntry
 import kotlinx.serialization.Serializable
@@ -34,4 +35,17 @@ public data class StateMachineSnapshot(
     val seqCounter: Long,
     val isTerminated: Boolean,
     val schemaVersion: Int = 1,
-)
+    /** Wave A2: remembered configuration per history pseudostate id. */
+    val historyMemory: Map<String, List<String>> = emptyMap(),
+    /** Wave A2: timers armed for the active states. */
+    val armedTimers: List<ArmedTimer> = emptyList(),
+    /** Wave A2: virtual clock (epoch ms) of a timer-driven run, `null` for wall-clock runs. */
+    val virtualNowEpochMs: Long? = null,
+    /** Wave A2: monotonic timer counter (tie-break for equal due times). */
+    val timerSeq: Long = 0,
+) {
+    public companion object {
+        /** Version written by this runtime (v1 = flat machines, v2 = regions / history / timers). */
+        public const val CURRENT_SCHEMA_VERSION: Int = 2
+    }
+}

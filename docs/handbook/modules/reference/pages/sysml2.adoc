@@ -414,14 +414,89 @@ routed to the frame and flagged by warning 115.
 |115 |Warning |Transition between a composite and its own descendant
 |116-119 |Error |Dangling parent, bad region, pseudo-state as parent, duplicate or colliding region ids
 |120-123 |Error |Limits: depth 16 (and parent cycles), 16 regions, 1000 states, 256 characters per name
+|124 |Error |A transition has both a `timer` and a `trigger`
+|125 |Error |`after` shorter than 1 ms or longer than 3650 days
+|126 |Error |Timer on a transition that leaves a pseudo-state
+|127 |Warning |Two `after` timers with the same duration leave one state (only the first declared one fires)
+|128 |Error |`at` instant without millisecond precision (JSON import)
+|129 |Error |Guard, effect or prose longer than 512 characters
 |===
+
+==== Timers
+
+A transition takes a time trigger instead of an event name:
+
+[source,kotlin]
+----
+import kotlin.time.Duration.Companion.seconds
+
+transition(name = "redToGreen", source = red, target = green, timer = after(duration = 30.seconds))
+transition(name = "nightMode", source = red, target = night, timer = at(iso = "2026-12-24T22:00:00Z"))
+----
+
+`after` is armed when the source state is entered and discarded when it is left; `at` is an absolute UTC instant
+(ISO-8601 with `Z`, millisecond precision) that fires on the next advance if it already lies in the past. `timer` and
+`trigger` are mutually exclusive (code 124). Diagrams label the edge `after(30s)` / `at(2026-12-24T22:00:00Z)`.
+
+The simulator runs timers on a deterministic *virtual clock* (default start `2000-01-01T00:00:00Z`, or
+`--start-time <ISO-8601 with Z>`). Time moves only through time events: `+next` jumps to the next armed timer,
+`+5s`, `+250ms`, `+1m30s` advance by a duration. They are accepted in the events file of `kuml simulate`, in its
+interactive mode (where `timers` lists the armed timers), by `kuml_run_event` of the MCP server and by the CLI `run`
+session. The desktop simulator offers *+1 s*, *+10 s* and *Next timer*. Traces of machines with timers start with a
+`ClockStarted` entry and record `TimerFired`; machines without timers keep the wall clock and their traces are unchanged.
+Timers that expire at the same moment fire by deeper source first, then declaration order.
+
+[cols="2,3"]
+|===
+|Limit |Value
+|Armed timers per run |1024
+|Timers fired by one advance |10 000
+|Longest single advance (`+<duration>`) |3650 days
+|Active leaf states (orthogonal regions) |64
+|Junction chain length |32
+|Time event string |64 characters
+|===
+
+Exceeding a limit aborts the run with an explicit message; nothing is clipped silently.
+
+==== Guards: expressions versus prose
+
+`guard = "vars.load < 3"` is an expression: it is parsed, type-checked and evaluated. The expression grammar accepts
+`and` / `or` / `not` (case-insensitive) next to `&&` / `||` / `!`, and bracket-free identifiers in backticks for names
+with spaces or umlauts (`` `Tür offen` and not alarm ``; a variable that is literally called `and` also needs backticks).
+`guard = prose(text = "Antrag vollständig")` is free text: it is shown in italics, `kuml validate --strict` does not
+parse it, and the simulator never evaluates it. `kuml simulate --prose-guards block` (default) treats it as false and
+records `GuardNotEvaluable`; `allow` treats it as true; the desktop simulator asks with a dialog. Transition effects are
+action descriptions (the simulator only logs them), so `validate` does not parse them either. An expression guard that does
+not parse gets the hint to use `prose(...)` if it was meant as free text.
+
+==== Simulation scope
+
+The simulator runs the whole structure of a state machine:
+
+[cols="1,3"]
+|===
+|Construct |Semantics
+|Composite state |Entering it enters the initial state of every region; leaving it leaves all active descendants
+|Orthogonal regions |A event fires at most one transition per region; an inner transition pre-empts an outer one (`Preempted` in the trace)
+|Fork |Enters the target regions; regions without a target start in their initial state
+|Join |Fires only when all source states are active and each leg accepts the event; otherwise `JoinWaiting` lists the missing sources
+|Junction |Static chain: guards are evaluated before anything is left, then all effects run in one step; without a valid path nothing fires (`NotFired`)
+|Choice |Dynamic: the branch is chosen when the choice is reached
+|Shallow / deep history |Remembers the direct child / all active leaves when the composite is left; without memory the default transition, then the initial state, applies
+|Final state in a region |Completes that region only; a top-level final state terminates the machine
+|===
+
+Effects of SysML 2 transitions are not executed (they are logged), as before. A transition across regions without fork or
+join is rejected (code 113); the other checker errors also block simulation, naming the code.
+Snapshots are written with schema version 2 (version 1 files still load as single-leaf configurations; newer versions are
+rejected). Restoring a snapshot taken at an earlier scrub position in the desktop simulator does not restore history memory.
 
 ==== Limits of this version
 
-* Simulation (`kuml simulate`, desktop simulator) rejects composite states, regions and the new pseudo-states
-  with an error naming the construct; flat machines simulate as before.
 * The LaTeX backend draws every state as a flat box and notes that in a comment.
 * Regions are stacked or placed side by side by the layout engine; dashed separators follow the actual geometry.
+* UML state machines (`stateDiagram`) have no DSL for orthogonal regions yet; only SysML 2 models reach the region runtime.
 
 == Activity Diagrams (ACT)
 

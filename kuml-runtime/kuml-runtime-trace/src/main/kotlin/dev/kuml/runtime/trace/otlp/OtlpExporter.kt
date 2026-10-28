@@ -438,6 +438,44 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
                 attributes = listOf(kv(key = "clock", value = clock)),
             )
 
+        // Wave A2 entries — virtual time, timers, regions
+        is TraceEntry.ClockStarted ->
+            OtlpEvent(
+                timeUnixNano = timeUnixNano.toString(),
+                name = "kuml.clock.started",
+                attributes = listOf(kv(key = "start.time", value = startTime)),
+            )
+        is TraceEntry.TimerFired ->
+            OtlpEvent(
+                timeUnixNano = timeUnixNano.toString(),
+                name = "kuml.timer.fired",
+                attributes = listOf(kv(key = "transition.id", value = transitionId), kv(key = "due.time", value = dueTime)),
+            )
+        is TraceEntry.GuardNotEvaluable ->
+            OtlpEvent(
+                timeUnixNano = timeUnixNano.toString(),
+                name = "kuml.guard.not_evaluable",
+                attributes = listOf(kv(key = "transition.id", value = transitionId), kv(key = "message", value = message)),
+            )
+        is TraceEntry.JoinWaiting ->
+            OtlpEvent(
+                timeUnixNano = timeUnixNano.toString(),
+                name = "kuml.join.waiting",
+                attributes = listOf(kv(key = "join.id", value = joinId), kv(key = "missing", value = missing.joinToString(","))),
+            )
+        is TraceEntry.Preempted ->
+            OtlpEvent(
+                timeUnixNano = timeUnixNano.toString(),
+                name = "kuml.transition.preempted",
+                attributes = listOf(kv(key = "transition.id", value = transitionId), kv(key = "by.transition.id", value = byTransitionId)),
+            )
+        is TraceEntry.NotFired ->
+            OtlpEvent(
+                timeUnixNano = timeUnixNano.toString(),
+                name = "kuml.transition.not_fired",
+                attributes = listOf(kv(key = "transition.id", value = transitionId ?: ""), kv(key = "reason", value = reason)),
+            )
+
         // StateEntered and StateExited are handled as span boundaries — not events
         is TraceEntry.StateEntered -> null
         is TraceEntry.StateExited -> null

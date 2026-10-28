@@ -579,4 +579,95 @@ class SimulationSessionTest :
                 session.draftPayload().containsKey("amount") shouldBe true
             }
         }
+        // ── Prose guards behind pseudostates ────────────────────────────────
+
+        val proseJunctionScript =
+            """
+            import dev.kuml.sysml2.dsl.sysml2Model
+
+            sysml2Model("Review") {
+                val initial = stateDef("Initial", isInitial = true)
+                val inReview = stateDef("InReview")
+                val approved = stateDef("Approved")
+                val rejected = stateDef("Rejected")
+                val j = junction("J")
+
+                transition("init", initial, inReview)
+                transition("decide", inReview, j, trigger = "decide")
+                transition("ok", j, approved, guard = prose("Antrag vollständig"))
+                transition("no", j, rejected, guard = prose("Antrag abgelehnt"))
+
+                stmDiagram("Review") {
+                    include(initial)
+                    include(inReview)
+                    include(approved)
+                    include(rejected)
+                    include(j)
+                }
+            }
+            """.trimIndent()
+
+        test("proseQuestions follows an unguarded event transition into a junction with prose branches") {
+            withSession(proseJunctionScript) { session ->
+                session.proseQuestions("decide").map { it.guard } shouldBe listOf("Antrag vollständig", "Antrag abgelehnt")
+                session.proseQuestions("other") shouldBe emptyList()
+            }
+        }
+
+        test("the multi-question prose dialog advances question by question and sends after the last answer") {
+            withSession(proseJunctionScript) { session ->
+                session.sendAsking(eventName = "decide")
+                val first = session.proseDialog
+                first?.questions?.size shouldBe 2
+                first?.current?.guard shouldBe "Antrag vollständig"
+
+                session.answerProse(met = true)
+                val second = session.proseDialog
+                second?.current?.guard shouldBe "Antrag abgelehnt"
+                session.activeVertexIds() shouldContain session.vertexIdNamed("InReview")
+
+                session.answerProse(met = false)
+                session.proseDialog shouldBe null
+                session.activeVertexIds() shouldContain session.vertexIdNamed("Approved")
+            }
+        }
+        test("advance() while scrubbing keeps the variables of the scrub position") {
+            val timedScript =
+                """
+                import dev.kuml.sysml2.dsl.sysml2Model
+                import kotlin.time.Duration.Companion.seconds
+
+                sysml2Model("Timed") {
+                    val initial = stateDef("Initial", isInitial = true)
+                    val a = stateDef("A")
+                    val b = stateDef("B")
+                    transition("init", initial, a)
+                    transition("wait", a, b, timer = after(5.seconds))
+                    stmDiagram("Timed") {
+                        include(initial)
+                        include(a)
+                        include(b)
+                    }
+                }
+                """.trimIndent()
+            withSession(timedScript) { session ->
+                session.setVariable(name = "x", value = kotlinx.serialization.json.JsonPrimitive(1))
+                val position = session.widgetState.trace.size
+                session.advance(
+                    dev.kuml.runtime.TimeStep
+                        .By(kotlin.time.Duration.parse("6s")),
+                )
+                session.setVariable(name = "x", value = kotlinx.serialization.json.JsonPrimitive(2))
+                session.scrubTo(position)
+                session.variablesAtPosition()["x"] shouldBe kotlinx.serialization.json.JsonPrimitive(1)
+
+                session.advance(
+                    dev.kuml.runtime.TimeStep
+                        .By(kotlin.time.Duration.parse("1s")),
+                )
+                session.widgetState.isScrubbing shouldBe false
+                session.variablesAtPosition()["x"] shouldBe kotlinx.serialization.json.JsonPrimitive(1)
+                session.activeVertexIds() shouldContain session.vertexIdNamed("A")
+            }
+        }
     })

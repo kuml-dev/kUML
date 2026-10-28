@@ -158,5 +158,11 @@ internal fun traceEntryLabel(entry: TraceEntry): String =
         is TraceEntry.ActionError -> "⚠ error: ${entry.message}"
         is TraceEntry.Stayed -> "stayed: ${entry.reason}"
         is TraceEntry.Terminated -> "terminated at ${entry.finalVertexId}"
+        is TraceEntry.TimerFired -> "timer ${entry.transitionId}"
+        is TraceEntry.ClockStarted -> "clock ${entry.startTime}"
+        is TraceEntry.GuardNotEvaluable -> "⚠ prose guard (${entry.transitionId}): not evaluable"
+        is TraceEntry.JoinWaiting -> "join ${entry.joinId} waits for ${entry.missing.joinToString()}"
+        is TraceEntry.Preempted -> "${entry.transitionId} pre-empted by ${entry.byTransitionId}"
+        is TraceEntry.NotFired -> "not fired: ${entry.reason}"
         else -> entry::class.simpleName ?: "?"
     }

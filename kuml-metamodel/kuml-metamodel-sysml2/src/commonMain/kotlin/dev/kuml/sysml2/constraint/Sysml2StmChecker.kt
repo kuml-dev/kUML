@@ -4,10 +4,14 @@ import dev.kuml.sysml2.STM_MAX_DEPTH
 import dev.kuml.sysml2.STM_MAX_NAME_LEN
 import dev.kuml.sysml2.STM_MAX_REGIONS
 import dev.kuml.sysml2.STM_MAX_STATES
+import dev.kuml.sysml2.STM_MAX_TEXT_LEN
+import dev.kuml.sysml2.STM_MAX_TIMER
+import dev.kuml.sysml2.STM_MIN_TIMER
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StateKind
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.sysml2.TransitionTimer
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.ancestorsOf
 import dev.kuml.sysml2.stateIndex
@@ -19,7 +23,7 @@ public enum class StmSeverity { Error, Warning }
 /**
  * A structural finding of the SysML 2 state-machine checker.
  *
- * @property code stable numeric code (101-123), see [Sysml2StmChecker].
+ * @property code stable numeric code (101-129), see [Sysml2StmChecker].
  * @property elementId id of the offending state / region / transition.
  * @property hint how to fix it.
  */
@@ -60,6 +64,12 @@ public data class StmIssue(
  * | 121 | Error | More than [STM_MAX_REGIONS] regions in one composite |
  * | 122 | Error | More than [STM_MAX_STATES] states |
  * | 123 | Error | State or region name longer than [STM_MAX_NAME_LEN] characters |
+ * | 124 | Error | Transition has both a `timer` and a `trigger` |
+ * | 125 | Error | `after` duration shorter than 1 ms or longer than 3650 days |
+ * | 126 | Error | Timer on a transition whose source is a pseudo-state |
+ * | 127 | Warning | Two `after` timers with the same duration leave the same state |
+ * | 128 | Error | `at` instant is not UTC with millisecond precision |
+ * | 129 | Error | Guard, effect or prose longer than [STM_MAX_TEXT_LEN] characters |
  *
  * The limit rules (120-123) run first; when one fires only the limit findings
  * are reported and the deeper analysis is skipped (DoS guard). Everything is
@@ -250,7 +260,85 @@ public object Sysml2StmChecker {
                     )
             }
         }
+        checkTimersAndTexts(transitions = transitions, index = index, issues = issues)
         return issues
+    }
+
+    private fun checkTimersAndTexts(
+        transitions: List<TransitionUsage>,
+        index: Map<String, StateDefinition>,
+        issues: MutableList<StmIssue>,
+    ) {
+        for (t in transitions) {
+            val timer = t.timer
+            if (timer != null) {
+                if (!t.trigger.isNullOrBlank()) {
+                    issues +=
+                        err(
+                            code = 124,
+                            id = t.id,
+                            message = "Transition '${t.id}' has both a timer and a trigger.",
+                            hint = "Use either trigger = \"...\" or timer = after(...)/at(...), not both.",
+                        )
+                }
+                val src = index[t.sourceStateId]
+                if (src != null && src.isPseudo) {
+                    issues +=
+                        err(
+                            code = 126,
+                            id = t.id,
+                            message = "Timer transition '${t.id}' leaves the pseudo-state '${src.name}'.",
+                            hint = "Timers can only leave regular states.",
+                        )
+                }
+                when (timer) {
+                    is TransitionTimer.After ->
+                        if (timer.duration < STM_MIN_TIMER || timer.duration > STM_MAX_TIMER) {
+                            issues +=
+                                err(
+                                    code = 125,
+                                    id = t.id,
+                                    message = "after(${timer.duration}) on '${t.id}' is outside 1 ms .. 3650 days.",
+                                    hint = "Use a duration between 1 millisecond and 3650 days.",
+                                )
+                        }
+                    is TransitionTimer.At ->
+                        if (timer.instant.nanosecondsOfSecond % 1_000_000 != 0) {
+                            issues +=
+                                err(
+                                    code = 128,
+                                    id = t.id,
+                                    message = "at(${timer.instant}) on '${t.id}' has sub-millisecond precision.",
+                                    hint = "Use an ISO-8601 UTC instant with 'Z' and millisecond precision.",
+                                )
+                        }
+                }
+            }
+            if ((t.guard?.length ?: 0) > STM_MAX_TEXT_LEN || (t.effect?.length ?: 0) > STM_MAX_TEXT_LEN) {
+                issues +=
+                    err(
+                        code = 129,
+                        id = t.id,
+                        message = "Guard or effect of '${t.id}' is longer than $STM_MAX_TEXT_LEN characters.",
+                        hint = "Shorten the text to at most $STM_MAX_TEXT_LEN characters.",
+                    )
+            }
+        }
+        val afterBySource =
+            transitions
+                .filter { it.timer is TransitionTimer.After }
+                .groupBy { it.sourceStateId to (it.timer as TransitionTimer.After).duration }
+        for ((key, group) in afterBySource) {
+            if (group.size > 1) {
+                issues +=
+                    warn(
+                        code = 127,
+                        id = group[1].id,
+                        message = "State '${key.first}' has ${group.size} after(${key.second}) timers; only the first declared one fires.",
+                        hint = "Use different durations or add guards.",
+                    )
+            }
+        }
     }
 
     /**

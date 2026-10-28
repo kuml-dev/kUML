@@ -46,3 +46,7 @@
 39 ERM Martin – E-Commerce Schema.md
 40 UML Component – kUML Plugin API.md
 41 UML Activity – Order Fulfillment (Objektfluss).md
+42 SysML 2 STM – Timer.md
+43 SysML 2 STM – Regionen mit Fork-Join.md
+44 SysML 2 STM – History und Junction.md
+45 SysML 2 STM – Prosa-Guards.md

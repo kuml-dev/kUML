@@ -155,5 +155,9 @@ internal fun StateMachineInstance.rebuildOnto(newModel: UmlStateMachine): StateM
     next.mutTrace.addAll(this.mutTrace)
     next.seqCounter = this.seqCounter
     next.isTerminated = this.isTerminated
+    next.historyMemory.putAll(this.historyMemory)
+    next.armedTimerList.addAll(this.armedTimerList)
+    next.timerSeq = this.timerSeq
+    next.virtualNowMs = this.virtualNowMs
     return next
 }

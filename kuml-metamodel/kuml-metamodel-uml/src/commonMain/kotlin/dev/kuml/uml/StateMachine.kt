@@ -57,8 +57,21 @@ data class UmlState(
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
     override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+    /**
+     * Explicit (orthogonal) regions of a composite state. Every region is entered when the
+     * state is entered. [substates] remain the single implicit region of the classic hierarchy.
+     */
+    val regions: List<UmlRegion> = emptyList(),
 ) : UmlVertex,
     Stereotypable
+
+/** One orthogonal region of a composite [UmlState]. */
+@Serializable
+data class UmlRegion(
+    val id: String,
+    val name: String? = null,
+    val vertices: List<UmlVertex> = emptyList(),
+)
 
 /** The kind of a [UmlPseudostate]. */
 enum class PseudostateKind {
@@ -123,5 +136,27 @@ data class UmlTransition(
     val effect: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
     override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+    /** Optional time trigger; a transition with a timer carries no [trigger]. */
+    val timer: UmlTimer? = null,
+    /** `true` when [guard] is free-text prose that the simulator cannot evaluate. */
+    val guardIsProse: Boolean = false,
 ) : UmlElement,
     Stereotypable
+
+/** Time trigger of a [UmlTransition] (`after` / `at`). */
+@Serializable
+sealed interface UmlTimer {
+    /** Fires [durationMs] milliseconds after the source state was entered. */
+    @Serializable
+    @kotlinx.serialization.SerialName("after")
+    data class After(
+        val durationMs: Long,
+    ) : UmlTimer
+
+    /** Fires at the absolute UTC instant [epochMs] (milliseconds since the Unix epoch). */
+    @Serializable
+    @kotlinx.serialization.SerialName("at")
+    data class At(
+        val epochMs: Long,
+    ) : UmlTimer
+}

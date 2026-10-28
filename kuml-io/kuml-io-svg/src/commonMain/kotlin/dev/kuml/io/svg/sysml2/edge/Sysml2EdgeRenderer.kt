@@ -104,6 +104,7 @@ internal object Sysml2EdgeRenderer {
         labelStackIndex: Int = 0,
         overrideLabelAnchor: Pair<Float, Float>? = null,
         backdropFill: String? = null,
+        stmBlock: StmLabelBlock? = null,
     ) {
         builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(id))) {
             renderContent(
@@ -114,6 +115,7 @@ internal object Sysml2EdgeRenderer {
                 labelStackIndex = labelStackIndex,
                 overrideLabelAnchor = overrideLabelAnchor,
                 backdropFill = backdropFill,
+                stmBlock = stmBlock,
             )
         }
     }
@@ -126,6 +128,7 @@ internal object Sysml2EdgeRenderer {
         labelStackIndex: Int = 0,
         overrideLabelAnchor: Pair<Float, Float>? = null,
         backdropFill: String? = null,
+        stmBlock: StmLabelBlock? = null,
     ) {
         // 1. Line + dash pattern.
         val (tag, attrs) = EdgePathBuilder.build(route)
@@ -151,6 +154,11 @@ internal object Sysml2EdgeRenderer {
         }
         metadata.endLabel?.let { emitEndLabel(route = route, content = it, builder = builder) }
         if (metadata.midArrows.isNotEmpty()) emitMidArrows(route = route, arrows = metadata.midArrows, builder = builder)
+
+        if (stmBlock != null) {
+            emitStmBlock(block = stmBlock, backdrop = backdropFill ?: "white", builder = builder)
+            return
+        }
 
         // 2. Labels (stereotype + plain label). Suppress emission entirely
         //    when both slots are null — most PAR bindings and bare ACT /
@@ -195,6 +203,59 @@ internal object Sysml2EdgeRenderer {
         // collision avoidance for overlapping labels.
         @Suppress("UNUSED_EXPRESSION")
         theme
+    }
+
+    /** Halo (theme paper colour, 85 % opaque) plus wrapped, styled label lines; prose guards are italic. */
+    private fun emitStmBlock(
+        block: StmLabelBlock,
+        backdrop: String,
+        builder: SvgBuilder,
+    ) {
+        builder.tag(name = "g", attrs = mapOf("class" to "kuml-edge-label")) {
+            if (block.truncated) tag(name = "title") { text(block.fullText) }
+            tag(
+                name = "rect",
+                attrs =
+                    mapOf(
+                        "x" to fmt(block.cx - block.w / 2f),
+                        "y" to fmt(block.cy - block.h / 2f),
+                        "width" to fmt(block.w),
+                        "height" to fmt(block.h),
+                        "fill" to backdrop,
+                        "fill-opacity" to "0.85",
+                        "stroke" to "none",
+                    ),
+            )
+            val top = block.cy - block.h / 2f + 2f
+            block.lines.forEachIndexed { i, line ->
+                tag(
+                    name = "text",
+                    attrs =
+                        mapOf(
+                            "class" to "kuml-body",
+                            "x" to fmt(block.cx),
+                            "y" to fmt(top + 9f + i * LABEL_LINE_HEIGHT_PX),
+                            "text-anchor" to "middle",
+                        ),
+                ) {
+                    if (line.none { it.kind == dev.kuml.sysml2.edge.EdgeLabelKind.GuardProse }) {
+                        text(line.joinToString(" ") { it.text })
+                        return@tag
+                    }
+                    line.forEachIndexed { k, part ->
+                        val attrs =
+                            if (part.kind ==
+                                dev.kuml.sysml2.edge.EdgeLabelKind.GuardProse
+                            ) {
+                                mapOf("font-style" to "italic")
+                            } else {
+                                emptyMap()
+                            }
+                        tag(name = "tspan", attrs = attrs) { text(part.text + if (k < line.size - 1) " " else "") }
+                    }
+                }
+            }
+        }
     }
 
     private fun emitText(

@@ -2,10 +2,12 @@ package dev.kuml.widget.compose
 
 import dev.kuml.runtime.OclGuardEvaluator
 import dev.kuml.runtime.StateMachineRuntime
+import dev.kuml.runtime.TimeStep
 import dev.kuml.uml.PseudostateKind
 import dev.kuml.uml.UmlPseudostate
 import dev.kuml.uml.UmlState
 import dev.kuml.uml.UmlStateMachine
+import dev.kuml.uml.UmlTimer
 import dev.kuml.uml.UmlTransition
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
@@ -15,6 +17,7 @@ import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Unit tests for [BehaviourWidgetState].
@@ -164,5 +167,85 @@ class BehaviourWidgetStateTest :
             state.isScrubbing.shouldBeFalse()
             // The trace should have been reset to the forked branch
             state.trace.size shouldBeGreaterThan 0
+        }
+
+        fun timedState(
+            guard: String?,
+            selfLoop: Boolean,
+            effect: String? = null,
+            effects: dev.kuml.runtime.EffectInvoker = dev.kuml.runtime.EffectInvoker.NoOp,
+        ): BehaviourWidgetState {
+            val initial = UmlPseudostate(id = "init", name = "init", kind = PseudostateKind.INITIAL)
+            val a = UmlState(id = "A", name = "A")
+            val b = UmlState(id = "B", name = "B")
+            val model =
+                UmlStateMachine(
+                    id = "timed",
+                    name = "Timed",
+                    vertices = listOf(initial, a, b),
+                    transitions =
+                        listOf(
+                            UmlTransition(id = "t-init", sourceId = "init", targetId = "A"),
+                            UmlTransition(
+                                id = "t-timer",
+                                sourceId = "A",
+                                targetId = if (selfLoop) "A" else "B",
+                                guard = guard,
+                                effect = effect,
+                                timer = UmlTimer.After(durationMs = 5_000),
+                            ),
+                        ),
+                )
+            val runtime =
+                StateMachineRuntime(
+                    guards = OclGuardEvaluator(),
+                    effects = effects,
+                    virtualStart = java.time.Instant.parse("2026-01-01T00:00:00Z"),
+                )
+            return BehaviourWidgetState(initialModel = model, runtime = runtime)
+        }
+
+        test("fork reconstructs a timer that has not fired yet") {
+            val state = timedState(guard = null, selfLoop = false)
+            state.advanceTime(TimeStep.By(2.seconds))
+            state.scrubTo(state.trace.size - 1)
+            state.forkAtScrubPosition()
+            state.armedTimers().map { it.transitionId } shouldBe listOf("t-timer")
+        }
+
+        test("fork does not re-arm a timer that was consumed by a false guard") {
+            val state = timedState(guard = "false", selfLoop = true)
+            state.advanceTime(TimeStep.By(6.seconds))
+            state.trace.any { it is dev.kuml.runtime.TraceEntry.NotFired }.shouldBeTrue()
+            // Scrub to just behind the live end: the timer already fired and was consumed.
+            state.scrubTo(state.trace.size - 1)
+            state.forkAtScrubPosition()
+            state.armedTimers() shouldBe emptyList()
+        }
+
+        test("fork re-arms an after self-loop that actually fired") {
+            val state = timedState(guard = null, selfLoop = true)
+            state.advanceTime(TimeStep.By(6.seconds))
+            val live = state.armedTimers()
+            live.size shouldBe 1
+            // Fork at the live end of the trace: the re-armed timer must be reconstructed.
+            state.forkAtScrubPosition()
+            state.armedTimers().map { it.transitionId } shouldBe listOf("t-timer")
+        }
+
+        test("fork does not re-arm a timer whose action threw at expiry") {
+            val state =
+                timedState(
+                    guard = null,
+                    selfLoop = false,
+                    effect = "boom",
+                    effects = { _, _, _, _, _, _ -> throw IllegalStateException("boom") },
+                )
+            state.advanceTime(TimeStep.By(6.seconds))
+            state.trace.any { it is dev.kuml.runtime.TraceEntry.ActionError }.shouldBeTrue()
+            state.armedTimers() shouldBe emptyList()
+            state.scrubTo(state.trace.size)
+            state.forkAtScrubPosition()
+            state.armedTimers() shouldBe emptyList()
         }
     })

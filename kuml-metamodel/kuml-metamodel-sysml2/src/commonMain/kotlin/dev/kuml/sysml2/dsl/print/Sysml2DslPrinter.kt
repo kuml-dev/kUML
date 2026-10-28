@@ -26,6 +26,7 @@ import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.FlowPropertyUsage
 import dev.kuml.sysml2.FlowUsage
+import dev.kuml.sysml2.GuardKind
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.LifelineUsage
@@ -51,10 +52,12 @@ import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.Sysml2Usage
+import dev.kuml.sysml2.TransitionTimer
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.UseCaseUsage
+import dev.kuml.sysml2.durationLiteral
 
 /**
  * Pretty-prints a [Sysml2Model] as a `*.kuml.kts` source string.
@@ -130,6 +133,7 @@ public object Sysml2DslPrinter {
         if (needsKermlMultiplicityImport(model)) {
             sb.appendLine("import dev.kuml.kerml.KermlMultiplicity")
         }
+        durationUnitImports(model).forEach { sb.appendLine("import kotlin.time.Duration.Companion.$it") }
         sb.appendLine("sysml2Model(${quote(model.name)}) {")
 
         val (special, rest) =
@@ -581,8 +585,17 @@ public object Sysml2DslPrinter {
                         "targetStateId = ${quote(usage.targetStateId)}",
                     )
                 usage.trigger?.let { args += "trigger = ${quote(it)}" }
-                usage.guard?.let { args += "guard = ${quote(it)}" }
+                usage.guard?.let {
+                    args += if (usage.guardKind == GuardKind.Prose) "guard = prose(text = ${quote(it)})" else "guard = ${quote(it)}"
+                }
                 usage.effect?.let { args += "effect = ${quote(it)}" }
+                usage.timer?.let {
+                    args +=
+                        when (it) {
+                            is TransitionTimer.After -> "timer = after(duration = ${durationLiteral(it.duration)})"
+                            is TransitionTimer.At -> "timer = at(iso = ${quote(it.instant.toString())})"
+                        }
+                }
                 args += "id = ${quote(usage.id)}"
                 sb.appendLine("    transitionById(${args.joinToString(", ")})")
             }
@@ -886,6 +899,15 @@ public object Sysml2DslPrinter {
             else -> "KermlMultiplicity(lower = ${m.lower}, upper = ${m.upper?.toString() ?: "null"})"
         }
     }
+
+    /** Units of `after(<n>.<unit>)` literals the printed script needs imported (sorted, distinct). */
+    private fun durationUnitImports(model: Sysml2Model): List<String> =
+        model.usages
+            .filterIsInstance<TransitionUsage>()
+            .mapNotNull { (it.timer as? TransitionTimer.After)?.duration }
+            .map { durationLiteral(it).substringAfter('.') }
+            .distinct()
+            .sorted()
 
     private fun needsKermlMultiplicityImport(model: Sysml2Model): Boolean =
         model.usages.any { it.multiplicity != KermlMultiplicity.EXACTLY_ONE }

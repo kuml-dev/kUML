@@ -34,6 +34,65 @@ private fun descend(
         parents[sub.id] = state.id
         if (sub is UmlState) descend(state = sub, parents = parents)
     }
+    // Explicit regions: a region is an addressable hierarchy node between the state and its
+    // vertices, so transitions between siblings of one region only leave that region.
+    for (region in state.regions) {
+        val node = regionNodeId(state = state, regionId = region.id)
+        parents[node] = state.id
+        for (sub in region.vertices) {
+            parents[sub.id] = node
+            if (sub is UmlState) descend(state = sub, parents = parents)
+        }
+    }
+}
+
+/** Hierarchy-node id of an explicit region (never a vertex id). */
+internal fun regionNodeId(
+    state: UmlState,
+    regionId: String,
+): String = "${state.id}#$regionId"
+
+/**
+ * A region of a composite state: either the implicit one ([UmlState.substates], node id = owner id)
+ * or an explicit [dev.kuml.uml.UmlRegion].
+ */
+internal data class RegionInfo(
+    val nodeId: String,
+    val ownerId: String,
+    val vertices: List<UmlVertex>,
+    val explicit: Boolean,
+)
+
+/** Regions of [state]: the implicit one first (when it has substates), then the explicit ones. */
+internal fun regionsOf(state: UmlState): List<RegionInfo> =
+    buildList {
+        if (state.substates.isNotEmpty()) {
+            add(
+                RegionInfo(nodeId = state.id, ownerId = state.id, vertices = state.substates, explicit = false),
+            )
+        }
+        for (r in state.regions) {
+            add(
+                RegionInfo(
+                    nodeId = regionNodeId(state = state, regionId = r.id),
+                    ownerId = state.id,
+                    vertices = r.vertices,
+                    explicit = true,
+                ),
+            )
+        }
+    }
+
+/** Composite states (those with at least one region) keyed by state id. */
+internal fun buildRegionsByOwner(sm: UmlStateMachine): Map<String, List<RegionInfo>> {
+    val out = LinkedHashMap<String, List<RegionInfo>>()
+    for (v in allVertices(sm)) {
+        if (v is UmlState) {
+            val regions = regionsOf(v)
+            if (regions.isNotEmpty()) out[v.id] = regions
+        }
+    }
+    return out
 }
 
 /** All vertices (flat) including substates. Used by lookup map. */
@@ -42,7 +101,10 @@ internal fun allVertices(sm: UmlStateMachine): List<UmlVertex> {
 
     fun visit(v: UmlVertex) {
         out += v
-        if (v is UmlState) for (sub in v.substates) visit(sub)
+        if (v is UmlState) {
+            for (sub in v.substates) visit(sub)
+            for (r in v.regions) for (sub in r.vertices) visit(sub)
+        }
     }
     for (v in sm.vertices) visit(v)
     return out

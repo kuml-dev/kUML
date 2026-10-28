@@ -6,16 +6,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.kuml.desktop.render.DesktopRenderPipeline
 import dev.kuml.desktop.render.SimulationPrepareResult
+import dev.kuml.runtime.ArmedTimerView
 import dev.kuml.runtime.GuardEvaluator
 import dev.kuml.runtime.OclGuardEvaluator
+import dev.kuml.runtime.ProseGuardPolicy
 import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.runtime.StepResult
+import dev.kuml.runtime.StmLimitExceededException
+import dev.kuml.runtime.TimeStep
 import dev.kuml.runtime.TraceEntry
 import dev.kuml.runtime.sandbox.EffectExecutor
 import dev.kuml.runtime.sandbox.SandboxEffectInvoker
 import dev.kuml.runtime.sandbox.SandboxPolicy
 import dev.kuml.runtime.sandbox.TimeLimitedGuardEvaluator
+import dev.kuml.runtime.sysml2.Sysml2StateMachineAdapter
+import dev.kuml.uml.PseudostateKind
+import dev.kuml.uml.UmlPseudostate
+import dev.kuml.uml.UmlState
 import dev.kuml.uml.UmlStateMachine
+import dev.kuml.uml.UmlTransition
+import dev.kuml.uml.UmlVertex
 import dev.kuml.widget.compose.BehaviourWidgetState
 import dev.kuml.widget.compose.EditPolicy
 import dev.kuml.widget.compose.EventPayloads
@@ -72,6 +82,16 @@ internal sealed interface SimulationStatus {
     ) : SimulationStatus
 }
 
+/** An open prose-guard question dialog: the [questions] still to ask, the [answered] ones and what to do afterwards. */
+internal data class ProseDialogState(
+    val questions: List<UmlTransition>,
+    val answered: Map<String, Boolean> = emptyMap(),
+    val proceed: () -> Unit,
+) {
+    /** The question to show now. */
+    val current: UmlTransition get() = questions[answered.size]
+}
+
 /** Result of [SimulationSession.start]. */
 internal sealed interface SimulationStartResult {
     data class Started(
@@ -107,6 +127,8 @@ internal class SimulationSession private constructor(
     val modelSource: String,
     val eventNames: List<String>,
     private val guardEvaluator: TimeLimitedGuardEvaluator,
+    /** Answers to prose-guard questions for the operation in flight; read by the runtime's `Ask` policy. */
+    private val proseAnswers: MutableMap<String, Boolean>,
 ) : AutoCloseable {
     var status: SimulationStatus by mutableStateOf(SimulationStatus.Idle)
         private set
@@ -121,6 +143,16 @@ internal class SimulationSession private constructor(
 
     /** Text of the event payload field, kept here so the inspector can evaluate guards against it. */
     var payloadDraft: String by mutableStateOf("")
+
+    /** A free-text-guard question dialog that is currently open, or `null`. */
+    var proseDialog: ProseDialogState? by mutableStateOf(null)
+        private set
+
+    /** The armed timers of the live instance, soonest first (empty without timers). */
+    fun armedTimers(): List<ArmedTimerView> = widgetState.armedTimers()
+
+    /** `true` when the machine has any `after` / `at` transition. */
+    val hasTimers: Boolean get() = stateMachine.transitions.any { it.timer != null }
 
     /** The session's sandboxed guard evaluator, also used (on a frozen copy) by the inspector. Never a bypass. */
     internal val inspectorEvaluator: GuardEvaluator get() = guardEvaluator
@@ -192,6 +224,167 @@ internal class SimulationSession private constructor(
                 statusFor(result = result, warnings = warnings)
             }
         return result
+    }
+
+    /**
+     * Prose (free-text) guards that [send] of [eventName] would evaluate: transitions leaving an active
+     * state (or an ancestor of one) on that event. The runtime cannot evaluate them, so the user is asked first.
+     */
+    fun proseQuestions(eventName: String): List<UmlTransition> {
+        val reachable = withAncestors(model = stateMachine, activeVertexIds = activeVertexIds())
+        val direct =
+            stateMachine.transitions.filter {
+                it.guardIsProse && it.sourceId in reachable && it.trigger?.substringBefore('(')?.trim() == eventName
+            }
+        // Join legs carry their prose guard too, and they are evaluated when the join is attempted.
+        val joins = pseudostateIds(setOf(PseudostateKind.JOIN))
+        val joinLegs =
+            stateMachine.transitions.filter {
+                val triggerOk = it.trigger.isNullOrBlank() || it.trigger?.substringBefore('(')?.trim() == eventName
+                it.guardIsProse && it.sourceId in reachable && it.targetId in joins && triggerOk
+            }
+        // Every transition the event can fire may run into a junction/choice with prose branches,
+        // whether or not it is prose-guarded itself.
+        val firing =
+            stateMachine.transitions.filter {
+                it.sourceId in reachable && it.trigger?.substringBefore('(')?.trim() == eventName
+            }
+        return (direct + branchQuestions(from = (firing + joinLegs).map { it.targetId }) + joinLegs).distinctBy { it.id }
+    }
+
+    private fun pseudostateIds(kinds: Set<PseudostateKind>): Set<String> {
+        val ids = mutableSetOf<String>()
+
+        fun walk(vertices: List<UmlVertex>) {
+            for (v in vertices) {
+                if (v is UmlPseudostate && v.kind in kinds) ids += v.id
+                if (v is UmlState) {
+                    walk(v.substates)
+                    v.regions.forEach { walk(it.vertices) }
+                }
+            }
+        }
+        walk(stateMachine.vertices)
+        return ids
+    }
+
+    /**
+     * Prose-guarded branches of junctions and choices that a firing transition entering [from] can run into
+     * (followed transitively through chained pseudostates); the runtime would otherwise answer them `false`.
+     */
+    private fun branchQuestions(from: List<String>): List<UmlTransition> {
+        val branching = pseudostateIds(setOf(PseudostateKind.JUNCTION, PseudostateKind.CHOICE))
+        val result = mutableListOf<UmlTransition>()
+        val seen = mutableSetOf<String>()
+        val queue = ArrayDeque(from)
+        while (queue.isNotEmpty()) {
+            val id = queue.removeFirst()
+            if (id !in branching || !seen.add(id)) continue
+            for (t in stateMachine.transitions.filter { it.sourceId == id }) {
+                if (t.guardIsProse) result += t
+                queue.addLast(t.targetId)
+            }
+        }
+        return result
+    }
+
+    /** Prose guards on the armed timers that a time step could fire. */
+    fun proseQuestionsForTimers(): List<UmlTransition> {
+        val ids = armedTimers().map { it.transitionId }.toSet()
+        val direct = stateMachine.transitions.filter { it.guardIsProse && it.id in ids }
+        val firing = stateMachine.transitions.filter { it.id in ids }
+        return (direct + branchQuestions(from = firing.map { it.targetId })).distinctBy { it.id }
+    }
+
+    /**
+     * Like [send], but first asks the user about every prose guard involved (non-blocking: the dialog is
+     * shown by the Compose tree and the event is sent when the last question is answered).
+     */
+    fun sendAsking(
+        eventName: String,
+        payloadJson: String = "{}",
+    ) {
+        val questions = proseQuestions(eventName)
+        if (questions.isEmpty()) {
+            send(eventName = eventName, payloadJson = payloadJson)
+        } else {
+            proseDialog = ProseDialogState(questions = questions) { send(eventName = eventName, payloadJson = payloadJson) }
+        }
+    }
+
+    /** Advances virtual time by one step (`+1 s`, `+10 s`, next timer), asking about prose guards on the timers first. */
+    fun advanceAsking(step: TimeStep) {
+        val questions = proseQuestionsForTimers()
+        if (questions.isEmpty()) {
+            advance(step)
+        } else {
+            proseDialog = ProseDialogState(questions = questions) { advance(step) }
+        }
+    }
+
+    /** Answers the open prose dialog's current question; runs the pending operation after the last answer. */
+    fun answerProse(met: Boolean) {
+        val dialog = proseDialog ?: return
+        val question = dialog.questions[dialog.answered.size]
+        val answered = dialog.answered + (question.id to met)
+        if (answered.size < dialog.questions.size) {
+            // A new immutable state, so the structural-equality state write recomposes the dialog.
+            proseDialog = dialog.copy(answered = answered)
+            return
+        }
+        proseDialog = null
+        proseAnswers.putAll(answered)
+        try {
+            dialog.proceed()
+        } finally {
+            proseAnswers.clear()
+        }
+    }
+
+    /** Cancels the open prose dialog; nothing is sent. */
+    fun cancelProse() {
+        proseDialog = null
+    }
+
+    /** Advances the virtual clock; runtime limits and invalid steps become a visible status, never a silent no-op. */
+    fun advance(step: TimeStep) {
+        val beforeSize = widgetState.tracePosition
+        val discarded = widgetState.trace.size - widgetState.tracePosition
+        if (widgetState.isScrubbing) {
+            // Fork here with the variables as of the scrub position (like send), then cut the history behind it.
+            widgetState.forkAtScrubPosition(variables = timeline.at(beforeSize))
+            timeline.truncateAfter(beforeSize)
+        }
+        try {
+            widgetState.advanceTime(step)
+            lastResult =
+                if (widgetState.runningIsTerminated()) {
+                    StepResult.Terminated
+                } else {
+                    StepResult.Transitioned(
+                        fromVertexIds = emptyList(),
+                        toVertexIds = emptyList(),
+                        transitionIds = emptyList(),
+                    )
+                }
+            status =
+                if (discarded >
+                    0
+                ) {
+                    SimulationStatus.DiscardedSteps(discarded)
+                } else if (widgetState.runningIsTerminated()) {
+                    SimulationStatus.Terminated
+                } else {
+                    SimulationStatus.Idle
+                }
+        } catch (ex: StmLimitExceededException) {
+            status = SimulationStatus.Error(ex.message ?: "limit exceeded")
+            lastResult = StepResult.Error(ex)
+        } catch (ex: IllegalArgumentException) {
+            status = SimulationStatus.Error(ex.message ?: "invalid time step")
+        }
+        timeline.record(traceSize = widgetState.trace.size, variables = widgetState.liveVariables)
+        selectedTransitionId = null
     }
 
     /** Variables as of the current scrub position (live variables when not scrubbing). */
@@ -334,9 +527,17 @@ internal class SimulationSession private constructor(
                             skipAbstractActions = true,
                         )
                     val guards = TimeLimitedGuardEvaluator(delegate = OclGuardEvaluator(), policy = policy)
+                    val proseAnswers = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
                     try {
                         val effects = SandboxEffectInvoker(EffectExecutor(policy))
-                        val runtime = StateMachineRuntime(guards = guards, effects = effects)
+                        val runtime =
+                            StateMachineRuntime(
+                                guards = guards,
+                                effects = effects,
+                                // Free-text guards are answered by the user beforehand (see sendAsking); unanswered = false.
+                                proseGuards = ProseGuardPolicy.Ask { tr -> proseAnswers[tr.id] ?: false },
+                                virtualStart = Sysml2StateMachineAdapter.virtualStartFor(machine = prepared.stateMachine, explicit = null),
+                            )
                         val widgetState =
                             BehaviourWidgetState(
                                 initialModel = prepared.stateMachine,
@@ -351,6 +552,7 @@ internal class SimulationSession private constructor(
                                 modelSource = script,
                                 eventNames = allEventNames(prepared.stateMachine),
                                 guardEvaluator = guards,
+                                proseAnswers = proseAnswers,
                             ),
                         )
                     } catch (e: Exception) {

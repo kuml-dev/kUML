@@ -29,6 +29,17 @@ public fun fingerprint(model: UmlStateMachine): String {
         digest.update(0)
     }
 
+    // Wave A2: timers and prose guards change the behaviour; included only when present so that
+    // fingerprints of existing (timer-free) machines stay stable.
+    val timed = model.transitions.filter { it.timer != null || it.guardIsProse }.sortedBy { it.id }
+    if (timed.isNotEmpty()) {
+        digest.update(2)
+        for (t in timed) {
+            digest.update("${t.id}|${t.timer}|${t.guardIsProse}".toByteArray(Charsets.UTF_8))
+            digest.update(0)
+        }
+    }
+
     // Hex-Ausgabe der ersten 16 Bytes (32 Zeichen)
     val bytes = digest.digest()
     return bytes.take(16).joinToString("") { "%02x".format(it) }

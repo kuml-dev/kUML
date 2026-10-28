@@ -98,7 +98,7 @@ class StateMachineSnapshotRoundtripTest :
             val instance = runtime.start(model)
             val snap = runtime.snapshotFull(instance)
             snap.modelId shouldBe model.id
-            snap.schemaVersion shouldBe 1
+            snap.schemaVersion shouldBe 2
             snap.isTerminated.shouldBeFalse()
             snap.currentVertexIds.shouldNotBeEmpty()
         }

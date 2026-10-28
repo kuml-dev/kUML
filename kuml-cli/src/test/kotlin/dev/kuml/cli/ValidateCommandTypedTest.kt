@@ -80,4 +80,19 @@ class ValidateCommandTypedTest :
             val result = KumlCli().test(listOf("validate", "--strict", fixture.absolutePath))
             result.statusCode shouldBe 0
         }
+
+        // ── 8. A2: prose guards and free-text effects are not parsed ────────────
+
+        test("validate --strict accepts a prose guard and a free-text effect without warnings") {
+            val fixture = File("src/test/resources/validate-expressions/prose-guard.kuml.kts")
+            val result = KumlCli().test(listOf("validate", "--strict", fixture.absolutePath))
+            result.statusCode shouldBe 0
+            result.output.contains("Door is open") shouldBe false
+        }
+
+        test("validate with a broken expression guard hints at prose()") {
+            val fixture = File("src/test/resources/validate-expressions/broken-guard.kuml.kts")
+            val result = KumlCli().test(listOf("validate", fixture.absolutePath))
+            result.output.contains("prose(") shouldBe true
+        }
     })

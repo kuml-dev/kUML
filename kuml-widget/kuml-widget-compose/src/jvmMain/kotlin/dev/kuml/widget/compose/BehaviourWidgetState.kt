@@ -4,10 +4,14 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import dev.kuml.runtime.AdvanceResult
+import dev.kuml.runtime.ArmedTimer
+import dev.kuml.runtime.ArmedTimerView
 import dev.kuml.runtime.Event
 import dev.kuml.runtime.StateMachineInstance
 import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.runtime.StepResult
+import dev.kuml.runtime.TimeStep
 import dev.kuml.runtime.runtimeValueToJson
 import dev.kuml.runtime.snapshot.MigrationPolicy
 import dev.kuml.runtime.snapshot.StateMachineSnapshot
@@ -139,6 +143,39 @@ public class BehaviourWidgetState(
     }
 
     /**
+     * Advances the virtual clock (`+next` or by a duration) and fires the timers that expire, forking first
+     * when scrubbing. Timer firings are recorded in the trace like events.
+     *
+     * @throws IllegalArgumentException for an invalid step; [dev.kuml.runtime.StmLimitExceededException]
+     *   when a runtime limit is hit (the instance keeps the state reached so far).
+     */
+    public fun advanceTime(step: TimeStep): AdvanceResult {
+        if (isScrubbing) {
+            forkAtScrubPosition()
+        }
+        return try {
+            when (step) {
+                TimeStep.Next -> runtime.advanceToNextTimer(runningInstance)
+                is TimeStep.By -> runtime.advance(instance = runningInstance, by = step.duration)
+            }
+        } finally {
+            syncFromInstance()
+        }
+    }
+
+    /** `true` when the live instance has terminated. */
+    public fun runningIsTerminated(): Boolean = runningInstance.isTerminated
+
+    /** Timers armed in the live instance, soonest first (empty while the machine has none). */
+    public fun armedTimers(): List<ArmedTimerView> = runtime.armedTimers(runningInstance)
+
+    /** Active leaf vertices of the live instance (several in orthogonal regions). */
+    public fun activeLeafIds(): List<String> = runtime.activeLeaves(runningInstance)
+
+    /** What each history pseudostate of the live instance currently remembers. */
+    public fun historyMemory(): Map<String, List<String>> = runtime.historyMemory(runningInstance)
+
+    /**
      * Moves the scrub position to [position], clamped to `[0, trace.size]`.
      */
     public fun scrubTo(position: Int) {
@@ -209,6 +246,63 @@ public class BehaviourWidgetState(
                 trace = trace,
                 upToExclusive = tracePosition,
             )
+        // Timers and the virtual clock are reconstructed from the trace prefix: the clock is the last
+        // timestamp, and every timer of a still-active state is armed relative to that state's last entry.
+        // (History memory is not reconstructed: it restarts empty at a fork.)
+        val timed = initialSnapshot.virtualNowEpochMs != null
+        val clockMs =
+            if (timed) {
+                partialTrace.lastOrNull()?.let {
+                    parseEpochMs(
+                        it.timestamp,
+                    )
+                } ?: initialSnapshot.virtualNowEpochMs
+            } else {
+                null
+            }
+        val timers =
+            if (timed) {
+                var seq = 0L
+                model.transitions.filter { it.timer != null && it.sourceId in activeIds }.mapNotNull { t ->
+                    val entryIdx = partialTrace.indexOfLast { it is dev.kuml.runtime.TraceEntry.StateEntered && it.vertexId == t.sourceId }
+                    val entered =
+                        partialTrace
+                            .getOrNull(entryIdx)
+                            ?.let { parseEpochMs(it.timestamp) } ?: initialSnapshot.virtualNowEpochMs ?: 0L
+                    val firedIdx =
+                        partialTrace.indexOfLast { it is dev.kuml.runtime.TraceEntry.TimerFired && it.transitionId == t.id }
+                    val errorIdx =
+                        partialTrace.indexOfLast { it is dev.kuml.runtime.TraceEntry.ActionError && it.transitionId == t.id }
+                    // A failed timer action is rolled back by the runtime (TimerFired is truncated, the timer is
+                    // dropped and not re-armed), leaving only an ActionError: that also consumes the timer.
+                    if (errorIdx > entryIdx && errorIdx > firedIdx) return@mapNotNull null
+                    val tm = t.timer
+                    // A timer that fired after the source was last entered is consumed, as in the runtime; only an
+                    // `after` self-loop that actually fired is re-armed (at the firing time).
+                    val base =
+                        if (firedIdx > entryIdx) {
+                            val rearmed =
+                                tm is dev.kuml.uml.UmlTimer.After &&
+                                    t.sourceId == t.targetId &&
+                                    partialTrace.drop(firedIdx + 1).any {
+                                        it is dev.kuml.runtime.TraceEntry.TransitionFired && it.transitionId == t.id
+                                    }
+                            if (!rearmed) return@mapNotNull null
+                            maxOf(entered, parseEpochMs(partialTrace[firedIdx].timestamp) ?: entered)
+                        } else {
+                            entered
+                        }
+                    val due =
+                        when (tm) {
+                            is dev.kuml.uml.UmlTimer.After -> base + tm.durationMs
+                            is dev.kuml.uml.UmlTimer.At -> maxOf(tm.epochMs, base)
+                            null -> base
+                        }
+                    ArmedTimer(transitionId = t.id, sourceId = t.sourceId, dueEpochMs = due, seq = seq++)
+                }
+            } else {
+                emptyList()
+            }
         val forkedSnapshot =
             initialSnapshot.copy(
                 currentVertexIds = activeIds.toList(),
@@ -217,6 +311,10 @@ public class BehaviourWidgetState(
                 internalQueue = emptyList(),
                 isTerminated = false,
                 variables = variables ?: initialSnapshot.variables,
+                historyMemory = emptyMap(),
+                armedTimers = timers,
+                virtualNowEpochMs = clockMs,
+                timerSeq = timers.size.toLong(),
             )
         runningInstance = runtime.restoreFrom(model = model, snapshot = forkedSnapshot, policy = MigrationPolicy.Reject)
         syncFromInstance()
@@ -236,6 +334,13 @@ public class BehaviourWidgetState(
         tracePosition = trace.size
         liveVariables = runningInstance.variables.mapValues { (_, v) -> runtimeValueToJson(v) }
     }
+
+    private fun parseEpochMs(iso: String): Long? =
+        runCatching {
+            java.time.Instant
+                .parse(iso)
+                .toEpochMilli()
+        }.getOrNull()
 
     private companion object {
         val VARIABLE_NAME = Regex("^[A-Za-z_][A-Za-z0-9_]{0,63}$")
