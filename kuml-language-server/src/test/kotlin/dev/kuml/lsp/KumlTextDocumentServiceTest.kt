@@ -211,7 +211,7 @@ class KumlTextDocumentServiceTest :
             }
         }
 
-        test("completion returns all 43 mapped items, complete") {
+        test("completion returns all 50 mapped items, complete") {
             val server = KumlLanguageServer()
             val client = RecordingClient()
             server.connect(client)
@@ -227,7 +227,7 @@ class KumlTextDocumentServiceTest :
                 val list = result.right
                 list.shouldNotBeNull()
                 list.isIncomplete shouldBe false
-                list.items shouldHaveSize 43
+                list.items shouldHaveSize 50
 
                 val umlModel = list.items.first { it.label == "umlModel" }
                 umlModel.insertTextFormat shouldBe InsertTextFormat.Snippet

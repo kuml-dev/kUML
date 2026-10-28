@@ -52,6 +52,7 @@ import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.Sysml2Usage
+import dev.kuml.sysml2.TestCaseDefinition
 import dev.kuml.sysml2.TransitionTimer
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcDiagram
@@ -285,6 +286,7 @@ public object Sysml2DslPrinter {
             }
             is UseCaseDefinition -> {
                 if (def.isAbstract) args += "isAbstract = true"
+                if (def.description.isNotEmpty()) args += "description = ${quote(def.description)}"
                 appendSpecializesArg(def = def, builderName = "useCaseDef", args = args, todos = todos)
                 printDefCall(
                     sb = sb,
@@ -298,11 +300,28 @@ public object Sysml2DslPrinter {
                 if (def.reqId.isNotEmpty()) args += "reqId = ${quote(def.reqId)}"
                 if (def.text.isNotEmpty()) args += "text = ${quote(def.text)}"
                 def.subject?.let { args += "subject = ${quote(it)}" }
+                def.priority?.let { args += "priority = RequirementPriority.${it.name}" }
+                if (def.source.isNotEmpty()) args += "source = ${quote(def.source)}"
+                def.status?.let { args += "status = RequirementStatus.${it.name}" }
+                if (def.isAssumption) args += "isAssumption = true"
+                def.subjectRef?.let { args += "subjectRef = ${quote(it)}" }
                 if (def.isAbstract) args += "isAbstract = true"
                 appendSpecializesArg(def = def, builderName = "requirementDef", args = args, todos = todos)
                 printDefCall(
                     sb = sb,
                     fnName = "requirementDef",
+                    varName = varName,
+                    args = args,
+                    todos = todos,
+                ) { body -> printNestedFeatures(sb = body, def = def, model = model) }
+            }
+            is TestCaseDefinition -> {
+                if (def.text.isNotEmpty()) args += "text = ${quote(def.text)}"
+                if (def.isAbstract) args += "isAbstract = true"
+                appendSpecializesArg(def = def, builderName = "testCaseDef", args = args, todos = todos)
+                printDefCall(
+                    sb = sb,
+                    fnName = "testCaseDef",
                     varName = varName,
                     args = args,
                     todos = todos,
@@ -809,7 +828,9 @@ public object Sysml2DslPrinter {
                 d.noteIds.isNotEmpty() ||
                 d.associations.isNotEmpty() ||
                 d.includes.isNotEmpty() ||
-                d.extends.isNotEmpty()
+                d.extends.isNotEmpty() ||
+                d.subjects.isNotEmpty() ||
+                d.actorGeneralizations.isNotEmpty()
         if (!hasBody) {
             sb.appendLine("    ucDiagram(${quote(d.name)})")
             return
@@ -826,6 +847,15 @@ public object Sysml2DslPrinter {
         d.extends.forEach {
             sb.appendLine("        extendById(sourceId = ${quote(it.sourceUseCaseId)}, targetId = ${quote(it.targetUseCaseId)})")
         }
+        d.actorGeneralizations.forEach {
+            sb.appendLine("        generalizeById(specificId = ${quote(it.specificId)}, generalId = ${quote(it.generalId)})")
+        }
+        d.subjects.forEach {
+            sb.appendLine(
+                "        subjectById(id = ${quote(it.id)}, name = ${quote(it.name)}, " +
+                    "useCaseIds = listOf(${it.useCaseIds.joinToString(", ") { id -> quote(id) }}))",
+            )
+        }
         sb.appendLine("    }")
     }
 
@@ -839,7 +869,11 @@ public object Sysml2DslPrinter {
                 d.satisfies.isNotEmpty() ||
                 d.verifies.isNotEmpty() ||
                 d.derives.isNotEmpty() ||
-                d.contains.isNotEmpty()
+                d.contains.isNotEmpty() ||
+                d.refines.isNotEmpty() ||
+                d.traces.isNotEmpty() ||
+                d.copies.isNotEmpty() ||
+                d.groups.isNotEmpty()
         if (!hasBody) {
             sb.appendLine("    reqDiagram(${quote(d.name)})")
             return
@@ -863,6 +897,25 @@ public object Sysml2DslPrinter {
             sb.appendLine(
                 "        containsById(parentRequirementId = ${quote(it.parentRequirementId)}, " +
                     "childRequirementId = ${quote(it.childRequirementId)})",
+            )
+        }
+        d.refines.forEach {
+            sb.appendLine("        refineById(sourceId = ${quote(it.sourceId)}, requirementId = ${quote(it.requirementId)})")
+        }
+        d.traces.forEach {
+            sb.appendLine("        traceById(sourceId = ${quote(it.sourceId)}, targetId = ${quote(it.targetId)})")
+        }
+        d.copies.forEach {
+            sb.appendLine(
+                "        copyById(sourceRequirementId = ${quote(it.sourceRequirementId)}, " +
+                    "targetRequirementId = ${quote(it.targetRequirementId)})",
+            )
+        }
+        d.groups.forEach {
+            sb.appendLine(
+                "        groupById(id = ${quote(it.id)}, name = ${quote(it.name)}, " +
+                    "memberIds = listOf(${it.memberIds.joinToString(", ") { id -> quote(id) }}), " +
+                    "childGroupIds = listOf(${it.childGroupIds.joinToString(", ") { id -> quote(id) }}))",
             )
         }
         sb.appendLine("    }")

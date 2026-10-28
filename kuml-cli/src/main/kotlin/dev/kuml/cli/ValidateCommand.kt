@@ -29,10 +29,14 @@ import dev.kuml.profile.ProfileRegistry
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ParDiagram
+import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.TransitionUsage
+import dev.kuml.sysml2.UcDiagram
+import dev.kuml.sysml2.constraint.ReqUcSeverity
 import dev.kuml.sysml2.constraint.StmSeverity
 import dev.kuml.sysml2.constraint.Sysml2ConstraintChecker
+import dev.kuml.sysml2.constraint.Sysml2ReqUcChecker
 import dev.kuml.sysml2.constraint.Sysml2StmChecker
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -322,6 +326,29 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
             for (sv in stmWarnings) echo("  WARN  [${sv.id}] ${sv.location}: ${sv.message}")
         }
 
+        // 7b'''. REQ / UC structure validation (wave C1: copy/subject/group/generalisation rules and limits).
+        val reqUcViolations: List<StructuralViolation> =
+            (extracted as? ExtractedDiagram.Sysml2)
+                ?.takeIf { it.diagram is ReqDiagram || it.diagram is UcDiagram }
+                ?.let { ex ->
+                    Sysml2ReqUcChecker.check(model = ex.model, diagram = ex.diagram).map { i ->
+                        StructuralViolation(
+                            id = "REQUC${i.code}",
+                            severity = if (i.severity == ReqUcSeverity.Error) "error" else "warning",
+                            message = "${i.message} Hint: ${i.hint}",
+                            location = i.elementId,
+                            category = "reqUc",
+                        )
+                    }
+                } ?: emptyList()
+        val reqUcErrors = reqUcViolations.filter { it.severity == "error" }
+        val reqUcWarnings = reqUcViolations.filter { it.severity == "warning" }
+        if (reqUcViolations.isNotEmpty()) {
+            echo("\nRequirement / use case validation:")
+            for (rv in reqUcErrors) echo("  ERROR [${rv.id}] ${rv.location}: ${rv.message}")
+            for (rv in reqUcWarnings) echo("  WARN  [${rv.id}] ${rv.location}: ${rv.message}")
+        }
+
         // 7c. Style validation output (V0.50.0) — see step 0/1b above for where
         //     styleViolations/styleErrors/styleWarnings were computed. Kept as its
         //     own section (not folded into "Structural validation:") so the
@@ -341,7 +368,8 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         // 8. Output
         val allViolations =
             modelResult.violations + (stereotypeResult?.violations ?: emptyList())
-        val allStructuralLikeViolations = structuralViolations + ermViolations + noteViolations + stmViolations + styleViolations
+        val allStructuralLikeViolations =
+            structuralViolations + ermViolations + noteViolations + stmViolations + reqUcViolations + styleViolations
         val combined =
             KumlValidationResult(
                 valid =
@@ -350,6 +378,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                         ermErrors.isEmpty() &&
                         noteErrors.isEmpty() &&
                         stmErrors.isEmpty() &&
+                        reqUcErrors.isEmpty() &&
                         styleErrors.isEmpty(),
                 violations = allViolations,
             )

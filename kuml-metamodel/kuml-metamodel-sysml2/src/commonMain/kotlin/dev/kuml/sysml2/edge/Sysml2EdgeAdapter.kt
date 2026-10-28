@@ -198,6 +198,9 @@ public class UcEdgeAdapter(
             for (ext in diagram.extends) {
                 put(ext.id, METADATA_EXTEND)
             }
+            for (gen in diagram.actorGeneralizations) {
+                put(gen.id, METADATA_GENERALIZATION)
+            }
         }
 
     override fun metadataFor(edgeId: String): Sysml2EdgeMetadata? = index[edgeId]
@@ -217,6 +220,10 @@ public class UcEdgeAdapter(
                 dashArray = "5 4",
                 arrowHead = Sysml2ArrowHead.OpenAngle,
             )
+
+        /** Actor generalisation (C1): solid line, hollow triangle at the general actor, no stereotype. */
+        public val METADATA_GENERALIZATION: Sysml2EdgeMetadata =
+            Sysml2EdgeMetadata(arrowHead = Sysml2ArrowHead.OpenTriangle)
     }
 }
 
@@ -251,9 +258,24 @@ public class ReqEdgeAdapter(
             for (con in diagram.contains) {
                 put(con.id, METADATA_CONTAINS)
             }
+            for (r in diagram.refines) {
+                put(r.id, METADATA_REFINE)
+            }
+            for (t in diagram.traces) {
+                put(t.id, METADATA_TRACE)
+            }
+            for (c in diagram.copies) {
+                put(c.id, METADATA_COPY)
+            }
         }
 
-    override fun metadataFor(edgeId: String): Sysml2EdgeMetadata? = index[edgeId]
+    /**
+     * Edge ids of the form `subject:<requirementId>::<targetId>` are synthesised by the
+     * layout bridge from `RequirementDefinition.subjectRef` (C1) — they are not part of
+     * the diagram's edge lists, so they are recognised by prefix.
+     */
+    override fun metadataFor(edgeId: String): Sysml2EdgeMetadata? =
+        index[edgeId] ?: if (edgeId.startsWith(SUBJECT_EDGE_PREFIX)) METADATA_SUBJECT else null
 
     public companion object {
         public val METADATA_SATISFY: Sysml2EdgeMetadata =
@@ -280,6 +302,17 @@ public class ReqEdgeAdapter(
                 dashArray = "5 4",
                 arrowHead = Sysml2ArrowHead.OpenAngle,
             )
+        public val METADATA_REFINE: Sysml2EdgeMetadata =
+            Sysml2EdgeMetadata(stereotype = "«refine»", dashArray = "5 4", arrowHead = Sysml2ArrowHead.OpenAngle)
+        public val METADATA_TRACE: Sysml2EdgeMetadata =
+            Sysml2EdgeMetadata(stereotype = "«trace»", dashArray = "5 4", arrowHead = Sysml2ArrowHead.OpenAngle)
+        public val METADATA_COPY: Sysml2EdgeMetadata =
+            Sysml2EdgeMetadata(stereotype = "«copy»", dashArray = "5 4", arrowHead = Sysml2ArrowHead.OpenAngle)
+        public val METADATA_SUBJECT: Sysml2EdgeMetadata =
+            Sysml2EdgeMetadata(stereotype = "«subject»", dashArray = "2 3", arrowHead = Sysml2ArrowHead.OpenAngle)
+
+        /** Prefix of synthesised «subject» edge ids. */
+        public const val SUBJECT_EDGE_PREFIX: String = "subject:"
     }
 }
 

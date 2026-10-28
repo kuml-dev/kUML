@@ -351,6 +351,22 @@ internal object ExampleCatalog {
                     "SysML 2 state machine with a free-text guard (prose) next to an evaluable " +
                         "expression guard.",
             ),
+            CuratedExample(
+                fileName = "46 SysML 2 REQ – Anforderungen mit Gruppen.md",
+                language = "sysml2",
+                diagramType = "req",
+                description =
+                    "SysML 2 requirement diagram with nested groups, a test case, an assumption and all " +
+                        "seven relationships (satisfy, verify, derive, contains, refine, trace, copy).",
+            ),
+            CuratedExample(
+                fileName = "47 SysML 2 UC – Systemgrenzen und Generalisierung.md",
+                language = "sysml2",
+                diagramType = "uc",
+                description =
+                    "SysML 2 use-case diagram with two system-boundary frames, actor generalisation " +
+                        "and use-case descriptions.",
+            ),
         )
 
     /** Distinct languages in catalog order: uml, c4, sysml2, bpmn, blueprint, erm. */

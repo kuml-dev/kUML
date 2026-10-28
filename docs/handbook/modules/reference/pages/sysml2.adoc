@@ -233,6 +233,56 @@ sysml2Model(name = "LibrarySystem") {
 }
 ----
 
+=== System boundaries, actor generalisation and descriptions
+
+`subject("Name") { include(useCase) }` draws a system boundary. The use cases inside the block become
+children of the frame; actors never do, so they always stay outside. Several frames sit side by side.
+`generalize(specific, general)` draws an actor generalisation (solid line, hollow triangle at the general
+actor). `useCaseDef(description = "...")` shows an italic description (at most four lines, longer text is
+cut with an ellipsis and kept in the tooltip) inside the ellipse.
+
+[source,kuml]
+----
+import dev.kuml.sysml2.dsl.sysml2Model
+
+sysml2Model("Library") {
+    val user = actorDef("User")
+    val reader = actorDef("Reader")
+    val librarian = actorDef("Librarian")
+    val borrow = useCaseDef("Borrow Book", description = "A reader borrows a book for up to four weeks. The system checks the account and records the loan.")
+    val auth = useCaseDef("Authenticate")
+    val fee = useCaseDef("Pay Late Fee")
+    val manage = useCaseDef("Manage Catalogue", description = "Add, change or remove titles in the catalogue of the library system.")
+    val export = useCaseDef("Export Report")
+    ucDiagram("Library system") {
+        include(user)
+        include(reader)
+        include(librarian)
+        include(borrow)
+        include(auth)
+        include(fee)
+        include(manage)
+        include(export)
+        generalize(reader, user)
+        generalize(librarian, user)
+        association(reader, borrow)
+        association(librarian, manage)
+        association(librarian, export)
+        include(borrow, auth)
+        extend(fee, borrow)
+        subject("Lending") {
+            include(borrow)
+            include(auth)
+            include(fee)
+        }
+        subject("Administration") {
+            include(manage)
+            include(export)
+        }
+    }
+}
+----
+
 == Requirements Diagrams (REQ)
 
 Requirements diagrams trace stakeholder needs through derivation, satisfaction,
@@ -300,6 +350,104 @@ sysml2Model(name = "VehicleRequirements") {
     }
 }
 ----
+
+=== Requirement attributes, test cases, groups and relationships
+
+`requirementDef` accepts `priority` (`HIGH`, `MEDIUM`, `LOW`), `status` (`DRAFT` ... `VERIFIED`), `source`,
+`isAssumption = true` (dashed border, `<<assumption>>`) and `subjectRef` (the id of the constrained element;
+the diagram then draws a `<<subject>>` edge). The free-text `subject` stays available. Titles are wrapped
+instead of truncated; the box width is between 160 and 240 px and the height grows with the content.
+`testCaseDef` adds a verification element (rounded box, `<<testCase>>`). `group("Name") { ... }` draws a framed
+group with a name tab; groups nest up to three levels and an element belongs to at most one group.
+New relationships: `refine(source, requirement)`, `trace(source, target)` and `copy(slave, master)`.
+
+[source,kuml]
+----
+import dev.kuml.sysml2.RequirementPriority
+import dev.kuml.sysml2.RequirementStatus
+import dev.kuml.sysml2.dsl.sysml2Model
+
+sysml2Model("Vehicle Requirements") {
+    val car = partDef("Car")
+    val brakes = partDef("BrakeSystem")
+    val top = requirementDef(
+        "TopSpeed",
+        reqId = "R-001",
+        text = "The vehicle shall reach at least 180 km/h on flat road within 30 seconds.",
+        priority = RequirementPriority.HIGH,
+        status = RequirementStatus.APPROVED,
+        source = "Marketing, Product Brief 2026",
+        subjectRef = "Car",
+    )
+    val stop = requirementDef(
+        "StoppingDistanceFromHundredKilometresPerHourOnDryAndWetRoadSurfaces",
+        reqId = "R-002",
+        text = "The vehicle shall stop from 100 km/h within 36 metres on a dry road.",
+        priority = RequirementPriority.MEDIUM,
+        status = RequirementStatus.DRAFT,
+    )
+    val stopCopy = requirementDef(
+        "StoppingCopy",
+        text = "The vehicle shall stop from 100 km/h within 36 metres on a dry road.",
+    )
+    val dry = requirementDef(
+        "DryRoadAssumption",
+        text = "Tests are run on dry asphalt at 20 degrees Celsius.",
+        isAssumption = true,
+    )
+    val abs = requirementDef("AbsRequired", text = "ABS is mandatory.", priority = RequirementPriority.LOW)
+    val speedTest = testCaseDef("TopSpeedTest", text = "Accelerate on the test track.")
+    val driving = useCaseDef("DriveFast")
+    reqDiagram("Vehicle requirements") {
+        include(car)
+        include(brakes)
+        include(driving)
+        include(top)
+        include(speedTest)
+        group("Performance") {
+            include(top)
+            group("Braking") {
+                include(stop)
+                group("Details") {
+                    include(stopCopy)
+                    include(abs)
+                }
+            }
+        }
+        include(dry)
+        satisfy(car, top)
+        satisfy(brakes, stop)
+        verify(speedTest, top)
+        derive(abs, stop)
+        contains(stop, abs)
+        refine(driving, top)
+        trace(dry, stop)
+        copy(stopCopy, stop)
+    }
+}
+----
+
+==== Structural checks (`kuml validate`, REQ and UC)
+
+[cols="1,1,4"]
+|===
+|Code |Severity |Rule
+|201 |Error |`copy` endpoint is not a requirement
+|202 |Error |`copy` slave and master have different `text`
+|203 |Error |`subjectRef` does not resolve to a definition
+|204 |Error |Groups nested deeper than 3 levels (or a group cycle)
+|205 |Error |A use case is inside more than one subject frame
+|206 / 207 |Error |Actor generalisation cycle / a side is not an actor
+|208 |Error |A requirement is a member of more than one group
+|209-212 |Error |Limits: title 200, requirement text 2000, source 200, use-case description 1000 characters
+|213 / 214 |Error |More than 64 groups / 16 subject frames in one diagram
+|215 |Warning |`verify` source is neither a test case nor a use case
+|216 |Warning |`refine` target is not a requirement
+|217 |Hint |Use-case description longer than four lines (truncated in the diagram)
+|===
+
+`trace` is intentionally unchecked. Renderers additionally cut over-long text defensively, so a plain
+`kuml render` without `validate` cannot blow up the layout.
 
 == State Machine Diagrams (STM)
 

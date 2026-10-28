@@ -18,6 +18,7 @@ import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.Sysml2Definition
+import dev.kuml.sysml2.TestCaseDefinition
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.projection.BddBoxContent
 import dev.kuml.sysml2.projection.sysml2BddBoxContent
@@ -76,6 +77,8 @@ internal fun renderSysml2Definition(
         // `«requirement»`-Stereotyp, optional `R-NNN ::`-prefixiertem Namen,
         // und wort-gewrapptem Anforderungstext.
         is RequirementDefinition -> renderSysml2Requirement(element = element, layout = layout, theme = theme, builder = builder)
+        // Wave C1: verification element of a REQ diagram.
+        is TestCaseDefinition -> renderSysml2TestCase(element = element, layout = layout, theme = theme, builder = builder)
         // V2.0.9: STM-Diagramm — abgerundeter Zustand (oder Initial/Final
         // Pseudo-State als Kreis/Donut).
         is StateDefinition -> renderStateDefinition(element = element, layout = layout, theme = theme, builder = builder)

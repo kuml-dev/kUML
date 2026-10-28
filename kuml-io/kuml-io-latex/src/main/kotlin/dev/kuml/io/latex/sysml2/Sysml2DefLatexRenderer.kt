@@ -21,6 +21,7 @@ import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StateKind
 import dev.kuml.sysml2.Sysml2Definition
+import dev.kuml.sysml2.TestCaseDefinition
 import dev.kuml.sysml2.UseCaseDefinition
 
 /**
@@ -65,7 +66,9 @@ internal object Sysml2DefLatexRenderer {
                 // das dreikompartimentige TikZ-Pendant (Stereotyp + Name +
                 // wort-gewrappter Anforderungstext) landet in V2.x, analog zur
                 // BDD/IBD/UC-Geschichte.
-                is RequirementDefinition -> "requirement"
+                is RequirementDefinition -> if (definition.isAssumption) "assumption" else "requirement"
+                // Wave C1: verification element of a REQ diagram.
+                is TestCaseDefinition -> "testCase"
                 // V2.0.9: STM-Diagramm. V2.0.9-MVP rendert StateDefinitions
                 // als Rechteck mit `«state»`-Stereotyp — abgerundete Ecken
                 // und Pseudo-State-Markierungen (Initial-Kreis / Final-Donut)
@@ -127,7 +130,17 @@ internal object Sysml2DefLatexRenderer {
                 // V2.x-Deferred-Vermerk.
                 is ActivityPartitionDefinition -> "activity partition"
             }
-        renderBox(definition = definition, stereotype = stereotype, nodeId = nodeId, layout = layout, options = options, out = out)
+        // Wave C1: an assumption is drawn with a dashed border.
+        val dashed = definition is RequirementDefinition && definition.isAssumption
+        renderBox(
+            definition = definition,
+            stereotype = stereotype,
+            nodeId = nodeId,
+            layout = layout,
+            options = options,
+            out = out,
+            dashed = dashed,
+        )
     }
 
     private fun renderBox(
@@ -137,17 +150,19 @@ internal object Sysml2DefLatexRenderer {
         layout: NodeLayout,
         options: LatexRenderOptions,
         out: StringBuilder,
+        dashed: Boolean = false,
     ) {
         val x = layout.bounds.origin.x
         val y = layout.bounds.origin.y
         val w = layout.bounds.size.width
         val h = layout.bounds.size.height
         val name = tikzId(nodeId)
+        val frameStyle = if (dashed) "kuml-class, dashed" else "kuml-class"
 
         // Outer frame at the layout's top-left, with Y negated for the TikZ
         // axis flip (mirrors the UML class-box convention in this module).
         out.appendLine(
-            "${options.indent}\\node[kuml-class, anchor=north west, " +
+            "${options.indent}\\node[$frameStyle, anchor=north west, " +
                 "minimum width=${fmtCoord(w)}pt, minimum height=${fmtCoord(h)}pt] " +
                 "($name) at (${fmtCoord(x)}pt, ${fmtCoord(-y)}pt) {};",
         )

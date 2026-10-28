@@ -50,3 +50,5 @@
 43 SysML 2 STM – Regionen mit Fork-Join.md
 44 SysML 2 STM – History und Junction.md
 45 SysML 2 STM – Prosa-Guards.md
+46 SysML 2 REQ – Anforderungen mit Gruppen.md
+47 SysML 2 UC – Systemgrenzen und Generalisierung.md

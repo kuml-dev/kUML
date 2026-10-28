@@ -144,6 +144,8 @@ data class UseCaseDefinition(
     override val features: List<KermlFeature> = emptyList(),
     override val specializations: List<KermlSpecialization> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    /** Optional free-text description (C1); rendered italic inside the ellipse, max. 4 lines. */
+    val description: String = "",
 ) : Sysml2Definition
 
 /**
@@ -194,6 +196,44 @@ data class RequirementDefinition(
     val reqId: String = "",
     /** Optional id of the constrained element (PartDefinition, UseCaseDefinition, …). */
     val subject: String? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    /** C1: priority (rendered as attribute line). */
+    val priority: RequirementPriority? = null,
+    /** C1: origin of the requirement (stakeholder, document, …). Empty = none. */
+    val source: String = "",
+    /** C1: lifecycle status. */
+    val status: RequirementStatus? = null,
+    /** C1: `true` renders the box as an assumption (dashed border, «assumption»). */
+    val isAssumption: Boolean = false,
+    /**
+     * C1: id reference of the constrained element. Complements the free-text [subject]:
+     * when set and the target is visible in the diagram, a «subject» edge is drawn.
+     */
+    val subjectRef: String? = null,
+) : Sysml2Definition
+
+/** Requirement priority (C1). */
+@Serializable
+enum class RequirementPriority { HIGH, MEDIUM, LOW }
+
+/** Requirement lifecycle status (C1). */
+@Serializable
+enum class RequirementStatus { DRAFT, PROPOSED, APPROVED, REJECTED, IMPLEMENTED, VERIFIED }
+
+/**
+ * `TestCaseDefinition` — C1: verification element of a Requirement Diagram.
+ * Source of `«verify»` edges; rendered as a rounded box with `«testCase»`.
+ */
+@Serializable
+data class TestCaseDefinition(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val isAbstract: Boolean = false,
+    override val features: List<KermlFeature> = emptyList(),
+    override val specializations: List<KermlSpecialization> = emptyList(),
+    /** Optional description of what the test checks. */
+    val text: String = "",
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Definition
 

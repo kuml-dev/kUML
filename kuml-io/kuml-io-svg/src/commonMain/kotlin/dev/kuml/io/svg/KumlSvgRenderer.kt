@@ -2249,6 +2249,15 @@ public object KumlSvgRenderer {
             options = options,
             sysml2EdgeAdapter = UcEdgeAdapter(diagram),
             typeLabel = "use case",
+            // Wave C1: system-boundary frames are compound groups; paint them behind the nodes.
+            beforeNodes = { builder, lr, padding ->
+                dev.kuml.io.svg.sysml2.renderUcSubjectFrames(
+                    diagram = diagram,
+                    layoutResult = lr,
+                    paddingPx = padding,
+                    builder = builder,
+                )
+            },
         )
     }
 
@@ -2285,6 +2294,7 @@ public object KumlSvgRenderer {
                 .filter { it.id in visible }
                 .filter {
                     it is RequirementDefinition ||
+                        it is dev.kuml.sysml2.TestCaseDefinition ||
                         it is PartDefinition ||
                         it is UseCaseDefinition ||
                         it is ActorDefinition
@@ -2302,6 +2312,15 @@ public object KumlSvgRenderer {
             options = options,
             sysml2EdgeAdapter = ReqEdgeAdapter(diagram),
             typeLabel = "requirement",
+            // Wave C1: requirement groups are compound groups; paint them behind the nodes.
+            beforeNodes = { builder, lr, padding ->
+                dev.kuml.io.svg.sysml2.renderRequirementGroupFrames(
+                    diagram = diagram,
+                    layoutResult = lr,
+                    paddingPx = padding,
+                    builder = builder,
+                )
+            },
         )
     }
 

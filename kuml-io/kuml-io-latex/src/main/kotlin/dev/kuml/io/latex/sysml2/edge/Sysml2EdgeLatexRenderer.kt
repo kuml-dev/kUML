@@ -153,6 +153,8 @@ internal object Sysml2EdgeLatexRenderer {
         // Welle B: diamonds (composition / aggregation). Frame and mid-arrows exist in SVG only.
         if (metadata.arrowHead == Sysml2ArrowHead.FilledDiamond) return "kuml-sysml2-edge-diamond-filled"
         if (metadata.arrowHead == Sysml2ArrowHead.OpenDiamond) return "kuml-sysml2-edge-diamond-open"
+        // Wave C1: actor generalisation — hollow triangle at the general end.
+        if (metadata.arrowHead == Sysml2ArrowHead.OpenTriangle) return "kuml-sysml2-edge-generalization"
         if (metadata.arrowHead == Sysml2ArrowHead.None) {
             return if (metadata.dashArray != null) "kuml-sysml2-edge-dashed-noarrow" else "kuml-sysml2-edge-binding"
         }

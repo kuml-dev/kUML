@@ -44,11 +44,17 @@ import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.PortDirection
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.ReqContains
+import dev.kuml.sysml2.ReqCopy
 import dev.kuml.sysml2.ReqDerive
 import dev.kuml.sysml2.ReqDiagram
+import dev.kuml.sysml2.ReqRefine
 import dev.kuml.sysml2.ReqSatisfy
+import dev.kuml.sysml2.ReqTrace
 import dev.kuml.sysml2.ReqVerify
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.RequirementGroup
+import dev.kuml.sysml2.RequirementPriority
+import dev.kuml.sysml2.RequirementStatus
 import dev.kuml.sysml2.RequirementUsage
 import dev.kuml.sysml2.STM_MAX_TEXT_LEN
 import dev.kuml.sysml2.SeqDiagram
@@ -64,12 +70,15 @@ import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Element
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.Sysml2Usage
+import dev.kuml.sysml2.TestCaseDefinition
 import dev.kuml.sysml2.TransitionTimer
 import dev.kuml.sysml2.TransitionUsage
+import dev.kuml.sysml2.UcActorGeneralization
 import dev.kuml.sysml2.UcAssociation
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UcExtend
 import dev.kuml.sysml2.UcInclude
+import dev.kuml.sysml2.UcSubject
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.UseCaseUsage
 import dev.kuml.sysml2.parseTimerInstant
@@ -250,6 +259,7 @@ class Sysml2ModelBuilder(
         id: String = name,
         isAbstract: Boolean = false,
         specializesId: String? = null,
+        description: String = "",
         block: DefinitionBuilder.() -> Unit = {},
     ): UseCaseDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -257,6 +267,7 @@ class Sysml2ModelBuilder(
             UseCaseDefinition(
                 id = id,
                 name = name,
+                description = description,
                 isAbstract = isAbstract,
                 features = builder.features(),
                 specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
@@ -290,6 +301,11 @@ class Sysml2ModelBuilder(
         subject: String? = null,
         isAbstract: Boolean = false,
         specializesId: String? = null,
+        priority: RequirementPriority? = null,
+        source: String = "",
+        status: RequirementStatus? = null,
+        isAssumption: Boolean = false,
+        subjectRef: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): RequirementDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -302,6 +318,37 @@ class Sysml2ModelBuilder(
                 text = text,
                 reqId = reqId,
                 subject = subject,
+                priority = priority,
+                source = source,
+                status = status,
+                isAssumption = isAssumption,
+                subjectRef = subjectRef,
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
+            )
+        definitions += def
+        return def
+    }
+
+    /**
+     * `test case def TopSpeedTest { … }` — C1 verification element of a
+     * [ReqDiagram]; source of `verify` edges.
+     */
+    fun testCaseDef(
+        name: String,
+        id: String = name,
+        text: String = "",
+        isAbstract: Boolean = false,
+        specializesId: String? = null,
+        block: DefinitionBuilder.() -> Unit = {},
+    ): TestCaseDefinition {
+        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
+        val def =
+            TestCaseDefinition(
+                id = id,
+                name = name,
+                isAbstract = isAbstract,
+                features = builder.features(),
+                text = text,
                 specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
             )
         definitions += def
@@ -834,6 +881,8 @@ class Sysml2ModelBuilder(
                 associations = builder.associations(),
                 includes = builder.includes(),
                 extends = builder.extends(),
+                subjects = builder.subjects(),
+                actorGeneralizations = builder.actorGeneralizations(),
             )
         diagrams += diagram
         return diagram
@@ -864,6 +913,10 @@ class Sysml2ModelBuilder(
                 verifies = builder.verifies(),
                 derives = builder.derives(),
                 contains = builder.containsList(),
+                refines = builder.refines(),
+                traces = builder.traces(),
+                copies = builder.copies(),
+                groups = builder.groups(),
             )
         diagrams += diagram
         return diagram
@@ -2120,6 +2173,8 @@ class UcDiagramBuilder internal constructor(
     private val associations = mutableListOf<UcAssociation>()
     private val includes = mutableListOf<UcInclude>()
     private val extends = mutableListOf<UcExtend>()
+    private val subjects = mutableListOf<UcSubject>()
+    private val actorGeneralizations = mutableListOf<UcActorGeneralization>()
 
     /**
      * Add a SysML 2 definition (actor or use case) as a visible node in
@@ -2199,6 +2254,49 @@ class UcDiagramBuilder internal constructor(
         return ext
     }
 
+    /**
+     * C1: declare a system-boundary frame. Use cases added via `include(...)` inside
+     * the block are drawn inside; actors stay outside. Id: `ucsubject:<sanitised name>`.
+     */
+    fun subject(
+        name: String,
+        block: UcSubjectScope.() -> Unit = {},
+    ): UcSubject {
+        val scope = UcSubjectScope().apply(block)
+        return subjectById(id = "ucsubject:" + sanitizeFrameName(name), name = name, useCaseIds = scope.ids())
+    }
+
+    /** Id-only variant of [subject] (used by the DSL printer). */
+    fun subjectById(
+        id: String,
+        name: String,
+        useCaseIds: List<String>,
+    ): UcSubject {
+        val subject = UcSubject(id = id, name = name, useCaseIds = useCaseIds)
+        subjects += subject
+        return subject
+    }
+
+    /** C1: actor [specific] specialises actor [general] (hollow-triangle arrow). */
+    fun generalize(
+        specific: ActorDefinition,
+        general: ActorDefinition,
+    ): UcActorGeneralization = generalizeById(specificId = specific.id, generalId = general.id)
+
+    /** Id-only variant of [generalize]. */
+    fun generalizeById(
+        specificId: String,
+        generalId: String,
+    ): UcActorGeneralization {
+        val g = UcActorGeneralization(id = "generalization:$specificId::$generalId", specificId = specificId, generalId = generalId)
+        actorGeneralizations += g
+        return g
+    }
+
+    internal fun subjects(): List<UcSubject> = subjects.toList()
+
+    internal fun actorGeneralizations(): List<UcActorGeneralization> = actorGeneralizations.toList()
+
     internal fun ids(): List<String> = ids.toList()
 
     internal fun associations(): List<UcAssociation> = associations.toList()
@@ -2237,6 +2335,109 @@ class ReqDiagramBuilder internal constructor(
     private val verifies = mutableListOf<ReqVerify>()
     private val derives = mutableListOf<ReqDerive>()
     private val containsEdges = mutableListOf<ReqContains>()
+    private val refines = mutableListOf<ReqRefine>()
+    private val traces = mutableListOf<ReqTrace>()
+    private val copies = mutableListOf<ReqCopy>()
+    private val groups = mutableListOf<RequirementGroup>()
+
+    /** C1: `refine` edge — [source] refines the [requirement]. */
+    fun refine(
+        source: Sysml2Definition,
+        requirement: RequirementDefinition,
+    ): ReqRefine = refineById(sourceId = source.id, requirementId = requirement.id)
+
+    /** Id-only variant of [refine]. */
+    fun refineById(
+        sourceId: String,
+        requirementId: String,
+    ): ReqRefine {
+        val e = ReqRefine(id = "refine:$sourceId::$requirementId", sourceId = sourceId, requirementId = requirementId)
+        refines += e
+        return e
+    }
+
+    /** C1: free `trace` edge between two elements. */
+    fun trace(
+        source: Sysml2Definition,
+        target: Sysml2Definition,
+    ): ReqTrace = traceById(sourceId = source.id, targetId = target.id)
+
+    /** Id-only variant of [trace]. */
+    fun traceById(
+        sourceId: String,
+        targetId: String,
+    ): ReqTrace {
+        val e = ReqTrace(id = "trace:$sourceId::$targetId", sourceId = sourceId, targetId = targetId)
+        traces += e
+        return e
+    }
+
+    /** C1: `copy` edge — [source] copies the text of [target] (slave to master). */
+    fun copy(
+        source: RequirementDefinition,
+        target: RequirementDefinition,
+    ): ReqCopy = copyById(sourceRequirementId = source.id, targetRequirementId = target.id)
+
+    /** Id-only variant of [copy]. */
+    fun copyById(
+        sourceRequirementId: String,
+        targetRequirementId: String,
+    ): ReqCopy {
+        val e =
+            ReqCopy(
+                id = "copy:$sourceRequirementId::$targetRequirementId",
+                sourceRequirementId = sourceRequirementId,
+                targetRequirementId = targetRequirementId,
+            )
+        copies += e
+        return e
+    }
+
+    /**
+     * C1: requirement group (frame with tab). Members via `include(...)` inside the
+     * block, nested groups via `group(...)`. Ids are deterministic: `group:<path>`.
+     * Members are also added to the diagram's node list.
+     */
+    fun group(
+        name: String,
+        block: RequirementGroupScope.() -> Unit = {},
+    ): RequirementGroup = registerGroup(parentPath = null, name = name, block = block)
+
+    internal fun registerGroup(
+        parentPath: String?,
+        name: String,
+        block: RequirementGroupScope.() -> Unit,
+    ): RequirementGroup {
+        val path = if (parentPath == null) name else "$parentPath/$name"
+        val scope = RequirementGroupScope(owner = this, path = path).apply(block)
+        val g = RequirementGroup(id = "group:$path", name = name, memberIds = scope.memberIds(), childGroupIds = scope.childIds())
+        groups += g
+        return g
+    }
+
+    /** Id-only variant of [group] (used by the DSL printer). */
+    fun groupById(
+        id: String,
+        name: String,
+        memberIds: List<String> = emptyList(),
+        childGroupIds: List<String> = emptyList(),
+    ): RequirementGroup {
+        val g = RequirementGroup(id = id, name = name, memberIds = memberIds, childGroupIds = childGroupIds)
+        groups += g
+        return g
+    }
+
+    internal fun addNodeId(id: String) {
+        if (id !in ids) ids += id
+    }
+
+    internal fun refines(): List<ReqRefine> = refines.toList()
+
+    internal fun traces(): List<ReqTrace> = traces.toList()
+
+    internal fun copies(): List<ReqCopy> = copies.toList()
+
+    internal fun groups(): List<RequirementGroup> = groups.toList()
 
     /** Add a SysML 2 definition (requirement, part, use-case, actor) as a node. */
     fun include(definition: Sysml2Definition) {
@@ -2497,3 +2698,66 @@ sealed interface Sysml2Guard {
         override val text: String,
     ) : Sysml2Guard
 }
+
+/** Scope of `subject("System") { include(useCase) }` in a `ucDiagram` (C1). */
+@Sysml2Dsl
+class UcSubjectScope internal constructor() {
+    private val ids = mutableListOf<String>()
+
+    /** Put a use case inside the system boundary. */
+    fun include(useCase: UseCaseDefinition) {
+        ids += useCase.id
+    }
+
+    /** Id-only variant of [include]. */
+    fun includeById(id: String) {
+        ids += id
+    }
+
+    internal fun ids(): List<String> = ids.toList()
+}
+
+/** Scope of `group("Name") { include(req); group("Sub") { … } }` in a `reqDiagram` (C1). */
+@Sysml2Dsl
+class RequirementGroupScope internal constructor(
+    private val owner: ReqDiagramBuilder,
+    private val path: String,
+) {
+    private val members = mutableListOf<String>()
+    private val children = mutableListOf<String>()
+
+    /** Add an element to the group (and to the diagram). */
+    fun include(definition: Sysml2Definition) = includeById(definition.id)
+
+    /** Id-only variant of [include]. */
+    fun includeById(id: String) {
+        members += id
+        owner.addNodeId(id)
+    }
+
+    /** Nested group. */
+    fun group(
+        name: String,
+        block: RequirementGroupScope.() -> Unit = {},
+    ) {
+        children += owner.registerGroup(parentPath = path, name = name, block = block).id
+    }
+
+    internal fun memberIds(): List<String> = members.toList()
+
+    internal fun childIds(): List<String> = children.toList()
+}
+
+/** Replaces every character outside `[A-Za-z0-9_-]` with `_` — used for deterministic frame ids. */
+internal fun sanitizeFrameName(name: String): String =
+    name
+        .map {
+            if (it.isLetterOrDigit() ||
+                it == '_' ||
+                it == '-'
+            ) {
+                it
+            } else {
+                '_'
+            }
+        }.joinToString("")

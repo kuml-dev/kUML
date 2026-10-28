@@ -164,6 +164,7 @@ public object KumlLatexRenderer {
         layoutResult: LayoutResult,
         options: LatexRenderOptions,
         sysml2EdgeAdapter: Sysml2EdgeAdapter,
+        frames: List<Pair<String, String>> = emptyList(),
     ): String =
         buildString {
             if (options.standalone) {
@@ -172,6 +173,9 @@ public object KumlLatexRenderer {
 
             appendPictureOpen(options.scale)
             appendTikzStyles(options.indent)
+
+            // Wave C1: group / subject frames (compound groups of the layout) sit behind the nodes.
+            appendSysml2Frames(frames = frames, layoutResult = layoutResult, options = options)
 
             val nodesById: Map<String, KumlElement> = synthetic.elements.associateBy { it.id }
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
@@ -204,6 +208,28 @@ public object KumlLatexRenderer {
                 appendStandaloneCoda()
             }
         }
+
+    /** Draws one rectangle with a bold name label per `(groupId, name)` pair that the layout knows. */
+    private fun StringBuilder.appendSysml2Frames(
+        frames: List<Pair<String, String>>,
+        layoutResult: LayoutResult,
+        options: LatexRenderOptions,
+    ) {
+        for ((groupId, name) in frames) {
+            val b = layoutResult.groups[dev.kuml.layout.GroupId(groupId)]?.bounds ?: continue
+            val x = b.origin.x
+            val y = b.origin.y
+            appendLine(
+                "${options.indent}\\node[kuml-sysml2-frame, anchor=north west, " +
+                    "minimum width=${fmtCoord(b.size.width)}pt, minimum height=${fmtCoord(b.size.height)}pt] " +
+                    "at (${fmtCoord(x)}pt, ${fmtCoord(-y)}pt) {};",
+            )
+            appendLine(
+                "${options.indent}\\node[anchor=north west, font=\\sffamily\\bfseries\\small] " +
+                    "at (${fmtCoord(x + 6f)}pt, ${fmtCoord(-(y + 4f))}pt) {${escapeLatex(name)}};",
+            )
+        }
+    }
 
     // ─── Node dispatch ────────────────────────────────────────────────────────
 
@@ -378,6 +404,7 @@ public object KumlLatexRenderer {
             layoutResult = layoutResult,
             options = options,
             sysml2EdgeAdapter = UcEdgeAdapter(diagram),
+            frames = diagram.subjects.map { it.id to it.name },
         )
     }
 
@@ -408,6 +435,7 @@ public object KumlLatexRenderer {
                 .filter { it.id in visible }
                 .filter {
                     it is RequirementDefinition ||
+                        it is dev.kuml.sysml2.TestCaseDefinition ||
                         it is PartDefinition ||
                         it is UseCaseDefinition ||
                         it is ActorDefinition
@@ -423,6 +451,7 @@ public object KumlLatexRenderer {
             layoutResult = layoutResult,
             options = options,
             sysml2EdgeAdapter = ReqEdgeAdapter(diagram),
+            frames = diagram.groups.map { it.id to it.name },
         )
     }
 
@@ -772,6 +801,9 @@ public object KumlLatexRenderer {
             "$indent  kuml-sysml2-edge-dashed-noarrow/.style={draw=black, line width=0.6pt, dashed},",
         )
         appendLine("$indent  kuml-sysml2-edge-binding/.style={draw=black, line width=0.6pt},")
+        // Wave C1: actor generalisation (hollow triangle) and group / subject frames.
+        appendLine("$indent  kuml-sysml2-edge-generalization/.style={draw=black, line width=0.6pt, -{Triangle[length=3mm, open]}},")
+        appendLine("$indent  kuml-sysml2-frame/.style={draw=black, line width=0.6pt, rectangle, inner sep=0pt, font=\\sffamily},")
         // Welle B: composition / aggregation diamonds sit on the source (owner) end.
         appendLine("$indent  kuml-sysml2-edge-diamond-filled/.style={draw=black, line width=0.6pt, {Diamond[length=3mm]}-},")
         appendLine("$indent  kuml-sysml2-edge-diamond-open/.style={draw=black, line width=0.6pt, {Diamond[open, length=3mm]}-},")

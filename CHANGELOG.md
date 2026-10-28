@@ -23,6 +23,9 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+**SysML 2 requirement and use-case diagrams (wave C1)**
+REQ: `requirementDef` gains `priority`, `source`, `status`, `isAssumption` (dashed border, `<<assumption>>`) and `subjectRef` (draws a `<<subject>>` edge); new `testCaseDef` (`<<testCase>>`); new relationships `refine`, `trace` and `copy`; nestable `group("Name") { ... }` frames (max. depth 3, 64 per diagram). Requirement titles are wrapped instead of truncated, box width 160-240 px, height grows with content. UC: `subject("Name") { ... }` system boundaries (use cases inside, actors outside by construction), `generalize(specific, general)` actor generalisation (hollow triangle), `useCaseDef(description = ...)` (italic, max. 4 lines). New checker `Sysml2ReqUcChecker` (codes 201-217, wired into `kuml validate`). Wrapping and card geometry live in one shared `Sysml2ReqCard` used by layout bridge and SVG renderer. All new model fields have defaults: existing models, JSON and printed scripts are unchanged. LaTeX draws frames, the generalisation triangle and dashed assumption borders; PNG follows SVG. New examples 46 and 47 (playground keys `sysml2-req-groups`, `sysml2-uc-subject-frames`).
+
 **SysML 2 state machines: composite states, orthogonal regions, pseudo-states, history (wave A1)**
 `stateDef(..., parent = composite, region = r)`, `region(owner, "name")`, `choice`, `junction`, `fork`,
 `join` and `history(name, deep = false, parent = composite)` (id-based variants `parentId`/`regionId`/`regionById`

@@ -4,6 +4,7 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt3
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.bridge.Sysml2ReqCard
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.UseCaseDefinition
 
@@ -50,16 +51,52 @@ internal fun renderSysml2UseCase(
                     "class" to "kuml-usecase",
                 ),
         )
-        tag(
-            name = "text",
-            attrs =
-                mapOf(
-                    "class" to "kuml-body",
-                    "x" to fmt(rx),
-                    "y" to fmt(ry + 4f),
-                    "text-anchor" to "middle",
-                ),
-        ) { text(element.name) }
+        val description = if (element.description.isBlank()) null else Sysml2ReqCard.ucDescription(uc = element, ellipseWidth = w)
+        if (description == null || description.lines.isEmpty()) {
+            tag(
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-body",
+                        "x" to fmt(rx),
+                        "y" to fmt(ry + 4f),
+                        "text-anchor" to "middle",
+                    ),
+            ) { text(element.name) }
+        } else {
+            // Name on top, description (italic 10 px, max. 4 lines) below, the whole block
+            // vertically centred inside the ellipse.
+            val lineH = Sysml2ReqCard.UC_DESCRIPTION_LINE_H
+            val blockH = 16f + description.lines.size * lineH
+            val top = ry - blockH / 2f
+            tag(
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-body",
+                        "x" to fmt(rx),
+                        "y" to fmt(top + 12f),
+                        "text-anchor" to "middle",
+                    ),
+            ) { text(element.name) }
+            description.lines.forEachIndexed { i, line ->
+                tag(
+                    name = "text",
+                    attrs =
+                        mapOf(
+                            "class" to "kuml-body kuml-uc-description",
+                            "x" to fmt(rx),
+                            "y" to fmt(top + 16f + (i + 1) * lineH - 2f),
+                            "text-anchor" to "middle",
+                            "font-size" to "10",
+                            "font-style" to "italic",
+                        ),
+                ) { text(line) }
+            }
+            if (description.truncated) {
+                tag(name = "title") { text(Sysml2ReqCard.clip(s = element.description, max = Sysml2ReqCard.UC_DESCRIPTION_MAX_CHARS)) }
+            }
+        }
     }
 }
 

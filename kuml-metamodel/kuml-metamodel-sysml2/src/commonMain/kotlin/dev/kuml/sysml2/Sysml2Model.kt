@@ -202,7 +202,34 @@ data class UcDiagram(
     /** `«extend»` relationships between two use-case definitions. */
     val extends: List<UcExtend> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    /** C1: system-boundary frames; contained use cases are drawn inside, actors outside. */
+    val subjects: List<UcSubject> = emptyList(),
+    /** C1: actor-to-actor generalisation arrows (hollow triangle). */
+    val actorGeneralizations: List<UcActorGeneralization> = emptyList(),
 ) : Sysml2Diagram
+
+/**
+ * System boundary (subject frame) of a [UcDiagram] (C1).
+ *
+ * Id convention: `ucsubject:<sanitised name>`; members reference use-case ids.
+ */
+@Serializable
+data class UcSubject(
+    val id: String,
+    val name: String,
+    val useCaseIds: List<String> = emptyList(),
+)
+
+/**
+ * Actor generalisation in a [UcDiagram] (C1): [specificId] specialises [generalId].
+ * Edge id convention: `generalization:<specific>::<general>`.
+ */
+@Serializable
+data class UcActorGeneralization(
+    val id: String,
+    val specificId: String,
+    val generalId: String,
+)
 
 /**
  * Actor ↔ use-case association edge in a [UcDiagram].
@@ -410,7 +437,51 @@ data class ReqDiagram(
     /** Parent Requirement containing a sub-Requirement. */
     val contains: List<ReqContains> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    /** C1: `«refine»` edges (element refines a requirement). */
+    val refines: List<ReqRefine> = emptyList(),
+    /** C1: `«trace»` edges (free trace between two elements). */
+    val traces: List<ReqTrace> = emptyList(),
+    /** C1: `«copy»` edges (slave requirement copies the master text). */
+    val copies: List<ReqCopy> = emptyList(),
+    /** C1: nested requirement groups (packages), drawn as frames with a tab. */
+    val groups: List<RequirementGroup> = emptyList(),
 ) : Sysml2Diagram
+
+/** **Refine** edge (C1): [sourceId] refines requirement [requirementId]. Id: `refine:<src>::<tgt>`. */
+@Serializable
+data class ReqRefine(
+    val id: String,
+    val sourceId: String,
+    val requirementId: String,
+)
+
+/** **Trace** edge (C1): free traceability link. Id: `trace:<src>::<tgt>`. */
+@Serializable
+data class ReqTrace(
+    val id: String,
+    val sourceId: String,
+    val targetId: String,
+)
+
+/** **Copy** edge (C1): [sourceRequirementId] copies [targetRequirementId] (identical text). Id: `copy:<src>::<tgt>`. */
+@Serializable
+data class ReqCopy(
+    val id: String,
+    val sourceRequirementId: String,
+    val targetRequirementId: String,
+)
+
+/**
+ * Requirement group (C1) — a labelled frame around [memberIds]; nested via
+ * [childGroupIds]. Id convention: `group:<path>` (names joined by `/`).
+ */
+@Serializable
+data class RequirementGroup(
+    val id: String,
+    val name: String,
+    val memberIds: List<String> = emptyList(),
+    val childGroupIds: List<String> = emptyList(),
+)
 
 /**
  * **Satisfy** edge in a [ReqDiagram] — a design element (Part / UseCase /

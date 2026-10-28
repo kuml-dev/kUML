@@ -46,10 +46,12 @@ import dev.kuml.sysml2.StateKind
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.sysml2.TestCaseDefinition
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.constraint.Sysml2StmChecker
+import dev.kuml.sysml2.edge.ReqEdgeAdapter
 import dev.kuml.sysml2.projection.sysml2BddBoxContent
 import dev.kuml.sysml2.projection.sysml2BddProjection
 import dev.kuml.sysml2.projection.sysml2IbdProjection
@@ -178,11 +180,9 @@ public object Sysml2LayoutBridge {
     public const val WRAP_LINE_H: Float = 13f
 
     /**
-     * Max characters per wrapped line in a REQ text compartment. MUSS mit
-     * `WRAP_WIDTH` in `Sysml2RequirementSvg.kt` (kuml-io-svg) synchron
-     * bleiben — dort wird mit demselben Wert tatsächlich gewrappt gezeichnet.
-     * Kein Modul-Import möglich (kuml-layout-bridge hängt nicht von
-     * kuml-io-svg ab), daher wird der Wert hier dupliziert.
+     * Legacy (pre-C1) max characters per wrapped line of a REQ text compartment.
+     * Since wave C1 the wrapping lives solely in [Sysml2ReqCard] (shared by bridge and
+     * SVG renderer); this constant is kept for API compatibility only.
      */
     public const val REQ_WRAP_CHARS_PER_LINE: Int = 25
 
@@ -230,6 +230,9 @@ public object Sysml2LayoutBridge {
      */
     public const val UC_USECASE_WIDTH: Float = 160f
     public const val UC_USECASE_HEIGHT: Float = 70f
+
+    /** Minimum ellipse width of a use case that carries a description (wave C1). */
+    public const val UC_USECASE_WIDTH_WITH_DESCRIPTION: Float = 200f
 
     /**
      * Default-Größe für eine [RequirementDefinition]-Box in einem REQ-Diagramm
@@ -300,6 +303,17 @@ public object Sysml2LayoutBridge {
     public const val STM_BAR_BASE_LENGTH: Float = 64f
     public const val STM_BAR_PER_EDGE: Float = 14f
     public const val STM_BAR_MAX_LENGTH: Float = 160f
+
+    /** Wave C1 — REQ group frame (tab strip on top) and UC subject frame (title strip on top). */
+    internal val REQ_GROUP_PADDING: Insets = Insets(top = 36f, right = 16f, bottom = 16f, left = 16f)
+    internal val UC_SUBJECT_PADDING: Insets = Insets(top = 46f, right = 24f, bottom = 24f, left = 24f)
+    internal val REQ_GROUP_MIN_SIZE: Size = Size(width = 120f, height = 60f)
+    internal val UC_SUBJECT_MIN_SIZE: Size = Size(width = 200f, height = 120f)
+
+    /** Wave C1 limits (also enforced by the constraint checker; here as a DoS guard for plain renders). */
+    public const val C1_MAX_GROUPS: Int = 64
+    public const val C1_MAX_SUBJECTS: Int = 16
+    public const val C1_MAX_GROUP_DEPTH: Int = 3
 
     /** Wave A1 — composite-state frame: padding (header strip on top) and minimum size. */
     internal val STM_COMPOSITE_PADDING: Insets = Insets(top = 36f, right = 16f, bottom = 16f, left = 16f)
@@ -808,13 +822,21 @@ public object Sysml2LayoutBridge {
             when (kindHint) {
                 "RequirementDefinition" -> {
                     val req = model.definitions.firstOrNull { it.id == id } as? RequirementDefinition
-                    val reqText = req?.text?.takeIf { it.isNotEmpty() }
-                    val textLineCount = reqText?.let { reqWrappedLineCount(text = it, maxChars = REQ_WRAP_CHARS_PER_LINE) } ?: 0
-                    val h =
-                        STEREOTYPE_LINE_H + NAME_LINE_H +
-                            (if (textLineCount > 0) DIVIDER_GAP + textLineCount * WRAP_LINE_H else 0f) +
-                            BOX_V_PADDING
-                    dev.kuml.layout.Size(width = REQ_DEFAULT_WIDTH, height = maxOf(h, 70f))
+                    if (req == null) {
+                        dev.kuml.layout.Size(width = REQ_DEFAULT_WIDTH, height = REQ_DEFAULT_HEIGHT)
+                    } else {
+                        val card = Sysml2ReqCard.forRequirement(req)
+                        dev.kuml.layout.Size(width = card.width, height = card.height)
+                    }
+                }
+                "TestCaseDefinition" -> {
+                    val tc = model.definitions.firstOrNull { it.id == id } as? TestCaseDefinition
+                    if (tc == null) {
+                        dev.kuml.layout.Size(width = Sysml2ReqCard.MIN_WIDTH, height = 50f)
+                    } else {
+                        val card = Sysml2ReqCard.forTestCase(tc)
+                        dev.kuml.layout.Size(width = card.width, height = card.height)
+                    }
                 }
                 "ActorDefinition" -> {
                     val actor = model.definitions.firstOrNull { it.id == id } as? ActorDefinition
@@ -822,7 +844,7 @@ public object Sysml2LayoutBridge {
                 }
                 "UseCaseDefinition" -> {
                     val uc = model.definitions.firstOrNull { it.id == id } as? UseCaseDefinition
-                    ucUseCaseContentSize(name = uc?.name)
+                    ucUseCaseContentSize(name = uc?.name, description = uc?.description.orEmpty())
                 }
                 else -> dev.kuml.layout.Size(width = REQ_DEFAULT_WIDTH, height = REQ_DEFAULT_HEIGHT)
             }
@@ -848,47 +870,26 @@ public object Sysml2LayoutBridge {
      * `UseCaseDefinition` branch; factored out so
      * [ucContentAwareSizeProvider] reuses the identical calculation.
      */
-    private fun ucUseCaseContentSize(name: String?): dev.kuml.layout.Size {
+    private fun ucUseCaseContentSize(
+        name: String?,
+        description: String = "",
+    ): dev.kuml.layout.Size {
         val nameW = (name?.length ?: 0) * BDD_BODY_CHAR_PX
         val contentW = nameW + 2 * UC_ELLIPSE_H_PAD
-        return dev.kuml.layout.Size(width = maxOf(contentW, UC_USECASE_WIDTH), height = UC_USECASE_HEIGHT)
-    }
-
-    /**
-     * Mirrors the word-boundary wrapping that `wrapWords()` in
-     * `Sysml2RequirementSvg.kt` (kuml-io-svg) actually performs when drawing
-     * a requirement's text compartment, so the reserved box height matches
-     * what gets rendered.
-     *
-     * A naive `text.length / maxChars` estimate (the previous approach)
-     * systematically UNDERCOUNTS: wrapping only at word boundaries leaves a
-     * ragged right edge, so a line often falls short of `maxChars` before
-     * the next word would overflow it — producing more lines than pure
-     * character-count division predicts. That mismatch caused several
-     * requirement boxes (e.g. FR-4, FR-5, NFR-1) to render 1-2 text lines
-     * taller than the box the layout bridge had sized for, spilling text
-     * past the bottom edge.
-     */
-    private fun reqWrappedLineCount(
-        text: String,
-        maxChars: Int,
-    ): Int {
-        val words = text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
-        if (words.isEmpty()) return 0
-        var lines = 1
-        var currentLen = 0
-        for (word in words) {
-            currentLen =
-                if (currentLen == 0) {
-                    word.length
-                } else if (currentLen + 1 + word.length <= maxChars) {
-                    currentLen + 1 + word.length
-                } else {
-                    lines++
-                    word.length
-                }
+        if (description.isBlank()) {
+            return dev.kuml.layout.Size(width = maxOf(contentW, UC_USECASE_WIDTH), height = UC_USECASE_HEIGHT)
         }
-        return lines
+        // Wave C1: a description (max. 4 italic lines) makes the ellipse wider and taller so
+        // that name + description fit inside the curved boundary.
+        val width = maxOf(contentW, UC_USECASE_WIDTH_WITH_DESCRIPTION)
+        val lines =
+            Sysml2ReqCard.wrap(
+                text = Sysml2ReqCard.clip(s = description, max = Sysml2ReqCard.UC_DESCRIPTION_MAX_CHARS),
+                maxChars = Sysml2ReqCard.ucDescriptionChars(width),
+            )
+        val n = lines.size.coerceIn(1, Sysml2ReqCard.UC_DESCRIPTION_MAX_LINES)
+        val height = maxOf(UC_USECASE_HEIGHT, (24f + n * Sysml2ReqCard.UC_DESCRIPTION_LINE_H) / 0.62f)
+        return dev.kuml.layout.Size(width = width, height = height)
     }
 
     /** Diagnose-Helfer: extrahiert die in [diagram] referenzierten Definitionen aus [model]. */
@@ -1068,7 +1069,47 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
+        // Wave C1: actor generalisation (specific -> general), only between visible actors.
+        val actorIds: Set<String> =
+            nodes
+                .filter { n ->
+                    model.definitions.any { it.id == n.id.value && it is ActorDefinition }
+                }.map { it.id.value }
+                .toSet()
+        for (gen in diagram.actorGeneralizations) {
+            if (gen.specificId !in actorIds || gen.generalId !in actorIds || gen.specificId == gen.generalId) continue
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(gen.id),
+                    source = EndpointRef(nodeId = NodeId(gen.specificId)),
+                    target = EndpointRef(nodeId = NodeId(gen.generalId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
+        // Wave C1: system-boundary frames. Use cases become children of the frame (compound
+        // group), actors stay outside by construction (they never get a groupId).
+        val groups = mutableListOf<LayoutGroup>()
+        val assigned = mutableMapOf<String, GroupId>()
+        for (subject in diagram.subjects.take(C1_MAX_SUBJECTS)) {
+            val members =
+                subject.useCaseIds.filter { id ->
+                    id in visibleNodeIds && id !in assigned && model.definitions.any { it.id == id && it is UseCaseDefinition }
+                }
+            if (members.isEmpty()) continue
+            groups +=
+                LayoutGroup(
+                    id = GroupId(subject.id),
+                    padding = UC_SUBJECT_PADDING,
+                    layoutAsCompound = true,
+                    minSize = UC_SUBJECT_MIN_SIZE,
+                )
+            members.forEach { assigned[it] = GroupId(subject.id) }
+        }
+        val finalNodes = if (assigned.isEmpty()) nodes else nodes.map { n -> assigned[n.id.value]?.let { n.copy(groupId = it) } ?: n }
+
+        return LayoutGraph(nodes = finalNodes, edges = edges, groups = groups)
+            .withSysml2Notes(model = model, diagram = diagram, extraVisibleIds = groups.map { it.id.value }.toSet())
     }
 
     /**
@@ -1117,6 +1158,7 @@ public object Sysml2LayoutBridge {
             // Andere Definition-Kinds (Attribute, Port, Connection) werden
             // stillschweigend übersprungen.
             if (def !is RequirementDefinition &&
+                def !is TestCaseDefinition &&
                 def !is PartDefinition &&
                 def !is UseCaseDefinition &&
                 def !is ActorDefinition
@@ -1178,7 +1220,120 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
+        // Wave C1: refine / trace / copy edges and the «subject» edge derived from subjectRef.
+        for (r in diagram.refines) {
+            if (r.sourceId !in visibleNodeIds || r.requirementId !in visibleNodeIds) continue
+            edges += reqEdge(id = r.id, source = r.sourceId, target = r.requirementId)
+        }
+        for (t in diagram.traces) {
+            if (t.sourceId !in visibleNodeIds || t.targetId !in visibleNodeIds) continue
+            edges += reqEdge(id = t.id, source = t.sourceId, target = t.targetId)
+        }
+        for (c in diagram.copies) {
+            if (c.sourceRequirementId !in visibleNodeIds || c.targetRequirementId !in visibleNodeIds) continue
+            edges += reqEdge(id = c.id, source = c.sourceRequirementId, target = c.targetRequirementId)
+        }
+        for (id in diagram.elementIds) {
+            val req = model.definitions.firstOrNull { it.id == id } as? RequirementDefinition ?: continue
+            val ref = req.subjectRef ?: continue
+            if (id !in visibleNodeIds || ref !in visibleNodeIds || ref == id) continue
+            edges += reqEdge(id = "${ReqEdgeAdapter.SUBJECT_EDGE_PREFIX}$id::$ref", source = id, target = ref)
+        }
+
+        val groups = c1RequirementGroups(diagram = diagram, visibleNodeIds = visibleNodeIds)
+        val groupOfNode = mutableMapOf<String, GroupId>()
+        for (g in diagram.groups.take(C1_MAX_GROUPS)) {
+            val gid = GroupId(g.id)
+            if (groups.none { it.id == gid }) continue
+            for (m in g.memberIds) if (m in visibleNodeIds && m !in groupOfNode) groupOfNode[m] = gid
+        }
+        val finalNodes = if (groupOfNode.isEmpty()) nodes else nodes.map { n -> groupOfNode[n.id.value]?.let { n.copy(groupId = it) } ?: n }
+
+        return LayoutGraph(nodes = finalNodes, edges = edges, groups = groups)
+            .withSysml2Notes(model = model, diagram = diagram, extraVisibleIds = groups.map { it.id.value }.toSet())
+    }
+
+    private fun reqEdge(
+        id: String,
+        source: String,
+        target: String,
+    ): LayoutEdge =
+        LayoutEdge(
+            id = EdgeId(id),
+            source = EndpointRef(nodeId = NodeId(source)),
+            target = EndpointRef(nodeId = NodeId(target)),
+            hints = EdgeHints.NONE,
+        )
+
+    /**
+     * Wave C1: turns [ReqDiagram.groups] into nested compound [LayoutGroup]s. Groups without any
+     * visible member (directly or through a child group) are dropped, nesting deeper than
+     * [C1_MAX_GROUP_DEPTH] is flattened to that depth, cycles and unknown child ids are ignored,
+     * and at most [C1_MAX_GROUPS] groups are processed.
+     */
+    private fun c1RequirementGroups(
+        diagram: ReqDiagram,
+        visibleNodeIds: Set<String>,
+    ): List<LayoutGroup> {
+        val all = diagram.groups.take(C1_MAX_GROUPS)
+        if (all.isEmpty()) return emptyList()
+        val byId = all.associateBy { it.id }
+        val parentOf = mutableMapOf<String, String>()
+        for (g in all) for (c in g.childGroupIds) if (c in byId && c != g.id && c !in parentOf) parentOf[c] = g.id
+
+        fun depthOf(id: String): Int {
+            var d = 1
+            var cur = id
+            val seen = mutableSetOf(id)
+            while (true) {
+                val p = parentOf[cur] ?: return d
+                if (!seen.add(p)) return Int.MAX_VALUE // cycle
+                d++
+                cur = p
+            }
+        }
+
+        val live = mutableMapOf<String, Boolean>()
+
+        fun hasVisible(
+            id: String,
+            visiting: Set<String>,
+        ): Boolean {
+            live[id]?.let { return it }
+            if (id in visiting) return false
+            val g = byId[id] ?: return false
+            val result =
+                g.memberIds.any { it in visibleNodeIds } ||
+                    g.childGroupIds.any { hasVisible(it, visiting + id) }
+            live[id] = result
+            return result
+        }
+
+        fun effectiveParent(id: String): String? {
+            // Flatten: a group deeper than the limit is attached to its ancestor at depth limit-1.
+            var depth = depthOf(id)
+            var parent = parentOf[id]
+            var steps = 0
+            while (parent != null && depth > C1_MAX_GROUP_DEPTH && steps < 64) {
+                parent = parentOf[parent]
+                depth--
+                steps++
+            }
+            return parent
+        }
+
+        return all
+            .filter { depthOf(it.id) != Int.MAX_VALUE && hasVisible(it.id, emptySet()) }
+            .map { g ->
+                val parent = effectiveParent(g.id)?.takeIf { p -> live[p] == true || hasVisible(p, emptySet()) }
+                LayoutGroup(
+                    id = GroupId(g.id),
+                    parent = parent?.let { GroupId(it) },
+                    padding = REQ_GROUP_PADDING,
+                    layoutAsCompound = true,
+                    minSize = REQ_GROUP_MIN_SIZE,
+                )
+            }
     }
 
     /**
@@ -1936,7 +2091,7 @@ public object Sysml2LayoutBridge {
                 }
                 "UseCaseDefinition" -> {
                     val uc = model.definitions.firstOrNull { it.id == id } as? UseCaseDefinition
-                    ucUseCaseContentSize(name = uc?.name)
+                    ucUseCaseContentSize(name = uc?.name, description = uc?.description.orEmpty())
                 }
                 else -> {
                     val def = model.definitions.firstOrNull { it.id == id }

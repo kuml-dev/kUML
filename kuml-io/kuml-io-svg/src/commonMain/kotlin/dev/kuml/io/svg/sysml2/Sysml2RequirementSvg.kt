@@ -4,8 +4,10 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt3
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.bridge.Sysml2ReqCard
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.TestCaseDefinition
 
 /**
  * Rendert eine SysML-2-[RequirementDefinition] als dreikompartimentige
@@ -37,79 +39,112 @@ internal fun renderSysml2Requirement(
     @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
     builder: SvgBuilder,
 ) {
+    // Wave C1: the card geometry and the wrapped lines come from the shared Sysml2ReqCard so that
+    // the box the layout bridge reserved matches exactly what is drawn here. Titles are wrapped
+    // (never truncated); user text is length-capped defensively inside Sysml2ReqCard.
+    val card = Sysml2ReqCard.forRequirement(element)
+    renderCard(card = card, id = element.id, isAbstract = element.isAbstract, layout = layout, builder = builder)
+}
+
+/** Renders a [TestCaseDefinition] as a rounded verification box with the `«testCase»` stereotype (wave C1). */
+internal fun renderSysml2TestCase(
+    element: TestCaseDefinition,
+    layout: NodeLayout,
+    @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
+    builder: SvgBuilder,
+) {
+    val card = Sysml2ReqCard.forTestCase(element)
+    renderCard(card = card, id = element.id, isAbstract = element.isAbstract, layout = layout, builder = builder, cornerRadius = 8f)
+}
+
+private fun renderCard(
+    card: Sysml2ReqCard.Card,
+    id: String,
+    isAbstract: Boolean,
+    layout: NodeLayout,
+    builder: SvgBuilder,
+    cornerRadius: Float = 0f,
+) {
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
 
-    val rawTitle =
-        if (element.reqId.isNotEmpty()) "${element.reqId} :: ${element.name}" else element.name
-    val titleText = truncateTitle(rawTitle)
-    val hasText = element.text.isNotEmpty()
-    val textLines: List<String> = if (hasText) wrapWords(text = element.text, maxChars = WRAP_WIDTH) else emptyList()
-
     builder.tag(
         name = "g",
-        attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
+        attrs = mapOf("id" to xmlEscapeAttr(id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
+        val rectAttrs =
+            buildMap {
+                put("width", fmt(w))
+                put("height", fmt(h))
+                put("class", "kuml-class")
+                if (cornerRadius > 0f) {
+                    put("rx", fmt(cornerRadius))
+                    put("ry", fmt(cornerRadius))
+                }
+                // Assumption: dashed border.
+                if (card.isAssumption) put("stroke-dasharray", "4 3")
+            }
+        tag(name = "rect", attrs = rectAttrs)
 
-        var cy = 16f
-
-        // Compartment 1 — `«requirement»`-Stereotyp.
         tag(
             name = "text",
             attrs =
                 mapOf(
                     "class" to "kuml-stereotype",
                     "x" to fmt(w / 2f),
-                    "y" to fmt(cy),
+                    "y" to fmt(Sysml2ReqCard.STEREOTYPE_BASELINE),
                     "text-anchor" to "middle",
+                    "font-size" to "9",
                 ),
-        ) { text("«requirement»") }
-        cy += 14f
+        ) { text(card.stereotype) }
 
-        // Compartment 2 — Name, optional mit `R-NNN ::`-Präfix.
-        val nameClass = if (element.isAbstract) "kuml-title kuml-title-abstract" else "kuml-title"
-        val nameAttrs =
-            buildMap<String, String> {
-                put("class", nameClass)
-                put("x", fmt(w / 2f))
-                put("y", fmt(cy))
-                put("text-anchor", "middle")
-                if (element.isAbstract) put("font-style", "italic")
-            }
-        tag(name = "text", attrs = nameAttrs) { text(titleText) }
-        cy += 12f
+        val nameClass = if (isAbstract) "kuml-title kuml-title-abstract" else "kuml-title"
+        card.titleLines.forEachIndexed { i, line ->
+            val nameAttrs =
+                buildMap<String, String> {
+                    put("class", nameClass)
+                    put("x", fmt(w / 2f))
+                    put("y", fmt(Sysml2ReqCard.TITLE_FIRST_BASELINE + i * Sysml2ReqCard.TITLE_LINE_H))
+                    put("text-anchor", "middle")
+                    put("font-size", "12")
+                    put("font-weight", "bold")
+                    if (isAbstract) put("font-style", "italic")
+                }
+            tag(name = "text", attrs = nameAttrs) { text(line) }
+        }
 
-        // Compartment 3 — Anforderungstext (nur wenn vorhanden).
-        if (hasText) {
+        card.dividerY?.let { dy ->
             tag(
                 name = "line",
                 attrs =
                     mapOf(
                         "x1" to "0",
-                        "y1" to fmt(cy),
+                        "y1" to fmt(dy),
                         "x2" to fmt(w),
-                        "y2" to fmt(cy),
+                        "y2" to fmt(dy),
                         "class" to "kuml-divider",
                     ),
             )
-            cy += 14f
-
-            for (line in textLines) {
-                tag(
-                    name = "text",
-                    attrs = mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
-                ) { text(line) }
-                cy += 13f
-            }
+        }
+        card.bodyLines.forEachIndexed { i, line ->
+            tag(
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-body",
+                        "x" to fmt(Sysml2ReqCard.H_PAD),
+                        "y" to fmt(card.bodyFirstBaseline + i * Sysml2ReqCard.BODY_LINE_H),
+                        "font-size" to "11",
+                    ),
+            ) { text(line) }
         }
     }
 }
 
 /**
- * Einfache Word-Wrap-Heuristik: Splittet [text] an Wortgrenzen, sodass jede
+ * Einfache Word-Wrap-Heuristik (nur noch für Kanten-Labels; Karten nutzen [Sysml2ReqCard.wrap]): Splittet [text] an Wortgrenzen, sodass jede
  * resultierende Zeile höchstens [maxChars] Zeichen lang ist. Ein einzelnes
  * Wort, das länger als [maxChars] ist, landet allein in einer Zeile.
  *
@@ -138,11 +173,5 @@ internal fun wrapWords(
     if (current.isNotEmpty()) lines += current.toString()
     return lines
 }
-
-private const val WRAP_WIDTH = 25
-
-private const val REQ_TITLE_MAX_CHARS = 35
-
-private fun truncateTitle(s: String): String = if (s.length <= REQ_TITLE_MAX_CHARS) s else s.substring(0, REQ_TITLE_MAX_CHARS - 1) + "…"
 
 private fun fmt(v: Float): String = fmt3(v)
