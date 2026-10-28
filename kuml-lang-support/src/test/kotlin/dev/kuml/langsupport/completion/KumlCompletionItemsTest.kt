@@ -62,8 +62,22 @@ class KumlCompletionItemsTest :
             item.group shouldBe KumlCompletionItems.Group.SYSML2
         }
 
-        test("ALL list has expected count of 50 items") {
-            KumlCompletionItems.ALL shouldHaveSize 50
+        test("wave C2 activity constructs are offered") {
+            val names = KumlCompletionItems.ALL.map { it.name }.toSet()
+            for (n in listOf(
+                "sendSignal",
+                "acceptEvent",
+                "acceptTimeEvent",
+                "callBehavior",
+                "interruptibleRegion",
+                "exceptionHandler",
+            )) {
+                (n in names) shouldBe true
+            }
+        }
+
+        test("ALL list has expected count of 56 items") {
+            KumlCompletionItems.ALL shouldHaveSize 56
         }
 
         test("startingWith prefix 'sys' returns sysml2Model") {

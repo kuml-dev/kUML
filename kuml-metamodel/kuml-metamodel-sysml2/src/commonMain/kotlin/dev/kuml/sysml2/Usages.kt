@@ -389,6 +389,8 @@ data class ControlFlowUsage(
     /** Optional guard expression (`"valid"`, `"!error"`). Raw string in V2.0.10 MVP. */
     val guard: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    /** Wave C2 — interrupting flow: drawn with a lightning-bolt kink, cancels the enclosing region. */
+    val interrupts: Boolean = false,
 ) : Sysml2Usage
 
 /**
@@ -426,6 +428,37 @@ data class ObjectFlowUsage(
      * [AttributeDefinition] is V2.x polish.
      */
     val objectType: String? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    /** Wave C2 — interrupting flow, see [ControlFlowUsage.interrupts]. */
+    val interrupts: Boolean = false,
+    /** Wave C2 — name of an output pin on the source action; the edge starts at that pin. */
+    val sourcePin: String? = null,
+    /** Wave C2 — name of an input pin on the target action; the edge ends at that pin. */
+    val targetPin: String? = null,
+) : Sysml2Usage
+
+/**
+ * Wave C2 — exception handler: when [protectedNodeId] raises an exception of type [exceptionType],
+ * control passes to [handlerNodeId]. Drawn as a lightning-bolt edge labelled with the exception
+ * type and a small pin square on the handler.
+ *
+ * Edge id convention: the handler usage id itself (`exceptionHandler:<protected>::<handler>`).
+ */
+@Serializable
+data class ExceptionHandlerUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String = "sysml2.exceptionHandler",
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    /** Id of the protected [dev.kuml.sysml2.ActionDefinition]. */
+    val protectedNodeId: String,
+    /** Id of the handler [dev.kuml.sysml2.ActionDefinition] (an action or call-behavior). */
+    val handlerNodeId: String,
+    /** Exception type label (`"IOError"`). */
+    val exceptionType: String,
+    /** Optional name of an input pin on the handler that receives the exception object. */
+    val handlerPin: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Usage
 

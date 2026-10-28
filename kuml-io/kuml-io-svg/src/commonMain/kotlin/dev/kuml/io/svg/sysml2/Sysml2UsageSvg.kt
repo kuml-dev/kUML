@@ -117,6 +117,9 @@ internal fun renderSysml2Usage(
         is ActionUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "action")
         is ControlFlowUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "control flow")
         is ObjectFlowUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "object flow")
+        // Wave C2: exception handlers are edges; the dispatcher branch only guards direct calls.
+        is dev.kuml.sysml2.ExceptionHandlerUsage ->
+            renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "exception handler")
         // V2.0.11: SEQ-Usage-Kinds. Die Bridge zeigt im V2.0.11-MVP keine
         // LifelineUsages/MessageUsages auf der Node-Ebene (SEQ-Diagramme
         // rendern LifelineDefinitions direkt; Nachrichten werden im Renderer

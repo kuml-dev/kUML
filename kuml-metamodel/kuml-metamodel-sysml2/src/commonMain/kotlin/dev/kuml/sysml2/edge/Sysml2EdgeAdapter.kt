@@ -5,6 +5,7 @@ import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.ExceptionHandlerUsage
 import dev.kuml.sysml2.GuardKind
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.ObjectFlowUsage
@@ -120,6 +121,11 @@ public data class Sysml2EdgeMetadata(
      * and style them separately. Empty when [label] is a plain string.
      */
     val labelParts: List<EdgeLabelPart> = emptyList(),
+    /**
+     * Wave C2 — draw the line with a lightning-bolt kink (interrupting flow, exception handler)
+     * and an open arrow head instead of the plain line.
+     */
+    val lightning: Boolean = false,
 )
 
 /** Kind of one [EdgeLabelPart]. */
@@ -409,7 +415,8 @@ public class ActEdgeAdapter(
                     flow.id,
                     Sysml2EdgeMetadata(
                         label = flow.guard?.takeIf { it.isNotBlank() }?.let { "[$it]" },
-                        arrowHead = Sysml2ArrowHead.FilledTriangle,
+                        arrowHead = if (flow.interrupts) Sysml2ArrowHead.OpenAngle else Sysml2ArrowHead.FilledTriangle,
+                        lightning = flow.interrupts,
                     ),
                 )
             }
@@ -420,7 +427,20 @@ public class ActEdgeAdapter(
                     flow.id,
                     Sysml2EdgeMetadata(
                         label = flow.objectType?.takeIf { it.isNotBlank() }?.let { "[$it]" },
-                        arrowHead = Sysml2ArrowHead.FilledTriangle,
+                        arrowHead = if (flow.interrupts) Sysml2ArrowHead.OpenAngle else Sysml2ArrowHead.FilledTriangle,
+                        lightning = flow.interrupts,
+                    ),
+                )
+            }
+            // Wave C2: exception handlers are edges from the protected node to the handler node.
+            for (h in model.usages.filterIsInstance<ExceptionHandlerUsage>()) {
+                if (h.protectedNodeId !in visible || h.handlerNodeId !in visible) continue
+                put(
+                    h.id,
+                    Sysml2EdgeMetadata(
+                        label = h.exceptionType.takeIf { it.isNotBlank() },
+                        arrowHead = Sysml2ArrowHead.OpenAngle,
+                        lightning = true,
                     ),
                 )
             }

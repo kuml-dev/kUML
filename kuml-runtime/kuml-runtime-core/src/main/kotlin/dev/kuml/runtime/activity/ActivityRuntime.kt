@@ -319,7 +319,14 @@ public class ActivityRuntime(
                 }
             }
 
-            ActivityNodeKind.Action -> {
+            // Wave C2: signal / time-event / call-behavior nodes only pass the token on (no signal, timer or
+            // call semantics yet); interruptible regions and exception handlers are ignored by the runtime.
+            ActivityNodeKind.Action,
+            ActivityNodeKind.SendSignal,
+            ActivityNodeKind.AcceptEvent,
+            ActivityNodeKind.AcceptTimeEvent,
+            ActivityNodeKind.CallBehavior,
+            -> {
                 inst = inst.withoutTokenAt(node.id)
                 trace += mkTokenConsumed(nodeId = node.id, clock = clock)
                 trace +=

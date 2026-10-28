@@ -18,9 +18,9 @@ import org.eclipse.lsp4j.InsertTextFormat
 class CompletionMapperTest :
     FunSpec({
 
-        test("toLsp maps all 50 items with the correct Kind per Group") {
+        test("toLsp maps all 56 items with the correct Kind per Group") {
             val mapped = KumlCompletionItems.ALL.map { it to CompletionMapper.toLsp(it) }
-            mapped shouldHaveSize 50
+            mapped shouldHaveSize 56
 
             mapped.forEach { (item, lsp) ->
                 val expectedKind =

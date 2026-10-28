@@ -236,8 +236,12 @@ public class Sysml2EditingTools(
         @LLMDescription("Action name.") name: String,
         @LLMDescription("Parent activity id or name; null = top activity.") parentIdOrName: String? = null,
         @LLMDescription(
-            "Action kind: 'opaque', 'send_signal', 'accept_event', 'call_behavior'. Default 'opaque'.",
+            "Action kind: 'opaque', 'send_signal', 'accept_event', 'accept_time_event', 'call_behavior'," +
+                " or a control/pseudo node. Default 'opaque'.",
         ) kind: String? = null,
+        @LLMDescription("Signal name for 'send_signal' / 'accept_event' (defaults to the action name).") signal: String? = null,
+        @LLMDescription("Time expression for 'accept_time_event', e.g. 'after 5 min'.") timeExpression: String? = null,
+        @LLMDescription("Id of the activity a 'call_behavior' action calls.") calledActivityId: String? = null,
     ): PatchApplyResult {
         val model = ctx.resolveModel()
         val sysml = model as? AnyKumlModel.Sysml2 ?: return PatchApplyResult.Failure(reason = "Context is not a SysML 2 model")
@@ -246,9 +250,10 @@ public class Sysml2EditingTools(
         val activityNodeKind =
             when (kind?.lowercase()) {
                 null, "opaque", "" -> ActivityNodeKind.Action
-                "send_signal" -> ActivityNodeKind.Action // SysML 2 uses ActionDefinition for send-signal
-                "accept_event" -> ActivityNodeKind.Action
-                "call_behavior" -> ActivityNodeKind.Action
+                "send_signal" -> ActivityNodeKind.SendSignal
+                "accept_event" -> ActivityNodeKind.AcceptEvent
+                "accept_time_event" -> ActivityNodeKind.AcceptTimeEvent
+                "call_behavior" -> ActivityNodeKind.CallBehavior
                 "initial" -> ActivityNodeKind.Initial
                 "final" -> ActivityNodeKind.Final
                 "flow_final" -> ActivityNodeKind.FlowFinal
@@ -258,7 +263,7 @@ public class Sysml2EditingTools(
                 "join" -> ActivityNodeKind.Join
                 else -> {
                     val validKinds =
-                        "opaque, send_signal, accept_event, call_behavior," +
+                        "opaque, send_signal, accept_event, accept_time_event, call_behavior," +
                             " initial, final, flow_final, decision, merge, fork, join"
                     return PatchApplyResult.Failure(reason = "Unknown action kind '$kind'", hint = "Valid: $validKinds")
                 }
@@ -272,11 +277,25 @@ public class Sysml2EditingTools(
                 elementKind = "sysml2.actiondef",
                 elementId = id,
                 name = name,
-                payload = buildMap { kind?.let { put("kind", it) } },
+                payload =
+                    buildMap {
+                        kind?.let { put("kind", it) }
+                        signal?.let { put("signal", it) }
+                        timeExpression?.let { put("timeExpression", it) }
+                        calledActivityId?.let { put("calledActivityId", it) }
+                    },
             )
 
         return ctx.applyPatch(patch = patch) { m ->
-            Sysml2PatchOps.addAction(model = m as AnyKumlModel.Sysml2, id = id, name = name, kind = activityNodeKind)
+            Sysml2PatchOps.addAction(
+                model = m as AnyKumlModel.Sysml2,
+                id = id,
+                name = name,
+                kind = activityNodeKind,
+                signal = signal,
+                timeExpression = timeExpression,
+                calledActivityId = calledActivityId,
+            )
         }
     }
 

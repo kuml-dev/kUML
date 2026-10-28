@@ -1,6 +1,7 @@
 package dev.kuml.sysml2.dsl.print
 
 import dev.kuml.kerml.KermlMultiplicity
+import dev.kuml.sysml2.ACT_MAX_REGION_DEPTH
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActionPin
@@ -23,11 +24,13 @@ import dev.kuml.sysml2.ConstraintParameter
 import dev.kuml.sysml2.ConstraintParameterDirection
 import dev.kuml.sysml2.ConstraintUsage
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.ExceptionHandlerUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.FlowPropertyUsage
 import dev.kuml.sysml2.FlowUsage
 import dev.kuml.sysml2.GuardKind
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.InterruptibleRegionDefinition
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.LifelineUsage
 import dev.kuml.sysml2.MessageKind
@@ -37,6 +40,7 @@ import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PinDirection
+import dev.kuml.sysml2.PinSide
 import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.ReqDiagram
@@ -141,9 +145,10 @@ public object Sysml2DslPrinter {
             model.definitions.partition {
                 it is PartDefinition ||
                     it is LifelineDefinition ||
-                    it is ActivityPartitionDefinition
+                    it is ActivityPartitionDefinition ||
+                    it is InterruptibleRegionDefinition
             }
-        special.forEach { printDefinition(sb = sb, def = it, model = model, ctx = ctx, bindVar = true) }
+        orderRegionsParentFirst(special).forEach { printDefinition(sb = sb, def = it, model = model, ctx = ctx, bindVar = true) }
         orderStatesParentFirst(rest).forEach { printDefinition(sb = sb, def = it, model = model, ctx = ctx, bindVar = false) }
 
         val consumedFeatureIds =
@@ -160,6 +165,33 @@ public object Sysml2DslPrinter {
 
         sb.appendLine("}")
         return sb.toString()
+    }
+
+    /**
+     * Reorders the [InterruptibleRegionDefinition]s of [defs] so enclosing regions precede nested
+     * ones (the DSL references the parent through its bound variable). Cycle-safe; other
+     * definitions keep their slots.
+     */
+    private fun orderRegionsParentFirst(defs: List<Sysml2Definition>): List<Sysml2Definition> {
+        val regions = defs.filterIsInstance<InterruptibleRegionDefinition>()
+        if (regions.none { it.parentRegionId != null }) return defs
+        val byId = LinkedHashMap<String, InterruptibleRegionDefinition>()
+        regions.forEach { if (it.id !in byId) byId[it.id] = it }
+        val emitted = ArrayList<InterruptibleRegionDefinition>()
+        val emittedIds = HashSet<String>()
+        for (r in regions) {
+            val chain = ArrayList<InterruptibleRegionDefinition>()
+            val seen = HashSet<String>()
+            var cur: InterruptibleRegionDefinition? = r
+            while (cur != null && seen.add(cur.id) && cur.id !in emittedIds && chain.size <= ACT_MAX_REGION_DEPTH + 1) {
+                chain += cur
+                cur = cur.parentRegionId?.let { byId[it] }
+            }
+            for (c in chain.asReversed()) if (emittedIds.add(c.id)) emitted += c
+        }
+        val remaining = regions.filter { r -> emitted.none { it === r } }
+        val sorted = ArrayDeque<InterruptibleRegionDefinition>(emitted + remaining)
+        return defs.map { if (it is InterruptibleRegionDefinition) sorted.removeFirst() else it }
     }
 
     /**
@@ -199,6 +231,7 @@ public object Sysml2DslPrinter {
         val partDefVars: MutableMap<String, String> = mutableMapOf()
         val lifelineDefVars: MutableMap<String, String> = mutableMapOf()
         val partitionDefVars: MutableMap<String, String> = mutableMapOf()
+        val regionDefVars: MutableMap<String, String> = mutableMapOf()
         private var counter = 0
 
         fun freshVar(): String = "s2v${counter++}"
@@ -220,6 +253,7 @@ public object Sysml2DslPrinter {
                     is PartDefinition -> ctx.partDefVars[def.id] = v
                     is LifelineDefinition -> ctx.lifelineDefVars[def.id] = v
                     is ActivityPartitionDefinition -> ctx.partitionDefVars[def.id] = v
+                    is InterruptibleRegionDefinition -> ctx.regionDefVars[def.id] = v
                     else -> Unit
                 }
                 v
@@ -384,6 +418,21 @@ public object Sysml2DslPrinter {
                     }
                 }
                 if (def.pins.isNotEmpty()) args += "pins = listOf(${def.pins.joinToString(", ") { pinExpr(it) }})"
+                def.signal?.let { args += "signal = ${quote(it)}" }
+                def.timeExpression?.let { args += "timeExpression = ${quote(it)}" }
+                def.calledActivityId?.let { args += "calledActivityId = ${quote(it)}" }
+                if (def.showName) args += "showName = true"
+                if (def.interruptibleRegionId != null) {
+                    val regionVar = ctx.regionDefVars[def.interruptibleRegionId]
+                    if (regionVar != null) {
+                        args += "region = $regionVar"
+                    } else {
+                        todos +=
+                            "ActionDefinition ${def.name} (id = ${def.id}) references interruptibleRegionId " +
+                            "'${def.interruptibleRegionId}', which does not resolve to a printed " +
+                            "InterruptibleRegionDefinition — region assignment lost."
+                    }
+                }
                 printDefCall(
                     sb = sb,
                     fnName = "actionDef",
@@ -391,6 +440,26 @@ public object Sysml2DslPrinter {
                     args = args,
                     todos = todos,
                 ) { body -> printNestedFeatures(sb = body, def = def, model = model) }
+            }
+            is InterruptibleRegionDefinition -> {
+                if (!def.showLabel) args += "showLabel = false"
+                if (def.parentRegionId != null) {
+                    val parentVar = ctx.regionDefVars[def.parentRegionId]
+                    if (parentVar != null) {
+                        args += "parent = $parentVar"
+                    } else {
+                        todos +=
+                            "InterruptibleRegionDefinition ${def.name} (id = ${def.id}) references parentRegionId " +
+                            "'${def.parentRegionId}', which does not resolve to a printed region — nesting lost."
+                    }
+                }
+                printDefCall(
+                    sb = sb,
+                    fnName = "interruptibleRegion",
+                    varName = varName,
+                    args = args,
+                    todos = todos,
+                ) { _ -> }
             }
             is ActivityPartitionDefinition -> {
                 def.represents?.let { args += "represents = ${quote(it)}" }
@@ -490,6 +559,7 @@ public object Sysml2DslPrinter {
         val args = mutableListOf("name = ${quote(p.name)}")
         p.typeId?.let { args += "typeId = ${quote(it)}" }
         if (p.direction != PinDirection.Input) args += "direction = PinDirection.${p.direction.name}"
+        if (p.side != PinSide.Auto) args += "side = PinSide.${p.side.name}"
         return "ActionPin(${args.joinToString(", ")})"
     }
 
@@ -627,6 +697,7 @@ public object Sysml2DslPrinter {
                     )
                 usage.guard?.let { args += "guard = ${quote(it)}" }
                 args += "id = ${quote(usage.id)}"
+                if (usage.interrupts) args += "interrupts = true"
                 sb.appendLine("    controlFlowById(${args.joinToString(", ")})")
             }
             is ObjectFlowUsage -> {
@@ -638,7 +709,21 @@ public object Sysml2DslPrinter {
                     )
                 usage.objectType?.let { args += "objectType = ${quote(it)}" }
                 args += "id = ${quote(usage.id)}"
+                if (usage.interrupts) args += "interrupts = true"
+                usage.sourcePin?.let { args += "sourcePin = ${quote(it)}" }
+                usage.targetPin?.let { args += "targetPin = ${quote(it)}" }
                 sb.appendLine("    objectFlowById(${args.joinToString(", ")})")
+            }
+            is ExceptionHandlerUsage -> {
+                val args =
+                    mutableListOf(
+                        "protectedNodeId = ${quote(usage.protectedNodeId)}",
+                        "handlerNodeId = ${quote(usage.handlerNodeId)}",
+                        "type = ${quote(usage.exceptionType)}",
+                    )
+                usage.handlerPin?.let { args += "handlerPin = ${quote(it)}" }
+                args += "id = ${quote(usage.id)}"
+                sb.appendLine("    exceptionHandlerById(${args.joinToString(", ")})")
             }
             is MessageUsage -> {
                 val args =

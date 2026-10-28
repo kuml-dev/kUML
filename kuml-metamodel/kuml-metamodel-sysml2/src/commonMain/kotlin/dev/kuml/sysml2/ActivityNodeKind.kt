@@ -3,7 +3,7 @@ package dev.kuml.sysml2
 import kotlinx.serialization.Serializable
 
 /**
- * Discriminator for the seven activity-node shapes in a SysML 2 activity
+ * Discriminator for the activity-node shapes in a SysML 2 activity
  * diagram (V2.0.10). Used by [ActionDefinition.kind] so a single definition
  * class can carry every node kind — keeps the sealed [Sysml2Definition]
  * surface compact and lets the renderer / layout-bridge dispatch on a single
@@ -56,4 +56,28 @@ enum class ActivityNodeKind {
 
     /** Synchronises parallel branches — synchronisation bar, N incoming → 1 outgoing. */
     Join,
+
+    /**
+     * Wave C2 — sends a signal: pentagon ("convex" arrow shape, tip on the right).
+     * The signal name travels in [ActionDefinition.signal].
+     */
+    SendSignal,
+
+    /**
+     * Wave C2 — waits for a signal: rectangle with a notch ("concave" shape) on the left.
+     * The signal name travels in [ActionDefinition.signal]. May have no incoming flow.
+     */
+    AcceptEvent,
+
+    /**
+     * Wave C2 — waits for a point in time: hourglass with a label below. The time expression
+     * (e.g. `"after 5 min"`) travels in [ActionDefinition.timeExpression]. May have no incoming flow.
+     */
+    AcceptTimeEvent,
+
+    /**
+     * Wave C2 — call-behavior action: rounded box with a rake (fork) symbol in the lower
+     * right corner. The called activity travels in [ActionDefinition.calledActivityId].
+     */
+    CallBehavior,
 }

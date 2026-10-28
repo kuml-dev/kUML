@@ -748,6 +748,59 @@ Activity diagrams are also runnable via `kuml simulate`. The trace contains `For
 NOTE: `kuml simulate` currently supports STM and ACT diagram types for SysML 2 models.
 Other diagram types (BDD, IBD, REQ, SEQ, PAR) produce renderable output only.
 
+=== Signals, regions, exceptions and pins
+
+Besides plain actions, activity diagrams offer signal and event nodes, interruptible regions, exception
+handlers and pins on any side of an action.
+
+[cols="2,3"]
+|===
+| DSL | Shape
+
+| `sendSignal("Notify", signal = "Ping")` | pentagon with the tip on the right
+| `acceptEvent("Wait", signal = "Pong")` | rectangle with a notch on the left
+| `acceptTimeEvent("Timeout", time = "after 10 min")` | hourglass with the time label below
+| `callBehavior("Check", activityId = "StockCheck")` | action with a rake symbol; the SVG group carries `data-kuml-calls`
+| `interruptibleRegion("Payment")` | dashed rounded frame around the nodes created with `region = payment`
+| `exceptionHandler(protectedNode, handler, type = "IOError")` | lightning-bolt edge labelled with the type
+| `controlFlow(..., interrupts = true)` | lightning-bolt edge with an open arrow
+| `ActionPin(name, direction = ..., side = PinSide.Top)` | pin square on the chosen side
+|===
+
+[source,kotlin]
+----
+sysml2Model("Payment") {
+    val payment = interruptibleRegion(name = "Payment")
+    val ask = sendSignal(name = "RequestPayment", signal = "PaymentRequest", region = payment)
+    val timeout = acceptTimeEvent(name = "Timeout", time = "after 10 min", region = payment)
+    val cancel = actionDef(name = "CancelOrder")
+    val charge = actionDef(name = "ChargeCard", pins = listOf(
+        ActionPin(name = "order", direction = PinDirection.Input, side = PinSide.Top)))
+    val handler = actionDef(name = "HandleError")
+    controlFlow(name = "timedOut", source = timeout, target = cancel, interrupts = true)
+    exceptionHandler(protectedNode = charge, handler = handler, type = "PaymentError")
+    actDiagram("Payment") { include(ask); include(timeout); include(cancel); include(charge); include(handler) }
+}
+----
+
+Pins: `PinSide.Auto` keeps input pins on the left and output pins on the right. An explicit side
+enlarges the action box by 18 px per pin on that side. Object flows with `sourcePin` / `targetPin`
+end at the pin squares.
+
+==== Structural checks (`kuml validate`, ACT)
+
+`kuml validate` reports activity findings as `ACT301` to `ACT315`: missing signal or time expression (301/302),
+overlong text (303), region cycles or nesting deeper than 4 (304), handler on itself or on a non-action (305/306),
+wrong or missing pins (307), more than 8 pins per side (308), more than 8 handlers per node (309), dangling references
+(310), unresolved `calledActivityId` (311), interrupting flow that does not leave a region (312), pins on pseudo
+nodes (313), `showName` on non-control nodes (314) and a region spanning several partitions (315).
+
+==== Limits
+
+Regions are drawn as the bounding box of their members; a node that the layout happens to place inside that box
+looks like a member although it is not. The simulation passes tokens through the new node kinds; regions,
+interruptions and handlers have no runtime semantics yet.
+
 == Sequence Diagrams (SEQ)
 
 Time-ordered interaction between blocks: lifelines, messages, execution

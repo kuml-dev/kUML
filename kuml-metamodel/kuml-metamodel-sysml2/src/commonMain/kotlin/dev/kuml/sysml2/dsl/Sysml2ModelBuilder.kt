@@ -27,11 +27,13 @@ import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ConstraintParameter
 import dev.kuml.sysml2.ConstraintUsage
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.ExceptionHandlerUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.FlowPropertyUsage
 import dev.kuml.sysml2.FlowUsage
 import dev.kuml.sysml2.GuardKind
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.InterruptibleRegionDefinition
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.LifelineUsage
 import dev.kuml.sysml2.MessageKind
@@ -971,6 +973,11 @@ class Sysml2ModelBuilder(
         specializesId: String? = null,
         partition: ActivityPartitionDefinition? = null,
         pins: List<ActionPin> = emptyList(),
+        signal: String? = null,
+        timeExpression: String? = null,
+        calledActivityId: String? = null,
+        region: InterruptibleRegionDefinition? = null,
+        showName: Boolean = false,
         block: DefinitionBuilder.() -> Unit = {},
     ): ActionDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -984,10 +991,149 @@ class Sysml2ModelBuilder(
                 action = action,
                 partitionId = partition?.id,
                 pins = pins,
+                signal = signal,
+                timeExpression = timeExpression,
+                calledActivityId = calledActivityId,
+                interruptibleRegionId = region?.id,
+                showName = showName,
                 specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
             )
         definitions += def
         return def
+    }
+
+    /** Wave C2 — `send signal` node (pentagon). [signal] defaults to [name]. */
+    fun sendSignal(
+        name: String,
+        id: String = name,
+        signal: String = name,
+        partition: ActivityPartitionDefinition? = null,
+        region: InterruptibleRegionDefinition? = null,
+    ): ActionDefinition =
+        actionDef(
+            name = name,
+            id = id,
+            kind = ActivityNodeKind.SendSignal,
+            signal = signal,
+            partition = partition,
+            region = region,
+        )
+
+    /** Wave C2 — `accept event` node (rectangle with a notch). [signal] defaults to [name]. */
+    fun acceptEvent(
+        name: String,
+        id: String = name,
+        signal: String = name,
+        partition: ActivityPartitionDefinition? = null,
+        region: InterruptibleRegionDefinition? = null,
+    ): ActionDefinition =
+        actionDef(
+            name = name,
+            id = id,
+            kind = ActivityNodeKind.AcceptEvent,
+            signal = signal,
+            partition = partition,
+            region = region,
+        )
+
+    /** Wave C2 — `accept time event` node (hourglass); [time] is the label (`"after 5 min"`). */
+    fun acceptTimeEvent(
+        name: String,
+        id: String = name,
+        time: String,
+        partition: ActivityPartitionDefinition? = null,
+        region: InterruptibleRegionDefinition? = null,
+    ): ActionDefinition =
+        actionDef(
+            name = name,
+            id = id,
+            kind = ActivityNodeKind.AcceptTimeEvent,
+            timeExpression = time,
+            partition = partition,
+            region = region,
+        )
+
+    /** Wave C2 — call-behavior action (rounded box with a rake symbol); [activity] is the called activity. */
+    fun callBehavior(
+        name: String,
+        id: String = name,
+        activity: ActionDefinition? = null,
+        activityId: String? = activity?.id,
+        partition: ActivityPartitionDefinition? = null,
+        region: InterruptibleRegionDefinition? = null,
+        pins: List<ActionPin> = emptyList(),
+    ): ActionDefinition =
+        actionDef(
+            name = name,
+            id = id,
+            kind = ActivityNodeKind.CallBehavior,
+            calledActivityId = activityId,
+            partition = partition,
+            region = region,
+            pins = pins,
+        )
+
+    /**
+     * Wave C2 — interruptible region (dashed rounded frame). Members join it through the
+     * `region = …` argument of the node helpers; nesting through [parent].
+     */
+    fun interruptibleRegion(
+        name: String,
+        id: String = name,
+        showLabel: Boolean = true,
+        parent: InterruptibleRegionDefinition? = null,
+    ): InterruptibleRegionDefinition {
+        val def =
+            InterruptibleRegionDefinition(
+                id = id,
+                name = name,
+                showLabel = showLabel,
+                parentRegionId = parent?.id,
+            )
+        definitions += def
+        return def
+    }
+
+    /** Id-only variant of [exceptionHandler]. */
+    fun exceptionHandlerById(
+        protectedNodeId: String,
+        handlerNodeId: String,
+        type: String,
+        handlerPin: String? = null,
+        id: String = "exceptionHandler:$protectedNodeId::$handlerNodeId",
+    ): ExceptionHandlerUsage {
+        val usage =
+            ExceptionHandlerUsage(
+                id = id,
+                name = type,
+                protectedNodeId = protectedNodeId,
+                handlerNodeId = handlerNodeId,
+                exceptionType = type,
+                handlerPin = handlerPin,
+            )
+        registerUsage(usage)
+        return usage
+    }
+
+    /** Wave C2 — exception handler: [handler] runs when [protectedNode] raises [type]. */
+    fun exceptionHandler(
+        protectedNode: ActionDefinition,
+        handler: ActionDefinition,
+        type: String,
+        handlerPin: String? = null,
+        id: String = "exceptionHandler:${protectedNode.id}::${handler.id}",
+    ): ExceptionHandlerUsage {
+        val usage =
+            ExceptionHandlerUsage(
+                id = id,
+                name = type,
+                protectedNodeId = protectedNode.id,
+                handlerNodeId = handler.id,
+                exceptionType = type,
+                handlerPin = handlerPin,
+            )
+        registerUsage(usage)
+        return usage
     }
 
     /**
@@ -1043,7 +1189,10 @@ class Sysml2ModelBuilder(
         name: String,
         id: String = name,
         partition: ActivityPartitionDefinition? = null,
-    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Decision, partition = partition)
+        showName: Boolean = false,
+        region: InterruptibleRegionDefinition? = null,
+    ): ActionDefinition =
+        actionDef(name = name, id = id, kind = ActivityNodeKind.Decision, partition = partition, showName = showName, region = region)
 
     /**
      * `merge` — V2.0.10 merge activity-node helper.
@@ -1056,7 +1205,10 @@ class Sysml2ModelBuilder(
         name: String,
         id: String = name,
         partition: ActivityPartitionDefinition? = null,
-    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Merge, partition = partition)
+        showName: Boolean = false,
+        region: InterruptibleRegionDefinition? = null,
+    ): ActionDefinition =
+        actionDef(name = name, id = id, kind = ActivityNodeKind.Merge, partition = partition, showName = showName, region = region)
 
     /**
      * `fork` — V2.0.10 fork activity-node helper.
@@ -1070,7 +1222,10 @@ class Sysml2ModelBuilder(
         name: String,
         id: String = name,
         partition: ActivityPartitionDefinition? = null,
-    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Fork, partition = partition)
+        showName: Boolean = false,
+        region: InterruptibleRegionDefinition? = null,
+    ): ActionDefinition =
+        actionDef(name = name, id = id, kind = ActivityNodeKind.Fork, partition = partition, showName = showName, region = region)
 
     /**
      * `join` — V2.0.10 join activity-node helper.
@@ -1084,7 +1239,10 @@ class Sysml2ModelBuilder(
         name: String,
         id: String = name,
         partition: ActivityPartitionDefinition? = null,
-    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Join, partition = partition)
+        showName: Boolean = false,
+        region: InterruptibleRegionDefinition? = null,
+    ): ActionDefinition =
+        actionDef(name = name, id = id, kind = ActivityNodeKind.Join, partition = partition, showName = showName, region = region)
 
     /**
      * `partition def Customer { … }` — V2.0.16 activity-partition (swimlane)
@@ -1150,6 +1308,7 @@ class Sysml2ModelBuilder(
         target: ActionDefinition,
         guard: String? = null,
         id: String = "controlFlow:${source.id}::${target.id}",
+        interrupts: Boolean = false,
     ): ControlFlowUsage =
         controlFlowById(
             name = name,
@@ -1157,6 +1316,7 @@ class Sysml2ModelBuilder(
             targetNodeId = target.id,
             guard = guard,
             id = id,
+            interrupts = interrupts,
         )
 
     /**
@@ -1168,6 +1328,7 @@ class Sysml2ModelBuilder(
         targetNodeId: String,
         guard: String? = null,
         id: String = "controlFlow:$sourceNodeId::$targetNodeId",
+        interrupts: Boolean = false,
     ): ControlFlowUsage {
         val usage =
             ControlFlowUsage(
@@ -1177,6 +1338,7 @@ class Sysml2ModelBuilder(
                 sourceNodeId = sourceNodeId,
                 targetNodeId = targetNodeId,
                 guard = guard,
+                interrupts = interrupts,
             )
         registerUsage(usage)
         return usage
@@ -1198,6 +1360,9 @@ class Sysml2ModelBuilder(
         target: ActionDefinition,
         objectType: String? = null,
         id: String = "objectFlow:${source.id}::${target.id}",
+        interrupts: Boolean = false,
+        sourcePin: String? = null,
+        targetPin: String? = null,
     ): ObjectFlowUsage =
         objectFlowById(
             name = name,
@@ -1205,6 +1370,9 @@ class Sysml2ModelBuilder(
             targetNodeId = target.id,
             objectType = objectType,
             id = id,
+            interrupts = interrupts,
+            sourcePin = sourcePin,
+            targetPin = targetPin,
         )
 
     /**
@@ -1216,6 +1384,9 @@ class Sysml2ModelBuilder(
         targetNodeId: String,
         objectType: String? = null,
         id: String = "objectFlow:$sourceNodeId::$targetNodeId",
+        interrupts: Boolean = false,
+        sourcePin: String? = null,
+        targetPin: String? = null,
     ): ObjectFlowUsage {
         val usage =
             ObjectFlowUsage(
@@ -1225,6 +1396,9 @@ class Sysml2ModelBuilder(
                 sourceNodeId = sourceNodeId,
                 targetNodeId = targetNodeId,
                 objectType = objectType,
+                interrupts = interrupts,
+                sourcePin = sourcePin,
+                targetPin = targetPin,
             )
         registerUsage(usage)
         return usage

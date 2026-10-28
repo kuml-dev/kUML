@@ -65,6 +65,90 @@ internal object Sysml2EdgeRenderer {
      */
     private const val STACK_OFFSET_PX: Float = 22f
 
+    /** Wave C2 — maximum distance of an edge label from its own line (before stack offsets), px. */
+    internal const val LABEL_LEASH_PX: Float = 16f
+
+    /** Wave C2 — length of the lightning-bolt kink along the line, px. */
+    private const val LIGHTNING_LENGTH_PX: Float = 18f
+
+    /** Wave C2 — lightning amplitude on segments of at least [LIGHTNING_SHORT_SEGMENT_PX], px. */
+    private const val LIGHTNING_AMPLITUDE_PX: Float = 6f
+
+    /** Wave C2 — segments shorter than this get the reduced amplitude. */
+    private const val LIGHTNING_SHORT_SEGMENT_PX: Float = 32f
+
+    private fun polylinePoints(route: EdgeRoute): List<Point> =
+        when (route) {
+            is EdgeRoute.Direct -> listOf(route.source, route.target)
+            is EdgeRoute.OrthogonalRounded -> listOf(route.source) + route.waypoints + listOf(route.target)
+            is EdgeRoute.TreeRounded -> listOf(route.source) + route.waypoints + listOf(route.target)
+            is EdgeRoute.Bezier -> listOf(route.source, route.target)
+        }
+
+    /** Distance of (x, y) from the polyline of [route]. */
+    internal fun distanceToPolyline(
+        x: Float,
+        y: Float,
+        route: EdgeRoute,
+    ): Float {
+        val pts = polylinePoints(route)
+        var best = Float.MAX_VALUE
+        for (i in 0 until pts.size - 1) {
+            val a = pts[i]
+            val b = pts[i + 1]
+            val dx = b.x - a.x
+            val dy = b.y - a.y
+            val len2 = dx * dx + dy * dy
+            val t = if (len2 == 0f) 0f else (((x - a.x) * dx + (y - a.y) * dy) / len2).coerceIn(0f, 1f)
+            val px = a.x + t * dx
+            val py = a.y + t * dy
+            val d = kotlin.math.sqrt((x - px) * (x - px) + (y - py) * (y - py))
+            if (d < best) best = d
+        }
+        return if (best == Float.MAX_VALUE) 0f else best
+    }
+
+    /**
+     * The polyline of [route] with a Z-shaped lightning kink ([LIGHTNING_LENGTH_PX] long) inserted
+     * into the middle of its longest segment; `null` when no segment is long enough (the plain
+     * line is drawn then). The result always has four points more than the route's polyline.
+     */
+    internal fun lightningPolyline(route: EdgeRoute): List<Point>? {
+        val pts = polylinePoints(route)
+        if (pts.size < 2) return null
+        var bestIdx = 0
+        var bestLen = 0f
+        for (i in 0 until pts.size - 1) {
+            val dx = pts[i + 1].x - pts[i].x
+            val dy = pts[i + 1].y - pts[i].y
+            val len = kotlin.math.sqrt(dx * dx + dy * dy)
+            if (len > bestLen) {
+                bestLen = len
+                bestIdx = i
+            }
+        }
+        if (bestLen < LIGHTNING_LENGTH_PX + 6f) return null
+        val a = pts[bestIdx]
+        val b = pts[bestIdx + 1]
+        val ux = (b.x - a.x) / bestLen
+        val uy = (b.y - a.y) / bestLen
+        val nx = -uy
+        val ny = ux
+        val amp = if (bestLen < LIGHTNING_SHORT_SEGMENT_PX) 4f else LIGHTNING_AMPLITUDE_PX
+        val mx = (a.x + b.x) / 2f
+        val my = (a.y + b.y) / 2f
+        val h = LIGHTNING_LENGTH_PX / 2f
+        val q = LIGHTNING_LENGTH_PX / 6f
+        val kink =
+            listOf(
+                Point(x = mx - ux * h, y = my - uy * h),
+                Point(x = mx - ux * q + nx * amp, y = my - uy * q + ny * amp),
+                Point(x = mx + ux * q - nx * amp, y = my + uy * q - ny * amp),
+                Point(x = mx + ux * h, y = my + uy * h),
+            )
+        return pts.subList(0, bestIdx + 1) + kink + pts.subList(bestIdx + 1, pts.size)
+    }
+
     /**
      * Max characters per wrapped edge-label line. Long trigger/guard/action
      * text (e.g. `"endRoom [moderator or global BOARD/ADMIN]"`) previously
@@ -106,6 +190,7 @@ internal object Sysml2EdgeRenderer {
         overrideLabelAnchor: Pair<Float, Float>? = null,
         backdropFill: String? = null,
         suppressLabels: Boolean = false,
+        leashLabels: Boolean = false,
     ) {
         builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(id))) {
             renderContent(
@@ -117,6 +202,7 @@ internal object Sysml2EdgeRenderer {
                 overrideLabelAnchor = overrideLabelAnchor,
                 backdropFill = backdropFill,
                 suppressLabels = suppressLabels,
+                leashLabels = leashLabels,
             )
         }
     }
@@ -130,16 +216,30 @@ internal object Sysml2EdgeRenderer {
         overrideLabelAnchor: Pair<Float, Float>? = null,
         backdropFill: String? = null,
         suppressLabels: Boolean = false,
+        leashLabels: Boolean = false,
     ) {
-        // 1. Line + dash pattern.
-        val (tag, attrs) = EdgePathBuilder.build(route)
-        val lineAttrs =
-            buildMap {
-                putAll(attrs)
-                put("class", "kuml-edge")
-                metadata.dashArray?.let { put("stroke-dasharray", it) }
-            }
-        builder.tag(name = tag, attrs = lineAttrs)
+        // 1. Line + dash pattern. Wave C2: an interrupting flow / exception handler is drawn as a
+        //    polyline with a lightning-bolt kink instead of the plain (possibly rounded) path.
+        val lightning = if (metadata.lightning) lightningPolyline(route) else null
+        if (lightning != null) {
+            val lineAttrs =
+                buildMap {
+                    put("points", lightning.joinToString(" ") { "${fmt(it.x)},${fmt(it.y)}" })
+                    put("fill", "none")
+                    put("class", "kuml-edge kuml-edge-lightning")
+                    metadata.dashArray?.let { put("stroke-dasharray", it) }
+                }
+            builder.tag(name = "polyline", attrs = lineAttrs)
+        } else {
+            val (tag, attrs) = EdgePathBuilder.build(route)
+            val lineAttrs =
+                buildMap {
+                    putAll(attrs)
+                    put("class", "kuml-edge")
+                    metadata.dashArray?.let { put("stroke-dasharray", it) }
+                }
+            builder.tag(name = tag, attrs = lineAttrs)
+        }
 
         // Inline arrowhead (replaces marker-end url(#id) approach).
         val arrowStyle = toArrowStyle(metadata.arrowHead)
@@ -173,9 +273,21 @@ internal object Sysml2EdgeRenderer {
         // (e.g. a point near the source state) to avoid the default
         // longest-segment midpoint landing inside an unrelated node or
         // outside the diagram frame.
-        val (mx, my) =
+        val (mx0, my0) =
             overrideLabelAnchor
                 ?: if (metadata.midArrows.isNotEmpty()) besideAnchor(route = route, labelText = label) else labelAnchor(route)
+        // Wave C2 leash: a label may sit at most LABEL_LEASH_PX (plus its stack offset) away from its own
+        // line; if cluster stacking or an override anchor drifted it further, fall back to the line's
+        // own longest-segment midpoint.
+        val (mx, my) =
+            if (leashLabels &&
+                distanceToPolyline(x = mx0, y = my0 - LABEL_BASELINE_OFFSET_PX + labelStackIndex * STACK_OFFSET_PX, route = route) >
+                LABEL_LEASH_PX + labelStackIndex * STACK_OFFSET_PX
+            ) {
+                labelAnchor(route)
+            } else {
+                mx0 to my0
+            }
         // V11.x — Parallel-Sibling-Versatz: Index 0 sitzt auf der Standard-
         // Position oberhalb der Linie; jeder weitere Sibling rutscht um eine
         // Bandbreite nach unten, damit die White-Background-Rects einander

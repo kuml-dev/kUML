@@ -92,7 +92,73 @@ class Sysml2C1RenderTest :
             inside(perf, nodes.getValue("DryRoadAssumption")) shouldBe false
         }
 
-        test("uc: subject frames contain their use cases, actors stay outside, generalisation arrows") {
+        /** All edge polylines (id -> points), read from `<line>` / `<path d>` / `<polyline>` elements of edge groups. */
+        fun edgePolylines(svg: String): Map<String, List<Pair<Float, Float>>> {
+            val out = LinkedHashMap<String, List<Pair<Float, Float>>>()
+            val num = Regex("""-?[0-9]+(?:\.[0-9]+)?""")
+            for (g in Regex("""<g id="([^"]+)">\s*(<line [^>]*/>|<path [^>]*/>|<polyline [^>]*/>)""").findAll(svg)) {
+                val tag = g.groupValues[2]
+                val pts =
+                    when {
+                        tag.startsWith("<line") ->
+                            listOf(attr(tag, "x1") to attr(tag, "y1"), attr(tag, "x2") to attr(tag, "y2"))
+                        else -> {
+                            val raw = Regex("""\b(?:d|points)="([^"]+)"""").find(tag)!!.groupValues[1]
+                            num
+                                .findAll(raw)
+                                .map { it.value.toFloat() }
+                                .toList()
+                                .chunked(2)
+                                .filter { it.size == 2 }
+                                .map { it[0] to it[1] }
+                        }
+                    }
+                out[g.groupValues[1]] = pts
+            }
+            return out
+        }
+
+        test("req: group tabs are painted after every edge, with an opaque fill") {
+            val svg = VaultExampleRenderer.render(script = script("req")).svg!!
+            val lastEdge = svg.lastIndexOf("id=\"satisfy:")
+            (svg.indexOf("id=\"tab:group:Performance\"") > lastEdge) shouldBe true
+            svg shouldContain "fill-opacity=\"1\""
+        }
+
+        test("req: no edge label sits further than the leash from its own edge line") {
+            val svg = VaultExampleRenderer.render(script = script("req")).svg!!
+            val lines = edgePolylines(svg)
+            val satisfy = lines.entries.first { it.key.startsWith("satisfy:") }
+            // the «satisfy» label text lies within 16 px (+ glyph height) of its own polyline
+            val g = svg.substring(svg.indexOf("<g id=\"${satisfy.key}\">"))
+            val label = Regex("""<text class="kuml-stereotype" x="([-0-9.]+)" y="([-0-9.]+)"""").find(g.substring(0, g.indexOf("</g>")))!!
+            val lx = label.groupValues[1].toFloat()
+            val ly = label.groupValues[2].toFloat()
+            var best = Float.MAX_VALUE
+            val pts = satisfy.value
+            for (i in 0 until pts.size - 1) {
+                for (k in 0..20) {
+                    val t = k / 20f
+                    val x = pts[i].first + (pts[i + 1].first - pts[i].first) * t
+                    val y = pts[i].second + (pts[i + 1].second - pts[i].second) * t
+                    best = minOf(best, kotlin.math.hypot(x - lx, y - ly))
+                }
+            }
+            (best <= 16f + 22f) shouldBe true
+        }
+
+        test("uc: subject titles are painted after the edges") {
+            val svg = VaultExampleRenderer.render(script = script("uc")).svg!!
+            (svg.indexOf("id=\"title:ucsubject:Lending\"") > svg.lastIndexOf("id=\"generalization:")) shouldBe true
+        }
+
+        test("uc: subject frame group still carries only the frame rectangle") {
+            val svg = VaultExampleRenderer.render(script = script("uc")).svg!!
+            val g = svg.substring(svg.indexOf("<g id=\"ucsubject:Lending\""))
+            g.substring(0, g.indexOf("</g>")) shouldNotContain "<text"
+        }
+
+        test("uc: subject frames contain their use cases contain their use cases, actors stay outside, generalisation arrows") {
             val r = VaultExampleRenderer.render(script = script("uc"))
             r.error shouldBe null
             val svg = r.svg!!

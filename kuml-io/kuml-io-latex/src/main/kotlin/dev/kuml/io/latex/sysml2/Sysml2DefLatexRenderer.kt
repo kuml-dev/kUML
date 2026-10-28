@@ -14,6 +14,7 @@ import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.ConstraintDefinition
+import dev.kuml.sysml2.InterruptibleRegionDefinition
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PortDefinition
@@ -105,6 +106,11 @@ internal object Sysml2DefLatexRenderer {
                         ActivityNodeKind.Merge -> "merge node"
                         ActivityNodeKind.Fork -> "fork node"
                         ActivityNodeKind.Join -> "join node"
+                        // Wave C2: plain rectangles with a kind-specific stereotype in LaTeX; the SVG draws the real shapes.
+                        ActivityNodeKind.SendSignal -> "send signal"
+                        ActivityNodeKind.AcceptEvent -> "accept event"
+                        ActivityNodeKind.AcceptTimeEvent -> "accept time event"
+                        ActivityNodeKind.CallBehavior -> "call behavior"
                     }
                 // V2.0.11: SEQ-Diagramm. V2.0.11-MVP rendert LifelineDefinitions
                 // als Rechteck mit `«lifeline»`-Stereotyp; das axis-orientierte
@@ -129,6 +135,8 @@ internal object Sysml2DefLatexRenderer {
                 // KumlLatexRenderer-ACT-toLatex KDoc für den vollständigen
                 // V2.x-Deferred-Vermerk.
                 is ActivityPartitionDefinition -> "activity partition"
+                // Wave C2: the region frame is a plain rectangle with the region name in LaTeX.
+                is InterruptibleRegionDefinition -> "interruptible region"
             }
         // Wave C1: an assumption is drawn with a dashed border.
         val dashed = definition is RequirementDefinition && definition.isAssumption

@@ -108,6 +108,8 @@ internal fun renderSysml2Definition(
         // Test, der die Sysml2DefSvg-Funktion direkt aufruft). Der Lane-
         // Pfad ist die einzige korrekte Visualisierung.
         is ActivityPartitionDefinition -> Unit
+        // Wave C2: interruptible regions are frames computed from their members (renderRegionFrames), never node boxes.
+        is dev.kuml.sysml2.InterruptibleRegionDefinition -> Unit
     }
 }
 

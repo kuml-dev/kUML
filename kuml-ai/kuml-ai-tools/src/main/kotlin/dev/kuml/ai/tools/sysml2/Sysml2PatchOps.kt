@@ -139,8 +139,22 @@ internal object Sysml2PatchOps {
         id: String,
         name: String,
         kind: ActivityNodeKind,
+        signal: String? = null,
+        timeExpression: String? = null,
+        calledActivityId: String? = null,
     ): AnyKumlModel.Sysml2 {
-        val action = ActionDefinition(id = id, name = name, kind = kind)
+        // Wave C2: signal nodes default their signal to the node name so a freshly added node is valid.
+        val effectiveSignal =
+            signal ?: name.takeIf { kind == ActivityNodeKind.SendSignal || kind == ActivityNodeKind.AcceptEvent }
+        val action =
+            ActionDefinition(
+                id = id,
+                name = name,
+                kind = kind,
+                signal = effectiveSignal,
+                timeExpression = timeExpression,
+                calledActivityId = calledActivityId,
+            )
         return model.copy(model = model.model.copy(definitions = model.model.definitions + action))
     }
 

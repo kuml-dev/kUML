@@ -327,6 +327,16 @@ data class ActionDefinition(
      */
     val pins: List<ActionPin> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    /** Wave C2 — signal name of a [ActivityNodeKind.SendSignal] / [ActivityNodeKind.AcceptEvent] node. */
+    val signal: String? = null,
+    /** Wave C2 — time expression of an [ActivityNodeKind.AcceptTimeEvent] node (`"after 5 min"`). */
+    val timeExpression: String? = null,
+    /** Wave C2 — id of the activity a [ActivityNodeKind.CallBehavior] node calls (rendered as `data-kuml-calls`). */
+    val calledActivityId: String? = null,
+    /** Wave C2 — id of the [InterruptibleRegionDefinition] this node belongs to. */
+    val interruptibleRegionId: String? = null,
+    /** Wave C2 — show the name of a control node (decision, merge, fork, join) next to the shape. */
+    val showName: Boolean = false,
 ) : Sysml2Definition
 
 /**
@@ -381,6 +391,33 @@ data class ActivityPartitionDefinition(
      * in the V2.0.16 MVP; surfaces as a tooltip / link in V2.x polish.
      */
     val represents: String? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Definition
+
+/** Maximum nesting depth of [InterruptibleRegionDefinition]s (wave C2). */
+const val ACT_MAX_REGION_DEPTH: Int = 4
+
+/**
+ * `InterruptibleRegionDefinition` — wave C2 entry for the SysML 2 Activity Diagram.
+ *
+ * A dashed rounded frame around a group of activity nodes; an interrupting flow
+ * (`interrupts = true`) leaving the region cancels the remaining region activity. Members are
+ * assigned through [ActionDefinition.interruptibleRegionId]; regions can nest through
+ * [parentRegionId] (maximum depth 4, see the ACT constraint checker). The SVG renderer draws the
+ * frame as the bounding box of the member nodes plus padding — the layout engine is not involved.
+ */
+@Serializable
+data class InterruptibleRegionDefinition(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val isAbstract: Boolean = false,
+    override val features: List<KermlFeature> = emptyList(),
+    override val specializations: List<KermlSpecialization> = emptyList(),
+    /** Draw the region name inside the frame (top left). */
+    val showLabel: Boolean = true,
+    /** Id of the enclosing region, if nested. */
+    val parentRegionId: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Definition
 

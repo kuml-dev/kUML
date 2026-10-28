@@ -367,6 +367,22 @@ internal object ExampleCatalog {
                     "SysML 2 use-case diagram with two system-boundary frames, actor generalisation " +
                         "and use-case descriptions.",
             ),
+            CuratedExample(
+                fileName = "48 SysML 2 ACT – Signale, Regionen und Ausnahmen.md",
+                language = "sysml2",
+                diagramType = "act",
+                description =
+                    "SysML 2 activity diagram with send/accept signal and time-event nodes, a call-behavior " +
+                        "action, nested interruptible regions, an exception handler and an interrupting flow.",
+            ),
+            CuratedExample(
+                fileName = "49 SysML 2 ACT – Pins an allen Seiten.md",
+                language = "sysml2",
+                diagramType = "act",
+                description =
+                    "SysML 2 activity diagram with pins on all four sides of an action and pin-to-pin " +
+                        "object flows.",
+            ),
         )
 
     /** Distinct languages in catalog order: uml, c4, sysml2, bpmn, blueprint, erm. */

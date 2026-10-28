@@ -329,7 +329,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         // 7b'''. REQ / UC structure validation (wave C1: copy/subject/group/generalisation rules and limits).
         val reqUcViolations: List<StructuralViolation> =
             (extracted as? ExtractedDiagram.Sysml2)
-                ?.takeIf { it.diagram is ReqDiagram || it.diagram is UcDiagram }
+                ?.takeIf { it.diagram is ReqDiagram || it.diagram is UcDiagram || it.diagram is dev.kuml.sysml2.ActDiagram }
                 ?.let { ex ->
                     Sysml2ReqUcChecker.check(model = ex.model, diagram = ex.diagram).map { i ->
                         StructuralViolation(
@@ -339,7 +339,17 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                             location = i.elementId,
                             category = "reqUc",
                         )
-                    }
+                    } +
+                        // Wave C2: activity diagram checks (codes 301-315) share this report section.
+                        dev.kuml.sysml2.constraint.Sysml2ActChecker.check(model = ex.model, diagram = ex.diagram).map { i ->
+                            StructuralViolation(
+                                id = "ACT${i.code}",
+                                severity = if (i.severity == dev.kuml.sysml2.constraint.ActSeverity.Error) "error" else "warning",
+                                message = "${i.message} Hint: ${i.hint}",
+                                location = i.elementId,
+                                category = "act",
+                            )
+                        }
                 } ?: emptyList()
         val reqUcErrors = reqUcViolations.filter { it.severity == "error" }
         val reqUcWarnings = reqUcViolations.filter { it.severity == "warning" }

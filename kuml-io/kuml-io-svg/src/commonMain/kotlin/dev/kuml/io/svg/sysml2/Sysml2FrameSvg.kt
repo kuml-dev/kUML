@@ -33,9 +33,6 @@ internal fun renderRequirementGroupFrames(
         val y = b.origin.y
         val w = b.size.width
         val h = b.size.height
-        val maxNameChars = ((w - 16f) / 7.8f).toInt().coerceAtLeast(3)
-        val name = Sysml2ReqCard.clip(s = group.name, max = maxNameChars)
-        val tabW = minOf(w, name.length * 7.8f + 16f)
         builder.tag(name = "g", attrs = mapOf("id" to group.id, "class" to "kuml-req-group")) {
             tag(
                 name = "rect",
@@ -49,6 +46,33 @@ internal fun renderRequirementGroupFrames(
                         "stroke-width" to "1",
                     ),
             )
+        }
+    }
+}
+
+/**
+ * Draws the name tabs of the requirement-group frames (wave C2 fix of C1): they are painted
+ * after all edges, with the opaque theme node fill, so no edge line ever runs across a tab.
+ * Outermost frames first, like [renderRequirementGroupFrames].
+ */
+internal fun renderRequirementGroupTabs(
+    diagram: ReqDiagram,
+    layoutResult: LayoutResult,
+    paddingPx: Float,
+    builder: SvgBuilder,
+) {
+    val frames =
+        diagram.groups
+            .mapNotNull { g -> layoutResult.groups[GroupId(g.id)]?.let { g to shift(raw = it.bounds, paddingPx = paddingPx) } }
+            .sortedByDescending { (_, b) -> b.size.width * b.size.height }
+    for ((group, b) in frames) {
+        val x = b.origin.x
+        val y = b.origin.y
+        val w = b.size.width
+        val maxNameChars = ((w - 16f) / 7.8f).toInt().coerceAtLeast(3)
+        val name = Sysml2ReqCard.clip(s = group.name, max = maxNameChars)
+        val tabW = minOf(w, name.length * 7.8f + 16f)
+        builder.tag(name = "g", attrs = mapOf("id" to "tab:${group.id}", "class" to "kuml-req-group-tab")) {
             tag(
                 name = "rect",
                 attrs =
@@ -59,6 +83,7 @@ internal fun renderRequirementGroupFrames(
                         "height" to fmt3(REQ_GROUP_TAB_HEIGHT),
                         "class" to "kuml-class",
                         "stroke-width" to "1",
+                        "fill-opacity" to "1",
                     ),
             )
             tag(
@@ -90,8 +115,6 @@ internal fun renderUcSubjectFrames(
 ) {
     for (subject in diagram.subjects) {
         val b = layoutResult.groups[GroupId(subject.id)]?.let { shift(raw = it.bounds, paddingPx = paddingPx) } ?: continue
-        val maxNameChars = ((b.size.width - 24f) / 7f).toInt().coerceAtLeast(3)
-        val name = Sysml2ReqCard.clip(s = subject.name, max = maxNameChars)
         builder.tag(name = "g", attrs = mapOf("id" to subject.id, "class" to "kuml-uc-subject")) {
             tag(
                 name = "rect",
@@ -103,6 +126,39 @@ internal fun renderUcSubjectFrames(
                         "height" to fmt3(b.size.height),
                         "class" to "kuml-class",
                         "stroke-width" to "1.5",
+                    ),
+            )
+        }
+    }
+}
+
+/**
+ * Draws the subject names of the use-case system boundaries (wave C2 fix of C1) after all edges,
+ * on an opaque backing rectangle, so an association never runs through the title.
+ */
+internal fun renderUcSubjectTitles(
+    diagram: UcDiagram,
+    layoutResult: LayoutResult,
+    paddingPx: Float,
+    builder: SvgBuilder,
+) {
+    for (subject in diagram.subjects) {
+        val b = layoutResult.groups[GroupId(subject.id)]?.let { shift(raw = it.bounds, paddingPx = paddingPx) } ?: continue
+        val maxNameChars = ((b.size.width - 24f) / 7f).toInt().coerceAtLeast(3)
+        val name = Sysml2ReqCard.clip(s = subject.name, max = maxNameChars)
+        val backW = minOf(b.size.width - 4f, name.length * 7.4f + 16f)
+        builder.tag(name = "g", attrs = mapOf("id" to "title:${subject.id}", "class" to "kuml-uc-subject-title")) {
+            tag(
+                name = "rect",
+                attrs =
+                    mapOf(
+                        "x" to fmt3(b.origin.x + 6f),
+                        "y" to fmt3(b.origin.y + 6f),
+                        "width" to fmt3(backW),
+                        "height" to fmt3(22f),
+                        "class" to "kuml-class",
+                        "style" to "stroke:none",
+                        "fill-opacity" to "1",
                     ),
             )
             tag(

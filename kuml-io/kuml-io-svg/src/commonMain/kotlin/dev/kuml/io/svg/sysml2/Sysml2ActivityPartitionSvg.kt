@@ -75,8 +75,32 @@ internal fun renderActivityPartitionGroup(
                     "stroke-dasharray" to PARTITION_BORDER_DASH,
                 ),
         )
+    }
+}
 
-        // 2. Solid header bar at the top — visually identifies which lane
+/**
+ * Wave C2 fix: draws the solid header bar and the name of a swimlane. Painted after the edges
+ * (the header used to sit under them) so no edge line runs across the lane name.
+ */
+internal fun renderActivityPartitionHeader(
+    partition: ActivityPartitionDefinition,
+    groupLayout: GroupLayout,
+    paddingPx: Float,
+    builder: SvgBuilder,
+) {
+    val gx = groupLayout.bounds.origin.x + paddingPx
+    val gy = groupLayout.bounds.origin.y + paddingPx
+    val gw = groupLayout.bounds.size.width
+
+    builder.tag(
+        name = "g",
+        attrs =
+            mapOf(
+                "id" to xmlEscapeAttr("activityPartitionHeader:${partition.id}"),
+                "transform" to "translate(${fmtPart(gx)},${fmtPart(gy)})",
+            ),
+    ) {
+        // Solid header bar at the top — visually identifies which lane
         //    this is. Uses a kuml-stereotype-class label so the header
         //    text harmonises with the «stereotype»-text on action boxes.
         //    The header is rendered as a separate rect (not a path with

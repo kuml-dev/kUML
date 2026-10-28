@@ -65,6 +65,8 @@ map_vault_to_web() {
     "45 SysML 2 STM – Prosa-Guards.md")           echo "sysml2-stm-prose-guards.kuml.kts" ;;
     "46 SysML 2 REQ – Anforderungen mit Gruppen.md") echo "sysml2-req-groups.kuml.kts" ;;
     "47 SysML 2 UC – Systemgrenzen und Generalisierung.md") echo "sysml2-uc-subject-frames.kuml.kts" ;;
+    "48 SysML 2 ACT – Signale, Regionen und Ausnahmen.md") echo "sysml2-act-signals-regions.kuml.kts" ;;
+    "49 SysML 2 ACT – Pins an allen Seiten.md")   echo "sysml2-act-pins.kuml.kts" ;;
     "07 BPMN animiert – PdV Mitgliedsantrag.md") echo "bpmn-pdv-mitgliedsantrag-animiert.kuml.kts" ;;
     "08 STM animiert – Traffic Light.md")         echo "stm-traffic-light-animiert.kuml.kts" ;;
     "19 UML Sequence animiert – API Submit.md")   echo "uml-sequence-api-submit-animiert.kuml.kts" ;;

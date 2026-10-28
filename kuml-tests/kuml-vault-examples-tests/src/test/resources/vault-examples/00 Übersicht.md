@@ -71,6 +71,8 @@ Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unters
 | 44 | [[44 SysML 2 STM – History und Junction]] | Verhalten — History, Junction (Welle A2) |
 | 45 | [[45 SysML 2 STM – Prosa-Guards]] | Verhalten — Freitext-Guards (Welle A2) |
 | 46 | [[46 SysML 2 REQ – Anforderungen mit Gruppen]] | Anforderungen — Gruppen, TestCase, sieben Beziehungen (Welle C1) |
+| 48 | [[48 SysML 2 ACT – Signale, Regionen und Ausnahmen]] | Signale, Zeit-Ereignis, Regionen, Ausnahmen, Blitz-Kante (Welle C2) |
+| 49 | [[49 SysML 2 ACT – Pins an allen Seiten]] | Pins an allen Seiten, Pin-zu-Pin-Objektfluss (Welle C2) |
 | 47 | [[47 SysML 2 UC – Systemgrenzen und Generalisierung]] | Anwendungsfälle — Systemgrenzen, Akteur-Generalisierung (Welle C1) |
 | 07 | [[07 SysML 2 ACT – Order Processing]] | Verhalten |
 | 06 | [[06 SysML 2 SEQ – Login Flow]] | Verhalten (Interaktion) |
@@ -176,6 +178,8 @@ Der [Playground auf kuml.dev](https://kuml.dev/playground) speist seine Beispiel
 | 45 | [[45 SysML 2 STM – Prosa-Guards]] | `sysml2-stm-prose-guards` |
 | 46 | [[46 SysML 2 REQ – Anforderungen mit Gruppen]] | `sysml2-req-groups` |
 | 47 | [[47 SysML 2 UC – Systemgrenzen und Generalisierung]] | `sysml2-uc-subject-frames` |
+| 48 | [[48 SysML 2 ACT – Signale, Regionen und Ausnahmen]] | `sysml2-act-signals-regions` |
+| 49 | [[49 SysML 2 ACT – Pins an allen Seiten]] | `sysml2-act-pins` |
 | 40 | [[40 UML Component – kUML Plugin API]] | *(noch kein Playground-Eintrag — Lücke; aus [[06 Archiv/kUML Präsentation Deutsch|Präsentation]] extrahiert, 2026-07-12)* |
 
 ### Playground-Keys ohne Vault-Anker

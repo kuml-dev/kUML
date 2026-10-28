@@ -27,7 +27,13 @@ public fun ActivityRuntimeSpec.toTokenFlowSpec(
         nodes.values.map { n ->
             when (n.kind) {
                 ActivityNodeKind.Initial -> TokenFlowNode(id = n.id, kind = TokenNodeKind.INITIAL, actionBody = n.actionBody)
-                ActivityNodeKind.Action -> TokenFlowNode(id = n.id, kind = TokenNodeKind.ACTION, actionBody = n.actionBody)
+                // Wave C2: signal / time-event / call-behavior nodes pass the token on like plain actions.
+                ActivityNodeKind.Action,
+                ActivityNodeKind.SendSignal,
+                ActivityNodeKind.AcceptEvent,
+                ActivityNodeKind.AcceptTimeEvent,
+                ActivityNodeKind.CallBehavior,
+                -> TokenFlowNode(id = n.id, kind = TokenNodeKind.ACTION, actionBody = n.actionBody)
                 ActivityNodeKind.Final -> TokenFlowNode(id = n.id, kind = TokenNodeKind.TERMINATE_FINAL, actionBody = n.actionBody)
                 ActivityNodeKind.FlowFinal -> TokenFlowNode(id = n.id, kind = TokenNodeKind.FLOW_FINAL, actionBody = n.actionBody)
                 ActivityNodeKind.Decision ->

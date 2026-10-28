@@ -77,6 +77,34 @@ class ActivityRuntimeTest :
             terminated shouldHaveAtLeastSize 1
         }
 
+        // ── 1b. Wave C2: new node kinds only pass the token on ────────────────
+
+        test("wave C2: send-signal, accept-event, time-event and call-behavior nodes pass the token through") {
+            val rt =
+                runtime(
+                    node("init", ActivityNodeKind.Initial),
+                    node("send", ActivityNodeKind.SendSignal),
+                    node("acc", ActivityNodeKind.AcceptEvent),
+                    node("time", ActivityNodeKind.AcceptTimeEvent),
+                    node("call", ActivityNodeKind.CallBehavior),
+                    node("fin", ActivityNodeKind.Final),
+                    edges =
+                        listOf(
+                            edge("e1", "init", "send"),
+                            edge("e2", "send", "acc"),
+                            edge("e3", "acc", "time"),
+                            edge("e4", "time", "call"),
+                            edge("e5", "call", "fin"),
+                        ),
+                )
+
+            val (instance, trace) = rt.run()
+
+            instance.isTerminated shouldBe true
+            trace.filterIsInstance<TraceEntry.ActivityActionInvoked>().map { it.nodeId } shouldBe
+                listOf("send", "acc", "time", "call")
+        }
+
         // ── 2. Decision with guard — correct branch selected ──────────────────
 
         test("decision: correct guarded branch is taken") {

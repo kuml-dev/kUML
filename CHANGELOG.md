@@ -23,6 +23,24 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+**SysML 2 activity diagrams: signals, regions, exceptions, pins (wave C2)**
+New activity node kinds `SendSignal` (pentagon), `AcceptEvent` (notched rectangle), `AcceptTimeEvent` (hourglass with
+label) and `CallBehavior` (action with a rake symbol and a machine-readable `data-kuml-calls` attribute), with DSL
+helpers `sendSignal`, `acceptEvent`, `acceptTimeEvent`, `callBehavior`. `interruptibleRegion(name, showLabel, parent)`
+draws a dashed rounded frame around its members (nestable up to 4 levels; the frame is the bounding box of the members,
+the layout engine does not know about regions). `exceptionHandler(protectedNode, handler, type, handlerPin)` and
+`interrupts = true` on control/object flows draw a lightning-bolt edge with an open arrow. `ActionPin.side`
+(`PinSide.Auto|Left|Right|Top|Bottom`) places pins on any side and widens/heightens the box per explicit pin;
+object flows with `sourcePin`/`targetPin` end at the pin squares (snapped after layout; pins are no ELK ports).
+`showName = true` shows the name of decision, merge, fork and join nodes. New checker `Sysml2ActChecker`
+(codes 301-315, reported by `kuml validate` as `ACT<code>`). All additions have defaults: existing models, JSON and
+diagrams without the new constructs are unchanged. Syntax highlighting lists in `kuml-vscode` and `obsidian-kuml`
+are separate repositories and are not part of this change.
+Fixes carried over from C1: requirement-group tabs, use-case subject titles, swimlane headers and region names are
+painted after all edges on an opaque fill; edge labels in REQ, UC and ACT are pulled back to their own line when
+stacking or an anchor override would place them more than 16 px away. Known limits: an unrelated node that the
+layout places inside a region's bounding box looks like a member; an edge may still run underneath a group tab.
+
 **SysML 2 requirement and use-case diagrams (wave C1)**
 REQ: `requirementDef` gains `priority`, `source`, `status`, `isAssumption` (dashed border, `<<assumption>>`) and `subjectRef` (draws a `<<subject>>` edge); new `testCaseDef` (`<<testCase>>`); new relationships `refine`, `trace` and `copy`; nestable `group("Name") { ... }` frames (max. depth 3, 64 per diagram). Requirement titles are wrapped instead of truncated, box width 160-240 px, height grows with content. UC: `subject("Name") { ... }` system boundaries (use cases inside, actors outside by construction), `generalize(specific, general)` actor generalisation (hollow triangle), `useCaseDef(description = ...)` (italic, max. 4 lines). New checker `Sysml2ReqUcChecker` (codes 201-217, wired into `kuml validate`). Wrapping and card geometry live in one shared `Sysml2ReqCard` used by layout bridge and SVG renderer. All new model fields have defaults: existing models, JSON and printed scripts are unchanged. LaTeX draws frames, the generalisation triangle and dashed assumption borders; PNG follows SVG. New examples 46 and 47 (playground keys `sysml2-req-groups`, `sysml2-uc-subject-frames`).
 

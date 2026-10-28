@@ -52,3 +52,5 @@
 45 SysML 2 STM – Prosa-Guards.md
 46 SysML 2 REQ – Anforderungen mit Gruppen.md
 47 SysML 2 UC – Systemgrenzen und Generalisierung.md
+48 SysML 2 ACT – Signale, Regionen und Ausnahmen.md
+49 SysML 2 ACT – Pins an allen Seiten.md

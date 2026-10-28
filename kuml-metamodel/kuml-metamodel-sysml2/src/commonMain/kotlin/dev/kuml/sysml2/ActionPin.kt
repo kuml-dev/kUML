@@ -53,4 +53,17 @@ public data class ActionPin(
     val typeId: String? = null,
     /** Input (left edge, consumed) or Output (right edge, produced). */
     val direction: PinDirection = PinDirection.Input,
-)
+    /**
+     * Side of the action box the pin sits on (wave C2). [PinSide.Auto] (default) resolves to the
+     * left edge for input pins and the right edge for output pins.
+     */
+    val side: PinSide = PinSide.Auto,
+) {
+    /** The side the pin is actually drawn on: [side] unless it is [PinSide.Auto]. */
+    val effectiveSide: PinSide
+        get() =
+            when (side) {
+                PinSide.Auto -> if (direction == PinDirection.Input) PinSide.Left else PinSide.Right
+                else -> side
+            }
+}

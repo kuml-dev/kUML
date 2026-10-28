@@ -190,6 +190,33 @@ class Sysml2EditingToolsTest :
             }
         }
 
+        test("add_action maps the wave-C2 kinds to their own node kinds and keeps signal / time / call") {
+            val (ctx, tools) = makeTools()
+            runTest {
+                tools.addAction(name = "Notify", kind = "send_signal", signal = "Ping").shouldBeInstanceOf<PatchApplyResult.Success>()
+                tools.addAction(name = "Wait", kind = "accept_event").shouldBeInstanceOf<PatchApplyResult.Success>()
+                tools
+                    .addAction(name = "Late", kind = "accept_time_event", timeExpression = "after 5 min")
+                    .shouldBeInstanceOf<PatchApplyResult.Success>()
+                tools
+                    .addAction(name = "Sub", kind = "call_behavior", calledActivityId = "Other")
+                    .shouldBeInstanceOf<PatchApplyResult.Success>()
+                val actions =
+                    (ctx.resolveModel() as AnyKumlModel.Sysml2)
+                        .model.definitions
+                        .filterIsInstance<ActionDefinition>()
+                        .associateBy { it.name }
+                actions.getValue("Notify").kind shouldBe ActivityNodeKind.SendSignal
+                actions.getValue("Notify").signal shouldBe "Ping"
+                actions.getValue("Wait").kind shouldBe ActivityNodeKind.AcceptEvent
+                actions.getValue("Wait").signal shouldBe "Wait"
+                actions.getValue("Late").kind shouldBe ActivityNodeKind.AcceptTimeEvent
+                actions.getValue("Late").timeExpression shouldBe "after 5 min"
+                actions.getValue("Sub").kind shouldBe ActivityNodeKind.CallBehavior
+                actions.getValue("Sub").calledActivityId shouldBe "Other"
+            }
+        }
+
         test("add_action with invalid kind returns Failure") {
             val (_, tools) = makeTools()
             runTest {

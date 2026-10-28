@@ -391,6 +391,30 @@ public object Sysml2LayoutBridge {
     /** Default-Höhe einer Fork-/Join-Synchronisations-Bar (V2.0.10). */
     public const val ACT_BAR_HEIGHT: Float = 10f
 
+    /** Wave C2 — send-signal / accept-event default width. */
+    public const val ACT_SIGNAL_WIDTH: Float = 110f
+
+    /** Wave C2 — send-signal / accept-event default height. */
+    public const val ACT_SIGNAL_HEIGHT: Float = 40f
+
+    /** Wave C2 — accept-time-event hourglass symbol width (the label sits below, see [ACT_TIME_EVENT_LABEL_HEIGHT]). */
+    public const val ACT_TIME_EVENT_W: Float = 20f
+
+    /** Wave C2 — accept-time-event hourglass symbol height. */
+    public const val ACT_TIME_EVENT_H: Float = 28f
+
+    /** Wave C2 — vertical room under the hourglass for its label (gap plus 11 px text). */
+    public const val ACT_TIME_EVENT_LABEL_HEIGHT: Float = 18f
+
+    /** Wave C2 — maximum width of an accept-time-event node (label clipped beyond). */
+    public const val ACT_TIME_EVENT_MAX_WIDTH: Float = 120f
+
+    /** Wave C2 — extra width of a call-behavior action (room for the rake symbol). */
+    public const val ACT_CALL_FORK_EXTRA_W: Float = 14f
+
+    /** Wave C2 — growth of an action box per pin on an explicitly chosen side. */
+    public const val ACT_PIN_GROWTH: Float = 18f
+
     /**
      * Default-Breite einer [ConstraintDefinition]-Box in einem
      * Parametric-Diagramm (V2.0.12). Etwas breiter als die BDD-Default-Größe,
@@ -1723,6 +1747,20 @@ public object Sysml2LayoutBridge {
                 )
         }
 
+        // Wave C2: exception handlers are ordinary edges from the protected to the handler node;
+        // the handler pin square is drawn by the SVG renderer.
+        for (h in model.usages.filterIsInstance<dev.kuml.sysml2.ExceptionHandlerUsage>()) {
+            if (h.protectedNodeId !in visibleNodeIds || h.handlerNodeId !in visibleNodeIds) continue
+            if (h.protectedNodeId == h.handlerNodeId) continue
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(h.id),
+                    source = EndpointRef(nodeId = NodeId(h.protectedNodeId)),
+                    target = EndpointRef(nodeId = NodeId(h.handlerNodeId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
         return LayoutGraph(nodes = nodes, edges = edges, groups = groups).withSysml2Notes(model = model, diagram = diagram)
     }
 
@@ -1954,6 +1992,14 @@ public object Sysml2LayoutBridge {
                 ActivityNodeKind.Join.name,
                 ->
                     dev.kuml.layout.Size(width = ACT_BAR_WIDTH, height = ACT_BAR_HEIGHT)
+                ActivityNodeKind.SendSignal.name,
+                ActivityNodeKind.AcceptEvent.name,
+                ->
+                    dev.kuml.layout.Size(width = ACT_SIGNAL_WIDTH, height = ACT_SIGNAL_HEIGHT)
+                ActivityNodeKind.AcceptTimeEvent.name ->
+                    dev.kuml.layout.Size(width = ACT_TIME_EVENT_W, height = ACT_TIME_EVENT_H + ACT_TIME_EVENT_LABEL_HEIGHT)
+                ActivityNodeKind.CallBehavior.name ->
+                    dev.kuml.layout.Size(width = ACT_ACTION_WIDTH + ACT_CALL_FORK_EXTRA_W, height = ACT_ACTION_HEIGHT)
                 else -> dev.kuml.layout.Size(width = ACT_ACTION_WIDTH, height = ACT_ACTION_HEIGHT)
             }
         }
@@ -1990,31 +2036,85 @@ public object Sysml2LayoutBridge {
      */
     public fun actContentAwareSizeProvider(model: Sysml2Model): SizeProvider =
         SizeProvider { id, kindHint ->
-            when (kindHint) {
-                ActivityNodeKind.Action.name -> {
-                    val def = model.definitions.firstOrNull { it.id == id } as? ActionDefinition
-                    val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
-                    val bodyLen = minOf(def?.action?.length ?: 0, ACT_BODY_MAX_LEN_FOR_SIZING)
-                    val bodyW = bodyLen * BDD_BODY_CHAR_PX
-                    val contentW = maxOf(nameW, bodyW) + 2 * IBD_H_PAD
-                    dev.kuml.layout.Size(width = maxOf(contentW, ACT_ACTION_WIDTH), height = ACT_ACTION_HEIGHT)
+            val def = model.definitions.firstOrNull { it.id == id } as? ActionDefinition
+            val base: dev.kuml.layout.Size =
+                when (kindHint) {
+                    ActivityNodeKind.Action.name -> {
+                        val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
+                        val bodyLen = minOf(def?.action?.length ?: 0, ACT_BODY_MAX_LEN_FOR_SIZING)
+                        val bodyW = bodyLen * BDD_BODY_CHAR_PX
+                        val contentW = maxOf(nameW, bodyW) + 2 * IBD_H_PAD
+                        dev.kuml.layout.Size(width = maxOf(contentW, ACT_ACTION_WIDTH), height = ACT_ACTION_HEIGHT)
+                    }
+                    ActivityNodeKind.Initial.name,
+                    ActivityNodeKind.Final.name,
+                    ActivityNodeKind.FlowFinal.name,
+                    ->
+                        dev.kuml.layout.Size(width = ACT_PSEUDO_SIZE, height = ACT_PSEUDO_SIZE)
+                    ActivityNodeKind.Decision.name,
+                    ActivityNodeKind.Merge.name,
+                    ->
+                        dev.kuml.layout.Size(width = ACT_DIAMOND_WIDTH, height = ACT_DIAMOND_HEIGHT)
+                    ActivityNodeKind.Fork.name,
+                    ActivityNodeKind.Join.name,
+                    ->
+                        dev.kuml.layout.Size(width = ACT_BAR_WIDTH, height = ACT_BAR_HEIGHT)
+                    ActivityNodeKind.SendSignal.name,
+                    ActivityNodeKind.AcceptEvent.name,
+                    -> {
+                        // name (inside the shape) plus the notch / tip on one side
+                        val nameW = minOf(def?.name?.length ?: 0, ACT_LABEL_MAX_CHARS) * IBD_TITLE_CHAR_PX
+                        dev.kuml.layout.Size(
+                            width = maxOf(nameW + 2 * IBD_H_PAD + ACT_SIGNAL_NOTCH, ACT_SIGNAL_WIDTH),
+                            height = ACT_SIGNAL_HEIGHT,
+                        )
+                    }
+                    ActivityNodeKind.AcceptTimeEvent.name -> {
+                        val labelW = minOf(def?.timeExpression?.length ?: 0, ACT_LABEL_MAX_CHARS) * ACT_LABEL_CHAR_PX + 8f
+                        dev.kuml.layout.Size(
+                            width = labelW.coerceIn(ACT_TIME_EVENT_W, ACT_TIME_EVENT_MAX_WIDTH),
+                            height = ACT_TIME_EVENT_H + ACT_TIME_EVENT_LABEL_HEIGHT,
+                        )
+                    }
+                    ActivityNodeKind.CallBehavior.name -> {
+                        val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
+                        val contentW = nameW + 2 * IBD_H_PAD + ACT_CALL_FORK_EXTRA_W
+                        dev.kuml.layout.Size(width = maxOf(contentW, ACT_ACTION_WIDTH + ACT_CALL_FORK_EXTRA_W), height = ACT_ACTION_HEIGHT)
+                    }
+                    else -> dev.kuml.layout.Size(width = ACT_ACTION_WIDTH, height = ACT_ACTION_HEIGHT)
                 }
-                ActivityNodeKind.Initial.name,
-                ActivityNodeKind.Final.name,
-                ActivityNodeKind.FlowFinal.name,
-                ->
-                    dev.kuml.layout.Size(width = ACT_PSEUDO_SIZE, height = ACT_PSEUDO_SIZE)
-                ActivityNodeKind.Decision.name,
-                ActivityNodeKind.Merge.name,
-                ->
-                    dev.kuml.layout.Size(width = ACT_DIAMOND_WIDTH, height = ACT_DIAMOND_HEIGHT)
-                ActivityNodeKind.Fork.name,
-                ActivityNodeKind.Join.name,
-                ->
-                    dev.kuml.layout.Size(width = ACT_BAR_WIDTH, height = ACT_BAR_HEIGHT)
-                else -> dev.kuml.layout.Size(width = ACT_ACTION_WIDTH, height = ACT_ACTION_HEIGHT)
-            }
+            actPinGrowth(base = base, def = def)
         }
+
+    /** Wave C2 — characters rendered at most in a signal / time-event label. */
+    internal const val ACT_LABEL_MAX_CHARS: Int = 40
+
+    /** Wave C2 — approximate width of one 11 px label character. */
+    internal const val ACT_LABEL_CHAR_PX: Float = 6.2f
+
+    /** Wave C2 — depth of the notch (accept-event) or tip (send-signal) of the signal shapes. */
+    internal const val ACT_SIGNAL_NOTCH: Float = 14f
+
+    /**
+     * Wave C2 — enlarges [base] for pins on an *explicit* side ([dev.kuml.sysml2.PinSide] other than
+     * `Auto`): top / bottom pins widen the box, left / right pins heighten it, [ACT_PIN_GROWTH] per pin.
+     * Boxes without explicit pin sides keep their size exactly (byte-compat for existing diagrams).
+     */
+    internal fun actPinGrowth(
+        base: dev.kuml.layout.Size,
+        def: ActionDefinition?,
+    ): dev.kuml.layout.Size {
+        if (def == null || def.pins.none { it.side != dev.kuml.sysml2.PinSide.Auto }) return base
+        val perSide = def.pins.groupingBy { it.effectiveSide }.eachCount()
+
+        fun need(side: dev.kuml.sysml2.PinSide): Float = (perSide[side] ?: 0).coerceAtMost(ACT_MAX_PINS_PER_SIDE) * ACT_PIN_GROWTH + 24f
+        val w = maxOf(base.width, need(dev.kuml.sysml2.PinSide.Top), need(dev.kuml.sysml2.PinSide.Bottom))
+        val h = maxOf(base.height, need(dev.kuml.sysml2.PinSide.Left), need(dev.kuml.sysml2.PinSide.Right))
+        return dev.kuml.layout.Size(width = w, height = h)
+    }
+
+    /** Wave C2 — maximum number of pins per side taken into account for sizing (the checker flags more). */
+    public const val ACT_MAX_PINS_PER_SIDE: Int = 8
 
     /**
      * Default-[SizeProvider] für STM-Diagramme (V2.0.9) — gibt je nach
