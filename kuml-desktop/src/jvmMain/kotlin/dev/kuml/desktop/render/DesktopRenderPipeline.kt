@@ -471,7 +471,15 @@ internal object DesktopRenderPipeline {
                 val diagram = extracted.diagram
                 if (diagram !is StmDiagram) return SimulationPrepareResult.Unsupported("diagram type is not simulatable")
                 val model = extracted.model
-                val sm = Sysml2StateMachineAdapter.toUmlStateMachine(model = model, diagram = diagram)
+                // Wave A1: composite states / regions / new pseudo-states are not simulatable yet
+                // (the adapter says which construct and why). Surface its message as a Failed start
+                // so the editor shows it, instead of letting the exception escape.
+                val sm =
+                    try {
+                        Sysml2StateMachineAdapter.toUmlStateMachine(model = model, diagram = diagram)
+                    } catch (ex: IllegalStateException) {
+                        return SimulationPrepareResult.Failed(ex.message ?: "state machine is not simulatable")
+                    }
                 val layout =
                     elkEngine.layout(
                         graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),

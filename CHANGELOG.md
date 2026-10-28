@@ -8,6 +8,23 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+**SysML 2 state machines: composite states, orthogonal regions, pseudo-states, history (wave A1)**
+`stateDef(..., parent = composite, region = r)`, `region(owner, "name")`, `choice`, `junction`, `fork`,
+`join` and `history(name, deep = false, parent = composite)` (id-based variants `parentId`/`regionId`/`regionById`
+for printed scripts). `StateDefinition` gains `kind`, `parentStateId`, `regionId`, `regions`; all defaults keep
+existing models and their JSON byte-identical, and flat machines still lay out exactly as before. Layout: composites
+are nested compound groups (transitions may end on the composite frame), regions are sub-groups chained in
+declaration order, fork/join bars (6 px, length grows with the attached transitions, perpendicular to the layout
+direction), choice diamond, junction dot, history circle `H`/`H*`. SVG draws the composite frame with a name
+header, optional `entry/exit/do` lines and dashed region separators (horizontal for stacked, vertical for
+side-by-side regions). New structural checker `Sysml2StmChecker` (codes 101-123, wired into `kuml validate`;
+errors fail, warnings only with `--strict`); limits: nesting depth 16, 16 regions per composite, 1000 states,
+256 characters per name. `Sysml2DslPrinter` round-trips the new constructs.
+Not in this wave: the simulator (`kuml simulate`, desktop simulation) rejects composite states, regions and the new
+pseudo-states with an explicit error naming the construct (flat machines are unaffected); the LaTeX backend draws
+every state as a flat box (a comment line says so); no timers, no free-text guards/effects, no Playground/vault
+examples yet.
+
 **SysML 2 ports, flows, IBD frame and richer BDD (wave B)**
 `port(..., direction = PortDirection.In, conjugated = true)`, `flowProperty`, `refPart`, `action`,
 `flow(item, from, to, via)`, `allocate(from, to)` and `attributeDef(..., unitSymbol = "kg")`. Connection

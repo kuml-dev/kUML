@@ -454,8 +454,42 @@ data class StateDefinition(
     val exitAction: String? = null,
     /** Optional `do … ` activity statement (raw string in MVP). */
     val doAction: String? = null,
+    /**
+     * Vertex kind (wave A1). Defaults to [StateKind.State]; the legacy
+     * [isInitial]/[isFinal] flags take precedence, see [effectiveKind].
+     */
+    val kind: StateKind = StateKind.State,
+    /** Id of the enclosing composite state, `null` for top-level states. */
+    val parentStateId: String? = null,
+    /** Id of the [StateRegion] of the parent this state lives in, `null` = implicit region. */
+    val regionId: String? = null,
+    /** Orthogonal regions declared by this (composite) state. */
+    val regions: List<StateRegion> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : Sysml2Definition
+) : Sysml2Definition {
+    /** Effective vertex kind: legacy flags win over [kind]. Not serialised. */
+    val effectiveKind: StateKind
+        get() =
+            when {
+                isInitial -> StateKind.Initial
+                isFinal -> StateKind.Final
+                else -> kind
+            }
+
+    /** `true` for every kind except [StateKind.State]. */
+    val isPseudo: Boolean get() = effectiveKind != StateKind.State
+
+    /** `true` for shallow and deep history pseudo-states. */
+    val isHistory: Boolean
+        get() = effectiveKind == StateKind.ShallowHistory || effectiveKind == StateKind.DeepHistory
+
+    /** `true` when this state uses any wave-A1 structure (kind, hierarchy, regions). */
+    val usesStructure: Boolean
+        get() =
+            (effectiveKind != StateKind.State && effectiveKind != StateKind.Initial && effectiveKind != StateKind.Final) ||
+                parentStateId != null ||
+                regions.isNotEmpty()
+}
 
 /**
  * `ConstraintDefinition` — V2.0.12 entry for the SysML 2 Parametric Diagram (PAR).

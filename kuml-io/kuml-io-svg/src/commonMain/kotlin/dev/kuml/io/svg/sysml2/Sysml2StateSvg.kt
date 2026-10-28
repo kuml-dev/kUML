@@ -6,6 +6,7 @@ import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StateKind
 
 /**
  * Rendert eine SysML-2-[StateDefinition] als State-Transition-Diagramm-Knoten
@@ -50,10 +51,123 @@ internal fun renderStateDefinition(
     @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
     builder: SvgBuilder,
 ) {
-    when {
-        element.isInitial -> renderInitialPseudoState(element = element, layout = layout, builder = builder)
-        element.isFinal -> renderFinalPseudoState(element = element, layout = layout, builder = builder)
-        else -> renderRegularState(element = element, layout = layout, builder = builder)
+    when (element.effectiveKind) {
+        StateKind.Initial -> renderInitialPseudoState(element = element, layout = layout, builder = builder)
+        StateKind.Final -> renderFinalPseudoState(element = element, layout = layout, builder = builder)
+        StateKind.Choice -> renderChoicePseudoState(element = element, layout = layout, builder = builder)
+        StateKind.Junction -> renderJunctionPseudoState(element = element, layout = layout, builder = builder)
+        StateKind.Fork, StateKind.Join -> renderForkJoinBar(element = element, layout = layout, builder = builder)
+        StateKind.ShallowHistory -> renderHistoryPseudoState(element = element, layout = layout, builder = builder, deep = false)
+        StateKind.DeepHistory -> renderHistoryPseudoState(element = element, layout = layout, builder = builder, deep = true)
+        StateKind.State -> renderRegularState(element = element, layout = layout, builder = builder)
+    }
+}
+
+private fun pseudoGroup(
+    element: StateDefinition,
+    layout: NodeLayout,
+): Map<String, String> =
+    mapOf(
+        "id" to xmlEscapeAttr(element.id),
+        "transform" to "translate(${fmt(layout.bounds.origin.x)},${fmt(layout.bounds.origin.y)})",
+    )
+
+/** Choice pseudo-state — hollow diamond filling the (square) bounds. */
+private fun renderChoicePseudoState(
+    element: StateDefinition,
+    layout: NodeLayout,
+    builder: SvgBuilder,
+) {
+    val w = layout.bounds.size.width
+    val h = layout.bounds.size.height
+    builder.tag(name = "g", attrs = pseudoGroup(element = element, layout = layout)) {
+        tag(
+            name = "polygon",
+            attrs =
+                mapOf(
+                    "points" to "${fmt(w / 2f)},0 ${fmt(w)},${fmt(h / 2f)} ${fmt(w / 2f)},${fmt(h)} 0,${fmt(h / 2f)}",
+                    "class" to "kuml-class",
+                    "fill" to "none",
+                    "stroke-width" to "1.5",
+                ),
+        )
+    }
+}
+
+/** Junction pseudo-state — small filled circle. */
+private fun renderJunctionPseudoState(
+    element: StateDefinition,
+    layout: NodeLayout,
+    builder: SvgBuilder,
+) {
+    val w = layout.bounds.size.width
+    val h = layout.bounds.size.height
+    builder.tag(name = "g", attrs = pseudoGroup(element = element, layout = layout)) {
+        tag(
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(w / 2f),
+                    "cy" to fmt(h / 2f),
+                    "r" to fmt(minOf(w, h) / 2f),
+                    "class" to "kuml-pseudostate",
+                ),
+        )
+    }
+}
+
+/** Fork / join — filled bar (the layout bridge already oriented it perpendicular to the layout direction). */
+private fun renderForkJoinBar(
+    element: StateDefinition,
+    layout: NodeLayout,
+    builder: SvgBuilder,
+) {
+    builder.tag(name = "g", attrs = pseudoGroup(element = element, layout = layout)) {
+        tag(
+            name = "rect",
+            attrs =
+                mapOf(
+                    "width" to fmt(layout.bounds.size.width),
+                    "height" to fmt(layout.bounds.size.height),
+                    "class" to "kuml-fork-bar",
+                ),
+        )
+    }
+}
+
+/** Shallow (`H`) / deep (`H*`) history pseudo-state — hollow circle with a bold label. */
+private fun renderHistoryPseudoState(
+    element: StateDefinition,
+    layout: NodeLayout,
+    builder: SvgBuilder,
+    deep: Boolean,
+) {
+    val w = layout.bounds.size.width
+    val h = layout.bounds.size.height
+    builder.tag(name = "g", attrs = pseudoGroup(element = element, layout = layout)) {
+        tag(
+            name = "circle",
+            attrs =
+                mapOf(
+                    "cx" to fmt(w / 2f),
+                    "cy" to fmt(h / 2f),
+                    "r" to fmt(minOf(w, h) / 2f - 1f),
+                    "class" to "kuml-class",
+                    "fill" to "none",
+                ),
+        )
+        tag(
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-title",
+                    "x" to fmt(w / 2f),
+                    "y" to fmt(h / 2f + 4f),
+                    "text-anchor" to "middle",
+                    "font-size" to "12",
+                    "font-weight" to "bold",
+                ),
+        ) { text(if (deep) "H*" else "H") }
     }
 }
 

@@ -42,15 +42,20 @@ import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StateKind
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
+import dev.kuml.sysml2.constraint.Sysml2StmChecker
 import dev.kuml.sysml2.projection.sysml2BddBoxContent
 import dev.kuml.sysml2.projection.sysml2BddProjection
 import dev.kuml.sysml2.projection.sysml2IbdProjection
+import dev.kuml.sysml2.stateIndex
+import dev.kuml.sysml2.usesStmStructure
+import dev.kuml.sysml2.visibleStateIds
 
 /**
  * Übersetzt eine SysML-2 Block Definition Diagram-Projektion eines
@@ -280,6 +285,45 @@ public object Sysml2LayoutBridge {
      * danach gewinnt nur noch ELK über zusätzliche Layer-Sprünge.
      */
     public const val STM_CONNECTION_PUFFER_MAX_PX: Float = 112f
+
+    /** Wave A1 — kind hints handed to the [SizeProvider] for the new STM pseudo-states. */
+    public const val STM_HINT_CHOICE: String = "ChoicePseudoState"
+    public const val STM_HINT_JUNCTION: String = "JunctionPseudoState"
+    public const val STM_HINT_HISTORY: String = "HistoryPseudoState"
+    public const val STM_HINT_FORK_JOIN: String = "ForkJoinBar"
+
+    /** Wave A1 — pseudo-state shape sizes (px). */
+    public const val STM_CHOICE_SIZE: Float = 28f
+    public const val STM_JUNCTION_SIZE: Float = 12f
+    public const val STM_HISTORY_SIZE: Float = 28f
+    public const val STM_BAR_THICKNESS: Float = 6f
+    public const val STM_BAR_BASE_LENGTH: Float = 64f
+    public const val STM_BAR_PER_EDGE: Float = 14f
+    public const val STM_BAR_MAX_LENGTH: Float = 160f
+
+    /** Wave A1 — composite-state frame: padding (header strip on top) and minimum size. */
+    internal val STM_COMPOSITE_PADDING: Insets = Insets(top = 36f, right = 16f, bottom = 16f, left = 16f)
+    internal val STM_COMPOSITE_MIN_SIZE: Size = Size(width = 140f, height = 72f)
+    internal val STM_REGION_PADDING: Insets = Insets(top = 20f, right = 12f, bottom = 12f, left = 12f)
+    internal val STM_REGION_MIN_SIZE: Size = Size(width = 100f, height = 48f)
+
+    /**
+     * Id prefix of the invisible edges that chain the regions of one composite in declaration
+     * order (ELK would otherwise place unconnected regions in arbitrary order). Renderers drop
+     * edges with this prefix via [withoutStmOrderEdges].
+     */
+    public const val STM_ORDER_EDGE_PREFIX: String = "stm:order:"
+
+    /** Removes the layout-only region-ordering edges (see [STM_ORDER_EDGE_PREFIX]) from [layoutResult]. */
+    public fun withoutStmOrderEdges(layoutResult: LayoutResult): LayoutResult =
+        if (layoutResult.edges.keys.none { it.value.startsWith(STM_ORDER_EDGE_PREFIX) }) {
+            layoutResult
+        } else {
+            layoutResult.copy(edges = layoutResult.edges.filterKeys { !it.value.startsWith(STM_ORDER_EDGE_PREFIX) })
+        }
+
+    /** Height of one `entry/exit/do` action line in a composite state's header strip. */
+    internal const val STM_COMPOSITE_ACTION_LINE_H: Float = 13f
 
     /**
      * Default-Breite einer regulären [ActionDefinition]-Box in einem
@@ -636,7 +680,8 @@ public object Sysml2LayoutBridge {
                 emptyMap()
             } else {
                 val visibleStateIds: Set<String> =
-                    diagram.elementIds
+                    diagram
+                        .visibleStateIds(model)
                         .mapNotNull { id ->
                             (model.definitions.firstOrNull { it.id == id } as? StateDefinition)?.id
                         }.toSet()
@@ -657,6 +702,16 @@ public object Sysml2LayoutBridge {
 
         return SizeProvider { id, kindHint ->
             when {
+                // Wave A1 pseudo-state kinds: fixed shapes, no fan puffer (checked before the
+                // generic "Pseudo" rule below, which would give them the 24 px initial size).
+                kindHint == STM_HINT_CHOICE -> dev.kuml.layout.Size(width = STM_CHOICE_SIZE, height = STM_CHOICE_SIZE)
+                kindHint == STM_HINT_JUNCTION -> dev.kuml.layout.Size(width = STM_JUNCTION_SIZE, height = STM_JUNCTION_SIZE)
+                kindHint == STM_HINT_HISTORY -> dev.kuml.layout.Size(width = STM_HISTORY_SIZE, height = STM_HISTORY_SIZE)
+                kindHint == STM_HINT_FORK_JOIN ->
+                    stmForkJoinBarSize(
+                        transitionCount = connectionsById[id] ?: 0,
+                        layoutDirection = layoutDirection,
+                    )
                 kindHint.contains("Pseudo") ||
                     kindHint.contains("Initial") ||
                     kindHint.contains("Final") ->
@@ -697,6 +752,27 @@ public object Sysml2LayoutBridge {
                     )
                 }
             }
+        }
+    }
+
+    /**
+     * Size of a fork/join bar: [STM_BAR_THICKNESS] thick, perpendicular to the layout
+     * direction (horizontal for top-to-bottom layouts), [STM_BAR_BASE_LENGTH] long plus
+     * [STM_BAR_PER_EDGE] for every attached transition beyond two, capped at [STM_BAR_MAX_LENGTH].
+     */
+    internal fun stmForkJoinBarSize(
+        transitionCount: Int,
+        layoutDirection: LayoutDirection,
+    ): dev.kuml.layout.Size {
+        val length =
+            (STM_BAR_BASE_LENGTH + STM_BAR_PER_EDGE * maxOf(0, transitionCount - 2)).coerceAtMost(STM_BAR_MAX_LENGTH)
+        return when (layoutDirection) {
+            LayoutDirection.TopToBottom,
+            LayoutDirection.BottomToTop,
+            -> dev.kuml.layout.Size(width = length, height = STM_BAR_THICKNESS)
+            LayoutDirection.LeftToRight,
+            LayoutDirection.RightToLeft,
+            -> dev.kuml.layout.Size(width = STM_BAR_THICKNESS, height = length)
         }
     }
 
@@ -1150,6 +1226,11 @@ public object Sysml2LayoutBridge {
         diagram: StmDiagram,
         sizeProvider: SizeProvider = stmContentAwareSizeProvider(model = model, diagram = diagram),
     ): LayoutGraph {
+        // Wave A1: composite states, regions and the new pseudo-state kinds take the structured
+        // path; flat machines (the vast majority) keep the original code below bit-for-bit.
+        if (model.usesStmStructure(diagram.visibleStateIds(model))) {
+            return toStructuredStmLayoutGraph(model = model, diagram = diagram, sizeProvider = sizeProvider)
+        }
         val nodes = mutableListOf<LayoutNode>()
         for (id in diagram.elementIds) {
             val def = model.definitions.firstOrNull { it.id == id } ?: continue
@@ -1190,6 +1271,117 @@ public object Sysml2LayoutBridge {
         }
 
         return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
+    }
+
+    /**
+     * Wave A1 STM layout: composite states become nested compound [LayoutGroup]s (group id =
+     * state id, so transitions can attach to the composite frame itself via the ELK builder's
+     * "endpoint id resolves to a group" fallback), orthogonal regions become compound sub-groups
+     * (group id = region id), everything else a [LayoutNode] inside its innermost group.
+     *
+     * Limits (nesting depth, regions, states, name length, parent cycles) are enforced up front
+     * with an [IllegalArgumentException] naming the checker code.
+     */
+    private fun toStructuredStmLayoutGraph(
+        model: Sysml2Model,
+        diagram: StmDiagram,
+        sizeProvider: SizeProvider,
+    ): LayoutGraph {
+        val limitIssues = Sysml2StmChecker.checkLimits(model = model, diagram = diagram)
+        require(limitIssues.isEmpty()) {
+            "STM structure limit exceeded (code ${limitIssues.first().code}): ${limitIssues.first().message} ${limitIssues.first().hint}"
+        }
+        val index = model.stateIndex()
+        val states = diagram.visibleStateIds(model).mapNotNull { index[it] }
+        val visibleIds = states.map { it.id }.toSet()
+        val childrenByParent: Map<String, List<StateDefinition>> =
+            states.filter { it.parentStateId != null && it.parentStateId in visibleIds }.groupBy { it.parentStateId!! }
+
+        fun isComposite(s: StateDefinition) = s.effectiveKind == StateKind.State && !childrenByParent[s.id].isNullOrEmpty()
+
+        fun containerOf(s: StateDefinition): GroupId? {
+            val pid = s.parentStateId ?: return null
+            val parent = index[pid]?.takeIf { it.id in visibleIds && isComposite(it) } ?: return null
+            val region = s.regionId?.let { rid -> parent.regions.firstOrNull { it.id == rid } }
+            return if (region != null) GroupId(region.id) else GroupId(parent.id)
+        }
+
+        val groups = mutableListOf<LayoutGroup>()
+        val groupIds = mutableSetOf<String>()
+        for (s in states) {
+            if (!isComposite(s)) continue
+            val actionLines = listOfNotNull(s.entryAction, s.exitAction, s.doAction).count { it.isNotBlank() }
+            groups +=
+                LayoutGroup(
+                    id = GroupId(s.id),
+                    parent = containerOf(s),
+                    padding = STM_COMPOSITE_PADDING.copy(top = STM_COMPOSITE_PADDING.top + actionLines * STM_COMPOSITE_ACTION_LINE_H),
+                    layoutAsCompound = true,
+                    minSize = STM_COMPOSITE_MIN_SIZE,
+                )
+            groupIds += s.id
+            val usedRegions = childrenByParent[s.id].orEmpty().mapNotNull { it.regionId }.toSet()
+            for (r in s.regions) {
+                if (r.id !in usedRegions) continue
+                groups +=
+                    LayoutGroup(
+                        id = GroupId(r.id),
+                        parent = GroupId(s.id),
+                        padding = STM_REGION_PADDING,
+                        layoutAsCompound = true,
+                        minSize = STM_REGION_MIN_SIZE,
+                    )
+                groupIds += r.id
+            }
+        }
+
+        val nodes = mutableListOf<LayoutNode>()
+        for (s in states) {
+            if (isComposite(s)) continue
+            val kindHint =
+                when (s.effectiveKind) {
+                    StateKind.Initial -> "InitialPseudoState"
+                    StateKind.Final -> "FinalPseudoState"
+                    StateKind.Choice -> STM_HINT_CHOICE
+                    StateKind.Junction -> STM_HINT_JUNCTION
+                    StateKind.Fork, StateKind.Join -> STM_HINT_FORK_JOIN
+                    StateKind.ShallowHistory, StateKind.DeepHistory -> STM_HINT_HISTORY
+                    StateKind.State -> "StateDefinition"
+                }
+            nodes +=
+                LayoutNode(
+                    id = NodeId(s.id),
+                    intrinsicSize = sizeProvider.sizeOf(elementId = s.id, elementKind = kindHint),
+                    groupId = containerOf(s),
+                )
+        }
+
+        val edges = mutableListOf<LayoutEdge>()
+        for (t in model.usages.filterIsInstance<TransitionUsage>()) {
+            if (t.sourceStateId !in visibleIds || t.targetStateId !in visibleIds) continue
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(t.id),
+                    source = EndpointRef(nodeId = NodeId(t.sourceStateId)),
+                    target = EndpointRef(nodeId = NodeId(t.targetStateId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+        // Chain the regions of each composite (declaration order) with invisible layout-only edges.
+        for (s in states) {
+            val used = s.regions.filter { it.id in groupIds }
+            for ((a, b) in used.zipWithNext()) {
+                edges +=
+                    LayoutEdge(
+                        id = EdgeId("$STM_ORDER_EDGE_PREFIX${a.id}"),
+                        source = EndpointRef(nodeId = NodeId(a.id)),
+                        target = EndpointRef(nodeId = NodeId(b.id)),
+                        hints = EdgeHints.NONE,
+                    )
+            }
+        }
+        return LayoutGraph(nodes = nodes, edges = edges, groups = groups)
+            .withSysml2Notes(model = model, diagram = diagram, extraVisibleIds = groupIds)
     }
 
     /**
@@ -1682,6 +1874,10 @@ public object Sysml2LayoutBridge {
             when (kindHint) {
                 "InitialPseudoState", "FinalPseudoState" ->
                     dev.kuml.layout.Size(width = STM_PSEUDO_SIZE, height = STM_PSEUDO_SIZE)
+                STM_HINT_CHOICE -> dev.kuml.layout.Size(width = STM_CHOICE_SIZE, height = STM_CHOICE_SIZE)
+                STM_HINT_JUNCTION -> dev.kuml.layout.Size(width = STM_JUNCTION_SIZE, height = STM_JUNCTION_SIZE)
+                STM_HINT_HISTORY -> dev.kuml.layout.Size(width = STM_HISTORY_SIZE, height = STM_HISTORY_SIZE)
+                STM_HINT_FORK_JOIN -> stmForkJoinBarSize(transitionCount = 2, layoutDirection = LayoutDirection.TopToBottom)
                 "StateDefinition" -> dev.kuml.layout.Size(width = STM_STATE_WIDTH, height = STM_STATE_HEIGHT)
                 else -> dev.kuml.layout.Size(width = STM_STATE_WIDTH, height = STM_STATE_HEIGHT)
             }

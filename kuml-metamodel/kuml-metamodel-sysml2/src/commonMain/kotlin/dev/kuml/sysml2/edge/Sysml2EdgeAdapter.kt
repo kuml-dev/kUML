@@ -24,6 +24,7 @@ import dev.kuml.sysml2.projection.BddEdgeKind
 import dev.kuml.sysml2.projection.ResolvedEnd
 import dev.kuml.sysml2.projection.sysml2BddProjection
 import dev.kuml.sysml2.projection.sysml2IbdProjection
+import dev.kuml.sysml2.visibleStateIds
 
 /**
  * Per-diagram-kind lookup that turns a layout edge id (the **string value**
@@ -287,7 +288,7 @@ public class StmEdgeAdapter(
 ) : Sysml2EdgeAdapter {
     private val index: Map<String, Sysml2EdgeMetadata> =
         buildMap {
-            val visible = diagram.elementIds.toSet()
+            val visible = diagram.visibleStateIds(model)
             for (transition in model.usages.filterIsInstance<TransitionUsage>()) {
                 if (transition.sourceStateId !in visible) continue
                 if (transition.targetStateId !in visible) continue

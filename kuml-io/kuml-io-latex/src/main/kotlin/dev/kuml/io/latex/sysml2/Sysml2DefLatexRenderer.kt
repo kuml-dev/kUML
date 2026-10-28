@@ -19,6 +19,7 @@ import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StateKind
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.UseCaseDefinition
 
@@ -73,10 +74,16 @@ internal object Sysml2DefLatexRenderer {
                 // unterscheidet sich je nach State-Kind, damit der visuelle
                 // Hinweis im Fallback erhalten bleibt.
                 is StateDefinition ->
-                    when {
-                        definition.isInitial -> "initial pseudo-state"
-                        definition.isFinal -> "final pseudo-state"
-                        else -> "state"
+                    when (definition.effectiveKind) {
+                        StateKind.Initial -> "initial pseudo-state"
+                        StateKind.Final -> "final pseudo-state"
+                        StateKind.Choice -> "choice pseudo-state"
+                        StateKind.Junction -> "junction pseudo-state"
+                        StateKind.Fork -> "fork pseudo-state"
+                        StateKind.Join -> "join pseudo-state"
+                        StateKind.ShallowHistory -> "shallow history pseudo-state"
+                        StateKind.DeepHistory -> "deep history pseudo-state"
+                        StateKind.State -> "state"
                     }
                 // V2.0.10: ACT-Diagramm. V2.0.10-MVP rendert ActionDefinitions
                 // als Rechteck mit kind-spezifischem Stereotyp; das

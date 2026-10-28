@@ -29,8 +29,11 @@ import dev.kuml.profile.ProfileRegistry
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ParDiagram
+import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.TransitionUsage
+import dev.kuml.sysml2.constraint.StmSeverity
 import dev.kuml.sysml2.constraint.Sysml2ConstraintChecker
+import dev.kuml.sysml2.constraint.Sysml2StmChecker
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -296,6 +299,29 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
             for (nv in noteWarnings) echo("  WARN  [${nv.id}] ${nv.message}")
         }
 
+        // 7b''. STM structure validation (wave A1: composite states, regions, pseudo-states, history).
+        val stmViolations: List<StructuralViolation> =
+            (extracted as? ExtractedDiagram.Sysml2)
+                ?.takeIf { it.diagram is StmDiagram }
+                ?.let { ex ->
+                    Sysml2StmChecker.check(model = ex.model, diagram = ex.diagram as StmDiagram).map { i ->
+                        StructuralViolation(
+                            id = "STM${i.code}",
+                            severity = if (i.severity == StmSeverity.Error) "error" else "warning",
+                            message = "${i.message} Hint: ${i.hint}",
+                            location = i.elementId,
+                            category = "stm",
+                        )
+                    }
+                } ?: emptyList()
+        val stmErrors = stmViolations.filter { it.severity == "error" }
+        val stmWarnings = stmViolations.filter { it.severity == "warning" }
+        if (stmViolations.isNotEmpty()) {
+            echo("\nState machine validation:")
+            for (sv in stmErrors) echo("  ERROR [${sv.id}] ${sv.location}: ${sv.message}")
+            for (sv in stmWarnings) echo("  WARN  [${sv.id}] ${sv.location}: ${sv.message}")
+        }
+
         // 7c. Style validation output (V0.50.0) — see step 0/1b above for where
         //     styleViolations/styleErrors/styleWarnings were computed. Kept as its
         //     own section (not folded into "Structural validation:") so the
@@ -315,7 +341,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         // 8. Output
         val allViolations =
             modelResult.violations + (stereotypeResult?.violations ?: emptyList())
-        val allStructuralLikeViolations = structuralViolations + ermViolations + noteViolations + styleViolations
+        val allStructuralLikeViolations = structuralViolations + ermViolations + noteViolations + stmViolations + styleViolations
         val combined =
             KumlValidationResult(
                 valid =
@@ -323,6 +349,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                         structuralErrors.isEmpty() &&
                         ermErrors.isEmpty() &&
                         noteErrors.isEmpty() &&
+                        stmErrors.isEmpty() &&
                         styleErrors.isEmpty(),
                 violations = allViolations,
             )
@@ -369,7 +396,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         }
 
         if (!combined.valid) throw ProgramResult(ExitCodes.VALIDATION_VIOLATIONS)
-        if (strict && (exprErrors.isNotEmpty() || constraintErrors.isNotEmpty())) {
+        if (strict && (exprErrors.isNotEmpty() || constraintErrors.isNotEmpty() || stmWarnings.isNotEmpty())) {
             throw ProgramResult(ExitCodes.VALIDATION_VIOLATIONS)
         }
     }

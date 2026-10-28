@@ -26,9 +26,12 @@ import dev.kuml.sysml2.Sysml2Model
 internal fun LayoutGraph.withSysml2Notes(
     model: Sysml2Model,
     diagram: Sysml2Diagram,
+    extraVisibleIds: Set<String> = emptySet(),
 ): LayoutGraph {
     if (model.comments.isEmpty()) return this
-    val visible = nodes.map { it.id.value }.toSet()
+    // Group ids that double as edge endpoints (STM composite states and regions): the ELK
+    // builder resolves an endpoint that is no node to the group of the same id.
+    val visible = nodes.map { it.id.value }.toSet() + extraVisibleIds
     val notes = model.notesVisibleIn(diagram = diagram, visibleNodeIds = visible)
     val comments = notes.comments.filter { it.id !in visible }
     if (comments.isEmpty()) return this

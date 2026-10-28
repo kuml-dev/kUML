@@ -41,8 +41,10 @@ import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.RequirementUsage
+import dev.kuml.sysml2.STM_MAX_DEPTH
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StateKind
 import dev.kuml.sysml2.StateUsage
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
@@ -137,7 +139,7 @@ public object Sysml2DslPrinter {
                     it is ActivityPartitionDefinition
             }
         special.forEach { printDefinition(sb = sb, def = it, model = model, ctx = ctx, bindVar = true) }
-        rest.forEach { printDefinition(sb = sb, def = it, model = model, ctx = ctx, bindVar = false) }
+        orderStatesParentFirst(rest).forEach { printDefinition(sb = sb, def = it, model = model, ctx = ctx, bindVar = false) }
 
         val consumedFeatureIds =
             model.definitions
@@ -153,6 +155,37 @@ public object Sysml2DslPrinter {
 
         sb.appendLine("}")
         return sb.toString()
+    }
+
+    /**
+     * Reorders the [StateDefinition]s of [defs] so parents precede children
+     * (cosmetic: the DSL references parents by id). Iterative and cycle-safe;
+     * non-state definitions keep their slots.
+     */
+    private fun orderStatesParentFirst(defs: List<Sysml2Definition>): List<Sysml2Definition> {
+        val states = defs.filterIsInstance<StateDefinition>()
+        if (states.none { it.parentStateId != null }) return defs
+        val byId = LinkedHashMap<String, StateDefinition>()
+        states.forEach { if (it.id !in byId) byId[it.id] = it }
+        val emitted = ArrayList<StateDefinition>()
+        val emittedIds = HashSet<String>()
+        for (st in states) {
+            val chain = ArrayList<StateDefinition>()
+            val seen = HashSet<String>()
+            var cur: StateDefinition? = st
+            while (cur != null && seen.add(cur.id) && cur.id !in emittedIds && chain.size <= STM_MAX_DEPTH + 1) {
+                chain += cur
+                cur = cur.parentStateId?.let { byId[it] }
+            }
+            for (c in chain.asReversed()) {
+                if (emittedIds.add(c.id)) emitted += c
+            }
+            if (emitted.none { it === st } && emittedIds.add(st.id)) emitted += st
+        }
+        // Duplicate ids (malformed models) must still be printed exactly once each.
+        val remaining = states.filter { s -> emitted.none { it === s } }
+        val sorted = ArrayDeque<StateDefinition>(emitted + remaining)
+        return defs.map { if (it is StateDefinition) sorted.removeFirst() else it }
     }
 
     // ── printer state ──────────────────────────────────────────────────────
@@ -272,20 +305,45 @@ public object Sysml2DslPrinter {
                 ) { body -> printNestedFeatures(sb = body, def = def, model = model) }
             }
             is StateDefinition -> {
-                if (def.isInitial) args += "isInitial = true"
-                if (def.isFinal) args += "isFinal = true"
-                def.entryAction?.let { args += "entryAction = ${quote(it)}" }
-                def.exitAction?.let { args += "exitAction = ${quote(it)}" }
-                def.doAction?.let { args += "doAction = ${quote(it)}" }
-                if (def.isAbstract) args += "isAbstract = true"
-                appendSpecializesArg(def = def, builderName = "stateDef", args = args, todos = todos)
+                val kind = def.effectiveKind
+                val pseudoFn =
+                    when (kind) {
+                        StateKind.Choice -> "choice"
+                        StateKind.Junction -> "junction"
+                        StateKind.Fork -> "fork"
+                        StateKind.Join -> "join"
+                        StateKind.ShallowHistory, StateKind.DeepHistory -> "history"
+                        else -> null
+                    }
+                if (kind == StateKind.DeepHistory) args += "deep = true"
+                if (pseudoFn == null) {
+                    if (def.isInitial) args += "isInitial = true"
+                    if (def.isFinal) args += "isFinal = true"
+                    def.entryAction?.let { args += "entryAction = ${quote(it)}" }
+                    def.exitAction?.let { args += "exitAction = ${quote(it)}" }
+                    def.doAction?.let { args += "doAction = ${quote(it)}" }
+                    if (def.isAbstract) args += "isAbstract = true"
+                    appendSpecializesArg(def = def, builderName = "stateDef", args = args, todos = todos)
+                } else if (def.entryAction != null || def.exitAction != null || def.doAction != null || def.features.isNotEmpty()) {
+                    todos +=
+                        "Pseudo-state ${def.name} (id = ${def.id}) carries actions or features, which the DSL cannot express for it — dropped."
+                }
+                def.parentStateId?.let { args += "parentId = ${quote(it)}" }
+                def.regionId?.let { args += "regionId = ${quote(it)}" }
+                def.parentStateId?.let { sb.appendLine("    // in ${sanitizeForComment(it)}") }
                 printDefCall(
                     sb = sb,
-                    fnName = "stateDef",
+                    fnName = pseudoFn ?: "stateDef",
                     varName = varName,
                     args = args,
                     todos = todos,
-                ) { body -> printNestedFeatures(sb = body, def = def, model = model) }
+                ) { body -> if (pseudoFn == null) printNestedFeatures(sb = body, def = def, model = model) }
+                for (r in def.regions) {
+                    val rargs = mutableListOf("ownerId = ${quote(def.id)}")
+                    r.name?.let { rargs += "name = ${quote(it)}" }
+                    rargs += "id = ${quote(r.id)}"
+                    sb.appendLine("    regionById(${rargs.joinToString(", ")})")
+                }
             }
             is ActionDefinition -> {
                 def.action?.let { args += "action = ${quote(it)}" }

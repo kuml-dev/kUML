@@ -885,29 +885,38 @@ internal object RenderPipeline {
                                 theme = theme,
                                 options = stmOptions,
                             )
-                        val umlSm = Sysml2StateMachineAdapter.toUmlStateMachine(model = model, diagram = diagram)
-                        val trace = loadOrSynthesiseStmTrace(file = traceFile, sm = umlSm)
-                        val ctx = StmAnimationContext(speedFactor = SpeedFactor(speed))
-                        val result =
-                            StmSmilRenderer.renderWithBaseSvg(
-                                baseSvg = baseSvg,
-                                stateMachine = umlSm,
-                                layoutResult = layoutResult,
-                                options = stmOptions,
-                                trace = trace,
-                                context = ctx,
-                            )
-                        when {
-                            format in setOf("apng", "webp", "mp4") ->
-                                writeAnimated(
-                                    output = output,
-                                    animatedSvg = result.svg,
-                                    timeline = result.timeline,
-                                    format = format,
-                                    width = width,
+                        val wantsAnimation = animated || format in setOf("apng", "webp", "mp4")
+                        // Wave A1: composite states / regions / new pseudo-states render fine but are
+                        // not simulatable yet. A plain static render must not trip over the
+                        // simulator adapter's "unsupported" error, so skip the (unused) animation
+                        // preparation for them; asking for an animation still fails loudly.
+                        if (!wantsAnimation && Sysml2StateMachineAdapter.simulationBlockReason(model = model, diagram = diagram) != null) {
+                            writeText(out = output, text = baseSvg)
+                        } else {
+                            val umlSm = Sysml2StateMachineAdapter.toUmlStateMachine(model = model, diagram = diagram)
+                            val trace = loadOrSynthesiseStmTrace(file = traceFile, sm = umlSm)
+                            val ctx = StmAnimationContext(speedFactor = SpeedFactor(speed))
+                            val result =
+                                StmSmilRenderer.renderWithBaseSvg(
+                                    baseSvg = baseSvg,
+                                    stateMachine = umlSm,
+                                    layoutResult = layoutResult,
+                                    options = stmOptions,
+                                    trace = trace,
+                                    context = ctx,
                                 )
-                            animated -> writeText(out = output, text = result.svg)
-                            else -> writeText(out = output, text = baseSvg)
+                            when {
+                                format in setOf("apng", "webp", "mp4") ->
+                                    writeAnimated(
+                                        output = output,
+                                        animatedSvg = result.svg,
+                                        timeline = result.timeline,
+                                        format = format,
+                                        width = width,
+                                    )
+                                animated -> writeText(out = output, text = result.svg)
+                                else -> writeText(out = output, text = baseSvg)
+                            }
                         }
                     }
                     "latex" ->

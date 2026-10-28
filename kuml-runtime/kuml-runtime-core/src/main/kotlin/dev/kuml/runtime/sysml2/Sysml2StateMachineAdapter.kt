@@ -4,9 +4,11 @@ import dev.kuml.expr.OclLikeExpressionParser
 import dev.kuml.runtime.OclGuardEvaluator
 import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StateKind
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.TransitionUsage
+import dev.kuml.sysml2.visibleStateIds
 import dev.kuml.uml.PseudostateKind
 import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlPseudostate
@@ -80,6 +82,38 @@ import java.time.Instant
  */
 public object Sysml2StateMachineAdapter {
     /**
+     * Name of the first wave-A1 construct [state] uses that the simulator cannot run,
+     * or `null` for flat states. Used by the CLI/desktop to explain why a machine is not simulatable.
+     */
+    public fun unsupportedConstruct(state: StateDefinition): String? =
+        when {
+            state.effectiveKind == StateKind.Choice -> "a choice pseudo-state"
+            state.effectiveKind == StateKind.Junction -> "a junction pseudo-state"
+            state.effectiveKind == StateKind.Fork -> "a fork pseudo-state"
+            state.effectiveKind == StateKind.Join -> "a join pseudo-state"
+            state.effectiveKind == StateKind.ShallowHistory -> "a shallow history pseudo-state"
+            state.effectiveKind == StateKind.DeepHistory -> "a deep history pseudo-state"
+            state.regions.isNotEmpty() -> "orthogonal regions"
+            state.parentStateId != null -> "a nested (composite) state"
+            else -> null
+        }
+
+    /**
+     * Human-readable reason why [diagram] cannot be simulated, or `null` when it can
+     * (flat machines). Does not check for a missing initial state.
+     */
+    public fun simulationBlockReason(
+        model: Sysml2Model,
+        diagram: StmDiagram,
+    ): String? {
+        val expandedIds = diagram.visibleStateIds(model)
+        return model.definitions
+            .filterIsInstance<StateDefinition>()
+            .filter { it.id in expandedIds }
+            .firstNotNullOfOrNull { st -> unsupportedConstruct(st)?.let { "uses $it ('${st.id}'); simulation planned for wave A2" } }
+    }
+
+    /**
      * Build a [UmlStateMachine] from the visible slice of [model] selected
      * by [diagram]. Useful for tests that want to inspect the translation
      * shape, or for callers that want to keep the runtime construction
@@ -96,6 +130,22 @@ public object Sysml2StateMachineAdapter {
         model: Sysml2Model,
         diagram: StmDiagram,
     ): UmlStateMachine {
+        // Wave A1: composite states, regions and the new pseudo-states are modelled and rendered
+        // but not simulated yet (wave A2). Fail loudly instead of running a wrong flat machine.
+        // The check covers the expanded visible set, so including just a child is caught too.
+        val expandedIds = diagram.visibleStateIds(model)
+        model.definitions
+            .filterIsInstance<StateDefinition>()
+            .filter { it.id in expandedIds }
+            .firstNotNullOfOrNull { unsupportedConstruct(it)?.let { construct -> it to construct } }
+            ?.let { (state, construct) ->
+                error(
+                    "State machine '${diagram.name}' uses $construct ('${state.id}'), " +
+                        "which the simulator does not support yet (planned for wave A2). " +
+                        "Flat state machines are unaffected.",
+                )
+            }
+
         val visibleIds = diagram.elementIds.toSet()
         val visibleStates: List<StateDefinition> =
             model.definitions

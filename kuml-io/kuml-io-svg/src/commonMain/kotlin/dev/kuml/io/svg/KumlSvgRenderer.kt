@@ -107,6 +107,7 @@ import dev.kuml.sysml2.edge.ReqEdgeAdapter
 import dev.kuml.sysml2.edge.StmEdgeAdapter
 import dev.kuml.sysml2.edge.Sysml2EdgeAdapter
 import dev.kuml.sysml2.edge.UcEdgeAdapter
+import dev.kuml.sysml2.visibleStateIds
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlComponent
@@ -2174,7 +2175,8 @@ public object KumlSvgRenderer {
         theme: KumlTheme = PlainTheme(),
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): String {
-        val visible = diagram.elementIds.toSet()
+        // Wave A1: also the descendants/ancestors of included composite states.
+        val visible = diagram.visibleStateIds(model)
         val elements =
             model.definitions
                 .filter { it.id in visible }
@@ -2187,11 +2189,21 @@ public object KumlSvgRenderer {
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            rawLayoutResult = layoutResult,
+            rawLayoutResult = Sysml2LayoutBridge.withoutStmOrderEdges(layoutResult),
             theme = theme,
             options = options,
             sysml2EdgeAdapter = StmEdgeAdapter(model = model, diagram = diagram),
             typeLabel = "state machine",
+            // Composite frames are compound groups in the layout; paint them before the nodes.
+            beforeNodes = { builder, lr, padding ->
+                dev.kuml.io.svg.sysml2.renderCompositeStateFrames(
+                    model = model,
+                    visibleIds = visible,
+                    layoutResult = lr,
+                    paddingPx = padding,
+                    builder = builder,
+                )
+            },
         )
     }
 

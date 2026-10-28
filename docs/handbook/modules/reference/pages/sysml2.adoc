@@ -368,6 +368,61 @@ trace verification, and interactive REPL mode.
 NOTE: `kuml simulate` supports both UML `stateDiagram { stateMachine { ... } }` and
 SysML 2 `sysml2Model { stateDef / transition }` syntaxes. The underlying runtime is shared.
 
+=== Composite states, regions and pseudo-states
+
+State machines can be nested. A state is made composite by giving other states a `parent`; orthogonal regions
+are declared with `region(owner, "name")` and children pick one with `region = r`.
+
+[source,kotlin]
+----
+sysml2Model("Pipeline") {
+    val par = stateDef("Parallel")
+    val left = region(par, "Left")
+    val right = region(par, "Right")
+    val load = stateDef("Load", parent = par, region = left)
+    val fetch = stateDef("Fetch", parent = par, region = right)
+    val split = fork("Split")
+    val merge = join("Merge")
+    history("H", deep = true, parent = par)   // H* ; parent is mandatory
+    choice("Decide"); junction("Merge2")
+    // ... transitions as usual
+    stmDiagram("Pipeline") { include(par); include(split); include(merge) }
+}
+----
+
+Including a composite shows all its descendants; including only a child also shows its ancestors.
+`region(...)` replaces the owner definition in the model, so refer to states by id afterwards, not through an
+old variable.
+
+Transitions may end on a composite frame. Transitions between a composite and one of its own descendants are
+routed to the frame and flagged by warning 115.
+
+==== Structural checks (`kuml validate`)
+
+[cols="1,1,4"]
+|===
+|Code |Severity |Rule
+|101 |Error |Initial state has an incoming transition
+|102 |Error |Final state has an outgoing transition
+|103 / 104 |Error |Fork targets / join sources are not in pairwise different regions
+|105 / 106 |Error |Fork needs 1 in and 2+ out; join needs 2+ in and 1 out
+|107 / 108 |Error / Warning |Choice without outgoing transition / without guard-less else branch
+|109 |Error |Junction needs incoming and outgoing transitions
+|110-112 |Error |History: no parent / duplicate per region / several default transitions
+|113 |Error |Direct transition between two regions of a composite (use fork/join)
+|114 |Error |More than one initial state in a region of a composite
+|115 |Warning |Transition between a composite and its own descendant
+|116-119 |Error |Dangling parent, bad region, pseudo-state as parent, duplicate or colliding region ids
+|120-123 |Error |Limits: depth 16 (and parent cycles), 16 regions, 1000 states, 256 characters per name
+|===
+
+==== Limits of this version
+
+* Simulation (`kuml simulate`, desktop simulator) rejects composite states, regions and the new pseudo-states
+  with an error naming the construct; flat machines simulate as before.
+* The LaTeX backend draws every state as a flat box and notes that in a comment.
+* Regions are stacked or placed side by side by the layout engine; dashed separators follow the actual geometry.
+
 == Activity Diagrams (ACT)
 
 Activity diagrams in SysML 2 model executable workflows with actions, control flow,

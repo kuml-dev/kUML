@@ -51,6 +51,8 @@ import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.RequirementUsage
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StateKind
+import dev.kuml.sysml2.StateRegion
 import dev.kuml.sysml2.StateUsage
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Comment
@@ -324,6 +326,10 @@ class Sysml2ModelBuilder(
         doAction: String? = null,
         isAbstract: Boolean = false,
         specializesId: String? = null,
+        parent: StateDefinition? = null,
+        region: StateRegion? = null,
+        parentId: String? = null,
+        regionId: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): StateDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -339,9 +345,155 @@ class Sysml2ModelBuilder(
                 exitAction = exitAction,
                 doAction = doAction,
                 specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
+                parentStateId = parent?.id ?: parentId,
+                regionId = region?.id ?: regionId,
             )
         definitions += def
         return def
+    }
+
+    /**
+     * Declares an orthogonal region [name] on the composite [owner] (wave A1).
+     *
+     * The owner definition is replaced in place by a copy carrying the region,
+     * so a `val` the caller holds for [owner] becomes stale; all cross
+     * references go through ids, so this is harmless.
+     */
+    fun region(
+        owner: StateDefinition,
+        name: String,
+        id: String = "${owner.id}.$name",
+    ): StateRegion = regionById(ownerId = owner.id, name = name, id = id)
+
+    /** Id-only variant of [region] (used by the DSL printer). */
+    fun regionById(
+        ownerId: String,
+        name: String? = null,
+        id: String = "$ownerId.${name ?: "region"}",
+    ): StateRegion {
+        val idx = definitions.indexOfFirst { it is StateDefinition && it.id == ownerId }
+        require(idx >= 0) {
+            "region('$name'): unknown composite state '$ownerId'. Declare the state with stateDef(...) before adding regions."
+        }
+        val owner = definitions[idx] as StateDefinition
+        require(owner.regions.none { it.id == id }) {
+            "region id '$id' is already declared on state '$ownerId'. Choose a different id."
+        }
+        require(name == null || owner.regions.none { it.name == name }) {
+            "region name '$name' is already declared on state '$ownerId'. Choose a different name."
+        }
+        val region = StateRegion(id = id, name = name)
+        definitions[idx] = owner.copy(regions = owner.regions + region)
+        return region
+    }
+
+    private fun pseudoState(
+        kind: StateKind,
+        name: String,
+        id: String,
+        parent: StateDefinition?,
+        region: StateRegion?,
+        parentId: String?,
+        regionId: String?,
+    ): StateDefinition {
+        val def =
+            StateDefinition(
+                id = id,
+                name = name,
+                kind = kind,
+                parentStateId = parent?.id ?: parentId,
+                regionId = region?.id ?: regionId,
+            )
+        definitions += def
+        return def
+    }
+
+    /** Choice pseudo-state (hollow diamond). */
+    fun choice(
+        name: String,
+        id: String = name,
+        parent: StateDefinition? = null,
+        region: StateRegion? = null,
+        parentId: String? = null,
+        regionId: String? = null,
+    ): StateDefinition =
+        pseudoState(
+            kind = StateKind.Choice,
+            name = name,
+            id = id,
+            parent = parent,
+            region = region,
+            parentId = parentId,
+            regionId = regionId,
+        )
+
+    /** Junction pseudo-state (filled dot). */
+    fun junction(
+        name: String,
+        id: String = name,
+        parent: StateDefinition? = null,
+        region: StateRegion? = null,
+        parentId: String? = null,
+        regionId: String? = null,
+    ): StateDefinition =
+        pseudoState(
+            kind = StateKind.Junction,
+            name = name,
+            id = id,
+            parent = parent,
+            region = region,
+            parentId = parentId,
+            regionId = regionId,
+        )
+
+    /** Fork pseudo-state (bar splitting into concurrent regions). */
+    fun fork(
+        name: String,
+        id: String = name,
+        parent: StateDefinition? = null,
+        region: StateRegion? = null,
+        parentId: String? = null,
+        regionId: String? = null,
+    ): StateDefinition =
+        pseudoState(kind = StateKind.Fork, name = name, id = id, parent = parent, region = region, parentId = parentId, regionId = regionId)
+
+    /** Join pseudo-state (bar synchronising concurrent regions). */
+    fun join(
+        name: String,
+        id: String = name,
+        parent: StateDefinition? = null,
+        region: StateRegion? = null,
+        parentId: String? = null,
+        regionId: String? = null,
+    ): StateDefinition =
+        pseudoState(kind = StateKind.Join, name = name, id = id, parent = parent, region = region, parentId = parentId, regionId = regionId)
+
+    /**
+     * History pseudo-state of a composite (`H` shallow, `H*` deep). A history
+     * state is meaningless without its composite, so [parent] (or [parentId])
+     * is mandatory.
+     */
+    fun history(
+        name: String,
+        deep: Boolean = false,
+        parent: StateDefinition? = null,
+        region: StateRegion? = null,
+        id: String = name,
+        parentId: String? = null,
+        regionId: String? = null,
+    ): StateDefinition {
+        require(parent != null || parentId != null) {
+            "history('$name') needs a composite state: pass parent = <composite state> (e.g. history(\"H\", parent = on))."
+        }
+        return pseudoState(
+            kind = if (deep) StateKind.DeepHistory else StateKind.ShallowHistory,
+            name = name,
+            id = id,
+            parent = parent,
+            region = region,
+            parentId = parentId,
+            regionId = regionId,
+        )
     }
 
     /**

@@ -51,6 +51,8 @@ import dev.kuml.sysml2.edge.ReqEdgeAdapter
 import dev.kuml.sysml2.edge.StmEdgeAdapter
 import dev.kuml.sysml2.edge.Sysml2EdgeAdapter
 import dev.kuml.sysml2.edge.UcEdgeAdapter
+import dev.kuml.sysml2.usesStmStructure
+import dev.kuml.sysml2.visibleStateIds
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlClassifier
 import dev.kuml.uml.UmlDependency
@@ -445,7 +447,7 @@ public object KumlLatexRenderer {
         layoutResult: LayoutResult,
         options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
     ): String {
-        val visible = diagram.elementIds.toSet()
+        val visible = diagram.visibleStateIds(model)
         val elements =
             model.definitions
                 .filter { it.id in visible }
@@ -456,12 +458,22 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(
-            synthetic = synthetic,
-            layoutResult = layoutResult,
-            options = options,
-            sysml2EdgeAdapter = StmEdgeAdapter(model = model, diagram = diagram),
-        )
+        val tikz =
+            renderSysml2Synthetic(
+                synthetic = synthetic,
+                // Drop the layout-only region-ordering edges ("stm:order:" prefix, see
+                // Sysml2LayoutBridge.STM_ORDER_EDGE_PREFIX; this module does not depend on the bridge).
+                layoutResult = layoutResult.copy(edges = layoutResult.edges.filterKeys { !it.value.startsWith("stm:order:") }),
+                options = options,
+                sysml2EdgeAdapter = StmEdgeAdapter(model = model, diagram = diagram),
+            )
+        // Wave A1: the TikZ backend draws every state as a flat box. Say so in the output
+        // instead of silently dropping the structure (this module has no logging dependency).
+        return if (model.usesStmStructure(visible)) {
+            "% kUML: composite/region nesting is not rendered by the LaTeX backend yet; states are drawn flat.\n$tikz"
+        } else {
+            tikz
+        }
     }
 
     /**
