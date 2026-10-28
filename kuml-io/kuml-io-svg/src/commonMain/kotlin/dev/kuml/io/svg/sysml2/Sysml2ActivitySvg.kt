@@ -213,10 +213,12 @@ private fun SvgBuilder.renderActionPins(
             val label = if (pin.side != PinSide.Auto || explicit) truncate(s = pin.name, max = PIN_LABEL_MAX_CHARS) else pin.name
             val (lx, ly, anchor) =
                 when (side) {
-                    PinSide.Left -> Triple(cx - PIN_SIZE / 2f - 4f, cy + 3f, "end")
-                    PinSide.Right -> Triple(cx + PIN_SIZE / 2f + 4f, cy + 3f, "start")
-                    PinSide.Top -> Triple(cx, cy - PIN_SIZE / 2f - 4f, "middle")
-                    else -> Triple(cx, cy + PIN_SIZE / 2f + 12f, "middle")
+                    // Wave C2b: labels sit in the quadrant away from the edge that docks perpendicular at the pin
+                    // centre line (offset 9 px sideways), so neither the line nor its arrow head runs through the text.
+                    PinSide.Left -> Triple(cx - 9f, cy - 9f, "end")
+                    PinSide.Right -> Triple(cx + 9f, cy - 9f, "start")
+                    PinSide.Top -> Triple(cx + 9f, cy - 9f, "start")
+                    else -> Triple(cx + 9f, cy + 17f, "start")
                 }
             tag(
                 name = "text",
@@ -267,7 +269,15 @@ internal fun actionPinAnchor(
     bounds: dev.kuml.layout.Rect,
     pinName: String,
     direction: PinDirection,
-): dev.kuml.layout.Point? {
+): dev.kuml.layout.Point? = actionPinAnchorWithSide(def = def, bounds = bounds, pinName = pinName, direction = direction)?.first
+
+/** Like [actionPinAnchor], additionally returning the box side the pin sits on (wave C2b: pin routing). */
+internal fun actionPinAnchorWithSide(
+    def: ActionDefinition,
+    bounds: dev.kuml.layout.Rect,
+    pinName: String,
+    direction: PinDirection,
+): Pair<dev.kuml.layout.Point, PinSide>? {
     val pin = def.pins.firstOrNull { it.name == pinName && it.direction == direction } ?: return null
     val side = pin.effectiveSide
     val onSide = def.pins.filter { it.effectiveSide == side }
@@ -280,8 +290,62 @@ internal fun actionPinAnchor(
             PinSide.Top -> 0f to -PIN_SIZE / 2f
             else -> 0f to PIN_SIZE / 2f
         }
-    return dev.kuml.layout.Point(x = bounds.origin.x + cx + ox, y = bounds.origin.y + cy + oy)
+    return dev.kuml.layout.Point(x = bounds.origin.x + cx + ox, y = bounds.origin.y + cy + oy) to side
 }
+
+/**
+ * Estimated rectangles (absolute coordinates, [PIN_LABEL_CHAR_PX] per character, font independent) of the
+ * pin labels of [def] laid out at [bounds]; used as obstacles by the edge-label placer (wave C2b).
+ */
+internal fun pinLabelRects(
+    def: ActionDefinition,
+    bounds: dev.kuml.layout.Rect,
+): List<dev.kuml.layout.Rect> {
+    val out = ArrayList<dev.kuml.layout.Rect>()
+    val explicit = def.pins.any { it.side != PinSide.Auto }
+    for (side in PinSide.entries) {
+        if (side == PinSide.Auto) continue
+        val onSide = def.pins.filter { it.effectiveSide == side }
+        if (onSide.isEmpty()) continue
+        val pos = pinPositions(count = onSide.size, side = side, w = bounds.size.width, h = bounds.size.height)
+        onSide.forEachIndexed { i, pin ->
+            val text = if (pin.side != PinSide.Auto || explicit) truncate(s = pin.name, max = PIN_LABEL_MAX_CHARS) else pin.name
+            val w = text.length * PIN_LABEL_CHAR_PX
+            val cx = bounds.origin.x + pos[i].first
+            val cy = bounds.origin.y + pos[i].second
+            val (x0, base) =
+                when (side) {
+                    PinSide.Left -> (cx - 9f - w) to (cy - 9f)
+                    PinSide.Right, PinSide.Top -> (cx + 9f) to (cy - 9f)
+                    else -> (cx + 9f) to (cy + 17f)
+                }
+            out +=
+                dev.kuml.layout.Rect(
+                    origin = dev.kuml.layout.Point(x = x0, y = base - 10f),
+                    size = dev.kuml.layout.Size(width = w, height = 13f),
+                )
+        }
+    }
+    return out
+}
+
+/** Absolute pin-square centres of [def] at [bounds] with their side (wave C2b: keeps plain edges off pins). */
+internal fun pinCenters(
+    def: ActionDefinition,
+    bounds: dev.kuml.layout.Rect,
+): List<Pair<PinSide, dev.kuml.layout.Point>> {
+    val out = ArrayList<Pair<PinSide, dev.kuml.layout.Point>>()
+    for (side in PinSide.entries) {
+        if (side == PinSide.Auto) continue
+        val onSide = def.pins.filter { it.effectiveSide == side }
+        if (onSide.isEmpty()) continue
+        val pos = pinPositions(count = onSide.size, side = side, w = bounds.size.width, h = bounds.size.height)
+        pos.forEach { out += side to dev.kuml.layout.Point(x = bounds.origin.x + it.first, y = bounds.origin.y + it.second) }
+    }
+    return out
+}
+
+internal const val PIN_LABEL_CHAR_PX: Float = 6.2f
 
 /** Maximum characters of a pin label on an explicitly chosen side. */
 internal const val PIN_LABEL_MAX_CHARS: Int = 12

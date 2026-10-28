@@ -37,10 +37,12 @@ import kotlin.math.sqrt
  * Activity-Render-Pfaden teilbar.
  *
  * Shape-spezifische Geometrie:
- *  - [Shape.Rectangle] — Rechteckrand: `t = min(halfW/|dx|, halfH/|dy|)`.
- *    ELK liefert hier ohnehin schon korrekte Endpunkte; der Snap ist
- *    idempotent, kostet aber nichts und macht die Routine formunabhängig
- *    sicher.
+ *  - [Shape.Rectangle] — ELK liefert hier bereits korrekte Endpunkte; sie
+ *    werden unverändert durchgereicht (ein Radialsnap würde senkrechte
+ *    Anschlusssegmente verkippen).
+ *  - Achsparallele erste/letzte Segmente an Raute/Kreis bleiben
+ *    achsparallel: nur die Koordinate entlang des Segments wandert auf den
+ *    Rand ([axisAligned]).
  *  - [Shape.Diamond] — Manhattan-Boundary: der Endpunkt liegt dort, wo
  *    `|dx| / halfW + |dy| / halfH = 1` (klassische L1-Geometrie eines
  *    achsparallelen Diamanten). Der Faktor `t` entlang der Richtung ist
@@ -112,13 +114,13 @@ internal object Sysml2ActivityEdgeClipper {
     ): EdgeRoute {
         val newSource =
             if (sourceShape != null) {
-                snapToBoundary(shape = sourceShape, aimedAt = secondPoint(route))
+                snapToBoundary(shape = sourceShape, original = route.source, aimedAt = secondPoint(route))
             } else {
                 route.source
             }
         val newTarget =
             if (targetShape != null) {
-                snapToBoundary(shape = targetShape, aimedAt = penultimatePoint(route))
+                snapToBoundary(shape = targetShape, original = route.target, aimedAt = penultimatePoint(route))
             } else {
                 route.target
             }
@@ -170,8 +172,12 @@ internal object Sysml2ActivityEdgeClipper {
      */
     private fun snapToBoundary(
         shape: Shape,
+        original: Point,
         aimedAt: Point,
     ): Point {
+        // Rectangles: ELK already ends on the bounding box, which is the visible border.
+        if (shape is Shape.Rectangle) return original
+        axisAligned(shape = shape, original = original, neighbor = aimedAt)?.let { return it }
         val bounds = shape.bounds
         val cx = bounds.origin.x + bounds.size.width / 2f
         val cy = bounds.origin.y + bounds.size.height / 2f
@@ -202,6 +208,50 @@ internal object Sysml2ActivityEdgeClipper {
         val clamped = min(t, 1f)
         return Point(x = cx + dx * clamped, y = cy + dy * clamped)
     }
+
+    /**
+     * Snap for an axis-parallel first / last segment: the coordinate across the segment is kept
+     * (so the segment stays orthogonal) and only the coordinate along it moves onto the shape
+     * border. `null` when the segment is not axis parallel or does not hit the shape.
+     */
+    internal fun axisAligned(
+        shape: Shape,
+        original: Point,
+        neighbor: Point,
+    ): Point? {
+        if (shape is Shape.Rectangle) return original
+        val b = shape.bounds
+        val cx = b.origin.x + b.size.width / 2f
+        val cy = b.origin.y + b.size.height / 2f
+        val halfW = b.size.width / 2f
+        val halfH = b.size.height / 2f
+        val horizontal = abs(neighbor.y - original.y) < AXIS_TOL && abs(neighbor.x - original.x) > AXIS_TOL
+        val vertical = abs(neighbor.x - original.x) < AXIS_TOL && abs(neighbor.y - original.y) > AXIS_TOL
+        if (!horizontal && !vertical) return null
+        return if (horizontal) {
+            val off = original.y - cy
+            val reach =
+                when (shape) {
+                    is Shape.Circle -> if (abs(off) >= shape.radiusPx) return null else sqrt(shape.radiusPx * shape.radiusPx - off * off)
+                    is Shape.Diamond -> if (abs(off) >= halfH) return null else halfW * (1f - abs(off) / halfH)
+                    is Shape.Rectangle -> halfW
+                }
+            val sign = if (neighbor.x >= cx) 1f else -1f
+            Point(x = cx + sign * reach, y = original.y)
+        } else {
+            val off = original.x - cx
+            val reach =
+                when (shape) {
+                    is Shape.Circle -> if (abs(off) >= shape.radiusPx) return null else sqrt(shape.radiusPx * shape.radiusPx - off * off)
+                    is Shape.Diamond -> if (abs(off) >= halfW) return null else halfH * (1f - abs(off) / halfW)
+                    is Shape.Rectangle -> halfH
+                }
+            val sign = if (neighbor.y >= cy) 1f else -1f
+            Point(x = original.x, y = cy + sign * reach)
+        }
+    }
+
+    private const val AXIS_TOL: Float = 0.5f
 
     /** Numerische Toleranz für Division-durch-null-Schutz. */
     private const val EPSILON: Float = 1e-3f

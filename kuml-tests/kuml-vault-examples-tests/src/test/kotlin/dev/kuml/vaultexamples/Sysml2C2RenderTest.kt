@@ -120,7 +120,9 @@ class Sysml2C2RenderTest :
             val svg = VaultExampleRenderer.render(script = script("act")).svg!!
             Regex("""kuml-edge-lightning""").findAll(svg).count() shouldBe 2
             val handler = group(svg, "exceptionHandler:ChargeCard::HandleError")
-            handler shouldContain "PaymentError"
+            // wave C2b: the label is painted after all edges, in its own group keyed by the edge id
+            val labelGroup = svg.substring(svg.indexOf("data-edge-id=\"exceptionHandler:ChargeCard::HandleError\""))
+            labelGroup.substring(0, labelGroup.indexOf("</g>")) shouldContain "PaymentError"
             // the kink adds four points to the routed polyline
             val pts =
                 Regex("""<polyline points="([^"]+)"""")

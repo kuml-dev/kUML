@@ -75,36 +75,7 @@ internal fun renderActivityPartitionGroup(
                     "stroke-dasharray" to PARTITION_BORDER_DASH,
                 ),
         )
-    }
-}
-
-/**
- * Wave C2 fix: draws the solid header bar and the name of a swimlane. Painted after the edges
- * (the header used to sit under them) so no edge line runs across the lane name.
- */
-internal fun renderActivityPartitionHeader(
-    partition: ActivityPartitionDefinition,
-    groupLayout: GroupLayout,
-    paddingPx: Float,
-    builder: SvgBuilder,
-) {
-    val gx = groupLayout.bounds.origin.x + paddingPx
-    val gy = groupLayout.bounds.origin.y + paddingPx
-    val gw = groupLayout.bounds.size.width
-
-    builder.tag(
-        name = "g",
-        attrs =
-            mapOf(
-                "id" to xmlEscapeAttr("activityPartitionHeader:${partition.id}"),
-                "transform" to "translate(${fmtPart(gx)},${fmtPart(gy)})",
-            ),
-    ) {
-        // Solid header bar at the top — visually identifies which lane
-        //    this is. Uses a kuml-stereotype-class label so the header
-        //    text harmonises with the «stereotype»-text on action boxes.
-        //    The header is rendered as a separate rect (not a path with
-        //    fill-rule) so SVG-2-strict viewers render it correctly.
+        // Wave C2b: the solid header band is part of the lane (under the edges); only the name is painted later.
         tag(
             name = "rect",
             attrs =
@@ -115,15 +86,59 @@ internal fun renderActivityPartitionHeader(
                     "fill" to "#f3f3f3",
                 ),
         )
+    }
+}
 
-        // 3. Header label — partition name, centred horizontally in the
-        //    header bar, baseline-anchored mid-header.
+/**
+ * Wave C2b: draws the name of a swimlane after every edge, on its own backdrop (the band colour). The
+ * name sits flush left unless an edge of [edges] crosses that spot, then it slides to the first free
+ * gap ([placeFrameLabel]); with no free spot it stays left and the group is marked
+ * `data-kuml-fallback="occluded"`.
+ */
+internal fun renderActivityPartitionHeader(
+    partition: ActivityPartitionDefinition,
+    groupLayout: GroupLayout,
+    paddingPx: Float,
+    builder: SvgBuilder,
+    edges: List<List<dev.kuml.layout.Point>> = emptyList(),
+) {
+    val gx = groupLayout.bounds.origin.x + paddingPx
+    val gy = groupLayout.bounds.origin.y + paddingPx
+    val gw = groupLayout.bounds.size.width
+    val labelW = minOf(gw - 8f, partition.name.length * 6.6f + 12f)
+    val frame =
+        dev.kuml.layout.Rect(
+            origin = dev.kuml.layout.Point(x = gx, y = gy),
+            size = dev.kuml.layout.Size(width = gw, height = PARTITION_HEADER_HEIGHT),
+        )
+    val placement = placeFrameLabel(frame = frame, labelW = labelW, bandH = PARTITION_HEADER_HEIGHT, edges = edges, inset = 4f, safety = 2f)
+    val lx = placement.x - gx
+    val attrs =
+        buildMap {
+            put("id", xmlEscapeAttr("activityPartitionHeader:${partition.id}"))
+            put("transform", "translate(${fmtPart(gx)},${fmtPart(gy)})")
+            if (placement.fallbackOccluded) put("data-kuml-fallback", "occluded")
+        }
+    builder.tag(name = "g", attrs = attrs) {
+        tag(
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmtPart(lx),
+                    "y" to "2",
+                    "width" to fmtPart(labelW),
+                    "height" to fmtPart(PARTITION_HEADER_HEIGHT - 4f),
+                    "fill" to "#f3f3f3",
+                    "fill-opacity" to "1",
+                    "stroke" to "none",
+                ),
+        )
         tag(
             name = "text",
             attrs =
                 mapOf(
                     "class" to "kuml-stereotype",
-                    "x" to fmtPart(gw / 2f),
+                    "x" to fmtPart(lx + labelW / 2f),
                     "y" to fmtPart(PARTITION_HEADER_HEIGHT / 2f + 4f),
                     "text-anchor" to "middle",
                 ),

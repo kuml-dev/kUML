@@ -388,6 +388,12 @@ public object Sysml2LayoutBridge {
      */
     public const val ACT_BAR_WIDTH: Float = 120f
 
+    /** Wave C2b — top padding of a swimlane: clears the 24 px header band plus air for the first row. */
+    public const val ACT_PARTITION_TOP_PADDING: Float = 36f
+
+    /** Wave C2b — minimum spacing (px) of edge attachment points on a fork / join bar. */
+    public const val ACT_BAR_ANCHOR_GAP: Float = 16f
+
     /** Default-Höhe einer Fork-/Join-Synchronisations-Bar (V2.0.10). */
     public const val ACT_BAR_HEIGHT: Float = 10f
 
@@ -1707,12 +1713,12 @@ public object Sysml2LayoutBridge {
         //          — knapp genug, damit Partitionen ohne Pin-Aktionen nicht
         //          übermäßig in die Breite gezogen werden. Top/Bottom bleiben
         //          0, weil Pins nur seitlich an Action-Boxen sitzen.
-        val partitionPadding = Insets(top = 0f, right = 80f, bottom = 0f, left = 80f)
+        val partitionPadding = Insets(top = ACT_PARTITION_TOP_PADDING, right = 80f, bottom = 16f, left = 80f)
         val groups: List<LayoutGroup> =
             model.definitions
                 .filterIsInstance<ActivityPartitionDefinition>()
                 .filter { it.id in visiblePartitionIds }
-                .map { LayoutGroup(id = GroupId(it.id), parent = null, padding = partitionPadding) }
+                .map { LayoutGroup(id = GroupId(it.id), parent = null, padding = partitionPadding, layoutAsCompound = true) }
 
         // Flows aus dem Modell ziehen (nicht aus dem Diagramm) — siehe
         // KDoc-Begründung oben. Eine Flow wird zur Edge, wenn beide
@@ -2057,8 +2063,17 @@ public object Sysml2LayoutBridge {
                         dev.kuml.layout.Size(width = ACT_DIAMOND_WIDTH, height = ACT_DIAMOND_HEIGHT)
                     ActivityNodeKind.Fork.name,
                     ActivityNodeKind.Join.name,
-                    ->
-                        dev.kuml.layout.Size(width = ACT_BAR_WIDTH, height = ACT_BAR_HEIGHT)
+                    -> {
+                        // Wave C2b: the bar grows to (n + 1) * 16 px so arrivals / departures keep 16 px apart.
+                        val flowsIn =
+                            model.usages.count { it is ControlFlowUsage && it.targetNodeId == id } +
+                                model.usages.count { it is ObjectFlowUsage && it.targetNodeId == id }
+                        val flowsOut =
+                            model.usages.count { it is ControlFlowUsage && it.sourceNodeId == id } +
+                                model.usages.count { it is ObjectFlowUsage && it.sourceNodeId == id }
+                        val n = maxOf(flowsIn, flowsOut)
+                        dev.kuml.layout.Size(width = maxOf(ACT_BAR_WIDTH, (n + 1) * ACT_BAR_ANCHOR_GAP), height = ACT_BAR_HEIGHT)
+                    }
                     ActivityNodeKind.SendSignal.name,
                     ActivityNodeKind.AcceptEvent.name,
                     -> {

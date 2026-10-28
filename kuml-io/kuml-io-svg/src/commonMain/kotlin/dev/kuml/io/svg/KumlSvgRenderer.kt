@@ -1830,8 +1830,9 @@ public object KumlSvgRenderer {
         sysml2Context: dev.kuml.io.svg.sysml2.Sysml2NodeContext? = null,
         beforeNodes: ((SvgBuilder, LayoutResult, Float) -> Unit)? = null,
         afterNodes: ((SvgBuilder, LayoutResult, Float) -> Unit)? = null,
-        afterEdges: ((SvgBuilder, LayoutResult, Float) -> Unit)? = null,
+        afterEdges: ((SvgBuilder, LayoutResult, Float, List<List<dev.kuml.layout.Point>>) -> Unit)? = null,
         leashLabels: Boolean = false,
+        placeLabelsOnLine: Boolean = false,
         edgeLabelAnchor: ((EdgeId, EdgeRoute, String?) -> Pair<Float, Float>?)? = null,
         edgeBackdropFill: String? = null,
         wrapStmLabels: Boolean = false,
@@ -1972,6 +1973,7 @@ public object KumlSvgRenderer {
                     },
                 )
             val shiftedRoutes = sysml2ShiftedRoutes(layoutResult = layoutResult, padding = padding, routeTransform = routeTransform)
+            val pendingLabels = ArrayList<Sysml2EdgeRenderer.PendingEdgeLabel>()
             for ((edgeId, _) in layoutResult.edges) {
                 val shiftedRoute = shiftedRoutes.getValue(edgeId.value)
                 val element = elementIndex[edgeId.value]
@@ -1981,7 +1983,7 @@ public object KumlSvgRenderer {
                     val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
                     if (meta != null) {
                         Sysml2EdgeRenderer.render(
-                            suppressLabels = stmBlocks.containsKey(edgeId.value),
+                            suppressLabels = stmBlocks.containsKey(edgeId.value) || placeLabelsOnLine,
                             id = edgeId.value,
                             route = shiftedRoute,
                             metadata = meta,
@@ -1992,6 +1994,9 @@ public object KumlSvgRenderer {
                             backdropFill = edgeBackdropFill,
                             leashLabels = leashLabels,
                         )
+                        if (placeLabelsOnLine) {
+                            Sysml2EdgeRenderer.pendingLabelOf(id = edgeId.value, metadata = meta)?.let { pendingLabels += it }
+                        }
                     } else {
                         // V2.0.7–12 fallback: plain solid line. Reached only if
                         // the adapter doesn't claim the edge, which should not
@@ -2003,6 +2008,40 @@ public object KumlSvgRenderer {
                         }
                     }
                 }
+            }
+            // Wave C2b: REQ / UC labels sit centred on their own line, placed once all edges are known.
+            if (placeLabelsOnLine) {
+                val groupRects =
+                    layoutResult.groups.values.map {
+                        dev.kuml.layout.Rect(
+                            origin = dev.kuml.layout.Point(x = it.bounds.origin.x + padding, y = it.bounds.origin.y + padding),
+                            size = it.bounds.size,
+                        )
+                    }
+                val nodeRects =
+                    layoutResult.nodes.values.map {
+                        dev.kuml.layout.Rect(
+                            origin = dev.kuml.layout.Point(x = it.bounds.origin.x + padding, y = it.bounds.origin.y + padding),
+                            size = it.bounds.size,
+                        )
+                    }
+                val nodeFillHex = theme.colors.effectiveNodeFill.toHex()
+                val paperHex = edgeBackdropFill ?: theme.colors.background.toHex()
+                Sysml2EdgeRenderer.emitLabelsOnLine(
+                    pending = pendingLabels,
+                    allRoutes = shiftedRoutes,
+                    obstacles = nodeRects,
+                    backdropFor = { r ->
+                        val cx = r.origin.x + r.size.width / 2f
+                        val cy = r.origin.y + r.size.height / 2f
+                        val inGroup =
+                            groupRects.any {
+                                cx in it.origin.x..(it.origin.x + it.size.width) && cy in it.origin.y..(it.origin.y + it.size.height)
+                            }
+                        if (inGroup) nodeFillHex else paperHex
+                    },
+                    builder = edgesBuilder,
+                )
             }
             // STM labels come after ALL edges so no later edge line runs over a label; the backdrop is
             // opaque and matches the container the label sits in (composite fill or diagram paper).
@@ -2050,7 +2089,7 @@ public object KumlSvgRenderer {
                 )
             }
             // Wave C2: overlay painted after every edge and deferred node (frame tabs and titles).
-            afterEdges?.invoke(edgesBuilder, layoutResult, padding)
+            afterEdges?.invoke(edgesBuilder, layoutResult, padding, shiftedRoutes.values.map { Sysml2EdgeRenderer.polylinePoints(it) })
             emitHighlightEdges(layoutResult = layoutResult, theme = theme, options = options, padding = padding, builder = edgesBuilder)
         }
     }
@@ -2263,15 +2302,16 @@ public object KumlSvgRenderer {
                     builder = builder,
                 )
             },
-            afterEdges = { builder, lr, padding ->
+            afterEdges = { builder, lr, padding, edgePolylines ->
                 dev.kuml.io.svg.sysml2.renderUcSubjectTitles(
                     diagram = diagram,
                     layoutResult = lr,
                     paddingPx = padding,
                     builder = builder,
+                    edges = edgePolylines,
                 )
             },
-            leashLabels = true,
+            placeLabelsOnLine = true,
         )
     }
 
@@ -2335,15 +2375,16 @@ public object KumlSvgRenderer {
                     builder = builder,
                 )
             },
-            afterEdges = { builder, lr, padding ->
+            afterEdges = { builder, lr, padding, edgePolylines ->
                 dev.kuml.io.svg.sysml2.renderRequirementGroupTabs(
                     diagram = diagram,
                     layoutResult = lr,
                     paddingPx = padding,
                     builder = builder,
+                    edges = edgePolylines,
                 )
             },
-            leashLabels = true,
+            placeLabelsOnLine = true,
         )
     }
 
@@ -2692,10 +2733,47 @@ public object KumlSvgRenderer {
                         Triple(edgeId, route, widestLabelText(meta))
                     },
                 )
+            // Wave C2b: edge ends meeting a fork / join bar are spread evenly along it.
+            val barAnchors: Map<Pair<String, Boolean>, Float> =
+                buildMap {
+                    val shifted = layoutResult.edges.entries.associate { (id, r) -> id.value to shiftRoute(route = r, dx = padding) }
+                    for ((nodeId, kind) in actionKindById) {
+                        if (kind != dev.kuml.sysml2.ActivityNodeKind.Fork && kind != dev.kuml.sysml2.ActivityNodeKind.Join) continue
+                        val bar = shiftedBoundsById[nodeId] ?: continue
+                        val arriving = ArrayList<dev.kuml.io.svg.sysml2.BarAttachment>()
+                        val leaving = ArrayList<dev.kuml.io.svg.sysml2.BarAttachment>()
+                        for ((eid, ends) in endpointsByEdgeId) {
+                            val r = shifted[eid] ?: continue
+                            val wps =
+                                when (r) {
+                                    is dev.kuml.layout.EdgeRoute.OrthogonalRounded -> r.waypoints
+                                    is dev.kuml.layout.EdgeRoute.TreeRounded -> r.waypoints
+                                    else -> emptyList()
+                                }
+                            if (ends.second == nodeId) {
+                                arriving +=
+                                    dev.kuml.io.svg.sysml2
+                                        .BarAttachment(edgeId = eid, atTarget = true, neighborX = (wps.lastOrNull() ?: r.source).x)
+                            }
+                            if (ends.first == nodeId) {
+                                leaving +=
+                                    dev.kuml.io.svg.sysml2
+                                        .BarAttachment(edgeId = eid, atTarget = false, neighborX = (wps.firstOrNull() ?: r.target).x)
+                            }
+                        }
+                        putAll(
+                            dev.kuml.io.svg.sysml2.Sysml2ForkJoinAnchors
+                                .distribute(bar = bar, arriving = arriving, leaving = leaving),
+                        )
+                    }
+                }
+            val pendingActLabels = ArrayList<Sysml2EdgeRenderer.PendingEdgeLabel>()
+            val finalRoutes = LinkedHashMap<String, dev.kuml.layout.EdgeRoute>()
+            val polylinesForFrames = ArrayList<List<dev.kuml.layout.Point>>()
             for ((edgeId, route) in layoutResult.edges) {
                 val shiftedRoute = shiftRoute(route = route, dx = padding)
                 val endpoints = endpointsByEdgeId[edgeId.value]
-                val boundaryRoute =
+                var boundaryRoute =
                     if (endpoints != null) {
                         dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.clip(
                             route = shiftedRoute,
@@ -2705,9 +2783,36 @@ public object KumlSvgRenderer {
                     } else {
                         shiftedRoute
                     }
+                for (atTarget in listOf(false, true)) {
+                    barAnchors[edgeId.value to atTarget]?.let {
+                        boundaryRoute =
+                            dev.kuml.io.svg.sysml2.Sysml2ForkJoinAnchors
+                                .moveEnd(route = boundaryRoute, atTarget = atTarget, x = it)
+                    }
+                }
+                // Wave C2b: plain ends keep clear of pin squares (and their labels) on the same box side.
+                if (endpoints != null) {
+                    for (atTarget in listOf(false, true)) {
+                        val nodeId = if (atTarget) endpoints.second else endpoints.first
+                        val def = actionById[nodeId] ?: continue
+                        val b = shiftedBoundsById[nodeId] ?: continue
+                        if (def.pins.isEmpty()) continue
+                        boundaryRoute =
+                            dev.kuml.io.svg.sysml2.Sysml2ForkJoinAnchors.clearOfPins(
+                                route = boundaryRoute,
+                                atTarget = atTarget,
+                                bounds = b,
+                                pins =
+                                    dev.kuml.io.svg.sysml2
+                                        .pinCenters(def = def, bounds = b),
+                            )
+                    }
+                }
                 // Wave C2: pin-to-pin object flows and handler pins end at the pin square instead of the box edge.
                 var pinSource: dev.kuml.layout.Point? = null
                 var pinTarget: dev.kuml.layout.Point? = null
+                var pinSourceSide: dev.kuml.sysml2.PinSide? = null
+                var pinTargetSide: dev.kuml.sysml2.PinSide? = null
                 objectFlowsById[edgeId.value]?.let { f ->
                     val sb = shiftedBoundsById[f.sourceNodeId]
                     val tb = shiftedBoundsById[f.targetNodeId]
@@ -2716,14 +2821,20 @@ public object KumlSvgRenderer {
                     val sp = f.sourcePin
                     val tp = f.targetPin
                     if (sp != null && sb != null && sd != null) {
-                        pinSource =
-                            dev.kuml.io.svg.sysml2
-                                .actionPinAnchor(def = sd, bounds = sb, pinName = sp, direction = dev.kuml.sysml2.PinDirection.Output)
+                        dev.kuml.io.svg.sysml2
+                            .actionPinAnchorWithSide(def = sd, bounds = sb, pinName = sp, direction = dev.kuml.sysml2.PinDirection.Output)
+                            ?.let {
+                                pinSource = it.first
+                                pinSourceSide = it.second
+                            }
                     }
                     if (tp != null && tb != null && td != null) {
-                        pinTarget =
-                            dev.kuml.io.svg.sysml2
-                                .actionPinAnchor(def = td, bounds = tb, pinName = tp, direction = dev.kuml.sysml2.PinDirection.Input)
+                        dev.kuml.io.svg.sysml2
+                            .actionPinAnchorWithSide(def = td, bounds = tb, pinName = tp, direction = dev.kuml.sysml2.PinDirection.Input)
+                            ?.let {
+                                pinTarget = it.first
+                                pinTargetSide = it.second
+                            }
                     }
                 }
                 handlersById[edgeId.value]?.let { h ->
@@ -2731,12 +2842,28 @@ public object KumlSvgRenderer {
                     val hb = shiftedBoundsById[h.handlerNodeId]
                     val hd = actionById[h.handlerNodeId]
                     if (hp != null && hb != null && hd != null) {
-                        pinTarget =
-                            dev.kuml.io.svg.sysml2
-                                .actionPinAnchor(def = hd, bounds = hb, pinName = hp, direction = dev.kuml.sysml2.PinDirection.Input)
+                        dev.kuml.io.svg.sysml2
+                            .actionPinAnchorWithSide(def = hd, bounds = hb, pinName = hp, direction = dev.kuml.sysml2.PinDirection.Input)
+                            ?.let {
+                                pinTarget = it.first
+                                pinTargetSide = it.second
+                            }
                     }
                 }
-                val clippedRoute = routeWithEndpoints(route = boundaryRoute, source = pinSource, target = pinTarget)
+                val anchoredRoute = routeWithEndpoints(route = boundaryRoute, source = pinSource, target = pinTarget)
+                // Wave C2b: pin edges run axis parallel with a perpendicular stub at the pin.
+                val clippedRoute =
+                    if (pinSourceSide != null || pinTargetSide != null) {
+                        dev.kuml.io.svg.sysml2.Sysml2PinRouting.orthogonalize(
+                            route = anchoredRoute,
+                            sourceSide = pinSourceSide,
+                            targetSide = pinTargetSide,
+                        )
+                    } else {
+                        anchoredRoute
+                    }
+                finalRoutes[edgeId.value] = clippedRoute
+                polylinesForFrames += Sysml2EdgeRenderer.polylinePoints(clippedRoute)
                 val element = elementIndex[edgeId.value]
                 if (element != null) {
                     EdgeRendererDispatcher.dispatch(relationship = element, route = clippedRoute, theme = theme, builder = edgesBuilder)
@@ -2750,8 +2877,9 @@ public object KumlSvgRenderer {
                             theme = theme,
                             builder = edgesBuilder,
                             labelStackIndex = actStackIndices[edgeId] ?: 0,
-                            leashLabels = true,
+                            suppressLabels = true,
                         )
+                        Sysml2EdgeRenderer.pendingLabelOf(id = edgeId.value, metadata = meta)?.let { pendingActLabels += it }
                         // Wave C2: an exception handler without a named pin gets a small pin square at its arrival point.
                         handlersById[edgeId.value]?.let { h ->
                             if (h.handlerPin == null) {
@@ -2780,7 +2908,42 @@ public object KumlSvgRenderer {
                 }
             }
 
-            // 4. Wave C2: lane headers and region names are painted after every edge.
+            // 4a. Wave C2b: edge labels centred on their own line, placed once all routes are final.
+            run {
+                val groupRects =
+                    layoutResult.groups.values.map {
+                        dev.kuml.layout.Rect(
+                            origin = dev.kuml.layout.Point(x = it.bounds.origin.x + padding, y = it.bounds.origin.y + padding),
+                            size = it.bounds.size,
+                        )
+                    }
+                val nodeFillHex = theme.colors.effectiveNodeFill.toHex()
+                val paperHex = theme.colors.background.toHex()
+                Sysml2EdgeRenderer.emitLabelsOnLine(
+                    pending = pendingActLabels,
+                    allRoutes = finalRoutes,
+                    obstacles =
+                        shiftedBoundsById.values.toList() +
+                            actionById.values.flatMap { d ->
+                                shiftedBoundsById[d.id]
+                                    ?.let {
+                                        dev.kuml.io.svg.sysml2
+                                            .pinLabelRects(def = d, bounds = it)
+                                    }.orEmpty()
+                            },
+                    backdropFor = { r ->
+                        val cx = r.origin.x + r.size.width / 2f
+                        val cy = r.origin.y + r.size.height / 2f
+                        val inGroup =
+                            groupRects.any {
+                                cx in it.origin.x..(it.origin.x + it.size.width) && cy in it.origin.y..(it.origin.y + it.size.height)
+                            }
+                        if (inGroup) nodeFillHex else paperHex
+                    },
+                    builder = edgesBuilder,
+                )
+            }
+            // 4b. Wave C2: lane names and region names are painted after every edge.
             for ((groupId, groupLayout) in layoutResult.groups) {
                 val partition = partitionsById[groupId.value] ?: continue
                 dev.kuml.io.svg.sysml2.renderActivityPartitionHeader(
@@ -2788,6 +2951,7 @@ public object KumlSvgRenderer {
                     groupLayout = groupLayout,
                     paddingPx = padding,
                     builder = edgesBuilder,
+                    edges = polylinesForFrames,
                 )
             }
             dev.kuml.io.svg.sysml2

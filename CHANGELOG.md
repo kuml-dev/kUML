@@ -9,6 +9,7 @@ All notable changes to this project are documented here. Format follows
 ### Fixed
 
 - SysML-2-STM: Kantenbeschriftungen werden nach allen Kanten auf einem deckenden Hintergrund gezeichnet und kollisionsfrei neben einem nur der eigenen Kante gehörenden Segment platziert.
+- SysML-2-REQ/UC/ACT (Welle C2b): Kantenbeschriftungen sitzen mittig auf der eigenen Linie (deckender Hintergrund, nach allen Kanten, ohne Überlappung); Rahmen-Beschriftungen (Requirement-Reiter, UC-Titel, Swimlane-Namen) weichen Kanten aus; Pin-Kanten verlaufen achsenparallel mit senkrechtem Eintritt in den Pin; Pin-Beschriftungen kollidieren nicht mehr mit Linie und Pfeilspitze; Rechteck-Endpunkte werden nicht mehr radial verkippt; Fork/Join-Balken wachsen mit der Kantenzahl und verteilen die Anschlüsse; Swimlanes sind echte Compound-Gruppen und überlappen sich nicht mehr.
 
 ### Fixed (review of SysML 2 STM wave A2)
 

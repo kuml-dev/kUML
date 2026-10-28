@@ -60,19 +60,28 @@ internal fun renderRequirementGroupTabs(
     layoutResult: LayoutResult,
     paddingPx: Float,
     builder: SvgBuilder,
+    edges: List<List<dev.kuml.layout.Point>> = emptyList(),
 ) {
     val frames =
         diagram.groups
             .mapNotNull { g -> layoutResult.groups[GroupId(g.id)]?.let { g to shift(raw = it.bounds, paddingPx = paddingPx) } }
             .sortedByDescending { (_, b) -> b.size.width * b.size.height }
     for ((group, b) in frames) {
-        val x = b.origin.x
         val y = b.origin.y
         val w = b.size.width
         val maxNameChars = ((w - 16f) / 7.8f).toInt().coerceAtLeast(3)
         val name = Sysml2ReqCard.clip(s = group.name, max = maxNameChars)
         val tabW = minOf(w, name.length * 7.8f + 16f)
-        builder.tag(name = "g", attrs = mapOf("id" to "tab:${group.id}", "class" to "kuml-req-group-tab")) {
+        // Wave C2b: the tab slides along the top band until no edge crosses it.
+        val placement = placeFrameLabel(frame = b, labelW = tabW, bandH = REQ_GROUP_TAB_HEIGHT, edges = edges)
+        val x = placement.x
+        val tabAttrs =
+            buildMap {
+                put("id", "tab:${group.id}")
+                put("class", "kuml-req-group-tab")
+                if (placement.fallbackOccluded) put("data-kuml-fallback", "occluded")
+            }
+        builder.tag(name = "g", attrs = tabAttrs) {
             tag(
                 name = "rect",
                 attrs =
@@ -141,18 +150,28 @@ internal fun renderUcSubjectTitles(
     layoutResult: LayoutResult,
     paddingPx: Float,
     builder: SvgBuilder,
+    edges: List<List<dev.kuml.layout.Point>> = emptyList(),
 ) {
     for (subject in diagram.subjects) {
         val b = layoutResult.groups[GroupId(subject.id)]?.let { shift(raw = it.bounds, paddingPx = paddingPx) } ?: continue
         val maxNameChars = ((b.size.width - 24f) / 7f).toInt().coerceAtLeast(3)
         val name = Sysml2ReqCard.clip(s = subject.name, max = maxNameChars)
         val backW = minOf(b.size.width - 4f, name.length * 7.4f + 16f)
-        builder.tag(name = "g", attrs = mapOf("id" to "title:${subject.id}", "class" to "kuml-uc-subject-title")) {
+        // Wave C2b: the title slides along the top band until no edge crosses it.
+        val placement = placeFrameLabel(frame = b, labelW = backW, bandH = 28f, edges = edges, inset = 6f)
+        val tx = placement.x
+        val titleAttrs =
+            buildMap {
+                put("id", "title:${subject.id}")
+                put("class", "kuml-uc-subject-title")
+                if (placement.fallbackOccluded) put("data-kuml-fallback", "occluded")
+            }
+        builder.tag(name = "g", attrs = titleAttrs) {
             tag(
                 name = "rect",
                 attrs =
                     mapOf(
-                        "x" to fmt3(b.origin.x + 6f),
+                        "x" to fmt3(tx),
                         "y" to fmt3(b.origin.y + 6f),
                         "width" to fmt3(backW),
                         "height" to fmt3(22f),
@@ -166,7 +185,7 @@ internal fun renderUcSubjectTitles(
                 attrs =
                     mapOf(
                         "class" to "kuml-title",
-                        "x" to fmt3(b.origin.x + 12f),
+                        "x" to fmt3(tx + 6f),
                         "y" to fmt3(b.origin.y + 22f),
                         "text-anchor" to "start",
                         "font-size" to "12",

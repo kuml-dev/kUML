@@ -77,7 +77,7 @@ internal object Sysml2EdgeRenderer {
     /** Wave C2 — segments shorter than this get the reduced amplitude. */
     private const val LIGHTNING_SHORT_SEGMENT_PX: Float = 32f
 
-    private fun polylinePoints(route: EdgeRoute): List<Point> =
+    internal fun polylinePoints(route: EdgeRoute): List<Point> =
         when (route) {
             is EdgeRoute.Direct -> listOf(route.source, route.target)
             is EdgeRoute.OrthogonalRounded -> listOf(route.source) + route.waypoints + listOf(route.target)
@@ -314,6 +314,109 @@ internal object Sysml2EdgeRenderer {
         // collision avoidance for overlapping labels.
         @Suppress("UNUSED_EXPRESSION")
         theme
+    }
+
+    /** An edge label waiting for [emitLabelsOnLine] (wave C2b): the texts of one edge, placed after all edges are known. */
+    internal data class PendingEdgeLabel(
+        val id: String,
+        val stereotype: String?,
+        val label: String?,
+    )
+
+    /** `null` when [metadata] carries no label text. */
+    internal fun pendingLabelOf(
+        id: String,
+        metadata: Sysml2EdgeMetadata,
+    ): PendingEdgeLabel? =
+        if (metadata.stereotype == null &&
+            metadata.label == null
+        ) {
+            null
+        } else {
+            PendingEdgeLabel(id = id, stereotype = metadata.stereotype, label = metadata.label)
+        }
+
+    /**
+     * Places and draws the [pending] labels of REQ / UC / ACT edges (wave C2b): each label is centred on the
+     * longest free segment of its own line, on an opaque backdrop chosen by [backdropFor] (box centre ->
+     * colour). [allRoutes] are all drawn edges in canvas coordinates, [obstacles] node rectangles to avoid.
+     * Painted as one group after every edge, so no later line runs over a label.
+     */
+    internal fun emitLabelsOnLine(
+        pending: List<PendingEdgeLabel>,
+        allRoutes: Map<String, EdgeRoute>,
+        obstacles: List<dev.kuml.layout.Rect>,
+        backdropFor: (dev.kuml.layout.Rect) -> String,
+        builder: SvgBuilder,
+    ) {
+        if (pending.isEmpty()) return
+
+        data class Line(
+            val text: String,
+            val css: String,
+        )
+
+        val lines =
+            pending.associate { p ->
+                val ls = ArrayList<Line>()
+                p.stereotype?.let { st ->
+                    wrapWords(text = st, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(st) }.forEach {
+                        ls +=
+                            Line(it, "kuml-stereotype")
+                    }
+                }
+                p.label?.let { l ->
+                    wrapWords(text = l, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(l) }.forEach { ls += Line(it, "kuml-body") }
+                }
+                p.id to ls
+            }
+        val requests =
+            pending.mapNotNull { p ->
+                val route = allRoutes[p.id] ?: return@mapNotNull null
+                val ls = lines.getValue(p.id)
+                val w = (ls.maxOfOrNull { it.text.length } ?: 1) * 6.2f + 8f
+                val h = ls.size * LABEL_LINE_HEIGHT_PX + 4f
+                dev.kuml.io.svg.sysml2
+                    .LabelRequest(id = p.id, polyline = polylinePoints(route), w = w, h = h)
+            }
+        val placed =
+            dev.kuml.io.svg.sysml2.Sysml2LabelPlacement.placeAll(
+                requests = requests,
+                allRoutes = allRoutes.mapValues { polylinePoints(it.value) },
+                obstacles = obstacles,
+            )
+        builder.tag(name = "g", attrs = mapOf("class" to "kuml-edge-labels")) {
+            for (id in placed.keys.sorted()) {
+                val r = placed.getValue(id)
+                tag(name = "g", attrs = mapOf("class" to "kuml-edge-label", "data-edge-id" to id)) {
+                    tag(
+                        name = "rect",
+                        attrs =
+                            mapOf(
+                                "x" to fmt(r.origin.x),
+                                "y" to fmt(r.origin.y),
+                                "width" to fmt(r.size.width),
+                                "height" to fmt(r.size.height),
+                                "fill" to backdropFor(r),
+                                "fill-opacity" to "1",
+                                "stroke" to "none",
+                            ),
+                    )
+                    lines.getValue(id).forEachIndexed { i, line ->
+                        tag(
+                            name = "text",
+                            attrs =
+                                mapOf(
+                                    "class" to line.css,
+                                    "x" to fmt(r.origin.x + r.size.width / 2f),
+                                    "y" to fmt(r.origin.y + 2f + 9f + i * LABEL_LINE_HEIGHT_PX),
+                                    "text-anchor" to "middle",
+                                ),
+                        ) { text(line.text) }
+                    }
+                }
+            }
+        }
     }
 
     /**

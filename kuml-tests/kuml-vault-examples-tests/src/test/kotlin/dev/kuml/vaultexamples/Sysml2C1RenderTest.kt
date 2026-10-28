@@ -130,7 +130,8 @@ class Sysml2C1RenderTest :
             val lines = edgePolylines(svg)
             val satisfy = lines.entries.first { it.key.startsWith("satisfy:") }
             // the «satisfy» label text lies within 16 px (+ glyph height) of its own polyline
-            val g = svg.substring(svg.indexOf("<g id=\"${satisfy.key}\">"))
+            // wave C2b: labels are centred on the line and painted after all edges in their own group
+            val g = svg.substring(svg.indexOf("data-edge-id=\"${satisfy.key}\""))
             val label = Regex("""<text class="kuml-stereotype" x="([-0-9.]+)" y="([-0-9.]+)"""").find(g.substring(0, g.indexOf("</g>")))!!
             val lx = label.groupValues[1].toFloat()
             val ly = label.groupValues[2].toFloat()
