@@ -2,8 +2,10 @@ package dev.kuml.layout.bridge
 
 import dev.kuml.layout.EdgeHints
 import dev.kuml.layout.EdgeId
+import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.EndpointRef
 import dev.kuml.layout.GroupId
+import dev.kuml.layout.GroupLayout
 import dev.kuml.layout.Insets
 import dev.kuml.layout.LayoutDirection
 import dev.kuml.layout.LayoutEdge
@@ -12,8 +14,11 @@ import dev.kuml.layout.LayoutGroup
 import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
+import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
 import dev.kuml.layout.PortId
+import dev.kuml.layout.Rect
+import dev.kuml.layout.Size
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActivityNodeKind
@@ -43,6 +48,9 @@ import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
+import dev.kuml.sysml2.projection.sysml2BddBoxContent
+import dev.kuml.sysml2.projection.sysml2BddProjection
+import dev.kuml.sysml2.projection.sysml2IbdProjection
 
 /**
  * Übersetzt eine SysML-2 Block Definition Diagram-Projektion eines
@@ -81,7 +89,7 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: BdDiagram,
-        sizeProvider: SizeProvider = bddContentAwareSizeProvider(model),
+        sizeProvider: SizeProvider = bddContentAwareSizeProvider(model = model, diagram = diagram),
     ): LayoutGraph {
         // Snapshot der sichtbaren Definitionen — ein Set für O(1)-Edge-Filter weiter unten.
         val visibleIds: Set<String> = diagram.elementIds.toSet()
@@ -114,6 +122,19 @@ public object Sysml2LayoutBridge {
             }
         }
 
+        // L6/L7: Kompositions-, Aggregations-, Assoziations- und Allokationskanten.
+        // Owner → Teil, damit der Besitzer oben liegt; nur wenn beide Enden sichtbar sind.
+        for (e in sysml2BddProjection(model = model, diagram = diagram).edges) {
+            if (e.sourceId !in visibleIds || e.targetId !in visibleIds) continue
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(e.id),
+                    source = EndpointRef(nodeId = NodeId(e.sourceId)),
+                    target = EndpointRef(nodeId = NodeId(e.targetId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
         return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
     }
 
@@ -138,6 +159,9 @@ public object Sysml2LayoutBridge {
 
     /** Height per action line in an STM state box. */
     public const val ACTION_LINE_H: Float = 13f
+
+    /** Gap above an `actions` / `signals` compartment (divider + spacing). */
+    public const val EXTRA_COMPARTMENT_GAP: Float = 14f
 
     /** Vertical padding (top + bottom) inside a node box. */
     public const val BOX_V_PADDING: Float = 16f
@@ -391,26 +415,38 @@ public object Sysml2LayoutBridge {
      * [dev.kuml.io.svg.sysml2.formatBdd] in the SVG renderer so the estimate
      * matches the actual rendered text.
      */
-    public fun bddContentAwareSizeProvider(model: Sysml2Model): SizeProvider =
-        SizeProvider { id, _ ->
+    public fun bddContentAwareSizeProvider(model: Sysml2Model): SizeProvider = bddContentAwareSizeProvider(model = model, diagram = null)
+
+    /**
+     * Wie [bddContentAwareSizeProvider] (ein Argument), aber diagrammbewusst: Zeilen gezeichneter
+     * Kompositions-/Aggregationskanten entfallen, die Kompartments `actions` und `signals` zählen mit.
+     * Nutzt dieselben Zeilenlisten wie der SVG-Renderer.
+     */
+    public fun bddContentAwareSizeProvider(
+        model: Sysml2Model,
+        diagram: BdDiagram?,
+    ): SizeProvider {
+        val projection = diagram?.let { sysml2BddProjection(model = model, diagram = it) }
+        return SizeProvider { id, _ ->
             val def = model.definitions.firstOrNull { it.id == id }
-            val featureCount = def?.features?.size ?: 0
-            val h =
+            val content = def?.let { sysml2BddBoxContent(model = model, def = it, projection = projection) }
+            val lines = content?.featureLines?.size ?: 0
+            var h =
                 STEREOTYPE_LINE_H + NAME_LINE_H +
-                    (if (featureCount > 0) DIVIDER_GAP + featureCount * FEATURE_LINE_H else 0f) +
+                    (if (lines > 0) DIVIDER_GAP + lines * FEATURE_LINE_H else 0f) +
                     BOX_V_PADDING
-            // Width: grow with the longest text line to prevent overflow
+            val actions = content?.actions ?: emptyList()
+            val signals = content?.signals ?: emptyList()
+            if (actions.isNotEmpty()) h += EXTRA_COMPARTMENT_GAP + (actions.size + 1) * FEATURE_LINE_H
+            if (signals.isNotEmpty()) h += EXTRA_COMPARTMENT_GAP + (signals.size + 1) * FEATURE_LINE_H
             val stereoW = "«part def»".length * IBD_STEREO_CHAR_PX
             val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
             val bodyMax =
-                def?.features?.maxOfOrNull { feat ->
-                    val multSuffix =
-                        if (feat.multiplicity.toSpecForm() == "1") "" else " [${feat.multiplicity.toSpecForm()}]"
-                    "${feat.name} : ${feat.typeId ?: "?"}$multSuffix".length * BDD_BODY_CHAR_PX
-                } ?: 0f
+                ((content?.widthProbe ?: emptyList()) + actions + signals).maxOfOrNull { it.length * BDD_BODY_CHAR_PX } ?: 0f
             val contentW = maxOf(stereoW, nameW, bodyMax) + 2 * IBD_H_PAD
-            dev.kuml.layout.Size(width = maxOf(contentW, DEFAULT_WIDTH), height = maxOf(h, 70f))
+            Size(width = maxOf(contentW, DEFAULT_WIDTH), height = maxOf(h, 70f))
         }
+    }
 
     /**
      * Avg width of a 14pt bold sans-serif char (incl. ~10% slack) — used to
@@ -478,34 +514,15 @@ public object Sysml2LayoutBridge {
             if (model == null || diagram == null) {
                 emptyMap()
             } else {
-                val owner =
-                    model.definitions.filterIsInstance<PartDefinition>().firstOrNull { it.id == diagram.ownerId }
-                if (owner == null) {
-                    emptyMap()
-                } else {
-                    val partDefIds: Set<String> =
-                        model.definitions
-                            .filterIsInstance<PartDefinition>()
-                            .map { it.id }
-                            .toSet()
-                    val ownerPartUsageFeatures =
-                        owner.features.filter { feature -> feature.typeId != null && feature.typeId in partDefIds }
-                    val filterIds: Set<String>? = diagram.elementIds.takeIf { it.isNotEmpty() }?.toSet()
-                    val visibleNodeIds: Set<String> =
-                        (if (filterIds == null) ownerPartUsageFeatures else ownerPartUsageFeatures.filter { it.id in filterIds })
-                            .map { it.id }
-                            .toSet()
-                    val ownerPrefix = "${owner.id}::"
-                    buildMap<String, Int> {
-                        for (connection in model.usages.filterIsInstance<ConnectionUsage>()) {
-                            if (!connection.id.startsWith(ownerPrefix)) continue
-                            val srcNode =
-                                longestPrefixNodeId(endpointId = connection.sourceEndId, visibleNodeIds = visibleNodeIds) ?: continue
-                            val tgtNode =
-                                longestPrefixNodeId(endpointId = connection.targetEndId, visibleNodeIds = visibleNodeIds) ?: continue
-                            put(srcNode, (get(srcNode) ?: 0) + 1)
-                            put(tgtNode, (get(tgtNode) ?: 0) + 1)
-                        }
+                val p = sysml2IbdProjection(model = model, diagram = diagram)
+                buildMap<String, Int> {
+                    val ends =
+                        p.connections.flatMap { listOf(it.source, it.target) } +
+                            p.ownLineFlows.flatMap { listOf(it.source, it.target) } +
+                            p.bindings.flatMap { listOf(it.source, it.target) }
+                    for (e in ends) {
+                        val n = e.nodeId ?: continue
+                        put(n, (get(n) ?: 0) + 1)
                     }
                 }
             }
@@ -837,71 +854,55 @@ public object Sysml2LayoutBridge {
         sizeProvider: SizeProvider = ibdContentAwareSizeProvider(model = model, diagram = diagram),
     ): LayoutGraph {
         // 1. Owner auflösen — fehlt der Owner, ist der Graph leer (analog BDD).
-        val owner =
-            model.definitions
-                .filterIsInstance<PartDefinition>()
-                .firstOrNull { it.id == diagram.ownerId }
-                ?: return LayoutGraph(nodes = emptyList(), edges = emptyList())
+        model.definitions
+            .filterIsInstance<PartDefinition>()
+            .firstOrNull { it.id == diagram.ownerId }
+            ?: return LayoutGraph(nodes = emptyList(), edges = emptyList())
 
-        // 2. Definitionen indexieren, um "Feature ist ein Part-Usage" zu erkennen.
-        //    Part-Usages sind Features, deren typeId auf eine PartDefinition zeigt.
-        //    Attribute- und Port-Features zeigen auf Attribute- bzw. PortDefinition
-        //    und sind im IBD-MVP nicht sichtbar (boundary ports → V2.x).
-        val partDefIds: Set<String> =
-            model.definitions
-                .filterIsInstance<PartDefinition>()
-                .map { it.id }
-                .toSet()
+        // 2. Alles Sichtbare kommt aus der Projektion (Single Source of Truth für
+        //    Bridge, Edge-Adapter und Renderer).
+        val projection = sysml2IbdProjection(model = model, diagram = diagram)
 
-        // 3. Owner-Part-Usages bestimmen (KermlFeature-Sicht).
-        //    Feature-ID = `<ownerId>::<partUsageName>` (DSL-Konvention).
-        val ownerPartUsageFeatures =
-            owner.features.filter { feature ->
-                feature.typeId != null && feature.typeId in partDefIds
-            }
-
-        // 4. Optional auf elementIds filtern. Leere Liste = "alle Part-Usages".
-        val filterIds: Set<String>? = diagram.elementIds.takeIf { it.isNotEmpty() }?.toSet()
-        val visibleFeatures =
-            if (filterIds == null) {
-                ownerPartUsageFeatures
-            } else {
-                ownerPartUsageFeatures.filter { it.id in filterIds }
-            }
-
-        // 5. LayoutNodes für die sichtbaren Part-Usages — Key = Feature-ID.
         val nodes =
-            visibleFeatures.map { feature ->
-                LayoutNode(
-                    id = NodeId(feature.id),
-                    intrinsicSize = sizeProvider.sizeOf(elementId = feature.id, elementKind = "PartUsage"),
-                )
-            }
-        val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
+            projection.partNodes
+                .map { feature ->
+                    LayoutNode(
+                        id = NodeId(feature.id),
+                        intrinsicSize = sizeProvider.sizeOf(elementId = feature.id, elementKind = "PartUsage"),
+                    )
+                }.toMutableList()
+        // 3. Owner-Ports als kleine synthetische Randknoten; addIbdOwnerFrame legt sie später auf den Rahmen.
+        for (port in projection.boundaryPorts) {
+            nodes += LayoutNode(id = NodeId(port.id), intrinsicSize = Size(width = IBD_PORT_SIZE_PX, height = IBD_PORT_SIZE_PX))
+        }
 
-        // 6. Edges aus Owner-eigenen Connection-Usages bauen.
-        //    Owner-eigen = qualifiedName beginnt mit `"<ownerId>::"` (DSL-Konvention).
-        val ownerPrefix = "${owner.id}::"
-        val ownerConnections =
-            model.usages
-                .filterIsInstance<ConnectionUsage>()
-                .filter { it.id.startsWith(ownerPrefix) }
+        fun endNode(end: dev.kuml.sysml2.projection.ResolvedEnd): String = end.nodeId ?: end.ownerPort!!.id
 
+        // 4. Kanten: Connections (conn:), Flows ohne Connector (flow:), Bindings (eigene Id).
         val edges = mutableListOf<LayoutEdge>()
-        for (connection in ownerConnections) {
-            val srcNode = longestPrefixNodeId(endpointId = connection.sourceEndId, visibleNodeIds = visibleNodeIds) ?: continue
-            val tgtNode = longestPrefixNodeId(endpointId = connection.targetEndId, visibleNodeIds = visibleNodeIds) ?: continue
+
+        fun addEdge(
+            id: String,
+            src: dev.kuml.sysml2.projection.ResolvedEnd,
+            tgt: dev.kuml.sysml2.projection.ResolvedEnd,
+        ) {
             edges +=
                 LayoutEdge(
-                    id = EdgeId("conn:${connection.id}"),
-                    source = EndpointRef(nodeId = NodeId(srcNode)),
-                    target = EndpointRef(nodeId = NodeId(tgtNode)),
+                    id = EdgeId(id),
+                    source = EndpointRef(nodeId = NodeId(endNode(src))),
+                    target = EndpointRef(nodeId = NodeId(endNode(tgt))),
                     hints = EdgeHints.NONE,
                 )
         }
+        for (w in projection.connections) addEdge("conn:${w.usage.id}", w.source, w.target)
+        for (w in projection.ownLineFlows) addEdge("flow:${w.usage.id}", w.source, w.target)
+        for (w in projection.bindings) addEdge(w.usage.id, w.source, w.target)
 
         return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
     }
+
+    /** Kantenlänge (px) der synthetischen Randknoten für Owner-Ports; muss mit dem Renderer übereinstimmen. */
+    public const val IBD_PORT_SIZE_PX: Float = 12f
 
     /**
      * Übersetzt das gegebene UC-Diagramm (V2.0.7) in einen [LayoutGraph].
@@ -1969,54 +1970,27 @@ public object Sysml2LayoutBridge {
         diagram: IbdDiagram,
         layoutResult: LayoutResult,
     ): LayoutResult {
-        val ownerPrefix = "${diagram.ownerId}::"
-        val connections =
-            model.usages
-                .filterIsInstance<ConnectionUsage>()
-                .filter { it.id.startsWith(ownerPrefix) }
-        if (connections.isEmpty()) return layoutResult
+        val projection = sysml2IbdProjection(model = model, diagram = diagram)
+        val wires =
+            projection.connections.map { Triple("conn:${it.usage.id}", it.source, it.target) } +
+                projection.ownLineFlows.map { Triple("flow:${it.usage.id}", it.source, it.target) } +
+                projection.bindings.map { Triple(it.usage.id, it.source, it.target) }
+        if (wires.isEmpty()) return layoutResult
 
-        // Note nodes are never port owners: exclude them so a note id can't act as a port-id prefix.
-        val noteIds = model.comments.map { it.id }.toSet()
-        val visibleNodeIds =
-            layoutResult.nodes.keys
-                .map { it.value }
-                .filter { it !in noteIds }
-                .toSet()
         // portPositions[nodeId][portId] = local Point (relative to node origin)
         val portPositions = mutableMapOf<NodeId, MutableMap<PortId, Point>>()
 
-        for (conn in connections) {
-            val route = layoutResult.edges[EdgeId("conn:${conn.id}")] ?: continue
-
-            // Source port
-            val srcNodeId = longestPrefixNodeId(endpointId = conn.sourceEndId, visibleNodeIds = visibleNodeIds)
-            if (srcNodeId != null) {
-                val portName = conn.sourceEndId.removePrefix("$srcNodeId::")
-                if (portName.isNotEmpty() && portName != conn.sourceEndId) {
-                    val origin = layoutResult.nodes[NodeId(srcNodeId)]?.bounds?.origin
-                    if (origin != null) {
-                        val local = Point(x = route.source.x - origin.x, y = route.source.y - origin.y)
-                        portPositions
-                            .getOrPut(NodeId(srcNodeId)) { mutableMapOf() }
-                            .let { map -> if (PortId(portName) !in map) map[PortId(portName)] = local }
-                    }
-                }
-            }
-
-            // Target port
-            val tgtNodeId = longestPrefixNodeId(endpointId = conn.targetEndId, visibleNodeIds = visibleNodeIds)
-            if (tgtNodeId != null) {
-                val portName = conn.targetEndId.removePrefix("$tgtNodeId::")
-                if (portName.isNotEmpty() && portName != conn.targetEndId) {
-                    val origin = layoutResult.nodes[NodeId(tgtNodeId)]?.bounds?.origin
-                    if (origin != null) {
-                        val local = Point(x = route.target.x - origin.x, y = route.target.y - origin.y)
-                        portPositions
-                            .getOrPut(NodeId(tgtNodeId)) { mutableMapOf() }
-                            .let { map -> if (PortId(portName) !in map) map[PortId(portName)] = local }
-                    }
-                }
+        for ((edgeId, src, tgt) in wires) {
+            val route = layoutResult.edges[EdgeId(edgeId)] ?: continue
+            for ((end, point) in listOf(src to route.source, tgt to route.target)) {
+                val nodeId = end.nodeId ?: continue
+                if (end.steps.isEmpty()) continue
+                val origin = layoutResult.nodes[NodeId(nodeId)]?.bounds?.origin ?: continue
+                val local = Point(x = point.x - origin.x, y = point.y - origin.y)
+                val key = PortId(end.steps.joinToString("::"))
+                portPositions
+                    .getOrPut(NodeId(nodeId)) { mutableMapOf() }
+                    .let { map -> if (key !in map) map[key] = local }
             }
         }
 
@@ -2028,6 +2002,202 @@ public object Sysml2LayoutBridge {
                 nodeLayout.copy(ports = ports)
             }
         return layoutResult.copy(nodes = enrichedNodes)
+    }
+
+    /** Innenabstand zwischen Part-Boxen und IBD-Rahmen. */
+    public const val IBD_FRAME_PADDING_PX: Float = 16f
+
+    /** Höhe des Titel-Reiters über dem IBD-Rahmen. */
+    public const val IBD_FRAME_TAB_H_PX: Float = 22f
+
+    /** Mindestabstand zweier Owner-Ports auf derselben Rahmenseite (Platz für Labels). */
+    private const val IBD_PORT_MIN_GAP_PX: Float = 56f
+
+    /** Rahmen-Gruppen-Id: `frame:<ownerId>`. */
+    public fun ibdFrameGroupId(ownerId: String): GroupId = GroupId("frame:$ownerId")
+
+    /**
+     * Legt (nur wenn die [dev.kuml.sysml2.projection.IbdProjection.showFrame]-Regel greift) einen Rahmen um
+     * alle Inhaltsknoten des IBD und setzt die Owner-Port-Randknoten auf die nächstgelegene Rahmenseite.
+     * Kantenenden an Randknoten werden neu orthogonal geführt. Der Rahmen ist keine ELK-Compound-Gruppe,
+     * sondern eine Nachbearbeitung: Bounding Box + [IBD_FRAME_PADDING_PX], Reiter oben ([IBD_FRAME_TAB_H_PX]).
+     *
+     * Ergebnis: Alles ist so verschoben, dass der Rahmen bei `(0, IBD_FRAME_TAB_H_PX)` beginnt.
+     */
+    public fun addIbdOwnerFrame(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+        layoutResult: LayoutResult,
+    ): LayoutResult {
+        val projection = sysml2IbdProjection(model = model, diagram = diagram)
+        if (!projection.showFrame) return layoutResult
+        val portIds = projection.boundaryPorts.map { NodeId(it.id) }.toSet()
+        val content = layoutResult.nodes.filterKeys { it !in portIds }
+        if (content.isEmpty()) return layoutResult
+
+        val pad = IBD_FRAME_PADDING_PX
+        val half = IBD_PORT_SIZE_PX / 2f
+        var x0 = content.values.minOf { it.bounds.origin.x } - pad
+        var y0 = content.values.minOf { it.bounds.origin.y } - pad
+        var x1 = content.values.maxOf { it.bounds.origin.x + it.bounds.size.width } + pad
+        var y1 = content.values.maxOf { it.bounds.origin.y + it.bounds.size.height } + pad
+        // Platz für Rahmenfüllung unter dem Reiter geben, wenn oben Ports sitzen.
+        val ownerName = model.definitions.firstOrNull { it.id == diagram.ownerId }?.name ?: diagram.ownerId
+        val tabW = (("ibd [part] ".length + ownerName.length) * 7f + 16f).coerceAtMost(260f)
+
+        // 1. Seite pro Port: nächstgelegene Rahmenseite zum ELK-Mittelpunkt.
+        data class PortPlace(
+            val id: NodeId,
+            var side: Char,
+            var pos: Float,
+        )
+        val places = mutableListOf<PortPlace>()
+        for (id in portIds) {
+            val b = layoutResult.nodes[id]?.bounds ?: continue
+            val cx = b.origin.x + b.size.width / 2f
+            val cy = b.origin.y + b.size.height / 2f
+            val dists =
+                listOf(
+                    'T' to kotlin.math.abs(cy - y0),
+                    'B' to kotlin.math.abs(y1 - cy),
+                    'L' to kotlin.math.abs(cx - x0),
+                    'R' to kotlin.math.abs(x1 - cx),
+                )
+            val side = dists.minBy { it.second }.first
+            places += PortPlace(id, side, if (side == 'T' || side == 'B') cx else cy)
+        }
+        // 2. Entlang der Seite entzerren (Reihenfolge nach Koordinate, stabil).
+        for (side in listOf('T', 'B', 'L', 'R')) {
+            val onSide = places.filter { it.side == side }.sortedBy { it.pos }
+            var lastPos = Float.NEGATIVE_INFINITY
+            val minStart =
+                if (side == 'T') {
+                    x0 + tabW + 24f
+                } else if (side == 'B') {
+                    x0 + 24f
+                } else {
+                    y0 + 24f
+                }
+            for (pl in onSide) {
+                var pos = maxOf(pl.pos, minStart)
+                if (pos - lastPos < IBD_PORT_MIN_GAP_PX) pos = lastPos + IBD_PORT_MIN_GAP_PX
+                pl.pos = pos
+                lastPos = pos
+            }
+            if (onSide.isNotEmpty()) {
+                if (side == 'T' || side == 'B') x1 = maxOf(x1, lastPos + 24f) else y1 = maxOf(y1, lastPos + 24f)
+            }
+        }
+        // 3. Verschieben: Rahmen-Ursprung nach (0, TAB_H).
+        val dx = -x0
+        val dy = -y0 + IBD_FRAME_TAB_H_PX
+
+        fun sh(pt: Point) = Point(x = pt.x + dx, y = pt.y + dy)
+        val fx0 = 0f
+        val fy0 = IBD_FRAME_TAB_H_PX
+        val fx1 = x1 + dx
+        val fy1 = y1 + dy
+
+        val newNodes = linkedMapOf<NodeId, NodeLayout>()
+        for ((id, nl) in layoutResult.nodes) {
+            if (id in portIds) continue
+            newNodes[id] = nl.copy(bounds = Rect(origin = sh(nl.bounds.origin), size = nl.bounds.size))
+        }
+        val anchors = mutableMapOf<NodeId, Pair<Point, Char>>() // Port-Mitte → (Ankerpunkt innen, Seite)
+        for (pl in places) {
+            val (cx, cy) =
+                when (pl.side) {
+                    'T' -> (pl.pos + dx) to fy0
+                    'B' -> (pl.pos + dx) to fy1
+                    'L' -> fx0 to (pl.pos + dy)
+                    else -> fx1 to (pl.pos + dy)
+                }
+            newNodes[pl.id] =
+                NodeLayout(
+                    bounds =
+                        Rect(
+                            origin = Point(x = cx - half, y = cy - half),
+                            size = Size(width = IBD_PORT_SIZE_PX, height = IBD_PORT_SIZE_PX),
+                        ),
+                )
+            val inner =
+                when (pl.side) {
+                    'T' -> Point(x = cx, y = cy + half)
+                    'B' -> Point(x = cx, y = cy - half)
+                    'L' -> Point(x = cx + half, y = cy)
+                    else -> Point(x = cx - half, y = cy)
+                }
+            anchors[pl.id] = inner to pl.side
+        }
+
+        // 4. Kanten: verschieben bzw. an Randknoten neu orthogonal führen.
+        val wireNodes = mutableMapOf<String, Pair<NodeId?, NodeId?>>()
+
+        fun reg(
+            id: String,
+            s: dev.kuml.sysml2.projection.ResolvedEnd,
+            t: dev.kuml.sysml2.projection.ResolvedEnd,
+        ) {
+            wireNodes[id] = (s.ownerPort?.let { NodeId(it.id) }) to (t.ownerPort?.let { NodeId(it.id) })
+        }
+        projection.connections.forEach { reg("conn:${it.usage.id}", it.source, it.target) }
+        projection.ownLineFlows.forEach { reg("flow:${it.usage.id}", it.source, it.target) }
+        projection.bindings.forEach { reg(it.usage.id, it.source, it.target) }
+
+        val newEdges = linkedMapOf<EdgeId, EdgeRoute>()
+        for ((eid, route) in layoutResult.edges) {
+            val (sp, tp) = wireNodes[eid.value] ?: (null to null)
+            val srcAnchor = sp?.let { anchors[it] }
+            val tgtAnchor = tp?.let { anchors[it] }
+            val s0 = sh(route.source)
+            val t0 = sh(route.target)
+            if (srcAnchor == null && tgtAnchor == null) {
+                newEdges[eid] = translateRoute(r = route, dx = dx, dy = dy)
+                continue
+            }
+            val a = srcAnchor?.first ?: s0
+            val b = tgtAnchor?.first ?: t0
+            val vertical = (srcAnchor ?: tgtAnchor)!!.second.let { it == 'T' || it == 'B' }
+            val pts = mutableListOf<Point>()
+            if (vertical) {
+                val mid = (a.y + b.y) / 2f
+                pts += Point(x = a.x, y = mid)
+                pts += Point(x = b.x, y = mid)
+            } else {
+                val mid = (a.x + b.x) / 2f
+                pts += Point(x = mid, y = a.y)
+                pts += Point(x = mid, y = b.y)
+            }
+            val wp = pts.filter { it != a && it != b }.distinct()
+            newEdges[eid] = EdgeRoute.OrthogonalRounded(source = a, target = b, waypoints = wp, cornerRadiusPx = 6f)
+        }
+
+        val newGroups =
+            LinkedHashMap(layoutResult.groups.mapValues { (_, g) -> GroupLayout(Rect(origin = sh(g.bounds.origin), size = g.bounds.size)) })
+        newGroups[ibdFrameGroupId(diagram.ownerId)] =
+            GroupLayout(Rect(origin = Point(x = fx0, y = fy0), size = Size(width = fx1 - fx0, height = fy1 - fy0)))
+        val canvasW = maxOf(layoutResult.canvas.width + dx.coerceAtLeast(0f), fx1)
+        val canvasH = maxOf(layoutResult.canvas.height + dy.coerceAtLeast(0f), fy1)
+        return layoutResult.copy(
+            canvas = Size(width = canvasW, height = canvasH),
+            nodes = newNodes,
+            edges = newEdges,
+            groups = newGroups,
+        )
+    }
+
+    private fun translateRoute(
+        r: EdgeRoute,
+        dx: Float,
+        dy: Float,
+    ): EdgeRoute {
+        fun t(p: Point) = Point(x = p.x + dx, y = p.y + dy)
+        return when (r) {
+            is EdgeRoute.Direct -> r.copy(source = t(r.source), target = t(r.target))
+            is EdgeRoute.OrthogonalRounded -> r.copy(source = t(r.source), target = t(r.target), waypoints = r.waypoints.map(::t))
+            is EdgeRoute.TreeRounded -> r.copy(source = t(r.source), target = t(r.target), waypoints = r.waypoints.map(::t))
+            is EdgeRoute.Bezier -> r.copy(source = t(r.source), target = t(r.target), controlPoints = r.controlPoints.map(::t))
+        }
     }
 
     /**

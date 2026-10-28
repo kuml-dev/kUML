@@ -61,6 +61,8 @@ data class AttributeDefinition(
     override val features: List<KermlFeature> = emptyList(),
     override val specializations: List<KermlSpecialization> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    /** Unit symbol (e.g. `kg`) of a value type; shown as `unit = kg` in a BDD. */
+    val unit: String? = null,
 ) : Sysml2Definition
 
 /**

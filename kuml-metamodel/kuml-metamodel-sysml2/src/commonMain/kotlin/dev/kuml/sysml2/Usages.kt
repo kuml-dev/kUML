@@ -44,6 +44,12 @@ data class PartUsage(
     override val definitionId: String,
     override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    /**
+     * `true` for a reference part (`ref part`): the owner merely references the
+     * part (aggregation, hollow diamond in a BDD) instead of owning it
+     * (composition, filled diamond).
+     */
+    val isReference: Boolean = false,
 ) : Sysml2Usage
 
 /**
@@ -77,6 +83,66 @@ data class PortUsage(
     override val qualifiedName: String = name,
     override val definitionId: String,
     override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    /** Declared direction of the port as drawn (`null` = undirected). */
+    val direction: PortDirection? = null,
+    /** `true` for a conjugated port (`~PortDef`): flow directions are inverted. */
+    val isConjugated: Boolean = false,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/**
+ * `in item fuel : Fuel` inside a port definition — a flow property.
+ *
+ * The [definitionId] references the item type (any definition id). The
+ * [direction] is the declared direction; use
+ * [effectiveDirection] to account for port conjugation.
+ */
+@Serializable
+data class FlowPropertyUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String,
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    val direction: PortDirection,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/**
+ * `flow of Fuel from tank.out to engine.in` — an item flow between two
+ * endpoints (qualified `Owner::part::port` ids). The [definitionId] is the
+ * item type; [viaConnectionId] optionally names the connection usage the flow
+ * is carried by (drawn as a mid-arrow on that connector).
+ */
+@Serializable
+data class FlowUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String,
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    val sourceEndId: String,
+    val targetEndId: String,
+    val viaConnectionId: String? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage {
+    /** Alias for [definitionId]: the id of the transported item type. */
+    val itemTypeId: String get() = definitionId
+}
+
+/**
+ * `allocate Behavior to Block` — an allocation of one element onto another.
+ * Both ids must reference definitions or usages of the model.
+ */
+@Serializable
+data class AllocationUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String = "sysml2.allocation",
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    val sourceId: String,
+    val targetId: String,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Usage
 

@@ -629,3 +629,37 @@ full `transform` subcommand documentation.
 * xref:simulate.adoc[State-Machine Simulation] — events format, trace format, golden traces, interactive REPL
 * xref:tooling:cli.adoc[CLI Reference] — `kuml simulate`, `kuml transform`, `kuml render` subcommands
 * xref:uml-dsl.adoc[UML DSL Reference] — the parallel UML 2.x language
+
+
+== Ports, flows and allocations
+
+[source,kotlin]
+----
+portDef("FuelPort") { flowProperty("fuel", "Fuel", PortDirection.In) }
+partDef("Engine") { port("injector", "FuelPort", direction = PortDirection.In, conjugated = true) }
+partDef("Vehicle") {
+    port("fuelIn", "FuelPort", direction = PortDirection.In)
+    part("engine", "Engine")
+    refPart("tank", "Tank")
+    connect("feed", "FuelLine", "tank.outlet", "engine.injector")
+    flow("Fuel", "tank.outlet", "engine.injector", via = "feed")
+}
+allocate("Controller", "Vehicle")
+----
+
+Dotted paths exist only in the DSL; the model stores `Owner::part::port`. A conjugated port inverts
+`in` and `out` of its flow properties (`effectiveDirection`); the drawn triangle shows the declared
+direction, the conjugation is visible as `~Type` in the label.
+
+== IBD frame
+
+An IBD draws an owner frame with boundary ports only when a connection, flow or binding ends on a port
+of the owner, or reaches deeper than one path step below a visible part. Otherwise it renders without
+a frame. Only one nesting level is drawn.
+
+== BDD relationships
+
+Compositions (filled diamond), aggregations (`refPart`, hollow diamond), associations (a connection
+definition with two block-typed parts, not itself shown) and allocations are drawn as edges when both
+ends are visible; the matching rows leave the feature compartment. Blocks show `actions` and
+`signals` compartments when non-empty; attribute definitions with a unit show `unit = <symbol>`.

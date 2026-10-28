@@ -13,6 +13,7 @@ import dev.kuml.sysml2.ActivityPartitionDefinition
 import dev.kuml.sysml2.ActivityPartitionUsage
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.ActorUsage
+import dev.kuml.sysml2.AllocationUsage
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
@@ -27,6 +28,8 @@ import dev.kuml.sysml2.ConstraintParameter
 import dev.kuml.sysml2.ConstraintUsage
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
+import dev.kuml.sysml2.FlowPropertyUsage
+import dev.kuml.sysml2.FlowUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.LifelineUsage
@@ -37,6 +40,7 @@ import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortDefinition
+import dev.kuml.sysml2.PortDirection
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.ReqContains
 import dev.kuml.sysml2.ReqDerive
@@ -63,6 +67,7 @@ import dev.kuml.sysml2.UcExtend
 import dev.kuml.sysml2.UcInclude
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.UseCaseUsage
+import dev.kuml.sysml2.projection.Sysml2PathResolver
 import dev.kuml.sysml2.units.UnitValue
 
 /**
@@ -95,6 +100,11 @@ class Sysml2ModelBuilder(
     private val diagrams = mutableListOf<Sysml2Diagram>()
     private val comments = mutableListOf<Sysml2Comment>()
     private val commentLinks = mutableListOf<Sysml2CommentLink>()
+
+    internal companion object {
+        /** Upper bound for names, ids and paths accepted by the new structural DSL functions. */
+        const val MAX_NAME_CHARS: Int = 512
+    }
 
     // ── Definitions ──────────────────────────────────────────────────────
 
@@ -133,9 +143,13 @@ class Sysml2ModelBuilder(
         id: String = name,
         isAbstract: Boolean = false,
         specializesId: String? = null,
+        unit: dev.kuml.sysml2.units.Unit? = null,
+        unitSymbol: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): AttributeDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
+        val symbol = unitSymbol ?: unit?.symbol
+        require(symbol == null || symbol.length <= MAX_NAME_CHARS) { "unit symbol longer than $MAX_NAME_CHARS characters" }
         val def =
             AttributeDefinition(
                 id = id,
@@ -143,6 +157,7 @@ class Sysml2ModelBuilder(
                 isAbstract = isAbstract,
                 features = builder.features(),
                 specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
+                unit = symbol,
             )
         definitions += def
         return def
@@ -473,6 +488,33 @@ class Sysml2ModelBuilder(
     internal fun registerUsage(usage: Sysml2Usage) {
         usages += usage
     }
+
+    private var allocationCounter = 0
+
+    /**
+     * `allocate(from = "Behavior", to = "Block")` — allocate one element onto
+     * another. Both ids must reference definitions or usages of the model;
+     * this is checked at [build] time so forward references stay possible.
+     */
+    fun allocate(
+        from: String,
+        to: String,
+        name: String = "alloc${++allocationCounter}",
+        id: String = "alloc:$name",
+    ): AllocationUsage {
+        require(name.length <= MAX_NAME_CHARS && id.length <= MAX_NAME_CHARS) { "name longer than $MAX_NAME_CHARS characters" }
+        val usage = AllocationUsage(id = id, name = name, qualifiedName = name, sourceId = from, targetId = to)
+        registerUsage(usage)
+        return usage
+    }
+
+    /** Overload taking definitions instead of raw ids. */
+    fun allocate(
+        from: Sysml2Definition,
+        to: Sysml2Definition,
+        name: String = "alloc${++allocationCounter}",
+        id: String = "alloc:$name",
+    ): AllocationUsage = allocate(from = from.id, to = to.id, name = name, id = id)
 
     // ── Diagrams ─────────────────────────────────────────────────────────
 
@@ -1464,6 +1506,10 @@ class Sysml2ModelBuilder(
                 "comment '${l.link.noteId}' anchors unknown element '${l.link.targetId}'"
             }
         }
+        for (al in model.usages.filterIsInstance<AllocationUsage>()) {
+            require(al.sourceId in anchorable) { "allocation '${al.name}' references unknown source '${al.sourceId}'" }
+            require(al.targetId in anchorable) { "allocation '${al.name}' references unknown target '${al.targetId}'" }
+        }
         val seenCommentIds = mutableSetOf<String>()
         for (c in model.comments) {
             require(seenCommentIds.add(c.id)) { "duplicate comment id '${c.id}'" }
@@ -1543,11 +1589,38 @@ class DefinitionBuilder internal constructor(
         return usage
     }
 
-    /** Declare a port-usage: `port inlet : Inlet`. */
+    /** Declare a reference part-usage (`ref part tank : Tank`): aggregation in a BDD. */
+    fun refPart(
+        name: String,
+        typeId: String,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    ): PartUsage {
+        checkLen(name, typeId)
+        val qn = "$parentId::$name"
+        val usage =
+            PartUsage(
+                id = qn,
+                name = name,
+                qualifiedName = qn,
+                definitionId = typeId,
+                multiplicity = multiplicity,
+                isReference = true,
+            )
+        collected += toFeature(usage = usage, typeId = typeId)
+        modelBuilder.registerUsage(usage)
+        return usage
+    }
+
+    /**
+     * Declare a port-usage: `port inlet : Inlet`. [direction] is the drawn
+     * direction (`in` / `out` / `inout`); [conjugated] marks a `~Inlet` port.
+     */
     fun port(
         name: String,
         typeId: String,
         multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+        direction: PortDirection? = null,
+        conjugated: Boolean = false,
     ): PortUsage {
         val qn = "$parentId::$name"
         val usage =
@@ -1557,10 +1630,91 @@ class DefinitionBuilder internal constructor(
                 qualifiedName = qn,
                 definitionId = typeId,
                 multiplicity = multiplicity,
+                direction = direction,
+                isConjugated = conjugated,
             )
         collected += toFeature(usage = usage, typeId = typeId)
         modelBuilder.registerUsage(usage)
         return usage
+    }
+
+    /** Declare a flow property inside a port definition: `in item fuel : Fuel`. */
+    fun flowProperty(
+        name: String,
+        typeId: String,
+        direction: PortDirection,
+    ): FlowPropertyUsage {
+        checkLen(name, typeId)
+        val qn = "$parentId::$name"
+        val usage =
+            FlowPropertyUsage(id = qn, name = name, qualifiedName = qn, definitionId = typeId, direction = direction)
+        collected += toFeature(usage = usage, typeId = typeId)
+        modelBuilder.registerUsage(usage)
+        return usage
+    }
+
+    /** Declare an action-usage owned by this definition: shown in the `actions` compartment of a BDD. */
+    fun action(
+        name: String,
+        typeId: String,
+    ): dev.kuml.sysml2.ActionUsage {
+        checkLen(name, typeId)
+        val qn = "$parentId::$name"
+        val usage = dev.kuml.sysml2.ActionUsage(id = qn, name = name, qualifiedName = qn, definitionId = typeId)
+        collected += toFeature(usage = usage, typeId = typeId)
+        modelBuilder.registerUsage(usage)
+        return usage
+    }
+
+    private var flowCounter = 0
+
+    /**
+     * Declare an item flow: `flow of Fuel from tank.out to engine.in`. Endpoints
+     * may be dotted paths relative to this definition (`engine.crank.out`) or
+     * already qualified (`Owner::engine::in`). [via] names the carrying
+     * connection (its simple name or full id); the flow is then drawn as a
+     * mid-arrow on that connector.
+     */
+    fun flow(
+        item: String,
+        from: String,
+        to: String,
+        via: String? = null,
+        name: String = "flow${++flowCounter}",
+    ): FlowUsage {
+        checkLen(name, item)
+        val qn = "$parentId::$name"
+        val viaId = via?.let { if (it.contains("::")) it else "$parentId::$it" }
+        val usage =
+            FlowUsage(
+                id = qn,
+                name = name,
+                qualifiedName = qn,
+                definitionId = item,
+                sourceEndId = Sysml2PathResolver.toQualified(ownerId = parentId, dotted = from),
+                targetEndId = Sysml2PathResolver.toQualified(ownerId = parentId, dotted = to),
+                viaConnectionId = viaId,
+            )
+        collected += toFeature(usage = usage, typeId = item)
+        modelBuilder.registerUsage(usage)
+        return usage
+    }
+
+    /** Overload taking the item type and the carrying connection as objects. */
+    fun flow(
+        item: Sysml2Definition,
+        from: String,
+        to: String,
+        via: ConnectionUsage? = null,
+        name: String = "flow${++flowCounter}",
+    ): FlowUsage = flow(item = item.id, from = from, to = to, via = via?.id, name = name)
+
+    private fun checkLen(vararg parts: String) {
+        for (p in parts) {
+            require(p.length <= Sysml2ModelBuilder.MAX_NAME_CHARS) {
+                "name or id longer than ${Sysml2ModelBuilder.MAX_NAME_CHARS} characters"
+            }
+        }
     }
 
     /** Declare a connection-usage: `connect engine.inlet to tank.outlet`. */
@@ -1579,8 +1733,8 @@ class DefinitionBuilder internal constructor(
                 qualifiedName = qn,
                 definitionId = typeId,
                 multiplicity = multiplicity,
-                sourceEndId = sourceEndId,
-                targetEndId = targetEndId,
+                sourceEndId = Sysml2PathResolver.toQualified(ownerId = parentId, dotted = sourceEndId),
+                targetEndId = Sysml2PathResolver.toQualified(ownerId = parentId, dotted = targetEndId),
             )
         collected += toFeature(usage = usage, typeId = typeId)
         modelBuilder.registerUsage(usage)

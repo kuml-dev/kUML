@@ -319,6 +319,14 @@ internal object SvgDocument {
                 // supported by all SVG renderers (e.g. Batik used for PNG export).
                 append(".kuml-port-label-halo { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
                 append(" fill: none; stroke: ${c.background.toHex()}; stroke-width: 3.5px; stroke-linejoin: round; }\n")
+                // Welle B — SysML 2 ports (hollow square + direction triangle) and the IBD owner frame.
+                // Declared after `.kuml-port`, so these rules win where both classes are set.
+                append(".kuml-sysml2-port { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.thinPx}; }\n")
+                append(".kuml-sysml2-port-dir { fill: ${c.foreground.toHex()}; stroke: none; }\n")
+                append(".kuml-ibd-frame { fill: none; stroke: ${c.border.toHex()}; stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-ibd-frame-tab { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
                 // V3.x — UML 2.x Composite-Structure internal connector (delegation or assembly).
                 // Drawn as a plain line inside the parent component's local frame — no ELK routing.
                 // Uses the same stroke style as a kuml-divider (thin, border colour) so it blends

@@ -8,6 +8,22 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+**SysML 2 ports, flows, IBD frame and richer BDD (wave B)**
+`port(..., direction = PortDirection.In, conjugated = true)`, `flowProperty`, `refPart`, `action`,
+`flow(item, from, to, via)`, `allocate(from, to)` and `attributeDef(..., unitSymbol = "kg")`. Connection
+and flow endpoints accept dotted paths (`engine.crank.out`, owner ports `Vehicle::fuelIn`); the model
+keeps the `::` form. IBD: connections to owner ports draw an owner frame (`ibd [part] Owner`) with
+boundary ports (12 px square, direction triangle, `name : Type`, `~Type` when conjugated), item flows
+appear as mid-arrows on their connector, bindings are dashed. The frame appears only when an end sits
+on an owner port or nested deeper than one step; other IBDs gain no frame. BDD: composition (filled
+diamond), aggregation (`refPart`, hollow diamond), association (connection definition with two
+block-typed parts), allocation (`«allocate»`), `actions` and `signals` compartments, `unit = kg` on
+attribute definitions. Drawn composition and aggregation rows leave the feature compartment.
+Diamonds are also emitted in LaTeX; frame and mid-arrows are SVG only.
+Not in this wave: multi-level box-in-box nesting, connector properties, packages/imports/views in
+diagrams (see ADR-0016), LaTeX frame, `UnitValue` parser in the DSL printer, `ItemDefinition`.
+
+
 **Workspace CLI: single documents, multi-diagram warning**
 `kuml workspace validate` and `render` accept a repeatable `--document <path>` (relative to the
 workspace root, confined to it; no symlinks, no hidden or excluded directories) and then handle only
@@ -34,6 +50,8 @@ changes stays open. Detection is a polled fingerprint over `*.md` and `*.kuml.kt
 macOS, Linux and Windows.
 
 ### Changed
+
+- SysML 2 IBD: resolvable boundary ports on part boxes now read `name : Type` instead of the bare name and are 12 px (was 10 px) squares.
 
 **Workspace render output**
 `kuml workspace render` prints `Output: <path>`, a warning count in the summary, and a hint when

@@ -62,8 +62,8 @@ class KumlCompletionItemsTest :
             item.group shouldBe KumlCompletionItems.Group.SYSML2
         }
 
-        test("ALL list has expected count of 38 items") {
-            KumlCompletionItems.ALL shouldHaveSize 38
+        test("ALL list has expected count of 43 items") {
+            KumlCompletionItems.ALL shouldHaveSize 43
         }
 
         test("startingWith prefix 'sys' returns sysml2Model") {

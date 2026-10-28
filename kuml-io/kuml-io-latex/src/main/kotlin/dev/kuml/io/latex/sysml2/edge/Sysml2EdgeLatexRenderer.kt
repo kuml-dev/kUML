@@ -150,6 +150,9 @@ internal object Sysml2EdgeLatexRenderer {
      * arrives.
      */
     private fun pickStyle(metadata: Sysml2EdgeMetadata): String {
+        // Welle B: diamonds (composition / aggregation). Frame and mid-arrows exist in SVG only.
+        if (metadata.arrowHead == Sysml2ArrowHead.FilledDiamond) return "kuml-sysml2-edge-diamond-filled"
+        if (metadata.arrowHead == Sysml2ArrowHead.OpenDiamond) return "kuml-sysml2-edge-diamond-open"
         if (metadata.arrowHead == Sysml2ArrowHead.None) {
             return if (metadata.dashArray != null) "kuml-sysml2-edge-dashed-noarrow" else "kuml-sysml2-edge-binding"
         }

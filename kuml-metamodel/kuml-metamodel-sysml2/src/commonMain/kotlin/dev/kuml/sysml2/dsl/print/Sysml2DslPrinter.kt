@@ -10,6 +10,7 @@ import dev.kuml.sysml2.ActivityPartitionDefinition
 import dev.kuml.sysml2.ActivityPartitionUsage
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.ActorUsage
+import dev.kuml.sysml2.AllocationUsage
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
@@ -23,6 +24,8 @@ import dev.kuml.sysml2.ConstraintParameterDirection
 import dev.kuml.sysml2.ConstraintUsage
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
+import dev.kuml.sysml2.FlowPropertyUsage
+import dev.kuml.sysml2.FlowUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.LifelineUsage
@@ -200,6 +203,7 @@ public object Sysml2DslPrinter {
             }
             is AttributeDefinition -> {
                 if (def.isAbstract) args += "isAbstract = true"
+                def.unit?.let { args += "unitSymbol = ${quote(it)}" }
                 appendSpecializesArg(def = def, builderName = "attributeDef", args = args, todos = todos)
                 printDefCall(
                     sb = sb,
@@ -440,12 +444,37 @@ public object Sysml2DslPrinter {
                 is PartUsage -> {
                     val args = mutableListOf("name = ${quote(usage.name)}", "typeId = ${quote(usage.definitionId)}")
                     multiplicityExpr(usage.multiplicity)?.let { args += "multiplicity = $it" }
-                    sb.appendLine("$indent part(${args.joinToString(", ")})")
+                    sb.appendLine("$indent ${if (usage.isReference) "refPart" else "part"}(${args.joinToString(", ")})")
                 }
                 is PortUsage -> {
                     val args = mutableListOf("name = ${quote(usage.name)}", "typeId = ${quote(usage.definitionId)}")
                     multiplicityExpr(usage.multiplicity)?.let { args += "multiplicity = $it" }
+                    usage.direction?.let { args += "direction = PortDirection.${it.name}" }
+                    if (usage.isConjugated) args += "conjugated = true"
                     sb.appendLine("$indent port(${args.joinToString(", ")})")
+                }
+                is FlowPropertyUsage -> {
+                    val args =
+                        mutableListOf(
+                            "name = ${quote(usage.name)}",
+                            "typeId = ${quote(usage.definitionId)}",
+                            "direction = PortDirection.${usage.direction.name}",
+                        )
+                    sb.appendLine("$indent flowProperty(${args.joinToString(", ")})")
+                }
+                is ActionUsage -> {
+                    sb.appendLine("$indent action(name = ${quote(usage.name)}, typeId = ${quote(usage.definitionId)})")
+                }
+                is FlowUsage -> {
+                    val args =
+                        mutableListOf(
+                            "item = ${quote(usage.definitionId)}",
+                            "from = ${quote(usage.sourceEndId)}",
+                            "to = ${quote(usage.targetEndId)}",
+                        )
+                    usage.viaConnectionId?.let { args += "via = ${quote(it)}" }
+                    args += "name = ${quote(usage.name)}"
+                    sb.appendLine("$indent flow(${args.joinToString(", ")})")
                 }
                 is ConnectionUsage -> {
                     val args =
@@ -569,6 +598,12 @@ public object Sysml2DslPrinter {
                             "startSeqNo = ${usage.startSeqNo}, endSeqNo = ${usage.endSeqNo}, id = ${quote(usage.id)})",
                     )
                 }
+            }
+            is AllocationUsage -> {
+                sb.appendLine(
+                    "    allocate(from = ${quote(usage.sourceId)}, to = ${quote(usage.targetId)}, " +
+                        "name = ${quote(usage.name)}, id = ${quote(usage.id)})",
+                )
             }
             is ActorUsage -> printSimpleTopLevelUsage(sb = sb, fnName = "actorUsageById", usage = usage)
             is UseCaseUsage -> printSimpleTopLevelUsage(sb = sb, fnName = "useCaseUsageById", usage = usage)

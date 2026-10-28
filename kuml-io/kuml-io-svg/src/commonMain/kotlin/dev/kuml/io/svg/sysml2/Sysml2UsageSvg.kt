@@ -10,6 +10,7 @@ import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.ActionUsage
 import dev.kuml.sysml2.ActivityPartitionUsage
 import dev.kuml.sysml2.ActorUsage
+import dev.kuml.sysml2.AllocationUsage
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.CombinedFragmentUsage
@@ -18,17 +19,21 @@ import dev.kuml.sysml2.ConstraintUsage
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.ExtendUsage
+import dev.kuml.sysml2.FlowPropertyUsage
+import dev.kuml.sysml2.FlowUsage
 import dev.kuml.sysml2.IncludeUsage
 import dev.kuml.sysml2.LifelineUsage
 import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.PartUsage
+import dev.kuml.sysml2.PortDirection
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.RequirementUsage
 import dev.kuml.sysml2.StateUsage
 import dev.kuml.sysml2.Sysml2Usage
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UseCaseUsage
+import dev.kuml.sysml2.projection.Sysml2PathResolver
 
 /**
  * Rendert SysML-2 Usages als IBD-Boxen (V2.0.6).
@@ -60,9 +65,21 @@ internal fun renderSysml2Usage(
     layout: NodeLayout,
     @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
     builder: SvgBuilder,
+    context: Sysml2NodeContext? = null,
 ) {
     when (element) {
-        is PartUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "part", ibdPorts = layout.ports)
+        is PartUsage ->
+            renderUsageBox(
+                usage = element,
+                layout = layout,
+                builder = builder,
+                stereotype = "part",
+                ibdPorts = layout.ports,
+                context = context,
+            )
+        is FlowPropertyUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "flow property")
+        is FlowUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "flow")
+        is AllocationUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "allocation")
         is PortUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "port")
         is AttributeUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "attribute")
         is ConnectionUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "connection")
@@ -147,6 +164,7 @@ private fun renderUsageBox(
     builder: SvgBuilder,
     stereotype: String,
     ibdPorts: Map<PortId, Point> = emptyMap(),
+    context: Sysml2NodeContext? = null,
 ) {
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
@@ -186,7 +204,7 @@ private fun renderUsageBox(
 
         // IBD boundary ports — small squares on the box edge, one per connected port.
         if (ibdPorts.isNotEmpty()) {
-            renderIbdBoundaryPorts(ports = ibdPorts, w = w, h = h)
+            renderIbdBoundaryPorts(ports = ibdPorts, w = w, h = h, usage = usage, context = context)
         }
     }
 }
@@ -206,6 +224,8 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
     ports: Map<PortId, Point>,
     w: Float,
     h: Float,
+    usage: Sysml2Usage,
+    context: Sysml2NodeContext?,
 ) {
     val ps = IBD_PORT_SIZE
     val half = ps / 2f
@@ -224,7 +244,7 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
                     "y" to fmt(py - half),
                     "width" to fmt(ps),
                     "height" to fmt(ps),
-                    "class" to "kuml-port",
+                    "class" to "kuml-port kuml-sysml2-port",
                 ),
         )
 
@@ -233,6 +253,36 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
         val onLeft = px <= half + 1f
         val onRight = px >= w - half - 1f
         val onTop = py <= half + 1f
+
+        // Typed port: direction triangle inside the square, label `name : Type`.
+        val resolved =
+            context?.let {
+                Sysml2PathResolver
+                    .resolve(
+                        model = it.model,
+                        ownerId = "",
+                        endpointId = "${usage.id}::${portId.value}",
+                        visibleNodeIds = setOf(usage.id),
+                    )?.terminalPort
+            }
+        val labelText =
+            if (resolved == null) {
+                portId.value
+            } else {
+                portLabel(name = portId.value.substringAfterLast("::"), port = resolved, context = context)
+            }
+        if (resolved?.direction != null && resolved.direction != PortDirection.InOut) {
+            // Inward unit vector (into the box) for the side the port sits on.
+            val (ix, iy) =
+                when {
+                    onLeft -> 1f to 0f
+                    onRight -> -1f to 0f
+                    onTop -> 0f to 1f
+                    else -> 0f to -1f
+                }
+            val (dx, dy) = if (resolved.direction == PortDirection.In) ix to iy else -ix to -iy
+            appendDirectionTriangle(cx = px, cy = py, dx = dx, dy = dy)
+        }
 
         val (labelX, anchor) =
             when {
@@ -247,6 +297,19 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
                 else -> py + half + gap + 9f // below (bottom side), +9 for font ascent
             }
 
+        if (resolved != null) {
+            // Halo keeps the typed label readable where a connector runs behind it.
+            tag(
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-port-label-halo",
+                        "x" to fmt(labelX),
+                        "y" to fmt(labelY),
+                        "text-anchor" to anchor,
+                    ),
+            ) { text(labelText) }
+        }
         tag(
             name = "text",
             attrs =
@@ -256,11 +319,56 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
                     "y" to fmt(labelY),
                     "text-anchor" to anchor,
                 ),
-        ) { text(portId.value) }
+        ) { text(labelText) }
     }
 }
 
-private const val IBD_PORT_SIZE = 10f
+/** Filled 6 px triangle at ([cx], [cy]) pointing along the unit vector ([dx], [dy]). */
+internal fun SvgBuilder.appendDirectionTriangle(
+    cx: Float,
+    cy: Float,
+    dx: Float,
+    dy: Float,
+) {
+    val r = 3f
+    val nx = -dy
+    val ny = dx
+    val tipX = cx + dx * r
+    val tipY = cy + dy * r
+    val b1x = cx - dx * r + nx * r
+    val b1y = cy - dy * r + ny * r
+    val b2x = cx - dx * r - nx * r
+    val b2y = cy - dy * r - ny * r
+    tag(
+        name = "polygon",
+        attrs =
+            mapOf(
+                "points" to "${fmt(tipX)},${fmt(tipY)} ${fmt(b1x)},${fmt(b1y)} ${fmt(b2x)},${fmt(b2y)}",
+                "class" to "kuml-sysml2-port-dir",
+            ),
+    )
+}
+
+/** Longest rendered port label; longer texts end in an ellipsis. */
+internal const val PORT_LABEL_MAX_CHARS = 32
+
+/** `name : Type` (`name : ~Type` for a conjugated port), cut to [PORT_LABEL_MAX_CHARS]. */
+internal fun portLabel(
+    name: String,
+    port: PortUsage,
+    context: Sysml2NodeContext?,
+): String {
+    val typeName =
+        context
+            ?.model
+            ?.definitions
+            ?.firstOrNull { it.id == port.definitionId }
+            ?.name ?: port.definitionId
+    val full = "$name : ${if (port.isConjugated) "~" else ""}$typeName"
+    return if (full.length <= PORT_LABEL_MAX_CHARS) full else full.take(PORT_LABEL_MAX_CHARS - 1) + "…"
+}
+
+internal const val IBD_PORT_SIZE = 12f
 private const val IBD_PORT_LABEL_GAP = 4f
 
 /**

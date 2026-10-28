@@ -19,6 +19,8 @@ import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.UseCaseDefinition
+import dev.kuml.sysml2.projection.BddBoxContent
+import dev.kuml.sysml2.projection.sysml2BddBoxContent
 
 /**
  * Rendert SysML-2 Definitionen als BDD-Boxen.
@@ -46,12 +48,27 @@ internal fun renderSysml2Definition(
     layout: NodeLayout,
     theme: KumlTheme,
     builder: SvgBuilder,
+    context: Sysml2NodeContext? = null,
 ) {
     when (element) {
-        is PartDefinition -> renderBox(element = element, layout = layout, builder = builder, stereotype = "part def")
-        is AttributeDefinition -> renderBox(element = element, layout = layout, builder = builder, stereotype = "attribute def")
-        is PortDefinition -> renderBox(element = element, layout = layout, builder = builder, stereotype = "port def")
-        is ConnectionDefinition -> renderBox(element = element, layout = layout, builder = builder, stereotype = "connection def")
+        is PartDefinition -> renderBox(element = element, layout = layout, builder = builder, stereotype = "part def", context = context)
+        is AttributeDefinition ->
+            renderBox(
+                element = element,
+                layout = layout,
+                builder = builder,
+                stereotype = "attribute def",
+                context = context,
+            )
+        is PortDefinition -> renderBox(element = element, layout = layout, builder = builder, stereotype = "port def", context = context)
+        is ConnectionDefinition ->
+            renderBox(
+                element = element,
+                layout = layout,
+                builder = builder,
+                stereotype = "connection def",
+                context = context,
+            )
         // V2.0.7: UC-Diagramm-spezifische Formen.
         is ActorDefinition -> renderSysml2Actor(element = element, layout = layout, theme = theme, builder = builder)
         is UseCaseDefinition -> renderSysml2UseCase(element = element, layout = layout, theme = theme, builder = builder)
@@ -101,11 +118,16 @@ private fun renderBox(
     layout: NodeLayout,
     builder: SvgBuilder,
     stereotype: String,
+    context: Sysml2NodeContext?,
 ) {
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
+
+    // Same line lists as the layout bridge's size estimation (single source of truth).
+    val content: BddBoxContent? = context?.let { sysml2BddBoxContent(model = it.model, def = element, projection = it.bdd) }
+    val featureLines: List<String> = content?.featureLines ?: element.features.map { it.formatBdd() }
 
     builder.tag(
         name = "g",
@@ -115,7 +137,7 @@ private fun renderBox(
 
         var cy = 16f
 
-        // Stereotype line — guillemets so the SysML-2 ‹‹kind››-Konvention bleibt erhalten.
+        // Stereotype line — guillemets so the SysML-2-‹‹kind››-Konvention bleibt erhalten.
         tag(
             name = "text",
             attrs =
@@ -141,25 +163,38 @@ private fun renderBox(
         tag(name = "text", attrs = nameAttrs) { text(element.name) }
         cy += 12f
 
-        if (element.features.isNotEmpty()) {
+        fun divider() {
             tag(
                 name = "line",
-                attrs =
-                    mapOf(
-                        "x1" to "0",
-                        "y1" to fmt(cy),
-                        "x2" to fmt(w),
-                        "y2" to fmt(cy),
-                        "class" to "kuml-divider",
-                    ),
+                attrs = mapOf("x1" to "0", "y1" to fmt(cy), "x2" to fmt(w), "y2" to fmt(cy), "class" to "kuml-divider"),
             )
             cy += 14f
+        }
 
-            for (feature in element.features) {
+        if (featureLines.isNotEmpty()) {
+            divider()
+            for (line in featureLines) {
                 tag(
                     name = "text",
                     attrs = mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
-                ) { text(feature.formatBdd()) }
+                ) { text(line) }
+                cy += 13f
+            }
+        }
+        // Welle B: extra compartments, only when non-empty.
+        for ((header, lines) in listOf("actions" to (content?.actions ?: emptyList()), "signals" to (content?.signals ?: emptyList()))) {
+            if (lines.isEmpty()) continue
+            divider()
+            tag(
+                name = "text",
+                attrs = mapOf("class" to "kuml-stereotype", "x" to "6", "y" to fmt(cy)),
+            ) { text(header) }
+            cy += 13f
+            for (line in lines) {
+                tag(
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
+                ) { text(line) }
                 cy += 13f
             }
         }

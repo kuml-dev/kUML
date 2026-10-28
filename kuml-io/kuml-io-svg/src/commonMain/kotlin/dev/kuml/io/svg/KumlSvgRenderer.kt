@@ -1783,6 +1783,9 @@ public object KumlSvgRenderer {
         options: SvgRenderOptions,
         sysml2EdgeAdapter: Sysml2EdgeAdapter,
         typeLabel: String,
+        sysml2Context: dev.kuml.io.svg.sysml2.Sysml2NodeContext? = null,
+        beforeNodes: ((SvgBuilder, LayoutResult, Float) -> Unit)? = null,
+        afterNodes: ((SvgBuilder, LayoutResult, Float) -> Unit)? = null,
     ): String {
         // Widen the frame (and canvas) BEFORE computing anything padding-relative
         // below, so every subsequent step already sees the final geometry — see
@@ -1802,6 +1805,9 @@ public object KumlSvgRenderer {
         ) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
 
+            // Welle B — IBD owner frame sits behind all nodes.
+            beforeNodes?.invoke(nodesBuilder, layoutResult, padding)
+
             // Nodes — same logic as the UML/C4 path.
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
                 val element = synthetic.elements.find { it.id == nodeId.value }
@@ -1817,9 +1823,16 @@ public object KumlSvgRenderer {
                                         ),
                                 ),
                         )
-                    NodeRendererDispatcher.dispatch(element = element, layout = shifted, theme = theme, builder = nodesBuilder)
+                    NodeRendererDispatcher.dispatch(
+                        element = element,
+                        layout = shifted,
+                        theme = theme,
+                        builder = nodesBuilder,
+                        sysml2Context = sysml2Context,
+                    )
                 }
             }
+            afterNodes?.invoke(nodesBuilder, layoutResult, padding)
 
             // V3.x — highlight ring overlay (see emitHighlightRings KDoc). Injected AFTER
             // nodes, BEFORE edges, same z-order as the UML STATE path above — extends the
@@ -1912,6 +1925,13 @@ public object KumlSvgRenderer {
             options = options,
             sysml2EdgeAdapter = BddEdgeAdapter(model = model, diagram = diagram),
             typeLabel = "bdd",
+            sysml2Context =
+                dev.kuml.io.svg.sysml2.Sysml2NodeContext(
+                    model = model,
+                    bdd =
+                        dev.kuml.sysml2.projection
+                            .sysml2BddProjection(model = model, diagram = diagram),
+                ),
         )
     }
 
@@ -1945,7 +1965,16 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = visible + sysml2NoteElements(model),
             )
-        val enrichedLayout = Sysml2LayoutBridge.enrichIbdPortPositions(model = model, diagram = diagram, layoutResult = layoutResult)
+        // Welle B: frame + owner ports first (they move nodes), then port positions on the part boxes.
+        val framed = Sysml2LayoutBridge.addIbdOwnerFrame(model = model, diagram = diagram, layoutResult = layoutResult)
+        val enrichedLayout = Sysml2LayoutBridge.enrichIbdPortPositions(model = model, diagram = diagram, layoutResult = framed)
+        val context =
+            dev.kuml.io.svg.sysml2
+                .Sysml2NodeContext(model = model)
+        val projection =
+            dev.kuml.sysml2.projection
+                .sysml2IbdProjection(model = model, diagram = diagram)
+        val ownerName = model.definitions.firstOrNull { it.id == diagram.ownerId }?.name ?: diagram.ownerId
         return renderSysml2Synthetic(
             synthetic = synthetic,
             rawLayoutResult = enrichedLayout,
@@ -1953,6 +1982,36 @@ public object KumlSvgRenderer {
             options = options,
             sysml2EdgeAdapter = IbdEdgeAdapter(model = model, diagram = diagram),
             typeLabel = "ibd",
+            sysml2Context = context,
+            beforeNodes =
+                if (projection.showFrame) {
+                    { b, lr, pad ->
+                        dev.kuml.io.svg.sysml2.renderIbdFrame(
+                            builder = b,
+                            group = lr.groups[Sysml2LayoutBridge.ibdFrameGroupId(diagram.ownerId)],
+                            ownerId = diagram.ownerId,
+                            ownerName = ownerName,
+                            padding = pad,
+                        )
+                    }
+                } else {
+                    null
+                },
+            afterNodes =
+                if (projection.showFrame) {
+                    { b, lr, pad ->
+                        dev.kuml.io.svg.sysml2.renderIbdOwnerPorts(
+                            builder = b,
+                            layout = lr,
+                            ports = projection.boundaryPorts,
+                            context = context,
+                            ownerId = diagram.ownerId,
+                            padding = pad,
+                        )
+                    }
+                } else {
+                    null
+                },
         )
     }
 

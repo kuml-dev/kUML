@@ -130,3 +130,8 @@ a| image::gcr-benchmark/SYS-C-03/mermaid.svg[SYS-C-03 Mermaid,align="center"]
 
 | _(reference)_ | SF 28% · HR 8% | SF 28% · HR 8% | SF 2% · HR 81%
 |===
+
+
+== Ports, IBD frame and BDD relationships
+
+See the reference page for the DSL. IBDs with owner ports draw a frame with typed boundary ports and flow arrows; BDDs draw composition, aggregation, association and allocation edges.

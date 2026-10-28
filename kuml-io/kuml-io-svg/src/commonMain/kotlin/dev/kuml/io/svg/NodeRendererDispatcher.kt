@@ -114,6 +114,7 @@ internal object NodeRendererDispatcher {
         layout: NodeLayout,
         theme: KumlTheme,
         builder: SvgBuilder,
+        sysml2Context: dev.kuml.io.svg.sysml2.Sysml2NodeContext? = null,
     ) {
         when (element) {
             is UmlClass -> renderUmlClass(element = element, layout = layout, theme = theme, builder = builder)
@@ -157,8 +158,10 @@ internal object NodeRendererDispatcher {
                     frameClasses = "kuml-comment kuml-sysml2-comment",
                     builder = builder,
                 )
-            is Sysml2Definition -> renderSysml2Definition(element = element, layout = layout, theme = theme, builder = builder)
-            is Sysml2Usage -> renderSysml2Usage(element = element, layout = layout, theme = theme, builder = builder)
+            is Sysml2Definition ->
+                renderSysml2Definition(element = element, layout = layout, theme = theme, builder = builder, context = sysml2Context)
+            is Sysml2Usage ->
+                renderSysml2Usage(element = element, layout = layout, theme = theme, builder = builder, context = sysml2Context)
             // BPMN — V3.1.3
             is ErmNote ->
                 renderNote(

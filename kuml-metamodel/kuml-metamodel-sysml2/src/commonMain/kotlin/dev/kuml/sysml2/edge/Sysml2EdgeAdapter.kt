@@ -20,6 +20,10 @@ import dev.kuml.sysml2.UcAssociation
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UcExtend
 import dev.kuml.sysml2.UcInclude
+import dev.kuml.sysml2.projection.BddEdgeKind
+import dev.kuml.sysml2.projection.ResolvedEnd
+import dev.kuml.sysml2.projection.sysml2BddProjection
+import dev.kuml.sysml2.projection.sysml2IbdProjection
 
 /**
  * Per-diagram-kind lookup that turns a layout edge id (the **string value**
@@ -103,6 +107,21 @@ public data class Sysml2EdgeMetadata(
     val label: String? = null,
     val dashArray: String? = null,
     val arrowHead: Sysml2ArrowHead = Sysml2ArrowHead.FilledTriangle,
+    /** Item-flow arrows drawn on the line itself (IBD connector carrying flows). */
+    val midArrows: List<Sysml2MidArrow> = emptyList(),
+    /** Label (role name / multiplicity) drawn next to the target end. */
+    val endLabel: String? = null,
+    /** Draw [arrowHead] at the source end instead of the target end (composition / aggregation diamonds). */
+    val headAtSource: Boolean = false,
+)
+
+/**
+ * A flow arrow sitting on the middle of an edge. [forward] points from source
+ * to target; [label] is the transported item type.
+ */
+public data class Sysml2MidArrow(
+    val forward: Boolean,
+    val label: String,
 )
 
 /**
@@ -125,6 +144,12 @@ public enum class Sysml2ArrowHead {
     FilledTriangle,
     OpenAngle,
     None,
+
+    /** Filled diamond (composition). */
+    FilledDiamond,
+
+    /** Hollow diamond (aggregation). */
+    OpenDiamond,
 }
 
 // ─── UC ──────────────────────────────────────────────────────────────────
@@ -443,6 +468,33 @@ public class BddEdgeAdapter(
                     )
                 }
             }
+            for (e in sysml2BddProjection(model = model, diagram = diagram).edges) {
+                put(
+                    e.id,
+                    when (e.kind) {
+                        BddEdgeKind.Composition ->
+                            Sysml2EdgeMetadata(
+                                arrowHead = Sysml2ArrowHead.FilledDiamond,
+                                headAtSource = true,
+                                endLabel = e.endLabel,
+                            )
+                        BddEdgeKind.Aggregation ->
+                            Sysml2EdgeMetadata(
+                                arrowHead = Sysml2ArrowHead.OpenDiamond,
+                                headAtSource = true,
+                                endLabel = e.endLabel,
+                            )
+                        BddEdgeKind.Association ->
+                            Sysml2EdgeMetadata(label = e.label, arrowHead = Sysml2ArrowHead.None, endLabel = e.endLabel)
+                        BddEdgeKind.Allocation ->
+                            Sysml2EdgeMetadata(
+                                stereotype = "«allocate»",
+                                dashArray = "5 4",
+                                arrowHead = Sysml2ArrowHead.OpenAngle,
+                            )
+                    },
+                )
+            }
         }
 
     override fun metadataFor(edgeId: String): Sysml2EdgeMetadata? = index[edgeId]
@@ -472,20 +524,59 @@ public class BddEdgeAdapter(
  */
 public class IbdEdgeAdapter(
     model: Sysml2Model,
-    @Suppress("UNUSED_PARAMETER") diagram: IbdDiagram,
+    diagram: IbdDiagram,
 ) : Sysml2EdgeAdapter {
     private val index: Map<String, Sysml2EdgeMetadata> =
         buildMap {
+            val projection = sysml2IbdProjection(model = model, diagram = diagram)
             for (conn in model.usages.filterIsInstance<ConnectionUsage>()) {
+                val wire = projection.connections.firstOrNull { it.usage.id == conn.id }
+                val arrows =
+                    if (wire == null) {
+                        emptyList()
+                    } else {
+                        projection.carriedFlows
+                            .filter { it.usage.viaConnectionId == conn.id }
+                            .map { f ->
+                                val forward = !(sameEnd(a = f.source, b = wire.target) && !sameEnd(a = f.source, b = wire.source))
+                                Sysml2MidArrow(forward = forward, label = itemLabel(model = model, itemTypeId = f.usage.definitionId))
+                            }
+                    }
                 put(
                     "conn:${conn.id}",
                     Sysml2EdgeMetadata(
                         label = formatConnectionLabel(conn),
                         arrowHead = Sysml2ArrowHead.None,
+                        midArrows = arrows,
                     ),
                 )
             }
+            for (f in projection.ownLineFlows) {
+                put(
+                    "flow:${f.usage.id}",
+                    Sysml2EdgeMetadata(
+                        label = itemLabel(model = model, itemTypeId = f.usage.definitionId),
+                        arrowHead = Sysml2ArrowHead.FilledTriangle,
+                    ),
+                )
+            }
+            for (b in projection.bindings) {
+                put(
+                    b.usage.id,
+                    Sysml2EdgeMetadata(label = "=", dashArray = "4 3", arrowHead = Sysml2ArrowHead.None),
+                )
+            }
         }
+
+    private fun sameEnd(
+        a: ResolvedEnd,
+        b: ResolvedEnd,
+    ): Boolean = a.nodeId == b.nodeId && a.ownerPort?.id == b.ownerPort?.id
+
+    private fun itemLabel(
+        model: Sysml2Model,
+        itemTypeId: String,
+    ): String = model.definitions.firstOrNull { it.id == itemTypeId }?.name ?: itemTypeId
 
     override fun metadataFor(edgeId: String): Sysml2EdgeMetadata? = index[edgeId]
 

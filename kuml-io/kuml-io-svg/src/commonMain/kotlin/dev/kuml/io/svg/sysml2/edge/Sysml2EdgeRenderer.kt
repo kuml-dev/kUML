@@ -137,9 +137,17 @@ internal object Sysml2EdgeRenderer {
         // Inline arrowhead (replaces marker-end url(#id) approach).
         val arrowStyle = toArrowStyle(metadata.arrowHead)
         if (arrowStyle != null) {
-            val (arrowFrom, arrowTip) = route.arrowDirection()
-            renderInlineArrow(from = arrowFrom, tip = arrowTip, style = arrowStyle, theme = theme, builder = builder)
+            if (metadata.headAtSource) {
+                // Composition / aggregation: the diamond sits on the owning (source) end.
+                val (srcNext, srcTip) = route.sourceArrowDirection()
+                renderInlineArrow(from = srcNext, tip = srcTip, style = arrowStyle, theme = theme, builder = builder)
+            } else {
+                val (arrowFrom, arrowTip) = route.arrowDirection()
+                renderInlineArrow(from = arrowFrom, tip = arrowTip, style = arrowStyle, theme = theme, builder = builder)
+            }
         }
+        metadata.endLabel?.let { emitEndLabel(route = route, content = it, builder = builder) }
+        if (metadata.midArrows.isNotEmpty()) emitMidArrows(route = route, arrows = metadata.midArrows, builder = builder)
 
         // 2. Labels (stereotype + plain label). Suppress emission entirely
         //    when both slots are null — most PAR bindings and bare ACT /
@@ -153,7 +161,9 @@ internal object Sysml2EdgeRenderer {
         // (e.g. a point near the source state) to avoid the default
         // longest-segment midpoint landing inside an unrelated node or
         // outside the diagram frame.
-        val (mx, my) = overrideLabelAnchor ?: labelAnchor(route)
+        val (mx, my) =
+            overrideLabelAnchor
+                ?: if (metadata.midArrows.isNotEmpty()) besideAnchor(route = route, labelText = label) else labelAnchor(route)
         // V11.x — Parallel-Sibling-Versatz: Index 0 sitzt auf der Standard-
         // Position oberhalb der Linie; jeder weitere Sibling rutscht um eine
         // Bandbreite nach unten, damit die White-Background-Rects einander
@@ -218,8 +228,142 @@ internal object Sysml2EdgeRenderer {
         }
     }
 
+    /**
+     * Label anchor for an edge carrying mid-arrows: the segment midpoint, moved beside a vertical
+     * line (right) so the label neither covers the line nor the arrow; item labels go to the left.
+     */
+    private fun besideAnchor(
+        route: EdgeRoute,
+        labelText: String?,
+    ): Pair<Float, Float> {
+        val (mx, my) = labelAnchor(route)
+        val pts =
+            when (route) {
+                is EdgeRoute.Direct -> listOf(route.source, route.target)
+                is EdgeRoute.OrthogonalRounded -> listOf(route.source) + route.waypoints + listOf(route.target)
+                is EdgeRoute.TreeRounded -> listOf(route.source) + route.waypoints + listOf(route.target)
+                is EdgeRoute.Bezier -> listOf(route.source, route.target)
+            }
+        var best = 0
+        var bestLen = -1f
+        for (i in 0 until pts.size - 1) {
+            val l = (pts[i + 1].x - pts[i].x).let { it * it } + (pts[i + 1].y - pts[i].y).let { it * it }
+            if (l > bestLen) {
+                bestLen = l
+                best = i
+            }
+        }
+        val vertical = kotlin.math.abs(pts[best + 1].y - pts[best].y) > kotlin.math.abs(pts[best + 1].x - pts[best].x)
+        return if (vertical) (mx + estimateLabelHalfWidth(labelText) + 8f) to my else mx to my
+    }
+
+    /** Direction `(next point, source)` at the source end of the route. */
+    private fun EdgeRoute.sourceArrowDirection(): Pair<Point, Point> =
+        when (this) {
+            is EdgeRoute.Direct -> target to source
+            is EdgeRoute.OrthogonalRounded -> (waypoints.firstOrNull() ?: target) to source
+            is EdgeRoute.TreeRounded -> (waypoints.firstOrNull() ?: target) to source
+            is EdgeRoute.Bezier -> (controlPoints.firstOrNull() ?: target) to source
+        }
+
+    /** Role / multiplicity text beside the target end (drawn `Escape`-safe via `builder.text`). */
+    private fun emitEndLabel(
+        route: EdgeRoute,
+        content: String,
+        builder: SvgBuilder,
+    ) {
+        val (prev, tip) = route.arrowDirection()
+        val dx = prev.x - tip.x
+        val dy = prev.y - tip.y
+        val len = kotlin.math.sqrt(dx * dx + dy * dy).takeIf { it > 0.001f } ?: 1f
+        val x = tip.x + dx / len * END_LABEL_OFFSET_PX + 6f
+        val y = tip.y + dy / len * END_LABEL_OFFSET_PX + (if (dy > 0f) 10f else -2f)
+        builder.tag(
+            name = "text",
+            attrs = mapOf("class" to "kuml-body", "x" to fmt(x), "y" to fmt(y), "text-anchor" to "start"),
+        ) { text(content) }
+    }
+
+    /**
+     * Item-flow arrows sitting on the longest segment, shifted [MID_ARROW_GAP_PX] apart; the
+     * item type labels are stacked below the line.
+     */
+    private fun emitMidArrows(
+        route: EdgeRoute,
+        arrows: List<dev.kuml.sysml2.edge.Sysml2MidArrow>,
+        builder: SvgBuilder,
+    ) {
+        val pts =
+            when (route) {
+                is EdgeRoute.Direct -> listOf(route.source, route.target)
+                is EdgeRoute.OrthogonalRounded -> listOf(route.source) + route.waypoints + listOf(route.target)
+                is EdgeRoute.TreeRounded -> listOf(route.source) + route.waypoints + listOf(route.target)
+                is EdgeRoute.Bezier -> listOf(route.source, route.target)
+            }
+        var best = 0
+        var bestLen = -1f
+        for (i in 0 until pts.size - 1) {
+            val l = (pts[i + 1].x - pts[i].x).let { it * it } + (pts[i + 1].y - pts[i].y).let { it * it }
+            if (l > bestLen) {
+                bestLen = l
+                best = i
+            }
+        }
+        val a = pts[best]
+        val b = pts[best + 1]
+        val dx = b.x - a.x
+        val dy = b.y - a.y
+        val len = kotlin.math.sqrt(dx * dx + dy * dy).takeIf { it > 0.001f } ?: return
+        val ux = dx / len
+        val uy = dy / len
+        val mx = a.x + dx * 0.62f
+        val my = a.y + dy * 0.62f
+        arrows.forEachIndexed { idx, arrow ->
+            val shift = (idx - (arrows.size - 1) / 2f) * MID_ARROW_GAP_PX
+            val cx = mx + ux * shift
+            val cy = my + uy * shift
+            val sgn = if (arrow.forward) 1f else -1f
+            val tx = ux * sgn
+            val ty = uy * sgn
+            val nx = -ty
+            val ny = tx
+            val tipX = cx + tx * MID_ARROW_LEN_PX / 2f
+            val tipY = cy + ty * MID_ARROW_LEN_PX / 2f
+            val baseX = cx - tx * MID_ARROW_LEN_PX / 2f
+            val baseY = cy - ty * MID_ARROW_LEN_PX / 2f
+            val w = MID_ARROW_LEN_PX / 2f
+            builder.tag(
+                name = "polygon",
+                attrs =
+                    mapOf(
+                        "points" to
+                            "${fmt(tipX)},${fmt(tipY)} ${fmt(baseX + nx * w / 1.6f)},${fmt(baseY + ny * w / 1.6f)} " +
+                            "${fmt(baseX - nx * w / 1.6f)},${fmt(baseY - ny * w / 1.6f)}",
+                        "class" to "kuml-sysml2-port-dir",
+                    ),
+            )
+            val vertical = kotlin.math.abs(uy) > kotlin.math.abs(ux)
+            builder.tag(
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-body",
+                        "x" to fmt(if (vertical) cx - 10f else cx),
+                        "y" to fmt(if (vertical) cy + 4f else cy + 18f),
+                        "text-anchor" to (if (vertical) "end" else "middle"),
+                    ),
+            ) { text(arrow.label) }
+        }
+    }
+
+    private const val END_LABEL_OFFSET_PX: Float = 18f
+    private const val MID_ARROW_LEN_PX: Float = 10f
+    private const val MID_ARROW_GAP_PX: Float = 14f
+
     private fun toArrowStyle(head: Sysml2ArrowHead): ArrowStyle? =
         when (head) {
+            Sysml2ArrowHead.FilledDiamond -> ArrowStyle.DIAMOND_FILLED
+            Sysml2ArrowHead.OpenDiamond -> ArrowStyle.DIAMOND
             Sysml2ArrowHead.None -> null
             Sysml2ArrowHead.OpenAngle -> ArrowStyle.OPEN
             // V2.0.45 — was incorrectly mapped to "arrow-open" (a stroke-only
