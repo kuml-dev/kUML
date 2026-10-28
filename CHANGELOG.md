@@ -17,9 +17,16 @@ boundary ports (12 px square, direction triangle, `name : Type`, `~Type` when co
 appear as mid-arrows on their connector, bindings are dashed. The frame appears only when an end sits
 on an owner port or nested deeper than one step; other IBDs gain no frame. BDD: composition (filled
 diamond), aggregation (`refPart`, hollow diamond), association (connection definition with two
-block-typed parts), allocation (`«allocate»`), `actions` and `signals` compartments, `unit = kg` on
-attribute definitions. Drawn composition and aggregation rows leave the feature compartment.
+block-typed parts), allocation (`«allocate»`), `actions` and `flows` compartments (`flows` lists the flow properties of a
+block's ports as `<dir> <name> : <Type>`, e.g. `in fuel : Mass`; there is no signals compartment),
+`unit = kg` on attribute definitions. Drawn composition and aggregation rows leave the feature compartment.
 Diamonds are also emitted in LaTeX; frame and mid-arrows are SVG only.
+IBD layout: the frame is the union of part boxes, port squares and port labels (24 px padding) and the
+title tab is a pentagon inside its top-left corner; owner ports sit on the frame side facing their
+connected part port, spread by label width, with a 40 px elbow when both ports share an axis; port
+labels stand outside the part or frame, never on the border; connector labels move beside the line and
+away from port squares and labels; the canvas is measured from the content (16 px margin); label
+backdrops follow the theme background instead of white.
 Not in this wave: multi-level box-in-box nesting, connector properties, packages/imports/views in
 diagrams (see ADR-0016), LaTeX frame, `UnitValue` parser in the DSL printer, `ItemDefinition`.
 

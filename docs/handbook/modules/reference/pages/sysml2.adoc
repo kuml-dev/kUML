@@ -662,4 +662,4 @@ a frame. Only one nesting level is drawn.
 Compositions (filled diamond), aggregations (`refPart`, hollow diamond), associations (a connection
 definition with two block-typed parts, not itself shown) and allocations are drawn as edges when both
 ends are visible; the matching rows leave the feature compartment. Blocks show `actions` and
-`signals` compartments when non-empty; attribute definitions with a unit show `unit = <symbol>`.
+`flows` compartments (`<dir> <name> : <Type>` per flow property of their ports) when non-empty; attribute definitions with a unit show `unit = <symbol>`.

@@ -1786,6 +1786,8 @@ public object KumlSvgRenderer {
         sysml2Context: dev.kuml.io.svg.sysml2.Sysml2NodeContext? = null,
         beforeNodes: ((SvgBuilder, LayoutResult, Float) -> Unit)? = null,
         afterNodes: ((SvgBuilder, LayoutResult, Float) -> Unit)? = null,
+        edgeLabelAnchor: ((EdgeId, EdgeRoute, String?) -> Pair<Float, Float>?)? = null,
+        edgeBackdropFill: String? = null,
     ): String {
         // Widen the frame (and canvas) BEFORE computing anything padding-relative
         // below, so every subsequent step already sees the final geometry — see
@@ -1872,6 +1874,8 @@ public object KumlSvgRenderer {
                             theme = theme,
                             builder = edgesBuilder,
                             labelStackIndex = syntheticStackIndices[edgeId] ?: 0,
+                            overrideLabelAnchor = edgeLabelAnchor?.invoke(edgeId, shiftedRoute, widestLabelText(meta)),
+                            backdropFill = edgeBackdropFill,
                         )
                     } else {
                         // V2.0.7–12 fallback: plain solid line. Reached only if
@@ -1967,13 +1971,29 @@ public object KumlSvgRenderer {
             )
         // Welle B: frame + owner ports first (they move nodes), then port positions on the part boxes.
         val framed = Sysml2LayoutBridge.addIbdOwnerFrame(model = model, diagram = diagram, layoutResult = layoutResult)
-        val enrichedLayout = Sysml2LayoutBridge.enrichIbdPortPositions(model = model, diagram = diagram, layoutResult = framed)
         val context =
             dev.kuml.io.svg.sysml2
                 .Sysml2NodeContext(model = model)
         val projection =
             dev.kuml.sysml2.projection
                 .sysml2IbdProjection(model = model, diagram = diagram)
+        // With a frame the bridge already stored the (border-snapped) part-port positions; legacy IBDs derive them from the edges.
+        val enrichedLayout =
+            if (projection.showFrame) {
+                framed
+            } else {
+                Sysml2LayoutBridge.enrichIbdPortPositions(model = model, diagram = diagram, layoutResult = framed)
+            }
+        val connectorAvoid =
+            if (projection.showFrame) {
+                Sysml2LayoutBridge.ibdAvoidRects(
+                    model = model,
+                    diagram = diagram,
+                    layout = enrichedLayout,
+                )
+            } else {
+                emptyList()
+            }
         val ownerName = model.definitions.firstOrNull { it.id == diagram.ownerId }?.name ?: diagram.ownerId
         return renderSysml2Synthetic(
             synthetic = synthetic,
@@ -1983,6 +2003,20 @@ public object KumlSvgRenderer {
             sysml2EdgeAdapter = IbdEdgeAdapter(model = model, diagram = diagram),
             typeLabel = "ibd",
             sysml2Context = context,
+            edgeBackdropFill = if (projection.showFrame) theme.colors.background.toHex() else null,
+            edgeLabelAnchor =
+                if (projection.showFrame) {
+                    { _, route, label ->
+                        dev.kuml.io.svg.sysml2.ibdConnectorLabelAnchor(
+                            route = route,
+                            labelText = label,
+                            avoid = connectorAvoid,
+                            padding = options.paddingPx,
+                        )
+                    }
+                } else {
+                    null
+                },
             beforeNodes =
                 if (projection.showFrame) {
                     { b, lr, pad ->

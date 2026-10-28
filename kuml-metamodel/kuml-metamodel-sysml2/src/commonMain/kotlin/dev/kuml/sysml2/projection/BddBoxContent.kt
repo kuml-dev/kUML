@@ -16,13 +16,13 @@ import dev.kuml.sysml2.Sysml2Model
  * @property featureLines lines of the feature compartment (hidden features removed).
  * @property widthProbe same lines without default expressions (legacy width estimate).
  * @property actions `name()` lines of the `actions` compartment.
- * @property signals lines of the `signals` compartment.
+ * @property flows `<direction> <name> : <Type>` lines of the `flows` compartment.
  */
 data class BddBoxContent(
     val featureLines: List<String>,
     val widthProbe: List<String>,
     val actions: List<String>,
-    val signals: List<String>,
+    val flows: List<String>,
 )
 
 fun sysml2BddBoxContent(
@@ -44,8 +44,8 @@ fun sysml2BddBoxContent(
         probe += "unit = ${def.unit}"
     }
     val actions = projection?.actionsByDef?.get(def.id)?.map { "$it()" } ?: emptyList()
-    val signals = projection?.signalsByDef?.get(def.id) ?: emptyList()
-    return BddBoxContent(featureLines = full, widthProbe = probe, actions = actions, signals = signals)
+    val flows = projection?.flowsByDef?.get(def.id) ?: emptyList()
+    return BddBoxContent(featureLines = full, widthProbe = probe, actions = actions, flows = flows)
 }
 
 private fun dirWord(d: PortDirection?): String =

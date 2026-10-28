@@ -6,6 +6,8 @@ import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
 import dev.kuml.layout.PortId
+import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.ActionUsage
 import dev.kuml.sysml2.ActivityPartitionUsage
@@ -229,7 +231,38 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
 ) {
     val ps = IBD_PORT_SIZE
     val half = ps / 2f
-    val gap = IBD_PORT_LABEL_GAP
+
+    // Resolve every port once: label text + direction. Label placement is shared with the layout bridge
+    // (same function), so the frame computed there always contains exactly what is drawn here.
+    val resolvedByKey =
+        ports.keys.associate { portId ->
+            portId.value to
+                context?.let {
+                    Sysml2PathResolver
+                        .resolve(
+                            model = it.model,
+                            ownerId = "",
+                            endpointId = "${usage.id}::${portId.value}",
+                            visibleNodeIds = setOf(usage.id),
+                        )?.terminalPort
+                }
+        }
+    val labels =
+        ports.keys.associate { portId ->
+            val resolved = resolvedByKey[portId.value]
+            portId.value to
+                if (resolved == null) {
+                    portId.value
+                } else {
+                    portLabel(name = portId.value.substringAfterLast("::"), port = resolved, context = context)
+                }
+        }
+    val placements =
+        Sysml2LayoutBridge.ibdPartPortPlacements(
+            boxSize = Size(width = w, height = h),
+            ports = ports.mapKeys { it.key.value },
+            labels = labels,
+        )
 
     for ((portId, local) in ports) {
         val px = local.x
@@ -248,79 +281,58 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
                 ),
         )
 
-        // Determine which side of the box this port sits on, then place the label
-        // on the outside.
-        val onLeft = px <= half + 1f
-        val onRight = px >= w - half - 1f
-        val onTop = py <= half + 1f
-
-        // Typed port: direction triangle inside the square, label `name : Type`.
-        val resolved =
-            context?.let {
-                Sysml2PathResolver
-                    .resolve(
-                        model = it.model,
-                        ownerId = "",
-                        endpointId = "${usage.id}::${portId.value}",
-                        visibleNodeIds = setOf(usage.id),
-                    )?.terminalPort
-            }
-        val labelText =
-            if (resolved == null) {
-                portId.value
-            } else {
-                portLabel(name = portId.value.substringAfterLast("::"), port = resolved, context = context)
-            }
+        val (side, placement) = placements.getValue(portId.value)
+        val resolved = resolvedByKey[portId.value]
+        val labelText = labels.getValue(portId.value)
         if (resolved?.direction != null && resolved.direction != PortDirection.InOut) {
             // Inward unit vector (into the box) for the side the port sits on.
             val (ix, iy) =
-                when {
-                    onLeft -> 1f to 0f
-                    onRight -> -1f to 0f
-                    onTop -> 0f to 1f
-                    else -> 0f to -1f
+                when (side) {
+                    Sysml2LayoutBridge.IbdSide.Left -> 1f to 0f
+                    Sysml2LayoutBridge.IbdSide.Right -> -1f to 0f
+                    Sysml2LayoutBridge.IbdSide.Top -> 0f to 1f
+                    Sysml2LayoutBridge.IbdSide.Bottom -> 0f to -1f
                 }
             val (dx, dy) = if (resolved.direction == PortDirection.In) ix to iy else -ix to -iy
             appendDirectionTriangle(cx = px, cy = py, dx = dx, dy = dy)
         }
 
-        val (labelX, anchor) =
-            when {
-                onLeft -> Pair(px - half - gap, "end")
-                onRight -> Pair(px + half + gap, "start")
-                else -> Pair(px, "middle")
-            }
-        val labelY =
-            when {
-                onTop -> py - half - gap
-                onLeft || onRight -> py + 4f // vertically centred on port square
-                else -> py + half + gap + 9f // below (bottom side), +9 for font ascent
-            }
-
-        if (resolved != null) {
-            // Halo keeps the typed label readable where a connector runs behind it.
-            tag(
-                name = "text",
-                attrs =
-                    mapOf(
-                        "class" to "kuml-port-label-halo",
-                        "x" to fmt(labelX),
-                        "y" to fmt(labelY),
-                        "text-anchor" to anchor,
-                    ),
-            ) { text(labelText) }
-        }
-        tag(
-            name = "text",
-            attrs =
-                mapOf(
-                    "class" to "kuml-port-label",
-                    "x" to fmt(labelX),
-                    "y" to fmt(labelY),
-                    "text-anchor" to anchor,
-                ),
-        ) { text(labelText) }
+        appendPortLabel(placement = placement, text = labelText, offsetX = 0f, offsetY = 0f)
     }
+}
+
+/**
+ * Draws a port label: a theme-background backdrop rectangle (so a connector running behind stays readable)
+ * followed by the text. [placement] comes from [Sysml2LayoutBridge.ibdLabelPlacement].
+ */
+internal fun SvgBuilder.appendPortLabel(
+    placement: Sysml2LayoutBridge.IbdLabelPlacement,
+    text: String,
+    offsetX: Float,
+    offsetY: Float,
+) {
+    val r = placement.rect
+    tag(
+        name = "rect",
+        attrs =
+            mapOf(
+                "class" to "kuml-port-label-bg",
+                "x" to fmt(r.origin.x + offsetX - 2f),
+                "y" to fmt(r.origin.y + offsetY - 1f),
+                "width" to fmt(r.size.width + 4f),
+                "height" to fmt(r.size.height + 2f),
+            ),
+    )
+    tag(
+        name = "text",
+        attrs =
+            mapOf(
+                "class" to "kuml-port-label",
+                "x" to fmt(placement.textX + offsetX),
+                "y" to fmt(placement.textY + offsetY),
+                "text-anchor" to (if (placement.anchorEnd) "end" else "start"),
+            ),
+    ) { text(text) }
 }
 
 /** Filled 6 px triangle at ([cx], [cy]) pointing along the unit vector ([dx], [dy]). */
@@ -350,7 +362,7 @@ internal fun SvgBuilder.appendDirectionTriangle(
 }
 
 /** Longest rendered port label; longer texts end in an ellipsis. */
-internal const val PORT_LABEL_MAX_CHARS = 32
+internal const val PORT_LABEL_MAX_CHARS = Sysml2LayoutBridge.IBD_PORT_LABEL_MAX_CHARS
 
 /** `name : Type` (`name : ~Type` for a conjugated port), cut to [PORT_LABEL_MAX_CHARS]. */
 internal fun portLabel(
@@ -364,12 +376,10 @@ internal fun portLabel(
             ?.definitions
             ?.firstOrNull { it.id == port.definitionId }
             ?.name ?: port.definitionId
-    val full = "$name : ${if (port.isConjugated) "~" else ""}$typeName"
-    return if (full.length <= PORT_LABEL_MAX_CHARS) full else full.take(PORT_LABEL_MAX_CHARS - 1) + "…"
+    return Sysml2LayoutBridge.ibdPortLabelText(name = name, typeName = typeName, conjugated = port.isConjugated)
 }
 
-internal const val IBD_PORT_SIZE = 12f
-private const val IBD_PORT_LABEL_GAP = 4f
+internal const val IBD_PORT_SIZE = Sysml2LayoutBridge.IBD_PORT_SIZE_PX
 
 /**
  * `name : Type [multiplicity]` — die IBD-kompakte Form für eine Usage-Zeile.

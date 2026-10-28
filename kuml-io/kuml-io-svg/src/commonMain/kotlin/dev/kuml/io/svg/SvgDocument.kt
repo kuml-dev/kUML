@@ -319,6 +319,9 @@ internal object SvgDocument {
                 // supported by all SVG renderers (e.g. Batik used for PNG export).
                 append(".kuml-port-label-halo { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
                 append(" fill: none; stroke: ${c.background.toHex()}; stroke-width: 3.5px; stroke-linejoin: round; }\n")
+                // Welle B — SysML 2 port label backdrop: a rectangle in the theme background (no halo stroke),
+                // drawn before the label text. Separate class so UML component ports keep `kuml-port-label-halo`.
+                append(".kuml-port-label-bg { fill: ${c.background.toHex()}; stroke: none; }\n")
                 // Welle B — SysML 2 ports (hollow square + direction triangle) and the IBD owner frame.
                 // Declared after `.kuml-port`, so these rules win where both classes are set.
                 append(".kuml-sysml2-port { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")

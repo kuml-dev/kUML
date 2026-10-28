@@ -182,7 +182,7 @@ private fun renderBox(
             }
         }
         // Welle B: extra compartments, only when non-empty.
-        for ((header, lines) in listOf("actions" to (content?.actions ?: emptyList()), "signals" to (content?.signals ?: emptyList()))) {
+        for ((header, lines) in listOf("actions" to (content?.actions ?: emptyList()), "flows" to (content?.flows ?: emptyList()))) {
             if (lines.isEmpty()) continue
             divider()
             tag(

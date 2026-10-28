@@ -142,12 +142,28 @@ class PortsFlowsProjectionTest :
             proj.edges.map { it.id } shouldContain "comp:Vehicle::engine"
             proj.edges.map { it.id } shouldContain "agg:Vehicle::tank"
             proj.hiddenFeatureIds shouldContain "Vehicle::engine"
-            proj.signalsByDef["Vehicle"] shouldBe listOf("Fuel")
-            proj.signalsByDef["Tank"] shouldBe listOf("Fuel")
+            // flows carry the flow-property name and its TYPE: `<dir> <name> : <Type>` (conjugation flips the direction)
+            proj.flowsByDef["Tank"] shouldBe listOf("in fuel : Fuel", "out exhaust : Fuel")
+            proj.flowsByDef["Engine"] shouldBe listOf("out fuel : Fuel", "in exhaust : Fuel")
             // BDD showing only Vehicle keeps all lines (targets invisible)
             val only = sysml2BddProjection(model = m, diagram = dev.kuml.sysml2.BdDiagram(name = "b", elementIds = listOf("Vehicle")))
             only.edges.shouldBeEmpty()
             only.hiddenFeatureIds shouldBe setOf("Vehicle::flow1")
+        }
+
+        test("bdd box content: direction word appears exactly once, flows replace the old signals compartment") {
+            val m =
+                sysml2Model(name = "B") {
+                    attributeDef(name = "Mass")
+                    portDef(name = "FuelPort") { flowProperty(name = "fuel", typeId = "Mass", direction = PortDirection.In) }
+                    partDef(name = "Engine") { port(name = "out", typeId = "FuelPort", direction = PortDirection.Out) }
+                }
+            val proj =
+                sysml2BddProjection(model = m, diagram = dev.kuml.sysml2.BdDiagram(name = "b", elementIds = listOf("Engine", "Mass")))
+            val content = sysml2BddBoxContent(model = m, def = m.definitions.first { it.id == "Engine" }, projection = proj)
+            content.featureLines shouldBe listOf("out out : FuelPort")
+            content.flows shouldBe listOf("in fuel : Mass")
+            content.flows.none { it == "Mass" } shouldBe true
         }
 
         test("allocate validates targets and prints back") {

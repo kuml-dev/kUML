@@ -31,7 +31,8 @@ data class BddProjection(
     /** Feature ids drawn as an edge or an own compartment (or not drawn at all, like flows) instead of a feature line. */
     val hiddenFeatureIds: Set<String>,
     val actionsByDef: Map<String, List<String>>,
-    val signalsByDef: Map<String, List<String>>,
+    /** `<direction> <name> : <Type>` lines of the flow properties carried by the ports of a block (`flows` compartment). */
+    val flowsByDef: Map<String, List<String>>,
 ) {
     companion object {
         const val MAX_COMPARTMENT_LINES: Int = 20
@@ -46,7 +47,7 @@ fun sysml2BddProjection(
     val edges = mutableListOf<BddEdge>()
     val hidden = mutableSetOf<String>()
     val actions = linkedMapOf<String, List<String>>()
-    val signals = linkedMapOf<String, List<String>>()
+    val flows = linkedMapOf<String, List<String>>()
     val defById = model.definitions.associateBy { it.id }
 
     for (def in model.definitions) {
@@ -81,19 +82,23 @@ fun sysml2BddProjection(
                 else -> Unit
             }
         }
-        // Signals: out / inout flow properties of the ports of this block.
-        val sig = linkedSetOf<String>()
+        // Flows: every flow property carried by a port of this block, e.g. `in fuel : Mass` (the effective direction
+        // honours conjugation). There is no separate signal source in the metamodel, so no `signals` compartment exists.
+        val lines = linkedSetOf<String>()
         for (p in model.usages.filterIsInstance<PortUsage>()) {
-            if (!p.id.startsWith(ownPrefix)) continue
+            if (!p.id.startsWith(ownPrefix) || p.id.removePrefix(ownPrefix).contains("::")) continue
             for (fp in model.usages.filterIsInstance<FlowPropertyUsage>()) {
                 if (!fp.id.startsWith("${p.definitionId}::")) continue
-                val eff = effectiveDir(p = p, fp = fp)
-                if (eff == PortDirection.Out || eff == PortDirection.InOut) {
-                    sig += defById[fp.definitionId]?.name ?: fp.definitionId
-                }
+                val dir =
+                    when (effectiveDir(p = p, fp = fp)) {
+                        PortDirection.In -> "in"
+                        PortDirection.Out -> "out"
+                        PortDirection.InOut -> "inout"
+                    }
+                lines += "$dir ${fp.name} : ${defById[fp.definitionId]?.name ?: fp.definitionId}"
             }
         }
-        if (sig.isNotEmpty()) signals[def.id] = sig.take(BddProjection.MAX_COMPARTMENT_LINES)
+        if (lines.isNotEmpty()) flows[def.id] = lines.take(BddProjection.MAX_COMPARTMENT_LINES)
     }
 
     // Association: a connection definition (not itself shown) with two block-typed part features.
@@ -130,7 +135,7 @@ fun sysml2BddProjection(
                 )
         }
     }
-    return BddProjection(edges = edges, hiddenFeatureIds = hidden, actionsByDef = actions, signalsByDef = signals)
+    return BddProjection(edges = edges, hiddenFeatureIds = hidden, actionsByDef = actions, flowsByDef = flows)
 }
 
 private fun effectiveDir(

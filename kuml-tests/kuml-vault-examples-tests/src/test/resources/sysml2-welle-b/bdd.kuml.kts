@@ -8,7 +8,7 @@ sysml2Model("Bdd") {
     partDef("Wheel")
     partDef("Tank")
     partDef("Engine") {
-        port("out", "FuelPort", direction = PortDirection.Out)
+        port("fuelPort", "FuelPort", direction = PortDirection.Out)
         action("burn", "Burn")
     }
     val vehicle = partDef("Vehicle") {

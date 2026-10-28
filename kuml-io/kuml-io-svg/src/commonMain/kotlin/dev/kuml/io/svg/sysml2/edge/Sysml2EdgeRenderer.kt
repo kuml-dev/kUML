@@ -103,6 +103,7 @@ internal object Sysml2EdgeRenderer {
         builder: SvgBuilder,
         labelStackIndex: Int = 0,
         overrideLabelAnchor: Pair<Float, Float>? = null,
+        backdropFill: String? = null,
     ) {
         builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(id))) {
             renderContent(
@@ -112,6 +113,7 @@ internal object Sysml2EdgeRenderer {
                 builder = this,
                 labelStackIndex = labelStackIndex,
                 overrideLabelAnchor = overrideLabelAnchor,
+                backdropFill = backdropFill,
             )
         }
     }
@@ -123,6 +125,7 @@ internal object Sysml2EdgeRenderer {
         builder: SvgBuilder,
         labelStackIndex: Int = 0,
         overrideLabelAnchor: Pair<Float, Float>? = null,
+        backdropFill: String? = null,
     ) {
         // 1. Line + dash pattern.
         val (tag, attrs) = EdgePathBuilder.build(route)
@@ -156,6 +159,8 @@ internal object Sysml2EdgeRenderer {
         //    cross-module data-class boundary.
         val stereotype = metadata.stereotype
         val label = metadata.label
+        // Legacy diagrams keep the white label box; the IBD passes the theme background instead.
+        val backdrop = backdropFill ?: "white"
         if (stereotype == null && label == null) return
         // V3.x — Back-edge override: callers can supply an explicit anchor
         // (e.g. a point near the source state) to avoid the default
@@ -170,12 +175,19 @@ internal object Sysml2EdgeRenderer {
         // nicht mehr überlappen.
         val topY = my - LABEL_BASELINE_OFFSET_PX + labelStackIndex * STACK_OFFSET_PX
         if (stereotype != null && label != null) {
-            emitText(builder = builder, content = stereotype, x = mx, y = topY - LABEL_LINE_HEIGHT_PX, cssClass = "kuml-stereotype")
-            emitText(builder = builder, content = label, x = mx, y = topY, cssClass = "kuml-body")
+            emitText(
+                builder = builder,
+                content = stereotype,
+                x = mx,
+                y = topY - LABEL_LINE_HEIGHT_PX,
+                cssClass = "kuml-stereotype",
+                backdrop = backdrop,
+            )
+            emitText(builder = builder, content = label, x = mx, y = topY, cssClass = "kuml-body", backdrop = backdrop)
         } else if (stereotype != null) {
-            emitText(builder = builder, content = stereotype, x = mx, y = topY, cssClass = "kuml-stereotype")
+            emitText(builder = builder, content = stereotype, x = mx, y = topY, cssClass = "kuml-stereotype", backdrop = backdrop)
         } else if (label != null) {
-            emitText(builder = builder, content = label, x = mx, y = topY, cssClass = "kuml-body")
+            emitText(builder = builder, content = label, x = mx, y = topY, cssClass = "kuml-body", backdrop = backdrop)
         }
 
         // V2.x: true Bezier midpoint via de-Casteljau, multi-line labels
@@ -191,6 +203,7 @@ internal object Sysml2EdgeRenderer {
         x: Float,
         y: Float,
         cssClass: String,
+        backdrop: String,
     ) {
         // Word-wrap long labels instead of drawing one unbounded-width line —
         // see EDGE_LABEL_WRAP_CHARS. `y` is the baseline of the FIRST line;
@@ -208,7 +221,7 @@ internal object Sysml2EdgeRenderer {
                     "y" to fmt(y - singleLineH + 2f),
                     "width" to fmt(approxW),
                     "height" to fmt(approxH),
-                    "fill" to "white",
+                    "fill" to backdrop,
                     "stroke" to "none",
                 ),
         )

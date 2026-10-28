@@ -9,7 +9,7 @@ import dev.kuml.sysml2.projection.BddProjection
  *
  * @property model the model, used to resolve port types and directions.
  * @property bdd BDD projection: which feature lines are replaced by edges and
- *   which extra compartments (`actions`, `signals`) a block shows.
+ *   which extra compartments (`actions`, `flows`) a block shows.
  */
 internal class Sysml2NodeContext(
     val model: Sysml2Model,
