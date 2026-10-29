@@ -136,6 +136,8 @@ object TestSupport {
         configure: PdfExportOptions.() -> PdfExportOptions = { this },
     ) = PdfExportOptions(
         kind = kind,
+        // Fixed language: the default would follow the JVM locale, and CI runs with an English one.
+        language = PdfLanguage.DE,
         producerVersion = "kUML test",
         metadata = ExportMetadata(date = java.time.LocalDate.of(2026, 10, 28)),
     ).configure()
