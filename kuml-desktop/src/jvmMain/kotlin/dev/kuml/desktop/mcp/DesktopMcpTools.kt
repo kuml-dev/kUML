@@ -287,6 +287,9 @@ internal class DesktopMcpTools(
                 buildJsonObject {
                     put("ok", true)
                     put("svg", result.svg)
+                    if (result.warnings.isNotEmpty()) {
+                        putJsonArray("warnings") { result.warnings.forEach { add(JsonPrimitive(it)) } }
+                    }
                 }
             }
             is DesktopRenderResult.Error ->

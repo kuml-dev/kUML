@@ -1,6 +1,8 @@
 package dev.kuml.c4.model
 
 import dev.kuml.core.model.KumlMetaValue
+import dev.kuml.core.model.note.KumlNote
+import dev.kuml.core.model.note.KumlNoteLink
 import kotlinx.serialization.Serializable
 
 /**
@@ -22,5 +24,9 @@ data class C4Model(
     val elements: List<C4Element> = emptyList(),
     val relationships: List<C4Relationship> = emptyList(),
     val diagrams: List<C4Diagram> = emptyList(),
+    /** Free-text notes; shown in a diagram when listed in its `noteIds` or anchored to a visible element. */
+    val notes: List<KumlNote> = emptyList(),
+    /** Anchor links from [notes] to elements. */
+    val noteLinks: List<KumlNoteLink> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Element

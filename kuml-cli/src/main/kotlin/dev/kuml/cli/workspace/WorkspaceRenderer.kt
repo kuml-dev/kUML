@@ -110,6 +110,7 @@ public object WorkspaceRenderer {
                         }
                     rendered += outFile
                     imagePaths[idx] = "$stem.$format"
+                    warnings += outcome.noteFindings.map { WorkspaceBlockEvaluator.noteFinding(doc = doc, block = block, finding = it) }
                     if (outcome.diagramCount > 1) {
                         warnings +=
                             WorkspaceBlockEvaluator.multiDiagramFinding(

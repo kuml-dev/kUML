@@ -28,6 +28,7 @@ class C4ModelBuilder(
     override val takenIds: MutableSet<String> = mutableSetOf()
     override val elements: MutableList<C4Element> = mutableListOf()
     override val relationships: MutableList<C4Relationship> = mutableListOf()
+    private val noteRegistry = C4NoteRegistry()
 
     private sealed class DiagramDef(
         val name: String,
@@ -295,6 +296,17 @@ class C4ModelBuilder(
     }
 
     /**
+     * Adds a free-text note anchored to [anchors] (none = free-standing). The note is drawn in every diagram where
+     * one of its anchors is visible, with a dotted anchor line; list it in a diagram with `note(...)` inside the
+     * diagram block to show a free-standing one.
+     */
+    fun note(
+        text: String,
+        vararg anchors: C4Element,
+        id: String? = null,
+    ): String = noteRegistry.add(text = text, anchors = anchors.toList(), id = id)
+
+    /**
      * Builds the immutable C4Model.
      *
      * @return The constructed C4Model
@@ -317,7 +329,7 @@ class C4ModelBuilder(
             diagramDefs.map { def ->
                 when (def) {
                     is DiagramDef.SystemContext -> {
-                        SystemContextDiagramBuilderImpl(baseModel)
+                        SystemContextDiagramBuilderImpl(parentModel = baseModel, noteRegistry = noteRegistry)
                             .apply(def.block)
                             .build()
                             .copy(
@@ -326,7 +338,7 @@ class C4ModelBuilder(
                             )
                     }
                     is DiagramDef.Container -> {
-                        ContainerDiagramBuilderImpl(baseModel)
+                        ContainerDiagramBuilderImpl(parentModel = baseModel, noteRegistry = noteRegistry)
                             .apply(def.block)
                             .build()
                             .copy(
@@ -335,7 +347,7 @@ class C4ModelBuilder(
                             )
                     }
                     is DiagramDef.SystemLandscape -> {
-                        SystemLandscapeDiagramBuilderImpl(baseModel)
+                        SystemLandscapeDiagramBuilderImpl(parentModel = baseModel, noteRegistry = noteRegistry)
                             .apply(def.block)
                             .build()
                             .copy(
@@ -344,7 +356,7 @@ class C4ModelBuilder(
                             )
                     }
                     is DiagramDef.Component -> {
-                        ComponentDiagramBuilderImpl(baseModel)
+                        ComponentDiagramBuilderImpl(parentModel = baseModel, noteRegistry = noteRegistry)
                             .apply(def.block)
                             .build()
                             .copy(
@@ -353,7 +365,7 @@ class C4ModelBuilder(
                             )
                     }
                     is DiagramDef.Deployment -> {
-                        DeploymentDiagramBuilderImpl(baseModel)
+                        DeploymentDiagramBuilderImpl(parentModel = baseModel, noteRegistry = noteRegistry)
                             .apply(def.block)
                             .build()
                             .copy(
@@ -362,7 +374,7 @@ class C4ModelBuilder(
                             )
                     }
                     is DiagramDef.Dynamic -> {
-                        DynamicDiagramBuilderImpl(baseModel)
+                        DynamicDiagramBuilderImpl(parentModel = baseModel, noteRegistry = noteRegistry)
                             .apply(def.block)
                             .build()
                             .copy(
@@ -373,7 +385,7 @@ class C4ModelBuilder(
                 }
             }
 
-        return baseModel.copy(diagrams = diagrams)
+        return baseModel.copy(diagrams = diagrams, notes = noteRegistry.notes.toList(), noteLinks = noteRegistry.links.toList())
     }
 }
 

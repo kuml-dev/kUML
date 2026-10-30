@@ -95,7 +95,7 @@ public class BlueprintLayoutBridge {
             cells = cells,
             columnCenters = columnCenters,
             layerOrder = layers,
-            canvasWidth = contentLeft + colW * phases.size + pad,
+            canvasWidth = contentLeft + colW * phases.size + BlueprintGridConstants.noteColumnWidth(model) + pad,
             canvasHeight = gridTop + rowH * layers.size + legendH + pad,
             emotionBand = emotionBand,
         )

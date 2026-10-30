@@ -325,8 +325,26 @@ umlModel(name = "Banking system") {
 
 == Notes
 
-`note(text)` exists in the C4 diagram builders but is a no-op: nothing is stored and nothing is drawn.
-C4 notes are not implemented yet.
+`note(text, vararg anchors, id = null)` adds a free-text note. It exists on the model and in every diagram
+block:
+
+[source,kotlin]
+----
+c4Model(name = "Shop") {
+    val shop = softwareSystem(name = "Shop")
+    val pay = softwareSystem(name = "Payment")
+    note("ASSUMPTION A1: payment is external", shop)        // anchored: drawn wherever `shop` is visible
+    systemContextDiagram(name = "Context") {
+        include(shop, pay)
+        note("Free-standing note in this diagram")          // no anchor: drawn in this diagram only
+    }
+}
+----
+
+A note appears in a diagram when the diagram lists it (a `note(...)` inside the diagram block) or when one of its
+anchors is visible. Each anchor gets a dotted line with a dot at the anchor end. Notes are placed after the layout,
+away from elements and relationship labels. An anchor that is no element of the model is reported as
+`KUML-NOTE-W001`.
 
 == Stereotypes and styling
 

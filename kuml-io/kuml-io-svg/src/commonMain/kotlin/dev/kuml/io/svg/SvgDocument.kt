@@ -291,8 +291,9 @@ internal object SvgDocument {
                 // from `.kuml-comment` and have no rule of their own.
                 append(
                     ".kuml-note-anchor { stroke: ${c.edgeMuted.toHex()}; stroke-width: ${bo.regularPx};" +
-                        " fill: none; stroke-dasharray: 6 4; }\n",
+                        " fill: none; stroke-dasharray: 1.5 3; stroke-linecap: round; }\n",
                 )
+                append(".kuml-note-anchor-dot { fill: ${c.edgeMuted.toHex()}; stroke: none; }\n")
                 append(
                     ".kuml-bpmn-association { stroke: ${c.edgeMuted.toHex()}; stroke-width: ${bo.regularPx};" +
                         " fill: none; stroke-dasharray: 2 3; }\n",

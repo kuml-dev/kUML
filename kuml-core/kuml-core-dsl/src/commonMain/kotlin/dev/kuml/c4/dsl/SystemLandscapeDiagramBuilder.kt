@@ -29,7 +29,11 @@ interface SystemLandscapeDiagramBuilder {
 
     fun title(text: String)
 
-    fun note(text: String)
+    fun note(
+        text: String,
+        vararg anchors: C4Element,
+        id: String? = null,
+    )
 }
 
 /**
@@ -41,6 +45,7 @@ interface SystemLandscapeDiagramBuilder {
 @KumlDsl
 class SystemLandscapeDiagramBuilderImpl(
     private val parentModel: C4Model,
+    private val noteRegistry: C4NoteRegistry = C4NoteRegistry(),
 ) : SystemLandscapeDiagramBuilder {
     override var description: String? = null
     override var includeAllSystems: Boolean = true
@@ -66,8 +71,14 @@ class SystemLandscapeDiagramBuilderImpl(
         // Future: store title annotation
     }
 
-    override fun note(text: String) {
-        // Future: store note annotation
+    private val diagramNoteIds = mutableListOf<String>()
+
+    override fun note(
+        text: String,
+        vararg anchors: C4Element,
+        id: String?,
+    ) {
+        diagramNoteIds += noteRegistry.add(text = text, anchors = anchors.toList(), id = id)
     }
 
     /**
@@ -125,6 +136,7 @@ class SystemLandscapeDiagramBuilderImpl(
             description = description,
             elements = elementsToInclude.toList(),
             relationships = filteredRelationships,
+            noteIds = diagramNoteIds.toList(),
         )
     }
 

@@ -10,6 +10,7 @@ import dev.kuml.blueprint.model.JourneyDiagram
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.SvgDocument
 import dev.kuml.io.svg.blueprint.edge.renderConnection
+import dev.kuml.io.svg.renderNote
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 
@@ -186,6 +187,34 @@ internal fun renderBlueprintJourney(
             if (src != null && dst != null) {
                 renderConnection(id = conn.id, from = src, to = dst, style = conn.style)
             }
+        }
+
+        // 6b. notes (P-COM-04): column right of the lanes, dotted anchor line to each anchored step card
+        geo.placedNotes.forEach { n ->
+            n.routes.forEach { (_, pts) ->
+                tag(
+                    name = "path",
+                    attrs =
+                        mapOf(
+                            "d" to pts.mapIndexed { i, (x, y) -> "${if (i == 0) "M" else "L"} ${f(x)} ${f(y)}" }.joinToString(" "),
+                            "class" to "kuml-note-anchor",
+                        ),
+                )
+                val (ex, ey) = pts.last()
+                tag(name = "circle", attrs = mapOf("cx" to f(ex), "cy" to f(ey), "r" to "2.5", "class" to "kuml-note-anchor-dot"))
+            }
+            val size = dev.kuml.layout.Size(width = n.w.toFloat(), height = n.h.toFloat())
+            renderNote(
+                id = n.id,
+                body = n.body,
+                layout =
+                    dev.kuml.layout.NodeLayout(
+                        bounds = dev.kuml.layout.Rect(origin = dev.kuml.layout.Point(x = n.x.toFloat(), y = n.y.toFloat()), size = size),
+                    ),
+                frame = dev.kuml.layout.bridge.NoteFrameStyle.DOG_EAR,
+                frameClasses = "kuml-comment kuml-blueprint-note",
+                builder = this,
+            )
         }
 
         // 7. touchpoint legend (fix: touchpoint names were never rendered

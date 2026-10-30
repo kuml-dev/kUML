@@ -59,7 +59,11 @@ interface DynamicDiagramBuilder {
      *
      * @param text The note text
      */
-    fun note(text: String)
+    fun note(
+        text: String,
+        vararg anchors: C4Element,
+        id: String? = null,
+    )
 }
 
 /**
@@ -70,6 +74,7 @@ interface DynamicDiagramBuilder {
 @KumlDsl
 class DynamicDiagramBuilderImpl(
     private val parentModel: C4Model,
+    private val noteRegistry: C4NoteRegistry = C4NoteRegistry(),
 ) : DynamicDiagramBuilder {
     override var description: String? = null
 
@@ -129,8 +134,14 @@ class DynamicDiagramBuilderImpl(
         // Future: store title annotation
     }
 
-    override fun note(text: String) {
-        // Future: store note annotation
+    private val diagramNoteIds = mutableListOf<String>()
+
+    override fun note(
+        text: String,
+        vararg anchors: C4Element,
+        id: String?,
+    ) {
+        diagramNoteIds += noteRegistry.add(text = text, anchors = anchors.toList(), id = id)
     }
 
     /**
@@ -154,6 +165,7 @@ class DynamicDiagramBuilderImpl(
             interactions = interactions,
             elements = elementIds.toList(),
             relationships = filteredRelationships,
+            noteIds = diagramNoteIds.toList(),
         )
     }
 }

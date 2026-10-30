@@ -1070,6 +1070,9 @@ internal fun lookupLifeline(
  */
 private const val SEQ_RENDERER_HEAD_HEIGHT: Float = 40f
 
+/** Lifeline head height, shared with the note placement ([dev.kuml.io.svg.KumlSvgRenderer]). */
+internal const val SYSML2_SEQ_HEAD_HEIGHT: Float = SEQ_RENDERER_HEAD_HEIGHT
+
 /**
  * Nachrichten-Zeilen-Höhe für den Renderer. Identisch mit der Bridge-Konstante
  * [dev.kuml.layout.bridge.Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT].

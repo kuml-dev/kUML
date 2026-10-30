@@ -97,8 +97,63 @@ internal class BlueprintGeometry(
             visibleLayers = layers.toSet(),
         )
 
-    val totalWidth = contentRight + padding
-    val totalHeight = gridBottom + legendHeight + padding
+    /** x of the note column (a gutter right of the lanes). */
+    val noteX = contentRight + NOTE_GUTTER
+
+    /** Notes with their anchor routes, in declaration order; empty when the model has no notes. */
+    val placedNotes: List<PlacedBlueprintNote> = placeNotes()
+
+    val totalWidth = contentRight + BlueprintGridConstants.noteColumnWidth(model) + padding
+    val totalHeight = maxOf(gridBottom + legendHeight, placedNotes.maxOfOrNull { it.y + it.h } ?: 0.0) + padding
+
+    private fun placeNotes(): List<PlacedBlueprintNote> {
+        if (model.notes.isEmpty()) return emptyList()
+        val stepById = model.steps.associateBy { it.id }
+        val out = ArrayList<PlacedBlueprintNote>()
+        var bottom = gridTop
+        // Anchored notes first (top to bottom by the first anchor), then the free-standing ones.
+        val anchored = LinkedHashMap<String, List<dev.kuml.blueprint.model.JourneyStep>>()
+        for (n in model.notes) {
+            val steps =
+                model.noteLinks
+                    .filter { it.noteId == n.id }
+                    .mapNotNull { stepById[it.targetId] }
+                    .filter { cellOf(it) != null }
+            anchored[n.id] = steps
+        }
+        val order = model.notes.sortedBy { n -> anchored.getValue(n.id).firstOrNull()?.let { cellOf(it)?.second } ?: Double.MAX_VALUE }
+        for (n in order) {
+            val size =
+                dev.kuml.layout.bridge.NoteLayout
+                    .sizeOf(body = n.body)
+            val w = size.width.toDouble()
+            val h = size.height.toDouble()
+            val steps = anchored.getValue(n.id)
+            val first = steps.firstOrNull()?.let { cellOf(it) }
+            val desired = if (first != null) first.second + rowHeight / 2 - h / 2 else bottom
+            val y = maxOf(desired, bottom)
+            bottom = y + h + NOTE_GAP
+            val ny = y + h / 2
+            val gx = noteX - NOTE_GUTTER / 2
+            val routes =
+                model.noteLinks.filter { it.noteId == n.id }.mapNotNull { link ->
+                    val step = stepById[link.targetId] ?: return@mapNotNull null
+                    val (cellX, cellY) = cellOf(step) ?: return@mapNotNull null
+                    val cardCx = cellX + columnWidth / 2
+                    val marginY = cellY + cardMarginTop / 2
+                    link.id to
+                        listOf(noteX to ny, gx to ny, gx to marginY, cardCx to marginY, cardCx to cellY + cardMarginTop)
+                }
+            out += PlacedBlueprintNote(id = n.id, body = n.body, x = noteX, y = y, w = w, h = h, routes = routes)
+        }
+        return out
+    }
+
+    private fun cellOf(step: dev.kuml.blueprint.model.JourneyStep): Pair<Double, Double>? {
+        val phaseIdx = phases.indexOfFirst { it.id == step.phaseRef }
+        if (phaseIdx < 0 || step.layer !in layers) return null
+        return cellOrigin(phaseIndex = phaseIdx, layer = step.layer)
+    }
 
     /** Cell origin (x,y) for a (phase, layer) cell. */
     fun cellOrigin(
@@ -106,3 +161,17 @@ internal class BlueprintGeometry(
         layer: BlueprintLayer,
     ): Pair<Double, Double> = (contentLeft + columnWidth * phaseIndex) to bandY(layer).start
 }
+
+/** A note placed in the note column; [routes] are the anchor polylines (link id to points), note edge first, card edge last. */
+internal class PlacedBlueprintNote(
+    val id: String,
+    val body: String,
+    val x: Double,
+    val y: Double,
+    val w: Double,
+    val h: Double,
+    val routes: List<Pair<String, List<Pair<Double, Double>>>>,
+)
+
+private const val NOTE_GUTTER: Double = 16.0
+private const val NOTE_GAP: Double = 12.0

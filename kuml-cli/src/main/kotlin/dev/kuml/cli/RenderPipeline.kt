@@ -109,9 +109,12 @@ private fun DiagramType.toDiagramKind(): DiagramKind =
  *
  * @property diagramCount Number of distinct renderable diagrams the script produced. Only the
  *   first is rendered; callers (e.g. `workspace render`) may warn when this is greater than 1.
+ * @property noteFindings Note diagnostics of the rendered diagram (warnings, never abort the render).
  */
 internal data class RenderOutcome(
     val diagramCount: Int,
+    /** Note findings (unknown anchors, display limits, ...); also printed to stderr by [RenderPipeline.run]. */
+    val noteFindings: List<NoteChecks.Finding> = emptyList(),
 )
 
 /** SVG text plus the extracted model of one rendered diagram, see [RenderPipeline.renderToSvg]. */
@@ -250,9 +253,11 @@ internal object RenderPipeline {
         extractedSink?.invoke(extracted)
         // Computed from the same evaluation (no second script run) so callers can warn about
         // diagrams beyond the first, which extractAny silently drops.
+        val noteFindings = NoteChecks.of(extracted)
         val outcome =
             RenderOutcome(
                 diagramCount = runCatching { DiagramExtractor.countRenderableDiagrams(successResult.value.returnValue) }.getOrDefault(1),
+                noteFindings = noteFindings,
             )
 
         // 3. Theme — layering: CLI flag > config file > built-in default "kuml"
@@ -276,7 +281,7 @@ internal object RenderPipeline {
                 ?: baseTheme
 
         // Note diagnostics (unknown anchors, NOTE_TRUNCATED) — printed as warnings, never abort the render.
-        NoteChecks.of(extracted).forEach { f ->
+        noteFindings.forEach { f ->
             System.err.println("[kuml] ${if (f.isError) "ERROR" else "WARNING"} [${f.code}] ${f.message}")
         }
 

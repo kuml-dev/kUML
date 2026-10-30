@@ -46,7 +46,11 @@ interface ContainerDiagramBuilder {
 
     fun title(text: String)
 
-    fun note(text: String)
+    fun note(
+        text: String,
+        vararg anchors: C4Element,
+        id: String? = null,
+    )
 }
 
 /**
@@ -58,6 +62,7 @@ interface ContainerDiagramBuilder {
 @KumlDsl
 class ContainerDiagramBuilderImpl(
     private val parentModel: C4Model,
+    private val noteRegistry: C4NoteRegistry = C4NoteRegistry(),
 ) : ContainerDiagramBuilder {
     override var system: C4SoftwareSystem? = null
     override var description: String? = null
@@ -92,8 +97,14 @@ class ContainerDiagramBuilderImpl(
         // Future: store title annotation
     }
 
-    override fun note(text: String) {
-        // Future: store note annotation
+    private val diagramNoteIds = mutableListOf<String>()
+
+    override fun note(
+        text: String,
+        vararg anchors: C4Element,
+        id: String?,
+    ) {
+        diagramNoteIds += noteRegistry.add(text = text, anchors = anchors.toList(), id = id)
     }
 
     /**
@@ -153,6 +164,7 @@ class ContainerDiagramBuilderImpl(
             system = targetSystem.id,
             elements = allElements,
             relationships = filteredRelationships,
+            noteIds = diagramNoteIds.toList(),
         )
     }
 

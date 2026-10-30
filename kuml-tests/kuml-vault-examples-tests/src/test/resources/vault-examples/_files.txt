@@ -57,3 +57,11 @@
 50 SysML 2 SEQ – Verschachtelte Fragmente, ref, Zeit.md
 51 SysML 2 PAR – Verschachtelte Constraints.md
 52 SysML 2 REQ – Breites Diagramm mit wrapColumns.md
+53 SysML 2 STM – Notiz an einer Transition.md
+54 SysML 2 IBD – Notizen an Port, Verbindung und Owner.md
+55 SysML 2 ACT – Notiz an einer Partition.md
+56 SysML 2 PAR – Notiz an einem verschachtelten Constraint.md
+57 SysML 2 SEQ – Notizen an Lebenslinien.md
+58 C4 Context – Notizen.md
+59 Service Blueprint – Notizen.md
+60 SysML 2 REQ – Mehrere Notizen.md

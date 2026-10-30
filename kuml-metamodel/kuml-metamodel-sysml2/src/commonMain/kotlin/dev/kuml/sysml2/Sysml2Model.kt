@@ -67,10 +67,21 @@ data class Sysml2Model(
     fun notesVisibleIn(
         diagram: Sysml2Diagram,
         visibleNodeIds: Set<String>,
+    ): Sysml2VisibleNotes = notesVisibleIn(diagram = diagram, isAnchorVisible = { it in visibleNodeIds })
+
+    /**
+     * Like [notesVisibleIn] with a predicate instead of a node-id set: [isAnchorVisible] says whether the layout can
+     * show an anchor target. This covers everything the layout draws, not only nodes: transitions and connections
+     * (edges), ports, owner frames, partitions and nested constraints (groups). An anchor that is not visible does
+     * not hide a note that is listed in [Sysml2Diagram.noteIds]; it shows up as a warning (`KUML-NOTE-W001/W002`).
+     */
+    fun notesVisibleIn(
+        diagram: Sysml2Diagram,
+        isAnchorVisible: (String) -> Boolean,
     ): Sysml2VisibleNotes {
         if (comments.isEmpty()) return Sysml2VisibleNotes.EMPTY
         val explicit = diagram.noteIds.toSet()
-        val anchored = commentLinks.filter { it.link.targetId in visibleNodeIds }
+        val anchored = commentLinks.filter { isAnchorVisible(it.link.targetId) }
         val anchoredNoteIds = anchored.map { it.link.noteId }.toSet()
         val shown = comments.filter { it.id in explicit || it.id in anchoredNoteIds }
         val shownIds = shown.map { it.id }.toSet()

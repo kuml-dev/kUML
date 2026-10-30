@@ -8,8 +8,10 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.bridge.NoteLayout
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
-import dev.kuml.layout.bridge.placeSeqNotes
+import dev.kuml.layout.bridge.normalizeSeqLayout
+import dev.kuml.layout.bridge.note.Sysml2NotePlacement
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
+import dev.kuml.layout.polylinePoints
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
@@ -94,7 +96,7 @@ class Sysml2NotesSvgTest :
                     }
                 }
             val bdd = model.diagrams.single() as BdDiagram
-            val lr = layout(model, bdd)
+            val lr = Sysml2NotePlacement.place(model = model, diagram = bdd, layout = layout(model, bdd)).layout
             val n = lr.nodes[NodeId("n1")]!!
             (n.bounds.size.width >= NoteLayout.DEFAULT_W) shouldBe true
             (n.bounds.size.height >= NoteLayout.DEFAULT_H) shouldBe true
@@ -213,7 +215,7 @@ class Sysml2NotesSvgTest :
             assertNotes(render(model, model.diagrams.single(), "par"))
         }
 
-        test("seq: notes are placed right of the rightmost lifeline and linked horizontally") {
+        test("seq: the anchor line ends on the lifeline stem, not on the head border, and the notes do not overlap") {
             val model =
                 sysml2Model(name = "M") {
                     val a = lifelineDef(name = "A")
@@ -227,16 +229,25 @@ class Sysml2NotesSvgTest :
                     }
                 }
             val seq = model.diagrams.single() as SeqDiagram
-            val raw = layout(model, seq)
-            val placed = Sysml2LayoutBridge.placeSeqNotes(model = model, diagram = seq, layoutResult = raw)
-            val rightmost = raw.nodes.values.maxOf { it.bounds.origin.x + it.bounds.size.width }
-            val note = placed.nodes[NodeId("n1")]!!
-            (note.bounds.origin.x > rightmost) shouldBe true
-            (placed.canvas.width > raw.canvas.width) shouldBe true
-            placed.edges.keys.any { it.value.startsWith("note-link:n1::") } shouldBe true
-            // no overlap with the other note
-            val free = placed.nodes[NodeId("free")]!!
-            (free.bounds.origin.y >= note.bounds.origin.y + note.bounds.size.height) shouldBe true
+            val normalized = Sysml2LayoutBridge.normalizeSeqLayout(model = model, diagram = seq, layoutResult = layout(model, seq))
+            val placed = KumlSvgRenderer.placeSeqNotes(model = model, diagram = seq, layout = normalized)
+            val head = normalized.nodes[NodeId("B")]!!.bounds
+            val stemX = head.origin.x + head.size.width / 2f
+            val route =
+                placed.edges.entries
+                    .single { it.key.value.startsWith("note-link:n1::") }
+                    .value
+                    .polylinePoints()
+            kotlin.math.abs(route.last().x - stemX) shouldBe 0f
+            (route.last().y > head.origin.y + 40f) shouldBe true
+            val note = placed.nodes[NodeId("n1")]!!.bounds
+            val free = placed.nodes[NodeId("free")]!!.bounds
+            val overlap =
+                note.origin.x < free.origin.x + free.size.width &&
+                    free.origin.x < note.origin.x + note.size.width &&
+                    note.origin.y < free.origin.y + free.size.height &&
+                    free.origin.y < note.origin.y + note.size.height
+            overlap shouldBe false
             assertNotes(render(model, seq, "seq"))
         }
     })

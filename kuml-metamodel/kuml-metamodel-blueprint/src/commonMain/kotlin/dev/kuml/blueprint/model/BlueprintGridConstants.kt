@@ -21,6 +21,12 @@ public object BlueprintGridConstants {
     public const val LABEL_COLUMN_WIDTH: Double = 132.0
     public const val COLUMN_WIDTH: Double = 200.0
 
+    /** Width of the note column right of the lanes: a 260 px note plus a 16 px gutter. Shared by the layout bridge and the SVG renderer. */
+    public const val NOTE_COLUMN_WIDTH: Double = 276.0
+
+    /** Width reserved right of the grid for notes (0 when the model has none). */
+    public fun noteColumnWidth(model: BlueprintModel): Double = if (model.notes.isEmpty()) 0.0 else NOTE_COLUMN_WIDTH
+
     /** Total height of one layer-band row (card + margins). */
     public const val ROW_HEIGHT: Double = 112.0
 

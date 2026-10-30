@@ -1,0 +1,23 @@
+= Service Blueprint notes
+:description: Free-text notes in Service Blueprints and Journey Maps.
+
+`note(text, vararg stepIds, id = null)` in a `blueprint(...)` block adds a note. The ids are the values the step
+functions (`customer(...)`, `frontstage(...)`, `backstage(...)`, `support(...)`) return.
+
+[source,kotlin]
+----
+blueprint(name = "Service") {
+    lateinit var fill: String
+    phase(name = "Request") {
+        fill = customer(name = "Fills in the form", sentiment = Sentiment.NEUTRAL)
+    }
+    note("ASSUMPTION A1: the form is digital", fill)
+    blueprintDiagram(name = "Blueprint", emotionCurve = false)
+}
+----
+
+* Notes are drawn in a column right of the lanes, at the height of their first anchor; free-standing notes
+  follow below. The canvas grows by one note column (276 px) only when the model has notes.
+* Each anchor gets a dotted line with a dot at the card. The line runs through the free margin above the
+  card, so it does not cross the cards of later phases in the same lane.
+* An anchor that is no step is reported as `KUML-NOTE-W001`.

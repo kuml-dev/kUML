@@ -1,6 +1,7 @@
 package dev.kuml.c4.dsl
 
 import dev.kuml.c4.model.C4DeploymentNode
+import dev.kuml.c4.model.C4Element
 import dev.kuml.c4.model.C4Model
 import dev.kuml.c4.model.DeploymentDiagram
 import dev.kuml.c4.model.ElementId
@@ -24,7 +25,11 @@ interface DeploymentDiagramBuilder {
 
     fun title(text: String)
 
-    fun note(text: String)
+    fun note(
+        text: String,
+        vararg anchors: C4Element,
+        id: String? = null,
+    )
 }
 
 /**
@@ -36,6 +41,7 @@ interface DeploymentDiagramBuilder {
 @KumlDsl
 class DeploymentDiagramBuilderImpl(
     private val parentModel: C4Model,
+    private val noteRegistry: C4NoteRegistry = C4NoteRegistry(),
 ) : DeploymentDiagramBuilder {
     override var description: String? = null
 
@@ -55,8 +61,15 @@ class DeploymentDiagramBuilderImpl(
         annotations.add("TITLE: $text")
     }
 
-    override fun note(text: String) {
+    private val diagramNoteIds = mutableListOf<String>()
+
+    override fun note(
+        text: String,
+        vararg anchors: C4Element,
+        id: String?,
+    ) {
         annotations.add("NOTE: $text")
+        diagramNoteIds += noteRegistry.add(text = text, anchors = anchors.toList(), id = id)
     }
 
     /**
@@ -113,6 +126,7 @@ class DeploymentDiagramBuilderImpl(
             description = description,
             elements = allElements,
             relationships = filteredRelationships,
+            noteIds = diagramNoteIds.toList(),
         )
     }
 

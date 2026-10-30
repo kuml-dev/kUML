@@ -7,6 +7,8 @@ sealed class DesktopRenderResult {
         // simulated. Defaults to false so every pre-existing caller/`is Svg ->` destructuring
         // in this codebase stays source-compatible.
         val simulatable: Boolean = false,
+        /** Non-fatal note diagnostics (`[KUML-NOTE-W001] ...`); the diagram is still drawn. */
+        val warnings: List<String> = emptyList(),
     ) : DesktopRenderResult()
 
     data class Error(

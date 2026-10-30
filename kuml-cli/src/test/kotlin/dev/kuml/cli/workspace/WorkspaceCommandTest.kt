@@ -3,6 +3,7 @@ package dev.kuml.cli.workspace
 import com.github.ajalt.clikt.testing.test
 import dev.kuml.cli.ExitCodes
 import dev.kuml.cli.KumlCli
+import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -592,6 +593,63 @@ class WorkspaceCommandTest :
                 root.deleteRecursively()
             }
         }
+        test("validate --evaluate warns KUML-NOTE-W001 with the anchor name; zero warnings is no longer possible") {
+            val root = tempWorkspace()
+            try {
+                File(root, "stm.md").writeText(
+                    """
+                    |---
+                    |type: Concept
+                    |---
+                    |```kuml
+                    |sysml2Model(name = "N") {
+                    |    val a = stateDef(name = "A", isInitial = true)
+                    |    val b = stateDef(name = "B")
+                    |    transition(name = "t", source = a, target = b)
+                    |    stmDiagram(name = "S") {
+                    |        include(a)
+                    |        include(b)
+                    |        comment(text = "SECRET-BODY", "Gibtsnicht", id = "n1")
+                    |    }
+                    |}
+                    |```
+                    """.trimMargin(),
+                )
+                val result = KumlCli().test(listOf("workspace", "validate", root.absolutePath, "--evaluate"))
+                result.statusCode shouldBe 0
+                result.output shouldContain "KUML-NOTE-W001"
+                result.output shouldContain "Gibtsnicht"
+                result.output shouldNotContain "OKF-E-007"
+                result.output shouldNotContain "SECRET-BODY"
+            } finally {
+                root.deleteRecursively()
+            }
+        }
+
+        test("workspace render reports note warnings and still renders the diagram") {
+            val root = tempWorkspace()
+            val out = tempWorkspace()
+            try {
+                File(root, "stm.md").writeText(
+                    "---\ntype: Concept\n---\n```kuml\nsysml2Model(name = \"N\") {\n" +
+                        "    val a = stateDef(name = \"A\", isInitial = true)\n" +
+                        "    val b = stateDef(name = \"B\")\n    transition(name = \"t\", source = a, target = b)\n" +
+                        "    stmDiagram(name = \"S\") { include(a); include(b); comment(text = \"x\", \"Gibtsnicht\", id = \"n1\") }\n}\n```\n",
+                )
+                val docs =
+                    dev.kuml.workspace.WorkspaceScanner
+                        .scan(root = root)
+                        .documents
+                val report = WorkspaceRenderer.render(documents = docs, outputDir = out, format = "svg", width = 800, mirror = false)
+                withClue(report.failures.toString()) { report.failures.size shouldBe 0 }
+                report.rendered.size shouldBe 1
+                report.warnings.any { it.code == "KUML-NOTE-W001" && it.message.contains("Gibtsnicht") } shouldBe true
+            } finally {
+                root.deleteRecursively()
+                out.deleteRecursively()
+            }
+        }
+
         test("validate --evaluate reports a block without a renderable diagram as OKF-E-007") {
             val root = tempWorkspace()
             try {

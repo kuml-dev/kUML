@@ -1,5 +1,6 @@
 package dev.kuml.cli.workspace
 
+import dev.kuml.cli.NoteChecks
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.markdown.KumlCodeBlock
@@ -105,10 +106,66 @@ public object WorkspaceBlockEvaluator {
         }
     }
 
+    /** Result of evaluating one block: diagram count plus the note findings of its first diagram. */
+    public data class BlockEvaluation(
+        val diagramCount: Int,
+        val noteFindings: List<NoteChecks.Finding>,
+    )
+
+    /**
+     * Like [countDiagrams], but also extracts the first diagram and runs [NoteChecks] on it, so
+     * that unresolved or undrawable note anchors surface at validation time instead of
+     * vanishing silently at render time.
+     */
+    public fun evaluateBlock(
+        doc: OkfDocument,
+        block: KumlCodeBlock,
+        blockIdx: Int,
+    ): Result<BlockEvaluation> {
+        val stem = sanitizeStem(block.name ?: "${doc.file.nameWithoutExtension}-${blockIdx + 1}")
+        return try {
+            withTempScript(stem = stem, source = block.source) { script ->
+                val result = KumlScriptHost.eval(file = script)
+                val errors = result.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
+                if (errors.isNotEmpty() || result !is ResultWithDiagnostics.Success) {
+                    Result.failure(IllegalStateException("Script evaluation failed:\n" + errors.joinToString("\n") { it.message }))
+                } else {
+                    val returnValue = result.value.returnValue
+                    val count = DiagramExtractor.countRenderableDiagrams(returnValue)
+                    val notes =
+                        if (count == 0) {
+                            emptyList()
+                        } else {
+                            runCatching { NoteChecks.of(DiagramExtractor.extractAny(returnValue = returnValue, input = script)) }
+                                .getOrDefault(emptyList())
+                        }
+                    Result.success(BlockEvaluation(diagramCount = count, noteFindings = notes))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /** Maps a note finding to a workspace finding (code `KUML-NOTE-W00x` etc., line of the block). */
+    public fun noteFinding(
+        doc: OkfDocument,
+        block: KumlCodeBlock,
+        finding: NoteChecks.Finding,
+    ): OkfFinding =
+        OkfFinding(
+            code = finding.code,
+            severity = if (finding.isError) OkfSeverity.ERROR else OkfSeverity.WARNING,
+            file = doc.relativePath,
+            line = block.startLine,
+            message = finding.message,
+        )
+
     /**
      * Opt-in deep check for `workspace validate --evaluate`: evaluates every kuml block of
      * [documents]. Evaluation failures become `OKF-E-007`; blocks yielding more than one diagram
-     * become `OKF-W-008` (promoted to ERROR when [strict]).
+     * become `OKF-W-008` (promoted to ERROR when [strict]); unresolved or undrawable note anchors
+     * become warnings `KUML-NOTE-W001`..`W003` carrying the note and anchor ids.
      */
     public fun evaluateDocuments(
         documents: List<OkfDocument>,
@@ -117,7 +174,11 @@ public object WorkspaceBlockEvaluator {
         val findings = mutableListOf<OkfFinding>()
         for (doc in documents) {
             doc.kumlBlocks.forEachIndexed { idx, block ->
-                val count = countDiagrams(doc = doc, block = block, blockIdx = idx)
+                val evaluation = evaluateBlock(doc = doc, block = block, blockIdx = idx)
+                evaluation.onSuccess { ev ->
+                    findings += ev.noteFindings.map { noteFinding(doc = doc, block = block, finding = it) }
+                }
+                val count = evaluation.map { it.diagramCount }
                 count.onSuccess { n ->
                     if (n > 1) findings += multiDiagramFinding(doc = doc, block = block, blockIdx = idx, count = n, strict = strict)
                     if (n == 0) {

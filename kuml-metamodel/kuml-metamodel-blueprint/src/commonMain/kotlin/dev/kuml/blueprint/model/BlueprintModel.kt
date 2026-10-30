@@ -1,6 +1,8 @@
 package dev.kuml.blueprint.model
 
 import dev.kuml.core.model.KumlMetaValue
+import dev.kuml.core.model.note.KumlNote
+import dev.kuml.core.model.note.KumlNoteLink
 import kotlinx.serialization.Serializable
 import kotlin.math.roundToInt
 
@@ -22,6 +24,10 @@ data class BlueprintModel(
     val steps: List<JourneyStep> = emptyList(),
     val connections: List<StepConnection> = emptyList(),
     val diagrams: List<BlueprintDiagram> = emptyList(),
+    /** Free-text notes, drawn in a column right of the lanes with a dotted anchor line to their steps. */
+    val notes: List<KumlNote> = emptyList(),
+    /** Anchor links from [notes] to steps. */
+    val noteLinks: List<KumlNoteLink> = emptyList(),
     val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) {
     /** Looks up any blueprint element by id across all element lists. */

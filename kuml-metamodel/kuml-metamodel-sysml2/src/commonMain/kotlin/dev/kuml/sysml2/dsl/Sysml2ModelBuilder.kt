@@ -2129,12 +2129,9 @@ class Sysml2ModelBuilder(
                 commentLinks = commentLinks.toList(),
             )
         // Checked here (not at comment()) so forward references via ids stay possible.
+        // An unknown comment anchor is no longer a build error: Sysml2NoteChecker reports it as the
+        // warning KUML-NOTE-W001 and the note is drawn free-standing.
         val anchorable = model.allAnchorableIds()
-        for (l in model.commentLinks) {
-            require(l.link.targetId in anchorable) {
-                "comment '${l.link.noteId}' anchors unknown element '${l.link.targetId}'"
-            }
-        }
         for (al in model.usages.filterIsInstance<AllocationUsage>()) {
             require(al.sourceId in anchorable) { "allocation '${al.name}' references unknown source '${al.sourceId}'" }
             require(al.targetId in anchorable) { "allocation '${al.name}' references unknown target '${al.targetId}'" }

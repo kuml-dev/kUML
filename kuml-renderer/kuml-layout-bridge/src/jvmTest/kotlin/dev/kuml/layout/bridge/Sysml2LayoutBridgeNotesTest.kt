@@ -8,10 +8,14 @@ import dev.kuml.sysml2.dsl.sysml2Model
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
+/**
+ * Notes are no longer part of the ELK graph: ELK knows no edge labels, port labels or composite titles, so
+ * [dev.kuml.layout.bridge.note.Sysml2NotePlacement] places them after the layout.
+ */
 class Sysml2LayoutBridgeNotesTest :
     FunSpec(body = {
 
-        test("bdd graph contains note nodes (at least default size) and one edge per visible link") {
+        test("bdd graph contains neither note nodes nor note edges") {
             val model =
                 sysml2Model(name = "M") {
                     val a = partDef(name = "A")
@@ -23,14 +27,11 @@ class Sysml2LayoutBridgeNotesTest :
                     }
                 }
             val g = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = model.diagrams.single() as BdDiagram)
-            val n = g.nodes.single { it.id == NodeId("n") }
-            (n.intrinsicSize.width >= NoteLayout.DEFAULT_W) shouldBe true
-            g.nodes.any { it.id == NodeId("f") } shouldBe true
-            // link to invisible B is dropped
-            g.edges.map { it.id.value } shouldBe listOf("note-link:n::A")
+            g.nodes.map { it.id } shouldBe listOf(NodeId("A"))
+            g.edges.size shouldBe 0
         }
 
-        test("stm graph carries notes") {
+        test("stm graph carries no notes") {
             val model =
                 sysml2Model(name = "M") {
                     val r = stateDef(name = "Red")
@@ -38,11 +39,11 @@ class Sysml2LayoutBridgeNotesTest :
                     stmDiagram(name = "S") { include(r) }
                 }
             val g = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = model.diagrams.single() as StmDiagram)
-            g.nodes.any { it.id == NodeId("n") } shouldBe true
-            g.edges.size shouldBe 1
+            g.nodes.any { it.id == NodeId("n") } shouldBe false
+            g.edges.size shouldBe 0
         }
 
-        test("ibd graph carries notes anchored to part usages") {
+        test("ibd graph carries no notes") {
             val model =
                 sysml2Model(name = "M") {
                     val e = partDef(name = "Engine")
@@ -51,7 +52,7 @@ class Sysml2LayoutBridgeNotesTest :
                     ibd(name = "I", owner = v)
                 }
             val g = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = model.diagrams.single() as IbdDiagram)
-            g.nodes.any { it.id == NodeId("n") } shouldBe true
-            g.edges.size shouldBe 1
+            g.nodes.any { it.id == NodeId("n") } shouldBe false
+            g.edges.size shouldBe 0
         }
     })

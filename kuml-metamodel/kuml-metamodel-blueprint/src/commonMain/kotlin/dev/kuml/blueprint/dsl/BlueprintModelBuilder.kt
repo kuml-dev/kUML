@@ -16,6 +16,8 @@ import dev.kuml.blueprint.model.Phase
 import dev.kuml.blueprint.model.StepConnection
 import dev.kuml.blueprint.model.Touchpoint
 import dev.kuml.blueprint.model.TouchpointSymbol
+import dev.kuml.core.model.note.KumlNote
+import dev.kuml.core.model.note.KumlNoteLink
 
 /**
  * Root builder for a [BlueprintModel].
@@ -37,6 +39,8 @@ class BlueprintModelBuilder(
     private val steps = mutableListOf<JourneyStep>()
     private val connections = mutableListOf<StepConnection>()
     private val diagrams = mutableListOf<BlueprintDiagram>()
+    private val notes = mutableListOf<KumlNote>()
+    private val noteLinks = mutableListOf<KumlNoteLink>()
     private var phaseCounter = 0
 
     fun actor(
@@ -122,6 +126,19 @@ class BlueprintModelBuilder(
         steps += step
     }
 
+    /** Adds a note anchored to the steps with the given ids (the values `customer(...)`, `backstage(...)` return); none = free-standing. */
+    fun note(
+        text: String,
+        vararg stepIds: String,
+        id: String? = null,
+    ): String {
+        val noteId = id ?: "note-${notes.size + 1}"
+        require(notes.none { it.id == noteId }) { "duplicate note id '$noteId'" }
+        notes += KumlNote(id = noteId, body = text)
+        for (sid in stepIds) noteLinks += KumlNoteLink(id = "note-link:$noteId::$sid", noteId = noteId, targetId = sid)
+        return noteId
+    }
+
     internal fun nextStepId(): String = autoId(prefix = "step", n = steps.size)
 
     private fun autoId(
@@ -139,6 +156,8 @@ class BlueprintModelBuilder(
             steps = steps.toList(),
             connections = connections.toList(),
             diagrams = diagrams.toList(),
+            notes = notes.toList(),
+            noteLinks = noteLinks.toList(),
         )
 }
 

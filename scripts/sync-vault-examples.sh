@@ -70,6 +70,14 @@ map_vault_to_web() {
     "50 SysML 2 SEQ – Verschachtelte Fragmente, ref, Zeit.md") echo "sysml2-seq-nested-ref-time.kuml.kts" ;;
     "51 SysML 2 PAR – Verschachtelte Constraints.md") echo "sysml2-par-nested-pins.kuml.kts" ;;
     "52 SysML 2 REQ – Breites Diagramm mit wrapColumns.md") echo "sysml2-req-wrap-columns.kuml.kts" ;;
+    "53 SysML 2 STM – Notiz an einer Transition.md") echo "sysml2-stm-transition-note.kuml.kts" ;;
+    "54 SysML 2 IBD – Notizen an Port, Verbindung und Owner.md") echo "sysml2-ibd-port-connection-notes.kuml.kts" ;;
+    "55 SysML 2 ACT – Notiz an einer Partition.md") echo "sysml2-act-partition-note.kuml.kts" ;;
+    "56 SysML 2 PAR – Notiz an einem verschachtelten Constraint.md") echo "sysml2-par-nested-note.kuml.kts" ;;
+    "57 SysML 2 SEQ – Notizen an Lebenslinien.md") echo "sysml2-seq-lifeline-note.kuml.kts" ;;
+    "58 C4 Context – Notizen.md") echo "c4-context-notes.kuml.kts" ;;
+    "59 Service Blueprint – Notizen.md") echo "blueprint-notes.kuml.kts" ;;
+    "60 SysML 2 REQ – Mehrere Notizen.md") echo "sysml2-req-multi-notes.kuml.kts" ;;
     "07 BPMN animiert – PdV Mitgliedsantrag.md") echo "bpmn-pdv-mitgliedsantrag-animiert.kuml.kts" ;;
     "08 STM animiert – Traffic Light.md")         echo "stm-traffic-light-animiert.kuml.kts" ;;
     "19 UML Sequence animiert – API Submit.md")   echo "uml-sequence-api-submit-animiert.kuml.kts" ;;

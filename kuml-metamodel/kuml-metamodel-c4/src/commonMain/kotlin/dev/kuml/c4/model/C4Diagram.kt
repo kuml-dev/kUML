@@ -16,6 +16,9 @@ sealed interface C4Diagram : KumlElement {
     val description: String?
     val elements: List<ElementId>
     val relationships: List<ElementId>
+
+    /** Ids of the model notes this diagram shows explicitly (besides the notes anchored to a visible element). */
+    val noteIds: List<String>
 }
 
 /**
@@ -38,6 +41,7 @@ data class SystemContextDiagram(
     override val description: String? = null,
     override val elements: List<ElementId> = emptyList(),
     override val relationships: List<ElementId> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Diagram
 
@@ -63,6 +67,7 @@ data class ContainerDiagram(
     val system: ElementId,
     override val elements: List<ElementId> = emptyList(),
     override val relationships: List<ElementId> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Diagram
 
@@ -87,6 +92,7 @@ data class SystemLandscapeDiagram(
     override val description: String? = null,
     override val elements: List<ElementId> = emptyList(),
     override val relationships: List<ElementId> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Diagram
 
@@ -112,6 +118,7 @@ data class ComponentDiagram(
     val container: ElementId,
     override val elements: List<ElementId> = emptyList(),
     override val relationships: List<ElementId> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Diagram
 
@@ -136,6 +143,7 @@ data class DeploymentDiagram(
     override val description: String? = null,
     override val elements: List<ElementId> = emptyList(),
     override val relationships: List<ElementId> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Diagram
 
@@ -186,5 +194,6 @@ data class DynamicDiagram(
     val interactions: List<C4Interaction> = emptyList(),
     override val elements: List<ElementId> = emptyList(),
     override val relationships: List<ElementId> = emptyList(),
+    override val noteIds: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Diagram

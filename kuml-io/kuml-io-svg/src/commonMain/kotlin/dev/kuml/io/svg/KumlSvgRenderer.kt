@@ -76,7 +76,11 @@ import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.normalizeSeqLayout
-import dev.kuml.layout.bridge.placeSeqNotes
+import dev.kuml.layout.bridge.note.AnchorGeometry
+import dev.kuml.layout.bridge.note.ObstacleIndex
+import dev.kuml.layout.bridge.note.ObstacleKind
+import dev.kuml.layout.bridge.note.Sysml2NoteAnchorExtras
+import dev.kuml.layout.bridge.note.Sysml2NotePlacement
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.ActDiagram
@@ -713,6 +717,13 @@ public object KumlSvgRenderer {
                 is DynamicDiagram -> "dynamic"
                 is SystemLandscapeDiagram -> "system landscape"
             }
+
+        // Notes (P-COM-04): placed after the layout, drawn below with their dotted anchor lines.
+        @Suppress("NAME_SHADOWING")
+        val layoutResult =
+            dev.kuml.layout.bridge.note.C4NotePlacement
+                .place(model = model, diagram = diagram, layout = layoutResult)
+                .layout
         return SvgDocument.render(
             layoutResult = layoutResult,
             theme = theme,
@@ -825,6 +836,34 @@ public object KumlSvgRenderer {
                         )
                     NodeRendererDispatcher.dispatch(element = element, layout = shifted, theme = theme, builder = nodesBuilder)
                 }
+            }
+
+            for (note in model.notes) {
+                val nl = layoutResult.nodes[NodeId(note.id)] ?: continue
+                val shifted =
+                    nl.copy(
+                        bounds =
+                            nl.bounds.copy(
+                                origin =
+                                    nl.bounds.origin.copy(
+                                        x = nl.bounds.origin.x + padding,
+                                        y =
+                                            nl.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
+                renderNote(
+                    id = note.id,
+                    body = note.body,
+                    layout = shifted,
+                    frame = dev.kuml.layout.bridge.NoteFrameStyle.DOG_EAR,
+                    frameClasses = "kuml-comment kuml-c4-note",
+                    builder = nodesBuilder,
+                )
+            }
+            for (link in model.noteLinks) {
+                val route = layoutResult.edges[EdgeId(link.id)] ?: continue
+                renderNoteAnchor(route = shiftRoute(route = route, dx = padding), style = NoteAnchorStyle.DASHED, builder = edgesBuilder)
             }
 
             // Edges
@@ -1084,6 +1123,10 @@ public object KumlSvgRenderer {
      * label.
      */
     private const val STM_LABEL_FRAME_CLEARANCE_PX: Float = 6f
+
+    // Character width and one-line limit used to estimate edge-label rectangles for the note placement.
+    private const val SYSML2_LABEL_CHAR_PX: Float = 7.2f
+    private const val SYSML2_LABEL_SINGLE_LINE_MAX_PX: Float = 180f
 
     // STM label placement: hard top/left limit (below the frame title) and canvas clearance right/bottom.
     private const val STM_LABEL_FRAME_LEFT_PX: Float = 8f
@@ -2125,7 +2168,13 @@ public object KumlSvgRenderer {
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            rawLayoutResult = layoutResult,
+            rawLayoutResult =
+                placeSysml2Notes(
+                    model = model,
+                    diagram = diagram,
+                    layout = layoutResult,
+                    adapter = BddEdgeAdapter(model = model, diagram = diagram),
+                ),
             theme = theme,
             options = options,
             sysml2EdgeAdapter = BddEdgeAdapter(model = model, diagram = diagram),
@@ -2185,12 +2234,34 @@ public object KumlSvgRenderer {
             } else {
                 Sysml2LayoutBridge.enrichIbdPortPositions(model = model, diagram = diagram, layoutResult = framed)
             }
+        val notedLayout =
+            placeSysml2Notes(
+                model = model,
+                diagram = diagram,
+                layout = enrichedLayout,
+                adapter = IbdEdgeAdapter(model = model, diagram = diagram),
+                extras = Sysml2NoteAnchorExtras.ibd(model = model, diagram = diagram, layout = enrichedLayout),
+                configure = { o ->
+                    // Part-port labels sit next to their square; estimate a generous box to the right of it.
+                    Sysml2NoteAnchorExtras.ibd(model = model, diagram = diagram, layout = enrichedLayout).values.forEach { g ->
+                        val p = (g as? AnchorGeometry.At)?.p ?: return@forEach
+                        o.addRect(
+                            kind = ObstacleKind.PORT_LABEL,
+                            r =
+                                dev.kuml.layout.Rect(
+                                    origin = dev.kuml.layout.Point(x = p.x - 6f, y = p.y - 10f),
+                                    size = dev.kuml.layout.Size(width = 140f, height = 20f),
+                                ),
+                        )
+                    }
+                },
+            )
         val connectorAvoid =
             if (projection.showFrame) {
                 Sysml2LayoutBridge.ibdAvoidRects(
                     model = model,
                     diagram = diagram,
-                    layout = enrichedLayout,
+                    layout = notedLayout,
                 )
             } else {
                 emptyList()
@@ -2198,7 +2269,7 @@ public object KumlSvgRenderer {
         val ownerName = model.definitions.firstOrNull { it.id == diagram.ownerId }?.name ?: diagram.ownerId
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            rawLayoutResult = enrichedLayout,
+            rawLayoutResult = notedLayout,
             theme = theme,
             options = options,
             sysml2EdgeAdapter = IbdEdgeAdapter(model = model, diagram = diagram),
@@ -2288,7 +2359,7 @@ public object KumlSvgRenderer {
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            rawLayoutResult = layoutResult,
+            rawLayoutResult = placeSysml2Notes(model = model, diagram = diagram, layout = layoutResult, adapter = UcEdgeAdapter(diagram)),
             theme = theme,
             options = options,
             sysml2EdgeAdapter = UcEdgeAdapter(diagram),
@@ -2361,7 +2432,7 @@ public object KumlSvgRenderer {
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            rawLayoutResult = layoutResult,
+            rawLayoutResult = placeSysml2Notes(model = model, diagram = diagram, layout = layoutResult, adapter = ReqEdgeAdapter(diagram)),
             theme = theme,
             options = options,
             sysml2EdgeAdapter = ReqEdgeAdapter(diagram),
@@ -2428,7 +2499,13 @@ public object KumlSvgRenderer {
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            rawLayoutResult = Sysml2LayoutBridge.withoutStmOrderEdges(layoutResult),
+            rawLayoutResult =
+                placeSysml2Notes(
+                    model = model,
+                    diagram = diagram,
+                    layout = Sysml2LayoutBridge.withoutStmOrderEdges(layoutResult),
+                    adapter = StmEdgeAdapter(model = model, diagram = diagram),
+                ),
             theme = theme,
             options = options,
             sysml2EdgeAdapter = StmEdgeAdapter(model = model, diagram = diagram),
@@ -2550,7 +2627,11 @@ public object KumlSvgRenderer {
         // the un-widened parameter, standard Kotlin shadowing).
         @Suppress("NAME_SHADOWING")
         val layoutResult =
-            sysml2WidenForLabelOverhang(layoutResult = layoutResult, sysml2EdgeAdapter = adapter, padding = options.paddingPx)
+            sysml2WidenForLabelOverhang(
+                layoutResult = placeSysml2Notes(model = model, diagram = diagram, layout = layoutResult, adapter = adapter),
+                sysml2EdgeAdapter = adapter,
+                padding = options.paddingPx,
+            )
 
         // V2.0.46: Index der Activity-Knoten-Formen für den Edge-Clipper.
         //          ELK liefert Edge-Endpunkte auf dem Rand der achsparallelen
@@ -3017,10 +3098,10 @@ public object KumlSvgRenderer {
             model = model,
             diagram = diagram,
             layoutResult =
-                Sysml2LayoutBridge.placeSeqNotes(
+                placeSeqNotes(
                     model = model,
                     diagram = diagram,
-                    layoutResult = Sysml2LayoutBridge.normalizeSeqLayout(model = model, diagram = diagram, layoutResult = layoutResult),
+                    layout = Sysml2LayoutBridge.normalizeSeqLayout(model = model, diagram = diagram, layoutResult = layoutResult),
                 ),
             theme = theme,
             options = options,
@@ -3261,7 +3342,7 @@ public object KumlSvgRenderer {
                 rows = rows,
             )
 
-            // 6. Notes + anchor links, placed by Sysml2LayoutBridge.placeSeqNotes.
+            // 6. Notes + anchor links, placed by Sysml2NotePlacement (see placeSeqNotes).
             for (comment in model.comments) {
                 val nodeLayout = layoutResult.nodes[NodeId(comment.id)] ?: continue
                 val shifted =
@@ -3287,6 +3368,144 @@ public object KumlSvgRenderer {
                 )
             }
         }
+    }
+
+    /**
+     * Places the notes of [diagram] after the layout (see [Sysml2NotePlacement]); the result carries the notes as
+     * nodes and their anchor lines as edges, so every following render step treats them like any other element.
+     * Label rectangles of [adapter]'s edges are estimated and avoided.
+     */
+    internal fun placeSysml2Notes(
+        model: Sysml2Model,
+        diagram: dev.kuml.sysml2.Sysml2Diagram,
+        layout: LayoutResult,
+        adapter: Sysml2EdgeAdapter? = null,
+        extras: Map<String, AnchorGeometry> = emptyMap(),
+        configure: (ObstacleIndex) -> Unit = {},
+    ): LayoutResult =
+        Sysml2NotePlacement
+            .place(
+                model = model,
+                diagram = diagram,
+                layout = layout,
+                extras = extras,
+                edgeLabels = { id ->
+                    val md = adapter?.metadataFor(id)
+                    if (md == null) {
+                        emptyList()
+                    } else if (md.labelParts.isNotEmpty()) {
+                        sysml2EdgeLabelLines(md.labelParts)
+                    } else {
+                        listOfNotNull(md.label?.takeIf { it.isNotEmpty() }, md.endLabel?.takeIf { it.isNotEmpty() })
+                    }
+                },
+                configure = configure,
+            ).layout
+
+    /** The lines an edge label is drawn in: one line while it fits 180 px, otherwise one part per line (max 3). */
+    private fun sysml2EdgeLabelLines(parts: List<dev.kuml.sysml2.edge.EdgeLabelPart>): List<String> {
+        if (parts.isEmpty()) return emptyList()
+        val joined = parts.joinToString(separator = " ") { it.text }
+        return if (joined.length * SYSML2_LABEL_CHAR_PX <=
+            SYSML2_LABEL_SINGLE_LINE_MAX_PX
+        ) {
+            listOf(joined)
+        } else {
+            parts.take(3).map { it.text }
+        }
+    }
+
+    /**
+     * Sequence diagrams are laid out without edges (messages are drawn by the renderer). Notes anchor at the
+     * lifeline stem, 24 px below the head (or just above the lifeline's first message), and avoid the stems of the
+     * other lifelines and the message arrows.
+     */
+    internal fun placeSeqNotes(
+        model: Sysml2Model,
+        diagram: SeqDiagram,
+        layout: LayoutResult,
+    ): LayoutResult {
+        if (model.comments.isEmpty() || layout.nodes.isEmpty()) return layout
+        val headH = dev.kuml.io.svg.sysml2.SYSML2_SEQ_HEAD_HEIGHT
+        val rowH = dev.kuml.io.svg.sysml2.SYSML2_SEQ_MESSAGE_ROW_HEIGHT
+        val ids = diagram.elementIds.toSet()
+        val messages =
+            model.usages
+                .filterIsInstance<dev.kuml.sysml2.MessageUsage>()
+                .filter { it.sourceLifelineId in ids && it.targetLifelineId in ids }
+                .sortedWith(compareBy({ it.seqNo }, { it.id }))
+        val rows =
+            dev.kuml.io.svg.sysml2.SeqRowOffsets
+                .of(
+                    fragments = model.usages.filterIsInstance<dev.kuml.sysml2.CombinedFragmentUsage>(),
+                    refs =
+                        model.usages.filterIsInstance<dev.kuml.sysml2.InteractionUseUsage>().filter { u ->
+                            u.lifelineIds.any { it in ids }
+                        },
+                )
+
+        fun head(id: String) = layout.nodes[NodeId(id)]?.bounds
+
+        fun messageY(m: dev.kuml.sysml2.MessageUsage): Float? =
+            head(m.sourceLifelineId)?.let { it.origin.y + headH + (m.seqNo + 1) * rowH + rows.offsetAt(m.seqNo) }
+
+        val extras = HashMap<String, AnchorGeometry>()
+        for (id in ids) {
+            val h = head(id) ?: continue
+            val first = messages.firstOrNull { it.sourceLifelineId == id || it.targetLifelineId == id }?.let { messageY(it) }
+            val y = if (first != null) maxOf(h.origin.y + headH + 12f, first - rowH / 2f) else h.origin.y + headH + 24f
+            extras[id] = AnchorGeometry.At(dev.kuml.layout.Point(x = h.origin.x + h.size.width / 2f, y = y))
+        }
+        return Sysml2NotePlacement
+            .place(
+                model = model,
+                diagram = diagram,
+                layout = layout,
+                extras = extras,
+                nodeObstacle = { id, r ->
+                    if (id in
+                        ids
+                    ) {
+                        dev.kuml.layout.Rect(origin = r.origin, size = dev.kuml.layout.Size(width = r.size.width, height = headH))
+                    } else {
+                        r
+                    }
+                },
+                configure = { o ->
+                    val bottom = layout.canvas.height
+                    for (id in ids) {
+                        val h = head(id) ?: continue
+                        val x = h.origin.x + h.size.width / 2f
+                        o.addPolyline(
+                            kind = ObstacleKind.LIFELINE,
+                            pts = listOf(dev.kuml.layout.Point(x = x, y = h.origin.y + headH), dev.kuml.layout.Point(x = x, y = bottom)),
+                            ownerId = id,
+                        )
+                    }
+                    for (m in messages) {
+                        val y = messageY(m) ?: continue
+                        val a = head(m.sourceLifelineId) ?: continue
+                        val b = head(m.targetLifelineId) ?: continue
+                        val ax = a.origin.x + a.size.width / 2f
+                        val bx = b.origin.x + b.size.width / 2f
+                        o.addPolyline(
+                            kind = ObstacleKind.EDGE,
+                            pts = listOf(dev.kuml.layout.Point(x = ax, y = y), dev.kuml.layout.Point(x = bx, y = y)),
+                        )
+                        if (m.messageLabel.isNotEmpty()) {
+                            val w = m.messageLabel.length * SYSML2_LABEL_CHAR_PX + 8f
+                            o.addRect(
+                                kind = ObstacleKind.EDGE_LABEL,
+                                r =
+                                    dev.kuml.layout.Rect(
+                                        origin = dev.kuml.layout.Point(x = (ax + bx) / 2f - w / 2f, y = y - 18f),
+                                        size = dev.kuml.layout.Size(width = w, height = 16f),
+                                    ),
+                            )
+                        }
+                    }
+                },
+            ).layout
     }
 
     /**
@@ -3330,7 +3549,13 @@ public object KumlSvgRenderer {
         return renderSysml2Synthetic(
             synthetic = synthetic,
             // C4: nested constraint boxes and the bindings inside one composite are placed here (idempotent).
-            rawLayoutResult = Sysml2LayoutBridge.parEnrich(model = model, diagram = diagram, layoutResult = layoutResult),
+            rawLayoutResult =
+                placeSysml2Notes(
+                    model = model,
+                    diagram = diagram,
+                    layout = Sysml2LayoutBridge.parEnrich(model = model, diagram = diagram, layoutResult = layoutResult),
+                    adapter = ParEdgeAdapter(model = model, diagram = diagram),
+                ),
             theme = theme,
             options = options,
             sysml2EdgeAdapter = ParEdgeAdapter(model = model, diagram = diagram),

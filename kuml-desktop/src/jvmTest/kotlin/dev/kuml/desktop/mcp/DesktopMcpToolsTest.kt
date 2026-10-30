@@ -319,6 +319,17 @@ class DesktopMcpToolsTest :
             r["svg"]!!.jsonPrimitive.content shouldBe "<svg/>"
         }
 
+        test("render success forwards note warnings in the warnings field") {
+            val f = Fixture()
+            f.renderResult =
+                CompletableDeferred(
+                    DesktopRenderResult.Svg(svg = "<svg/>", warnings = listOf("[KUML-NOTE-W001] Anker unbekannt: X (Notiz n)")),
+                )
+            val r = f.call("kuml_desktop_render")
+            r["ok"]!!.jsonPrimitive.content shouldBe "true"
+            r["warnings"]!!.toString() shouldContain "Anker unbekannt: X"
+        }
+
         test("render error returns ok=false with the message") {
             val f = Fixture(renderResult = CompletableDeferred(DesktopRenderResult.Error(message = "kaputt")))
             val r = f.call("kuml_desktop_render")

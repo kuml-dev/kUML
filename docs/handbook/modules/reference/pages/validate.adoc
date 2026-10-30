@@ -110,7 +110,10 @@ folds the findings into the structural part of the JSON output (`category: "note
 | Code | Severity | Meaning
 
 | `NOTE_TRUNCATED` | warning | A note exceeds the display limit of 2000 characters / 30 lines and is rendered cut. The message names the note id and the limits, never the text.
-| `SYSML2_NOTE_ANCHOR_UNKNOWN` | error | A comment link points to an unknown comment or element.
+| `KUML-NOTE-W001` | warning | A note anchors an element id that does not exist (`Anker unbekannt: <id> (Notiz <noteId>)`). The note is drawn free-standing. Also reported for C4 and Service Blueprint notes.
+| `KUML-NOTE-W002` | warning | The anchor exists, but this diagram kind cannot draw an anchor of that kind.
+| `KUML-NOTE-W003` | warning | More than 8 anchors on one note or more than 200 notes; the rest is not drawn.
+| `SYSML2_NOTE_ANCHOR_UNKNOWN` | error | A comment link points to an unknown comment.
 | `SYSML2_NOTE_DUPLICATE_ID` | error | A comment id collides with another element.
 | `SYSML2_NOTE_NOT_SHOWN` | warning | An unanchored comment is listed in no diagram.
 | `BPMN_ASSOCIATION_UNKNOWN_REF` | error | An association refers to an unknown annotation or element.

@@ -105,4 +105,11 @@ internal fun renderNoteAnchor(
     val (tag, attrs) = EdgePathBuilder.build(route)
     val cls = if (style == NoteAnchorStyle.DASHED) "kuml-note-anchor" else "kuml-bpmn-association"
     builder.tag(name = tag, attrs = attrs + mapOf("class" to cls))
+    if (style == NoteAnchorStyle.DASHED) {
+        // Dot at the anchor end: tells a note anchor apart from satisfy/allocate/contains lines.
+        builder.tag(
+            name = "circle",
+            attrs = mapOf("cx" to fmt2(route.target.x), "cy" to fmt2(route.target.y), "r" to "2.5", "class" to "kuml-note-anchor-dot"),
+        )
+    }
 }

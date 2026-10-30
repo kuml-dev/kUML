@@ -4,6 +4,7 @@ import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.bpmn.model.ConversationDiagram
 import dev.kuml.bpmn.model.ProcessDiagram
+import dev.kuml.cli.NoteChecks
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.script.DiagramExtractor
@@ -113,8 +114,16 @@ internal object DesktopRenderPipeline {
                         },
                 )
             } else {
-                DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = File("inline.kuml.kts"))
-                DesktopValidationResult(ok = true, diagnostics = diagnostics)
+                val extracted = DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = File("inline.kuml.kts"))
+                // Unresolved / undrawable note anchors must not vanish silently (names ids, never note text).
+                val noteDiagnostics =
+                    NoteChecks.of(extracted).map {
+                        DesktopDiagnostic(severity = if (it.isError) "ERROR" else "WARNING", message = "[${it.code}] ${it.message}")
+                    }
+                DesktopValidationResult(
+                    ok = noteDiagnostics.none { it.severity == "ERROR" },
+                    diagnostics = diagnostics + noteDiagnostics,
+                )
             }
         } catch (e: ScriptEvaluationException) {
             DesktopValidationResult(
@@ -223,7 +232,11 @@ internal object DesktopRenderPipeline {
             val svg =
                 renderSvg(extracted = ctx.extracted, env = env)
                     ?: return DesktopRenderResult.Error(ERM_NOT_SUPPORTED_MESSAGE)
-            DesktopRenderResult.Svg(svg = svg, simulatable = isSimulatable(ctx.extracted))
+            DesktopRenderResult.Svg(
+                svg = svg,
+                simulatable = isSimulatable(ctx.extracted),
+                warnings = NoteChecks.of(ctx.extracted).map { "[${it.code}] ${it.message}" },
+            )
         } catch (e: ScriptEvaluationException) {
             DesktopRenderResult.Error(e.message ?: "Script-Fehler")
         } catch (e: Exception) {

@@ -407,6 +407,54 @@ internal object ExampleCatalog {
                     "SysML 2 requirement diagram with twelve requirements wrapped into four columns by the " +
                         "layout hint wrapColumns.",
             ),
+            CuratedExample(
+                fileName = "53 SysML 2 STM – Notiz an einer Transition.md",
+                language = "sysml2",
+                diagramType = "stm",
+                description = "SysML 2 state machine with a note anchored to a transition.",
+            ),
+            CuratedExample(
+                fileName = "54 SysML 2 IBD – Notizen an Port, Verbindung und Owner.md",
+                language = "sysml2",
+                diagramType = "ibd",
+                description = "SysML 2 internal block diagram with notes anchored to a part port, a connection and the owner.",
+            ),
+            CuratedExample(
+                fileName = "55 SysML 2 ACT – Notiz an einer Partition.md",
+                language = "sysml2",
+                diagramType = "act",
+                description = "SysML 2 activity diagram with a note anchored to a partition.",
+            ),
+            CuratedExample(
+                fileName = "56 SysML 2 PAR – Notiz an einem verschachtelten Constraint.md",
+                language = "sysml2",
+                diagramType = "par",
+                description = "SysML 2 parametric diagram with a note anchored to a nested constraint.",
+            ),
+            CuratedExample(
+                fileName = "57 SysML 2 SEQ – Notizen an Lebenslinien.md",
+                language = "sysml2",
+                diagramType = "seq",
+                description = "SysML 2 sequence diagram with a note whose anchor line ends on the lifeline stem.",
+            ),
+            CuratedExample(
+                fileName = "58 C4 Context – Notizen.md",
+                language = "c4",
+                diagramType = "context",
+                description = "C4 system context diagram with anchored and free-standing notes.",
+            ),
+            CuratedExample(
+                fileName = "59 Service Blueprint – Notizen.md",
+                language = "blueprint",
+                diagramType = "service-blueprint",
+                description = "Service blueprint with notes in a column right of the lanes and dotted anchor lines.",
+            ),
+            CuratedExample(
+                fileName = "60 SysML 2 REQ – Mehrere Notizen.md",
+                language = "sysml2",
+                diagramType = "req",
+                description = "SysML 2 requirement diagram with several anchored and free-standing notes.",
+            ),
         )
 
     /** Distinct languages in catalog order: uml, c4, sysml2, bpmn, blueprint, erm. */

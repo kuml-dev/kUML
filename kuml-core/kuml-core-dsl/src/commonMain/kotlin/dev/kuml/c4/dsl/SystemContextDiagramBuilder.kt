@@ -32,7 +32,11 @@ interface SystemContextDiagramBuilder {
 
     fun title(text: String)
 
-    fun note(text: String)
+    fun note(
+        text: String,
+        vararg anchors: C4Element,
+        id: String? = null,
+    )
 }
 
 /**
@@ -43,6 +47,7 @@ interface SystemContextDiagramBuilder {
 @KumlDsl
 class SystemContextDiagramBuilderImpl(
     private val parentModel: C4Model,
+    private val noteRegistry: C4NoteRegistry = C4NoteRegistry(),
 ) : SystemContextDiagramBuilder {
     override var description: String? = null
     override var showExternalRelationships: Boolean = true
@@ -80,8 +85,14 @@ class SystemContextDiagramBuilderImpl(
         // Future: store title annotation
     }
 
-    override fun note(text: String) {
-        // Future: store note annotation
+    private val diagramNoteIds = mutableListOf<String>()
+
+    override fun note(
+        text: String,
+        vararg anchors: C4Element,
+        id: String?,
+    ) {
+        diagramNoteIds += noteRegistry.add(text = text, anchors = anchors.toList(), id = id)
     }
 
     /**
@@ -122,6 +133,7 @@ class SystemContextDiagramBuilderImpl(
             description = description,
             elements = finalElements.toList(),
             relationships = filteredRelationships,
+            noteIds = diagramNoteIds.toList(),
         )
     }
 

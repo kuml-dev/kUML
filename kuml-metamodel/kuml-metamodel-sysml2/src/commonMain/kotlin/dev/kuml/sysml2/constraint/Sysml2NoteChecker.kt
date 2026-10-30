@@ -1,12 +1,18 @@
 package dev.kuml.sysml2.constraint
 
+import dev.kuml.core.model.note.KumlNoteCodes
 import dev.kuml.core.model.note.KumlNoteIssue
+import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
 
 /**
  * Structural checks for SysML 2 comments.
  *
- *  - `SYSML2_NOTE_ANCHOR_UNKNOWN` (error): a link points to an unknown note or target.
+ *  - `SYSML2_NOTE_ANCHOR_UNKNOWN` (error): a link points to an unknown note.
+ *  - `KUML-NOTE-W001` (warning): a link anchors an unknown element. The note is shown free-standing.
+ *  - `KUML-NOTE-W002` (warning, [check] with a diagram): an explicitly listed note has an anchor this
+ *    diagram kind cannot draw ([Sysml2NoteAnchors]).
+ *  - `KUML-NOTE-W003` (warning): more than 8 anchors on one note or more than 200 notes.
  *  - `SYSML2_NOTE_DUPLICATE_ID` (error): a comment id collides with another element or comment.
  *  - `SYSML2_NOTE_NOT_SHOWN` (warning): an unanchored comment is listed in no diagram's `noteIds`.
  */
@@ -46,10 +52,10 @@ public object Sysml2NoteChecker {
             if (l.link.targetId !in anchorable) {
                 issues +=
                     KumlNoteIssue(
-                        code = ANCHOR_UNKNOWN,
-                        severity = KumlNoteIssue.Severity.ERROR,
-                        subjectId = l.id,
-                        message = "Comment link '${l.id}' anchors unknown element '${l.link.targetId}'",
+                        code = KumlNoteCodes.ANCHOR_UNKNOWN,
+                        severity = KumlNoteIssue.Severity.WARNING,
+                        subjectId = l.link.noteId,
+                        message = "Anker unbekannt: ${l.link.targetId} (Notiz ${l.link.noteId})",
                     )
             }
         }
@@ -66,6 +72,68 @@ public object Sysml2NoteChecker {
                     )
             }
         }
+        issues += limitIssues(model)
         return issues
+    }
+
+    /**
+     * Like [check], plus `KUML-NOTE-W002` for the notes [diagram] lists explicitly whose anchors
+     * the diagram kind cannot draw. Notes that are only visible through another anchor stay silent.
+     */
+    public fun check(
+        model: Sysml2Model,
+        diagram: Sysml2Diagram?,
+    ): List<KumlNoteIssue> {
+        val base = check(model)
+        if (diagram == null) return base
+        val supported = Sysml2NoteAnchors.supported(diagram)
+        val owner = Sysml2NoteAnchors.ownerOf(diagram)
+        val listed = diagram.noteIds.toSet()
+        val extra = mutableListOf<KumlNoteIssue>()
+        for (l in model.commentLinks) {
+            if (l.link.noteId !in listed) continue
+            val kind = Sysml2NoteAnchors.kindOf(model = model, id = l.link.targetId, ownerId = owner) ?: continue
+            if (kind !in supported) {
+                extra +=
+                    KumlNoteIssue(
+                        code = KumlNoteCodes.ANCHOR_NOT_DRAWABLE,
+                        severity = KumlNoteIssue.Severity.WARNING,
+                        subjectId = l.link.noteId,
+                        message =
+                            "Anker in diesem Diagramm nicht darstellbar: ${l.link.targetId} " +
+                                "(Notiz ${l.link.noteId}, Diagramm ${diagram.name})",
+                    )
+            }
+        }
+        return base + extra
+    }
+
+    private fun limitIssues(model: Sysml2Model): List<KumlNoteIssue> {
+        val out = mutableListOf<KumlNoteIssue>()
+        model.commentLinks.groupBy { it.link.noteId }.forEach { (noteId, links) ->
+            if (links.size > KumlNoteCodes.MAX_ANCHORS_PER_NOTE) {
+                out +=
+                    KumlNoteIssue(
+                        code = KumlNoteCodes.LIMIT_APPLIED,
+                        severity = KumlNoteIssue.Severity.WARNING,
+                        subjectId = noteId,
+                        message =
+                            "Notiz $noteId hat ${links.size} Anker, es werden nur die ersten " +
+                                "${KumlNoteCodes.MAX_ANCHORS_PER_NOTE} gezeichnet",
+                    )
+            }
+        }
+        if (model.comments.size > KumlNoteCodes.MAX_NOTES_PER_DIAGRAM) {
+            out +=
+                KumlNoteIssue(
+                    code = KumlNoteCodes.LIMIT_APPLIED,
+                    severity = KumlNoteIssue.Severity.WARNING,
+                    subjectId = model.name,
+                    message =
+                        "Das Modell hat ${model.comments.size} Notizen, es werden nur die ersten " +
+                            "${KumlNoteCodes.MAX_NOTES_PER_DIAGRAM} gezeichnet",
+                )
+        }
+        return out
     }
 }

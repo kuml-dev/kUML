@@ -6,6 +6,24 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added (PAL wave 2A: notes, P-COM-01 to P-COM-04)
+
+- Notes are placed after the layout by a new engine (`dev.kuml.layout.bridge.note`: `NotePlacer`, `ObstacleIndex`, `AnchorGeometryResolver`): candidate positions around the anchors and in the margins, one orthogonal anchor line per anchor with separated exit points, nodes, composite titles, edge labels, port labels, lifeline stems, message arrows and other notes as obstacles, free-standing notes in a grid of at most four columns, deterministic, bounded work.
+- SysML 2 notes can anchor to transitions (STM), part ports, connections and the owner of an IBD (also without a drawn frame), activity partitions (ACT), nested constraints (PAR) and lifelines (SEQ, the line ends on the lifeline stem). Before, such notes disappeared without a message.
+- C4: `note(text, vararg anchors, id)` on the model and in all six diagram builders now works (it was a no-op); a note shows in a diagram when listed there or when an anchor is visible. Service Blueprint: `note(text, vararg stepIds, id)`, drawn in a column right of the lanes with a dotted anchor line to the step card.
+- Warnings `KUML-NOTE-W001` (anchor unknown), `KUML-NOTE-W002` (anchor not drawable in this diagram kind), `KUML-NOTE-W003` (more than 8 anchors or 200 notes) with note, anchor and diagram ids (never the text). They appear in `kuml render`, `kuml validate`, `kuml workspace validate --evaluate`, `kuml workspace render`, in Desktop validate/render and in the Desktop MCP tools (`warnings` / `diagnostics`).
+- Notes anchor lines are dotted with an anchor dot (distinguishable from `satisfy`/`allocate`/`contains`).
+
+### Changed (PAL wave 2A)
+
+- **Behaviour change:** a comment anchored to an unknown element id no longer aborts `Sysml2ModelBuilder.build()` (this produced the misleading `OKF-E-007 produces no renderable diagram`). It is the warning `KUML-NOTE-W001`, the note is drawn free-standing. `SYSML2_NOTE_ANCHOR_UNKNOWN` remains for a link that points to an unknown note.
+- SysML 2 notes are no longer ELK nodes (`withSysml2Notes` and `placeSeqNotes` removed); `Sysml2Model.notesVisibleIn` has an overload taking a predicate. Layouts and SVGs of diagrams with notes change; diagrams without notes are unchanged.
+- `NoteChecks` in `kuml-cli` and `DesktopRenderResult.Svg.warnings` are new public API.
+
+### Not done in this wave
+
+- KerML has no diagrams, so no note concept was added. UML, BPMN and ERM keep their own placement and only share the new anchor style. Combined-fragment frames are not yet obstacles in sequence diagrams.
+
 ### Added (Workspace PDF export, wave F)
 
 - `kuml workspace export <dir> --format pdf`: exports a knowledge workspace as a handbook (cover, table of contents, chapters in `index.md` order, traceability, open items, glossary, appendix), one PDF per document, or a diagram folio (`--split` for one PDF per diagram). Options for A4/A3, orientation (`auto` turns diagram pages to landscape when that gains scale), cover, table of contents, header/footer, `--draft` watermark, author/version/date/language, scope, `--force`, `--strict`. Diagrams stay vector graphics; a diagram shrunk below 40 % produces a warning with a suggestion; a failed diagram becomes a placeholder box. Bookmarks, internal links, metadata (Info + XMP) included.

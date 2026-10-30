@@ -32,10 +32,12 @@ class Sysml2CommentDslTest :
             model.commentLinks.first().id shouldBe "note-link:comment-2::A"
         }
 
-        test("unknown anchor throws on build, forward references via ids work") {
-            shouldThrow<IllegalArgumentException> {
-                sysml2Model(name = "M") { comment(text = "x", "Nope") }
-            }.message!! shouldContain "Nope"
+        test("unknown anchor builds (reported as KUML-NOTE-W001 with both ids), forward references via ids work") {
+            val unknown = sysml2Model(name = "M") { comment(text = "x", "Nope", id = "n1") }
+            val issue = Sysml2NoteChecker.check(unknown).single { it.code == "KUML-NOTE-W001" }
+            issue.severity shouldBe dev.kuml.core.model.note.KumlNoteIssue.Severity.WARNING
+            issue.message shouldContain "Anker unbekannt: Nope"
+            issue.message shouldContain "n1"
             val model =
                 sysml2Model(name = "M") {
                     comment(text = "fwd", "Later")

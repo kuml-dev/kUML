@@ -146,7 +146,7 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
+        return LayoutGraph(nodes = nodes, edges = edges).withLayoutSpec(diagram = diagram)
     }
 
     /**
@@ -1012,7 +1012,7 @@ public object Sysml2LayoutBridge {
         for (w in projection.ownLineFlows) addEdge("flow:${w.usage.id}", w.source, w.target)
         for (w in projection.bindings) addEdge(w.usage.id, w.source, w.target)
 
-        return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
+        return LayoutGraph(nodes = nodes, edges = edges).withLayoutSpec(diagram = diagram)
     }
 
     /** Kantenlänge (px) der synthetischen Randknoten für Owner-Ports; muss mit dem Renderer übereinstimmen. */
@@ -1146,7 +1146,7 @@ public object Sysml2LayoutBridge {
         val finalNodes = if (assigned.isEmpty()) nodes else nodes.map { n -> assigned[n.id.value]?.let { n.copy(groupId = it) } ?: n }
 
         return LayoutGraph(nodes = finalNodes, edges = edges, groups = groups)
-            .withSysml2Notes(model = model, diagram = diagram, extraVisibleIds = groups.map { it.id.value }.toSet())
+            .withLayoutSpec(diagram = diagram)
     }
 
     /**
@@ -1287,7 +1287,7 @@ public object Sysml2LayoutBridge {
         val finalNodes = if (groupOfNode.isEmpty()) nodes else nodes.map { n -> groupOfNode[n.id.value]?.let { n.copy(groupId = it) } ?: n }
 
         return LayoutGraph(nodes = finalNodes, edges = edges, groups = groups)
-            .withSysml2Notes(model = model, diagram = diagram, extraVisibleIds = groups.map { it.id.value }.toSet())
+            .withLayoutSpec(diagram = diagram)
     }
 
     private fun reqEdge(
@@ -1462,7 +1462,7 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
+        return LayoutGraph(nodes = nodes, edges = edges).withLayoutSpec(diagram = diagram)
     }
 
     /**
@@ -1573,7 +1573,7 @@ public object Sysml2LayoutBridge {
             }
         }
         return LayoutGraph(nodes = nodes, edges = edges, groups = groups)
-            .withSysml2Notes(model = model, diagram = diagram, extraVisibleIds = groupIds)
+            .withLayoutSpec(diagram = diagram)
     }
 
     /**
@@ -1774,7 +1774,7 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges, groups = groups).withSysml2Notes(model = model, diagram = diagram)
+        return LayoutGraph(nodes = nodes, edges = edges, groups = groups).withLayoutSpec(diagram = diagram)
     }
 
     /**
@@ -2388,7 +2388,7 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges).withSysml2Notes(model = model, diagram = diagram)
+        return LayoutGraph(nodes = nodes, edges = edges).withLayoutSpec(diagram = diagram)
     }
 
     /**

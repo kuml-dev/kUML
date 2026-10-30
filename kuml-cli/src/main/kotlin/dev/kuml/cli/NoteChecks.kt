@@ -1,6 +1,7 @@
 package dev.kuml.cli
 
 import dev.kuml.bpmn.constraint.BpmnNoteChecker
+import dev.kuml.core.model.note.KumlNoteCodes
 import dev.kuml.core.model.note.KumlNoteIssue
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.erm.constraint.ErmNoteChecker
@@ -14,20 +15,20 @@ import dev.kuml.sysml2.constraint.Sysml2NoteChecker
  *
  * Messages name note ids and limits, never note bodies.
  */
-internal object NoteChecks {
-    data class Finding(
+public object NoteChecks {
+    public data class Finding(
         val code: String,
         val isError: Boolean,
         val subjectId: String,
         val message: String,
     )
 
-    fun of(extracted: ExtractedDiagram): List<Finding> {
+    public fun of(extracted: ExtractedDiagram): List<Finding> {
         val issues: List<KumlNoteIssue>
         val truncated =
             when (extracted) {
                 is ExtractedDiagram.Sysml2 -> {
-                    issues = Sysml2NoteChecker.check(extracted.model)
+                    issues = Sysml2NoteChecker.check(model = extracted.model, diagram = extracted.diagram)
                     NoteDiagnostics.forSysml2(extracted.model)
                 }
                 is ExtractedDiagram.Bpmn -> {
@@ -41,6 +42,38 @@ internal object NoteChecks {
                 is ExtractedDiagram.Uml -> {
                     issues = emptyList()
                     NoteDiagnostics.forUml(extracted.diagram)
+                }
+                is ExtractedDiagram.C4 -> {
+                    issues =
+                        dev.kuml.layout.bridge.note.C4NotePlacement
+                            .unknownAnchors(extracted.model)
+                            .map { (noteId, anchorId) ->
+                                KumlNoteIssue(
+                                    code = KumlNoteCodes.ANCHOR_UNKNOWN,
+                                    severity = KumlNoteIssue.Severity.WARNING,
+                                    subjectId = noteId,
+                                    message = "Anker unbekannt: $anchorId (Notiz $noteId)",
+                                )
+                            }
+                    NoteDiagnostics.forBodies(extracted.model.notes.map { it.id to it.body })
+                }
+                is ExtractedDiagram.Blueprint -> {
+                    val known =
+                        extracted.model.steps
+                            .map { it.id }
+                            .toSet()
+                    issues =
+                        extracted.model.noteLinks
+                            .filter { it.targetId !in known }
+                            .map {
+                                KumlNoteIssue(
+                                    code = KumlNoteCodes.ANCHOR_UNKNOWN,
+                                    severity = KumlNoteIssue.Severity.WARNING,
+                                    subjectId = it.noteId,
+                                    message = "Anker unbekannt: ${it.targetId} (Notiz ${it.noteId})",
+                                )
+                            }
+                    NoteDiagnostics.forBodies(extracted.model.notes.map { it.id to it.body })
                 }
                 else -> {
                     issues = emptyList()
