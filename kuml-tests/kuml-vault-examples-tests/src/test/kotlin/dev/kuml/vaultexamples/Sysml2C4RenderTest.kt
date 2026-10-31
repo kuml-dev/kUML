@@ -8,6 +8,7 @@ import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.Point
 import dev.kuml.layout.PortId
+import dev.kuml.layout.bridge.ParConstraintGeometry
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.sysml2.BindingConnectorUsage
@@ -98,7 +99,7 @@ class Sysml2C4RenderTest :
                 (b.origin.y + b.size.height <= owner.origin.y + owner.size.height) shouldBe true
             }
 
-            // every binding endpoint that names a pin ends within 1 px of that pin
+            // every binding endpoint that names a pin ends on the pin's outer border (PAL 2C: half the pin size from its centre)
             fun pinOf(endpoint: String): Point? {
                 val cid = constraints.keys.filter { endpoint.startsWith("$it::") }.maxByOrNull { it.length } ?: return null
                 return layout.nodes[NodeId(cid)]?.ports?.get(PortId(endpoint))
@@ -106,14 +107,21 @@ class Sysml2C4RenderTest :
             val bindings = model.usages.filterIsInstance<BindingConnectorUsage>()
             for (b in bindings) {
                 val route = pts(layout.edges.getValue(dev.kuml.layout.EdgeId(b.id)))
-                pinOf(b.sourceEndId)?.let { p ->
-                    abs(route.first().x - p.x) shouldBeLessThanOrEqual 1f
-                    abs(route.first().y - p.y) shouldBeLessThanOrEqual 1f
+
+                // end point lies on the pin's outer border: half the pin size from the centre on one axis, on the centre line of the other
+                fun onBorder(
+                    end: Point,
+                    p: Point,
+                ) {
+                    val half = ParConstraintGeometry.PIN_SIZE / 2f
+                    val dx = abs(end.x - p.x)
+                    val dy = abs(end.y - p.y)
+                    val onVerticalFace = abs(dx - half) <= 0.5f && dy <= 1f
+                    val onHorizontalFace = abs(dy - half) <= 0.5f && dx <= 1f
+                    (onVerticalFace || onHorizontalFace) shouldBe true
                 }
-                pinOf(b.targetEndId)?.let { p ->
-                    abs(route.last().x - p.x) shouldBeLessThanOrEqual 1f
-                    abs(route.last().y - p.y) shouldBeLessThanOrEqual 1f
-                }
+                pinOf(b.sourceEndId)?.let { p -> onBorder(end = route.first(), p = p) }
+                pinOf(b.targetEndId)?.let { p -> onBorder(end = route.last(), p = p) }
             }
             // inner bindings stay inside the owner box
             for (id in listOf("F_to_drag", "v_to_drag", "m_to_newton", "net_to_newton", "newton_to_a")) {
@@ -123,6 +131,68 @@ class Sysml2C4RenderTest :
                     (p.y >= owner.origin.y - 0.5f && p.y <= owner.origin.y + owner.size.height + 0.5f) shouldBe true
                 }
             }
+        }
+
+        test("par: a binding to a nested constraint docks on the INNER face of the owner pin, outer pins on the outer face") {
+            val ex = eval(script("par-nested"))
+            val model: Sysml2Model = ex.model
+            val d = ex.diagram as ParDiagram
+            val elk = LayoutEngineRegistry.get("elk.layered")!!
+            val layout =
+                Sysml2LayoutBridge.parEnrich(
+                    model = model,
+                    diagram = d,
+                    layoutResult =
+                        elk.layout(
+                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = d),
+                            hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = d),
+                        ),
+                )
+            val constraints = model.definitions.filterIsInstance<ConstraintDefinition>().associateBy { it.id }
+            val half = ParConstraintGeometry.PIN_SIZE / 2f
+
+            fun constraintOf(endpoint: String): ConstraintDefinition? =
+                constraints.values.filter { endpoint.startsWith("${it.id}::") }.maxByOrNull { it.id.length }
+
+            fun isDescendant(
+                id: String,
+                ancestor: String,
+            ): Boolean {
+                var cur = constraints[id]?.ownerConstraintId
+                while (cur != null) {
+                    if (cur == ancestor) return true
+                    cur = constraints[cur]?.ownerConstraintId
+                }
+                return false
+            }
+            val bindings = model.usages.filterIsInstance<BindingConnectorUsage>()
+            var innerChecked = 0
+            var outerChecked = 0
+            for (b in bindings) {
+                val route = pts(layout.edges.getValue(dev.kuml.layout.EdgeId(b.id)))
+                val ends = listOf(Triple(b.sourceEndId, b.targetEndId, route.first()), Triple(b.targetEndId, b.sourceEndId, route.last()))
+                for ((endpoint, otherEndpoint, end) in ends) {
+                    val c = constraintOf(endpoint) ?: continue
+                    val paramName = endpoint.removePrefix("${c.id}::")
+                    val param = c.parameters.first { it.name == paramName }
+                    val pin =
+                        layout.nodes
+                            .getValue(NodeId(c.id))
+                            .ports
+                            .getValue(PortId(endpoint))
+                    val west = param.direction == dev.kuml.sysml2.ConstraintParameterDirection.In
+                    val other = constraintOf(otherEndpoint)
+                    val inner = other != null && other.id != c.id && isDescendant(id = other.id, ancestor = c.id)
+                    // west pin: outer face looks left, inner face looks right; east pin: the other way round
+                    val expectedX = pin.x + if (west != inner) -half else half
+                    abs(end.x - expectedX) shouldBeLessThanOrEqual 0.6f
+                    abs(end.y - pin.y) shouldBeLessThanOrEqual 0.6f
+                    if (inner) innerChecked++ else outerChecked++
+                }
+            }
+            // the fixture has four bindings from/to an owner pin to a nested constraint, and outer ones
+            (innerChecked >= 4) shouldBe true
+            (outerChecked >= 4) shouldBe true
         }
 
         test("par: svg draws one hollow pin per parameter and escapes parameter names") {

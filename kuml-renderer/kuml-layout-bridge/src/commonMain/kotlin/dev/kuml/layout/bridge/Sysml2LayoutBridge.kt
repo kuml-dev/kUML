@@ -20,6 +20,9 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.PortId
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.port.PortAttachment
+import dev.kuml.layout.bridge.port.PortEdgeClamp
+import dev.kuml.layout.bridge.port.PortFace
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActivityNodeKind
@@ -2547,7 +2550,7 @@ public object Sysml2LayoutBridge {
                 projection.bindings.map { Triple(it.usage.id, it.source, it.target) }
         if (wires.isEmpty()) return layoutResult
 
-        // portPositions[nodeId][portId] = local Point (relative to node origin)
+        // portPositions[nodeId][portId] = local Point (relative to node origin), snapped onto the box border
         val portPositions = mutableMapOf<NodeId, MutableMap<PortId, Point>>()
 
         for ((edgeId, src, tgt) in wires) {
@@ -2555,8 +2558,9 @@ public object Sysml2LayoutBridge {
             for ((end, point) in listOf(src to route.source, tgt to route.target)) {
                 val nodeId = end.nodeId ?: continue
                 if (end.steps.isEmpty()) continue
-                val origin = layoutResult.nodes[NodeId(nodeId)]?.bounds?.origin ?: continue
-                val local = Point(x = point.x - origin.x, y = point.y - origin.y)
+                val bounds = layoutResult.nodes[NodeId(nodeId)]?.bounds ?: continue
+                val origin = bounds.origin
+                val local = snapToBorder(p = Point(x = point.x - origin.x, y = point.y - origin.y), size = bounds.size)
                 val key = PortId(end.steps.joinToString("::"))
                 portPositions
                     .getOrPut(NodeId(nodeId)) { mutableMapOf() }
@@ -2571,7 +2575,24 @@ public object Sysml2LayoutBridge {
                 val ports = portPositions[nodeId] ?: return@mapValues nodeLayout
                 nodeLayout.copy(ports = ports)
             }
-        return layoutResult.copy(nodes = enrichedNodes)
+
+        // PAL 2C (P-IBD-08): edges end on the outer border of the port square, perpendicular to the box side.
+        fun attachment(end: dev.kuml.sysml2.projection.ResolvedEnd): PortAttachment? {
+            val nodeId = end.nodeId?.let { NodeId(it) } ?: return null
+            if (end.steps.isEmpty()) return null
+            val bounds = layoutResult.nodes[nodeId]?.bounds ?: return null
+            val local = portPositions[nodeId]?.get(PortId(end.steps.joinToString("::"))) ?: return null
+            val side = ibdNearestSide(p = local, w = bounds.size.width, h = bounds.size.height)
+            return PortAttachment(rect = ibdPortSquare(boxBounds = bounds, local = local), face = ibdFace(side = side))
+        }
+        val clampedEdges =
+            LinkedHashMap(
+                layoutResult.edges.mapValues { (eid, route) ->
+                    val w = wires.firstOrNull { it.first == eid.value } ?: return@mapValues route
+                    PortEdgeClamp.clamp(route = route, source = attachment(w.second), target = attachment(w.third))
+                },
+            )
+        return layoutResult.copy(nodes = enrichedNodes, edges = clampedEdges)
     }
 
     /** Innenabstand zwischen den äußersten Inhalten und dem IBD-Rahmen. */
@@ -2879,6 +2900,21 @@ public object Sysml2LayoutBridge {
             IbdSide.Left -> Point(x = 0f, y = y)
             IbdSide.Right -> Point(x = size.width, y = y)
         }
+    }
+
+    /** Face of a port square that looks outwards ([inward] = false) or inwards from the box/frame side [side]. */
+    private fun ibdFace(
+        side: IbdSide,
+        inward: Boolean = false,
+    ): PortFace {
+        val f =
+            when (side) {
+                IbdSide.Top -> PortFace.Top
+                IbdSide.Bottom -> PortFace.Bottom
+                IbdSide.Left -> PortFace.Left
+                IbdSide.Right -> PortFace.Right
+            }
+        return if (inward) PortEdgeClamp.opposite(f) else f
     }
 
     private fun outwardOf(side: IbdSide): Point =
@@ -3286,7 +3322,28 @@ public object Sysml2LayoutBridge {
             }
             val (a, da) = endpoint(w.src, srcOwner, route.source)
             val (b, db) = endpoint(w.tgt, tgtOwner, route.target)
-            newEdges[eid] = ibdOrthoRoute(a = a, da = da, b = b, db = db, avoid = avoidBoxes)
+            val routed = ibdOrthoRoute(a = a, da = da, b = b, db = db, avoid = avoidBoxes)
+
+            // PAL 2C (P-IBD-08): central clamping onto the outer port border, perpendicular, stub >= arrowhead.
+            fun attach(
+                end: dev.kuml.sysml2.projection.ResolvedEnd,
+                owner: OwnerPlace?,
+            ): PortAttachment? {
+                if (owner != null) {
+                    return PortAttachment(
+                        rect = squareBox(c = ownerCenter.getValue(owner.id), half = half).toRect(),
+                        face = ibdFace(side = owner.side, inward = true),
+                    )
+                }
+                val pp = partPortAbs(end) ?: return null
+                return PortAttachment(rect = squareBox(c = pp.first, half = half).toRect(), face = ibdFace(side = pp.second))
+            }
+            newEdges[eid] =
+                PortEdgeClamp.clamp(
+                    route = routed,
+                    source = attach(w.src, srcOwner),
+                    target = attach(w.tgt, tgtOwner),
+                )
         }
 
         // G. Zeichenfläche aus dem Inhalt neu bemessen und alles so verschieben, dass das Minimum bei (margin, margin) liegt.

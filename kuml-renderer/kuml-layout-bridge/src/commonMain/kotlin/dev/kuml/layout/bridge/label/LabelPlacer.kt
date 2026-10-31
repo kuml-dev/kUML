@@ -181,11 +181,14 @@ public object LabelPlacer {
         val nx = -uy
         val ny = ux
         val out = ArrayList<Candidate>(31)
+        // Ties between the two sides of a vertical line resolve to the right-hand side (like the horizontal case, where the
+        // normal points down); a side that stays free of the notes anchored on the left keeps a label and a note apart.
+        val sideOrder = if (abs(nx) > abs(ny) && nx < 0f) intArrayOf(-1, 1) else intArrayOf(1, -1)
         for (t in EDGE_T) {
             val px = a.x + (b.x - a.x) * t
             val py = a.y + (b.y - a.y) * t
             for (off in EDGE_OFFSETS) {
-                for (sign in intArrayOf(1, -1)) {
+                for (sign in sideOrder) {
                     val half = abs(nx) * req.size.width / 2f + abs(ny) * req.size.height / 2f
                     val d = sign * (off + half)
                     out +=

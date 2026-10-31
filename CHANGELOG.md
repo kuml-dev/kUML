@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added / Changed / Fixed (PAL wave 2C, partial: ports and pins)
+
+- `PortEdgeClamp` (layout bridge): one central function that lets an edge end on the outer border of a port or pin, perpendicular to its face (stub at least the arrowhead length). Used by unframed IBDs (`enrichIbdPortPositions`, port centres are now snapped onto the box border), framed IBDs and PAR pins (`parEnrich`). The layout engine contract is unchanged (it still reports the port centre); the clamping happens when drawing. Images with ports and pins change at the port ends.
+- **Behaviour change in all diagram families that use `LabelPlacer`** (SysML 2 edge labels, UML associations, ERM, UML edges): when the two sides of a vertical edge are equally good, the centre label now goes to the right of the line (before: left). This keeps an edge label and a note anchored on the left of the line apart (vault example 54). Labels of downward vertical edges can therefore move to the other side of the line in existing UML and ERM images. Positions are otherwise unchanged.
+- IBD: a bare owner-port name (`eingang`) in `connect(...)` now resolves like `Owner::eingang`; unresolvable ends are reported in `IbdProjection.unresolvedEnds` instead of being dropped silently.
+- Open after this commit (not implemented): A* router and port pitch, label plan with halo for item flows, attribute compartment and `connectionDef(style)`, box-in-box nesting, viewBox/canvas fit, PAR row pitch / unit / expression wrapping / `include(attributeDef)`, IBD5xx checker wiring, vault examples 66-69, handbook; ACT pin routing was left on `Sysml2PinRouting` (already ends on the outer border); `ComponentPortEdgeClipper`; C4 canvas.
+
 ### Added / Changed / Fixed (wave 2H: workspace PDF export)
 
 - **Automatic page size:** each diagram is placed on A4 portrait or landscape, on A3, or split into overlapping tiles, so that its scale stays at or above the minimum scale (default 0.5). New options `--page-strategy auto|fixed`, `--min-scale` and `--tiling/--no-tiling` (CLI), the same in the Desktop dialog and the MCP tool `kuml_desktop_workspace_export_pdf` (`pageStrategy`, `minScale`, `tiling`). A3 is only chosen automatically with `auto`; tiled diagrams carry part labels, a grid locator and registration marks and add a level-4 bookmark.

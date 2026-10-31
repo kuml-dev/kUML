@@ -1,5 +1,6 @@
 package dev.kuml.layout.bridge
 
+import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutResult
@@ -8,6 +9,7 @@ import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.port.PortEdgeClamp
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.PortDirection
@@ -18,6 +20,7 @@ import dev.kuml.sysml2.edge.Sysml2ArrowHead
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.floats.shouldBeLessThan
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
@@ -439,5 +442,90 @@ class Sysml2IbdFrameLayoutTest :
                     partPort = true,
                 )
             (left.rect.origin.x + left.rect.size.width <= -Sysml2LayoutBridge.IBD_PORT_SIZE_PX / 2f).shouldBe(true)
+        }
+
+        fun routePts(route: EdgeRoute): List<Point> =
+            when (route) {
+                is EdgeRoute.Direct -> listOf(route.source, route.target)
+                is EdgeRoute.OrthogonalRounded -> listOf(route.source) + route.waypoints + listOf(route.target)
+                is EdgeRoute.TreeRounded -> listOf(route.source) + route.waypoints + listOf(route.target)
+                is EdgeRoute.Bezier -> listOf(route.source) + route.controlPoints + listOf(route.target)
+            }
+
+        /** The end must lie on the border of the square around [centre], and its last segment must run along [normal] for >= the stub. */
+        fun assertDocksPerpendicular(
+            end: Point,
+            beforeEnd: Point,
+            centre: Point,
+            normal: Point,
+        ) {
+            val half = Sysml2LayoutBridge.IBD_PORT_SIZE_PX / 2f
+            // end = centre + normal * half (outer or inner face, depending on the normal)
+            kotlin.math.abs(end.x - (centre.x + normal.x * half)) shouldBeLessThan 0.6f
+            kotlin.math.abs(end.y - (centre.y + normal.y * half)) shouldBeLessThan 0.6f
+            // the stub runs along the normal, away from the port, at least one arrowhead long
+            val stub = (beforeEnd.x - end.x) * normal.x + (beforeEnd.y - end.y) * normal.y
+            (stub >= PortEdgeClamp.ARROW_LEN_PX - 0.6f) shouldBe true
+            // perpendicular: no sideways component in the last segment
+            kotlin.math.abs((beforeEnd.x - end.x) * normal.y) shouldBeLessThan 0.6f
+            kotlin.math.abs((beforeEnd.y - end.y) * normal.x) shouldBeLessThan 0.6f
+        }
+
+        fun normalOf(side: Sysml2LayoutBridge.IbdSide): Point =
+            when (side) {
+                Sysml2LayoutBridge.IbdSide.Top -> Point(x = 0f, y = -1f)
+                Sysml2LayoutBridge.IbdSide.Bottom -> Point(x = 0f, y = 1f)
+                Sysml2LayoutBridge.IbdSide.Left -> Point(x = -1f, y = 0f)
+                Sysml2LayoutBridge.IbdSide.Right -> Point(x = 1f, y = 0f)
+            }
+
+        test("unframed ibd: an edge ends on the outer border of its part-port square with a perpendicular stub >= arrowhead") {
+            val lr = Sysml2LayoutBridge.enrichIbdPortPositions(model = portsModel, diagram = portsIbd, layoutResult = portsLayout())
+            // c1 ends at tank.outlet, c2 starts at engine.injector (the other ends are owner ports, not clamped here)
+            val checks =
+                listOf(
+                    Triple("conn:Vehicle::c1", "Vehicle::tank", false),
+                    Triple("conn:Vehicle::c2", "Vehicle::engine", true),
+                )
+            for ((edgeId, nodeId, atStart) in checks) {
+                val node = lr.nodes.getValue(NodeId(nodeId))
+                val local = node.ports.values.single()
+                val side = Sysml2LayoutBridge.ibdNearestSide(p = local, w = node.bounds.size.width, h = node.bounds.size.height)
+                val centre = Point(x = node.bounds.origin.x + local.x, y = node.bounds.origin.y + local.y)
+                val pts = routePts(lr.edges.getValue(EdgeId(edgeId)))
+                if (atStart) {
+                    assertDocksPerpendicular(end = pts[0], beforeEnd = pts[1], centre = centre, normal = normalOf(side))
+                } else {
+                    assertDocksPerpendicular(end = pts.last(), beforeEnd = pts[pts.size - 2], centre = centre, normal = normalOf(side))
+                }
+            }
+        }
+
+        test("framed ibd: an edge to an owner port docks on the INNER face of the port square (towards the content)") {
+            val lr = Sysml2LayoutBridge.addIbdOwnerFrame(model = portsModel, diagram = portsIbd, layoutResult = portsLayout())
+            val f = frameOf(lr).box()
+            // c1 starts at the owner port fuelIn, c2 ends at the owner port telemetry
+            for ((edgeId, portId, atStart) in listOf(
+                Triple("conn:Vehicle::c1", "Vehicle::fuelIn", true),
+                Triple("conn:Vehicle::c2", "Vehicle::telemetry", false),
+            )) {
+                val b = lr.nodes.getValue(NodeId(portId)).bounds
+                val centre = Point(x = b.origin.x + b.size.width / 2f, y = b.origin.y + b.size.height / 2f)
+                // outward normal of the frame side the owner port sits on; the edge docks on the opposite (inner) face
+                val outward =
+                    when {
+                        kotlin.math.abs(centre.y - f.t) < 0.5f -> Point(x = 0f, y = -1f)
+                        kotlin.math.abs(centre.y - f.b) < 0.5f -> Point(x = 0f, y = 1f)
+                        kotlin.math.abs(centre.x - f.l) < 0.5f -> Point(x = -1f, y = 0f)
+                        else -> Point(x = 1f, y = 0f)
+                    }
+                val inward = Point(x = -outward.x, y = -outward.y)
+                val pts = routePts(lr.edges.getValue(EdgeId(edgeId)))
+                if (atStart) {
+                    assertDocksPerpendicular(end = pts[0], beforeEnd = pts[1], centre = centre, normal = inward)
+                } else {
+                    assertDocksPerpendicular(end = pts.last(), beforeEnd = pts[pts.size - 2], centre = centre, normal = inward)
+                }
+            }
         }
     })

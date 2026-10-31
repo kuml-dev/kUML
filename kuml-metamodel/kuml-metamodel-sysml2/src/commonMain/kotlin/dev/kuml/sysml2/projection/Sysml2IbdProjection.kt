@@ -9,6 +9,12 @@ import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.Sysml2Model
 
+/** A connection end that could not be resolved; the wire is omitted from the diagram. */
+data class IbdUnresolvedEnd(
+    val usageId: String,
+    val endpointId: String,
+)
+
 /** A connection-like edge of an IBD with both ends resolved. */
 data class IbdWire<T>(
     val usage: T,
@@ -31,6 +37,7 @@ data class IbdProjection(
     val flows: List<IbdWire<FlowUsage>>,
     val bindings: List<IbdWire<BindingConnectorUsage>>,
     val showFrame: Boolean,
+    val unresolvedEnds: List<IbdUnresolvedEnd> = emptyList(),
 ) {
     /** Flows carried by a visible connection (drawn as a mid-arrow on it). */
     val carriedFlows: List<IbdWire<FlowUsage>>
@@ -95,6 +102,23 @@ fun sysml2IbdProjection(
             val t = resolve(it.targetEndId) ?: return@mapNotNull null
             IbdWire(usage = it, source = s, target = t)
         }
+    // Ends that only fail because the diagram filters their part out (elementIds) are deliberately hidden, not unresolved.
+    val allPartIds = ownerParts.map { it.id }.toSet()
+
+    fun resolveUnfiltered(id: String) =
+        Sysml2PathResolver.resolve(model = model, ownerId = owner.id, endpointId = id, visibleNodeIds = allPartIds)
+    val unresolved = mutableListOf<IbdUnresolvedEnd>()
+    for (u in model.usages.filter { it.id.startsWith(prefix) }) {
+        val ends =
+            when (u) {
+                is ConnectionUsage -> listOf(u.sourceEndId, u.targetEndId)
+                is FlowUsage -> listOf(u.sourceEndId, u.targetEndId)
+                else -> continue
+            }
+        for (e in ends) {
+            if (resolve(e) == null && resolveUnfiltered(e) == null) unresolved += IbdUnresolvedEnd(usageId = u.id, endpointId = e)
+        }
+    }
     val ends = (
         connections.flatMap { listOf(it.source, it.target) } +
             flows.flatMap { listOf(it.source, it.target) } +
@@ -109,5 +133,6 @@ fun sysml2IbdProjection(
         flows = flows,
         bindings = bindings,
         showFrame = showFrame,
+        unresolvedEnds = unresolved,
     )
 }

@@ -39,6 +39,10 @@ object Sysml2PathResolver {
         visibleNodeIds: Set<String>,
     ): ResolvedEnd? {
         if (endpointId.length > MAX_PATH_CHARS) return null
+        // PAL 2C (P-IBD-01): a bare name ("eingang") means a member of the owner ("Owner::eingang").
+        if (!endpointId.contains("::") && !endpointId.contains('.') && endpointId.isNotEmpty()) {
+            return resolve(model = model, ownerId = ownerId, endpointId = "$ownerId::$endpointId", visibleNodeIds = visibleNodeIds)
+        }
         val nodeId =
             visibleNodeIds
                 .filter { endpointId == it || endpointId.startsWith("$it::") }

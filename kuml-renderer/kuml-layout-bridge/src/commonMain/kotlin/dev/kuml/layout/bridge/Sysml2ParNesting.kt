@@ -10,6 +10,9 @@ import dev.kuml.layout.PortId
 import dev.kuml.layout.PortSide
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.port.PortAttachment
+import dev.kuml.layout.bridge.port.PortEdgeClamp
+import dev.kuml.layout.bridge.port.PortFace
 import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ConstraintParameter
@@ -292,6 +295,81 @@ internal object ParCompositeLayout {
      * composite to [layout]. Idempotent: constraints already present in [layout.nodes] are left alone.
      */
     fun enrich(
+        model: Sysml2Model,
+        visibleIds: List<String>,
+        layout: LayoutResult,
+        ownSize: (String) -> Size,
+    ): LayoutResult =
+        clampPins(
+            model = model,
+            visibleIds = visibleIds,
+            layout = enrichNested(model = model, visibleIds = visibleIds, layout = layout, ownSize = ownSize),
+        )
+
+    /** Edge stub length at a pin: bindings carry no arrowhead, the stub is the lane approach ([APPROACH]). */
+    const val PIN_STUB_PX: Float = APPROACH
+
+    /**
+     * PAL 2C (P-IBD-08): lets every binding edge end on the outer border of its pin square, perpendicular to the box
+     * side, via the central [PortEdgeClamp]. Idempotent; edges without a pin end stay untouched.
+     */
+    fun clampPins(
+        model: Sysml2Model,
+        visibleIds: List<String>,
+        layout: LayoutResult,
+    ): LayoutResult {
+        val nesting = ParNesting.of(model = model, visibleIds = visibleIds)
+        if (nesting.constraints.isEmpty()) return layout
+        val visible = visibleIds.toSet()
+        val half = ParConstraintGeometry.PIN_SIZE / 2f
+
+        fun descendantOf(
+            id: String,
+            ancestor: String,
+        ): Boolean {
+            var cur = nesting.ownerOf(id)
+            var steps = 0
+            while (cur != null && steps++ <= Sysml2Limits.CONSTRAINT_DEPTH + 1) {
+                if (cur == ancestor) return true
+                cur = nesting.ownerOf(cur)
+            }
+            return false
+        }
+
+        fun attach(
+            end: ParEnd,
+            other: ParEnd,
+        ): PortAttachment? {
+            val idx = end.parameterIndex ?: return null
+            val c = nesting.constraints[end.nodeId] ?: return null
+            val bounds = layout.nodes[NodeId(end.nodeId)]?.bounds ?: return null
+            val pin = ParConstraintGeometry.pinPoint(constraint = c, index = idx, bounds = bounds)
+            val west = ParConstraintGeometry.pinSide(c.parameters[idx].direction) == PortSide.West
+            val inner = other.nodeId != end.nodeId && descendantOf(id = other.nodeId, ancestor = end.nodeId)
+            val faceLeft = if (inner) !west else west
+            return PortAttachment(
+                rect = Rect(origin = Point(x = pin.x - half, y = pin.y - half), size = Size(width = 2f * half, height = 2f * half)),
+                face = if (faceLeft) PortFace.Left else PortFace.Right,
+            )
+        }
+
+        val edges = LinkedHashMap(layout.edges)
+        var changed = false
+        for (b in model.usages.filterIsInstance<BindingConnectorUsage>()) {
+            val route = edges[EdgeId(b.id)] ?: continue
+            val a = parResolveEnd(endpoint = b.sourceEndId, visibleIds = visible, nesting = nesting) ?: continue
+            val z = parResolveEnd(endpoint = b.targetEndId, visibleIds = visible, nesting = nesting) ?: continue
+            val sa = attach(end = a, other = z)
+            val sz = attach(end = z, other = a)
+            if (sa == null && sz == null) continue
+            edges[EdgeId(b.id)] =
+                PortEdgeClamp.clamp(route = route, source = sa, target = sz, minStubPx = PIN_STUB_PX, cornerRadiusPx = CORNER_RADIUS)
+            changed = true
+        }
+        return if (changed) layout.copy(edges = edges) else layout
+    }
+
+    private fun enrichNested(
         model: Sysml2Model,
         visibleIds: List<String>,
         layout: LayoutResult,
