@@ -1,9 +1,11 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.DiagramLayoutScope
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.TimingDiagramConfig
+import dev.kuml.core.model.layout.LayoutSpecCollector
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlCommentLink
@@ -25,7 +27,9 @@ import dev.kuml.uml.ids.UmlIds
 @KumlDsl
 public class TimingDiagramBuilder(
     private val name: String,
-) : UmlModelScope {
+) : UmlModelScope,
+    DiagramLayoutScope {
+    override val layoutCollector: LayoutSpecCollector = LayoutSpecCollector()
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
@@ -89,6 +93,7 @@ public class TimingDiagramBuilder(
 
     public fun build(): KumlDiagram =
         KumlDiagram(
+            layout = layoutCollector.result(),
             name = name,
             type = DiagramType.TIMING,
             elements = elements.toList(),

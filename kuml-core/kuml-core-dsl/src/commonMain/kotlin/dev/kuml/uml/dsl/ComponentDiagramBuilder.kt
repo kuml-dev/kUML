@@ -1,11 +1,13 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.DiagramLayoutScope
 import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.ComponentDiagramConfig
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlMetaValue
+import dev.kuml.core.model.layout.LayoutSpecCollector
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlCommentLink
@@ -34,7 +36,9 @@ import dev.kuml.uml.UmlRelationship
 @KumlDsl
 class ComponentDiagramBuilder(
     private val name: String,
-) : UmlModelScope {
+) : UmlModelScope,
+    DiagramLayoutScope {
+    override val layoutCollector: LayoutSpecCollector = LayoutSpecCollector()
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
@@ -118,6 +122,7 @@ class ComponentDiagramBuilder(
         // [[03 Bereiche/kUML/Beispiele/12 UML Component – Order Architecture]]).
         val finalElements = synthesizeInterfaceRelationships(elements)
         return KumlDiagram(
+            layout = layoutCollector.result(),
             name = name,
             type = DiagramType.COMPONENT,
             elements = finalElements,

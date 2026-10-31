@@ -1,8 +1,10 @@
 package dev.kuml.core.dsl
 
+import dev.kuml.core.dsl.layout.DiagramLayoutScope
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
+import dev.kuml.core.model.layout.LayoutSpecCollector
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlNamedElement
@@ -22,7 +24,9 @@ import dev.kuml.uml.dsl.UmlModelScope
 class DiagramBuilder(
     private val name: String,
     private val type: DiagramType,
-) : UmlModelScope {
+) : UmlModelScope,
+    DiagramLayoutScope {
+    override val layoutCollector: LayoutSpecCollector = LayoutSpecCollector()
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
@@ -53,6 +57,7 @@ class DiagramBuilder(
     /** Builds the immutable [KumlDiagram]. */
     fun build(): KumlDiagram =
         KumlDiagram(
+            layout = layoutCollector.result(),
             name = name,
             type = type,
             elements = elements.toList(),

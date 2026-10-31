@@ -1,5 +1,6 @@
 package dev.kuml.sysml2.constraint
 
+import dev.kuml.core.model.layout.LayoutLimits
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActivityPartitionDefinition
 import dev.kuml.sysml2.ControlFlowUsage
@@ -35,6 +36,7 @@ public data class LayoutIssue(
  * | 434 | Error | more than [Sysml2Limits.LAYOUT_GROUPS] groups or more than [Sysml2Limits.LAYOUT_IDS_PER_GROUP] ids in a group/list |
  * | 435 | Error | an id is both in `first` and in `last` |
  * | 436 | Warning | two elements of one `sameLayer` group are connected by an edge |
+ * | 437 | Error | `maxWidth` outside 200..20000 or `aspectRatio` outside 0.1..10 (or not a finite number) |
  */
 public object Sysml2LayoutHintChecker {
     public fun check(
@@ -65,12 +67,18 @@ public object Sysml2LayoutHintChecker {
         val all = (spec.first + spec.last + spec.sameLayer.flatten()).take(cap).distinct()
         for (id in all) {
             if (id !in visible) {
+                val option =
+                    when {
+                        id in spec.first -> "first"
+                        id in spec.last -> "last"
+                        else -> "sameLayer"
+                    }
                 issues +=
                     LayoutIssue(
                         code = 431,
                         severity = LayoutSeverity.Warning,
                         elementId = id,
-                        message = "Layout hint refers to '$id', which is not visible.",
+                        message = "Unknown element id '$id' in layout.$option (not visible in the diagram).",
                         hint = "Use an id from the diagram.",
                     )
             }
@@ -83,6 +91,30 @@ public object Sysml2LayoutHintChecker {
                         severity = LayoutSeverity.Error,
                         elementId = name,
                         message = "wrapColumns = $it is outside 1..${Sysml2Limits.LAYOUT_GROUPS}.",
+                        hint = "Choose a value in range.",
+                    )
+            }
+        }
+        spec.maxWidth?.let {
+            if (it !in LayoutLimits.MAX_WIDTH_MIN..LayoutLimits.MAX_WIDTH_MAX) {
+                issues +=
+                    LayoutIssue(
+                        code = 437,
+                        severity = LayoutSeverity.Error,
+                        elementId = name,
+                        message = "maxWidth = $it is outside ${LayoutLimits.MAX_WIDTH_MIN}..${LayoutLimits.MAX_WIDTH_MAX}.",
+                        hint = "Choose a value in range.",
+                    )
+            }
+        }
+        spec.aspectRatio?.let {
+            if (!it.isFinite() || it < LayoutLimits.ASPECT_MIN || it > LayoutLimits.ASPECT_MAX) {
+                issues +=
+                    LayoutIssue(
+                        code = 437,
+                        severity = LayoutSeverity.Error,
+                        elementId = name,
+                        message = "aspectRatio = $it is outside ${LayoutLimits.ASPECT_MIN}..${LayoutLimits.ASPECT_MAX}.",
                         hint = "Choose a value in range.",
                     )
             }

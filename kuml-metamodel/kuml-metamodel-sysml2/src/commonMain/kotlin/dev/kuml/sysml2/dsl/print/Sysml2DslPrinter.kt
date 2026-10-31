@@ -925,6 +925,8 @@ public object Sysml2DslPrinter {
         spec.sameLayer.forEach { g -> block.appendLine("            sameLayerById(${g.joinToString(", ") { quote(it) }})") }
         if (spec.first.isNotEmpty()) block.appendLine("            firstById(${spec.first.joinToString(", ") { quote(it) }})")
         if (spec.last.isNotEmpty()) block.appendLine("            lastById(${spec.last.joinToString(", ") { quote(it) }})")
+        spec.maxWidth?.let { block.appendLine("            maxWidth = $it") }
+        spec.aspectRatio?.let { block.appendLine("            aspectRatio = $it") }
         block.appendLine("        }")
         val trimmed = text.trimEnd('\n')
         val newText =

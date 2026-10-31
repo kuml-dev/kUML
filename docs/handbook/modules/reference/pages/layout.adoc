@@ -115,6 +115,40 @@ classOf("Item") { layout { below(order) } }       // Typed reference
 classOf("Item") { layout { below("Order") } }      // String — looser, also works
 ----
 
+== Diagram `layout { }` block
+
+Since the PAL 2B wave, UML diagrams (class, use case, object, package, component, composite structure,
+deployment, state, activity, sequence, communication, timing, interaction overview, profile) and SysML 2
+diagrams share one `layout { }` block (type `LayoutSpec`). Do not confuse it with the *element-level*
+`layout { col = 2 }` of a single class; inside `classOf { }` that one applies. In UML scripts the element-level
+block needs `import dev.kuml.core.dsl.layout.layout`.
+
+[source,kotlin]
+----
+classDiagram(name = "Zoo") {
+    // ... 11 subclasses ...
+    layout {
+        wrapColumns = 3
+        aspectRatio = 1.6   // soft target width / height
+        maxWidth = 1800     // hard upper bound in px; wins over aspectRatio
+        sameLayer("Cat", "Dog")   // element handles or id strings
+    }
+}
+----
+
+* Id strings are accepted everywhere (`sameLayer("A::b", "A::c")`); an empty `sameLayer()` is ignored.
+* `maxWidth` (200..20000) and `aspectRatio` (0.1..10) re-wrap over-wide layers; at most two layout runs.
+  A picture between 1:2.5 and 2.5:1 is never changed implicitly; outside it the layout is wrapped
+  automatically (`LayoutHints.autoAspect`).
+* Options a diagram kind does not honour (sequence, timing) report `KUML-LAYOUT-W001`; an unreachable
+  `maxWidth` is `KUML-LAYOUT-W002`, an unreachable `aspectRatio` `KUML-LAYOUT-W003`, out-of-range values
+  `KUML-LAYOUT-E001` (the value is ignored).
+* Availability: the block is evaluated only by `kuml render` (CLI). Desktop, Web, MCP, Asciidoc, Markdown,
+  Gradle, the vault tests and `kuml validate` ignore it, so the same script can render differently there.
+* Unknown ids, more than 32 `sameLayer` groups or 64 ids per group, and ids in both `first` and `last`
+  are reported (`KUML-LAYOUT-W004`, `KUML-LAYOUT-E001`, `KUML-LAYOUT-W001`).
+* Not yet available in this wave: C4, Service Blueprint, ERM and BPMN diagram blocks.
+
 == SysML 2 layout hints
 
 Every SysML 2 diagram accepts a `layout { }` block with coarse steering hints. There are deliberately
@@ -145,7 +179,8 @@ reqDiagram("Requirements") {
 * The grid engine and the WebAssembly playground do not evaluate these hints.
 * Swimlane (partition) activity diagrams are drawn top to bottom only; another `direction` is reported as `LAYOUT433`.
 * Checks: `LAYOUT431` unknown id, `LAYOUT432` `wrapColumns` outside 1..32, `LAYOUT434` too many groups/ids,
-  `LAYOUT435` id in `first` and `last`, `LAYOUT436` connected elements in one `sameLayer` group.
+  `LAYOUT435` id in `first` and `last`, `LAYOUT436` connected elements in one `sameLayer` group,
+  `LAYOUT437` `maxWidth`/`aspectRatio` out of range.
 
 === Example: a wide requirement diagram
 

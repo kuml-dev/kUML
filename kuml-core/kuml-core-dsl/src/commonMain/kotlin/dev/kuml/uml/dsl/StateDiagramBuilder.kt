@@ -1,12 +1,14 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.DiagramLayoutScope
 import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.model.StateDiagramConfig
 import dev.kuml.core.model.StateDiagramOrientation
+import dev.kuml.core.model.layout.LayoutSpecCollector
 import dev.kuml.profile.KumlProfile
 import dev.kuml.profile.KumlStereotypeApplication
 import dev.kuml.profile.UmlMetaclass
@@ -35,8 +37,10 @@ import dev.kuml.uml.Visibility
 class StateDiagramBuilder(
     private val name: String,
 ) : UmlStateMachineScope,
+    DiagramLayoutScope,
     UmlContainerScope,
     UmlElementScope {
+    override val layoutCollector: LayoutSpecCollector = LayoutSpecCollector()
     override val stateMachineId: String = name
     override val takenIds: MutableSet<String> = mutableSetOf(name)
 
@@ -122,6 +126,7 @@ class StateDiagramBuilder(
                 emptyMap()
             }
         return KumlDiagram(
+            layout = layoutCollector.result(),
             name = name,
             type = DiagramType.STATE,
             elements = listOf(sm) + comments + commentLinks,

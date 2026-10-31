@@ -3,6 +3,8 @@ package dev.kuml.cli.workspace
 import dev.kuml.cli.NoteChecks
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.core.script.diagnostics.ScriptProblem
+import dev.kuml.core.script.diagnostics.ScriptProblems
 import dev.kuml.markdown.KumlCodeBlock
 import dev.kuml.workspace.OkfDocument
 import dev.kuml.workspace.OkfFinding
@@ -95,8 +97,9 @@ public object WorkspaceBlockEvaluator {
             withTempScript(stem = stem, source = block.source) { script ->
                 val result = KumlScriptHost.eval(file = script)
                 val errors = result.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
-                if (errors.isNotEmpty() || result !is ResultWithDiagnostics.Success) {
-                    Result.failure(IllegalStateException("Script evaluation failed:\n" + errors.joinToString("\n") { it.message }))
+                val problems = ScriptProblems.describe(result = result, source = block.source, scriptFileName = script.name)
+                if (errors.isNotEmpty() || result !is ResultWithDiagnostics.Success || problems.isNotEmpty()) {
+                    Result.failure(BlockScriptException(problems = problems, fallback = errors.joinToString("\n") { it.message }))
                 } else {
                     Result.success(DiagramExtractor.countRenderableDiagrams(result.value.returnValue))
                 }
@@ -127,8 +130,9 @@ public object WorkspaceBlockEvaluator {
             withTempScript(stem = stem, source = block.source) { script ->
                 val result = KumlScriptHost.eval(file = script)
                 val errors = result.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
-                if (errors.isNotEmpty() || result !is ResultWithDiagnostics.Success) {
-                    Result.failure(IllegalStateException("Script evaluation failed:\n" + errors.joinToString("\n") { it.message }))
+                val problems = ScriptProblems.describe(result = result, source = block.source, scriptFileName = script.name)
+                if (errors.isNotEmpty() || result !is ResultWithDiagnostics.Success || problems.isNotEmpty()) {
+                    Result.failure(BlockScriptException(problems = problems, fallback = errors.joinToString("\n") { it.message }))
                 } else {
                     val returnValue = result.value.returnValue
                     val count = DiagramExtractor.countRenderableDiagrams(returnValue)
@@ -195,19 +199,54 @@ public object WorkspaceBlockEvaluator {
                     }
                 }
                 count.onFailure { e ->
-                    findings +=
-                        OkfFinding(
-                            code = "OKF-E-007",
-                            severity = OkfSeverity.ERROR,
-                            file = doc.relativePath,
-                            line = block.startLine,
-                            message = "Failed to evaluate kuml block: ${e.message}",
-                        )
+                    findings += failureFindings(doc = doc, block = block, blockIdx = idx, error = e)
                 }
             }
         }
         return findings
     }
+
+    /**
+     * `OKF-E-007` findings for a failed block: one per script problem, each with the document line
+     * (`block.startLine` is the opening fence, so block line N is document line `startLine + N`).
+     */
+    internal fun failureFindings(
+        doc: OkfDocument,
+        block: KumlCodeBlock,
+        blockIdx: Int,
+        error: Throwable,
+    ): List<OkfFinding> {
+        val problems = (error as? BlockScriptException)?.problems.orEmpty()
+        if (problems.isEmpty()) {
+            return listOf(
+                OkfFinding(
+                    code = "OKF-E-007",
+                    severity = OkfSeverity.ERROR,
+                    file = doc.relativePath,
+                    line = block.startLine,
+                    message = "Failed to evaluate kuml block: ${error.message?.lines()?.firstOrNull().orEmpty()}",
+                ),
+            )
+        }
+        return problems.map { p ->
+            val docLine = p.line?.let { block.startLine + it } ?: block.startLine
+            val where = p.line?.let { "line $docLine (block line $it)" } ?: "line ${block.startLine}"
+            OkfFinding(
+                code = "OKF-E-007",
+                severity = OkfSeverity.ERROR,
+                file = doc.relativePath,
+                line = docLine,
+                message = "kuml block #${blockIdx + 1} $where: ${p.message} [${p.code}]",
+                suggestion = p.hint,
+            )
+        }
+    }
+
+    /** Failure of a block's script evaluation, carrying structured problems with positions. */
+    public class BlockScriptException(
+        public val problems: List<ScriptProblem>,
+        fallback: String,
+    ) : IllegalStateException(problems.firstOrNull()?.message ?: fallback.ifEmpty { "Script evaluation failed" })
 
     public fun multiDiagramFinding(
         doc: OkfDocument,

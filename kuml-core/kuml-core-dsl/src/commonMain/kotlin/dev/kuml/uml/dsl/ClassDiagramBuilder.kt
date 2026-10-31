@@ -1,12 +1,14 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.DiagramLayoutScope
 import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.ClassDiagramConfig
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.model.VisibilityFilter
+import dev.kuml.core.model.layout.LayoutSpecCollector
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlRelationship
@@ -26,7 +28,9 @@ import dev.kuml.uml.UmlRelationship
 @KumlDsl
 class ClassDiagramBuilder(
     private val name: String,
-) : UmlModelScope {
+) : UmlModelScope,
+    DiagramLayoutScope {
+    override val layoutCollector: LayoutSpecCollector = LayoutSpecCollector()
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
@@ -154,6 +158,7 @@ class ClassDiagramBuilder(
                 mergeEdges?.let { put(LayoutMetadataKeys.MERGE_EDGES, KumlMetaValue.Flag(it)) }
             }
         return KumlDiagram(
+            layout = layoutCollector.result(),
             name = name,
             type = DiagramType.CLASS,
             elements = elements.toList(),

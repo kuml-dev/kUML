@@ -1,9 +1,11 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.DiagramLayoutScope
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.SequenceDiagramConfig
+import dev.kuml.core.model.layout.LayoutSpecCollector
 import dev.kuml.uml.UmlCombinedFragment
 import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlCommentLink
@@ -26,7 +28,9 @@ import dev.kuml.uml.Visibility
 @KumlDsl
 class SequenceDiagramBuilder(
     private val name: String,
-) : UmlInteractionScope {
+) : UmlInteractionScope,
+    DiagramLayoutScope {
+    override val layoutCollector: LayoutSpecCollector = LayoutSpecCollector()
     override val interactionId: String = name
     override val takenIds: MutableSet<String> = mutableSetOf(name)
 
@@ -85,6 +89,7 @@ class SequenceDiagramBuilder(
                 stereotypes = interactionStereotypes.toList(),
             )
         return KumlDiagram(
+            layout = layoutCollector.result(),
             name = name,
             type = DiagramType.SEQUENCE,
             elements = listOf(interaction) + comments + commentLinks,

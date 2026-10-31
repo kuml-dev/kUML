@@ -7,6 +7,7 @@ import dev.kuml.layout.LayoutDirection
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.LayoutWarning
+import dev.kuml.layout.ModelOrder
 import dev.kuml.layout.NodeId
 import org.eclipse.elk.alg.layered.options.CrossingMinimizationStrategy
 import org.eclipse.elk.alg.layered.options.LayeredOptions
@@ -24,6 +25,21 @@ import org.eclipse.elk.graph.ElkNode
  * und als [LayoutWarning] gesammelt. Kein ELK-Typ verlässt dieses Objekt.
  */
 internal object HintsMapper {
+    /** Minimum distance between parallel edge segments (px). */
+    private const val MIN_EDGE_TO_EDGE = 8f
+    private const val ELK_DEFAULT_EDGE_EDGE_BETWEEN_LAYERS = 10.0
+
+    /**
+     * Maps a [LayoutHints.deterministicSeed] to an ELK `RANDOM_SEED`. ELK interprets 0 as
+     * "choose randomly", which would *introduce* non-determinism, so `null` and `0` both map
+     * to 1 and every other value is folded into a non-zero Int.
+     */
+    fun elkSeedOf(seed: Long?): Int =
+        when {
+            seed == null || seed == 0L -> 1
+            else -> (seed xor (seed ushr 32)).toInt().takeIf { it != 0 } ?: 1
+        }
+
     /**
      * Wendet globale [LayoutHints] und [ElkEngineConfiguration] auf den ELK-Root-Knoten an.
      * Gibt eine Liste von [LayoutWarning]s für unbekannte Engine-Optionen zurück.
@@ -37,6 +53,18 @@ internal object HintsMapper {
 
         // Algorithm
         root.setProperty(CoreOptions.ALGORITHM, LayeredOptions.ALGORITHM_ID)
+
+        // PAL 2B — determinism: ELK treats RANDOM_SEED 0 as "random", so a fixed non-zero
+        // seed is always set (see [elkSeedOf]).
+        root.setProperty(CoreOptions.RANDOM_SEED, elkSeedOf(hints.deterministicSeed))
+
+        // PAL 2B — model order as tie-breaker for ordering decisions.
+        if (hints.modelOrder == ModelOrder.NodesAndEdges) {
+            root.setProperty(
+                LayeredOptions.CONSIDER_MODEL_ORDER_STRATEGY,
+                org.eclipse.elk.alg.layered.options.OrderingStrategy.NODES_AND_EDGES,
+            )
+        }
 
         // Direction
         root.setProperty(
@@ -67,7 +95,13 @@ internal object HintsMapper {
         root.setProperty(CoreOptions.SPACING_NODE_NODE, nodeSpacing.toDouble())
 
         // Edge-to-edge spacing
-        root.setProperty(CoreOptions.SPACING_EDGE_EDGE, hints.spacing.edgeToEdge.toDouble())
+        // PAL 2B: never below 8 px between parallel edges (never lowers larger values).
+        root.setProperty(CoreOptions.SPACING_EDGE_EDGE, maxOf(hints.spacing.edgeToEdge, MIN_EDGE_TO_EDGE).toDouble())
+        root.setProperty(
+            LayeredOptions.SPACING_EDGE_EDGE_BETWEEN_LAYERS,
+            // Lower bound only: ELK's own default (10) stays; the channel width is not tied to edgeToEdge.
+            ELK_DEFAULT_EDGE_EDGE_BETWEEN_LAYERS,
+        )
 
         // Layer spacing (between layers) — V2.0.45: per-diagram hint
         // overrides the engine default. `hints.spacing.layerToLayer` is
@@ -356,8 +390,14 @@ internal object HintsMapper {
         hints: LayoutHints,
         config: ElkEngineConfiguration,
     ) {
+        elkGroup.setProperty(CoreOptions.RANDOM_SEED, elkSeedOf(hints.deterministicSeed))
         elkGroup.setProperty(CoreOptions.SPACING_NODE_NODE, hints.spacing.nodeToNode.toDouble())
-        elkGroup.setProperty(CoreOptions.SPACING_EDGE_EDGE, hints.spacing.edgeToEdge.toDouble())
+        elkGroup.setProperty(CoreOptions.SPACING_EDGE_EDGE, maxOf(hints.spacing.edgeToEdge, MIN_EDGE_TO_EDGE).toDouble())
+        elkGroup.setProperty(
+            LayeredOptions.SPACING_EDGE_EDGE_BETWEEN_LAYERS,
+            // Lower bound only: ELK's own default (10) stays; the channel width is not tied to edgeToEdge.
+            ELK_DEFAULT_EDGE_EDGE_BETWEEN_LAYERS,
+        )
         elkGroup.setProperty(CoreOptions.SPACING_EDGE_NODE, config.edgeNodeSpacing.toDouble())
         val layerSpacing =
             hints.spacing.layerToLayer.takeUnless { it.isNaN() } ?: config.layerSpacing

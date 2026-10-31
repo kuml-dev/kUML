@@ -1,9 +1,11 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.DiagramLayoutScope
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.ProfileDiagramConfig
+import dev.kuml.core.model.layout.LayoutSpecCollector
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComment
@@ -31,7 +33,9 @@ import dev.kuml.uml.ids.UmlIds
 @KumlDsl
 public class ProfileDiagramBuilder(
     private val name: String,
-) : UmlModelScope {
+) : UmlModelScope,
+    DiagramLayoutScope {
+    override val layoutCollector: LayoutSpecCollector = LayoutSpecCollector()
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
@@ -126,6 +130,7 @@ public class ProfileDiagramBuilder(
 
     public fun build(): KumlDiagram =
         KumlDiagram(
+            layout = layoutCollector.result(),
             name = name,
             type = DiagramType.PROFILE,
             elements = elements.toList(),

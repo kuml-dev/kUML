@@ -1,12 +1,14 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.DiagramLayoutScope
 import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.ActorStyle
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.model.UseCaseDiagramConfig
+import dev.kuml.core.model.layout.LayoutSpecCollector
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlActor
 import dev.kuml.uml.UmlAssociation
@@ -37,7 +39,9 @@ import dev.kuml.uml.UmlUseCaseSubject
 @KumlDsl
 class UseCaseDiagramBuilder(
     private val name: String,
-) : UmlModelScope {
+) : UmlModelScope,
+    DiagramLayoutScope {
+    override val layoutCollector: LayoutSpecCollector = LayoutSpecCollector()
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
@@ -138,6 +142,7 @@ class UseCaseDiagramBuilder(
                 emptyMap()
             }
         return KumlDiagram(
+            layout = layoutCollector.result(),
             name = name,
             type = DiagramType.USE_CASE,
             elements = elements.toList(),

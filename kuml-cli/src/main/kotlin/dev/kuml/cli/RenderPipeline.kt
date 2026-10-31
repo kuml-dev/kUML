@@ -52,6 +52,8 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.Spacing
 import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
+import dev.kuml.layout.bridge.LayoutDiagramKind
+import dev.kuml.layout.bridge.LayoutSpecRunner
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
@@ -193,6 +195,24 @@ internal object RenderPipeline {
                 else -> this
             },
         )
+
+    /**
+     * Runs [engine] with the diagram's `layout { }` spec applied (PAL wave 2B) and prints the spec
+     * diagnostics (`KUML-LAYOUT-*`) as warnings. Never aborts the render.
+     */
+    private fun layoutWithSpec(
+        engine: dev.kuml.layout.KumlLayoutEngine,
+        graph: dev.kuml.layout.LayoutGraph,
+        hints: LayoutHints,
+        spec: dev.kuml.core.model.layout.LayoutSpec?,
+        kind: LayoutDiagramKind = LayoutDiagramKind.LAYERED,
+    ): LayoutResult {
+        val outcome = LayoutSpecRunner.layout(engine = engine, graph = graph, hints = hints, spec = spec, kind = kind)
+        outcome.findings.forEach { f ->
+            System.err.println("[kuml] ${if (f.isError) "ERROR" else "WARNING"} [${f.code}] ${f.message}")
+        }
+        return outcome.result
+    }
 
     /**
      * Runs the full render pipeline for the given input script.
@@ -486,10 +506,29 @@ internal object RenderPipeline {
         val layoutGraph =
             UmlLayoutBridge.toLayoutGraph(
                 diagram = diagram,
-                sizeProvider = UmlContentSizeProvider(diagram = diagram, layoutDirection = hints.direction),
+                sizeProvider =
+                    UmlContentSizeProvider(
+                        diagram = diagram,
+                        // The spec's flow direction decides where edges dock, so it sizes the boxes too.
+                        layoutDirection = LayoutSpecRunner.hintsWith(base = hints, spec = diagram.layout).direction,
+                    ),
             )
         val engine = pickEngine(diagram = diagram, cliOverride = layoutEngineOverride)
-        val layoutResult: LayoutResult = engine.layout(graph = layoutGraph, hints = hints)
+        val layoutResult: LayoutResult =
+            layoutWithSpec(
+                engine = engine,
+                graph = layoutGraph,
+                hints = hints,
+                spec = diagram.layout,
+                kind =
+                    if (diagram.type == DiagramType.SEQUENCE ||
+                        diagram.type == DiagramType.TIMING
+                    ) {
+                        LayoutDiagramKind.FIXED
+                    } else {
+                        LayoutDiagramKind.LAYERED
+                    },
+            )
         when (format) {
             "svg", "apng", "webp", "mp4" -> {
                 when {
@@ -738,9 +777,12 @@ internal object RenderPipeline {
             is BdDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                 val layoutResult: LayoutResult =
-                    sysml2Engine.layout(
+                    layoutWithSpec(
+                        engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
+                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
                     )
                 when (format) {
                     "svg" ->
@@ -782,9 +824,12 @@ internal object RenderPipeline {
             is IbdDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                 val layoutResult: LayoutResult =
-                    sysml2Engine.layout(
+                    layoutWithSpec(
+                        engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
+                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
                     )
                 when (format) {
                     "svg" ->
@@ -826,9 +871,12 @@ internal object RenderPipeline {
             is UcDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                 val layoutResult: LayoutResult =
-                    sysml2Engine.layout(
+                    layoutWithSpec(
+                        engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
+                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
                     )
                 when (format) {
                     "svg" ->
@@ -881,9 +929,12 @@ internal object RenderPipeline {
                 //  - `edgeToEdge = 20f` — multiple parallel satisfy-edges fan out
                 //    from Vehicle; a bit more room reduces ribbon bundling.
                 val layoutResult: LayoutResult =
-                    sysml2Engine.layout(
+                    layoutWithSpec(
+                        engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
+                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
                     )
                 when (format) {
                     "svg" ->
@@ -930,9 +981,12 @@ internal object RenderPipeline {
                 // and 12px edge-to-edge causes label overlap. Increase both so the
                 // routing pass has room to place labels without crowding.
                 val layoutResult: LayoutResult =
-                    sysml2Engine.layout(
+                    layoutWithSpec(
+                        engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
+                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
                     )
                 val stmOptions = SvgRenderOptions(paddingPx = 64f, watermark = watermark)
                 when (format) {
@@ -1016,9 +1070,12 @@ internal object RenderPipeline {
                 //    out of the partition header band (24 px) underneath the
                 //    upstream partition's bottom edge.
                 val layoutResult: LayoutResult =
-                    sysml2Engine.layout(
+                    layoutWithSpec(
+                        engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
+                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
                     )
                 val actOptions = SvgRenderOptions(paddingPx = 64f, watermark = watermark)
                 when (format) {
@@ -1114,9 +1171,12 @@ internal object RenderPipeline {
             is SeqDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                 val layoutResult: LayoutResult =
-                    sysml2Engine.layout(
+                    layoutWithSpec(
+                        engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
+                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
                     )
                 when (format) {
                     "svg" ->
@@ -1163,9 +1223,12 @@ internal object RenderPipeline {
                         sizeProvider = Sysml2LayoutBridge.parContentAwareSizeProvider(model),
                     )
                 val layoutResult: LayoutResult =
-                    sysml2Engine.layout(
+                    layoutWithSpec(
+                        engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
+                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
                     )
                 when (format) {
                     "svg" ->

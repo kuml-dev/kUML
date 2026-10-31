@@ -6,6 +6,19 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added / Changed / Fixed (PAL wave 2B foundation: P-LAY-01, P-IBD-06, P-WS-01, determinism)
+
+- **Deterministic layout:** ELK now always gets a fixed non-zero `RANDOM_SEED` (seed 0 means "random" in ELK; `LayoutHints.deterministicSeed` was never applied) and `considerModelOrder = NODES_AND_EDGES` (`LayoutHints.modelOrder`). New cross-process test (`DeterminismCrossProcessTest`) renders 61 vault examples in two JVMs with different identity hash seeds and locales and compares SHA-256 of the SVGs; before the change it failed.
+- **One `layout { }` block:** shared `LayoutSpec` (`kuml-core-model`) with `direction`, `wrapColumns`, `sameLayer`, `first`, `last` and the new `maxWidth` and `aspectRatio`; `Sysml2LayoutSpec` is now a type alias (JSON unchanged). `sameLayer`/`first`/`last` accept id strings (`sameLayer("A::b", "A::c")`, fixes the "Argument type mismatch" of P-IBD-06). All UML diagram builders got a diagram-level `layout { }` (stored as `KumlDiagram.layout`).
+- `LayoutSpecRunner` (`kuml-layout-bridge`) applies the spec around the layout call (direction, layer hints, bounded `maxWidth`/`aspectRatio` iteration, two runs at most); CLI `kuml render` uses it for UML and all SysML 2 diagrams. Codes `KUML-LAYOUT-W001/W002/W003/E001`; SysML 2 checker code 437 and a clearer message for 431.
+- Minimum edge-to-edge spacing 8 px in ELK (`SPACING_EDGE_EDGE`); the between-layers edge channel stays at ELK's default 10 px. UML boxes are sized for the `layout { direction }` flow. Unknown ids / exceeded limits in `layout { }` are reported (`KUML-LAYOUT-W004`, `E001`).
+- **OKF-E-007** now names the document line and the line inside the block (`kuml block #2 line 8 (block line 3): ... [DSL_ERROR]`), locale independent; runtime exceptions inside a script are reported with their line instead of "produces no renderable diagram" (`ScriptProblems` in `kuml-core-script`).
+- **Behaviour changes:** model order is applied globally (most layouts can shift slightly); diagrams with an aspect ratio outside 1:2.5..2.5:1 are re-wrapped automatically (`LayoutHints.autoAspect = false` disables it).
+
+### Not done in this wave (2B)
+
+- Central label placement (`LabelPlacer`, ELK edge-label reservation), Blueprint anchor-line proximity (example 59), `layout { }` for C4/Blueprint/ERM/BPMN, the effect matrix for those, layout-spec use in the Desktop/Web/MCP/docs/Gradle pipelines and in `kuml validate`, Validate parity CLI/Desktop, new vault examples 61 to 65, and the visual image review. Desktop MCP was not reachable, no end-to-end Desktop test.
+
 ### Added (PAL wave 2A: notes, P-COM-01 to P-COM-04)
 
 - Notes are placed after the layout by a new engine (`dev.kuml.layout.bridge.note`: `NotePlacer`, `ObstacleIndex`, `AnchorGeometryResolver`): candidate positions around the anchors and in the margins, one orthogonal anchor line per anchor with separated exit points, nodes, composite titles, edge labels, port labels, lifeline stems, message arrows and other notes as obstacles, free-standing notes in a grid of at most four columns, deterministic, bounded work.

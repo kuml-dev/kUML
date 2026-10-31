@@ -106,4 +106,42 @@ class Sysml2C3LayoutTest :
             found shouldContain 433
             found shouldContain 436
         }
+
+        test("sameLayer accepts id strings (P-IBD-06) and the new size options survive the DSL") {
+            val m =
+                sysml2Model(name = "S") {
+                    partDef(name = "A")
+                    partDef(name = "B")
+                    bdd(name = "D") {
+                        layout {
+                            sameLayer("A", "B")
+                            first("A")
+                            maxWidth = 1800
+                            aspectRatio = 1.6
+                        }
+                    }
+                }
+            m.diagrams.single().layout shouldBe
+                Sysml2LayoutSpec(
+                    sameLayer = listOf(listOf("A", "B")),
+                    first = listOf("A"),
+                    maxWidth = 1800,
+                    aspectRatio = 1.6,
+                )
+            Sysml2DslPrinter.print(m) shouldContain "maxWidth = 1800"
+        }
+
+        test("checker 437 rejects out-of-range maxWidth and non-finite aspectRatio; 431 names the option") {
+            codes(Sysml2LayoutSpec(maxWidth = 50)) shouldContain 437
+            codes(Sysml2LayoutSpec(aspectRatio = Double.NaN)) shouldContain 437
+            codes(Sysml2LayoutSpec(aspectRatio = 99.0)) shouldContain 437
+            codes(Sysml2LayoutSpec(maxWidth = 1800, aspectRatio = 1.6)).shouldBeEmpty()
+            val m = sysml2Model(name = "X") { partDef(name = "A") }
+            Sysml2LayoutHintChecker
+                .check(
+                    model = m,
+                    diagram = BdDiagram(name = "D", elementIds = listOf("A"), layout = Sysml2LayoutSpec(first = listOf("ghost"))),
+                ).single()
+                .message shouldContain "Unknown element id 'ghost' in layout.first"
+        }
     })

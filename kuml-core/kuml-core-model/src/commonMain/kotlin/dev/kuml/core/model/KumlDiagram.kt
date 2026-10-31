@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
  * @property id Stable identifier derived from the diagram name.
  *   Phase 1 introduces the full deterministic ID strategy via UmlIds.
  * @property metadata Arbitrary additional metadata.
+ * @property layout Diagram-level layout steering hints (`layout { }` block, PAL wave 2B); `null` if none.
  *
  * [elements] is typed as the open, [kotlinx.serialization.Polymorphic]
  * [KumlElement] base. Decoding a `KumlDiagram` from JSON requires a `Json`
@@ -30,4 +31,5 @@ data class KumlDiagram(
     override val id: String = name,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
     val config: DiagramConfig? = null,
+    val layout: dev.kuml.core.model.layout.LayoutSpec? = null,
 ) : KumlNamespaceMember

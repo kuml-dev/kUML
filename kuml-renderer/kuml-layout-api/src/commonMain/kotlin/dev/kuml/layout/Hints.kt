@@ -30,6 +30,12 @@ import kotlinx.serialization.Serializable
  *     sind (Crossing-Minimization hat bei kantenlosen Sequenzdiagramm-Graphen keinen
  *     Kreuzungs-Kostenanreiz, die Original-Reihenfolge beizubehalten). **Default: `false`**
  *     — explizit opt-in, damit andere Diagrammtypen unverändert bleiben.
+ * @property modelOrder Steuert, ob die Engine die Modell-Reihenfolge von Knoten und Kanten als
+ *     Tie-Breaker nutzt (ELK: `considerModelOrder.strategy = NODES_AND_EDGES`). Default
+ *     [ModelOrder.NodesAndEdges] (PAL-Welle 2B): macht Layouts bei gleicher Eingabe
+ *     reproduzierbar. [ModelOrder.None] dient der gezielten Bisektion von Regressionen.
+ * @property autoAspect If `true` (default), the layout runner re-wraps diagrams whose aspect ratio lies
+ *     outside 1:2.5 .. 2.5:1 (see `LayoutSpecRunner`); `false` disables the implicit adjustment.
  * @property engineOptions Engine-spezifische Escape-Hatch-Parameter als String-Map.
  */
 @Serializable
@@ -41,12 +47,24 @@ public data class LayoutHints(
     val spacing: Spacing = Spacing.DEFAULT,
     val mergeEdges: Boolean = false,
     val preserveNodeOrder: Boolean = false,
+    val modelOrder: ModelOrder = ModelOrder.NodesAndEdges,
+    val autoAspect: Boolean = true,
     val engineOptions: Map<String, String> = emptyMap(),
 ) {
     public companion object {
         /** Standard-Hints mit sinnvollen Defaults für die meisten Diagrammtypen. */
         public val DEFAULT: LayoutHints = LayoutHints()
     }
+}
+
+/** Nutzung der Modell-Reihenfolge als Layout-Tie-Breaker, siehe [LayoutHints.modelOrder]. */
+@Serializable
+public enum class ModelOrder {
+    /** Keine Modell-Reihenfolge-Strategie; Engine-Default. */
+    None,
+
+    /** Knoten- und Kanten-Reihenfolge des Modells als Tie-Breaker. */
+    NodesAndEdges,
 }
 
 /**

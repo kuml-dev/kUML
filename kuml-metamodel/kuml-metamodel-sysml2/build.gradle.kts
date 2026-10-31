@@ -20,7 +20,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":kuml-metamodel:kuml-metamodel-kerml"))
-            implementation(project(":kuml-core:kuml-core-model"))
+            api(project(":kuml-core:kuml-core-model"))
             // V2.0.20b — constraint type-checking uses the typed expression AST
             implementation(project(":kuml-core:kuml-core-expr"))
             // V3.2.23 — PartDefinition.constraints reuses UmlConstraint (OCL invariant

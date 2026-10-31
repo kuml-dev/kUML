@@ -1,10 +1,12 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.DiagramLayoutScope
 import dev.kuml.core.model.ActivityDiagramConfig
 import dev.kuml.core.model.ActivityOrientation
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.core.model.layout.LayoutSpecCollector
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlActivityNode
@@ -30,7 +32,9 @@ import dev.kuml.uml.ids.UmlIds
 @KumlDsl
 public class ActivityDiagramBuilder(
     private val name: String,
-) : UmlModelScope {
+) : UmlModelScope,
+    DiagramLayoutScope {
+    override val layoutCollector: LayoutSpecCollector = LayoutSpecCollector()
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
@@ -122,6 +126,7 @@ public class ActivityDiagramBuilder(
 
     public fun build(): KumlDiagram =
         KumlDiagram(
+            layout = layoutCollector.result(),
             name = name,
             type = DiagramType.ACTIVITY,
             elements = elements.toList(),

@@ -1,10 +1,11 @@
 package dev.kuml.layout.bridge
 
+import dev.kuml.core.model.layout.LayoutLimits
+import dev.kuml.core.model.layout.LayoutSpec
 import dev.kuml.layout.LayerPin
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.Sysml2Diagram
-import dev.kuml.sysml2.Sysml2Limits
 
 /**
  * Applies the diagram's `layout { }` hints (wave C3) to a layout graph as node hints:
@@ -16,25 +17,33 @@ import dev.kuml.sysml2.Sysml2Limits
  * emits the warning `hint.ignored.layerInCompound`.
  */
 internal fun LayoutGraph.withLayoutSpec(diagram: Sysml2Diagram): LayoutGraph {
-    val spec = diagram.layout ?: return this
-    if (diagram is SeqDiagram || spec.isEmpty) return this
+    if (diagram is SeqDiagram) return this
+    return withSpec(spec = diagram.layout)
+}
+
+/**
+ * Diagram-family neutral form of [withLayoutSpec] (PAL wave 2B): applies `wrapColumns`, `sameLayer`,
+ * `first` and `last` of [spec] to this graph. `null` / empty specs return the graph unchanged.
+ */
+internal fun LayoutGraph.withSpec(spec: LayoutSpec?): LayoutGraph {
+    if (spec == null || spec.isEmpty) return this
     val known = nodes.map { it.id.value }.toSet()
     val first =
         spec.first
             .filter { it in known }
-            .take(Sysml2Limits.LAYOUT_IDS_PER_GROUP)
+            .take(LayoutLimits.IDS_PER_GROUP)
             .toSet()
     val last =
         spec.last
             .filter { it in known && it !in first }
-            .take(Sysml2Limits.LAYOUT_IDS_PER_GROUP)
+            .take(LayoutLimits.IDS_PER_GROUP)
             .toSet()
     val groups =
         spec.sameLayer
-            .take(Sysml2Limits.LAYOUT_GROUPS)
-            .map { g -> g.take(Sysml2Limits.LAYOUT_IDS_PER_GROUP).filter { it in known } }
+            .take(LayoutLimits.GROUPS)
+            .map { g -> g.take(LayoutLimits.IDS_PER_GROUP).filter { it in known } }
             .filter { it.size >= 2 }
-    val wrap = spec.wrapColumns?.takeIf { it in 1..Sysml2Limits.LAYOUT_GROUPS }
+    val wrap = spec.wrapColumns?.takeIf { it in 1..LayoutLimits.GROUPS }
 
     var layers: Map<String, Int>? = null
     if (wrap != null || groups.isNotEmpty()) {

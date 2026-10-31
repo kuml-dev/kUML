@@ -1,9 +1,11 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.DiagramLayoutScope
 import dev.kuml.core.model.CompositeStructureDiagramConfig
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.core.model.layout.LayoutSpecCollector
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlCollaboration
@@ -30,7 +32,9 @@ import dev.kuml.uml.UmlRelationship
 @KumlDsl
 public class CompositeStructureDiagramBuilder(
     private val name: String,
-) : UmlModelScope {
+) : UmlModelScope,
+    DiagramLayoutScope {
+    override val layoutCollector: LayoutSpecCollector = LayoutSpecCollector()
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
@@ -84,6 +88,7 @@ public class CompositeStructureDiagramBuilder(
     public fun build(): KumlDiagram {
         val finalElements = synthesizeInterfaceRelationships(elements)
         return KumlDiagram(
+            layout = layoutCollector.result(),
             name = name,
             type = DiagramType.COMPOSITE_STRUCTURE,
             elements = finalElements,
