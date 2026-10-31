@@ -76,6 +76,7 @@ internal object EdgeRendererDispatcher {
         builder: SvgBuilder,
         sourceStackIndex: Int = 0,
         targetStackIndex: Int = 0,
+        anchorDot: Boolean = true,
     ) {
         builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(relationship.id))) {
             when (relationship) {
@@ -120,7 +121,12 @@ internal object EdgeRendererDispatcher {
                     )
                 is UmlActivityEdge -> renderUmlActivityEdge(rel = relationship, route = route, theme = theme, builder = this)
                 is UmlCommentLink -> renderUmlCommentLink(route = route, builder = this)
-                is Sysml2CommentLink -> renderNoteAnchor(route = route, style = NoteAnchorStyle.DASHED, builder = this)
+                is Sysml2CommentLink ->
+                    renderNoteAnchor(
+                        route = route,
+                        style = if (anchorDot) NoteAnchorStyle.DASHED else NoteAnchorStyle.DASHED_NO_DOT,
+                        builder = this,
+                    )
                 is C4Relationship -> renderC4Relationship(rel = relationship, route = route, theme = theme, builder = this)
                 // BPMN — V3.1.3
                 is ErmNoteLink -> renderNoteAnchor(route = route, style = NoteAnchorStyle.DASHED, builder = this)

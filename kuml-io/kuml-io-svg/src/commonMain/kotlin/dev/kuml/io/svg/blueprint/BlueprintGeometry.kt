@@ -97,13 +97,17 @@ internal class BlueprintGeometry(
             visibleLayers = layers.toSet(),
         )
 
+    /** Gutter between the lanes and the note column; grows with the widest multi-anchor note. */
+    private val noteGutter =
+        BlueprintNoteRouter.gutterFor(anchors = model.notes.maxOfOrNull { n -> model.noteLinks.count { it.noteId == n.id } } ?: 1)
+
     /** x of the note column (a gutter right of the lanes). */
-    val noteX = contentRight + NOTE_GUTTER
+    val noteX = contentRight + noteGutter
 
     /** Notes with their anchor routes, in declaration order; empty when the model has no notes. */
     val placedNotes: List<PlacedBlueprintNote> = placeNotes()
 
-    val totalWidth = contentRight + BlueprintGridConstants.noteColumnWidth(model) + padding
+    val totalWidth = contentRight + BlueprintGridConstants.noteColumnWidth(model) + (noteGutter - NOTE_GUTTER) + padding
     val totalHeight = maxOf(gridBottom + legendHeight, placedNotes.maxOfOrNull { it.y + it.h } ?: 0.0) + padding
 
     private fun placeNotes(): List<PlacedBlueprintNote> {
@@ -122,28 +126,41 @@ internal class BlueprintGeometry(
             anchored[n.id] = steps
         }
         val order = model.notes.sortedBy { n -> anchored.getValue(n.id).firstOrNull()?.let { cellOf(it)?.second } ?: Double.MAX_VALUE }
+        val laneSlots = HashMap<Double, Int>()
+        val cardEntries = HashMap<Pair<Double, Double>, Int>()
         for (n in order) {
             val size =
                 dev.kuml.layout.bridge.NoteLayout
                     .sizeOf(body = n.body)
             val w = size.width.toDouble()
-            val h = size.height.toDouble()
+            val links = model.noteLinks.filter { it.noteId == n.id && stepById[it.targetId]?.let { s -> cellOf(s) } != null }
+            val h = maxOf(size.height.toDouble(), BlueprintNoteRouter.minNoteHeight(anchors = links.size.coerceAtLeast(1)))
             val steps = anchored.getValue(n.id)
             val first = steps.firstOrNull()?.let { cellOf(it) }
             val desired = if (first != null) first.second + rowHeight / 2 - h / 2 else bottom
             val y = maxOf(desired, bottom)
             bottom = y + h + NOTE_GAP
-            val ny = y + h / 2
-            val gx = noteX - NOTE_GUTTER / 2
-            val routes =
-                model.noteLinks.filter { it.noteId == n.id }.mapNotNull { link ->
-                    val step = stepById[link.targetId] ?: return@mapNotNull null
-                    val (cellX, cellY) = cellOf(step) ?: return@mapNotNull null
-                    val cardCx = cellX + columnWidth / 2
-                    val marginY = cellY + cardMarginTop / 2
-                    link.id to
-                        listOf(noteX to ny, gx to ny, gx to marginY, cardCx to marginY, cardCx to cellY + cardMarginTop)
+            val targets =
+                links.map { link ->
+                    val (cellX, cellY) = cellOf(stepById.getValue(link.targetId)) ?: error("filtered above")
+                    BlueprintNoteRouter.Target(
+                        linkId = link.id,
+                        laneTop = cellY,
+                        cardLeft = cellX + CARD_MARGIN_SIDE,
+                        cardTop = cellY + cardMarginTop,
+                        cardRight = cellX + columnWidth - CARD_MARGIN_SIDE,
+                        cardBottom = cellY + rowHeight - cardMarginBottom,
+                    )
                 }
+            val routes =
+                BlueprintNoteRouter.route(
+                    noteX = noteX,
+                    noteY = y,
+                    noteH = h,
+                    targets = targets,
+                    laneSlots = laneSlots,
+                    cardEntries = cardEntries,
+                )
             out += PlacedBlueprintNote(id = n.id, body = n.body, x = noteX, y = y, w = w, h = h, routes = routes)
         }
         return out
@@ -175,3 +192,4 @@ internal class PlacedBlueprintNote(
 
 private const val NOTE_GUTTER: Double = 16.0
 private const val NOTE_GAP: Double = 12.0
+private const val CARD_MARGIN_SIDE: Double = 8.0

@@ -4,6 +4,7 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.Point
 import dev.kuml.layout.PortId
+import dev.kuml.layout.Rect
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.Sysml2Model
@@ -33,10 +34,12 @@ public object Sysml2NoteAnchorExtras {
             val node = layout.nodes[NodeId(nodeId)] ?: continue
             val key = end.steps.joinToString("::")
             val local = node.ports[PortId(key)] ?: continue
-            // IBD stores part-port positions relative to the part box.
-            val abs = Point(x = node.bounds.origin.x + local.x, y = node.bounds.origin.y + local.y)
-            if ("$nodeId::$key" !in out) out["$nodeId::$key"] = AnchorGeometry.At(abs)
-            end.terminalPort?.let { if (it.id !in out) out[it.id] = AnchorGeometry.At(abs) }
+            // IBD stores part-port positions relative to the part box; the square is the one the renderer draws.
+            val box = Sysml2LayoutBridge.ibdPortSquare(boxBounds = node.bounds, local = local)
+            val outward = sideOf(Sysml2LayoutBridge.ibdNearestSide(p = local, w = node.bounds.size.width, h = node.bounds.size.height))
+            val geometry = AnchorGeometry.Port(box = box, outward = outward)
+            if ("$nodeId::$key" !in out) out["$nodeId::$key"] = geometry
+            end.terminalPort?.let { if (it.id !in out) out[it.id] = geometry }
         }
         if (layout.groups[Sysml2LayoutBridge.ibdFrameGroupId(diagram.ownerId)] == null) {
             val partRects = projection.partNodes.mapNotNull { layout.nodes[NodeId(it.id)]?.bounds }
@@ -46,6 +49,47 @@ public object Sysml2NoteAnchorExtras {
         }
         return out
     }
+
+    /**
+     * Registers what the drawn ports block: the port squares and the estimated rectangles of their labels (placed
+     * by the same function the renderer uses), so a note keeps clear of both.
+     */
+    public fun ibdPortObstacles(
+        obstacles: ObstacleIndex,
+        extras: Map<String, AnchorGeometry>,
+        layout: LayoutResult,
+    ) {
+        val seen = HashSet<Rect>()
+        for (g in extras.values) {
+            val port = g as? AnchorGeometry.Port ?: continue
+            if (seen.add(port.box)) obstacles.addRect(kind = ObstacleKind.PORT, r = port.box)
+        }
+        for (node in layout.nodes.values) {
+            if (node.ports.isEmpty()) continue
+            val placements =
+                Sysml2LayoutBridge.ibdPartPortPlacements(
+                    boxSize = node.bounds.size,
+                    ports = node.ports.mapKeys { it.key.value },
+                    labels = node.ports.keys.associate { it.value to it.value.substringAfterLast("::") },
+                )
+            for ((_, placement) in placements.values) {
+                val r = placement.rect
+                obstacles.addRect(
+                    kind = ObstacleKind.PORT_LABEL,
+                    r = Rect(origin = Point(x = node.bounds.origin.x + r.origin.x, y = node.bounds.origin.y + r.origin.y), size = r.size),
+                    ownerId = null,
+                )
+            }
+        }
+    }
+
+    private fun sideOf(s: Sysml2LayoutBridge.IbdSide): Side =
+        when (s) {
+            Sysml2LayoutBridge.IbdSide.Left -> Side.W
+            Sysml2LayoutBridge.IbdSide.Right -> Side.E
+            Sysml2LayoutBridge.IbdSide.Top -> Side.N
+            Sysml2LayoutBridge.IbdSide.Bottom -> Side.S
+        }
 
     private const val OWNER_BOX_PAD: Float = 12f
 }

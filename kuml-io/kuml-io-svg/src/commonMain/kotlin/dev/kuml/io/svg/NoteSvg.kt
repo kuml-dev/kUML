@@ -6,7 +6,7 @@ import dev.kuml.layout.bridge.NoteFrameStyle
 import dev.kuml.layout.bridge.NoteLayout
 
 /** Line style of a note anchor. */
-internal enum class NoteAnchorStyle { DASHED, DOTTED }
+internal enum class NoteAnchorStyle { DASHED, DOTTED, DASHED_NO_DOT }
 
 /**
  * Renders a note symbol: a `<g id>` wrapper with the frame and the body text.
@@ -103,13 +103,22 @@ internal fun renderNoteAnchor(
     builder: SvgBuilder,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
-    val cls = if (style == NoteAnchorStyle.DASHED) "kuml-note-anchor" else "kuml-bpmn-association"
+    val cls = if (style == NoteAnchorStyle.DOTTED) "kuml-bpmn-association" else "kuml-note-anchor"
     builder.tag(name = tag, attrs = attrs + mapOf("class" to cls))
     if (style == NoteAnchorStyle.DASHED) {
         // Dot at the anchor end: tells a note anchor apart from satisfy/allocate/contains lines.
         builder.tag(
             name = "circle",
-            attrs = mapOf("cx" to fmt2(route.target.x), "cy" to fmt2(route.target.y), "r" to "2.5", "class" to "kuml-note-anchor-dot"),
+            attrs =
+                mapOf(
+                    "cx" to fmt2(route.target.x),
+                    "cy" to fmt2(route.target.y),
+                    "r" to NOTE_ANCHOR_DOT_RADIUS,
+                    "class" to "kuml-note-anchor-dot",
+                ),
         )
     }
 }
+
+/** Radius of the dot at the anchor end (px, as the SVG attribute text). */
+internal const val NOTE_ANCHOR_DOT_RADIUS: String = "2"

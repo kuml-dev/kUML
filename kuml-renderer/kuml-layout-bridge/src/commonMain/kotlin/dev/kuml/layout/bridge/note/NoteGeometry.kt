@@ -154,6 +154,58 @@ internal fun collinearOverlap(
     return max(0f, hi - lo)
 }
 
+/**
+ * True if the segment [a]-[b] runs along the segment [c]-[d]: both closer than [tolerance] and overlapping over
+ * more than [minLen]. The last [freeTail] px of [a]-[b] before [b] are ignored when [tailFree] is set (the anchor end
+ * touches its target on purpose).
+ */
+internal fun runsAlong(
+    a: Point,
+    b: Point,
+    c: Point,
+    d: Point,
+    tailFree: Boolean = false,
+    tolerance: Float = RUN_ALONG_TOLERANCE,
+    minLen: Float = RUN_ALONG_MIN_LEN,
+    freeTail: Float = RUN_ALONG_FREE_TAIL,
+): Boolean {
+    var end = b
+    if (tailFree) {
+        val len = distance(a = a, b = b)
+        if (len <= freeTail) return false
+        val t = (len - freeTail) / len
+        end = Point(x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t)
+    }
+    return collinearOverlap(a = a, b = end, c = c, d = d, tolerance = tolerance) > minLen
+}
+
+/** Distance from [p] to the segment [a]-[b]. */
+internal fun distanceToSegment(
+    p: Point,
+    a: Point,
+    b: Point,
+): Float {
+    val dx = b.x - a.x
+    val dy = b.y - a.y
+    val len2 = dx * dx + dy * dy
+    if (len2 < 1e-6f) return distance(a = p, b = a)
+    val t = (((p.x - a.x) * dx + (p.y - a.y) * dy) / len2).coerceIn(0f, 1f)
+    return distance(a = p, b = Point(x = a.x + dx * t, y = a.y + dy * t))
+}
+
+/** The four border segments of [r] as point pairs. */
+internal fun rectEdges(r: Rect): List<Pair<Point, Point>> {
+    val tl = Point(x = r.left, y = r.top)
+    val tr = Point(x = r.right, y = r.top)
+    val br = Point(x = r.right, y = r.bottom)
+    val bl = Point(x = r.left, y = r.bottom)
+    return listOf(tl to tr, tr to br, br to bl, bl to tl)
+}
+
+internal const val RUN_ALONG_TOLERANCE: Float = 3f
+internal const val RUN_ALONG_MIN_LEN: Float = 6f
+internal const val RUN_ALONG_FREE_TAIL: Float = 4f
+
 /** Nearest point on the border of [r] to [p] (or [p] clamped into [r] projected to the border when inside). */
 internal fun nearestBorderPoint(
     r: Rect,
@@ -190,11 +242,13 @@ internal fun EdgeRoute.shifted(
 
 /**
  * Moves everything in this layout by ([dx], [dy]) and grows the canvas by the same amount. Used when
- * a note had to be placed left of or above the existing content.
+ * a note had to be placed left of or above the existing content. [shiftPorts] is false for layouts whose port
+ * positions are local to their node (IBD).
  */
 public fun LayoutResult.translated(
     dx: Float,
     dy: Float,
+    shiftPorts: Boolean = true,
 ): LayoutResult {
     if (dx == 0f && dy == 0f) return this
 
@@ -207,7 +261,8 @@ public fun LayoutResult.translated(
             nodes.mapValues { (_, n) ->
                 NodeLayout(
                     bounds = n.bounds.s(),
-                    ports = n.ports.mapValues { it.value.s() },
+                    // IBD stores port positions relative to their part: moving the part moves them already.
+                    ports = if (shiftPorts) n.ports.mapValues { it.value.s() } else n.ports,
                     labels = n.labels.mapValues { it.value.s() },
                 )
             },

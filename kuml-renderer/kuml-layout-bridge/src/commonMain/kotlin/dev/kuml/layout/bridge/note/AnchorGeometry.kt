@@ -8,11 +8,33 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.polylinePoints
 
+/** A side of a rectangle; for a port the side it sticks out on. */
+public enum class Side { E, W, S, N }
+
 /** Where an anchor target is in the layout. */
 public sealed interface AnchorGeometry {
     /** A point (port, lifeline stem position). */
     public data class At(
         val p: Point,
+    ) : AnchorGeometry
+
+    /**
+     * A drawn port square: the line ends at the middle of the square's outer side ([outward]) and may touch the
+     * square nowhere else.
+     */
+    public data class Port(
+        val box: Rect,
+        val outward: Side,
+    ) : AnchorGeometry
+
+    /**
+     * The stem of a lifeline: the line ends on the vertical `x` at a height between [top] and [bottom] that the
+     * placer picks (the note's own height), so the anchor is one short horizontal line.
+     */
+    public data class Stem(
+        val x: Float,
+        val top: Float,
+        val bottom: Float,
     ) : AnchorGeometry
 
     /** A polyline (edge, transition): the line attaches at its midpoint. */

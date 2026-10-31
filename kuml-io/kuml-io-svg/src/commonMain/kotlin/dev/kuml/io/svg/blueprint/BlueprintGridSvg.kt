@@ -7,6 +7,7 @@ import dev.kuml.blueprint.model.BlueprintLayer
 import dev.kuml.blueprint.model.BlueprintLine
 import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.blueprint.model.JourneyDiagram
+import dev.kuml.io.svg.NOTE_ANCHOR_DOT_RADIUS
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.SvgDocument
 import dev.kuml.io.svg.blueprint.edge.renderConnection
@@ -201,7 +202,16 @@ internal fun renderBlueprintJourney(
                         ),
                 )
                 val (ex, ey) = pts.last()
-                tag(name = "circle", attrs = mapOf("cx" to f(ex), "cy" to f(ey), "r" to "2.5", "class" to "kuml-note-anchor-dot"))
+                tag(
+                    name = "circle",
+                    attrs =
+                        mapOf(
+                            "cx" to f(ex),
+                            "cy" to f(ey),
+                            "r" to NOTE_ANCHOR_DOT_RADIUS,
+                            "class" to "kuml-note-anchor-dot",
+                        ),
+                )
             }
             val size = dev.kuml.layout.Size(width = n.w.toFloat(), height = n.h.toFloat())
             renderNote(

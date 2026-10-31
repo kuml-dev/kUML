@@ -6,6 +6,7 @@ import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
 import dev.kuml.layout.PortId
+import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -242,9 +243,6 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
     usage: Sysml2Usage,
     context: Sysml2NodeContext?,
 ) {
-    val ps = IBD_PORT_SIZE
-    val half = ps / 2f
-
     // Resolve every port once: label text + direction. Label placement is shared with the layout bridge
     // (same function), so the frame computed there always contains exactly what is drawn here.
     val resolvedByKey =
@@ -281,15 +279,20 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
         val px = local.x
         val py = local.y
 
-        // Port square — centered on the boundary attachment point.
+        // Port square — centered on the boundary attachment point (same function the note anchors use).
+        val square =
+            Sysml2LayoutBridge.ibdPortSquare(
+                boxBounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = w, height = h)),
+                local = local,
+            )
         tag(
             name = "rect",
             attrs =
                 mapOf(
-                    "x" to fmt(px - half),
-                    "y" to fmt(py - half),
-                    "width" to fmt(ps),
-                    "height" to fmt(ps),
+                    "x" to fmt(square.origin.x),
+                    "y" to fmt(square.origin.y),
+                    "width" to fmt(square.size.width),
+                    "height" to fmt(square.size.height),
                     "class" to "kuml-port kuml-sysml2-port",
                 ),
         )

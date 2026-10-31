@@ -2656,6 +2656,21 @@ public object Sysml2LayoutBridge {
         return if (full.length <= IBD_PORT_LABEL_MAX_CHARS) full else full.take(IBD_PORT_LABEL_MAX_CHARS - 1) + "…"
     }
 
+    /**
+     * Das gezeichnete Quadrat eines Part-Ports: [IBD_PORT_SIZE_PX] groß, zentriert auf dem lokalen Punkt [local]
+     * der Box [boxBounds]. Ergebnis in absoluten Koordinaten. Renderer und Notiz-Anker nutzen dieselbe Funktion.
+     */
+    public fun ibdPortSquare(
+        boxBounds: Rect,
+        local: Point,
+    ): Rect {
+        val half = IBD_PORT_SIZE_PX / 2f
+        return Rect(
+            origin = Point(x = boxBounds.origin.x + local.x - half, y = boxBounds.origin.y + local.y - half),
+            size = Size(width = IBD_PORT_SIZE_PX, height = IBD_PORT_SIZE_PX),
+        )
+    }
+
     /** Nächstgelegene Seite einer Box der Größe [w] × [h] zum lokalen Punkt [p] (kleinster Abstand gewinnt). */
     public fun ibdNearestSide(
         p: Point,

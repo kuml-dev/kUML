@@ -14,6 +14,10 @@ All notable changes to this project are documented here. Format follows
 - Warnings `KUML-NOTE-W001` (anchor unknown), `KUML-NOTE-W002` (anchor not drawable in this diagram kind), `KUML-NOTE-W003` (more than 8 anchors or 200 notes) with note, anchor and diagram ids (never the text). They appear in `kuml render`, `kuml validate`, `kuml workspace validate --evaluate`, `kuml workspace render`, in Desktop validate/render and in the Desktop MCP tools (`warnings` / `diagnostics`).
 - Notes anchor lines are dotted with an anchor dot (distinguishable from `satisfy`/`allocate`/`contains`).
 
+### Fixed (PAL wave 2A-b: note anchors)
+
+- Note anchors: port notes attach to the drawn port square (the layout shifted the part-local port positions together with the part when a note enlarged the canvas, so square and anchor drifted apart; the square and the anchor now come from one function, `Sysml2LayoutBridge.ibdPortSquare`), lifeline notes sit beside the lifeline with a short horizontal anchor, multi-anchor notes get separate non-overlapping routes (Service Blueprint: own exit point, own gutter vertical and own lane track per anchor); anchor lines never run along borders, lifelines or lane lines, are orthogonal with at most three bends and never end on a port's own connection. The anchor dot is 2 px; port anchors have no dot.
+
 ### Changed (PAL wave 2A)
 
 - **Behaviour change:** a comment anchored to an unknown element id no longer aborts `Sysml2ModelBuilder.build()` (this produced the misleading `OKF-E-007 produces no renderable diagram`). It is the warning `KUML-NOTE-W001`, the note is drawn free-standing. `SYSML2_NOTE_ANCHOR_UNKNOWN` remains for a link that points to an unknown note.

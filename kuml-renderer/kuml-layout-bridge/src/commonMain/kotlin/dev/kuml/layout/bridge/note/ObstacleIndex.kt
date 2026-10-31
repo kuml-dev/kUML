@@ -26,6 +26,12 @@ public enum class ObstacleKind {
     /** An already placed note. */
     NOTE,
 
+    /** A drawn port square (rectangle); a route may touch it only at its anchor end. */
+    PORT,
+
+    /** A lane boundary (polyline); routes may cross it, never run along it. */
+    LANE,
+
     /** The route of an already placed anchor line (polyline). */
     ANCHOR_ROUTE,
 
@@ -48,6 +54,10 @@ public data class NoteCostModel(
     val anchorRouteCrossing: Float = 500f,
     val anchorRouteOverlap: Float = 3_000f,
     val bend: Float = 6f,
+    /** Penalty for a route that crosses a lane line (not perpendicular crossings are forbidden separately). */
+    val laneCrossing: Float = 400f,
+    val portRect: Float = 50_000f,
+    val portRoute: Float = 20_000f,
 )
 
 /**
@@ -59,6 +69,8 @@ public class ObstacleIndex {
         val kind: ObstacleKind,
         val rect: Rect,
         val ownerId: String?,
+        /** The rectangle as drawn (without the clearance [rect] was inflated by). */
+        val core: Rect = rect,
     )
 
     internal class LineObstacle(
@@ -80,9 +92,10 @@ public class ObstacleIndex {
             when (kind) {
                 ObstacleKind.EDGE_LABEL, ObstacleKind.PORT_LABEL -> r.inflated(LABEL_INFLATE)
                 ObstacleKind.NOTE -> r.inflated(NOTE_INFLATE)
+                ObstacleKind.PORT -> r.inflated(PORT_INFLATE)
                 else -> r
             }
-        rects += RectObstacle(kind = kind, rect = inflated, ownerId = ownerId)
+        rects += RectObstacle(kind = kind, rect = inflated, ownerId = ownerId, core = r)
     }
 
     /** Adds a polyline obstacle (edge, lifeline stem, fragment frame, anchor route). */
@@ -116,6 +129,7 @@ public class ObstacleIndex {
                     ObstacleKind.NODE -> costs.nodeRect
                     ObstacleKind.EDGE_LABEL, ObstacleKind.PORT_LABEL -> costs.labelRect
                     ObstacleKind.NOTE -> costs.noteRect
+                    ObstacleKind.PORT -> costs.portRect
                     ObstacleKind.COMPOSITE_TITLE -> costs.titleRect
                     else -> costs.lineThroughRect
                 }
@@ -156,13 +170,19 @@ public class ObstacleIndex {
             budget.spend()
             if (o.ownerId != null && o.ownerId in exemptOwners) continue
             // Boxes count only with their interior: touching the border at the anchor end is fine.
-            val hitRect = if (o.kind == ObstacleKind.NODE) o.rect.inflated(-1.5f) else o.rect
+            val hitRect =
+                when (o.kind) {
+                    ObstacleKind.NODE -> o.rect.inflated(-1.5f)
+                    ObstacleKind.PORT -> o.core.inflated(-0.5f)
+                    else -> o.rect
+                }
             if (!segmentIntersectsRect(a = a, b = b, r = hitRect)) continue
             cost +=
                 when (o.kind) {
                     ObstacleKind.NODE -> costs.nodeRoute
                     ObstacleKind.EDGE_LABEL, ObstacleKind.PORT_LABEL -> costs.labelRoute
                     ObstacleKind.NOTE -> costs.noteRoute
+                    ObstacleKind.PORT -> costs.portRoute
                     ObstacleKind.COMPOSITE_TITLE -> costs.titleRoute
                     else -> costs.lineRoute
                 }
@@ -178,7 +198,9 @@ public class ObstacleIndex {
                 if (segmentsCross(a = a, b = b, c = c, d = d)) hits++
                 overlap += collinearOverlap(a = a, b = b, c = c, d = d)
             }
-            if (l.kind == ObstacleKind.ANCHOR_ROUTE) {
+            if (l.kind == ObstacleKind.LANE) {
+                cost += hits * costs.laneCrossing
+            } else if (l.kind == ObstacleKind.ANCHOR_ROUTE) {
                 cost += hits * costs.anchorRouteCrossing
                 if (overlap > OVERLAP_TOLERANCE) cost += costs.anchorRouteOverlap
             } else {
@@ -204,13 +226,69 @@ public class ObstacleIndex {
                             it.kind == ObstacleKind.COMPOSITE_TITLE ||
                             it.kind == ObstacleKind.EDGE_LABEL ||
                             it.kind == ObstacleKind.PORT_LABEL ||
-                            it.kind == ObstacleKind.NOTE
+                            it.kind == ObstacleKind.NOTE ||
+                            it.kind == ObstacleKind.PORT
                     ) &&
                     segmentIntersectsRect(a = a, b = b, r = it.rect)
             }.sortedBy { distance(a = mid, b = Point(x = it.rect.cx, y = it.rect.cy)) }
             .take(limit)
             .map { it.rect }
     }
+
+    /**
+     * True if the polyline [pts] runs along (closer than 3 px over more than 6 px) a border of a node, port or note,
+     * or a registered line (lifeline, frame, lane, anchor route, edge), or one of [extraRects] / [extraLines]. The
+     * last 4 px before the anchor end are exempt, so the line may meet its target. Perpendicular crossings are fine.
+     */
+    internal fun routeRunsAlong(
+        pts: List<Point>,
+        extraRects: List<Rect>,
+        extraLines: List<List<Point>>,
+        budget: Budget,
+    ): Boolean {
+        for (i in 0 until pts.size - 1) {
+            val a = pts[i]
+            val b = pts[i + 1]
+            val last = i == pts.size - 2
+            for (o in rects) {
+                if (o.kind != ObstacleKind.NODE && o.kind != ObstacleKind.PORT && o.kind != ObstacleKind.NOTE) continue
+                budget.spend()
+                for ((c, d) in rectEdges(o.core)) if (runsAlong(a = a, b = b, c = c, d = d, tailFree = last)) return true
+            }
+            for (r in extraRects) {
+                budget.spend()
+                for ((c, d) in rectEdges(r)) if (runsAlong(a = a, b = b, c = c, d = d, tailFree = last)) return true
+            }
+            for (l in lines) {
+                budget.spend()
+                for (j in 0 until l.points.size - 1) {
+                    if (runsAlong(a = a, b = b, c = l.points[j], d = l.points[j + 1], tailFree = last)) return true
+                }
+            }
+            for (l in extraLines) {
+                budget.spend()
+                for (j in 0 until l.size - 1) {
+                    if (runsAlong(a = a, b = b, c = l[j], d = l[j + 1], tailFree = last)) return true
+                }
+            }
+            for (o in rects) {
+                if (o.kind != ObstacleKind.PORT) continue
+                // A port square may be touched at the anchor end only: no segment may enter its interior.
+                if (segmentIntersectsRect(a = a, b = b, r = o.core.inflated(-0.5f))) return true
+            }
+        }
+        return false
+    }
+
+    /** True if [p] lies within [tolerance] px of a diagram edge (connection, message). */
+    internal fun nearEdge(
+        p: Point,
+        tolerance: Float,
+    ): Boolean =
+        lines.any { l ->
+            l.kind == ObstacleKind.EDGE &&
+                (0 until l.points.size - 1).any { distanceToSegment(p = p, a = l.points[it], b = l.points[it + 1]) <= tolerance }
+        }
 
     /** Deterministic work counter that bounds the placement effort (no O(n^2) blow-up on hostile input). */
     internal class Budget(
@@ -230,6 +308,7 @@ public class ObstacleIndex {
     private companion object {
         const val LABEL_INFLATE: Float = 4f
         const val NOTE_INFLATE: Float = 8f
+        const val PORT_INFLATE: Float = 4f
         const val LINE_CLEARANCE: Float = 6f
         const val OVERLAP_TOLERANCE: Float = 8f
     }

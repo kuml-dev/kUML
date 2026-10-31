@@ -77,6 +77,7 @@ import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.normalizeSeqLayout
 import dev.kuml.layout.bridge.note.AnchorGeometry
+import dev.kuml.layout.bridge.note.NotePlacementConfig
 import dev.kuml.layout.bridge.note.ObstacleIndex
 import dev.kuml.layout.bridge.note.ObstacleKind
 import dev.kuml.layout.bridge.note.Sysml2NoteAnchorExtras
@@ -2021,7 +2022,13 @@ public object KumlSvgRenderer {
                 val shiftedRoute = shiftedRoutes.getValue(edgeId.value)
                 val element = elementIndex[edgeId.value]
                 if (element != null) {
-                    EdgeRendererDispatcher.dispatch(relationship = element, route = shiftedRoute, theme = theme, builder = edgesBuilder)
+                    EdgeRendererDispatcher.dispatch(
+                        relationship = element,
+                        route = shiftedRoute,
+                        theme = theme,
+                        builder = edgesBuilder,
+                        anchorDot = sysml2Context?.let { !isPortLink(model = it.model, element = element) } ?: true,
+                    )
                 } else {
                     val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
                     if (meta != null) {
@@ -2234,26 +2241,18 @@ public object KumlSvgRenderer {
             } else {
                 Sysml2LayoutBridge.enrichIbdPortPositions(model = model, diagram = diagram, layoutResult = framed)
             }
+        val ibdExtras = Sysml2NoteAnchorExtras.ibd(model = model, diagram = diagram, layout = enrichedLayout)
         val notedLayout =
             placeSysml2Notes(
                 model = model,
                 diagram = diagram,
                 layout = enrichedLayout,
                 adapter = IbdEdgeAdapter(model = model, diagram = diagram),
-                extras = Sysml2NoteAnchorExtras.ibd(model = model, diagram = diagram, layout = enrichedLayout),
+                extras = ibdExtras,
+                localPorts = true,
                 configure = { o ->
-                    // Part-port labels sit next to their square; estimate a generous box to the right of it.
-                    Sysml2NoteAnchorExtras.ibd(model = model, diagram = diagram, layout = enrichedLayout).values.forEach { g ->
-                        val p = (g as? AnchorGeometry.At)?.p ?: return@forEach
-                        o.addRect(
-                            kind = ObstacleKind.PORT_LABEL,
-                            r =
-                                dev.kuml.layout.Rect(
-                                    origin = dev.kuml.layout.Point(x = p.x - 6f, y = p.y - 10f),
-                                    size = dev.kuml.layout.Size(width = 140f, height = 20f),
-                                ),
-                        )
-                    }
+                    // Drawn port squares and the labels next to them (same placement function as the renderer).
+                    Sysml2NoteAnchorExtras.ibdPortObstacles(obstacles = o, extras = ibdExtras, layout = enrichedLayout)
                 },
             )
         val connectorAvoid =
@@ -3365,9 +3364,25 @@ public object KumlSvgRenderer {
                     route = shiftRoute(route = route, dx = padding),
                     theme = theme,
                     builder = edgesBuilder,
+                    anchorDot = !isPortTarget(model = model, targetId = link.link.targetId),
                 )
             }
         }
+    }
+
+    private fun isPortLink(
+        model: Sysml2Model,
+        element: dev.kuml.core.model.KumlElement,
+    ): Boolean = element is dev.kuml.sysml2.Sysml2CommentLink && isPortTarget(model = model, targetId = element.link.targetId)
+
+    /** True if [targetId] names a port usage (by id, qualified name, or a path ending in a port's name). */
+    private fun isPortTarget(
+        model: Sysml2Model,
+        targetId: String,
+    ): Boolean {
+        val ports = model.usages.filterIsInstance<dev.kuml.sysml2.PortUsage>()
+        return ports.any { it.id == targetId || it.qualifiedName == targetId } ||
+            (targetId.contains("::") && ports.any { targetId.endsWith("::${it.name}") || targetId == it.name })
     }
 
     /**
@@ -3381,6 +3396,7 @@ public object KumlSvgRenderer {
         layout: LayoutResult,
         adapter: Sysml2EdgeAdapter? = null,
         extras: Map<String, AnchorGeometry> = emptyMap(),
+        localPorts: Boolean = false,
         configure: (ObstacleIndex) -> Unit = {},
     ): LayoutResult =
         Sysml2NotePlacement
@@ -3400,6 +3416,7 @@ public object KumlSvgRenderer {
                     }
                 },
                 configure = configure,
+                config = NotePlacementConfig(localPorts = localPorts),
             ).layout
 
     /** The lines an edge label is drawn in: one line while it fits 180 px, otherwise one part per line (max 3). */
@@ -3452,9 +3469,8 @@ public object KumlSvgRenderer {
         val extras = HashMap<String, AnchorGeometry>()
         for (id in ids) {
             val h = head(id) ?: continue
-            val first = messages.firstOrNull { it.sourceLifelineId == id || it.targetLifelineId == id }?.let { messageY(it) }
-            val y = if (first != null) maxOf(h.origin.y + headH + 12f, first - rowH / 2f) else h.origin.y + headH + 24f
-            extras[id] = AnchorGeometry.At(dev.kuml.layout.Point(x = h.origin.x + h.size.width / 2f, y = y))
+            extras[id] =
+                AnchorGeometry.Stem(x = h.origin.x + h.size.width / 2f, top = h.origin.y + headH, bottom = h.origin.y + h.size.height)
         }
         return Sysml2NotePlacement
             .place(
@@ -3472,9 +3488,9 @@ public object KumlSvgRenderer {
                     }
                 },
                 configure = { o ->
-                    val bottom = layout.canvas.height
                     for (id in ids) {
                         val h = head(id) ?: continue
+                        val bottom = h.origin.y + h.size.height // the stem is drawn down to the bottom of the lifeline node
                         val x = h.origin.x + h.size.width / 2f
                         o.addPolyline(
                             kind = ObstacleKind.LIFELINE,
