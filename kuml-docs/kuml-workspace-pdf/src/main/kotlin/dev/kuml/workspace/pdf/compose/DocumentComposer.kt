@@ -23,6 +23,7 @@ import dev.kuml.workspace.pdf.plan.ExportPlan
 import dev.kuml.workspace.pdf.render.DrawnSvg
 import dev.kuml.workspace.pdf.render.SvgGraphicsRenderer
 import dev.kuml.workspace.pdf.render.SvgRenderException
+import dev.kuml.workspace.pdf.security.TextSanitizer
 import org.apache.pdfbox.pdmodel.PDDocument
 import java.time.LocalDate
 
@@ -46,6 +47,7 @@ internal class DocumentComposer(
     private val aiNotes: AiNotesProvider?,
     private val failures: MutableList<OkfFinding>,
     private val warnings: MutableList<String>,
+    private val exportedOn: LocalDate = LocalDate.now(),
 ) {
     private val links =
         InternalLinkResolver(
@@ -200,6 +202,7 @@ internal class DocumentComposer(
     private fun cover(
         images: LocalImages,
         openItems: Int?,
+        documentCount: Int = plan.all.size,
     ): CoverData {
         val fm =
             plan.indexDoc
@@ -211,9 +214,16 @@ internal class DocumentComposer(
             title = workspaceTitle(),
             subtitle = m.subtitle ?: fm["subtitle"],
             author = m.author ?: fm["author"],
+            organization =
+                (fm["organization"] ?: fm["organisation"])
+                    ?.let { TextSanitizer.clean(text = it, maxLength = 200).replace('\n', ' ').trim() }
+                    ?.takeIf { it.isNotEmpty() },
             version = m.version ?: fm["version"],
-            date = (m.date ?: fm["date"]?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() })?.toString(),
+            date = m.date ?: fm["date"]?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() },
             status = m.status ?: fm["status"],
+            exportedOn = exportedOn,
+            documentCount = documentCount,
+            producer = options.producerVersion,
             logo = fm["logo"]?.takeIf { it.isNotBlank() }?.let { images.logo(it) },
             openItems = openItems?.takeIf { it > 0 },
             openItemsAnchor = if ((openItems ?: 0) > 0) OPEN_ITEMS_ANCHOR else null,
@@ -289,6 +299,7 @@ internal class DocumentComposer(
                             cover(
                                 images = images,
                                 openItems = null,
+                                documentCount = 1,
                             ).copy(title = s.title, subtitle = null, openItems = null, openItemsAnchor = null)
                         } else {
                             null

@@ -22,7 +22,9 @@ import java.io.IOException
 import java.io.OutputStream
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.time.Clock
 import java.time.Duration
+import java.time.ZonedDateTime
 import java.util.Locale
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
@@ -45,6 +47,7 @@ public class PreparedExport internal constructor(
     public val notes: List<String>,
     public val documentCount: Int,
     public val diagramCount: Int,
+    public val layoutSummary: PdfLayoutSummary = PdfLayoutSummary.EMPTY,
 ) : AutoCloseable {
     /** Total page count over all output files. */
     public val pageCount: Int get() = outputs.sumOf { it.pageCount }
@@ -76,9 +79,6 @@ public class PreparedExport internal constructor(
 public object WorkspacePdfExporter {
     private val logger = LoggerFactory.getLogger(WorkspacePdfExporter::class.java)
 
-    /** Diagrams shrunk below this scale produce a [ScaleWarning]. */
-    public const val MIN_SCALE_WARN: Double = 0.40
-
     /** Landscape is chosen automatically only when it gains at least this much scale. */
     public const val AUTO_LANDSCAPE_GAIN: Double = 0.15
 
@@ -89,6 +89,7 @@ public object WorkspacePdfExporter {
         aiNotes: AiNotesProvider? = null,
         progress: ExportProgressListener = ExportProgressListener { _, _, _ -> },
         cancelled: () -> Boolean = { false },
+        clock: Clock = Clock.systemDefaultZone(),
     ): PreparedExport {
         val started = System.nanoTime()
         val limits = options.limits
@@ -159,10 +160,12 @@ public object WorkspacePdfExporter {
                 aiNotes = aiNotes,
                 failures = failures,
                 warnings = notes,
+                exportedOn = ZonedDateTime.now(clock).toLocalDate(),
             )
         val stems = composer.outputs()
         val outputs = mutableListOf<PreparedPdf>()
         val scaleWarnings = mutableListOf<ScaleWarning>()
+        var summary = PdfLayoutSummary.EMPTY
         try {
             for ((idx, entry) in stems.withIndex()) {
                 val stem = entry.stem
@@ -177,6 +180,7 @@ public object WorkspacePdfExporter {
                 val engine = PdfLayoutEngine(doc = pdf, fonts = fonts, labels = labels, options = options, cancelled = cancelled)
                 val layout = engine.layout(composed)
                 scaleWarnings += layout.warnings
+                summary += layout.summary
                 val fm =
                     plan.indexDoc
                         ?.frontmatter
@@ -194,7 +198,7 @@ public object WorkspacePdfExporter {
                             title = composed.title,
                             headerTitle = composed.title,
                             author = meta.author ?: fm["author"],
-                            subject = meta.subtitle ?: fm["subtitle"],
+                            subject = labels.subject(options.kind),
                             keywords =
                                 docs
                                     .mapNotNull { it.frontmatter.type }
@@ -206,6 +210,7 @@ public object WorkspacePdfExporter {
                             date = meta.date ?: fm["date"]?.let { runCatching { java.time.LocalDate.parse(it.take(10)) }.getOrNull() },
                             hasCover = composed.cover != null,
                             languageTag = if (lang == PdfLanguage.DE) "de-DE" else "en-US",
+                            exportedAt = ZonedDateTime.now(clock),
                         ),
                 )
                 outputs[outputs.lastIndex] = PreparedPdf(fileStem = stem, doc = pdf, pageCount = pdf.numberOfPages)
@@ -217,11 +222,12 @@ public object WorkspacePdfExporter {
         progress.onProgress(done = stems.size, total = stems.size, phase = ExportPhase.LAYOUT)
         val diagramFailures = failures.distinctBy { it.file to it.line }
         logger.info(
-            "PDF export prepared: {} file(s), {} document(s), {} diagram(s), {} failure(s)",
+            "PDF export prepared: {} file(s), {} document(s), {} diagram(s), {} failure(s), layout {}",
             outputs.size,
             docs.size,
             total,
             diagramFailures.size,
+            summary,
         )
         return PreparedExport(
             outputs = outputs,
@@ -232,6 +238,7 @@ public object WorkspacePdfExporter {
             notes = notes,
             documentCount = docs.size,
             diagramCount = total,
+            layoutSummary = summary,
         )
     }
 
@@ -343,6 +350,7 @@ public object WorkspacePdfExporter {
                 diagramCount = prepared.diagramCount,
                 warnings = prepared.warnings,
                 failures = prepared.failures,
+                layoutSummary = prepared.layoutSummary,
             )
         }
     }

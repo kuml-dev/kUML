@@ -71,7 +71,6 @@ data class Strings(
     val pdfDisabledSplitNotDiagrams: String,
     val pdfUntrustedReason: String,
     val pdfScaleWarning: String,
-    val pdfUseA3Landscape: String,
     val pdfExportAnyway: String,
     val pdfProgress: String,
     val pdfExportDone: String,
@@ -213,6 +212,7 @@ data class Strings(
     // Simulator inspector, variables and payload texts: a separate class because a JVM constructor
     // is limited to 255 parameters and this one would exceed it.
     val simulator: SimulatorStrings,
+    val pdfExport: PdfExportStrings,
     // V-next — editable OKF Knowledge Workspace documents (Read/Edit toggle, save gate)
     val docEditRead: String,
     val docEditEdit: String,
@@ -274,6 +274,14 @@ data class Strings(
     val mcpSecurityNotice: String,
     val splitDividerDescription: String,
 ) {
+    val pdfPageStrategy: String get() = pdfExport.pdfPageStrategy
+    val pdfPageStrategyAuto: String get() = pdfExport.pdfPageStrategyAuto
+    val pdfPageStrategyFixed: String get() = pdfExport.pdfPageStrategyFixed
+    val pdfTiling: String get() = pdfExport.pdfTiling
+    val pdfPageStrategyHint: String get() = pdfExport.pdfPageStrategyHint
+    val pdfMinScale: String get() = pdfExport.pdfMinScale
+    val pdfLayoutSummary: String get() = pdfExport.pdfLayoutSummary
+    val pdfDisabledOrientationAuto: String get() = pdfExport.pdfDisabledOrientationAuto
     val simInspectorTitle: String get() = simulator.simInspectorTitle
     val simVariablesTitle: String get() = simulator.simVariablesTitle
     val simInspectorToggle: String get() = simulator.simInspectorToggle
@@ -424,8 +432,7 @@ data class Strings(
                 pdfUntrustedReason =
                     "Dieser Workspace ist nicht als vertrauenswürdig markiert. " +
                         "Der Export führt die Diagramm-Skripte aus; bitte zuerst vertrauen.",
-                pdfScaleWarning = "%1\$d Diagramm(e) sind stark verkleinert: %2\$s",
-                pdfUseA3Landscape = "A3 quer verwenden",
+                pdfScaleWarning = "%1\$d Diagramm(e) sind unleserlich: %2\$s",
                 pdfExportAnyway = "Trotzdem exportieren",
                 pdfProgress = "%1\$d von %2\$d Dokumenten",
                 pdfExportDone = "PDF geschrieben: %1\$s",
@@ -563,6 +570,19 @@ data class Strings(
                 simStartFailed = "Simulation konnte nicht gestartet werden: %s",
                 simAutoStopped = "Automatisch angehalten: %s",
                 simTraceTitle = "Verlauf",
+                pdfExport =
+                    PdfExportStrings(
+                        pdfPageStrategy = "Seitengröße",
+                        pdfPageStrategyAuto = "Automatisch (empfohlen)",
+                        pdfPageStrategyFixed = "Fest",
+                        pdfTiling = "Große Diagramme auf mehrere Seiten aufteilen",
+                        pdfPageStrategyHint =
+                            "Automatisch: große Diagramme erhalten ein eigenes Querformat oder A3; " +
+                                "was darüber hinausgeht, wird aufgeteilt, damit kein Diagramm unter %1\$d %% verkleinert wird.",
+                        pdfMinScale = "Mindestgröße",
+                        pdfLayoutSummary = "%1\$d auf A3 gesetzt, %2\$d aufgeteilt (%3\$d Seiten)",
+                        pdfDisabledOrientationAuto = "Bei automatischer Seitengröße wählt kUML die Ausrichtung je Diagramm.",
+                    ),
                 simulator =
                     SimulatorStrings(
                         simInspectorTitle = "Inspektor",
@@ -775,8 +795,7 @@ data class Strings(
                 pdfDisabledCoverForDiagrams = "Not available: the diagram folio has no cover page.",
                 pdfDisabledSplitNotDiagrams = "Only available for the diagram folio.",
                 pdfUntrustedReason = "This workspace is not trusted. The export runs the diagram scripts; please trust it first.",
-                pdfScaleWarning = "%1\$d diagram(s) are scaled down a lot: %2\$s",
-                pdfUseA3Landscape = "Use A3 landscape",
+                pdfScaleWarning = "%1\$d diagram(s) are illegible: %2\$s",
                 pdfExportAnyway = "Export anyway",
                 pdfProgress = "%1\$d of %2\$d documents",
                 pdfExportDone = "PDF written: %1\$s",
@@ -912,6 +931,19 @@ data class Strings(
                 simStartFailed = "Could not start simulation: %s",
                 simAutoStopped = "Auto-advance stopped: %s",
                 simTraceTitle = "Trace",
+                pdfExport =
+                    PdfExportStrings(
+                        pdfPageStrategy = "Page size",
+                        pdfPageStrategyAuto = "Automatic (recommended)",
+                        pdfPageStrategyFixed = "Fixed",
+                        pdfTiling = "Split large diagrams across pages",
+                        pdfPageStrategyHint =
+                            "Automatic: large diagrams get a landscape page or A3 of their own; " +
+                                "anything beyond that is split so that no diagram is scaled below %1\$d %%.",
+                        pdfMinScale = "Minimum scale",
+                        pdfLayoutSummary = "%1\$d set on A3, %2\$d split (%3\$d pages)",
+                        pdfDisabledOrientationAuto = "With automatic page size, kUML picks the orientation per diagram.",
+                    ),
                 simulator =
                     SimulatorStrings(
                         simInspectorTitle = "Inspector",
@@ -1140,4 +1172,16 @@ data class SimulatorStrings(
     val simPayloadErrReserved: String,
     val simPayloadAtPosition: String,
     val simInvalidPayload: String,
+)
+
+/** Page-layout texts of the PDF export dialog (see [Strings.pdfExport]). */
+data class PdfExportStrings(
+    val pdfPageStrategy: String,
+    val pdfPageStrategyAuto: String,
+    val pdfPageStrategyFixed: String,
+    val pdfTiling: String,
+    val pdfPageStrategyHint: String,
+    val pdfMinScale: String,
+    val pdfLayoutSummary: String,
+    val pdfDisabledOrientationAuto: String,
 )

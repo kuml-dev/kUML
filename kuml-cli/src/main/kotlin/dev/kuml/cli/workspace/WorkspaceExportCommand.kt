@@ -11,12 +11,14 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
+import com.github.ajalt.clikt.parameters.types.float
 import dev.kuml.cli.ExitCodes
 import dev.kuml.workspace.WorkspaceScanner
 import dev.kuml.workspace.pdf.ExportMetadata
 import dev.kuml.workspace.pdf.ExportScope
 import dev.kuml.workspace.pdf.PageFormat
 import dev.kuml.workspace.pdf.PageOrientation
+import dev.kuml.workspace.pdf.PageStrategy
 import dev.kuml.workspace.pdf.PdfExportException
 import dev.kuml.workspace.pdf.PdfExportKind
 import dev.kuml.workspace.pdf.PdfExportOptions
@@ -42,6 +44,12 @@ internal class WorkspaceExportCommand : CliktCommand(name = "export") {
     private val scopes by option("--scope", help = "all | folder:<path> | <document path>. Repeatable.").multiple()
     private val page by option("--page", help = "Paper format").choice("a4", "a3").default("a4")
     private val orientation by option("--orientation", help = "Page orientation").choice("portrait", "landscape", "auto").default("auto")
+    private val pageStrategy by option(
+        "--page-strategy",
+        help = "auto (A4/A3 per diagram, requires --orientation auto) or fixed (default: auto with --orientation auto)",
+    ).choice("auto", "fixed")
+    private val minScale by option("--min-scale", help = "Minimum diagram scale 0.25..1.0 (default 0.5)").float().default(0.5f)
+    private val tiling by option("--tiling", help = "Split large diagrams across pages (default)").flag("--no-tiling", default = true)
     private val cover by option("--cover", help = "Add a cover page (default: handbook yes, per-document no)").flag()
     private val noCover by option("--no-cover", help = "Do not add a cover page").flag()
     private val noToc by option("--no-toc", help = "Omit the table of contents").flag()
@@ -54,7 +62,7 @@ internal class WorkspaceExportCommand : CliktCommand(name = "export") {
     private val theme by option("--theme", help = "Diagram theme")
     private val output by option("-o", "--output", help = "Output file (handbook, folio) or directory (per-document, --split)").file()
     private val force by option("--force", help = "Overwrite existing output files").flag()
-    private val strict by option("--strict", help = "Exit 3 without writing on any warning (diagram too small) or failed diagram").flag()
+    private val strict by option("--strict", help = "Exit 3 without writing on any warning (illegible diagram) or failed diagram").flag()
     private val split by option("--split", help = "diagrams only: one PDF per diagram").flag()
     private val aiNotes by option("--ai-notes", help = "Reserved: AI explanations are not available from the CLI in this version").flag()
 
@@ -97,22 +105,50 @@ internal class WorkspaceExportCommand : CliktCommand(name = "export") {
                 else -> PdfExportKind.HANDBOOK
             }
         if (split && exportKind != PdfExportKind.DIAGRAMS) usage("--split only applies to --kind diagrams")
+        if (minScale !in 0.25f..1.0f) usage("--min-scale must be between 0.25 and 1.0")
+        if (pageStrategy == "auto" && orientation != "auto") usage("--page-strategy auto requires --orientation auto")
         val root = WorkspaceScanner.canonicalRoot(dir)
         val options =
-            PdfExportOptions(
-                kind = exportKind,
-                scope = parseScope(),
-                page = if (page == "a3") PageFormat.A3 else PageFormat.A4,
-                orientation = PageOrientation.valueOf(orientation.uppercase()),
-                cover = if (noCover) false else cover || exportKind != PdfExportKind.PER_DOCUMENT,
-                toc = !noToc,
-                headerFooter = !noHeaderFooter,
-                draft = draft,
-                split = split,
-                language = lang?.let { if (it == "de") PdfLanguage.DE else PdfLanguage.EN },
-                metadata = ExportMetadata(author = author, version = version, date = parsedDate),
-                producerVersion = WorkspacePdfExport.producer,
-            )
+            try {
+                buildOptions(exportKind = exportKind, parsedDate = parsedDate)
+            } catch (e: IllegalArgumentException) {
+                usage(e.message ?: "invalid option")
+            }
+        runExport(root = root, exportKind = exportKind, options = options)
+    }
+
+    private fun buildOptions(
+        exportKind: PdfExportKind,
+        parsedDate: LocalDate?,
+    ): PdfExportOptions =
+        PdfExportOptions(
+            kind = exportKind,
+            scope = parseScope(),
+            page = if (page == "a3") PageFormat.A3 else PageFormat.A4,
+            orientation = PageOrientation.valueOf(orientation.uppercase()),
+            cover = if (noCover) false else cover || exportKind != PdfExportKind.PER_DOCUMENT,
+            toc = !noToc,
+            headerFooter = !noHeaderFooter,
+            draft = draft,
+            split = split,
+            language = lang?.let { if (it == "de") PdfLanguage.DE else PdfLanguage.EN },
+            metadata = ExportMetadata(author = author, version = version, date = parsedDate),
+            producerVersion = WorkspacePdfExport.producer,
+            pageStrategy =
+                when (pageStrategy) {
+                    "auto" -> PageStrategy.AUTO
+                    "fixed" -> PageStrategy.FIXED
+                    else -> null
+                },
+            tiling = tiling,
+            minScale = minScale,
+        )
+
+    private fun runExport(
+        root: File,
+        exportKind: PdfExportKind,
+        options: PdfExportOptions,
+    ) {
         val slug =
             root.name
                 .replace(Regex("[^A-Za-z0-9._-]+"), "_")
@@ -137,7 +173,7 @@ internal class WorkspaceExportCommand : CliktCommand(name = "export") {
                 prepared.notes.forEach { echo("NOTE $it", err = true) }
                 prepared.warnings.forEach {
                     echo(
-                        "WARN scale ${(it.scale * 100).toInt()}% ${it.documentPath}#${it.blockIndex + 1} \"${it.title}\" — suggestion: ${it.suggestion}",
+                        "WARN illegible: ${it.message} ${it.documentPath}#${it.blockIndex + 1} \"${it.title}\" — suggestion: ${it.suggestion}",
                         err = true,
                     )
                 }
@@ -149,6 +185,10 @@ internal class WorkspaceExportCommand : CliktCommand(name = "export") {
                 val result = WorkspacePdfExport.write(prepared = prepared, target = target, overwrite = force)
                 val firstFile = result.files.firstOrNull()
                 val shown = (if (asDir) firstFile?.parentFile?.path else null) ?: firstFile?.path ?: target.path
+                val sm = result.layoutSummary
+                echo(
+                    "${sm.a3Diagrams} diagrams on A3, ${sm.tiledDiagrams} diagrams tiled (${sm.tilePages} pages), ${sm.illegibleDiagrams} illegible",
+                )
                 echo("Wrote ${result.files.size} file(s), ${result.pageCount} pages: $shown")
             }
         } catch (e: PdfExportException) {

@@ -35,6 +35,7 @@ one PDF per diagram. No cover, no table of contents.
 kuml workspace export <dir> --format pdf
     [--kind handbook|per-document|diagrams] [--scope all|folder:<path>|<document>]...
     [--page a4|a3] [--orientation portrait|landscape|auto]
+    [--page-strategy auto|fixed] [--min-scale 0.25..1.0] [--tiling|--no-tiling]
     [--cover|--no-cover] [--no-toc] [--no-header-footer] [--draft]
     [--author <text>] [--version <text>] [--date YYYY-MM-DD] [--lang de|en] [--theme <name>]
     [-o <file-or-dir>] [--force] [--strict] [--split]
@@ -44,8 +45,10 @@ The default output is `<root>/.kuml-out/export/<workspace>.pdf` (handbook, folio
 `<root>/.kuml-out/export/pdf/` (per document, `--split`). The CLI may write outside the workspace root with `-o`,
 like `kuml render -o`. An existing file is only replaced with `--force`.
 
-Warnings and diagram failures are printed to stderr. A diagram that must be scaled below 40 % produces
-`WARN scale 28% ... suggestion: A3 landscape`. A failed diagram becomes a placeholder box in the PDF
+Warnings and diagram failures are printed to stderr. A diagram that stays below the minimum scale even after A3 and
+tiling were tried (or with `--no-tiling`) produces
+`WARN illegible: illegible (scale 0.26 < 0.50) ... suggestion: enable tiling`. After the export the command prints a
+summary such as `1 diagrams on A3, 2 diagrams tiled (18 pages), 0 illegible`. A failed diagram becomes a placeholder box in the PDF
 (`OKF-E-007`). With `--strict`, any warning or failed diagram ends the command with exit code 3 *before* anything
 is written.
 
@@ -65,20 +68,48 @@ wired into the CLI yet, so the option is refused with exit code 2 rather than si
 
 The cover page and the footer read `title`, `subtitle`, `author`, `version`, `date` (ISO-8601), `status`, `logo`
 (a PNG or JPEG inside the workspace, at most 2 MB and 4000 px) and `lang` (`de` or `en`). Command-line options override them.
+`organization` (or `organisation`) is shown on the cover when present.
 Without `lang`, labels follow the system language (German, otherwise English).
+
+== Page sizes and large diagrams
+
+Every diagram is placed by a page planner. With the default _automatic_ page strategy
+(`--page-strategy auto`, which requires `--orientation auto`) the planner walks this ladder per diagram and takes the
+first step that keeps the scale at or above the minimum scale (`--min-scale`, default 0.5):
+
+. The base format (`--page`, A4 by default): portrait, or landscape when that gains at least 15 percentage points of
+  scale. If the orientation chosen by that rule stays below the minimum scale but the other orientation reaches it, the
+  other orientation is used.
+. A3 (portrait or landscape, whichever scales better) when the base format is A4. A3 is never used with
+  `--page-strategy fixed`.
+. Tiling (`--tiling`, default): the diagram is split across several pages of the base format. Neighbouring tiles overlap
+  by 10 mm; each tile page shows `Figure: <title> -- Part 3 of 9 . row 1, column 3`, a small grid locator in the title
+  row and registration marks (hairline crosses) at the corners of the overlap strip. A diagram uses at most 24 tiles.
+. Otherwise the diagram is placed at the best available scale and reported as _illegible_.
+
+Page margins are 20 mm on A4 and 25 mm on A3. Only the A3 and tile pages differ from the rest of the document; the next
+page is A4 again. Long figure titles are shortened with an ellipsis; the part and position suffix is always kept.
+With `--page-strategy fixed` the chosen page format and orientation are kept exactly, and a diagram below the minimum
+scale is tiled (or reported as illegible with `--no-tiling`).
 
 == Layout rules
 
-* A4 (default) or A3, portrait; with `auto` orientation a diagram gets a landscape page only when that gains at
-  least 15 percentage points of scale. A3 is never chosen automatically.
-* A diagram is never enlarged beyond 100 % and never cut off.
+* A diagram is never enlarged beyond 100 % and never cut off (a tile shows exactly its part of the diagram).
 * Text is real, embedded text (Inter and JetBrains Mono subsets); diagram text becomes outlines, so diagrams look the
   same everywhere.
-* Bookmarks follow the headings (levels 1 to 3); table of contents entries, cross-document links and the open-items
+* Bookmarks follow the headings (levels 1 to 3); a tiled diagram adds a level-4 bookmark pointing to its first tile.
+  Table of contents entries, cross-document links and the open-items
   line on the cover are clickable. Only `http`, `https` and `mailto` links become external links.
 * Images are embedded only from inside the workspace (PNG or JPEG, at most 10 MB and 8000 x 8000 px); remote images
   become their alt text.
 * `--draft` adds a diagonal watermark.
+
+=== Cover page and PDF properties
+
+The cover lists, in this order and only when present: author, organization, version, date ("Stand"), status, the export
+date and the number of documents, and ends with "Created with kUML <version>". The PDF information dictionary carries the
+title, the author, the subject (the kind of export: handbook, documents or diagrams), the creator `kUML`, the producer
+(`kUML <version>`) and the export date.
 
 === Open items
 
@@ -96,7 +127,9 @@ may finish later.
 
 *File ▸ Export Workspace ▸ As PDF...* opens a dialog with three presets, folded-away advanced options, and options
 that do not apply shown disabled with the reason. *Check and export* renders first (with progress, cancellable); a
-too-small diagram offers *Use A3 landscape* or *Export anyway* before the save dialog opens. The menu entry is
+diagram that is still illegible offers *Export anyway* before the save dialog opens; the dialog also reports how many
+diagrams were set on A3 or split. *Page size* (automatic or fixed), the tiling switch and, under _Advanced_, the minimum
+scale are part of the dialog. With automatic page size the orientation choice is disabled with an explanation. The menu entry is
 disabled for engineering workspaces, which have no document tree to export. While rendering, the dialog holds the same
 evaluation slot as the MCP tools.
 
@@ -104,7 +137,10 @@ evaluation slot as the MCP tools.
 
 `kuml_desktop_workspace_export_pdf` exports the open, trusted knowledge workspace. Output stays below the workspace root
 (default `.kuml-out/export/`); an existing file needs `overwrite:true`. It returns
-`{ok, output, files, pageCount, documentCount, diagramCount, warnings, failed}` and never file contents. It holds the shared
+`{ok, output, files, pageCount, documentCount, diagramCount, a3Count, tiledCount, tilePages, illegibleCount, warnings, failed}`
+(`warnings` entries carry `path`, `blockIndex`, `scale`, `suggestion`, `code` and a localized `message`) and never file contents.
+The page layout is controlled with `pageStrategy` (`auto`/`fixed`), `tiling` (default `true`) and `minScale` (0.25 to 1.0,
+default 0.5); invalid values answer `INVALID_ARGUMENT`. It holds the shared
 evaluation slot for up to 15 minutes, so other evaluating tools may answer `BUSY` meanwhile. Errors:
 `INVALID_PATH`, `OUTPUT_EXISTS`, `OUTPUT_INVALID`, `EMPTY_SCOPE`, `TOO_MANY_DOCUMENTS`, `TOO_MANY_DIAGRAMS`, `PAGE_LIMIT`,
 `OUTPUT_TOO_LARGE`, `SCALE_TOO_SMALL` (with `strict`), `EXPORT_TIMEOUT`, `BUSY`, `WORKSPACE_NOT_TRUSTED`,

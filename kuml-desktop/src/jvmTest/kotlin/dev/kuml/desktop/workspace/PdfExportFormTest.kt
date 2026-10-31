@@ -3,6 +3,7 @@ package dev.kuml.desktop.workspace
 import dev.kuml.workspace.pdf.ExportScope
 import dev.kuml.workspace.pdf.PageFormat
 import dev.kuml.workspace.pdf.PageOrientation
+import dev.kuml.workspace.pdf.PageStrategy
 import dev.kuml.workspace.pdf.PdfExportKind
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -49,9 +50,31 @@ class PdfExportFormTest :
             PdfExportFormState(folderScope = true, folder = "../x").canSubmit shouldBe false
         }
 
-        test("the A3 landscape suggestion is applied to the form") {
-            val s = PdfExportFormState().withA3Landscape()
-            s.page shouldBe PageFormat.A3
-            s.orientation shouldBe PageOrientation.LANDSCAPE
+        test("automatic page size forces automatic orientation and disables the orientation choice with a reason") {
+            val s = PdfExportFormState(pageStrategy = PageStrategy.FIXED, orientation = PageOrientation.LANDSCAPE)
+            s.availability(PdfOption.ORIENTATION) shouldBe PdfOptionAvailability.Enabled
+            val auto = s.withPageStrategy(PageStrategy.AUTO)
+            auto.orientation shouldBe PageOrientation.AUTO
+            auto.availability(PdfOption.ORIENTATION) shouldBe PdfOptionAvailability.Disabled(PdfReason.ORIENTATION_BY_PAGE_STRATEGY)
+            auto.toOptions(producerVersion = "p").pageStrategy shouldBe PageStrategy.AUTO
+            // switching back to fixed keeps the orientation automatic until the user changes it
+            auto.withPageStrategy(PageStrategy.FIXED).orientation shouldBe PageOrientation.AUTO
+        }
+
+        test("toOptions never throws on an inconsistent form and passes the layout fields through") {
+            val inconsistent = PdfExportFormState(pageStrategy = PageStrategy.AUTO, orientation = PageOrientation.PORTRAIT)
+            inconsistent.toOptions(producerVersion = "p").orientation shouldBe PageOrientation.AUTO
+            val o = PdfExportFormState(tiling = false, minScalePercent = 65).toOptions(producerVersion = "p")
+            o.tiling shouldBe false
+            o.minScale shouldBe 0.65f
+            o.pageStrategy shouldBe PageStrategy.AUTO
+            PdfExportFormState(minScalePercent = 5).toOptions(producerVersion = "p").minScale shouldBe 0.25f
+            PdfExportFormState(minScalePercent = 400).toOptions(producerVersion = "p").minScale shouldBe 1.0f
+        }
+
+        test("min scale percent is clamped and stepped by five") {
+            PdfExportFormState().withMinScalePercent(10).minScalePercent shouldBe 25
+            PdfExportFormState().withMinScalePercent(200).minScalePercent shouldBe 100
+            PdfExportFormState().withMinScalePercent(53).minScalePercent shouldBe 50
         }
     })

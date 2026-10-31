@@ -1,6 +1,10 @@
 package dev.kuml.workspace.pdf.labels
 
+import dev.kuml.workspace.pdf.PdfExportKind
 import dev.kuml.workspace.pdf.PdfLanguage
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /** Fixed texts of generated PDF parts, German and English. */
 internal class PdfLabels(
@@ -33,6 +37,46 @@ internal class PdfLabels(
     val truncatedNote = t(de = "Tabelle gekürzt.", en = "Table truncated.")
     val version = t(de = "Version", en = "Version")
     val status = t(de = "Status", en = "Status")
+
+    val author = t(de = "Autor", en = "Author")
+    val organization = t(de = "Organisation", en = "Organization")
+    val dateLabel = t(de = "Stand", en = "Date")
+    val exportedOn = t(de = "Exportiert am", en = "Exported on")
+    val documents = t(de = "Dokumente", en = "Documents")
+    val enableTiling = t(de = "Kacheln aktivieren", en = "enable tiling")
+    val splitDiagram = t(de = "Diagramm aufteilen", en = "split the diagram")
+
+    private val numberLocale: Locale get() = if (lang == PdfLanguage.DE) Locale.GERMAN else Locale.ROOT
+
+    fun createdWith(producer: String) = if (lang == PdfLanguage.DE) "Erstellt mit $producer" else "Created with $producer"
+
+    fun subject(kind: PdfExportKind) =
+        when (kind) {
+            PdfExportKind.HANDBOOK -> t(de = "Handbuch", en = "Handbook")
+            PdfExportKind.PER_DOCUMENT -> t(de = "Dokumente", en = "Documents")
+            PdfExportKind.DIAGRAMS -> t(de = "Diagramme", en = "Diagrams")
+        }
+
+    fun tileSuffix(
+        i: Int,
+        n: Int,
+        row: Int,
+        col: Int,
+    ) = if (lang == PdfLanguage.DE) " — Teil $i von $n · Zeile $row, Spalte $col" else " — Part $i of $n · row $row, column $col"
+
+    private fun num(v: Double) = String.format(numberLocale, "%.2f", v)
+
+    fun illegible(
+        scale: Double,
+        min: Double,
+    ) = if (lang == PdfLanguage.DE) "unleserlich (Skala ${num(scale)} < ${num(min)})" else "illegible (scale ${num(scale)} < ${num(min)})"
+
+    fun formatDate(d: LocalDate): String =
+        if (lang == PdfLanguage.DE) {
+            DateTimeFormatter.ofPattern("d. MMMM yyyy", Locale.GERMAN).format(d)
+        } else {
+            DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH).format(d)
+        }
 
     fun page(
         n: Int,

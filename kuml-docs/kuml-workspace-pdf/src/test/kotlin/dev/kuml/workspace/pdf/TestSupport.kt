@@ -11,7 +11,7 @@ import java.nio.file.Files
 
 /** Builds throw-away workspaces and a fake [DiagramSource] so tests never run kUML scripts. */
 object TestSupport {
-    private fun svg(
+    fun svg(
         w: Int,
         h: Int,
     ) = """<svg xmlns="http://www.w3.org/2000/svg" width="$w" height="$h" viewBox="0 0 $w $h">
@@ -130,6 +130,10 @@ object TestSupport {
         svg: String = SMALL_SVG,
         facts: DiagramFacts? = null,
     ): DiagramSource = DiagramSource { _, _, _ -> DiagramArtifact.Rendered(svg = svg, facts = facts) }
+
+    /** A source that answers per document path and block index; unknown blocks get [SMALL_SVG]. */
+    fun sourceBy(pick: (String, Int) -> String): DiagramSource =
+        DiagramSource { doc, idx, _ -> DiagramArtifact.Rendered(svg = pick(doc.relativePath, idx), facts = null) }
 
     fun options(
         kind: PdfExportKind = PdfExportKind.HANDBOOK,

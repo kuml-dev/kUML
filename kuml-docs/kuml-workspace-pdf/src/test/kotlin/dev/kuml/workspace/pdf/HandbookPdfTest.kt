@@ -90,6 +90,7 @@ class HandbookPdfTest :
                 pdf.documentInformation.title shouldBe "Muster Handbuch"
                 pdf.documentInformation.author shouldBe "Erika Mustermann"
                 pdf.documentInformation.producer shouldBe "kUML test"
+                pdf.documentInformation.creator shouldBe "kUML"
                 pdf.documentInformation.creationDate shouldNotBe null
                 val xmp =
                     pdf.documentCatalog.metadata

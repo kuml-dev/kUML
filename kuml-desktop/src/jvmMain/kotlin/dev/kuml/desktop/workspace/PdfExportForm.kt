@@ -4,6 +4,7 @@ import dev.kuml.workspace.pdf.ExportMetadata
 import dev.kuml.workspace.pdf.ExportScope
 import dev.kuml.workspace.pdf.PageFormat
 import dev.kuml.workspace.pdf.PageOrientation
+import dev.kuml.workspace.pdf.PageStrategy
 import dev.kuml.workspace.pdf.PdfExportKind
 import dev.kuml.workspace.pdf.PdfExportOptions
 import java.time.LocalDate
@@ -19,7 +20,7 @@ enum class PdfPreset(
 }
 
 /** Options that can be switched in the dialog; used to explain why one is unavailable. */
-enum class PdfOption { COVER, TOC, HEADER_FOOTER, DRAFT, SPLIT, SCOPE_FOLDER }
+enum class PdfOption { COVER, TOC, HEADER_FOOTER, DRAFT, SPLIT, SCOPE_FOLDER, ORIENTATION }
 
 /** An option is either usable or shown disabled together with the key of its explanation (never silently hidden). */
 sealed interface PdfOptionAvailability {
@@ -30,7 +31,7 @@ sealed interface PdfOptionAvailability {
     ) : PdfOptionAvailability
 }
 
-enum class PdfReason { TOC_FOR_DIAGRAMS, COVER_FOR_DIAGRAMS, SPLIT_NOT_DIAGRAMS }
+enum class PdfReason { TOC_FOR_DIAGRAMS, COVER_FOR_DIAGRAMS, SPLIT_NOT_DIAGRAMS, ORIENTATION_BY_PAGE_STRATEGY }
 
 /** Pure, testable state of the PDF export dialog. */
 data class PdfExportFormState(
@@ -39,6 +40,10 @@ data class PdfExportFormState(
     val folder: String = "",
     val page: PageFormat = PageFormat.A4,
     val orientation: PageOrientation = PageOrientation.AUTO,
+    val pageStrategy: PageStrategy = PageStrategy.AUTO,
+    val tiling: Boolean = true,
+    /** Minimum diagram scale in percent, 25..100 in steps of 5. */
+    val minScalePercent: Int = DEFAULT_MIN_SCALE_PERCENT,
     val cover: Boolean = true,
     val toc: Boolean = true,
     val headerFooter: Boolean = true,
@@ -52,6 +57,13 @@ data class PdfExportFormState(
     /** Switching the preset applies that preset's sensible defaults (per-document: no cover). */
     fun withPreset(p: PdfPreset): PdfExportFormState =
         copy(preset = p, cover = p == PdfPreset.HANDBOOK, split = if (p == PdfPreset.DIAGRAMS) split else false)
+
+    /** Automatic page size lets kUML choose the orientation per diagram, so the orientation is reset to automatic. */
+    fun withPageStrategy(strategy: PageStrategy): PdfExportFormState =
+        copy(pageStrategy = strategy, orientation = if (strategy == PageStrategy.AUTO) PageOrientation.AUTO else orientation)
+
+    fun withMinScalePercent(percent: Int): PdfExportFormState =
+        copy(minScalePercent = ((percent.coerceIn(MIN_SCALE_PERCENT_RANGE.first, MIN_SCALE_PERCENT_RANGE.last)) / 5) * 5)
 
     /** Whether [date] is empty or a valid ISO-8601 date. */
     val dateValid: Boolean
@@ -87,6 +99,12 @@ data class PdfExportFormState(
                 } else {
                     PdfOptionAvailability.Enabled
                 }
+            PdfOption.ORIENTATION ->
+                if (pageStrategy == PageStrategy.AUTO) {
+                    PdfOptionAvailability.Disabled(PdfReason.ORIENTATION_BY_PAGE_STRATEGY)
+                } else {
+                    PdfOptionAvailability.Enabled
+                }
             PdfOption.HEADER_FOOTER, PdfOption.DRAFT, PdfOption.SCOPE_FOLDER -> PdfOptionAvailability.Enabled
         }
 
@@ -95,7 +113,10 @@ data class PdfExportFormState(
             kind = preset.kind,
             scope = if (folderScope) ExportScope.Folder(relativePath = folder.trim()) else ExportScope.All,
             page = page,
-            orientation = orientation,
+            orientation = if (pageStrategy == PageStrategy.AUTO) PageOrientation.AUTO else orientation,
+            pageStrategy = pageStrategy,
+            tiling = tiling,
+            minScale = (minScalePercent.coerceIn(MIN_SCALE_PERCENT_RANGE.first, MIN_SCALE_PERCENT_RANGE.last) / 100f),
             cover = cover && availability(PdfOption.COVER) == PdfOptionAvailability.Enabled,
             toc = toc && availability(PdfOption.TOC) == PdfOptionAvailability.Enabled,
             headerFooter = headerFooter,
@@ -115,6 +136,8 @@ data class PdfExportFormState(
             producerVersion = producerVersion,
         )
 
-    /** Applies the "A3 landscape" suggestion of a scale warning. */
-    fun withA3Landscape(): PdfExportFormState = copy(page = PageFormat.A3, orientation = PageOrientation.LANDSCAPE)
+    companion object {
+        const val DEFAULT_MIN_SCALE_PERCENT = 50
+        val MIN_SCALE_PERCENT_RANGE = 25..100
+    }
 }

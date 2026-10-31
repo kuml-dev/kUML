@@ -2,7 +2,9 @@ package dev.kuml.workspace.pdf.writer
 
 import dev.kuml.workspace.pdf.PdfExportOptions
 import dev.kuml.workspace.pdf.labels.PdfLabels
+import dev.kuml.workspace.pdf.layout.HeaderText
 import dev.kuml.workspace.pdf.layout.LayoutResult
+import dev.kuml.workspace.pdf.layout.PdfTextMeasurer
 import dev.kuml.workspace.pdf.model.LinkTarget
 import dev.kuml.workspace.pdf.render.PdfFontSet
 import dev.kuml.workspace.pdf.security.TextSanitizer
@@ -24,7 +26,7 @@ import org.apache.xmpbox.xml.XmpSerializer
 import java.awt.Color
 import java.io.ByteArrayOutputStream
 import java.time.LocalDate
-import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.util.GregorianCalendar
 
 /** What the finisher needs to know about the output besides the layout. */
@@ -38,6 +40,7 @@ internal class FinishInfo(
     val date: LocalDate?,
     val hasCover: Boolean,
     val languageTag: String,
+    val exportedAt: ZonedDateTime,
 )
 
 /**
@@ -74,7 +77,8 @@ internal object PdfDocumentFinisher {
             val page = doc.getPage(i)
             val w = page.mediaBox.width
             val h = page.mediaBox.height
-            val margin = if (options.page == dev.kuml.workspace.pdf.PageFormat.A3) 70.87f else 56.69f
+            // A3 pages can occur inside an A4 document, so the margin follows the page itself
+            val margin = if (maxOf(w, h) >= A3_LONG_SIDE_MIN) A3_MARGIN else A4_MARGIN
             val isCover = info.hasCover && i == 0
             PDPageContentStream(doc, page, PDPageContentStream.AppendMode.APPEND, true, true).use { cs ->
                 if (options.headerFooter && !isCover) {
@@ -97,11 +101,11 @@ internal object PdfDocumentFinisher {
                     fun textWidth(t: String) = fonts.regular.getStringWidth(fonts.glyphSafe(text = t, font = fonts.regular)) / 1000f * s
                     val topY = h - margin / 2f
                     val room = w - 2 * margin
-                    var sec = if (layout.pageSection[i].orEmpty() != info.headerTitle) layout.pageSection[i].orEmpty() else ""
-                    while (sec.length > 1 && textWidth(sec) > room * 0.5f) sec = sec.dropLast(1)
-                    var left = info.headerTitle
+                    val measurer = PdfTextMeasurer(font = fonts.regular, fonts = fonts)
+                    val secRaw = if (layout.pageSection[i].orEmpty() != info.headerTitle) layout.pageSection[i].orEmpty() else ""
+                    val sec = HeaderText.truncate(text = secRaw, maxWidth = room * 0.5f, sizePt = s, m = measurer)
                     val secW = if (sec.isEmpty()) 0f else textWidth(sec) + 16f
-                    while (left.length > 1 && textWidth(left) > room - secW) left = left.dropLast(1)
+                    val left = HeaderText.truncate(text = info.headerTitle, maxWidth = room - secW, sizePt = s, m = measurer)
                     text(t = left, x = margin, y = topY)
                     if (sec.isNotEmpty()) text(t = sec, x = w - margin - textWidth(sec), y = topY)
                     val footLeft = listOfNotNull(info.version?.let { "${labels.version} $it" }, info.date?.toString()).joinToString(" · ")
@@ -169,7 +173,9 @@ internal object PdfDocumentFinisher {
         doc: PDDocument,
         layout: LayoutResult,
     ) {
-        val entries = layout.headings.filter { it.level <= 3 }
+        val entries =
+            (layout.headings.filter { it.level <= 3 } + layout.figureMarks)
+                .sortedWith(compareBy({ it.pageIndex }, { it.y }))
         if (entries.isEmpty()) return
         val outline = PDDocumentOutline()
         doc.documentCatalog.documentOutline = outline
@@ -194,8 +200,7 @@ internal object PdfDocumentFinisher {
         options: PdfExportOptions,
         info: FinishInfo,
     ) {
-        val created =
-            GregorianCalendar.from((info.date ?: LocalDate.now()).atStartOfDay(ZoneOffset.UTC))
+        val created = GregorianCalendar.from(info.exportedAt)
 
         // Frontmatter values are untrusted: strip control characters (invalid in XMP/XML) and bound the length.
         fun clean(v: String) = TextSanitizer.clean(text = v, maxLength = 500).replace('\n', ' ').replace('\t', ' ')
@@ -208,7 +213,7 @@ internal object PdfDocumentFinisher {
         author?.let { di.author = it }
         subject?.let { di.subject = it }
         keywords?.let { di.keywords = it }
-        di.creator = options.producerVersion
+        di.creator = CREATOR
         di.producer = options.producerVersion
         di.creationDate = created
         di.modificationDate = created
@@ -220,7 +225,7 @@ internal object PdfDocumentFinisher {
         subject?.let { dc.addDescription("x-default", it) }
         val basic = xmp.createAndAddXMPBasicSchema()
         basic.createDate = created
-        basic.creatorTool = options.producerVersion
+        basic.creatorTool = CREATOR
         val pdf = xmp.createAndAddAdobePDFSchema()
         pdf.producer = options.producerVersion
         keywords?.let { pdf.keywords = it }
@@ -231,4 +236,9 @@ internal object PdfDocumentFinisher {
         doc.documentCatalog.metadata = meta
         doc.documentCatalog.language = info.languageTag
     }
+
+    private const val CREATOR = "kUML"
+    private const val A3_LONG_SIDE_MIN = 1190f
+    private const val A3_MARGIN = 70.87f
+    private const val A4_MARGIN = 56.69f
 }

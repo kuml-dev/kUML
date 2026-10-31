@@ -62,6 +62,44 @@ class WorkspaceExportCommandTest :
             File(root, ".kuml-out/export").listFiles { f -> f.name.endsWith(".pdf") }!!.size shouldBe 1
         }
 
+        test("page options are validated: min-scale range and strategy/orientation coupling") {
+            val root = copy(demoRoot)
+            export(root, "--min-scale", "0.2").let {
+                it.statusCode shouldBe ExitCodes.USAGE
+                it.stderr shouldContain "--min-scale must be between 0.25 and 1.0"
+            }
+            export(root, "--min-scale", "1.1").statusCode shouldBe ExitCodes.USAGE
+            export(root, "--page-strategy", "auto", "--orientation", "portrait").let {
+                it.statusCode shouldBe ExitCodes.USAGE
+                it.stderr shouldContain "--page-strategy auto requires --orientation auto"
+            }
+        }
+
+        test("layout summary is printed and --no-tiling reports illegible diagrams") {
+            val root = copy(demoRoot)
+            val out = File(root, "t.pdf")
+            val r = export(root, "-o", out.absolutePath, "--min-scale", "1.0", "--no-tiling", "--page-strategy", "fixed", "--lang", "en")
+            r.statusCode shouldBe 0
+            r.stdout shouldContain "diagrams on A3"
+            r.stdout shouldContain "diagrams tiled (0 pages)"
+            r.stderr shouldContain "WARN illegible: illegible (scale"
+            r.stderr shouldContain "suggestion: enable tiling"
+            val strict =
+                export(
+                    root,
+                    "-o",
+                    File(root, "s.pdf").absolutePath,
+                    "--min-scale",
+                    "1.0",
+                    "--no-tiling",
+                    "--page-strategy",
+                    "fixed",
+                    "--strict",
+                )
+            strict.statusCode shouldBe ExitCodes.SCRIPT_ERROR
+            File(root, "s.pdf").exists() shouldBe false
+        }
+
         test("existing output needs --force: exit 2, then 0") {
             val root = copy(demoRoot)
             val out = File(root, "x.pdf")

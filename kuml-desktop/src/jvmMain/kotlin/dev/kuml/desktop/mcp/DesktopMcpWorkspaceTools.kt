@@ -28,6 +28,7 @@ import dev.kuml.workspace.pdf.ExportMetadata
 import dev.kuml.workspace.pdf.ExportScope
 import dev.kuml.workspace.pdf.PageFormat
 import dev.kuml.workspace.pdf.PageOrientation
+import dev.kuml.workspace.pdf.PageStrategy
 import dev.kuml.workspace.pdf.PdfExportException
 import dev.kuml.workspace.pdf.PdfExportKind
 import dev.kuml.workspace.pdf.PdfExportOptions
@@ -53,6 +54,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
@@ -351,8 +353,13 @@ internal class DesktopMcpWorkspaceTools(
                     "Exports the knowledge workspace (as saved ON DISK) to PDF: kind handbook (one book with cover, table of " +
                         "contents, chapters, open items, glossary), per-document (one PDF per document) or diagrams (folio). " +
                         "Writes only below the workspace root (default .kuml-out/export/); an existing file needs overwrite:true. " +
-                        "Returns {ok, output, files, pageCount, documentCount, diagramCount, warnings:[{path,blockIndex,scale}], " +
-                        "failed}. Executes scripts (trusted workspace required) and occupies the shared evaluation slot for up to " +
+                        "Page layout: pageStrategy auto (default with orientation auto) sets each diagram on A4 portrait/landscape " +
+                        "or A3 and splits oversized diagrams across overlapping pages (tiling, default on); " +
+                        "fixed keeps the chosen page and orientation. " +
+                        "minScale (0.25..1.0, default 0.5) is the smallest acceptable diagram scale. " +
+                        "Returns {ok, output, files, pageCount, documentCount, diagramCount, a3Count, tiledCount, tilePages, " +
+                        "illegibleCount, warnings:[{path,blockIndex,scale,suggestion,code,message}], failed}. " +
+                        "Executes scripts (trusted workspace required) and occupies the shared evaluation slot for up to " +
                         "15 minutes, so other evaluating tools answer BUSY meanwhile. Limits: 500 documents, 300 diagrams, 2000 pages. " +
                         "Errors: INVALID_PATH, OUTPUT_EXISTS, OUTPUT_INVALID, EMPTY_SCOPE, TOO_MANY_DOCUMENTS, TOO_MANY_DIAGRAMS, " +
                         "PAGE_LIMIT, OUTPUT_TOO_LARGE, SCALE_TOO_SMALL (strict), EXPORT_TIMEOUT, BUSY, WORKSPACE_NOT_TRUSTED.",
@@ -378,6 +385,22 @@ internal class DesktopMcpWorkspaceTools(
                             description = "portrait, landscape or auto (default).",
                             enum = listOf("portrait", "landscape", "auto"),
                         ),
+                        Prop(
+                            name = "pageStrategy",
+                            type = "string",
+                            description = "auto (A4/A3 per diagram; needs orientation auto) or fixed; default auto with orientation auto.",
+                            enum = listOf("auto", "fixed"),
+                        ),
+                        Prop(
+                            name = "tiling",
+                            type = "boolean",
+                            description = "Split diagrams that would be too small across pages (default true).",
+                        ),
+                        Prop(
+                            name = "minScale",
+                            type = "number",
+                            description = "Smallest acceptable diagram scale, 0.25..1.0 (default 0.5).",
+                        ),
                         Prop(name = "cover", type = "boolean", description = "Cover page (default: handbook yes, per-document no)."),
                         Prop(name = "toc", type = "boolean", description = "Table of contents (default true)."),
                         Prop(name = "headerFooter", type = "boolean", description = "Running header and footer (default true)."),
@@ -397,7 +420,7 @@ internal class DesktopMcpWorkspaceTools(
                         Prop(
                             name = "strict",
                             type = "boolean",
-                            description = "Fail with SCALE_TOO_SMALL instead of writing when a diagram is too small or fails.",
+                            description = "Fail with SCALE_TOO_SMALL instead of writing when a diagram is illegible or fails.",
                         ),
                     ),
                 annotations =
@@ -953,6 +976,17 @@ internal class DesktopMcpWorkspaceTools(
                 "auto" -> PageOrientation.AUTO
                 else -> throw err(code = "INVALID_ARGUMENT", "argument" to "orientation")
             }
+        val pageStrategy =
+            when (optString(args = args, key = "pageStrategy")) {
+                null -> null
+                "auto" -> PageStrategy.AUTO
+                "fixed" -> PageStrategy.FIXED
+                else -> throw err(code = "INVALID_ARGUMENT", "argument" to "pageStrategy")
+            }
+        if (pageStrategy == PageStrategy.AUTO && orientation != PageOrientation.AUTO) {
+            throw err(code = "INVALID_ARGUMENT", "argument" to "pageStrategy")
+        }
+        val minScale = minScaleArg(args)
         val lang =
             when (optString(args = args, key = "lang")) {
                 null -> null
@@ -977,6 +1011,9 @@ internal class DesktopMcpWorkspaceTools(
                 scope = scope,
                 page = page,
                 orientation = orientation,
+                pageStrategy = pageStrategy,
+                tiling = boolArg(args = args, key = "tiling", default = true),
+                minScale = minScale,
                 cover = boolArg(args = args, key = "cover", default = kind != PdfExportKind.PER_DOCUMENT),
                 toc = boolArg(args = args, key = "toc", default = true),
                 headerFooter = boolArg(args = args, key = "headerFooter", default = true),
@@ -1049,6 +1086,10 @@ internal class DesktopMcpWorkspaceTools(
             put("pageCount", result.pageCount)
             put("documentCount", result.documentCount)
             put("diagramCount", result.diagramCount)
+            put("a3Count", result.layoutSummary.a3Diagrams)
+            put("tiledCount", result.layoutSummary.tiledDiagrams)
+            put("tilePages", result.layoutSummary.tilePages)
+            put("illegibleCount", result.layoutSummary.illegibleDiagrams)
             putJsonArray("warnings") { result.warnings.forEach { add(pdfWarning(it)) } }
             putJsonArray("failed") { result.failures.forEach { addFinding(it) } }
         }
@@ -1060,7 +1101,18 @@ internal class DesktopMcpWorkspaceTools(
             put("blockIndex", w.blockIndex)
             put("scale", w.scale)
             put("suggestion", w.suggestion)
+            put("code", w.code.name)
+            put("message", w.message)
         }
+
+    private fun minScaleArg(args: JsonObject): Float {
+        val value = args["minScale"] ?: return PdfExportOptions.DEFAULT_MIN_SCALE
+        if (value is JsonNull) return PdfExportOptions.DEFAULT_MIN_SCALE
+        val p = value as? JsonPrimitive
+        val d = if (p == null || p.isString) null else p.doubleOrNull
+        if (d == null || !d.isFinite() || d < 0.25 || d > 1.0) throw err(code = "INVALID_ARGUMENT", "argument" to "minScale")
+        return d.toFloat()
+    }
 
     private fun pdfScope(
         entries: List<String>,

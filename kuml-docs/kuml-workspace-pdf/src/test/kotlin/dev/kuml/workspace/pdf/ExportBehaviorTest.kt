@@ -71,23 +71,31 @@ class ExportBehaviorTest :
             }
         }
 
-        test("diagram placer: wide diagram warns with A3 landscape suggestion and is never clipped or enlarged") {
+        test("diagram placer: wide diagram without tiling is illegible, with tiling it is split without warning") {
             val ws = fresh()
-            val prepared =
+            val untiled =
                 WorkspacePdfExporter.prepare(
                     workspace = ws,
+                    options = TestSupport.options { copy(tiling = false) },
+                    diagrams = TestSupport.source(svg = TestSupport.WIDE_SVG),
+                )
+            val w = untiled.warnings.single()
+            w.code shouldBe ScaleWarningCode.ILLEGIBLE
+            (w.scale < 0.5) shouldBe true
+            w.suggestion shouldBe "Kacheln aktivieren"
+            w.message shouldBe "unleserlich (Skala ${String.format(java.util.Locale.GERMAN, "%.2f", w.scale)} < 0,50)"
+            untiled.layoutSummary.illegibleDiagrams shouldBe 1
+            untiled.close()
+
+            val tiled =
+                WorkspacePdfExporter.prepare(
+                    workspace = fresh(),
                     options = TestSupport.options(),
                     diagrams = TestSupport.source(svg = TestSupport.WIDE_SVG),
                 )
-            prepared.warnings.size shouldBe 1
-            prepared.warnings.single().scale shouldBe (
-                prepared.warnings
-                    .single()
-                    .scale
-                    .coerceAtMost(0.4)
-            )
-            prepared.warnings.single().suggestion shouldBe "A3 landscape"
-            prepared.close()
+            tiled.warnings.size shouldBe 0
+            (tiled.layoutSummary.tiledDiagrams >= 1) shouldBe true
+            tiled.close()
         }
 
         test("small diagram is not scaled up and AUTO keeps portrait text pages") {

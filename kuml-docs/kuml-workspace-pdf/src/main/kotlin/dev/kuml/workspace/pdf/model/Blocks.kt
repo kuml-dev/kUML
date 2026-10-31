@@ -106,9 +106,16 @@ internal data class CoverData(
     val title: String,
     val subtitle: String?,
     val author: String?,
+    val organization: String?,
     val version: String?,
-    val date: String?,
+    /** "Stand" from the manifest; an unparsable date is dropped, never invented. */
+    val date: java.time.LocalDate?,
     val status: String?,
+    /** Export date from the injected clock. */
+    val exportedOn: java.time.LocalDate,
+    /** Number of documents contained in this output. */
+    val documentCount: Int,
+    val producer: String,
     val logo: PDImageXObject?,
     val openItems: Int?,
     val openItemsAnchor: String?,

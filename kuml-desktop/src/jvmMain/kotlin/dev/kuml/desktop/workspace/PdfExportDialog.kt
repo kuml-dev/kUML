@@ -30,7 +30,9 @@ import dev.kuml.workspace.WorkspaceScanner
 import dev.kuml.workspace.pdf.ExportPhase
 import dev.kuml.workspace.pdf.PageFormat
 import dev.kuml.workspace.pdf.PageOrientation
+import dev.kuml.workspace.pdf.PageStrategy
 import dev.kuml.workspace.pdf.PdfExportException
+import dev.kuml.workspace.pdf.PdfLayoutSummary
 import dev.kuml.workspace.pdf.PreparedExport
 import dev.kuml.workspace.pdf.ScaleWarning
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +55,7 @@ private sealed interface PdfUiState {
     data class Warnings(
         val warnings: List<ScaleWarning>,
         val failures: List<OkfFinding> = emptyList(),
+        val summary: PdfLayoutSummary = PdfLayoutSummary.EMPTY,
     ) : PdfUiState
 
     /** [existing] lists files of a directory target that would be replaced; empty for a single-file target. */
@@ -210,7 +213,7 @@ fun PdfExportDialog(
                     val p = result.getOrThrow()
                     prepared = p
                     if (p.warnings.isNotEmpty() || p.failures.isNotEmpty()) {
-                        ui = PdfUiState.Warnings(warnings = p.warnings, failures = p.failures)
+                        ui = PdfUiState.Warnings(warnings = p.warnings, failures = p.failures, summary = p.layoutSummary)
                     } else {
                         chooseAndWrite()
                     }
@@ -279,6 +282,34 @@ fun PdfExportDialog(
                     )
                     Text("A3")
                 }
+                Text(strings.pdfPageStrategy, style = MaterialTheme.typography.labelLarge)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    listOf(
+                        PageStrategy.AUTO to strings.pdfPageStrategyAuto,
+                        PageStrategy.FIXED to strings.pdfPageStrategyFixed,
+                    ).forEach { (ps, label) ->
+                        RadioButton(
+                            selected = form.pageStrategy == ps,
+                            onClick = { form = form.withPageStrategy(ps) },
+                            enabled = !busyWorking,
+                        )
+                        Text(label, modifier = Modifier.padding(end = 8.dp))
+                    }
+                }
+                Text(
+                    strings.pdfPageStrategyHint.format(form.minScalePercent),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OptionCheck(
+                    label = strings.pdfTiling,
+                    checked = form.tiling,
+                    availability = PdfOptionAvailability.Enabled,
+                    strings = strings,
+                    enabled = !busyWorking,
+                ) { form = form.copy(tiling = it) }
+                val orientationAvailability = form.availability(PdfOption.ORIENTATION)
+                val orientationEnabled = orientationAvailability == PdfOptionAvailability.Enabled && !busyWorking
                 Text(strings.pdfOrientation, style = MaterialTheme.typography.labelLarge)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     listOf(
@@ -289,10 +320,17 @@ fun PdfExportDialog(
                         RadioButton(
                             selected = form.orientation == o,
                             onClick = { form = form.copy(orientation = o) },
-                            enabled = !busyWorking,
+                            enabled = orientationEnabled,
                         )
                         Text(label, modifier = Modifier.padding(end = 8.dp))
                     }
+                }
+                if (orientationAvailability is PdfOptionAvailability.Disabled) {
+                    Text(
+                        strings.pdfDisabledOrientationAuto,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
 
                 OptionCheck(
@@ -348,6 +386,17 @@ fun PdfExportDialog(
                     }, label = {
                         Text(strings.pdfDate)
                     }, isError = !form.dateValid, singleLine = true, enabled = !busyWorking, modifier = Modifier.fillMaxWidth())
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("${strings.pdfMinScale}: ${form.minScalePercent} %", modifier = Modifier.padding(end = 8.dp))
+                        OutlinedButton(
+                            onClick = { form = form.withMinScalePercent(form.minScalePercent - 5) },
+                            enabled = !busyWorking && form.minScalePercent > PdfExportFormState.MIN_SCALE_PERCENT_RANGE.first,
+                        ) { Text("−") }
+                        OutlinedButton(
+                            onClick = { form = form.withMinScalePercent(form.minScalePercent + 5) },
+                            enabled = !busyWorking && form.minScalePercent < PdfExportFormState.MIN_SCALE_PERCENT_RANGE.last,
+                        ) { Text("+") }
+                    }
                     OptionCheck(
                         label = strings.pdfSplit,
                         checked = form.split,
@@ -387,25 +436,22 @@ fun PdfExportDialog(
                                 modifier = Modifier.padding(top = 8.dp),
                             )
                         }
+                        if (s.summary.a3Diagrams > 0 || s.summary.tiledDiagrams > 0) {
+                            Text(
+                                strings.pdfLayoutSummary.format(s.summary.a3Diagrams, s.summary.tiledDiagrams, s.summary.tilePages),
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                        }
                         if (s.warnings.isNotEmpty()) {
                             Text(
                                 strings.pdfScaleWarning.format(
                                     s.warnings.size,
-                                    s.warnings.joinToString {
-                                        "${it.documentPath}#${it.blockIndex + 1} (${(it.scale * 100).toInt()}%)"
-                                    },
+                                    s.warnings.joinToString { "${it.documentPath}#${it.blockIndex + 1} (${it.message}; ${it.suggestion})" },
                                 ),
                                 modifier = Modifier.padding(top = 8.dp),
                             )
                         }
                         Row(modifier = Modifier.padding(top = 4.dp)) {
-                            if (s.warnings.isNotEmpty()) {
-                                OutlinedButton(onClick = {
-                                    closePrepared()
-                                    form = form.withA3Landscape()
-                                    check()
-                                }) { Text(strings.pdfUseA3Landscape) }
-                            }
                             TextButton(onClick = { chooseAndWrite() }) { Text(strings.pdfExportAnyway) }
                         }
                     }
@@ -491,6 +537,7 @@ private fun OptionCheck(
                     PdfReason.TOC_FOR_DIAGRAMS -> strings.pdfDisabledTocForDiagrams
                     PdfReason.COVER_FOR_DIAGRAMS -> strings.pdfDisabledCoverForDiagrams
                     PdfReason.SPLIT_NOT_DIAGRAMS -> strings.pdfDisabledSplitNotDiagrams
+                    PdfReason.ORIENTATION_BY_PAGE_STRATEGY -> strings.pdfDisabledOrientationAuto
                 }
             Text(
                 reason,

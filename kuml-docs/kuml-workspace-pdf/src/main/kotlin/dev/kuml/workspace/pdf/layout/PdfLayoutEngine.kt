@@ -4,7 +4,9 @@ import dev.kuml.workspace.pdf.PageFormat
 import dev.kuml.workspace.pdf.PageOrientation
 import dev.kuml.workspace.pdf.PdfExportException
 import dev.kuml.workspace.pdf.PdfExportOptions
+import dev.kuml.workspace.pdf.PdfLayoutSummary
 import dev.kuml.workspace.pdf.ScaleWarning
+import dev.kuml.workspace.pdf.ScaleWarningCode
 import dev.kuml.workspace.pdf.labels.PdfLabels
 import dev.kuml.workspace.pdf.model.Block
 import dev.kuml.workspace.pdf.model.ComposedDocument
@@ -53,6 +55,9 @@ internal class LayoutResult(
     val pageSection: Map<Int, String>,
     val warnings: List<ScaleWarning>,
     val frontPages: Int,
+    val summary: PdfLayoutSummary = PdfLayoutSummary.EMPTY,
+    /** Extra bookmarks (level 4) for tiled diagrams; deliberately not part of [headings] (TOC size). */
+    val figureMarks: List<HeadingEntry> = emptyList(),
 )
 
 /** Typography constants (points). */
@@ -87,7 +92,15 @@ internal class PdfLayoutEngine(
     private val cancelled: () -> Boolean,
 ) {
     private val format: PageFormat = options.page
-    private val margin = if (format == PageFormat.A3) 70.87f else 56.69f
+    private val geometry = PageGeometry()
+    private val baseMargin = geometry.margin(format)
+    private var margin = baseMargin
+    private var a3Diagrams = 0
+    private var tiledDiagrams = 0
+    private var tilePages = 0
+    private var illegibleDiagrams = 0
+    private val figureMarks = mutableListOf<HeadingEntry>()
+    private var diagramsOnlyMode = false
     private val anchors = HashMap<String, AnchorPos>()
     private val headings = mutableListOf<HeadingEntry>()
     private val links = mutableListOf<PendingLink>()
@@ -106,10 +119,15 @@ internal class PdfLayoutEngine(
 
     // ---- page management ------------------------------------------------------------------------
 
-    private fun pageSize(landscape: Boolean): Pair<Float, Float> =
-        if (landscape) format.heightPt to format.widthPt else format.widthPt to format.heightPt
+    private fun pageSize(
+        landscape: Boolean,
+        f: PageFormat = format,
+    ): Pair<Float, Float> = if (landscape) f.heightPt to f.widthPt else f.widthPt to f.heightPt
 
-    private fun addPage(landscape: Boolean): PDPage {
+    private fun addPage(
+        landscape: Boolean,
+        f: PageFormat = format,
+    ): PDPage {
         if (doc.numberOfPages >= options.limits.maxPages) {
             throw PdfExportException(
                 code = PdfExportException.Code.LIMIT_PAGES,
@@ -117,17 +135,21 @@ internal class PdfLayoutEngine(
             )
         }
         if (cancelled()) throw PdfExportException(code = PdfExportException.Code.CANCELLED, message = "Export cancelled")
-        val (w, h) = pageSize(landscape)
+        val (w, h) = pageSize(landscape = landscape, f = f)
         val p = PDPage(PDRectangle(w, h))
         doc.addPage(p)
         return p
     }
 
-    private fun newPage(landscape: Boolean = options.orientation == PageOrientation.LANDSCAPE) {
+    private fun newPage(
+        landscape: Boolean = options.orientation == PageOrientation.LANDSCAPE,
+        f: PageFormat = format,
+    ) {
         closePage()
-        val p = addPage(landscape)
+        val p = addPage(landscape = landscape, f = f)
         page = p
-        val (w, h) = pageSize(landscape)
+        margin = geometry.margin(f)
+        val (w, h) = pageSize(landscape = landscape, f = f)
         pageW = w
         pageH = h
         pageIndex = doc.numberOfPages - 1
@@ -140,6 +162,7 @@ internal class PdfLayoutEngine(
         cs?.close()
         cs = null
         page = null
+        margin = baseMargin
     }
 
     private val contentWidth get() = pageW - 2 * margin
@@ -740,6 +763,20 @@ internal class PdfLayoutEngine(
 
     // ---- diagrams ---------------------------------------------------------------------------------------
 
+    private fun figureTitle(
+        b: Block.Diagram,
+        suffix: String,
+        maxW: Float,
+    ): String =
+        HeaderText.fit(
+            prefix = "${labels.figure}: ",
+            title = b.title,
+            suffix = suffix,
+            maxWidth = maxW,
+            sizePt = Typo.BODY,
+            m = PdfTextMeasurer(font = fonts.semiBold, fonts = fonts),
+        )
+
     private fun diagram(
         b: Block.Diagram,
         x0: Float,
@@ -747,47 +784,57 @@ internal class PdfLayoutEngine(
     ) {
         val w = b.drawn.width
         val h = b.drawn.height
-        val titleH = 20f
-        val srcH = 16f
-        val (pw, ph) = pageSize(landscape = false)
-        val (lw, lh) = pageSize(landscape = true)
-
-        fun scaleFor(
-            pwid: Float,
-            phei: Float,
-        ): Float = min(1f, min((pwid - 2 * margin) / w, (phei - 2 * margin - titleH - srcH) / h))
-        val sPortrait = scaleFor(pwid = pw, phei = ph)
-        val sLandscape = scaleFor(pwid = lw, phei = lh)
-        val landscape =
-            when (options.orientation) {
-                PageOrientation.LANDSCAPE -> true
-                PageOrientation.PORTRAIT -> false
-                PageOrientation.AUTO -> sLandscape - sPortrait >= 0.15f
-            }
-        val chosen = if (landscape) sLandscape else sPortrait
-        if (chosen < MIN_SCALE_WARN) {
-            val a3 = PageFormat.A3
-            val a3Scale = min(1f, min((a3.heightPt - 2 * 70.87f) / w, (a3.widthPt - 2 * 70.87f - titleH - srcH) / h))
+        val titleH = geometry.titleH
+        val srcH = geometry.srcH
+        val plan =
+            PagePlanner.plan(
+                w = w,
+                h = h,
+                base = format,
+                orientation = options.orientation,
+                strategy = options.effectivePageStrategy,
+                tiling = options.tiling,
+                minScale = options.minScale,
+                g = geometry,
+            )
+        if (plan.illegible) {
+            illegibleDiagrams++
             warnings +=
                 ScaleWarning(
                     documentPath = b.documentPath,
                     blockIndex = b.blockIndex,
                     title = b.title,
-                    scale = chosen.toDouble(),
-                    suggestion = if (format == PageFormat.A4 && a3Scale >= MIN_SCALE_WARN) "A3 landscape" else "split the diagram",
+                    scale = plan.scale.toDouble(),
+                    suggestion = if (!options.tiling) labels.enableTiling else labels.splitDiagram,
+                    code = ScaleWarningCode.ILLEGIBLE,
+                    minScale = options.minScale.toDouble(),
+                    message = labels.illegible(scale = plan.scale.toDouble(), min = options.minScale.toDouble()),
                 )
         }
-        if (landscape) {
-            newPage(landscape = true)
+        if (plan.format != format) a3Diagrams++
+        if (plan.mode == PlanMode.TILED) {
+            tiledDiagrams++
+            tilePages += plan.tiles
+            drawTiles(b = b, plan = plan)
+            return
+        }
+        val special = plan.landscape || plan.format != format
+        if (special) {
+            newPage(landscape = plan.landscape, f = plan.format)
         } else {
             // place in the remaining space when it does not shrink below the fresh-page scale
             val remainingScale = if (page == null) 0f else min(1f, min(contentWidth / w, (bottom - y - titleH - srcH) / h))
-            if (page == null || remainingScale < chosen * 0.999f) newPage(landscape = false)
+            if (page == null || remainingScale < plan.scale * 0.999f) newPage(landscape = false)
         }
         val avail = contentWidth
-        val scale = min(1f, min(avail / w, (bottom - y - titleH - srcH) / h)).coerceAtLeast(0.01f)
+        val scale =
+            if (special) {
+                plan.scale.coerceAtLeast(0.01f)
+            } else {
+                min(1f, min(avail / w, (bottom - y - titleH - srcH) / h)).coerceAtLeast(0.01f)
+            }
         drawText(
-            text = "${labels.figure}: ${b.title}",
+            text = figureTitle(b = b, suffix = "", maxW = avail),
             x = margin,
             baselineTop = y + 13f,
             font = fonts.semiBold,
@@ -812,7 +859,154 @@ internal class PdfLayoutEngine(
             color = Typo.GRAY,
         )
         y += srcH
-        if (landscape) closePage()
+        if (special) closePage()
+    }
+
+    /** One page per tile, row by row; neighbouring tiles overlap by 10 mm and carry registration marks. */
+    private fun drawTiles(
+        b: Block.Diagram,
+        plan: PagePlan,
+    ) {
+        val g = geometry
+        val n = plan.tiles
+        val cols = plan.cols
+        val rows = plan.rows
+        val cw = g.contentW(f = plan.format, landscape = plan.landscape)
+        val ch = g.contentH(f = plan.format, landscape = plan.landscape)
+        val ov = g.overlap
+        val s = plan.scale
+        val dw = b.drawn.width * s
+        val dh = b.drawn.height * s
+        val locW = if (cols * 4f + (cols - 1) > MAX_LOCATOR_W || rows * 3f + (rows - 1) > g.titleH - 4f) 0f else cols * 4f + (cols - 1)
+        for (r in 0 until rows) {
+            for (c in 0 until cols) {
+                val i = r * cols + c + 1
+                newPage(landscape = plan.landscape, f = plan.format)
+                val m = margin
+                if (i == 1 && !diagramsOnlyMode) {
+                    figureMarks += HeadingEntry(level = 4, text = b.title, anchorId = "", pageIndex = pageIndex, y = m)
+                }
+                val reserve = if (locW > 0f) locW + 20f else 0f
+                drawText(
+                    text =
+                        figureTitle(
+                            b = b,
+                            suffix = labels.tileSuffix(i = i, n = n, row = r + 1, col = c + 1),
+                            maxW = cw - reserve,
+                        ),
+                    x = m,
+                    // a little higher than on single pages: the registration marks reach 8.5 pt above the content
+                    baselineTop = m + 10f,
+                    font = fonts.semiBold,
+                    size = Typo.BODY,
+                    color = Typo.TEXT,
+                )
+                if (locW > 0f) drawLocator(left = m + cw - 12f - locW, top = m + 2f, cols = cols, rows = rows, curC = c, curR = r)
+                val contentTop = m + g.titleH
+                val ox = c * (cw - ov)
+                val oy = r * (ch - ov)
+                val centerX = if (cols == 1) (cw - dw) / 2f else 0f
+                val stream = cs ?: return
+                stream.saveGraphicsState()
+                stream.addRect(m, pdfY(contentTop + ch), cw, ch)
+                stream.clip()
+                stream.transform(Matrix(s, 0f, 0f, s, m - ox + centerX, pdfY(contentTop - oy + dh)))
+                stream.drawForm(b.drawn.form)
+                stream.restoreGraphicsState()
+                drawRegistrationMarks(
+                    left = m,
+                    top = contentTop,
+                    cw = cw,
+                    ch = ch,
+                    ov = ov,
+                    hasLeft = c > 0,
+                    hasRight = c < cols - 1,
+                    hasTop = r > 0,
+                    hasBottom = r < rows - 1,
+                )
+                if (i == n) {
+                    drawText(
+                        text = "${labels.source}: ${b.documentPath}:${b.line}",
+                        x = m,
+                        baselineTop = contentTop + ch + 14.5f,
+                        font = fonts.regular,
+                        size = Typo.SMALL,
+                        color = Typo.GRAY,
+                    )
+                }
+                closePage()
+            }
+        }
+    }
+
+    private fun drawLocator(
+        left: Float,
+        top: Float,
+        cols: Int,
+        rows: Int,
+        curC: Int,
+        curR: Int,
+    ) {
+        val stream = cs ?: return
+        stream.saveGraphicsState()
+        stream.setLineWidth(0.25f)
+        stream.setStrokingColor(Typo.GRAY)
+        stream.setNonStrokingColor(Typo.TEXT)
+        for (r in 0 until rows) {
+            for (c in 0 until cols) {
+                val x = left + c * 5f
+                val t = top + r * 4f
+                stream.addRect(x, pdfY(t + 3f), 4f, 3f)
+                if (r == curR && c == curC) stream.fillAndStroke() else stream.stroke()
+            }
+        }
+        stream.restoreGraphicsState()
+    }
+
+    private fun drawRegistrationMarks(
+        left: Float,
+        top: Float,
+        cw: Float,
+        ch: Float,
+        ov: Float,
+        hasLeft: Boolean,
+        hasRight: Boolean,
+        hasTop: Boolean,
+        hasBottom: Boolean,
+    ) {
+        val stream = cs ?: return
+        val points = LinkedHashSet<Pair<Float, Float>>()
+        val xs = mutableListOf<Pair<Float, Float>>() // x ranges of vertical strips
+        val ys = mutableListOf<Pair<Float, Float>>()
+        if (hasRight) xs += (left + cw - ov) to (left + cw)
+        if (hasLeft) xs += left to (left + ov)
+        if (hasBottom) ys += (top + ch - ov) to (top + ch)
+        if (hasTop) ys += top to (top + ov)
+        for ((x1, x2) in xs) {
+            for (yy in listOf(top, top + ch)) {
+                points += x1 to yy
+                points += x2 to yy
+            }
+        }
+        for ((y1, y2) in ys) {
+            for (xx in listOf(left, left + cw)) {
+                points += xx to y1
+                points += xx to y2
+            }
+        }
+        if (points.isEmpty()) return
+        stream.saveGraphicsState()
+        stream.setLineWidth(0.25f)
+        stream.setStrokingColor(Color(128, 128, 128))
+        val arm = MARK_SIZE / 2f
+        for ((px, py) in points) {
+            stream.moveTo(px - arm, pdfY(py))
+            stream.lineTo(px + arm, pdfY(py))
+            stream.moveTo(px, pdfY(py) - arm)
+            stream.lineTo(px, pdfY(py) + arm)
+            stream.stroke()
+        }
+        stream.restoreGraphicsState()
     }
 
     // ---- main entry ---------------------------------------------------------------------------------------
@@ -834,8 +1028,9 @@ internal class PdfLayoutEngine(
     }
 
     fun layout(composed: ComposedDocument): LayoutResult {
+        diagramsOnlyMode = composed.diagramsOnly
         val tocEntryCount = if (composed.tocEnabled) countEntries(composed.sections) else 0
-        val perPage = ((pageSize(false).second - 2 * margin - 48f) / TOC_LINE).toInt().coerceAtLeast(1)
+        val perPage = ((pageSize(landscape = false).second - 2 * margin - 48f) / TOC_LINE).toInt().coerceAtLeast(1)
         val tocPages = if (tocEntryCount == 0) 0 else ceil(tocEntryCount / perPage.toFloat()).toInt()
         val coverPages = if (composed.cover != null) 1 else 0
         frontPages = coverPages + tocPages
@@ -870,6 +1065,14 @@ internal class PdfLayoutEngine(
             pageSection = pageSection,
             warnings = warnings,
             frontPages = frontPages,
+            summary =
+                PdfLayoutSummary(
+                    a3Diagrams = a3Diagrams,
+                    tiledDiagrams = tiledDiagrams,
+                    tilePages = tilePages,
+                    illegibleDiagrams = illegibleDiagrams,
+                ),
+            figureMarks = figureMarks,
         )
     }
 
@@ -930,21 +1133,36 @@ internal class PdfLayoutEngine(
         top += 16f
         hLine(x1 = margin, x2 = w - margin, top = top)
         top += 20f
-        listOf(
-            cover.author?.let { "" to it },
-            cover.version?.let { labels.version to it },
-            cover.date?.let { "" to it },
-            cover.status?.let { labels.status to it },
-        ).filterNotNull().forEach { (k, v) ->
-            drawText(
-                text = if (k.isEmpty()) v else "$k: $v",
-                x = margin,
-                baselineTop = top + 11f,
-                font = fonts.regular,
-                size = 11f,
-                color = Typo.TEXT,
+        val rows =
+            listOfNotNull(
+                cover.author?.let { labels.author to it },
+                cover.organization?.let { labels.organization to it },
+                cover.version?.let { labels.version to it },
+                cover.date?.let { labels.dateLabel to labels.formatDate(it) },
+                cover.status?.let { labels.status to it },
+                labels.exportedOn to labels.formatDate(cover.exportedOn),
+                labels.documents to cover.documentCount.toString(),
             )
-            top += 18f
+        val labelW = rows.maxOf { width(font = fonts.regular, size = 11f, text = it.first) } + 16f
+        for ((k, v) in rows) {
+            drawText(text = k, x = margin, baselineTop = top + 11f, font = fonts.regular, size = 11f, color = Typo.GRAY)
+            val vl =
+                wrap(
+                    words =
+                        v.split(' ').filter { it.isNotEmpty() }.mapIndexed { i, wd ->
+                            Word(
+                                text = wd,
+                                run = Run(font = fonts.regular, size = 11f, color = Typo.TEXT, link = null, raise = 0f),
+                                spaceBefore = i > 0,
+                            )
+                        },
+                    maxW = w - 2 * margin - labelW,
+                )
+            for (line in vl) {
+                drawLine(pieces = line, x0 = margin + labelW, top = top, leading = 16f)
+                top += 16f
+            }
+            top += 2f
         }
         if (cover.openItems != null && cover.openItemsAnchor != null) {
             val pos = anchors[cover.openItemsAnchor]
@@ -961,6 +1179,14 @@ internal class PdfLayoutEngine(
                     target = LinkTarget.Internal(anchorId = cover.openItemsAnchor),
                 )
         }
+        drawText(
+            text = labels.createdWith(cover.producer),
+            x = margin,
+            baselineTop = pageH - margin,
+            font = fonts.regular,
+            size = Typo.SMALL,
+            color = Typo.GRAY,
+        )
         closePage()
     }
 
@@ -1000,9 +1226,14 @@ internal class PdfLayoutEngine(
                 val font = if (e.level == 1) fonts.semiBold else fonts.regular
                 val num = (e.pageIndex + 1).toString()
                 val numW = width(font = fonts.regular, size = size, text = num)
-                var title = fonts.glyphSafe(text = e.text, font = font)
                 val maxTitle = pageW - 2 * margin - indent - numW - 12f
-                while (title.length > 1 && width(font = font, size = size, text = title) > maxTitle) title = title.dropLast(1)
+                val title =
+                    HeaderText.truncate(
+                        text = e.text,
+                        maxWidth = maxTitle,
+                        sizePt = size,
+                        m = PdfTextMeasurer(font = font, fonts = fonts),
+                    )
                 drawText(text = title, x = margin + indent, baselineTop = top + 12f, font = font, size = size, color = Typo.TEXT)
                 drawText(
                     text = num,
@@ -1030,7 +1261,8 @@ internal class PdfLayoutEngine(
     }
 
     companion object {
-        const val MIN_SCALE_WARN: Float = 0.40f
         const val TOC_LINE: Float = 18f
+        const val MARK_SIZE: Float = 17f
+        const val MAX_LOCATOR_W: Float = 60f
     }
 }

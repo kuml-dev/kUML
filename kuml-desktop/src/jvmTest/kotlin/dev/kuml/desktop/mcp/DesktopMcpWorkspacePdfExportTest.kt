@@ -9,10 +9,12 @@ import dev.kuml.mcp.tools.McpToolException
 import dev.kuml.workspace.OkfFinding
 import dev.kuml.workspace.OkfSeverity
 import dev.kuml.workspace.WorkspaceScanner
+import dev.kuml.workspace.pdf.PageStrategy
 import dev.kuml.workspace.pdf.PdfExportException
 import dev.kuml.workspace.pdf.PdfExportKind
 import dev.kuml.workspace.pdf.PdfExportOptions
 import dev.kuml.workspace.pdf.PdfExportResult
+import dev.kuml.workspace.pdf.PdfLayoutSummary
 import dev.kuml.workspace.pdf.ScaleWarning
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -121,6 +123,7 @@ class DesktopMcpWorkspacePdfExportTest :
                     when (v) {
                         is Boolean -> put(k, v)
                         is Int -> put(k, v)
+                        is Double -> put(k, v)
                         is List<*> -> put(k, buildJsonArray { v.forEach { add(kotlinx.serialization.json.JsonPrimitive(it.toString())) } })
                         else -> put(k, v.toString())
                     }
@@ -137,6 +140,54 @@ class DesktopMcpWorkspacePdfExportTest :
             f.lastOptions!!.kind shouldBe PdfExportKind.HANDBOOK
             f.lastOptions!!.draft shouldBe true
             f.lastRestrict!!.canonicalPath shouldBe f.root.canonicalPath
+            f.root.deleteRecursively()
+        }
+
+        test("page layout arguments reach the options and the layout summary is reported") {
+            val f =
+                Fix(behaviour = { _, target, _, _ ->
+                    PdfExportResult(
+                        files = listOf(target),
+                        pageCount = 20,
+                        documentCount = 2,
+                        diagramCount = 4,
+                        warnings =
+                            listOf(
+                                ScaleWarning(
+                                    documentPath = "a.md",
+                                    blockIndex = 0,
+                                    title = "t",
+                                    scale = 0.3,
+                                    suggestion = "enable tiling",
+                                    message = "illegible (scale 0.30 < 0.50)",
+                                ),
+                            ),
+                        failures = emptyList(),
+                        layoutSummary = PdfLayoutSummary(a3Diagrams = 1, tiledDiagrams = 2, tilePages = 12, illegibleDiagrams = 1),
+                    )
+                })
+            val r = f.call(args("output" to "x.pdf", "minScale" to 0.4, "pageStrategy" to "auto", "tiling" to false))
+            f.lastOptions!!.minScale shouldBe 0.4f
+            f.lastOptions!!.pageStrategy shouldBe PageStrategy.AUTO
+            f.lastOptions!!.tiling shouldBe false
+            r["a3Count"]!!.jsonPrimitive.int shouldBe 1
+            r["tiledCount"]!!.jsonPrimitive.int shouldBe 2
+            r["tilePages"]!!.jsonPrimitive.int shouldBe 12
+            r["illegibleCount"]!!.jsonPrimitive.int shouldBe 1
+            val w = r["warnings"]!!.jsonArray[0].jsonObject
+            w["code"]!!.jsonPrimitive.content shouldBe "ILLEGIBLE"
+            w["message"]!!.jsonPrimitive.content shouldBe "illegible (scale 0.30 < 0.50)"
+            f.root.deleteRecursively()
+        }
+
+        test("page layout arguments are validated") {
+            val f = Fix()
+            f.code(args("minScale" to 0.2)) shouldBe "INVALID_ARGUMENT"
+            f.code(args("minScale" to 1.5)) shouldBe "INVALID_ARGUMENT"
+            f.code(args("minScale" to "0.5")) shouldBe "INVALID_ARGUMENT"
+            f.error(args("pageStrategy" to "auto", "orientation" to "portrait"))["argument"]!!.jsonPrimitive.content shouldBe "pageStrategy"
+            f.code(args("pageStrategy" to "sideways")) shouldBe "INVALID_ARGUMENT"
+            f.calls shouldBe 0
             f.root.deleteRecursively()
         }
 

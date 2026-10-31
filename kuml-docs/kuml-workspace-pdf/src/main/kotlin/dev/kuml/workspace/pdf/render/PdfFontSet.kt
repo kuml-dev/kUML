@@ -42,7 +42,7 @@ internal class PdfFontSet private constructor(
         return out.toString()
     }
 
-    private fun hasGlyph(
+    internal fun hasGlyph(
         font: PDFont,
         codePoint: Int,
     ): Boolean =

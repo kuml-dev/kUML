@@ -10,7 +10,7 @@ import java.time.LocalDate
 /** What kind of PDF output an export produces. */
 public enum class PdfExportKind { HANDBOOK, PER_DOCUMENT, DIAGRAMS }
 
-/** Paper format. Sizes are in PDF points. A3 is never chosen automatically. */
+/** Paper format. Sizes are in PDF points. A3 is chosen per diagram only with [PageStrategy.AUTO]. */
 public enum class PageFormat(
     public val widthPt: Float,
     public val heightPt: Float,
@@ -21,6 +21,15 @@ public enum class PageFormat(
 
 /** Page orientation; [AUTO] turns individual diagram pages to landscape when that gains scale. */
 public enum class PageOrientation { PORTRAIT, LANDSCAPE, AUTO }
+
+/**
+ * How diagram pages are sized. [AUTO] picks A4 portrait/landscape or A3 per diagram and splits very large
+ * diagrams into tiles; [FIXED] keeps the configured page format and orientation.
+ */
+public enum class PageStrategy { AUTO, FIXED }
+
+/** Why a [ScaleWarning] was raised. */
+public enum class ScaleWarningCode { ILLEGIBLE, }
 
 /** Language of the generated labels (table of contents, headers, ...). */
 public enum class PdfLanguage { DE, EN }
@@ -86,7 +95,28 @@ public data class PdfExportOptions(
     /** Producer string written into the PDF, e.g. `kUML 0.56.0`. */
     public val producerVersion: String,
     public val limits: ExportLimits = ExportLimits.DEFAULT,
-)
+    /** `null` = [PageStrategy.AUTO] when [orientation] is AUTO, otherwise [PageStrategy.FIXED]. */
+    public val pageStrategy: PageStrategy? = null,
+    /** Split diagrams that would fall below [minScale] across several pages. */
+    public val tiling: Boolean = true,
+    /** Smallest acceptable diagram scale, 0.25..1.0. */
+    public val minScale: Float = DEFAULT_MIN_SCALE,
+) {
+    init {
+        require(minScale in 0.25f..1.0f) { "minScale must be between 0.25 and 1.0" }
+        require(!(pageStrategy == PageStrategy.AUTO && orientation != PageOrientation.AUTO)) {
+            "pageStrategy AUTO requires orientation AUTO"
+        }
+    }
+
+    /** The strategy that is actually applied. */
+    public val effectivePageStrategy: PageStrategy
+        get() = pageStrategy ?: if (orientation == PageOrientation.AUTO) PageStrategy.AUTO else PageStrategy.FIXED
+
+    public companion object {
+        public const val DEFAULT_MIN_SCALE: Float = 0.5f
+    }
+}
 
 /** Port: script execution stays in the caller (`kuml-cli`), this module never runs scripts. */
 public fun interface DiagramSource {
@@ -157,14 +187,39 @@ public fun interface ExportProgressListener {
     )
 }
 
-/** A diagram that had to be shrunk below [WorkspacePdfExporter.MIN_SCALE_WARN]. */
+/** A diagram that stays below the minimum scale even after all layout options (A3, tiling) were used. */
 public data class ScaleWarning(
     public val documentPath: String,
     public val blockIndex: Int,
     public val title: String,
     public val scale: Double,
+    /** Localized hint what the author can do. */
     public val suggestion: String,
+    public val code: ScaleWarningCode = ScaleWarningCode.ILLEGIBLE,
+    public val minScale: Double = 0.5,
+    /** Localized, e.g. `illegible (scale 0.42 < 0.50)`. */
+    public val message: String = "",
 )
+
+/** How the diagrams of an export were placed: A3 pages, tiled diagrams and unreadable ones. */
+public data class PdfLayoutSummary(
+    public val a3Diagrams: Int,
+    public val tiledDiagrams: Int,
+    public val tilePages: Int,
+    public val illegibleDiagrams: Int,
+) {
+    public operator fun plus(o: PdfLayoutSummary): PdfLayoutSummary =
+        PdfLayoutSummary(
+            a3Diagrams = a3Diagrams + o.a3Diagrams,
+            tiledDiagrams = tiledDiagrams + o.tiledDiagrams,
+            tilePages = tilePages + o.tilePages,
+            illegibleDiagrams = illegibleDiagrams + o.illegibleDiagrams,
+        )
+
+    public companion object {
+        public val EMPTY: PdfLayoutSummary = PdfLayoutSummary(a3Diagrams = 0, tiledDiagrams = 0, tilePages = 0, illegibleDiagrams = 0)
+    }
+}
 
 public data class PdfExportResult(
     public val files: List<File>,
@@ -173,6 +228,7 @@ public data class PdfExportResult(
     public val diagramCount: Int,
     public val warnings: List<ScaleWarning>,
     public val failures: List<OkfFinding>,
+    public val layoutSummary: PdfLayoutSummary = PdfLayoutSummary.EMPTY,
 )
 
 /** Export failure with a stable [code]; the message never contains document content. */

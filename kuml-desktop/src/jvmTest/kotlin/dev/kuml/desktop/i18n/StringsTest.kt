@@ -592,24 +592,39 @@ class StringsTest :
 
 class PdfExportStringsTest :
     io.kotest.core.spec.style.FunSpec({
-        val keys =
-            Strings::class.java.declaredFields
-                .filter { it.name.startsWith("pdf") || it.name.startsWith("menuFileExportWorkspace") }
-        test("all PDF export strings exist and are non-empty in German and English") {
-            (keys.size >= 30) shouldBe true
-            keys.forEach {
+        // The page-layout texts live in PdfExportStrings (Strings itself is at the JVM's 255-argument limit).
+        fun values(
+            owner: Class<*>,
+            en: Any,
+            de: Any,
+            filter: (String) -> Boolean,
+        ) = owner.declaredFields
+            .filter { it.type == String::class.java && filter(it.name) }
+            .map {
                 it.isAccessible = true
-                (it.get(Strings.EN) as String).isNotBlank() shouldBe true
-                (it.get(Strings.DE) as String).isNotBlank() shouldBe true
+                Triple(it.name, it.get(en) as String, it.get(de) as String)
+            }
+        val all =
+            values(Strings::class.java, Strings.EN, Strings.DE) { it.startsWith("pdf") || it.startsWith("menuFileExportWorkspace") } +
+                values(PdfExportStrings::class.java, Strings.EN.pdfExport, Strings.DE.pdfExport) { true }
+        test("all PDF export strings exist and are non-empty in German and English") {
+            (all.size >= 30) shouldBe true
+            all.forEach {
+                it.second.isNotBlank() shouldBe true
+                it.third.isNotBlank() shouldBe true
             }
         }
+        test("the page-layout strings are reachable through Strings and differ between languages") {
+            Strings.EN.pdfPageStrategyAuto shouldBe "Automatic (recommended)"
+            Strings.DE.pdfPageStrategyAuto shouldBe "Automatisch (empfohlen)"
+            Strings.DE.pdfLayoutSummary.format(1, 2, 3) shouldBe "1 auf A3 gesetzt, 2 aufgeteilt (3 Seiten)"
+            Strings.EN.pdfLayoutSummary.format(1, 2, 3) shouldBe "1 set on A3, 2 split (3 pages)"
+            Strings.DE.pdfDisabledOrientationAuto shouldNotBe Strings.EN.pdfDisabledOrientationAuto
+        }
         test("placeholders are consistent between languages") {
-            keys.forEach {
-                it.isAccessible = true
-                val en = it.get(Strings.EN) as String
-                val de = it.get(Strings.DE) as String
-                Regex("%\\d\\$[ds]").findAll(en).map { m -> m.value }.toSet() shouldBe
-                    Regex("%\\d\\$[ds]").findAll(de).map { m -> m.value }.toSet()
+            all.forEach {
+                Regex("%\\d\\$[ds]").findAll(it.second).map { m -> m.value }.toSet() shouldBe
+                    Regex("%\\d\\$[ds]").findAll(it.third).map { m -> m.value }.toSet()
             }
         }
     })

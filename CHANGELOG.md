@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added / Changed / Fixed (wave 2H: workspace PDF export)
+
+- **Automatic page size:** each diagram is placed on A4 portrait or landscape, on A3, or split into overlapping tiles, so that its scale stays at or above the minimum scale (default 0.5). New options `--page-strategy auto|fixed`, `--min-scale` and `--tiling/--no-tiling` (CLI), the same in the Desktop dialog and the MCP tool `kuml_desktop_workspace_export_pdf` (`pageStrategy`, `minScale`, `tiling`). A3 is only chosen automatically with `auto`; tiled diagrams carry part labels, a grid locator and registration marks and add a level-4 bookmark.
+- **Behaviour change:** scale warnings now mean "illegible" and use the minimum scale as threshold (was fixed 40 %), so `--strict` fails on diagrams that stay below `--min-scale` after A3 and tiling were tried. Warnings carry a `code` and a localized `message`; results report `a3Count`, `tiledCount`, `tilePages`, `illegibleCount`.
+- Figure titles, the running header and table-of-contents entries are shortened with an ellipsis (binary search, no per-character loop); the tile suffix always survives. The running header follows the margin of A3 pages inside an A4 document.
+- **Cover page and PDF properties:** labelled fields (author, organization, version, date, status, export date, number of documents) and "Created with kUML <version>"; dates are formatted per language. Info dictionary: subject is the kind of export, creator `kUML`, creation date from the injected clock (`WorkspacePdfExporter.prepare(..., clock)`).
+- **Removed:** the Desktop button "Use A3 landscape", `WorkspacePdfExporter.MIN_SCALE_WARN` and `PdfLayoutEngine.MIN_SCALE_WARN`. The Desktop page-layout texts moved to `PdfExportStrings` because `Strings` had reached the JVM limit of 255 constructor arguments.
+
 ### Added / Changed / Fixed (PAL wave 2B foundation: P-LAY-01, P-IBD-06, P-WS-01, determinism)
 
 - **Deterministic layout:** ELK now always gets a fixed non-zero `RANDOM_SEED` (seed 0 means "random" in ELK; `LayoutHints.deterministicSeed` was never applied) and `considerModelOrder = NODES_AND_EDGES` (`LayoutHints.modelOrder`). New cross-process test (`DeterminismCrossProcessTest`) renders 61 vault examples in two JVMs with different identity hash seeds and locales and compares SHA-256 of the SVGs; before the change it failed.
