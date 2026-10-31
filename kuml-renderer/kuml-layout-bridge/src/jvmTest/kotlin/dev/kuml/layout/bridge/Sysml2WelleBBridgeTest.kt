@@ -9,7 +9,6 @@ import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
-import dev.kuml.layout.bridge.port.PortEdgeClamp
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.PortDirection
@@ -335,7 +334,20 @@ class Sysml2IbdFrameLayoutTest :
         }
 
         test("collinear part port and owner port get a 40 px offset and a kinked route") {
-            val lr = Sysml2LayoutBridge.addIbdOwnerFrame(model = portsModel, diagram = portsIbd, layoutResult = portsLayout())
+            // The tank is surrounded by free space on the left, right and bottom (the wide engine below it), so the
+            // owner port lands on the top side, collinear with the outlet on the top face of the tank.
+            val lr0 =
+                layoutOf(
+                    model = portsModel,
+                    ibd = portsIbd,
+                    boxes = mapOf("Vehicle::tank" to r(400f, 100f, 300f, 110f), "Vehicle::engine" to r(200f, 300f, 700f, 110f)),
+                    ends =
+                        mapOf(
+                            "conn:Vehicle::c1" to (Point(x = 0f, y = 0f) to Point(x = 550f, y = 100f)),
+                            "conn:Vehicle::c2" to (Point(x = 350f, y = 410f) to Point(x = 0f, y = 0f)),
+                        ),
+                )
+            val lr = Sysml2LayoutBridge.addIbdOwnerFrame(model = portsModel, diagram = portsIbd, layoutResult = lr0)
             val tank = lr.nodes.getValue(NodeId("Vehicle::tank"))
             val outlet = tank.ports.getValue(dev.kuml.layout.PortId("outlet"))
             val outletX = tank.bounds.origin.x + outlet.x
@@ -398,20 +410,42 @@ class Sysml2IbdFrameLayoutTest :
                     .getValue(Sysml2LayoutBridge.ibdFrameGroupId("S"))
                     .bounds
                     .box()
-            val top =
-                listOf("S::o1", "S::o2")
-                    .map { lr.nodes.getValue(NodeId(it)).bounds }
-                    .map { it.origin.x + it.size.width / 2f to it.origin.y + it.size.height / 2f }
-            top.forEach { (kotlin.math.abs(it.second - frame.t) < 0.5f) shouldBe true }
-            val xs = top.map { it.first }.sorted()
-            val need =
-                maxOf(
-                    56f,
-                    Sysml2LayoutBridge.estimateLabelSize(text = "o1 : P").width / 2f +
-                        Sysml2LayoutBridge.estimateLabelSize(text = "o2 : P").width / 2f +
-                        12f,
-                )
-            (xs[1] - xs[0] >= need - 0.5f) shouldBe true
+
+            // Every owner port sits on the frame side nearest to the part; ports sharing a side keep their minimum distance.
+            data class Owner(
+                val id: String,
+                val side: Sysml2LayoutBridge.IbdSide,
+                val along: Float,
+                val width: Float,
+            )
+
+            val owners =
+                listOf("S::o1", "S::o2", "S::o3", "S::o4").map { id ->
+                    val b = lr.nodes.getValue(NodeId(id)).bounds
+                    val cx = b.origin.x + b.size.width / 2f
+                    val cy = b.origin.y + b.size.height / 2f
+                    val label = Sysml2LayoutBridge.estimateLabelSize(text = id.substringAfter("::") + " : P")
+                    when {
+                        kotlin.math.abs(cy - frame.t) < 0.5f -> Owner(id, Sysml2LayoutBridge.IbdSide.Top, cx, label.width)
+                        kotlin.math.abs(cy - frame.b) < 0.5f -> Owner(id, Sysml2LayoutBridge.IbdSide.Bottom, cx, label.width)
+                        kotlin.math.abs(cx - frame.l) < 0.5f -> Owner(id, Sysml2LayoutBridge.IbdSide.Left, cy, label.height)
+                        kotlin.math.abs(cx - frame.r) < 0.5f -> Owner(id, Sysml2LayoutBridge.IbdSide.Right, cy, label.height)
+                        else -> error("owner port $id is not on the frame")
+                    }
+                }
+            for (side in Sysml2LayoutBridge.IbdSide.entries) {
+                val onSide = owners.filter { it.side == side }.sortedBy { it.along }
+                for (k in 0 until onSide.size - 1) {
+                    val vertical = side == Sysml2LayoutBridge.IbdSide.Top || side == Sysml2LayoutBridge.IbdSide.Bottom
+                    val need =
+                        if (vertical) {
+                            maxOf(56f, onSide[k].width / 2f + onSide[k + 1].width / 2f + 12f)
+                        } else {
+                            maxOf(56f * 0.7f, onSide[k + 1].width + 12f)
+                        }
+                    (onSide[k + 1].along - onSide[k].along >= need - 0.5f) shouldBe true
+                }
+            }
             // left and bottom ports produce part-port placements on three distinct sides
             val ports = lr.nodes.getValue(NodeId("S::a")).ports
             ports.size shouldBe 4
@@ -458,14 +492,15 @@ class Sysml2IbdFrameLayoutTest :
             beforeEnd: Point,
             centre: Point,
             normal: Point,
+            minStub: Float = 0f,
         ) {
             val half = Sysml2LayoutBridge.IBD_PORT_SIZE_PX / 2f
             // end = centre + normal * half (outer or inner face, depending on the normal)
             kotlin.math.abs(end.x - (centre.x + normal.x * half)) shouldBeLessThan 0.6f
             kotlin.math.abs(end.y - (centre.y + normal.y * half)) shouldBeLessThan 0.6f
-            // the stub runs along the normal, away from the port, at least one arrowhead long
+            // the last segment runs along the normal, away from the port; only an arrowhead end needs a stub of its length
             val stub = (beforeEnd.x - end.x) * normal.x + (beforeEnd.y - end.y) * normal.y
-            (stub >= PortEdgeClamp.ARROW_LEN_PX - 0.6f) shouldBe true
+            (stub >= minStub - 0.6f) shouldBe true
             // perpendicular: no sideways component in the last segment
             kotlin.math.abs((beforeEnd.x - end.x) * normal.y) shouldBeLessThan 0.6f
             kotlin.math.abs((beforeEnd.y - end.y) * normal.x) shouldBeLessThan 0.6f

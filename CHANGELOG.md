@@ -6,12 +6,24 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added / Changed / Fixed (PAL wave 2C-b1: geometry in the IBD)
+
+- **Port ends:** `PortEdgeClamp.clamp` takes `sourceArrowhead` / `targetArrowhead`; a stub of arrowhead length is only forced at an end that draws an arrowhead, otherwise the line may touch the port border directly (still perpendicular; where an elbow is needed the stub is the corner radius). PAR pins lose their fixed stub (bindings have no arrowheads), so PAR lines now end directly at the pin.
+- **IBD routing around parts:** new `IbdObstacleRouter` (straight, L and Z candidates, grid A* with a hard node limit as fallback, deterministic) keeps connectors out of foreign parts (8 px clearance); used with and without an owner frame. The result is re-checked after clamping.
+- **Owner ports:** side = frame side nearest to the connected part, position = projection of the connected port centres, at least 16 px from a corner, ties resolved by port id (independent of part declaration order).
+- **Port pitch:** neighbouring part ports keep `max(24, label width + 8)` (top/bottom) or `max(24, line height + 6)` (left/right); part boxes grow (capped) so that their ports fit.
+- **viewBox from labels:** the IBD view box grows to contain every text (measured with the layout's label estimate); `SvgDocument` accepts a `viewOrigin`, background, frame and watermark follow it. Fixed: node-local IBD port positions were shifted a second time when the canvas was widened on the left.
+- **Review fixes (2C-b1):** framed IBD connectors between two ports now also keep clear of foreign part-port and owner-port labels and port squares (`IbdObstacleRouter.route(extraObstacles)`, 2 px clearance; obstacles containing an end stub are ignored). The IBD view-box fit treats the watermark band as chrome (no extra empty 18 px strip with `watermark = true`, the watermark text is no content). The router refuses to allocate a search grid above `MAX_GRID_STATES` (200 000 states) and falls back to the least-colliding candidate. `PortEdgeClamp` now requires an end segment of at least the corner radius at an arrowless end as soon as the line bends (a straight single segment may still touch the port).
+- New tests: `IbdObstacleRouterTest`, `Sysml2IbdRoutingInvariantTest`, `Sysml2Example27PortDockingTest`, `IbdViewBoxTest`.
+- Layout bridge now depends on kotlin-logging (diagnostics of the router).
+- Desktop MCP was not reachable (ECONNREFUSED), no end-to-end Desktop test.
+
 ### Added / Changed / Fixed (PAL wave 2C, partial: ports and pins)
 
-- `PortEdgeClamp` (layout bridge): one central function that lets an edge end on the outer border of a port or pin, perpendicular to its face (stub at least the arrowhead length). Used by unframed IBDs (`enrichIbdPortPositions`, port centres are now snapped onto the box border), framed IBDs and PAR pins (`parEnrich`). The layout engine contract is unchanged (it still reports the port centre); the clamping happens when drawing. Images with ports and pins change at the port ends.
+- `PortEdgeClamp` (layout bridge): one central function that lets an edge end on the outer border of a port or pin, perpendicular to its face (a stub of at least the arrowhead length only at an end that draws an arrowhead). Used by unframed IBDs (`enrichIbdPortPositions`, port centres are now snapped onto the box border), framed IBDs and PAR pins (`parEnrich`). The layout engine contract is unchanged (it still reports the port centre); the clamping happens when drawing. Images with ports and pins change at the port ends.
 - **Behaviour change in all diagram families that use `LabelPlacer`** (SysML 2 edge labels, UML associations, ERM, UML edges): when the two sides of a vertical edge are equally good, the centre label now goes to the right of the line (before: left). This keeps an edge label and a note anchored on the left of the line apart (vault example 54). Labels of downward vertical edges can therefore move to the other side of the line in existing UML and ERM images. Positions are otherwise unchanged.
 - IBD: a bare owner-port name (`eingang`) in `connect(...)` now resolves like `Owner::eingang`; unresolvable ends are reported in `IbdProjection.unresolvedEnds` instead of being dropped silently.
-- Open after this commit (not implemented): A* router and port pitch, label plan with halo for item flows, attribute compartment and `connectionDef(style)`, box-in-box nesting, viewBox/canvas fit, PAR row pitch / unit / expression wrapping / `include(attributeDef)`, IBD5xx checker wiring, vault examples 66-69, handbook; ACT pin routing was left on `Sysml2PinRouting` (already ends on the outer border); `ComponentPortEdgeClipper`; C4 canvas.
+- Open after this commit (not implemented): label plan with halo for item flows, attribute compartment and `connectionDef(style)`, box-in-box nesting, PAR row pitch / unit / expression wrapping / `include(attributeDef)`, IBD5xx checker wiring, vault examples 66-69, handbook; ACT pin routing was left on `Sysml2PinRouting` (already ends on the outer border); `ComponentPortEdgeClipper`; C4 canvas.
 
 ### Added / Changed / Fixed (wave 2H: workspace PDF export)
 
@@ -47,7 +59,7 @@ All notable changes to this project are documented here. Format follows
 
 ### Open for 2C
 
-- Port-edge clamping and the distance between IBD ports and their labels (port labels keep their old placement; in example 54 the label `dcOut : DcPort` still sits close to the port edge).
+- The distance between IBD ports and their labels (port labels keep their old placement; in example 54 the label `dcOut : DcPort` still sits close to the port edge). Port-edge clamping, the A* router, port pitch and the viewBox fit are done in 2C-b1.
 - Unifying the label handling of STM and SEQ with the new plan; STM, SEQ, PAR, REQ, UC and ACT labels are unchanged in this wave.
 - Edge end labels of IBD/BDD (multiplicity text at an end) are not yet part of the plan; ERM Chen cardinality labels keep their fixed offsets.
 - Outer-channel anchor lines of Service Blueprint can cross cards of lower lanes in the same column.

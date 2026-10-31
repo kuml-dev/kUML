@@ -1467,6 +1467,7 @@ public object KumlSvgRenderer {
         sysml2EdgeAdapter: Sysml2EdgeAdapter,
         padding: Float,
         planned: Map<String, dev.kuml.layout.bridge.label.PlacedLabel> = emptyMap(),
+        portsAreLocal: Boolean = false,
     ): Pair<LayoutResult, Float> {
         val canvasW = layoutResult.canvas.width + 2 * padding
         val frameLeft = DIAGRAM_FRAME_INSET_PX
@@ -1506,7 +1507,14 @@ public object KumlSvgRenderer {
                         nodeLayout.bounds.copy(
                             origin = nodeLayout.bounds.origin.copy(x = nodeLayout.bounds.origin.x + leftOverhang),
                         ),
-                    ports = nodeLayout.ports.mapValues { (_, p) -> p.copy(x = p.x + leftOverhang) },
+                    ports =
+                        if (portsAreLocal) {
+                            nodeLayout.ports
+                        } else {
+                            nodeLayout.ports.mapValues { (_, p) ->
+                                p.copy(x = p.x + leftOverhang)
+                            }
+                        },
                 )
             }
         val shiftedEdges =
@@ -1909,6 +1917,8 @@ public object KumlSvgRenderer {
             (Map<String, dev.kuml.layout.EdgeRoute>, Map<String, dev.kuml.layout.Rect>) -> Map<String, dev.kuml.layout.EdgeRoute>
         )? = null,
         plannedEdgeLabels: Map<String, dev.kuml.layout.bridge.label.PlacedLabel> = emptyMap(),
+        viewBox: dev.kuml.layout.Rect? = null,
+        fitViewBox: Boolean = false,
     ): String {
         // Widen the frame (and canvas) BEFORE computing anything padding-relative
         // below, so every subsequent step already sees the final geometry — see
@@ -1978,6 +1988,8 @@ public object KumlSvgRenderer {
                     sysml2EdgeAdapter = sysml2EdgeAdapter,
                     padding = options.paddingPx,
                     planned = plannedEdgeLabels,
+                    // IBD port positions are node-local: moving the node moves them along (PAL 2C-b1).
+                    portsAreLocal = typeLabel == "ibd",
                 )
             layoutResult = widened.first
             // Planned labels move with the layout when it was shifted to make room on the left.
@@ -1996,23 +2008,188 @@ public object KumlSvgRenderer {
                         ),
                 )
             }
-        return SvgDocument.render(
-            layoutResult = layoutResult,
-            theme = theme,
-            options = options,
-            frameName = synthetic.name,
-            frameTypeLabel = typeLabel,
-        ) { nodesBuilder, edgesBuilder ->
-            val padding = options.paddingPx
+        // PAL 2C-b1: an explicit view box (IBD: labels outside the layout canvas) replaces the canvas; the origin may be negative.
+        val watermarkBandPx = if (options.watermark) SvgDocument.WATERMARK_BAND_PX else 0f
+        val docLayout =
+            if (viewBox == null) {
+                layoutResult
+            } else {
+                layoutResult.copy(
+                    canvas =
+                        dev.kuml.layout.Size(
+                            width = viewBox.size.width - 2 * options.paddingPx,
+                            // The view box includes the watermark band; SvgDocument adds it again.
+                            height = viewBox.size.height - 2 * options.paddingPx - watermarkBandPx,
+                        ),
+                )
+            }
+        val firstPass =
+            SvgDocument.render(
+                layoutResult = docLayout,
+                theme = theme,
+                options = options,
+                frameName = synthetic.name,
+                frameTypeLabel = typeLabel,
+                viewOrigin = viewBox?.origin ?: dev.kuml.layout.Point(x = 0f, y = 0f),
+            ) { nodesBuilder, edgesBuilder ->
+                val padding = options.paddingPx
 
-            // Welle B — IBD owner frame sits behind all nodes.
-            beforeNodes?.invoke(nodesBuilder, layoutResult, padding)
+                // Welle B — IBD owner frame sits behind all nodes.
+                beforeNodes?.invoke(nodesBuilder, layoutResult, padding)
 
-            // Nodes — same logic as the UML/C4 path.
-            for ((nodeId, nodeLayout) in layoutResult.nodes) {
-                if (nodeId.value in deferredNodeIds) continue
-                val element = synthetic.elements.find { it.id == nodeId.value }
-                if (element != null) {
+                // Nodes — same logic as the UML/C4 path.
+                for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                    if (nodeId.value in deferredNodeIds) continue
+                    val element = synthetic.elements.find { it.id == nodeId.value }
+                    if (element != null) {
+                        val shifted =
+                            nodeLayout.copy(
+                                bounds =
+                                    nodeLayout.bounds.copy(
+                                        origin =
+                                            nodeLayout.bounds.origin.copy(
+                                                x = nodeLayout.bounds.origin.x + padding,
+                                                y = nodeLayout.bounds.origin.y + padding,
+                                            ),
+                                    ),
+                            )
+                        NodeRendererDispatcher.dispatch(
+                            element = element,
+                            layout = shifted,
+                            theme = theme,
+                            builder = nodesBuilder,
+                            sysml2Context = sysml2Context,
+                        )
+                    }
+                }
+                afterNodes?.invoke(nodesBuilder, layoutResult, padding)
+
+                // V3.x — highlight ring overlay (see emitHighlightRings KDoc). Injected AFTER
+                // nodes, BEFORE edges, same z-order as the UML STATE path above — extends the
+                // Behaviour-Widget highlight mechanism to SysML-2 STM (previously UML-only).
+                emitHighlightRings(layoutResult = layoutResult, theme = theme, options = options, padding = padding, builder = nodesBuilder)
+
+                // Edges — adapter-aware three-way fallback.
+                val elementIndex = synthetic.elements.associateBy { it.id }
+                // V11.x — Stack-Indizes für parallele Edges vorberechnen (siehe
+                // Sysml2EdgeRenderer.computeLabelStackIndices). Greift z.B. bei
+                // «derive» + «containment» zwischen zwei Requirements im
+                // req-traceability-Sample.
+                // V2.x — Bbox-Overlap-Clustering: Label-Text aus der Adapter-
+                // Metadata wird mitgegeben. Liefert der Adapter Stereotype +
+                // Plain-Label parallel, wählen wir das längere der beiden für
+                // die Clustering-Heuristik (sichere Seite).
+                val syntheticStackIndices =
+                    Sysml2EdgeRenderer.computeLabelStackIndices(
+                        layoutResult.edges.entries.map { (edgeId, route) ->
+                            val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
+                            val labelText = widestLabelText(meta)
+                            Triple(edgeId, route, labelText)
+                        },
+                    )
+                val shiftedRoutes = sysml2ShiftedRoutes(layoutResult = layoutResult, padding = padding, routeTransform = routeTransform)
+                val pendingLabels = ArrayList<Sysml2EdgeRenderer.PendingEdgeLabel>()
+                for ((edgeId, _) in layoutResult.edges) {
+                    val shiftedRoute = shiftedRoutes.getValue(edgeId.value)
+                    val element = elementIndex[edgeId.value]
+                    if (element != null) {
+                        EdgeRendererDispatcher.dispatch(
+                            relationship = element,
+                            route = shiftedRoute,
+                            theme = theme,
+                            builder = edgesBuilder,
+                            anchorDot = sysml2Context?.let { !isPortLink(model = it.model, element = element) } ?: true,
+                        )
+                    } else {
+                        val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
+                        if (meta != null) {
+                            Sysml2EdgeRenderer.render(
+                                suppressLabels = stmBlocks.containsKey(edgeId.value) || placeLabelsOnLine,
+                                id = edgeId.value,
+                                route = shiftedRoute,
+                                metadata = meta,
+                                theme = theme,
+                                builder = edgesBuilder,
+                                labelStackIndex = syntheticStackIndices[edgeId] ?: 0,
+                                overrideLabelAnchor = edgeLabelAnchor?.invoke(edgeId, shiftedRoute, widestLabelText(meta)),
+                                backdropFill = edgeBackdropFill,
+                                leashLabels = leashLabels,
+                                plannedLabel = drawnLabels[edgeId.value],
+                            )
+                            if (placeLabelsOnLine) {
+                                Sysml2EdgeRenderer.pendingLabelOf(id = edgeId.value, metadata = meta)?.let { pendingLabels += it }
+                            }
+                        } else {
+                            // V2.0.7–12 fallback: plain solid line. Reached only if
+                            // the adapter doesn't claim the edge, which should not
+                            // happen for the five SysML-2 diagram kinds the
+                            // adapters cover — kept for safety.
+                            edgesBuilder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(edgeId.value))) {
+                                val (tagName, attrs) = EdgePathBuilder.build(shiftedRoute)
+                                tag(name = tagName, attrs = attrs + mapOf("class" to "kuml-edge"))
+                            }
+                        }
+                    }
+                }
+                // Wave C2b: REQ / UC labels sit centred on their own line, placed once all edges are known.
+                if (placeLabelsOnLine) {
+                    val groupRects =
+                        layoutResult.groups.values.map {
+                            dev.kuml.layout.Rect(
+                                origin = dev.kuml.layout.Point(x = it.bounds.origin.x + padding, y = it.bounds.origin.y + padding),
+                                size = it.bounds.size,
+                            )
+                        }
+                    val nodeRects =
+                        layoutResult.nodes.values.map {
+                            dev.kuml.layout.Rect(
+                                origin = dev.kuml.layout.Point(x = it.bounds.origin.x + padding, y = it.bounds.origin.y + padding),
+                                size = it.bounds.size,
+                            )
+                        }
+                    val nodeFillHex = theme.colors.effectiveNodeFill.toHex()
+                    val paperHex = edgeBackdropFill ?: theme.colors.background.toHex()
+                    Sysml2EdgeRenderer.emitLabelsOnLine(
+                        pending = pendingLabels,
+                        allRoutes = shiftedRoutes,
+                        obstacles = nodeRects,
+                        backdropFor = { r ->
+                            val cx = r.origin.x + r.size.width / 2f
+                            val cy = r.origin.y + r.size.height / 2f
+                            val inGroup =
+                                groupRects.any {
+                                    cx in it.origin.x..(it.origin.x + it.size.width) && cy in it.origin.y..(it.origin.y + it.size.height)
+                                }
+                            if (inGroup) nodeFillHex else paperHex
+                        },
+                        builder = edgesBuilder,
+                    )
+                }
+                // STM labels come after ALL edges so no later edge line runs over a label; the backdrop is
+                // opaque and matches the container the label sits in (composite fill or diagram paper).
+                if (stmBlocks.isNotEmpty()) {
+                    val composites = stmObstacleList.filter { it.kind == dev.kuml.io.svg.sysml2.edge.StmObstacleKind.Composite }
+                    val nodeFill = theme.colors.effectiveNodeFill.toHex()
+                    val fills =
+                        stmBlocks.mapValues { (_, b) ->
+                            val inside =
+                                composites.any {
+                                    b.cx in it.rect.origin.x..(it.rect.origin.x + it.rect.size.width) &&
+                                        b.cy in it.rect.origin.y..(it.rect.origin.y + it.rect.size.height)
+                                }
+                            if (inside) nodeFill else (edgeBackdropFill ?: theme.colors.background.toHex())
+                        }
+                    Sysml2EdgeRenderer.emitStmLabels(
+                        blocks = stmBlocks,
+                        fills = fills,
+                        defaultFill = edgeBackdropFill ?: theme.colors.background.toHex(),
+                        builder = edgesBuilder,
+                    )
+                }
+                // Deferred (pseudo-state) nodes paint after edges and labels so dot, diamond and bar sit on the arrow tips.
+                for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                    if (nodeId.value !in deferredNodeIds) continue
+                    val element = synthetic.elements.find { it.id == nodeId.value } ?: continue
                     val shifted =
                         nodeLayout.copy(
                             bounds =
@@ -2020,7 +2197,8 @@ public object KumlSvgRenderer {
                                     origin =
                                         nodeLayout.bounds.origin.copy(
                                             x = nodeLayout.bounds.origin.x + padding,
-                                            y = nodeLayout.bounds.origin.y + padding,
+                                            y =
+                                                nodeLayout.bounds.origin.y + padding,
                                         ),
                                 ),
                         )
@@ -2028,163 +2206,46 @@ public object KumlSvgRenderer {
                         element = element,
                         layout = shifted,
                         theme = theme,
-                        builder = nodesBuilder,
+                        builder = edgesBuilder,
                         sysml2Context = sysml2Context,
                     )
                 }
+                // Wave C2: overlay painted after every edge and deferred node (frame tabs and titles).
+                afterEdges?.invoke(edgesBuilder, layoutResult, padding, shiftedRoutes.values.map { Sysml2EdgeRenderer.polylinePoints(it) })
+                emitHighlightEdges(layoutResult = layoutResult, theme = theme, options = options, padding = padding, builder = edgesBuilder)
             }
-            afterNodes?.invoke(nodesBuilder, layoutResult, padding)
-
-            // V3.x — highlight ring overlay (see emitHighlightRings KDoc). Injected AFTER
-            // nodes, BEFORE edges, same z-order as the UML STATE path above — extends the
-            // Behaviour-Widget highlight mechanism to SysML-2 STM (previously UML-only).
-            emitHighlightRings(layoutResult = layoutResult, theme = theme, options = options, padding = padding, builder = nodesBuilder)
-
-            // Edges — adapter-aware three-way fallback.
-            val elementIndex = synthetic.elements.associateBy { it.id }
-            // V11.x — Stack-Indizes für parallele Edges vorberechnen (siehe
-            // Sysml2EdgeRenderer.computeLabelStackIndices). Greift z.B. bei
-            // «derive» + «containment» zwischen zwei Requirements im
-            // req-traceability-Sample.
-            // V2.x — Bbox-Overlap-Clustering: Label-Text aus der Adapter-
-            // Metadata wird mitgegeben. Liefert der Adapter Stereotype +
-            // Plain-Label parallel, wählen wir das längere der beiden für
-            // die Clustering-Heuristik (sichere Seite).
-            val syntheticStackIndices =
-                Sysml2EdgeRenderer.computeLabelStackIndices(
-                    layoutResult.edges.entries.map { (edgeId, route) ->
-                        val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
-                        val labelText = widestLabelText(meta)
-                        Triple(edgeId, route, labelText)
-                    },
-                )
-            val shiftedRoutes = sysml2ShiftedRoutes(layoutResult = layoutResult, padding = padding, routeTransform = routeTransform)
-            val pendingLabels = ArrayList<Sysml2EdgeRenderer.PendingEdgeLabel>()
-            for ((edgeId, _) in layoutResult.edges) {
-                val shiftedRoute = shiftedRoutes.getValue(edgeId.value)
-                val element = elementIndex[edgeId.value]
-                if (element != null) {
-                    EdgeRendererDispatcher.dispatch(
-                        relationship = element,
-                        route = shiftedRoute,
-                        theme = theme,
-                        builder = edgesBuilder,
-                        anchorDot = sysml2Context?.let { !isPortLink(model = it.model, element = element) } ?: true,
-                    )
-                } else {
-                    val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
-                    if (meta != null) {
-                        Sysml2EdgeRenderer.render(
-                            suppressLabels = stmBlocks.containsKey(edgeId.value) || placeLabelsOnLine,
-                            id = edgeId.value,
-                            route = shiftedRoute,
-                            metadata = meta,
-                            theme = theme,
-                            builder = edgesBuilder,
-                            labelStackIndex = syntheticStackIndices[edgeId] ?: 0,
-                            overrideLabelAnchor = edgeLabelAnchor?.invoke(edgeId, shiftedRoute, widestLabelText(meta)),
-                            backdropFill = edgeBackdropFill,
-                            leashLabels = leashLabels,
-                            plannedLabel = drawnLabels[edgeId.value],
-                        )
-                        if (placeLabelsOnLine) {
-                            Sysml2EdgeRenderer.pendingLabelOf(id = edgeId.value, metadata = meta)?.let { pendingLabels += it }
-                        }
-                    } else {
-                        // V2.0.7–12 fallback: plain solid line. Reached only if
-                        // the adapter doesn't claim the edge, which should not
-                        // happen for the five SysML-2 diagram kinds the
-                        // adapters cover — kept for safety.
-                        edgesBuilder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(edgeId.value))) {
-                            val (tagName, attrs) = EdgePathBuilder.build(shiftedRoute)
-                            tag(name = tagName, attrs = attrs + mapOf("class" to "kuml-edge"))
-                        }
-                    }
-                }
-            }
-            // Wave C2b: REQ / UC labels sit centred on their own line, placed once all edges are known.
-            if (placeLabelsOnLine) {
-                val groupRects =
-                    layoutResult.groups.values.map {
-                        dev.kuml.layout.Rect(
-                            origin = dev.kuml.layout.Point(x = it.bounds.origin.x + padding, y = it.bounds.origin.y + padding),
-                            size = it.bounds.size,
-                        )
-                    }
-                val nodeRects =
-                    layoutResult.nodes.values.map {
-                        dev.kuml.layout.Rect(
-                            origin = dev.kuml.layout.Point(x = it.bounds.origin.x + padding, y = it.bounds.origin.y + padding),
-                            size = it.bounds.size,
-                        )
-                    }
-                val nodeFillHex = theme.colors.effectiveNodeFill.toHex()
-                val paperHex = edgeBackdropFill ?: theme.colors.background.toHex()
-                Sysml2EdgeRenderer.emitLabelsOnLine(
-                    pending = pendingLabels,
-                    allRoutes = shiftedRoutes,
-                    obstacles = nodeRects,
-                    backdropFor = { r ->
-                        val cx = r.origin.x + r.size.width / 2f
-                        val cy = r.origin.y + r.size.height / 2f
-                        val inGroup =
-                            groupRects.any {
-                                cx in it.origin.x..(it.origin.x + it.size.width) && cy in it.origin.y..(it.origin.y + it.size.height)
-                            }
-                        if (inGroup) nodeFillHex else paperHex
-                    },
-                    builder = edgesBuilder,
-                )
-            }
-            // STM labels come after ALL edges so no later edge line runs over a label; the backdrop is
-            // opaque and matches the container the label sits in (composite fill or diagram paper).
-            if (stmBlocks.isNotEmpty()) {
-                val composites = stmObstacleList.filter { it.kind == dev.kuml.io.svg.sysml2.edge.StmObstacleKind.Composite }
-                val nodeFill = theme.colors.effectiveNodeFill.toHex()
-                val fills =
-                    stmBlocks.mapValues { (_, b) ->
-                        val inside =
-                            composites.any {
-                                b.cx in it.rect.origin.x..(it.rect.origin.x + it.rect.size.width) &&
-                                    b.cy in it.rect.origin.y..(it.rect.origin.y + it.rect.size.height)
-                            }
-                        if (inside) nodeFill else (edgeBackdropFill ?: theme.colors.background.toHex())
-                    }
-                Sysml2EdgeRenderer.emitStmLabels(
-                    blocks = stmBlocks,
-                    fills = fills,
-                    defaultFill = edgeBackdropFill ?: theme.colors.background.toHex(),
-                    builder = edgesBuilder,
-                )
-            }
-            // Deferred (pseudo-state) nodes paint after edges and labels so dot, diamond and bar sit on the arrow tips.
-            for ((nodeId, nodeLayout) in layoutResult.nodes) {
-                if (nodeId.value !in deferredNodeIds) continue
-                val element = synthetic.elements.find { it.id == nodeId.value } ?: continue
-                val shifted =
-                    nodeLayout.copy(
-                        bounds =
-                            nodeLayout.bounds.copy(
-                                origin =
-                                    nodeLayout.bounds.origin.copy(
-                                        x = nodeLayout.bounds.origin.x + padding,
-                                        y =
-                                            nodeLayout.bounds.origin.y + padding,
-                                    ),
-                            ),
-                    )
-                NodeRendererDispatcher.dispatch(
-                    element = element,
-                    layout = shifted,
-                    theme = theme,
-                    builder = edgesBuilder,
-                    sysml2Context = sysml2Context,
-                )
-            }
-            // Wave C2: overlay painted after every edge and deferred node (frame tabs and titles).
-            afterEdges?.invoke(edgesBuilder, layoutResult, padding, shiftedRoutes.values.map { Sysml2EdgeRenderer.polylinePoints(it) })
-            emitHighlightEdges(layoutResult = layoutResult, theme = theme, options = options, padding = padding, builder = edgesBuilder)
-        }
+        if (!fitViewBox || viewBox != null) return firstPass
+        // PAL 2C-b1: labels outside the canvas grow the view box (second pass, same deterministic geometry).
+        val fitted =
+            IbdViewBox.fit(
+                svg = firstPass,
+                layout = layoutResult,
+                padding = options.paddingPx,
+                watermarkBand = watermarkBandPx,
+            ) ?: return firstPass
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            rawLayoutResult = rawLayoutResult,
+            theme = theme,
+            options = options,
+            sysml2EdgeAdapter = sysml2EdgeAdapter,
+            typeLabel = typeLabel,
+            sysml2Context = sysml2Context,
+            beforeNodes = beforeNodes,
+            afterNodes = afterNodes,
+            afterEdges = afterEdges,
+            leashLabels = leashLabels,
+            placeLabelsOnLine = placeLabelsOnLine,
+            edgeLabelAnchor = edgeLabelAnchor,
+            edgeBackdropFill = edgeBackdropFill,
+            wrapStmLabels = wrapStmLabels,
+            stmObstacles = stmObstacles,
+            deferredNodeIds = deferredNodeIds,
+            routeTransform = routeTransform,
+            plannedEdgeLabels = plannedEdgeLabels,
+            viewBox = fitted,
+            fitViewBox = false,
+        )
     }
 
     /**
@@ -2349,6 +2410,7 @@ public object KumlSvgRenderer {
             options = options,
             sysml2EdgeAdapter = ibdAdapter,
             typeLabel = "ibd",
+            fitViewBox = true,
             sysml2Context = context,
             edgeBackdropFill = if (projection.showFrame) theme.colors.background.toHex() else null,
             edgeLabelAnchor =

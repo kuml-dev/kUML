@@ -306,12 +306,10 @@ internal object ParCompositeLayout {
             layout = enrichNested(model = model, visibleIds = visibleIds, layout = layout, ownSize = ownSize),
         )
 
-    /** Edge stub length at a pin: bindings carry no arrowhead, the stub is the lane approach ([APPROACH]). */
-    const val PIN_STUB_PX: Float = APPROACH
-
     /**
      * PAL 2C (P-IBD-08): lets every binding edge end on the outer border of its pin square, perpendicular to the box
-     * side, via the central [PortEdgeClamp]. Idempotent; edges without a pin end stay untouched.
+     * side, via the central [PortEdgeClamp]. Bindings carry no arrowhead, so no stub is forced at a pin (PAL 2C-b1).
+     * Idempotent; edges without a pin end stay untouched.
      */
     fun clampPins(
         model: Sysml2Model,
@@ -363,7 +361,14 @@ internal object ParCompositeLayout {
             val sz = attach(end = z, other = a)
             if (sa == null && sz == null) continue
             edges[EdgeId(b.id)] =
-                PortEdgeClamp.clamp(route = route, source = sa, target = sz, minStubPx = PIN_STUB_PX, cornerRadiusPx = CORNER_RADIUS)
+                PortEdgeClamp.clamp(
+                    route = route,
+                    source = sa,
+                    target = sz,
+                    sourceArrowhead = false,
+                    targetArrowhead = false,
+                    cornerRadiusPx = CORNER_RADIUS,
+                )
             changed = true
         }
         return if (changed) layout.copy(edges = edges) else layout

@@ -20,8 +20,9 @@ public data class PortAttachment(
  * Central clamping of edge end points to port borders (PAL wave 2C, P-IBD-08).
  *
  * The layout engine reports the **centre** of a port. For drawing, an edge has to end on the **outer border** of
- * the port, perpendicular to the face, with a final stub that is at least as long as the arrowhead. All SysML 2
- * port/pin renderings (IBD ports, PAR pins) route through this function instead of each deriving its own end point.
+ * the port, perpendicular to the face. A final stub of at least the arrowhead length is only required at an end that
+ * carries an arrowhead; an end without arrowhead may touch the border directly. All SysML 2 port/pin renderings
+ * (IBD ports, PAR pins) route through this function instead of each deriving its own end point.
  * Without an attachment a route is returned unchanged (byte-identical).
  */
 public object PortEdgeClamp {
@@ -82,16 +83,25 @@ public object PortEdgeClamp {
     /**
      * Clamps [route] so that its first point lies on [source] and its last point on [target] (each optional).
      * Orthogonal routes keep their inner way points where possible; otherwise an L/Z route with perpendicular
-     * stubs of at least [minStubPx] is built.
+     * end segments is built. The end segment is at least [ARROW_LEN_PX] long at an end with an arrowhead
+     * ([sourceArrowhead] / [targetArrowhead]); without an arrowhead the minimum is 0 (the segment must still be
+     * perpendicular to the port face). Where an elbow is needed next to an arrowless end, the stub is
+     * [cornerRadiusPx] long so that the rounded corner does not degenerate.
      */
     public fun clamp(
         route: EdgeRoute,
         source: PortAttachment?,
         target: PortAttachment?,
-        minStubPx: Float = ARROW_LEN_PX,
+        sourceArrowhead: Boolean,
+        targetArrowhead: Boolean,
         cornerRadiusPx: Float = 4f,
     ): EdgeRoute {
         if (source == null && target == null) return route
+        val stubS = if (sourceArrowhead) ARROW_LEN_PX else 0f
+        val stubT = if (targetArrowhead) ARROW_LEN_PX else 0f
+        // Stub length used where a step has to build an elbow (never shorter than the corner radius).
+        val elbowS = maxOf(stubS, cornerRadiusPx)
+        val elbowT = maxOf(stubT, cornerRadiusPx)
         val pts = polyline(route) ?: return route
         val bs = source?.let { borderPoint(it) } ?: pts.first()
         val bt = target?.let { borderPoint(it) } ?: pts.last()
@@ -101,37 +111,37 @@ public object PortEdgeClamp {
 
         // 1. Keep the way points when the route is already valid with the clamped end points.
         val kept = simplify(listOf(bs) + inner + listOf(bt))
-        if (isValid(kept, srcN, tgtN, minStubPx, source != null, target != null)) {
+        if (isValid(kept, srcN, tgtN, stubS, stubT, source != null, target != null, cornerRadiusPx)) {
             return rebuild(route, kept, cornerRadiusPx)
         }
 
         // 1b. A first/last segment that already leaves along the normal but is too short: push its lane outwards.
-        val shifted = shiftShortStubs(kept, if (source != null) srcN else null, if (target != null) tgtN else null, minStubPx)
-        if (shifted != null && isValid(shifted, srcN, tgtN, minStubPx, source != null, target != null)) {
+        val shifted = shiftShortStubs(kept, if (source != null) srcN else null, if (target != null) tgtN else null, elbowS, elbowT)
+        if (shifted != null && isValid(shifted, srcN, tgtN, stubS, stubT, source != null, target != null, cornerRadiusPx)) {
             return rebuild(route, shifted, cornerRadiusPx)
         }
 
         // 2. Insert stubs and bridge the way points with elbows.
         val seq = mutableListOf(bs)
-        if (srcN != null) seq += Point(x = bs.x + srcN.x * minStubPx, y = bs.y + srcN.y * minStubPx)
+        if (srcN != null) seq += Point(x = bs.x + srcN.x * elbowS, y = bs.y + srcN.y * elbowS)
         seq += inner
-        if (tgtN != null) seq += Point(x = bt.x + tgtN.x * minStubPx, y = bt.y + tgtN.y * minStubPx)
+        if (tgtN != null) seq += Point(x = bt.x + tgtN.x * elbowT, y = bt.y + tgtN.y * elbowT)
         seq += bt
         val ortho = elbows(seq, srcN, tgtN)
-        if (isValid(ortho, srcN, tgtN, minStubPx, source != null, target != null)) {
+        if (isValid(ortho, srcN, tgtN, stubS, stubT, source != null, target != null, cornerRadiusPx)) {
             return rebuild(route, ortho, cornerRadiusPx)
         }
 
         // 3. Full rebuild: stubs plus an L or Z connection (inner way points are dropped).
-        val s = if (srcN != null) Point(x = bs.x + srcN.x * minStubPx, y = bs.y + srcN.y * minStubPx) else bs
-        val t = if (tgtN != null) Point(x = bt.x + tgtN.x * minStubPx, y = bt.y + tgtN.y * minStubPx) else bt
+        val s = if (srcN != null) Point(x = bs.x + srcN.x * elbowS, y = bs.y + srcN.y * elbowS) else bs
+        val t = if (tgtN != null) Point(x = bt.x + tgtN.x * elbowT, y = bt.y + tgtN.y * elbowT) else bt
         val sd = srcN ?: inferDir(from = bs, toward = t)
         val td = tgtN ?: inferDir(from = bt, toward = s)
         val mid = mutableListOf<Point>()
         val sV = abs(sd.y) > 0f
         val tV = abs(td.y) > 0f
         // Detour offset used when the mid line would coincide with a stub line (back-to-back faces on one row/column).
-        val detour = 2f * minStubPx
+        val detour = 2f * maxOf(stubS, stubT, cornerRadiusPx)
         when {
             sV && tV -> {
                 val m = (s.y + t.y) / 2f
@@ -197,11 +207,13 @@ public object PortEdgeClamp {
         pts: List<Point>,
         srcN: Point?,
         tgtN: Point?,
-        minStub: Float,
+        minStubS: Float,
+        minStubT: Float,
     ): List<Point>? {
         fun shiftHead(
             list: List<Point>,
             n: Point?,
+            minStub: Float,
         ): List<Point> {
             if (n == null || list.size < 4) return list
             val a = list[0]
@@ -217,8 +229,8 @@ public object PortEdgeClamp {
             out[2] = Point(x = list[2].x + n.x * d, y = list[2].y + n.y * d)
             return out
         }
-        val head = shiftHead(pts, srcN)
-        val result = shiftHead(head.reversed(), tgtN).reversed()
+        val head = shiftHead(pts, srcN, minStubS)
+        val result = shiftHead(head.reversed(), tgtN, minStubT).reversed()
         return if (result == pts) null else simplify(result)
     }
 
@@ -264,11 +276,18 @@ public object PortEdgeClamp {
         pts: List<Point>,
         srcN: Point?,
         tgtN: Point?,
-        minStub: Float,
+        minStubS: Float,
+        minStubT: Float,
         hasSrc: Boolean,
         hasTgt: Boolean,
+        cornerRadiusPx: Float,
     ): Boolean {
         if (pts.size < 2) return false
+        // A straight single segment may touch an arrowless end directly; as soon as the line bends, the end segment
+        // must be at least the corner radius long so that the rounded corner does not run flush along the port face.
+        val bends = pts.size > 2
+        val needS = if (bends) maxOf(minStubS, cornerRadiusPx) else minStubS
+        val needT = if (bends) maxOf(minStubT, cornerRadiusPx) else minStubT
         for (i in 0 until pts.size - 1) {
             if (abs(pts[i + 1].x - pts[i].x) > TOL && abs(pts[i + 1].y - pts[i].y) > TOL) return false
         }
@@ -276,12 +295,12 @@ public object PortEdgeClamp {
         if (hasSrc && srcN != null) {
             val a = pts[0]
             val b = pts[1]
-            if (!leavesAlong(a, b, srcN, minStub)) return false
+            if (!leavesAlong(a, b, srcN, needS)) return false
         }
         if (hasTgt && tgtN != null) {
             val a = pts[pts.size - 1]
             val b = pts[pts.size - 2]
-            if (!leavesAlong(a, b, tgtN, minStub)) return false
+            if (!leavesAlong(a, b, tgtN, needT)) return false
         }
         return true
     }

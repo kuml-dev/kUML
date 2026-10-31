@@ -29,10 +29,14 @@ kotlin {
             api(project(":kuml-metamodel:kuml-metamodel-erm")) // V3.4.2 — ERM layout bridge
             implementation(project(":kuml-core:kuml-core-model"))
             implementation(libs.kotlinx.serialization.json)
+            // PAL 2C-b1: diagnostics of the IBD obstacle router (KMP-capable kotlin-logging wrapper).
+            implementation(libs.kotlin.logging)
             // Layout-Keys aus dem DSL-Modul werden NICHT verlinkt — String-Literale duplizieren wir lokal
             // in BridgeLayoutKeys (see spec: „Vertrag in Worten" #6)
         }
         jvmMain.dependencies {
+            // kotlin-logging (common) delegates to SLF4J on the JVM; the facade is not transitive in 8.x.
+            implementation(libs.slf4j.api)
             // Reflection für LayoutHintWriter.copyWithMetadata — data-class copy() via KFunction.callBy
             // JVM-only: LayoutHintWriter.kt lives in jvmMain (editor round-trip feature,
             // not on the wasmJs SVG render path).

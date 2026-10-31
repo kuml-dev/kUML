@@ -167,6 +167,12 @@ never covers a label that is drawn later.
 * SysML 2 IBD and BDD: connector labels are planned (`Sysml2EdgeLabelPlan`) before the notes; once the notes
   stand, the labels move away from them and from their anchor lines. The renderer draws each label exactly at its
   planned rectangle.
+* SysML 2 IBD routing: connectors are routed around the parts of the diagram (`IbdObstacleRouter`: straight, L and Z
+  candidates, then a grid A* with a hard node limit; 8 px clearance; deterministic). Neighbouring part ports keep a
+  pitch of `max(24, label width + 8)` px on top and bottom sides and `max(24, line height + 6)` px on left and
+  right sides; the box grows (capped) when a side is too short. An owner port sits on the frame side nearest to the
+  connected part, at the projection of the connected port, at least 16 px from a corner. The SVG view box grows to
+  contain every label, so its origin may be negative.
 * ERM (Martin, Bachman, IDEF1X): relationship names and role labels are placed by the same placer; the
   cardinality glyphs are fixed obstacles.
 * Service Blueprint: anchor lines of notes pick a free horizontal track (6 px raster, 6 px to every lane boundary,

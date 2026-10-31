@@ -11,6 +11,7 @@ pdfbox                 = "3.0.8"
 pdfbox-graphics2d      = "3.0.5"
 jetbrains-markdown     = "0.7.9"
 slf4j                  = "2.0.19"
+klogging               = "8.0.01"
 compose-multiplatform  = "1.12.1"
 compose-material3      = "1.9.0"
 kuiver                 = "0.4.2"
@@ -137,6 +138,7 @@ pdfbox-xmpbox                   = { module = "org.apache.pdfbox:xmpbox",        
 pdfbox-graphics2d               = { module = "de.rototor.pdfbox:graphics2d",         version.ref = "pdfbox-graphics2d" }
 jetbrains-markdown              = { module = "org.jetbrains:markdown",               version.ref = "jetbrains-markdown" }
 slf4j-api                       = { module = "org.slf4j:slf4j-api",                  version.ref = "slf4j" }
+kotlin-logging                  = { module = "io.github.oshai:kotlin-logging",      version.ref = "klogging" }
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 kotlin-test                     = { module = "org.jetbrains.kotlin:kotlin-test",                    version.ref = "kotlin" }

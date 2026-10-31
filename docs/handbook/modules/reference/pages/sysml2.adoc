@@ -188,6 +188,10 @@ sysml2Model(name = "HybridVehicleSystem") {
 }
 ----
 
+Connectors end on the outer border of the port square, perpendicular to its side. A stub of arrowhead length is
+only drawn at an end that carries an arrowhead (item flows); plain connectors touch the port directly.
+
+
 == Use Case Diagrams (UC)
 
 SysML 2 use case syntax mirrors UML use case: actors, use cases, `include`/`extend`

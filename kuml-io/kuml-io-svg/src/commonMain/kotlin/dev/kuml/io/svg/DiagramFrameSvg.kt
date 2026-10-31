@@ -22,11 +22,13 @@ internal fun renderDiagramFrame(
     canvasW: Float,
     canvasH: Float,
     builder: SvgBuilder,
+    originX: Float = 0f,
+    originY: Float = 0f,
 ) {
     if (name.isBlank()) return
     val inset = DIAGRAM_FRAME_INSET_PX
-    val x = inset
-    val y = inset
+    val x = originX + inset
+    val y = originY + inset
     val w = canvasW - 2f * inset
     val h = canvasH - 2f * inset
 
@@ -48,7 +50,7 @@ internal fun renderDiagramFrame(
         // Type label (small, muted) + name (bold) in top-left
         tag(
             name = "text",
-            attrs = mapOf("class" to "kuml-small", "x" to "8", "y" to "13"),
+            attrs = mapOf("class" to "kuml-small", "x" to fmt(originX + 8f), "y" to fmt(originY + 13f)),
         ) { text("$typeLabel: $name") }
     }
 }

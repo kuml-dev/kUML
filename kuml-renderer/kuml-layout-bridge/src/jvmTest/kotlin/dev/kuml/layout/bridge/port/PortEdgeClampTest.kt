@@ -110,12 +110,26 @@ class PortEdgeClampTest :
             val outerPoint = Point(x = 100f + n.x * 80f, y = 100f + n.y * 80f)
 
             test("source $face: diagonal Direct route ends on the face with a perpendicular stub") {
-                val r = PortEdgeClamp.clamp(route = EdgeRoute.Direct(source = Point(100f, 100f), target = far), source = att, target = null)
+                val r =
+                    PortEdgeClamp.clamp(
+                        route = EdgeRoute.Direct(source = Point(100f, 100f), target = far),
+                        source = att,
+                        target = null,
+                        sourceArrowhead = true,
+                        targetArrowhead = true,
+                    )
                 checkEnd(route = r, att = att, atStart = true, minStub = minStub)
             }
 
             test("target $face: diagonal Direct route ends on the face with a perpendicular stub") {
-                val r = PortEdgeClamp.clamp(route = EdgeRoute.Direct(source = far, target = Point(100f, 100f)), source = null, target = att)
+                val r =
+                    PortEdgeClamp.clamp(
+                        route = EdgeRoute.Direct(source = far, target = Point(100f, 100f)),
+                        source = null,
+                        target = att,
+                        sourceArrowhead = true,
+                        targetArrowhead = true,
+                    )
                 checkEnd(route = r, att = att, atStart = false, minStub = minStub)
             }
 
@@ -142,7 +156,7 @@ class PortEdgeClampTest :
                             ),
                         cornerRadiusPx = 4f,
                     )
-                val r = PortEdgeClamp.clamp(route = route, source = att, target = null)
+                val r = PortEdgeClamp.clamp(route = route, source = att, target = null, sourceArrowhead = true, targetArrowhead = true)
                 checkEnd(route = r, att = att, atStart = true, minStub = minStub)
             }
 
@@ -159,7 +173,7 @@ class PortEdgeClampTest :
                             ),
                         cornerRadiusPx = 4f,
                     )
-                val r = PortEdgeClamp.clamp(route = route, source = null, target = att)
+                val r = PortEdgeClamp.clamp(route = route, source = null, target = att, sourceArrowhead = true, targetArrowhead = true)
                 checkEnd(route = r, att = att, atStart = false, minStub = minStub)
                 tip.x.isNaN() shouldBe false
             }
@@ -167,7 +181,7 @@ class PortEdgeClampTest :
 
         test("no attachment leaves the route identical") {
             val route = EdgeRoute.Direct(source = Point(1f, 2f), target = Point(30f, 40f))
-            PortEdgeClamp.clamp(route = route, source = null, target = null) shouldBe route
+            PortEdgeClamp.clamp(route = route, source = null, target = null, sourceArrowhead = true, targetArrowhead = true) shouldBe route
         }
 
         test("a route that already ends on the border with a long stub is only normalised, not reshaped") {
@@ -179,7 +193,7 @@ class PortEdgeClampTest :
                     waypoints = emptyList(),
                     cornerRadiusPx = 4f,
                 )
-            PortEdgeClamp.clamp(route = route, source = att, target = null) shouldBe route
+            PortEdgeClamp.clamp(route = route, source = att, target = null, sourceArrowhead = true, targetArrowhead = true) shouldBe route
         }
 
         test("faceTowards picks the face looking at the neighbour") {
@@ -197,6 +211,8 @@ class PortEdgeClampTest :
                     route = EdgeRoute.Direct(source = Point(100f, 100f), target = Point(300f, 220f)),
                     source = src,
                     target = tgt,
+                    sourceArrowhead = true,
+                    targetArrowhead = true,
                 )
             checkEnd(route = r, att = src, atStart = true, minStub = minStub)
             checkEnd(route = r, att = tgt, atStart = false, minStub = minStub)
@@ -212,6 +228,8 @@ class PortEdgeClampTest :
                     route = EdgeRoute.Direct(source = Point(100f, 100f), target = Point(220f, 300f)),
                     source = src,
                     target = tgt,
+                    sourceArrowhead = true,
+                    targetArrowhead = true,
                 )
             checkEnd(route = r, att = src, atStart = true, minStub = minStub)
             checkEnd(route = r, att = tgt, atStart = false, minStub = minStub)
@@ -227,6 +245,8 @@ class PortEdgeClampTest :
                     route = EdgeRoute.Direct(source = Point(100f, 100f), target = Point(300f, 300f)),
                     source = src,
                     target = tgt,
+                    sourceArrowhead = true,
+                    targetArrowhead = true,
                 )
             checkEnd(route = r, att = src, atStart = true, minStub = minStub)
             checkEnd(route = r, att = tgt, atStart = false, minStub = minStub)
@@ -242,6 +262,8 @@ class PortEdgeClampTest :
                     route = EdgeRoute.Direct(source = Point(100f, 100f), target = Point(50f, 100f)),
                     source = src,
                     target = tgt,
+                    sourceArrowhead = true,
+                    targetArrowhead = true,
                 )
             checkEnd(route = r, att = src, atStart = true, minStub = minStub)
             checkEnd(route = r, att = tgt, atStart = false, minStub = minStub)
@@ -257,6 +279,8 @@ class PortEdgeClampTest :
                     route = EdgeRoute.Direct(source = Point(100f, 100f), target = Point(100f, 50f)),
                     source = src,
                     target = tgt,
+                    sourceArrowhead = true,
+                    targetArrowhead = true,
                 )
             checkEnd(route = r, att = src, atStart = true, minStub = minStub)
             checkEnd(route = r, att = tgt, atStart = false, minStub = minStub)
@@ -273,7 +297,7 @@ class PortEdgeClampTest :
                     waypoints = listOf(Point(60f, 100f)),
                     cornerRadiusPx = 4f,
                 )
-            val r = PortEdgeClamp.clamp(route = route, source = src, target = null)
+            val r = PortEdgeClamp.clamp(route = route, source = src, target = null, sourceArrowhead = true, targetArrowhead = true)
             checkEnd(route = r, att = src, atStart = true, minStub = minStub)
             assertOrthogonal(r)
             assertNoBacktrack(r)
@@ -287,9 +311,98 @@ class PortEdgeClampTest :
                     route = EdgeRoute.Direct(source = Point(100f, 100f), target = Point(200f, 100f)),
                     source = src,
                     target = tgt,
+                    sourceArrowhead = true,
+                    targetArrowhead = true,
                 )
             checkEnd(route = r, att = src, atStart = true, minStub = minStub)
             checkEnd(route = r, att = tgt, atStart = false, minStub = minStub)
             assertNoBacktrack(r)
+        }
+
+        // PAL 2C-b1: the stub is only required where an arrowhead is drawn.
+        for (face in PortFace.entries) {
+            val n = PortEdgeClamp.normal(face)
+            val att = PortAttachment(rect = rectAt(100f, 100f), face = face)
+
+            test("source $face, with arrowhead: ends on the border, perpendicular, last segment at least the arrow length") {
+                val r =
+                    PortEdgeClamp.clamp(
+                        route = EdgeRoute.Direct(source = Point(100f, 100f), target = far),
+                        source = att,
+                        target = null,
+                        sourceArrowhead = true,
+                        targetArrowhead = false,
+                    )
+                checkEnd(route = r, att = att, atStart = true, minStub = PortEdgeClamp.ARROW_LEN_PX)
+                val p = pts(r)
+                val seg = abs((p[1].x - p[0].x) * n.x + (p[1].y - p[0].y) * n.y)
+                seg shouldBeGreaterThanOrEqual PortEdgeClamp.ARROW_LEN_PX - 0.5f
+            }
+
+            test("source $face, without arrowhead: ends on the border and leaves perpendicular, no forced stub") {
+                val r =
+                    PortEdgeClamp.clamp(
+                        route = EdgeRoute.Direct(source = Point(100f, 100f), target = far),
+                        source = att,
+                        target = null,
+                        sourceArrowhead = false,
+                        targetArrowhead = false,
+                    )
+                checkEnd(route = r, att = att, atStart = true, minStub = 0f)
+                assertOrthogonal(r)
+                assertNoBacktrack(r)
+            }
+
+            test("target $face, without arrowhead: a straight route ends on the border without extra points") {
+                val bp = PortEdgeClamp.borderPoint(att)
+                val startPt = Point(x = bp.x + n.x * 80f, y = bp.y + n.y * 80f)
+                val route =
+                    EdgeRoute.OrthogonalRounded(
+                        source = startPt,
+                        target = Point(100f, 100f),
+                        waypoints = emptyList(),
+                        cornerRadiusPx = 4f,
+                    )
+                val r = PortEdgeClamp.clamp(route = route, source = null, target = att, sourceArrowhead = false, targetArrowhead = false)
+                val p = pts(r)
+                p shouldBe listOf(startPt, bp)
+            }
+        }
+
+        test("arrowless end followed by a bend gets a stub of at least the corner radius, not a flush sub-pixel stub") {
+            val src = PortAttachment(rect = rectAt(100f, 100f), face = PortFace.Top)
+            val tgt = PortAttachment(rect = rectAt(160f, 40f), face = PortFace.Bottom)
+            val route =
+                EdgeRoute.OrthogonalRounded(
+                    source = Point(100f, 100f),
+                    target = Point(160f, 40f),
+                    waypoints = listOf(Point(100f, 93.5f), Point(160f, 93.5f)),
+                    cornerRadiusPx = 4f,
+                )
+            val out =
+                PortEdgeClamp.clamp(
+                    route = route,
+                    source = src,
+                    target = tgt,
+                    sourceArrowhead = false,
+                    targetArrowhead = false,
+                )
+            checkEnd(out, src, atStart = true, minStub = 4f)
+            checkEnd(out, tgt, atStart = false, minStub = 4f)
+            assertNoBacktrack(out)
+        }
+
+        test("an arrowless straight single segment may still touch the port directly") {
+            val src = PortAttachment(rect = rectAt(100f, 100f), face = PortFace.Top)
+            val tgt = PortAttachment(rect = rectAt(100f, 40f), face = PortFace.Bottom)
+            val out =
+                PortEdgeClamp.clamp(
+                    route = EdgeRoute.Direct(source = Point(100f, 100f), target = Point(100f, 40f)),
+                    source = src,
+                    target = tgt,
+                    sourceArrowhead = false,
+                    targetArrowhead = false,
+                )
+            pts(out).size shouldBe 2
         }
     })
