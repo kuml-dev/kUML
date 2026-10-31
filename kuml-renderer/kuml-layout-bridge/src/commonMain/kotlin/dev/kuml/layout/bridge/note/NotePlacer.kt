@@ -87,6 +87,9 @@ public data class NotePlacementResult(
     val layout: LayoutResult,
     val unresolved: List<UnresolvedAnchor>,
     val truncated: List<String>,
+    /** Shift the layout got because a note landed at negative coordinates; positions planned before placement must move by it. */
+    val dx: Float = 0f,
+    val dy: Float = 0f,
 )
 
 /**
@@ -260,6 +263,8 @@ public object NotePlacer {
             layout = raw.translated(dx = dx, dy = dy, shiftPorts = !config.localPorts),
             unresolved = unresolved,
             truncated = truncated,
+            dx = dx,
+            dy = dy,
         )
     }
 

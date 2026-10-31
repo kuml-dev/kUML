@@ -1466,7 +1466,8 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         sysml2EdgeAdapter: Sysml2EdgeAdapter,
         padding: Float,
-    ): LayoutResult {
+        planned: Map<String, dev.kuml.layout.bridge.label.PlacedLabel> = emptyMap(),
+    ): Pair<LayoutResult, Float> {
         val canvasW = layoutResult.canvas.width + 2 * padding
         val frameLeft = DIAGRAM_FRAME_INSET_PX
         val frameRight = canvasW - DIAGRAM_FRAME_INSET_PX
@@ -1474,6 +1475,17 @@ public object KumlSvgRenderer {
         var leftOverhang = 0f
         var rightOverhang = 0f
         for ((edgeId, route) in layoutResult.edges) {
+            val plannedRect = planned[edgeId.value]?.rect
+            if (plannedRect != null) {
+                // A planned label has a known rectangle: measure it directly instead of estimating from the line.
+                leftOverhang = maxOf(leftOverhang, (frameLeft + STM_LABEL_FRAME_CLEARANCE_PX) - (plannedRect.origin.x + padding))
+                rightOverhang =
+                    maxOf(
+                        rightOverhang,
+                        (plannedRect.origin.x + plannedRect.size.width + padding) - (frameRight - STM_LABEL_FRAME_CLEARANCE_PX),
+                    )
+                continue
+            }
             val meta = sysml2EdgeAdapter.metadataFor(edgeId.value) ?: continue
             val label = widestLabelText(meta) ?: continue
             val shiftedRoute = shiftRoute(route = route, dx = padding)
@@ -1482,7 +1494,7 @@ public object KumlSvgRenderer {
             leftOverhang = maxOf(leftOverhang, (frameLeft + STM_LABEL_FRAME_CLEARANCE_PX) - (mx - halfWidth))
             rightOverhang = maxOf(rightOverhang, (mx + halfWidth) - (frameRight - STM_LABEL_FRAME_CLEARANCE_PX))
         }
-        if (leftOverhang <= 0f && rightOverhang <= 0f) return layoutResult
+        if (leftOverhang <= 0f && rightOverhang <= 0f) return layoutResult to 0f
 
         // Shift every node/edge/group by leftOverhang so nothing lands at a
         // negative x once the canvas grows on the left — the frame itself
@@ -1513,7 +1525,7 @@ public object KumlSvgRenderer {
             nodes = shiftedNodes,
             edges = shiftedEdges,
             groups = shiftedGroups,
-        )
+        ) to leftOverhang
     }
 
     /** Edge routes shifted by [padding] and passed through [routeTransform] — shared by label placement and drawing. */
@@ -1896,6 +1908,7 @@ public object KumlSvgRenderer {
         routeTransform: (
             (Map<String, dev.kuml.layout.EdgeRoute>, Map<String, dev.kuml.layout.Rect>) -> Map<String, dev.kuml.layout.EdgeRoute>
         )? = null,
+        plannedEdgeLabels: Map<String, dev.kuml.layout.bridge.label.PlacedLabel> = emptyMap(),
     ): String {
         // Widen the frame (and canvas) BEFORE computing anything padding-relative
         // below, so every subsequent step already sees the final geometry — see
@@ -1906,6 +1919,7 @@ public object KumlSvgRenderer {
         var stmBlocks: Map<String, dev.kuml.io.svg.sysml2.edge.StmLabelBlock> = emptyMap()
         var stmObstacleList: List<dev.kuml.io.svg.sysml2.edge.StmObstacleNode> = emptyList()
         val layoutResult: LayoutResult
+        var labelShiftX = 0f
         if (wrapStmLabels) {
             val padding = options.paddingPx
             val routes = sysml2ShiftedRoutes(layoutResult = rawLayoutResult, padding = padding, routeTransform = routeTransform)
@@ -1958,13 +1972,30 @@ public object KumlSvgRenderer {
                     shiftedLayout
                 }
         } else {
-            layoutResult =
+            val widened =
                 sysml2WidenForLabelOverhang(
                     layoutResult = rawLayoutResult,
                     sysml2EdgeAdapter = sysml2EdgeAdapter,
                     padding = options.paddingPx,
+                    planned = plannedEdgeLabels,
                 )
+            layoutResult = widened.first
+            // Planned labels move with the layout when it was shifted to make room on the left.
+            labelShiftX = widened.second
         }
+        val drawnLabels =
+            plannedEdgeLabels.mapValues { (_, l) ->
+                l.copy(
+                    rect =
+                        l.rect.copy(
+                            origin =
+                                dev.kuml.layout.Point(
+                                    x = l.rect.origin.x + labelShiftX + options.paddingPx,
+                                    y = l.rect.origin.y + options.paddingPx,
+                                ),
+                        ),
+                )
+            }
         return SvgDocument.render(
             layoutResult = layoutResult,
             theme = theme,
@@ -2054,6 +2085,7 @@ public object KumlSvgRenderer {
                             overrideLabelAnchor = edgeLabelAnchor?.invoke(edgeId, shiftedRoute, widestLabelText(meta)),
                             backdropFill = edgeBackdropFill,
                             leashLabels = leashLabels,
+                            plannedLabel = drawnLabels[edgeId.value],
                         )
                         if (placeLabelsOnLine) {
                             Sysml2EdgeRenderer.pendingLabelOf(id = edgeId.value, metadata = meta)?.let { pendingLabels += it }
@@ -2184,18 +2216,27 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements + sysml2NoteElements(model),
             )
+        val bddAdapter = BddEdgeAdapter(model = model, diagram = diagram)
+        // PAL 2B-c: labels are planned first, the notes then avoid the rectangles the labels are really drawn at.
+        val bddLabels = planSysml2EdgeLabels(layout = layoutResult, adapter = bddAdapter)
+        val bddNoted =
+            placeSysml2NotesResult(
+                model = model,
+                diagram = diagram,
+                layout = layoutResult,
+                adapter = bddAdapter,
+                placedLabels = bddLabels,
+            )
+        // Second pass: with the notes in place, the labels move away from them (and from their anchor lines).
+        val bddFinalLabels =
+            if (model.comments.isEmpty()) bddLabels else planSysml2EdgeLabels(layout = bddNoted.layout, adapter = bddAdapter)
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            rawLayoutResult =
-                placeSysml2Notes(
-                    model = model,
-                    diagram = diagram,
-                    layout = layoutResult,
-                    adapter = BddEdgeAdapter(model = model, diagram = diagram),
-                ),
+            rawLayoutResult = bddNoted.layout,
+            plannedEdgeLabels = bddFinalLabels,
             theme = theme,
             options = options,
-            sysml2EdgeAdapter = BddEdgeAdapter(model = model, diagram = diagram),
+            sysml2EdgeAdapter = bddAdapter,
             typeLabel = "bdd",
             sysml2Context =
                 dev.kuml.io.svg.sysml2.Sysml2NodeContext(
@@ -2253,19 +2294,42 @@ public object KumlSvgRenderer {
                 Sysml2LayoutBridge.enrichIbdPortPositions(model = model, diagram = diagram, layoutResult = framed)
             }
         val ibdExtras = Sysml2NoteAnchorExtras.ibd(model = model, diagram = diagram, layout = enrichedLayout)
-        val notedLayout =
-            placeSysml2Notes(
+        val ibdAdapter = IbdEdgeAdapter(model = model, diagram = diagram)
+        // Drawn port squares and the labels next to them (same placement function as the renderer).
+        val ibdPortObstacles: (ObstacleIndex) -> Unit = { o ->
+            Sysml2NoteAnchorExtras.ibdPortObstacles(obstacles = o, extras = ibdExtras, layout = enrichedLayout)
+        }
+        // PAL 2B-c: connector labels are planned first, the notes then avoid the rectangles they are really drawn at.
+        val ibdLabels = planSysml2EdgeLabels(layout = enrichedLayout, adapter = ibdAdapter, configure = ibdPortObstacles)
+        val notedResult =
+            placeSysml2NotesResult(
                 model = model,
                 diagram = diagram,
                 layout = enrichedLayout,
-                adapter = IbdEdgeAdapter(model = model, diagram = diagram),
+                adapter = ibdAdapter,
                 extras = ibdExtras,
                 localPorts = true,
-                configure = { o ->
-                    // Drawn port squares and the labels next to them (same placement function as the renderer).
-                    Sysml2NoteAnchorExtras.ibdPortObstacles(obstacles = o, extras = ibdExtras, layout = enrichedLayout)
-                },
+                configure = ibdPortObstacles,
+                placedLabels = ibdLabels,
             )
+        val notedLayout = notedResult.layout
+        // Second pass: with the notes in place, the labels move away from them (and from their anchor lines).
+        val ibdFinalLabels =
+            if (model.comments.isEmpty()) {
+                ibdLabels
+            } else {
+                planSysml2EdgeLabels(
+                    layout = notedLayout,
+                    adapter = ibdAdapter,
+                    configure = { o ->
+                        Sysml2NoteAnchorExtras.ibdPortObstacles(
+                            obstacles = o,
+                            extras = Sysml2NoteAnchorExtras.ibd(model = model, diagram = diagram, layout = notedLayout),
+                            layout = notedLayout,
+                        )
+                    },
+                )
+            }
         val connectorAvoid =
             if (projection.showFrame) {
                 Sysml2LayoutBridge.ibdAvoidRects(
@@ -2280,9 +2344,10 @@ public object KumlSvgRenderer {
         return renderSysml2Synthetic(
             synthetic = synthetic,
             rawLayoutResult = notedLayout,
+            plannedEdgeLabels = ibdFinalLabels,
             theme = theme,
             options = options,
-            sysml2EdgeAdapter = IbdEdgeAdapter(model = model, diagram = diagram),
+            sysml2EdgeAdapter = ibdAdapter,
             typeLabel = "ibd",
             sysml2Context = context,
             edgeBackdropFill = if (projection.showFrame) theme.colors.background.toHex() else null,
@@ -2641,7 +2706,7 @@ public object KumlSvgRenderer {
                 layoutResult = placeSysml2Notes(model = model, diagram = diagram, layout = layoutResult, adapter = adapter),
                 sysml2EdgeAdapter = adapter,
                 padding = options.paddingPx,
-            )
+            ).first
 
         // V2.0.46: Index der Activity-Knoten-Formen für den Edge-Clipper.
         //          ELK liefert Edge-Endpunkte auf dem Rand der achsparallelen
@@ -3409,7 +3474,30 @@ public object KumlSvgRenderer {
         extras: Map<String, AnchorGeometry> = emptyMap(),
         localPorts: Boolean = false,
         configure: (ObstacleIndex) -> Unit = {},
+        placedLabels: Map<String, dev.kuml.layout.bridge.label.PlacedLabel> = emptyMap(),
     ): LayoutResult =
+        placeSysml2NotesResult(
+            model = model,
+            diagram = diagram,
+            layout = layout,
+            adapter = adapter,
+            extras = extras,
+            localPorts = localPorts,
+            configure = configure,
+            placedLabels = placedLabels,
+        ).layout
+
+    /** Like [placeSysml2Notes], but keeps the shift the layout got so positions planned beforehand can follow it. */
+    internal fun placeSysml2NotesResult(
+        model: Sysml2Model,
+        diagram: dev.kuml.sysml2.Sysml2Diagram,
+        layout: LayoutResult,
+        adapter: Sysml2EdgeAdapter? = null,
+        extras: Map<String, AnchorGeometry> = emptyMap(),
+        localPorts: Boolean = false,
+        configure: (ObstacleIndex) -> Unit = {},
+        placedLabels: Map<String, dev.kuml.layout.bridge.label.PlacedLabel> = emptyMap(),
+    ): dev.kuml.layout.bridge.note.NotePlacementResult =
         Sysml2NotePlacement
             .place(
                 model = model,
@@ -3428,7 +3516,30 @@ public object KumlSvgRenderer {
                 },
                 configure = configure,
                 config = NotePlacementConfig(localPorts = localPorts),
-            ).layout
+                placedLabels = placedLabels.mapValues { it.value.rect },
+            )
+
+    /**
+     * Plans the edge labels of an IBD / BDD [layout] (PAL wave 2B-c): sizes come from the lines the renderer will draw,
+     * the placement from [dev.kuml.layout.bridge.label.Sysml2EdgeLabelPlan]. Layout coordinates, before notes.
+     */
+    internal fun planSysml2EdgeLabels(
+        layout: LayoutResult,
+        adapter: Sysml2EdgeAdapter,
+        configure: (ObstacleIndex) -> Unit = {},
+    ): Map<String, dev.kuml.layout.bridge.label.PlacedLabel> {
+        val sizes = LinkedHashMap<String, dev.kuml.layout.Size>()
+        for (edgeId in layout.edges.keys) {
+            val md = adapter.metadataFor(edgeId.value) ?: continue
+            val lines = Sysml2EdgeRenderer.drawnLabelLines(md)
+            if (lines.isEmpty()) continue
+            sizes[edgeId.value] =
+                dev.kuml.layout.bridge.label.Sysml2LabelSizing
+                    .sizeOf(lines.map { it.text })
+        }
+        return dev.kuml.layout.bridge.label.Sysml2EdgeLabelPlan
+            .compute(layout = layout, labelSizes = sizes, configure = configure)
+    }
 
     /** The lines an edge label is drawn in: one line while it fits 180 px, otherwise one part per line (max 3). */
     private fun sysml2EdgeLabelLines(parts: List<dev.kuml.sysml2.edge.EdgeLabelPart>): List<String> {
@@ -3753,6 +3864,88 @@ public object KumlSvgRenderer {
     }
 
     /**
+     * Label plan of the Martin / Bachman / IDEF1X edges (PAL wave 2B-c), in drawn coordinates: routes after the
+     * self-loop adjustment and the canvas padding, nodes shifted the same way. One plan per diagram.
+     */
+    private fun ermLabelPlan(
+        layoutResult: LayoutResult,
+        relationshipsById: Map<String, ErmRelationship>,
+        padding: Float,
+    ): Map<String, Map<String, dev.kuml.layout.bridge.label.PlacedLabel>> {
+        val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id -> layoutResult.nodes[NodeId(id)] }
+        val routes = LinkedHashMap<String, EdgeRoute>()
+        val labels = LinkedHashMap<String, dev.kuml.io.svg.erm.ErmEdgeLabelSpec>()
+        for ((edgeId, route) in layoutResult.edges) {
+            val rel = relationshipsById[edgeId.value]
+            val routed = if (rel != null) SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = nodeLookup) else route
+            routes[edgeId.value] = shiftRoute(route = routed, dx = padding)
+            if (rel != null) {
+                labels[edgeId.value] =
+                    dev.kuml.io.svg.erm
+                        .ErmEdgeLabelSpec(name = rel.name, sourceRole = rel.sourceRole, targetRole = rel.targetRole)
+            }
+        }
+        val nodes =
+            layoutResult.nodes.entries.associate { (id, nl) ->
+                id.value to
+                    nl.bounds.copy(origin = nl.bounds.origin.copy(x = nl.bounds.origin.x + padding, y = nl.bounds.origin.y + padding))
+            }
+        return dev.kuml.io.svg.erm.ErmEdgeLabelPlan
+            .compute(routes = routes, nodes = nodes, labels = labels)
+    }
+
+    /**
+     * Geometry the ERM label plan works on, exactly as [toSvg] draws it (for geometry tests and tooling): drawn route
+     * polylines, drawn node rectangles and the planned label rectangles per relationship id and label key.
+     */
+    public data class ErmLabelGeometry(
+        val routes: Map<String, List<dev.kuml.layout.Point>>,
+        val nodes: Map<String, dev.kuml.layout.Rect>,
+        val labels: Map<String, Map<String, dev.kuml.layout.bridge.label.PlacedLabel>>,
+    )
+
+    /** The label geometry [toSvg] uses for a Martin / Bachman / IDEF1X diagram of [model] laid out as [layoutResult]. */
+    public fun ermLabelGeometry(
+        model: ErmModel,
+        layoutResult: LayoutResult,
+        paddingPx: Float = SvgRenderOptions.DEFAULT.paddingPx,
+    ): ErmLabelGeometry {
+        val rels = model.relationships.associateBy { it.id }
+        val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id -> layoutResult.nodes[NodeId(id)] }
+        val routes =
+            layoutResult.edges.entries.associate { (id, route) ->
+                val rel = rels[id.value]
+                val routed =
+                    if (rel !=
+                        null
+                    ) {
+                        SelfLoopRouter.adjust(element = rel, originalRoute = route, nodeLookup = nodeLookup)
+                    } else {
+                        route
+                    }
+                id.value to
+                    shiftRoute(route = routed, dx = paddingPx).let {
+                        when (it) {
+                            is EdgeRoute.Direct -> listOf(it.source, it.target)
+                            is EdgeRoute.OrthogonalRounded -> listOf(it.source) + it.waypoints + listOf(it.target)
+                            is EdgeRoute.TreeRounded -> listOf(it.source) + it.waypoints + listOf(it.target)
+                            is EdgeRoute.Bezier -> listOf(it.source, it.target)
+                        }
+                    }
+            }
+        val nodes =
+            layoutResult.nodes.entries.associate { (id, nl) ->
+                id.value to
+                    nl.bounds.copy(origin = nl.bounds.origin.copy(x = nl.bounds.origin.x + paddingPx, y = nl.bounds.origin.y + paddingPx))
+            }
+        return ErmLabelGeometry(
+            routes = routes,
+            nodes = nodes,
+            labels = ermLabelPlan(layoutResult = layoutResult, relationshipsById = rels, padding = paddingPx),
+        )
+    }
+
+    /**
      * Shared ERM render body for [renderErmMartin] and [renderErmBachman] —
      * entity/view boxes, layout shifting, and relationship-label stacking are
      * notation-neutral (see [KumlSvgRenderer.toSvg]'s KDoc); only the
@@ -3766,7 +3959,14 @@ public object KumlSvgRenderer {
         theme: KumlTheme,
         options: SvgRenderOptions,
         frameTypeLabel: String,
-        renderRelationship: (ErmRelationship, EdgeRoute, KumlTheme, SvgBuilder, Int) -> Unit,
+        renderRelationship: (
+            ErmRelationship,
+            EdgeRoute,
+            KumlTheme,
+            SvgBuilder,
+            Int,
+            Map<String, dev.kuml.layout.bridge.label.PlacedLabel>?,
+        ) -> Unit,
     ): String {
         val entitiesById = model.entities.associateBy { it.id }
         val viewsById = model.views.associateBy { it.id }
@@ -3783,6 +3983,7 @@ public object KumlSvgRenderer {
                 },
             )
 
+        val labelPlan = ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = padding)
         return SvgDocument.render(
             layoutResult = layoutResult,
             theme = theme,
@@ -3830,6 +4031,7 @@ public object KumlSvgRenderer {
                     theme,
                     edgesBuilder,
                     stackIndices[edgeId] ?: 0,
+                    labelPlan[edgeId.value],
                 )
             }
             renderErmNotes(
@@ -4068,6 +4270,7 @@ public object KumlSvgRenderer {
                 relationshipRoutes.map { (edgeId, route) -> Triple(edgeId, route, relationshipsById[edgeId.value]?.name) },
             )
 
+        val idefLabelPlan = ermLabelPlan(layoutResult = layoutResult, relationshipsById = relationshipsById, padding = padding)
         return SvgDocument.render(
             layoutResult = layoutResult,
             theme = theme,
@@ -4146,6 +4349,7 @@ public object KumlSvgRenderer {
                             b = edgesBuilder,
                             labelStackIndex =
                                 stackIndices[edgeId] ?: 0,
+                            labelPlan = idefLabelPlan[id],
                         )
                     }
                 }

@@ -1,5 +1,6 @@
 package dev.kuml.io.svg.blueprint
 
+import kotlin.math.abs
 import kotlin.math.max
 
 /**
@@ -23,7 +24,24 @@ internal object BlueprintNoteRouter {
     const val CORNER_INSET: Double = 10.0
 
     private const val MIN_GUTTER: Double = 16.0
-    private const val TRACK_TOP_INSET: Double = 4.0
+
+    /** Minimum clearance of an anchor track to every horizontal line (lane boundary, card edge). */
+    const val TRACK_CLEARANCE: Double = 4.0
+
+    /** Minimum clearance of an anchor track to a lane boundary (Line of Interaction / Visibility / Internal Interaction). */
+    const val LANE_LINE_CLEARANCE: Double = 6.0
+
+    /** Minimum distance between two anchor tracks of the whole diagram. */
+    const val TRACK_SPACING: Double = 6.0
+
+    /** Raster of the candidate tracks inside a lane's margin zone. */
+    const val TRACK_RASTER: Double = 6.0
+
+    /** Distance of the fallback channel below the lowest horizontal line. */
+    const val OUTER_CHANNEL_OFFSET: Double = 12.0
+
+    /** Upper bound for candidate tracks examined per anchor (keeps the search bounded). */
+    private const val MAX_CANDIDATES: Int = 64
     private val ENTRY_OFFSETS: List<Double> = listOf(0.0, 16.0, -16.0, 32.0, -32.0)
 
     /** Width of the gutter between lanes and note column for a note with up to [anchors] anchor lines. */
@@ -40,9 +58,19 @@ internal object BlueprintNoteRouter {
         val cardTop: Double,
         val cardRight: Double,
         val cardBottom: Double,
+        /** Lower lane boundary; defaults to the standard 24 px clearance zone below the card. */
+        val laneBottom: Double = cardBottom + 24.0,
     ) {
         val cardCx: Double get() = (cardLeft + cardRight) / 2.0
     }
+
+    /** A horizontal line of the grid an anchor track must keep clear of: [y] between [xFrom] and [xTo]. */
+    class HLine(
+        val y: Double,
+        val xFrom: Double,
+        val xTo: Double,
+        val clearance: Double = TRACK_CLEARANCE,
+    )
 
     /**
      * @param noteX left border of the note, [noteY]/[noteH] its vertical extent
@@ -55,6 +83,8 @@ internal object BlueprintNoteRouter {
         targets: List<Target>,
         laneSlots: MutableMap<Double, Int>,
         cardEntries: MutableMap<Pair<Double, Double>, Int>,
+        horizontalObstacles: List<HLine> = emptyList(),
+        claimedTracks: MutableList<Double> = ArrayList(),
     ): List<Pair<String, List<Pair<Double, Double>>>> {
         if (targets.isEmpty()) return emptyList()
         val n = targets.size
@@ -71,9 +101,14 @@ internal object BlueprintNoteRouter {
             targets.map { t ->
                 val slot = laneSlots[t.laneTop] ?: 0
                 laneSlots[t.laneTop] = slot + 1
-                val top = slot % 2 == 0
-                val tier = slot / 2
-                val trackY = if (top) t.laneTop + TRACK_TOP_INSET + tier * 2.5 else t.cardBottom + 14.0 - tier * 6.0
+                val (trackY, top) =
+                    pickTrack(
+                        t = t,
+                        preferTop = slot % 2 == 0,
+                        noteX = noteX,
+                        obstacles = horizontalObstacles,
+                        claimed = claimedTracks,
+                    )
                 val entry = cardEntries[t.cardLeft to t.laneTop] ?: 0
                 cardEntries[t.cardLeft to t.laneTop] = entry + 1
                 val endX = t.cardCx + ENTRY_OFFSETS[entry % ENTRY_OFFSETS.size]
@@ -99,4 +134,65 @@ internal object BlueprintNoteRouter {
         }
         return out
     }
+
+    private fun freeOf(
+        y: Double,
+        xLo: Double,
+        xHi: Double,
+        obstacles: List<HLine>,
+        claimed: List<Double>,
+    ): Boolean {
+        val lo = minOf(xLo, xHi)
+        val hi = maxOf(xLo, xHi)
+        if (obstacles.any { o -> abs(o.y - y) < o.clearance - EPS && o.xTo >= lo && o.xFrom <= hi }) return false
+        return claimed.none { abs(it - y) < TRACK_SPACING - EPS }
+    }
+
+    /**
+     * Picks the horizontal track of one anchor: the first candidate of a 6 px raster inside the lane's margin zones
+     * (above or below the card, preferred side first) that keeps [TRACK_CLEARANCE] to every horizontal line and
+     * [TRACK_SPACING] to every track already claimed in the diagram. When no candidate is free, the track runs in an
+     * outer channel [OUTER_CHANNEL_OFFSET] below the lowest horizontal line and the line enters the card from below.
+     *
+     * @return the track y and whether the line enters the card at its top edge
+     */
+    private fun pickTrack(
+        t: Target,
+        preferTop: Boolean,
+        noteX: Double,
+        obstacles: List<HLine>,
+        claimed: MutableList<Double>,
+    ): Pair<Double, Boolean> {
+        val topZone =
+            generateSequence(t.laneTop + LANE_LINE_CLEARANCE) { it + TRACK_RASTER }
+                .takeWhile { it <= t.cardTop - TRACK_CLEARANCE + EPS }
+                .take(MAX_CANDIDATES)
+                .toList()
+        // Raster counted from the lane boundary upwards: the track nearest to the boundary first.
+        val bottomZone =
+            generateSequence(t.laneBottom - LANE_LINE_CLEARANCE) { it - TRACK_RASTER }
+                .takeWhile { it >= t.cardBottom + TRACK_CLEARANCE - EPS }
+                .take(MAX_CANDIDATES)
+                .toList()
+        val candidates =
+            if (preferTop) {
+                topZone.map { it to true } + bottomZone.map { it to false }
+            } else {
+                bottomZone.map { it to false } + topZone.map { it to true }
+            }
+        for ((y, top) in candidates) {
+            if (freeOf(y = y, xLo = t.cardCx - ENTRY_REACH, xHi = noteX, obstacles = obstacles, claimed = claimed)) {
+                claimed += y
+                return y to top
+            }
+        }
+        var y = (obstacles.maxOfOrNull { it.y } ?: t.laneBottom).coerceAtLeast(t.laneBottom) + OUTER_CHANNEL_OFFSET
+        var guard = 0
+        while (claimed.any { abs(it - y) < TRACK_SPACING - EPS } && guard++ < MAX_CANDIDATES) y += TRACK_SPACING
+        claimed += y
+        return y to false
+    }
+
+    private const val EPS: Double = 1e-6
+    private const val ENTRY_REACH: Double = 32.0
 }

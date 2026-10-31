@@ -15,9 +15,28 @@ All notable changes to this project are documented here. Format follows
 - **OKF-E-007** now names the document line and the line inside the block (`kuml block #2 line 8 (block line 3): ... [DSL_ERROR]`), locale independent; runtime exceptions inside a script are reported with their line instead of "produces no renderable diagram" (`ScriptProblems` in `kuml-core-script`).
 - **Behaviour changes:** model order is applied globally (most layouts can shift slightly); diagrams with an aspect ratio outside 1:2.5..2.5:1 are re-wrapped automatically (`LayoutHints.autoAspect = false` disables it).
 
-### Not done in this wave (2B)
+### Added / Changed / Fixed (PAL wave 2B-b: labels, layout blocks, validate parity)
 
-- Central label placement (`LabelPlacer`, ELK edge-label reservation), Blueprint anchor-line proximity (example 59), `layout { }` for C4/Blueprint/ERM/BPMN, the effect matrix for those, layout-spec use in the Desktop/Web/MCP/docs/Gradle pipelines and in `kuml validate`, Validate parity CLI/Desktop, new vault examples 61 to 65, and the visual image review. Desktop MCP was not reachable, no end-to-end Desktop test.
+- **Collision-free labels on UML associations:** name, multiplicity and role labels are placed by one cost-based placer instead of fixed offsets, so they keep clear of nodes, notes, other labels and foreign lines (`LabelPlacer`, `UmlAssociationLabelPlan`; deterministic, bounded work).
+- **`layout { }` for C4, ERM and Service Blueprint,** with a documented matrix of which directive acts on which diagram family (`LayoutEffectMatrix`, `SpecDiagramKind`); layout findings are part of the render outcome.
+- **Validate parity:** `kuml validate` and Desktop validate share one service (`ValidationService`) and give the same results, Desktop honours `layout { }` blocks.
+- New vault examples 61 to 65 and a geometry regression test for labels (`LabelGeometryInvariantTest`).
+
+### Added / Changed / Fixed (PAL wave 2B-c: labels in SysML 2, ERM and Service Blueprint)
+
+- **SysML 2 IBD and BDD:** connector labels and notes now come from one plan. The labels are planned first (`Sysml2EdgeLabelPlan`, one size estimate `Sysml2LabelSizing` for plan, notes and drawing), the notes are placed around them, and once the notes stand the labels move away from the notes and their anchor lines. The label is drawn exactly at the planned rectangle (`data-label-rect`), so a note no longer ends up under a label (example 54). Port labels keep their existing placement and are obstacles.
+- **ERM (Martin, Bachman, IDEF1X):** relationship names and role labels are placed by the shared placer (`ErmEdgeLabelPlan`); crow's feet, bars, circles and arrows are fixed obstacles. A name no longer lies on its own line or on the self-reference of an entity (example 39).
+- **Service Blueprint:** note anchor lines no longer use fixed track heights. A track is picked from a 6 px raster in the margin below the step card with at least 6 px to every lane boundary (Line of Interaction, Visibility, Internal Interaction), 4 px to card edges and 6 px to every other anchor track of the diagram; if none is free the line runs in an outer channel below the lanes. No anchor line lies on the Line of Visibility any more (example 59).
+- API additions: `NotePlacementResult.dx/dy`, `placedLabels` parameter of `Sysml2NotePlacement.place/obstaclesOf`, `KumlSvgRenderer.ermLabelGeometry` (geometry for tests and tooling).
+- **Behaviour change:** IBD and BDD connector labels now sit beside their line (placer candidates) instead of centred above the midpoint; ERM labels likewise. Diagrams with SysML 2 IBD/BDD, ERM or Blueprint notes change slightly.
+
+### Open for 2C
+
+- Port-edge clamping and the distance between IBD ports and their labels (port labels keep their old placement; in example 54 the label `dcOut : DcPort` still sits close to the port edge).
+- Unifying the label handling of STM and SEQ with the new plan; STM, SEQ, PAR, REQ, UC and ACT labels are unchanged in this wave.
+- Edge end labels of IBD/BDD (multiplicity text at an end) are not yet part of the plan; ERM Chen cardinality labels keep their fixed offsets.
+- Outer-channel anchor lines of Service Blueprint can cross cards of lower lanes in the same column.
+- Desktop MCP was not reachable, no end-to-end Desktop test.
 
 ### Added (PAL wave 2A: notes, P-COM-01 to P-COM-04)
 

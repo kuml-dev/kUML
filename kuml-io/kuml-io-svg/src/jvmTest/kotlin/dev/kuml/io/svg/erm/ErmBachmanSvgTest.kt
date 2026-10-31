@@ -286,8 +286,11 @@ class ErmBachmanSvgTest :
             // V3.4.x — see ErmMartinSvgTest's matching test for the rationale:
             // ERM self-loops now route through SelfLoopRouter, which bulges
             // outward from the node's RIGHT edge (x=380 = origin.x=200 + width=180).
-            nameLabel.textAnchor shouldBe "start"
-            (nameLabel.x >= 380f) shouldBe true
+            // PAL 2B-c: the label is planned as a rectangle centred on its anchor, clear of the entity box. The
+            // box right edge sits at x=380 in layout coordinates; the planned rectangle (estimated width, see
+            // ErmEdgeLabelPlan) must start right of it.
+            val halfWidth = (nameLabel.text.length * 6.6f + 8f) / 2f
+            (nameLabel.x - halfWidth >= 380f + SvgRenderOptions.DEFAULT.paddingPx - 0.5f) shouldBe true
             SampleOutput.write(filename = "erm/bachman-self-loop-name-label-no-overflow.svg", content = svg)
         }
     })

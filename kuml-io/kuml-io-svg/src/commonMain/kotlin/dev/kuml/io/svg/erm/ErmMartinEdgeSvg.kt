@@ -40,9 +40,17 @@ internal fun renderErmMartinRelationship(
     theme: KumlTheme,
     b: SvgBuilder,
     labelStackIndex: Int = 0,
+    labelPlan: Map<String, dev.kuml.layout.bridge.label.PlacedLabel>? = null,
 ) {
     b.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(rel.id))) {
-        renderErmMartinRelationshipContent(rel = rel, route = route, theme = theme, b = this, labelStackIndex = labelStackIndex)
+        renderErmMartinRelationshipContent(
+            rel = rel,
+            route = route,
+            theme = theme,
+            b = this,
+            labelStackIndex = labelStackIndex,
+            labelPlan = labelPlan,
+        )
     }
 }
 
@@ -52,6 +60,7 @@ private fun renderErmMartinRelationshipContent(
     theme: KumlTheme,
     b: SvgBuilder,
     labelStackIndex: Int = 0,
+    labelPlan: Map<String, dev.kuml.layout.bridge.label.PlacedLabel>? = null,
 ) {
     val (tagName, attrs) = EdgePathBuilder.build(route)
     val dashed = rel.kind == RelationshipKind.NON_IDENTIFYING
@@ -69,25 +78,14 @@ private fun renderErmMartinRelationshipContent(
     renderCardinalityGlyph(anchor = route.source, dir = sourceDir, cardinality = rel.sourceCardinality, theme = theme, b = b)
     renderCardinalityGlyph(anchor = route.target, dir = targetDir, cardinality = rel.targetCardinality, theme = theme, b = b)
 
-    val selfLoop = rel.sourceEntityId == rel.targetEntityId
-    val relName = rel.name
-    if (!relName.isNullOrBlank()) {
-        b.renderErmRelationshipNameLabel(
-            label = relName,
-            route = route,
-            stackIndex = labelStackIndex,
-            selfLoop = selfLoop,
-            sourceDir = sourceDir,
-            targetDir = targetDir,
-        )
-    }
-
-    rel.sourceRole?.let { role ->
-        b.renderErmRoleLabel(anchor = route.source, dir = sourceDir, role = role)
-    }
-    rel.targetRole?.let { role ->
-        b.renderErmRoleLabel(anchor = route.target, dir = targetDir, role = role, perpBias = if (selfLoop) 1f else -1f)
-    }
+    b.renderErmEdgeLabels(
+        rel = rel,
+        route = route,
+        stackIndex = labelStackIndex,
+        sourceDir = sourceDir,
+        targetDir = targetDir,
+        plan = labelPlan,
+    )
 }
 
 /** Distance from the entity border to the crow's-foot apex. */

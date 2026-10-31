@@ -191,6 +191,7 @@ internal object Sysml2EdgeRenderer {
         backdropFill: String? = null,
         suppressLabels: Boolean = false,
         leashLabels: Boolean = false,
+        plannedLabel: dev.kuml.layout.bridge.label.PlacedLabel? = null,
     ) {
         builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(id))) {
             renderContent(
@@ -203,6 +204,7 @@ internal object Sysml2EdgeRenderer {
                 backdropFill = backdropFill,
                 suppressLabels = suppressLabels,
                 leashLabels = leashLabels,
+                plannedLabel = plannedLabel,
             )
         }
     }
@@ -217,6 +219,7 @@ internal object Sysml2EdgeRenderer {
         backdropFill: String? = null,
         suppressLabels: Boolean = false,
         leashLabels: Boolean = false,
+        plannedLabel: dev.kuml.layout.bridge.label.PlacedLabel? = null,
     ) {
         // 1. Line + dash pattern. Wave C2: an interrupting flow / exception handler is drawn as a
         //    polyline with a lightning-bolt kink instead of the plain (possibly rounded) path.
@@ -258,6 +261,15 @@ internal object Sysml2EdgeRenderer {
 
         // STM labels are emitted later by emitStmLabels, after all edges, so no later edge paints over them.
         if (suppressLabels) return
+
+        // PAL 2B-c: a label planned by Sysml2EdgeLabelPlan is drawn exactly at its planned rectangle.
+        if (plannedLabel != null) {
+            val lines = drawnLabelLines(metadata)
+            if (lines.isNotEmpty()) {
+                emitPlannedLabel(placed = plannedLabel, lines = lines, backdrop = backdropFill ?: "white", builder = builder)
+            }
+            return
+        }
 
         // 2. Labels (stereotype + plain label). Suppress emission entirely
         //    when both slots are null — most PAR bindings and bare ACT /
@@ -314,6 +326,79 @@ internal object Sysml2EdgeRenderer {
         // collision avoidance for overlapping labels.
         @Suppress("UNUSED_EXPRESSION")
         theme
+    }
+
+    /** One drawn line of an edge label: its text and CSS class. */
+    internal data class DrawnLabelLine(
+        val text: String,
+        val css: String,
+    )
+
+    /**
+     * The lines an edge label of [metadata] is drawn in (stereotype first, then the label, each word-wrapped): the
+     * single source for the size the label plan reserves and the text [emitPlannedLabel] draws.
+     */
+    internal fun drawnLabelLines(metadata: Sysml2EdgeMetadata): List<DrawnLabelLine> {
+        val out = ArrayList<DrawnLabelLine>()
+        metadata.stereotype?.let { st ->
+            wrapWords(text = st, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(st) }.forEach {
+                out +=
+                    DrawnLabelLine(text = it, css = "kuml-stereotype")
+            }
+        }
+        metadata.label?.let { l ->
+            wrapWords(text = l, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(l) }.forEach {
+                out +=
+                    DrawnLabelLine(text = it, css = "kuml-body")
+            }
+        }
+        return out
+    }
+
+    /** Draws [lines] centred in the rectangle of [placed]; a label that sits on its own line gets an opaque backdrop. */
+    private fun emitPlannedLabel(
+        placed: dev.kuml.layout.bridge.label.PlacedLabel,
+        lines: List<DrawnLabelLine>,
+        backdrop: String,
+        builder: SvgBuilder,
+    ) {
+        val r = placed.rect
+        // data-label-rect carries the planned rectangle, so tests can compare what is drawn with what was planned.
+        builder.tag(
+            name = "g",
+            attrs =
+                mapOf(
+                    "class" to "kuml-edge-label",
+                    "data-label-rect" to "${fmt(r.origin.x)} ${fmt(r.origin.y)} ${fmt(r.size.width)} ${fmt(r.size.height)}",
+                ),
+        ) {
+            if (placed.onLine) {
+                tag(
+                    name = "rect",
+                    attrs =
+                        mapOf(
+                            "x" to fmt(r.origin.x),
+                            "y" to fmt(r.origin.y),
+                            "width" to fmt(r.size.width),
+                            "height" to fmt(r.size.height),
+                            "fill" to backdrop,
+                            "stroke" to "none",
+                        ),
+                )
+            }
+            lines.forEachIndexed { i, line ->
+                tag(
+                    name = "text",
+                    attrs =
+                        mapOf(
+                            "class" to line.css,
+                            "x" to fmt(r.origin.x + r.size.width / 2f),
+                            "y" to fmt(r.origin.y + 2f + 10f + i * dev.kuml.layout.bridge.label.Sysml2LabelSizing.LINE_PX),
+                            "text-anchor" to "middle",
+                        ),
+                ) { text(line.text) }
+            }
+        }
     }
 
     /** An edge label waiting for [emitLabelsOnLine] (wave C2b): the texts of one edge, placed after all edges are known. */

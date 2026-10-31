@@ -106,8 +106,9 @@ class BlueprintNoteRouterTest :
         "a second line into the same lane uses another track and a second line into the same card another entry" {
             val laneSlots = HashMap<Double, Int>()
             val entries = HashMap<Pair<Double, Double>, Int>()
-            val r1 = BlueprintNoteRouter.route(600.0, 140.0, 80.0, listOf(target("a", 0, 0)), laneSlots, entries)
-            val r2 = BlueprintNoteRouter.route(600.0, 240.0, 80.0, listOf(target("b", 0, 0)), laneSlots, entries)
+            val claimed = ArrayList<Double>()
+            val r1 = BlueprintNoteRouter.route(600.0, 140.0, 80.0, listOf(target("a", 0, 0)), laneSlots, entries, emptyList(), claimed)
+            val r2 = BlueprintNoteRouter.route(600.0, 240.0, 80.0, listOf(target("b", 0, 0)), laneSlots, entries, emptyList(), claimed)
             r1.single().second[2].second shouldNotBe r2.single().second[2].second
             r1
                 .single()
@@ -125,5 +126,53 @@ class BlueprintNoteRouterTest :
             BlueprintNoteRouter.gutterFor(1) shouldBe 16.0
             (BlueprintNoteRouter.gutterFor(4) > BlueprintNoteRouter.gutterFor(2)) shouldBe true
             BlueprintNoteRouter.minNoteHeight(3) shouldBeGreaterThanOrEqualTo 52.0
+        }
+
+        // Fixture of the failing case in example 59: second lane directly below the Line of Visibility.
+        fun laneLines(vararg lanes: Int) =
+            lanes.flatMap { l ->
+                val top = 100.0 + l * 112.0
+                listOf(
+                    BlueprintNoteRouter.HLine(top, 150.0, 550.0, BlueprintNoteRouter.LANE_LINE_CLEARANCE),
+                    BlueprintNoteRouter.HLine(top + 112.0, 150.0, 550.0, BlueprintNoteRouter.LANE_LINE_CLEARANCE),
+                )
+            }
+
+        "an anchor into the lane below a lane line keeps 6 px to that line (example 59)" {
+            val t = target("a", 0, 1)
+            val pts =
+                BlueprintNoteRouter
+                    .route(600.0, 140.0, 80.0, listOf(t), HashMap(), HashMap(), laneLines(0, 1, 2), ArrayList())
+                    .single()
+                    .second
+            val track = pts[2].second
+            abs(track - t.laneTop) shouldBeGreaterThanOrEqualTo 6.0
+            abs(track - (t.laneTop + 112.0)) shouldBeGreaterThanOrEqualTo 6.0
+            abs(track - t.cardBottom) shouldBeGreaterThanOrEqualTo 4.0
+        }
+
+        "tracks of different anchors keep 6 px, three fit below a card, the fourth uses the outer channel" {
+            val claimed = ArrayList<Double>()
+            val laneSlots = HashMap<Double, Int>()
+            val entries = HashMap<Pair<Double, Double>, Int>()
+            val obstacles = laneLines(0, 1)
+            val tracks =
+                (0 until 4).map { i ->
+                    BlueprintNoteRouter
+                        .route(600.0, 140.0 + i * 100, 80.0, listOf(target("l$i", 0, 0)), laneSlots, entries, obstacles, claimed)
+                        .single()
+                        .second[2]
+                        .second
+                }
+            for (i in tracks.indices) for (j in i + 1 until tracks.size) abs(tracks[i] - tracks[j]) shouldBeGreaterThanOrEqualTo 6.0
+            tracks.take(3).forEach { (it < 100.0 + 112.0) shouldBe true }
+            // fallback: 12 px below the lowest horizontal line
+            tracks[3] shouldBe (100.0 + 2 * 112.0 + BlueprintNoteRouter.OUTER_CHANNEL_OFFSET)
+        }
+
+        "the gutter verticals of one note keep at least 4 px" {
+            val r = route(target("a", 0, 0), target("b", 0, 1), target("c", 0, 2))
+            val xs = r.map { it.second[1].first }.sorted()
+            xs.zipWithNext().forEach { (p, q) -> (q - p) shouldBeGreaterThanOrEqualTo 4.0 }
         }
     })

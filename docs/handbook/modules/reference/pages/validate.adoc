@@ -50,6 +50,13 @@ example in a shell loop.
   reporters).
 |===
 
+== Same result in CLI and Desktop
+
+`kuml validate` and the Validate view of kUML Desktop use one service (`ValidationService`), so the same script
+gives the same findings in both: structural violations, note warnings (`KUML-NOTE-W*`) and layout findings
+(`KUML-LAYOUT-*`). A `layout { }` block is evaluated by validate as it is by render, so a hint a diagram kind
+does not honour, an unknown id or an unreachable limit is reported before rendering.
+
 == Exit codes
 
 [cols="1,2"]

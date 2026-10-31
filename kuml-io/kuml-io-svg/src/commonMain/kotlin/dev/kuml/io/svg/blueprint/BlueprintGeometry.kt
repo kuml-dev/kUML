@@ -108,7 +108,13 @@ internal class BlueprintGeometry(
     val placedNotes: List<PlacedBlueprintNote> = placeNotes()
 
     val totalWidth = contentRight + BlueprintGridConstants.noteColumnWidth(model) + (noteGutter - NOTE_GUTTER) + padding
-    val totalHeight = maxOf(gridBottom + legendHeight, placedNotes.maxOfOrNull { it.y + it.h } ?: 0.0) + padding
+    val totalHeight =
+        maxOf(
+            gridBottom + legendHeight,
+            placedNotes.maxOfOrNull { it.y + it.h } ?: 0.0,
+            // a line in the outer channel below the lanes must stay inside the canvas
+            placedNotes.maxOfOrNull { n -> n.routes.maxOfOrNull { (_, pts) -> pts.maxOf { it.second } } ?: 0.0 } ?: 0.0,
+        ) + padding
 
     private fun placeNotes(): List<PlacedBlueprintNote> {
         if (model.notes.isEmpty()) return emptyList()
@@ -128,6 +134,8 @@ internal class BlueprintGeometry(
         val order = model.notes.sortedBy { n -> anchored.getValue(n.id).firstOrNull()?.let { cellOf(it)?.second } ?: Double.MAX_VALUE }
         val laneSlots = HashMap<Double, Int>()
         val cardEntries = HashMap<Pair<Double, Double>, Int>()
+        val claimedTracks = ArrayList<Double>()
+        val obstacles = horizontalObstacles()
         for (n in order) {
             val size =
                 dev.kuml.layout.bridge.NoteLayout
@@ -150,6 +158,7 @@ internal class BlueprintGeometry(
                         cardTop = cellY + cardMarginTop,
                         cardRight = cellX + columnWidth - CARD_MARGIN_SIDE,
                         cardBottom = cellY + rowHeight - cardMarginBottom,
+                        laneBottom = cellY + rowHeight,
                     )
                 }
             val routes =
@@ -160,8 +169,46 @@ internal class BlueprintGeometry(
                     targets = targets,
                     laneSlots = laneSlots,
                     cardEntries = cardEntries,
+                    horizontalObstacles = obstacles,
+                    claimedTracks = claimedTracks,
                 )
             out += PlacedBlueprintNote(id = n.id, body = n.body, x = noteX, y = y, w = w, h = h, routes = routes)
+        }
+        return out
+    }
+
+    /** Lane boundaries and the top/bottom edges of all step cards: the horizontals an anchor track keeps clear of. */
+    private fun horizontalObstacles(): List<BlueprintNoteRouter.HLine> {
+        val out = ArrayList<BlueprintNoteRouter.HLine>()
+        for (layer in layers) {
+            val band = bandY(layer)
+            for (y in listOf(band.start, band.endInclusive)) {
+                out +=
+                    BlueprintNoteRouter.HLine(
+                        y = y,
+                        xFrom = contentLeft,
+                        xTo = contentRight,
+                        clearance = BlueprintNoteRouter.LANE_LINE_CLEARANCE,
+                    )
+            }
+        }
+        // The captions of the separator lines sit right-aligned just above each lane boundary; a track must not cross them.
+        for (layer in layers.dropLast(1)) {
+            val bottom = bandY(layer).endInclusive
+            out +=
+                BlueprintNoteRouter.HLine(
+                    y = bottom - SEPARATOR_CAPTION_CENTER_PX,
+                    xFrom = contentRight - SEPARATOR_CAPTION_WIDTH_PX,
+                    xTo = contentRight,
+                    clearance = SEPARATOR_CAPTION_CLEARANCE_PX,
+                )
+        }
+        for (step in model.steps) {
+            val (cellX, cellY) = cellOf(step) ?: continue
+            val left = cellX + CARD_MARGIN_SIDE
+            val right = cellX + columnWidth - CARD_MARGIN_SIDE
+            out += BlueprintNoteRouter.HLine(y = cellY + cardMarginTop, xFrom = left, xTo = right)
+            out += BlueprintNoteRouter.HLine(y = cellY + rowHeight - cardMarginBottom, xFrom = left, xTo = right)
         }
         return out
     }
@@ -190,6 +237,10 @@ internal class PlacedBlueprintNote(
     val routes: List<Pair<String, List<Pair<Double, Double>>>>,
 )
 
+/** Distance of the caption text centre above its lane boundary, estimated width of the longest caption, and the clearance a track keeps. */
+private const val SEPARATOR_CAPTION_CENTER_PX: Double = 16.0
+private const val SEPARATOR_CAPTION_WIDTH_PX: Double = 210.0
+private const val SEPARATOR_CAPTION_CLEARANCE_PX: Double = 9.0
 private const val NOTE_GUTTER: Double = 16.0
 private const val NOTE_GAP: Double = 12.0
 private const val CARD_MARGIN_SIDE: Double = 8.0

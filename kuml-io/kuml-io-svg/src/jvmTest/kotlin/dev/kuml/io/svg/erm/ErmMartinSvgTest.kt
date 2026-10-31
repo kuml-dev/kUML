@@ -354,8 +354,11 @@ class ErmMartinSvgTest :
             // see selfLoopSvg()); the label must grow AWAY from the box
             // (text-anchor="start") and its anchor x must not be to the left of
             // the border.
-            nameLabel.textAnchor shouldBe "start"
-            (nameLabel.x >= 380f) shouldBe true
+            // PAL 2B-c: the label is planned as a rectangle centred on its anchor, clear of the entity box. The
+            // box right edge sits at x=380 in layout coordinates; the planned rectangle (estimated width, see
+            // ErmEdgeLabelPlan) must start right of it.
+            val halfWidth = (nameLabel.text.length * 6.6f + 8f) / 2f
+            (nameLabel.x - halfWidth >= 380f + SvgRenderOptions.DEFAULT.paddingPx - 0.5f) shouldBe true
             SampleOutput.write(filename = "erm/self-loop-name-label-no-overflow.svg", content = svg)
         }
 
@@ -421,8 +424,10 @@ class ErmMartinSvgTest :
                 )
 
             val nameLabel = edgeLabels(svg).single { it.text == "contains" }
-            nameLabel.textAnchor shouldBe "start"
-            (nameLabel.x > 130f) shouldBe true
+            // PAL 2B-c: planned beside the line, never straddling it (the line sits at x=130 in layout coordinates).
+            val lineX = 130f + SvgRenderOptions.DEFAULT.paddingPx
+            val halfWidth = (nameLabel.text.length * 6.6f + 8f) / 2f
+            (nameLabel.x - halfWidth >= lineX - 0.5f || nameLabel.x + halfWidth <= lineX + 0.5f) shouldBe true
             SampleOutput.write(filename = "erm/vertical-segment-name-label.svg", content = svg)
         }
     })

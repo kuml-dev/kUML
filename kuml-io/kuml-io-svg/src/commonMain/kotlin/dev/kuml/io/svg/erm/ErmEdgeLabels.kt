@@ -5,6 +5,7 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.renderEdgeLabelWithHalo
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
+import dev.kuml.layout.bridge.label.PlacedLabel
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -155,6 +156,69 @@ internal fun SvgBuilder.renderErmCardinalityLabel(
         val x = anchor.x + dx * alongOffsetPx
         val y = anchor.y + dy * alongOffsetPx - ErmChenSizing.CARDINALITY_LABEL_PERP_PX
         renderEdgeLabelWithHalo(label = label, x = x, y = y, textAnchor = "middle")
+    }
+}
+
+/** Draws [text] centred in the planned rectangle of [placed], with the canvas-coloured halo (needed when it sits on a line). */
+internal fun SvgBuilder.renderErmLabelAt(
+    placed: PlacedLabel,
+    text: String,
+) {
+    val r = placed.rect
+    renderEdgeLabelWithHalo(
+        label = text,
+        x = r.origin.x + r.size.width / 2f,
+        y = r.origin.y + r.size.height / 2f + 4f,
+        textAnchor = "middle",
+    )
+}
+
+/**
+ * Draws the name and role labels of an ERM relationship: at the rectangles of [plan] (PAL 2B-c) where the plan has
+ * one, with the former fixed offsets as fallback for labels the plan does not carry.
+ */
+internal fun SvgBuilder.renderErmEdgeLabels(
+    rel: dev.kuml.erm.model.ErmRelationship,
+    route: EdgeRoute,
+    stackIndex: Int,
+    sourceDir: Pair<Float, Float>,
+    targetDir: Pair<Float, Float>,
+    plan: Map<String, PlacedLabel>?,
+) {
+    val selfLoop = rel.sourceEntityId == rel.targetEntityId
+    val relName = rel.name
+    if (!relName.isNullOrBlank()) {
+        val placed = plan?.get(ErmLabelKeys.CENTER)
+        if (placed != null) {
+            renderErmLabelAt(placed = placed, text = relName)
+        } else {
+            renderErmRelationshipNameLabel(
+                label = relName,
+                route = route,
+                stackIndex = stackIndex,
+                selfLoop = selfLoop,
+                sourceDir = sourceDir,
+                targetDir = targetDir,
+            )
+        }
+    }
+    rel.sourceRole?.let { role ->
+        val placed = plan?.get(ErmLabelKeys.SOURCE_ROLE)
+        if (placed !=
+            null
+        ) {
+            renderErmLabelAt(placed = placed, text = role)
+        } else {
+            renderErmRoleLabel(anchor = route.source, dir = sourceDir, role = role)
+        }
+    }
+    rel.targetRole?.let { role ->
+        val placed = plan?.get(ErmLabelKeys.TARGET_ROLE)
+        if (placed != null) {
+            renderErmLabelAt(placed = placed, text = role)
+        } else {
+            renderErmRoleLabel(anchor = route.target, dir = targetDir, role = role, perpBias = if (selfLoop) 1f else -1f)
+        }
     }
 }
 

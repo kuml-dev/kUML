@@ -502,3 +502,27 @@ internal fun VaultExampleRenderer.umlLayoutOf(script: String): Pair<KumlDiagram,
             .result
     return diagram to layout
 }
+
+/** ERM (Martin) model and its layout, exactly as the vault renderer lays it out (for geometry tests). */
+internal fun VaultExampleRenderer.ermLayoutOf(
+    script: String,
+    notation: ErmNotation = ErmNotation.MARTIN,
+): Pair<dev.kuml.erm.model.ErmModel, dev.kuml.layout.LayoutResult>? {
+    init()
+    val result = KumlScriptHost.eval(code = script)
+    val success = result as? ResultWithDiagnostics.Success ?: return null
+    val extracted = DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = File("inline.kuml.kts"))
+    val erm = extracted as? ExtractedDiagram.Erm ?: return null
+    if (erm.diagram.notation != notation) return null
+    val engine = LayoutEngineRegistry.get("elk.layered") ?: return null
+    val hints = ErmLayoutBridge.WIDENED_SPACING_HINTS
+    val graph =
+        ErmLayoutBridge.toLayoutGraph(
+            model = erm.model,
+            diagram = erm.diagram,
+            sizeProvider = ErmContentSizeProvider(model = erm.model, diagram = erm.diagram, layoutDirection = hints.direction),
+        )
+    val layout =
+        LayoutSpecRunner.layout(engine = engine, graph = graph, hints = hints, spec = erm.diagram.layout, kind = SpecDiagramKind.ERM).result
+    return erm.model to layout
+}

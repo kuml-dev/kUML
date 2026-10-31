@@ -102,6 +102,13 @@ the script's state. While you scrub, guard editing is disabled.
 * The event buttons cannot carry a payload; use the event row.
 * The panel width is not remembered between sessions.
 
+== Validate
+
+The Validate view gives the same findings as `kuml validate` (one shared `ValidationService`): structural
+violations, note warnings and layout findings. Desktop evaluates the diagram's `layout { }` block for rendering and
+validating, so a hint the diagram kind does not honour is reported in the view; see
+xref:reference:layout.adoc[Layout].
+
 == Keyboard shortcuts
 
 Menu shortcuts follow the platform convention: *⌘ (Command)* on macOS, *Ctrl* on Windows and Linux.

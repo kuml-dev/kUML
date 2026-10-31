@@ -143,11 +143,35 @@ classDiagram(name = "Zoo") {
 * Options a diagram kind does not honour (sequence, timing) report `KUML-LAYOUT-W001`; an unreachable
   `maxWidth` is `KUML-LAYOUT-W002`, an unreachable `aspectRatio` `KUML-LAYOUT-W003`, out-of-range values
   `KUML-LAYOUT-E001` (the value is ignored).
-* Availability: the block is evaluated only by `kuml render` (CLI). Desktop, Web, MCP, Asciidoc, Markdown,
-  Gradle, the vault tests and `kuml validate` ignore it, so the same script can render differently there.
+* Availability: the block is evaluated by `kuml render` and `kuml validate` (CLI), by kUML Desktop (render and
+  validate) and by the vault tests. Web, MCP, Asciidoc, Markdown and Gradle ignore it, so the same script can
+  render differently there.
 * Unknown ids, more than 32 `sameLayer` groups or 64 ids per group, and ids in both `first` and `last`
   are reported (`KUML-LAYOUT-W004`, `KUML-LAYOUT-E001`, `KUML-LAYOUT-W001`).
-* Not yet available in this wave: C4, Service Blueprint, ERM and BPMN diagram blocks.
+* C4 and ERM diagrams take the block as well (`layout { }` in the diagram builder). Service Blueprint accepts it,
+  but its grid ignores every option and reports `KUML-LAYOUT-W001`. BPMN diagram blocks are not available yet.
+
+=== Which option acts where
+
+Layered (ELK) pipelines honour all options: UML (except sequence and timing), SysML 2 (except sequence), C4, ERM
+and BPMN process and collaboration diagrams. Grid, time-line and fixed-geometry pipelines honour none: UML
+sequence and timing, SysML 2 sequence, BPMN choreography and conversation, Service Blueprint and Journey. The
+table in `LayoutEffectMatrix` is the single source for this.
+
+=== Labels and notes
+
+Labels and notes are placed after the layout, and always in the same order: labels first, then notes, so a note
+never covers a label that is drawn later.
+
+* UML associations: name, multiplicity and role labels are placed by one cost-based placer (`LabelPlacer`).
+* SysML 2 IBD and BDD: connector labels are planned (`Sysml2EdgeLabelPlan`) before the notes; once the notes
+  stand, the labels move away from them and from their anchor lines. The renderer draws each label exactly at its
+  planned rectangle.
+* ERM (Martin, Bachman, IDEF1X): relationship names and role labels are placed by the same placer; the
+  cardinality glyphs are fixed obstacles.
+* Service Blueprint: anchor lines of notes pick a free horizontal track (6 px raster, 6 px to every lane boundary,
+  4 px to card edges, 6 px to other anchor tracks); when none is free the line runs in a channel below the lanes.
+* Other SysML 2 diagram kinds (STM, SEQ, PAR, REQ, UC, ACT) keep their own label placement.
 
 == SysML 2 layout hints
 
