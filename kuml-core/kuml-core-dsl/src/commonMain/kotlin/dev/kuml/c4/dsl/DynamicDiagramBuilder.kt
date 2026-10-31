@@ -15,6 +15,9 @@ import dev.kuml.core.dsl.KumlDsl
  */
 @KumlDsl
 interface DynamicDiagramBuilder {
+    /** Layout steering hints (`layout { direction = Right }`); several blocks merge. */
+    fun layout(block: C4LayoutBuilder.() -> Unit)
+
     var description: String?
 
     /**
@@ -134,6 +137,14 @@ class DynamicDiagramBuilderImpl(
         // Future: store title annotation
     }
 
+    private val layoutCollector =
+        dev.kuml.core.model.layout
+            .LayoutSpecCollector()
+
+    override fun layout(block: C4LayoutBuilder.() -> Unit) {
+        layoutCollector.add(C4LayoutBuilder().apply(block).build())
+    }
+
     private val diagramNoteIds = mutableListOf<String>()
 
     override fun note(
@@ -166,6 +177,7 @@ class DynamicDiagramBuilderImpl(
             elements = elementIds.toList(),
             relationships = filteredRelationships,
             noteIds = diagramNoteIds.toList(),
+            layout = layoutCollector.result(),
         )
     }
 }

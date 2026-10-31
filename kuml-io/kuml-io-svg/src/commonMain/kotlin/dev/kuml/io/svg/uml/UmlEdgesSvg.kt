@@ -13,6 +13,7 @@ import dev.kuml.io.svg.renderInlineArrow
 import dev.kuml.io.svg.sourceArrowDirection
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
+import dev.kuml.layout.bridge.label.PlacedLabel
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.AggregationKind
 import dev.kuml.uml.Multiplicity
@@ -33,6 +34,15 @@ import dev.kuml.uml.navigability
 import kotlin.math.abs
 
 // ── UML Edge Renderer ─────────────────────────────────────────────────────────
+
+/** Baseline of the first line of a placed centre-label block, measured from the top of its rectangle. */
+private const val CENTER_FIRST_BASELINE: Float = 11f
+
+/** Line step of a placed centre-label block. */
+private const val CENTER_LINE_STEP: Float = 15f
+
+/** Baseline offset of a placed small label from the centre of its rectangle. */
+private const val SMALL_BASELINE_SHIFT: Float = 3.5f
 
 /**
  * Which end of a [UmlAssociation] / [UmlLink] a role/multiplicity label
@@ -101,6 +111,7 @@ private fun renderAssociationLine(
     builder: SvgBuilder,
     sourceStackIndex: Int = 0,
     targetStackIndex: Int = 0,
+    placed: Map<String, PlacedLabel>? = null,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge"))
@@ -145,11 +156,36 @@ private fun renderAssociationLine(
     }
 
     // Stereotype label takes precedence over association name; name is appended below it
-    val (mx, my) = routeLabelMid(route)
-    val hadStereo = StereotypeHelper.renderEdgeStereotype(element = stereotypable, theme = theme, builder = builder, midX = mx, midY = my)
-    val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else my
-    name?.let { label ->
-        renderEdgeLabel(label = label, route = route, theme = theme, builder = builder, overrideY = if (hadStereo) labelY else null)
+    val centerPlaced = placed?.get(UmlLabelKeys.CENTER)
+    if (centerPlaced != null) {
+        // Placed by the shared LabelPlacer: the stereotype and the name are lines of one block.
+        val r = centerPlaced.rect
+        val cx = r.origin.x + r.size.width / 2f
+        var y = r.origin.y + CENTER_FIRST_BASELINE
+        val hadStereo =
+            StereotypeHelper.renderEdgeStereotype(
+                element = stereotypable,
+                theme = theme,
+                builder = builder,
+                midX = cx,
+                midY = y,
+            )
+        if (hadStereo) y += CENTER_LINE_STEP
+        name?.let { builder.renderEdgeLabelWithHalo(label = it, x = cx, y = y, textAnchor = "middle") }
+    } else {
+        val (mx, my) = routeLabelMid(route)
+        val hadStereo =
+            StereotypeHelper.renderEdgeStereotype(
+                element = stereotypable,
+                theme = theme,
+                builder = builder,
+                midX = mx,
+                midY = my,
+            )
+        val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else my
+        name?.let { label ->
+            renderEdgeLabel(label = label, route = route, theme = theme, builder = builder, overrideY = if (hadStereo) labelY else null)
+        }
     }
 
     // V2.0.44 / V3.0.11 — Multiplicity labels on source and target ends (UML 2.x).
@@ -184,7 +220,26 @@ private fun renderAssociationLine(
     // step to that end's along-edge margins, so converging siblings fan apart
     // instead of stacking. `stackIndex == 0` (the default) reproduces the
     // pre-fix geometry byte-for-byte.
-    if (ends.size >= 2) {
+    if (ends.size >= 2 && placed != null) {
+        val labels =
+            listOf(
+                UmlLabelKeys.SOURCE_MULT to ends[0].multiplicity.toLabel(),
+                UmlLabelKeys.SOURCE_ROLE to ends[0].role,
+                UmlLabelKeys.TARGET_MULT to ends[1].multiplicity.toLabel(),
+                UmlLabelKeys.TARGET_ROLE to ends[1].role,
+            )
+        for ((key, text) in labels) {
+            val p = placed[key] ?: continue
+            if (text == null) continue
+            val r = p.rect
+            endpointLabel(
+                builder = builder,
+                x = r.origin.x + r.size.width / 2f,
+                y = r.origin.y + r.size.height / 2f + SMALL_BASELINE_SHIFT,
+                label = text,
+            )
+        }
+    } else if (ends.size >= 2) {
         val sourceEnd = ends[0]
         val targetEnd = ends[1]
         val mulMargin = 14f
@@ -242,6 +297,7 @@ internal fun renderUmlAssociation(
     builder: SvgBuilder,
     sourceStackIndex: Int = 0,
     targetStackIndex: Int = 0,
+    placed: Map<String, PlacedLabel>? = null,
 ) = renderAssociationLine(
     ends = rel.ends,
     aggregation = rel.aggregation,
@@ -253,6 +309,7 @@ internal fun renderUmlAssociation(
     builder = builder,
     sourceStackIndex = sourceStackIndex,
     targetStackIndex = targetStackIndex,
+    placed = placed,
 )
 
 /**
@@ -271,6 +328,7 @@ internal fun renderUmlAssociation(
     builder: SvgBuilder,
     sourceStackIndex: Int = 0,
     targetStackIndex: Int = 0,
+    placed: Map<String, PlacedLabel>? = null,
 ) = renderAssociationLine(
     ends = rel.ends,
     aggregation = rel.aggregation,
@@ -282,6 +340,7 @@ internal fun renderUmlAssociation(
     builder = builder,
     sourceStackIndex = sourceStackIndex,
     targetStackIndex = targetStackIndex,
+    placed = placed,
 )
 
 /**
@@ -365,11 +424,13 @@ internal fun renderUmlGeneralization(
     route: EdgeRoute,
     theme: KumlTheme,
     builder: SvgBuilder,
+    placed: Map<String, PlacedLabel>? = null,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge"))
     val (arrowFrom, arrowTip) = route.arrowDirection()
     renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.TRIANGLE, theme = theme, builder = builder)
+    if (renderPlacedCenter(placed = placed, stereotypable = rel, fixedLabel = null, name = null, theme = theme, builder = builder)) return
     val (mx, my) = routeLabelMid(route)
     StereotypeHelper.renderEdgeStereotype(element = rel, theme = theme, builder = builder, midX = mx, midY = my)
 }
@@ -385,11 +446,13 @@ internal fun renderUmlInterfaceRealization(
     route: EdgeRoute,
     theme: KumlTheme,
     builder: SvgBuilder,
+    placed: Map<String, PlacedLabel>? = null,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge-dashed"))
     val (arrowFrom, arrowTip) = route.arrowDirection()
     renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.TRIANGLE_MUTED, theme = theme, builder = builder)
+    if (renderPlacedCenter(placed = placed, stereotypable = rel, fixedLabel = null, name = null, theme = theme, builder = builder)) return
     val (mx, my) = routeLabelMid(route)
     StereotypeHelper.renderEdgeStereotype(element = rel, theme = theme, builder = builder, midX = mx, midY = my)
 }
@@ -405,11 +468,23 @@ internal fun renderUmlDependency(
     route: EdgeRoute,
     theme: KumlTheme,
     builder: SvgBuilder,
+    placed: Map<String, PlacedLabel>? = null,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge-dashed"))
     val (arrowFrom, arrowTip) = route.arrowDirection()
     renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.OPEN_MUTED, theme = theme, builder = builder)
+    if (renderPlacedCenter(
+            placed = placed,
+            stereotypable = rel,
+            fixedLabel = null,
+            name = rel.name,
+            theme = theme,
+            builder = builder,
+        )
+    ) {
+        return
+    }
     val (mx, my) = routeLabelMid(route)
     val hadStereo = StereotypeHelper.renderEdgeStereotype(element = rel, theme = theme, builder = builder, midX = mx, midY = my)
     val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else null
@@ -429,9 +504,21 @@ internal fun renderUmlConnector(
     route: EdgeRoute,
     theme: KumlTheme,
     builder: SvgBuilder,
+    placed: Map<String, PlacedLabel>? = null,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge"))
+    if (renderPlacedCenter(
+            placed = placed,
+            stereotypable = rel,
+            fixedLabel = null,
+            name = rel.name,
+            theme = theme,
+            builder = builder,
+        )
+    ) {
+        return
+    }
     val (mx, my) = routeLabelMid(route)
     val hadStereo = StereotypeHelper.renderEdgeStereotype(element = rel, theme = theme, builder = builder, midX = mx, midY = my)
     val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else null
@@ -464,11 +551,23 @@ internal fun renderUmlInclude(
     route: EdgeRoute,
     theme: KumlTheme,
     builder: SvgBuilder,
+    placed: Map<String, PlacedLabel>? = null,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge-dashed"))
     val (arrowFrom, arrowTip) = route.arrowDirection()
     renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.OPEN_MUTED, theme = theme, builder = builder)
+    if (renderPlacedCenter(
+            placed = placed,
+            stereotypable = null,
+            fixedLabel = "«include»",
+            name = null,
+            theme = theme,
+            builder = builder,
+        )
+    ) {
+        return
+    }
     renderEdgeLabel(label = "«include»", route = route, theme = theme, builder = builder)
 }
 
@@ -480,15 +579,51 @@ internal fun renderUmlExtend(
     route: EdgeRoute,
     theme: KumlTheme,
     builder: SvgBuilder,
+    placed: Map<String, PlacedLabel>? = null,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(name = tag, attrs = attrs + mapOf("class" to "kuml-edge-dashed"))
     val (arrowFrom, arrowTip) = route.arrowDirection()
     renderInlineArrow(from = arrowFrom, tip = arrowTip, style = ArrowStyle.OPEN_MUTED, theme = theme, builder = builder)
+    if (renderPlacedCenter(
+            placed = placed,
+            stereotypable = null,
+            fixedLabel = "«extend»",
+            name = null,
+            theme = theme,
+            builder = builder,
+        )
+    ) {
+        return
+    }
     renderEdgeLabel(label = "«extend»", route = route, theme = theme, builder = builder)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Draws the centre label block (stereotype line, then name) of an edge at the rectangle the shared LabelPlacer chose.
+ * Returns `false` (nothing drawn) when [placed] holds no centre label, so the caller keeps its fixed-offset fallback.
+ */
+private fun renderPlacedCenter(
+    placed: Map<String, PlacedLabel>?,
+    stereotypable: Stereotypable?,
+    fixedLabel: String?,
+    name: String?,
+    theme: KumlTheme,
+    builder: SvgBuilder,
+): Boolean {
+    val r = placed?.get(UmlLabelKeys.CENTER)?.rect ?: return false
+    val cx = r.origin.x + r.size.width / 2f
+    var y = r.origin.y + CENTER_FIRST_BASELINE
+    if (stereotypable != null &&
+        StereotypeHelper.renderEdgeStereotype(element = stereotypable, theme = theme, builder = builder, midX = cx, midY = y)
+    ) {
+        y += CENTER_LINE_STEP
+    }
+    (fixedLabel ?: name)?.let { builder.renderEdgeLabelWithHalo(label = it, x = cx, y = y, textAnchor = "middle") }
+    return true
+}
 
 /**
  * Returns the polyline midpoint of [route] — `x` and `y - 4 px` (the standard

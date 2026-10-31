@@ -88,6 +88,18 @@ public class UmlContentSizeProvider
                 out
             }
 
+        /**
+         * PAL 2B-b: extra px per node on top of [CONNECTION_PUFFER_PX] per edge for the end labels (role, multiplicity)
+         * that dock at the node. Edges that fan into one face of a hub are spread by the node width, so a hub whose edges
+         * carry long role names must be wide enough that neighbouring labels do not need the same room.
+         */
+        private val labelExtraById: Map<String, Float> =
+            run {
+                val out = mutableMapOf<String, Float>()
+                countLabelExtras(elements = diagram.elements, out = out)
+                out
+            }
+
         private val byId: Map<String, Size> =
             run {
                 val out = mutableMapOf<String, Size>()
@@ -158,6 +170,36 @@ public class UmlContentSizeProvider
          * auftauchenden Knoten ein Vorkommen. Self-Loops zählen 2, weil beide
          * Endpunkte an derselben Box andocken.
          */
+        private fun countLabelExtras(
+            elements: Iterable<*>,
+            out: MutableMap<String, Float>,
+        ) {
+            fun endExtra(end: dev.kuml.uml.UmlAssociationEnd) {
+                val texts = listOfNotNull(end.role, end.multiplicity.let { m -> labelOf(m) })
+                if (texts.isEmpty()) return
+                // Role and multiplicity sit on opposite sides of the line, so the next edge's label meets the larger of
+                // the two on either side; the sum is the safe slot width.
+                val width = texts.sumOf { it.length } * END_LABEL_CHAR_PX + END_LABEL_PAD_PX
+                val extra = (width - CONNECTION_PUFFER_PX).coerceAtLeast(0f)
+                out[end.typeId] = (out[end.typeId] ?: 0f) + extra
+            }
+            for (e in elements) {
+                when (e) {
+                    is UmlAssociation -> e.ends.forEach { endExtra(it) }
+                    is UmlAssociationClass -> e.ends.forEach { endExtra(it) }
+                    is UmlComponent -> countLabelExtras(elements = e.nestedComponents, out = out)
+                    is UmlPackage -> countLabelExtras(elements = e.members, out = out)
+                    else -> {}
+                }
+            }
+        }
+
+        private fun labelOf(m: dev.kuml.uml.Multiplicity): String? {
+            val upper = if (m.upper == null) "*" else m.upper.toString()
+            val label = if (m.lower == m.upper) upper else "${m.lower}..$upper"
+            return if (label == "1") null else label
+        }
+
         private fun countConnections(
             elements: Iterable<*>,
             out: MutableMap<String, Int>,
@@ -231,7 +273,7 @@ public class UmlContentSizeProvider
         private fun connectionPuffer(nodeId: String): Pair<Float, Float> {
             val n = connectionsById[nodeId] ?: 0
             if (n == 0) return 0f to 0f
-            val raw = (n * CONNECTION_PUFFER_PX).coerceAtMost(CONNECTION_PUFFER_MAX_PX)
+            val raw = (n * CONNECTION_PUFFER_PX + (labelExtraById[nodeId] ?: 0f)).coerceAtMost(CONNECTION_PUFFER_MAX_PX)
             return when (layoutDirection) {
                 LayoutDirection.TopToBottom,
                 LayoutDirection.BottomToTop,
@@ -921,6 +963,12 @@ public class UmlContentSizeProvider
              * 200 px ≈ 14 Kanten — ab da gewinnt nur noch ELK über mehr Layer.
              */
             public const val CONNECTION_PUFFER_MAX_PX: Float = 200f
+
+            /** Estimated width of one character of a role / multiplicity label (same estimate as the label placer). */
+            public const val END_LABEL_CHAR_PX: Float = 6f
+
+            /** Padding added to an estimated end-label width. */
+            public const val END_LABEL_PAD_PX: Float = 12f
 
             /**
              * Maximale Schachtelungstiefe für `compositeHeight` / `compositeWidth`.

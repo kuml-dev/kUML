@@ -77,6 +77,7 @@ internal object EdgeRendererDispatcher {
         sourceStackIndex: Int = 0,
         targetStackIndex: Int = 0,
         anchorDot: Boolean = true,
+        placedLabels: Map<String, dev.kuml.layout.bridge.label.PlacedLabel>? = null,
     ) {
         builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(relationship.id))) {
             when (relationship) {
@@ -88,6 +89,7 @@ internal object EdgeRendererDispatcher {
                         builder = this,
                         sourceStackIndex = sourceStackIndex,
                         targetStackIndex = targetStackIndex,
+                        placed = placedLabels,
                     )
                 is UmlAssociationClass ->
                     renderUmlAssociation(
@@ -97,19 +99,42 @@ internal object EdgeRendererDispatcher {
                         builder = this,
                         sourceStackIndex = sourceStackIndex,
                         targetStackIndex = targetStackIndex,
+                        placed = placedLabels,
                     )
-                is UmlGeneralization -> renderUmlGeneralization(rel = relationship, route = route, theme = theme, builder = this)
+                is UmlGeneralization ->
+                    renderUmlGeneralization(
+                        rel = relationship,
+                        route = route,
+                        theme = theme,
+                        builder = this,
+                        placed = placedLabels,
+                    )
                 is UmlInterfaceRealization ->
                     renderUmlInterfaceRealization(
                         rel = relationship,
                         route = route,
                         theme = theme,
                         builder = this,
+                        placed = placedLabels,
                     )
-                is UmlDependency -> renderUmlDependency(rel = relationship, route = route, theme = theme, builder = this)
-                is UmlConnector -> renderUmlConnector(rel = relationship, route = route, theme = theme, builder = this)
-                is UmlInclude -> renderUmlInclude(rel = relationship, route = route, theme = theme, builder = this)
-                is UmlExtend -> renderUmlExtend(rel = relationship, route = route, theme = theme, builder = this)
+                is UmlDependency ->
+                    renderUmlDependency(
+                        rel = relationship,
+                        route = route,
+                        theme = theme,
+                        builder = this,
+                        placed = placedLabels,
+                    )
+                is UmlConnector ->
+                    renderUmlConnector(
+                        rel = relationship,
+                        route = route,
+                        theme = theme,
+                        builder = this,
+                        placed = placedLabels,
+                    )
+                is UmlInclude -> renderUmlInclude(rel = relationship, route = route, theme = theme, builder = this, placed = placedLabels)
+                is UmlExtend -> renderUmlExtend(rel = relationship, route = route, theme = theme, builder = this, placed = placedLabels)
                 is UmlLink ->
                     renderUmlLink(
                         rel = relationship,

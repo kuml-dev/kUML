@@ -42,6 +42,35 @@ class ScriptProblemsTest :
             p.function shouldBe "classOf"
         }
 
+        test("a type mismatch reads 'Argument type mismatch in call to fn(...): expected X, found Y' with its position") {
+            val p =
+                problems(
+                    """
+                    classDiagram(name = "A") {
+                        classOf(name = 5)
+                    }
+                    """.trimIndent(),
+                ).first()
+            p.message shouldBe "Argument type mismatch in call to 'classOf(...)': expected String, found Int"
+            p.line shouldBe 2
+            p.column shouldBe 20
+        }
+
+        test("an unknown identifier on line 5 reports line 5") {
+            val p =
+                problems(
+                    """
+                    classDiagram(name = "A") {
+                        val a = classOf(name = "A")
+                        val b = classOf(name = "B")
+                        association(source = a, target = b)
+                        val c = classOfX(name = "C")
+                    }
+                    """.trimIndent(),
+                ).first()
+            p.line shouldBe 5
+        }
+
         test("a runtime exception inside a successful evaluation is reported with its script line") {
             val p =
                 problems(

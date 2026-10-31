@@ -14,21 +14,6 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.sqrt
 
-/**
- * Which `layout { }` options a diagram family honours (PAL wave 2B). Coarse on purpose: layered
- * (ELK) diagrams honour all options, diagrams drawn by a dedicated grid/time-line layout honour none
- * and report [LayoutCodes.NO_EFFECT] for every option that was set.
- */
-public enum class LayoutDiagramKind(
-    public val effective: Set<LayoutOption>,
-) {
-    /** Layered (ELK) layout: all options apply. */
-    LAYERED(LayoutOption.entries.toSet()),
-
-    /** Sequence/timing/grid layouts: the spec has no effect. */
-    FIXED(emptySet()),
-}
-
 /** A diagnostic produced while applying a [LayoutSpec]. */
 public data class LayoutSpecFinding(
     val code: String,
@@ -73,7 +58,7 @@ public object LayoutSpecRunner {
     /** Options of [spec] that are set but not honoured by [kind]. */
     public fun ignoredOptions(
         spec: LayoutSpec?,
-        kind: LayoutDiagramKind,
+        kind: SpecDiagramKind,
     ): List<LayoutOption> {
         if (spec == null) return emptyList()
         val set =
@@ -86,7 +71,48 @@ public object LayoutSpecRunner {
                 if (spec.maxWidth != null) add(LayoutOption.MAX_WIDTH)
                 if (spec.aspectRatio != null) add(LayoutOption.ASPECT_RATIO)
             }
-        return set.filter { it !in kind.effective }
+        val effective = LayoutEffectMatrix.effectiveFor(kind)
+        return set.filter { it !in effective }
+    }
+
+    /** One `KUML-LAYOUT-W001` per ignored option (never per element); nothing for an empty block. */
+    public fun noEffectFindings(
+        spec: LayoutSpec?,
+        kind: SpecDiagramKind,
+        diagramName: String?,
+    ): List<LayoutSpecFinding> {
+        val where =
+            if (diagramName !=
+                null
+            ) {
+                "diagram '$diagramName' (${kind.name.lowercase()})"
+            } else {
+                "this diagram type (${kind.name.lowercase()})"
+            }
+        return ignoredOptions(spec = spec, kind = kind).map {
+            LayoutSpecFinding(
+                code = LayoutCodes.NO_EFFECT,
+                message = "layout option '${it.name.lowercase()}' has no effect on $where.",
+            )
+        }
+    }
+
+    /**
+     * Static check of [spec] without running a layout: W001 for options the diagram art ignores, and
+     * W004 ([LayoutCodes.UNKNOWN_ID]) / range findings for ids not in [knownIds] (a null [knownIds] means the
+     * diagram's ids could not be determined, so unknown ids are not reported). Used by `kuml validate`.
+     */
+    public fun validate(
+        kind: SpecDiagramKind,
+        spec: LayoutSpec?,
+        knownIds: Set<String>?,
+        diagramName: String? = null,
+    ): List<LayoutSpecFinding> {
+        if (spec == null) return emptyList()
+        val findings = noEffectFindings(spec = spec, kind = kind, diagramName = diagramName).toMutableList()
+        val checked = sanitize(spec = spec, findings = findings)
+        checkIdSet(spec = checked, known = knownIds, findings = findings)
+        return findings
     }
 
     /**
@@ -99,17 +125,12 @@ public object LayoutSpecRunner {
         graph: LayoutGraph,
         hints: LayoutHints,
         spec: LayoutSpec?,
-        kind: LayoutDiagramKind = LayoutDiagramKind.LAYERED,
+        kind: SpecDiagramKind = SpecDiagramKind.UML_CLASS,
+        diagramName: String? = null,
     ): SpecLayoutOutcome {
         val findings = mutableListOf<LayoutSpecFinding>()
-        ignoredOptions(spec = spec, kind = kind).forEach {
-            findings +=
-                LayoutSpecFinding(
-                    code = LayoutCodes.NO_EFFECT,
-                    message = "layout option '${it.name.lowercase()}' has no effect on this diagram type.",
-                )
-        }
-        if (kind == LayoutDiagramKind.FIXED) {
+        findings += noEffectFindings(spec = spec, kind = kind, diagramName = diagramName)
+        if (LayoutEffectMatrix.effectiveFor(kind).isEmpty()) {
             return SpecLayoutOutcome(result = engine.layout(graph = graph, hints = hints), findings = findings)
         }
         val checked = sanitize(spec = spec, findings = findings)
@@ -212,14 +233,20 @@ public object LayoutSpecRunner {
         spec: LayoutSpec?,
         graph: LayoutGraph,
         findings: MutableList<LayoutSpecFinding>,
+    ) = checkIdSet(spec = spec, known = graph.nodes.map { it.id.value }.toSet(), findings = findings)
+
+    private fun checkIdSet(
+        spec: LayoutSpec?,
+        known: Set<String>?,
+        findings: MutableList<LayoutSpecFinding>,
     ) {
         if (spec == null) return
-        val known = graph.nodes.map { it.id.value }.toSet()
 
         fun unknown(
             option: String,
             ids: List<String>,
         ) {
+            if (known == null) return
             ids.filter { it !in known }.distinct().forEach {
                 findings +=
                     LayoutSpecFinding(
@@ -253,7 +280,7 @@ public object LayoutSpecRunner {
         tooMany(option = "last", count = spec.last.size, max = LayoutLimits.IDS_PER_GROUP, what = "ids")
         unknown(option = "first", ids = spec.first.take(LayoutLimits.IDS_PER_GROUP))
         unknown(option = "last", ids = spec.last.take(LayoutLimits.IDS_PER_GROUP))
-        spec.last.intersect(spec.first.toSet()).filter { it in known }.forEach {
+        spec.last.intersect(spec.first.toSet()).filter { known == null || it in known }.forEach {
             findings +=
                 LayoutSpecFinding(
                     code = LayoutCodes.NO_EFFECT,

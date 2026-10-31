@@ -19,6 +19,9 @@ sealed interface C4Diagram : KumlElement {
 
     /** Ids of the model notes this diagram shows explicitly (besides the notes anchored to a visible element). */
     val noteIds: List<String>
+
+    /** Diagram-level `layout { }` hints (PAL wave 2B); `null` if none. */
+    val layout: dev.kuml.core.model.layout.LayoutSpec?
 }
 
 /**
@@ -42,6 +45,7 @@ data class SystemContextDiagram(
     override val elements: List<ElementId> = emptyList(),
     override val relationships: List<ElementId> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    override val layout: dev.kuml.core.model.layout.LayoutSpec? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Diagram
 
@@ -68,6 +72,7 @@ data class ContainerDiagram(
     override val elements: List<ElementId> = emptyList(),
     override val relationships: List<ElementId> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    override val layout: dev.kuml.core.model.layout.LayoutSpec? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Diagram
 
@@ -93,6 +98,7 @@ data class SystemLandscapeDiagram(
     override val elements: List<ElementId> = emptyList(),
     override val relationships: List<ElementId> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    override val layout: dev.kuml.core.model.layout.LayoutSpec? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Diagram
 
@@ -119,6 +125,7 @@ data class ComponentDiagram(
     override val elements: List<ElementId> = emptyList(),
     override val relationships: List<ElementId> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    override val layout: dev.kuml.core.model.layout.LayoutSpec? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Diagram
 
@@ -144,6 +151,7 @@ data class DeploymentDiagram(
     override val elements: List<ElementId> = emptyList(),
     override val relationships: List<ElementId> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    override val layout: dev.kuml.core.model.layout.LayoutSpec? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Diagram
 
@@ -195,5 +203,6 @@ data class DynamicDiagram(
     override val elements: List<ElementId> = emptyList(),
     override val relationships: List<ElementId> = emptyList(),
     override val noteIds: List<String> = emptyList(),
+    override val layout: dev.kuml.core.model.layout.LayoutSpec? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Diagram

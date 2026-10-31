@@ -96,6 +96,9 @@ public object ScriptProblems {
             else -> ScriptProblemCode.DSL_ERROR
         }
 
+    /** K2 text of an argument mismatch: `actual type is 'A', but 'B' was expected`. */
+    private val ARGUMENT_MISMATCH = Regex("""actual type is '([^'\n]{1,120})', but '([^'\n]{1,120})' was expected""")
+
     private fun decorate(
         msg: String,
         code: ScriptProblemCode,
@@ -103,7 +106,14 @@ public object ScriptProblems {
         line: Int?,
         col: Int?,
     ): String {
-        if (code != ScriptProblemCode.TYPE_MISMATCH || fn == null) return msg
+        if (code != ScriptProblemCode.TYPE_MISMATCH) return msg
+        ARGUMENT_MISMATCH.find(msg)?.let { m ->
+            val found = m.groupValues[1].removePrefix("kotlin.")
+            val expected = m.groupValues[2].removePrefix("kotlin.")
+            val call = if (fn != null) " in call to '$fn(...)'" else ""
+            return "Argument type mismatch$call: expected $expected, found $found"
+        }
+        if (fn == null) return msg
         val where = if (line != null) " at line $line" + (col?.let { ", column $it" } ?: "") else ""
         return "$msg (in $fn(...)$where)"
     }

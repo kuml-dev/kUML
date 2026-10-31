@@ -85,3 +85,30 @@ class LayoutSpecCollector {
     /** The merged spec, or `null` if nothing was set. */
     fun result(): LayoutSpec? = current?.takeUnless { it.isEmpty }
 }
+
+/**
+ * `layout { }` receiver of families that reference elements by plain id strings only (ERM, Service
+ * Blueprint). Families with typed elements subclass [LayoutSpecBuilder] for element overloads.
+ */
+class IdLayoutBuilder : LayoutSpecBuilder()
+
+/**
+ * Receiver of the trailing block of id-based diagram declarations (`diagram(name = "...") { layout { ... } }`).
+ * Several `layout { }` blocks merge.
+ */
+class LayoutBlockScope {
+    private val collector = LayoutSpecCollector()
+
+    /** Layout steering hints for this diagram. */
+    fun layout(block: IdLayoutBuilder.() -> Unit) {
+        collector.add(IdLayoutBuilder().apply(block).build())
+    }
+
+    /** The merged spec, or `null` if nothing was set. */
+    fun result(): LayoutSpec? = collector.result()
+
+    companion object {
+        /** Runs [block] (if any) and returns the collected spec. */
+        fun specOf(block: (LayoutBlockScope.() -> Unit)?): LayoutSpec? = block?.let { LayoutBlockScope().apply(it).result() }
+    }
+}

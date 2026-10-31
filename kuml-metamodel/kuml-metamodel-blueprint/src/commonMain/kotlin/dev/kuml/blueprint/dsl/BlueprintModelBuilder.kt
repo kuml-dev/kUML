@@ -103,8 +103,17 @@ class BlueprintModelBuilder(
         name: String,
         layers: Set<BlueprintLayer> = setOf(BlueprintLayer.CUSTOMER_ACTIONS),
         emotionCurve: Boolean = true,
+        block: (dev.kuml.core.model.layout.LayoutBlockScope.() -> Unit)? = null,
     ) {
-        diagrams += JourneyDiagram(name = name, visibleLayers = layers, showEmotionCurve = emotionCurve)
+        diagrams +=
+            JourneyDiagram(
+                name = name,
+                visibleLayers = layers,
+                showEmotionCurve = emotionCurve,
+                layout =
+                    dev.kuml.core.model.layout.LayoutBlockScope
+                        .specOf(block),
+            )
     }
 
     /**
@@ -117,8 +126,18 @@ class BlueprintModelBuilder(
         layers: Set<BlueprintLayer> = BlueprintLayer.entries.toSet(),
         lines: Set<BlueprintLine> = BlueprintLine.entries.toSet(),
         emotionCurve: Boolean = false,
+        block: (dev.kuml.core.model.layout.LayoutBlockScope.() -> Unit)? = null,
     ) {
-        diagrams += BlueprintDiagramFull(name = name, visibleLayers = layers, showLines = lines, showEmotionCurve = emotionCurve)
+        diagrams +=
+            BlueprintDiagramFull(
+                name = name,
+                visibleLayers = layers,
+                showLines = lines,
+                showEmotionCurve = emotionCurve,
+                layout =
+                    dev.kuml.core.model.layout.LayoutBlockScope
+                        .specOf(block),
+            )
     }
 
     // ── internal API used by PhaseBuilder / StepBuilder ──

@@ -141,7 +141,14 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                 for (sv in styleErrors) echo("  ERROR [${sv.id}] ${sv.location}: ${sv.message}")
                 for (sv in styleWarnings) echo("  WARN  [${sv.id}] ${sv.message}")
             }
-            echo("Script error: ${errors.joinToString("\n") { it.message }}", err = true)
+            // Same findings (with line and column) the desktop app shows: one service, one wording.
+            val scriptFindings =
+                ValidationService
+                    .validateEvaluated(result = evalResult, source = input.readText(), fileName = input.name)
+                    .filter { it.severity == Severity.ERROR }
+            val lines =
+                scriptFindings.map { it.format() }.ifEmpty { errors.map { it.message } }
+            echo("Script error: ${lines.joinToString("\n")}", err = true)
             throw ProgramResult(ExitCodes.SCRIPT_ERROR)
         }
         val success =
@@ -285,15 +292,24 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         //      for SysML 2 / BPMN / ERM / UML notes. Same StructuralViolation shape, category "notes".
         val noteViolations: List<StructuralViolation> =
             extracted?.let { ex ->
-                NoteChecks.of(ex).map { f ->
-                    StructuralViolation(
-                        id = f.code,
-                        severity = if (f.isError) "error" else "warning",
-                        message = f.message,
-                        location = f.subjectId,
-                        category = "notes",
-                    )
-                }
+                ValidationService
+                    .findingsOf(ex)
+                    // SysML 2 layout blocks are range/id-checked by Sysml2LayoutHintChecker below; only the matrix finding is new.
+                    .filterNot {
+                        ex is ExtractedDiagram.Sysml2 &&
+                            (
+                                it.code == dev.kuml.core.model.layout.LayoutCodes.UNKNOWN_ID ||
+                                    it.code == dev.kuml.core.model.layout.LayoutCodes.OUT_OF_RANGE
+                            )
+                    }.map { f ->
+                        StructuralViolation(
+                            id = f.code,
+                            severity = if (f.severity == Severity.ERROR) "error" else "warning",
+                            message = f.format().removePrefix("[${f.code}] "),
+                            location = f.anchorId ?: f.diagramId,
+                            category = if (f.code.startsWith("KUML-LAYOUT")) "layout" else "notes",
+                        )
+                    }
             } ?: emptyList()
         val noteErrors = noteViolations.filter { it.severity == "error" }
         val noteWarnings = noteViolations.filter { it.severity == "warning" }

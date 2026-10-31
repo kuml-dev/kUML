@@ -15,11 +15,15 @@ import dev.kuml.layout.PortId
 import dev.kuml.layout.Size
 import dev.kuml.uml.UmlActivityNode
 import dev.kuml.uml.UmlActivityNodeKind
+import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
+import dev.kuml.uml.UmlDependency
+import dev.kuml.uml.UmlExtend
 import dev.kuml.uml.UmlFinalState
+import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInteraction
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlNode
@@ -332,7 +336,7 @@ public object UmlLayoutBridge {
                                 // Relationships inside packages are treated as edges
                                 val endpoints = EndpointResolver.resolveWithPorts(relationship = member, componentPorts = componentPorts)
                                 if (endpoints != null) {
-                                    edges.add(toEdge(edgeId = member.id, endpoints = endpoints))
+                                    edges.add(toEdge(edgeId = member.id, endpoints = endpoints, relationship = member))
                                 }
                             }
                             else -> {
@@ -399,12 +403,12 @@ public object UmlLayoutBridge {
                             //    through ELK as well would cause a double-draw.
                             // In both cases: exclude from ELK unconditionally.
                         } else if (endpoints != null) {
-                            edges.add(toEdge(edgeId = element.id, endpoints = endpoints))
+                            edges.add(toEdge(edgeId = element.id, endpoints = endpoints, relationship = element))
                         }
                     } else {
                         val endpoints = EndpointResolver.resolveWithPorts(relationship = element, componentPorts = componentPorts)
                         if (endpoints != null) {
-                            edges.add(toEdge(edgeId = element.id, endpoints = endpoints))
+                            edges.add(toEdge(edgeId = element.id, endpoints = endpoints, relationship = element))
                         }
                     }
                 }
@@ -763,9 +767,30 @@ public object UmlLayoutBridge {
         }
     }
 
+    /** Estimated size of the centre label block of [rel] (name, stereotype line), or `null` if it draws none. */
+    private fun centerLabelSizeOf(rel: UmlRelationship?): Size? {
+        val lines =
+            when (rel) {
+                is UmlAssociation -> listOfNotNull(rel.name)
+                is UmlDependency -> listOfNotNull(rel.name)
+                is UmlConnector -> listOfNotNull(rel.name)
+                is UmlInclude -> listOf("«include»")
+                is UmlExtend -> listOf("«extend»")
+                else -> return null
+            }.toMutableList()
+        if (rel is dev.kuml.uml.Stereotypable && rel.appliedStereotypes.isNotEmpty()) lines += "«stereotype»"
+        if (lines.isEmpty()) return null
+        return Size(width = lines.maxOf { it.length } * LABEL_CHAR_PX + LABEL_PAD_PX, height = lines.size * LABEL_LINE_PX)
+    }
+
+    private const val LABEL_CHAR_PX: Float = 6.6f
+    private const val LABEL_LINE_PX: Float = 15f
+    private const val LABEL_PAD_PX: Float = 8f
+
     private fun toEdge(
         edgeId: String,
         endpoints: ResolvedEndpoints,
+        relationship: UmlRelationship? = null,
     ): LayoutEdge =
         LayoutEdge(
             id = EdgeId(edgeId),
@@ -780,6 +805,7 @@ public object UmlLayoutBridge {
                     portId = endpoints.targetPortId?.let(::PortId),
                 ),
             hints = EdgeHints.NONE,
+            centerLabel = centerLabelSizeOf(relationship),
         )
 
     /**

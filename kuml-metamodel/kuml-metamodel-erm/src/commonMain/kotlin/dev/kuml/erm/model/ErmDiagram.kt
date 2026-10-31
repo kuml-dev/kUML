@@ -35,4 +35,6 @@ data class ErmDiagram(
     val elementIds: List<String> = emptyList(),
     val showViews: Boolean = true,
     val showIndexes: Boolean = false,
+    /** Diagram-level `layout { }` hints (PAL wave 2B); `null` if none. */
+    val layout: dev.kuml.core.model.layout.LayoutSpec? = null,
 )

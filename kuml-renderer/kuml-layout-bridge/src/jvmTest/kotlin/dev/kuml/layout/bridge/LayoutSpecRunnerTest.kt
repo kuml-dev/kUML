@@ -155,12 +155,12 @@ class LayoutSpecRunnerTest :
                     graph = flat(2),
                     hints = LayoutHints(),
                     spec = LayoutSpec(direction = LayoutFlow.Right, wrapColumns = 2),
-                    kind = LayoutDiagramKind.FIXED,
+                    kind = SpecDiagramKind.UML_SEQUENCE,
                 )
             engine.runs shouldBe 1
             out.findings.map { it.code }.distinct() shouldBe listOf(LayoutCodes.NO_EFFECT)
             out.findings.size shouldBe 2
-            LayoutSpecRunner.ignoredOptions(spec = LayoutSpec(maxWidth = 900), kind = LayoutDiagramKind.FIXED) shouldBe
+            LayoutSpecRunner.ignoredOptions(spec = LayoutSpec(maxWidth = 900), kind = SpecDiagramKind.UML_SEQUENCE) shouldBe
                 listOf(LayoutOption.MAX_WIDTH)
         }
 

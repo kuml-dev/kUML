@@ -73,6 +73,11 @@ public data class LayoutEdge(
     val source: EndpointRef,
     val target: EndpointRef,
     val hints: EdgeHints = EdgeHints.NONE,
+    /**
+     * Estimated size of the edge's centre label (name / stereotype block). The engine reserves room for it next to the
+     * line, so the label placer finds a free spot (PAL wave 2B-b). `null` = the edge carries no centre label.
+     */
+    val centerLabel: Size? = null,
 )
 
 /**

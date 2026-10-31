@@ -16,6 +16,9 @@ import kotlinx.serialization.Serializable
 sealed interface BlueprintDiagram {
     val name: String
     val elementIds: List<String>
+
+    /** Diagram-level `layout { }` hints (PAL wave 2B); `null` if none. The Service Blueprint grid ignores them (W001). */
+    val layout: dev.kuml.core.model.layout.LayoutSpec?
 }
 
 /**
@@ -31,6 +34,7 @@ data class JourneyDiagram(
     val visibleLayers: Set<BlueprintLayer> = setOf(BlueprintLayer.CUSTOMER_ACTIONS),
     val showEmotionCurve: Boolean = true,
     override val elementIds: List<String> = emptyList(),
+    override val layout: dev.kuml.core.model.layout.LayoutSpec? = null,
 ) : BlueprintDiagram
 
 /**
@@ -47,4 +51,5 @@ data class BlueprintDiagramFull(
     val showLines: Set<BlueprintLine> = BlueprintLine.entries.toSet(),
     val showEmotionCurve: Boolean = false,
     override val elementIds: List<String> = emptyList(),
+    override val layout: dev.kuml.core.model.layout.LayoutSpec? = null,
 ) : BlueprintDiagram

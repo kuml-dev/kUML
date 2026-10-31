@@ -52,8 +52,8 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.Spacing
 import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
-import dev.kuml.layout.bridge.LayoutDiagramKind
 import dev.kuml.layout.bridge.LayoutSpecRunner
+import dev.kuml.layout.bridge.SpecDiagramKind
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
@@ -117,6 +117,8 @@ internal data class RenderOutcome(
     val diagramCount: Int,
     /** Note findings (unknown anchors, display limits, ...); also printed to stderr by [RenderPipeline.run]. */
     val noteFindings: List<NoteChecks.Finding> = emptyList(),
+    /** `layout { }` findings (`KUML-LAYOUT-*`) of the rendered diagram; also printed to stderr. */
+    val layoutFindings: List<dev.kuml.layout.bridge.LayoutSpecFinding> = emptyList(),
 )
 
 /** SVG text plus the extracted model of one rendered diagram, see [RenderPipeline.renderToSvg]. */
@@ -196,6 +198,16 @@ internal object RenderPipeline {
             },
         )
 
+    /** Findings of the current [run], see [RenderOutcome.layoutFindings]. */
+    private val layoutFindingSink = ThreadLocal<MutableList<dev.kuml.layout.bridge.LayoutSpecFinding>?>()
+
+    private fun report(findings: List<dev.kuml.layout.bridge.LayoutSpecFinding>) {
+        layoutFindingSink.get()?.addAll(findings)
+        findings.forEach { f ->
+            System.err.println("[kuml] ${if (f.isError) "ERROR" else "WARNING"} [${f.code}] ${f.message}")
+        }
+    }
+
     /**
      * Runs [engine] with the diagram's `layout { }` spec applied (PAL wave 2B) and prints the spec
      * diagnostics (`KUML-LAYOUT-*`) as warnings. Never aborts the render.
@@ -205,12 +217,12 @@ internal object RenderPipeline {
         graph: dev.kuml.layout.LayoutGraph,
         hints: LayoutHints,
         spec: dev.kuml.core.model.layout.LayoutSpec?,
-        kind: LayoutDiagramKind = LayoutDiagramKind.LAYERED,
+        kind: SpecDiagramKind,
+        diagramName: String? = null,
     ): LayoutResult {
-        val outcome = LayoutSpecRunner.layout(engine = engine, graph = graph, hints = hints, spec = spec, kind = kind)
-        outcome.findings.forEach { f ->
-            System.err.println("[kuml] ${if (f.isError) "ERROR" else "WARNING"} [${f.code}] ${f.message}")
-        }
+        val outcome =
+            LayoutSpecRunner.layout(engine = engine, graph = graph, hints = hints, spec = spec, kind = kind, diagramName = diagramName)
+        report(outcome.findings)
         return outcome.result
     }
 
@@ -274,11 +286,10 @@ internal object RenderPipeline {
         // Computed from the same evaluation (no second script run) so callers can warn about
         // diagrams beyond the first, which extractAny silently drops.
         val noteFindings = NoteChecks.of(extracted)
-        val outcome =
-            RenderOutcome(
-                diagramCount = runCatching { DiagramExtractor.countRenderableDiagrams(successResult.value.returnValue) }.getOrDefault(1),
-                noteFindings = noteFindings,
-            )
+        val diagramCount =
+            runCatching { DiagramExtractor.countRenderableDiagrams(successResult.value.returnValue) }.getOrDefault(1)
+        val collected = mutableListOf<dev.kuml.layout.bridge.LayoutSpecFinding>()
+        layoutFindingSink.set(collected)
 
         // 3. Theme — layering: CLI flag > config file > built-in default "kuml"
         if (ThemeRegistry.names().isEmpty()) {
@@ -383,8 +394,10 @@ internal object RenderPipeline {
             if (e is IllegalArgumentException) throw e
             if (e is AnimEncoderException) throw e
             throw IOException("Failed to write output file: ${e.message}", e)
+        } finally {
+            layoutFindingSink.remove()
         }
-        return outcome
+        return RenderOutcome(diagramCount = diagramCount, noteFindings = noteFindings, layoutFindings = collected.toList())
     }
 
     /**
@@ -521,13 +534,9 @@ internal object RenderPipeline {
                 hints = hints,
                 spec = diagram.layout,
                 kind =
-                    if (diagram.type == DiagramType.SEQUENCE ||
-                        diagram.type == DiagramType.TIMING
-                    ) {
-                        LayoutDiagramKind.FIXED
-                    } else {
-                        LayoutDiagramKind.LAYERED
-                    },
+                    dev.kuml.layout.bridge.SpecDiagramKinds
+                        .of(diagram.type),
+                diagramName = diagram.name,
             )
         when (format) {
             "svg", "apng", "webp", "mp4" -> {
@@ -781,8 +790,9 @@ internal object RenderPipeline {
                         engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
-                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
+                        spec = diagram.layout,
+                        kind = SpecDiagramKind.SYSML2_BDD,
+                        diagramName = diagram.name,
                     )
                 when (format) {
                     "svg" ->
@@ -828,8 +838,9 @@ internal object RenderPipeline {
                         engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
-                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
+                        spec = diagram.layout,
+                        kind = SpecDiagramKind.SYSML2_IBD,
+                        diagramName = diagram.name,
                     )
                 when (format) {
                     "svg" ->
@@ -875,8 +886,9 @@ internal object RenderPipeline {
                         engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
-                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
+                        spec = diagram.layout,
+                        kind = SpecDiagramKind.SYSML2_UC,
+                        diagramName = diagram.name,
                     )
                 when (format) {
                     "svg" ->
@@ -933,8 +945,9 @@ internal object RenderPipeline {
                         engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
-                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
+                        spec = diagram.layout,
+                        kind = SpecDiagramKind.SYSML2_REQ,
+                        diagramName = diagram.name,
                     )
                 when (format) {
                     "svg" ->
@@ -985,8 +998,9 @@ internal object RenderPipeline {
                         engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
-                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
+                        spec = diagram.layout,
+                        kind = SpecDiagramKind.SYSML2_STM,
+                        diagramName = diagram.name,
                     )
                 val stmOptions = SvgRenderOptions(paddingPx = 64f, watermark = watermark)
                 when (format) {
@@ -1074,8 +1088,9 @@ internal object RenderPipeline {
                         engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
-                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
+                        spec = diagram.layout,
+                        kind = SpecDiagramKind.SYSML2_ACT,
+                        diagramName = diagram.name,
                     )
                 val actOptions = SvgRenderOptions(paddingPx = 64f, watermark = watermark)
                 when (format) {
@@ -1175,8 +1190,9 @@ internal object RenderPipeline {
                         engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
-                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
+                        spec = diagram.layout,
+                        kind = SpecDiagramKind.SYSML2_SEQ,
+                        diagramName = diagram.name,
                     )
                 when (format) {
                     "svg" ->
@@ -1227,8 +1243,9 @@ internal object RenderPipeline {
                         engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                        spec = diagram.layout.takeUnless { diagram is SeqDiagram },
-                        kind = if (diagram is SeqDiagram) LayoutDiagramKind.FIXED else LayoutDiagramKind.LAYERED,
+                        spec = diagram.layout,
+                        kind = SpecDiagramKind.SYSML2_PAR,
+                        diagramName = diagram.name,
                     )
                 when (format) {
                     "svg" ->
@@ -1341,7 +1358,15 @@ internal object RenderPipeline {
             } else {
                 LayoutHints.DEFAULT
             }
-        val layoutResult: LayoutResult = c4Engine.layout(graph = layoutGraph, hints = hints)
+        val layoutResult: LayoutResult =
+            layoutWithSpec(
+                engine = c4Engine,
+                graph = layoutGraph,
+                hints = hints,
+                spec = diagram.layout,
+                kind = SpecDiagramKind.C4,
+                diagramName = diagram.name,
+            )
         when (format) {
             "svg" -> {
                 val svg =
@@ -1634,6 +1659,13 @@ internal object RenderPipeline {
     ) {
         val model: BlueprintModel = extracted.model
         val diagram: BlueprintDiagram = extracted.diagram
+        // The Service Blueprint grid is fixed geometry: every layout option is reported as W001.
+        LayoutSpecRunner
+            .noEffectFindings(
+                spec = diagram.layout,
+                kind = if (diagram is dev.kuml.blueprint.model.JourneyDiagram) SpecDiagramKind.JOURNEY else SpecDiagramKind.BLUEPRINT,
+                diagramName = diagram.name,
+            ).let { report(it) }
         when (format) {
             "svg" -> KumlSvgRenderer.toSvgFile(model = model, diagram = diagram, out = output)
             "png" -> {
@@ -1736,7 +1768,15 @@ internal object RenderPipeline {
                 LayoutEngineRegistry.pickFor(kind = DiagramKind.Generic, preferredEngineId = LayoutEngineId("elk.layered"))
                     ?: error("No layout engine available for ERM diagrams.")
             }
-        val layout: LayoutResult = engine.layout(graph = graph, hints = hints)
+        val layout: LayoutResult =
+            layoutWithSpec(
+                engine = engine,
+                graph = graph,
+                hints = hints,
+                spec = diagram.layout,
+                kind = SpecDiagramKind.ERM,
+                diagramName = diagram.name,
+            )
 
         when (format) {
             "svg" ->

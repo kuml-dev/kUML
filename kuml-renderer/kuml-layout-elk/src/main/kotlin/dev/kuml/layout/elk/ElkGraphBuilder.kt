@@ -12,6 +12,7 @@ import dev.kuml.layout.PortSide
 import org.eclipse.elk.alg.layered.options.LayerConstraint
 import org.eclipse.elk.alg.layered.options.LayeredOptions
 import org.eclipse.elk.core.options.CoreOptions
+import org.eclipse.elk.core.options.EdgeLabelPlacement
 import org.eclipse.elk.core.options.NodeLabelPlacement
 import org.eclipse.elk.core.options.PortConstraints
 import org.eclipse.elk.core.options.PortLabelPlacement
@@ -250,6 +251,12 @@ internal class ElkGraphBuilder(
                     ElkGraphUtil.createSimpleEdge(sourceNode, targetNode)
                 }
             elkEdge.identifier = edge.id.value
+            edge.centerLabel?.let { size ->
+                val label = ElkGraphUtil.createLabel(elkEdge)
+                label.width = size.width.toDouble()
+                label.height = size.height.toDouble()
+                label.setProperty(CoreOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.CENTER)
+            }
             if (sourcePort != null || targetPort != null) edgePorts[edge.id] = sourcePort to targetPort
             // updateContainment ensures the edge is in the correct containing node
             ElkGraphUtil.updateContainment(elkEdge)

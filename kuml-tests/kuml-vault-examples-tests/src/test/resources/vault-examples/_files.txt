@@ -65,3 +65,8 @@
 58 C4 Context – Notizen.md
 59 Service Blueprint – Notizen.md
 60 SysML 2 REQ – Mehrere Notizen.md
+61 C4 Container – Layout-Block.md
+62 ERM – Seitenverhältnis und Breite.md
+63 SysML 2 BDD – sameLayer mit Id-Strings.md
+64 UML-Klasse – Dichte Kanten und Labels.md
+65 Service Blueprint – Layout-Block (Determinismus).md

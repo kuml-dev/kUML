@@ -4,7 +4,8 @@ import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.bpmn.model.ConversationDiagram
 import dev.kuml.bpmn.model.ProcessDiagram
-import dev.kuml.cli.NoteChecks
+import dev.kuml.cli.Severity
+import dev.kuml.cli.ValidationService
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.script.DiagramExtractor
@@ -91,40 +92,15 @@ internal object DesktopRenderPipeline {
     fun validate(script: String): DesktopValidationResult =
         try {
             DesktopEngineInit.ensure()
-            val evalResult = KumlScriptHost.eval(code = script)
-            val diagnostics =
-                evalResult.reports
-                    .filter { it.severity >= ScriptDiagnostic.Severity.WARNING }
-                    .map { report ->
-                        DesktopDiagnostic(
-                            severity = report.severity.name,
-                            message = report.message,
-                            line = report.location?.start?.line,
-                            column = report.location?.start?.col,
-                        )
-                    }
-            val hasErrors = diagnostics.any { it.severity == ScriptDiagnostic.Severity.ERROR.name }
-            val success = evalResult as? ResultWithDiagnostics.Success
-            if (hasErrors || success == null) {
-                DesktopValidationResult(
-                    ok = false,
-                    diagnostics =
-                        diagnostics.ifEmpty {
-                            listOf(DesktopDiagnostic(severity = "ERROR", message = "Script-Auswertung fehlgeschlagen"))
-                        },
-                )
-            } else {
-                val extracted = DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = File("inline.kuml.kts"))
-                // Unresolved / undrawable note anchors must not vanish silently (names ids, never note text).
-                val noteDiagnostics =
-                    NoteChecks.of(extracted).map {
-                        DesktopDiagnostic(severity = if (it.isError) "ERROR" else "WARNING", message = "[${it.code}] ${it.message}")
-                    }
-                DesktopValidationResult(
-                    ok = noteDiagnostics.none { it.severity == "ERROR" },
-                    diagnostics = diagnostics + noteDiagnostics,
-                )
-            }
+            // The same service `kuml validate` uses: identical findings, with line and column.
+            val findings = ValidationService.validate(script = script, fileName = "inline.kuml.kts")
+            DesktopValidationResult(
+                ok = findings.none { it.severity == Severity.ERROR },
+                diagnostics =
+                    findings.map {
+                        DesktopDiagnostic(severity = it.severity.name, message = it.text(), line = it.line, column = it.column)
+                    },
+            )
         } catch (e: ScriptEvaluationException) {
             DesktopValidationResult(
                 ok = false,
@@ -209,12 +185,28 @@ internal object DesktopRenderPipeline {
          */
         val paddingOptions = SvgRenderOptions(paddingPx = DIAGRAM_PADDING_PX, watermark = watermark)
 
-        /** Lays [graph] out with ELK and passes the result to [render] -- the step every ELK-based branch repeats. */
-        inline fun layoutThenRender(
+        /** `KUML-LAYOUT-*` findings of the diagram's `layout { }` block, shown next to the other warnings. */
+        val layoutFindings: MutableList<String> = mutableListOf()
+
+        /**
+         * Lays [graph] out with ELK and passes the result to [render] -- the step every ELK-based branch repeats.
+         * With a [kind] the diagram's `layout { }` block ([spec]) is applied exactly as `kuml render` does (PAL 2B-b).
+         */
+        fun layoutThenRender(
             graph: LayoutGraph,
             hints: LayoutHints = LayoutHints.DEFAULT,
+            spec: dev.kuml.core.model.layout.LayoutSpec? = null,
+            kind: dev.kuml.layout.bridge.SpecDiagramKind? = null,
+            diagramName: String? = null,
             render: (LayoutResult) -> String,
-        ): String = render(elkEngine.layout(graph = graph, hints = hints))
+        ): String {
+            if (kind == null) return render(elkEngine.layout(graph = graph, hints = hints))
+            val outcome =
+                dev.kuml.layout.bridge.LayoutSpecRunner
+                    .layout(engine = elkEngine, graph = graph, hints = hints, spec = spec, kind = kind, diagramName = diagramName)
+            layoutFindings += outcome.findings.map { "[${it.code}] ${it.message}" }
+            return render(outcome.result)
+        }
     }
 
     fun render(
@@ -235,7 +227,11 @@ internal object DesktopRenderPipeline {
             DesktopRenderResult.Svg(
                 svg = svg,
                 simulatable = isSimulatable(ctx.extracted),
-                warnings = NoteChecks.of(ctx.extracted).map { "[${it.code}] ${it.message}" },
+                warnings =
+                    ValidationService
+                        .findingsOf(ctx.extracted)
+                        .filter { !it.code.startsWith("KUML-LAYOUT") }
+                        .map { it.text() } + env.layoutFindings,
             )
         } catch (e: ScriptEvaluationException) {
             DesktopRenderResult.Error(e.message ?: "Script-Fehler")
@@ -278,7 +274,15 @@ internal object DesktopRenderPipeline {
         // sequence diagrams are the one diagram type where declaration order
         // is semantically meaningful, so pin it via LayoutHints.preserveNodeOrder.
         val hints = LayoutHints.DEFAULT.copy(preserveNodeOrder = extracted.diagram.type == DiagramType.SEQUENCE)
-        return env.layoutThenRender(graph = UmlLayoutBridge.toLayoutGraph(diagram = extracted.diagram), hints = hints) { layout ->
+        return env.layoutThenRender(
+            graph = UmlLayoutBridge.toLayoutGraph(diagram = extracted.diagram),
+            hints = hints,
+            spec = extracted.diagram.layout,
+            kind =
+                dev.kuml.layout.bridge.SpecDiagramKinds
+                    .of(extracted.diagram.type),
+            diagramName = extracted.diagram.name,
+        ) { layout ->
             KumlSvgRenderer.toSvg(diagram = extracted.diagram, layoutResult = layout, theme = env.theme, options = env.svgOptions)
         }
     }
@@ -293,7 +297,12 @@ internal object DesktopRenderPipeline {
                 model = extracted.model,
                 sizeProvider = C4ContentSizeProvider(model = extracted.model),
             )
-        return env.layoutThenRender(graph = graph) { layout ->
+        return env.layoutThenRender(
+            graph = graph,
+            spec = extracted.diagram.layout,
+            kind = dev.kuml.layout.bridge.SpecDiagramKind.C4,
+            diagramName = extracted.diagram.name,
+        ) { layout ->
             KumlSvgRenderer.toSvg(
                 diagram = extracted.diagram,
                 model = extracted.model,
@@ -319,6 +328,11 @@ internal object DesktopRenderPipeline {
                 env.layoutThenRender(
                     graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
                     hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    spec = diagram.layout,
+                    kind =
+                        dev.kuml.layout.bridge.SpecDiagramKinds
+                            .of(diagram),
+                    diagramName = diagram.name,
                 ) {
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
@@ -326,6 +340,11 @@ internal object DesktopRenderPipeline {
                 env.layoutThenRender(
                     graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
                     hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    spec = diagram.layout,
+                    kind =
+                        dev.kuml.layout.bridge.SpecDiagramKinds
+                            .of(diagram),
+                    diagramName = diagram.name,
                 ) {
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
@@ -333,6 +352,11 @@ internal object DesktopRenderPipeline {
                 env.layoutThenRender(
                     graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
                     hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    spec = diagram.layout,
+                    kind =
+                        dev.kuml.layout.bridge.SpecDiagramKinds
+                            .of(diagram),
+                    diagramName = diagram.name,
                 ) {
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
@@ -340,6 +364,11 @@ internal object DesktopRenderPipeline {
                 env.layoutThenRender(
                     graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
                     hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    spec = diagram.layout,
+                    kind =
+                        dev.kuml.layout.bridge.SpecDiagramKinds
+                            .of(diagram),
+                    diagramName = diagram.name,
                 ) {
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
@@ -347,6 +376,11 @@ internal object DesktopRenderPipeline {
                 env.layoutThenRender(
                     graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
                     hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    spec = diagram.layout,
+                    kind =
+                        dev.kuml.layout.bridge.SpecDiagramKinds
+                            .of(diagram),
+                    diagramName = diagram.name,
                 ) {
                     KumlSvgRenderer.toSvg(
                         model = model,
@@ -360,6 +394,11 @@ internal object DesktopRenderPipeline {
                 env.layoutThenRender(
                     graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
                     hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    spec = diagram.layout,
+                    kind =
+                        dev.kuml.layout.bridge.SpecDiagramKinds
+                            .of(diagram),
+                    diagramName = diagram.name,
                 ) {
                     KumlSvgRenderer.toSvg(
                         model = model,
@@ -373,6 +412,11 @@ internal object DesktopRenderPipeline {
                 env.layoutThenRender(
                     graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
                     hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    spec = diagram.layout,
+                    kind =
+                        dev.kuml.layout.bridge.SpecDiagramKinds
+                            .of(diagram),
+                    diagramName = diagram.name,
                 ) {
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
@@ -380,6 +424,11 @@ internal object DesktopRenderPipeline {
                 env.layoutThenRender(
                     graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
                     hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    spec = diagram.layout,
+                    kind =
+                        dev.kuml.layout.bridge.SpecDiagramKinds
+                            .of(diagram),
+                    diagramName = diagram.name,
                 ) {
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
@@ -518,11 +567,19 @@ internal object DesktopRenderPipeline {
                     } catch (ex: IllegalStateException) {
                         return SimulationPrepareResult.Failed(ex.message ?: "state machine is not simulatable")
                     }
+                // Same `layout { }` handling as the render path, so the preview does not jump when a simulation starts.
                 val layout =
-                    elkEngine.layout(
-                        graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                    )
+                    dev.kuml.layout.bridge.LayoutSpecRunner
+                        .layout(
+                            engine = elkEngine,
+                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                            hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                            spec = diagram.layout,
+                            kind =
+                                dev.kuml.layout.bridge.SpecDiagramKinds
+                                    .of(diagram),
+                            diagramName = diagram.name,
+                        ).result
                 val svg =
                     KumlSvgRenderer.toSvg(
                         model = model,

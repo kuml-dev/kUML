@@ -28,6 +28,7 @@ internal object HintsMapper {
     /** Minimum distance between parallel edge segments (px). */
     private const val MIN_EDGE_TO_EDGE = 8f
     private const val ELK_DEFAULT_EDGE_EDGE_BETWEEN_LAYERS = 10.0
+    private const val EDGE_LABEL_SPACING = 4.0
 
     /**
      * Maps a [LayoutHints.deterministicSeed] to an ELK `RANDOM_SEED`. ELK interprets 0 as
@@ -102,6 +103,9 @@ internal object HintsMapper {
             // Lower bound only: ELK's own default (10) stays; the channel width is not tied to edgeToEdge.
             ELK_DEFAULT_EDGE_EDGE_BETWEEN_LAYERS,
         )
+
+        // PAL 2B-b: room between an edge and its reserved centre label.
+        root.setProperty(CoreOptions.SPACING_EDGE_LABEL, EDGE_LABEL_SPACING)
 
         // Layer spacing (between layers) — V2.0.45: per-diagram hint
         // overrides the engine default. `hints.spacing.layerToLayer` is

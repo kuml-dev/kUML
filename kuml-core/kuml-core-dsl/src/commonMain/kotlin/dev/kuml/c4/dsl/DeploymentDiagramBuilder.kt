@@ -17,6 +17,9 @@ import dev.kuml.core.dsl.KumlDsl
  */
 @KumlDsl
 interface DeploymentDiagramBuilder {
+    /** Layout steering hints (`layout { direction = Right }`); several blocks merge. */
+    fun layout(block: C4LayoutBuilder.() -> Unit)
+
     var description: String?
 
     fun include(vararg nodes: C4DeploymentNode)
@@ -59,6 +62,14 @@ class DeploymentDiagramBuilderImpl(
 
     override fun title(text: String) {
         annotations.add("TITLE: $text")
+    }
+
+    private val layoutCollector =
+        dev.kuml.core.model.layout
+            .LayoutSpecCollector()
+
+    override fun layout(block: C4LayoutBuilder.() -> Unit) {
+        layoutCollector.add(C4LayoutBuilder().apply(block).build())
     }
 
     private val diagramNoteIds = mutableListOf<String>()
@@ -127,6 +138,7 @@ class DeploymentDiagramBuilderImpl(
             elements = allElements,
             relationships = filteredRelationships,
             noteIds = diagramNoteIds.toList(),
+            layout = layoutCollector.result(),
         )
     }
 

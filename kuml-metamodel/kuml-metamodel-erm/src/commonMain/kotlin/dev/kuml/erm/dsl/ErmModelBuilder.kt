@@ -144,8 +144,18 @@ class ErmModelBuilder(
         notation: ErmNotation = ErmNotation.MARTIN,
         showViews: Boolean = true,
         showIndexes: Boolean = false,
+        block: (dev.kuml.core.model.layout.LayoutBlockScope.() -> Unit)? = null,
     ) {
-        diagrams += ErmDiagram(name = name, notation = notation, showViews = showViews, showIndexes = showIndexes)
+        diagrams +=
+            ErmDiagram(
+                name = name,
+                notation = notation,
+                showViews = showViews,
+                showIndexes = showIndexes,
+                layout =
+                    dev.kuml.core.model.layout.LayoutBlockScope
+                        .specOf(block),
+            )
     }
 
     /** Infix convenience: `customers oneToMany orders`. Returns the target id for chaining. */

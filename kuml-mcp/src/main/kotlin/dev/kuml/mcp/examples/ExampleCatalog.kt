@@ -44,6 +44,11 @@ internal object ExampleCatalog {
             "07 BPMN animiert – PdV Mitgliedsantrag.md" to "smil-animation-variant",
             "08 STM animiert – Traffic Light.md" to "smil-animation-variant",
             "19 UML Sequence animiert – API Submit.md" to "smil-animation-variant",
+            "61 C4 Container – Layout-Block.md" to "layout-regression-fixture",
+            "62 ERM – Seitenverhältnis und Breite.md" to "layout-regression-fixture",
+            "63 SysML 2 BDD – sameLayer mit Id-Strings.md" to "layout-regression-fixture",
+            "64 UML-Klasse – Dichte Kanten und Labels.md" to "layout-regression-fixture",
+            "65 Service Blueprint – Layout-Block (Determinismus).md" to "layout-regression-fixture",
         )
 
     internal val entries: List<CuratedExample> =

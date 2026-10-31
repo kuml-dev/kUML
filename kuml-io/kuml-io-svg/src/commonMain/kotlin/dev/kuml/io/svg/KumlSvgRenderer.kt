@@ -599,6 +599,16 @@ public object KumlSvgRenderer {
                         }.toMap()
                 }
 
+            // PAL 2B-b — name / stereotype / multiplicity / role of associations are placed by the shared
+            // LabelPlacer (cost model over nodes, other labels and foreign edges) instead of fixed offsets.
+            val associationLabelPlan: Map<String, Map<String, dev.kuml.layout.bridge.label.PlacedLabel>> =
+                if (isComponentDiagram) {
+                    emptyMap()
+                } else {
+                    dev.kuml.io.svg.uml.UmlAssociationLabelPlan
+                        .planFor(layout = effectiveLayoutResult, elements = flatElementIndex, theme = theme, padding = padding)
+                }
+
             for ((edgeId, route) in effectiveLayoutResult.edges) {
                 val element = flatElementIndex[edgeId.value]
                 if (element != null) {
@@ -655,6 +665,7 @@ public object KumlSvgRenderer {
                         builder = edgesBuilder,
                         sourceStackIndex = srcStackIdx,
                         targetStackIndex = tgtStackIdx,
+                        placedLabels = associationLabelPlan[edgeId.value],
                     )
                 }
             }
@@ -4597,7 +4608,7 @@ public object KumlSvgRenderer {
      * dispatcher would miss every classifier declared inside `packageOf { … }`
      * because such members are NOT in `KumlDiagram.elements`.
      */
-    private fun buildKumlElementIndex(elements: List<KumlElement>): Map<String, KumlElement> {
+    internal fun buildKumlElementIndex(elements: List<KumlElement>): Map<String, KumlElement> {
         val out = mutableMapOf<String, KumlElement>()
 
         fun visit(element: KumlElement) {
@@ -4762,7 +4773,7 @@ public object KumlSvgRenderer {
         }
     }
 
-    private fun shiftRoute(
+    internal fun shiftRoute(
         route: dev.kuml.layout.EdgeRoute,
         dx: Float,
         dy: Float = dx,

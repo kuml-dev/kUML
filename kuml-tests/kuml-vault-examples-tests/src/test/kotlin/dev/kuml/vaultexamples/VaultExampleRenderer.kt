@@ -17,6 +17,8 @@ import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
+import dev.kuml.layout.bridge.LayoutSpecRunner
+import dev.kuml.layout.bridge.SpecDiagramKind
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
@@ -50,6 +52,51 @@ data class RenderResult(
 )
 
 object VaultExampleRenderer {
+    /** Lays a SysML 2 diagram out with its `layout { }` block applied, like the CLI pipeline does. */
+    private fun sysml2Layout(
+        engine: dev.kuml.layout.KumlLayoutEngine,
+        model: dev.kuml.sysml2.Sysml2Model,
+        diagram: dev.kuml.sysml2.Sysml2Diagram,
+    ): dev.kuml.layout.LayoutResult {
+        val graph =
+            when (diagram) {
+                is BdDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                is IbdDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                is UcDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                is ReqDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                is StmDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                is ActDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                is SeqDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                is ParDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+            }
+        val kind =
+            when (diagram) {
+                is BdDiagram -> SpecDiagramKind.SYSML2_BDD
+                is IbdDiagram -> SpecDiagramKind.SYSML2_IBD
+                is UcDiagram -> SpecDiagramKind.SYSML2_UC
+                is ReqDiagram -> SpecDiagramKind.SYSML2_REQ
+                is StmDiagram -> SpecDiagramKind.SYSML2_STM
+                is ActDiagram -> SpecDiagramKind.SYSML2_ACT
+                is SeqDiagram -> SpecDiagramKind.SYSML2_SEQ
+                is ParDiagram -> SpecDiagramKind.SYSML2_PAR
+            }
+        return LayoutSpecRunner
+            .layout(
+                engine = engine,
+                graph = graph,
+                hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                spec = diagram.layout,
+                kind = kind,
+            ).result
+    }
+
+    private fun umlKind(type: DiagramType): SpecDiagramKind =
+        when (type) {
+            DiagramType.SEQUENCE -> SpecDiagramKind.UML_SEQUENCE
+            DiagramType.TIMING -> SpecDiagramKind.UML_TIMING
+            else -> SpecDiagramKind.UML_CLASS
+        }
+
     fun render(
         script: String,
         themeName: String = "elegant",
@@ -90,7 +137,15 @@ object VaultExampleRenderer {
                     // the box.
                     val sizeProvider = UmlContentSizeProvider(diagram = extracted.diagram)
                     val graph = UmlLayoutBridge.toLayoutGraph(diagram = extracted.diagram, sizeProvider = sizeProvider)
-                    val layout = elkEngine.layout(graph = graph, hints = LayoutHints.DEFAULT)
+                    val layout =
+                        LayoutSpecRunner
+                            .layout(
+                                engine = elkEngine,
+                                graph = graph,
+                                hints = LayoutHints.DEFAULT,
+                                spec = extracted.diagram.layout,
+                                kind = umlKind(extracted.diagram.type),
+                            ).result
                     val svg = KumlSvgRenderer.toSvg(diagram = extracted.diagram, layoutResult = layout, theme = theme)
                     val latex =
                         runCatching {
@@ -107,7 +162,15 @@ object VaultExampleRenderer {
                             model = extracted.model,
                             sizeProvider = sizeProvider,
                         )
-                    val layout = elkEngine.layout(graph = graph, hints = LayoutHints.DEFAULT)
+                    val layout =
+                        LayoutSpecRunner
+                            .layout(
+                                engine = elkEngine,
+                                graph = graph,
+                                hints = LayoutHints.DEFAULT,
+                                spec = extracted.diagram.layout,
+                                kind = SpecDiagramKind.C4,
+                            ).result
                     val svg =
                         KumlSvgRenderer.toSvg(
                             diagram = extracted.diagram,
@@ -128,10 +191,7 @@ object VaultExampleRenderer {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult =
-                                        elkEngine.layout(
-                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                            hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                        ),
+                                        sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     theme = theme,
                                 )
                             is IbdDiagram ->
@@ -139,10 +199,7 @@ object VaultExampleRenderer {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult =
-                                        elkEngine.layout(
-                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                            hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                        ),
+                                        sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     theme = theme,
                                 )
                             is UcDiagram ->
@@ -150,10 +207,7 @@ object VaultExampleRenderer {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult =
-                                        elkEngine.layout(
-                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                            hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                        ),
+                                        sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     theme = theme,
                                 )
                             is ReqDiagram ->
@@ -161,10 +215,7 @@ object VaultExampleRenderer {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult =
-                                        elkEngine.layout(
-                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                            hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                        ),
+                                        sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     theme = theme,
                                 )
                             is StmDiagram ->
@@ -172,10 +223,7 @@ object VaultExampleRenderer {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult =
-                                        elkEngine.layout(
-                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                            hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                        ),
+                                        sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     theme = theme,
                                     options = paddingOpts,
                                 )
@@ -184,10 +232,7 @@ object VaultExampleRenderer {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult =
-                                        elkEngine.layout(
-                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                            hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                        ),
+                                        sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     theme = theme,
                                     options = paddingOpts,
                                 )
@@ -196,10 +241,7 @@ object VaultExampleRenderer {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult =
-                                        elkEngine.layout(
-                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                            hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                        ),
+                                        sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     theme = theme,
                                 )
                             is ParDiagram ->
@@ -207,10 +249,7 @@ object VaultExampleRenderer {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult =
-                                        elkEngine.layout(
-                                            graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                            hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                        ),
+                                        sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     theme = theme,
                                 )
                         }
@@ -223,10 +262,7 @@ object VaultExampleRenderer {
                                         model = model,
                                         diagram = diagram,
                                         layoutResult =
-                                            elkEngine.layout(
-                                                graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                                hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                            ),
+                                            sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     )
                                 }.getOrNull()
                             is IbdDiagram ->
@@ -235,10 +271,7 @@ object VaultExampleRenderer {
                                         model = model,
                                         diagram = diagram,
                                         layoutResult =
-                                            elkEngine.layout(
-                                                graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                                hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                            ),
+                                            sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     )
                                 }.getOrNull()
                             is UcDiagram ->
@@ -247,10 +280,7 @@ object VaultExampleRenderer {
                                         model = model,
                                         diagram = diagram,
                                         layoutResult =
-                                            elkEngine.layout(
-                                                graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                                hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                            ),
+                                            sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     )
                                 }.getOrNull()
                             is ReqDiagram ->
@@ -259,10 +289,7 @@ object VaultExampleRenderer {
                                         model = model,
                                         diagram = diagram,
                                         layoutResult =
-                                            elkEngine.layout(
-                                                graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                                hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                            ),
+                                            sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     )
                                 }.getOrNull()
                             is StmDiagram ->
@@ -271,10 +298,7 @@ object VaultExampleRenderer {
                                         model = model,
                                         diagram = diagram,
                                         layoutResult =
-                                            elkEngine.layout(
-                                                graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                                hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                            ),
+                                            sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     )
                                 }.getOrNull()
                             is ActDiagram ->
@@ -283,10 +307,7 @@ object VaultExampleRenderer {
                                         model = model,
                                         diagram = diagram,
                                         layoutResult =
-                                            elkEngine.layout(
-                                                graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                                hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                            ),
+                                            sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     )
                                 }.getOrNull()
                             is SeqDiagram ->
@@ -295,10 +316,7 @@ object VaultExampleRenderer {
                                         model = model,
                                         diagram = diagram,
                                         layoutResult =
-                                            elkEngine.layout(
-                                                graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                                hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                            ),
+                                            sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     )
                                 }.getOrNull()
                             is ParDiagram ->
@@ -307,10 +325,7 @@ object VaultExampleRenderer {
                                         model = model,
                                         diagram = diagram,
                                         layoutResult =
-                                            elkEngine.layout(
-                                                graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
-                                                hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
-                                            ),
+                                            sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     )
                                 }.getOrNull()
                         }
@@ -425,7 +440,15 @@ object VaultExampleRenderer {
                                         ),
                                 )
                         }
-                    val layout = elkEngine.layout(graph = graph, hints = ermHints)
+                    val layout =
+                        LayoutSpecRunner
+                            .layout(
+                                engine = elkEngine,
+                                graph = graph,
+                                hints = ermHints,
+                                spec = extracted.diagram.layout,
+                                kind = SpecDiagramKind.ERM,
+                            ).result
                     val svg =
                         KumlSvgRenderer.toSvg(
                             model = extracted.model,
@@ -462,4 +485,20 @@ object VaultExampleRenderer {
             initialized = true
         }
     }
+}
+
+/** UML diagram and its layout, exactly as the vault renderer lays it out (for geometry tests). */
+internal fun VaultExampleRenderer.umlLayoutOf(script: String): Pair<KumlDiagram, dev.kuml.layout.LayoutResult>? {
+    init()
+    val result = KumlScriptHost.eval(code = script)
+    val success = result as? ResultWithDiagnostics.Success ?: return null
+    val extracted = DiagramExtractor.extractAny(returnValue = success.value.returnValue, input = File("inline.kuml.kts"))
+    val diagram = (extracted as? ExtractedDiagram.Uml)?.diagram ?: return null
+    val engine = LayoutEngineRegistry.get("elk.layered") ?: return null
+    val graph = UmlLayoutBridge.toLayoutGraph(diagram = diagram, sizeProvider = UmlContentSizeProvider(diagram = diagram))
+    val layout =
+        LayoutSpecRunner
+            .layout(engine = engine, graph = graph, hints = LayoutHints.DEFAULT, spec = diagram.layout, kind = SpecDiagramKind.UML_CLASS)
+            .result
+    return diagram to layout
 }

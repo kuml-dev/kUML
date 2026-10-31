@@ -17,6 +17,12 @@ public enum class ObstacleKind {
     /** The estimated rectangle of a port label. */
     PORT_LABEL,
 
+    /** A placed multiplicity label at an edge end (PAL wave 2B-b). */
+    MULTIPLICITY,
+
+    /** A placed role label at an edge end (PAL wave 2B-b). */
+    ROLE,
+
     /** The stem of a lifeline (polyline). */
     LIFELINE,
 
@@ -38,6 +44,14 @@ public enum class ObstacleKind {
     /** A diagram edge (polyline). */
     EDGE,
 }
+
+/** True for the kinds that are placed text labels. */
+internal val ObstacleKind.isLabel: Boolean
+    get() =
+        this == ObstacleKind.EDGE_LABEL ||
+            this == ObstacleKind.PORT_LABEL ||
+            this == ObstacleKind.MULTIPLICITY ||
+            this == ObstacleKind.ROLE
 
 /** Penalties of the placement cost model; all values are configuration, not code. */
 public data class NoteCostModel(
@@ -90,7 +104,7 @@ public class ObstacleIndex {
     ) {
         val inflated =
             when (kind) {
-                ObstacleKind.EDGE_LABEL, ObstacleKind.PORT_LABEL -> r.inflated(LABEL_INFLATE)
+                ObstacleKind.EDGE_LABEL, ObstacleKind.PORT_LABEL, ObstacleKind.MULTIPLICITY, ObstacleKind.ROLE -> r.inflated(LABEL_INFLATE)
                 ObstacleKind.NOTE -> r.inflated(NOTE_INFLATE)
                 ObstacleKind.PORT -> r.inflated(PORT_INFLATE)
                 else -> r
@@ -108,8 +122,7 @@ public class ObstacleIndex {
     }
 
     /** True if [p] lies inside a label rectangle (including its halo). */
-    internal fun insideLabel(p: Point): Boolean =
-        rects.any { (it.kind == ObstacleKind.EDGE_LABEL || it.kind == ObstacleKind.PORT_LABEL) && it.rect.contains(p) }
+    internal fun insideLabel(p: Point): Boolean = rects.any { it.kind.isLabel && it.rect.contains(p) }
 
     /** Number of registered obstacles (rectangles and polylines). */
     public val size: Int get() = rects.size + lines.size
@@ -127,7 +140,7 @@ public class ObstacleIndex {
             cost +=
                 when (o.kind) {
                     ObstacleKind.NODE -> costs.nodeRect
-                    ObstacleKind.EDGE_LABEL, ObstacleKind.PORT_LABEL -> costs.labelRect
+                    ObstacleKind.EDGE_LABEL, ObstacleKind.PORT_LABEL, ObstacleKind.MULTIPLICITY, ObstacleKind.ROLE -> costs.labelRect
                     ObstacleKind.NOTE -> costs.noteRect
                     ObstacleKind.PORT -> costs.portRect
                     ObstacleKind.COMPOSITE_TITLE -> costs.titleRect
@@ -180,7 +193,7 @@ public class ObstacleIndex {
             cost +=
                 when (o.kind) {
                     ObstacleKind.NODE -> costs.nodeRoute
-                    ObstacleKind.EDGE_LABEL, ObstacleKind.PORT_LABEL -> costs.labelRoute
+                    ObstacleKind.EDGE_LABEL, ObstacleKind.PORT_LABEL, ObstacleKind.MULTIPLICITY, ObstacleKind.ROLE -> costs.labelRoute
                     ObstacleKind.NOTE -> costs.noteRoute
                     ObstacleKind.PORT -> costs.portRoute
                     ObstacleKind.COMPOSITE_TITLE -> costs.titleRoute
@@ -224,8 +237,7 @@ public class ObstacleIndex {
                     (
                         it.kind == ObstacleKind.NODE ||
                             it.kind == ObstacleKind.COMPOSITE_TITLE ||
-                            it.kind == ObstacleKind.EDGE_LABEL ||
-                            it.kind == ObstacleKind.PORT_LABEL ||
+                            it.kind.isLabel ||
                             it.kind == ObstacleKind.NOTE ||
                             it.kind == ObstacleKind.PORT
                     ) &&
