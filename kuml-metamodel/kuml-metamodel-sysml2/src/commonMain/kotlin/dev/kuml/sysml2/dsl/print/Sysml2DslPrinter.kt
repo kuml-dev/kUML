@@ -327,6 +327,15 @@ public object Sysml2DslPrinter {
                     todos = todos,
                 ) { body -> printNestedFeatures(sb = body, def = def, model = model) }
             }
+            is dev.kuml.sysml2.EnumerationDefinition -> {
+                printDefCall(
+                    sb = sb,
+                    fnName = "enumerationDef",
+                    varName = varName,
+                    args = args,
+                    todos = todos,
+                ) { body -> def.literals.forEach { body.appendLine("        literal(${quote(it)})") } }
+            }
             is PortDefinition -> {
                 if (def.isAbstract) args += "isAbstract = true"
                 appendSpecializesArg(def = def, builderName = "portDef", args = args, todos = todos)
@@ -946,6 +955,7 @@ public object Sysml2DslPrinter {
         spec.aspectRatio?.let { block.appendLine("            aspectRatio = $it") }
         spec.labelMaxWidth?.let { block.appendLine("            labelMaxWidth = $it") }
         spec.showSubjectEdges?.let { block.appendLine("            showSubjectEdges = $it") }
+        spec.actorSide?.let { block.appendLine("            actorSide = ActorSide.$it") }
         block.appendLine("        }")
         val trimmed = text.trimEnd('\n')
         val newText =
@@ -1073,7 +1083,9 @@ public object Sysml2DslPrinter {
             sb.appendLine("        includeById(sourceId = ${quote(it.sourceUseCaseId)}, targetId = ${quote(it.targetUseCaseId)})")
         }
         d.extends.forEach {
-            sb.appendLine("        extendById(sourceId = ${quote(it.sourceUseCaseId)}, targetId = ${quote(it.targetUseCaseId)})")
+            val cond = it.condition?.let { c -> ", condition = ${quote(c)}" } ?: ""
+            val point = it.extensionPoint?.let { p -> ", extensionPoint = ${quote(p)}" } ?: ""
+            sb.appendLine("        extendById(sourceId = ${quote(it.sourceUseCaseId)}, targetId = ${quote(it.targetUseCaseId)}$cond$point)")
         }
         d.actorGeneralizations.forEach {
             sb.appendLine("        generalizeById(specificId = ${quote(it.specificId)}, generalId = ${quote(it.generalId)})")

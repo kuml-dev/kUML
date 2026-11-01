@@ -78,8 +78,9 @@ class Sysml2BddSvgTest :
             // the rendered content tokens rather than literal `>X<` adjacency.
             svg shouldContain "«part def»"
             svg shouldContain "Vehicle"
-            svg shouldContain "curbWeight : Mass = 1500.0[kg]"
-            svg shouldContain "topSpeed : Speed = 180.0[km/h]"
+            // wave 2E-b: number without ".0", unit after a non-breaking space
+            svg shouldContain "curbWeight : Mass = 1500\u00A0kg"
+            svg shouldContain "topSpeed : Speed = 180\u00A0km/h"
 
             SampleOutput.write(filename = "sysml2-bdd/single-part-with-attributes.svg", content = svg)
         }

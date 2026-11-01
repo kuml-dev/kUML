@@ -28,6 +28,7 @@ internal fun renderSysml2UseCase(
     layout: NodeLayout,
     @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
     builder: SvgBuilder,
+    extensionPoints: List<String> = emptyList(),
 ) {
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
@@ -52,6 +53,48 @@ internal fun renderSysml2UseCase(
                 ),
         )
         val description = if (element.description.isBlank()) null else Sysml2ReqCard.ucDescription(uc = element, ellipseWidth = w)
+        val lineH0 = Sysml2ReqCard.UC_DESCRIPTION_LINE_H
+        val extH =
+            if (extensionPoints.isEmpty()) {
+                0f
+            } else {
+                dev.kuml.layout.bridge.Sysml2LayoutBridge.UC_EXTENSION_BLOCK_GAP +
+                    (1 + extensionPoints.size) * dev.kuml.layout.bridge.Sysml2LayoutBridge.UC_EXTENSION_LINE_H
+            }
+        val textBlockH = 16f + (description?.lines?.size ?: 0) * lineH0
+        // Wave 2E-b: title (and description) move up, below them a divider, the heading and one line per extension point.
+        val blockTop = ry - (textBlockH + extH) / 2f
+        if (extensionPoints.isNotEmpty()) {
+            val lineH = dev.kuml.layout.bridge.Sysml2LayoutBridge.UC_EXTENSION_LINE_H
+            val dividerY = blockTop + textBlockH + 2f
+            val half = rx * kotlin.math.sqrt(maxOf(0f, 1f - ((dividerY - ry) / ry) * ((dividerY - ry) / ry)))
+            tag(
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to fmt(rx - half),
+                        "y1" to fmt(dividerY),
+                        "x2" to fmt(rx + half),
+                        "y2" to fmt(dividerY),
+                        "class" to "kuml-divider",
+                    ),
+            )
+            val lines = listOf("extension points") + extensionPoints
+            lines.forEachIndexed { i, l ->
+                tag(
+                    name = "text",
+                    attrs =
+                        mapOf(
+                            "class" to "kuml-body",
+                            "x" to fmt(rx),
+                            "y" to fmt(dividerY + 10f + i * lineH),
+                            "text-anchor" to "middle",
+                            "font-size" to "10",
+                            "font-style" to if (i == 0) "italic" else "normal",
+                        ),
+                ) { text(l) }
+            }
+        }
         if (description == null || description.lines.isEmpty()) {
             tag(
                 name = "text",
@@ -59,7 +102,7 @@ internal fun renderSysml2UseCase(
                     mapOf(
                         "class" to "kuml-body",
                         "x" to fmt(rx),
-                        "y" to fmt(ry + 4f),
+                        "y" to if (extensionPoints.isEmpty()) fmt(ry + 4f) else fmt(blockTop + 12f),
                         "text-anchor" to "middle",
                     ),
             ) { text(element.name) }
@@ -67,8 +110,7 @@ internal fun renderSysml2UseCase(
             // Name on top, description (italic 10 px, max. 4 lines) below, the whole block
             // vertically centred inside the ellipse.
             val lineH = Sysml2ReqCard.UC_DESCRIPTION_LINE_H
-            val blockH = 16f + description.lines.size * lineH
-            val top = ry - blockH / 2f
+            val top = blockTop
             tag(
                 name = "text",
                 attrs =

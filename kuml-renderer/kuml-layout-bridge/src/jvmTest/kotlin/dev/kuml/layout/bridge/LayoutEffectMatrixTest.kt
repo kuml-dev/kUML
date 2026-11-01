@@ -15,12 +15,14 @@ class LayoutEffectMatrixTest :
                 LayoutEffectMatrix.effective.containsKey(kind) shouldBe true
                 // Rows are all-or-nothing today: an option set is either fully honoured or fully ignored.
                 val row = LayoutEffectMatrix.effectiveFor(kind)
-                val common = LayoutOption.entries.toSet() - LayoutOption.LABEL_MAX_WIDTH - LayoutOption.SHOW_SUBJECT_EDGES
+                val common =
+                    LayoutOption.entries.toSet() - LayoutOption.LABEL_MAX_WIDTH - LayoutOption.SHOW_SUBJECT_EDGES - LayoutOption.ACTOR_SIDE
                 (
                     row.isEmpty() ||
                         row == common ||
                         row == common + LayoutOption.LABEL_MAX_WIDTH ||
-                        row == common + LayoutOption.SHOW_SUBJECT_EDGES
+                        row == common + LayoutOption.SHOW_SUBJECT_EDGES ||
+                        row == common + LayoutOption.ACTOR_SIDE
                 ) shouldBe true
             }
             LayoutEffectMatrix.effective.keys shouldBe SpecDiagramKind.entries.toSet()

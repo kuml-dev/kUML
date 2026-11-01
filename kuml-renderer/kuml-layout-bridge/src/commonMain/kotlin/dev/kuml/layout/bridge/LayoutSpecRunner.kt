@@ -72,6 +72,7 @@ public object LayoutSpecRunner {
                 if (spec.aspectRatio != null) add(LayoutOption.ASPECT_RATIO)
                 if (spec.labelMaxWidth != null) add(LayoutOption.LABEL_MAX_WIDTH)
                 if (spec.showSubjectEdges != null) add(LayoutOption.SHOW_SUBJECT_EDGES)
+                if (spec.actorSide != null) add(LayoutOption.ACTOR_SIDE)
             }
         val effective = LayoutEffectMatrix.effectiveFor(kind)
         return set.filter { it !in effective }
@@ -132,12 +133,15 @@ public object LayoutSpecRunner {
     ): SpecLayoutOutcome {
         val outcome = layoutInner(engine = engine, graph = graph, hints = hints, spec = spec, kind = kind, diagramName = diagramName)
         // Wave 2E-a: every requirement diagram (grid or legacy) gets spread endpoints and nudged parallel segments.
-        return if (kind ==
-            SpecDiagramKind.SYSML2_REQ
-        ) {
-            outcome.copy(result = ReqEdgeBands.apply(result = outcome.result, graph = graph))
-        } else {
-            outcome
+        return when (kind) {
+            SpecDiagramKind.SYSML2_REQ -> outcome.copy(result = ReqEdgeBands.apply(result = outcome.result, graph = graph))
+            // Wave 2E-b: generalisation fans of a block definition diagram are drawn as a bus.
+            SpecDiagramKind.SYSML2_BDD -> {
+                val flow = hintsWith(base = hints, spec = sanitize(spec = spec, findings = mutableListOf())).direction
+                val bus = BddGeneralizationBus.apply(result = outcome.result, graph = graph, direction = flow)
+                outcome.copy(result = BddAllocationDocking.apply(result = bus, graph = graph, direction = flow))
+            }
+            else -> outcome
         }
     }
 
@@ -174,8 +178,23 @@ public object LayoutSpecRunner {
             )
             return SpecLayoutOutcome(result = gridResult, findings = findings)
         }
+        if (kind == SpecDiagramKind.SYSML2_UC && UcFrameGrid.applies(graph)) {
+            // Wave 2E-b: subject frame grid with actors beside the frame. The aspect iteration is skipped.
+            val ucSpec = checked ?: LayoutSpec()
+            val gridResult = UcFrameGrid.layout(engine = engine, graph = graph, hints = effectiveHints, spec = ucSpec)
+            reportUnreached(
+                result = gridResult,
+                target = ucSpec.aspectRatio ?: LayoutLimits.GRID_DEFAULT_ASPECT,
+                maxWidth = ucSpec.maxWidth,
+                horizontal = false,
+                explicit = ucSpec.aspectRatio != null || ucSpec.maxWidth != null || ucSpec.wrapColumns == null,
+                bothSides = false,
+                findings = findings,
+            )
+            return SpecLayoutOutcome(result = gridResult, findings = findings)
+        }
         val alignedGroups =
-            if (kind == SpecDiagramKind.SYSML2_STM || kind == SpecDiagramKind.UML_STATE) {
+            if (kind == SpecDiagramKind.SYSML2_STM || kind == SpecDiagramKind.UML_STATE || kind == SpecDiagramKind.SYSML2_BDD) {
                 checked
                     ?.sameLayer
                     .orEmpty()

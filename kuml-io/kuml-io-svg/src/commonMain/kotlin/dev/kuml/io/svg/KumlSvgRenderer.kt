@@ -2632,7 +2632,8 @@ public object KumlSvgRenderer {
         theme: KumlTheme = PlainTheme(),
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): String {
-        val visible = diagram.elementIds.toSet()
+        // Wave 2E-b (P-UC-01): subject members are diagram members even if not listed in elementIds.
+        val visible = (diagram.elementIds + diagram.subjects.flatMap { it.useCaseIds }).toSet()
         val elements =
             model.definitions
                 .filter { it.id in visible }
@@ -2643,13 +2644,34 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements + sysml2NoteElements(model),
             )
+        // Wave 2E-b: the edge labels are planned by the shared label placer (like the BDD): labels, notes, labels.
+        val ucAdapter = UcEdgeAdapter(diagram)
+        val ucLabels = planSysml2EdgeLabels(layout = layoutResult, adapter = ucAdapter)
+        val ucNoted =
+            placeSysml2NotesResult(
+                model = model,
+                diagram = diagram,
+                layout = layoutResult,
+                adapter = ucAdapter,
+                placedLabels = ucLabels,
+            )
+        val ucFinalLabels =
+            if (model.comments.isEmpty()) ucLabels else planSysml2EdgeLabels(layout = ucNoted.layout, adapter = ucAdapter)
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            rawLayoutResult = placeSysml2Notes(model = model, diagram = diagram, layout = layoutResult, adapter = UcEdgeAdapter(diagram)),
+            rawLayoutResult = ucNoted.layout,
+            plannedEdgeLabels = ucFinalLabels,
             theme = theme,
             options = options,
-            sysml2EdgeAdapter = UcEdgeAdapter(diagram),
+            sysml2EdgeAdapter = ucAdapter,
             typeLabel = "use case",
+            sysml2Context =
+                dev.kuml.io.svg.sysml2.Sysml2NodeContext(
+                    model = model,
+                    ucExtensionPoints =
+                        dev.kuml.layout.bridge.Sysml2LayoutBridge
+                            .ucExtensionPoints(diagram),
+                ),
             // Wave C1: system-boundary frames are compound groups; paint them behind the nodes.
             beforeNodes = { builder, lr, padding ->
                 dev.kuml.io.svg.sysml2.renderUcSubjectFrames(
@@ -2668,7 +2690,6 @@ public object KumlSvgRenderer {
                     edges = edgePolylines,
                 )
             },
-            placeLabelsOnLine = true,
         )
     }
 

@@ -37,6 +37,9 @@ open class LayoutSpecBuilder protected constructor() {
     /** Requirement diagrams only: draw a «subject» edge per `subjectRef` (default: off). */
     protected var showSubjectEdgesValue: Boolean? = null
 
+    /** Use-case diagrams only: side of the subject frame the actors stand on (default: Auto). */
+    protected var actorSideValue: ActorSide? = null
+
     private val sameLayerGroups = mutableListOf<List<String>>()
     private val firstIds = mutableListOf<String>()
     private val lastIds = mutableListOf<String>()
@@ -79,6 +82,7 @@ open class LayoutSpecBuilder protected constructor() {
             aspectRatio = aspectRatio,
             labelMaxWidth = labelMaxWidth,
             showSubjectEdges = showSubjectEdgesValue,
+            actorSide = actorSideValue,
         )
 }
 

@@ -305,6 +305,10 @@ data class UcExtend(
     val sourceUseCaseId: String,
     /** Id of the *extended* (target) [UseCaseDefinition]. */
     val targetUseCaseId: String,
+    /** Optional guard shown as `[condition]` below the «extend» keyword. */
+    val condition: String? = null,
+    /** Optional name of the extension point of the target use case this extend hooks into. */
+    val extensionPoint: String? = null,
 )
 
 /**

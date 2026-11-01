@@ -113,6 +113,16 @@ class Sysml2LayoutBuilder internal constructor() : LayoutSpecBuilder() {
             showSubjectEdgesValue = value
         }
 
+    /**
+     * Use-case diagrams only (wave 2E-b): side of the subject frame the actors stand on.
+     * `Auto` (default): up to two actors on the left, more are split left / right.
+     */
+    var actorSide: dev.kuml.core.model.layout.ActorSide?
+        get() = actorSideValue
+        set(value) {
+            actorSideValue = value
+        }
+
     /** Id variant of [sameLayer]. */
     fun sameLayerById(vararg ids: String) {
         addSameLayer(ids.toList())

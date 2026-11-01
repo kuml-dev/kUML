@@ -48,6 +48,22 @@ data class PartDefinition(
 ) : Sysml2Definition
 
 /**
+ * `enumeration def Colour { enum Red; enum Green }` (wave 2E-b): a value type with a fixed set of [literals].
+ * Drawn as a `«enumeration»` box with one literal compartment; an attribute default must be one of the literals.
+ */
+@Serializable
+data class EnumerationDefinition(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val isAbstract: Boolean = false,
+    override val features: List<KermlFeature> = emptyList(),
+    override val specializations: List<KermlSpecialization> = emptyList(),
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    val literals: List<String> = emptyList(),
+) : Sysml2Definition
+
+/**
  * `AttributeDefinition` — a SysML 2 attribute *type*, e.g. `Mass`, `Voltage`,
  * `Boolean`. Used in BDD diagrams as the typing reference for attribute
  * usages. Backed by a KerML data type (value semantics, not parts).

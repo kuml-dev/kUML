@@ -62,6 +62,9 @@ internal fun renderSysml2Definition(
                 context = context,
             )
         is PortDefinition -> renderBox(element = element, layout = layout, builder = builder, stereotype = "port def", context = context)
+        // Wave 2E-b: an enumeration is a box with a literal compartment.
+        is dev.kuml.sysml2.EnumerationDefinition ->
+            renderBox(element = element, layout = layout, builder = builder, stereotype = "enumeration", context = context)
         is ConnectionDefinition ->
             renderBox(
                 element = element,
@@ -72,7 +75,14 @@ internal fun renderSysml2Definition(
             )
         // V2.0.7: UC-Diagramm-spezifische Formen.
         is ActorDefinition -> renderSysml2Actor(element = element, layout = layout, theme = theme, builder = builder)
-        is UseCaseDefinition -> renderSysml2UseCase(element = element, layout = layout, theme = theme, builder = builder)
+        is UseCaseDefinition ->
+            renderSysml2UseCase(
+                element = element,
+                layout = layout,
+                theme = theme,
+                builder = builder,
+                extensionPoints = context?.ucExtensionPoints?.get(element.id).orEmpty(),
+            )
         // V2.0.8: REQ-Diagramm — dreikompartimentige Anforderungs-Box mit
         // `«requirement»`-Stereotyp, optional `R-NNN ::`-prefixiertem Namen,
         // und wort-gewrapptem Anforderungstext.
@@ -85,7 +95,13 @@ internal fun renderSysml2Definition(
         // V2.0.10: ACT-Diagramm — Aktion, Pseudo-Knoten (Initial/Final/FlowFinal),
         // Decision/Merge-Raute oder Fork/Join-Bar — Dispatch über
         // ActionDefinition.kind.
-        is ActionDefinition -> renderActionDefinition(element = element, layout = layout, theme = theme, builder = builder)
+        // Wave 2E-b: inside a BDD an action definition is a block-like box with «action def».
+        is ActionDefinition ->
+            if (context?.bdd != null) {
+                renderBox(element = element, layout = layout, builder = builder, stereotype = "action def", context = context)
+            } else {
+                renderActionDefinition(element = element, layout = layout, theme = theme, builder = builder)
+            }
         // V2.0.11: SEQ-Diagramm — Lifeline-Kopf (Box mit «lifeline»-Stereotyp)
         // plus vertikale gestrichelte Zeit-Achse unter dem Kopf bis zum
         // unteren Ende der Bounds. Nachrichten werden NICHT hier gezeichnet

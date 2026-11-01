@@ -153,7 +153,7 @@ class Sysml2WelleBBridgeTest :
             val bdd = BddEdgeAdapter(model = model, diagram = BdDiagram(name = "b", elementIds = listOf("S", "A", "B")))
             bdd.metadataFor("comp:S::a")!!.arrowHead shouldBe Sysml2ArrowHead.FilledDiamond
             bdd.metadataFor("comp:S::a")!!.headAtSource shouldBe true
-            bdd.metadataFor("agg:S::c")!!.arrowHead shouldBe Sysml2ArrowHead.OpenDiamond
+            bdd.metadataFor("agg:S::c")!!.arrowHead shouldBe Sysml2ArrowHead.OpenAngle
             val ib = IbdEdgeAdapter(model = model, diagram = ibd)
             ib.metadataFor("conn:S::w")!!.midArrows shouldHaveSize 1
             ib.metadataFor("conn:S::w")!!.midArrows[0].forward shouldBe true

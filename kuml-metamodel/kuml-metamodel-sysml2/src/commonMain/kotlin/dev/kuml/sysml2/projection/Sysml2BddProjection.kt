@@ -11,11 +11,16 @@ import dev.kuml.sysml2.PortDirection
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.Sysml2Model
 
-enum class BddEdgeKind { Composition, Aggregation, Association, Allocation }
+/**
+ * [Reference] is a `refPart` (wave 2E-b): a plain open-arrow reference without diamond. [Aggregation] is kept for
+ * models that ask for a shared aggregation explicitly.
+ */
+enum class BddEdgeKind { Composition, Aggregation, Reference, Association, Allocation }
 
 /**
  * A relationship edge of a BDD. [sourceId] is the owning end (diamond end for
- * compositions and aggregations). [endLabel] is shown next to the target end.
+ * compositions and aggregations). [label] is placed on the line (the role name of a composition / reference since
+ * wave 2E-b), [endLabel] is shown next to the target end (the multiplicity of a composition / reference).
  */
 data class BddEdge(
     val id: String,
@@ -62,15 +67,14 @@ fun sysml2BddProjection(
                     val agg = u.isReference
                     hidden += u.id
                     val mult = u.multiplicity.toSpecForm()
-                    val role = if (mult == "1") u.name else "${u.name} [$mult]"
                     edges +=
                         BddEdge(
                             id = (if (agg) "agg:" else "comp:") + u.id,
-                            kind = if (agg) BddEdgeKind.Aggregation else BddEdgeKind.Composition,
+                            kind = if (agg) BddEdgeKind.Reference else BddEdgeKind.Composition,
                             sourceId = def.id,
                             targetId = target,
-                            label = null,
-                            endLabel = role,
+                            label = u.name,
+                            endLabel = if (mult == "1") null else mult,
                         )
                 }
                 is dev.kuml.sysml2.FlowUsage -> hidden += u.id

@@ -24,6 +24,8 @@ enum class LayoutFlow { Down, Right, Up, Left }
  * @property labelMaxWidth wrap width of edge labels in px (state machines only, 120..400, default 220)
  * @property showSubjectEdges requirement diagrams only (wave 2E-a): draw a «subject» edge for every `subjectRef`;
  *   `null` / `false` (the default) shows the subject as a text line in the card instead
+ * @property actorSide use-case diagrams only (wave 2E-b): which side of the subject frame the actors stand on
+ *   (`null` = [ActorSide.Auto])
  */
 @Serializable
 data class LayoutSpec(
@@ -36,6 +38,7 @@ data class LayoutSpec(
     val aspectRatio: Double? = null,
     val labelMaxWidth: Int? = null,
     val showSubjectEdges: Boolean? = null,
+    val actorSide: ActorSide? = null,
 ) {
     /** True if the spec carries no hint at all. */
     val isEmpty: Boolean
@@ -48,7 +51,8 @@ data class LayoutSpec(
                 maxWidth == null &&
                 aspectRatio == null &&
                 labelMaxWidth == null &&
-                showSubjectEdges == null
+                showSubjectEdges == null &&
+                actorSide == null
 
     /** Merges [next] onto this spec: scalars of [next] win when set, lists are appended. */
     fun mergedWith(next: LayoutSpec): LayoutSpec =
@@ -62,11 +66,27 @@ data class LayoutSpec(
             aspectRatio = next.aspectRatio ?: aspectRatio,
             labelMaxWidth = next.labelMaxWidth ?: labelMaxWidth,
             showSubjectEdges = next.showSubjectEdges ?: showSubjectEdges,
+            actorSide = next.actorSide ?: actorSide,
         )
 }
 
 /** The options of a `layout { }` block; used by the effect matrix and by diagnostics. */
-enum class LayoutOption { DIRECTION, WRAP_COLUMNS, SAME_LAYER, FIRST, LAST, MAX_WIDTH, ASPECT_RATIO, LABEL_MAX_WIDTH, SHOW_SUBJECT_EDGES }
+enum class LayoutOption {
+    DIRECTION,
+    WRAP_COLUMNS,
+    SAME_LAYER,
+    FIRST,
+    LAST,
+    MAX_WIDTH,
+    ASPECT_RATIO,
+    LABEL_MAX_WIDTH,
+    SHOW_SUBJECT_EDGES,
+    ACTOR_SIDE,
+}
+
+/** Where the actors of a use-case diagram stand relative to the subject frame (wave 2E-b). */
+@Serializable
+enum class ActorSide { Auto, Left, Right, Both }
 
 /** Hard bounds for [LayoutSpec] values (DoS protection against hostile input). */
 object LayoutLimits {

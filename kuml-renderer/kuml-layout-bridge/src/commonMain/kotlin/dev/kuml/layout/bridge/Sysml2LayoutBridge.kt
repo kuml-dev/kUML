@@ -141,18 +141,48 @@ public object Sysml2LayoutBridge {
 
         // L6/L7: Kompositions-, Aggregations-, Assoziations- und Allokationskanten.
         // Owner → Teil, damit der Besitzer oben liegt; nur wenn beide Enden sichtbar sind.
-        for (e in sysml2BddProjection(model = model, diagram = diagram).edges) {
+        val projection = sysml2BddProjection(model = model, diagram = diagram)
+        for (e in projection.edges) {
             if (e.sourceId !in visibleIds || e.targetId !in visibleIds) continue
             edges +=
                 LayoutEdge(
                     id = EdgeId(e.id),
                     source = EndpointRef(nodeId = NodeId(e.sourceId)),
                     target = EndpointRef(nodeId = NodeId(e.targetId)),
-                    hints = EdgeHints.NONE,
+                    hints =
+                        if (e.kind == dev.kuml.sysml2.projection.BddEdgeKind.Allocation) {
+                            EdgeHints(targetAnchorOffset = allocationRowOffset(model = model, projection = projection, edge = e))
+                        } else {
+                            EdgeHints.NONE
+                        },
                 )
         }
 
         return LayoutGraph(nodes = nodes, edges = edges).withLayoutSpec(diagram = diagram)
+    }
+
+    /**
+     * Wave 2E-b: offset from the top of the target block at which an allocation edge docks - the row of the allocated
+     * action in the `actions` compartment - or `null` when the target block shows no such action.
+     */
+    private fun allocationRowOffset(
+        model: Sysml2Model,
+        projection: dev.kuml.sysml2.projection.BddProjection,
+        edge: dev.kuml.sysml2.projection.BddEdge,
+    ): Float? {
+        val target = model.definitions.firstOrNull { it.id == edge.targetId } ?: return null
+        val source = model.definitions.firstOrNull { it.id == edge.sourceId } ?: return null
+        val lines = projection.actionsByDef[target.id] ?: return null
+        val actionUsages =
+            model.usages.filterIsInstance<dev.kuml.sysml2.ActionUsage>().filter { it.id.startsWith("${target.id}::") }
+        val usage =
+            actionUsages.firstOrNull { it.definitionId == source.id }
+                ?: actionUsages.firstOrNull { it.name.equals(source.name, ignoreCase = true) }
+                ?: return null
+        val index = lines.indexOf(usage.name).takeIf { it >= 0 } ?: return null
+        val content = sysml2BddBoxContent(model = model, def = target, projection = projection)
+        return dev.kuml.sysml2.projection
+            .bddActionRowCenter(content = content, index = index)
     }
 
     /**
@@ -221,6 +251,12 @@ public object Sysml2LayoutBridge {
      * sides to avoid appearing to touch the edge.
      */
     public const val UC_ELLIPSE_H_PAD: Float = 30f
+
+    /** Wave 2E-b: extension-point block of a use-case ellipse (shared by the layout and the renderer). */
+    public const val UC_EXTENSION_LINE_H: Float = 13f
+    public const val UC_EXTENSION_BLOCK_GAP: Float = 8f
+    public const val UC_EXTENSION_POINT_MAX_CHARS: Int = 40
+    public const val UC_EXTENSION_POINTS_MAX: Int = 6
 
     /**
      * Horizontal padding (left + right) reserved around an actor's name
@@ -544,6 +580,33 @@ public object Sysml2LayoutBridge {
         diagram: BdDiagram?,
     ): SizeProvider {
         val projection = diagram?.let { sysml2BddProjection(model = model, diagram = it) }
+        // Wave 2E-b: a block grows with the number of edges that meet it (14 px per edge beyond two, at most 112 px),
+        // across the flow so that the end points of the edges are spread apart.
+        val horizontalFlow =
+            diagram?.layout?.direction.let {
+                it == dev.kuml.core.model.layout.LayoutFlow.Right || it == dev.kuml.core.model.layout.LayoutFlow.Left
+            }
+        val edgeCount: Map<String, Int> =
+            if (diagram == null || projection == null) {
+                emptyMap()
+            } else {
+                val visible = diagram.elementIds.toSet()
+                val counts = HashMap<String, Int>()
+                for (e in projection.edges) {
+                    if (e.sourceId !in visible || e.targetId !in visible) continue
+                    counts[e.sourceId] = (counts[e.sourceId] ?: 0) + 1
+                    counts[e.targetId] = (counts[e.targetId] ?: 0) + 1
+                }
+                for (d in model.definitions) {
+                    if (d.id !in visible) continue
+                    for (sp in d.specializations) {
+                        if (sp.specificId !in visible || sp.generalId !in visible) continue
+                        counts[sp.specificId] = (counts[sp.specificId] ?: 0) + 1
+                        counts[sp.generalId] = (counts[sp.generalId] ?: 0) + 1
+                    }
+                }
+                counts
+            }
         return SizeProvider { id, _ ->
             val def = model.definitions.firstOrNull { it.id == id }
             val content = def?.let { sysml2BddBoxContent(model = model, def = it, projection = projection) }
@@ -556,14 +619,32 @@ public object Sysml2LayoutBridge {
             val flows = content?.flows ?: emptyList()
             if (actions.isNotEmpty()) h += EXTRA_COMPARTMENT_GAP + (actions.size + 1) * FEATURE_LINE_H
             if (flows.isNotEmpty()) h += EXTRA_COMPARTMENT_GAP + (flows.size + 1) * FEATURE_LINE_H
-            val stereoW = "«part def»".length * IBD_STEREO_CHAR_PX
+            val stereoW =
+                when (def) {
+                    is dev.kuml.sysml2.EnumerationDefinition -> "«enumeration»"
+                    is dev.kuml.sysml2.ActionDefinition -> "«action def»"
+                    is dev.kuml.sysml2.AttributeDefinition -> "«attribute def»"
+                    is dev.kuml.sysml2.PortDefinition -> "«port def»"
+                    is dev.kuml.sysml2.ConnectionDefinition -> "«connection def»"
+                    else -> "«part def»"
+                }.length * IBD_STEREO_CHAR_PX
             val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
             val bodyMax =
                 ((content?.widthProbe ?: emptyList()) + actions + flows).maxOfOrNull { it.length * BDD_BODY_CHAR_PX } ?: 0f
             val contentW = maxOf(stereoW, nameW, bodyMax) + 2 * IBD_H_PAD
-            Size(width = maxOf(contentW, DEFAULT_WIDTH), height = maxOf(h, 70f))
+            val puffer = minOf(BDD_EDGE_PUFFER_MAX_PX, BDD_EDGE_PUFFER_PX * maxOf(0, (edgeCount[id] ?: 0) - 2))
+            Size(
+                width = maxOf(contentW, DEFAULT_WIDTH) + if (horizontalFlow) 0f else puffer,
+                height = maxOf(h, 70f) + if (horizontalFlow) puffer else 0f,
+            )
         }
     }
+
+    /** Wave 2E-b: extra box size per edge beyond two that meet a BDD block (see [bddContentAwareSizeProvider]). */
+    public const val BDD_EDGE_PUFFER_PX: Float = 14f
+
+    /** Upper bound of the edge puffer of a BDD block. */
+    public const val BDD_EDGE_PUFFER_MAX_PX: Float = 112f
 
     /**
      * Avg width of a 14pt bold sans-serif char (incl. ~10% slack) — used to
@@ -981,11 +1062,18 @@ public object Sysml2LayoutBridge {
     private fun ucUseCaseContentSize(
         name: String?,
         description: String = "",
+        extensionPoints: List<String> = emptyList(),
     ): dev.kuml.layout.Size {
         val nameW = (name?.length ?: 0) * BDD_BODY_CHAR_PX
-        val contentW = nameW + 2 * UC_ELLIPSE_H_PAD
+        val pointW = (extensionPoints.maxOfOrNull { it.length } ?: 0) * BDD_BODY_CHAR_PX
+        val contentW = maxOf(nameW, pointW) + 2 * UC_ELLIPSE_H_PAD
+        // Wave 2E-b: the extension-point block (divider, heading, one line per point) grows the ellipse.
+        val extH = if (extensionPoints.isEmpty()) 0f else UC_EXTENSION_BLOCK_GAP + (1 + extensionPoints.size) * UC_EXTENSION_LINE_H
         if (description.isBlank()) {
-            return dev.kuml.layout.Size(width = maxOf(contentW, UC_USECASE_WIDTH), height = UC_USECASE_HEIGHT)
+            return dev.kuml.layout.Size(
+                width = maxOf(contentW, UC_USECASE_WIDTH),
+                height = if (extH == 0f) UC_USECASE_HEIGHT else maxOf(UC_USECASE_HEIGHT, (20f + extH) / 0.62f),
+            )
         }
         // Wave C1: a description (max. 4 italic lines) makes the ellipse wider and taller so
         // that name + description fit inside the curved boundary.
@@ -996,9 +1084,16 @@ public object Sysml2LayoutBridge {
                 maxChars = Sysml2ReqCard.ucDescriptionChars(width),
             )
         val n = lines.size.coerceIn(1, Sysml2ReqCard.UC_DESCRIPTION_MAX_LINES)
-        val height = maxOf(UC_USECASE_HEIGHT, (24f + n * Sysml2ReqCard.UC_DESCRIPTION_LINE_H) / 0.62f)
+        val height = maxOf(UC_USECASE_HEIGHT, (24f + n * Sysml2ReqCard.UC_DESCRIPTION_LINE_H + extH) / 0.62f)
         return dev.kuml.layout.Size(width = width, height = height)
     }
+
+    /** Wave 2E-b: the extension points of each use case, taken from the `extend` relations (declaration order, distinct, capped). */
+    public fun ucExtensionPoints(diagram: UcDiagram): Map<String, List<String>> =
+        diagram.extends
+            .filter { !it.extensionPoint.isNullOrBlank() }
+            .groupBy({ it.targetUseCaseId }, { it.extensionPoint!!.trim().take(UC_EXTENSION_POINT_MAX_CHARS) })
+            .mapValues { (_, v) -> v.distinct().take(UC_EXTENSION_POINTS_MAX) }
 
     /** Diagnose-Helfer: extrahiert die in [diagram] referenzierten Definitionen aus [model]. */
     public fun resolveVisibleDefinitions(
@@ -1122,12 +1217,13 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: UcDiagram,
-        sizeProvider: SizeProvider = ucContentAwareSizeProvider(model),
+        sizeProvider: SizeProvider = ucContentAwareSizeProvider(model = model, extensionPoints = ucExtensionPoints(diagram)),
     ): LayoutGraph {
-        val visibleIds: Set<String> = diagram.elementIds.toSet()
+        // Wave 2E-b (P-UC-01): use cases that only appear inside a subject frame are diagram members too.
+        val memberIds: List<String> = (diagram.elementIds + diagram.subjects.flatMap { it.useCaseIds }).distinct()
 
         val nodes = mutableListOf<LayoutNode>()
-        for (id in diagram.elementIds) {
+        for (id in memberIds) {
             val def = model.definitions.firstOrNull { it.id == id } ?: continue
             // UC-Diagramme zeigen Actors + UseCases; andere Definition-Kinds
             // gehören nicht in dieses Diagramm und werden stillschweigend
@@ -1138,6 +1234,8 @@ public object Sysml2LayoutBridge {
                 LayoutNode(
                     id = NodeId(def.id),
                     intrinsicSize = sizeProvider.sizeOf(elementId = def.id, elementKind = kind),
+                    // read by UcFrameGrid only: actors stand beside the subject frame
+                    hints = if (def is ActorDefinition) NodeHints(rail = true) else NodeHints.NONE,
                 )
         }
         val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
@@ -2315,7 +2413,10 @@ public object Sysml2LayoutBridge {
      * content-aware sizing, via the shared [ucActorContentSize] /
      * [ucUseCaseContentSize] helpers.
      */
-    public fun ucContentAwareSizeProvider(model: Sysml2Model): SizeProvider =
+    public fun ucContentAwareSizeProvider(
+        model: Sysml2Model,
+        extensionPoints: Map<String, List<String>> = emptyMap(),
+    ): SizeProvider =
         SizeProvider { id, kindHint ->
             when (kindHint) {
                 "ActorDefinition" -> {
@@ -2324,7 +2425,11 @@ public object Sysml2LayoutBridge {
                 }
                 "UseCaseDefinition" -> {
                     val uc = model.definitions.firstOrNull { it.id == id } as? UseCaseDefinition
-                    ucUseCaseContentSize(name = uc?.name, description = uc?.description.orEmpty())
+                    ucUseCaseContentSize(
+                        name = uc?.name,
+                        description = uc?.description.orEmpty(),
+                        extensionPoints = extensionPoints[id].orEmpty(),
+                    )
                 }
                 else -> {
                     val def = model.definitions.firstOrNull { it.id == id }

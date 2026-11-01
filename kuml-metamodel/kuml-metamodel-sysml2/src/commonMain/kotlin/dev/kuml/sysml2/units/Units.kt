@@ -55,6 +55,15 @@ data class Unit(
         /** Plane angle — deg (rad as a peer in V2.x). */
         val DEGREE: Unit = Unit(symbol = "deg", longName = "degree", quantityKind = "Angle")
 
+        /** Pressure — Pa (wave 2E-b). */
+        val PASCAL: Unit = Unit(symbol = "Pa", longName = "pascal", quantityKind = "Pressure")
+
+        /** Temperature — °C (wave 2E-b). */
+        val CELSIUS: Unit = Unit(symbol = "°C", longName = "degree Celsius", quantityKind = "Temperature")
+
+        /** Electric current — mA (wave 2E-b). */
+        val MILLIAMPERE: Unit = Unit(symbol = "mA", longName = "milliampere", quantityKind = "Current")
+
         /** All MVP units, in a curated order — handy for tests and tab completion. */
         val ALL: List<Unit> =
             listOf(
@@ -67,6 +76,9 @@ data class Unit(
                 VOLT,
                 AMPERE,
                 DEGREE,
+                PASCAL,
+                CELSIUS,
+                MILLIAMPERE,
             )
     }
 }
@@ -104,3 +116,8 @@ val Number.kWh: UnitValue get() = UnitValue(value = toDouble(), unit = Unit.KILO
 val Number.V: UnitValue get() = UnitValue(value = toDouble(), unit = Unit.VOLT)
 val Number.A: UnitValue get() = UnitValue(value = toDouble(), unit = Unit.AMPERE)
 val Number.deg: UnitValue get() = UnitValue(value = toDouble(), unit = Unit.DEGREE)
+val Number.Pa: UnitValue get() = UnitValue(value = toDouble(), unit = Unit.PASCAL)
+val Number.mA: UnitValue get() = UnitValue(value = toDouble(), unit = Unit.MILLIAMPERE)
+
+/** `21.degC` — the identifier has no degree sign; the unit symbol is `°C`. */
+val Number.degC: UnitValue get() = UnitValue(value = toDouble(), unit = Unit.CELSIUS)

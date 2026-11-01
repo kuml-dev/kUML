@@ -56,6 +56,7 @@ internal object Sysml2DefLatexRenderer {
                 is AttributeDefinition -> "attribute def"
                 is PortDefinition -> "port def"
                 is ConnectionDefinition -> "connection def"
+                is dev.kuml.sysml2.EnumerationDefinition -> "enumeration"
                 // V2.0.7: UC-Diagramm-Definitions. V2.0.7-MVP rendert sie als
                 // Rechteck-mit-Label-Boxen mit semantischem Stereotyp; das
                 // TikZ-Stickfigur-/Ellipsen-Pendant landet in V2.x (analog

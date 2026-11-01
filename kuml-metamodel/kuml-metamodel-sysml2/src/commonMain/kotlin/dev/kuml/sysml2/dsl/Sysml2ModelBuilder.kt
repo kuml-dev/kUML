@@ -184,6 +184,19 @@ class Sysml2ModelBuilder(
         return def
     }
 
+    /** `enumeration def Colour { enum Red; enum Green }` (wave 2E-b); at most [MAX_ENUM_LITERALS] literals. */
+    fun enumerationDef(
+        name: String,
+        id: String = name,
+        block: EnumerationScope.() -> Unit = {},
+    ): dev.kuml.sysml2.EnumerationDefinition {
+        val scope = EnumerationScope().apply(block)
+        require(scope.literals().size <= MAX_ENUM_LITERALS) { "more than $MAX_ENUM_LITERALS enumeration literals" }
+        val def = dev.kuml.sysml2.EnumerationDefinition(id = id, name = name, literals = scope.literals())
+        definitions += def
+        return def
+    }
+
     /** `port def Inlet { … }` — a port-typed definition. */
     fun portDef(
         name: String,
@@ -921,10 +934,13 @@ class Sysml2ModelBuilder(
         block: UcDiagramBuilder.() -> Unit = {},
     ): UcDiagram {
         val builder = UcDiagramBuilder(this).apply(block)
+        // P-UC-01: use cases declared only inside a subject frame are members of the
+        // diagram too; otherwise layout and renderer silently drop them (and their edges).
+        val visibleIds = (builder.ids() + builder.subjects().flatMap { it.useCaseIds }).distinct()
         val diagram =
             UcDiagram(
                 name = name,
-                elementIds = builder.ids(),
+                elementIds = visibleIds,
                 noteIds = builder.noteIds(),
                 layout = builder.layoutSpec(),
                 associations = builder.associations(),
@@ -2237,6 +2253,54 @@ class DefinitionBuilder internal constructor(
         return usage
     }
 
+    /**
+     * Wave 2E-b: attribute with a plain numeric default, `attribute("pressure", pressure.id, default = -5.0)`.
+     * The unit is not part of the stored value: it is taken from the [AttributeDefinition.unit] of the type when the
+     * default is shown (so the unit is written once, and a forward reference to the type is fine).
+     */
+    fun attribute(
+        name: String,
+        typeId: String,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+        default: Double,
+    ): AttributeUsage {
+        val qn = "$parentId::$name"
+        val usage =
+            AttributeUsage(
+                id = qn,
+                name = name,
+                qualifiedName = qn,
+                definitionId = typeId,
+                multiplicity = multiplicity,
+                defaultExpression = default.toString(),
+            )
+        collected += toFeature(usage = usage, typeId = typeId)
+        modelBuilder.registerUsage(usage)
+        return usage
+    }
+
+    /** Wave 2E-b: attribute with an enumeration literal as default, `attribute("colour", colour.id, default = "Red")`. */
+    fun attribute(
+        name: String,
+        typeId: String,
+        multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+        defaultLiteral: String,
+    ): AttributeUsage {
+        val qn = "$parentId::$name"
+        val usage =
+            AttributeUsage(
+                id = qn,
+                name = name,
+                qualifiedName = qn,
+                definitionId = typeId,
+                multiplicity = multiplicity,
+                defaultExpression = defaultLiteral,
+            )
+        collected += toFeature(usage = usage, typeId = typeId)
+        modelBuilder.registerUsage(usage)
+        return usage
+    }
+
     /** Declare a part-usage: `engine : Engine`. */
     fun part(
         name: String,
@@ -2604,14 +2668,25 @@ class UcDiagramBuilder internal constructor(
     fun extend(
         source: UseCaseDefinition,
         target: UseCaseDefinition,
-    ): UcExtend = extendById(sourceId = source.id, targetId = target.id)
+        condition: String? = null,
+        extensionPoint: String? = null,
+    ): UcExtend = extendById(sourceId = source.id, targetId = target.id, condition = condition, extensionPoint = extensionPoint)
 
     /** Id-only variant of the extend-relationship form — for forward refs. */
     fun extendById(
         sourceId: String,
         targetId: String,
+        condition: String? = null,
+        extensionPoint: String? = null,
     ): UcExtend {
-        val ext = UcExtend(id = "extend:$sourceId::$targetId", sourceUseCaseId = sourceId, targetUseCaseId = targetId)
+        val ext =
+            UcExtend(
+                id = "extend:$sourceId::$targetId",
+                sourceUseCaseId = sourceId,
+                targetUseCaseId = targetId,
+                condition = condition,
+                extensionPoint = extensionPoint,
+            )
         extends += ext
         return ext
     }
@@ -3178,3 +3253,21 @@ fun ConstraintDefinition.pin(name: String): String {
     }
     return "$id::$name"
 }
+
+/** Receiver of an `enumerationDef { }` block (wave 2E-b). */
+@Sysml2Dsl
+class EnumerationScope internal constructor() {
+    private val items = mutableListOf<String>()
+
+    /** Adds the literal [name]; duplicates and blank names are ignored. */
+    fun literal(name: String) {
+        val n = name.trim()
+        require(n.length <= 64) { "enumeration literal longer than 64 characters" }
+        if (n.isNotEmpty() && n !in items) items += n
+    }
+
+    internal fun literals(): List<String> = items.toList()
+}
+
+/** Upper bound of the literals of one enumeration (hostile-input cap, wave 2E-b). */
+const val MAX_ENUM_LITERALS: Int = 64

@@ -159,6 +159,12 @@ and BPMN process and collaboration diagrams. Grid, time-line and fixed-geometry 
 sequence and timing, SysML 2 sequence, BPMN choreography and conversation, Service Blueprint and Journey. The
 table in `LayoutEffectMatrix` is the single source for this.
 
+Two options act on one diagram kind only: `labelMaxWidth` (SysML 2 state machines, wave 2D-b) and
+`showSubjectEdges` (SysML 2 requirement diagrams, wave 2E-a); since wave 2E-b `actorSide` acts on SysML 2 use-case
+diagrams only (`KUML-LAYOUT-W001` elsewhere, check 439 in `kuml validate`). `wrapColumns` and `sameLayer` also act on
+block definition diagrams with edges: an edge between two members of one `sameLayer` group is withheld from the
+layered engine and drawn straight between the facing sides of the aligned boxes (check 436 still warns).
+
 === Labels and notes
 
 Labels and notes are placed after the layout, and always in the same order: labels first, then notes, so a note
@@ -293,6 +299,31 @@ reqDiagram("Platform") {
   the grid code iterates only ordered collections, and two renders of one script are byte-identical.
 * Edge labels avoid group frames; a label that finds no free spot takes the cheapest position and is never dropped. There is one `<<satisfy>>`
   label per source block (on the satisfy edge with the smallest id), and containment has no text label.
+
+=== Use-case diagrams with a subject frame (wave 2E-b)
+
+A use-case diagram with at least one `subject("...") { }` frame is laid out as a grid (`UcFrameGrid`) instead of by the
+layered engine:
+
+* The use cases of a frame are packed in `include` order. `wrapColumns` gives the column count exactly; without it the
+  smallest count whose picture (frame plus the actor columns) is at most 1.6:1 wide is chosen (the picture target of
+  `aspectRatio` and `maxWidth` apply as in the requirement grid). If that cannot be reached, `KUML-LAYOUT-W003` says so.
+* Actors stand outside the frame. `actorSide = ActorSide.Auto` (default): up to two actors on the left, more are split
+  (the first half left, the rest right); `Left`, `Right` and `Both` are explicit. Within one side the actors are ordered
+  by the mean height of the use cases they touch (ties: declaration order).
+* All lines are routed orthogonally around the final nodes; the ends on one side of a node are spread evenly.
+* Without a subject frame the layered engine is used as before.
+
+[source,kotlin]
+----
+ucDiagram("Web shop") {
+    // ...
+    layout {
+        wrapColumns = 4
+        actorSide = ActorSide.Auto   // Left, Right, Both
+    }
+}
+----
 
 === Example: a wide requirement diagram
 

@@ -80,6 +80,8 @@ internal object ReqGroupGrid {
         sameLayerRows: List<List<Int>>,
         flipRows: Boolean = false,
         flipCols: Boolean = false,
+        gutterX: Float = LayoutLimits.GRID_GUTTER_PX,
+        gutterY: Float = LayoutLimits.GRID_GUTTER_PX,
     ): Packing {
         if (cells.isEmpty()) return Packing(positions = emptyList(), size = Size(width = 0f, height = 0f), widened = false)
         val perRow = max(1, cols)
@@ -131,11 +133,10 @@ internal object ReqGroupGrid {
             colW[v[1]] = max(colW[v[1]], cells[idx].width)
             rowH[v[0]] = max(rowH[v[0]], cells[idx].height)
         }
-        val gutter = LayoutLimits.GRID_GUTTER_PX
         val xs = FloatArray(visualCols)
         val ys = FloatArray(visualRows)
-        for (c in 1 until visualCols) xs[c] = xs[c - 1] + colW[c - 1] + gutter
-        for (r in 1 until visualRows) ys[r] = ys[r - 1] + rowH[r - 1] + gutter
+        for (c in 1 until visualCols) xs[c] = xs[c - 1] + colW[c - 1] + gutterX
+        for (r in 1 until visualRows) ys[r] = ys[r - 1] + rowH[r - 1] + gutterY
         val positions =
             cells.indices.map { idx ->
                 val v = visual[idx] ?: intArrayOf(0, 0)
@@ -340,7 +341,7 @@ internal object ReqGroupGrid {
     // ── routing ────────────────────────────────────────────────────────────
 
     /** Which side of source and target an edge uses and where exactly it attaches (distinct points per side). */
-    private class Plan(
+    internal class Plan(
         val vertical: Boolean,
         val down: Boolean,
         val sourceAt: Point,
@@ -362,7 +363,7 @@ internal object ReqGroupGrid {
      * Chooses the facing sides and spreads the attachment points of all edges that meet one side of one card evenly
      * along that side (margin [ATTACH_MARGIN_PX] to the corners), ordered by the position of the other end.
      */
-    private fun planAttachments(
+    internal fun planAttachments(
         graph: LayoutGraph,
         nodes: Map<NodeId, Rect>,
     ): Map<EdgeId, Plan> {
@@ -412,7 +413,7 @@ internal object ReqGroupGrid {
         return out
     }
 
-    private fun routeBetween(
+    internal fun routeBetween(
         source: Rect,
         target: Rect,
         plan: Plan,
@@ -465,7 +466,7 @@ internal object ReqGroupGrid {
     }
 
     /** Four thin walls around the content box; routes cannot leave the content by more than a small margin. */
-    private fun borderStrips(content: Rect): List<Rect> {
+    internal fun borderStrips(content: Rect): List<Rect> {
         val m = BORDER_MARGIN_PX
         val thick = 40f
         val l = content.origin.x - m
@@ -574,22 +575,22 @@ internal object ReqGroupGrid {
 
     // ── geometry helpers ───────────────────────────────────────────────────
 
-    private fun Rect.moved(
+    internal fun Rect.moved(
         dx: Float,
         dy: Float,
     ): Rect = Rect(origin = Point(x = origin.x + dx, y = origin.y + dy), size = size)
 
-    private fun Rect.centerX(): Float = origin.x + size.width / 2f
+    internal fun Rect.centerX(): Float = origin.x + size.width / 2f
 
-    private fun Rect.centerY(): Float = origin.y + size.height / 2f
+    internal fun Rect.centerY(): Float = origin.y + size.height / 2f
 
-    private fun Rect.right(): Float = origin.x + size.width
+    internal fun Rect.right(): Float = origin.x + size.width
 
-    private fun Rect.bottom(): Float = origin.y + size.height
+    internal fun Rect.bottom(): Float = origin.y + size.height
 
-    private fun corners(r: Rect): List<Point> = listOf(r.origin, Point(x = r.right(), y = r.bottom()))
+    internal fun corners(r: Rect): List<Point> = listOf(r.origin, Point(x = r.right(), y = r.bottom()))
 
-    private fun union(rects: List<Rect>): Rect {
+    internal fun union(rects: List<Rect>): Rect {
         if (rects.isEmpty()) return Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 0f, height = 0f))
         val l = rects.minOf { it.origin.x }
         val t = rects.minOf { it.origin.y }

@@ -1266,3 +1266,42 @@ Compositions (filled diamond), aggregations (`refPart`, hollow diamond), associa
 definition with two block-typed parts, not itself shown) and allocations are drawn as edges when both
 ends are visible; the matching rows leave the feature compartment. Blocks show `actions` and
 `flows` compartments (`<dir> <name> : <Type>` per flow property of their ports) when non-empty; attribute definitions with a unit show `unit = <symbol>`.
+
+
+[#wave-2e-b]
+== Use-case and block definition diagrams (wave 2E-b)
+
+=== Use-case diagrams
+
+* A use case that is only listed inside a `subject { include(...) }` block is a member of the diagram. Until wave 2E-b
+  it was dropped silently, together with every association, `include` and `extend` that touched it. Check 219 warns when
+  such a line still points at an element that is not shown.
+* `extend(source, target, condition = "...", extensionPoint = "...")`: the line carries `<<extend>>` and, below it,
+  `[condition]` (wrapped at 28 characters, at most three lines, longer text is cut with an ellipsis; check 220 hints).
+  The extension point is drawn inside the extended use case (the target): a divider, the heading `extension points` and
+  one line per point (at most six, 40 characters each). The ellipse grows with the block.
+* `layout { actorSide = ActorSide.Auto | Left | Right | Both }` and the grid layout: see the layout chapter.
+* Edge labels of use-case diagrams are placed by the label placer (like the BDD), so a label avoids nodes and lines.
+
+=== Block definition diagrams
+
+* **Attribute defaults:** `attribute("pressure", pressureType.id, default = -5.0)` stores the plain number; the unit comes
+  from the attribute definition (`attributeDef("Pressure", unitSymbol = "Pa")`), so it is written once. The block shows
+  `pressure : Pressure = -5 Pa` (integral numbers without `.0`, a non-breaking space before the unit, `.` as decimal
+  separator whatever the locale). The older `default = 1500.kg` form shows as `1500 kg` too. `kuml validate` reports a
+  default whose unit differs from the type's unit (501) and an enumeration default that is not a literal (502, 503).
+  New unit constants and literals: `Unit.PASCAL` (`5.Pa`), `Unit.CELSIUS` (`21.degC`, symbol `°C`), `Unit.MILLIAMPERE`
+  (`4.mA`); any other symbol works with `attributeDef(unitSymbol = "bar")`.
+* **Enumerations:** `enumerationDef("Colour") { literal("Red"); literal("Green") }` is drawn as `<<enumeration>>` with one
+  literal compartment (at most 64 literals); `attribute("colour", colour.id, defaultLiteral = "Red")` shows
+  `colour : Colour = Red`.
+* **Action definitions** in a BDD are blocks with `<<action def>>`. An `allocate` edge docks at the line of the
+  allocated action in the `actions` compartment of the target block when the flow is `Right` or `Left`.
+* **Roles and multiplicities:** the role name of a composition or reference is a label in the middle of the line (placed
+  by the label placer, never stacked at the target); the multiplicity (`1` is not drawn) stays at the target end.
+* **`refPart`** is a reference: a plain line with an open arrow at the referenced block, no diamond. (Until now it was
+  drawn as an open diamond, which UML reserves for shared aggregation.)
+* **Generalisation:** a block with three or more specialisations that has no other edge is placed centred above (flow
+  `Up`: below) them. The edges form a bus: one hollow triangle, a trunk and a horizontal bus; specialisations of a second
+  row reach the bus through the gaps between the columns above. `wrapColumns` sets the number of specialisations per row.
+* **Box size** grows with the number of edges at a block (14 px per edge beyond two, at most 112 px, across the flow).

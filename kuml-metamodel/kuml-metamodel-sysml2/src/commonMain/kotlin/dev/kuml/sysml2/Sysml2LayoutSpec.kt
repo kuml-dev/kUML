@@ -8,3 +8,6 @@ typealias Sysml2LayoutFlow = dev.kuml.core.model.layout.LayoutFlow
  * [dev.kuml.core.model.layout.LayoutSpec] (identical JSON form, new optional fields).
  */
 typealias Sysml2LayoutSpec = dev.kuml.core.model.layout.LayoutSpec
+
+/** Side of the subject frame the actors of a use-case diagram stand on (wave 2E-b); usable as `actorSide = ActorSide.Left`. */
+typealias ActorSide = dev.kuml.core.model.layout.ActorSide

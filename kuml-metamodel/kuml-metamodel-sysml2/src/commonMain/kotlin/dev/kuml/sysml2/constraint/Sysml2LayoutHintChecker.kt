@@ -39,6 +39,7 @@ public data class LayoutIssue(
  * | 436 | Warning | two elements of one `sameLayer` group are connected by an edge |
  * | 437 | Error | `maxWidth` outside 200..20000 or `aspectRatio` outside 0.1..10 (or not a finite number), or `labelMaxWidth` outside 120..400 |
  * | 438 | Warning | `showSubjectEdges` is set on a diagram that is not a requirement diagram (wave 2E-a) |
+ * | 439 | Warning | `actorSide` is set on a diagram that is not a use-case diagram (wave 2E-b) |
  */
 public object Sysml2LayoutHintChecker {
     public fun check(
@@ -69,6 +70,16 @@ public object Sysml2LayoutHintChecker {
             ) +
                 // Wave 2E-a: requirement groups are valid `sameLayer` members (rows of the group grid).
                 (diagram as? ReqDiagram)?.groups.orEmpty().map { it.id }
+        if (spec.actorSide != null && diagram !is dev.kuml.sysml2.UcDiagram) {
+            issues +=
+                LayoutIssue(
+                    code = 439,
+                    severity = LayoutSeverity.Warning,
+                    elementId = name,
+                    message = "actorSide has no effect outside use-case diagrams.",
+                    hint = "Remove it from this layout block.",
+                )
+        }
         if (spec.showSubjectEdges != null && diagram !is ReqDiagram) {
             issues +=
                 LayoutIssue(

@@ -211,7 +211,7 @@ public class UcEdgeAdapter(
                 put(inc.id, METADATA_INCLUDE)
             }
             for (ext in diagram.extends) {
-                put(ext.id, METADATA_EXTEND)
+                put(ext.id, extendMetadata(ext))
             }
             for (gen in diagram.actorGeneralizations) {
                 put(gen.id, METADATA_GENERALIZATION)
@@ -221,6 +221,20 @@ public class UcEdgeAdapter(
     override fun metadataFor(edgeId: String): Sysml2EdgeMetadata? = index[edgeId]
 
     public companion object {
+        /** Display cap of an `extend` condition: three lines of 28 characters (wave 2E-b). */
+        public const val EXTEND_CONDITION_DISPLAY_MAX: Int = 84
+
+        /** Display cap of an extension-point name (wave 2E-b). */
+        public const val EXTENSION_POINT_DISPLAY_MAX: Int = 40
+
+        /** `«extend»` with the optional `[condition]` below it. The extension point is drawn in the target ellipse. */
+        public fun extendMetadata(ext: dev.kuml.sysml2.UcExtend): Sysml2EdgeMetadata {
+            val cond = ext.condition?.trim()?.takeIf { it.isNotEmpty() }
+            if (cond == null) return METADATA_EXTEND
+            val shown = if (cond.length > EXTEND_CONDITION_DISPLAY_MAX) cond.take(EXTEND_CONDITION_DISPLAY_MAX - 1) + "…" else cond
+            return METADATA_EXTEND.copy(label = "[$shown]")
+        }
+
         public val METADATA_ASSOCIATION: Sysml2EdgeMetadata =
             Sysml2EdgeMetadata(arrowHead = Sysml2ArrowHead.None)
         public val METADATA_INCLUDE: Sysml2EdgeMetadata =
@@ -590,14 +604,23 @@ public class BddEdgeAdapter(
                     when (e.kind) {
                         BddEdgeKind.Composition ->
                             Sysml2EdgeMetadata(
+                                label = e.label,
                                 arrowHead = Sysml2ArrowHead.FilledDiamond,
                                 headAtSource = true,
                                 endLabel = e.endLabel,
                             )
                         BddEdgeKind.Aggregation ->
                             Sysml2EdgeMetadata(
+                                label = e.label,
                                 arrowHead = Sysml2ArrowHead.OpenDiamond,
                                 headAtSource = true,
+                                endLabel = e.endLabel,
+                            )
+                        // Wave 2E-b: `refPart` is a reference, drawn with an open arrow and no diamond.
+                        BddEdgeKind.Reference ->
+                            Sysml2EdgeMetadata(
+                                label = e.label,
+                                arrowHead = Sysml2ArrowHead.OpenAngle,
                                 endLabel = e.endLabel,
                             )
                         BddEdgeKind.Association ->

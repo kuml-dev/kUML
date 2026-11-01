@@ -81,7 +81,8 @@ public object SpecDiagramKinds {
  * option that was set. The documentation table is checked against this object by a test.
  */
 public object LayoutEffectMatrix {
-    private val all: Set<LayoutOption> = LayoutOption.entries.toSet() - LayoutOption.LABEL_MAX_WIDTH - LayoutOption.SHOW_SUBJECT_EDGES
+    private val all: Set<LayoutOption> =
+        LayoutOption.entries.toSet() - LayoutOption.LABEL_MAX_WIDTH - LayoutOption.SHOW_SUBJECT_EDGES - LayoutOption.ACTOR_SIDE
     private val none: Set<LayoutOption> = emptySet()
 
     /** Options with an effect per diagram art; complete over [SpecDiagramKind.entries]. */
@@ -105,7 +106,7 @@ public object LayoutEffectMatrix {
             SpecDiagramKind.SYSML2_IBD to all,
             SpecDiagramKind.SYSML2_STM to (all + LayoutOption.LABEL_MAX_WIDTH),
             SpecDiagramKind.SYSML2_REQ to (all + LayoutOption.SHOW_SUBJECT_EDGES),
-            SpecDiagramKind.SYSML2_UC to all,
+            SpecDiagramKind.SYSML2_UC to (all + LayoutOption.ACTOR_SIDE),
             SpecDiagramKind.SYSML2_ACT to all,
             SpecDiagramKind.SYSML2_PAR to all,
             SpecDiagramKind.SYSML2_SEQ to none,

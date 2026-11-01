@@ -20,6 +20,9 @@ class UnitsTest :
                     "V",
                     "A",
                     "deg",
+                    "Pa",
+                    "°C",
+                    "mA",
                 )
         }
 

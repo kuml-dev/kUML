@@ -345,6 +345,21 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
             for (sv in stmWarnings) echo("  WARN  [${sv.id}] ${sv.location}: ${sv.message}")
         }
 
+        // 7b''''. Attribute default checks of a BDD (wave 2E-b: unit mismatch, enumeration literals).
+        val valueViolations: List<StructuralViolation> =
+            (extracted as? ExtractedDiagram.Sysml2)
+                ?.takeIf { it.diagram is dev.kuml.sysml2.BdDiagram }
+                ?.let { ex ->
+                    dev.kuml.sysml2.constraint.Sysml2ValueChecker.check(model = ex.model).map { i ->
+                        StructuralViolation(
+                            id = "VALUE${i.code}",
+                            severity = "error",
+                            message = "${i.message} Hint: ${i.hint}",
+                            location = i.elementId,
+                            category = "value",
+                        )
+                    }
+                } ?: emptyList()
         // 7b'''. REQ / UC structure validation (wave C1: copy/subject/group/generalisation rules and limits).
         val reqUcViolations: List<StructuralViolation> =
             (extracted as? ExtractedDiagram.Sysml2)
@@ -430,9 +445,22 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                         )
                     }
                 } ?: emptyList()
-        val reqUcErrors = (reqUcViolations + layoutHintViolations + parViolations + ibdViolations).filter { it.severity == "error" }
-        val reqUcWarnings = (reqUcViolations + layoutHintViolations + parViolations + ibdViolations).filter { it.severity == "warning" }
-        if (reqUcViolations.isNotEmpty() || layoutHintViolations.isNotEmpty() || parViolations.isNotEmpty() || ibdViolations.isNotEmpty()) {
+        val reqUcErrors =
+            (reqUcViolations + valueViolations + layoutHintViolations + parViolations + ibdViolations).filter {
+                it.severity ==
+                    "error"
+            }
+        val reqUcWarnings =
+            (reqUcViolations + valueViolations + layoutHintViolations + parViolations + ibdViolations).filter {
+                it.severity ==
+                    "warning"
+            }
+        if (reqUcViolations.isNotEmpty() ||
+            valueViolations.isNotEmpty() ||
+            layoutHintViolations.isNotEmpty() ||
+            parViolations.isNotEmpty() ||
+            ibdViolations.isNotEmpty()
+        ) {
             echo("\nRequirement / use case validation:")
             for (rv in reqUcErrors) echo("  ERROR [${rv.id}] ${rv.location}: ${rv.message}")
             for (rv in reqUcWarnings) echo("  WARN  [${rv.id}] ${rv.location}: ${rv.message}")
@@ -463,6 +491,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                 noteViolations +
                 stmViolations +
                 reqUcViolations +
+                valueViolations +
                 layoutHintViolations +
                 parViolations +
                 ibdViolations +

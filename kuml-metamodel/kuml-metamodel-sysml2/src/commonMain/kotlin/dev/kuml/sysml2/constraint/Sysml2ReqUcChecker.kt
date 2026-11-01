@@ -15,7 +15,7 @@ public enum class ReqUcSeverity { Error, Warning, Hint }
 /**
  * A finding of the requirement / use-case diagram checker (wave C1).
  *
- * @property code stable numeric code (201-218), see [Sysml2ReqUcChecker].
+ * @property code stable numeric code (201-220), see [Sysml2ReqUcChecker].
  * @property elementId id of the offending definition, edge or group.
  * @property hint how to fix it.
  */
@@ -49,6 +49,8 @@ public data class ReqUcIssue(
  * | 215 | Warning | `verify` source is neither a test case nor a use case |
  * | 216 | Warning | `refine` target is not a requirement |
  * | 217 | Hint | Use-case description will be longer than 4 lines (it is truncated in the diagram) |
+ * | 219 | Warning | An association / include / extend of a use-case diagram points at an element that is not shown in the diagram (not in the element list and in no subject frame); the edge is omitted (wave 2E-b) |
+ * | 220 | Hint | `extend` condition or extension point longer than the display limit; it is shortened in the diagram (wave 2E-b) |
  * | 218 | Warning | Two requirements of the model share a `reqId` but have different text (whitespace-normalised, case-sensitive; wave 2E-a) |
  *
  * `trace` is deliberately unchecked. All traversals are iterative and bounded.
@@ -61,6 +63,8 @@ public object Sysml2ReqUcChecker {
     public const val MAX_DESCRIPTION: Int = 1000
     public const val MAX_GROUPS: Int = 64
     public const val MAX_SUBJECTS: Int = 16
+    public const val EXTEND_CONDITION_MAX: Int = 200
+    public const val EXTEND_POINT_MAX: Int = 40
 
     /** Approximate characters per rendered description line, used only for the 4-line hint. */
     private const val APPROX_DESCRIPTION_LINE_CHARS: Int = 32
@@ -287,6 +291,40 @@ public object Sysml2ReqUcChecker {
                             "Description of use case '${uc.name}' is longer than $DESCRIPTION_HINT_LINES lines; " +
                                 "the diagram shows only the first lines.",
                         hint = "Shorten the description.",
+                    )
+            }
+        }
+
+        val shown = (d.elementIds + d.subjects.flatMap { it.useCaseIds }).toSet()
+
+        fun missing(
+            kind: String,
+            edgeId: String,
+            vararg ends: String,
+        ) {
+            val absent = ends.filter { it !in shown }
+            if (absent.isNotEmpty()) {
+                val names = absent.joinToString { id -> defs[id]?.name ?: id }
+                issues +=
+                    warn(
+                        code = 219,
+                        id = edgeId,
+                        message = "The $kind '$edgeId' points at $names, which is not shown in this diagram; the line is omitted.",
+                        hint = "Add the element with include(...) or put it into a subject frame.",
+                    )
+            }
+        }
+        d.associations.forEach { missing("association", it.id, it.actorId, it.useCaseId) }
+        d.includes.forEach { missing("include", it.id, it.sourceUseCaseId, it.targetUseCaseId) }
+        d.extends.forEach { missing("extend", it.id, it.sourceUseCaseId, it.targetUseCaseId) }
+        for (ext in d.extends) {
+            if ((ext.condition?.length ?: 0) > EXTEND_CONDITION_MAX || (ext.extensionPoint?.length ?: 0) > EXTEND_POINT_MAX) {
+                issues +=
+                    hint(
+                        code = 220,
+                        id = ext.id,
+                        message = "The condition or extension point of '${ext.id}' is too long and is shortened in the diagram.",
+                        hint = "Keep the condition under $EXTEND_CONDITION_MAX and the extension point under $EXTEND_POINT_MAX characters.",
                     )
             }
         }

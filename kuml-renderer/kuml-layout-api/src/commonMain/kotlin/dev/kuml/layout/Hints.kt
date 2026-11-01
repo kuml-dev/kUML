@@ -118,6 +118,12 @@ public enum class LayerPin { First, Last }
 @Serializable
 public data class EdgeHints(
     val routeStyle: EdgeRouteStyle? = null,
+    /**
+     * Wave 2E-b (BDD allocation): vertical offset from the top of the target box at which this edge should end, so that
+     * it docks at the line of its action in the `actions` compartment. `null` = no preference. Only honoured for
+     * horizontal flows (Left / Right).
+     */
+    val targetAnchorOffset: Float? = null,
 ) {
     public companion object {
         /** EdgeHints ohne Einschränkungen — Engine wählt den Routing-Stil. */

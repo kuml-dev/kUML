@@ -23,4 +23,6 @@ internal class Sysml2NodeContext(
      * (PAL wave 2C-b2b). A port without an entry is drawn with the bridge's fixed placement.
      */
     val ibdPortLabels: Map<String, dev.kuml.layout.Rect> = emptyMap(),
+    /** UC only (wave 2E-b): extension points per use-case id, drawn as a block inside the ellipse. */
+    val ucExtensionPoints: Map<String, List<String>> = emptyMap(),
 )
