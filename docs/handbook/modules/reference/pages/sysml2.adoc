@@ -191,6 +191,22 @@ sysml2Model(name = "HybridVehicleSystem") {
 Connectors end on the outer border of the port square, perpendicular to its side. A stub of arrowhead length is
 only drawn at an end that carries an arrowhead (item flows); plain connectors touch the port directly.
 
+=== Attribute compartment
+
+A part box lists the attributes of its definition below a rule, as `name : Type = value` (`= value` only when a value
+exists; a redefinition on the part usage supplies it), at most eight lines and then `... n more`.
+`ibd(name, owner = x, showAttributes = false)` switches the compartment off.
+
+=== Connection line style
+
+[source,kotlin]
+----
+connectionDef(name = "Feed", style = ConnectionLineStyle.DASHED, color = "#1D2968")
+----
+
+`style` is `SOLID` (default), `DASHED`, `DOTTED` or `DASH_DOT`; `color` is `#RRGGBB` or omitted (theme colour). Every
+connection typed by the definition is drawn that way. There is no legend.
+
 
 == Use Case Diagrams (UC)
 
@@ -1151,7 +1167,9 @@ direction, the conjugation is visible as `~Type` in the label.
 
 An IBD draws an owner frame with boundary ports only when a connection, flow or binding ends on a port
 of the owner, or reaches deeper than one path step below a visible part. Otherwise it renders without
-a frame. Only one nesting level is drawn.
+a frame. Only one nesting level is drawn. The projection already lists deeper parts (`nestedPartPaths`, depth
+limit 8, at most 256 paths) and the path resolver can resolve a path to the deepest one; drawing nested frames
+(box-in-box) is not implemented yet.
 
 == BDD relationships
 

@@ -43,6 +43,9 @@ public enum class ObstacleKind {
 
     /** A diagram edge (polyline). */
     EDGE,
+
+    /** The square around an edge's arrow head (PAL wave 2C-b2): a label must not cover it. */
+    ARROWHEAD,
 }
 
 /** True for the kinds that are placed text labels. */

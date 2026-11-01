@@ -2343,7 +2343,7 @@ public object KumlSvgRenderer {
         val framed = Sysml2LayoutBridge.addIbdOwnerFrame(model = model, diagram = diagram, layoutResult = layoutResult)
         val context =
             dev.kuml.io.svg.sysml2
-                .Sysml2NodeContext(model = model)
+                .Sysml2NodeContext(model = model, ibdShowAttributes = diagram.showAttributes)
         val projection =
             dev.kuml.sysml2.projection
                 .sysml2IbdProjection(model = model, diagram = diagram)

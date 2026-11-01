@@ -168,6 +168,8 @@ data class IbdDiagram(
     override val elementIds: List<String> = emptyList(),
     override val noteIds: List<String> = emptyList(),
     override val layout: Sysml2LayoutSpec? = null,
+    /** Show the attributes of each part in a compartment below its title (PAL wave 2C-b2). */
+    val showAttributes: Boolean = true,
 ) : Sysml2Diagram
 
 /**

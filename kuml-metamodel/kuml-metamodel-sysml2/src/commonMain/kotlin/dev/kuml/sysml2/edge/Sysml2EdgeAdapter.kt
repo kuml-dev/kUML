@@ -3,6 +3,8 @@ package dev.kuml.sysml2.edge
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.BindingConnectorUsage
+import dev.kuml.sysml2.ConnectionDefinition
+import dev.kuml.sysml2.ConnectionLineStyle
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ExceptionHandlerUsage
@@ -126,6 +128,10 @@ public data class Sysml2EdgeMetadata(
      * and an open arrow head instead of the plain line.
      */
     val lightning: Boolean = false,
+    /** Line colour as `#RRGGBB` (validated by the metamodel); `null` keeps the theme colour. */
+    val strokeColor: String? = null,
+    /** `stroke-linecap` of the line (dotted connections use `round`). */
+    val lineCap: String? = null,
 )
 
 /** Kind of one [EdgeLabelPart]. */
@@ -644,12 +650,16 @@ public class IbdEdgeAdapter(
                                 Sysml2MidArrow(forward = forward, label = itemLabel(model = model, itemTypeId = f.usage.definitionId))
                             }
                     }
+                val connDef = model.definitions.filterIsInstance<ConnectionDefinition>().firstOrNull { it.id == conn.definitionId }
                 put(
                     "conn:${conn.id}",
                     Sysml2EdgeMetadata(
                         label = formatConnectionLabel(conn),
                         arrowHead = Sysml2ArrowHead.None,
                         midArrows = arrows,
+                        dashArray = connDef?.style?.let { connectionDashArray(it) },
+                        strokeColor = connDef?.color,
+                        lineCap = if (connDef?.style == ConnectionLineStyle.DOTTED) "round" else null,
                     ),
                 )
             }
@@ -683,6 +693,15 @@ public class IbdEdgeAdapter(
     override fun metadataFor(edgeId: String): Sysml2EdgeMetadata? = index[edgeId]
 
     public companion object {
+        /** `stroke-dasharray` of a connection line style; `null` for solid (PAL wave 2C-b2). */
+        public fun connectionDashArray(style: ConnectionLineStyle): String? =
+            when (style) {
+                ConnectionLineStyle.SOLID -> null
+                ConnectionLineStyle.DASHED -> "6 4"
+                ConnectionLineStyle.DOTTED -> "1.5 3"
+                ConnectionLineStyle.DASH_DOT -> "8 3 1.5 3"
+            }
+
         /**
          * SysML-2-IBD-Connector-Konvention: `connectorName : ConnectionType`.
          * Liefert `null` zurück, wenn Name **und** Definition leer sind — der

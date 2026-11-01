@@ -94,7 +94,23 @@ data class ConnectionDefinition(
     override val features: List<KermlFeature> = emptyList(),
     override val specializations: List<KermlSpecialization> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : Sysml2Definition
+    /** Line style of the connections typed by this definition (PAL wave 2C-b2). */
+    val style: ConnectionLineStyle = ConnectionLineStyle.SOLID,
+    /** Optional line colour as `#RRGGBB`; `null` keeps the theme colour. */
+    val color: String? = null,
+) : Sysml2Definition {
+    init {
+        require(color == null || CONNECTION_COLOR.matches(color)) { "connection colour must be #RRGGBB" }
+    }
+
+    companion object {
+        private val CONNECTION_COLOR = Regex("^#[0-9a-fA-F]{6}$")
+    }
+}
+
+/** Line style of a connection definition (PAL wave 2C-b2). */
+@Serializable
+enum class ConnectionLineStyle { SOLID, DASHED, DOTTED, DASH_DOT }
 
 /**
  * `ActorDefinition` — V2.0.7 entry for the SysML 2 Use Case Diagram.

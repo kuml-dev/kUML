@@ -341,6 +341,10 @@ public object Sysml2DslPrinter {
             is ConnectionDefinition -> {
                 if (def.isAbstract) args += "isAbstract = true"
                 appendSpecializesArg(def = def, builderName = "connectionDef", args = args, todos = todos)
+                if (def.style != dev.kuml.sysml2.ConnectionLineStyle.SOLID) {
+                    args += "style = dev.kuml.sysml2.ConnectionLineStyle.${def.style.name}"
+                }
+                def.color?.let { args += "color = ${quote(it)}" }
                 printDefCall(
                     sb = sb,
                     fnName = "connectionDef",
@@ -1017,10 +1021,11 @@ public object Sysml2DslPrinter {
             )
             return
         }
+        val attrArg = if (d.showAttributes) "" else ", showAttributes = false"
         if (d.elementIds.isEmpty() && d.noteIds.isEmpty()) {
-            sb.appendLine("    ibd(${quote(d.name)}, owner = $ownerVar)")
+            sb.appendLine("    ibd(${quote(d.name)}, owner = $ownerVar$attrArg)")
         } else {
-            sb.appendLine("    ibd(${quote(d.name)}, owner = $ownerVar) {")
+            sb.appendLine("    ibd(${quote(d.name)}, owner = $ownerVar$attrArg) {")
             d.elementIds.forEach { sb.appendLine("        includeById(${quote(it)})") }
             d.noteIds.forEach { sb.appendLine("        includeCommentById(${quote(it)})") }
             sb.appendLine("    }")

@@ -165,7 +165,9 @@ public object NotePlacer {
                         Side.W -> kotlin.math.abs(prev.y - q.y) < AXIS_EPS && prev.x < q.x
                         Side.S -> kotlin.math.abs(prev.x - q.x) < AXIS_EPS && prev.y > q.y
                         Side.N -> kotlin.math.abs(prev.x - q.x) < AXIS_EPS && prev.y < q.y
-                    }
+                    } &&
+                        // PAL 2C-b2: no bend within PORT_STRAIGHT_PX of the port: the last segment is straight for at least that far.
+                        (route.size == 2 || distance(a = prev, b = q) >= PORT_STRAIGHT_PX)
                 is AnchorGeometry.Stem -> kotlin.math.abs(prev.y - q.y) < AXIS_EPS
                 else -> true
             }
@@ -628,6 +630,16 @@ public object NotePlacer {
         val regular =
             routeCandidates(p = p, q = q, exit = exit, obstacles = obstacles, exempt = anchor.exempt, config = config, budget = budget)
                 .filter { it.size - 2 <= config.maxRouteWaypoints }
+        // PAL 2C-b2: a straight anchor that crosses nothing wins outright; then at most one bend; more only as the last regular choice.
+        val straight = regular.firstOrNull { it.size == 2 }
+        if (straight != null && allowed(cand = straight, maxSegments = 1)) {
+            val c = cost(straight)
+            if (c - polylineLength(straight) < STRAIGHT_FREE_EPS) return straight to c
+        }
+        // One-bend tier only when the route is also crossing-free (cost = length + bends only); a crossing L must not pre-empt a free Z.
+        pick(list = regular.filter { it.size - 2 <= 1 }, maxSegments = 2)?.let { (route, c) ->
+            if (c - polylineLength(route) - (route.size - 2) * config.costs.bend < STRAIGHT_FREE_EPS) return route to c
+        }
         pick(list = regular, maxSegments = config.maxRouteWaypoints + 1)?.let { return it }
         // Emergency: a stub away from the note and into the anchor, growing until nothing lies on top of anything.
         val emergency = emergencyCandidates(p = p, q = q, exit = exit, anchor = anchor, config = config)
@@ -777,6 +789,8 @@ public object NotePlacer {
     private const val DETOUR_BLOCKERS: Int = 3
     private const val DETOUR_MARGIN: Float = 8f
     private const val AXIS_EPS: Float = 0.5f
+    private const val PORT_STRAIGHT_PX: Float = 8f
+    private const val STRAIGHT_FREE_EPS: Float = 1f
     private const val PORT_SIDE_OFFSET: Float = 4.5f
     private const val NO_ROUTE_PENALTY: Float = 200_000f
     private const val STEM_FIRST_OFFSET: Float = 24f

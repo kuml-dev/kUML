@@ -37,23 +37,35 @@ object Sysml2PathResolver {
         ownerId: String,
         endpointId: String,
         visibleNodeIds: Set<String>,
+        nestedNodeIds: Set<String> = emptySet(),
     ): ResolvedEnd? {
         if (endpointId.length > MAX_PATH_CHARS) return null
         // PAL 2C (P-IBD-01): a bare name ("eingang") means a member of the owner ("Owner::eingang").
         if (!endpointId.contains("::") && !endpointId.contains('.') && endpointId.isNotEmpty()) {
-            return resolve(model = model, ownerId = ownerId, endpointId = "$ownerId::$endpointId", visibleNodeIds = visibleNodeIds)
+            return resolve(
+                model = model,
+                ownerId = ownerId,
+                endpointId = "$ownerId::$endpointId",
+                visibleNodeIds = visibleNodeIds,
+                nestedNodeIds = nestedNodeIds,
+            )
         }
+        // PAL 2C-b2: [nestedNodeIds] are path ids of parts inside visible parts (`Owner::a::b::c`); the deepest match wins.
         val nodeId =
-            visibleNodeIds
+            (visibleNodeIds + nestedNodeIds)
                 .filter { endpointId == it || endpointId.startsWith("$it::") }
                 .maxByOrNull { it.length }
         if (nodeId != null) {
             val steps = splitSteps(endpointId.removePrefix(nodeId).removePrefix("::")) ?: return null
             val start =
-                model.usages
-                    .filterIsInstance<PartUsage>()
-                    .firstOrNull { it.id == nodeId }
-                    ?.definitionId
+                if (nodeId in nestedNodeIds) {
+                    definitionOfPath(model = model, path = nodeId, visibleNodeIds = visibleNodeIds)
+                } else {
+                    model.usages
+                        .filterIsInstance<PartUsage>()
+                        .firstOrNull { it.id == nodeId }
+                        ?.definitionId
+                }
             val (port, fp) = walk(model = model, startDefId = start, steps = steps)
             return ResolvedEnd(nodeId = nodeId, ownerPort = null, steps = steps, terminalPort = port, terminalFlowProperty = fp)
         }
@@ -65,6 +77,29 @@ object Sysml2PathResolver {
             model.usages.filterIsInstance<PortUsage>().firstOrNull { it.id == prefix + steps.first() } ?: return null
         val (_, fp) = walkFromPort(model = model, port = port, rest = steps.drop(1))
         return ResolvedEnd(nodeId = null, ownerPort = port, steps = steps.drop(1), terminalPort = port, terminalFlowProperty = fp)
+    }
+
+    /**
+     * Definition id of the part a nested path ends at: starts at the longest visible node prefix of [path] and walks
+     * the remaining part steps through the definitions. `null` when a step is not a part of the definition.
+     */
+    fun definitionOfPath(
+        model: Sysml2Model,
+        path: String,
+        visibleNodeIds: Set<String>,
+    ): String? {
+        val top = visibleNodeIds.filter { path == it || path.startsWith("$it::") }.maxByOrNull { it.length } ?: return null
+        var def =
+            model.usages
+                .filterIsInstance<PartUsage>()
+                .firstOrNull { it.id == top }
+                ?.definitionId ?: return null
+        val steps = splitSteps(path.removePrefix(top).removePrefix("::")) ?: return null
+        for (step in steps) {
+            val usage = model.usages.firstOrNull { it.id == "$def::$step" } as? PartUsage ?: return null
+            def = usage.definitionId
+        }
+        return def
     }
 
     /** `engine.crank.out` -> `<ownerId>::engine::crank::out`; strings with `::` or without `.` pass through. */

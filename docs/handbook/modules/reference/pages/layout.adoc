@@ -167,6 +167,13 @@ never covers a label that is drawn later.
 * SysML 2 IBD and BDD: connector labels are planned (`Sysml2EdgeLabelPlan`) before the notes; once the notes
   stand, the labels move away from them and from their anchor lines. The renderer draws each label exactly at its
   planned rectangle.
+* Port labels and edge labels share one plan (`Sysml2DiagramLabelPlan`): one `LabelPlacer` run, arrow tips are
+  12 x 12 px obstacles, a port label stays off the side where its edge docks, and the clearance to foreign lines is
+  2 px. A port label longer than 24 characters wraps to at most two lines and is never cut. A label is drawn as one
+  group: halo text directly under the fill text, same coordinates, no backdrop rectangle (two passes, because Batik
+  ignores `paint-order`).
+* Note anchors: a straight anchor that crosses nothing wins; otherwise one bend is allowed. An anchor that ends on a
+  port arrives perpendicular and stays straight for the last 8 px.
 * SysML 2 IBD routing: connectors are routed around the parts of the diagram (`IbdObstacleRouter`: straight, L and Z
   candidates, then a grid A* with a hard node limit; 8 px clearance; deterministic). Neighbouring part ports keep a
   pitch of `max(24, label width + 8)` px on top and bottom sides and `max(24, line height + 6)` px on left and

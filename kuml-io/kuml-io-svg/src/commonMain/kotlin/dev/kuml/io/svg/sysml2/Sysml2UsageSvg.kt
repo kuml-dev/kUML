@@ -206,17 +206,60 @@ private fun renderUsageBox(
                 ),
         ) { text("«$stereotype»") }
 
-        // Content line — `name : Type [mult]`, vertically centred.
+        // PAL 2C-b2: an IBD part with attributes keeps its title in the head area and lists the attributes below a rule.
+        val compartment =
+            if (usage is PartUsage && context?.ibdShowAttributes == true) {
+                dev.kuml.sysml2.projection
+                    .ibdPartAttributes(model = context.model, usage = usage)
+                    .takeUnless { it.isEmpty }
+            } else {
+                null
+            }
+        val headH = Sysml2LayoutBridge.STEREOTYPE_LINE_H + Sysml2LayoutBridge.NAME_LINE_H + Sysml2LayoutBridge.BOX_V_PADDING
+        // Content line — `name : Type [mult]`, vertically centred (in the head area when a compartment follows).
         tag(
             name = "text",
             attrs =
                 mapOf(
                     "class" to "kuml-title",
                     "x" to fmt(cx),
-                    "y" to fmt(h / 2f + 10f),
+                    "y" to fmt((if (compartment != null) headH else h) / 2f + 10f),
                     "text-anchor" to "middle",
                 ),
         ) { text(usage.formatIbd()) }
+        if (compartment != null) {
+            tag(
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to "0",
+                        "y1" to fmt(headH),
+                        "x2" to fmt(w),
+                        "y2" to fmt(headH),
+                        "class" to "kuml-divider",
+                    ),
+            )
+            var ty = headH + Sysml2LayoutBridge.IBD_ATTR_PAD / 2f + 10f
+            for (line in compartment.lines) {
+                tag(
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-body kuml-ibd-attribute", "x" to "8", "y" to fmt(ty)),
+                ) { text(line.text) }
+                ty += Sysml2LayoutBridge.IBD_ATTR_LINE_H
+            }
+            if (compartment.hiddenCount > 0) {
+                tag(
+                    name = "text",
+                    attrs =
+                        mapOf(
+                            "class" to "kuml-body kuml-ibd-attribute-more",
+                            "x" to "8",
+                            "y" to fmt(ty),
+                            "font-style" to "italic",
+                        ),
+                ) { text("\u2026 ${compartment.hiddenCount} more") }
+            }
+        }
 
         // IBD boundary ports — small squares on the box edge, one per connected port.
         if (ibdPorts.isNotEmpty()) {
@@ -328,27 +371,27 @@ internal fun SvgBuilder.appendPortLabel(
     offsetY: Float,
 ) {
     val r = placement.rect
+    val attrs =
+        mapOf(
+            "x" to fmt(placement.textX + offsetX),
+            "text-anchor" to (if (placement.anchorEnd) "end" else "start"),
+        )
+    val lines = text.split('\n')
+    // PAL 2C-b2: one label group, halo text directly below the fill text, same coordinates, no backdrop rectangle.
     tag(
-        name = "rect",
+        name = "g",
         attrs =
             mapOf(
-                "class" to "kuml-port-label-bg",
-                "x" to fmt(r.origin.x + offsetX - 2f),
-                "y" to fmt(r.origin.y + offsetY - 1f),
-                "width" to fmt(r.size.width + 4f),
-                "height" to fmt(r.size.height + 2f),
+                "class" to "kuml-label kuml-port-label-group",
+                "data-label-rect" to "${fmt(r.origin.x + offsetX)} ${fmt(r.origin.y + offsetY)} ${fmt(r.size.width)} ${fmt(r.size.height)}",
             ),
-    )
-    tag(
-        name = "text",
-        attrs =
-            mapOf(
-                "class" to "kuml-port-label",
-                "x" to fmt(placement.textX + offsetX),
-                "y" to fmt(placement.textY + offsetY),
-                "text-anchor" to (if (placement.anchorEnd) "end" else "start"),
-            ),
-    ) { text(text) }
+    ) {
+        lines.forEachIndexed { i, line ->
+            val y = fmt(placement.textY + offsetY + i * Sysml2LayoutBridge.IBD_LABEL_LINE_H)
+            tag(name = "text", attrs = mapOf("class" to "kuml-port-label-halo", "y" to y) + attrs) { text(line) }
+            tag(name = "text", attrs = mapOf("class" to "kuml-port-label", "y" to y) + attrs) { text(line) }
+        }
+    }
 }
 
 /** Filled 6 px triangle at ([cx], [cy]) pointing along the unit vector ([dx], [dy]). */
@@ -377,10 +420,7 @@ internal fun SvgBuilder.appendDirectionTriangle(
     )
 }
 
-/** Longest rendered port label; longer texts end in an ellipsis. */
-internal const val PORT_LABEL_MAX_CHARS = Sysml2LayoutBridge.IBD_PORT_LABEL_MAX_CHARS
-
-/** `name : Type` (`name : ~Type` for a conjugated port), cut to [PORT_LABEL_MAX_CHARS]. */
+/** `name : Type` (`name : ~Type` for a conjugated port), wrapped (never cut) by the renderer. */
 internal fun portLabel(
     name: String,
     port: PortUsage,

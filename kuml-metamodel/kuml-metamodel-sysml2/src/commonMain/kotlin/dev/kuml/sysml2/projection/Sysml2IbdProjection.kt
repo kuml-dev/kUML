@@ -6,6 +6,7 @@ import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.FlowUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.PartDefinition
+import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.Sysml2Model
 
@@ -38,6 +39,10 @@ data class IbdProjection(
     val bindings: List<IbdWire<BindingConnectorUsage>>,
     val showFrame: Boolean,
     val unresolvedEnds: List<IbdUnresolvedEnd> = emptyList(),
+    /** Parts nested inside the visible parts, as path ids (`Owner::a::b`), parents before children (PAL wave 2C-b2). */
+    val nestedPartPaths: List<String> = emptyList(),
+    /** Parent path (or visible node id) of every nested part path. */
+    val parentOf: Map<String, String> = emptyMap(),
 ) {
     /** Flows carried by a visible connection (drawn as a mid-arrow on it). */
     val carriedFlows: List<IbdWire<FlowUsage>>
@@ -126,7 +131,10 @@ fun sysml2IbdProjection(
     )
     val boundary = ends.mapNotNull { it.ownerPort }.distinctBy { it.id }
     val showFrame = ends.any { it.ownerPort != null || it.steps.size > 1 }
+    val (nestedPaths, parents) = nestedPartPaths(model = model, nodes = nodes, partDefIds = partDefIds)
     return IbdProjection(
+        nestedPartPaths = nestedPaths,
+        parentOf = parents,
         partNodes = nodes,
         boundaryPorts = boundary,
         connections = connections,
@@ -135,4 +143,42 @@ fun sysml2IbdProjection(
         showFrame = showFrame,
         unresolvedEnds = unresolved,
     )
+}
+
+/** Upper bound for the number of nested part paths of one IBD (denial-of-service guard against huge or recursive types). */
+internal const val MAX_NESTED_PARTS: Int = 256
+
+/**
+ * Nested part paths below the visible [nodes]: for every part usage of a node's definition, `node::sub`, recursively up
+ * to [Sysml2PathResolver.MAX_SEGMENTS] levels and [MAX_NESTED_PARTS] paths in total. Breadth first, ordered by the
+ * definition order, so the result is deterministic; recursive types end at the depth limit.
+ */
+internal fun nestedPartPaths(
+    model: Sysml2Model,
+    nodes: List<KermlFeature>,
+    partDefIds: Set<String>,
+): Pair<List<String>, Map<String, String>> {
+    val paths = ArrayList<String>()
+    val parents = LinkedHashMap<String, String>()
+    var level = nodes.mapNotNull { n -> n.typeId?.let { n.id to it } }
+    var depth = 1
+    while (level.isNotEmpty() && depth < Sysml2PathResolver.MAX_SEGMENTS && paths.size < MAX_NESTED_PARTS) {
+        val next = ArrayList<Pair<String, String>>()
+        for ((path, defId) in level) {
+            val def = model.definitions.filterIsInstance<PartDefinition>().firstOrNull { it.id == defId } ?: continue
+            for (f in def.features) {
+                if (paths.size >= MAX_NESTED_PARTS) break
+                val typeId = f.typeId ?: continue
+                if (typeId !in partDefIds) continue
+                if (model.usages.firstOrNull { it.id == f.id } !is PartUsage) continue
+                val childPath = "$path::${f.id.substringAfterLast("::")}"
+                paths += childPath
+                parents[childPath] = path
+                next += childPath to typeId
+            }
+        }
+        level = next
+        depth++
+    }
+    return paths to parents
 }

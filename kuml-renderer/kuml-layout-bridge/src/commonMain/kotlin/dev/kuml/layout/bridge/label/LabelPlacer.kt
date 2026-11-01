@@ -71,7 +71,7 @@ public data class LabelCostModel(
     /** Per px a multiplicity / role label sits away from its edge end (prefers the end when nothing else differs). */
     val perPxAlong: Float = 5f,
     /** Foreign line closer than this to a label counts as touching. */
-    val lineClearance: Float = 1f,
+    val lineClearance: Float = 2f,
 )
 
 /** A placed label: its rectangle and whether it sits on its own line (the renderer then needs the canvas-coloured halo). */

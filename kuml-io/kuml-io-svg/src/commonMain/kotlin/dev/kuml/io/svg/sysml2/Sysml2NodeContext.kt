@@ -14,4 +14,6 @@ import dev.kuml.sysml2.projection.BddProjection
 internal class Sysml2NodeContext(
     val model: Sysml2Model,
     val bdd: BddProjection? = null,
+    /** IBD only: draw the attribute compartment of part boxes (PAL wave 2C-b2). */
+    val ibdShowAttributes: Boolean = false,
 )

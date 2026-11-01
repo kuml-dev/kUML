@@ -49,18 +49,21 @@ class Sysml2WelleBRenderTest :
             val out = mutableListOf<FloatArray>()
             var tx = 0f
             var ty = 0f
+            var insideLabel = false
             for (line in svg.lines()) {
                 Regex("""<g [^>]*transform="translate\(([-0-9.]+),([-0-9.]+)\)"""").find(line)?.let {
                     tx = it.groupValues[1].toFloat()
                     ty = it.groupValues[2].toFloat()
                 }
-                if (line.trim() == "</g>") {
+                if (line.contains("class=\"kuml-label kuml-port-label-group\"")) {
+                    // The label group sits inside the node group; its rectangle is relative to that group.
+                    val r = Regex("""data-label-rect="([-0-9.]+) ([-0-9.]+) ([-0-9.]+) ([-0-9.]+)"""").find(line)!!.groupValues
+                    out += floatArrayOf(r[1].toFloat() + tx, r[2].toFloat() + ty, r[3].toFloat(), r[4].toFloat())
+                } else if (line.trim() == "</g>" && !insideLabel) {
                     tx = 0f
                     ty = 0f
                 }
-                if (line.contains("class=\"kuml-port-label-bg\"")) {
-                    out += floatArrayOf(attr(line, "x") + tx, attr(line, "y") + ty, attr(line, "width"), attr(line, "height"))
-                }
+                insideLabel = line.contains("class=\"kuml-port-label-halo\"") || line.contains("class=\"kuml-port-label\"")
             }
             return out
         }

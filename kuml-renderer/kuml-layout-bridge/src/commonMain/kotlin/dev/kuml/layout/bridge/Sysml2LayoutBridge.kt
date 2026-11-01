@@ -182,6 +182,22 @@ public object Sysml2LayoutBridge {
     /** Vertical padding (top + bottom) inside a node box. */
     public const val BOX_V_PADDING: Float = 16f
 
+    /** Height of one line of the IBD attribute compartment (PAL wave 2C-b2). */
+    public const val IBD_ATTR_LINE_H: Float = 14f
+
+    /** Vertical padding of the IBD attribute compartment (separator line plus gaps). */
+    public const val IBD_ATTR_PAD: Float = 10f
+
+    /** Estimated width per character of an attribute line. */
+    public const val IBD_ATTR_CHAR_PX: Float = 6.2f
+
+    /** Height the attribute compartment adds to a part box; `0` when it is empty. One extra line carries `... n more`. */
+    public fun ibdAttributeCompartmentHeight(c: dev.kuml.sysml2.projection.IbdAttributeCompartment): Float {
+        if (c.isEmpty) return 0f
+        val lines = c.lines.size + if (c.hiddenCount > 0) 1 else 0
+        return IBD_ATTR_PAD + lines * IBD_ATTR_LINE_H
+    }
+
     /** Vertical gap before the feature/action compartment divider. */
     public const val DIVIDER_GAP: Float = 6f
 
@@ -642,8 +658,20 @@ public object Sysml2LayoutBridge {
                 }
             }
 
+        val attributes: Map<String, dev.kuml.sysml2.projection.IbdAttributeCompartment> =
+            if (model == null || diagram == null || !diagram.showAttributes) {
+                emptyMap()
+            } else {
+                model.usages.filterIsInstance<PartUsage>().associate {
+                    it.id to
+                        dev.kuml.sysml2.projection
+                            .ibdPartAttributes(model = model, usage = it)
+                }
+            }
+
         return SizeProvider { id, _ ->
-            val h = STEREOTYPE_LINE_H + NAME_LINE_H + BOX_V_PADDING
+            val compartment = attributes[id]
+            val h = STEREOTYPE_LINE_H + NAME_LINE_H + BOX_V_PADDING + (compartment?.let { ibdAttributeCompartmentHeight(it) } ?: 0f)
             val baseW =
                 if (model == null) {
                     IBD_DEFAULT_WIDTH
@@ -660,7 +688,9 @@ public object Sysml2LayoutBridge {
                         }
                     val stereoW = "«part»".length * IBD_STEREO_CHAR_PX
                     val titleW = titleLine.length * IBD_TITLE_CHAR_PX
-                    val contentW = maxOf(stereoW, titleW) + 2 * IBD_H_PAD
+                    val attrW =
+                        compartment?.lines?.maxOfOrNull { it.text.length * IBD_ATTR_CHAR_PX } ?: 0f
+                    val contentW = maxOf(stereoW, titleW, attrW) + 2 * IBD_H_PAD
                     maxOf(contentW, IBD_DEFAULT_WIDTH)
                 }
             val w = minOf(maxOf(baseW, portWidthNeeded[id] ?: 0f), baseW + IBD_PORT_PITCH_GROWTH_CAP_PX)
@@ -2864,11 +2894,11 @@ public object Sysml2LayoutBridge {
     /** Seitlicher Versatz, wenn Part-Port und Owner-Port auf derselben Achse liegen. */
     public const val IBD_COLLINEAR_OFFSET_PX: Float = 40f
 
-    /** Längster Port-Label-Text (danach Auslassungszeichen). */
-    public const val IBD_PORT_LABEL_MAX_CHARS: Int = 32
-
     /** Schriftgröße, mit der Label-Größen geschätzt werden. */
     public const val IBD_LABEL_FONT_PX: Float = 12f
+
+    /** Distance of the baselines of a wrapped port label. */
+    public const val IBD_LABEL_LINE_H: Float = IBD_LABEL_FONT_PX * 1.3f
 
     private const val IBD_PORT_MIN_GAP_PX: Float = 56f
     private const val IBD_TAB_TITLE_MAX_CHARS: Int = 40
@@ -2904,7 +2934,12 @@ public object Sysml2LayoutBridge {
     public fun estimateLabelSize(
         text: String,
         fontPx: Float = IBD_LABEL_FONT_PX,
-    ): Size = Size(width = 0.6f * fontPx * text.length * 1.05f, height = 1.3f * fontPx)
+    ): Size {
+        // PAL 2C-b2: a text with line breaks (wrapped port labels) is as wide as its widest line and as high as all lines.
+        val lines = text.split('\n')
+        val widest = lines.maxOf { it.length }
+        return Size(width = 0.6f * fontPx * widest * 1.05f, height = 1.3f * fontPx * lines.size)
+    }
 
     /** Reiter-Titel `ibd [part] Owner` (gekürzt). */
     public fun ibdTabTitle(ownerName: String): String {
@@ -2915,14 +2950,19 @@ public object Sysml2LayoutBridge {
     /** Breite des Reiters; Layout und SVG-Renderer verwenden dieselbe Funktion. */
     public fun ibdTabWidth(ownerName: String): Float = estimateLabelSize(text = ibdTabTitle(ownerName)).width + 16f
 
-    /** `name : Type` (`name : ~Type` bei konjugiertem Port), gekürzt auf [IBD_PORT_LABEL_MAX_CHARS]. */
+    /**
+     * `name : Type` (`name : ~Type` bei konjugiertem Port). PAL 2C-b2: lange Labels werden auf höchstens zwei Zeilen
+     * umgebrochen (Trenner `\n`) und nie gekürzt.
+     */
     public fun ibdPortLabelText(
         name: String,
         typeName: String,
         conjugated: Boolean,
     ): String {
         val full = "$name : ${if (conjugated) "~" else ""}$typeName"
-        return if (full.length <= IBD_PORT_LABEL_MAX_CHARS) full else full.take(IBD_PORT_LABEL_MAX_CHARS - 1) + "…"
+        return dev.kuml.layout.bridge.label.Sysml2LabelSizing
+            .wrapPortLabel(text = full)
+            .joinToString("\n")
     }
 
     /**
@@ -3012,7 +3052,8 @@ public object Sysml2LayoutBridge {
         return IbdLabelPlacement(
             rect = Rect(origin = Point(x = x, y = y), size = Size(width = w, height = h)),
             textX = if (anchorEnd) x + w - 2f else x + 2f,
-            textY = y + h - 4f,
+            // First baseline; further lines of a wrapped label follow at IBD_LABEL_LINE_H.
+            textY = y + IBD_LABEL_FONT_PX * 1.3f - 4f,
             anchorEnd = anchorEnd,
         )
     }

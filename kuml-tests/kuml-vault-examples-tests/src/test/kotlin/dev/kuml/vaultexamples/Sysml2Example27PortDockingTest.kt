@@ -44,7 +44,8 @@ class Sysml2Example27PortDockingTest :
             for (g in Regex("""<g id="[^"]+" transform="translate\(([-0-9.]+),([-0-9.]+)\)">""").findAll(svg)) {
                 val tx = g.groupValues[1].toFloat()
                 val ty = g.groupValues[2].toFloat()
-                val end = svg.indexOf("</g>", g.range.last)
+                // The node group now contains label groups (`</g>`), so it ends at the next node group instead.
+                val end = svg.indexOf("<g id=", g.range.last + 1).let { if (it < 0) svg.length else it }
                 val body = svg.substring(g.range.last, end)
                 for (m in Regex(
                     """<rect x="([-0-9.]+)" y="([-0-9.]+)" width="([-0-9.]+)" height="([-0-9.]+)" class="kuml-port """,

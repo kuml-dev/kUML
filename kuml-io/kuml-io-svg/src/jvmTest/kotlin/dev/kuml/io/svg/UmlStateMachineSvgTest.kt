@@ -282,10 +282,10 @@ class UmlStateMachineSvgTest :
             frameOriginMatch shouldNotBe null
             val frameLeft = frameOriginMatch!!.groupValues[1].toFloat()
 
-            // The label's white background rect must not start left of the
+            // The label's rectangle (carried by its label group) must not start left of the
             // frame's own left edge — it must fit inside the (now wider) frame.
             val labelRectMatch =
-                Regex("""<rect x="(-?[\d.]+)" y="[\d.]+" width="[\d.]+" height="12" fill="white" stroke="none"/>""")
+                Regex("""<g class="kuml-label" data-label-rect="(-?[\d.]+) [\d.]+ [\d.]+ [\d.]+">""")
                     .find(svg)
             labelRectMatch shouldNotBe null
             val labelLeft = labelRectMatch!!.groupValues[1].toFloat()

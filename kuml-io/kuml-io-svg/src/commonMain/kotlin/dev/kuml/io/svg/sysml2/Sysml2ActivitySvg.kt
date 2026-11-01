@@ -189,7 +189,6 @@ private fun SvgBuilder.renderActionPins(
         if (side == PinSide.Auto) continue
         val onSide = pins.filter { it.effectiveSide == side }
         if (onSide.isEmpty()) continue
-        val explicit = onSide.any { it.side != PinSide.Auto }
         val positions = pinPositions(count = onSide.size, side = side, w = w, h = h)
         for ((i, pin) in onSide.withIndex()) {
             val (cx, cy) = positions[i]
@@ -209,8 +208,8 @@ private fun SvgBuilder.renderActionPins(
                         "fill" to "white",
                     ),
             )
-            // Explicit sides cap the label at PIN_LABEL_MAX_CHARS; the historic left / right placement stays untouched.
-            val label = if (pin.side != PinSide.Auto || explicit) truncate(s = pin.name, max = PIN_LABEL_MAX_CHARS) else pin.name
+            // Pin labels are drawn in full (no cap); the historic left / right placement stays untouched.
+            val label = pin.name
             val (lx, ly, anchor) =
                 when (side) {
                     // Wave C2b: labels sit in the quadrant away from the edge that docks perpendicular at the pin
@@ -302,14 +301,13 @@ internal fun pinLabelRects(
     bounds: dev.kuml.layout.Rect,
 ): List<dev.kuml.layout.Rect> {
     val out = ArrayList<dev.kuml.layout.Rect>()
-    val explicit = def.pins.any { it.side != PinSide.Auto }
     for (side in PinSide.entries) {
         if (side == PinSide.Auto) continue
         val onSide = def.pins.filter { it.effectiveSide == side }
         if (onSide.isEmpty()) continue
         val pos = pinPositions(count = onSide.size, side = side, w = bounds.size.width, h = bounds.size.height)
         onSide.forEachIndexed { i, pin ->
-            val text = if (pin.side != PinSide.Auto || explicit) truncate(s = pin.name, max = PIN_LABEL_MAX_CHARS) else pin.name
+            val text = pin.name
             val w = text.length * PIN_LABEL_CHAR_PX
             val cx = bounds.origin.x + pos[i].first
             val cy = bounds.origin.y + pos[i].second
@@ -346,9 +344,6 @@ internal fun pinCenters(
 }
 
 internal const val PIN_LABEL_CHAR_PX: Float = 6.2f
-
-/** Maximum characters of a pin label on an explicitly chosen side. */
-internal const val PIN_LABEL_MAX_CHARS: Int = 12
 
 /** Maximum characters of a signal / time-expression / control-node label inside the diagram. */
 internal const val ACT_LABEL_MAX_CHARS: Int = 40

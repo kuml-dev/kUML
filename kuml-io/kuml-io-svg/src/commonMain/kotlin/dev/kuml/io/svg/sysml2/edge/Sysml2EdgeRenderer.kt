@@ -240,6 +240,9 @@ internal object Sysml2EdgeRenderer {
                     putAll(attrs)
                     put("class", "kuml-edge")
                     metadata.dashArray?.let { put("stroke-dasharray", it) }
+                    // Inline style: the `.kuml-edge` class rule would win over a presentation attribute.
+                    val inline = listOfNotNull(metadata.strokeColor?.let { "stroke:$it" }, metadata.lineCap?.let { "stroke-linecap:$it" })
+                    if (inline.isNotEmpty()) put("style", inline.joinToString(";"))
                 }
             builder.tag(name = tag, attrs = lineAttrs)
         }
@@ -372,31 +375,18 @@ internal object Sysml2EdgeRenderer {
                     "data-label-rect" to "${fmt(r.origin.x)} ${fmt(r.origin.y)} ${fmt(r.size.width)} ${fmt(r.size.height)}",
                 ),
         ) {
-            if (placed.onLine) {
-                tag(
-                    name = "rect",
-                    attrs =
-                        mapOf(
-                            "x" to fmt(r.origin.x),
-                            "y" to fmt(r.origin.y),
-                            "width" to fmt(r.size.width),
-                            "height" to fmt(r.size.height),
-                            "fill" to backdrop,
-                            "stroke" to "none",
-                        ),
-                )
-            }
             lines.forEachIndexed { i, line ->
-                tag(
-                    name = "text",
-                    attrs =
-                        mapOf(
-                            "class" to line.css,
-                            "x" to fmt(r.origin.x + r.size.width / 2f),
-                            "y" to fmt(r.origin.y + 2f + 10f + i * dev.kuml.layout.bridge.label.Sysml2LabelSizing.LINE_PX),
-                            "text-anchor" to "middle",
-                        ),
-                ) { text(line.text) }
+                val textAttrs =
+                    mapOf(
+                        "x" to fmt(r.origin.x + r.size.width / 2f),
+                        "y" to fmt(r.origin.y + 2f + 10f + i * dev.kuml.layout.bridge.label.Sysml2LabelSizing.LINE_PX),
+                        "text-anchor" to "middle",
+                    )
+                // PAL 2C-b2: halo text first, fill text on top, same coordinates; the halo replaces the former backdrop rectangle.
+                if (placed.onLine) {
+                    tag(name = "text", attrs = mapOf("class" to line.css, "style" to haloStyle(backdrop)) + textAttrs) { text(line.text) }
+                }
+                tag(name = "text", attrs = mapOf("class" to line.css) + textAttrs) { text(line.text) }
             }
         }
     }
@@ -584,6 +574,9 @@ internal object Sysml2EdgeRenderer {
         }
     }
 
+    /** Inline style of a halo pass: background-coloured fill and a round 3 px stroke (inline style beats the class rule). */
+    private fun haloStyle(backdrop: String): String = "fill:$backdrop;stroke:$backdrop;stroke-width:3;stroke-linejoin:round"
+
     private fun emitText(
         builder: SvgBuilder,
         content: String,
@@ -599,31 +592,18 @@ internal object Sysml2EdgeRenderer {
         val singleLineH = 12f
         val approxW = (lines.maxOf { it.length }) * 6.2f + 6f
         val approxH = singleLineH + (lines.size - 1) * LABEL_LINE_HEIGHT_PX
-        // Background rect for readability when labels overlap
-        builder.tag(
-            name = "rect",
-            attrs =
-                mapOf(
-                    "x" to fmt(x - approxW / 2f),
-                    "y" to fmt(y - singleLineH + 2f),
-                    "width" to fmt(approxW),
-                    "height" to fmt(approxH),
-                    "fill" to backdrop,
-                    "stroke" to "none",
-                ),
-        )
-        lines.forEachIndexed { index, line ->
-            builder.tag(
-                name = "text",
-                attrs =
+        // PAL 2C-b2: halo text under the fill text instead of a backdrop rectangle (readable where the label meets a line).
+        val rectAttr = "${fmt(x - approxW / 2f)} ${fmt(y - singleLineH + 2f)} ${fmt(approxW)} ${fmt(approxH)}"
+        builder.tag(name = "g", attrs = mapOf("class" to "kuml-label", "data-label-rect" to rectAttr)) {
+            lines.forEachIndexed { index, line ->
+                val attrs =
                     mapOf(
-                        "class" to cssClass,
                         "x" to fmt(x),
                         "y" to fmt(y + index * LABEL_LINE_HEIGHT_PX),
                         "text-anchor" to "middle",
-                    ),
-            ) {
-                text(line)
+                    )
+                tag(name = "text", attrs = mapOf("class" to cssClass, "style" to haloStyle(backdrop)) + attrs) { text(line) }
+                tag(name = "text", attrs = mapOf("class" to cssClass) + attrs) { text(line) }
             }
         }
     }

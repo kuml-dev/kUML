@@ -30,8 +30,11 @@ internal fun SvgBuilder.renderEdgeLabelWithHalo(
             "y" to fmtCoord(y),
             "text-anchor" to textAnchor,
         )
-    tag(name = "text", attrs = mapOf("class" to "kuml-edge-label-halo") + attrs) { text(label) }
-    tag(name = "text", attrs = mapOf("class" to "kuml-edge-label") + attrs) { text(label) }
+    // PAL 2C-b2: halo and fill text form one label group, so the pair always keeps its z order together.
+    tag(name = "g", attrs = mapOf("class" to "kuml-label")) {
+        tag(name = "text", attrs = mapOf("class" to "kuml-edge-label-halo") + attrs) { text(label) }
+        tag(name = "text", attrs = mapOf("class" to "kuml-edge-label") + attrs) { text(label) }
+    }
 }
 
 private fun fmtCoord(v: Float): String = fmt2(v)

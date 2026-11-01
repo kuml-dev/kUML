@@ -211,6 +211,8 @@ class Sysml2ModelBuilder(
         id: String = name,
         isAbstract: Boolean = false,
         specializesId: String? = null,
+        style: dev.kuml.sysml2.ConnectionLineStyle = dev.kuml.sysml2.ConnectionLineStyle.SOLID,
+        color: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): ConnectionDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -221,6 +223,8 @@ class Sysml2ModelBuilder(
                 isAbstract = isAbstract,
                 features = builder.features(),
                 specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
+                style = style,
+                color = color,
             )
         definitions += def
         return def
@@ -849,6 +853,7 @@ class Sysml2ModelBuilder(
     fun ibd(
         name: String,
         owner: PartDefinition,
+        showAttributes: Boolean = true,
         block: IbdDiagramBuilder.() -> Unit = {},
     ): IbdDiagram {
         val builder = IbdDiagramBuilder(this).apply(block)
@@ -859,6 +864,7 @@ class Sysml2ModelBuilder(
                 elementIds = builder.ids(),
                 noteIds = builder.noteIds(),
                 layout = builder.layoutSpec(),
+                showAttributes = showAttributes,
             )
         diagrams += diagram
         return diagram

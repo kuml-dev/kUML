@@ -193,6 +193,45 @@ class NoteAnchorRoutingTest :
             }
         }
 
+        test("port anchor behind another part: the anchor never crosses a part, and a bent last segment is at least 8 px straight") {
+            val a = rect(x = 300f, y = 160f, w = 120f, h = 40f)
+            val b = rect(x = 560f, y = 100f, w = 200f, h = 160f)
+            val port = rect(x = 554f, y = 174f, w = 12f, h = 12f) // west side of B, in the gap between A and B
+            val layout = layoutOf(mapOf("A" to a, "B" to b))
+            val extras = mapOf("B::p" to AnchorGeometry.Port(box = port, outward = Side.W))
+            val obstacles = Sysml2NotePlacement.obstaclesOf(layout)
+            obstacles.addRect(kind = ObstacleKind.PORT, r = port)
+            val r =
+                NotePlacer.place(
+                    layout = layout,
+                    notes = listOf(input("n", "B::p")),
+                    resolver = AnchorGeometryResolver(layout, extras),
+                    obstacles = obstacles,
+                    measure = FixedMeasure,
+                )
+            val route =
+                r.layout.edges
+                    .getValue(EdgeId("link:n::B::p"))
+                    .polylinePoints()
+            assertTouchesOnlyAtEnd(route, port)
+            val placedA =
+                r.layout.nodes
+                    .getValue(NodeId("A"))
+                    .bounds
+            val placedB =
+                r.layout.nodes
+                    .getValue(NodeId("B"))
+                    .bounds
+            for (i in 0 until route.size - 1) {
+                segmentIntersectsRect(a = route[i], b = route[i + 1], r = placedA.inflated(-0.5f)) shouldBe false
+                segmentIntersectsRect(a = route[i], b = route[i + 1], r = placedB.inflated(-0.5f)) shouldBe false
+            }
+            val prev = route[route.size - 2]
+            val last = route.last()
+            abs(prev.y - last.y).shouldBeLessThanOrEqual(0.01f)
+            if (route.size > 2) (abs(prev.x - last.x) >= 8f) shouldBe true
+        }
+
         test("stem anchor: one short horizontal line, beside the lifeline, clear of heads and messages") {
             val heads = mapOf("A" to rect(120f, 20f, 100f, 40f), "B" to rect(320f, 20f, 100f, 40f), "C" to rect(520f, 20f, 100f, 40f))
             val layout = layoutOf(heads, canvas = Size(700f, 500f))
