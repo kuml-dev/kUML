@@ -23,7 +23,7 @@ public enum class StmSeverity { Error, Warning }
 /**
  * A structural finding of the SysML 2 state-machine checker.
  *
- * @property code stable numeric code (101-130), see [Sysml2StmChecker].
+ * @property code stable numeric code (101-131), see [Sysml2StmChecker].
  * @property elementId id of the offending state / region / transition.
  * @property hint how to fix it.
  */
@@ -69,8 +69,9 @@ public data class StmIssue(
  * | 126 | Error | Timer on a transition whose source is a pseudo-state |
  * | 127 | Warning | Two `after` timers with the same duration leave the same state |
  * | 128 | Error | `at` instant is not UTC with millisecond precision |
- * | 129 | Error | Guard, effect or prose longer than [STM_MAX_TEXT_LEN] characters |
+ * | 129 | Error | Guard, effect, prose, invariant or state action longer than [STM_MAX_TEXT_LEN] characters |
  * | 130 | Warning | `showName = true` on a transition whose name is blank |
+ * | 131 | Error | `invariant` of a state is set but blank |
  *
  * The limit rules (120-123) run first; when one fires only the limit findings
  * are reported and the deeper analysis is skipped (DoS guard). Everything is
@@ -101,6 +102,7 @@ public object Sysml2StmChecker {
         for (s in states) {
             val ins = incoming[s.id].orEmpty()
             val outs = outgoing[s.id].orEmpty()
+            checkStateTexts(state = s, issues = issues)
             when (s.effectiveKind) {
                 StateKind.Initial ->
                     if (ins.isNotEmpty()) {
@@ -263,6 +265,35 @@ public object Sysml2StmChecker {
         }
         checkTimersAndTexts(transitions = transitions, index = index, issues = issues)
         return issues
+    }
+
+    /** Rules 131 (blank invariant) and 129 (over-long invariant / entry / exit / do text). */
+    private fun checkStateTexts(
+        state: StateDefinition,
+        issues: MutableList<StmIssue>,
+    ) {
+        val invariant = state.invariant
+        if (invariant != null && invariant.isBlank()) {
+            issues +=
+                err(
+                    code = 131,
+                    id = state.id,
+                    message = "State '${state.name.take(40)}' has an invariant that is blank.",
+                    hint = "Give the invariant a condition text or drop it.",
+                )
+        }
+        val tooLong =
+            listOf(invariant, state.entryAction, state.exitAction, state.doAction)
+                .any { (it?.length ?: 0) > STM_MAX_TEXT_LEN }
+        if (tooLong) {
+            issues +=
+                err(
+                    code = 129,
+                    id = state.id,
+                    message = "Invariant or action text of '${state.name.take(40)}' is longer than $STM_MAX_TEXT_LEN characters.",
+                    hint = "Shorten the text to at most $STM_MAX_TEXT_LEN characters.",
+                )
+        }
     }
 
     private fun checkTimersAndTexts(

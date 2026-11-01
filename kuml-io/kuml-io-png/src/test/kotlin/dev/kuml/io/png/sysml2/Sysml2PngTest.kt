@@ -220,6 +220,29 @@ class Sysml2PngTest :
             val bytes = renderPng(model = model, diagram = stm, layout = layout)
             SampleOutput.write(filename = "sysml2/stm-traffic-light.png", bytes = bytes)
             assertValidPng(bytes)
+
+            // P-STM-04a: the initial dot is solid dark. Only the left fifth of the picture is inspected (the dot sits
+            // there, the state text does not) and only a solid 9x9 block counts, so a hollow ring (stroke < 9 px) fails.
+            val img = readImage(bytes)
+            val limitX = img.width / 5
+
+            fun dark(
+                x: Int,
+                y: Int,
+            ): Boolean {
+                val rgb = img.getRGB(x, y)
+                val lum = ((rgb shr 16) and 0xFF) * 0.299 + ((rgb shr 8) and 0xFF) * 0.587 + (rgb and 0xFF) * 0.114
+                return lum < 90.0
+            }
+            var solid = false
+            for (x in 0 until limitX - 9) {
+                for (y in 0 until img.height - 9) {
+                    if ((0 until 9).all { dx -> (0 until 9).all { dy -> dark(x + dx, y + dy) } }) {
+                        solid = true
+                    }
+                }
+            }
+            solid shouldBe true
         }
 
         // ── ACT ─────────────────────────────────────────────────────────────

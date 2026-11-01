@@ -53,7 +53,7 @@ public object LayoutSpecRunner {
     public fun graphWith(
         graph: LayoutGraph,
         spec: LayoutSpec?,
-    ): LayoutGraph = graph.withSpec(spec)
+    ): LayoutGraph = graph.withSpec(spec = spec)
 
     /** Options of [spec] that are set but not honoured by [kind]. */
     public fun ignoredOptions(
@@ -137,7 +137,49 @@ public object LayoutSpecRunner {
         val checked = sanitize(spec = spec, findings = findings)
         checkIds(spec = checked, graph = graph, findings = findings)
         val effectiveHints = hintsWith(base = hints, spec = checked)
-        val first = engine.layout(graph = graphWith(graph = graph, spec = checked), hints = effectiveHints)
+        val alignedGroups =
+            if (kind == SpecDiagramKind.SYSML2_STM || kind == SpecDiagramKind.UML_STATE) {
+                checked
+                    ?.sameLayer
+                    .orEmpty()
+                    .take(LayoutLimits.GROUPS)
+                    .map { it.take(LayoutLimits.IDS_PER_GROUP) }
+                    .filter { it.size >= 2 }
+            } else {
+                emptyList()
+            }
+
+        // Edges between two members of one sameLayer group cannot be routed by the layered engine (the members share a
+        // layer), and they would pull the members apart. They are withheld from the engine and drawn by `aligned`.
+        val internalEdgeIds =
+            graph.edges
+                .filter { e ->
+                    e.source.nodeId != e.target.nodeId &&
+                        alignedGroups.any { g -> e.source.nodeId.value in g && e.target.nodeId.value in g }
+                }.map { it.id }
+                .toSet()
+        val engineGraph = if (internalEdgeIds.isEmpty()) graph else graph.copy(edges = graph.edges.filterNot { it.id in internalEdgeIds })
+
+        fun aligned(result: LayoutResult): LayoutResult {
+            val centred =
+                result.alignSameLayerCenters(
+                    groups = alignedGroups,
+                    direction = effectiveHints.direction,
+                    graph = graph,
+                    internalEdges = internalEdgeIds,
+                )
+            return if (kind == SpecDiagramKind.SYSML2_STM) {
+                centred.pinInitialsToTargets(
+                    graph = graph,
+                    direction = effectiveHints.direction,
+                    pseudoSize = Sysml2LayoutBridge.STM_PSEUDO_SIZE,
+                )
+            } else {
+                centred
+            }
+        }
+
+        val first = aligned(engine.layout(graph = graphWith(graph = engineGraph, spec = checked), hints = effectiveHints))
         val explicit = checked?.aspectRatio != null || checked?.maxWidth != null
         if (!explicit && !effectiveHints.autoAspect) return SpecLayoutOutcome(result = first, findings = findings)
 
@@ -186,9 +228,11 @@ public object LayoutSpecRunner {
             c = c.coerceIn(1, minOf(m, LayoutLimits.WRAP_COLUMNS_MAX))
             if (c < m) {
                 val second =
-                    engine.layout(
-                        graph = graphWith(graph = graph, spec = (checked ?: LayoutSpec()).copy(wrapColumns = c)),
-                        hints = effectiveHints,
+                    aligned(
+                        engine.layout(
+                            graph = graphWith(graph = engineGraph, spec = (checked ?: LayoutSpec()).copy(wrapColumns = c)),
+                            hints = effectiveHints,
+                        ),
                     )
                 if (isBetter(candidate = second, current = best, target = target, maxWidth = maxWidth, horizontal = horizontal)) {
                     best =

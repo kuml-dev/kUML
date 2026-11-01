@@ -16,16 +16,25 @@ import dev.kuml.sysml2.Sysml2Diagram
  * Note: ELK honours layer hints only for flat (non-compound) nodes; for nodes inside compound groups it
  * emits the warning `hint.ignored.layerInCompound`.
  */
-internal fun LayoutGraph.withLayoutSpec(diagram: Sysml2Diagram): LayoutGraph {
+internal fun LayoutGraph.withLayoutSpec(
+    diagram: Sysml2Diagram,
+    initialIds: Set<String> = emptySet(),
+): LayoutGraph {
     if (diagram is SeqDiagram) return this
-    return withSpec(spec = diagram.layout)
+    return withSpec(spec = diagram.layout, initialIds = initialIds)
 }
 
 /**
  * Diagram-family neutral form of [withLayoutSpec] (PAL wave 2B): applies `wrapColumns`, `sameLayer`,
  * `first` and `last` of [spec] to this graph. `null` / empty specs return the graph unchanged.
+ *
+ * [initialIds] are the initial pseudo-states of a state machine (PAL wave 2D-b): whenever explicit layer indices are
+ * in play they are pinned to the layer directly before their single target (see [pinInitialsToTarget]).
  */
-internal fun LayoutGraph.withSpec(spec: LayoutSpec?): LayoutGraph {
+internal fun LayoutGraph.withSpec(
+    spec: LayoutSpec?,
+    initialIds: Set<String> = emptySet(),
+): LayoutGraph {
     if (spec == null || spec.isEmpty) return this
     val known = nodes.map { it.id.value }.toSet()
     val first =
@@ -45,8 +54,9 @@ internal fun LayoutGraph.withSpec(spec: LayoutSpec?): LayoutGraph {
             .filter { it.size >= 2 }
     val wrap = spec.wrapColumns?.takeIf { it in 1..LayoutLimits.GROUPS }
 
+    val initials = initialIds.filter { it in known }.toSet()
     var layers: Map<String, Int>? = null
-    if (wrap != null || groups.isNotEmpty()) {
+    if (wrap != null || groups.isNotEmpty() || (initials.isNotEmpty() && (first.isNotEmpty() || last.isNotEmpty()))) {
         val base =
             wrapLayers(
                 nodes = nodes.map { it.id.value },
@@ -66,6 +76,14 @@ internal fun LayoutGraph.withSpec(spec: LayoutSpec?): LayoutGraph {
             first.forEach { adjusted[it] = 0 }
             val top = (adjusted.values.maxOrNull() ?: 0) + 1
             last.forEach { adjusted[it] = top }
+        }
+        if (initials.isNotEmpty()) {
+            pinInitialsToTarget(
+                layers = adjusted,
+                initials = initials,
+                edges = edges.map { it.source.nodeId.value to it.target.nodeId.value },
+                fixed = first + last,
+            )
         }
         layers = adjusted
     }
@@ -159,4 +177,31 @@ internal fun wrapLayers(
         offset += (members.size - 1) / columns
     }
     return result
+}
+
+/**
+ * Pins every initial pseudo-state to the layer directly before its single target (PAL wave 2D-b), so the
+ * initial transition is a short straight edge instead of a long arc back from a distant layer. Initials that are
+ * themselves `first`/`last`, whose target is `first`/`last`, or that do not have exactly one outgoing edge are left
+ * alone. If the pin would produce a negative layer index, all layers are shifted so the smallest index is 0.
+ */
+internal fun pinInitialsToTarget(
+    layers: MutableMap<String, Int>,
+    initials: Set<String>,
+    edges: List<Pair<String, String>>,
+    fixed: Set<String>,
+) {
+    val targets = HashMap<String, MutableList<String>>()
+    for ((s, t) in edges) {
+        if (s in initials) targets.getOrPut(s) { mutableListOf() }.add(t)
+    }
+    for (initial in initials) {
+        if (initial in fixed) continue
+        val target = targets[initial]?.singleOrNull() ?: continue
+        if (target == initial || target in fixed) continue
+        val targetLayer = layers[target] ?: continue
+        layers[initial] = targetLayer - 1
+    }
+    val min = layers.values.minOrNull() ?: return
+    if (min < 0) layers.keys.toList().forEach { layers[it] = layers.getValue(it) - min }
 }

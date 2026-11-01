@@ -31,6 +31,16 @@ public object DefaultNoteMeasure : NoteMeasure {
     ): Size = NoteLayout.sizeOf(body = body)
 }
 
+/** Measures notes that wrap at [width] instead of [NoteLayout.MAX_W] (state machines: [NoteLayout.STM_MAX_W]). */
+public class WidthLimitedNoteMeasure(
+    private val width: Float,
+) : NoteMeasure {
+    override fun measure(
+        body: String,
+        maxWidth: Float,
+    ): Size = NoteLayout.sizeOf(body = body, maxWidth = minOf(width, maxWidth))
+}
+
 /** All numbers of the placement engine; the placement code contains no size constants of its own. */
 public data class NotePlacementConfig(
     /** Maximum note width. 260 matches [NoteLayout.MAX_W], so existing notes keep their size. */
@@ -62,6 +72,14 @@ public data class NotePlacementConfig(
     /** Minimum distance between two anchors' attach points on the same polyline. */
     val minAttachSpacing: Float = 16f,
     val costs: NoteCostModel = NoteCostModel(),
+    /**
+     * If set (PAL wave 2D-b, state machines), the diagram including its notes may be at most this factor wider than
+     * without notes. Candidate positions that would widen it further are dropped; when none is left, the notes are
+     * stacked vertically below the content instead.
+     */
+    val maxWidthFactor: Float? = null,
+    /** Gap between vertically stacked notes (only used together with [maxWidthFactor]). */
+    val stackGap: Float = 12f,
 )
 
 /** One anchor link of a note: [linkId] names the drawn line, [targetId] the annotated element. */
@@ -102,6 +120,8 @@ public data class NotePlacementResult(
  * fixed order and ties go to the earlier candidate.
  */
 public object NotePlacer {
+    private const val WIDTH_EPS = 0.5f
+
     private class Exit(
         val point: Point,
         val side: Side,
@@ -232,6 +252,7 @@ public object NotePlacer {
         val nodes = LinkedHashMap(layout.nodes)
         val edges = LinkedHashMap(layout.edges)
         var extent = contentExtent(layout)
+        val baseExtent = extent
         val loose = mutableListOf<Pair<NotePlacementInput, Size>>()
         val placedRects = mutableListOf<Rect>()
         val usedAlong = HashMap<String, MutableList<Point>>()
@@ -258,7 +279,16 @@ public object NotePlacer {
                 loose += note to size
                 continue
             }
-            val plan = choosePlan(size = size, anchors = resolved, extent = extent, obstacles = obstacles, config = config, budget = budget)
+            val plan =
+                choosePlan(
+                    size = size,
+                    anchors = resolved,
+                    extent = extent,
+                    baseExtent = baseExtent,
+                    obstacles = obstacles,
+                    config = config,
+                    budget = budget,
+                )
             nodes[NodeId(note.noteId)] = NodeLayout(bounds = plan.rect)
             obstacles.addRect(kind = ObstacleKind.NOTE, r = plan.rect, ownerId = note.noteId)
             placedRects += plan.rect
@@ -353,6 +383,7 @@ public object NotePlacer {
         size: Size,
         anchors: List<Anchor>,
         extent: Rect,
+        baseExtent: Rect,
         obstacles: ObstacleIndex,
         config: NotePlacementConfig,
         budget: ObstacleIndex.Budget,
@@ -362,7 +393,15 @@ public object NotePlacer {
             bestPlan(
                 size = size,
                 anchors = anchors,
-                candidates = candidatePositions(size = size, anchors = anchors, extent = extent, config = config),
+                candidates =
+                    withinWidthBudget(
+                        candidates = candidatePositions(size = size, anchors = anchors, extent = extent, config = config),
+                        size = size,
+                        anchors = anchors,
+                        extent = extent,
+                        baseExtent = baseExtent,
+                        config = config,
+                    ),
                 obstacles = obstacles,
                 config = config,
                 budget = budget,
@@ -378,7 +417,15 @@ public object NotePlacer {
                     bestPlan(
                         size = size,
                         anchors = anchors,
-                        candidates = candidatePositions(size = size, anchors = listOf(nearest), extent = extent, config = config),
+                        candidates =
+                            withinWidthBudget(
+                                candidates = candidatePositions(size = size, anchors = listOf(nearest), extent = extent, config = config),
+                                size = size,
+                                anchors = listOf(nearest),
+                                extent = extent,
+                                baseExtent = baseExtent,
+                                config = config,
+                            ),
                         obstacles = obstacles,
                         config = config,
                         budget = budget,
@@ -387,6 +434,36 @@ public object NotePlacer {
             }
         }
         return full
+    }
+
+    /**
+     * Keeps the candidates that do not widen the diagram beyond [NotePlacementConfig.maxWidthFactor] times the width
+     * of [baseExtent]; without a factor all candidates pass. Always added: positions stacked vertically below the content
+     * (3 horizontal positions inside the budget: centred on the anchor, left-aligned, right-aligned).
+     */
+    private fun withinWidthBudget(
+        candidates: List<Rect>,
+        size: Size,
+        anchors: List<Anchor>,
+        extent: Rect,
+        baseExtent: Rect,
+        config: NotePlacementConfig,
+    ): List<Rect> {
+        val factor = config.maxWidthFactor ?: return candidates
+        val maxWidth = baseExtent.size.width * factor
+        val fits = candidates.filter { extent.union(it).size.width <= maxWidth + WIDTH_EPS }
+        val minX = extent.left
+        val maxX = max(minX, extent.left + maxWidth - size.width)
+        val y = extent.bottom + config.stackGap
+        val anchorX = anchors.map { it.rep.x }.average().toFloat()
+        val stacked =
+            listOf(anchorX - size.width / 2f, minX, maxX)
+                .map { it.coerceIn(minX, maxX) }
+                .distinct()
+                .map { x -> Rect(origin = Point(x = x, y = y), size = size) }
+        // The cost model picks between the fitting side positions and the stacked ones, so a note is never forced
+        // onto a title or a line just because the only other spots would be too wide.
+        return fits + stacked
     }
 
     private fun diagonalOf(anchors: List<Anchor>): Float {

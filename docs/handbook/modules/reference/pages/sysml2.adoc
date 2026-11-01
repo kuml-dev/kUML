@@ -612,9 +612,25 @@ segments and two line ends at one side of a state keep 16 px.
 |126 |Error |Timer on a transition that leaves a pseudo-state
 |127 |Warning |Two `after` timers with the same duration leave one state (only the first declared one fires)
 |128 |Error |`at` instant without millisecond precision (JSON import)
-|129 |Error |Guard, effect or prose longer than 512 characters
+|129 |Error |Guard, effect, prose, `invariant` or state action text longer than 512 characters
 |130 |Warning |`showName = true` on a transition with a blank name
+|131 |Error |`invariant` of a state is set but blank
 |===
+
+==== State compartment and invariant
+
+A regular state shows its texts below the name, under a separator, in a fixed order:
+`[invariant]`, `entry / ...`, `do / ...`, `exit / ...` (before wave 2D-b the order was entry, exit, do).
+Blank texts give no line; the box grows with the longest line, so text never leaves the box.
+`invariant` is a descriptive condition (`stateDef("Heating", invariant = "temp < 90")`); the runtime does
+not evaluate it. A blank invariant is reported as rule 131. A composite state shows the same lines under its
+title; the frame is at least as wide as the longest line.
+
+Initial pseudo-states are drawn as a solid dot in the border colour of the theme. The
+dot is placed 36 px in front of its target, centred on it, with a straight edge (see xref:layout.adoc[layout hints]).
+
+Notes in a state machine wrap at 220 px, and the diagram including its notes is kept within 125 % of its width
+without notes where a position allows it; otherwise notes are stacked below the diagram.
 
 ==== Timers
 

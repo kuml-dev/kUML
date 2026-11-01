@@ -53,6 +53,9 @@ public object NoteLayout {
     /** Maximum note width. */
     public const val MAX_W: Float = 260f
 
+    /** Maximum note width in state-machine diagrams (PAL wave 2D-b): text wraps at this width minus the padding. */
+    public const val STM_MAX_W: Float = 220f
+
     /**
      * Truncates [body] to [KumlNoteLimits.MAX_DISPLAY_CHARS] (before any line
      * splitting, so a body made only of newlines cannot create tens of
@@ -103,10 +106,11 @@ public object NoteLayout {
     public fun sizeOf(
         body: String,
         frame: NoteFrameStyle = NoteFrameStyle.DOG_EAR,
+        maxWidth: Float = MAX_W,
     ): Size {
-        val lines = displayText(body = body).lines
+        val lines = displayText(body = body, maxInnerWidth = maxWidth - H_PADDING).lines
         val widestLine = lines.maxOfOrNull { it.length * BODY_CHAR_PX } ?: 0f
-        val w = maxOf(DEFAULT_W, minOf(MAX_W, widestLine + H_PADDING))
+        val w = maxOf(minOf(DEFAULT_W, maxWidth), minOf(maxWidth, widestLine + H_PADDING))
         val h = maxOf(DEFAULT_H, lines.size * LINE_H + V_PADDING)
         return Size(width = w, height = h)
     }

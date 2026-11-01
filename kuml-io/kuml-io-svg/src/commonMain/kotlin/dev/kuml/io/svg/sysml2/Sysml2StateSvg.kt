@@ -4,6 +4,7 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt3
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.bridge.StateActionCompartment
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StateKind
@@ -187,7 +188,7 @@ private fun renderInitialPseudoState(
     val h = layout.bounds.size.height
     val cx = w / 2f
     val cy = h / 2f
-    val r = minOf(w, h) * 0.4f
+    val r = INITIAL_DOT_RADIUS
 
     builder.tag(
         name = "g",
@@ -200,12 +201,14 @@ private fun renderInitialPseudoState(
                     "cx" to fmt(cx),
                     "cy" to fmt(cy),
                     "r" to fmt(r),
-                    "class" to "kuml-class",
-                    "fill" to "currentColor",
+                    "class" to "kuml-pseudo-filled",
                 ),
         )
     }
 }
+
+/** Initial-dot radius (diameter 14 px); the 24x24 node bounds stay unchanged. */
+private const val INITIAL_DOT_RADIUS = 7f
 
 /**
  * Final pseudo-state — "Donut": äußerer Kreis (nur Stroke, kein Fill) +
@@ -250,8 +253,7 @@ private fun renderFinalPseudoState(
                     "cx" to fmt(cx),
                     "cy" to fmt(cy),
                     "r" to fmt(innerR),
-                    "class" to "kuml-class",
-                    "fill" to "currentColor",
+                    "class" to "kuml-pseudo-filled",
                 ),
         )
     }
@@ -261,9 +263,9 @@ private fun renderFinalPseudoState(
  * Regulärer State — abgerundetes Rechteck (`rx="12" ry="12"`) mit Namen
  * zentriert oben. Wenn mindestens ein Action-Slot
  * ([StateDefinition.entryAction] / [StateDefinition.exitAction] /
- * [StateDefinition.doAction]) gesetzt ist: Divider-Linie + pro gesetztem
- * Slot eine Zeile in SysML-2-Konkretsyntax (`entry / <expr>`,
- * `exit / <expr>`, `do / <expr>`).
+ * [StateDefinition.doAction]) oder [StateDefinition.invariant] gesetzt ist:
+ * Divider-Linie + Zeilen in der festen Reihenfolge `[invariant]`,
+ * `entry / <expr>`, `do / <expr>`, `exit / <expr>` (siehe [StateActionCompartment]).
  */
 private fun renderRegularState(
     element: StateDefinition,
@@ -275,10 +277,14 @@ private fun renderRegularState(
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
 
-    val hasActions =
-        !element.entryAction.isNullOrEmpty() ||
-            !element.exitAction.isNullOrEmpty() ||
-            !element.doAction.isNullOrEmpty()
+    val compartment =
+        StateActionCompartment.lines(
+            invariant = element.invariant,
+            entry = element.entryAction,
+            doActivity = element.doAction,
+            exit = element.exitAction,
+        )
+    val hasActions = compartment.isNotEmpty()
 
     builder.tag(
         name = "g",
@@ -325,26 +331,12 @@ private fun renderRegularState(
             )
             cy += 14f
 
-            element.entryAction?.takeIf { it.isNotEmpty() }?.let { action ->
+            for (line in compartment) {
                 tag(
                     name = "text",
                     attrs = mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-                ) { text("entry / $action") }
-                cy += 13f
-            }
-            element.exitAction?.takeIf { it.isNotEmpty() }?.let { action ->
-                tag(
-                    name = "text",
-                    attrs = mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-                ) { text("exit / $action") }
-                cy += 13f
-            }
-            element.doAction?.takeIf { it.isNotEmpty() }?.let { action ->
-                tag(
-                    name = "text",
-                    attrs = mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-                ) { text("do / $action") }
-                cy += 13f
+                ) { text(line) }
+                cy += StateActionCompartment.LINE_H
             }
         }
     }

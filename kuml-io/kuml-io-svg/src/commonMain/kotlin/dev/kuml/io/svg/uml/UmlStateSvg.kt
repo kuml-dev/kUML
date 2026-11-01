@@ -5,6 +5,8 @@ import dev.kuml.io.svg.fmt2
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.io.svg.xmlEscapeContent
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.bridge.StateActionCompartment
+import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.UmlState
 
@@ -74,6 +76,14 @@ internal fun renderUmlState(
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
 
+    val compartment =
+        StateActionCompartment.lines(
+            invariant = element.invariant,
+            entry = element.entry,
+            doActivity = element.doActivity,
+            exit = element.exit,
+        )
+
     builder.tag(
         name = "g",
         attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
@@ -112,6 +122,40 @@ internal fun renderUmlState(
                         "class" to "kuml-divider",
                     ),
             )
+        } else if (compartment.isNotEmpty()) {
+            // Simple state with an action compartment (PAL wave 2D-b): name block on top, a separator across the full
+            // width, then `[invariant]`, `entry`, `do`, `exit` lines. Geometry mirrors UmlContentSizeProvider.stateSize.
+            val nameLines = wrapStateName(text = element.name, maxWidthPx = w.toDouble() - H_PADDING_PX)
+            rawXml(
+                buildString {
+                    append("""<text x="${fmt(w / 2f)}" y="18" text-anchor="middle" class="kuml-body">""")
+                    nameLines.forEachIndexed { idx, line ->
+                        val dy = if (idx == 0) "0" else fmt(LINE_HEIGHT_PX)
+                        append("""<tspan x="${fmt(w / 2f)}" dy="$dy">${xmlEscapeContent(line)}</tspan>""")
+                    }
+                    append("</text>")
+                },
+            )
+            val dividerY = UmlContentSizeProvider.stateDividerY(nameLines.size)
+            tag(
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to "0",
+                        "y1" to fmt(dividerY),
+                        "x2" to fmt(w),
+                        "y2" to fmt(dividerY),
+                        "class" to "kuml-divider",
+                    ),
+            )
+            var lineY = dividerY + UmlContentSizeProvider.STATE_COMPARTMENT_TOP_GAP
+            for (line in compartment) {
+                tag(
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(lineY)),
+                ) { text(line) }
+                lineY += StateActionCompartment.LINE_H
+            }
         } else {
             // Simple state: name word-wrapped and vertically centered. A
             // single-line name reduces to exactly the old firstLineY = h/2+4,

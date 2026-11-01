@@ -607,6 +607,18 @@ public class UmlContentSizeProvider
          * SysML-2-Requirement-Boxen.
          */
         private fun stateSize(s: UmlState): Size {
+            val compartment =
+                StateActionCompartment.lines(invariant = s.invariant, entry = s.entry, doActivity = s.doActivity, exit = s.exit)
+            if (compartment.isNotEmpty()) {
+                // PAL wave 2D-b: name on top (wrapped), separator, then the action compartment. The box grows
+                // with the longest compartment line (width) and with name lines + compartment lines (height).
+                val width = maxOf(DEFAULT_W, StateActionCompartment.width(compartment))
+                val nameLines = stateWrappedLineCount(text = s.name, maxWidthPx = width - STATE_H_PADDING)
+                val dividerY = stateDividerY(nameLines)
+                val needed =
+                    dividerY + STATE_COMPARTMENT_TOP_GAP + compartment.size * StateActionCompartment.LINE_H + STATE_COMPARTMENT_BOTTOM_PAD
+                return Size(width = width, height = maxOf(needed, STATE_COMPARTMENT_MIN_H))
+            }
             val wrapWidthPx = DEFAULT_W - STATE_H_PADDING
             val lines = stateWrappedLineCount(text = s.name, maxWidthPx = wrapWidthPx)
             val neededHeight = (lines - 1) * STATE_LINE_HEIGHT + STATE_HEIGHT_SAFETY_PADDING
@@ -899,6 +911,18 @@ public class UmlContentSizeProvider
              * ascent + last-line descent + a small margin.
              */
             public const val STATE_HEIGHT_SAFETY_PADDING: Float = 28f
+
+            /** Y of the separator below the name block of a UML state with an action compartment (first name baseline at 18). */
+            public fun stateDividerY(nameLines: Int): Float = 26f + (nameLines - 1) * STATE_LINE_HEIGHT
+
+            /** Distance from that separator to the first compartment baseline. */
+            public const val STATE_COMPARTMENT_TOP_GAP: Float = 14f
+
+            /** Space below the last compartment line. */
+            public const val STATE_COMPARTMENT_BOTTOM_PAD: Float = 8f
+
+            /** Minimum height of a UML state with an action compartment. */
+            public const val STATE_COMPARTMENT_MIN_H: Float = 50f
 
             // ── Composite-Structure: verschachtelte Parts (V3.x) ──────────────────
             //

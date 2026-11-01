@@ -9,6 +9,7 @@ import dev.kuml.layout.GroupId
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
+import dev.kuml.layout.bridge.StateActionCompartment
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StateKind
 import dev.kuml.sysml2.StateRegion
@@ -75,12 +76,7 @@ internal fun renderCompositeStateFrames(
                         "font-weight" to "bold",
                     ),
             ) { text(def.name) }
-            val actions =
-                listOfNotNull(
-                    def.entryAction?.takeIf { it.isNotEmpty() }?.let { "entry / $it" },
-                    def.exitAction?.takeIf { it.isNotEmpty() }?.let { "exit / $it" },
-                    def.doAction?.takeIf { it.isNotEmpty() }?.let { "do / $it" },
-                )
+            val actions = compositeActionLines(def)
             val headerBottom = y + STM_COMPOSITE_HEADER_HEIGHT
             tag(
                 name = "line",
@@ -129,6 +125,33 @@ internal fun renderCompositeStateFrames(
             }
         }
     }
+}
+
+/** The `[invariant]` / `entry` / `do` / `exit` lines of a composite state, in display order. */
+internal fun compositeActionLines(def: StateDefinition): List<String> =
+    StateActionCompartment.lines(
+        invariant = def.invariant,
+        entry = def.entryAction,
+        doActivity = def.doAction,
+        exit = def.exitAction,
+    )
+
+/**
+ * Rectangle occupied by the action lines of the composite [def] whose (padded) frame is [frame], or `null` without
+ * action lines. Single source for the drawing code and the obstacle list of the label placer.
+ */
+internal fun compositeActionCompartmentRect(
+    def: StateDefinition,
+    frame: Rect,
+): Rect? {
+    val lines = compositeActionLines(def)
+    if (lines.isEmpty()) return null
+    val top = frame.origin.y + STM_COMPOSITE_HEADER_HEIGHT
+    val width = minOf(frame.size.width - 8f, StateActionCompartment.width(lines))
+    return Rect(
+        origin = Point(x = frame.origin.x + 4f, y = top + 2f),
+        size = dev.kuml.layout.Size(width = width, height = lines.size * StateActionCompartment.LINE_H + 4f),
+    )
 }
 
 /**
@@ -207,13 +230,14 @@ internal fun stmObstacleNodes(
                     )
                 }
             }
+        val compartment = compositeActionCompartmentRect(def = def, frame = frame)
         out +=
             StmObstacleNode(
                 id = def.id,
                 kind = StmObstacleKind.Composite,
                 rect = frame,
                 headerBottom = headerBottom,
-                regionNameRects = names,
+                regionNameRects = names + listOfNotNull(compartment),
                 dividers = compositeSeparators(frame = frame, headerBottom = headerBottom, regionRects = regions.map { it.second }),
             )
         for ((r, rect) in regions) out += StmObstacleNode(id = r.id, kind = StmObstacleKind.Region, rect = rect)

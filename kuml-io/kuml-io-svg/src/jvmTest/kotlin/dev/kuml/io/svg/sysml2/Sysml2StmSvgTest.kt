@@ -17,8 +17,10 @@ import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.dsl.sysml2Model
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 
 /**
  * Strukturelle + Determinismus-Tests für den SysML-2-STM-SVG-Renderer (V2.0.9).
@@ -103,13 +105,34 @@ class Sysml2StmSvgTest :
             val (model, stm) = trafficLightModel()
             val svg = KumlSvgRenderer.toSvg(model = model, diagram = stm, layoutResult = layoutFor(), theme = PlainTheme())
 
-            // The g-element for the Initial node carries a circle with currentColor fill.
+            // The g-element for the Initial node carries a circle of radius 7 in the dedicated filled class.
             svg shouldContain "id=\"Initial\""
             svg shouldContain "<circle"
-            // The fill="currentColor" attribute marks the initial pseudo-state.
-            svg shouldContain "currentColor"
+            svg shouldContain "class=\"kuml-pseudo-filled\""
+            svg shouldContain "r=\"7\""
+            // `.kuml-class { fill: nodeFill }` would beat a fill attribute and render the dot hollow.
+            svg shouldNotContain "currentColor"
+            val css = svg.substringAfter("<style").substringBefore("</style>")
+            css shouldContain ".kuml-pseudo-filled { fill: ${PlainTheme().colors.border.toHex()}; stroke: none; }"
+            css.indexOf(".kuml-pseudo-filled") shouldBeGreaterThan css.indexOf(".kuml-class")
 
             SampleOutput.write(filename = "sysml2-stm/traffic-light-initial.svg", content = svg)
+        }
+
+        "the filled-dot class follows the border colour of every theme" {
+            val (model, stm) = trafficLightModel()
+            val themes =
+                listOf(
+                    PlainTheme(),
+                    dev.kuml.renderer.theme.core
+                        .KumlBrandTheme(),
+                    dev.kuml.renderer.theme.core
+                        .PlayfulTheme(),
+                )
+            for (t in themes) {
+                val svg = KumlSvgRenderer.toSvg(model = model, diagram = stm, layoutResult = layoutFor(), theme = t)
+                svg shouldContain ".kuml-pseudo-filled { fill: ${t.colors.border.toHex()}; stroke: none; }"
+            }
         }
 
         "STM renders final pseudo-state as a donut (two concentric circles)" {
@@ -120,8 +143,9 @@ class Sysml2StmSvgTest :
             svg shouldContain "id=\"Final\""
             // We can't easily count circles inside a substring, but presence
             // of the donut means at least the outer fill="white" attribute
-            // is emitted (the inner one uses currentColor).
+            // is emitted (the inner disc uses the filled class).
             svg shouldContain "fill=\"white\""
+            svg shouldContain "class=\"kuml-pseudo-filled\""
         }
 
         "STM renders regular state as rounded rectangle with name and entry/exit actions" {
@@ -147,6 +171,45 @@ class Sysml2StmSvgTest :
 
             // Edge routes lower into <path> elements (transitions present).
             svg shouldContain "path"
+        }
+
+        "state action compartment is ordered invariant, entry, do, exit and stays inside the box" {
+            val model =
+                sysml2Model(name = "Cmp") {
+                    val s =
+                        stateDef(
+                            name = "Heating",
+                            exitAction = "stop()",
+                            doAction = "regulate()",
+                            entryAction = "start()",
+                            invariant = "temp < 90 & <script>",
+                        )
+                    stmDiagram(name = "d") { include(s) }
+                }
+            val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
+            val layout =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = 1L,
+                    canvas = Size(width = 300f, height = 200f),
+                    nodes =
+                        mapOf(
+                            NodeId("Heating") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 10f, y = 10f), size = Size(width = 220f, height = 100f))),
+                        ),
+                    edges = emptyMap(),
+                    groups = emptyMap(),
+                )
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = stm, layoutResult = layout, theme = PlainTheme())
+            val order = listOf("[temp &lt; 90 &amp; &lt;script&gt;]", "entry / start()", "do / regulate()", "exit / stop()")
+            val positions = order.map { svg.indexOf(it) }
+            positions.forEach { (it >= 0) shouldBe true }
+            positions shouldBe positions.sorted()
+            // no raw (unescaped) markup from the invariant, and no double escaping
+            svg shouldNotContain "<script>"
+            svg shouldNotContain "&amp;amp;"
+            // the divider separates the name from the compartment, both inside the rect (h = 100)
+            svg shouldContain "class=\"kuml-divider\""
         }
 
         "deterministic output — same input renders byte-identically" {

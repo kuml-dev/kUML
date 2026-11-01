@@ -174,6 +174,28 @@ class Sysml2StateMachineAdapterTest :
             entryActions.first().action shouldBe "logEnterA()"
         }
 
+        test("state with an invariant runs exactly like one without (the invariant is descriptive only)") {
+            val model =
+                sysml2Model(name = "Invariant") {
+                    val init = stateDef(name = "Init", isInitial = true)
+                    val a = stateDef(name = "A", entryAction = "logEnterA()", invariant = "x > 0")
+                    transition(name = "seed", source = init, target = a)
+                    stmDiagram(name = "Invariant STM") {
+                        include(init)
+                        include(a)
+                    }
+                }
+            val stm = model.diagrams.first() as dev.kuml.sysml2.StmDiagram
+            val handle = Sysml2StateMachineAdapter.runtimeFor(model = model, diagram = stm, clock = epochClock())
+
+            val entryActions =
+                handle.instance.trace
+                    .filterIsInstance<TraceEntry.ActionInvoked>()
+                    .filter { it.phase == ActionPhase.ENTRY && it.vertexId == "A" }
+            entryActions.size shouldBe 1
+            entryActions.first().action shouldBe "logEnterA()"
+        }
+
         test("state with exitAction emits exit trace entry on deactivation") {
             val model =
                 sysml2Model(name = "ExitAction") {

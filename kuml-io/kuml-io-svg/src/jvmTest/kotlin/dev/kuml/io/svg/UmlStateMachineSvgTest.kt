@@ -141,6 +141,64 @@ class UmlStateMachineSvgTest :
             (svg.contains("kuml-divider")) shouldBe false
         }
 
+        test("simple state with entry, do, exit and invariant renders a compartment below a separator inside the box") {
+            val state =
+                UmlState(
+                    id = "zu",
+                    name = "Zu",
+                    entry = "verriegeln()",
+                    doActivity = "pruefen()",
+                    exit = "entriegeln()",
+                    invariant = "gesichert",
+                )
+            val h = 110f
+            val layout = NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 160f, height = h)))
+            val builder = SvgBuilder(pretty = false)
+            renderUmlState(element = state, layout = layout, theme = PlainTheme(), builder = builder)
+            val svg = builder.toString()
+
+            val order = listOf("Zu", "[gesichert]", "entry / verriegeln()", "do / pruefen()", "exit / entriegeln()")
+            val positions = order.map { svg.indexOf(it) }
+            positions.forEach { (it >= 0) shouldBe true }
+            positions shouldBe positions.sorted()
+            // separator across the full width at y = 26 (one name line), above every compartment line
+            svg shouldContain "y1=\"26\""
+            svg shouldContain "x2=\"160\""
+            // every text baseline lies inside the box
+            Regex("""<text[^>]* y="([0-9.]+)"""").findAll(svg).map { it.groupValues[1].toFloat() }.forEach { (it < h) shouldBe true }
+        }
+
+        test("state without compartment keeps the centred name and has no separator") {
+            val builder = SvgBuilder(pretty = false)
+            renderUmlState(
+                element = UmlState(id = "s", name = "Draft", entry = "  "),
+                layout = NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 120f, height = 40f))),
+                theme = PlainTheme(),
+                builder = builder,
+            )
+            builder.toString().contains("kuml-divider") shouldBe false
+        }
+
+        test("initial and final pseudostates use the filled class instead of fill attributes") {
+            val b = SvgBuilder(pretty = false)
+            val box = NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 24f, height = 24f)))
+            dev.kuml.io.svg.uml.renderUmlPseudostate(
+                element = UmlPseudostate(id = "i", name = "i", kind = PseudostateKind.INITIAL),
+                layout = box,
+                theme = PlainTheme(),
+                builder = b,
+            )
+            dev.kuml.io.svg.uml.renderUmlFinalState(
+                element = UmlFinalState(id = "f", name = "f"),
+                layout = box,
+                theme = PlainTheme(),
+                builder = b,
+            )
+            val svg = b.toString()
+            svg shouldContain "kuml-pseudo-filled"
+            (svg.contains("currentColor")) shouldBe false
+        }
+
         test("composite state renders name at top with divider line") {
             val sub = UmlState(id = "sub", name = "Sub")
             val composite = UmlState(id = "comp", name = "Processing", substates = listOf(sub))

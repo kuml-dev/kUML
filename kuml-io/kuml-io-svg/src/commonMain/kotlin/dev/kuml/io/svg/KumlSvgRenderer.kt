@@ -2795,6 +2795,8 @@ public object KumlSvgRenderer {
                     layout = Sysml2LayoutBridge.withoutStmOrderEdges(layoutResult),
                     adapter = StmEdgeAdapter(model = model, diagram = diagram),
                     stmLabelMaxWidthPx = labelMaxWidthPx,
+                    noteMaxWidth = dev.kuml.layout.bridge.NoteLayout.STM_MAX_W,
+                    noteWidthFactor = STM_NOTE_WIDTH_FACTOR,
                 ),
             theme = theme,
             options = options,
@@ -3778,6 +3780,9 @@ public object KumlSvgRenderer {
             (targetId.contains("::") && ports.any { targetId.endsWith("::${it.name}") || targetId == it.name })
     }
 
+    /** State machines: the diagram including notes may be at most this much wider than without notes (PAL wave 2D-b). */
+    internal const val STM_NOTE_WIDTH_FACTOR: Float = 1.25f
+
     /**
      * Places the notes of [diagram] after the layout (see [Sysml2NotePlacement]); the result carries the notes as
      * nodes and their anchor lines as edges, so every following render step treats them like any other element.
@@ -3793,6 +3798,8 @@ public object KumlSvgRenderer {
         configure: (ObstacleIndex) -> Unit = {},
         placedLabels: Map<String, dev.kuml.layout.bridge.label.PlacedLabel> = emptyMap(),
         stmLabelMaxWidthPx: Float = dev.kuml.io.svg.sysml2.edge.StmLabelPlacer.DEFAULT_MAX_WIDTH_PX,
+        noteMaxWidth: Float? = null,
+        noteWidthFactor: Float? = null,
     ): LayoutResult =
         placeSysml2NotesResult(
             model = model,
@@ -3804,6 +3811,8 @@ public object KumlSvgRenderer {
             configure = configure,
             placedLabels = placedLabels,
             stmLabelMaxWidthPx = stmLabelMaxWidthPx,
+            noteMaxWidth = noteMaxWidth,
+            noteWidthFactor = noteWidthFactor,
         ).layout
 
     /** Like [placeSysml2Notes], but keeps the shift the layout got so positions planned beforehand can follow it. */
@@ -3817,6 +3826,8 @@ public object KumlSvgRenderer {
         configure: (ObstacleIndex) -> Unit = {},
         placedLabels: Map<String, dev.kuml.layout.bridge.label.PlacedLabel> = emptyMap(),
         stmLabelMaxWidthPx: Float = dev.kuml.io.svg.sysml2.edge.StmLabelPlacer.DEFAULT_MAX_WIDTH_PX,
+        noteMaxWidth: Float? = null,
+        noteWidthFactor: Float? = null,
     ): dev.kuml.layout.bridge.note.NotePlacementResult =
         Sysml2NotePlacement
             .place(
@@ -3835,8 +3846,28 @@ public object KumlSvgRenderer {
                     }
                 },
                 configure = configure,
-                config = NotePlacementConfig(localPorts = localPorts),
+                config =
+                    NotePlacementConfig(
+                        localPorts = localPorts,
+                        maxWidthFactor = noteWidthFactor,
+                        // State machines (2D-b): a note on a composite title or on a transition line is worse than a longer anchor line.
+                        costs =
+                            if (noteWidthFactor == null) {
+                                dev.kuml.layout.bridge.note
+                                    .NoteCostModel()
+                            } else {
+                                dev.kuml.layout.bridge.note
+                                    .NoteCostModel(titleRect = 80_000f, lineThroughRect = 15_000f)
+                            },
+                    ),
                 placedLabels = placedLabels.mapValues { it.value.rect },
+                measure =
+                    if (noteMaxWidth == null) {
+                        dev.kuml.layout.bridge.note.DefaultNoteMeasure
+                    } else {
+                        dev.kuml.layout.bridge.note
+                            .WidthLimitedNoteMeasure(noteMaxWidth)
+                    },
             )
 
     /**

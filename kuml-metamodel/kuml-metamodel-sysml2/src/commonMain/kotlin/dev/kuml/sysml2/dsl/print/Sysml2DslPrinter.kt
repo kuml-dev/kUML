@@ -425,9 +425,15 @@ public object Sysml2DslPrinter {
                     def.entryAction?.let { args += "entryAction = ${quote(it)}" }
                     def.exitAction?.let { args += "exitAction = ${quote(it)}" }
                     def.doAction?.let { args += "doAction = ${quote(it)}" }
+                    def.invariant?.let { args += "invariant = ${quote(it)}" }
                     if (def.isAbstract) args += "isAbstract = true"
                     appendSpecializesArg(def = def, builderName = "stateDef", args = args, todos = todos)
-                } else if (def.entryAction != null || def.exitAction != null || def.doAction != null || def.features.isNotEmpty()) {
+                } else if (def.entryAction != null ||
+                    def.exitAction != null ||
+                    def.doAction != null ||
+                    def.invariant != null ||
+                    def.features.isNotEmpty()
+                ) {
                     todos +=
                         "Pseudo-state ${def.name} (id = ${def.id}) carries actions or features, which the DSL cannot express for it — dropped."
                 }

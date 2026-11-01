@@ -417,6 +417,25 @@ Triggers, guards, and effects are free-form strings. The runtime parses guards a
 evaluates them against the current state; effects are recorded in the trace but not executed
 in v0.3.0 (effect execution is V2). Triggers match by exact string equality.
 
+A state can carry an action compartment: `entry`, `doActivity`, `exit` and an optional `invariant`.
+They are drawn below the name under a separator in the order `[invariant]`, `entry / ...`, `do / ...`,
+`exit / ...`; the box grows with the longest line. The invariant is descriptive and is not evaluated.
+
+[source,kotlin]
+----
+stateDiagram(name = "Automat") {
+    val zu = state(name = "Zu") {
+        entry = "verriegeln()"
+        doActivity = "pruefen()"
+        exit = "entriegeln()"
+        invariant = "gesichert"
+    }
+}
+----
+
+The initial pseudostate and the core of the final state are drawn as solid dots in the border colour of the theme.
+Composite UML states do not show a compartment yet.
+
 See xref:simulate.adoc[state-machine simulation] for the operational semantics and how to
 run a machine against a stream of events.
 

@@ -45,8 +45,7 @@ internal fun renderUmlFinalState(
                     "cx" to fmt(cx),
                     "cy" to fmt(cy),
                     "r" to fmt(innerR),
-                    "class" to "kuml-class",
-                    "fill" to "currentColor",
+                    "class" to "kuml-pseudo-filled",
                 ),
         )
     }

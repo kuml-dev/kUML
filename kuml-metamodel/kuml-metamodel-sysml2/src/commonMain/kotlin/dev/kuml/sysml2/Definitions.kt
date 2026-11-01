@@ -548,6 +548,12 @@ data class StateDefinition(
     /** Optional `do … ` activity statement (raw string in MVP). */
     val doAction: String? = null,
     /**
+     * Optional state invariant (raw condition text), rendered as `[text]` above the
+     * `entry` / `do` / `exit` lines of the state's action compartment. Purely descriptive;
+     * the runtime does not evaluate it. A blank value is reported by checker rule 131.
+     */
+    val invariant: String? = null,
+    /**
      * Vertex kind (wave A1). Defaults to [StateKind.State]; the legacy
      * [isInitial]/[isFinal] flags take precedence, see [effectiveKind].
      */

@@ -15,6 +15,8 @@ internal enum class NoteAnchorStyle { DASHED, DOTTED, DASHED_NO_DOT }
  * [SvgBuilder.tag], both of which escape; nothing is escaped a second time
  * (no `&amp;amp;`).
  */
+private const val WRAP_EPS = 0.5f
+
 internal fun renderNote(
     id: String,
     body: String,
@@ -33,7 +35,9 @@ internal fun renderNote(
     ) {
         renderNoteFrame(w = w, h = h, frame = frame, frameClasses = frameClasses, builder = this)
         val inset = if (frame == NoteFrameStyle.BRACKET) NoteLayout.H_PADDING / 2f + 8f else NoteLayout.H_PADDING / 2f
-        renderNoteText(lines = NoteLayout.displayText(body = body).lines, xInset = inset, builder = this)
+        // Wrap at the width of the box that was sized for the text (state machines wrap narrower than other diagrams).
+        val inner = minOf(w - NoteLayout.H_PADDING + WRAP_EPS, NoteLayout.MAX_W - NoteLayout.H_PADDING)
+        renderNoteText(lines = NoteLayout.displayText(body = body, maxInnerWidth = inner).lines, xInset = inset, builder = this)
     }
 }
 

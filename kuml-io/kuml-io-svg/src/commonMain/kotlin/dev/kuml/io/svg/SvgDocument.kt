@@ -368,6 +368,10 @@ internal object SvgDocument {
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-pseudostate { fill: ${c.foreground.toHex()}; stroke: ${c.foreground.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
+                // Filled initial / final-core / fork-join markers of state machines. A dedicated class
+                // is required: `.kuml-class { fill: nodeFill }` would beat a `fill="currentColor"`
+                // presentation attribute and render the dot hollow. Colour follows the theme border.
+                append(".kuml-pseudo-filled { fill: ${c.border.toHex()}; stroke: none; }\n")
                 append(".kuml-final-outer { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 // V1.1 — UML-Deployment-Diagramm (Node-Würfel, Artifact, Stereotype-Box)

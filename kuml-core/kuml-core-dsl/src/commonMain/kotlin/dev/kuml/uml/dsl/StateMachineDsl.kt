@@ -50,6 +50,7 @@ fun UmlStateMachineScope.state(
             entry = body.entry,
             exit = body.exit,
             doActivity = body.doActivity,
+            invariant = body.invariant,
             stereotypes = body.stereotypes.toList(),
             metadata = body.layoutHintsBuilder.toMetadata(),
             appliedStereotypes = body.appliedStereotypeList.toList<AppliedStereotype>(),
@@ -78,6 +79,7 @@ fun UmlCompositeStateScope.state(
             entry = body.entry,
             exit = body.exit,
             doActivity = body.doActivity,
+            invariant = body.invariant,
             stereotypes = body.stereotypes.toList(),
             metadata = body.layoutHintsBuilder.toMetadata(),
             appliedStereotypes = body.appliedStereotypeList.toList<AppliedStereotype>(),
@@ -109,6 +111,7 @@ class StateBodyBuilder internal constructor(
     var entry: String? = null
     var exit: String? = null
     var doActivity: String? = null
+    var invariant: String? = null
     val stereotypes: MutableList<String> = mutableListOf()
     override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 
@@ -465,6 +468,7 @@ fun UmlStateMachineScope.compositeState(
             entry = builder.entry,
             exit = builder.exit,
             doActivity = builder.doActivity,
+            invariant = builder.invariant,
             substates = builder.substates.toList(),
             stereotypes = builder.stereotypes.toList(),
         )
@@ -491,6 +495,7 @@ fun UmlCompositeStateScope.compositeState(
             entry = builder.entry,
             exit = builder.exit,
             doActivity = builder.doActivity,
+            invariant = builder.invariant,
             substates = builder.substates.toList(),
             stereotypes = builder.stereotypes.toList(),
         )
@@ -506,6 +511,7 @@ class CompositeStateBuilder internal constructor(
     var entry: String? = null
     var exit: String? = null
     var doActivity: String? = null
+    var invariant: String? = null
     val stereotypes: MutableList<String> = mutableListOf()
 
     internal val substates = mutableListOf<UmlVertex>()

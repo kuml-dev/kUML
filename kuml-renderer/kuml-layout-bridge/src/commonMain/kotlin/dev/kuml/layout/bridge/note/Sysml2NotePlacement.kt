@@ -27,6 +27,7 @@ public object Sysml2NotePlacement {
      * @param nodeObstacle the rectangle a node blocks (a sequence lifeline node is head plus stem, but only the head blocks).
      * @param placedLabels edge labels already planned (edge id to rectangle, layout coordinates): they are obstacles as
      *   drawn; the estimate of [edgeLabels] is only used for edges without an entry.
+     * @param measure sizes the note boxes (state machines wrap at 220 px, see [WidthLimitedNoteMeasure]).
      * @param configure adds more obstacles (lifeline stems, fragment frames, message arrows, port labels).
      */
     public fun place(
@@ -39,6 +40,7 @@ public object Sysml2NotePlacement {
         config: NotePlacementConfig = NotePlacementConfig(),
         nodeObstacle: (String, Rect) -> Rect = { _, r -> r },
         placedLabels: Map<String, Rect> = emptyMap(),
+        measure: NoteMeasure = DefaultNoteMeasure,
     ): NotePlacementResult {
         if (model.comments.isEmpty()) return NotePlacementResult(layout = layout, unresolved = emptyList(), truncated = emptyList())
         val resolver = AnchorGeometryResolver(layout = layout, extras = extras)
@@ -63,7 +65,14 @@ public object Sysml2NotePlacement {
         if (inputs.isEmpty()) return NotePlacementResult(layout = layout, unresolved = emptyList(), truncated = emptyList())
         val obstacles = obstaclesOf(layout = layout, edgeLabels = edgeLabels, nodeObstacle = nodeObstacle, placedLabels = placedLabels)
         configure(obstacles)
-        return NotePlacer.place(layout = layout, notes = inputs, resolver = resolver, obstacles = obstacles, config = config)
+        return NotePlacer.place(
+            layout = layout,
+            notes = inputs,
+            resolver = resolver,
+            obstacles = obstacles,
+            measure = measure,
+            config = config,
+        )
     }
 
     /** The obstacle model of an existing layout. */

@@ -43,6 +43,7 @@ sealed interface UmlVertex : UmlNamedElement
  * @property entry Activity executed on entering this state (text expression).
  * @property exit Activity executed on exiting this state.
  * @property doActivity Activity executed while in this state (concurrent).
+ * @property invariant Optional state invariant, rendered as `[text]` above entry/do/exit; purely descriptive.
  * @property substates Sub-vertices for composite states (empty for simple states).
  */
 @Serializable
@@ -62,6 +63,7 @@ data class UmlState(
      * state is entered. [substates] remain the single implicit region of the classic hierarchy.
      */
     val regions: List<UmlRegion> = emptyList(),
+    val invariant: String? = null,
 ) : UmlVertex,
     Stereotypable
 

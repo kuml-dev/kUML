@@ -831,13 +831,14 @@ public object Sysml2LayoutBridge {
                     dev.kuml.layout.Size(width = STM_PSEUDO_SIZE, height = STM_PSEUDO_SIZE)
                 else -> {
                     val def = model.definitions.firstOrNull { it.id == id } as? StateDefinition
-                    val actionCount =
-                        listOfNotNull(def?.entryAction, def?.exitAction, def?.doAction)
-                            .count { it.isNotBlank() }
-                    val baseH =
-                        NAME_LINE_H +
-                            (if (actionCount > 0) DIVIDER_GAP + actionCount * ACTION_LINE_H else 0f) +
-                            BOX_V_PADDING
+                    val compartment =
+                        StateActionCompartment.lines(
+                            invariant = def?.invariant,
+                            entry = def?.entryAction,
+                            doActivity = def?.doAction,
+                            exit = def?.exitAction,
+                        )
+                    val baseH = NAME_LINE_H + StateActionCompartment.height(compartment) + BOX_V_PADDING
                     val (wExtra, hExtra) =
                         stmConnectionPuffer(
                             transitionCount = connectionsById[id] ?: 0,
@@ -852,12 +853,7 @@ public object Sysml2LayoutBridge {
                     // BDD_BODY_CHAR_PX are already calibrated for exactly the `.kuml-title`/
                     // `.kuml-body` CSS classes STM boxes render with -- no new constants needed.
                     val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
-                    val actionMaxW =
-                        listOfNotNull(
-                            def?.entryAction?.takeIf { it.isNotBlank() }?.let { "entry / $it" },
-                            def?.doAction?.takeIf { it.isNotBlank() }?.let { "do / $it" },
-                            def?.exitAction?.takeIf { it.isNotBlank() }?.let { "exit / $it" },
-                        ).maxOfOrNull { it.length * BDD_BODY_CHAR_PX } ?: 0f
+                    val actionMaxW = (compartment.maxOfOrNull { it.length * BDD_BODY_CHAR_PX } ?: 0f)
                     val contentW = maxOf(nameW, actionMaxW) + 2 * IBD_H_PAD
                     dev.kuml.layout.Size(
                         width = maxOf(STM_STATE_WIDTH, contentW) + wExtra,
@@ -1535,7 +1531,11 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges).withLayoutSpec(diagram = diagram)
+        val initialIds =
+            diagram.elementIds
+                .mapNotNull { id -> (model.definitions.firstOrNull { it.id == id } as? StateDefinition)?.takeIf { it.isInitial }?.id }
+                .toSet()
+        return LayoutGraph(nodes = nodes, edges = edges).withLayoutSpec(diagram = diagram, initialIds = initialIds)
     }
 
     /**
@@ -1575,14 +1575,20 @@ public object Sysml2LayoutBridge {
         val groupIds = mutableSetOf<String>()
         for (s in states) {
             if (!isComposite(s)) continue
-            val actionLines = listOfNotNull(s.entryAction, s.exitAction, s.doAction).count { it.isNotBlank() }
+            val compartment =
+                StateActionCompartment.lines(invariant = s.invariant, entry = s.entryAction, doActivity = s.doAction, exit = s.exitAction)
+            val actionLines = compartment.size
             groups +=
                 LayoutGroup(
                     id = GroupId(s.id),
                     parent = containerOf(s),
                     padding = STM_COMPOSITE_PADDING.copy(top = STM_COMPOSITE_PADDING.top + actionLines * STM_COMPOSITE_ACTION_LINE_H),
                     layoutAsCompound = true,
-                    minSize = STM_COMPOSITE_MIN_SIZE,
+                    // The action lines must fit the frame's width as well (PAL wave 2D-b).
+                    minSize =
+                        STM_COMPOSITE_MIN_SIZE.copy(
+                            width = maxOf(STM_COMPOSITE_MIN_SIZE.width, StateActionCompartment.width(compartment)),
+                        ),
                 )
             groupIds += s.id
             val usedRegions = childrenByParent[s.id].orEmpty().mapNotNull { it.regionId }.toSet()
@@ -1646,7 +1652,7 @@ public object Sysml2LayoutBridge {
             }
         }
         return LayoutGraph(nodes = nodes, edges = edges, groups = groups)
-            .withLayoutSpec(diagram = diagram)
+            .withLayoutSpec(diagram = diagram, initialIds = states.filter { it.effectiveKind == StateKind.Initial }.map { it.id }.toSet())
     }
 
     /**

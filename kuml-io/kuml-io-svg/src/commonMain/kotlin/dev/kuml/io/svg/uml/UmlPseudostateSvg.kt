@@ -40,8 +40,7 @@ internal fun renderUmlPseudostate(
                             "cx" to fmt(cx),
                             "cy" to fmt(cy),
                             "r" to fmt(r),
-                            "class" to "kuml-class",
-                            "fill" to "currentColor",
+                            "class" to "kuml-pseudo-filled",
                         ),
                 )
             }
@@ -64,8 +63,7 @@ internal fun renderUmlPseudostate(
                             "y" to fmt(cy - 4f),
                             "width" to fmt(w),
                             "height" to "8",
-                            "class" to "kuml-class",
-                            "fill" to "currentColor",
+                            "class" to "kuml-pseudo-filled",
                         ),
                 )
             }

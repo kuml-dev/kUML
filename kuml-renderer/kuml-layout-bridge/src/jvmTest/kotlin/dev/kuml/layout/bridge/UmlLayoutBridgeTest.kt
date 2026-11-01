@@ -23,6 +23,8 @@ import dev.kuml.uml.UmlStateMachine
 import dev.kuml.uml.UmlTransition
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.floats.shouldBeGreaterThan
+import io.kotest.matchers.floats.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -433,6 +435,31 @@ class UmlLayoutBridgeTest :
             graph.nodes shouldHaveSize 2
             graph.nodes.forEach { it.groupId shouldBe GroupId("sm") }
             graph.edges shouldHaveSize 1
+        }
+
+        test("UmlLayoutBridge: a state with entry, do, exit and invariant is sized for its compartment (PAL 2D-b)") {
+            val plain = UmlState(id = "plain", name = "Plain")
+            val rich =
+                UmlState(
+                    id = "rich",
+                    name = "Rich",
+                    entry = "verriegeln()",
+                    doActivity = "an extremely long activity expression that needs more room than the default state width",
+                    exit = "entriegeln()",
+                    invariant = "gesichert",
+                )
+            val sm = UmlStateMachine(id = "sm", name = "M", vertices = listOf(plain, rich), transitions = emptyList())
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram = KumlDiagram(name = "D", elements = listOf(sm)))
+            val plainSize = graph.nodes.single { it.id.value == "plain" }.intrinsicSize
+            val richSize = graph.nodes.single { it.id.value == "rich" }.intrinsicSize
+            val lines =
+                StateActionCompartment.lines(invariant = rich.invariant, entry = rich.entry, doActivity = rich.doActivity, exit = rich.exit)
+            lines.size shouldBe 4
+            lines[0] shouldBe "[gesichert]"
+            richSize.width shouldBeGreaterThanOrEqual StateActionCompartment.width(lines)
+            richSize.width shouldBeGreaterThan plainSize.width
+            // name block + separator + four lines + bottom pad
+            richSize.height shouldBeGreaterThanOrEqual (26f + 14f + 4 * StateActionCompartment.LINE_H)
         }
 
         test("UmlLayoutBridge: composite state becomes nested LayoutGroup; substates land inside it") {
