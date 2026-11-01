@@ -430,6 +430,11 @@ internal object DesktopRenderPipeline {
                             .of(diagram),
                     diagramName = diagram.name,
                 ) {
+                    // PAL 2C-b3: binding labels without a free spot are reported as KUML-LAYOUT-W005.
+                    env.layoutFindings +=
+                        Sysml2LayoutBridge
+                            .parLabelWarnings(KumlSvgRenderer.parLabelPlan(model = model, diagram = diagram, layoutResult = it))
+                            .map { f -> "[${f.code}] ${f.message}" }
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
         }

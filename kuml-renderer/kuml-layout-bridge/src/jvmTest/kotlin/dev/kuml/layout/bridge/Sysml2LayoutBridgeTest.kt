@@ -1603,7 +1603,8 @@ class Sysml2LayoutBridgeTest :
             val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = par)
             val node = graph.nodes.single()
             node.intrinsicSize.width shouldBe Sysml2LayoutBridge.PAR_CONSTRAINT_WIDTH
-            node.intrinsicSize.height shouldBe 70f
+            // 1 expression line: divider after the expression at 69 px + 8 px bottom pad (no parameters).
+            node.intrinsicSize.height shouldBe 77f
             SampleOutput.write(
                 filename = "sysml2-layout-bridge/par-constraint-default-size.layout.json",
                 content = prettyJson.encodeToString(graph),

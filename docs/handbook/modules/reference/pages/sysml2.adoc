@@ -208,6 +208,17 @@ connectionDef(name = "Feed", style = ConnectionLineStyle.DASHED, color = "#1D296
 connection typed by the definition is drawn that way. There is no legend.
 
 
+=== IBD findings
+
+[cols="1,1,3",options="header"]
+|===
+| Code | Severity | Rule
+| `IBD501` | Warning | an end of a `connect(...)` or flow does not resolve to a part, port or owner port; the edge is not drawn
+|===
+
+Use `Owner::port`, `part.port` or a bare owner-port name as an end. `kuml validate`, the Desktop validate and the
+Desktop render warnings report `IBD501`.
+
 == Use Case Diagrams (UC)
 
 SysML 2 use case syntax mirrors UML use case: actors, use cases, `include`/`extend`
@@ -1062,7 +1073,21 @@ sysml2Model(name = "VehicleDynamicsModel") {
 | `PAR439` | Error | `parent` is not a known constraint definition
 | `PAR440` | Error | more than 64 parameters on one constraint
 | `PAR441` | Warning | binding endpoint does not name a parameter of its constraint
+| `PAR442` | Warning | `include(...)` of an `attributeDef` in a `parDiagram` has no effect
 |===
+
+=== Rows, expressions, units and binding labels
+
+* Parameter rows are 18 px apart, so the pin squares (8 px) of one box never touch. Box text and pins share one
+  geometry.
+* An expression wraps at 60 characters per line, preferably before `&&` or `||`, then before a comparison operator
+  or `+`/`-`, then at a blank (a single token longer than 60 characters is cut hard). The box grows with the line
+  count. An expression is capped at 200 characters (then `...`); longer text is a model smell, not a rendering task.
+* A parameter row shows the unit of its type: with `attributeDef(name = "Druck", unitSymbol = "Pa")` a parameter
+  `typeId = "Druck"` reads `«in» pMix : Druck [Pa]`. A unit is only shown through the parameter type; including
+  the `attributeDef` in the diagram does nothing (`PAR442`).
+* Binding labels stand beside their line with at least 2 px to every line, line end, box, pin and other label. If
+  no spot is free the label is drawn on its line and `kuml render` reports `KUML-LAYOUT-W005`.
 
 Known limits: a binding that crosses more than one nesting level (outer pin to a grandchild pin) is drawn as a
 straight line between the two pins, and the LaTeX renderer still draws constraint boxes without pins.

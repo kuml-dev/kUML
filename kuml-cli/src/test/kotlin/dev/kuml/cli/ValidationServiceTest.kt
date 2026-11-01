@@ -1,5 +1,6 @@
 package dev.kuml.cli
 
+import com.github.ajalt.clikt.testing.test
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
@@ -90,6 +91,58 @@ class ValidationServiceTest :
             val codes = ValidationService.validate(script = script).map { it.code }
             codes.count { it == "KUML-LAYOUT-W001" } shouldBe 2
             codes.count { it == "KUML-LAYOUT-W004" } shouldBe 1
+        }
+
+        val ibdScript =
+            """
+            sysml2Model(name = "M") {
+                portDef(name = "Sig")
+                partDef(name = "Inner") { port(name = "ein", typeId = "Sig", direction = dev.kuml.sysml2.PortDirection.In) }
+                val owner = partDef(name = "Steuerung") {
+                    port(name = "eingang", typeId = "Sig", direction = dev.kuml.sysml2.PortDirection.In)
+                    part(name = "logik", typeId = "Inner")
+                    connect(name = "c1", typeId = "Sig", sourceEndId = "gibtsNicht", targetEndId = "logik.ein")
+                }
+                ibd(name = "Wiring", owner = owner)
+            }
+            """.trimIndent()
+
+        val parScript =
+            """
+            sysml2Model(name = "P") {
+                val druck = attributeDef(name = "Druck", unitSymbol = "Pa")
+                val c = constraintDef(name = "Mix", expression = "a = b")
+                parDiagram(name = "Par") {
+                    include(c)
+                    include(druck)
+                }
+            }
+            """.trimIndent()
+
+        test("IBD501 and PAR442 are structure findings of the shared service (so the desktop sees them too)") {
+            val ibd = ValidationService.validate(script = ibdScript).filter { it.code == "IBD501" }
+            ibd.size shouldBe 1
+            ibd.single().severity shouldBe Severity.WARNING
+            ibd.single().format() shouldContain "gibtsNicht"
+            val par = ValidationService.validate(script = parScript).filter { it.code == "PAR442" }
+            par.size shouldBe 1
+            par.single().severity shouldBe Severity.WARNING
+            par.single().anchorId shouldBe "Druck"
+        }
+
+        test("kuml validate reports IBD501 and PAR442 exactly once and still exits 0 (warnings)") {
+            for ((script, code) in listOf(ibdScript to "IBD501", parScript to "PAR442")) {
+                val file = java.io.File.createTempFile("struct", ".kuml.kts")
+                try {
+                    file.writeText(script)
+                    val result = KumlCli().test(listOf("validate", file.absolutePath))
+                    result.output.split("[$code]").size - 1 shouldBe 1
+                    result.output shouldContain "WARN  [$code]"
+                    result.statusCode shouldBe 0
+                } finally {
+                    file.delete()
+                }
+            }
         }
 
         test("a clean script has no findings") {

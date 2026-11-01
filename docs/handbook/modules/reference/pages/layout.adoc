@@ -194,7 +194,15 @@ never covers a label that is drawn later.
   cardinality glyphs are fixed obstacles.
 * Service Blueprint: anchor lines of notes pick a free horizontal track (6 px raster, 6 px to every lane boundary,
   4 px to card edges, 6 px to other anchor tracks); when none is free the line runs in a channel below the lanes.
-* Other SysML 2 diagram kinds (STM, SEQ, PAR, REQ, UC) keep their own label placement; ACT plans pin labels and edge labels together (`Sysml2DiagramLabelPlan.planActLabels`).
+* SysML 2 PAR: binding labels are planned by `Sysml2DiagramLabelPlan.planParLabels` over the one `LabelPlacer`, before
+  the notes (and again after them). A label keeps at least 2 px from every line, line end (12 x 12 px square), box,
+  pin, box text and other label; the search runs outwards from the line up to 24 px; there are no leader lines. When
+  every spot is taken the label sits on its own line with the halo and `KUML-LAYOUT-W005` is reported by `kuml render`
+  and the Desktop. The halo is the 2 px two-pass text described above (Batik ignores `paint-order`). Pins and
+  parameter rows come from one geometry (`ParConstraintGeometry`), so the SVG, the size estimate and the pin ends
+  cannot drift apart. The layout engine reports the port or pin centre; when drawing, `PortEdgeClamp` clamps the edge
+  onto the outer border of the port or pin.
+* Other SysML 2 diagram kinds (STM, SEQ, REQ, UC) keep their own label placement; ACT plans pin labels and edge labels together (`Sysml2DiagramLabelPlan.planActLabels`).
 
 == SysML 2 layout hints
 

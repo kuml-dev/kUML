@@ -16,6 +16,7 @@ import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.dsl.sysml2Model
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.floats.shouldBeLessThanOrEqual
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
@@ -137,29 +138,88 @@ class Sysml2ParSvgTest :
             SampleOutput.write(filename = "sysml2-par/parameter-directions.svg", content = svg)
         }
 
-        "PAR long expression is truncated with ellipsis" {
-            val longExpr = "F = m * a + b * c + d * e + f * g + h * i + j * k"
+        "PAR expression of 60 characters is complete and a 120 character one wraps into two text lines" {
+            val expr60 = "alpha_beta_gamma_delta_epsilon_zeta_eta_theta_iota_kappa_lam"
+            expr60.length shouldBe 60
+            val expr120 = "$expr60 && omega_psi_chi_phi_upsilon_tau_sigma_rho_pi_omicron_x"
             val model =
                 sysml2Model(name = "LongExpr") {
-                    val c =
-                        constraintDef(
-                            name = "Long",
-                            expression = longExpr,
-                            parameters = emptyList(),
-                        )
+                    val short = constraintDef(name = "Short", expression = expr60, parameters = emptyList())
+                    val long = constraintDef(name = "Long", expression = expr120, parameters = emptyList())
                     parDiagram(name = "Long") {
-                        include(c)
+                        include(short)
+                        include(long)
                     }
                 }
             val par = model.diagrams.filterIsInstance<ParDiagram>().single()
-            val svg = KumlSvgRenderer.toSvg(model = model, diagram = par, layoutResult = fakeLayout("Long"), theme = PlainTheme())
+            val layout =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = 1L,
+                    canvas = Size(width = 800f, height = 200f),
+                    nodes =
+                        mapOf(
+                            NodeId("Short") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 440f, height = 80f))),
+                            NodeId("Long") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 480f, y = 20f), size = Size(width = 440f, height = 100f))),
+                        ),
+                    edges = emptyMap(),
+                    groups = emptyMap(),
+                )
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = par, layoutResult = layout, theme = PlainTheme())
 
-            // The expression is longer than the truncation threshold so the SVG
-            // must contain the ellipsis suffix but not the full text.
-            svg shouldContain "…"
-            svg shouldNotContain longExpr
+            Regex(""">\s*$expr60\s*<""").containsMatchIn(svg) shouldBe true
+            svg shouldNotContain "…"
+            Regex(""">\s*&amp;&amp; omega_psi_chi_phi_upsilon_tau_sigma_rho_pi_omicron_x\s*<""").containsMatchIn(svg) shouldBe true
+            Regex("""font-family="monospace"""").findAll(svg).count() shouldBe 3
 
-            SampleOutput.write(filename = "sysml2-par/long-expression-truncated.svg", content = svg)
+            SampleOutput.write(filename = "sysml2-par/long-expression-wrapped.svg", content = svg)
+        }
+
+        "PAR parameter shows the unit of its AttributeDefinition" {
+            val model =
+                sysml2Model(name = "Units") {
+                    attributeDef(name = "Druck", unitSymbol = "Pa")
+                    val c =
+                        constraintDef(
+                            name = "Mix",
+                            expression = "pMix = p1 + p2",
+                            parameters =
+                                listOf(
+                                    ConstraintParameter(name = "pMix", typeId = "Druck", direction = ConstraintParameterDirection.In),
+                                ),
+                        )
+                    parDiagram(name = "Units") { include(c) }
+                }
+            val par = model.diagrams.filterIsInstance<ParDiagram>().single()
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = par, layoutResult = fakeLayout("Mix"), theme = PlainTheme())
+
+            svg shouldContain "«in» pMix : Druck [Pa]"
+
+            SampleOutput.write(filename = "sysml2-par/parameter-unit.svg", content = svg)
+        }
+
+        "PAR pin squares in the SVG match the bridge pin points" {
+            val (model, par) = newtonModel()
+            val layout = fakeLayout("NewtonsLaw")
+            val c = model.definitions.filterIsInstance<dev.kuml.sysml2.ConstraintDefinition>().single()
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = par, layoutResult = layout, theme = PlainTheme())
+            val bounds = layout.nodes.getValue(NodeId("NewtonsLaw")).bounds
+            val pinRects =
+                Regex("""<rect x="([-0-9.]+)" y="([-0-9.]+)" width="8" height="8" class="kuml-class kuml-par-pin"""").findAll(svg).toList()
+            pinRects.size shouldBe c.parameters.size
+            c.parameters.indices.forEach { i ->
+                val p =
+                    dev.kuml.layout.bridge.ParConstraintGeometry
+                        .pinPoint(constraint = c, index = i, bounds = bounds)
+                // the group is translated by the node origin plus the canvas padding; compare in local box coordinates
+                val local = pinRects[i].groupValues
+                val cx = local[1].toFloat() + 4f
+                val cy = local[2].toFloat() + 4f
+                kotlin.math.abs(cy - (p.y - bounds.origin.y)) shouldBeLessThanOrEqual 0.01f
+                kotlin.math.abs(cx - (p.x - bounds.origin.x)) shouldBeLessThanOrEqual 0.01f
+            }
         }
 
         "deterministic output — same input renders byte-identically" {

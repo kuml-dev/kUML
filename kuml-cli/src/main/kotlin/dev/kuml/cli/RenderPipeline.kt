@@ -1247,6 +1247,12 @@ internal object RenderPipeline {
                         kind = SpecDiagramKind.SYSML2_PAR,
                         diagramName = diagram.name,
                     )
+                // PAL 2C-b3: a binding label without a free spot is reported as KUML-LAYOUT-W005 (the render itself still succeeds).
+                report(
+                    Sysml2LayoutBridge.parLabelWarnings(
+                        KumlSvgRenderer.parLabelPlan(model = model, diagram = diagram, layoutResult = layoutResult),
+                    ),
+                )
                 when (format) {
                     "svg" ->
                         writeText(

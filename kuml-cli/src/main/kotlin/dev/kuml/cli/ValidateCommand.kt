@@ -301,7 +301,10 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                                 it.code == dev.kuml.core.model.layout.LayoutCodes.UNKNOWN_ID ||
                                     it.code == dev.kuml.core.model.layout.LayoutCodes.OUT_OF_RANGE
                             )
-                    }.map { f ->
+                    }
+                    // PAR and IBD structure findings are reported once, in the requirement / use case section below.
+                    .filterNot { it.code.startsWith("PAR") || it.code.startsWith("IBD") }
+                    .map { f ->
                         StructuralViolation(
                             id = f.code,
                             severity = if (f.severity == Severity.ERROR) "error" else "warning",
@@ -397,6 +400,22 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                         }
                     }
                 } ?: emptyList()
+        // PAL wave 2C-b3: internal block diagram check (IBD501: a connection end that does not resolve).
+        val ibdViolations: List<StructuralViolation> =
+            (extracted as? ExtractedDiagram.Sysml2)
+                ?.let { ex ->
+                    (ex.diagram as? dev.kuml.sysml2.IbdDiagram)?.let { id ->
+                        dev.kuml.sysml2.constraint.Sysml2IbdChecker.check(model = ex.model, diagram = id).map { i ->
+                            StructuralViolation(
+                                id = "IBD${i.code}",
+                                severity = if (i.severity == dev.kuml.sysml2.constraint.IbdSeverity.Error) "error" else "warning",
+                                message = "${i.message} Hint: ${i.hint}",
+                                location = i.elementId,
+                                category = "ibd",
+                            )
+                        }
+                    }
+                } ?: emptyList()
         // Wave C3: layout hint checks (412, 431-436) for every SysML 2 diagram type.
         val layoutHintViolations: List<StructuralViolation> =
             (extracted as? ExtractedDiagram.Sysml2)
@@ -411,9 +430,9 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                         )
                     }
                 } ?: emptyList()
-        val reqUcErrors = (reqUcViolations + layoutHintViolations + parViolations).filter { it.severity == "error" }
-        val reqUcWarnings = (reqUcViolations + layoutHintViolations + parViolations).filter { it.severity == "warning" }
-        if (reqUcViolations.isNotEmpty() || layoutHintViolations.isNotEmpty() || parViolations.isNotEmpty()) {
+        val reqUcErrors = (reqUcViolations + layoutHintViolations + parViolations + ibdViolations).filter { it.severity == "error" }
+        val reqUcWarnings = (reqUcViolations + layoutHintViolations + parViolations + ibdViolations).filter { it.severity == "warning" }
+        if (reqUcViolations.isNotEmpty() || layoutHintViolations.isNotEmpty() || parViolations.isNotEmpty() || ibdViolations.isNotEmpty()) {
             echo("\nRequirement / use case validation:")
             for (rv in reqUcErrors) echo("  ERROR [${rv.id}] ${rv.location}: ${rv.message}")
             for (rv in reqUcWarnings) echo("  WARN  [${rv.id}] ${rv.location}: ${rv.message}")
@@ -446,6 +465,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                 reqUcViolations +
                 layoutHintViolations +
                 parViolations +
+                ibdViolations +
                 styleViolations
         val combined =
             KumlValidationResult(

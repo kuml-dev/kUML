@@ -1,5 +1,6 @@
 package dev.kuml.sysml2.constraint
 
+import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ParDiagram
@@ -28,6 +29,7 @@ public data class ParIssue(
  * | 439 | Error | `ownerConstraintId` refers to an unknown constraint definition |
  * | 440 | Error | more than [Sysml2Limits.CONSTRAINT_PARAMETERS] parameters on one constraint |
  * | 441 | Warning | a binding endpoint addresses a constraint, but the rest is not one of its parameters |
+ * | 442 | Warning | `include` of an `AttributeDefinition` in the diagram (no effect; the unit comes from `unitSymbol` on the parameter type) |
  *
  * Chains are walked iteratively with a hard step bound, so hostile models cannot make the checker loop.
  */
@@ -111,6 +113,28 @@ public object Sysml2ParChecker {
                             }.ifEmpty { "(none declared)" }}. The pin() helper checks this at build time.",
                         )
                 }
+            }
+        }
+        if (diagram != null) {
+            val attributeDefs =
+                model.definitions
+                    .filterIsInstance<AttributeDefinition>()
+                    .map { it.id }
+                    .toSet()
+            for (id in diagram.elementIds.distinct().filter { it in attributeDefs }) {
+                val shown = id.take(Sysml2Limits.TEXT)
+                issues +=
+                    ParIssue(
+                        code = 442,
+                        severity = ParSeverity.Warning,
+                        elementId = id,
+                        message =
+                            "include of attributeDef '$shown' has no effect in a parametric diagram; " +
+                                "units are shown via unitSymbol on parameters",
+                        hint =
+                            "Include a value property (attribute usage) or the owning part definition instead; " +
+                                "set unitSymbol on the attributeDef to show its unit at every parameter typed with it.",
+                    )
             }
         }
         return issues

@@ -2386,7 +2386,7 @@ public object Sysml2LayoutBridge {
                 }
             val ports =
                 if (def is ConstraintDefinition) {
-                    val hasExpr = def.expression.isNotEmpty()
+                    val exprLines = ParConstraintGeometry.expressionLinesOf(def).size
                     val bySide = def.parameters.groupBy { ParConstraintGeometry.pinSide(it.direction) }
                     def.parameters.mapIndexed { i, p ->
                         val side = ParConstraintGeometry.pinSide(p.direction)
@@ -2395,7 +2395,7 @@ public object Sysml2LayoutBridge {
                             side = side,
                             order = bySide.getValue(side).indexOf(p),
                             size = Size(width = ParConstraintGeometry.PIN_SIZE, height = ParConstraintGeometry.PIN_SIZE),
-                            offset = ParConstraintGeometry.pinY(hasExpression = hasExpr, index = i),
+                            offset = ParConstraintGeometry.pinY(expressionLines = exprLines, index = i),
                         )
                     }
                 } else {
@@ -2493,6 +2493,24 @@ public object Sysml2LayoutBridge {
             ownSize = { id -> sizeProvider.sizeOf(elementId = id, elementKind = "ConstraintDefinition") },
         )
 
+    /** All pin squares of a parametric diagram, absolute, for the label planner (PAL wave 2C-b3). */
+    public fun parPinRects(
+        model: Sysml2Model,
+        diagram: ParDiagram,
+        layout: LayoutResult,
+    ): List<dev.kuml.layout.Rect> = Sysml2ParLabelGeometry.pinRects(model = model, diagram = diagram, layout = layout)
+
+    /** Estimated text rectangles (stereotype, name, expression, parameters) of all constraint boxes, absolute. */
+    public fun parTextRects(
+        model: Sysml2Model,
+        diagram: ParDiagram,
+        layout: LayoutResult,
+    ): List<dev.kuml.layout.Rect> = Sysml2ParLabelGeometry.textRects(model = model, diagram = diagram, layout = layout)
+
+    /** `KUML-LAYOUT-W005` findings for binding labels without a free spot. */
+    public fun parLabelWarnings(plan: dev.kuml.layout.bridge.label.Sysml2LabelPlanResult): List<LayoutSpecFinding> =
+        Sysml2ParLabelGeometry.warnings(plan)
+
     /**
      * Avg width of an 11pt monospace char (constraint expression compartment,
      * `font-family="monospace"` in [dev.kuml.io.svg.sysml2.renderConstraintDefinition]).
@@ -2500,7 +2518,8 @@ public object Sysml2LayoutBridge {
      * proportional [BDD_BODY_CHAR_PX] estimate, since every glyph is sized to
      * fit the widest character in the font.
      */
-    public const val PAR_EXPRESSION_CHAR_PX: Float = 7.2f
+    @Deprecated("Use ParConstraintGeometry.EXPRESSION_CHAR_PX", ReplaceWith("ParConstraintGeometry.EXPRESSION_CHAR_PX"))
+    public const val PAR_EXPRESSION_CHAR_PX: Float = ParConstraintGeometry.EXPRESSION_CHAR_PX
 
     /**
      * Content-aware [SizeProvider] for PAR diagrams (V2.0.44).
@@ -2527,53 +2546,29 @@ public object Sysml2LayoutBridge {
      */
     public fun parContentAwareSizeProvider(model: Sysml2Model): SizeProvider {
         val bdd = bddContentAwareSizeProvider(model)
+        val units = ParConstraintGeometry.unitLookup(model)
         return SizeProvider { id, kindHint ->
             when (kindHint) {
                 "ConstraintDefinition" -> {
                     val c = model.definitions.firstOrNull { it.id == id } as? ConstraintDefinition
-                    val paramCount = c?.parameters?.size ?: 0
-                    val hasExpression = c?.expression?.isNotBlank() == true
-                    val h =
-                        STEREOTYPE_LINE_H + NAME_LINE_H +
-                            (if (hasExpression) DIVIDER_GAP + FEATURE_LINE_H else 0f) +
-                            (if (paramCount > 0) DIVIDER_GAP + paramCount * FEATURE_LINE_H else 0f) +
-                            BOX_V_PADDING
+                    val h = c?.let { ParConstraintGeometry.contentHeight(it) } ?: PAR_CONSTRAINT_HEIGHT
                     val nameW = (c?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
-                    // EXPRESSION_MAX_CHARS in Sysml2ConstraintSvg.kt (kuml-io-svg) —
-                    // duplicated per the house convention (io-svg can't be depended
-                    // on from layout-bridge); MUST stay numerically identical.
-                    val exprLen = minOf(c?.expression?.length ?: 0, PAR_EXPRESSION_MAX_CHARS_FOR_SIZING)
-                    val exprW = exprLen * PAR_EXPRESSION_CHAR_PX
+                    val exprW =
+                        (c?.let { ParConstraintGeometry.expressionLinesOf(it) }.orEmpty().maxOfOrNull { it.length } ?: 0) *
+                            ParConstraintGeometry.EXPRESSION_CHAR_PX
                     val paramMaxW =
                         c?.parameters?.maxOfOrNull { p ->
-                            val stereo =
-                                when (p.direction) {
-                                    dev.kuml.sysml2.ConstraintParameterDirection.In -> "«in»"
-                                    dev.kuml.sysml2.ConstraintParameterDirection.Out -> "«out»"
-                                    dev.kuml.sysml2.ConstraintParameterDirection.Inout -> "«inout»"
-                                }
-                            val typeSuffix = p.typeId?.let { " : $it" } ?: ""
-                            "$stereo ${p.name}$typeSuffix".length * BDD_BODY_CHAR_PX
+                            ParConstraintGeometry.parameterLine(p = p, unitOf = units).length * BDD_BODY_CHAR_PX +
+                                ParConstraintGeometry.PARAM_TEXT_INDENT
                         } ?: 0f
                     val contentW = maxOf(nameW, exprW, paramMaxW) + 2 * IBD_H_PAD
-                    dev.kuml.layout.Size(width = maxOf(contentW, PAR_CONSTRAINT_WIDTH), height = maxOf(h, 70f))
+                    dev.kuml.layout.Size(width = maxOf(contentW, PAR_CONSTRAINT_WIDTH), height = h)
                 }
                 "PartDefinition" -> bdd.sizeOf(elementId = id, elementKind = kindHint)
                 else -> dev.kuml.layout.Size(width = PAR_CONSTRAINT_WIDTH, height = PAR_CONSTRAINT_HEIGHT)
             }
         }
     }
-
-    /**
-     * Rendered constraint-expression text is truncated at this many
-     * characters by [dev.kuml.io.svg.sysml2.renderConstraintDefinition]
-     * (`EXPRESSION_MAX_CHARS` in `Sysml2ConstraintSvg.kt`, kuml-io-svg).
-     * Duplicated here solely to cap the expression-line contribution to
-     * [parContentAwareSizeProvider]'s width estimate at the same length that
-     * actually renders; MUST stay numerically identical to the io-svg
-     * constant.
-     */
-    public const val PAR_EXPRESSION_MAX_CHARS_FOR_SIZING: Int = 30
 
     /**
      * Enriches a raw [LayoutResult] with port positions derived from the

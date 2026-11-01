@@ -3881,20 +3881,95 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements + sysml2NoteElements(model),
             )
+        val adapter = ParEdgeAdapter(model = model, diagram = diagram)
+        // C4: nested constraint boxes and the bindings inside one composite are placed here (idempotent).
+        val enriched = Sysml2LayoutBridge.parEnrich(model = model, diagram = diagram, layoutResult = layoutResult)
+        val plan = planParLabels(model = model, diagram = diagram, layout = enriched, adapter = adapter)
+        // PAL 2C-b3: binding labels are planned first; the notes then avoid the rectangles the labels are really drawn at.
+        val notedLayout =
+            placeSysml2NotesResult(
+                model = model,
+                diagram = diagram,
+                layout = enriched,
+                adapter = adapter,
+                configure = parObstacles(model = model, diagram = diagram, layout = enriched),
+                placedLabels = plan.labels,
+            ).layout
+        // Second pass: with the notes in place, the labels move away from them (and from their anchor lines).
+        val finalPlan =
+            if (model.comments.isEmpty()) plan else planParLabels(model = model, diagram = diagram, layout = notedLayout, adapter = adapter)
         return renderSysml2Synthetic(
             synthetic = synthetic,
-            // C4: nested constraint boxes and the bindings inside one composite are placed here (idempotent).
-            rawLayoutResult =
-                placeSysml2Notes(
-                    model = model,
-                    diagram = diagram,
-                    layout = Sysml2LayoutBridge.parEnrich(model = model, diagram = diagram, layoutResult = layoutResult),
-                    adapter = ParEdgeAdapter(model = model, diagram = diagram),
-                ),
+            rawLayoutResult = notedLayout,
+            plannedEdgeLabels = finalPlan.labels,
             theme = theme,
             options = options,
-            sysml2EdgeAdapter = ParEdgeAdapter(model = model, diagram = diagram),
+            sysml2EdgeAdapter = adapter,
+            sysml2Context =
+                dev.kuml.io.svg.sysml2
+                    .Sysml2NodeContext(model = model),
+            edgeBackdropFill = theme.colors.background.toHex(),
             typeLabel = "parametric",
+        )
+    }
+
+    /**
+     * The binding-label plan of a parametric diagram (PAL wave 2C-b3), without rendering: placed rectangles plus the
+     * `clean` flag per label. The CLI and the desktop use it to report `KUML-LAYOUT-W005` for labels without a free spot.
+     * [layoutResult] is the raw engine result; the nested constraint boxes are added here (idempotent).
+     */
+    public fun parLabelPlan(
+        model: Sysml2Model,
+        diagram: ParDiagram,
+        layoutResult: LayoutResult,
+    ): dev.kuml.layout.bridge.label.Sysml2LabelPlanResult {
+        val adapter = ParEdgeAdapter(model = model, diagram = diagram)
+        val enriched = Sysml2LayoutBridge.parEnrich(model = model, diagram = diagram, layoutResult = layoutResult)
+        val plan = planParLabels(model = model, diagram = diagram, layout = enriched, adapter = adapter)
+        if (model.comments.isEmpty()) return plan
+        val noted =
+            placeSysml2NotesResult(
+                model = model,
+                diagram = diagram,
+                layout = enriched,
+                adapter = adapter,
+                configure = parObstacles(model = model, diagram = diagram, layout = enriched),
+                placedLabels = plan.labels,
+            ).layout
+        return planParLabels(model = model, diagram = diagram, layout = noted, adapter = adapter)
+    }
+
+    private fun parObstacles(
+        model: Sysml2Model,
+        diagram: ParDiagram,
+        layout: LayoutResult,
+    ): (ObstacleIndex) -> Unit =
+        { o ->
+            for (r in Sysml2LayoutBridge.parPinRects(model = model, diagram = diagram, layout = layout)) {
+                o.addRect(kind = dev.kuml.layout.bridge.note.ObstacleKind.PORT, r = r)
+            }
+        }
+
+    private fun planParLabels(
+        model: Sysml2Model,
+        diagram: ParDiagram,
+        layout: LayoutResult,
+        adapter: Sysml2EdgeAdapter,
+    ): dev.kuml.layout.bridge.label.Sysml2LabelPlanResult {
+        val sizes = LinkedHashMap<String, dev.kuml.layout.Size>()
+        for (edgeId in layout.edges.keys) {
+            val md = adapter.metadataFor(edgeId.value) ?: continue
+            val lines = Sysml2EdgeRenderer.drawnLabelLines(md)
+            if (lines.isEmpty()) continue
+            sizes[edgeId.value] =
+                dev.kuml.layout.bridge.label.Sysml2LabelSizing
+                    .sizeOf(lines.map { it.text })
+        }
+        return dev.kuml.layout.bridge.label.Sysml2DiagramLabelPlan.planParLabels(
+            layout = layout,
+            edgeLabelSizes = sizes,
+            pinRects = Sysml2LayoutBridge.parPinRects(model = model, diagram = diagram, layout = layout),
+            textRects = Sysml2LayoutBridge.parTextRects(model = model, diagram = diagram, layout = layout),
         )
     }
 

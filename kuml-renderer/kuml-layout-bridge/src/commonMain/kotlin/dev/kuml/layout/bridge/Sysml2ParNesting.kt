@@ -13,6 +13,7 @@ import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.port.PortAttachment
 import dev.kuml.layout.bridge.port.PortEdgeClamp
 import dev.kuml.layout.bridge.port.PortFace
+import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ConstraintParameter
@@ -35,41 +36,162 @@ public object ParConstraintGeometry {
     /** y of the first divider (below the name). */
     public const val FIRST_DIVIDER_Y: Float = 42f
 
-    /** Baseline of the expression line (when there is one). */
+    /** Baseline of the first expression line (when there is an expression). */
     public const val EXPRESSION_BASELINE: Float = 56f
 
-    /** y of the divider above the parameter list when there is an expression. */
-    public const val DIVIDER_AFTER_EXPRESSION_Y: Float = 69f
+    /** Line pitch of the (wrapped) expression. */
+    public const val EXPR_LINE_H: Float = 14f
 
-    /** Distance between a divider and the first parameter baseline. */
-    public const val PARAM_FIRST_BASELINE_OFFSET: Float = 14f
+    /** An expression line is wrapped at this many characters. */
+    public const val EXPRESSION_WRAP_CHARS: Int = 60
 
-    /** Row height of the parameter list. */
-    public const val PARAM_ROW_H: Float = 13f
+    /** Distance between a divider and the first parameter baseline (keeps ascenders 4 px below the divider). */
+    public const val PARAM_FIRST_BASELINE_OFFSET: Float = 16f
 
-    /** The pin sits this far above the parameter baseline (roughly the middle of the text line). */
+    /** Row height of the parameter list (pins of neighbouring rows stay 10 px apart). */
+    public const val PARAM_ROW_H: Float = 18f
+
+    /** The pin sits this far above the parameter baseline (middle of the x-height of 11 px text). */
     public const val PIN_BASELINE_OFFSET: Float = 4f
 
     /** Edge length of the square pin marker. */
     public const val PIN_SIZE: Float = 8f
 
+    /** Descender allowance below the last baseline. */
+    private const val DESCENDER: Float = 4f
+
+    /** Padding below the last text line of a box. */
+    public const val BOX_BOTTOM_PAD: Float = 8f
+
     /** Left indent of the parameter text; leaves room for the inner routing lanes. */
     public const val PARAM_TEXT_INDENT: Float = 18f
 
-    /** Baseline of parameter row [index]. */
+    /** Average width of an 11 pt monospace glyph (expression compartment). */
+    public const val EXPRESSION_CHAR_PX: Float = 7.2f
+
+    /** Gap between the last expression baseline and the divider below it. */
+    private const val DIVIDER_BELOW_EXPRESSION: Float = 13f
+
+    /**
+     * Wraps [expr] into lines of at most [EXPRESSION_WRAP_CHARS] characters. Deterministic single pass, no regex.
+     * Break preference within a window: before `&&`/`||`, then before a comparison/additive operator, then at a
+     * space, otherwise a hard cut. Only whitespace is dropped, so the lines concatenated equal [expr] without blanks.
+     */
+    public fun wrapExpression(expr: String): List<String> {
+        val text = expr.trim()
+        if (text.isEmpty()) return emptyList()
+        val out = ArrayList<String>()
+        var start = 0
+        while (start < text.length) {
+            while (start < text.length && text[start].isWhitespace()) start++
+            if (start >= text.length) break
+            val remaining = text.length - start
+            if (remaining <= EXPRESSION_WRAP_CHARS) {
+                out += text.substring(startIndex = start).trimEnd()
+                break
+            }
+            val cut = breakPoint(text = text, start = start)
+            out += text.substring(startIndex = start, endIndex = cut).trimEnd()
+            start = cut
+        }
+        return out
+    }
+
+    /** Absolute index at which the line beginning at [start] ends (exclusive); always > [start]. */
+    private fun breakPoint(
+        text: String,
+        start: Int,
+    ): Int {
+        val limit = minOf(text.length - 1, start + EXPRESSION_WRAP_CHARS)
+        var logical = -1
+        var comparison = -1
+        var space = -1
+        var p = start + 1
+        while (p <= limit) {
+            val c = text[p]
+            val n = if (p + 1 < text.length) text[p + 1] else ' '
+            when {
+                (c == '&' && n == '&') || (c == '|' && n == '|') -> logical = p
+                (c == '=' && n == '=') || (c == '<' || c == '>') || c == '+' || c == '-' -> comparison = p
+                c == ' ' -> space = p
+            }
+            p++
+        }
+        return when {
+            logical > 0 -> logical
+            comparison > 0 -> comparison
+            space > 0 -> space
+            else -> start + EXPRESSION_WRAP_CHARS
+        }
+    }
+
+    /** The wrapped, length-capped expression lines of [constraint]; empty when it has no expression. */
+    public fun expressionLinesOf(constraint: ConstraintDefinition): List<String> {
+        val e = constraint.expression
+        val capped = if (e.length > Sysml2Limits.TEXT) e.take(Sysml2Limits.TEXT - 1) + "…" else e
+        return wrapExpression(capped)
+    }
+
+    /** y of the divider above the parameter list when the expression has [lines] lines. */
+    public fun dividerAfterExpressionY(lines: Int): Float =
+        EXPRESSION_BASELINE + (maxOf(lines, 1) - 1) * EXPR_LINE_H + DIVIDER_BELOW_EXPRESSION
+
+    /** Baseline of parameter row [index] for a box whose expression has [expressionLines] lines. */
     public fun paramBaseline(
-        hasExpression: Boolean,
+        expressionLines: Int,
         index: Int,
     ): Float {
-        val divider = if (hasExpression) DIVIDER_AFTER_EXPRESSION_Y else FIRST_DIVIDER_Y
+        val divider = if (expressionLines <= 0) FIRST_DIVIDER_Y else dividerAfterExpressionY(expressionLines)
         return divider + PARAM_FIRST_BASELINE_OFFSET + index * PARAM_ROW_H
     }
 
     /** y of the pin of parameter row [index], relative to the top of the box. */
     public fun pinY(
-        hasExpression: Boolean,
+        expressionLines: Int,
         index: Int,
-    ): Float = paramBaseline(hasExpression = hasExpression, index = index) - PIN_BASELINE_OFFSET
+    ): Float = paramBaseline(expressionLines = expressionLines, index = index) - PIN_BASELINE_OFFSET
+
+    /** Height of a constraint box (without nested children). */
+    public fun contentHeight(constraint: ConstraintDefinition): Float {
+        val lines = expressionLinesOf(constraint).size
+        val n = constraint.parameters.size
+        return if (n > 0) {
+            paramBaseline(expressionLines = lines, index = n - 1) + DESCENDER + BOX_BOTTOM_PAD
+        } else if (lines > 0) {
+            dividerAfterExpressionY(lines) + BOX_BOTTOM_PAD
+        } else {
+            FIRST_DIVIDER_Y + BOX_BOTTOM_PAD
+        }
+    }
+
+    /** Text of one parameter row, e.g. `«in» pMix : Druck [Pa]`. Only the type name is capped, never the unit. */
+    public fun parameterLine(
+        p: ConstraintParameter,
+        unitOf: (String) -> String?,
+    ): String {
+        val stereotype =
+            when (p.direction) {
+                ConstraintParameterDirection.In -> "«in»"
+                ConstraintParameterDirection.Out -> "«out»"
+                ConstraintParameterDirection.Inout -> "«inout»"
+            }
+        val typeSuffix =
+            p.typeId?.let { t ->
+                val unit = unitOf(t)?.takeIf { it.isNotBlank() }?.take(Sysml2Limits.TEXT)
+                " : ${t.take(Sysml2Limits.TEXT)}" + (unit?.let { " [$it]" } ?: "")
+            } ?: ""
+        return "$stereotype ${p.name.take(Sysml2Limits.TEXT)}$typeSuffix"
+    }
+
+    /** Unit lookup over the `AttributeDefinition`s of [model]. */
+    public fun unitLookup(model: Sysml2Model): (String) -> String? {
+        val units =
+            model.definitions
+                .filterIsInstance<AttributeDefinition>()
+                .filter { it.unit != null }
+                .associate { it.id to it.unit }
+        return { id -> units[id] }
+    }
 
     /** `in` parameters dock on the left, `out` and `inout` on the right. */
     public fun pinSide(direction: ConstraintParameterDirection): PortSide =
@@ -91,7 +213,7 @@ public object ParConstraintGeometry {
         bounds: Rect,
     ): Point {
         val p = constraint.parameters[index]
-        val y = bounds.origin.y + pinY(hasExpression = constraint.expression.isNotEmpty(), index = index)
+        val y = bounds.origin.y + pinY(expressionLines = expressionLinesOf(constraint).size, index = index)
         val x = if (pinSide(p.direction) == PortSide.West) bounds.origin.x else bounds.origin.x + bounds.size.width
         return Point(x = x, y = y)
     }

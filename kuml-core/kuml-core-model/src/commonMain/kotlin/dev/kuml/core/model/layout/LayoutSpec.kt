@@ -81,5 +81,8 @@ object LayoutCodes {
     const val MAX_WIDTH_UNREACHED = "KUML-LAYOUT-W002"
     const val ASPECT_UNREACHED = "KUML-LAYOUT-W003"
     const val UNKNOWN_ID = "KUML-LAYOUT-W004"
+
+    /** A label of a parametric diagram has no free spot and sits on its own line (PAL wave 2C-b3). */
+    const val LABEL_NO_FREE_SPOT = "KUML-LAYOUT-W005"
     const val OUT_OF_RANGE = "KUML-LAYOUT-E001"
 }

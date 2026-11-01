@@ -97,6 +97,23 @@ object VaultExampleRenderer {
             else -> SpecDiagramKind.UML_CLASS
         }
 
+    /** `KUML-LAYOUT-W005` codes the binding-label plan of a parametric script reports (PAL wave 2C-b3); empty for other diagrams. */
+    fun parLabelWarningCodes(script: String): List<String> {
+        ensureInit()
+        val success = KumlScriptHost.eval(code = script) as? ResultWithDiagnostics.Success ?: return emptyList()
+        val extracted =
+            DiagramExtractor.extractAny(
+                returnValue = success.value.returnValue,
+                input = File("inline.kuml.kts"),
+            ) as? ExtractedDiagram.Sysml2
+                ?: return emptyList()
+        val diagram = extracted.diagram as? ParDiagram ?: return emptyList()
+        val engine = LayoutEngineRegistry.get("elk.layered") ?: return emptyList()
+        val layout = sysml2Layout(engine = engine, model = extracted.model, diagram = diagram)
+        val plan = KumlSvgRenderer.parLabelPlan(model = extracted.model, diagram = diagram, layoutResult = layout)
+        return Sysml2LayoutBridge.parLabelWarnings(plan).map { it.code }
+    }
+
     fun render(
         script: String,
         themeName: String = "elegant",

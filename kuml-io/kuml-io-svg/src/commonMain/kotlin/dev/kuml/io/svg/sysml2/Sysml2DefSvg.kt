@@ -95,7 +95,8 @@ internal fun renderSysml2Definition(
         // V2.0.12: PAR-Diagramm — drei-Kompartiment-Box mit `«constraint»`-
         // Stereotyp, Name, Expression-Body (monospaced, ggf. ellipsis-trunkiert)
         // und Parameter-Liste mit `«in»`/`«out»`/`«inout»`-Stereotyp-Präfix.
-        is ConstraintDefinition -> renderConstraintDefinition(element = element, layout = layout, theme = theme, builder = builder)
+        is ConstraintDefinition ->
+            renderConstraintDefinition(element = element, layout = layout, theme = theme, builder = builder, context = context)
         // V2.0.16: ACT-Diagramm — ActivityPartitions (Swimlanes) sind KEINE
         // gewöhnlichen Node-Boxes. Sie surface'n im Renderer als Gruppen-
         // Container über `layoutResult.groups` — die KumlSvgRenderer-ACT-

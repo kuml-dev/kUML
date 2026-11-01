@@ -150,7 +150,58 @@ public object ValidationService {
                         )
                     }
             }
-        return notes + layout
+        return notes + layout + structuralOf(extracted = extracted, diagramId = diagramId)
+    }
+
+    /**
+     * Parametric (`PAR437`..`PAR442`) and internal-block (`IBD501`) structure findings, so the desktop sees what
+     * `kuml validate` reports (PAL wave 2C-b3). Messages carry the checker's hint; ids and limits only, no note text.
+     */
+    private fun structuralOf(
+        extracted: ExtractedDiagram,
+        diagramId: String?,
+    ): List<Finding> {
+        val ex = extracted as? ExtractedDiagram.Sysml2 ?: return emptyList()
+
+        fun finding(
+            code: String,
+            error: Boolean,
+            elementId: String,
+            message: String,
+            hint: String,
+        ) = Finding(
+            code = code,
+            severity = if (error) Severity.ERROR else Severity.WARNING,
+            line = null,
+            column = null,
+            diagramId = diagramId,
+            anchorId = elementId,
+            anchorName = nameOfAnchor(e = extracted, id = elementId),
+            message = "$message Hint: $hint",
+        )
+        return when (val d = ex.diagram) {
+            is dev.kuml.sysml2.ParDiagram ->
+                dev.kuml.sysml2.constraint.Sysml2ParChecker.check(model = ex.model, diagram = d).map {
+                    finding(
+                        code = "PAR${it.code}",
+                        error = it.severity == dev.kuml.sysml2.constraint.ParSeverity.Error,
+                        elementId = it.elementId,
+                        message = it.message,
+                        hint = it.hint,
+                    )
+                }
+            is dev.kuml.sysml2.IbdDiagram ->
+                dev.kuml.sysml2.constraint.Sysml2IbdChecker.check(model = ex.model, diagram = d).map {
+                    finding(
+                        code = "IBD${it.code}",
+                        error = it.severity == dev.kuml.sysml2.constraint.IbdSeverity.Error,
+                        elementId = it.elementId,
+                        message = it.message,
+                        hint = it.hint,
+                    )
+                }
+            else -> emptyList()
+        }
     }
 
     private fun error(

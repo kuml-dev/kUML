@@ -79,7 +79,13 @@ class Sysml2C4RenderTest :
                     val expectedY =
                         nl.bounds.origin.y +
                             dev.kuml.layout.bridge.ParConstraintGeometry
-                                .pinY(hasExpression = c.expression.isNotEmpty(), index = i)
+                                .pinY(
+                                    expressionLines =
+                                        dev.kuml.layout.bridge.ParConstraintGeometry
+                                            .expressionLinesOf(c)
+                                            .size,
+                                    index = i,
+                                )
                     abs(pin.y - expectedY) shouldBeLessThanOrEqual 0.5f
                     val frameX =
                         if (p.direction == dev.kuml.sysml2.ConstraintParameterDirection.In) {

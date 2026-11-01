@@ -79,12 +79,24 @@ public data class LabelCostModel(
     val lineClearance: Float = 2f,
     /** A port / pin label inside its owner box; chosen only when every outside position collides hard. */
     val innerPenalty: Float = 8_000f,
+    /** Offsets (px, label edge to line) tried on each side of an edge, nearest first (PAL wave 2C-b3: parametric diagrams search further out). */
+    val edgeOffsets: List<Float> = listOf(4f, 8f, 12f),
+    /**
+     * Free space a label keeps to nodes, port squares, texts and arrow squares: such a rectangle, inflated by this value,
+     * counts as covered. `0` (default) keeps the exact rectangle test of the other diagram types.
+     */
+    val nodeClearance: Float = 0f,
 )
 
 /** A placed label: its rectangle and whether it sits on its own line (the renderer then needs the canvas-coloured halo). */
 public data class PlacedLabel(
     val rect: Rect,
     val onLine: Boolean,
+    /**
+     * `false` when the label has no free spot: it sits on its own line (emergency candidate) or its cost shows it still
+     * covers a node, text or foreign line (PAL wave 2C-b3). Only the parametric diagram reports this as a layout finding.
+     */
+    val clean: Boolean = true,
 )
 
 /**
@@ -97,7 +109,6 @@ public object LabelPlacer {
     private const val WORK_BUDGET: Long = 4_000_000L
     private val EDGE_T: List<Float> = listOf(0.5f, 0.35f, 0.65f, 0.2f, 0.8f)
     private const val MIN_EXTRA_SEGMENT_PX: Float = 24f
-    private val EDGE_OFFSETS: List<Float> = listOf(4f, 8f, 12f)
     private val END_ALONG: List<Float> = listOf(6f, 10f, 14f, 22f, 32f, 44f, 60f, 80f)
     private val END_PERP: List<Float> = listOf(4f, 8f)
     private val PORT_GAPS: List<Float> = listOf(3f, 6f)
@@ -137,7 +148,8 @@ public object LabelPlacer {
         // (owner, end) -> side sign taken by the multiplicity, so the role goes to the other side
         val multSign = HashMap<Pair<String, LabelEnd?>, Int>()
         for (req in ordered) {
-            val candidates = candidatesOf(req = req, taken = multSign[req.ownerId to req.end]?.takeIf { req.role == LabelRole.ROLE })
+            val candidates =
+                candidatesOf(req = req, taken = multSign[req.ownerId to req.end]?.takeIf { req.role == LabelRole.ROLE }, costs = costs)
             var best: Candidate? = null
             var bestCost = Float.MAX_VALUE
             for (c in candidates) {
@@ -150,7 +162,8 @@ public object LabelPlacer {
                 }
             }
             val chosen = best ?: candidates.firstOrNull() ?: continue
-            result[req.id] = PlacedLabel(rect = chosen.rect, onLine = chosen.onLine)
+            val clean = !chosen.onLine && bestCost < minOf(costs.hardOverlap, costs.foreignEdge)
+            result[req.id] = PlacedLabel(rect = chosen.rect, onLine = chosen.onLine, clean = clean)
             if (req.role == LabelRole.MULTIPLICITY) multSign[req.ownerId to req.end] = chosen.sign
             index.addRect(kind = kindOf(req.role), r = chosen.rect, ownerId = req.ownerId)
         }
@@ -170,21 +183,25 @@ public object LabelPlacer {
     private fun candidatesOf(
         req: LabelRequest,
         taken: Int?,
+        costs: LabelCostModel,
     ): List<Candidate> =
         when (req.role) {
-            LabelRole.EDGE_CENTER -> edgeCandidates(req)
+            LabelRole.EDGE_CENTER -> edgeCandidates(req = req, offsets = costs.edgeOffsets)
             LabelRole.MULTIPLICITY, LabelRole.ROLE -> endCandidates(req = req, takenSign = taken)
             LabelRole.PORT -> portCandidates(req)
         }
 
-    private fun edgeCandidates(req: LabelRequest): List<Candidate> {
+    private fun edgeCandidates(
+        req: LabelRequest,
+        offsets: List<Float>,
+    ): List<Candidate> {
         val pts = req.polyline
         if (pts.size < 2) return emptyList()
         // The longest segment first, then up to two more of at least MIN_EXTRA_SEGMENT_PX: a label whose best spot is
         // taken (a segment inside a box) can then use another stretch of its own line (PAL wave 2C-b2b).
         val ranked = (0 until pts.size - 1).sortedByDescending { len(a = pts[it], b = pts[it + 1]) }
         val segments = ranked.take(1) + ranked.drop(1).take(2).filter { len(a = pts[it], b = pts[it + 1]) >= MIN_EXTRA_SEGMENT_PX }
-        val out = ArrayList<Candidate>(93)
+        val out = ArrayList<Candidate>(3 * EDGE_T.size * offsets.size * 2 + 1)
         var emergency: Candidate? = null
         for (bi in segments) {
             val bl = len(a = pts[bi], b = pts[bi + 1])
@@ -200,7 +217,7 @@ public object LabelPlacer {
             for (t in EDGE_T) {
                 val px = a.x + (b.x - a.x) * t
                 val py = a.y + (b.y - a.y) * t
-                for (off in EDGE_OFFSETS) {
+                for (off in offsets) {
                     for (sign in sideOrder) {
                         val half = abs(nx) * req.size.width / 2f + abs(ny) * req.size.height / 2f
                         val d = sign * (off + half)
@@ -371,7 +388,12 @@ public object LabelPlacer {
         val r = c.rect
         var cost = 0f
         for (o in index.rects) {
-            val other = if (o.kind.isLabel) o.core.inflated(1f) else o.core
+            val other =
+                when {
+                    o.kind.isLabel -> o.core.inflated(maxOf(1f, costs.nodeClearance))
+                    costs.nodeClearance > 0f -> o.core.inflated(costs.nodeClearance)
+                    else -> o.core
+                }
             if (!other.intersects(r)) continue
             // The owner's own port square / node is the thing the label belongs to: touching it is fine for ports.
             if (o.ownerId != null && req.role == LabelRole.PORT && (o.ownerId == req.ownerId || o.ownerId == req.parentId)) continue

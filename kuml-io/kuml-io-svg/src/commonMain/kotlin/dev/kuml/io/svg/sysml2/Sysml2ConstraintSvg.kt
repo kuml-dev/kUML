@@ -8,9 +8,6 @@ import dev.kuml.layout.PortSide
 import dev.kuml.layout.bridge.ParConstraintGeometry
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.ConstraintDefinition
-import dev.kuml.sysml2.ConstraintParameter
-import dev.kuml.sysml2.ConstraintParameterDirection
-import dev.kuml.sysml2.Sysml2Limits
 
 /**
  * Rendert eine SysML-2-[ConstraintDefinition] als drei-kompartimentige
@@ -19,11 +16,12 @@ import dev.kuml.sysml2.Sysml2Limits
  * Visuell:
  *  - Kompartiment 1: Stereotyp `«constraint»` (zentriert) + Name (fett zentriert).
  *  - Kompartiment 2: Expression-Body (monospaced, zentriert), bei Bedarf an
- *    [EXPRESSION_MAX_CHARS] Zeichen mit `…` abgeschnitten. Leerer
+ *    [ParConstraintGeometry.EXPRESSION_WRAP_CHARS] Zeichen umbrochen (Grenze
+ *    `Sysml2Limits.TEXT`, danach `…`). Leerer
  *    Expression-Body wird stillschweigend weggelassen (kein Divider, kein
  *    leeres Compartment).
  *  - Kompartiment 3: Parameter-Liste — eine Zeile pro [ConstraintParameter]
- *    in der Form `«in» m : Mass`, `«out» F : Force`, `«inout» x : Real`. Der
+ *    in der Form `«in» m : Mass [kg]`, `«out» F : Force`, `«inout» x : Real`. Der
  *    Direction-Stereotyp-Präfix entspricht dem
  *    [ConstraintParameterDirection]-Enum-Wert. Leere Parameter-Liste lässt
  *    das Compartment ganz aus.
@@ -40,22 +38,22 @@ import dev.kuml.sysml2.Sysml2Limits
  *
  * V2.x-Polish (out of scope):
  *  - Equation-Rendering via MathJax / KaTeX statt monospaced Raw-Text.
- *  - Word-Wrap der Expression statt einfacher Zeichen-Trunkierung.
  */
 internal fun renderConstraintDefinition(
     element: ConstraintDefinition,
     layout: NodeLayout,
     @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
     builder: SvgBuilder,
+    context: Sysml2NodeContext? = null,
 ) {
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
 
-    val hasExpression = element.expression.isNotEmpty()
-    val expressionText =
-        if (hasExpression) truncateExpression(element.expression) else ""
+    val expressionLines = ParConstraintGeometry.expressionLinesOf(element)
+    val hasExpression = expressionLines.isNotEmpty()
+    val unitOf = context?.let { ParConstraintGeometry.unitLookup(it.model) } ?: { _: String -> null }
     val hasParameters = element.parameters.isNotEmpty()
 
     builder.tag(
@@ -64,8 +62,6 @@ internal fun renderConstraintDefinition(
     ) {
         tag(name = "rect", attrs = mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
 
-        var cy = 16f
-
         // Compartment 1 — `«constraint»`-Stereotyp.
         tag(
             name = "text",
@@ -73,11 +69,10 @@ internal fun renderConstraintDefinition(
                 mapOf(
                     "class" to "kuml-stereotype",
                     "x" to fmt(w / 2f),
-                    "y" to fmt(cy),
+                    "y" to fmt(ParConstraintGeometry.STEREOTYPE_BASELINE),
                     "text-anchor" to "middle",
                 ),
         ) { text("«constraint»") }
-        cy += 14f
 
         // Compartment 1 — Name (fett, zentriert). Abstract → italic-via-style hint.
         val nameClass = if (element.isAbstract) "kuml-title kuml-title-abstract" else "kuml-title"
@@ -87,60 +82,50 @@ internal fun renderConstraintDefinition(
                 mapOf(
                     "class" to nameClass,
                     "x" to fmt(w / 2f),
-                    "y" to fmt(cy),
+                    "y" to fmt(ParConstraintGeometry.NAME_BASELINE),
                     "text-anchor" to "middle",
                 ),
         ) { text(element.name) }
-        cy += 12f
 
-        // Compartment 2 — Expression-Body (monospaced, ggf. ellipsis-trunkiert).
+        // Compartment 2 — Expression-Body (monospaced, one <text> per wrapped line).
         if (hasExpression) {
-            tag(
-                name = "line",
-                attrs =
-                    mapOf(
-                        "x1" to "0",
-                        "y1" to fmt(cy),
-                        "x2" to fmt(w),
-                        "y2" to fmt(cy),
-                        "class" to "kuml-divider",
-                    ),
-            )
-            cy += 14f
-            tag(
-                name = "text",
-                attrs =
-                    mapOf(
-                        "class" to "kuml-body",
-                        "x" to fmt(w / 2f),
-                        "y" to fmt(cy),
-                        "text-anchor" to "middle",
-                        "font-family" to "monospace",
-                    ),
-            ) { text(expressionText) }
-            cy += 13f
+            divider(w = w, y = ParConstraintGeometry.FIRST_DIVIDER_Y)
+            expressionLines.forEachIndexed { i, line ->
+                tag(
+                    name = "text",
+                    attrs =
+                        mapOf(
+                            "class" to "kuml-body",
+                            "x" to fmt(w / 2f),
+                            "y" to fmt(ParConstraintGeometry.EXPRESSION_BASELINE + i * ParConstraintGeometry.EXPR_LINE_H),
+                            "text-anchor" to "middle",
+                            "font-family" to "monospace",
+                        ),
+                ) { text(line) }
+            }
         }
 
         // Compartment 3 — Parameter-Liste.
         if (hasParameters) {
-            tag(
-                name = "line",
-                attrs =
-                    mapOf(
-                        "x1" to "0",
-                        "y1" to fmt(cy),
-                        "x2" to fmt(w),
-                        "y2" to fmt(cy),
-                        "class" to "kuml-divider",
-                    ),
+            divider(
+                w = w,
+                y =
+                    if (hasExpression) {
+                        ParConstraintGeometry.dividerAfterExpressionY(expressionLines.size)
+                    } else {
+                        ParConstraintGeometry.FIRST_DIVIDER_Y
+                    },
             )
-            cy += 14f
-            for (parameter in element.parameters) {
+            element.parameters.forEachIndexed { index, parameter ->
                 tag(
                     name = "text",
-                    attrs = mapOf("class" to "kuml-body", "x" to fmt(ParConstraintGeometry.PARAM_TEXT_INDENT), "y" to fmt(cy)),
-                ) { text(parameter.formatParameterLine()) }
-                cy += ParConstraintGeometry.PARAM_ROW_H
+                    attrs =
+                        mapOf(
+                            "class" to "kuml-body",
+                            "x" to fmt(ParConstraintGeometry.PARAM_TEXT_INDENT),
+                            "y" to fmt(ParConstraintGeometry.paramBaseline(expressionLines = expressionLines.size, index = index)),
+                        ),
+                ) { text(ParConstraintGeometry.parameterLine(p = parameter, unitOf = unitOf)) }
             }
         }
 
@@ -148,7 +133,7 @@ internal fun renderConstraintDefinition(
         val half = ParConstraintGeometry.PIN_SIZE / 2f
         element.parameters.forEachIndexed { index, parameter ->
             val px = if (ParConstraintGeometry.pinSide(parameter.direction) == PortSide.West) 0f else w
-            val py = ParConstraintGeometry.pinY(hasExpression = hasExpression, index = index)
+            val py = ParConstraintGeometry.pinY(expressionLines = expressionLines.size, index = index)
             tag(
                 name = "rect",
                 attrs =
@@ -164,35 +149,14 @@ internal fun renderConstraintDefinition(
     }
 }
 
-/**
- * Formatiert einen [ConstraintParameter] als Zeile für das Parameter-
- * Kompartiment: `«in» m : Mass`, `«out» F : Force`, `«inout» x` (wenn
- * `typeId` null ist).
- */
-private fun ConstraintParameter.formatParameterLine(): String {
-    val stereotype =
-        when (direction) {
-            ConstraintParameterDirection.In -> "«in»"
-            ConstraintParameterDirection.Out -> "«out»"
-            ConstraintParameterDirection.Inout -> "«inout»"
-        }
-    val typeSuffix = typeId?.let { " : ${it.take(Sysml2Limits.TEXT)}" } ?: ""
-    return "$stereotype ${name.take(Sysml2Limits.TEXT)}$typeSuffix"
+private fun SvgBuilder.divider(
+    w: Float,
+    y: Float,
+) {
+    tag(
+        name = "line",
+        attrs = mapOf("x1" to "0", "y1" to fmt(y), "x2" to fmt(w), "y2" to fmt(y), "class" to "kuml-divider"),
+    )
 }
-
-/**
- * Trunkiert eine Expression an [EXPRESSION_MAX_CHARS] Zeichen mit `…`-Suffix,
- * wenn sie länger ist. V2.x-Polish: echte Glyph-Breiten-Messung statt
- * Zeichenanzahl (siehe `wrapWords` im REQ-Renderer für die analoge MVP-
- * Approximation auf der Text-Wrap-Seite).
- */
-private fun truncateExpression(expression: String): String =
-    if (expression.length <= EXPRESSION_MAX_CHARS) {
-        expression
-    } else {
-        expression.substring(0, EXPRESSION_MAX_CHARS - 1) + "…"
-    }
-
-private const val EXPRESSION_MAX_CHARS: Int = 30
 
 private fun fmt(v: Float): String = fmt3(v)

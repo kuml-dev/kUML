@@ -109,6 +109,52 @@ public object Sysml2DiagramLabelPlan {
         return LabelPlacer.place(requests = requests, index = index, costs = costs)
     }
 
+    /** Cost model of the parametric diagram: 2 px free space all round, search outwards up to 24 px (PAL wave 2C-b3). */
+    public val PAR_COSTS: LabelCostModel =
+        LabelCostModel(
+            lineClearance = 2f,
+            nodeClearance = 2f,
+            edgeOffsets = listOf(4f, 8f, 12f, 16f, 20f, 24f),
+            maxDistancePx = 24f,
+        )
+
+    /**
+     * Plans the binding labels of a parametric diagram with the one shared [LabelPlacer] (PAL wave 2C-b3). Obstacles:
+     * every node and nested constraint frame, the pin squares, the text rectangles of the constraint boxes, all binding
+     * lines and the 12 px squares around the line ends. A label keeps [PAR_COSTS] clearance to all of them. There are no
+     * leader lines; when no free spot exists the label sits on its line (halo) and is reported as not clean.
+     *
+     * @param layout enriched layout, canvas coordinates without padding
+     * @param pinRects all pin squares, absolute
+     * @param textRects estimated rectangles of the texts in the constraint boxes (stereotype, name, expression, parameters)
+     */
+    public fun planParLabels(
+        layout: LayoutResult,
+        edgeLabelSizes: Map<String, Size>,
+        pinRects: List<Rect>,
+        textRects: List<Rect>,
+    ): Sysml2LabelPlanResult {
+        val ends = ArrayList<Point>()
+        for ((_, route) in layout.edges.entries.sortedBy { it.key.value }) {
+            val pts = polylineOf(route)
+            if (pts.size >= 2) {
+                ends += pts.first()
+                ends += pts.last()
+            }
+        }
+        val labels =
+            compute(
+                layout = layout,
+                edgeLabelSizes = edgeLabelSizes,
+                arrowheads = ends,
+                titleRects = textRects,
+                configure = { index -> for (r in pinRects) index.addRect(kind = ObstacleKind.PORT, r = r) },
+                costs = PAR_COSTS,
+            )
+        val lines = LinkedHashMap<String, List<String>>()
+        return Sysml2LabelPlanResult(labels = labels, lines = lines)
+    }
+
     /**
      * Plans the pin labels and edge labels of an activity diagram in one [LabelPlacer] run (PAL wave 2C-b2b). All
      * coordinates are canvas coordinates of the drawn diagram. Obstacles: the action boxes, every edge segment, the
