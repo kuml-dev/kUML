@@ -192,6 +192,7 @@ public object Sysml2DiagramLabelPlan {
         edgeLabels: List<EdgeLabelSpec>,
         titleRects: List<Rect> = emptyList(),
         costs: LabelCostModel = LabelCostModel(lineClearance = 2f),
+        glyphRects: List<Rect> = emptyList(),
     ): Sysml2LabelPlanResult {
         if (pins.isEmpty() && edgeLabels.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
         val index = ObstacleIndex()
@@ -211,6 +212,8 @@ public object Sysml2DiagramLabelPlan {
                 r = rectOf(left = tip.x - h, top = tip.y - h, right = tip.x + h, bottom = tip.y + h),
             )
         }
+        // Wave 2F: interruption glyphs are obstacles like arrow tips.
+        for (g in glyphRects) index.addRect(kind = ObstacleKind.ARROWHEAD, r = g)
         val lines = LinkedHashMap<String, List<String>>()
         val requests = ArrayList<LabelRequest>()
         for (p in pins.sortedBy { it.id }) {

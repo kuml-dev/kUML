@@ -394,6 +394,30 @@ sysml2Model("Platform Requirements") {
 All SysML 2 render paths (CLI, Gradle, Web, Desktop, Asciidoc, `kuml-ai`) take their ELK hints from the single function
 `Sysml2LayoutBridge.layoutHintsFor`.
 
+=== Activity lanes, regions and merges (wave 2F)
+
+For activity diagrams that flow down and have swimlanes the layout engine sees one flat flow graph; the post-pass
+`Sysml2LayoutBridge.normalizeActLayout` (called by the SVG renderer, not by `LayoutSpecRunner`) then does the rest:
+
+. the layers come from the flow graph (depth-first back-edge detection from the sources in declaration order, longest
+  path); the engine's own layering is not used, so a cycle cannot turn the main flow upside down;
+. every `sameLayer` group moves to the deepest layer of its members, followers move down, the members share a centre
+  line;
+. a lane is as wide as its widest row (sum of node widths plus 24 px gaps, plus 2 x 24 px, at least 160 px, plus a
+  16 px corridor if a back edge leaves it); all lanes are bands of equal height below a 28 px header;
+. non-members of an interruptible region are pushed sideways out of its frame (at most 8 rounds);
+. every flow is routed again, orthogonally, around foreign nodes; collinear segments of different edges keep 12 px.
+
+If a region frame still overlaps a non-member afterwards, the result carries `KUML-LAYOUT-W006`.
+
+=== Sequence fragments (wave 2F)
+
+The lifelines of a sequence diagram are placed 24 px from the top (8 px layout margin plus the 16 px canvas padding);
+the canvas ends 24 px below the lowest lifeline end. The width of a fragment frame comes from the lifelines it covers
+(`coveredLifelines`), its height from its last content; `SeqRowOffsets` opens the gap of 12 px between consecutive
+fragments and the room for a self loop in the last row. The same row model is used by messages, activation bars, frames
+and notes.
+
 == When the engine can't honour a hint
 
 Conflicts produce a `LayoutWarning` in `LayoutResult.warnings`:
@@ -411,6 +435,10 @@ Conflicts produce a `LayoutWarning` in `LayoutResult.warnings`:
 
 | `hint.deferred.relativeConstraint`
 | Anchor element wasn't yet placed when the constraint was evaluated.
+
+| `KUML-LAYOUT-W006`
+| An interruptible-region frame still overlaps a node that is not a member of the region (activity diagram, wave 2F).
+  The warning lists the nodes.
 
 | `engine.performance.large_graph`
 | Graph exceeds the engine's recommended max (`maxRecommendedNodes`). Suggest a different

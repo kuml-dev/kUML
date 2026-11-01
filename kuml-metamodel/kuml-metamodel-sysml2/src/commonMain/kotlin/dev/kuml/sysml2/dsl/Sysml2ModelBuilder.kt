@@ -1754,7 +1754,8 @@ class Sysml2ModelBuilder(
         seqNo: Int,
         name: String,
         id: String = "timeObservation:${lifeline.id}-$seqNo",
-    ): TimeObservationUsage = timeObservationById(lifelineId = lifeline.id, seqNo = seqNo, name = name, id = id)
+        label: String? = null,
+    ): TimeObservationUsage = timeObservationById(lifelineId = lifeline.id, seqNo = seqNo, name = name, id = id, label = label)
 
     /** Id-only variant of [timeObservation]. */
     fun timeObservationById(
@@ -1762,22 +1763,27 @@ class Sysml2ModelBuilder(
         seqNo: Int,
         name: String,
         id: String = "timeObservation:$lifelineId-$seqNo",
+        label: String? = null,
     ): TimeObservationUsage {
-        val usage = TimeObservationUsage(id = id, name = name, lifelineId = lifelineId, seqNo = seqNo)
+        val usage = TimeObservationUsage(id = id, name = name, lifelineId = lifelineId, seqNo = seqNo, label = label)
         registerUsage(usage)
         return usage
     }
 
-    /** Found message: a message from outside the diagram arriving at [target] (C3). */
+    /**
+     * Found message: a message from outside the diagram arriving at [target] (C3). With [source] the arrow starts at
+     * the sending lifeline instead (PAL wave 2F); without it the historic form is kept.
+     */
     fun foundMessage(
         label: String,
         target: LifelineDefinition,
         seqNo: Int,
+        source: LifelineDefinition? = null,
         id: String = "message:found-${target.id}-$seqNo",
     ): MessageUsage =
         messageById(
             label = label,
-            sourceLifelineId = target.id,
+            sourceLifelineId = (source ?: target).id,
             targetLifelineId = target.id,
             seqNo = seqNo,
             kind = MessageKind.Found,

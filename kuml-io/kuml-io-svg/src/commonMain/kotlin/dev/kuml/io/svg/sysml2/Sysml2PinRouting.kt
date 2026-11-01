@@ -37,6 +37,44 @@ internal object Sysml2PinRouting {
         route: EdgeRoute,
         sourceSide: PinSide?,
         targetSide: PinSide?,
+        obstacles: List<dev.kuml.layout.Rect> = emptyList(),
+    ): EdgeRoute {
+        val base = orthogonalizeBase(route = route, sourceSide = sourceSide, targetSide = targetSide)
+        if (obstacles.isEmpty()) return base
+        val pts = points(base)?.let { listOf(base.source) + it + listOf(base.target) } ?: return base
+        if (!dev.kuml.layout.bridge.ActObstacleRouting
+                .hits(path = pts, obstacles = obstacles)
+        ) {
+            return base
+        }
+        // Wave 2F (A4): a pin-to-pin flow must not cross foreign nodes: route around them from the pin stubs.
+        val p0 = route.source
+        val pn = route.target
+        val srcDir = sourceSide?.let { dir(it) } ?: inferDir(from = p0, toward = firstNeighbor(route))
+        val tgtDir = targetSide?.let { dir(it) } ?: inferDir(from = pn, toward = lastNeighbor(route))
+        val s = Point(x = p0.x + srcDir.x * STUB_PX, y = p0.y + srcDir.y * STUB_PX)
+        val t = Point(x = pn.x + tgtDir.x * STUB_PX, y = pn.y + tgtDir.y * STUB_PX)
+        val mid =
+            dev.kuml.layout.bridge.ActObstacleRouting
+                .route(from = s, fromNormal = srcDir, to = t, toNormal = tgtDir, obstacles = obstacles)
+        val all = simplify(listOf(p0) + mid + listOf(pn))
+        if (dev.kuml.layout.bridge.ActObstacleRouting
+                .hits(path = all, obstacles = obstacles)
+        ) {
+            return base
+        }
+        return EdgeRoute.OrthogonalRounded(
+            source = p0,
+            target = pn,
+            waypoints = all.drop(1).dropLast(1),
+            cornerRadiusPx = CORNER_RADIUS_PX,
+        )
+    }
+
+    private fun orthogonalizeBase(
+        route: EdgeRoute,
+        sourceSide: PinSide?,
+        targetSide: PinSide?,
     ): EdgeRoute {
         if (sourceSide == null && targetSide == null) return route
         if (isOrthogonal(route) &&

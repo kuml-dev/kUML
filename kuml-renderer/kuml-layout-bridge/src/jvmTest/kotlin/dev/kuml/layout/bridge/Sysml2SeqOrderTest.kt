@@ -48,14 +48,9 @@ class Sysml2SeqOrderTest :
             val fixed = Sysml2LayoutBridge.normalizeSeqLayout(model = model, diagram = seq, layoutResult = raw)
             val xs = centres(fixed)
             xs.zipWithNext().all { (l, r) -> l < r } shouldBe true
-            // y bleibt, Breiten bleiben
+            // wave 2F: the lifelines move to the vertical margin (8 px; the canvas padding adds 16 px), sizes stay
+            fixed.nodes.values.minOf { it.bounds.origin.y } shouldBe 8f
             for (id in seq.elementIds) {
-                fixed.nodes
-                    .getValue(NodeId(id))
-                    .bounds.origin.y shouldBe
-                    raw.nodes
-                        .getValue(NodeId(id))
-                        .bounds.origin.y
                 fixed.nodes
                     .getValue(NodeId(id))
                     .bounds.size shouldBe
@@ -86,11 +81,21 @@ class Sysml2SeqOrderTest :
             (fixed.canvas.width >= right) shouldBe true
         }
 
-        "an already ordered layout is returned unchanged (pixel-identical images)" {
+        "an already ordered layout only moves to the vertical margin (wave 2F); x positions and sizes stay" {
             val graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = seq)
             val ordered =
                 ElkLayoutEngine().layout(graph = graph, hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = seq))
-            Sysml2LayoutBridge.normalizeSeqLayout(model = model, diagram = seq, layoutResult = ordered) shouldBe ordered
+            val fixed = Sysml2LayoutBridge.normalizeSeqLayout(model = model, diagram = seq, layoutResult = ordered)
+            val dy = 8f - ordered.nodes.values.minOf { it.bounds.origin.y }
+            for (id in seq.elementIds) {
+                val a = fixed.nodes.getValue(NodeId(id)).bounds
+                val b = ordered.nodes.getValue(NodeId(id)).bounds
+                a.origin.x shouldBe b.origin.x
+                a.size shouldBe b.size
+                a.origin.y shouldBe b.origin.y + dy
+            }
+            // idempotent: a second pass changes nothing
+            Sysml2LayoutBridge.normalizeSeqLayout(model = model, diagram = seq, layoutResult = fixed) shouldBe fixed
         }
 
         "layoutHintsFor: SEQ keeps node order, REQ/STM/ACT carry the CLI spacings, others use the default" {

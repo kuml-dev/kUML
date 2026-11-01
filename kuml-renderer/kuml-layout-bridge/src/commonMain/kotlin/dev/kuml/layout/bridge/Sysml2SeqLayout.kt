@@ -98,10 +98,88 @@ public fun Sysml2LayoutBridge.normalizeSeqLayout(
     model: Sysml2Model,
     diagram: SeqDiagram,
     layoutResult: LayoutResult,
+): LayoutResult = seqVerticalMargins(normalizeSeqOrderAndGaps(model = model, diagram = diagram, layoutResult = layoutResult))
+
+/** Wave 2F: space above the lifeline heads and below the lifeline ends, on top of the 16 px canvas padding (px). */
+internal const val SEQ_VERTICAL_MARGIN = 8f
+
+/**
+ * Wave 2F (S5): the engine centres the lifelines vertically, which left 130 to 230 px of blank space above and below.
+ * The lifelines are moved to [SEQ_VERTICAL_MARGIN] from the top and the canvas ends [SEQ_VERTICAL_MARGIN] below the
+ * lowest lifeline end. Messages, fragments and notes are all derived from the lifeline boxes, so they follow.
+ */
+internal fun seqVerticalMargins(result: LayoutResult): LayoutResult {
+    if (result.nodes.isEmpty()) return result
+    val top = result.nodes.values.minOf { it.bounds.origin.y }
+    val bottom = result.nodes.values.maxOf { it.bounds.origin.y + it.bounds.size.height }
+    val dy = SEQ_VERTICAL_MARGIN - top
+    if (kotlin.math.abs(dy) < 0.01f && kotlin.math.abs(result.canvas.height - (bottom + SEQ_VERTICAL_MARGIN)) < 0.01f) return result
+    val nodes =
+        result.nodes.mapValues { (_, n) ->
+            n.copy(bounds = n.bounds.copy(origin = n.bounds.origin.copy(y = n.bounds.origin.y + dy)))
+        }
+    return result.copy(nodes = nodes, canvas = result.canvas.copy(height = bottom + dy + SEQ_VERTICAL_MARGIN))
+}
+
+private fun Sysml2LayoutBridge.normalizeSeqOrderAndGaps(
+    model: Sysml2Model,
+    diagram: SeqDiagram,
+    layoutResult: LayoutResult,
 ): LayoutResult {
     val ordered = diagram.elementIds.map { NodeId(it) }.filter { it in layoutResult.nodes }
     if (ordered.isEmpty()) return layoutResult
-    val rightNeeds = seqSideTextNeeds(model = model, ordered = ordered)
+    val needs = seqSideTextNeeds(model = model, ordered = ordered)
+    return seqLeftCanvasShift(
+        needs = needs,
+        ordered = ordered,
+        result = seqSpaceLifelines(needs = needs, ordered = ordered, layoutResult = layoutResult),
+    )
+}
+
+/**
+ * Wave 2F: text that stands LEFT of the leftmost lifeline (a duration constraint bracket, which is drawn 12 px left of
+ * the axis) would start at a negative x. The whole diagram moves right by the missing room and the canvas widens by
+ * the same amount. Idempotent: once the room exists, nothing moves.
+ */
+private fun seqLeftCanvasShift(
+    needs: SeqSideNeeds,
+    ordered: List<NodeId>,
+    result: LayoutResult,
+): LayoutResult {
+    val first =
+        ordered.minByOrNull {
+            result.nodes
+                .getValue(it)
+                .bounds.origin.x
+        } ?: return result
+    val b = result.nodes.getValue(first).bounds
+    val missing = (needs.left[first] ?: 0f) - (b.origin.x + b.size.width / 2f)
+    if (missing <= 0.01f) return result
+    return result.copy(
+        nodes =
+            result.nodes.mapValues { (_, n) ->
+                n.copy(
+                    bounds =
+                        n.bounds.copy(
+                            origin =
+                                n.bounds.origin.copy(
+                                    x =
+                                        n.bounds.origin.x + missing,
+                                ),
+                        ),
+                )
+            },
+        canvas = result.canvas.copy(width = result.canvas.width + missing),
+    )
+}
+
+private fun seqSpaceLifelines(
+    needs: SeqSideNeeds,
+    ordered: List<NodeId>,
+    layoutResult: LayoutResult,
+): LayoutResult {
+    val rightNeeds = needs.right
+    val leftNeeds = needs.left
     val byX =
         ordered.sortedBy {
             layoutResult.nodes
@@ -118,7 +196,10 @@ public fun Sysml2LayoutBridge.normalizeSeqLayout(
     // Is the spacing already sufficient for all side texts (centre distance and right canvas margin)?
     val orderOk = byX == ordered
     val spacingOk =
-        ordered.zipWithNext().all { (a, b) -> centre(b) - centre(a) >= (rightNeeds[a] ?: 0f) + MIN_SIDE_TEXT_CLEARANCE } &&
+        ordered.zipWithNext().all { (a, b) ->
+            centre(b) - centre(a) >=
+                (rightNeeds[a] ?: 0f) + (leftNeeds[b] ?: 0f) + MIN_SIDE_TEXT_CLEARANCE
+        } &&
             ordered.last().let { last ->
                 val b = layoutResult.nodes.getValue(last).bounds
                 layoutResult.canvas.width >= b.origin.x + b.size.width / 2f + (rightNeeds[last] ?: 0f)
@@ -154,7 +235,7 @@ public fun Sysml2LayoutBridge.normalizeSeqLayout(
             ) {
                 Float.NEGATIVE_INFINITY
             } else {
-                previousCentre + previousNeed + MIN_SIDE_TEXT_CLEARANCE
+                previousCentre + previousNeed + (leftNeeds[id] ?: 0f) + MIN_SIDE_TEXT_CLEARANCE
             }
         if (x + w / 2f < minCentre) x = minCentre - w / 2f
         newNodes[id] = layout.copy(bounds = layout.bounds.copy(origin = Point(x = x, y = layout.bounds.origin.y)))
@@ -173,30 +254,71 @@ public fun Sysml2LayoutBridge.normalizeSeqLayout(
     return layoutResult.copy(canvas = canvas, nodes = newNodes)
 }
 
-/** Width of the widest duration-constraint / time-observation text to the right of each lifeline's axis. */
+/** Width of the widest side text per lifeline axis, to the left and to the right. */
+private data class SeqSideNeeds(
+    val left: Map<NodeId, Float>,
+    val right: Map<NodeId, Float>,
+)
+
+/**
+ * Widest duration-constraint / time-observation / self-message text on each side of a lifeline's axis. Mirrors the
+ * renderer: the duration constraint bracket and its text stand LEFT of the axis, a time observation label stands left
+ * unless the lifeline is the leftmost one or a message in the same row runs to its left (then it is on the right),
+ * a self-message label stands right of its loop.
+ */
 private fun seqSideTextNeeds(
     model: Sysml2Model,
     ordered: List<NodeId>,
-): Map<NodeId, Float> {
+): SeqSideNeeds {
     val visible = ordered.map { it.value }.toSet()
-    val needs = HashMap<NodeId, Float>()
+    val indexOf = ordered.mapIndexed { i, id -> id.value to i }.toMap()
+    val left = HashMap<NodeId, Float>()
+    val right = HashMap<NodeId, Float>()
+
+    fun add(
+        into: HashMap<NodeId, Float>,
+        id: String,
+        w: Float,
+    ) {
+        into[NodeId(id)] = maxOf(into[NodeId(id)] ?: 0f, w)
+    }
+    val messages = model.usages.filterIsInstance<dev.kuml.sysml2.MessageUsage>()
     for (u in model.usages) {
         when (u) {
             is DurationConstraintUsage ->
                 if (u.lifelineId in visible) {
-                    // axis + activation bar half width + 14 gap + hook/text offset + text
-                    val w = 5f + 14f + 8f + u.expression.take(Sysml2Limits.TIME_EXPR).length * SEQ_CHAR_W + 2f * SEQ_CHAR_W
-                    needs[NodeId(u.lifelineId)] = maxOf(needs[NodeId(u.lifelineId)] ?: 0f, w)
+                    // axis + activation bar half width + 12 gap + 8 hook/text offset + text
+                    add(left, u.lifelineId, 5f + 12f + 8f + u.expression.take(Sysml2Limits.TIME_EXPR).length * SEQ_CHAR_W + 2f * SEQ_CHAR_W)
                 }
             is TimeObservationUsage ->
                 if (u.lifelineId in visible) {
-                    val w = 10f + (u.name.take(Sysml2Limits.TIME_EXPR).length + 6) * SEQ_CHAR_W
-                    needs[NodeId(u.lifelineId)] = maxOf(needs[NodeId(u.lifelineId)] ?: 0f, w)
+                    val shown = u.label?.takeIf { it.isNotBlank() }?.let { "${u.name} = $it" } ?: u.name
+                    val w = 10f + (shown.take(Sysml2Limits.TIME_EXPR).length + 2) * SEQ_CHAR_W
+                    val myIndex = indexOf.getValue(u.lifelineId)
+                    val leftBlocked =
+                        messages.any { m ->
+                            m.seqNo == u.seqNo &&
+                                (m.sourceLifelineId == u.lifelineId || m.targetLifelineId == u.lifelineId) &&
+                                m.sourceLifelineId != m.targetLifelineId &&
+                                listOf(m.sourceLifelineId, m.targetLifelineId).filter { it != u.lifelineId }.any { other ->
+                                    (indexOf[other] ?: Int.MAX_VALUE) < myIndex
+                                }
+                        }
+                    if (myIndex > 0 && !leftBlocked) add(left, u.lifelineId, w) else add(right, u.lifelineId, w)
+                }
+            is dev.kuml.sysml2.MessageUsage ->
+                // Wave 2F: a self message has a 32 px loop and its label right of it.
+                if (u.sourceLifelineId == u.targetLifelineId &&
+                    u.kind != dev.kuml.sysml2.MessageKind.Found &&
+                    u.kind != dev.kuml.sysml2.MessageKind.Lost &&
+                    u.sourceLifelineId in visible
+                ) {
+                    add(right, u.sourceLifelineId, 32f + 4f + u.messageLabel.length * SEQ_CHAR_W)
                 }
             else -> Unit
         }
     }
-    return needs
+    return SeqSideNeeds(left = left, right = right)
 }
 
 private const val MIN_SEQ_LIFELINE_GAP: Float = 40f

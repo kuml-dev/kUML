@@ -882,11 +882,30 @@ wrong or missing pins (307), more than 8 pins per side (308), more than 8 handle
 (310), unresolved `calledActivityId` (311), interrupting flow that does not leave a region (312), pins on pseudo
 nodes (313), `showName` on non-control nodes (314) and a region spanning several partitions (315).
 
+==== Swimlanes, regions and merges (wave 2F)
+
+Swimlanes (`activityPartition`) are drawn as columns of equal height with a 28 px header (name semi-bold, wrapped to
+the lane width). The flow runs top to bottom; a flow that returns to an earlier step (a back edge) leaves at the right
+of its source and runs up in a corridor at the right of the source lane. `sameLayer(a, b)` puts the members on the
+deepest layer of the group and on one centre line. Nodes without a partition stand in a header-less column at the
+left. Diagrams with `direction = Right`, `Left` or `Up`, and diagrams without any partition, keep the layout of the
+engine (no lane columns).
+
+A region frame has 12 px padding; a nested region lies at least 8 px inside its parent. A node that is not a member is
+pushed sideways out of the frame; if that does not succeed the warning `KUML-LAYOUT-W006` names the nodes.
+`acceptEvent(name, region = r)` and `sendSignal(..., region = r)` make a signal node a member.
+
+An interrupting flow (`controlFlow(interrupts = true)`) and an `exceptionHandler` are straight orthogonal lines with a
+lightning-bolt glyph where the line leaves the region of its source; the flow name (and guard) is its label. An object
+flow shows its type as `«Type»`. Names of signal, accept-event and time-event nodes are wrapped (at most four lines,
+then the node grows wider) and never shortened. Several arrivals at a decision or merge diamond are spread along its top
+side; from five arrivals on the diamond grows.
+
 ==== Limits
 
-Regions are drawn as the bounding box of their members; a node that the layout happens to place inside that box
-looks like a member although it is not. The simulation passes tokens through the new node kinds; regions,
-interruptions and handlers have no runtime semantics yet.
+A node that the layout places inside a region frame in a diagram without partitions, or in a diagram flowing sideways,
+looks like a member although it is not (the pushing out of the frame exists only for lane columns). The simulation
+passes tokens through the new node kinds; regions, interruptions and handlers have no runtime semantics yet.
 
 == Sequence Diagrams (SEQ)
 
@@ -984,8 +1003,26 @@ output (the LaTeX SEQ renderer keeps its rectangle fallback and draws no fragmen
 | `SEQ406` | Error | `ref`, duration constraint or time observation on an invisible lifeline
 | `SEQ407` | Warning | `ref` shares its row with a message
 | `SEQ410` | Warning | text longer than 200 (time expressions: 64) characters
-| `SEQ411` | Error | found/lost message with different source and target lifeline
+| `SEQ411` | Error | lost message with different source and target lifeline (a found message may name its sender, wave 2F)
 |===
+
+=== Fragments, time and found messages (wave 2F)
+
+A combined fragment is as wide as the lifelines it covers: the lifelines of the messages, `ref` frames, time
+observations and duration constraints in its rows and of its nested fragments, plus 24 px. It ends below its last
+content (a self loop, a `ref` frame) and keeps at least 12 px from the next fragment. An operand without a guard
+(`guard = ""` or none) writes no text; its divider remains, which is the usual form for `par`.
+
+[source,kotlin]
+----
+foundMessage(label = "open", target = vitec, seqNo = 0, source = person)   // arrow from the sending lifeline, dot at its start
+timeObservation(lifeline = fmcs, seqNo = 3, name = "tOpen", label = "now") // shown as `tOpen = now`; without label only `tOpen`
+----
+
+A `ref` frame is as high as its text plus 12 px (at least 28 px). A self message is a 32 x 20 px loop with its label
+on the right. A duration constraint stands 12 px left of the outermost activation bar. Found and lost lines are at
+least 120 px long, the label stands above the line. The lifelines start 24 px below the top of the image and end 24 px
+above its bottom.
 
 == Parametric Diagrams (PAR)
 

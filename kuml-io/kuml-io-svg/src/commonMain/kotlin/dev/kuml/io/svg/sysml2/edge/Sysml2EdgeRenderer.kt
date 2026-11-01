@@ -68,15 +68,6 @@ internal object Sysml2EdgeRenderer {
     /** Wave C2 — maximum distance of an edge label from its own line (before stack offsets), px. */
     internal const val LABEL_LEASH_PX: Float = 16f
 
-    /** Wave C2 — length of the lightning-bolt kink along the line, px. */
-    private const val LIGHTNING_LENGTH_PX: Float = 18f
-
-    /** Wave C2 — lightning amplitude on segments of at least [LIGHTNING_SHORT_SEGMENT_PX], px. */
-    private const val LIGHTNING_AMPLITUDE_PX: Float = 6f
-
-    /** Wave C2 — segments shorter than this get the reduced amplitude. */
-    private const val LIGHTNING_SHORT_SEGMENT_PX: Float = 32f
-
     internal fun polylinePoints(route: EdgeRoute): List<Point> =
         when (route) {
             is EdgeRoute.Direct -> listOf(route.source, route.target)
@@ -106,47 +97,6 @@ internal object Sysml2EdgeRenderer {
             if (d < best) best = d
         }
         return if (best == Float.MAX_VALUE) 0f else best
-    }
-
-    /**
-     * The polyline of [route] with a Z-shaped lightning kink ([LIGHTNING_LENGTH_PX] long) inserted
-     * into the middle of its longest segment; `null` when no segment is long enough (the plain
-     * line is drawn then). The result always has four points more than the route's polyline.
-     */
-    internal fun lightningPolyline(route: EdgeRoute): List<Point>? {
-        val pts = polylinePoints(route)
-        if (pts.size < 2) return null
-        var bestIdx = 0
-        var bestLen = 0f
-        for (i in 0 until pts.size - 1) {
-            val dx = pts[i + 1].x - pts[i].x
-            val dy = pts[i + 1].y - pts[i].y
-            val len = kotlin.math.sqrt(dx * dx + dy * dy)
-            if (len > bestLen) {
-                bestLen = len
-                bestIdx = i
-            }
-        }
-        if (bestLen < LIGHTNING_LENGTH_PX + 6f) return null
-        val a = pts[bestIdx]
-        val b = pts[bestIdx + 1]
-        val ux = (b.x - a.x) / bestLen
-        val uy = (b.y - a.y) / bestLen
-        val nx = -uy
-        val ny = ux
-        val amp = if (bestLen < LIGHTNING_SHORT_SEGMENT_PX) 4f else LIGHTNING_AMPLITUDE_PX
-        val mx = (a.x + b.x) / 2f
-        val my = (a.y + b.y) / 2f
-        val h = LIGHTNING_LENGTH_PX / 2f
-        val q = LIGHTNING_LENGTH_PX / 6f
-        val kink =
-            listOf(
-                Point(x = mx - ux * h, y = my - uy * h),
-                Point(x = mx - ux * q + nx * amp, y = my - uy * q + ny * amp),
-                Point(x = mx + ux * q - nx * amp, y = my + uy * q - ny * amp),
-                Point(x = mx + ux * h, y = my + uy * h),
-            )
-        return pts.subList(0, bestIdx + 1) + kink + pts.subList(bestIdx + 1, pts.size)
     }
 
     /**
@@ -192,6 +142,7 @@ internal object Sysml2EdgeRenderer {
         suppressLabels: Boolean = false,
         leashLabels: Boolean = false,
         plannedLabel: dev.kuml.layout.bridge.label.PlacedLabel? = null,
+        interruptRegion: dev.kuml.layout.Rect? = null,
     ) {
         builder.tag(name = "g", attrs = mapOf("id" to xmlEscapeAttr(id))) {
             renderContent(
@@ -205,8 +156,99 @@ internal object Sysml2EdgeRenderer {
                 suppressLabels = suppressLabels,
                 leashLabels = leashLabels,
                 plannedLabel = plannedLabel,
+                interruptRegion = interruptRegion,
             )
         }
+    }
+
+    /**
+     * Wave 2F: where the interruption glyph of [route] sits and which way the line runs there: the first crossing of the
+     * frame of the source's region ([region]), else the middle of the longest segment. `null` for a degenerate route.
+     */
+    internal fun interruptGlyphAnchor(
+        route: EdgeRoute,
+        region: dev.kuml.layout.Rect?,
+    ): Pair<Point, Point>? {
+        val pts = polylinePoints(route)
+        if (pts.size < 2) return null
+        if (region != null) {
+            val l = region.origin.x
+            val t = region.origin.y
+            val r = l + region.size.width
+            val b = t + region.size.height
+
+            fun inside(p: Point) = p.x > l && p.x < r && p.y > t && p.y < b
+            for (i in 0 until pts.size - 1) {
+                val a = pts[i]
+                val c = pts[i + 1]
+                if (!inside(a) || inside(c)) continue
+                // axis parallel segment leaving the frame: walk to the boundary
+                val dx = c.x - a.x
+                val dy = c.y - a.y
+                val len = kotlin.math.sqrt(dx * dx + dy * dy)
+                if (len < 1e-3f) continue
+                var best = 1f
+                if (dx > 1e-3f) best = minOf(best, (r - a.x) / dx)
+                if (dx < -1e-3f) best = minOf(best, (l - a.x) / dx)
+                if (dy > 1e-3f) best = minOf(best, (b - a.y) / dy)
+                if (dy < -1e-3f) best = minOf(best, (t - a.y) / dy)
+                return Point(x = a.x + dx * best, y = a.y + dy * best) to Point(x = dx / len, y = dy / len)
+            }
+        }
+        var bestIdx = 0
+        var bestLen = 0f
+        for (i in 0 until pts.size - 1) {
+            val dx = pts[i + 1].x - pts[i].x
+            val dy = pts[i + 1].y - pts[i].y
+            val len = kotlin.math.sqrt(dx * dx + dy * dy)
+            if (len > bestLen) {
+                bestLen = len
+                bestIdx = i
+            }
+        }
+        if (bestLen < 1e-3f) return null
+        val a = pts[bestIdx]
+        val c = pts[bestIdx + 1]
+        return Point(x = (a.x + c.x) / 2f, y = (a.y + c.y) / 2f) to Point(x = (c.x - a.x) / bestLen, y = (c.y - a.y) / bestLen)
+    }
+
+    /** Bounding box of the glyph at [at], padded by 2 px, as an obstacle for label planning. */
+    internal fun glyphRect(
+        at: Point,
+        dir: Point,
+    ): dev.kuml.layout.Rect {
+        val pts = interruptGlyph(at = at, dir = dir)
+        val x0 = pts.minOf { it.x } - 2f
+        val y0 = pts.minOf { it.y } - 2f
+        return dev.kuml.layout.Rect(
+            origin = Point(x = x0, y = y0),
+            size =
+                dev.kuml.layout.Size(
+                    width = pts.maxOf { it.x } + 2f - x0,
+                    height =
+                        pts.maxOf { it.y } + 2f - y0,
+                ),
+        )
+    }
+
+    /** Wave 2F: the lightning-bolt glyph (12 x 16 px) centred on [at], its long axis along [dir]. */
+    internal fun interruptGlyph(
+        at: Point,
+        dir: Point,
+    ): List<Point> {
+        // (across, along) coordinates of the bolt
+        val shape =
+            listOf(
+                1.5f to -8f,
+                -5f to 1f,
+                -0.5f to 1f,
+                -1.5f to 8f,
+                5f to -2f,
+                0.5f to -2f,
+            )
+        val nx = -dir.y
+        val ny = dir.x
+        return shape.map { (a, u) -> Point(x = at.x + nx * a + dir.x * u, y = at.y + ny * a + dir.y * u) }
     }
 
     private fun renderContent(
@@ -220,31 +262,32 @@ internal object Sysml2EdgeRenderer {
         suppressLabels: Boolean = false,
         leashLabels: Boolean = false,
         plannedLabel: dev.kuml.layout.bridge.label.PlacedLabel? = null,
+        interruptRegion: dev.kuml.layout.Rect? = null,
     ) {
-        // 1. Line + dash pattern. Wave C2: an interrupting flow / exception handler is drawn as a
-        //    polyline with a lightning-bolt kink instead of the plain (possibly rounded) path.
-        val lightning = if (metadata.lightning) lightningPolyline(route) else null
-        if (lightning != null) {
-            val lineAttrs =
-                buildMap {
-                    put("points", lightning.joinToString(" ") { "${fmt(it.x)},${fmt(it.y)}" })
-                    put("fill", "none")
-                    put("class", "kuml-edge kuml-edge-lightning")
-                    metadata.dashArray?.let { put("stroke-dasharray", it) }
-                }
-            builder.tag(name = "polyline", attrs = lineAttrs)
-        } else {
-            val (tag, attrs) = EdgePathBuilder.build(route)
-            val lineAttrs =
-                buildMap {
-                    putAll(attrs)
-                    put("class", "kuml-edge")
-                    metadata.dashArray?.let { put("stroke-dasharray", it) }
-                    // Inline style: the `.kuml-edge` class rule would win over a presentation attribute.
-                    val inline = listOfNotNull(metadata.strokeColor?.let { "stroke:$it" }, metadata.lineCap?.let { "stroke-linecap:$it" })
-                    if (inline.isNotEmpty()) put("style", inline.joinToString(";"))
-                }
-            builder.tag(name = tag, attrs = lineAttrs)
+        // 1. Line + dash pattern.
+        val (tag, attrs) = EdgePathBuilder.build(route)
+        val lineAttrs =
+            buildMap {
+                putAll(attrs)
+                put("class", "kuml-edge")
+                metadata.dashArray?.let { put("stroke-dasharray", it) }
+                // Inline style: the `.kuml-edge` class rule would win over a presentation attribute.
+                val inline = listOfNotNull(metadata.strokeColor?.let { "stroke:$it" }, metadata.lineCap?.let { "stroke-linecap:$it" })
+                if (inline.isNotEmpty()) put("style", inline.joinToString(";"))
+            }
+        builder.tag(name = tag, attrs = lineAttrs)
+        // Wave 2F: an interrupting flow carries a lightning-bolt glyph on a straight line (no zigzag path).
+        if (metadata.lightning) {
+            interruptGlyphAnchor(route = route, region = interruptRegion)?.let { (at, dir) ->
+                builder.tag(
+                    name = "polygon",
+                    attrs =
+                        mapOf(
+                            "points" to interruptGlyph(at = at, dir = dir).joinToString(" ") { "${fmt(it.x)},${fmt(it.y)}" },
+                            "class" to "kuml-interrupt-glyph",
+                        ),
+                )
+            }
         }
 
         // Inline arrowhead (replaces marker-end url(#id) approach).
@@ -351,8 +394,9 @@ internal object Sysml2EdgeRenderer {
         }
         metadata.label?.let { l ->
             wrapWords(text = l, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(l) }.forEach {
+                // Wave 2F: the «Type» of an object flow is secondary text, upright.
                 out +=
-                    DrawnLabelLine(text = it, css = "kuml-body")
+                    DrawnLabelLine(text = it, css = if (l.startsWith("«")) "kuml-object-type" else "kuml-body")
             }
         }
         return out

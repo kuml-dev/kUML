@@ -372,6 +372,12 @@ internal object SvgDocument {
                 // is required: `.kuml-class { fill: nodeFill }` would beat a `fill="currentColor"`
                 // presentation attribute and render the dot hollow. Colour follows the theme border.
                 append(".kuml-pseudo-filled { fill: ${c.border.toHex()}; stroke: none; }\n")
+                // PAL wave 2F — activity swimlane columns, interruption glyph, object-flow type label.
+                append(".kuml-lane { fill: none; stroke: ${c.border.toHex()}; stroke-width: ${bo.thinPx}; }\n")
+                append(".kuml-lane-header-band { fill: ${c.border.toHex()}; fill-opacity: 0.06; stroke: none; }\n")
+                append(".kuml-lane-header text { font-weight: 600; font-style: normal; }\n")
+                append(".kuml-interrupt-glyph { fill: ${c.border.toHex()}; stroke: none; }\n")
+                append(".kuml-object-type { fill: ${c.muted.toHex()}; font-style: normal; }\n")
                 append(".kuml-final-outer { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 // V1.1 — UML-Deployment-Diagramm (Node-Würfel, Artifact, Stereotype-Box)

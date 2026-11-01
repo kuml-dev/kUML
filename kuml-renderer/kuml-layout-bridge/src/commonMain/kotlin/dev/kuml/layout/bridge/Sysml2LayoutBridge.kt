@@ -53,6 +53,7 @@ import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StateKind
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
+import dev.kuml.sysml2.Sysml2LayoutFlow
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.TestCaseDefinition
 import dev.kuml.sysml2.TimeObservationUsage
@@ -539,6 +540,9 @@ public object Sysml2LayoutBridge {
      */
     public const val SEQ_LIFELINE_TAIL_PADDING: Float = 40f
 
+    /** Wave 2F: reserve per fragment for the row gap after it (px). */
+    public const val SEQ_FRAGMENT_END_GAP: Float = 16f
+
     /**
      * Zusätzlicher vertikaler Freiraum pro Combined-Fragment-Operand, der über
      * dessen erster Nachricht reserviert wird, damit der Operand-Guard (bzw. das
@@ -553,7 +557,7 @@ public object Sysml2LayoutBridge {
     public const val SEQ_FRAGMENT_HEADER_BAND: Float = 24f
 
     /** C3: a `ref` (interaction use) frame is 48 px high, i.e. this much more than one message row. */
-    public const val SEQ_REF_EXTRA_HEIGHT: Float = 16f
+    public const val SEQ_REF_EXTRA_HEIGHT: Float = 0f
 
     /**
      * Content-aware [SizeProvider] for BDD nodes. Computes node height from
@@ -1912,7 +1916,16 @@ public object Sysml2LayoutBridge {
             model.definitions
                 .filterIsInstance<ActivityPartitionDefinition>()
                 .filter { it.id in visiblePartitionIds }
-                .map { LayoutGroup(id = GroupId(it.id), parent = null, padding = partitionPadding, layoutAsCompound = true) }
+                // Wave 2F: top-to-bottom diagrams get flat (non-compound) lanes: ELK sees one flow graph and
+                // [normalizeActLayout] draws the lanes as columns. Other directions keep the compound lanes.
+                .map {
+                    LayoutGroup(
+                        id = GroupId(it.id),
+                        parent = null,
+                        padding = partitionPadding,
+                        layoutAsCompound = !actLanesAsColumns(diagram),
+                    )
+                }
 
         // Flows aus dem Modell ziehen (nicht aus dem Diagramm) — siehe
         // KDoc-Begründung oben. Eine Flow wird zur Edge, wenn beide
@@ -1962,6 +1975,12 @@ public object Sysml2LayoutBridge {
         }
 
         return LayoutGraph(nodes = nodes, edges = edges, groups = groups).withLayoutSpec(diagram = diagram)
+    }
+
+    /** Wave 2F: swimlanes are columns (flat for ELK) unless the diagram flows in another direction than down. */
+    internal fun actLanesAsColumns(diagram: ActDiagram): Boolean {
+        val flow = diagram.layout?.direction
+        return flow == null || flow == Sysml2LayoutFlow.Down
     }
 
     /**
@@ -2116,6 +2135,8 @@ public object Sysml2LayoutBridge {
                 (rowCountWithExtras + 1) * SEQ_MESSAGE_ROW_HEIGHT +
                 operandBandCount * SEQ_FRAGMENT_HEADER_BAND +
                 interactionUseCount * SEQ_REF_EXTRA_HEIGHT +
+                // wave 2F: room for the gap after a fragment (self loop, distance to the next frame)
+                model.usages.filterIsInstance<CombinedFragmentUsage>().size * SEQ_FRAGMENT_END_GAP +
                 SEQ_LIFELINE_TAIL_PADDING
 
         // 4. LayoutNodes für die sichtbaren Lifelines — Breite vom SizeProvider,
@@ -2275,8 +2296,18 @@ public object Sysml2LayoutBridge {
                         dev.kuml.layout.Size(width = ACT_PSEUDO_SIZE, height = ACT_PSEUDO_SIZE)
                     ActivityNodeKind.Decision.name,
                     ActivityNodeKind.Merge.name,
-                    ->
-                        dev.kuml.layout.Size(width = ACT_DIAMOND_WIDTH, height = ACT_DIAMOND_HEIGHT)
+                    -> {
+                        // Wave 2F: from five arrivals on the diamond grows to max(28, n * 10 + 8) px so the arrivals keep
+                        // their 8 px apart; capped at 16 arrivals (DoS guard).
+                        val arrivals =
+                            minOf(
+                                ACT_MAX_DIAMOND_ARRIVALS,
+                                model.usages.count { it is ControlFlowUsage && it.targetNodeId == id } +
+                                    model.usages.count { it is ObjectFlowUsage && it.targetNodeId == id },
+                            )
+                        val side = if (arrivals >= 5) maxOf(ACT_DIAMOND_WIDTH, arrivals * 10f + 8f) else ACT_DIAMOND_WIDTH
+                        dev.kuml.layout.Size(width = side, height = maxOf(ACT_DIAMOND_HEIGHT, side))
+                    }
                     ActivityNodeKind.Fork.name,
                     ActivityNodeKind.Join.name,
                     -> {
@@ -2293,18 +2324,21 @@ public object Sysml2LayoutBridge {
                     ActivityNodeKind.SendSignal.name,
                     ActivityNodeKind.AcceptEvent.name,
                     -> {
-                        // name (inside the shape) plus the notch / tip on one side
-                        val nameW = minOf(def?.name?.length ?: 0, ACT_LABEL_MAX_CHARS) * IBD_TITLE_CHAR_PX
+                        // Wave 2F: the name is wrapped at word boundaries (never truncated); the shape grows with it.
+                        val lines = ActTextWrap.signalLines(name = def?.name.orEmpty(), signal = def?.signal)
+                        val longest = lines.maxOf { it.length }
                         dev.kuml.layout.Size(
-                            width = maxOf(nameW + 2 * IBD_H_PAD + ACT_SIGNAL_NOTCH, ACT_SIGNAL_WIDTH),
-                            height = ACT_SIGNAL_HEIGHT,
+                            width = maxOf(longest * IBD_TITLE_CHAR_PX + 2 * IBD_H_PAD + ACT_SIGNAL_NOTCH, ACT_SIGNAL_WIDTH),
+                            height = maxOf(ACT_SIGNAL_HEIGHT, lines.size * ACT_SIGNAL_LINE_PX + 16f),
                         )
                     }
                     ActivityNodeKind.AcceptTimeEvent.name -> {
-                        val labelW = minOf(def?.timeExpression?.length ?: 0, ACT_LABEL_MAX_CHARS) * ACT_LABEL_CHAR_PX + 8f
+                        val label = def?.timeExpression?.takeIf { it.isNotBlank() } ?: def?.name.orEmpty()
+                        val lines = ActTextWrap.timeLines(label)
+                        val labelW = lines.maxOf { it.length } * ACT_LABEL_CHAR_PX + 8f
                         dev.kuml.layout.Size(
-                            width = labelW.coerceIn(ACT_TIME_EVENT_W, ACT_TIME_EVENT_MAX_WIDTH),
-                            height = ACT_TIME_EVENT_H + ACT_TIME_EVENT_LABEL_HEIGHT,
+                            width = maxOf(labelW.coerceAtLeast(ACT_TIME_EVENT_W), ACT_TIME_EVENT_W),
+                            height = ACT_TIME_EVENT_H + ACT_TIME_EVENT_LABEL_HEIGHT + (lines.size - 1) * ACT_TIME_LINE_PX,
                         )
                     }
                     ActivityNodeKind.CallBehavior.name -> {
@@ -2316,6 +2350,15 @@ public object Sysml2LayoutBridge {
                 }
             actPinGrowth(base = base, def = def)
         }
+
+    /** Wave 2F — line height (px) of a wrapped signal name. */
+    internal const val ACT_SIGNAL_LINE_PX: Float = 15f
+
+    /** Wave 2F — line height (px) of a wrapped time-event label. */
+    internal const val ACT_TIME_LINE_PX: Float = 13f
+
+    /** Wave 2F — arrivals counted for the diamond growth. */
+    internal const val ACT_MAX_DIAMOND_ARRIVALS: Int = 16
 
     /** Wave C2 — characters rendered at most in a signal / time-event label. */
     internal const val ACT_LABEL_MAX_CHARS: Int = 40

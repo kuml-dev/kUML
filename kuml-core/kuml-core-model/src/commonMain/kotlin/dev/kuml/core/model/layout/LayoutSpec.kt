@@ -130,6 +130,9 @@ object LayoutCodes {
 
     /** A label of a parametric diagram has no free spot and sits on its own line (PAL wave 2C-b3). */
     const val LABEL_NO_FREE_SPOT = "KUML-LAYOUT-W005"
+
+    /** An interruptible-region frame still overlaps a node that is not a member of it (PAL wave 2F). */
+    const val REGION_OVERLAP = "KUML-LAYOUT-W006"
     const val OUT_OF_RANGE = "KUML-LAYOUT-E001"
 
     /** Informational: a `sameLayer` of groups widens its row beyond the column count (wave 2E-a). Not an error. */

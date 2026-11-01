@@ -2,6 +2,8 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.sysml2.CombinedFragmentUsage
 import dev.kuml.sysml2.InteractionUseUsage
+import dev.kuml.sysml2.MessageKind
+import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.Sysml2Limits
 
 /**
@@ -16,31 +18,83 @@ import dev.kuml.sysml2.Sysml2Limits
 internal class SeqRowOffsets(
     private val bandStartSeqs: List<Int>,
     private val refSeqs: List<Int>,
+    /** Extra vertical room opened after a row: (row, px) — rows strictly after `row` move down by `px`. */
+    private val gaps: List<Pair<Int, Float>> = emptyList(),
 ) {
     /** Cumulative vertical offset (px) of the row [seqNo]. */
     fun offsetAt(seqNo: Int): Float =
         SYSML2_FRAGMENT_HEADER_BAND * bandStartSeqs.count { it <= seqNo } +
-            SYSML2_REF_EXTRA_HEIGHT * refSeqs.count { it < seqNo }
+            SYSML2_REF_EXTRA_HEIGHT * refSeqs.count { it < seqNo } +
+            gaps.filter { it.first < seqNo }.sumOf { it.second.toDouble() }.toFloat()
 
     internal companion object {
         val NONE: SeqRowOffsets = SeqRowOffsets(bandStartSeqs = emptyList(), refSeqs = emptyList())
 
+        /** Minimum distance (px) between the end of one fragment and the frame of the next one (wave 2F). */
+        const val FRAGMENT_GAP_PX: Float = 12f
+
+        /** Frame bottom of a fragment is 8 px below its last content; the next frame's top lies 11 px below a plain row. */
+        private const val NATURAL_GAP_PX: Float = 11f
+
         fun of(
             fragments: List<CombinedFragmentUsage>,
             refs: List<InteractionUseUsage>,
-        ): SeqRowOffsets =
-            SeqRowOffsets(
+            messages: List<MessageUsage> = emptyList(),
+        ): SeqRowOffsets {
+            val gaps = ArrayList<Pair<Int, Float>>()
+            val selfRows =
+                messages
+                    .filter {
+                        it.sourceLifelineId == it.targetLifelineId &&
+                            it.kind != MessageKind.Found &&
+                            it.kind != MessageKind.Lost
+                    }.map { it.seqNo }
+                    .toSet()
+            val tree = SeqFragmentTree(fragments)
+            val ends = HashMap<Int, Float>()
+            for (f in fragments) {
+                if (f.operands.isEmpty()) continue
+                val end = f.operands.maxOf { it.endSeqNo }
+                // content in the last row hangs below the row line: a self loop, or half of a `ref` frame
+                val reach =
+                    maxOf(
+                        if (end in selfRows) SYSML2_SELF_CALL_HEIGHT else 0f,
+                        if (refs.any { it.seqNo == end }) SYSML2_REF_HEIGHT / 2f else 0f,
+                    )
+                var need = if (end in selfRows) 8f else 0f
+                val next = fragments.filter { it.id != f.id && it.operands.minOfOrNull { o -> o.startSeqNo } == end + 1 }
+                val separate =
+                    next.any { n ->
+                        n.id !in tree.selfAndDescendants(f.id).map { it.id } && f.id !in tree.selfAndDescendants(n.id).map { it.id }
+                    }
+                if (separate) {
+                    val nestedStep = SYSML2_FRAGMENT_BOTTOM_STEP * (tree.places[f.id]?.height ?: 0).coerceAtMost(2)
+                    need = maxOf(need, reach + FRAGMENT_GAP_PX - NATURAL_GAP_PX + nestedStep)
+                }
+                if (need > 0f) ends[end] = maxOf(ends[end] ?: 0f, need)
+            }
+            // a self loop right before the first row of a fragment must not touch its frame (frame top is 19 px below the row)
+            for (row in selfRows) {
+                if (fragments.any { f -> f.operands.minOfOrNull { it.startSeqNo } == row + 1 } && (ends[row] ?: 0f) < 9f) ends[row] = 9f
+            }
+            for ((row, px) in ends) gaps += row to px
+            return SeqRowOffsets(
                 bandStartSeqs = fragments.flatMap { it.operands }.map { it.startSeqNo }.sorted(),
                 refSeqs = refs.map { it.seqNo }.sorted(),
+                gaps = gaps.sortedBy { it.first },
             )
+        }
     }
 }
 
-/** A `ref` frame is [SYSML2_REF_HEIGHT] high, i.e. this much more than a normal 32 px row. */
-internal const val SYSML2_REF_EXTRA_HEIGHT: Float = 16f
+/** A `ref` frame is [SYSML2_REF_HEIGHT] high (wave 2F: as high as its text plus 12 px, so no longer taller than a row). */
+internal const val SYSML2_REF_EXTRA_HEIGHT: Float = 0f
 
 /** Height of a `ref` frame. */
-internal const val SYSML2_REF_HEIGHT: Float = 48f
+internal const val SYSML2_REF_HEIGHT: Float = 28f
+
+/** Height of the loop of a self message (wave 2F). */
+internal const val SYSML2_SELF_CALL_HEIGHT: Float = 20f
 
 /** Horizontal inset per nesting level of a combined fragment. */
 internal const val SYSML2_FRAGMENT_INDENT: Float = 10f

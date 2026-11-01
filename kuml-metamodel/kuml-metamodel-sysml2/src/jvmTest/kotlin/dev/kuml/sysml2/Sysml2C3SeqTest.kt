@@ -207,9 +207,18 @@ class Sysml2C3SeqTest :
                     a,
                     b,
                     ->
-                    messageById(label = "f", sourceLifelineId = a.id, targetLifelineId = b.id, seqNo = 0, kind = MessageKind.Found)
+                    messageById(label = "f", sourceLifelineId = a.id, targetLifelineId = b.id, seqNo = 0, kind = MessageKind.Lost)
                 },
             ) shouldContain
                 411
+            // wave 2F: a found message may name its sender, only a lost message still needs one lifeline
+            codes(
+                base {
+                    a,
+                    b,
+                    ->
+                    messageById(label = "f", sourceLifelineId = a.id, targetLifelineId = b.id, seqNo = 0, kind = MessageKind.Found)
+                },
+            ).contains(411) shouldBe false
         }
     })

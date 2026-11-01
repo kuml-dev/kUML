@@ -825,5 +825,7 @@ data class TimeObservationUsage(
     override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
     val lifelineId: String,
     val seqNo: Int,
+    /** Optional text after the name (`name = label`); `null` shows only the name (PAL wave 2F). */
+    val label: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Usage

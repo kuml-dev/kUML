@@ -94,8 +94,9 @@ class Sysml2C2RenderTest :
             val svg = VaultExampleRenderer.render(script = script("act")).svg!!
             val payment = regionRect(svg, "Payment")
             val retry = regionRect(svg, "Retry")
-            group(svg, "region:Payment") shouldContain "stroke-dasharray=\"6 4\""
-            group(svg, "region:Payment") shouldContain "rx=\"10\""
+            // wave 2F: dash pattern 4 3, corner radius 8
+            group(svg, "region:Payment") shouldContain "stroke-dasharray=\"4 3\""
+            group(svg, "region:Payment") shouldContain "rx=\"8\""
 
             fun inside(
                 outer: FloatArray,
@@ -116,21 +117,16 @@ class Sysml2C2RenderTest :
             (svg.indexOf("id=\"regionlabel:Payment\"") > svg.lastIndexOf("id=\"controlFlow:")) shouldBe true
         }
 
-        test("act: interrupting flow and exception handler are lightning edges with open arrows") {
+        test("act: interrupting flow and exception handler carry a lightning glyph on a straight line with an open arrow") {
             val svg = VaultExampleRenderer.render(script = script("act")).svg!!
-            Regex("""kuml-edge-lightning""").findAll(svg).count() shouldBe 2
+            // wave 2F: a glyph replaces the zigzag polyline
+            Regex("""class="kuml-interrupt-glyph"""").findAll(svg).count() shouldBe 2
+            svg shouldNotContain "kuml-edge-lightning"
             val handler = group(svg, "exceptionHandler:ChargeCard::HandleError")
             // wave C2b: the label is painted after all edges, in its own group keyed by the edge id (data-label-id)
             val labelGroup = svg.substring(svg.indexOf("data-label-id=\"exceptionHandler:ChargeCard::HandleError\""))
             labelGroup.substring(0, labelGroup.indexOf("</g>")) shouldContain "PaymentError"
-            // the kink adds four points to the routed polyline
-            val pts =
-                Regex("""<polyline points="([^"]+)"""")
-                    .find(handler)!!
-                    .groupValues[1]
-                    .trim()
-                    .split(" ")
-            (pts.size >= 6) shouldBe true
+            handler shouldContain "kuml-interrupt-glyph"
             // handler without a named pin gets a pin square at its arrival point
             svg shouldContain "kuml-act-handler-pin"
         }

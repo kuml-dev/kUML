@@ -132,7 +132,7 @@ class Sysml2C3SeqSvgTest :
             abs((y0 - 24f - 13f) - f.y) shouldBeLessThanOrEqual 1f
         }
 
-        "interaction use frame is 48 px high and covers the lifelines with 16 px margin" {
+        "interaction use frame is 28 px high (wave 2F) and covers the lifelines with 16 px margin" {
             val model =
                 sysml2Model(name = "Ref") {
                     val a = lifelineDef(name = "a")
@@ -149,18 +149,18 @@ class Sysml2C3SeqSvgTest :
                 }
             val svg = render(model, "ref")
             val f = frame(svg, "interactionUse:auth")
-            f.h shouldBe 48f
+            f.h shouldBe 28f
             val aLeft = lifelineCx(svg, "a") - 70f
             abs(f.x - (aLeft - 16f)) shouldBeLessThanOrEqual 1f
             svg shouldContain "Authenticate"
             svg shouldNotContain "href"
-            // rows after the ref are pushed down by 16 px: m2 sits 32 + 16 below m0's successor row
+            // wave 2F: the ref frame is no taller than a row, so the rows after it are not pushed down any more
             val m0 = Regex("<g id=\"message:a-b-0\">\\s*<line[^>]*y1=\"([0-9.]+)\"").find(svg)!!.groupValues[1].toFloat()
             val m2 = Regex("<g id=\"message:b-c-2\">\\s*<line[^>]*y1=\"([0-9.]+)\"").find(svg)!!.groupValues[1].toFloat()
-            abs((m2 - m0) - (2 * 32f + 16f)) shouldBeLessThanOrEqual 1f
+            abs((m2 - m0) - (2 * 32f)) shouldBeLessThanOrEqual 1f
         }
 
-        "duration constraint bracket sits 14 px right of the axis and time observation draws a tick" {
+        "duration constraint bracket sits 12 px left of the axis (wave 2F) and time observation draws a tick" {
             val model =
                 sysml2Model(name = "Time") {
                     val a = lifelineDef(name = "a")
@@ -178,13 +178,14 @@ class Sysml2C3SeqSvgTest :
             val g = block(svg, "durationConstraint:a-0-2")
             val line = Regex("<line[^>]*/>").findAll(g).first().value
             val x = attr(line, "x1")
-            abs(x - (lifelineCx(svg, "a") + 14f)) shouldBeLessThanOrEqual 1f
+            abs(x - (lifelineCx(svg, "a") - 12f)) shouldBeLessThanOrEqual 1f
             attr(line, "y2") shouldBeGreaterThan attr(line, "y1")
             g shouldContain "{0..3s}"
-            block(svg, "timeObservation:b-0") shouldContain "t0 = now"
+            block(svg, "timeObservation:b-0") shouldContain "t0"
+            block(svg, "timeObservation:b-0") shouldNotContain "now"
         }
 
-        "found and lost messages are 80 px long with a 5 px circle and are no self-calls" {
+        "found and lost messages are at least 120 px long with a 5 px circle and are no self-calls (wave 2F)" {
             val model =
                 sysml2Model(name = "FoundLost") {
                     val a = lifelineDef(name = "a")
@@ -201,7 +202,7 @@ class Sysml2C3SeqSvgTest :
             for (id in listOf("message:found-b-0", "message:lost-b-1")) {
                 val g = block(svg, id)
                 val line = Regex("<line[^>]*/>").find(g)!!.value
-                abs(abs(attr(line, "x2") - attr(line, "x1")) - 80f) shouldBeLessThanOrEqual 1f
+                abs(abs(attr(line, "x2") - attr(line, "x1")) - 120f) shouldBeLessThanOrEqual 1f
                 attr(Regex("<circle[^>]*/>").find(g)!!.value, "r") shouldBe 5f
                 g shouldNotContain "<path"
             }

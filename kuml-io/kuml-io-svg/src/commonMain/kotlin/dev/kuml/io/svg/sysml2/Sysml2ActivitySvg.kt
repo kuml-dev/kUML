@@ -4,6 +4,7 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt3
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.bridge.ActTextWrap
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActionPin
@@ -650,7 +651,12 @@ private fun renderSignalNode(
             "0,0 ${fmt(w)},0 ${fmt(w)},${fmt(h)} 0,${fmt(h)} ${fmt(n)},${fmt(h / 2f)}"
         }
     val textX = if (send) (w - n) / 2f else (w + n) / 2f
+    // Wave 2F: names are wrapped at word boundaries (same function the size provider uses), never truncated.
     val signal = element.signal?.takeIf { it.isNotBlank() && it != element.name }
+    val nameLines = ActTextWrap.wrapActName(text = element.name, maxWidthPx = 200f, maxLines = 4)
+    val signalLines = if (signal != null) ActTextWrap.wrapActName(text = signal, maxWidthPx = 200f, maxLines = 4) else emptyList()
+    val total = nameLines.size + signalLines.size
+    val firstBaseline = h / 2f - total * ACT_SIGNAL_LINE / 2f + 11f
     builder.tag(
         name = "g",
         attrs = mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
@@ -658,28 +664,29 @@ private fun renderSignalNode(
         tag(name = "polygon", attrs = mapOf("points" to points, "class" to "kuml-class"))
         tag(
             name = "text",
-            attrs =
-                mapOf(
-                    "class" to "kuml-title",
-                    "x" to fmt(textX),
-                    "y" to fmt(if (signal != null) h / 2f - 2f else h / 2f + 4f),
-                    "text-anchor" to "middle",
-                ),
-        ) { text(truncate(s = element.name, max = ACT_LABEL_MAX_CHARS)) }
-        if (signal != null) {
+            attrs = mapOf("class" to "kuml-title", "text-anchor" to "middle"),
+        ) {
+            nameLines.forEachIndexed { i, line ->
+                tag(name = "tspan", attrs = mapOf("x" to fmt(textX), "y" to fmt(firstBaseline + i * ACT_SIGNAL_LINE))) { text(line) }
+            }
+        }
+        if (signalLines.isNotEmpty()) {
             tag(
                 name = "text",
-                attrs =
-                    mapOf(
-                        "class" to "kuml-body",
-                        "x" to fmt(textX),
-                        "y" to fmt(h / 2f + 14f),
-                        "text-anchor" to "middle",
-                    ),
-            ) { text(truncate(s = signal, max = ACT_LABEL_MAX_CHARS)) }
+                attrs = mapOf("class" to "kuml-body", "text-anchor" to "middle"),
+            ) {
+                signalLines.forEachIndexed { i, line ->
+                    tag(
+                        name = "tspan",
+                        attrs = mapOf("x" to fmt(textX), "y" to fmt(firstBaseline + (nameLines.size + i) * ACT_SIGNAL_LINE)),
+                    ) { text(line) }
+                }
+            }
         }
     }
 }
+
+private const val ACT_SIGNAL_LINE: Float = 15f
 
 /**
  * Wave C2 — accept-time-event: an hourglass of two triangles ([ACT_TIME_EVENT_SYMBOL_W] x
@@ -706,17 +713,15 @@ private fun renderTimeEventNode(
         tag(name = "polygon", attrs = mapOf("points" to upper, "class" to "kuml-class", "data-part" to "hourglass-top"))
         tag(name = "polygon", attrs = mapOf("points" to lower, "class" to "kuml-class", "data-part" to "hourglass-bottom"))
         val label = element.timeExpression?.takeIf { it.isNotBlank() } ?: element.name
+        val lines = ActTextWrap.timeLines(label)
         tag(
             name = "text",
-            attrs =
-                mapOf(
-                    "class" to "kuml-body",
-                    "x" to fmt(w / 2f),
-                    "y" to fmt(sh + 4f + 11f),
-                    "text-anchor" to "middle",
-                    "font-size" to "11",
-                ),
-        ) { text(truncate(s = label, max = ACT_LABEL_MAX_CHARS)) }
+            attrs = mapOf("class" to "kuml-body", "text-anchor" to "middle", "font-size" to "11"),
+        ) {
+            lines.forEachIndexed { i, line ->
+                tag(name = "tspan", attrs = mapOf("x" to fmt(w / 2f), "y" to fmt(sh + 4f + 11f + i * 13f))) { text(line) }
+            }
+        }
     }
 }
 

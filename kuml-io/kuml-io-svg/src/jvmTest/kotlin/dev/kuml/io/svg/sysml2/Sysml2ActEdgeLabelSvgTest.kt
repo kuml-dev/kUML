@@ -86,8 +86,8 @@ class Sysml2ActEdgeLabelSvgTest :
             SampleOutput.write(filename = "sysml2-edge-labels/act-flows.svg", content = svg)
         }
 
-        "ObjectFlow [Order] label appears in SVG" {
+        "ObjectFlow «Order» label appears in SVG" {
             val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
-            svg shouldContain "[Order]"
+            svg shouldContain "«Order»"
         }
     })

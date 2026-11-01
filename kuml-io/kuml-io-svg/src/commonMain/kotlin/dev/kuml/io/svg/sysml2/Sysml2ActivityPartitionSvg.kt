@@ -46,6 +46,7 @@ internal fun renderActivityPartitionGroup(
     groupLayout: GroupLayout,
     paddingPx: Float,
     builder: SvgBuilder,
+    headerHeight: Float = PARTITION_HEADER_HEIGHT,
 ) {
     val gx = groupLayout.bounds.origin.x + paddingPx
     val gy = groupLayout.bounds.origin.y + paddingPx
@@ -60,30 +61,24 @@ internal fun renderActivityPartitionGroup(
                 "transform" to "translate(${fmtPart(gx)},${fmtPart(gy)})",
             ),
     ) {
-        // 1. Outer dashed lane outline — encompasses the whole partition
-        //    height including the header bar. White fill so action nodes
-        //    on top render against a clean background instead of the
-        //    canvas tint.
+        // Wave 2F: a lane is a plain column. No band fill; a 1 px outline in the edge colour (neighbouring lanes
+        // share the line) and a neutral header band. The name is painted later, over the edges.
         tag(
             name = "rect",
             attrs =
                 mapOf(
                     "width" to fmtPart(gw),
                     "height" to fmtPart(gh),
-                    "class" to "kuml-class",
-                    "fill" to "white",
-                    "stroke-dasharray" to PARTITION_BORDER_DASH,
+                    "class" to "kuml-lane",
                 ),
         )
-        // Wave C2b: the solid header band is part of the lane (under the edges); only the name is painted later.
         tag(
             name = "rect",
             attrs =
                 mapOf(
                     "width" to fmtPart(gw),
-                    "height" to fmtPart(PARTITION_HEADER_HEIGHT),
-                    "class" to "kuml-class",
-                    "fill" to "#f3f3f3",
+                    "height" to fmtPart(headerHeight),
+                    "class" to "kuml-lane-header-band",
                 ),
         )
     }
@@ -101,48 +96,40 @@ internal fun renderActivityPartitionHeader(
     paddingPx: Float,
     builder: SvgBuilder,
     edges: List<List<dev.kuml.layout.Point>> = emptyList(),
+    headerHeight: Float = PARTITION_HEADER_HEIGHT,
 ) {
     val gx = groupLayout.bounds.origin.x + paddingPx
     val gy = groupLayout.bounds.origin.y + paddingPx
     val gw = groupLayout.bounds.size.width
-    val labelW = minOf(gw - 8f, partition.name.length * 6.6f + 12f)
-    val frame =
-        dev.kuml.layout.Rect(
-            origin = dev.kuml.layout.Point(x = gx, y = gy),
-            size = dev.kuml.layout.Size(width = gw, height = PARTITION_HEADER_HEIGHT),
-        )
-    val placement = placeFrameLabel(frame = frame, labelW = labelW, bandH = PARTITION_HEADER_HEIGHT, edges = edges, inset = 4f, safety = 2f)
-    val lx = placement.x - gx
-    val attrs =
-        buildMap {
-            put("id", xmlEscapeAttr("activityPartitionHeader:${partition.id}"))
-            put("transform", "translate(${fmtPart(gx)},${fmtPart(gy)})")
-            if (placement.fallbackOccluded) put("data-kuml-fallback", "occluded")
-        }
-    builder.tag(name = "g", attrs = attrs) {
-        tag(
-            name = "rect",
-            attrs =
-                mapOf(
-                    "x" to fmtPart(lx),
-                    "y" to "2",
-                    "width" to fmtPart(labelW),
-                    "height" to fmtPart(PARTITION_HEADER_HEIGHT - 4f),
-                    "fill" to "#f3f3f3",
-                    "fill-opacity" to "1",
-                    "stroke" to "none",
-                ),
-        )
+    // Wave 2F: the name is wrapped to the lane width (never shortened), upright, semi-bold, centred.
+    val lines =
+        dev.kuml.layout.bridge.ActTextWrap
+            .wrapActName(text = partition.name, maxWidthPx = gw - 16f, maxLines = 6)
+    builder.tag(
+        name = "g",
+        attrs =
+            mapOf(
+                "id" to xmlEscapeAttr("activityPartitionHeader:${partition.id}"),
+                "transform" to "translate(${fmtPart(gx)},${fmtPart(gy)})",
+                "class" to "kuml-lane-header",
+            ),
+    ) {
         tag(
             name = "text",
             attrs =
                 mapOf(
-                    "class" to "kuml-stereotype",
-                    "x" to fmtPart(lx + labelW / 2f),
-                    "y" to fmtPart(PARTITION_HEADER_HEIGHT / 2f + 4f),
+                    "class" to "kuml-title",
                     "text-anchor" to "middle",
+                    "style" to "font-size:13px;font-weight:600;font-style:normal",
                 ),
-        ) { text(partition.name) }
+        ) {
+            lines.forEachIndexed { i, line ->
+                tag(
+                    name = "tspan",
+                    attrs = mapOf("x" to fmtPart(gw / 2f), "y" to fmtPart(18f + i * 16f)),
+                ) { text(line) }
+            }
+        }
     }
 }
 
@@ -151,7 +138,7 @@ internal fun renderActivityPartitionHeader(
  * Roomy enough to fit a `«stereotype»`-style label without crowding the
  * action boxes below.
  */
-internal const val PARTITION_HEADER_HEIGHT: Float = 24f
+internal const val PARTITION_HEADER_HEIGHT: Float = 28f
 
 /**
  * SVG `stroke-dasharray` pattern for the swimlane outer outline (V2.0.16).

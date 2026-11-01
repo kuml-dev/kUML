@@ -346,7 +346,7 @@ class Sysml2ActSvgTest :
                     ),
             )
 
-        "ACT partition renders as dashed vertical lane with header containing the partition name" {
+        "ACT partition renders as a lane column with header containing the partition name" {
             val (model, act) = partitionedModel()
             val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = partitionedLayout(), theme = PlainTheme())
 
@@ -354,7 +354,7 @@ class Sysml2ActSvgTest :
             // dashed outer rectangle (stroke-dasharray) + header text.
             svg shouldContain "id=\"activityPartition:Customer\""
             svg shouldContain "id=\"activityPartition:OrderSystem\""
-            svg shouldContain "stroke-dasharray=\"6 4\""
+            svg shouldContain "class=\"kuml-lane\""
             // Partition names surface in the lane headers (the SVG builder
             // pretty-prints text content on its own indented line).
             svg shouldContain "Customer"

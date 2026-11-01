@@ -172,7 +172,7 @@ class Sysml2C2bVisualInvariantsTest :
                         )
                 }
 
-        test("1. swimlane partitions never overlap and keep 16 px apart (07 SysML, 48)") {
+        test("1. swimlane columns never overlap and touch each other as bands (07 SysML, 48; wave 2F: no 16 px gap any more)") {
             for (prefix in listOf("07 SysML", "48")) {
                 val ps = partitions(svgOf(prefix)).entries.toList()
                 for (i in ps.indices) {
@@ -182,7 +182,7 @@ class Sysml2C2bVisualInvariantsTest :
                         val gapX = max(a.x - (b.x + b.w), b.x - (a.x + a.w))
                         val gapY = max(a.y - (b.y + b.h), b.y - (a.y + a.h))
                         val gap = max(gapX, gapY)
-                        check(gap >= 16f) { "$prefix: ${ps[i].key} / ${ps[j].key} gap=$gap  a=$a b=$b" }
+                        check(gap >= -0.01f && (j != i + 1 || gap <= 0.01f)) { "$prefix: ${ps[i].key} / ${ps[j].key} gap=$gap  a=$a b=$b" }
                     }
                 }
             }

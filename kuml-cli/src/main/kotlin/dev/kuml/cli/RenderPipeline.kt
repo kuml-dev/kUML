@@ -66,6 +66,7 @@ import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.bridge.layoutHintsFor
+import dev.kuml.layout.bridge.normalizeActLayout
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.render.smil.SpeedFactor
@@ -1092,6 +1093,18 @@ internal object RenderPipeline {
                         kind = SpecDiagramKind.SYSML2_ACT,
                         diagramName = diagram.name,
                     )
+                // PAL 2F: a region frame that still overlaps a foreign node after the displacement rounds is reported as
+                // KUML-LAYOUT-W006 (the render itself still succeeds). Same normalisation the SVG renderer applies.
+                report(
+                    Sysml2LayoutBridge
+                        .normalizeActLayout(model = model, diagram = diagram, layoutResult = layoutResult)
+                        .warnings
+                        .filter { it.code == dev.kuml.core.model.layout.LayoutCodes.REGION_OVERLAP }
+                        .map { w ->
+                            dev.kuml.layout.bridge
+                                .LayoutSpecFinding(code = w.code, message = w.message)
+                        },
+                )
                 val actOptions = SvgRenderOptions(paddingPx = 64f, watermark = watermark)
                 when (format) {
                     "svg", "apng", "webp", "mp4" -> {

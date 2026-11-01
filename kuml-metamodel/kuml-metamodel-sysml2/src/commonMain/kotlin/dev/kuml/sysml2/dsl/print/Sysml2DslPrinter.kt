@@ -860,7 +860,8 @@ public object Sysml2DslPrinter {
             is TimeObservationUsage ->
                 sb.appendLine(
                     "    timeObservationById(lifelineId = ${quote(usage.lifelineId)}, seqNo = ${usage.seqNo}, " +
-                        "name = ${quote(usage.name)}, id = ${quote(usage.id)})",
+                        "name = ${quote(usage.name)}, id = ${quote(usage.id)}" +
+                        (usage.label?.let { ", label = ${quote(it)}" } ?: "") + ")",
                 )
             is ExecutionSpecificationUsage -> {
                 val lifelineVar = ctx.lifelineDefVars[usage.lifelineId]

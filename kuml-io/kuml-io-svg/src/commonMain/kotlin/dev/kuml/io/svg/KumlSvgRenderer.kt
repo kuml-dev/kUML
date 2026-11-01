@@ -75,6 +75,7 @@ import dev.kuml.layout.borderIntersectionTowards
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
+import dev.kuml.layout.bridge.normalizeActLayout
 import dev.kuml.layout.bridge.normalizeSeqLayout
 import dev.kuml.layout.bridge.note.AnchorGeometry
 import dev.kuml.layout.bridge.note.NotePlacementConfig
@@ -2982,7 +2983,14 @@ public object KumlSvgRenderer {
         @Suppress("NAME_SHADOWING")
         val layoutResult =
             sysml2WidenForLabelOverhang(
-                layoutResult = placeSysml2Notes(model = model, diagram = diagram, layout = layoutResult, adapter = adapter),
+                layoutResult =
+                    placeSysml2Notes(
+                        model = model,
+                        diagram = diagram,
+                        // Wave 2F: swimlane columns, region clearance and orthogonal re-routing come first.
+                        layout = Sysml2LayoutBridge.normalizeActLayout(model = model, diagram = diagram, layoutResult = layoutResult),
+                        adapter = adapter,
+                    ),
                 sysml2EdgeAdapter = adapter,
                 padding = options.paddingPx,
             ).first
@@ -3103,6 +3111,18 @@ public object KumlSvgRenderer {
                 nodeBounds = shiftedBoundsById,
             )
 
+        val laneHeaderHeight: Float =
+            layoutResult.groups.entries.maxOfOrNull { (gid, gl) ->
+                val p = partitionsById[gid.value]
+                if (p ==
+                    null
+                ) {
+                    0f
+                } else {
+                    dev.kuml.layout.bridge.ActTextWrap
+                        .laneHeaderHeight(title = p.name, laneWidthPx = gl.bounds.size.width)
+                }
+            } ?: dev.kuml.io.svg.sysml2.PARTITION_HEADER_HEIGHT
         return SvgDocument.render(
             layoutResult = layoutResult,
             theme = theme,
@@ -3122,6 +3142,7 @@ public object KumlSvgRenderer {
                         groupLayout = groupLayout,
                         paddingPx = padding,
                         builder = nodesBuilder,
+                        headerHeight = laneHeaderHeight,
                     )
             }
             // Wave C2: interruptible-region frames sit above the lanes, below the nodes.
@@ -3203,6 +3224,14 @@ public object KumlSvgRenderer {
                     }
                 }
             val pendingActLabels = ArrayList<Sysml2EdgeRenderer.PendingEdgeLabel>()
+            val glyphRects = ArrayList<dev.kuml.layout.Rect>()
+
+            // Wave 2F: frame of the region the source of an interrupting flow sits in (glyph anchor).
+            fun interruptRegionOf(edgeId: String): dev.kuml.layout.Rect? {
+                val src = endpointsByEdgeId[edgeId]?.first ?: return null
+                val rid = actionById[src]?.interruptibleRegionId ?: return null
+                return regionFrames.firstOrNull { it.region.id == rid }?.rect
+            }
             val finalRoutes = LinkedHashMap<String, dev.kuml.layout.EdgeRoute>()
             val polylinesForFrames = ArrayList<List<dev.kuml.layout.Point>>()
             for ((edgeId, route) in layoutResult.edges) {
@@ -3293,6 +3322,12 @@ public object KumlSvgRenderer {
                             route = anchoredRoute,
                             sourceSide = pinSourceSide,
                             targetSide = pinTargetSide,
+                            obstacles =
+                                shiftedBoundsById
+                                    .filterKeys { it != endpoints?.first && it != endpoints?.second }
+                                    .entries
+                                    .sortedBy { it.key }
+                                    .map { it.value },
                         )
                     } else {
                         anchoredRoute
@@ -3313,8 +3348,17 @@ public object KumlSvgRenderer {
                             builder = edgesBuilder,
                             labelStackIndex = actStackIndices[edgeId] ?: 0,
                             suppressLabels = true,
+                            interruptRegion = interruptRegionOf(edgeId.value),
                         )
                         Sysml2EdgeRenderer.pendingLabelOf(id = edgeId.value, metadata = meta)?.let { pendingActLabels += it }
+                        if (meta.lightning) {
+                            val anchor =
+                                Sysml2EdgeRenderer.interruptGlyphAnchor(
+                                    route = clippedRoute,
+                                    region = interruptRegionOf(edgeId.value),
+                                )
+                            if (anchor != null) glyphRects += Sysml2EdgeRenderer.glyphRect(at = anchor.first, dir = anchor.second)
+                        }
                         // Wave C2: an exception handler without a named pin gets a small pin square at its arrival point.
                         handlersById[edgeId.value]?.let { h ->
                             if (h.handlerPin == null) {
@@ -3431,6 +3475,7 @@ public object KumlSvgRenderer {
                                 }
                             },
                         titleRects = titleRects,
+                        glyphRects = glyphRects,
                     )
 
                 fun backdropOf(r: dev.kuml.layout.Rect): String {
@@ -3476,6 +3521,7 @@ public object KumlSvgRenderer {
                     paddingPx = padding,
                     builder = edgesBuilder,
                     edges = polylinesForFrames,
+                    headerHeight = laneHeaderHeight,
                 )
             }
             dev.kuml.io.svg.sysml2
@@ -3613,7 +3659,7 @@ public object KumlSvgRenderer {
                 .SeqFragmentTree(fragments)
         val rows =
             dev.kuml.io.svg.sysml2.SeqRowOffsets
-                .of(fragments = fragments, refs = interactionUses)
+                .of(fragments = fragments, refs = interactionUses, messages = messages)
         val createOffsetById: Map<String, Float> =
             messages
                 .asSequence()
@@ -3631,18 +3677,52 @@ public object KumlSvgRenderer {
         // geclippt (ALT-Box rechts abgeschnitten). Effektives Padding auf
         // mindestens `FRAGMENT_PADDING + 4` heben, sobald Fragments im Spiel
         // sind. Wirkt sowohl im Lifeline-Shift als auch in der Canvas-Größe.
-        val effectiveOptions =
+        // Wave 2F: the extra room for frames and guards is added in x only (the content moves right, the canvas widens),
+        // so the top and bottom margins stay at the normal padding instead of growing with the guard text.
+        val effectiveOptions = options
+        val fragmentLeftExtra: Float =
             if (fragments.isNotEmpty()) {
-                // V3.0.x: Per-Fragment-Left-Pad ist jetzt dynamisch und richtet
-                // sich nach dem längsten Guard-Text. Canvas-Padding muss
-                // mindestens so groß sein, damit Frames + rechtsbündige Guards
-                // nicht links ge-clippt werden.
                 val maxFragmentLeftPad = fragments.maxOf { fragmentTree.rootLeftPad(it.id) }
-                options.copy(
-                    paddingPx = maxOf(options.paddingPx, maxFragmentLeftPad + 4f),
-                )
+                val leftmostBoxX = layoutResult.nodes.values.minOfOrNull { it.bounds.origin.x } ?: 0f
+                // frame left = box left - leftPad; it must stay >= 4 - padding
+                maxOf(0f, maxFragmentLeftPad + 4f - options.paddingPx - leftmostBoxX)
             } else {
-                options
+                0f
+            }
+
+        @Suppress("NAME_SHADOWING")
+        val layoutResult =
+            if (fragmentLeftExtra <= 0f && fragments.isEmpty()) {
+                layoutResult
+            } else {
+                layoutResult.copy(
+                    nodes =
+                        layoutResult.nodes.mapValues { (_, n) ->
+                            n.copy(bounds = n.bounds.copy(origin = n.bounds.origin.copy(x = n.bounds.origin.x + fragmentLeftExtra)))
+                        },
+                    edges =
+                        layoutResult.edges.mapValues { (_, r) ->
+                            val dx = fragmentLeftExtra
+
+                            fun p(pt: dev.kuml.layout.Point) = pt.copy(x = pt.x + dx)
+                            when (r) {
+                                is dev.kuml.layout.EdgeRoute.Direct -> r.copy(source = p(r.source), target = p(r.target))
+                                is dev.kuml.layout.EdgeRoute.OrthogonalRounded ->
+                                    r.copy(source = p(r.source), target = p(r.target), waypoints = r.waypoints.map(::p))
+                                is dev.kuml.layout.EdgeRoute.TreeRounded ->
+                                    r.copy(source = p(r.source), target = p(r.target), waypoints = r.waypoints.map(::p))
+                                is dev.kuml.layout.EdgeRoute.Bezier ->
+                                    r.copy(source = p(r.source), target = p(r.target), controlPoints = r.controlPoints.map(::p))
+                            }
+                        },
+                    // right: a frame reaches 24 px (+ 10 px per nesting level) beyond the last lifeline box
+                    canvas =
+                        layoutResult.canvas.copy(
+                            width =
+                                layoutResult.canvas.width + fragmentLeftExtra +
+                                    if (fragments.isEmpty()) 0f else 24f + 10f * fragments.maxOf { fragmentTree.heightOfRoot(it.id) },
+                        ),
+                )
             }
 
         return SvgDocument.render(
@@ -3688,13 +3768,29 @@ public object KumlSvgRenderer {
                 visibleLifelines.mapNotNull { shiftedLayouts[NodeId(it.id)] }
             // C3: outer frames first — the frame rect's CSS class paints a white fill, so a child drawn
             // before its parent would be painted over.
+            // Wave 2F: how far content in a row reaches below the row line (self loop, ref frame).
+            val rowReach = HashMap<Int, Float>()
+            for (m in messages) {
+                if (m.sourceLifelineId == m.targetLifelineId && m.kind != MessageKind.Found && m.kind != MessageKind.Lost) {
+                    rowReach[m.seqNo] = maxOf(rowReach[m.seqNo] ?: 0f, dev.kuml.io.svg.sysml2.SYSML2_SELF_CALL_HEIGHT)
+                }
+            }
+            for (u in interactionUses) {
+                rowReach[u.seqNo] = maxOf(rowReach[u.seqNo] ?: 0f, dev.kuml.io.svg.sysml2.SYSML2_REF_HEIGHT / 2f)
+            }
+            val usagesForCoverage: List<dev.kuml.sysml2.Sysml2Usage> = model.usages
             for (fragment in fragments.sortedBy { fragmentTree.places[it.id]?.depth ?: 0 }) {
+                val coveredIds =
+                    dev.kuml.io.svg.sysml2
+                        .coveredLifelines(fragment = fragment, usages = usagesForCoverage, tree = fragmentTree)
                 dev.kuml.io.svg.sysml2.renderCombinedFragment(
                     fragment = fragment,
                     visibleLifelineLayouts = visibleLifelineLayouts,
                     builder = nodesBuilder,
                     rows = rows,
                     tree = fragmentTree,
+                    coveredLayouts = coveredIds.mapNotNull { shiftedLayouts[NodeId(it)] },
+                    rowReach = rowReach,
                 )
             }
 
@@ -3769,6 +3865,23 @@ public object KumlSvgRenderer {
                     lifelineLayout = lifelineLayout,
                     rows = rows,
                     builder = edgesBuilder,
+                    labelLeft =
+                        run {
+                            val leftmost = shiftedLayouts.values.minOf { it.bounds.origin.x }
+                            val cx = lifelineLayout.bounds.origin.x + lifelineLayout.bounds.size.width / 2f
+                            // a message in the same row that runs to the left of this lifeline blocks the left side
+                            val leftBlocked =
+                                messages.any { m ->
+                                    m.seqNo == to.seqNo &&
+                                        (m.sourceLifelineId == to.lifelineId || m.targetLifelineId == to.lifelineId) &&
+                                        m.sourceLifelineId != m.targetLifelineId &&
+                                        listOf(m.sourceLifelineId, m.targetLifelineId).filter { it != to.lifelineId }.any { other ->
+                                            val o = shiftedLayouts[NodeId(other)]
+                                            o != null && o.bounds.origin.x + o.bounds.size.width / 2f < cx
+                                        }
+                                }
+                            lifelineLayout.bounds.origin.x > leftmost + 1f && !leftBlocked
+                        },
                 )
             }
 
@@ -3979,6 +4092,7 @@ public object KumlSvgRenderer {
                         model.usages.filterIsInstance<dev.kuml.sysml2.InteractionUseUsage>().filter { u ->
                             u.lifelineIds.any { it in ids }
                         },
+                    messages = messages,
                 )
 
         fun head(id: String) = layout.nodes[NodeId(id)]?.bounds

@@ -247,7 +247,7 @@ class Sysml2EdgeLabelLatexTest :
 
         // ─── ACT ──────────────────────────────────────────────────────────
 
-        "ACT TikZ contains [guard] and [Order] labels" {
+        "ACT TikZ contains [guard] and «Order» labels" {
             val model =
                 Sysml2Model(
                     name = "Order",
@@ -301,7 +301,7 @@ class Sysml2EdgeLabelLatexTest :
                 )
             val tex = KumlLatexRenderer.toLatex(model = model, diagram = diagram, layoutResult = layout)
             tex shouldContain "[ready]"
-            tex shouldContain "[Order]"
+            tex shouldContain "\\guillemotleft{}Order\\guillemotright{}" // wave 2F: the type of an object flow is written «Type»
         }
 
         // ─── PAR ──────────────────────────────────────────────────────────

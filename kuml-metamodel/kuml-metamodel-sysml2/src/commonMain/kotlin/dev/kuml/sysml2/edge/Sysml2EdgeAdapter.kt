@@ -422,7 +422,7 @@ public class StmEdgeAdapter(
  *
  *  - [ControlFlowUsage] → solid, `FilledTriangle`, label = `[guard]` when
  *    guard is set, `null` otherwise.
- *  - [ObjectFlowUsage] → solid, `FilledTriangle`, label = `[objectType]`
+ *  - [ObjectFlowUsage] → solid, `FilledTriangle`, label = `«objectType»` (wave 2F; was `[objectType]`)
  *    when objectType is set, `null` otherwise.
  *
  * The open-square ObjectFlow endpoint marker from the SysML 2 spec lands
@@ -442,7 +442,16 @@ public class ActEdgeAdapter(
                 put(
                     flow.id,
                     Sysml2EdgeMetadata(
-                        label = flow.guard?.takeIf { it.isNotBlank() }?.let { "[$it]" },
+                        // Wave 2F: an interrupting flow shows its name (and the guard); a plain flow only the guard.
+                        label =
+                            if (flow.interrupts) {
+                                listOfNotNull(
+                                    flow.name.takeIf { it.isNotBlank() },
+                                    flow.guard?.takeIf { it.isNotBlank() }?.let { "[$it]" },
+                                ).joinToString(" ").ifBlank { null }
+                            } else {
+                                flow.guard?.takeIf { it.isNotBlank() }?.let { "[$it]" }
+                            },
                         arrowHead = if (flow.interrupts) Sysml2ArrowHead.OpenAngle else Sysml2ArrowHead.FilledTriangle,
                         lightning = flow.interrupts,
                     ),
@@ -454,7 +463,7 @@ public class ActEdgeAdapter(
                 put(
                     flow.id,
                     Sysml2EdgeMetadata(
-                        label = flow.objectType?.takeIf { it.isNotBlank() }?.let { "[$it]" },
+                        label = flow.objectType?.takeIf { it.isNotBlank() }?.let { "«$it»" },
                         arrowHead = if (flow.interrupts) Sysml2ArrowHead.OpenAngle else Sysml2ArrowHead.FilledTriangle,
                         lightning = flow.interrupts,
                     ),

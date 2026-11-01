@@ -16,7 +16,7 @@ class Sysml2C2RegionFramesTest :
             y: Float,
         ) = Rect(origin = Point(x = x, y = y), size = Size(width = 100f, height = 50f))
 
-        "a region frames its members with 16 px padding and 28 px on top when named" {
+        "a region frames its members with 12 px padding and 28 px on top when named (wave 2F: 12 instead of 16)" {
             val frames =
                 computeRegionFrames(
                     regions = listOf(InterruptibleRegionDefinition(id = "r", name = "R")),
@@ -24,10 +24,10 @@ class Sysml2C2RegionFramesTest :
                     nodeBounds = mapOf("a" to rect(100f, 100f)),
                 )
             val r = frames.single().rect
-            r.origin.x shouldBe 84f
+            r.origin.x shouldBe 88f
             r.origin.y shouldBe 72f
-            r.size.width shouldBe 132f
-            r.size.height shouldBe 50f + 28f + 16f
+            r.size.width shouldBe 124f
+            r.size.height shouldBe 50f + 28f + 12f
         }
 
         "an unnamed-label region uses plain padding, nested regions are enclosed by their parent" {
@@ -42,7 +42,7 @@ class Sysml2C2RegionFramesTest :
                     nodeBounds = mapOf("a" to rect(100f, 100f)),
                 )
             val byId = frames.associate { it.region.id to it.rect }
-            byId.getValue("i").origin.y shouldBe 84f
+            byId.getValue("i").origin.y shouldBe 88f
             (byId.getValue("o").origin.x < byId.getValue("i").origin.x) shouldBe true
             frames.first().region.id shouldBe "o"
         }

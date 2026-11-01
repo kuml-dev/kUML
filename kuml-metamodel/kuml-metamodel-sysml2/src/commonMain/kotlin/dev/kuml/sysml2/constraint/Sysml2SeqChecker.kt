@@ -249,14 +249,15 @@ public object Sysml2SeqChecker {
                     }
                 }
                 is MessageUsage ->
-                    if ((u.kind == MessageKind.Found || u.kind == MessageKind.Lost) && u.sourceLifelineId != u.targetLifelineId) {
+                    // Wave 2F: a found message may name its sender lifeline (`foundMessage(source = …)`).
+                    if (u.kind == MessageKind.Lost && u.sourceLifelineId != u.targetLifelineId) {
                         issues +=
                             SeqIssue(
                                 code = 411,
                                 severity = SeqSeverity.Error,
                                 elementId = u.id,
-                                message = "Found/lost message must have the same source and target lifeline.",
-                                hint = "Use foundMessage()/lostMessage().",
+                                message = "Lost message must have the same source and target lifeline.",
+                                hint = "Use lostMessage().",
                             )
                     }
                 else -> Unit

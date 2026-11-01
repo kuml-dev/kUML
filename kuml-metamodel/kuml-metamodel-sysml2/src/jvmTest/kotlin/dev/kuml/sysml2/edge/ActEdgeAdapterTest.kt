@@ -59,7 +59,7 @@ class ActEdgeAdapterTest :
             meta.label.shouldBeNull()
         }
 
-        "ObjectFlow with objectType → [Type] label" {
+        "ObjectFlow with objectType → «Type» label" {
             val flow =
                 ObjectFlowUsage(
                     id = "objectFlow:Validate::Ship",
@@ -69,7 +69,7 @@ class ActEdgeAdapterTest :
                     objectType = "Order",
                 )
             val meta = ActEdgeAdapter(model = model(flow), diagram = diagram).metadataFor("objectFlow:Validate::Ship")!!
-            meta.label shouldBe "[Order]"
+            meta.label shouldBe "«Order»"
             meta.arrowHead shouldBe Sysml2ArrowHead.FilledTriangle
         }
 

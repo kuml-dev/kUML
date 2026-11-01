@@ -1463,6 +1463,7 @@ class Sysml2LayoutBridgeTest :
                 Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
                     (5 + 1 + 1) * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
                     1 * Sysml2LayoutBridge.SEQ_FRAGMENT_HEADER_BAND +
+                    1 * Sysml2LayoutBridge.SEQ_FRAGMENT_END_GAP + // wave 2F: reserve for the gap after the fragment
                     Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
             for (n in graph.nodes) {
                 n.intrinsicSize.height shouldBe expected
@@ -1532,6 +1533,7 @@ class Sysml2LayoutBridgeTest :
                 Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
                     (10 + 1 + 1) * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
                     1 * Sysml2LayoutBridge.SEQ_FRAGMENT_HEADER_BAND +
+                    1 * Sysml2LayoutBridge.SEQ_FRAGMENT_END_GAP + // wave 2F: reserve for the gap after the fragment
                     Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
             for (n in graph.nodes) {
                 n.intrinsicSize.height shouldBe expected

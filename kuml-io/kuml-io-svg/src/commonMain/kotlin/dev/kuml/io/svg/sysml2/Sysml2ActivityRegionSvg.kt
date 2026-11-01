@@ -3,21 +3,19 @@ package dev.kuml.io.svg.sysml2
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt3
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
-import dev.kuml.layout.Size
 import dev.kuml.sysml2.ACT_MAX_REGION_DEPTH
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.InterruptibleRegionDefinition
 
 /** Padding of an interruptible-region frame around its members (px). */
-internal const val ACT_REGION_PADDING: Float = 16f
+internal const val ACT_REGION_PADDING: Float = 12f
 
 /** Extra top padding when the region name is shown inside the frame (px). */
 internal const val ACT_REGION_TAB_TOP: Float = 28f
 
 /** Dash pattern of a region frame. */
-internal const val ACT_REGION_DASH: String = "6 4"
+internal const val ACT_REGION_DASH: String = "4 3"
 
 /** A region together with its computed frame rectangle (absolute, padding already applied). */
 internal data class ActRegionFrame(
@@ -43,41 +41,12 @@ internal fun computeRegionFrames(
     actions: List<ActionDefinition>,
     nodeBounds: Map<String, Rect>,
 ): List<ActRegionFrame> {
-    if (regions.isEmpty()) return emptyList()
-    val byId = LinkedHashMap<String, InterruptibleRegionDefinition>()
-    regions.forEach { if (it.id !in byId) byId[it.id] = it }
-    val children = byId.values.groupBy { it.parentRegionId }
-    val membersOf = actions.filter { it.interruptibleRegionId != null }.groupBy { it.interruptibleRegionId }
-    val memo = HashMap<String, Rect?>()
-
-    fun frameOf(
-        id: String,
-        depth: Int,
-        path: Set<String>,
-    ): Rect? {
-        if (id in memo) return memo[id]
-        if (depth > ACT_MAX_REGION_DEPTH || id in path) return null
-        val region = byId[id] ?: return null
-        val rects = ArrayList<Rect>()
-        membersOf[id]?.forEach { a -> nodeBounds[a.id]?.let { rects += it } }
-        children[id]?.forEach { c -> frameOf(c.id, depth + 1, path + id)?.let { rects += it } }
-        val result =
-            if (rects.isEmpty()) {
-                null
-            } else {
-                val minX = rects.minOf { it.origin.x } - ACT_REGION_PADDING
-                val minY = rects.minOf { it.origin.y } - if (region.labelVisible()) ACT_REGION_TAB_TOP else ACT_REGION_PADDING
-                val maxX = rects.maxOf { it.origin.x + it.size.width } + ACT_REGION_PADDING
-                val maxY = rects.maxOf { it.origin.y + it.size.height } + ACT_REGION_PADDING
-                Rect(origin = Point(x = minX, y = minY), size = Size(width = maxX - minX, height = maxY - minY))
-            }
-        memo[id] = result
-        return result
-    }
-
-    return byId.values
-        .mapNotNull { r -> frameOf(r.id, 1, emptySet())?.let { ActRegionFrame(region = r, rect = it) } }
-        .sortedByDescending { it.rect.size.width * it.rect.size.height }
+    // Wave 2F: the geometry lives in the bridge so the layout pass and this renderer share one function.
+    val byId = regions.associateBy { it.id }
+    val members = actions.filter { it.interruptibleRegionId != null }.associate { it.id to it.interruptibleRegionId!! }
+    return dev.kuml.layout.bridge.ActRegionFrames
+        .compute(regions = regions, members = members, nodeBounds = nodeBounds)
+        .mapNotNull { f -> byId[f.regionId]?.let { ActRegionFrame(region = it, rect = f.rect) } }
 }
 
 /** Draws the dashed rounded region frames (theme edge colour, no fill), outermost first. */
@@ -96,8 +65,8 @@ internal fun renderRegionFrames(
                         "y" to fmt3(r.origin.y),
                         "width" to fmt3(r.size.width),
                         "height" to fmt3(r.size.height),
-                        "rx" to "10",
-                        "ry" to "10",
+                        "rx" to "8",
+                        "ry" to "8",
                         "class" to "kuml-edge",
                         "stroke-width" to "1",
                         "stroke-dasharray" to ACT_REGION_DASH,

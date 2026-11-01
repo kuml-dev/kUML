@@ -32,7 +32,7 @@ class Sysml2C2ActLayoutTest :
                 size(m, "X", ActivityNodeKind.Action).width + Sysml2LayoutBridge.ACT_CALL_FORK_EXTRA_W
         }
 
-        "accept-time-event is a narrow hourglass node with room for its label, capped at 120 px" {
+        "accept-time-event: narrow hourglass; a very long label wraps and widens instead of being cut" {
             val m =
                 sysml2Model(name = "T") {
                     acceptTimeEvent(name = "short", time = "1s")
@@ -40,7 +40,9 @@ class Sysml2C2ActLayoutTest :
                 }
             val s = size(m, "short", ActivityNodeKind.AcceptTimeEvent)
             s.height shouldBe Sysml2LayoutBridge.ACT_TIME_EVENT_H + Sysml2LayoutBridge.ACT_TIME_EVENT_LABEL_HEIGHT
-            size(m, "long", ActivityNodeKind.AcceptTimeEvent).width shouldBe Sysml2LayoutBridge.ACT_TIME_EVENT_MAX_WIDTH
+            val long = size(m, "long", ActivityNodeKind.AcceptTimeEvent)
+            (long.width > Sysml2LayoutBridge.ACT_TIME_EVENT_MAX_WIDTH) shouldBe true
+            (ActTextWrap.timeLines("after ".repeat(40)).size <= 4) shouldBe true
         }
 
         "explicit pin sides grow the box, Auto pins leave the size exactly as before" {
