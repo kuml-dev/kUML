@@ -69,7 +69,7 @@ import dev.kuml.sysml2.projection.Sysml2PathResolver
 internal fun renderSysml2Usage(
     element: Sysml2Usage,
     layout: NodeLayout,
-    @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
+    theme: KumlTheme,
     builder: SvgBuilder,
     context: Sysml2NodeContext? = null,
 ) {
@@ -82,6 +82,7 @@ internal fun renderSysml2Usage(
                 stereotype = "part",
                 ibdPorts = layout.ports,
                 context = context,
+                theme = theme,
             )
         is FlowPropertyUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "flow property")
         is FlowUsage -> renderUsageBox(usage = element, layout = layout, builder = builder, stereotype = "flow")
@@ -181,6 +182,7 @@ private fun renderUsageBox(
     stereotype: String,
     ibdPorts: Map<PortId, Point> = emptyMap(),
     context: Sysml2NodeContext? = null,
+    theme: KumlTheme? = null,
 ) {
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
@@ -261,9 +263,14 @@ private fun renderUsageBox(
             }
         }
 
+        // PAL 2C-b2b: box in box. The frames of the nested parts, parents before children, fill alternating by level.
+        if (usage is PartUsage && context != null && theme != null) {
+            renderNestedFrames(frames = context.ibdFrames.filter { it.nodeId == usage.id }, theme = theme)
+        }
+
         // IBD boundary ports — small squares on the box edge, one per connected port.
         if (ibdPorts.isNotEmpty()) {
-            renderIbdBoundaryPorts(ports = ibdPorts, w = w, h = h, usage = usage, context = context)
+            renderIbdBoundaryPorts(ports = ibdPorts, w = w, h = h, usage = usage, context = context, theme = theme)
         }
     }
 }
@@ -285,6 +292,7 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
     h: Float,
     usage: Sysml2Usage,
     context: Sysml2NodeContext?,
+    theme: KumlTheme? = null,
 ) {
     // Resolve every port once: label text + direction. Label placement is shared with the layout bridge
     // (same function), so the frame computed there always contains exactly what is drawn here.
@@ -311,11 +319,13 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
                     portLabel(name = portId.value.substringAfterLast("::"), port = resolved, context = context)
                 }
         }
+    val frames = context?.ibdFrames.orEmpty()
     val placements =
         Sysml2LayoutBridge.ibdPartPortPlacements(
             boxSize = Size(width = w, height = h),
             ports = ports.mapKeys { it.key.value },
             labels = labels,
+            frameOf = { key -> Sysml2LayoutBridge.ibdPortFrameRect(nodeId = usage.id, key = key, frames = frames) },
         )
 
     for ((portId, local) in ports) {
@@ -356,7 +366,113 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
             appendDirectionTriangle(cx = px, cy = py, dx = dx, dy = dy)
         }
 
-        appendPortLabel(placement = placement, text = labelText, offsetX = 0f, offsetY = 0f)
+        val planned = context?.ibdPortLabels?.get("${usage.id}::${portId.value}")
+        if (planned != null) {
+            appendPlannedPortLabel(rect = planned, text = labelText, backdrop = theme?.colors?.background?.toHex() ?: "white")
+        } else {
+            appendPortLabel(placement = placement, text = labelText, offsetX = 0f, offsetY = 0f)
+        }
+    }
+}
+
+/**
+ * Draws the frames of nested parts (box in box, PAL wave 2C-b2b) inside the part box whose group is open: the frame
+ * rectangle (fill alternates, even levels in the canvas colour, odd levels in the part colour), a single header line
+ * `name : Type` centred, and the attribute compartment below it when the part has attributes.
+ */
+private fun SvgBuilder.renderNestedFrames(
+    frames: List<dev.kuml.layout.IbdNestedFrame>,
+    theme: KumlTheme,
+) {
+    val partTone = theme.colors.effectiveNodeFill.toHex()
+    val background = theme.colors.background.toHex()
+    for (f in frames) {
+        val b = f.bounds
+        tag(
+            name = "rect",
+            attrs =
+                mapOf(
+                    "x" to fmt(b.origin.x),
+                    "y" to fmt(b.origin.y),
+                    "width" to fmt(b.size.width),
+                    "height" to fmt(b.size.height),
+                    "class" to "kuml-class kuml-ibd-nested",
+                    "style" to "fill:${if (f.level % 2 == 0) background else partTone}",
+                    "data-level" to f.level.toString(),
+                    "data-path" to f.path,
+                ),
+        )
+        tag(
+            name = "text",
+            attrs =
+                mapOf(
+                    "class" to "kuml-title kuml-ibd-nested-title",
+                    "x" to fmt(b.origin.x + b.size.width / 2f),
+                    "y" to fmt(b.origin.y + 16f),
+                    "text-anchor" to "middle",
+                ),
+        ) { text(f.title) }
+        if (f.attributeLines.isNotEmpty()) {
+            tag(
+                name = "line",
+                attrs =
+                    mapOf(
+                        "x1" to fmt(b.origin.x),
+                        "y1" to fmt(b.origin.y + f.headerHeight),
+                        "x2" to fmt(b.origin.x + b.size.width),
+                        "y2" to fmt(b.origin.y + f.headerHeight),
+                        "class" to "kuml-divider",
+                    ),
+            )
+            var ty = b.origin.y + f.headerHeight + Sysml2LayoutBridge.IBD_ATTR_PAD / 2f + 10f
+            for (line in f.attributeLines) {
+                tag(
+                    name = "text",
+                    attrs = mapOf("class" to "kuml-body kuml-ibd-attribute", "x" to fmt(b.origin.x + 8f), "y" to fmt(ty)),
+                ) { text(line) }
+                ty += Sysml2LayoutBridge.IBD_ATTR_LINE_H
+            }
+        }
+    }
+}
+
+/**
+ * Draws a port label at the rectangle the label plan chose (PAL wave 2C-b2b): one group stamped with the rectangle, each
+ * line centred in it as a 2 px halo text under the fill text, no backdrop rectangle. [rect] is local to the part box.
+ */
+internal fun SvgBuilder.appendPlannedPortLabel(
+    rect: Rect,
+    text: String,
+    backdrop: String,
+) {
+    val lines = text.split('\n')
+    tag(
+        name = "g",
+        attrs =
+            mapOf(
+                "class" to "kuml-label kuml-port-label-group",
+                "data-label-rect" to "${fmt(rect.origin.x)} ${fmt(rect.origin.y)} ${fmt(rect.size.width)} ${fmt(rect.size.height)}",
+            ),
+    ) {
+        lines.forEachIndexed { i, line ->
+            val attrs =
+                mapOf(
+                    "x" to fmt(rect.origin.x + rect.size.width / 2f),
+                    "y" to fmt(rect.origin.y + Sysml2LayoutBridge.IBD_LABEL_FONT_PX * 1.3f - 4f + i * Sysml2LayoutBridge.IBD_LABEL_LINE_H),
+                    "text-anchor" to "middle",
+                )
+            tag(
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-port-label-halo",
+                        "style" to
+                            dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
+                                .haloStyle(backdrop),
+                    ) + attrs,
+            ) { text(line) }
+            tag(name = "text", attrs = mapOf("class" to "kuml-port-label") + attrs) { text(line) }
+        }
     }
 }
 

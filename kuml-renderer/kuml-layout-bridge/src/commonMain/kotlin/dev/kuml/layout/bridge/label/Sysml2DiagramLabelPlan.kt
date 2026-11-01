@@ -18,6 +18,33 @@ public data class PortLabelSpec(
     val anchorRect: Rect,
     /** The side of the port square where an edge or the owner box docks; the label stays off it. */
     val excludedSide: LabelSide?,
+    /** The side of the owner box (or nested frame) the port sits on; enables the fixed outside / inside candidate ranking. */
+    val outward: LabelSide? = null,
+    /** The owner box; obstacles owned by it do not count against the label. */
+    val parentId: String? = null,
+)
+
+/** One pin label of an activity action: the pin square [pinRect] on the [side] of the action box [ownerId] (PAL wave 2C-b2b). */
+public data class ActPinLabelSpec(
+    val id: String,
+    val text: String,
+    val pinRect: Rect,
+    val side: LabelSide,
+    /** The side of the pin where its own edge docks (the label does not stand in front of that edge); `null` without an edge. */
+    val dockSide: LabelSide?,
+    val ownerId: String = "",
+)
+
+/** The text lines of the label of edge [id] (activity diagrams). */
+public data class EdgeLabelSpec(
+    val id: String,
+    val lines: List<String>,
+)
+
+/** Result of a label plan: the placed rectangles and the lines each label is drawn in, both keyed by label id. */
+public data class Sysml2LabelPlanResult(
+    val labels: Map<String, PlacedLabel>,
+    val lines: Map<String, List<String>>,
 )
 
 /**
@@ -34,6 +61,7 @@ public object Sysml2DiagramLabelPlan {
      * @param edgeLabelSizes estimated size per edge id (edges without an entry carry no label)
      * @param portLabels port labels to place together with the edge labels
      * @param arrowheads arrow-tip points (the [ARROWHEAD_PX] square around each becomes an obstacle)
+     * @param titleRects estimated rectangles of texts inside boxes (part titles, nested frame headers): composite titles
      * @param configure adds more obstacles (drawn port squares, owner ports)
      */
     public fun compute(
@@ -41,11 +69,14 @@ public object Sysml2DiagramLabelPlan {
         edgeLabelSizes: Map<String, Size>,
         portLabels: List<PortLabelSpec> = emptyList(),
         arrowheads: List<Point> = emptyList(),
+        titleRects: List<Rect> = emptyList(),
         configure: (ObstacleIndex) -> Unit = {},
         costs: LabelCostModel = LabelCostModel(lineClearance = 2f),
     ): Map<String, PlacedLabel> {
         if (edgeLabelSizes.isEmpty() && portLabels.isEmpty()) return emptyMap()
         val index = Sysml2NotePlacement.obstaclesOf(layout = layout)
+        registerNestedFrames(index = index, layout = layout)
+        for (t in titleRects) index.addRect(kind = ObstacleKind.COMPOSITE_TITLE, r = t)
         configure(index)
         for (tip in arrowheads) {
             val h = ARROWHEAD_PX / 2f
@@ -64,6 +95,8 @@ public object Sysml2DiagramLabelPlan {
                     size = p.size,
                     anchorRect = p.anchorRect,
                     excludedSide = p.excludedSide,
+                    outward = p.outward,
+                    parentId = p.parentId,
                 )
         }
         for ((id, route) in layout.edges.entries.sortedBy { it.key.value }) {
@@ -74,6 +107,101 @@ public object Sysml2DiagramLabelPlan {
         }
         if (requests.isEmpty()) return emptyMap()
         return LabelPlacer.place(requests = requests, index = index, costs = costs)
+    }
+
+    /**
+     * Plans the pin labels and edge labels of an activity diagram in one [LabelPlacer] run (PAL wave 2C-b2b). All
+     * coordinates are canvas coordinates of the drawn diagram. Obstacles: the action boxes, every edge segment, the
+     * arrow tips ([ARROWHEAD_PX] squares), the pin squares and [titleRects] (action names, composite titles). Pin labels go
+     * first (outside the box, clockwise behind the pin first, inside only when every outside position collides), then
+     * the edge labels beside their line.
+     *
+     * @param nodes action box rectangles by node id
+     * @param titleRects estimated rectangles of texts drawn inside the boxes (they count as composite titles)
+     */
+    public fun planActLabels(
+        pins: List<ActPinLabelSpec>,
+        edges: Map<String, EdgeRoute>,
+        nodes: Map<String, Rect>,
+        arrowTips: List<Point>,
+        edgeLabels: List<EdgeLabelSpec>,
+        titleRects: List<Rect> = emptyList(),
+        costs: LabelCostModel = LabelCostModel(lineClearance = 2f),
+    ): Sysml2LabelPlanResult {
+        if (pins.isEmpty() && edgeLabels.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
+        val index = ObstacleIndex()
+        for ((id, r) in nodes.entries.sortedBy { it.key }) index.addRect(kind = ObstacleKind.NODE, r = r, ownerId = id)
+        for (t in titleRects) index.addRect(kind = ObstacleKind.COMPOSITE_TITLE, r = t)
+        for ((id, route) in edges.entries.sortedBy { it.key }) {
+            index.addPolyline(
+                kind = ObstacleKind.EDGE,
+                pts = polylineOf(route),
+                ownerId = id,
+            )
+        }
+        for (tip in arrowTips) {
+            val h = ARROWHEAD_PX / 2f
+            index.addRect(
+                kind = ObstacleKind.ARROWHEAD,
+                r = rectOf(left = tip.x - h, top = tip.y - h, right = tip.x + h, bottom = tip.y + h),
+            )
+        }
+        val lines = LinkedHashMap<String, List<String>>()
+        val requests = ArrayList<LabelRequest>()
+        for (p in pins.sortedBy { it.id }) {
+            index.addRect(kind = ObstacleKind.PORT, r = p.pinRect, ownerId = p.id)
+            val wrapped = Sysml2LabelSizing.wrapPortLabel(text = p.text)
+            lines[p.id] = wrapped
+            requests +=
+                LabelRequest(
+                    id = p.id,
+                    role = LabelRole.PORT,
+                    ownerId = p.id,
+                    size = Sysml2LabelSizing.sizeOf(wrapped),
+                    anchorRect = p.pinRect,
+                    excludedSide = p.dockSide,
+                    outward = p.side,
+                    parentId = p.ownerId,
+                )
+        }
+        for (e in edgeLabels.sortedBy { it.id }) {
+            val route = edges[e.id] ?: continue
+            val pts = polylineOf(route)
+            if (pts.size < 2 || e.lines.isEmpty()) continue
+            lines[e.id] = e.lines
+            requests +=
+                LabelRequest(
+                    id = e.id,
+                    role = LabelRole.EDGE_CENTER,
+                    ownerId = e.id,
+                    size = Sysml2LabelSizing.sizeOf(e.lines),
+                    polyline = pts,
+                )
+        }
+        if (requests.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
+        return Sysml2LabelPlanResult(labels = LabelPlacer.place(requests = requests, index = index, costs = costs), lines = lines)
+    }
+
+    /**
+     * Nested IBD frames (box in box): the border of each frame is a line a label must not straddle, its header a title
+     * a label must not cover (PAL wave 2C-b2b).
+     */
+    private fun registerNestedFrames(
+        index: ObstacleIndex,
+        layout: LayoutResult,
+    ) {
+        for (f in layout.ibdNestedFrames) {
+            val node = layout.nodes[dev.kuml.layout.NodeId(f.nodeId)] ?: continue
+            val l = node.bounds.origin.x + f.bounds.origin.x
+            val t = node.bounds.origin.y + f.bounds.origin.y
+            val r = l + f.bounds.size.width
+            val b = t + f.bounds.size.height
+            index.addPolyline(
+                kind = ObstacleKind.FRAGMENT,
+                pts = listOf(Point(x = l, y = t), Point(x = r, y = t), Point(x = r, y = b), Point(x = l, y = b), Point(x = l, y = t)),
+                ownerId = f.path,
+            )
+        }
     }
 
     /** The tip of an edge's arrow head, i.e. its target point. */

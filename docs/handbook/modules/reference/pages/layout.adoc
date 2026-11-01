@@ -171,9 +171,19 @@ never covers a label that is drawn later.
   12 x 12 px obstacles, a port label stays off the side where its edge docks, and the clearance to foreign lines is
   2 px. A port label longer than 24 characters wraps to at most two lines and is never cut. A label is drawn as one
   group: halo text directly under the fill text, same coordinates, no backdrop rectangle (two passes, because Batik
-  ignores `paint-order`).
+  ignores `paint-order`). The halo is 2 px wide for SysML 2 edge, port and pin labels.
+* Port and pin labels (IBD ports, activity pins) come from the same plan, never from fixed positions. The candidates
+  have a fixed rank: four positions outside the owner box (clockwise behind the port, counter clockwise behind it, then
+  straight away from the port shifted left/up and right/down), then the same four inside. The label keeps 4 px from
+  the port square and at least 2 px from every line, arrow tip, box, port and other label; a position straight in
+  front of the edge that docks at the port is never used. A position inside the box is taken only when every outside
+  position collides. Activity edge labels (`[Part]`) stand beside their line, not on it.
 * Note anchors: a straight anchor that crosses nothing wins; otherwise one bend is allowed. An anchor that ends on a
-  port arrives perpendicular and stays straight for the last 8 px.
+  port arrives perpendicular and stays straight for the last 8 px, or reaches the side of the port square. A note keeps
+  8 px from every part box and from every other note (covering a part is excluded outright, the part never moves). The
+  anchors of one connection get their own attach points at least 16 px apart; the anchor of the owner of a frame-less
+  IBD ends on the border of a real part, never on a virtual box. An anchor does not cross a part or another note and
+  runs no closer than 3 px side by side with the anchor of another note.
 * SysML 2 IBD routing: connectors are routed around the parts of the diagram (`IbdObstacleRouter`: straight, L and Z
   candidates, then a grid A* with a hard node limit; 8 px clearance; deterministic). Neighbouring part ports keep a
   pitch of `max(24, label width + 8)` px on top and bottom sides and `max(24, line height + 6)` px on left and
@@ -184,7 +194,7 @@ never covers a label that is drawn later.
   cardinality glyphs are fixed obstacles.
 * Service Blueprint: anchor lines of notes pick a free horizontal track (6 px raster, 6 px to every lane boundary,
   4 px to card edges, 6 px to other anchor tracks); when none is free the line runs in a channel below the lanes.
-* Other SysML 2 diagram kinds (STM, SEQ, PAR, REQ, UC, ACT) keep their own label placement.
+* Other SysML 2 diagram kinds (STM, SEQ, PAR, REQ, UC) keep their own label placement; ACT plans pin labels and edge labels together (`Sysml2DiagramLabelPlan.planActLabels`).
 
 == SysML 2 layout hints
 

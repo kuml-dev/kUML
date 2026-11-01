@@ -135,11 +135,19 @@ public class ObstacleIndex {
         r: Rect,
         costs: NoteCostModel,
         budget: Budget,
+        partGap: Float = 0f,
     ): Float {
         var cost = 0f
         for (o in rects) {
             budget.spend()
-            if (!o.rect.intersects(r)) continue
+            // PAL 2C-b2b: a note keeps [partGap] px away from every part box (a hard exclusion, never moves the part).
+            val zone = if (o.kind == ObstacleKind.NODE && partGap > 0f) o.core.inflated(partGap) else o.rect
+            if (!zone.intersects(r)) continue
+            if (o.kind == ObstacleKind.NODE && partGap > 0f) {
+                // Covering a part is excluded outright (more than a route that does not exist); only touching the gap is milder.
+                cost += if (o.core.intersects(r)) PART_OVERLAP_PENALTY else PART_GAP_PENALTY
+                continue
+            }
             cost +=
                 when (o.kind) {
                     ObstacleKind.NODE -> costs.nodeRect
@@ -226,6 +234,25 @@ public class ObstacleIndex {
         return cost
     }
 
+    /** True if a segment of [pts] crosses the inside of a part box or another note (PAL wave 2C-b2b); [exemptOwners] are the anchor's own targets. */
+    internal fun routeCrossesBoxes(
+        pts: List<Point>,
+        exemptOwners: Set<String>,
+        budget: Budget,
+    ): Boolean {
+        for (o in rects) {
+            if (o.kind != ObstacleKind.NODE && o.kind != ObstacleKind.NOTE) continue
+            if (o.ownerId != null && o.ownerId in exemptOwners) continue
+            val inner = o.core.inflated(-1.5f)
+            if (inner.size.width <= 0f || inner.size.height <= 0f) continue
+            for (i in 0 until pts.size - 1) {
+                budget.spend()
+                if (segmentIntersectsRect(a = pts[i], b = pts[i + 1], r = inner)) return true
+            }
+        }
+        return false
+    }
+
     /** Rectangles that block routes (nodes, composite titles, labels, notes), nearest first to the segment a-b. */
     internal fun blockingRects(
         a: Point,
@@ -276,14 +303,16 @@ public class ObstacleIndex {
             }
             for (l in lines) {
                 budget.spend()
+                // PAL 2C-b2b: the anchors of different notes keep ANCHOR_SPACING px apart.
+                val tol = if (l.kind == ObstacleKind.ANCHOR_ROUTE) ANCHOR_SPACING else RUN_ALONG_TOLERANCE
                 for (j in 0 until l.points.size - 1) {
-                    if (runsAlong(a = a, b = b, c = l.points[j], d = l.points[j + 1], tailFree = last)) return true
+                    if (runsAlong(a = a, b = b, c = l.points[j], d = l.points[j + 1], tolerance = tol, tailFree = last)) return true
                 }
             }
             for (l in extraLines) {
                 budget.spend()
                 for (j in 0 until l.size - 1) {
-                    if (runsAlong(a = a, b = b, c = l[j], d = l[j + 1], tailFree = last)) return true
+                    if (runsAlong(a = a, b = b, c = l[j], d = l[j + 1], tolerance = ANCHOR_SPACING, tailFree = last)) return true
                 }
             }
             for (o in rects) {
@@ -326,5 +355,8 @@ public class ObstacleIndex {
         const val PORT_INFLATE: Float = 4f
         const val LINE_CLEARANCE: Float = 6f
         const val OVERLAP_TOLERANCE: Float = 8f
+        const val ANCHOR_SPACING: Float = 3f
+        const val PART_OVERLAP_PENALTY: Float = 400_000f
+        const val PART_GAP_PENALTY: Float = 100_000f
     }
 }

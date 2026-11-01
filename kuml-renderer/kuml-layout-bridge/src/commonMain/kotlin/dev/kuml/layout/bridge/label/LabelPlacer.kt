@@ -40,6 +40,9 @@ public enum class LabelSide { NORTH, EAST, SOUTH, WEST }
  * @property end the edge end of a multiplicity / role label
  * @property anchorRect the port square of a [LabelRole.PORT] label
  * @property excludedSide the side of the port square the label must not use (where the edge docks)
+ * @property outward the side of the owner box the port (or pin) sits on; with it the candidate order is the fixed
+ *   ranking of PAL wave 2C-b2b (four outside positions, then four inside); without it the legacy four sides are used
+ * @property parentId the owner box of a port label: obstacles owned by it (the box itself) do not count against the label
  */
 public data class LabelRequest(
     val id: String,
@@ -50,6 +53,8 @@ public data class LabelRequest(
     val end: LabelEnd? = null,
     val anchorRect: Rect? = null,
     val excludedSide: LabelSide? = null,
+    val outward: LabelSide? = null,
+    val parentId: String? = null,
 )
 
 /** Penalties of the label cost model; configuration, not code. */
@@ -72,6 +77,8 @@ public data class LabelCostModel(
     val perPxAlong: Float = 5f,
     /** Foreign line closer than this to a label counts as touching. */
     val lineClearance: Float = 2f,
+    /** A port / pin label inside its owner box; chosen only when every outside position collides hard. */
+    val innerPenalty: Float = 8_000f,
 )
 
 /** A placed label: its rectangle and whether it sits on its own line (the renderer then needs the canvas-coloured halo). */
@@ -89,10 +96,17 @@ public data class PlacedLabel(
 public object LabelPlacer {
     private const val WORK_BUDGET: Long = 4_000_000L
     private val EDGE_T: List<Float> = listOf(0.5f, 0.35f, 0.65f, 0.2f, 0.8f)
+    private const val MIN_EXTRA_SEGMENT_PX: Float = 24f
     private val EDGE_OFFSETS: List<Float> = listOf(4f, 8f, 12f)
     private val END_ALONG: List<Float> = listOf(6f, 10f, 14f, 22f, 32f, 44f, 60f, 80f)
     private val END_PERP: List<Float> = listOf(4f, 8f)
     private val PORT_GAPS: List<Float> = listOf(3f, 6f)
+
+    /** Gap between a port / pin square and its label (PAL wave 2C-b2b; within the 2 to 12 px the design asks for). */
+    public const val PORT_LABEL_GAP_PX: Float = 4f
+
+    /** Distance between the owner box border and the label edge facing it for the labels beside a pin. */
+    private const val BORDER_GAP_PX: Float = 2f
 
     private class Candidate(
         val rect: Rect,
@@ -100,6 +114,7 @@ public object LabelPlacer {
         val sign: Int,
         val t: Float,
         val along: Float = 0f,
+        val inner: Boolean = false,
     )
 
     /** Places [requests]; the placed labels are added to [index] as obstacles. */
@@ -165,40 +180,51 @@ public object LabelPlacer {
     private fun edgeCandidates(req: LabelRequest): List<Candidate> {
         val pts = req.polyline
         if (pts.size < 2) return emptyList()
-        var bi = 0
-        var bl = -1f
-        for (i in 0 until pts.size - 1) {
-            val l = len(a = pts[i], b = pts[i + 1])
-            if (l > bl) {
-                bl = l
-                bi = i
-            }
-        }
-        val a = pts[bi]
-        val b = pts[bi + 1]
-        val ux = if (bl > 0.01f) (b.x - a.x) / bl else 1f
-        val uy = if (bl > 0.01f) (b.y - a.y) / bl else 0f
-        val nx = -uy
-        val ny = ux
-        val out = ArrayList<Candidate>(31)
-        // Ties between the two sides of a vertical line resolve to the right-hand side (like the horizontal case, where the
-        // normal points down); a side that stays free of the notes anchored on the left keeps a label and a note apart.
-        val sideOrder = if (abs(nx) > abs(ny) && nx < 0f) intArrayOf(-1, 1) else intArrayOf(1, -1)
-        for (t in EDGE_T) {
-            val px = a.x + (b.x - a.x) * t
-            val py = a.y + (b.y - a.y) * t
-            for (off in EDGE_OFFSETS) {
-                for (sign in sideOrder) {
-                    val half = abs(nx) * req.size.width / 2f + abs(ny) * req.size.height / 2f
-                    val d = sign * (off + half)
-                    out +=
-                        Candidate(rect = centered(cx = px + nx * d, cy = py + ny * d, size = req.size), onLine = false, sign = sign, t = t)
+        // The longest segment first, then up to two more of at least MIN_EXTRA_SEGMENT_PX: a label whose best spot is
+        // taken (a segment inside a box) can then use another stretch of its own line (PAL wave 2C-b2b).
+        val ranked = (0 until pts.size - 1).sortedByDescending { len(a = pts[it], b = pts[it + 1]) }
+        val segments = ranked.take(1) + ranked.drop(1).take(2).filter { len(a = pts[it], b = pts[it + 1]) >= MIN_EXTRA_SEGMENT_PX }
+        val out = ArrayList<Candidate>(93)
+        var emergency: Candidate? = null
+        for (bi in segments) {
+            val bl = len(a = pts[bi], b = pts[bi + 1])
+            val a = pts[bi]
+            val b = pts[bi + 1]
+            val ux = if (bl > 0.01f) (b.x - a.x) / bl else 1f
+            val uy = if (bl > 0.01f) (b.y - a.y) / bl else 0f
+            val nx = -uy
+            val ny = ux
+            // Ties between the two sides of a vertical line resolve to the right-hand side (like the horizontal case, where the
+            // normal points down); a side that stays free of the notes anchored on the left keeps a label and a note apart.
+            val sideOrder = if (abs(nx) > abs(ny) && nx < 0f) intArrayOf(-1, 1) else intArrayOf(1, -1)
+            for (t in EDGE_T) {
+                val px = a.x + (b.x - a.x) * t
+                val py = a.y + (b.y - a.y) * t
+                for (off in EDGE_OFFSETS) {
+                    for (sign in sideOrder) {
+                        val half = abs(nx) * req.size.width / 2f + abs(ny) * req.size.height / 2f
+                        val d = sign * (off + half)
+                        out +=
+                            Candidate(
+                                rect = centered(cx = px + nx * d, cy = py + ny * d, size = req.size),
+                                onLine = false,
+                                sign = sign,
+                                t = t,
+                            )
+                    }
                 }
             }
+            if (emergency == null) {
+                emergency =
+                    Candidate(
+                        rect = centered(cx = (a.x + b.x) / 2f, cy = (a.y + b.y) / 2f, size = req.size),
+                        onLine = true,
+                        sign = 0,
+                        t = 0.5f,
+                    )
+            }
         }
-        val mx = (a.x + b.x) / 2f
-        val my = (a.y + b.y) / 2f
-        out += Candidate(rect = centered(cx = mx, cy = my, size = req.size), onLine = true, sign = 0, t = 0.5f)
+        emergency?.let { out += it }
         return out
     }
 
@@ -243,6 +269,80 @@ public object LabelPlacer {
 
     private fun portCandidates(req: LabelRequest): List<Candidate> {
         val anchor = req.anchorRect ?: return emptyList()
+        val outward = req.outward ?: return legacyPortCandidates(req = req, anchor = anchor)
+        val gap = PORT_LABEL_GAP_PX
+        val w = req.size.width
+        val h = req.size.height
+        val out = ArrayList<Candidate>(8)
+        // Outward unit vector, clockwise tangent along the box border (north: east, east: south, south: west, west: north).
+        val (ox, oy, tx, ty) =
+            when (outward) {
+                LabelSide.NORTH -> listOf(0f, -1f, 1f, 0f)
+                LabelSide.EAST -> listOf(1f, 0f, 0f, 1f)
+                LabelSide.SOUTH -> listOf(0f, 1f, -1f, 0f)
+                LabelSide.WEST -> listOf(-1f, 0f, 0f, -1f)
+            }
+        val halfPin = anchor.size.width / 2f
+        val extO = abs(ox) * w / 2f + abs(oy) * h / 2f
+        val extT = abs(tx) * w / 2f + abs(ty) * h / 2f
+        // The port square sits on the border line: its centre is the border point.
+        val cx = anchor.cx
+        val cy = anchor.cy
+        for (inner in booleanArrayOf(false, true)) {
+            val dir = if (inner) -1f else 1f
+            // Excluded docking side: where the own edge runs, the label does not stand directly in front of it.
+            val dockedOnDirection =
+                req.excludedSide != null &&
+                    req.excludedSide ==
+                    when {
+                        ox > 0f -> if (inner) LabelSide.WEST else LabelSide.EAST
+                        ox < 0f -> if (inner) LabelSide.EAST else LabelSide.WEST
+                        oy > 0f -> if (inner) LabelSide.NORTH else LabelSide.SOUTH
+                        else -> if (inner) LabelSide.SOUTH else LabelSide.NORTH
+                    }
+            // 1. clockwise behind the pin, 2. counter clockwise: beside the pin along the border, clear of the border line.
+            for (sgn in floatArrayOf(1f, -1f)) {
+                val centreT = sgn * (halfPin + gap + extT)
+                val centreO = dir * (BORDER_GAP_PX + extO)
+                out +=
+                    Candidate(
+                        rect = centered(cx = cx + tx * centreT + ox * centreO, cy = cy + ty * centreT + oy * centreO, size = req.size),
+                        onLine = false,
+                        sign = 0,
+                        t = 0f,
+                        inner = inner,
+                    )
+            }
+            // 3. / 4. straight away from the pin, shifted to the left / up, then to the right / down.
+            if (dockedOnDirection) continue
+            for (sgn in floatArrayOf(-1f, 1f)) {
+                // Shift perpendicular to the outward direction: left / up first, right / down second (screen coordinates).
+                val shift = sgn * extT
+                val sx = if (ox != 0f) 0f else 1f
+                val sy = if (oy != 0f) 0f else 1f
+                val centreO = dir * (halfPin + gap + extO)
+                out +=
+                    Candidate(
+                        rect =
+                            centered(
+                                cx = cx + ox * centreO + sx * shift,
+                                cy = cy + oy * centreO + sy * shift,
+                                size = req.size,
+                            ),
+                        onLine = false,
+                        sign = 0,
+                        t = 0f,
+                        inner = inner,
+                    )
+            }
+        }
+        return out
+    }
+
+    private fun legacyPortCandidates(
+        req: LabelRequest,
+        anchor: Rect,
+    ): List<Candidate> {
         val out = ArrayList<Candidate>(8)
         for (side in LabelSide.entries) {
             if (side == req.excludedSide) continue
@@ -274,7 +374,7 @@ public object LabelPlacer {
             val other = if (o.kind.isLabel) o.core.inflated(1f) else o.core
             if (!other.intersects(r)) continue
             // The owner's own port square / node is the thing the label belongs to: touching it is fine for ports.
-            if (o.ownerId != null && o.ownerId == req.ownerId && req.role == LabelRole.PORT) continue
+            if (o.ownerId != null && req.role == LabelRole.PORT && (o.ownerId == req.ownerId || o.ownerId == req.parentId)) continue
             cost += costs.hardOverlap
         }
         val clear = r.inflated(costs.lineClearance)
@@ -298,6 +398,7 @@ public object LabelPlacer {
         if (req.role == LabelRole.EDGE_CENTER) cost += costs.perTenthOffCenter * (abs(c.t - 0.5f) * 10f)
         cost += costs.perPxAlong * c.along
         if (c.onLine) cost += costs.onLinePenalty
+        if (c.inner) cost += costs.innerPenalty
         return cost
     }
 

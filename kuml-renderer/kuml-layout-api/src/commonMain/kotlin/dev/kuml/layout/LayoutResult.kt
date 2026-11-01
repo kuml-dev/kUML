@@ -25,6 +25,28 @@ public data class LayoutResult(
     val edges: Map<EdgeId, EdgeRoute>,
     val groups: Map<GroupId, GroupLayout>,
     val warnings: List<LayoutWarning> = emptyList(),
+    /** SysML-2-IBD only: the nested part frames inside the visible part boxes (PAL wave 2C-b2b); empty for every other diagram. */
+    val ibdNestedFrames: List<IbdNestedFrame> = emptyList(),
+)
+
+/**
+ * One nested part frame of an IBD (box in box, PAL wave 2C-b2b). The visible part box itself is level 1 and is a
+ * [NodeLayout]; the parts nested inside it are frames of level 2, 3, ...
+ *
+ * [bounds] is **local to the visible part box** [nodeId] (origin at the box's top-left corner), like the port positions
+ * of an IBD node, so a translation of the node moves its frames with it. [headerHeight] is the single-line header
+ * (`name : Type`, 22 px); below it the [attributeLines] compartment follows when it is not empty.
+ */
+@Serializable
+public data class IbdNestedFrame(
+    val path: String,
+    val level: Int,
+    val bounds: Rect,
+    val headerHeight: Float,
+    val parentPath: String?,
+    val nodeId: String = "",
+    val title: String = "",
+    val attributeLines: List<String> = emptyList(),
 )
 
 /**

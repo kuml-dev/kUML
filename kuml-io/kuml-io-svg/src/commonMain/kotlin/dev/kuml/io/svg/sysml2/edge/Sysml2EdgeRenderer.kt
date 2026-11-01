@@ -411,6 +411,59 @@ internal object Sysml2EdgeRenderer {
             PendingEdgeLabel(id = id, stereotype = metadata.stereotype, label = metadata.label)
         }
 
+    /** The drawn lines of an activity edge label: stereotype lines first, then the label lines, wrapped like the other edge labels. */
+    internal fun actLabelLines(p: PendingEdgeLabel): List<DrawnLabelLine> {
+        val ls = ArrayList<DrawnLabelLine>()
+        p.stereotype?.let { st ->
+            wrapWords(text = st, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(st) }.forEach {
+                ls +=
+                    DrawnLabelLine(text = it, css = "kuml-stereotype")
+            }
+        }
+        p.label?.let { l ->
+            wrapWords(text = l, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(l) }.forEach {
+                ls +=
+                    DrawnLabelLine(text = it, css = "kuml-body")
+            }
+        }
+        return ls
+    }
+
+    /**
+     * Draws one planned label (PAL wave 2C-b2b): a group stamped with the planned rectangle, the [lines] centred in it, each
+     * as a [HALO_PX] px halo text under the fill text. No backdrop rectangle. [groupClass] and [id] tell activity edge
+     * labels and pin labels apart.
+     */
+    internal fun emitHaloLabelGroup(
+        id: String,
+        rect: dev.kuml.layout.Rect,
+        lines: List<DrawnLabelLine>,
+        backdrop: String,
+        groupClass: String,
+        builder: SvgBuilder,
+    ) {
+        builder.tag(
+            name = "g",
+            attrs =
+                mapOf(
+                    "class" to groupClass,
+                    "data-label-id" to id,
+                    "data-label-rect" to "${fmt(rect.origin.x)} ${fmt(rect.origin.y)} ${fmt(rect.size.width)} ${fmt(rect.size.height)}",
+                ),
+        ) {
+            lines.forEachIndexed { i, line ->
+                val textAttrs =
+                    mapOf(
+                        "x" to fmt(rect.origin.x + rect.size.width / 2f),
+                        "y" to fmt(rect.origin.y + 2f + 10f + i * dev.kuml.layout.bridge.label.Sysml2LabelSizing.LINE_PX),
+                        "text-anchor" to "middle",
+                    )
+                tag(name = "text", attrs = mapOf("class" to line.css, "style" to haloStyle(backdrop)) + textAttrs) { text(line.text) }
+                tag(name = "text", attrs = mapOf("class" to line.css) + textAttrs) { text(line.text) }
+            }
+        }
+    }
+
     /**
      * Places and draws the [pending] labels of REQ / UC / ACT edges (wave C2b): each label is centred on the
      * longest free segment of its own line, on an opaque backdrop chosen by [backdropFor] (box centre ->
@@ -574,8 +627,11 @@ internal object Sysml2EdgeRenderer {
         }
     }
 
-    /** Inline style of a halo pass: background-coloured fill and a round 3 px stroke (inline style beats the class rule). */
-    private fun haloStyle(backdrop: String): String = "fill:$backdrop;stroke:$backdrop;stroke-width:3;stroke-linejoin:round"
+    /** Halo stroke width of SysML 2 labels in px (PAL wave 2C-b2b: 2 px, drawn as a second text pass, never as a backdrop rectangle). */
+    internal const val HALO_PX: Int = 2
+
+    /** Inline style of a halo pass: background-coloured fill and a round [HALO_PX] px stroke (inline style beats the class rule). */
+    internal fun haloStyle(backdrop: String): String = "fill:$backdrop;stroke:$backdrop;stroke-width:$HALO_PX;stroke-linejoin:round"
 
     private fun emitText(
         builder: SvgBuilder,

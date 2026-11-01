@@ -1138,6 +1138,9 @@ public object KumlSvgRenderer {
 
     // Character width and one-line limit used to estimate edge-label rectangles for the note placement.
     private const val SYSML2_LABEL_CHAR_PX: Float = 7.2f
+
+    /** Estimated width per character of an activity action name (bold title font). */
+    private const val ACT_TITLE_CHAR_PX: Float = 8.6f
     private const val SYSML2_LABEL_SINGLE_LINE_MAX_PX: Float = 180f
 
     // STM label placement: hard top/left limit (below the frame title) and canvas clearance right/bottom.
@@ -2340,10 +2343,9 @@ public object KumlSvgRenderer {
                 elements = visible + sysml2NoteElements(model),
             )
         // Welle B: frame + owner ports first (they move nodes), then port positions on the part boxes.
-        val framed = Sysml2LayoutBridge.addIbdOwnerFrame(model = model, diagram = diagram, layoutResult = layoutResult)
-        val context =
-            dev.kuml.io.svg.sysml2
-                .Sysml2NodeContext(model = model, ibdShowAttributes = diagram.showAttributes)
+        // PAL 2C-b2b: the nested part frames (box in box) are laid into the part boxes before that.
+        val nested = Sysml2LayoutBridge.addIbdNestedFrames(model = model, diagram = diagram, layoutResult = layoutResult)
+        val framed = Sysml2LayoutBridge.addIbdOwnerFrame(model = model, diagram = diagram, layoutResult = nested)
         val projection =
             dev.kuml.sysml2.projection
                 .sysml2IbdProjection(model = model, diagram = diagram)
@@ -2354,14 +2356,45 @@ public object KumlSvgRenderer {
             } else {
                 Sysml2LayoutBridge.enrichIbdPortPositions(model = model, diagram = diagram, layoutResult = framed)
             }
-        val ibdExtras = Sysml2NoteAnchorExtras.ibd(model = model, diagram = diagram, layout = enrichedLayout)
         val ibdAdapter = IbdEdgeAdapter(model = model, diagram = diagram)
-        // Drawn port squares and the labels next to them (same placement function as the renderer).
-        val ibdPortObstacles: (ObstacleIndex) -> Unit = { o ->
-            Sysml2NoteAnchorExtras.ibdPortObstacles(obstacles = o, extras = ibdExtras, layout = enrichedLayout)
-        }
-        // PAL 2B-c: connector labels are planned first, the notes then avoid the rectangles they are really drawn at.
-        val ibdLabels = planSysml2EdgeLabels(layout = enrichedLayout, adapter = ibdAdapter, configure = ibdPortObstacles)
+
+        // Drawn port squares and the owner-port labels are obstacles; part-port labels are planned with the edge labels (PAL 2C-b2b).
+        fun portObstacles(
+            layout: LayoutResult,
+            extras: Map<String, dev.kuml.layout.bridge.note.AnchorGeometry>,
+            portLabelRects: Collection<dev.kuml.layout.Rect>,
+        ): (ObstacleIndex) -> Unit =
+            { o ->
+                Sysml2NoteAnchorExtras.ibdPortObstacles(obstacles = o, extras = extras, layout = layout, portLabelRects = portLabelRects)
+                if (projection.showFrame) {
+                    for (l in Sysml2LayoutBridge.ibdLabelRects(model = model, diagram = diagram, layout = layout)) {
+                        if (l.kind == Sysml2LayoutBridge.IbdLabelKind.OwnerPort) {
+                            o.addRect(kind = dev.kuml.layout.bridge.note.ObstacleKind.PORT_LABEL, r = l.rect)
+                        }
+                    }
+                }
+            }
+
+        fun planLabels(
+            layout: LayoutResult,
+            extras: Map<String, dev.kuml.layout.bridge.note.AnchorGeometry>,
+        ): Map<String, dev.kuml.layout.bridge.label.PlacedLabel> =
+            planSysml2EdgeLabels(
+                layout = layout,
+                adapter = ibdAdapter,
+                configure = portObstacles(layout = layout, extras = extras, portLabelRects = emptyList()),
+                portLabels = Sysml2LayoutBridge.ibdPortLabelSpecs(model = model, diagram = diagram, layout = layout),
+                titleRects = Sysml2LayoutBridge.ibdTitleRects(model = model, layout = layout),
+            )
+
+        fun portRectsOf(plan: Map<String, dev.kuml.layout.bridge.label.PlacedLabel>): List<dev.kuml.layout.Rect> =
+            plan.entries
+                .filter { it.key.startsWith("port:") }
+                .sortedBy { it.key }
+                .map { it.value.rect }
+        val ibdExtras = Sysml2NoteAnchorExtras.ibd(model = model, diagram = diagram, layout = enrichedLayout)
+        // PAL 2B-c: connector and port labels are planned first, the notes then avoid the rectangles they are really drawn at.
+        val ibdLabels = planLabels(layout = enrichedLayout, extras = ibdExtras)
         val notedResult =
             placeSysml2NotesResult(
                 model = model,
@@ -2370,7 +2403,7 @@ public object KumlSvgRenderer {
                 adapter = ibdAdapter,
                 extras = ibdExtras,
                 localPorts = true,
-                configure = ibdPortObstacles,
+                configure = portObstacles(layout = enrichedLayout, extras = ibdExtras, portLabelRects = portRectsOf(ibdLabels)),
                 placedLabels = ibdLabels,
             )
         val notedLayout = notedResult.layout
@@ -2379,18 +2412,29 @@ public object KumlSvgRenderer {
             if (model.comments.isEmpty()) {
                 ibdLabels
             } else {
-                planSysml2EdgeLabels(
+                planLabels(
                     layout = notedLayout,
-                    adapter = ibdAdapter,
-                    configure = { o ->
-                        Sysml2NoteAnchorExtras.ibdPortObstacles(
-                            obstacles = o,
-                            extras = Sysml2NoteAnchorExtras.ibd(model = model, diagram = diagram, layout = notedLayout),
-                            layout = notedLayout,
-                        )
-                    },
+                    extras = Sysml2NoteAnchorExtras.ibd(model = model, diagram = diagram, layout = notedLayout),
                 )
             }
+        // Part-port label rectangles local to their part box, as the node renderer draws them.
+        val portLabelsLocal = LinkedHashMap<String, dev.kuml.layout.Rect>()
+        for (spec in Sysml2LayoutBridge.ibdPortLabelSpecs(model = model, diagram = diagram, layout = notedLayout)) {
+            val placed = ibdFinalLabels[spec.id] ?: continue
+            val origin = notedLayout.nodes[dev.kuml.layout.NodeId(spec.parentId ?: continue)]?.bounds?.origin ?: continue
+            portLabelsLocal[spec.ownerId] =
+                dev.kuml.layout.Rect(
+                    origin = dev.kuml.layout.Point(x = placed.rect.origin.x - origin.x, y = placed.rect.origin.y - origin.y),
+                    size = placed.rect.size,
+                )
+        }
+        val context =
+            dev.kuml.io.svg.sysml2.Sysml2NodeContext(
+                model = model,
+                ibdShowAttributes = diagram.showAttributes,
+                ibdFrames = notedLayout.ibdNestedFrames,
+                ibdPortLabels = portLabelsLocal,
+            )
         val connectorAvoid =
             if (projection.showFrame) {
                 Sysml2LayoutBridge.ibdAvoidRects(
@@ -3137,29 +3181,118 @@ public object KumlSvgRenderer {
                     }
                 val nodeFillHex = theme.colors.effectiveNodeFill.toHex()
                 val paperHex = theme.colors.background.toHex()
-                Sysml2EdgeRenderer.emitLabelsOnLine(
-                    pending = pendingActLabels,
-                    allRoutes = finalRoutes,
-                    obstacles =
-                        shiftedBoundsById.values.toList() +
-                            actionById.values.flatMap { d ->
-                                shiftedBoundsById[d.id]
-                                    ?.let {
-                                        dev.kuml.io.svg.sysml2
-                                            .pinLabelRects(def = d, bounds = it)
-                                    }.orEmpty()
-                            },
-                    backdropFor = { r ->
-                        val cx = r.origin.x + r.size.width / 2f
-                        val cy = r.origin.y + r.size.height / 2f
-                        val inGroup =
-                            groupRects.any {
-                                cx in it.origin.x..(it.origin.x + it.size.width) && cy in it.origin.y..(it.origin.y + it.size.height)
+                // PAL 2C-b2b: pin labels and edge labels are planned together over the final routes and drawn with a halo.
+                val dockedPins = HashSet<String>()
+                for (f in objectFlowsById.values) {
+                    f.sourcePin?.let { name ->
+                        actionById[f.sourceNodeId]
+                            ?.pins
+                            ?.firstOrNull { it.name == name && it.direction == dev.kuml.sysml2.PinDirection.Output }
+                            ?.let {
+                                dockedPins +=
+                                    dev.kuml.io.svg.sysml2
+                                        .actionPinLabelId(actionId = f.sourceNodeId, pin = it)
                             }
-                        if (inGroup) nodeFillHex else paperHex
-                    },
-                    builder = edgesBuilder,
-                )
+                    }
+                    f.targetPin?.let { name ->
+                        actionById[f.targetNodeId]
+                            ?.pins
+                            ?.firstOrNull { it.name == name && it.direction == dev.kuml.sysml2.PinDirection.Input }
+                            ?.let {
+                                dockedPins +=
+                                    dev.kuml.io.svg.sysml2
+                                        .actionPinLabelId(actionId = f.targetNodeId, pin = it)
+                            }
+                    }
+                }
+                for (h in handlersById.values) {
+                    val name = h.handlerPin ?: continue
+                    actionById[h.handlerNodeId]
+                        ?.pins
+                        ?.firstOrNull { it.name == name && it.direction == dev.kuml.sysml2.PinDirection.Input }
+                        ?.let {
+                            dockedPins +=
+                                dev.kuml.io.svg.sysml2
+                                    .actionPinLabelId(actionId = h.handlerNodeId, pin = it)
+                        }
+                }
+                val pinSpecs =
+                    actionById.values.flatMap { d ->
+                        shiftedBoundsById[d.id]
+                            ?.let {
+                                dev.kuml.io.svg.sysml2
+                                    .actionPinLabelSpecs(def = d, bounds = it, dockedPins = dockedPins)
+                            }.orEmpty()
+                    }
+                val pendingLines = pendingActLabels.associate { it.id to Sysml2EdgeRenderer.actLabelLines(it) }
+                val titleRects =
+                    actionById.values.mapNotNull { d ->
+                        if (d.kind != dev.kuml.sysml2.ActivityNodeKind.Action) return@mapNotNull null
+                        val b = shiftedBoundsById[d.id] ?: return@mapNotNull null
+                        val w = d.name.length * ACT_TITLE_CHAR_PX + 8f
+                        dev.kuml.layout.Rect(
+                            origin =
+                                dev.kuml.layout.Point(
+                                    x = b.origin.x + (b.size.width - w) / 2f,
+                                    y =
+                                        b.origin.y + b.size.height / 2f - 11f,
+                                ),
+                            size = dev.kuml.layout.Size(width = w, height = 22f),
+                        )
+                    }
+                val plan =
+                    dev.kuml.layout.bridge.label.Sysml2DiagramLabelPlan.planActLabels(
+                        pins = pinSpecs,
+                        edges = finalRoutes,
+                        nodes = shiftedBoundsById,
+                        arrowTips =
+                            finalRoutes.values.map {
+                                dev.kuml.layout.bridge.label.Sysml2DiagramLabelPlan
+                                    .tipOf(it)
+                            },
+                        edgeLabels =
+                            pendingActLabels.mapNotNull { p ->
+                                pendingLines[p.id]?.takeIf { it.isNotEmpty() }?.let {
+                                    dev.kuml.layout.bridge.label
+                                        .EdgeLabelSpec(id = p.id, lines = it.map { l -> l.text })
+                                }
+                            },
+                        titleRects = titleRects,
+                    )
+
+                fun backdropOf(r: dev.kuml.layout.Rect): String {
+                    val cx = r.origin.x + r.size.width / 2f
+                    val cy = r.origin.y + r.size.height / 2f
+                    val inGroup =
+                        groupRects.any {
+                            cx in it.origin.x..(it.origin.x + it.size.width) && cy in it.origin.y..(it.origin.y + it.size.height)
+                        }
+                    return if (inGroup) nodeFillHex else paperHex
+                }
+                edgesBuilder.tag(name = "g", attrs = mapOf("class" to "kuml-edge-labels")) {
+                    for (spec in pinSpecs.sortedBy { it.id }) {
+                        val placed = plan.labels[spec.id] ?: continue
+                        Sysml2EdgeRenderer.emitHaloLabelGroup(
+                            id = spec.id,
+                            rect = placed.rect,
+                            lines = plan.lines.getValue(spec.id).map { Sysml2EdgeRenderer.DrawnLabelLine(text = it, css = "kuml-body") },
+                            backdrop = backdropOf(placed.rect),
+                            groupClass = "kuml-label kuml-pin-label-group",
+                            builder = this,
+                        )
+                    }
+                    for (p in pendingActLabels.sortedBy { it.id }) {
+                        val placed = plan.labels[p.id] ?: continue
+                        Sysml2EdgeRenderer.emitHaloLabelGroup(
+                            id = p.id,
+                            rect = placed.rect,
+                            lines = pendingLines.getValue(p.id),
+                            backdrop = backdropOf(placed.rect),
+                            groupClass = "kuml-label kuml-edge-label",
+                            builder = this,
+                        )
+                    }
+                }
             }
             // 4b. Wave C2: lane names and region names are painted after every edge.
             for ((groupId, groupLayout) in layoutResult.groups) {
@@ -3589,6 +3722,8 @@ public object KumlSvgRenderer {
         layout: LayoutResult,
         adapter: Sysml2EdgeAdapter,
         configure: (ObstacleIndex) -> Unit = {},
+        portLabels: List<dev.kuml.layout.bridge.label.PortLabelSpec> = emptyList(),
+        titleRects: List<dev.kuml.layout.Rect> = emptyList(),
     ): Map<String, dev.kuml.layout.bridge.label.PlacedLabel> {
         val sizes = LinkedHashMap<String, dev.kuml.layout.Size>()
         for (edgeId in layout.edges.keys) {
@@ -3600,7 +3735,7 @@ public object KumlSvgRenderer {
                     .sizeOf(lines.map { it.text })
         }
         return dev.kuml.layout.bridge.label.Sysml2EdgeLabelPlan
-            .compute(layout = layout, labelSizes = sizes, configure = configure)
+            .compute(layout = layout, labelSizes = sizes, configure = configure, portLabels = portLabels, titleRects = titleRects)
     }
 
     /** The lines an edge label is drawn in: one line while it fits 180 px, otherwise one part per line (max 3). */

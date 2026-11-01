@@ -1167,9 +1167,17 @@ direction, the conjugation is visible as `~Type` in the label.
 
 An IBD draws an owner frame with boundary ports only when a connection, flow or binding ends on a port
 of the owner, or reaches deeper than one path step below a visible part. Otherwise it renders without
-a frame. Only one nesting level is drawn. The projection already lists deeper parts (`nestedPartPaths`, depth
-limit 8, at most 256 paths) and the path resolver can resolve a path to the deepest one; drawing nested frames
-(box-in-box) is not implemented yet.
+a frame.
+
+Parts nested inside a visible part are drawn box in box, recursively (depth limit 8, at most 256 paths). The visible
+part box is level 1 and keeps its two-line head (`<<part>>` and `name : Type`); every nested part is a frame inside
+its parent with a single header line of 22 px (`name : Type`). A frame keeps 16 px inner distance to the frames
+inside it on the left, right and bottom and a little more below its header, so port labels fit. The fill alternates by
+level: odd levels use the part colour, even levels the canvas colour. The attribute compartment (`showAttributes`) sits
+below the header of every part that has attributes. A port sits on the border of the frame of its own part. A connector
+that ends on a nested port is routed to a gate on the border of the visible part box and then runs straight into the
+frame; it crosses only the frames around its target, never another part. The gate and the port move along the frame (or
+to another side) until the straight way crosses no title, attribute text or foreign frame.
 
 == BDD relationships
 

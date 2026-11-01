@@ -208,27 +208,7 @@ private fun SvgBuilder.renderActionPins(
                         "fill" to "white",
                     ),
             )
-            // Pin labels are drawn in full (no cap); the historic left / right placement stays untouched.
-            val label = pin.name
-            val (lx, ly, anchor) =
-                when (side) {
-                    // Wave C2b: labels sit in the quadrant away from the edge that docks perpendicular at the pin
-                    // centre line (offset 9 px sideways), so neither the line nor its arrow head runs through the text.
-                    PinSide.Left -> Triple(cx - 9f, cy - 9f, "end")
-                    PinSide.Right -> Triple(cx + 9f, cy - 9f, "start")
-                    PinSide.Top -> Triple(cx + 9f, cy - 9f, "start")
-                    else -> Triple(cx + 9f, cy + 17f, "start")
-                }
-            tag(
-                name = "text",
-                attrs =
-                    mapOf(
-                        "class" to "kuml-body",
-                        "x" to fmt(lx),
-                        "y" to fmt(ly),
-                        "text-anchor" to anchor,
-                    ),
-            ) { text(label) }
+            // PAL 2C-b2b: the pin label is not drawn here; the label plan places it and the diagram renderer draws it.
         }
     }
 }
@@ -292,35 +272,51 @@ internal fun actionPinAnchorWithSide(
     return dev.kuml.layout.Point(x = bounds.origin.x + cx + ox, y = bounds.origin.y + cy + oy) to side
 }
 
+/** Id of a pin label in the label plan: action id, direction and pin name. */
+internal fun actionPinLabelId(
+    actionId: String,
+    pin: ActionPin,
+): String = "$actionId#${pin.direction.name}:${pin.name}"
+
+private fun PinSide.toLabelSide(): dev.kuml.layout.bridge.label.LabelSide =
+    when (this) {
+        PinSide.Left -> dev.kuml.layout.bridge.label.LabelSide.WEST
+        PinSide.Right -> dev.kuml.layout.bridge.label.LabelSide.EAST
+        PinSide.Top -> dev.kuml.layout.bridge.label.LabelSide.NORTH
+        else -> dev.kuml.layout.bridge.label.LabelSide.SOUTH
+    }
+
 /**
- * Estimated rectangles (absolute coordinates, [PIN_LABEL_CHAR_PX] per character, font independent) of the
- * pin labels of [def] laid out at [bounds]; used as obstacles by the edge-label placer (wave C2b).
+ * The pin labels of [def] laid out at [bounds] as label-plan requests (PAL wave 2C-b2b, absolute coordinates). A pin
+ * listed in [dockedPins] has an edge that docks at its outer face: its label stays off that side.
  */
-internal fun pinLabelRects(
+internal fun actionPinLabelSpecs(
     def: ActionDefinition,
     bounds: dev.kuml.layout.Rect,
-): List<dev.kuml.layout.Rect> {
-    val out = ArrayList<dev.kuml.layout.Rect>()
+    dockedPins: Set<String>,
+): List<dev.kuml.layout.bridge.label.ActPinLabelSpec> {
+    val out = ArrayList<dev.kuml.layout.bridge.label.ActPinLabelSpec>()
     for (side in PinSide.entries) {
         if (side == PinSide.Auto) continue
         val onSide = def.pins.filter { it.effectiveSide == side }
         if (onSide.isEmpty()) continue
         val pos = pinPositions(count = onSide.size, side = side, w = bounds.size.width, h = bounds.size.height)
         onSide.forEachIndexed { i, pin ->
-            val text = pin.name
-            val w = text.length * PIN_LABEL_CHAR_PX
             val cx = bounds.origin.x + pos[i].first
             val cy = bounds.origin.y + pos[i].second
-            val (x0, base) =
-                when (side) {
-                    PinSide.Left -> (cx - 9f - w) to (cy - 9f)
-                    PinSide.Right, PinSide.Top -> (cx + 9f) to (cy - 9f)
-                    else -> (cx + 9f) to (cy + 17f)
-                }
+            val id = actionPinLabelId(actionId = def.id, pin = pin)
             out +=
-                dev.kuml.layout.Rect(
-                    origin = dev.kuml.layout.Point(x = x0, y = base - 10f),
-                    size = dev.kuml.layout.Size(width = w, height = 13f),
+                dev.kuml.layout.bridge.label.ActPinLabelSpec(
+                    id = id,
+                    text = pin.name,
+                    pinRect =
+                        dev.kuml.layout.Rect(
+                            origin = dev.kuml.layout.Point(x = cx - PIN_SIZE / 2f, y = cy - PIN_SIZE / 2f),
+                            size = dev.kuml.layout.Size(width = PIN_SIZE, height = PIN_SIZE),
+                        ),
+                    side = side.toLabelSide(),
+                    dockSide = if (id in dockedPins) side.toLabelSide() else null,
+                    ownerId = def.id,
                 )
         }
     }
@@ -342,8 +338,6 @@ internal fun pinCenters(
     }
     return out
 }
-
-internal const val PIN_LABEL_CHAR_PX: Float = 6.2f
 
 /** Maximum characters of a signal / time-expression / control-node label inside the diagram. */
 internal const val ACT_LABEL_MAX_CHARS: Int = 40

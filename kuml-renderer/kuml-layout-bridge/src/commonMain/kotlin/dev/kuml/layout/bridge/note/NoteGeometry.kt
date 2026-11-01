@@ -137,7 +137,7 @@ internal fun collinearOverlap(
     b: Point,
     c: Point,
     d: Point,
-    tolerance: Float = 4f,
+    tolerance: Float = 6f,
 ): Float {
     val len = distance(a = a, b = b)
     if (len < 1e-3f) return 0f

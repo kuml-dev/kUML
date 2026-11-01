@@ -57,6 +57,10 @@ public data class NotePlacementConfig(
     val gridGap: Float = 16f,
     /** Inset of exit points from the corners of the note border. */
     val exitCornerInset: Float = 10f,
+    /** Minimum distance between a note and a part box (PAL wave 2C-b2b). */
+    val minPartGap: Float = 8f,
+    /** Minimum distance between two anchors' attach points on the same polyline. */
+    val minAttachSpacing: Float = 16f,
     val costs: NoteCostModel = NoteCostModel(),
 )
 
@@ -107,13 +111,15 @@ public object NotePlacer {
         val ref: NoteAnchorRef,
         val geometry: AnchorGeometry,
         obstacles: ObstacleIndex,
+        used: List<Point> = emptyList(),
+        spacing: Float = 0f,
     ) {
         val rep: Point =
             when (geometry) {
                 is AnchorGeometry.At -> geometry.p
                 is AnchorGeometry.Port -> outerMidpoint(box = geometry.box, side = geometry.outward)
                 is AnchorGeometry.Stem -> Point(x = geometry.x, y = geometry.top + STEM_FIRST_OFFSET)
-                is AnchorGeometry.Along -> freePointOn(pts = geometry.pts, obstacles = obstacles)
+                is AnchorGeometry.Along -> freePointOn(pts = geometry.pts, obstacles = obstacles, used = used, spacing = spacing)
                 is AnchorGeometry.Around -> Point(x = geometry.r.cx, y = geometry.r.cy)
             }
 
@@ -147,9 +153,26 @@ public object NotePlacer {
         fun attachOptions(from: Point): List<Point> =
             if (geometry is AnchorGeometry.Port) {
                 val horizontal = geometry.outward == Side.N || geometry.outward == Side.S
-                listOf(0f, PORT_SIDE_OFFSET, -PORT_SIDE_OFFSET).map { d ->
-                    if (horizontal) Point(x = rep.x + d, y = rep.y) else Point(x = rep.x, y = rep.y + d)
-                }
+                val outer =
+                    listOf(0f, PORT_SIDE_OFFSET, -PORT_SIDE_OFFSET).map { d ->
+                        if (horizontal) Point(x = rep.x + d, y = rep.y) else Point(x = rep.x, y = rep.y + d)
+                    }
+                // PAL 2C-b2b: the lateral faces of the square, on the outward half (4.5 px off the border line, so the line does not run along it).
+                val b = geometry.box
+                val sign = if (geometry.outward == Side.S || geometry.outward == Side.E) 1f else -1f
+                val lateral =
+                    if (horizontal) {
+                        listOf(
+                            Point(x = b.left, y = b.cy + sign * PORT_SIDE_OFFSET),
+                            Point(x = b.right, y = b.cy + sign * PORT_SIDE_OFFSET),
+                        )
+                    } else {
+                        listOf(
+                            Point(x = b.cx + sign * PORT_SIDE_OFFSET, y = b.top),
+                            Point(x = b.cx + sign * PORT_SIDE_OFFSET, y = b.bottom),
+                        )
+                    }
+                outer + lateral
             } else {
                 listOf(attach(from))
             }
@@ -159,8 +182,18 @@ public object NotePlacer {
             val prev = route[route.size - 2]
             val q = route.last()
             return when (geometry) {
-                is AnchorGeometry.Port ->
-                    when (geometry.outward) {
+                is AnchorGeometry.Port -> {
+                    val b = geometry.box
+                    val eps = AXIS_EPS
+                    val face =
+                        when {
+                            kotlin.math.abs(q.y - b.bottom) < eps && q.x > b.left + eps && q.x < b.right - eps -> Side.S
+                            kotlin.math.abs(q.y - b.top) < eps && q.x > b.left + eps && q.x < b.right - eps -> Side.N
+                            kotlin.math.abs(q.x - b.right) < eps -> Side.E
+                            kotlin.math.abs(q.x - b.left) < eps -> Side.W
+                            else -> geometry.outward
+                        }
+                    when (face) {
                         Side.E -> kotlin.math.abs(prev.y - q.y) < AXIS_EPS && prev.x > q.x
                         Side.W -> kotlin.math.abs(prev.y - q.y) < AXIS_EPS && prev.x < q.x
                         Side.S -> kotlin.math.abs(prev.x - q.x) < AXIS_EPS && prev.y > q.y
@@ -168,6 +201,7 @@ public object NotePlacer {
                     } &&
                         // PAL 2C-b2: no bend within PORT_STRAIGHT_PX of the port: the last segment is straight for at least that far.
                         (route.size == 2 || distance(a = prev, b = q) >= PORT_STRAIGHT_PX)
+                }
                 is AnchorGeometry.Stem -> kotlin.math.abs(prev.y - q.y) < AXIS_EPS
                 else -> true
             }
@@ -200,6 +234,7 @@ public object NotePlacer {
         var extent = contentExtent(layout)
         val loose = mutableListOf<Pair<NotePlacementInput, Size>>()
         val placedRects = mutableListOf<Rect>()
+        val usedAlong = HashMap<String, MutableList<Point>>()
 
         for (note in limited) {
             val size = measure.measure(body = note.body, maxWidth = config.maxNoteWidth)
@@ -212,8 +247,11 @@ public object NotePlacer {
                 ) {
                     unresolved += UnresolvedAnchor(noteId = note.noteId, anchorId = ref.targetId)
                 } else {
-                    resolved +=
-                        Anchor(ref = ref, geometry = g, obstacles = obstacles)
+                    // PAL 2C-b2b: anchors on one connection get their own attach points, at least minAttachSpacing apart.
+                    val used = usedAlong.getOrPut(ref.targetId) { mutableListOf() }
+                    val anchor = Anchor(ref = ref, geometry = g, obstacles = obstacles, used = used, spacing = config.minAttachSpacing)
+                    if (g is AnchorGeometry.Along) used += anchor.rep
+                    resolved += anchor
                 }
             }
             if (resolved.isEmpty()) {
@@ -274,12 +312,18 @@ public object NotePlacer {
     private fun freePointOn(
         pts: List<Point>,
         obstacles: ObstacleIndex,
+        used: List<Point> = emptyList(),
+        spacing: Float = 0f,
     ): Point {
         val total = polylineLength(pts)
         if (total <= 0f || pts.size < 2) return polylineMidpoint(pts)
         for (t in ALONG_FRACTIONS) {
             val p = polylineAt(pts = pts, at = total * t)
-            if (!obstacles.insideLabel(p)) return p
+            if (!obstacles.insideLabel(p) && used.none { distance(a = it, b = p) < spacing }) return p
+        }
+        for (t in ALONG_FRACTIONS) {
+            val p = polylineAt(pts = pts, at = total * t)
+            if (used.none { distance(a = it, b = p) < spacing }) return p
         }
         return polylineMidpoint(pts)
     }
@@ -363,7 +407,10 @@ public object NotePlacer {
         val h = size.height
         val gap = config.candidateGap
 
-        fun around(b: Rect) {
+        fun around(
+            b: Rect,
+            gap: Float = config.candidateGap,
+        ) {
             val ring =
                 listOf(
                     b.right + gap to b.cy - h / 2f, // E
@@ -419,6 +466,9 @@ public object NotePlacer {
         var bbox = boxOf(anchors.first())
         anchors.forEach { bbox = bbox.union(boxOf(it)) }
         around(bbox)
+        // PAL 2C-b2b: with the 8 px part gap the first ring can be full; wider rings keep a free spot in reach.
+        around(bbox, gap * 2f)
+        around(bbox, gap * 3.5f)
         // Margin strips: right, bottom, left, top of the existing content.
         val cx = bbox.cx
         val cy = bbox.cy
@@ -461,7 +511,7 @@ public object NotePlacer {
         config: NotePlacementConfig,
         budget: ObstacleIndex.Budget,
     ): Plan {
-        var cost = obstacles.rectCost(r = rect, costs = config.costs, budget = budget)
+        var cost = obstacles.rectCost(r = rect, costs = config.costs, budget = budget, partGap = config.minPartGap)
         val exits = assignExits(rect = rect, anchors = anchors, config = config)
         val routes = ArrayList<List<Point>>()
         for ((i, a) in anchors.withIndex()) {
@@ -482,7 +532,8 @@ public object NotePlacer {
                 if (chosen == null || r.second < chosen.second) chosen = r
                 if (r.second < NO_ROUTE_PENALTY) break
             }
-            val (pts, c) = chosen!!
+            val (pts0, c) = chosen!!
+            val pts = removeTinyJog(pts0)
             routes += pts
             cost += c
         }
@@ -606,6 +657,7 @@ public object NotePlacer {
                 (cand.size == 2 || (0 until cand.size - 1).all { axisAligned(a = cand[it], b = cand[it + 1]) }) &&
                 (0 until cand.size - 1).none { segmentIntersectsRect(a = cand[it], b = cand[it + 1], r = shrunk) } &&
                 anchor.arrivalOk(cand) &&
+                !obstacles.routeCrossesBoxes(pts = cand, exemptOwners = anchor.exempt, budget = budget) &&
                 // A port line must not end on the port's own connection: it would read as part of it.
                 !(anchor.geometry is AnchorGeometry.Port && obstacles.nearEdge(p = cand.last(), tolerance = RUN_ALONG_TOLERANCE)) &&
                 !obstacles.routeRunsAlong(pts = cand, extraRects = listOf(noteRect), extraLines = own, budget = budget)
@@ -763,6 +815,28 @@ public object NotePlacer {
             Side.S -> Point(x = p.x, y = p.y + d)
             Side.N -> Point(x = p.x, y = p.y - d)
         }
+
+    /** A first segment shorter than 3 px (a jog of a few pixels at the note exit) is absorbed: the exit slides along the note border. */
+    private fun removeTinyJog(pts: List<Point>): List<Point> {
+        if (pts.size != 3) return pts
+        val (p, w, q) = pts
+        val tiny = distance(a = p, b = w)
+        if (tiny >= 3f) return pts
+        val straightAfter = kotlin.math.abs(w.x - q.x) < 0.5f || kotlin.math.abs(w.y - q.y) < 0.5f
+        if (!straightAfter) return pts
+        return simplify(listOf(w, q)).let {
+            listOf(
+                if (kotlin.math.abs(p.x - w.x) <
+                    0.5f
+                ) {
+                    Point(x = p.x, y = w.y)
+                } else {
+                    Point(x = w.x, y = p.y)
+                },
+                q,
+            )
+        }
+    }
 
     /** Drops duplicate points and merges collinear axis-aligned runs. */
     private fun simplify(pts: List<Point>): List<Point> {

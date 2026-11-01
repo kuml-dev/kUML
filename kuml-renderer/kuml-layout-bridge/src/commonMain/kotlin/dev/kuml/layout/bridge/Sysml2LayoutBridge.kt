@@ -669,6 +669,14 @@ public object Sysml2LayoutBridge {
                 }
             }
 
+        // PAL 2C-b2b: parts nested inside a visible part box grow that box (box in box).
+        val nested: Map<String, List<IbdNesting.Node>> =
+            if (model == null || diagram == null) {
+                emptyMap()
+            } else {
+                IbdNesting.treeOf(model = model, diagram = diagram, projection = sysml2IbdProjection(model = model, diagram = diagram))
+            }
+
         return SizeProvider { id, _ ->
             val compartment = attributes[id]
             val h = STEREOTYPE_LINE_H + NAME_LINE_H + BOX_V_PADDING + (compartment?.let { ibdAttributeCompartmentHeight(it) } ?: 0f)
@@ -693,10 +701,13 @@ public object Sysml2LayoutBridge {
                     val contentW = maxOf(stereoW, titleW, attrW) + 2 * IBD_H_PAD
                     maxOf(contentW, IBD_DEFAULT_WIDTH)
                 }
-            val w = minOf(maxOf(baseW, portWidthNeeded[id] ?: 0f), baseW + IBD_PORT_PITCH_GROWTH_CAP_PX)
+            val wPorts = minOf(maxOf(baseW, portWidthNeeded[id] ?: 0f), baseW + IBD_PORT_PITCH_GROWTH_CAP_PX)
+            val area = nested[id]?.let { IbdNesting.areaSize(roots = it, topArea = h) }
+            val w = maxOf(wPorts, area?.width ?: 0f)
+            val boxH = area?.height ?: maxOf(h, 50f)
             val (wExtra, hExtra) =
                 stmConnectionPuffer(transitionCount = connectionsById[id] ?: 0, layoutDirection = layoutDirection)
-            dev.kuml.layout.Size(width = w + wExtra, height = maxOf(h, 50f) + hExtra)
+            dev.kuml.layout.Size(width = w + wExtra, height = boxH + hExtra)
         }
     }
 
@@ -2819,6 +2830,162 @@ public object Sysml2LayoutBridge {
     private const val IBD_PORT_PITCH_GROWTH_CAP_PX: Float = 112f
 
     /**
+     * [ibdSpreadPorts] for a box with nested frames (PAL wave 2C-b2b): the ports of each frame are spread along that
+     * frame's sides; [frameOf] gives the frame (local to the box) of a port key, `null` for the box itself.
+     */
+    public fun ibdSpreadPortsInFrames(
+        boxSize: Size,
+        ports: Map<String, Point>,
+        labels: Map<String, String>,
+        frameOf: (String) -> Rect?,
+    ): Map<String, Point> {
+        if (ports.keys.all { frameOf(it) == null }) return ibdSpreadPorts(boxSize = boxSize, ports = ports, labels = labels)
+        val spread = HashMap<String, Point>()
+        val groups = ports.keys.groupBy { frameOf(it) }
+        for ((frame, keys) in groups) {
+            if (frame == null) {
+                spread += ibdSpreadPorts(boxSize = boxSize, ports = ports.filterKeys { it in keys }, labels = labels)
+            } else {
+                val local =
+                    keys.associateWith {
+                        Point(
+                            x = ports.getValue(it).x - frame.origin.x,
+                            y = ports.getValue(it).y - frame.origin.y,
+                        )
+                    }
+                val done = ibdSpreadPorts(boxSize = frame.size, ports = local, labels = labels)
+                for ((k, p) in done) spread[k] = Point(x = p.x + frame.origin.x, y = p.y + frame.origin.y)
+            }
+        }
+        return ports.keys.associateWith { spread.getValue(it) }
+    }
+
+    /** Estimated rectangle of the attribute lines of a part, drawn left-aligned at [x] + 8 below [y]. */
+    private fun ibdAttrTextRect(
+        x: Float,
+        y: Float,
+        lines: List<String>,
+    ): Rect =
+        Rect(
+            origin = Point(x = x + 8f, y = y + IBD_ATTR_PAD / 2f),
+            size =
+                Size(
+                    width = (lines.maxOfOrNull { it.length } ?: 0) * IBD_ATTR_CHAR_PX + 8f,
+                    height = lines.size * IBD_ATTR_LINE_H,
+                ),
+        )
+
+    /**
+     * Looks for a position of the nested-frame port [port] (local to the visible box of size [boxSize]) whose straight
+     * corridor to the border of the box crosses none of [blockers]. The current side is tried first, then the sides
+     * beside it, then the opposite one; on a side the positions nearest to the current one come first. `null` when
+     * nothing is free.
+     */
+    private fun ibdFreeCorridor(
+        port: Point,
+        frame: dev.kuml.layout.IbdNestedFrame,
+        boxSize: Size,
+        blockers: List<Rect>,
+    ): Point? {
+        val f = frame.bounds
+        val half = IBD_PORT_SIZE_PX / 2f
+        val margin = half + 6f
+        val cur = ibdNearestSide(p = Point(x = port.x - f.origin.x, y = port.y - f.origin.y), w = f.size.width, h = f.size.height)
+        val order =
+            when (cur) {
+                IbdSide.Top -> listOf(IbdSide.Top, IbdSide.Left, IbdSide.Right, IbdSide.Bottom)
+                IbdSide.Bottom -> listOf(IbdSide.Bottom, IbdSide.Left, IbdSide.Right, IbdSide.Top)
+                IbdSide.Left -> listOf(IbdSide.Left, IbdSide.Top, IbdSide.Bottom, IbdSide.Right)
+                IbdSide.Right -> listOf(IbdSide.Right, IbdSide.Top, IbdSide.Bottom, IbdSide.Left)
+            }
+        val compartmentH = if (frame.attributeLines.isEmpty()) 0f else frame.attributeLines.size * IBD_ATTR_LINE_H + IBD_ATTR_PAD
+        for (side in order) {
+            val horizontalSide = side == IbdSide.Top || side == IbdSide.Bottom
+            val lo = if (horizontalSide) f.origin.x + margin else f.origin.y + frame.headerHeight + compartmentH + margin
+            val hi = if (horizontalSide) f.origin.x + f.size.width - margin else f.origin.y + f.size.height - margin
+            if (hi < lo) continue
+            val preferred =
+                if (!horizontalSide) {
+                    // On a side wall the port sits near the top so its label fits below it.
+                    lo + 4f
+                } else if (side == cur) {
+                    port.x
+                } else {
+                    (lo + hi) / 2f
+                }
+            val candidates = ArrayList<Float>()
+            var v = lo
+            while (v <= hi + 0.01f) {
+                candidates += v
+                v += 4f
+            }
+            candidates += preferred.coerceIn(lo, hi)
+            for (pos in candidates.distinct().sortedWith(compareBy({ kotlin.math.abs(it - preferred) }, { it }))) {
+                val corridor =
+                    when (side) {
+                        IbdSide.Top -> Rect(origin = Point(x = pos - 4f, y = 0f), size = Size(width = 8f, height = f.origin.y))
+                        IbdSide.Bottom ->
+                            Rect(
+                                origin = Point(x = pos - 4f, y = f.origin.y + f.size.height),
+                                size = Size(width = 8f, height = boxSize.height - f.origin.y - f.size.height),
+                            )
+                        IbdSide.Left -> Rect(origin = Point(x = 0f, y = pos - 4f), size = Size(width = f.origin.x, height = 8f))
+                        IbdSide.Right ->
+                            Rect(
+                                origin = Point(x = f.origin.x + f.size.width, y = pos - 4f),
+                                size = Size(width = boxSize.width - f.origin.x - f.size.width, height = 8f),
+                            )
+                    }
+                if (corridor.size.width <= 0f || corridor.size.height <= 0f) continue
+                if (blockers.none { rectsOverlap(a = it, b = corridor) }) {
+                    return when (side) {
+                        IbdSide.Top -> Point(x = pos, y = f.origin.y)
+                        IbdSide.Bottom -> Point(x = pos, y = f.origin.y + f.size.height)
+                        IbdSide.Left -> Point(x = f.origin.x, y = pos)
+                        IbdSide.Right -> Point(x = f.origin.x + f.size.width, y = pos)
+                    }
+                }
+            }
+        }
+        return null
+    }
+
+    private fun rectsOverlap(
+        a: Rect,
+        b: Rect,
+    ): Boolean =
+        a.origin.x < b.origin.x + b.size.width - 0.5f &&
+            b.origin.x < a.origin.x + a.size.width - 0.5f &&
+            a.origin.y < b.origin.y + b.size.height - 0.5f &&
+            b.origin.y < a.origin.y + a.size.height - 0.5f
+
+    /** Snaps [p] (local to the visible box) onto the border of the nested [frame] side that faces it; keeps clear of the corners and the header. */
+    private fun snapToFrame(
+        p: Point,
+        frame: Rect,
+        headerHeight: Float,
+    ): Point {
+        val half = IBD_PORT_SIZE_PX / 2f
+        val cx = frame.origin.x + frame.size.width / 2f
+        val cy = frame.origin.y + frame.size.height / 2f
+        val dx = (p.x - cx) / maxOf(frame.size.width / 2f, 1f)
+        val dy = (p.y - cy) / maxOf(frame.size.height / 2f, 1f)
+        val l = frame.origin.x
+        val t = frame.origin.y
+        val r = l + frame.size.width
+        val b = t + frame.size.height
+        val x = p.x.coerceIn(minOf(l + half, cx), maxOf(r - half, cx))
+        val y = p.y.coerceIn(minOf(t + headerHeight + half, cy), maxOf(b - half, cy))
+        return if (kotlin.math.abs(dx) >= kotlin.math.abs(dy)) {
+            if (dx >= 0f) Point(x = r, y = y) else Point(x = l, y = y)
+        } else if (dy >= 0f) {
+            Point(x = x, y = b)
+        } else {
+            Point(x = x, y = t)
+        }
+    }
+
+    /**
      * Spreads the part ports of one box along their sides so that neighbouring ports keep a pitch of
      * `max(24, labelW + 8)` (top/bottom) or `max(24, lineH + 6)` (left/right). [ports] holds the local port centres
      * (on the box border), [labels] the label texts; [measure] is the text-width function (default: the estimate the
@@ -2994,6 +3161,110 @@ public object Sysml2LayoutBridge {
         ).minBy { it.second }.first
 
     /**
+     * The nested frame (local to the visible box [nodeId]) a port with the key [key] (`step::step`) sits on, or `null` when
+     * it sits on the visible box itself (PAL wave 2C-b2b). A port `cell::drive::power` sits on the frame `<nodeId>::cell::drive`.
+     */
+    public fun ibdPortFrameRect(
+        nodeId: String,
+        key: String,
+        frames: List<dev.kuml.layout.IbdNestedFrame>,
+    ): Rect? = ibdPortFrame(nodeId = nodeId, key = key, frames = frames)?.bounds
+
+    /** Like [ibdPortFrameRect], the whole frame record. */
+    public fun ibdPortFrame(
+        nodeId: String,
+        key: String,
+        frames: List<dev.kuml.layout.IbdNestedFrame>,
+    ): dev.kuml.layout.IbdNestedFrame? {
+        if (frames.isEmpty()) return null
+        val steps = key.split("::")
+        if (steps.size < 2) return null
+        val path = nodeId + "::" + steps.dropLast(1).joinToString("::")
+        return frames.firstOrNull { it.path == path && it.nodeId == nodeId }
+    }
+
+    /**
+     * Adds the nested part frames of the IBD (box in box, PAL wave 2C-b2b) to [layoutResult]: for every visible part box
+     * with nested parts the frames are positioned inside it, local to the box. Run it before [addIbdOwnerFrame]. A
+     * diagram without nested parts is returned unchanged.
+     */
+    public fun addIbdNestedFrames(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+        layoutResult: LayoutResult,
+    ): LayoutResult {
+        val projection = sysml2IbdProjection(model = model, diagram = diagram)
+        val tree = IbdNesting.treeOf(model = model, diagram = diagram, projection = projection)
+        if (tree.isEmpty()) return layoutResult
+        val frames = ArrayList<dev.kuml.layout.IbdNestedFrame>()
+        for ((nodeId, roots) in tree) {
+            val nl = layoutResult.nodes[NodeId(nodeId)] ?: continue
+            val usage = model.usages.filterIsInstance<PartUsage>().firstOrNull { it.id == nodeId }
+            val compartment =
+                if (diagram.showAttributes && usage != null) {
+                    dev.kuml.sysml2.projection
+                        .ibdPartAttributes(model = model, usage = usage)
+                } else {
+                    null
+                }
+            val topArea = STEREOTYPE_LINE_H + NAME_LINE_H + BOX_V_PADDING + (compartment?.let { ibdAttributeCompartmentHeight(it) } ?: 0f)
+            frames += IbdNesting.frames(nodeId = nodeId, roots = roots, nodeSize = nl.bounds.size, topArea = topArea)
+        }
+        return layoutResult.copy(ibdNestedFrames = frames)
+    }
+
+    /**
+     * Estimated rectangles (layout coordinates) of the title texts of the IBD part boxes and nested frames; labels and
+     * connectors keep clear of them (PAL wave 2C-b2b). Only boxes that contain nested frames report their title: the
+     * space inside such a box is where labels and connectors may otherwise run through the text.
+     */
+    public fun ibdTitleRects(
+        model: Sysml2Model,
+        layout: LayoutResult,
+    ): List<Rect> {
+        if (layout.ibdNestedFrames.isEmpty()) return emptyList()
+        val out = ArrayList<Rect>()
+        val hosts = layout.ibdNestedFrames.map { it.nodeId }.toSet()
+        for (id in hosts.sorted()) {
+            val nl = layout.nodes[NodeId(id)] ?: continue
+            val usage = model.usages.filterIsInstance<PartUsage>().firstOrNull { it.id == id }
+            val title = if (usage != null) "${usage.name} : ${usage.definitionId}" else id
+            val w = maxOf(title.length * IBD_TITLE_CHAR_PX, "«part»".length * IBD_STEREO_CHAR_PX) * 1.15f + 8f
+            out +=
+                Rect(
+                    origin = Point(x = nl.bounds.origin.x + (nl.bounds.size.width - w) / 2f, y = nl.bounds.origin.y + 2f),
+                    size = Size(width = w, height = STEREOTYPE_LINE_H + NAME_LINE_H),
+                )
+        }
+        for (f in layout.ibdNestedFrames) {
+            val nl = layout.nodes[NodeId(f.nodeId)] ?: continue
+            val w = f.title.length * IBD_TITLE_CHAR_PX * 1.15f + 8f
+            out +=
+                Rect(
+                    origin =
+                        Point(
+                            x = nl.bounds.origin.x + f.bounds.origin.x + (f.bounds.size.width - w) / 2f,
+                            y = nl.bounds.origin.y + f.bounds.origin.y,
+                        ),
+                    size = Size(width = w, height = f.headerHeight),
+                )
+        }
+        return out
+    }
+
+    /** Absolute (layout coordinate) rectangle of [frame]. */
+    public fun ibdFrameAbs(
+        frame: dev.kuml.layout.IbdNestedFrame,
+        layout: LayoutResult,
+    ): Rect? {
+        val node = layout.nodes[NodeId(frame.nodeId)] ?: return null
+        return Rect(
+            origin = Point(x = node.bounds.origin.x + frame.bounds.origin.x, y = node.bounds.origin.y + frame.bounds.origin.y),
+            size = frame.bounds.size,
+        )
+    }
+
+    /**
      * Platziert das Label eines Ports um das Port-Zentrum ([cx], [cy]) auf der Außenseite von [side].
      *
      * - Oben/unten: linksbündig 6 px neben dem Quadrat ([alternate]: rechtsbündig links davon), senkrecht außerhalb der Kante.
@@ -3067,9 +3338,18 @@ public object Sysml2LayoutBridge {
         boxSize: Size,
         ports: Map<String, Point>,
         labels: Map<String, String>,
+        frameOf: (String) -> Rect? = { null },
     ): Map<String, Pair<IbdSide, IbdLabelPlacement>> {
         val half = IBD_PORT_SIZE_PX / 2f
-        val sides = ports.mapValues { (_, p) -> ibdNearestSide(p = p, w = boxSize.width, h = boxSize.height) }
+        val sides =
+            ports.mapValues { (k, p) ->
+                val f = frameOf(k)
+                if (f == null) {
+                    ibdNearestSide(p = p, w = boxSize.width, h = boxSize.height)
+                } else {
+                    ibdNearestSide(p = Point(x = p.x - f.origin.x, y = p.y - f.origin.y), w = f.size.width, h = f.size.height)
+                }
+            }
         val alt = mutableSetOf<String>()
         for (side in listOf(IbdSide.Top, IbdSide.Bottom)) {
             val onSide = ports.filter { sides[it.key] == side }.entries.sortedBy { it.value.x }
@@ -3261,6 +3541,13 @@ public object Sysml2LayoutBridge {
         return side to mean.coerceIn(lo, maxOf(hi, lo))
     }
 
+    /** Where a connector enters the visible part box to reach a port on a nested frame (PAL wave 2C-b2b). */
+    private class IbdGate(
+        val gate: Point,
+        val portBorder: Point,
+        val side: IbdSide,
+    )
+
     private class OwnerPlace(
         val port: dev.kuml.sysml2.PortUsage,
         val id: NodeId,
@@ -3378,7 +3665,8 @@ public object Sysml2LayoutBridge {
         val wires = ibdWires(projection)
         val labelTexts = ibdPartPortLabels(model = model, wires = wires)
 
-        // A. Part-Ports: aus den Kantenenden, auf die Box-Kante eingerastet (lokale Koordinaten).
+        // A. Part-Ports: aus den Kantenenden, auf die Box-Kante (oder die Kante eines geschachtelten Rahmens) eingerastet (lokale Koordinaten).
+        val nestedFrames = layoutResult.ibdNestedFrames
         val partPorts = linkedMapOf<NodeId, LinkedHashMap<String, Point>>()
         for (w in wires) {
             val route = layoutResult.edges[EdgeId(w.edgeId)] ?: continue
@@ -3390,14 +3678,84 @@ public object Sysml2LayoutBridge {
                 val m = partPorts.getOrPut(nodeId) { linkedMapOf() }
                 if (key in m) continue
                 val o = nl.bounds.origin
-                m[key] = snapToBorder(p = Point(x = pt.x - o.x, y = pt.y - o.y), size = nl.bounds.size)
+                val frame = ibdPortFrame(nodeId = nodeId.value, key = key, frames = nestedFrames)
+                val local = Point(x = pt.x - o.x, y = pt.y - o.y)
+                m[key] =
+                    if (frame == null) {
+                        snapToBorder(p = local, size = nl.bounds.size)
+                    } else {
+                        snapToFrame(p = local, frame = frame.bounds, headerHeight = frame.headerHeight)
+                    }
             }
         }
+
+        fun frameOfPort(nodeId: NodeId): (String) -> Rect? =
+            { key -> ibdPortFrameRect(nodeId = nodeId.value, key = key, frames = nestedFrames) }
         // PAL 2C-b1: ports on one side keep a pitch that fits their labels.
         for ((nodeId, m) in partPorts) {
             val size = content[nodeId]?.bounds?.size ?: continue
-            val spread = ibdSpreadPorts(boxSize = size, ports = m, labels = labelTexts[nodeId] ?: emptyMap())
+            val spread =
+                ibdSpreadPortsInFrames(
+                    boxSize = size,
+                    ports = m,
+                    labels = labelTexts[nodeId] ?: emptyMap(),
+                    frameOf = frameOfPort(nodeId),
+                )
             for (k in m.keys.toList()) m[k] = spread.getValue(k)
+        }
+        // A'. PAL 2C-b2b: a port on a nested frame needs a free straight corridor from the border of the visible box; it moves
+        // along its frame (or to another side) until the corridor crosses no title, attribute text or foreign frame.
+        if (nestedFrames.isNotEmpty()) {
+            val titlesAbs = ibdTitleRects(model = model, layout = layoutResult)
+            for ((nodeId, m) in partPorts) {
+                val nl = content[nodeId] ?: continue
+                val frames = nestedFrames.filter { it.nodeId == nodeId.value }
+                if (frames.isEmpty()) continue
+                val o = nl.bounds.origin
+                val blockers = ArrayList<Rect>()
+                for (t in titlesAbs) {
+                    if (t.origin.x >= o.x - 1f &&
+                        t.origin.y >= o.y - 1f &&
+                        t.origin.x <= o.x + nl.bounds.size.width &&
+                        t.origin.y <= o.y + nl.bounds.size.height
+                    ) {
+                        blockers += Rect(origin = Point(x = t.origin.x - o.x, y = t.origin.y - o.y), size = t.size)
+                    }
+                }
+                val hostUsage = model.usages.filterIsInstance<PartUsage>().firstOrNull { it.id == nodeId.value }
+                if (diagram.showAttributes && hostUsage != null) {
+                    val c =
+                        dev.kuml.sysml2.projection
+                            .ibdPartAttributes(model = model, usage = hostUsage)
+                    if (!c.isEmpty) {
+                        val texts =
+                            c.lines.map { it.text } + (if (c.hiddenCount > 0) listOf("\u2026 ${c.hiddenCount} more") else emptyList())
+                        blockers +=
+                            ibdAttrTextRect(x = 0f, y = STEREOTYPE_LINE_H + NAME_LINE_H + BOX_V_PADDING - IBD_ATTR_PAD / 2f, lines = texts)
+                    }
+                }
+                for (f in frames) {
+                    if (f.attributeLines.isNotEmpty()) {
+                        blockers += ibdAttrTextRect(x = f.bounds.origin.x, y = f.bounds.origin.y + f.headerHeight, lines = f.attributeLines)
+                    }
+                }
+                for (key in m.keys.toList()) {
+                    val f = ibdPortFrame(nodeId = nodeId.value, key = key, frames = nestedFrames) ?: continue
+                    val chain = HashSet<String>()
+                    var parent = f.parentPath
+                    while (parent != null) {
+                        chain += parent
+                        parent = frames.firstOrNull { it.path == parent }?.parentPath
+                    }
+                    val siblings = frames.filter { it.path != f.path && it.path !in chain }.map { it.bounds }
+                    ibdFreeCorridor(
+                        port = m.getValue(key),
+                        frame = f,
+                        boxSize = nl.bounds.size,
+                        blockers = blockers + siblings,
+                    )?.let { m[key] = it }
+                }
+            }
         }
         val placements = mutableMapOf<NodeId, Map<String, Pair<IbdSide, IbdLabelPlacement>>>()
         val boxes = mutableMapOf<NodeId, IbdBox>()
@@ -3411,7 +3769,13 @@ public object Sysml2LayoutBridge {
             boxes[id] = box
             frameParts += box
             val ports = partPorts[id] ?: continue
-            val pl = ibdPartPortPlacements(boxSize = nl.bounds.size, ports = ports, labels = labelTexts[id] ?: emptyMap())
+            val pl =
+                ibdPartPortPlacements(
+                    boxSize = nl.bounds.size,
+                    ports = ports,
+                    labels = labelTexts[id] ?: emptyMap(),
+                    frameOf = frameOfPort(id),
+                )
             placements[id] = pl
             for ((k, p) in ports) {
                 val c = Point(x = box.l + p.x, y = box.t + p.y)
@@ -3674,8 +4038,35 @@ public object Sysml2LayoutBridge {
                 val pp = partPortAbs(end) ?: return null
                 return PortAttachment(rect = squareBox(c = pp.first, half = half).toRect(), face = ibdFace(side = pp.second))
             }
-            val srcAtt = attach(w.src, srcOwner)
-            val tgtAtt = attach(w.tgt, tgtOwner)
+
+            // PAL 2C-b2b: an end on a nested frame is reached through a gate on the border of the visible box: the outer part of the
+            // connector is routed to the gate like to any port, the inner part is the straight corridor from the gate to the port.
+            fun gateOf(end: dev.kuml.sysml2.projection.ResolvedEnd): IbdGate? {
+                val nodeId = end.nodeId ?: return null
+                if (ibdPortFrame(nodeId = nodeId, key = end.steps.joinToString("::"), frames = nestedFrames) == null) return null
+                val pp = partPortAbs(end) ?: return null
+                val box = boxes[NodeId(nodeId)] ?: return null
+                val gate =
+                    when (pp.second) {
+                        IbdSide.Top -> Point(x = pp.first.x, y = box.t)
+                        IbdSide.Bottom -> Point(x = pp.first.x, y = box.b)
+                        IbdSide.Left -> Point(x = box.l, y = pp.first.y)
+                        IbdSide.Right -> Point(x = box.r, y = pp.first.y)
+                    }
+                val dir = outwardOf(pp.second)
+                return IbdGate(
+                    gate = gate,
+                    portBorder = Point(x = pp.first.x + dir.x * half, y = pp.first.y + dir.y * half),
+                    side = pp.second,
+                )
+            }
+            val gateS = gateOf(w.src)
+            val gateT = gateOf(w.tgt)
+
+            fun gateAttachment(g: IbdGate) =
+                PortAttachment(rect = Rect(origin = g.gate, size = Size(width = 0f, height = 0f)), face = ibdFace(side = g.side))
+            val srcAtt = gateS?.let { gateAttachment(it) } ?: attach(w.src, srcOwner)
+            val tgtAtt = gateT?.let { gateAttachment(it) } ?: attach(w.tgt, tgtOwner)
             val (srcArrow, tgtArrow) = Sysml2EdgeArrowEnds.of(adapter.metadataFor(eid.value))
             val endNodes = setOfNotNull(partPortAbs(w.src)?.third, partPortAbs(w.tgt)?.third)
             // Labels and squares of all ports except the two connected ones are obstacles for the port-to-port router.
@@ -3695,17 +4086,37 @@ public object Sysml2LayoutBridge {
                 } else {
                     ibdOrthoRoute(a = a, da = da, b = b, db = db, avoid = avoidBoxes)
                 }
-            newEdges[eid] =
+            val outer =
                 ibdRouteAndClamp(
                     route = routed,
                     source = srcAtt,
                     target = tgtAtt,
-                    sourceArrowhead = srcArrow,
-                    targetArrowhead = tgtArrow,
+                    sourceArrowhead = srcArrow && gateS == null,
+                    targetArrowhead = tgtArrow && gateT == null,
                     foreign = boxes.filterKeys { it !in endNodes }.values.map { it.toRect() },
                     own = boxes.filterKeys { it in endNodes }.values.map { it.toRect() },
                     extra = extraObstacles,
                 )
+            newEdges[eid] =
+                if (gateS == null && gateT == null) {
+                    outer
+                } else {
+                    val pts = routePoints(outer).toMutableList()
+                    if (gateS != null) pts.add(0, gateS.portBorder)
+                    if (gateT != null) pts.add(gateT.portBorder)
+                    val all = PortEdgeClamp.simplify(pts)
+                    var minSeg = Float.MAX_VALUE
+                    for (i in 0 until all.size - 1) {
+                        val l = kotlin.math.abs(all[i + 1].x - all[i].x) + kotlin.math.abs(all[i + 1].y - all[i].y)
+                        if (l > 0.01f) minSeg = minOf(minSeg, l)
+                    }
+                    EdgeRoute.OrthogonalRounded(
+                        source = all.first(),
+                        target = all.last(),
+                        waypoints = all.subList(1, all.size - 1),
+                        cornerRadiusPx = if (minSeg == Float.MAX_VALUE) 0f else minOf(6f, minSeg / 2f),
+                    )
+                }
         }
 
         // G. Zeichenfläche aus dem Inhalt neu bemessen und alles so verschieben, dass das Minimum bei (margin, margin) liegt.
@@ -3789,6 +4200,7 @@ public object Sysml2LayoutBridge {
                     boxSize = nl.bounds.size,
                     ports = nl.ports.mapKeys { it.key.value },
                     labels = labelTexts[id] ?: emptyMap(),
+                    frameOf = { key -> ibdPortFrameRect(nodeId = id.value, key = key, frames = layout.ibdNestedFrames) },
                 )
             for ((k, v) in pl) {
                 out +=
@@ -3827,6 +4239,64 @@ public object Sysml2LayoutBridge {
         }
         return out
     }
+
+    /**
+     * The part-port labels of a laid out IBD as label-plan requests (PAL wave 2C-b2b, layout coordinates): one per port
+     * square, ranked outside / inside its owner box or nested frame, kept off the side where its connector docks. The
+     * result of the plan (`port:<node id>::<port key>`) is what the renderer draws and what notes keep clear of.
+     */
+    public fun ibdPortLabelSpecs(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+        layout: LayoutResult,
+    ): List<dev.kuml.layout.bridge.label.PortLabelSpec> {
+        val projection = sysml2IbdProjection(model = model, diagram = diagram)
+        val labelTexts = ibdPartPortLabels(model = model, wires = ibdWires(projection))
+        val ownerIds = projection.boundaryPorts.map { NodeId(it.id) }.toSet()
+        val out = ArrayList<dev.kuml.layout.bridge.label.PortLabelSpec>()
+        for ((id, nl) in layout.nodes.entries.sortedBy { it.key.value }) {
+            if (id in ownerIds || nl.ports.isEmpty()) continue
+            for ((pid, local) in nl.ports.entries.sortedBy { it.key.value }) {
+                val key = pid.value
+                val text = labelTexts[id]?.get(key) ?: key
+                val frame = ibdPortFrameRect(nodeId = id.value, key = key, frames = layout.ibdNestedFrames)
+                val side =
+                    if (frame == null) {
+                        ibdNearestSide(p = local, w = nl.bounds.size.width, h = nl.bounds.size.height)
+                    } else {
+                        ibdNearestSide(
+                            p = Point(x = local.x - frame.origin.x, y = local.y - frame.origin.y),
+                            w = frame.size.width,
+                            h = frame.size.height,
+                        )
+                    }
+                val labelSide =
+                    when (side) {
+                        IbdSide.Top -> dev.kuml.layout.bridge.label.LabelSide.NORTH
+                        IbdSide.Bottom -> dev.kuml.layout.bridge.label.LabelSide.SOUTH
+                        IbdSide.Left -> dev.kuml.layout.bridge.label.LabelSide.WEST
+                        IbdSide.Right -> dev.kuml.layout.bridge.label.LabelSide.EAST
+                    }
+                out +=
+                    dev.kuml.layout.bridge.label.PortLabelSpec(
+                        id = ibdPortLabelId(nodeId = id.value, key = key),
+                        ownerId = "${id.value}::$key",
+                        size = estimateLabelSize(text = text),
+                        anchorRect = ibdPortSquare(boxBounds = nl.bounds, local = local),
+                        excludedSide = labelSide,
+                        outward = labelSide,
+                        parentId = id.value,
+                    )
+            }
+        }
+        return out
+    }
+
+    /** Label-plan id of the label of port [key] of the part box [nodeId]. */
+    public fun ibdPortLabelId(
+        nodeId: String,
+        key: String,
+    ): String = "port:$nodeId::$key"
 
     /**
      * Rechtecke, in die Connector-Labels nicht ragen dürfen (Layout-Koordinaten): Port-Labels, Port-Quadrate samt

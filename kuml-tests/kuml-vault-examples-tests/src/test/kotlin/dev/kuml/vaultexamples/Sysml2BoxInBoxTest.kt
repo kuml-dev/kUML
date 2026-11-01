@@ -1,3 +1,5 @@
+@file:Suppress("RequireNamedArguments")
+
 package dev.kuml.vaultexamples
 
 import dev.kuml.core.script.DiagramExtractor
@@ -73,5 +75,99 @@ class Sysml2BoxInBoxTest :
                 )!!
             end.nodeId shouldBe "Plant::line::cell::drive"
             end.terminalPort?.name shouldBe "power"
+        }
+
+        // PAL wave 2C-b2b (E): box in box, measured on the rendered SVG.
+        context("box in box (rendered SVG)") {
+            val svg = VaultExampleRenderer.render(script = script, themeName = "plain").svg!!
+            val nodes = SvgGeometry.nodes(svg)
+            val line = nodes.first { it.id == "Plant::line" }
+            val grid = nodes.first { it.id == "Plant::grid" }
+
+            val box =
+                Regex("""<rect width="([-0-9.]+)" height="([-0-9.]+)"[^>]*class="kuml-class"""").find(line.body)!!.let {
+                    SvgRect(0.0, 0.0, it.groupValues[1].toDouble(), it.groupValues[2].toDouble())
+                }
+            val nested =
+                Regex(
+                    """<rect x="([-0-9.]+)" y="([-0-9.]+)" width="([-0-9.]+)" height="([-0-9.]+)" class="kuml-class kuml-ibd-nested" style="[^"]*" data-level="(\d)" data-path="([^"]+)"""",
+                ).findAll(line.body)
+                    .map {
+                        Triple(
+                            it.groupValues[5].toInt(),
+                            it.groupValues[6],
+                            SvgRect(
+                                it.groupValues[1].toDouble(),
+                                it.groupValues[2].toDouble(),
+                                it.groupValues[3].toDouble(),
+                                it.groupValues[4].toDouble(),
+                            ),
+                        )
+                    }.toList()
+
+            test("exactly three nested part frames: line contains cell contains drive") {
+                nested.map { it.first } shouldBe listOf(2, 3)
+                nested.map { it.second } shouldBe listOf("Plant::line::cell", "Plant::line::cell::drive")
+            }
+
+            test("each level keeps at least 16 px inside its parent") {
+                box.contains(nested[0].third, margin = 16.0) shouldBe true
+                nested[0].third.contains(nested[1].third, margin = 16.0) shouldBe true
+            }
+
+            test("the port power sits on the border of its own box, the drive frame") {
+                val drive = nested[1].third
+                val ports =
+                    Regex("""<rect x="([-0-9.]+)" y="([-0-9.]+)" width="([-0-9.]+)" height="([-0-9.]+)" class="kuml-port """)
+                        .findAll(line.body)
+                        .map {
+                            SvgRect(
+                                it.groupValues[1].toDouble(),
+                                it.groupValues[2].toDouble(),
+                                it.groupValues[3].toDouble(),
+                                it.groupValues[4].toDouble(),
+                            )
+                        }.toList()
+                ports.size shouldBe 1
+                val c = ports.single()
+                val onBorder =
+                    (
+                        kotlin.math.abs(c.cx - drive.x) <= 0.5 ||
+                            kotlin.math.abs(c.cx - drive.right) <= 0.5 ||
+                            kotlin.math.abs(c.cy - drive.y) <= 0.5 ||
+                            kotlin.math.abs(c.cy - drive.bottom) <= 0.5
+                    )
+                onBorder shouldBe true
+                (c.cx >= drive.x - 0.5 && c.cx <= drive.right + 0.5 && c.cy >= drive.y - 0.5 && c.cy <= drive.bottom + 0.5) shouldBe true
+            }
+
+            test("the feed connector crosses only ancestor frames of its target and no other part") {
+                val feed = SvgGeometry.edgePolylines(svg).getValue("conn:Plant::feed")
+                val gridBox =
+                    Regex("""<rect width="([-0-9.]+)" height="([-0-9.]+)"[^>]*class="kuml-class"""").find(grid.body)!!.let {
+                        SvgRect(grid.tx, grid.ty, it.groupValues[1].toDouble(), it.groupValues[2].toDouble())
+                    }
+                val driveAbs = nested[1].third.translated(line.tx, line.ty)
+                (SvgGeometry.distance(feed, gridBox) > 0.0) shouldBe true
+                // the line ends on the drive frame and never enters it
+                val inside = SvgRect(driveAbs.x + 1, driveAbs.y + 1, driveAbs.w - 2, driveAbs.h - 2)
+                (SvgGeometry.distance(feed, inside) > 0.0) shouldBe true
+                // and it does cross the visible part box and the cell frame
+                val cellAbs = nested[0].third.translated(line.tx, line.ty)
+                (SvgGeometry.distance(feed, cellAbs) == 0.0) shouldBe true
+            }
+
+            test("everything lies inside the viewBox") {
+                val vb = SvgGeometry.numbers(Regex("""viewBox="([^"]+)"""").find(svg)!!.groupValues[1])
+                val canvas = SvgRect(0.0, 0.0, vb[2], vb[3])
+                val rects = ArrayList<SvgRect>()
+                for (n in nodes) {
+                    Regex("""<rect width="([-0-9.]+)" height="([-0-9.]+)"[^>]*class="kuml-class"""").find(n.body)?.let {
+                        rects += SvgRect(n.tx, n.ty, it.groupValues[1].toDouble(), it.groupValues[2].toDouble())
+                    }
+                    rects += SvgGeometry.labelRects(n.body, "kuml-port-label-group").map { it.second.translated(n.tx, n.ty) }
+                }
+                for (r in rects) canvas.contains(r, margin = 0.0) shouldBe true
+            }
         }
     })

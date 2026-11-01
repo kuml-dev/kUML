@@ -36,33 +36,52 @@ public object Sysml2NoteAnchorExtras {
             val local = node.ports[PortId(key)] ?: continue
             // IBD stores part-port positions relative to the part box; the square is the one the renderer draws.
             val box = Sysml2LayoutBridge.ibdPortSquare(boxBounds = node.bounds, local = local)
-            val outward = sideOf(Sysml2LayoutBridge.ibdNearestSide(p = local, w = node.bounds.size.width, h = node.bounds.size.height))
+            val frame = Sysml2LayoutBridge.ibdPortFrameRect(nodeId = nodeId, key = key, frames = layout.ibdNestedFrames)
+            val outward =
+                sideOf(
+                    if (frame == null) {
+                        Sysml2LayoutBridge.ibdNearestSide(p = local, w = node.bounds.size.width, h = node.bounds.size.height)
+                    } else {
+                        Sysml2LayoutBridge.ibdNearestSide(
+                            p = Point(x = local.x - frame.origin.x, y = local.y - frame.origin.y),
+                            w = frame.size.width,
+                            h = frame.size.height,
+                        )
+                    },
+                )
             val geometry = AnchorGeometry.Port(box = box, outward = outward)
             if ("$nodeId::$key" !in out) out["$nodeId::$key"] = geometry
             end.terminalPort?.let { if (it.id !in out) out[it.id] = geometry }
         }
         if (layout.groups[Sysml2LayoutBridge.ibdFrameGroupId(diagram.ownerId)] == null) {
+            // PAL 2C-b2b: the owner has no drawn frame; the line ends on the border of a real part (the lowest one), not on a
+            // virtual box around all parts, so the anchor never floats in empty space.
             val partRects = projection.partNodes.mapNotNull { layout.nodes[NodeId(it.id)]?.bounds }
-            if (partRects.isNotEmpty()) {
-                out[diagram.ownerId] = AnchorGeometry.Around(partRects.reduce { a, b -> a.union(b) }.inflated(OWNER_BOX_PAD))
-            }
+            val lowest = partRects.maxWithOrNull(compareBy({ it.origin.y + it.size.height }, { -it.origin.x }))
+            if (lowest != null) out[diagram.ownerId] = AnchorGeometry.Around(lowest)
         }
         return out
     }
 
     /**
-     * Registers what the drawn ports block: the port squares and the estimated rectangles of their labels (placed
-     * by the same function the renderer uses), so a note keeps clear of both.
+     * Registers what the drawn ports block: the port squares and the rectangles of their labels, so a note keeps clear
+     * of both. With [portLabelRects] (the label plan, layout coordinates, PAL wave 2C-b2b) those are the rectangles the
+     * renderer draws; without them the labels are estimated by the layout bridge's placement function.
      */
     public fun ibdPortObstacles(
         obstacles: ObstacleIndex,
         extras: Map<String, AnchorGeometry>,
         layout: LayoutResult,
+        portLabelRects: Collection<Rect>? = null,
     ) {
         val seen = HashSet<Rect>()
         for (g in extras.values) {
             val port = g as? AnchorGeometry.Port ?: continue
             if (seen.add(port.box)) obstacles.addRect(kind = ObstacleKind.PORT, r = port.box)
+        }
+        if (portLabelRects != null) {
+            for (r in portLabelRects) obstacles.addRect(kind = ObstacleKind.PORT_LABEL, r = r, ownerId = null)
+            return
         }
         for (node in layout.nodes.values) {
             if (node.ports.isEmpty()) continue

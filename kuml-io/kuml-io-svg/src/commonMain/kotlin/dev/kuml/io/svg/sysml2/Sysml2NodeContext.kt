@@ -16,4 +16,11 @@ internal class Sysml2NodeContext(
     val bdd: BddProjection? = null,
     /** IBD only: draw the attribute compartment of part boxes (PAL wave 2C-b2). */
     val ibdShowAttributes: Boolean = false,
+    /** IBD only: the nested part frames (box in box) of all part boxes; every frame names its part box (PAL wave 2C-b2b). */
+    val ibdFrames: List<dev.kuml.layout.IbdNestedFrame> = emptyList(),
+    /**
+     * IBD only: the planned rectangle of each part-port label, local to its part box, keyed `<node id>::<port key>`
+     * (PAL wave 2C-b2b). A port without an entry is drawn with the bridge's fixed placement.
+     */
+    val ibdPortLabels: Map<String, dev.kuml.layout.Rect> = emptyMap(),
 )

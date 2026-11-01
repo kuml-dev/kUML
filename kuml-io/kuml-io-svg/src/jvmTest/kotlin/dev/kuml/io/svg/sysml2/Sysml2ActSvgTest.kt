@@ -401,8 +401,10 @@ class Sysml2ActSvgTest :
             vBlock shouldContain "width=\"10\""
             // Pin names render as small text labels adjacent to the squares
             // (pretty-printed on their own indented line).
-            vBlock shouldContain "orderDetails"
-            vBlock shouldContain "validation"
+            // PAL 2C-b2b: the pin labels are planned with the edge labels and drawn after the edges, as label groups.
+            svg shouldContain "data-label-id=\"ValidateOrder#"
+            svg shouldContain "orderDetails"
+            svg shouldContain "validation"
 
             SampleOutput.write(filename = "sysml2-act/order-pins.svg", content = svg)
         }

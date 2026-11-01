@@ -22,6 +22,15 @@ public object Sysml2EdgeLabelPlan {
         labelSizes: Map<String, Size>,
         configure: (ObstacleIndex) -> Unit = {},
         costs: LabelCostModel = LabelCostModel(lineClearance = 2f),
+        portLabels: List<PortLabelSpec> = emptyList(),
+        titleRects: List<dev.kuml.layout.Rect> = emptyList(),
     ): Map<String, PlacedLabel> =
-        Sysml2DiagramLabelPlan.compute(layout = layout, edgeLabelSizes = labelSizes, configure = configure, costs = costs)
+        Sysml2DiagramLabelPlan.compute(
+            layout = layout,
+            edgeLabelSizes = labelSizes,
+            portLabels = portLabels,
+            titleRects = titleRects,
+            configure = configure,
+            costs = costs,
+        )
 }
