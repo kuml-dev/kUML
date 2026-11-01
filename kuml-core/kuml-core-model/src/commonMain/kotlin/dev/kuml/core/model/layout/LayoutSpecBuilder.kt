@@ -31,6 +31,9 @@ open class LayoutSpecBuilder protected constructor() {
     /** Soft target width / height. */
     var aspectRatio: Double? = null
 
+    /** Wrap width of edge labels in px (state machines only; 120..400, default 220). */
+    var labelMaxWidth: Int? = null
+
     private val sameLayerGroups = mutableListOf<List<String>>()
     private val firstIds = mutableListOf<String>()
     private val lastIds = mutableListOf<String>()
@@ -71,6 +74,7 @@ open class LayoutSpecBuilder protected constructor() {
             last = lastIds.toList(),
             maxWidth = maxWidth,
             aspectRatio = aspectRatio,
+            labelMaxWidth = labelMaxWidth,
         )
 }
 

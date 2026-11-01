@@ -582,6 +582,7 @@ class Sysml2ModelBuilder(
         effect: String? = null,
         timer: TransitionTimer? = null,
         id: String = "transition:${source.id}::${target.id}",
+        showName: Boolean = false,
     ): TransitionUsage =
         transitionById(
             name = name,
@@ -592,6 +593,7 @@ class Sysml2ModelBuilder(
             effect = effect,
             timer = timer,
             id = id,
+            showName = showName,
         )
 
     /**
@@ -607,6 +609,7 @@ class Sysml2ModelBuilder(
         effect: String? = null,
         timer: TransitionTimer? = null,
         id: String = "transition:${source.id}::${target.id}",
+        showName: Boolean = false,
     ): TransitionUsage =
         transitionById(
             name = name,
@@ -617,6 +620,7 @@ class Sysml2ModelBuilder(
             effect = effect,
             timer = timer,
             id = id,
+            showName = showName,
         )
 
     /**
@@ -636,6 +640,7 @@ class Sysml2ModelBuilder(
         effect: String? = null,
         timer: TransitionTimer? = null,
         id: String = "transition:$sourceStateId::$targetStateId",
+        showName: Boolean = false,
     ): TransitionUsage =
         registerTransition(
             name = name,
@@ -647,6 +652,7 @@ class Sysml2ModelBuilder(
             effect = effect,
             timer = timer,
             id = id,
+            showName = showName,
         )
 
     /** Id-only variant of the [Sysml2Guard] overload of [transition]. */
@@ -659,6 +665,7 @@ class Sysml2ModelBuilder(
         effect: String? = null,
         timer: TransitionTimer? = null,
         id: String = "transition:$sourceStateId::$targetStateId",
+        showName: Boolean = false,
     ): TransitionUsage =
         registerTransition(
             name = name,
@@ -670,6 +677,7 @@ class Sysml2ModelBuilder(
             effect = effect,
             timer = timer,
             id = id,
+            showName = showName,
         )
 
     /** `after(5.seconds)` — relative timer for a transition (`timer = after(5.seconds)`). */
@@ -700,6 +708,7 @@ class Sysml2ModelBuilder(
         effect: String?,
         timer: TransitionTimer?,
         id: String,
+        showName: Boolean,
     ): TransitionUsage {
         require((guard?.length ?: 0) <= STM_MAX_TEXT_LEN) { "transition guard longer than $STM_MAX_TEXT_LEN characters" }
         require((effect?.length ?: 0) <= STM_MAX_TEXT_LEN) { "transition effect longer than $STM_MAX_TEXT_LEN characters" }
@@ -715,6 +724,7 @@ class Sysml2ModelBuilder(
                 effect = effect,
                 timer = timer,
                 guardKind = guardKind,
+                showName = showName,
             )
         registerUsage(usage)
         return usage

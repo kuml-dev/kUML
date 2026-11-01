@@ -98,8 +98,8 @@ class TransitionTimerTest :
             }
         }
 
-        test("124: timer and trigger together") {
-            codes(timerModel(timer = TransitionTimer.After(5.seconds), trigger = "go")) shouldContain 124
+        test("124: removed in wave 2D-a, trigger and timer are combinable") {
+            codes(timerModel(timer = TransitionTimer.After(5.seconds), trigger = "go")) shouldNotContain 124
             codes(timerModel(timer = TransitionTimer.After(5.seconds))) shouldNotContain 124
         }
 

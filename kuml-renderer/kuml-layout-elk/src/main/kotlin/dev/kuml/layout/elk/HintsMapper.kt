@@ -28,6 +28,13 @@ internal object HintsMapper {
     /** Minimum distance between parallel edge segments (px). */
     private const val MIN_EDGE_TO_EDGE = 8f
     private const val ELK_DEFAULT_EDGE_EDGE_BETWEEN_LAYERS = 10.0
+
+    /** ELK edge-edge spacing between layers: the hint when set (never below ELK's default 10), otherwise the default. */
+    internal fun edgeEdgeBetweenLayers(hints: LayoutHints): Double =
+        hints.spacing.edgeToEdgeBetweenLayers
+            .takeUnless { it.isNaN() }
+            ?.let { maxOf(ELK_DEFAULT_EDGE_EDGE_BETWEEN_LAYERS, it.toDouble()) } ?: ELK_DEFAULT_EDGE_EDGE_BETWEEN_LAYERS
+
     private const val EDGE_LABEL_SPACING = 4.0
 
     /**
@@ -100,9 +107,12 @@ internal object HintsMapper {
         root.setProperty(CoreOptions.SPACING_EDGE_EDGE, maxOf(hints.spacing.edgeToEdge, MIN_EDGE_TO_EDGE).toDouble())
         root.setProperty(
             LayeredOptions.SPACING_EDGE_EDGE_BETWEEN_LAYERS,
-            // Lower bound only: ELK's own default (10) stays; the channel width is not tied to edgeToEdge.
-            ELK_DEFAULT_EDGE_EDGE_BETWEEN_LAYERS,
+            // Lower bound only: ELK's own default (10) stays unless a diagram asks for more (PAL 2D-a).
+            edgeEdgeBetweenLayers(hints),
         )
+        if (!hints.spacing.edgeToEdgeBetweenLayers.isNaN()) {
+            root.setProperty(CoreOptions.SPACING_PORT_PORT, edgeEdgeBetweenLayers(hints))
+        }
 
         // PAL 2B-b: room between an edge and its reserved centre label.
         root.setProperty(CoreOptions.SPACING_EDGE_LABEL, EDGE_LABEL_SPACING)
@@ -399,9 +409,12 @@ internal object HintsMapper {
         elkGroup.setProperty(CoreOptions.SPACING_EDGE_EDGE, maxOf(hints.spacing.edgeToEdge, MIN_EDGE_TO_EDGE).toDouble())
         elkGroup.setProperty(
             LayeredOptions.SPACING_EDGE_EDGE_BETWEEN_LAYERS,
-            // Lower bound only: ELK's own default (10) stays; the channel width is not tied to edgeToEdge.
-            ELK_DEFAULT_EDGE_EDGE_BETWEEN_LAYERS,
+            // Lower bound only: ELK's own default (10) stays unless a diagram asks for more (PAL 2D-a).
+            edgeEdgeBetweenLayers(hints),
         )
+        if (!hints.spacing.edgeToEdgeBetweenLayers.isNaN()) {
+            elkGroup.setProperty(CoreOptions.SPACING_PORT_PORT, edgeEdgeBetweenLayers(hints))
+        }
         elkGroup.setProperty(CoreOptions.SPACING_EDGE_NODE, config.edgeNodeSpacing.toDouble())
         val layerSpacing =
             hints.spacing.layerToLayer.takeUnless { it.isNaN() } ?: config.layerSpacing

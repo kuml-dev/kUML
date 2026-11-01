@@ -36,7 +36,7 @@ public data class LayoutIssue(
  * | 434 | Error | more than [Sysml2Limits.LAYOUT_GROUPS] groups or more than [Sysml2Limits.LAYOUT_IDS_PER_GROUP] ids in a group/list |
  * | 435 | Error | an id is both in `first` and in `last` |
  * | 436 | Warning | two elements of one `sameLayer` group are connected by an edge |
- * | 437 | Error | `maxWidth` outside 200..20000 or `aspectRatio` outside 0.1..10 (or not a finite number) |
+ * | 437 | Error | `maxWidth` outside 200..20000 or `aspectRatio` outside 0.1..10 (or not a finite number), or `labelMaxWidth` outside 120..400 |
  */
 public object Sysml2LayoutHintChecker {
     public fun check(
@@ -103,6 +103,20 @@ public object Sysml2LayoutHintChecker {
                         severity = LayoutSeverity.Error,
                         elementId = name,
                         message = "maxWidth = $it is outside ${LayoutLimits.MAX_WIDTH_MIN}..${LayoutLimits.MAX_WIDTH_MAX}.",
+                        hint = "Choose a value in range.",
+                    )
+            }
+        }
+        spec.labelMaxWidth?.let {
+            if (it !in LayoutLimits.LABEL_MAX_WIDTH_MIN..LayoutLimits.LABEL_MAX_WIDTH_MAX) {
+                issues +=
+                    LayoutIssue(
+                        code = 437,
+                        severity = LayoutSeverity.Error,
+                        elementId = name,
+                        message =
+                            "labelMaxWidth = $it is outside " +
+                                "${LayoutLimits.LABEL_MAX_WIDTH_MIN}..${LayoutLimits.LABEL_MAX_WIDTH_MAX}.",
                         hint = "Choose a value in range.",
                     )
             }

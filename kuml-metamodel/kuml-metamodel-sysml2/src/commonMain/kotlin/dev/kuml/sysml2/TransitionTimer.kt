@@ -39,7 +39,7 @@ enum class GuardKind {
 
 /**
  * Time trigger of a [TransitionUsage]: a relative `after(duration)` timer or an
- * absolute `at(instant)` timer. A transition with a timer has no event trigger.
+ * absolute `at(instant)` timer. Combinable with an event trigger (wave 2D-a): either one fires the transition.
  */
 @Serializable
 sealed class TransitionTimer {

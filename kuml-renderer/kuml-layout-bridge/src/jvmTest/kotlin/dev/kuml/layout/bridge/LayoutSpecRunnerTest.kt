@@ -164,6 +164,23 @@ class LayoutSpecRunnerTest :
                 listOf(LayoutOption.MAX_WIDTH)
         }
 
+        test("labelMaxWidth 119 and 401 are E001, 120 and 400 pass") {
+            fun errors(w: Int): Int =
+                LayoutSpecRunner
+                    .layout(
+                        engine = WrapAwareEngine(),
+                        graph = flat(2),
+                        hints = LayoutHints(),
+                        spec = LayoutSpec(labelMaxWidth = w),
+                        kind = SpecDiagramKind.SYSML2_STM,
+                    ).findings
+                    .count { it.code == LayoutCodes.OUT_OF_RANGE }
+            errors(119) shouldBe 1
+            errors(401) shouldBe 1
+            errors(120) shouldBe 0
+            errors(400) shouldBe 0
+        }
+
         test("out-of-range values are dropped with E001") {
             val engine = WrapAwareEngine()
             val out =

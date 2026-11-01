@@ -566,61 +566,61 @@ internal object Sysml2EdgeRenderer {
         }
     }
 
-    /** Opaque backdrop plus wrapped, styled label lines; prose guards are italic. */
+    /**
+     * One STM label (PAL wave 2D-a): a group stamped with the planned rectangle (`data-label-rect`), the full text as
+     * `<title>`, and every wrapped line twice, first as [HALO_PX] px halo in the [backdrop] colour, then as fill text.
+     * No backdrop rectangle, so the label never covers a line or an arrow tip. Prose guards are italic.
+     */
     private fun emitStmBlock(
         edgeId: String,
         block: StmLabelBlock,
         backdrop: String,
         builder: SvgBuilder,
     ) {
-        builder.tag(name = "g", attrs = mapOf("class" to "kuml-edge-label", "data-edge-id" to edgeId)) {
-            if (block.truncated) tag(name = "title") { text(block.fullText) }
-            val left = block.cx - block.w / 2f
-            tag(
-                name = "rect",
-                attrs =
-                    mapOf(
-                        "x" to fmt(left),
-                        "y" to fmt(block.cy - block.h / 2f),
-                        "width" to fmt(block.w),
-                        "height" to fmt(block.h),
-                        "fill" to backdrop,
-                        "fill-opacity" to "1",
-                        "stroke" to "none",
-                    ),
-            )
-            val top = block.cy - block.h / 2f + STM_LABEL_PAD
+        val left = block.cx - block.w / 2f
+        val topEdge = block.cy - block.h / 2f
+        builder.tag(
+            name = "g",
+            attrs =
+                mapOf(
+                    "class" to "kuml-edge-label",
+                    "data-edge-id" to edgeId,
+                    "data-label-id" to edgeId,
+                    "data-label-rect" to "${fmt(left)} ${fmt(topEdge)} ${fmt(block.w)} ${fmt(block.h)}",
+                ),
+        ) {
+            tag(name = "title") { text(block.fullText) }
+            val top = topEdge + STM_LABEL_PAD
             val (textX, anchorName) =
                 when (block.anchor) {
                     StmLabelAnchor.Left -> (left + STM_LABEL_PAD) to "start"
                     StmLabelAnchor.Right -> (left + block.w - STM_LABEL_PAD) to "end"
                     StmLabelAnchor.Center -> block.cx to "middle"
                 }
-            block.lines.forEachIndexed { i, line ->
-                tag(
-                    name = "text",
-                    attrs =
+            for (halo in booleanArrayOf(true, false)) {
+                block.lines.forEachIndexed { i, line ->
+                    val base =
                         mapOf(
                             "class" to "kuml-body",
                             "x" to fmt(textX),
                             "y" to fmt(top + 9f + i * LABEL_LINE_HEIGHT_PX),
                             "text-anchor" to anchorName,
-                        ),
-                ) {
-                    if (line.none { it.kind == dev.kuml.sysml2.edge.EdgeLabelKind.GuardProse }) {
-                        text(line.joinToString(" ") { it.text })
-                        return@tag
-                    }
-                    line.forEachIndexed { k, part ->
-                        val attrs =
-                            if (part.kind ==
-                                dev.kuml.sysml2.edge.EdgeLabelKind.GuardProse
-                            ) {
-                                mapOf("font-style" to "italic")
-                            } else {
-                                emptyMap()
-                            }
-                        tag(name = "tspan", attrs = attrs) { text(part.text + if (k < line.size - 1) " " else "") }
+                        )
+                    tag(name = "text", attrs = if (halo) base + ("style" to haloStyle(backdrop)) else base) {
+                        val parts = line.parts
+                        if (parts.none { it.kind == dev.kuml.sysml2.edge.EdgeLabelKind.GuardProse }) {
+                            text(parts.joinToString(" ") { it.text })
+                            return@tag
+                        }
+                        parts.forEachIndexed { k, part ->
+                            val attrs =
+                                if (part.kind == dev.kuml.sysml2.edge.EdgeLabelKind.GuardProse) {
+                                    mapOf("font-style" to "italic")
+                                } else {
+                                    emptyMap()
+                                }
+                            tag(name = "tspan", attrs = attrs) { text(part.text + if (k < parts.size - 1) " " else "") }
+                        }
                     }
                 }
             }

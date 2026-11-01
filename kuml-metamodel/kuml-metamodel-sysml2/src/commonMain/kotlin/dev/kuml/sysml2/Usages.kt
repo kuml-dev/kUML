@@ -591,10 +591,15 @@ data class TransitionUsage(
     val guard: String? = null,
     /** Optional action emitted when the transition fires. */
     val effect: String? = null,
-    /** Optional time trigger (`after` / `at`); mutually exclusive with [trigger] (checker code 124). */
+    /**
+     * Optional time trigger (`after` / `at`); combinable with [trigger]: either the trigger event or
+     * the timer expiry fires the transition (wave 2D-a; the former checker code 124 was removed).
+     */
     val timer: TransitionTimer? = null,
     /** Whether [guard] is an evaluable expression or free-text prose. */
     val guardKind: GuardKind = GuardKind.Expression,
+    /** Show [name] as `name:` in front of the edge label (default `false`, omitted from JSON). */
+    val showName: Boolean = false,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Usage
 

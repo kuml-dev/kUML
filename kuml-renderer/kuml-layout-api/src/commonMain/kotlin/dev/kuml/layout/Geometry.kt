@@ -77,6 +77,12 @@ public data class Spacing(
      * setzen.
      */
     val layerToLayer: Float = Float.NaN,
+    /**
+     * Mindestabstand paralleler Kantensegmente im Kanal zwischen zwei Schichten und der Endpunkte an einem
+     * Knoten (PAL Welle 2D-a) — ELKs `SPACING_EDGE_EDGE_BETWEEN_LAYERS` (und `SPACING_PORT_PORT`). `NaN` lässt
+     * ELKs Standard (10 px); ein gesetzter Wert hebt nur an, er senkt nie unter 10.
+     */
+    val edgeToEdgeBetweenLayers: Float = Float.NaN,
 ) {
     public companion object {
         /** Standard-Abstände: 40 px Knoten-zu-Knoten, 12 px Kante-zu-Kante, 16 px Gruppen-Padding. */

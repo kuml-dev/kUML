@@ -18,6 +18,7 @@ import dev.kuml.layout.bridge.note.right
 import dev.kuml.layout.bridge.note.segmentIntersectsRect
 import dev.kuml.layout.bridge.note.top
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.sqrt
 
 /** What a label is (PAL wave 2B-b). */
@@ -43,6 +44,8 @@ public enum class LabelSide { NORTH, EAST, SOUTH, WEST }
  * @property outward the side of the owner box the port (or pin) sits on; with it the candidate order is the fixed
  *   ranking of PAL wave 2C-b2b (four outside positions, then four inside); without it the legacy four sides are used
  * @property parentId the owner box of a port label: obstacles owned by it (the box itself) do not count against the label
+ * @property avoid rectangles this label must not cover (hard obstacles that exist only for this request, wave 2D-a)
+ * @property segmentFlags per polyline segment a bit mask of [SEGMENT_SHARED] / [SEGMENT_SHORT] (used by [EdgeCandidateMode.ARC_LENGTH])
  */
 public data class LabelRequest(
     val id: String,
@@ -55,7 +58,24 @@ public data class LabelRequest(
     val excludedSide: LabelSide? = null,
     val outward: LabelSide? = null,
     val parentId: String? = null,
+    val avoid: List<Rect> = emptyList(),
+    val segmentFlags: List<Int> = emptyList(),
 )
+
+/** Segment runs along a segment of another edge (bit of [LabelRequest.segmentFlags]). */
+public const val SEGMENT_SHARED: Int = 1
+
+/** Segment is too short to carry a label (bit of [LabelRequest.segmentFlags]). */
+public const val SEGMENT_SHORT: Int = 2
+
+/** How the candidates beside an edge are generated. */
+public enum class EdgeCandidateMode {
+    /** Fractions of the longest segments (PAR, ACT, BDD, IBD; the default). */
+    SEGMENTS,
+
+    /** Positions along the arc length of the whole polyline, nearest the middle first (state machines, wave 2D-a). */
+    ARC_LENGTH,
+}
 
 /** Penalties of the label cost model; configuration, not code. */
 public data class LabelCostModel(
@@ -86,6 +106,27 @@ public data class LabelCostModel(
      * counts as covered. `0` (default) keeps the exact rectangle test of the other diagram types.
      */
     val nodeClearance: Float = 0f,
+    /** Candidate generation beside an edge; the default keeps PAR, ACT and BDD bit-identical. */
+    val edgeCandidateMode: EdgeCandidateMode = EdgeCandidateMode.SEGMENTS,
+    /** [EdgeCandidateMode.ARC_LENGTH]: distance in px between two candidate positions along the line. */
+    val arcStepPx: Float = 8f,
+    /** [EdgeCandidateMode.ARC_LENGTH]: positions reach this fraction of the line length either side of the middle. */
+    val arcMaxFraction: Float = 0.4f,
+    /** [EdgeCandidateMode.ARC_LENGTH]: label on the left of the direction of travel. */
+    val leftSidePenalty: Float = 0f,
+    /** [EdgeCandidateMode.ARC_LENGTH]: label beside a segment flagged [SEGMENT_SHARED]. */
+    val sharedSegmentPenalty: Float = 0f,
+    /** [EdgeCandidateMode.ARC_LENGTH]: label beside a segment flagged [SEGMENT_SHORT]. */
+    val shortSegmentPenalty: Float = 0f,
+    /** A foreign edge is at least as close to the label as its own edge. */
+    val foreignCloserPenalty: Float = 0f,
+    /** When set, every label gets this work budget instead of sharing one budget (later ids no longer starve). */
+    val perRequestWorkBudget: Long? = null,
+    /**
+     * Cap on the work of all labels together while [perRequestWorkBudget] is set (DoS guard: otherwise N labels cost N times
+     * the per-label budget). Once spent, the remaining labels take their first candidate without a collision search.
+     */
+    val totalWorkBudget: Long = 4_000_000L,
 )
 
 /** A placed label: its rectangle and whether it sits on its own line (the renderer then needs the canvas-coloured halo). */
@@ -97,6 +138,8 @@ public data class PlacedLabel(
      * covers a node, text or foreign line (PAL wave 2C-b3). Only the parametric diagram reports this as a layout finding.
      */
     val clean: Boolean = true,
+    /** [EdgeCandidateMode.ARC_LENGTH]: index of the polyline segment the label sits beside, otherwise `-1`. */
+    val segment: Int = -1,
 )
 
 /**
@@ -126,6 +169,8 @@ public object LabelPlacer {
         val t: Float,
         val along: Float = 0f,
         val inner: Boolean = false,
+        val segment: Int = -1,
+        val left: Boolean = false,
     )
 
     /** Places [requests]; the placed labels are added to [index] as obstacles. */
@@ -147,7 +192,11 @@ public object LabelPlacer {
         val ordered = requests.sortedWith(compareBy({ stage(it) }, { it.ownerId }, { it.end?.ordinal ?: 0 }, { it.id }))
         // (owner, end) -> side sign taken by the multiplicity, so the role goes to the other side
         val multSign = HashMap<Pair<String, LabelEnd?>, Int>()
+        val perRequest = costs.perRequestWorkBudget
+        var totalLeft = costs.totalWorkBudget
         for (req in ordered) {
+            if (perRequest != null) work = minOf(perRequest, totalLeft)
+            val workAtStart = work
             val candidates =
                 candidatesOf(req = req, taken = multSign[req.ownerId to req.end]?.takeIf { req.role == LabelRole.ROLE }, costs = costs)
             var best: Candidate? = null
@@ -161,9 +210,10 @@ public object LabelPlacer {
                     best = c
                 }
             }
+            if (perRequest != null) totalLeft -= (workAtStart - work).coerceAtLeast(0L)
             val chosen = best ?: candidates.firstOrNull() ?: continue
             val clean = !chosen.onLine && bestCost < minOf(costs.hardOverlap, costs.foreignEdge)
-            result[req.id] = PlacedLabel(rect = chosen.rect, onLine = chosen.onLine, clean = clean)
+            result[req.id] = PlacedLabel(rect = chosen.rect, onLine = chosen.onLine, clean = clean, segment = chosen.segment)
             if (req.role == LabelRole.MULTIPLICITY) multSign[req.ownerId to req.end] = chosen.sign
             index.addRect(kind = kindOf(req.role), r = chosen.rect, ownerId = req.ownerId)
         }
@@ -186,7 +236,12 @@ public object LabelPlacer {
         costs: LabelCostModel,
     ): List<Candidate> =
         when (req.role) {
-            LabelRole.EDGE_CENTER -> edgeCandidates(req = req, offsets = costs.edgeOffsets)
+            LabelRole.EDGE_CENTER ->
+                if (costs.edgeCandidateMode == EdgeCandidateMode.ARC_LENGTH) {
+                    arcCandidates(req = req, costs = costs)
+                } else {
+                    edgeCandidates(req = req, offsets = costs.edgeOffsets)
+                }
             LabelRole.MULTIPLICITY, LabelRole.ROLE -> endCandidates(req = req, takenSign = taken)
             LabelRole.PORT -> portCandidates(req)
         }
@@ -243,6 +298,83 @@ public object LabelPlacer {
         }
         emergency?.let { out += it }
         return out
+    }
+
+    /** Hard cap of positions either side of the middle, so a hostile line cannot create an unbounded candidate list. */
+    private const val ARC_MAX_STEPS: Int = 24
+
+    /**
+     * Candidates at positions along the arc length of the whole polyline (wave 2D-a): the middle first, then
+     * alternately further along and back, up to [LabelCostModel.arcMaxFraction] of the length either side. Per position
+     * the right-of-travel side comes before the left one; the offsets come nearest first. The emergency candidate sits
+     * on the line at the middle.
+     */
+    private fun arcCandidates(
+        req: LabelRequest,
+        costs: LabelCostModel,
+    ): List<Candidate> {
+        val pts = req.polyline
+        if (pts.size < 2) return emptyList()
+        val cum = FloatArray(pts.size)
+        for (i in 1 until pts.size) cum[i] = cum[i - 1] + len(a = pts[i - 1], b = pts[i])
+        val total = cum.last()
+        if (total < 0.01f) return emptyList()
+        val step = costs.arcStepPx.coerceAtLeast(1f)
+        val steps = minOf(ARC_MAX_STEPS, floor(costs.arcMaxFraction.coerceIn(0f, 0.5f) * total / step).toInt())
+        val positions = ArrayList<Float>(2 * steps + 1)
+        positions += total / 2f
+        for (k in 1..steps) {
+            positions += total / 2f + k * step
+            positions += total / 2f - k * step
+        }
+        val out = ArrayList<Candidate>(positions.size * costs.edgeOffsets.size * 2 + 1)
+        for (s in positions) {
+            var seg = 0
+            while (seg < pts.size - 2 && cum[seg + 1] < s) seg++
+            val a = pts[seg]
+            val b = pts[seg + 1]
+            val sl = cum[seg + 1] - cum[seg]
+            val f = if (sl > 0.01f) ((s - cum[seg]) / sl).coerceIn(0f, 1f) else 0f
+            val px = a.x + (b.x - a.x) * f
+            val py = a.y + (b.y - a.y) * f
+            val ux = if (sl > 0.01f) (b.x - a.x) / sl else 1f
+            val uy = if (sl > 0.01f) (b.y - a.y) / sl else 0f
+            // Screen coordinates (y down): this normal points to the right of the direction of travel.
+            val nx = -uy
+            val ny = ux
+            val half = abs(nx) * req.size.width / 2f + abs(ny) * req.size.height / 2f
+            for (off in costs.edgeOffsets) {
+                for (sign in intArrayOf(1, -1)) {
+                    val d = sign * (off + half)
+                    out +=
+                        Candidate(
+                            rect = centered(cx = px + nx * d, cy = py + ny * d, size = req.size),
+                            onLine = false,
+                            sign = sign,
+                            t = s / total,
+                            segment = seg,
+                            left = sign < 0,
+                        )
+                }
+            }
+        }
+        var mseg = 0
+        while (mseg < pts.size - 2 && cum[mseg + 1] < total / 2f) mseg++
+        val mid = pointAt(pts = pts, cum = cum, s = total / 2f)
+        out += Candidate(rect = centered(cx = mid.x, cy = mid.y, size = req.size), onLine = true, sign = 0, t = 0.5f, segment = mseg)
+        return out
+    }
+
+    private fun pointAt(
+        pts: List<Point>,
+        cum: FloatArray,
+        s: Float,
+    ): Point {
+        var seg = 0
+        while (seg < pts.size - 2 && cum[seg + 1] < s) seg++
+        val sl = cum[seg + 1] - cum[seg]
+        val f = if (sl > 0.01f) ((s - cum[seg]) / sl).coerceIn(0f, 1f) else 0f
+        return Point(x = pts[seg].x + (pts[seg + 1].x - pts[seg].x) * f, y = pts[seg].y + (pts[seg + 1].y - pts[seg].y) * f)
     }
 
     private fun endCandidates(
@@ -418,10 +550,43 @@ public object LabelPlacer {
             if (d > costs.maxDistancePx) cost += costs.perPxDistance * (d - costs.maxDistancePx)
         }
         if (req.role == LabelRole.EDGE_CENTER) cost += costs.perTenthOffCenter * (abs(c.t - 0.5f) * 10f)
+        for (a in req.avoid) if (a.intersects(r)) cost += costs.hardOverlap
+        if (c.segment >= 0 && !c.onLine) {
+            if (c.left) cost += costs.leftSidePenalty
+            val flags = req.segmentFlags.getOrElse(c.segment) { 0 }
+            if (flags and SEGMENT_SHARED != 0) cost += costs.sharedSegmentPenalty
+            if (flags and SEGMENT_SHORT != 0) cost += costs.shortSegmentPenalty
+        }
+        if (costs.foreignCloserPenalty > 0f && req.role == LabelRole.EDGE_CENTER && req.polyline.size >= 2 && !c.onLine) {
+            val own = rectDistanceToPolyline(r = r, pts = req.polyline)
+            if (foreignAsClose(r = r, own = own, ownerId = req.ownerId, index = index)) cost += costs.foreignCloserPenalty
+        }
         cost += costs.perPxAlong * c.along
         if (c.onLine) cost += costs.onLinePenalty
         if (c.inner) cost += costs.innerPenalty
         return cost
+    }
+
+    /** True if a foreign edge polyline is at least as close to [r] as the owner's own line (distance [own]). */
+    private fun foreignAsClose(
+        r: Rect,
+        own: Float,
+        ownerId: String,
+        index: ObstacleIndex,
+    ): Boolean {
+        val reach = r.inflated(own + 0.5f)
+        for (l in index.lines) {
+            if (l.kind != ObstacleKind.EDGE || l.ownerId == ownerId) continue
+            var near = false
+            for (i in 0 until l.points.size - 1) {
+                if (segmentIntersectsRect(a = l.points[i], b = l.points[i + 1], r = reach)) {
+                    near = true
+                    break
+                }
+            }
+            if (near && rectDistanceToPolyline(r = r, pts = l.points) <= own + 0.01f) return true
+        }
+        return false
     }
 
     /** Shortest distance between [r] and the polyline [pts]; `0` if they touch or cross. */

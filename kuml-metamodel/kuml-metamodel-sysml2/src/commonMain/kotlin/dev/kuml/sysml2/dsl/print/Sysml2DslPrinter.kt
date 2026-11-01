@@ -740,6 +740,7 @@ public object Sysml2DslPrinter {
                             is TransitionTimer.At -> "timer = at(iso = ${quote(it.instant.toString())})"
                         }
                 }
+                if (usage.showName) args += "showName = true"
                 args += "id = ${quote(usage.id)}"
                 sb.appendLine("    transitionById(${args.joinToString(", ")})")
             }
@@ -931,6 +932,7 @@ public object Sysml2DslPrinter {
         if (spec.last.isNotEmpty()) block.appendLine("            lastById(${spec.last.joinToString(", ") { quote(it) }})")
         spec.maxWidth?.let { block.appendLine("            maxWidth = $it") }
         spec.aspectRatio?.let { block.appendLine("            aspectRatio = $it") }
+        spec.labelMaxWidth?.let { block.appendLine("            labelMaxWidth = $it") }
         block.appendLine("        }")
         val trimmed = text.trimEnd('\n')
         val newText =

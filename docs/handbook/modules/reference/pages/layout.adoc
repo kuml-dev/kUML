@@ -138,6 +138,7 @@ classDiagram(name = "Zoo") {
 
 * Id strings are accepted everywhere (`sameLayer("A::b", "A::c")`); an empty `sameLayer()` is ignored.
 * `maxWidth` (200..20000) and `aspectRatio` (0.1..10) re-wrap over-wide layers; at most two layout runs.
+* `labelMaxWidth` (120..400 px, default 220) is the wrap width of transition labels. It acts on SysML 2 state machines only; every other diagram kind reports `KUML-LAYOUT-W001`, a value outside 120..400 is `KUML-LAYOUT-E001` (the value is ignored).
   A picture between 1:2.5 and 2.5:1 is never changed implicitly; outside it the layout is wrapped
   automatically (`LayoutHints.autoAspect`).
 * Options a diagram kind does not honour (sequence, timing) report `KUML-LAYOUT-W001`; an unreachable
@@ -202,7 +203,14 @@ never covers a label that is drawn later.
   parameter rows come from one geometry (`ParConstraintGeometry`), so the SVG, the size estimate and the pin ends
   cannot drift apart. The layout engine reports the port or pin centre; when drawing, `PortEdgeClamp` clamps the edge
   onto the outer border of the port or pin.
-* Other SysML 2 diagram kinds (STM, SEQ, REQ, UC) keep their own label placement; ACT plans pin labels and edge labels together (`Sysml2DiagramLabelPlan.planActLabels`).
+* SysML 2 STM: transition labels are planned by `Sysml2DiagramLabelPlan.planStmLabels` over the one `LabelPlacer` (cost
+  model `STM_COSTS`, candidates at positions along the arc length of the whole line, nearest the middle first, right of
+  the direction of travel before left). Obstacles: states, pseudo-states and notes, the frame, header band, dividers and
+  region names of composite states, every drawn line, the box of each arrow head (the source end a 12 px square) and the
+  strip above the frame title; a label of an edge that does not run through a composite never enters it. Text is wrapped,
+  never cut (see the STM chapter of the SysML 2 reference). Parallel line segments and the ends at one side of a
+  state keep 16 px (`Spacing.edgeToEdgeBetweenLayers`, `StmEndpointSpread`). The halo is the same 2 px two-pass text.
+* Other SysML 2 diagram kinds (SEQ, REQ, UC) keep their own label placement; ACT plans pin labels and edge labels together (`Sysml2DiagramLabelPlan.planActLabels`).
 
 == SysML 2 layout hints
 
@@ -235,7 +243,7 @@ reqDiagram("Requirements") {
 * Swimlane (partition) activity diagrams are drawn top to bottom only; another `direction` is reported as `LAYOUT433`.
 * Checks: `LAYOUT431` unknown id, `LAYOUT432` `wrapColumns` outside 1..32, `LAYOUT434` too many groups/ids,
   `LAYOUT435` id in `first` and `last`, `LAYOUT436` connected elements in one `sameLayer` group,
-  `LAYOUT437` `maxWidth`/`aspectRatio` out of range.
+  `LAYOUT437` `maxWidth`/`aspectRatio`/`labelMaxWidth` out of range.
 
 === Example: a wide requirement diagram
 

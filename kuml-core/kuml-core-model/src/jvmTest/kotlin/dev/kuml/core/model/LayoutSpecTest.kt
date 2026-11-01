@@ -40,6 +40,17 @@ class LayoutSpecTest :
             json.decodeFromString(LayoutSpec.serializer(), json.encodeToString(LayoutSpec.serializer(), spec)) shouldBe spec
         }
 
+        test("labelMaxWidth: not empty, merged, round trip, absent in default JSON") {
+            LayoutSpec(labelMaxWidth = 220).isEmpty shouldBe false
+            LayoutSpec(labelMaxWidth = 150).mergedWith(LayoutSpec(maxWidth = 900)).labelMaxWidth shouldBe 150
+            LayoutSpec(labelMaxWidth = 150).mergedWith(LayoutSpec(labelMaxWidth = 300)).labelMaxWidth shouldBe 300
+            val json = Json { encodeDefaults = false }
+            json.encodeToString(LayoutSpec.serializer(), LayoutSpec(maxWidth = 900)) shouldBe """{"maxWidth":900}"""
+            val spec = LayoutSpec(labelMaxWidth = 260)
+            json.decodeFromString(LayoutSpec.serializer(), json.encodeToString(LayoutSpec.serializer(), spec)) shouldBe spec
+            json.decodeFromString(LayoutSpec.serializer(), """{"maxWidth":900}""").labelMaxWidth shouldBe null
+        }
+
         test("mergedWith: scalars of the later spec win, lists are appended") {
             val a = LayoutSpec(direction = LayoutFlow.Down, wrapColumns = 2, first = listOf("x"))
             val b = LayoutSpec(wrapColumns = 4, first = listOf("y"), maxWidth = 900)

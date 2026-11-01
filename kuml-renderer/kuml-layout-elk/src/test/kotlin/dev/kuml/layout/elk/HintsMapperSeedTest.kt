@@ -43,4 +43,22 @@ class HintsMapperSeedTest :
             HintsMapper.applyGlobalHints(root = root, hints = tight, config = ElkEngineConfiguration())
             root.getProperty(CoreOptions.SPACING_EDGE_EDGE) shouldBe 8.0
         }
+
+        test("edgeToEdgeBetweenLayers = 16 reaches ELK, NaN keeps ELK's default 10 (PAL 2D-a)") {
+            val wide = ElkGraphUtil.createGraph()
+            val hints16 = LayoutHints(spacing = LayoutHints().spacing.copy(edgeToEdgeBetweenLayers = 16f))
+            HintsMapper.applyGlobalHints(root = wide, hints = hints16, config = ElkEngineConfiguration())
+            wide.getProperty(LayeredOptions.SPACING_EDGE_EDGE_BETWEEN_LAYERS) shouldBe 16.0
+            wide.getProperty(CoreOptions.SPACING_PORT_PORT) shouldBe 16.0
+            val dflt = ElkGraphUtil.createGraph()
+            HintsMapper.applyGlobalHints(root = dflt, hints = LayoutHints(), config = ElkEngineConfiguration())
+            dflt.getProperty(LayeredOptions.SPACING_EDGE_EDGE_BETWEEN_LAYERS) shouldBe 10.0
+            val low = ElkGraphUtil.createGraph()
+            HintsMapper.applyGlobalHints(
+                root = low,
+                hints = LayoutHints(spacing = LayoutHints().spacing.copy(edgeToEdgeBetweenLayers = 4f)),
+                config = ElkEngineConfiguration(),
+            )
+            low.getProperty(LayeredOptions.SPACING_EDGE_EDGE_BETWEEN_LAYERS) shouldBe 10.0
+        }
     })

@@ -21,6 +21,7 @@ enum class LayoutFlow { Down, Right, Up, Left }
  * @property last element ids pinned to the last layer
  * @property maxWidth hard upper bound of the diagram width in px
  * @property aspectRatio soft target for width / height
+ * @property labelMaxWidth wrap width of edge labels in px (state machines only, 120..400, default 220)
  */
 @Serializable
 data class LayoutSpec(
@@ -31,6 +32,7 @@ data class LayoutSpec(
     val last: List<String> = emptyList(),
     val maxWidth: Int? = null,
     val aspectRatio: Double? = null,
+    val labelMaxWidth: Int? = null,
 ) {
     /** True if the spec carries no hint at all. */
     val isEmpty: Boolean
@@ -41,7 +43,8 @@ data class LayoutSpec(
                 first.isEmpty() &&
                 last.isEmpty() &&
                 maxWidth == null &&
-                aspectRatio == null
+                aspectRatio == null &&
+                labelMaxWidth == null
 
     /** Merges [next] onto this spec: scalars of [next] win when set, lists are appended. */
     fun mergedWith(next: LayoutSpec): LayoutSpec =
@@ -53,11 +56,12 @@ data class LayoutSpec(
             last = last + next.last,
             maxWidth = next.maxWidth ?: maxWidth,
             aspectRatio = next.aspectRatio ?: aspectRatio,
+            labelMaxWidth = next.labelMaxWidth ?: labelMaxWidth,
         )
 }
 
 /** The options of a `layout { }` block; used by the effect matrix and by diagnostics. */
-enum class LayoutOption { DIRECTION, WRAP_COLUMNS, SAME_LAYER, FIRST, LAST, MAX_WIDTH, ASPECT_RATIO }
+enum class LayoutOption { DIRECTION, WRAP_COLUMNS, SAME_LAYER, FIRST, LAST, MAX_WIDTH, ASPECT_RATIO, LABEL_MAX_WIDTH }
 
 /** Hard bounds for [LayoutSpec] values (DoS protection against hostile input). */
 object LayoutLimits {
@@ -66,6 +70,8 @@ object LayoutLimits {
     const val IDS_PER_GROUP = 64
     const val MAX_WIDTH_MIN = 200
     const val MAX_WIDTH_MAX = 20_000
+    const val LABEL_MAX_WIDTH_MIN = 120
+    const val LABEL_MAX_WIDTH_MAX = 400
     const val ASPECT_MIN = 0.1
     const val ASPECT_MAX = 10.0
 

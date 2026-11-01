@@ -889,6 +889,15 @@ public object Sysml2LayoutBridge {
         }
     }
 
+    /** The flow direction of [diagram] (its `layout { direction }`, default top to bottom): the connection puffer grows across it. */
+    private fun stmFlowDirectionOf(diagram: StmDiagram): LayoutDirection =
+        when (diagram.layout?.direction) {
+            dev.kuml.core.model.layout.LayoutFlow.Right -> LayoutDirection.LeftToRight
+            dev.kuml.core.model.layout.LayoutFlow.Left -> LayoutDirection.RightToLeft
+            dev.kuml.core.model.layout.LayoutFlow.Up -> LayoutDirection.BottomToTop
+            else -> LayoutDirection.TopToBottom
+        }
+
     /**
      * Anschluss-Puffer in px für eine STM-State-Box mit [transitionCount]
      * anliegenden Transitionen. Die Wachstumsrichtung folgt der
@@ -896,6 +905,7 @@ public object Sysml2LayoutBridge {
      * zu [UmlContentSizeProvider.connectionPuffer]. Returns
      * `Pair(widthExtra, heightExtra)`.
      */
+
     private fun stmConnectionPuffer(
         transitionCount: Int,
         layoutDirection: LayoutDirection,
@@ -1478,7 +1488,8 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: StmDiagram,
-        sizeProvider: SizeProvider = stmContentAwareSizeProvider(model = model, diagram = diagram),
+        sizeProvider: SizeProvider =
+            stmContentAwareSizeProvider(model = model, diagram = diagram, layoutDirection = stmFlowDirectionOf(diagram)),
     ): LayoutGraph {
         // Wave A1: composite states, regions and the new pseudo-state kinds take the structured
         // path; flat machines (the vast majority) keep the original code below bit-for-bit.

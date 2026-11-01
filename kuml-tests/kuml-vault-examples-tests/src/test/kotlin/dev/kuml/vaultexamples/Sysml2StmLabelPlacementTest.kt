@@ -169,10 +169,10 @@ class Sysml2StmLabelPlacementTest :
             }
             val labels = LinkedHashMap<String, R>()
             Regex(
-                """<g class="kuml-edge-label" data-edge-id="([^"]*)">.*?(<rect [^>]*>)""",
-                RegexOption.DOT_MATCHES_ALL,
+                """<g class="kuml-edge-label" data-edge-id="([^"]*)" data-label-id="[^"]*" data-label-rect="([-0-9.]+) ([-0-9.]+) ([-0-9.]+) ([-0-9.]+)"""",
             ).findAll(svg).forEach {
-                labels[it.groupValues[1]] = rectOf(it.groupValues[2])!!
+                val v = it.groupValues
+                labels[v[1]] = R(v[2].toDouble(), v[3].toDouble(), v[2].toDouble() + v[4].toDouble(), v[3].toDouble() + v[5].toDouble())
             }
             for ((id, box) in labels) {
                 val where = "$name label $id"

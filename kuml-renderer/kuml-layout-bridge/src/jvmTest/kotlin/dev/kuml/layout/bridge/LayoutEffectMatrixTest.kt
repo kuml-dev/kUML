@@ -15,7 +15,8 @@ class LayoutEffectMatrixTest :
                 LayoutEffectMatrix.effective.containsKey(kind) shouldBe true
                 // Rows are all-or-nothing today: an option set is either fully honoured or fully ignored.
                 val row = LayoutEffectMatrix.effectiveFor(kind)
-                (row.isEmpty() || row == LayoutOption.entries.toSet()) shouldBe true
+                val common = LayoutOption.entries.toSet() - LayoutOption.LABEL_MAX_WIDTH
+                (row.isEmpty() || row == common || row == common + LayoutOption.LABEL_MAX_WIDTH) shouldBe true
             }
             LayoutEffectMatrix.effective.keys shouldBe SpecDiagramKind.entries.toSet()
         }
@@ -34,6 +35,14 @@ class LayoutEffectMatrixTest :
             }
             listOf(SpecDiagramKind.UML_CLASS, SpecDiagramKind.C4, SpecDiagramKind.ERM, SpecDiagramKind.SYSML2_BDD).forEach {
                 LayoutSpecRunner.ignoredOptions(spec = spec, kind = it).shouldBeEmpty()
+            }
+        }
+
+        test("labelMaxWidth only has an effect on state machines") {
+            val spec = LayoutSpec(labelMaxWidth = 220)
+            LayoutSpecRunner.ignoredOptions(spec = spec, kind = SpecDiagramKind.SYSML2_STM).shouldBeEmpty()
+            listOf(SpecDiagramKind.SYSML2_BDD, SpecDiagramKind.UML_CLASS, SpecDiagramKind.SYSML2_ACT, SpecDiagramKind.SYSML2_SEQ).forEach {
+                LayoutSpecRunner.ignoredOptions(spec = spec, kind = it) shouldBe listOf(LayoutOption.LABEL_MAX_WIDTH)
             }
         }
 

@@ -41,6 +41,25 @@ public data class EdgeLabelSpec(
     val lines: List<String>,
 )
 
+/** One state-machine transition label to place: [lines] drawn in a box of [size] (PAL wave 2D-a). */
+public data class StmLabelSpec(
+    val id: String,
+    val lines: List<String>,
+    val size: Size,
+)
+
+/**
+ * A composite state as obstacle of a state-machine label plan: its [frame], the bottom of its header band
+ * ([headerBottom]), the [dividers] between orthogonal regions and the rectangles of the region names.
+ */
+public data class StmCompositeObstacle(
+    val id: String,
+    val frame: Rect,
+    val headerBottom: Float,
+    val dividers: List<Pair<Point, Point>> = emptyList(),
+    val regionNameRects: List<Rect> = emptyList(),
+)
+
 /** Result of a label plan: the placed rectangles and the lines each label is drawn in, both keyed by label id. */
 public data class Sysml2LabelPlanResult(
     val labels: Map<String, PlacedLabel>,
@@ -226,6 +245,231 @@ public object Sysml2DiagramLabelPlan {
         }
         if (requests.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
         return Sysml2LabelPlanResult(labels = LabelPlacer.place(requests = requests, index = index, costs = costs), lines = lines)
+    }
+
+    /** Cost model of the state machine: 2 px free space, search along the whole line up to 14 px away (PAL wave 2D-a). */
+    public val STM_COSTS: LabelCostModel =
+        LabelCostModel(
+            lineClearance = 2f,
+            nodeClearance = 2f,
+            edgeOffsets = listOf(3f, 6f, 10f, 14f),
+            maxDistancePx = 14f,
+            edgeCandidateMode = EdgeCandidateMode.ARC_LENGTH,
+            arcStepPx = 8f,
+            arcMaxFraction = 0.4f,
+            leftSidePenalty = 400f,
+            sharedSegmentPenalty = 600f,
+            shortSegmentPenalty = 300f,
+            foreignCloserPenalty = 20_000f,
+            perRequestWorkBudget = 400_000L,
+        )
+
+    /** Segments shorter than this carry no label by preference (PAL wave 2D-a). */
+    private const val STM_SHORT_SEGMENT_PX: Float = 16f
+
+    /** Above this many edge segments in total the quadratic shared-segment test is skipped. */
+    private const val STM_SHARED_CHECK_SEGMENT_LIMIT: Int = 4_000
+
+    private const val STM_BEZIER_SAMPLES: Int = 16
+
+    /**
+     * Plans the transition labels of a state machine with the one shared [LabelPlacer] (PAL wave 2D-a).
+     *
+     * Obstacles: simple states, pseudo-states and notes ([nodes]); the frame of every composite state as a closed line
+     * (a label may sit inside it but must not straddle it) together with its header band, its dividers and its region
+     * names; all drawn routes ([edges], including note anchors); a 12 px square around each line end (arrow heads); and
+     * a strip above [frameTop]. A label whose line does not run through a composite must not enter that composite.
+     *
+     * @param edges final drawn routes in canvas coordinates (after route transforms)
+     * @param nodes rectangles of simple states, pseudo-states and notes by id
+     * @param labels one entry per edge carrying a label (the size is the box of the wrapped lines)
+     */
+    public fun planStmLabels(
+        edges: Map<String, EdgeRoute>,
+        nodes: Map<String, Rect>,
+        composites: List<StmCompositeObstacle>,
+        labels: List<StmLabelSpec>,
+        frameTop: Float,
+        costs: LabelCostModel = STM_COSTS,
+    ): Sysml2LabelPlanResult {
+        if (labels.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
+        val index = ObstacleIndex()
+        for ((id, r) in nodes.entries.sortedBy { it.key }) index.addRect(kind = ObstacleKind.NODE, r = r, ownerId = id)
+        index.addRect(
+            kind = ObstacleKind.NODE,
+            r = rectOf(left = -STM_STRIP_PX, top = frameTop - STM_STRIP_PX, right = STM_STRIP_PX, bottom = frameTop),
+        )
+        for (c in composites.sortedBy { it.id }) {
+            val f = c.frame
+            val l = f.origin.x
+            val t = f.origin.y
+            val r = l + f.size.width
+            val b = t + f.size.height
+            index.addPolyline(
+                kind = ObstacleKind.FRAGMENT,
+                pts = listOf(Point(x = l, y = t), Point(x = r, y = t), Point(x = r, y = b), Point(x = l, y = b), Point(x = l, y = t)),
+                ownerId = c.id,
+            )
+            val header = rectOf(left = l, top = t, right = r, bottom = maxOf(t, c.headerBottom))
+            if (header.size.height > 0f) index.addRect(kind = ObstacleKind.COMPOSITE_TITLE, r = header)
+            for ((p, q) in c.dividers) index.addPolyline(kind = ObstacleKind.FRAGMENT, pts = listOf(p, q), ownerId = c.id)
+            for (n in c.regionNameRects) index.addRect(kind = ObstacleKind.COMPOSITE_TITLE, r = n)
+        }
+        val polys = LinkedHashMap<String, List<Point>>()
+        for ((id, route) in edges.entries.sortedBy { it.key }) {
+            val pts = stmPolylineOf(route)
+            polys[id] = pts
+            index.addPolyline(kind = ObstacleKind.EDGE, pts = pts, ownerId = id)
+        }
+        for ((_, pts) in polys) {
+            if (pts.size < 2) continue
+            // Source end: a small square at the junction with the state; target end: the box of the drawn arrow head.
+            val src = pts.first()
+            val h = ARROWHEAD_PX / 2f
+            index.addRect(
+                kind = ObstacleKind.ARROWHEAD,
+                r = rectOf(left = src.x - h, top = src.y - h, right = src.x + h, bottom = src.y + h),
+            )
+            index.addRect(kind = ObstacleKind.ARROWHEAD, r = arrowHeadBox(tip = pts.last(), from = pts[pts.size - 2]))
+        }
+        val requests = ArrayList<LabelRequest>()
+        val lines = LinkedHashMap<String, List<String>>()
+        // The shared-segment test is quadratic in the number of segments; above the cap it is skipped (DoS guard).
+        val segmentTotal = polys.values.sumOf { maxOf(0, it.size - 1) }
+        val checkShared = segmentTotal <= STM_SHARED_CHECK_SEGMENT_LIMIT
+        for (spec in labels.sortedBy { it.id }) {
+            val pts = polys[spec.id] ?: continue
+            if (pts.size < 2) continue
+            lines[spec.id] = spec.lines
+            val mid = arcMidpoint(pts)
+            val avoid =
+                composites
+                    .filter { c -> !c.frame.containsPoint(mid) }
+                    .map { it.frame }
+            val flags =
+                (0 until pts.size - 1).map { i ->
+                    var f = 0
+                    if (segLen(a = pts[i], b = pts[i + 1]) < STM_SHORT_SEGMENT_PX) f = f or SEGMENT_SHORT
+                    if (checkShared && sharesSegment(a = pts[i], b = pts[i + 1], owner = spec.id, all = polys)) f = f or SEGMENT_SHARED
+                    f
+                }
+            requests +=
+                LabelRequest(
+                    id = spec.id,
+                    role = LabelRole.EDGE_CENTER,
+                    ownerId = spec.id,
+                    size = spec.size,
+                    polyline = pts,
+                    avoid = avoid,
+                    segmentFlags = flags,
+                )
+        }
+        if (requests.isEmpty()) return Sysml2LabelPlanResult(labels = emptyMap(), lines = emptyMap())
+        return Sysml2LabelPlanResult(labels = LabelPlacer.place(requests = requests, index = index, costs = costs), lines = lines)
+    }
+
+    private const val STM_STRIP_PX: Float = 100_000f
+
+    /** Length and half width of a drawn transition arrow head in px. */
+    private const val ARROW_LEN_PX: Float = 12f
+    private const val ARROW_HALF_WIDTH_PX: Float = 5f
+
+    /** Bounding box of the arrow head at [tip] of a line that arrives from [from] (a square around the tip for a zero-length end). */
+    private fun arrowHeadBox(
+        tip: Point,
+        from: Point,
+    ): Rect {
+        val len = segLen(a = tip, b = from)
+        if (len < 0.01f) {
+            val h = ARROWHEAD_PX / 2f
+            return rectOf(left = tip.x - h, top = tip.y - h, right = tip.x + h, bottom = tip.y + h)
+        }
+        val ux = (from.x - tip.x) / len
+        val uy = (from.y - tip.y) / len
+        val bx = tip.x + ux * ARROW_LEN_PX
+        val by = tip.y + uy * ARROW_LEN_PX
+        val nx = -uy * ARROW_HALF_WIDTH_PX
+        val ny = ux * ARROW_HALF_WIDTH_PX
+        val xs = listOf(tip.x, bx + nx, bx - nx)
+        val ys = listOf(tip.y, by + ny, by - ny)
+        return rectOf(left = xs.min(), top = ys.min(), right = xs.max(), bottom = ys.max())
+    }
+
+    private fun Rect.containsPoint(p: Point): Boolean =
+        p.x >= origin.x && p.x <= origin.x + size.width && p.y >= origin.y && p.y <= origin.y + size.height
+
+    private fun segLen(
+        a: Point,
+        b: Point,
+    ): Float = kotlin.math.hypot(b.x - a.x, b.y - a.y)
+
+    /** The point halfway along the arc length of [pts]. */
+    private fun arcMidpoint(pts: List<Point>): Point {
+        var total = 0f
+        for (i in 0 until pts.size - 1) total += segLen(a = pts[i], b = pts[i + 1])
+        var rest = total / 2f
+        for (i in 0 until pts.size - 1) {
+            val l = segLen(a = pts[i], b = pts[i + 1])
+            if (rest <= l || i == pts.size - 2) {
+                val f = if (l > 0.01f) (rest / l).coerceIn(0f, 1f) else 0f
+                return Point(x = pts[i].x + (pts[i + 1].x - pts[i].x) * f, y = pts[i].y + (pts[i + 1].y - pts[i].y) * f)
+            }
+            rest -= l
+        }
+        return pts.first()
+    }
+
+    /** Collinear (within 1 px) and overlapping by more than 1 px with a segment of another edge. */
+    private fun sharesSegment(
+        a: Point,
+        b: Point,
+        owner: String,
+        all: Map<String, List<Point>>,
+    ): Boolean {
+        val len = segLen(a = a, b = b)
+        if (len < 0.001f) return false
+        val dx = (b.x - a.x) / len
+        val dy = (b.y - a.y) / len
+
+        fun along(p: Point) = (p.x - a.x) * dx + (p.y - a.y) * dy
+
+        fun off(p: Point) = kotlin.math.abs((p.x - a.x) * -dy + (p.y - a.y) * dx)
+        for ((id, pts) in all) {
+            if (id == owner) continue
+            for (i in 0 until pts.size - 1) {
+                val p = pts[i]
+                val q = pts[i + 1]
+                if (off(p) > 1f || off(q) > 1f) continue
+                val lo = maxOf(0f, minOf(along(p), along(q)))
+                val hi = minOf(len, maxOf(along(p), along(q)))
+                if (hi - lo > 1f) return true
+            }
+        }
+        return false
+    }
+
+    /** Polyline of the drawn route; Bezier curves are sampled (the generic [polylineOf] only joins their ends). */
+    public fun stmPolylineOf(route: EdgeRoute): List<Point> {
+        val raw =
+            when (route) {
+                is EdgeRoute.Direct -> listOf(route.source, route.target)
+                is EdgeRoute.OrthogonalRounded -> listOf(route.source) + route.waypoints + listOf(route.target)
+                is EdgeRoute.TreeRounded -> listOf(route.source) + route.waypoints + listOf(route.target)
+                is EdgeRoute.Bezier -> sampleBezier(route)
+            }
+        return raw.filter { it.x.isFinite() && it.y.isFinite() }
+    }
+
+    private fun sampleBezier(r: EdgeRoute.Bezier): List<Point> {
+        val cp = r.controlPoints
+        if (cp.isEmpty()) return listOf(r.source, r.target)
+        val ctrl = if (cp.size >= 2) listOf(r.source, cp[0], cp[1], r.target) else listOf(r.source, cp[0], r.target)
+        return (0..STM_BEZIER_SAMPLES).map { i ->
+            var cur = ctrl
+            val t = i.toFloat() / STM_BEZIER_SAMPLES
+            while (cur.size > 1) cur = cur.zipWithNext { a, b -> Point(x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t) }
+            cur.first()
+        }
     }
 
     /**

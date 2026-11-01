@@ -135,7 +135,7 @@ public data class Sysml2EdgeMetadata(
 )
 
 /** Kind of one [EdgeLabelPart]. */
-public enum class EdgeLabelKind { Trigger, Guard, GuardProse, Effect }
+public enum class EdgeLabelKind { Name, Trigger, Guard, GuardProse, Effect }
 
 /** One styled segment of a composed edge label. [text] already contains brackets / slash. */
 public data class EdgeLabelPart(
@@ -374,11 +374,15 @@ public class StmEdgeAdapter(
         public fun formatTransitionLabel(transition: TransitionUsage): String? =
             transitionLabelParts(transition).takeIf { it.isNotEmpty() }?.joinToString(" ") { it.text }
 
-        /** Trigger (or timer label), `[guard]` and `/ effect` as separate styled parts. */
+        /** Optional `name:`, trigger and timer label, `[guard]` and `/ effect` as separate styled parts. */
         public fun transitionLabelParts(transition: TransitionUsage): List<EdgeLabelPart> {
             val parts = mutableListOf<EdgeLabelPart>()
-            (transition.trigger?.takeIf { it.isNotBlank() } ?: transition.timer?.label())
-                ?.let { parts += EdgeLabelPart(text = it, kind = EdgeLabelKind.Trigger) }
+            if (transition.showName && transition.name.isNotBlank()) {
+                parts += EdgeLabelPart(text = "${transition.name}:", kind = EdgeLabelKind.Name)
+            }
+            listOfNotNull(transition.trigger?.takeIf { it.isNotBlank() }, transition.timer?.label())
+                .takeIf { it.isNotEmpty() }
+                ?.let { parts += EdgeLabelPart(text = it.joinToString(", "), kind = EdgeLabelKind.Trigger) }
             transition.guard?.takeIf { it.isNotBlank() }?.let {
                 val kind = if (transition.guardKind == GuardKind.Prose) EdgeLabelKind.GuardProse else EdgeLabelKind.Guard
                 parts += EdgeLabelPart(text = "[$it]", kind = kind)

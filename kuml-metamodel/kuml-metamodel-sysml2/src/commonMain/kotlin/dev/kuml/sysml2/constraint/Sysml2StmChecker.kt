@@ -23,7 +23,7 @@ public enum class StmSeverity { Error, Warning }
 /**
  * A structural finding of the SysML 2 state-machine checker.
  *
- * @property code stable numeric code (101-129), see [Sysml2StmChecker].
+ * @property code stable numeric code (101-130), see [Sysml2StmChecker].
  * @property elementId id of the offending state / region / transition.
  * @property hint how to fix it.
  */
@@ -64,12 +64,13 @@ public data class StmIssue(
  * | 121 | Error | More than [STM_MAX_REGIONS] regions in one composite |
  * | 122 | Error | More than [STM_MAX_STATES] states |
  * | 123 | Error | State or region name longer than [STM_MAX_NAME_LEN] characters |
- * | 124 | Error | Transition has both a `timer` and a `trigger` |
+ * | 124 | - | removed (wave 2D-a): `trigger` and `timer` are combinable, either fires the transition; number stays reserved |
  * | 125 | Error | `after` duration shorter than 1 ms or longer than 3650 days |
  * | 126 | Error | Timer on a transition whose source is a pseudo-state |
  * | 127 | Warning | Two `after` timers with the same duration leave the same state |
  * | 128 | Error | `at` instant is not UTC with millisecond precision |
  * | 129 | Error | Guard, effect or prose longer than [STM_MAX_TEXT_LEN] characters |
+ * | 130 | Warning | `showName = true` on a transition whose name is blank |
  *
  * The limit rules (120-123) run first; when one fires only the limit findings
  * are reported and the deeper analysis is skipped (DoS guard). Everything is
@@ -270,17 +271,17 @@ public object Sysml2StmChecker {
         issues: MutableList<StmIssue>,
     ) {
         for (t in transitions) {
+            if (t.showName && t.name.isBlank()) {
+                issues +=
+                    warn(
+                        code = 130,
+                        id = t.id,
+                        message = "Transition '${t.id.take(40)}' has showName = true but a blank name.",
+                        hint = "Give the transition a name or drop showName.",
+                    )
+            }
             val timer = t.timer
             if (timer != null) {
-                if (!t.trigger.isNullOrBlank()) {
-                    issues +=
-                        err(
-                            code = 124,
-                            id = t.id,
-                            message = "Transition '${t.id}' has both a timer and a trigger.",
-                            hint = "Use either trigger = \"...\" or timer = after(...)/at(...), not both.",
-                        )
-                }
                 val src = index[t.sourceStateId]
                 if (src != null && src.isPseudo) {
                     issues +=

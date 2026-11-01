@@ -17,7 +17,9 @@ import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.TransitionUsage
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 
 /**
  * V2.0.13 — verifies the `trigger [guard] / effect` STM transition label
@@ -72,5 +74,44 @@ class Sysml2StmEdgeLabelSvgTest :
             val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "powerOn [ready] / boot()"
             SampleOutput.write(filename = "sysml2-edge-labels/stm-transition.svg", content = svg)
+        }
+
+        "STM label is a halo group without a backdrop rectangle" {
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
+            val group = Regex("""<g class="kuml-edge-label"[^>]*>.*?</g>""", RegexOption.DOT_MATCHES_ALL).find(svg)!!.value
+            group shouldContain "data-edge-id=\"transition:Off::On\""
+            group shouldContain "data-label-id="
+            Regex("""data-label-rect="[-0-9. ]+"""").containsMatchIn(group) shouldBe true
+            group shouldNotContain "<rect"
+            Regex("""<title>\s*powerOn \[ready] / boot\(\)\s*</title>""").containsMatchIn(group) shouldBe true
+            Regex("""<text [^>]*stroke-width:2[^>]*>""").findAll(group).count() shouldBe 1
+            Regex("""<text [^>]*>""").findAll(group).count() shouldBe 2
+        }
+
+        "STM label of a long guard is wrapped, never cut" {
+            val guard = "stroemungOk and not stbAusgeloest and druckImBereich(p1,p22)"
+            val long =
+                model.copy(
+                    usages = listOf((model.usages.single() as TransitionUsage).copy(trigger = "tick", guard = guard, effect = null)),
+                )
+            val svg = KumlSvgRenderer.toSvg(model = long, diagram = diagram, layoutResult = layout, theme = PlainTheme())
+            svg shouldNotContain "…"
+            val group = Regex("""<g class="kuml-edge-label"[^>]*>.*?</g>""", RegexOption.DOT_MATCHES_ALL).find(svg)!!.value
+            val texts =
+                Regex("""<text [^>]*>(.*?)</text>""", RegexOption.DOT_MATCHES_ALL).findAll(group).map { it.groupValues[1].trim() }.toList()
+            texts.size shouldBe 2 * (texts.size / 2)
+            (texts.size / 2 >= 2) shouldBe true
+            Regex("""<title>\s*tick \[${Regex.escape(guard)}]\s*</title>""").containsMatchIn(group) shouldBe true
+            val fill = texts.takeLast(texts.size / 2).joinToString("").replace(" ", "")
+            fill shouldContain guard.replace(" ", "").replace("&&", "&amp;&amp;")
+        }
+
+        "STM label with showName starts with the transition name" {
+            val named =
+                model.copy(
+                    usages = listOf((model.usages.single() as TransitionUsage).copy(name = "T37", showName = true)),
+                )
+            val svg = KumlSvgRenderer.toSvg(model = named, diagram = diagram, layoutResult = layout, theme = PlainTheme())
+            svg shouldContain "T37: powerOn [ready] / boot()"
         }
     })

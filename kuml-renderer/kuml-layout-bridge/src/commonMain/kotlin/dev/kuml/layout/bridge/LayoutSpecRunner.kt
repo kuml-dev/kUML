@@ -70,6 +70,7 @@ public object LayoutSpecRunner {
                 if (spec.last.isNotEmpty()) add(LayoutOption.LAST)
                 if (spec.maxWidth != null) add(LayoutOption.MAX_WIDTH)
                 if (spec.aspectRatio != null) add(LayoutOption.ASPECT_RATIO)
+                if (spec.labelMaxWidth != null) add(LayoutOption.LABEL_MAX_WIDTH)
             }
         val effective = LayoutEffectMatrix.effectiveFor(kind)
         return set.filter { it !in effective }
@@ -366,6 +367,19 @@ public object LayoutSpecRunner {
                         isError = true,
                     )
                 out = out!!.copy(maxWidth = null)
+            }
+        }
+        spec.labelMaxWidth?.let {
+            if (it !in LayoutLimits.LABEL_MAX_WIDTH_MIN..LayoutLimits.LABEL_MAX_WIDTH_MAX) {
+                findings +=
+                    LayoutSpecFinding(
+                        code = LayoutCodes.OUT_OF_RANGE,
+                        message =
+                            "layout.labelMaxWidth = $it is outside " +
+                                "${LayoutLimits.LABEL_MAX_WIDTH_MIN}..${LayoutLimits.LABEL_MAX_WIDTH_MAX}; ignored.",
+                        isError = true,
+                    )
+                out = out!!.copy(labelMaxWidth = null)
             }
         }
         spec.aspectRatio?.let {
