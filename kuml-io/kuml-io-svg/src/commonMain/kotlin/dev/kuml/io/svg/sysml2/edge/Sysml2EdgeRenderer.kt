@@ -476,6 +476,7 @@ internal object Sysml2EdgeRenderer {
         obstacles: List<dev.kuml.layout.Rect>,
         backdropFor: (dev.kuml.layout.Rect) -> String,
         builder: SvgBuilder,
+        hardObstacles: List<dev.kuml.layout.Rect> = emptyList(),
     ) {
         if (pending.isEmpty()) return
 
@@ -512,11 +513,21 @@ internal object Sysml2EdgeRenderer {
                 requests = requests,
                 allRoutes = allRoutes.mapValues { polylinePoints(it.value) },
                 obstacles = obstacles,
+                hardObstacles = hardObstacles,
             )
         builder.tag(name = "g", attrs = mapOf("class" to "kuml-edge-labels")) {
             for (id in placed.keys.sorted()) {
                 val r = placed.getValue(id)
-                tag(name = "g", attrs = mapOf("class" to "kuml-edge-label", "data-edge-id" to id)) {
+                tag(
+                    name = "g",
+                    attrs =
+                        mapOf(
+                            "class" to "kuml-edge-label",
+                            "data-edge-id" to id,
+                            "data-label-id" to id,
+                            "data-label-rect" to "${fmt(r.origin.x)} ${fmt(r.origin.y)} ${fmt(r.size.width)} ${fmt(r.size.height)}",
+                        ),
+                ) {
                     tag(
                         name = "rect",
                         attrs =
@@ -800,6 +811,7 @@ internal object Sysml2EdgeRenderer {
         when (head) {
             Sysml2ArrowHead.FilledDiamond -> ArrowStyle.DIAMOND_FILLED
             Sysml2ArrowHead.OpenDiamond -> ArrowStyle.DIAMOND
+            Sysml2ArrowHead.ContainmentCrosshair -> ArrowStyle.CROSSHAIR
             Sysml2ArrowHead.None -> null
             Sysml2ArrowHead.OpenAngle -> ArrowStyle.OPEN
             // V2.0.45 — was incorrectly mapped to "arrow-open" (a stroke-only

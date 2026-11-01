@@ -15,7 +15,7 @@ public enum class ReqUcSeverity { Error, Warning, Hint }
 /**
  * A finding of the requirement / use-case diagram checker (wave C1).
  *
- * @property code stable numeric code (201-217), see [Sysml2ReqUcChecker].
+ * @property code stable numeric code (201-218), see [Sysml2ReqUcChecker].
  * @property elementId id of the offending definition, edge or group.
  * @property hint how to fix it.
  */
@@ -49,6 +49,7 @@ public data class ReqUcIssue(
  * | 215 | Warning | `verify` source is neither a test case nor a use case |
  * | 216 | Warning | `refine` target is not a requirement |
  * | 217 | Hint | Use-case description will be longer than 4 lines (it is truncated in the diagram) |
+ * | 218 | Warning | Two requirements of the model share a `reqId` but have different text (whitespace-normalised, case-sensitive; wave 2E-a) |
  *
  * `trace` is deliberately unchecked. All traversals are iterative and bounded.
  */
@@ -82,6 +83,7 @@ public object Sysml2ReqUcChecker {
                 else -> Unit
             }
         }
+        if (diagrams.any { it is ReqDiagram }) checkReqIdTexts(model = model, diagrams = diagrams, issues = issues)
         return issues
     }
 
@@ -120,7 +122,7 @@ public object Sysml2ReqUcChecker {
                                 hint = "Shorten the text or split the requirement.",
                             )
                     }
-                    if (def.source.length >
+                    if ((def.source.length + (def.externalSource?.length ?: 0)) >
                         MAX_SOURCE
                     ) {
                         issues +=
@@ -170,7 +172,7 @@ public object Sysml2ReqUcChecker {
                         message = "copy ${c.sourceRequirementId} -> ${c.targetRequirementId}: both ends must be requirements.",
                         hint = "Use requirement definitions as copy endpoints.",
                     )
-            } else if (slave.text != master.text) {
+            } else if (slave.text != master.text && !isEmptyStub(slave) && !isEmptyStub(master)) {
                 issues +=
                     err(
                         code = 202,
@@ -376,6 +378,54 @@ public object Sysml2ReqUcChecker {
             }
         }
         return false
+    }
+
+    /** A stub of an external requirement without own text (nothing to compare it with). */
+    private fun isEmptyStub(r: RequirementDefinition): Boolean = r.externalSource != null && r.text.isEmpty()
+
+    private val whitespace = Regex("\\s+")
+
+    private fun normalise(text: String): String = text.trim().replace(whitespace, " ")
+
+    /**
+     * 218: requirements with the same non-empty `reqId` and non-empty text must carry the same text. Pairs that are
+     * connected by a `copy` are skipped (202 already reports them). O(n); the texts are bounded by [MAX_TEXT].
+     * The scope is the model of one script - a check across several files is not possible with a single-file validate.
+     */
+    private fun checkReqIdTexts(
+        model: Sysml2Model,
+        diagrams: List<Sysml2Diagram>,
+        issues: MutableList<ReqUcIssue>,
+    ) {
+        val byReqId = LinkedHashMap<String, MutableList<RequirementDefinition>>()
+        for (def in model.definitions) {
+            if (def is RequirementDefinition && def.reqId.isNotEmpty() && def.text.isNotEmpty()) {
+                byReqId.getOrPut(def.reqId) { ArrayList() } += def
+            }
+        }
+        val copied = HashSet<Pair<String, String>>()
+        for (d in diagrams.filterIsInstance<ReqDiagram>()) {
+            for (c in d.copies) {
+                copied += c.sourceRequirementId to c.targetRequirementId
+                copied += c.targetRequirementId to c.sourceRequirementId
+            }
+        }
+        for ((reqId, defs) in byReqId) {
+            if (defs.size < 2) continue
+            val first = defs.first()
+            val firstText = normalise(first.text.take(MAX_TEXT))
+            for (other in defs.drop(1)) {
+                if (normalise(other.text.take(MAX_TEXT)) == firstText) continue
+                if (first.id to other.id in copied) continue
+                issues +=
+                    warn(
+                        code = 218,
+                        id = other.id,
+                        message = "Requirements '${first.name}' and '${other.name}' share reqId '$reqId' but have different text.",
+                        hint = "Use copy(...) or externalRequirement(...) and keep one source of truth.",
+                    )
+            }
+        }
     }
 
     private fun err(

@@ -12,7 +12,7 @@ import io.kotest.matchers.shouldBe
 /**
  * V2.0.13 — verifies that [ReqEdgeAdapter] reports the four canonical SysML 2
  * traceability stereotypes (`«satisfy»`, `«verify»`, `«deriveReqt»`,
- * `«containment»`), all dashed, all `OpenAngle` arrow heads.
+ * `«containment»` until wave 2E-a, now a crosshair), all dashed, all `OpenAngle` arrow heads.
  */
 class ReqEdgeAdapterTest :
     StringSpec({
@@ -75,10 +75,13 @@ class ReqEdgeAdapterTest :
             meta.dashArray shouldBe "5 4"
         }
 
-        "contains edge — «containment» stereotype, dashed, open angle" {
+        "contains edge — no text label, solid line, circled plus at the parent end (wave 2E-a)" {
             val meta = adapter.metadataFor("contains:SafetyReq::BrakingReq")!!
-            meta.stereotype shouldBe "«containment»"
-            meta.dashArray shouldBe "5 4"
+            meta.stereotype.shouldBeNull()
+            meta.label.shouldBeNull()
+            meta.dashArray.shouldBeNull()
+            meta.arrowHead shouldBe Sysml2ArrowHead.ContainmentCrosshair
+            meta.headAtSource shouldBe true
         }
 
         "unknown edge id returns null" {

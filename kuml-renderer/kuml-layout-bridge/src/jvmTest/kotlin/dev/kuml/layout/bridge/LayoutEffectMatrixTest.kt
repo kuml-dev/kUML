@@ -15,8 +15,13 @@ class LayoutEffectMatrixTest :
                 LayoutEffectMatrix.effective.containsKey(kind) shouldBe true
                 // Rows are all-or-nothing today: an option set is either fully honoured or fully ignored.
                 val row = LayoutEffectMatrix.effectiveFor(kind)
-                val common = LayoutOption.entries.toSet() - LayoutOption.LABEL_MAX_WIDTH
-                (row.isEmpty() || row == common || row == common + LayoutOption.LABEL_MAX_WIDTH) shouldBe true
+                val common = LayoutOption.entries.toSet() - LayoutOption.LABEL_MAX_WIDTH - LayoutOption.SHOW_SUBJECT_EDGES
+                (
+                    row.isEmpty() ||
+                        row == common ||
+                        row == common + LayoutOption.LABEL_MAX_WIDTH ||
+                        row == common + LayoutOption.SHOW_SUBJECT_EDGES
+                ) shouldBe true
             }
             LayoutEffectMatrix.effective.keys shouldBe SpecDiagramKind.entries.toSet()
         }
@@ -44,6 +49,16 @@ class LayoutEffectMatrixTest :
             listOf(SpecDiagramKind.SYSML2_BDD, SpecDiagramKind.UML_CLASS, SpecDiagramKind.SYSML2_ACT, SpecDiagramKind.SYSML2_SEQ).forEach {
                 LayoutSpecRunner.ignoredOptions(spec = spec, kind = it) shouldBe listOf(LayoutOption.LABEL_MAX_WIDTH)
             }
+        }
+
+        test("showSubjectEdges only has an effect on requirement diagrams (wave 2E-a)") {
+            val spec = LayoutSpec(showSubjectEdges = true)
+            LayoutSpecRunner.ignoredOptions(spec = spec, kind = SpecDiagramKind.SYSML2_REQ).shouldBeEmpty()
+            listOf(SpecDiagramKind.SYSML2_BDD, SpecDiagramKind.UML_CLASS, SpecDiagramKind.SYSML2_STM, SpecDiagramKind.SYSML2_SEQ).forEach {
+                LayoutSpecRunner.ignoredOptions(spec = spec, kind = it) shouldBe listOf(LayoutOption.SHOW_SUBJECT_EDGES)
+            }
+            LayoutSpecRunner.noEffectFindings(spec = spec, kind = SpecDiagramKind.SYSML2_BDD, diagramName = "D").map { it.code } shouldBe
+                listOf(LayoutCodes.NO_EFFECT)
         }
 
         test("W001 is reported once per option and diagram, never per element, and not for an empty block") {

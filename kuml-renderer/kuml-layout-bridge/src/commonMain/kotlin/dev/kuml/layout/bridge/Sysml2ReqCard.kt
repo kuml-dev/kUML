@@ -40,10 +40,26 @@ public object Sysml2ReqCard {
         val dividerY: Float?,
         val bodyFirstBaseline: Float,
         val isAssumption: Boolean,
+        /** Wave 2E-a: card of an external requirement stub (drawn with a dashed border and «external»). */
+        val isExternal: Boolean = false,
     )
+
+    /**
+     * Wave 2E-a: [req] with a `subjectRef` replaced by the **name** of the referenced definition (the card then reads
+     * `subject: <Name>` instead of `subject: <id>`). Unresolvable references keep the id. The bridge sizes the card and
+     * the SVG renderer draws it from the same resolved requirement, so both always agree on the text.
+     */
+    public fun withResolvedSubject(
+        req: RequirementDefinition,
+        nameOf: (String) -> String?,
+    ): RequirementDefinition {
+        val ref = req.subjectRef ?: return req
+        return req.copy(subjectRef = null, subject = nameOf(ref) ?: ref)
+    }
 
     /** Layout of a [RequirementDefinition] card. */
     public fun forRequirement(req: RequirementDefinition): Card {
+        if (req.externalSource != null) return forExternal(req)
         val body = mutableListOf<Pair<String, Boolean>>() // text, isWrappable
         val rawTitle = if (req.reqId.isNotEmpty()) "${req.reqId} :: ${req.name}" else req.name
         val attrs = mutableListOf<String>()
@@ -61,6 +77,18 @@ public object Sysml2ReqCard {
         )
     }
 
+    /**
+     * Wave 2E-a: card of an external requirement stub - stereotype «external», the requirement id as title, the source
+     * document and the text (if any) as body.
+     */
+    public fun forExternal(req: RequirementDefinition): Card {
+        val blocks = mutableListOf<String>()
+        blocks += "source: ${clip(s = req.externalSource.orEmpty(), max = SOURCE_MAX_CHARS)}"
+        if (req.text.isNotEmpty()) blocks += clip(s = req.text, max = TEXT_MAX_CHARS)
+        val rawTitle = req.reqId.ifEmpty { req.name }
+        return build(stereotype = "«external»", rawTitle = rawTitle, blocks = blocks, assumption = false, external = true)
+    }
+
     /** Layout of a [TestCaseDefinition] card. */
     public fun forTestCase(tc: TestCaseDefinition): Card =
         build(
@@ -75,6 +103,7 @@ public object Sysml2ReqCard {
         rawTitle: String,
         blocks: List<String>,
         assumption: Boolean,
+        external: Boolean = false,
     ): Card {
         val title = clip(s = rawTitle, max = TITLE_MAX_CHARS)
         val longestBlock = blocks.maxOfOrNull { b -> b.split(Regex("\\s+")).maxOfOrNull { it.length } ?: 0 } ?: 0
@@ -104,6 +133,7 @@ public object Sysml2ReqCard {
             dividerY = dividerY,
             bodyFirstBaseline = bodyFirst,
             isAssumption = assumption,
+            isExternal = external,
         )
     }
 

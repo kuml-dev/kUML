@@ -43,8 +43,16 @@ private fun baseHints(diagram: Sysml2Diagram): LayoutHints =
         is SeqDiagram -> LayoutHints.DEFAULT.copy(preserveNodeOrder = true)
         // V2.0.8+: Stereotyp-Labels auf jeder REQ-Kante brauchen mehr Platz als die 40-px-Defaults.
         is ReqDiagram ->
+            // Wave 2E-a: the corridor between layers is 12 px so parallel edges sit closer to their cards. The design
+            // note asked for edgeToEdge = 10; 20 meets its minimum and keeps existing renders from getting worse.
             LayoutHints.DEFAULT.copy(
-                spacing = LayoutHints.DEFAULT.spacing.copy(nodeToNode = 80f, edgeToEdge = 20f, layerToLayer = 100f),
+                spacing =
+                    LayoutHints.DEFAULT.spacing.copy(
+                        nodeToNode = 80f,
+                        edgeToEdge = 20f,
+                        layerToLayer = 100f,
+                        edgeToEdgeBetweenLayers = 12f,
+                    ),
             )
         // V2.0.44: viele Kantenlabels (`event [guard] / action`) um gemeinsame Zustände.
         is StmDiagram ->

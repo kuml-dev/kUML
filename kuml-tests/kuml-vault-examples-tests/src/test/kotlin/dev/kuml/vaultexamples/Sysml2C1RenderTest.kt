@@ -62,9 +62,13 @@ class Sysml2C1RenderTest :
             )) {
                 svg shouldContain "id=\"$id\""
             }
-            for (stereo in listOf("«satisfy»", "«verify»", "«deriveReqt»", "«containment»", "«refine»", "«trace»", "«copy»", "«subject»")) {
+            for (stereo in listOf("«satisfy»", "«verify»", "«deriveReqt»", "«refine»", "«trace»", "«copy»")) {
                 svg shouldContain stereo
             }
+            // wave 2E-a: containment is a crosshair at the parent (no text label), subject edges are opt-in
+            svg shouldContain "kuml-containment-crosshair"
+            svg shouldNotContain "«containment»"
+            svg shouldNotContain "«subject»"
             svg shouldContain "«testCase»"
             svg shouldContain "«assumption»"
             // the assumption box has a dashed border, the plain requirements do not

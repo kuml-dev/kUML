@@ -94,6 +94,11 @@ public data class NodeHints(
     val layerIndex: Int? = null,
     /** Knoten auf die erste bzw. letzte Ebene festnageln (ELK: layerConstraint). */
     val layerPin: LayerPin? = null,
+    /**
+     * Wave 2E-a (requirement group grid): marks a block that is drawn on the rail next to the grid (when it is not
+     * a member of a group) instead of inside the grid.
+     */
+    val rail: Boolean = false,
 ) {
     public companion object {
         /** NodeHints ohne jegliche Einschränkungen — vollständig automatisches Layout. */

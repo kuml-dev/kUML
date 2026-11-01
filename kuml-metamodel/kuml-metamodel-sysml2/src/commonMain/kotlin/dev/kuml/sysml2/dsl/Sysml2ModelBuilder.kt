@@ -339,6 +339,30 @@ class Sysml2ModelBuilder(
     }
 
     /**
+     * Wave 2E-a: stub for a requirement that is defined in another document ([source]). The stub has the id
+     * `ext:<reqId>`, is drawn dashed with «external» and may be the source or target of `copy` and `derive`.
+     * Calling this twice with the same [reqId] returns the existing stub (no duplicate registration).
+     */
+    fun externalRequirement(
+        reqId: String,
+        source: String,
+        text: String? = null,
+    ): RequirementDefinition {
+        val id = "ext:$reqId"
+        (definitions.firstOrNull { it.id == id } as? RequirementDefinition)?.let { return it }
+        val def =
+            RequirementDefinition(
+                id = id,
+                name = reqId,
+                reqId = reqId,
+                text = text.orEmpty(),
+                externalSource = source,
+            )
+        definitions += def
+        return def
+    }
+
+    /**
      * `test case def TopSpeedTest { … }` — C1 verification element of a
      * [ReqDiagram]; source of `verify` edges.
      */

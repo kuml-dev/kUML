@@ -14,6 +14,7 @@ import dev.kuml.layout.LayoutGroup
 import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.LayoutPort
 import dev.kuml.layout.LayoutResult
+import dev.kuml.layout.NodeHints
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
@@ -930,7 +931,9 @@ public object Sysml2LayoutBridge {
                     if (req == null) {
                         dev.kuml.layout.Size(width = REQ_DEFAULT_WIDTH, height = REQ_DEFAULT_HEIGHT)
                     } else {
-                        val card = Sysml2ReqCard.forRequirement(req)
+                        val resolved =
+                            Sysml2ReqCard.withResolvedSubject(req = req) { ref -> model.definitions.firstOrNull { it.id == ref }?.name }
+                        val card = Sysml2ReqCard.forRequirement(resolved)
                         dev.kuml.layout.Size(width = card.width, height = card.height)
                     }
                 }
@@ -1275,10 +1278,13 @@ public object Sysml2LayoutBridge {
                 LayoutNode(
                     id = NodeId(def.id),
                     intrinsicSize = sizeProvider.sizeOf(elementId = def.id, elementKind = kind),
+                    hints = if (def is PartDefinition) NodeHints(rail = true) else NodeHints.NONE,
                 )
         }
         val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
 
+        // Determinism (wave 2E-a): nodes follow `elementIds`, edges are emitted in a fixed kind order
+        // (satisfy, verify, derive, contains, refine, trace, copy, subject), each list in declaration order.
         val edges = mutableListOf<LayoutEdge>()
 
         for (sat in diagram.satisfies) {
@@ -1338,10 +1344,14 @@ public object Sysml2LayoutBridge {
             if (c.sourceRequirementId !in visibleNodeIds || c.targetRequirementId !in visibleNodeIds) continue
             edges += reqEdge(id = c.id, source = c.sourceRequirementId, target = c.targetRequirementId)
         }
-        for (id in diagram.elementIds) {
+        // Wave 2E-a: «subject» edges are opt-in (`layout { showSubjectEdges = true }`); by default the subject is a text
+        // line in the card. Pairs that already have a «satisfy» edge (either direction) never get a second line.
+        val satisfied = diagram.satisfies.flatMap { listOf(it.sourceId to it.requirementId, it.requirementId to it.sourceId) }.toSet()
+        for (id in if (diagram.layout?.showSubjectEdges == true) diagram.elementIds else emptyList()) {
             val req = model.definitions.firstOrNull { it.id == id } as? RequirementDefinition ?: continue
             val ref = req.subjectRef ?: continue
             if (id !in visibleNodeIds || ref !in visibleNodeIds || ref == id) continue
+            if (id to ref in satisfied) continue
             edges += reqEdge(id = "${ReqEdgeAdapter.SUBJECT_EDGE_PREFIX}$id::$ref", source = id, target = ref)
         }
 

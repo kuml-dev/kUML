@@ -4,6 +4,7 @@ import dev.kuml.core.model.layout.LayoutLimits
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActivityPartitionDefinition
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2LayoutFlow
@@ -37,6 +38,7 @@ public data class LayoutIssue(
  * | 435 | Error | an id is both in `first` and in `last` |
  * | 436 | Warning | two elements of one `sameLayer` group are connected by an edge |
  * | 437 | Error | `maxWidth` outside 200..20000 or `aspectRatio` outside 0.1..10 (or not a finite number), or `labelMaxWidth` outside 120..400 |
+ * | 438 | Warning | `showSubjectEdges` is set on a diagram that is not a requirement diagram (wave 2E-a) |
  */
 public object Sysml2LayoutHintChecker {
     public fun check(
@@ -58,11 +60,25 @@ public object Sysml2LayoutHintChecker {
         }
         val issues = mutableListOf<LayoutIssue>()
         val visible: Set<String> =
-            if (diagram.elementIds.isEmpty()) {
-                (model.definitions.map { it.id } + model.usages.map { it.id }).toSet()
-            } else {
-                diagram.elementIds.toSet()
-            }
+            (
+                if (diagram.elementIds.isEmpty()) {
+                    (model.definitions.map { it.id } + model.usages.map { it.id }).toSet()
+                } else {
+                    diagram.elementIds.toSet()
+                }
+            ) +
+                // Wave 2E-a: requirement groups are valid `sameLayer` members (rows of the group grid).
+                (diagram as? ReqDiagram)?.groups.orEmpty().map { it.id }
+        if (spec.showSubjectEdges != null && diagram !is ReqDiagram) {
+            issues +=
+                LayoutIssue(
+                    code = 438,
+                    severity = LayoutSeverity.Warning,
+                    elementId = name,
+                    message = "showSubjectEdges has no effect outside requirement diagrams.",
+                    hint = "Remove it from this layout block.",
+                )
+        }
         val cap = Sysml2Limits.LAYOUT_GROUPS * Sysml2Limits.LAYOUT_IDS_PER_GROUP
         val all = (spec.first + spec.last + spec.sameLayer.flatten()).take(cap).distinct()
         for (id in all) {

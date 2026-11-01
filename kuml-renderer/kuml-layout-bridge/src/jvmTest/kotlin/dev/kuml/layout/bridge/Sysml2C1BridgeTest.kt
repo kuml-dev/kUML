@@ -76,8 +76,39 @@ class Sysml2C1BridgeTest :
             // depth 4 is flattened to depth 3: sibling of L3
             byId.getValue("group:L1/L2/L3/L4").parent shouldBe GroupId("group:L1/L2")
             g.nodes.single { it.id.value == "B" }.groupId shouldBe GroupId("group:L1/L2/L3/L4")
-            g.edges.map { it.id.value } shouldContainExactlyInAnyOrder
+            // Wave 2E-a: «subject» edges are opt-in, the default graph has none.
+            g.edges.map { it.id.value } shouldContainExactlyInAnyOrder listOf("refine:P::A", "trace:A::B", "copy:A::B")
+            val withSubjects =
+                Sysml2LayoutBridge.toLayoutGraph(
+                    model = model,
+                    diagram =
+                        diagram.copy(
+                            layout =
+                                dev.kuml.core.model.layout
+                                    .LayoutSpec(showSubjectEdges = true),
+                        ),
+                )
+            withSubjects.edges.map { it.id.value } shouldContainExactlyInAnyOrder
                 listOf("refine:P::A", "trace:A::B", "copy:A::B", "subject:A::P")
+        }
+
+        test("REQ graph: an opt-in «subject» edge is dropped when a «satisfy» edge already connects the pair (wave 2E-a)") {
+            val model =
+                sysml2Model(name = "M") {
+                    val p = partDef(name = "P")
+                    val a = requirementDef(name = "A", subjectRef = "P")
+                    reqDiagram(name = "R") {
+                        include(p)
+                        include(a)
+                        satisfy(source = p, requirement = a)
+                        layout { showSubjectEdges = true }
+                    }
+                }
+            val diagram = model.diagrams.filterIsInstance<ReqDiagram>().single()
+            Sysml2LayoutBridge
+                .toLayoutGraph(model = model, diagram = diagram)
+                .edges
+                .map { it.id.value } shouldContainExactlyInAnyOrder listOf("satisfy:P::A")
         }
 
         test("UC graph: use cases are children of the subject frame, actors are not") {

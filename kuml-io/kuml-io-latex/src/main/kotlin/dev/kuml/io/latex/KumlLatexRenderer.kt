@@ -807,6 +807,7 @@ public object KumlLatexRenderer {
         // Welle B: composition / aggregation diamonds sit on the source (owner) end.
         appendLine("$indent  kuml-sysml2-edge-diamond-filled/.style={draw=black, line width=0.6pt, {Diamond[length=3mm]}-},")
         appendLine("$indent  kuml-sysml2-edge-diamond-open/.style={draw=black, line width=0.6pt, {Diamond[open, length=3mm]}-},")
+        appendLine("$indent  kuml-sysml2-edge-containment/.style={draw=black, line width=0.6pt, {Circle[open, length=3mm]}-},")
         // C4 node styles — one per C4 element kind.
         appendLine(
             "$indent  kuml-c4-person/.style={draw=black, fill=white, line width=0.6pt, " +

@@ -2030,6 +2030,8 @@ public object KumlSvgRenderer {
         plannedEdgeLabels: Map<String, dev.kuml.layout.bridge.label.PlacedLabel> = emptyMap(),
         viewBox: dev.kuml.layout.Rect? = null,
         fitViewBox: Boolean = false,
+        suppressLabelEdgeIds: Set<String> = emptySet(),
+        labelFrameStrips: Boolean = false,
     ): String {
         // Widen the frame (and canvas) BEFORE computing anything padding-relative
         // below, so every subsequent step already sees the final geometry — see
@@ -2218,7 +2220,7 @@ public object KumlSvgRenderer {
                                 leashLabels = leashLabels,
                                 plannedLabel = drawnLabels[edgeId.value],
                             )
-                            if (placeLabelsOnLine) {
+                            if (placeLabelsOnLine && edgeId.value !in suppressLabelEdgeIds) {
                                 Sysml2EdgeRenderer.pendingLabelOf(id = edgeId.value, metadata = meta)?.let { pendingLabels += it }
                             }
                         } else {
@@ -2251,10 +2253,13 @@ public object KumlSvgRenderer {
                         }
                     val nodeFillHex = theme.colors.effectiveNodeFill.toHex()
                     val paperHex = edgeBackdropFill ?: theme.colors.background.toHex()
+                    // Wave 2E-a: a label never sits on a group frame - its four border strips (+-6 px) and the tab are obstacles.
+                    val frameObstacles = if (labelFrameStrips) groupRects.flatMap { frameStrips(it) } else emptyList()
                     Sysml2EdgeRenderer.emitLabelsOnLine(
                         pending = pendingLabels,
                         allRoutes = shiftedRoutes,
                         obstacles = nodeRects,
+                        hardObstacles = frameObstacles,
                         backdropFor = { r ->
                             val cx = r.origin.x + r.size.width / 2f
                             val cy = r.origin.y + r.size.height / 2f
@@ -2705,14 +2710,37 @@ public object KumlSvgRenderer {
                         it is UseCaseDefinition ||
                         it is ActorDefinition
                 }
+        // Wave 2E-a: the card shows `subject: <Name>`; resolve subjectRef exactly like the layout bridge did for the size.
+        val resolvedElements =
+            elements.map { el ->
+                if (el is RequirementDefinition) {
+                    dev.kuml.layout.bridge.Sysml2ReqCard.withResolvedSubject(
+                        req = el,
+                    ) { ref -> model.definitions.firstOrNull { it.id == ref }?.name }
+                } else {
+                    el
+                }
+            }
+        // One «satisfy» label per source: the satisfy edge with the smallest id carries it, its siblings stay unlabelled.
+        // Only satisfy edges the layout bridge actually draws (both ends visible) take part in the grouping.
+        val drawnIds = elements.map { it.id }.toSet()
+        val satisfyLabelSuppressed =
+            diagram.satisfies
+                .filter { it.sourceId in drawnIds && it.requirementId in drawnIds }
+                .groupBy { it.sourceId }
+                .values
+                .flatMap { edges -> edges.map { it.id }.sorted().drop(1) }
+                .toSet()
         val synthetic =
             KumlDiagram(
                 name = diagram.name,
                 type = DiagramType.CLASS,
-                elements = elements + sysml2NoteElements(model),
+                elements = resolvedElements + sysml2NoteElements(model),
             )
         return renderSysml2Synthetic(
             synthetic = synthetic,
+            suppressLabelEdgeIds = satisfyLabelSuppressed,
+            labelFrameStrips = true,
             rawLayoutResult = placeSysml2Notes(model = model, diagram = diagram, layout = layoutResult, adapter = ReqEdgeAdapter(diagram)),
             theme = theme,
             options = options,
@@ -6268,6 +6296,41 @@ public object KumlSvgRenderer {
 }
 
 // Suppress unused import warning for NodeId/EdgeId/GroupId — used via layoutResult
+
+/**
+ * Wave 2E-a: the parts of a group frame an edge label must not touch - the left, right and bottom border as 12 px
+ * strips and the header band (border plus tab) on top.
+ */
+private fun frameStrips(frame: dev.kuml.layout.Rect): List<dev.kuml.layout.Rect> {
+    val x = frame.origin.x
+    val y = frame.origin.y
+    val w = frame.size.width
+    val h = frame.size.height
+    val d = 6f
+    return listOf(
+        dev.kuml.layout.Rect(
+            origin = dev.kuml.layout.Point(x = x - d, y = y - d),
+            size =
+                dev.kuml.layout.Size(
+                    width = w + 2 * d,
+                    height =
+                        28f + d,
+                ),
+        ),
+        dev.kuml.layout.Rect(origin = dev.kuml.layout.Point(x = x - d, y = y), size = dev.kuml.layout.Size(width = 2 * d, height = h)),
+        dev.kuml.layout.Rect(origin = dev.kuml.layout.Point(x = x + w - d, y = y), size = dev.kuml.layout.Size(width = 2 * d, height = h)),
+        dev.kuml.layout.Rect(
+            origin = dev.kuml.layout.Point(x = x - d, y = y + h - d),
+            size =
+                dev.kuml.layout.Size(
+                    width = w + 2 * d,
+                    height =
+                        2 * d,
+                ),
+        ),
+    )
+}
+
 @Suppress("UnusedPrivateMember")
 private fun unusedImportSuppressor(
     a: NodeId,

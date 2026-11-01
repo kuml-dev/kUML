@@ -249,7 +249,50 @@ reqDiagram("Requirements") {
 * Swimlane (partition) activity diagrams are drawn top to bottom only; another `direction` is reported as `LAYOUT433`.
 * Checks: `LAYOUT431` unknown id, `LAYOUT432` `wrapColumns` outside 1..32, `LAYOUT434` too many groups/ids,
   `LAYOUT435` id in `first` and `last`, `LAYOUT436` connected elements in one `sameLayer` group,
-  `LAYOUT437` `maxWidth`/`aspectRatio`/`labelMaxWidth` out of range.
+  `LAYOUT437` `maxWidth`/`aspectRatio`/`labelMaxWidth` out of range, `LAYOUT438` `showSubjectEdges` on a diagram
+  that is not a requirement diagram (wave 2E-a).
+
+=== Requirement groups as a grid (wave 2E-a)
+
+ELK ignores layer hints for nodes inside compound groups, so a requirement diagram with `group { }` frames used to
+lose `wrapColumns` and `sameLayer`. A requirement diagram that has groups **and** one of `wrapColumns`, `aspectRatio`,
+`maxWidth` or a `sameLayer` of groups is laid out as a grid instead (without any of these options the node placement is
+the same as before):
+
+[source,kotlin]
+----
+reqDiagram("Platform") {
+    val functional = group("Functional") { include(boot); include(update) }
+    val safety = group("Safety") { include(auth); group("Fail-safe") { include(failSafe) } }
+    val perf = group("Performance") { include(latency) }
+    val ops = group("Operations") { include(logs) }
+    layout {
+        wrapColumns = 2              // 2 x 2 grid of frames
+        sameLayer(perf, ops)         // these two frames share a row
+        showSubjectEdges = false     // default; true draws a <<subject>> edge per subjectRef
+    }
+}
+----
+
+* The top-level groups, in declaration order, are the cells of the grid, plus one trailing cell for requirements that
+  are in no group. Cells are aligned top left; the gap is 40 px.
+* The column count is `wrapColumns` (at most the number of cells). Without it the grid picks the count whose canvas
+  is closest to `aspectRatio` (default 1.6; the block rail counts), within `maxWidth`; ties go to fewer columns.
+* The same rule applies inside every group: cards (in `include` order), then child groups, fill the group row by row.
+  The `include` order is the reading order.
+* `direction = Right` transposes the grid (frames are filled column by column, so `wrapColumns = 2` gives
+  A C / B D); `Up` and `Left` mirror rows and columns.
+* `sameLayer(groupA, groupB)` (group handles or the ids `group:<name>`) puts the groups in one row. If that row is
+  longer than the column count it is widened and `KUML-LAYOUT-I001` (information, not an error) says so.
+* Blocks (`partDef`) that are in no group stand on a rail left of the grid (above it with `direction = Right`
+  or `Left`), each at the mean height of the requirements it satisfies, at least 24 px apart.
+* Every edge is routed around the cards (orthogonal, inside the content box). Every requirement diagram, grid or not,
+  gets spread edge ends (at least 12 px between ends on one side, 8 px from the corners) and nudged parallel
+  segments (parallel segments of different edges that are closer than 8 px move to a 10 px pitch).
+* Determinism: the result depends only on the model. The engine seed is fixed, the model order is the tie-breaker,
+  the grid code iterates only ordered collections, and two renders of one script are byte-identical.
+* Edge labels avoid group frames; a label that finds no free spot takes the cheapest position and is never dropped. There is one `<<satisfy>>`
+  label per source block (on the satisfy edge with the smallest id), and containment has no text label.
 
 === Example: a wide requirement diagram
 

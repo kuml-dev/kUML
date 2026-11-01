@@ -29,6 +29,7 @@ import kotlin.math.sqrt
  * - [FILLED] / [FILLED_MUTED]: solid filled triangle.
  * - [DIAMOND]: hollow diamond (background fill) — UML shared aggregation.
  * - [DIAMOND_FILLED]: solid filled diamond — UML composition.
+ * - [CROSSHAIR]: circled plus (⊕) tangent to the node border — SysML requirement containment (wave 2E-a).
  */
 internal enum class ArrowStyle {
     OPEN,
@@ -39,6 +40,7 @@ internal enum class ArrowStyle {
     FILLED_MUTED,
     DIAMOND,
     DIAMOND_FILLED,
+    CROSSHAIR,
 }
 
 /** Length from arrowhead tip to its base, in pixels. */
@@ -49,6 +51,9 @@ private const val ARROW_WING = 5f
 
 /** Tip-to-back length of an aggregation/composition diamond, in pixels. */
 internal const val DIAMOND_LEN = 16f
+
+/** Radius of the circled plus of a requirement containment, in pixels (diameter 10). */
+internal const val CROSSHAIR_RADIUS = 5f
 
 /** Half-width of the diamond at its widest (mid) point, in pixels. */
 private const val DIAMOND_WING = 5f
@@ -210,6 +215,32 @@ internal fun renderInlineArrow(
                     mapOf(
                         "points" to "${fa(tip.x)},${fa(tip.y)} ${fa(lx)},${fa(ly)} ${fa(rx)},${fa(ry)}",
                         "style" to "stroke:$mutedColor;stroke-width:1;fill:$mutedColor;stroke-linejoin:round;",
+                    ),
+            )
+        }
+        ArrowStyle.CROSSHAIR -> {
+            // Circle tangent to the node border (the line starts at its far side), background fill hides the line
+            // underneath, a plus inside. The circle sits outside the node: centre = tip moved back along the line.
+            val r = CROSSHAIR_RADIUS
+            val cx = tip.x - nx * r
+            val cy = tip.y - ny * r
+            builder.tag(
+                name = "circle",
+                attrs =
+                    mapOf(
+                        "cx" to fa(cx),
+                        "cy" to fa(cy),
+                        "r" to fa(r),
+                        "class" to "kuml-containment-crosshair",
+                        "style" to "stroke:$edgeColor;stroke-width:1.5;fill:$bgColor;",
+                    ),
+            )
+            builder.tag(
+                name = "path",
+                attrs =
+                    mapOf(
+                        "d" to "M ${fa(cx - r)},${fa(cy)} L ${fa(cx + r)},${fa(cy)} M ${fa(cx)},${fa(cy - r)} L ${fa(cx)},${fa(cy + r)}",
+                        "style" to "stroke:$edgeColor;stroke-width:1.5;fill:none;",
                     ),
             )
         }

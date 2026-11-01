@@ -34,6 +34,9 @@ open class LayoutSpecBuilder protected constructor() {
     /** Wrap width of edge labels in px (state machines only; 120..400, default 220). */
     var labelMaxWidth: Int? = null
 
+    /** Requirement diagrams only: draw a «subject» edge per `subjectRef` (default: off). */
+    protected var showSubjectEdgesValue: Boolean? = null
+
     private val sameLayerGroups = mutableListOf<List<String>>()
     private val firstIds = mutableListOf<String>()
     private val lastIds = mutableListOf<String>()
@@ -75,6 +78,7 @@ open class LayoutSpecBuilder protected constructor() {
             maxWidth = maxWidth,
             aspectRatio = aspectRatio,
             labelMaxWidth = labelMaxWidth,
+            showSubjectEdges = showSubjectEdgesValue,
         )
 }
 

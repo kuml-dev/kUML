@@ -96,6 +96,23 @@ class Sysml2LayoutBuilder internal constructor() : LayoutSpecBuilder() {
         addSameLayer(elements.map { it.id })
     }
 
+    /**
+     * Requirement diagrams (wave 2E-a): places the given requirement groups in the same grid row.
+     */
+    fun sameLayer(vararg groups: dev.kuml.sysml2.RequirementGroup) {
+        addSameLayer(groups.map { it.id })
+    }
+
+    /**
+     * Requirement diagrams only (wave 2E-a): draw a «subject» edge for every requirement with a `subjectRef`.
+     * Default `false`: the subject is shown as a `subject: <Name>` line in the card.
+     */
+    var showSubjectEdges: Boolean?
+        get() = showSubjectEdgesValue
+        set(value) {
+            showSubjectEdgesValue = value
+        }
+
     /** Id variant of [sameLayer]. */
     fun sameLayerById(vararg ids: String) {
         addSameLayer(ids.toList())

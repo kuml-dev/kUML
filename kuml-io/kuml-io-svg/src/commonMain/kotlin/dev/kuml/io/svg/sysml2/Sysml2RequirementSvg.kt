@@ -83,8 +83,8 @@ private fun renderCard(
                     put("rx", fmt(cornerRadius))
                     put("ry", fmt(cornerRadius))
                 }
-                // Assumption: dashed border.
-                if (card.isAssumption) put("stroke-dasharray", "4 3")
+                // Assumption and external stub (wave 2E-a): dashed border.
+                if (card.isAssumption || card.isExternal) put("stroke-dasharray", "4 3")
             }
         tag(name = "rect", attrs = rectAttrs)
 

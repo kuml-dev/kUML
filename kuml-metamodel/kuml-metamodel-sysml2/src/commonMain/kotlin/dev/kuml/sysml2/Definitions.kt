@@ -223,9 +223,14 @@ data class RequirementDefinition(
     val isAssumption: Boolean = false,
     /**
      * C1: id reference of the constrained element. Complements the free-text [subject]:
-     * when set and the target is visible in the diagram, a «subject» edge is drawn.
+     * the card shows `subject: <Name>`. Since wave 2E-a a «subject» edge is only drawn with `layout { showSubjectEdges = true }`.
      */
     val subjectRef: String? = null,
+    /**
+     * Wave 2E-a: non-null marks a stub for a requirement that lives in another document (see
+     * `externalRequirement(...)`); the value names the source document. Stubs are drawn dashed with «external».
+     */
+    val externalSource: String? = null,
 ) : Sysml2Definition
 
 /** Requirement priority (C1). */

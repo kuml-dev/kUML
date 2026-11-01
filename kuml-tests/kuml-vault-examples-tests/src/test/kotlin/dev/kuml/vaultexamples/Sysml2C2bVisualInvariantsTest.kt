@@ -99,7 +99,7 @@ class Sysml2C2bVisualInvariantsTest :
 
         fun labels(svg: String): Map<String, R> =
             Regex(
-                "<g class=\"kuml-edge-label\" data-edge-id=\"([^\"]+)\">\\s*<rect x=\"([-0-9.]+)\" y=\"([-0-9.]+)\" width=\"([-0-9.]+)\" height=\"([-0-9.]+)\"",
+                "<g class=\"kuml-edge-label\" data-edge-id=\"([^\"]+)\"[^>]*>\\s*<rect x=\"([-0-9.]+)\" y=\"([-0-9.]+)\" width=\"([-0-9.]+)\" height=\"([-0-9.]+)\"",
             ).findAll(svg)
                 .associate {
                     it.groupValues[1] to

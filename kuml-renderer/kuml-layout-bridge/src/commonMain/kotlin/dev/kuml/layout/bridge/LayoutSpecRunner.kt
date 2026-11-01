@@ -71,6 +71,7 @@ public object LayoutSpecRunner {
                 if (spec.maxWidth != null) add(LayoutOption.MAX_WIDTH)
                 if (spec.aspectRatio != null) add(LayoutOption.ASPECT_RATIO)
                 if (spec.labelMaxWidth != null) add(LayoutOption.LABEL_MAX_WIDTH)
+                if (spec.showSubjectEdges != null) add(LayoutOption.SHOW_SUBJECT_EDGES)
             }
         val effective = LayoutEffectMatrix.effectiveFor(kind)
         return set.filter { it !in effective }
@@ -129,14 +130,50 @@ public object LayoutSpecRunner {
         kind: SpecDiagramKind = SpecDiagramKind.UML_CLASS,
         diagramName: String? = null,
     ): SpecLayoutOutcome {
+        val outcome = layoutInner(engine = engine, graph = graph, hints = hints, spec = spec, kind = kind, diagramName = diagramName)
+        // Wave 2E-a: every requirement diagram (grid or legacy) gets spread endpoints and nudged parallel segments.
+        return if (kind ==
+            SpecDiagramKind.SYSML2_REQ
+        ) {
+            outcome.copy(result = ReqEdgeBands.apply(result = outcome.result, graph = graph))
+        } else {
+            outcome
+        }
+    }
+
+    private fun layoutInner(
+        engine: KumlLayoutEngine,
+        graph: LayoutGraph,
+        hints: LayoutHints,
+        spec: LayoutSpec?,
+        kind: SpecDiagramKind,
+        diagramName: String?,
+    ): SpecLayoutOutcome {
         val findings = mutableListOf<LayoutSpecFinding>()
         findings += noEffectFindings(spec = spec, kind = kind, diagramName = diagramName)
         if (LayoutEffectMatrix.effectiveFor(kind).isEmpty()) {
             return SpecLayoutOutcome(result = engine.layout(graph = graph, hints = hints), findings = findings)
         }
         val checked = sanitize(spec = spec, findings = findings)
-        checkIds(spec = checked, graph = graph, findings = findings)
+        checkIds(spec = checked, graph = graph, findings = findings, withGroups = kind == SpecDiagramKind.SYSML2_REQ)
         val effectiveHints = hintsWith(base = hints, spec = checked)
+        if (kind == SpecDiagramKind.SYSML2_REQ && checked != null && ReqGroupGrid.applies(graph = graph, spec = checked)) {
+            // Wave 2E-a: group grid. The aspect iteration below is skipped, the grid chooses its own column count.
+            val gridResult =
+                ReqGroupGrid.layout(engine = engine, graph = graph, hints = effectiveHints, spec = checked, findings = findings)
+            val horizontalFlow =
+                effectiveHints.direction == LayoutDirection.LeftToRight || effectiveHints.direction == LayoutDirection.RightToLeft
+            reportUnreached(
+                result = gridResult,
+                target = checked.aspectRatio,
+                maxWidth = checked.maxWidth,
+                horizontal = horizontalFlow,
+                explicit = checked.aspectRatio != null || checked.maxWidth != null,
+                bothSides = checked.aspectRatio != null,
+                findings = findings,
+            )
+            return SpecLayoutOutcome(result = gridResult, findings = findings)
+        }
         val alignedGroups =
             if (kind == SpecDiagramKind.SYSML2_STM || kind == SpecDiagramKind.UML_STATE) {
                 checked
@@ -278,7 +315,12 @@ public object LayoutSpecRunner {
         spec: LayoutSpec?,
         graph: LayoutGraph,
         findings: MutableList<LayoutSpecFinding>,
-    ) = checkIdSet(spec = spec, known = graph.nodes.map { it.id.value }.toSet(), findings = findings)
+        withGroups: Boolean = false,
+    ) = checkIdSet(
+        spec = spec,
+        known = (graph.nodes.map { it.id.value } + if (withGroups) graph.groups.map { it.id.value } else emptyList()).toSet(),
+        findings = findings,
+    )
 
     private fun checkIdSet(
         spec: LayoutSpec?,

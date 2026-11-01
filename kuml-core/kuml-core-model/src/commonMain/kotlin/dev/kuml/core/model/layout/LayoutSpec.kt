@@ -22,6 +22,8 @@ enum class LayoutFlow { Down, Right, Up, Left }
  * @property maxWidth hard upper bound of the diagram width in px
  * @property aspectRatio soft target for width / height
  * @property labelMaxWidth wrap width of edge labels in px (state machines only, 120..400, default 220)
+ * @property showSubjectEdges requirement diagrams only (wave 2E-a): draw a «subject» edge for every `subjectRef`;
+ *   `null` / `false` (the default) shows the subject as a text line in the card instead
  */
 @Serializable
 data class LayoutSpec(
@@ -33,6 +35,7 @@ data class LayoutSpec(
     val maxWidth: Int? = null,
     val aspectRatio: Double? = null,
     val labelMaxWidth: Int? = null,
+    val showSubjectEdges: Boolean? = null,
 ) {
     /** True if the spec carries no hint at all. */
     val isEmpty: Boolean
@@ -44,7 +47,8 @@ data class LayoutSpec(
                 last.isEmpty() &&
                 maxWidth == null &&
                 aspectRatio == null &&
-                labelMaxWidth == null
+                labelMaxWidth == null &&
+                showSubjectEdges == null
 
     /** Merges [next] onto this spec: scalars of [next] win when set, lists are appended. */
     fun mergedWith(next: LayoutSpec): LayoutSpec =
@@ -57,11 +61,12 @@ data class LayoutSpec(
             maxWidth = next.maxWidth ?: maxWidth,
             aspectRatio = next.aspectRatio ?: aspectRatio,
             labelMaxWidth = next.labelMaxWidth ?: labelMaxWidth,
+            showSubjectEdges = next.showSubjectEdges ?: showSubjectEdges,
         )
 }
 
 /** The options of a `layout { }` block; used by the effect matrix and by diagnostics. */
-enum class LayoutOption { DIRECTION, WRAP_COLUMNS, SAME_LAYER, FIRST, LAST, MAX_WIDTH, ASPECT_RATIO, LABEL_MAX_WIDTH }
+enum class LayoutOption { DIRECTION, WRAP_COLUMNS, SAME_LAYER, FIRST, LAST, MAX_WIDTH, ASPECT_RATIO, LABEL_MAX_WIDTH, SHOW_SUBJECT_EDGES }
 
 /** Hard bounds for [LayoutSpec] values (DoS protection against hostile input). */
 object LayoutLimits {
@@ -79,6 +84,21 @@ object LayoutLimits {
     const val IMPLICIT_FRAME = 2.5
     const val ASPECT_TOLERANCE = 0.15
     const val MAX_ITERATIONS = 2
+
+    /** Wave 2E-a group grid (requirement diagrams): gap between grid cells in px. */
+    const val GRID_GUTTER_PX = 40f
+
+    /** Gap between the block rail and the grid in px. */
+    const val RAIL_GAP_PX = 48f
+
+    /** Minimum gap between two blocks of the rail in px. */
+    const val RAIL_BLOCK_GAP_PX = 24f
+
+    /** Target width / height of the automatic column count when only `aspectRatio` / `maxWidth` is set. */
+    const val GRID_DEFAULT_ASPECT = 1.6
+
+    /** At most this many groups take part in the grid (matches the requirement checker's group limit). */
+    const val GRID_MAX_GROUPS = 64
 }
 
 /** Diagnostic codes of the `layout { }` block. */
@@ -91,4 +111,7 @@ object LayoutCodes {
     /** A label of a parametric diagram has no free spot and sits on its own line (PAL wave 2C-b3). */
     const val LABEL_NO_FREE_SPOT = "KUML-LAYOUT-W005"
     const val OUT_OF_RANGE = "KUML-LAYOUT-E001"
+
+    /** Informational: a `sameLayer` of groups widens its row beyond the column count (wave 2E-a). Not an error. */
+    const val SAME_LAYER_WIDENS_ROW = "KUML-LAYOUT-I001"
 }

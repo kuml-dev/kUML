@@ -178,6 +178,9 @@ public enum class Sysml2ArrowHead {
 
     /** Hollow diamond (aggregation). */
     OpenDiamond,
+
+    /** Circled plus (⊕) at the owning end of a requirement containment (wave 2E-a). */
+    ContainmentCrosshair,
 }
 
 // ─── UC ──────────────────────────────────────────────────────────────────
@@ -242,16 +245,17 @@ public class UcEdgeAdapter(
 // ─── REQ ─────────────────────────────────────────────────────────────────
 
 /**
- * Requirement Diagram adapter (V2.0.13). All four edge kinds are dashed
+ * Requirement Diagram adapter (V2.0.13). `satisfy`, `verify` and `deriveReqt` are dashed
  * with `OpenAngle` arrow heads and carry the canonical SysML 2 stereotype
- * label. The naming mirrors the SysML 2 spec rather than the metamodel
+ * label; since wave 2E-a containment is a solid line without text and with a circled plus
+ * ([Sysml2ArrowHead.ContainmentCrosshair]) at the parent end. The naming mirrors the SysML 2 spec rather than the metamodel
  * type names: `containment` (not `contains`), `deriveReqt` (not `derive`),
  * `satisfy`, `verify`.
  *
  *  - [ReqSatisfy] → `«satisfy»`
  *  - [ReqVerify] → `«verify»`
  *  - [ReqDerive] → `«deriveReqt»`
- *  - [ReqContains] → `«containment»`
+ *  - [ReqContains] → circled plus at the parent (formerly `«containment»`)
  */
 public class ReqEdgeAdapter(
     diagram: ReqDiagram,
@@ -309,10 +313,10 @@ public class ReqEdgeAdapter(
                 arrowHead = Sysml2ArrowHead.OpenAngle,
             )
         public val METADATA_CONTAINS: Sysml2EdgeMetadata =
+            // Wave 2E-a: SysML notation - solid line, circled plus at the parent, no arrow head and no text label.
             Sysml2EdgeMetadata(
-                stereotype = "«containment»",
-                dashArray = "5 4",
-                arrowHead = Sysml2ArrowHead.OpenAngle,
+                arrowHead = Sysml2ArrowHead.ContainmentCrosshair,
+                headAtSource = true,
             )
         public val METADATA_REFINE: Sysml2EdgeMetadata =
             Sysml2EdgeMetadata(stereotype = "«refine»", dashArray = "5 4", arrowHead = Sysml2ArrowHead.OpenAngle)

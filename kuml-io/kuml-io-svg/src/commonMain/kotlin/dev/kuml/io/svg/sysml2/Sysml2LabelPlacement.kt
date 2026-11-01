@@ -21,7 +21,7 @@ internal data class LabelRequest(
  * box, which gets an opaque backdrop). The longest segments are tried first; on a collision the
  * label slides along the segment by `+-(labelW + 8)`, and finally moves to the next segment.
  * A candidate is rejected in favour of a cheaper one if it touches another edge, a node, or an
- * already placed label. Geometry is font independent (callers pass estimated widths).
+ * already placed label; hard obstacles (wave 2E-a: group frame strips) cost a lot, but a label is never dropped. Geometry is font independent (callers pass estimated widths).
  */
 internal object Sysml2LabelPlacement {
     private const val GAP = 8f
@@ -29,6 +29,7 @@ internal object Sysml2LabelPlacement {
     private const val INFLATE = 2f
     private const val MAX_SEGMENTS = 8
     private const val MAX_ITER = 20_000
+    private const val HARD_COST = 1000f
 
     private data class Seg(
         val edge: String,
@@ -41,6 +42,7 @@ internal object Sysml2LabelPlacement {
         requests: List<LabelRequest>,
         allRoutes: Map<String, List<Point>>,
         obstacles: List<Rect>,
+        hardObstacles: List<Rect> = emptyList(),
     ): Map<String, Rect> {
         val segs = ArrayList<Seg>()
         for ((id, pl) in allRoutes.entries.sortedBy { it.key }) {
@@ -60,7 +62,8 @@ internal object Sysml2LabelPlacement {
                     if (++iter > MAX_ITER) break@search
                     val cost =
                         cost(r = c, ownId = req.id, segs = segs, obstacles = obstacles, placed = placed.values) +
-                            (if (isAxis(seg)) 0f else 0.5f)
+                            (if (isAxis(seg)) 0f else 0.5f) +
+                            (if (hardObstacles.any { overlaps(a = c, b = it) }) HARD_COST else 0f)
                     if (cost < bestCost) {
                         bestCost = cost
                         best = c
@@ -76,6 +79,8 @@ internal object Sysml2LabelPlacement {
                         size = dev.kuml.layout.Size(width = req.w, height = req.h),
                     )
             }
+            // Wave 2E-a: a label is never dropped. If every candidate touches a hard obstacle (a group frame strip),
+            // the cheapest one is kept: a label next to a frame is better than a stereotype edge without its label.
             placed[req.id] = best
         }
         return placed
@@ -94,7 +99,7 @@ internal object Sysml2LabelPlacement {
         val lo = min(along / 2f + END_MARGIN, len / 2f)
         val hi = max(len - along / 2f - END_MARGIN, len / 2f)
         val ts = ArrayList<Float>()
-        for (k in listOf(0, 1, -1, 2, -2)) {
+        for (k in listOf(0, 1, -1, 2, -2, 3, -3, 4, -4)) {
             val t = len / 2f + k * step
             if (t in lo..hi) ts += t
         }

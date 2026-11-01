@@ -23,11 +23,12 @@ import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UseCaseDefinition
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 
 /**
  * V2.0.13 — verifies that all four SysML 2 traceability stereotypes
- * (`«satisfy»`, `«verify»`, `«deriveReqt»`, `«containment»`) appear in
- * the SVG output and that the edges render dashed.
+ * (`«satisfy»`, `«verify»`, `«deriveReqt»`) appear in the SVG output, that the edges render dashed and (wave 2E-a)
+ * that containment is drawn as a circled plus instead of a text label.
  */
 class Sysml2ReqEdgeLabelSvgTest :
     StringSpec({
@@ -110,12 +111,14 @@ class Sysml2ReqEdgeLabelSvgTest :
                 groups = emptyMap(),
             )
 
-        "all four REQ stereotypes appear in the SVG output" {
+        "the three dashed REQ stereotypes appear as text, containment is a crosshair (wave 2E-a)" {
             val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "«satisfy»"
             svg shouldContain "«verify»"
             svg shouldContain "«deriveReqt»"
-            svg shouldContain "«containment»"
+            // Wave 2E-a: containment has no text label, the parent end carries a circled plus instead.
+            svg shouldNotContain "«containment»"
+            svg shouldContain "kuml-containment-crosshair"
             SampleOutput.write(filename = "sysml2-edge-labels/req-traceability.svg", content = svg)
         }
 

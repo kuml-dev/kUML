@@ -386,7 +386,10 @@ sysml2Model(name = "VehicleRequirements") {
 
 `requirementDef` accepts `priority` (`HIGH`, `MEDIUM`, `LOW`), `status` (`DRAFT` ... `VERIFIED`), `source`,
 `isAssumption = true` (dashed border, `<<assumption>>`) and `subjectRef` (the id of the constrained element;
-the diagram then draws a `<<subject>>` edge). The free-text `subject` stays available. Titles are wrapped
+the card shows a line `subject: <Name>`). Since wave 2E-a a `<<subject>>` edge is drawn only with
+`layout { showSubjectEdges = true }` (default `false`, and never for a pair that already has a `satisfy` edge);
+**migration:** diagrams that relied on the automatic subject edge add that one line to their `layout` block.
+The free-text `subject` stays available. Titles are wrapped
 instead of truncated; the box width is between 160 and 240 px and the height grows with the content.
 `testCaseDef` adds a verification element (rounded box, `<<testCase>>`). `group("Name") { ... }` draws a framed
 group with a name tab; groups nest up to three levels and an element belongs to at most one group.
@@ -458,6 +461,27 @@ sysml2Model("Vehicle Requirements") {
 }
 ----
 
+==== Containment, external requirements (wave 2E-a)
+
+`contains(parent, child)` is drawn as a solid line with a circled plus (&#8853;) at the parent, without a text
+label (the former `<<containment>>` label sat on frames and hid text). Legend: &#8853; = the owner of the
+requirement it touches; dashed with an open head = `satisfy`, `verify`, `deriveReqt`, `refine`, `trace`, `copy`.
+
+A requirement that lives in another document is referenced with `externalRequirement(reqId, source, text?)`:
+
+[source,kotlin]
+----
+val ext = externalRequirement("PAL-FB-007", source = "Dokument 11", text = "Restore within one hour.")
+reqDiagram("Doc 12") {
+    include(ext)                 // dashed card, <<external>>, "source: Dokument 11"
+    derive(localRequirement, ext)
+}
+----
+
+The stub has the id `ext:<reqId>`; calling it twice with the same `reqId` returns the same stub. It may be an end
+of `copy` and `derive`. The reference is by `reqId` inside one script; a shared workspace model library across
+documents does not exist yet.
+
 ==== Structural checks (`kuml validate`, REQ and UC)
 
 [cols="1,1,4"]
@@ -475,6 +499,7 @@ sysml2Model("Vehicle Requirements") {
 |215 |Warning |`verify` source is neither a test case nor a use case
 |216 |Warning |`refine` target is not a requirement
 |217 |Hint |Use-case description longer than four lines (truncated in the diagram)
+|218 |Warning |Two requirements of the model share a `reqId` but have different text (whitespace is normalised, case is not; pairs joined by `copy` are left to 202). The check covers the model of one script; `kuml validate` reads one file, so a comparison across files is not possible yet.
 |===
 
 `trace` is intentionally unchecked. Renderers additionally cut over-long text defensively, so a plain

@@ -376,25 +376,31 @@ public object Sysml2DslPrinter {
                     todos = todos,
                 ) { body -> printNestedFeatures(sb = body, def = def, model = model) }
             }
-            is RequirementDefinition -> {
-                if (def.reqId.isNotEmpty()) args += "reqId = ${quote(def.reqId)}"
-                if (def.text.isNotEmpty()) args += "text = ${quote(def.text)}"
-                def.subject?.let { args += "subject = ${quote(it)}" }
-                def.priority?.let { args += "priority = RequirementPriority.${it.name}" }
-                if (def.source.isNotEmpty()) args += "source = ${quote(def.source)}"
-                def.status?.let { args += "status = RequirementStatus.${it.name}" }
-                if (def.isAssumption) args += "isAssumption = true"
-                def.subjectRef?.let { args += "subjectRef = ${quote(it)}" }
-                if (def.isAbstract) args += "isAbstract = true"
-                appendSpecializesArg(def = def, builderName = "requirementDef", args = args, todos = todos)
-                printDefCall(
-                    sb = sb,
-                    fnName = "requirementDef",
-                    varName = varName,
-                    args = args,
-                    todos = todos,
-                ) { body -> printNestedFeatures(sb = body, def = def, model = model) }
-            }
+            is RequirementDefinition ->
+                if (def.externalSource != null && def.id == "ext:${def.reqId}") {
+                    // Wave 2E-a: stub for a requirement of another document.
+                    val extArgs = mutableListOf("reqId = ${quote(def.reqId)}", "source = ${quote(def.externalSource!!)}")
+                    if (def.text.isNotEmpty()) extArgs += "text = ${quote(def.text)}"
+                    printDefCall(sb = sb, fnName = "externalRequirement", varName = varName, args = extArgs, todos = todos) { }
+                } else {
+                    if (def.reqId.isNotEmpty()) args += "reqId = ${quote(def.reqId)}"
+                    if (def.text.isNotEmpty()) args += "text = ${quote(def.text)}"
+                    def.subject?.let { args += "subject = ${quote(it)}" }
+                    def.priority?.let { args += "priority = RequirementPriority.${it.name}" }
+                    if (def.source.isNotEmpty()) args += "source = ${quote(def.source)}"
+                    def.status?.let { args += "status = RequirementStatus.${it.name}" }
+                    if (def.isAssumption) args += "isAssumption = true"
+                    def.subjectRef?.let { args += "subjectRef = ${quote(it)}" }
+                    if (def.isAbstract) args += "isAbstract = true"
+                    appendSpecializesArg(def = def, builderName = "requirementDef", args = args, todos = todos)
+                    printDefCall(
+                        sb = sb,
+                        fnName = "requirementDef",
+                        varName = varName,
+                        args = args,
+                        todos = todos,
+                    ) { body -> printNestedFeatures(sb = body, def = def, model = model) }
+                }
             is TestCaseDefinition -> {
                 if (def.text.isNotEmpty()) args += "text = ${quote(def.text)}"
                 if (def.isAbstract) args += "isAbstract = true"
@@ -939,6 +945,7 @@ public object Sysml2DslPrinter {
         spec.maxWidth?.let { block.appendLine("            maxWidth = $it") }
         spec.aspectRatio?.let { block.appendLine("            aspectRatio = $it") }
         spec.labelMaxWidth?.let { block.appendLine("            labelMaxWidth = $it") }
+        spec.showSubjectEdges?.let { block.appendLine("            showSubjectEdges = $it") }
         block.appendLine("        }")
         val trimmed = text.trimEnd('\n')
         val newText =
