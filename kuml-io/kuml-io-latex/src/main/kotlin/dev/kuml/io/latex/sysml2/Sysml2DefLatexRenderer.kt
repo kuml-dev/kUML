@@ -71,6 +71,9 @@ internal object Sysml2DefLatexRenderer {
                 is RequirementDefinition -> if (definition.isAssumption) "assumption" else "requirement"
                 // Wave C1: verification element of a REQ diagram.
                 is TestCaseDefinition -> "testCase"
+                // Wave 2I-b: analysis case and calculation (rectangle fallback with a semantic label).
+                is dev.kuml.sysml2.AnalysisCaseDefinition -> "analysis"
+                is dev.kuml.sysml2.CalculationDefinition -> "calc"
                 // V2.0.9: STM-Diagramm. V2.0.9-MVP rendert StateDefinitions
                 // als Rechteck mit `«state»`-Stereotyp — abgerundete Ecken
                 // und Pseudo-State-Markierungen (Initial-Kreis / Final-Donut)

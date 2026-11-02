@@ -48,4 +48,10 @@ object Sysml2Limits {
 
     /** Maximum number of viewpoints and of views per model (wave 2I-a). */
     const val VIEWS: Int = 128
+
+    /** Maximum number of parameters of one calculation, of calcs of one analysis, of performs / exhibits of one part (wave 2I-b). */
+    const val CALC_ENTRIES: Int = 64
+
+    /** Maximum length of a name, a type name, an objective or a calculation expression the DSL accepts (wave 2I-b). */
+    const val CALC_TEXT: Int = 512
 }

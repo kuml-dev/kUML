@@ -14,10 +14,12 @@ import dev.kuml.sysml2.ActivityPartitionUsage
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.ActorUsage
 import dev.kuml.sysml2.AllocationUsage
+import dev.kuml.sysml2.AnalysisCaseDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.BindingConnectorUsage
+import dev.kuml.sysml2.CalculationDefinition
 import dev.kuml.sysml2.CombinedFragmentOperand
 import dev.kuml.sysml2.CombinedFragmentOperator
 import dev.kuml.sysml2.CombinedFragmentUsage
@@ -164,6 +166,63 @@ class Sysml2ModelBuilder(
                 features = builder.features(),
                 specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
                 constraints = builder.constraints(),
+                performs = builder.performs(),
+                exhibits = builder.exhibits(),
+            )
+        definitions += def
+        return def
+    }
+
+    /**
+     * `calc def TotalMass { input("m1", "Mass"); expression("m1 + m2"); returns("total", "Mass") }` (wave 2I-b).
+     * Drawn as a `«calc def»` box with `parameters`, `expression` and `return` compartments in a BDD.
+     */
+    fun calcDef(
+        name: String,
+        id: String = name,
+        isAbstract: Boolean = false,
+        specializesId: String? = null,
+        block: CalcDefBuilder.() -> Unit = {},
+    ): CalculationDefinition {
+        requireCalcText(what = "name", value = name)
+        val builder = CalcDefBuilder().apply(block)
+        val def =
+            CalculationDefinition(
+                id = id,
+                name = name,
+                isAbstract = isAbstract,
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
+                parameters = builder.parameters(),
+                expression = builder.expressionText(),
+                result = builder.resultParameter(),
+            )
+        definitions += def
+        return def
+    }
+
+    /**
+     * `analysis def MassAnalysis { subject(vehicle); objective("..."); calc("total", totalMass) }` (wave 2I-b).
+     * Drawn as an `«analysis def»` box in a BDD; the calcs become composition edges to their definitions.
+     */
+    fun analysisDef(
+        name: String,
+        id: String = name,
+        isAbstract: Boolean = false,
+        specializesId: String? = null,
+        block: AnalysisDefBuilder.() -> Unit = {},
+    ): AnalysisCaseDefinition {
+        requireCalcText(what = "name", value = name)
+        val builder = AnalysisDefBuilder().apply(block)
+        val def =
+            AnalysisCaseDefinition(
+                id = id,
+                name = name,
+                isAbstract = isAbstract,
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
+                subjectId = builder.subjectId(),
+                objective = builder.objectiveText(),
+                calculations = builder.calculations(),
+                result = builder.resultParameter(),
             )
         definitions += def
         return def
@@ -2746,6 +2805,47 @@ class DefinitionBuilder internal constructor(
     internal fun features(): List<dev.kuml.kerml.KermlFeature> = collected.toList()
 
     internal fun constraints(): List<dev.kuml.uml.UmlConstraint> = collectedConstraints.toList()
+
+    private val collectedPerforms = mutableListOf<dev.kuml.sysml2.BehaviorRef>()
+    private val collectedExhibits = mutableListOf<dev.kuml.sysml2.BehaviorRef>()
+
+    /** `perform drive : Drive` (wave 2I-b); on a part definition. Use the id overload for a forward reference. */
+    fun perform(
+        name: String,
+        action: dev.kuml.sysml2.ActionDefinition,
+    ) = perform(name = name, id = action.id)
+
+    /** `perform drive : Drive` by action definition id. */
+    fun perform(
+        name: String,
+        id: String,
+    ) {
+        requireCalcText(what = "perform name", value = name)
+        requireCalcText(what = "perform target id", value = id)
+        requireCalcCount(what = "performs", count = collectedPerforms.size + 1)
+        collectedPerforms += dev.kuml.sysml2.BehaviorRef(name = name, definitionId = id)
+    }
+
+    /** `exhibit charging : Charging` (wave 2I-b); on a part definition. Use the id overload for a forward reference. */
+    fun exhibit(
+        name: String,
+        state: dev.kuml.sysml2.StateDefinition,
+    ) = exhibit(name = name, id = state.id)
+
+    /** `exhibit charging : Charging` by state definition id. */
+    fun exhibit(
+        name: String,
+        id: String,
+    ) {
+        requireCalcText(what = "exhibit name", value = name)
+        requireCalcText(what = "exhibit target id", value = id)
+        requireCalcCount(what = "exhibits", count = collectedExhibits.size + 1)
+        collectedExhibits += dev.kuml.sysml2.BehaviorRef(name = name, definitionId = id)
+    }
+
+    internal fun performs(): List<dev.kuml.sysml2.BehaviorRef> = collectedPerforms.toList()
+
+    internal fun exhibits(): List<dev.kuml.sysml2.BehaviorRef> = collectedExhibits.toList()
 
     /**
      * Shadow SysML 2 usages onto the KerML feature layer so consumers that

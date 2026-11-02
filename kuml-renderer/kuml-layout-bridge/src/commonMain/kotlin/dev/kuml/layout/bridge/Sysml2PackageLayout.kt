@@ -507,5 +507,7 @@ public object Sysml2PackageLayout {
             is LifelineDefinition -> "lifeline def"
             is StateDefinition -> "state def"
             is ConstraintDefinition -> "constraint def"
+            is dev.kuml.sysml2.AnalysisCaseDefinition -> "analysis def"
+            is dev.kuml.sysml2.CalculationDefinition -> "calc def"
         }
 }

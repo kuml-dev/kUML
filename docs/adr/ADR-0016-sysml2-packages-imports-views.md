@@ -38,3 +38,15 @@ change what a diagram draws.
 - Package frames in BDD / IBD.
 - A LaTeX rendering of package diagrams (the renderer refuses with a clear message).
 - An own OKF type for package diagrams (the knowledge-workspace export derives a custom type from the Kotlin name).
+
+## Addendum wave 2I-b (analysis cases, calculations, perform / exhibit)
+- Usages stay **fields of their definition**: `AnalysisCaseDefinition.calculations` (`CalcUsageRef`),
+  `PartDefinition.performs` / `exhibits` (`BehaviorRef`). They are not model elements of their own, so no exhaustive `when`
+  over elements changes. Only `Sysml2Definition` gains two subclasses (`CalculationDefinition`,
+  `AnalysisCaseDefinition`); every existing exhaustive `when` over definitions was extended.
+- Drawing: both kinds are BDD boxes with extra compartments (`BddBoxContent.compartments`, one source for layout bridge and
+  renderer). Calcs of an analysis are composition edges, the subject a dashed `<<subject>>` edge; whatever is not drawn as an
+  edge stays a compartment line. `perform` / `exhibit` are compartments, not edges.
+- Open (design review): Alan Kay's objection that usages should become first-class elements stays open; a separate
+  analysis view ("question view") is not done. Views are still not evaluated (option 3).
+

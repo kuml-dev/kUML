@@ -12,10 +12,13 @@ import dev.kuml.sysml2.ActivityPartitionUsage
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.ActorUsage
 import dev.kuml.sysml2.AllocationUsage
+import dev.kuml.sysml2.AnalysisCaseDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.BindingConnectorUsage
+import dev.kuml.sysml2.CalcParameterDirection
+import dev.kuml.sysml2.CalculationDefinition
 import dev.kuml.sysml2.CombinedFragmentUsage
 import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.ConnectionUsage
@@ -314,6 +317,8 @@ public object Sysml2DslPrinter {
                 printDefCall(sb = sb, fnName = "partDef", varName = varName, args = args, todos = todos) { body ->
                     printNestedFeatures(sb = body, def = def, model = model)
                     printPartConstraints(sb = body, def = def)
+                    def.performs.forEach { body.appendLine("        perform(${quote(it.name)}, ${quote(it.definitionId)})") }
+                    def.exhibits.forEach { body.appendLine("        exhibit(${quote(it.name)}, ${quote(it.definitionId)})") }
                 }
             }
             is AttributeDefinition -> {
@@ -574,6 +579,33 @@ public object Sysml2DslPrinter {
                     args = args,
                     todos = todos,
                 ) { body -> printNestedFeatures(sb = body, def = def, model = model) }
+            }
+            is CalculationDefinition -> {
+                if (def.isAbstract) args += "isAbstract = true"
+                appendSpecializesArg(def = def, builderName = "calcDef", args = args, todos = todos)
+                printDefCall(sb = sb, fnName = "calcDef", varName = varName, args = args, todos = todos) { body ->
+                    def.parameters.forEach { p ->
+                        val fn =
+                            when (p.direction) {
+                                CalcParameterDirection.IN -> "input"
+                                CalcParameterDirection.OUT -> "output"
+                                CalcParameterDirection.INOUT -> "inout"
+                            }
+                        body.appendLine("        $fn(${quote(p.name)}, ${quote(p.typeName)})")
+                    }
+                    if (def.expression.isNotEmpty()) body.appendLine("        expression(${quote(def.expression)})")
+                    def.result?.let { body.appendLine("        returns(${quote(it.name)}, ${quote(it.typeName)})") }
+                }
+            }
+            is AnalysisCaseDefinition -> {
+                if (def.isAbstract) args += "isAbstract = true"
+                appendSpecializesArg(def = def, builderName = "analysisDef", args = args, todos = todos)
+                printDefCall(sb = sb, fnName = "analysisDef", varName = varName, args = args, todos = todos) { body ->
+                    def.subjectId?.let { body.appendLine("        subject(${quote(it)})") }
+                    if (def.objective.isNotEmpty()) body.appendLine("        objective(${quote(def.objective)})")
+                    def.calculations.forEach { body.appendLine("        calc(${quote(it.name)}, ${quote(it.definitionId)})") }
+                    def.result?.let { body.appendLine("        returns(${quote(it.name)}, ${quote(it.typeName)})") }
+                }
             }
         }
     }

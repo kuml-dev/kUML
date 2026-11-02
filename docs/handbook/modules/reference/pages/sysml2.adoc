@@ -1277,6 +1277,79 @@ diagram lists an unknown id), `KUML-PKG-W004` (import of the own package, an anc
 * BDD and IBD do not draw package frames.
 * The knowledge-workspace export (`kuml convert`) has no standard OKF type for package diagrams yet.
 
+== Analysis cases, calculations, perform and exhibit (wave 2I-b)
+
+Wave 2I-b adds two definition kinds and two block compartments to the block definition diagram (BDD). They are drawn
+as block-like boxes; no new diagram kind exists.
+
+* `calcDef("TotalMass") { input("a", "Mass"); expression("a + b"); returns("total", "Mass") }` is a calculation. The box is
+  `<<calc def>>` with the compartments `parameters` (`in a : Mass`, `out ...`, `inout ...`), `expression` (monospaced and
+  wrapped at 34 characters) and `return`.
+* `analysisDef("MassAnalysis") { subject(vehicle); objective("..."); calc("total", totalMass); returns("ok", "Boolean") }` is
+  an analysis case. The box is `<<analysis def>>` with the compartments `objective` and `return`. Each `calc` is a
+  composition (filled diamond at the analysis) to its calculation, labelled with the name of the calc; the `subject` is a
+  dashed arrow with `<<subject>>` to the analysed definition.
+* On a block: `perform("drive", driveAction)` and `exhibit("charging", chargingState)` add the compartments
+  `perform actions` and `exhibit states` with the lines `perform drive : Drive` and `exhibit charging : Charging`, in
+  declaration order. Both are lines, not edges.
+
+[source,kuml]
+----
+import dev.kuml.sysml2.dsl.sysml2Model
+
+sysml2Model(name = "MassAnalysis") {
+    val mass = attributeDef("Mass", unitSymbol = "kg")
+    val vehicle = partDef("Vehicle") { attribute("curbMass", mass.id) }
+    val total = calcDef("TotalMass") {
+        input("chassis", "Mass")
+        input("battery", "Mass")
+        expression("chassis + battery")
+        returns("total", "Mass")
+    }
+    val analysis = analysisDef("MassAnalysis") {
+        subject(vehicle)
+        objective("Stay below the permitted gross mass.")
+        calc("total", total)
+    }
+    bdd("Mass analysis") {
+        include(analysis)
+        include(total)
+        include(vehicle)
+    }
+}
+----
+
+The object overloads (`calc("total", totalMass)`, `perform("drive", driveAction)`) need the target to be declared first.
+For a forward reference or a cycle use the id overload: `calc("total", "TotalMass")`, `perform("drive", "Drive")`,
+`subject("Vehicle")`.
+
+A calc whose calculation is not in the diagram, and a subject that is not in the diagram, stay as lines in the box
+(`calcs`, `subject`) instead of an arrow, so the information is never lost. Type names of parameters are free text and
+are not resolved.
+
+=== Findings
+
+`kuml validate` reports these errors for a BDD (the codes are stable):
+
+[cols="1,3"]
+|===
+| Code | Meaning
+
+| `SYSML2_CALC_REF_UNKNOWN` | a calc points at nothing, or at a definition that is not a calculation
+| `SYSML2_ANALYSIS_SUBJECT_UNKNOWN` | the subject of an analysis does not exist
+| `SYSML2_PERFORM_TARGET_NOT_ACTION` | a perform points at nothing, or at a definition that is not an action
+| `SYSML2_EXHIBIT_TARGET_NOT_STATE` | an exhibit points at nothing, or at a definition that is not a state
+| `SYSML2_DUPLICATE_USAGE_NAME` | two calcs, performs or exhibits of one definition share a name
+| `SYSML2_ANALYSIS_LIMIT` | more than 64 parameters, calcs, performs or exhibits on one definition
+|===
+
+=== Known limits
+
+* A compartment shows at most 20 lines; longer lists and texts end with an ellipsis (the model keeps everything).
+* No separate analysis view, no analysis or calc usages as model elements of their own, no calc in parametric or
+  internal block diagrams, no edge for `exhibit` and `perform`.
+* The LaTeX renderer draws an analysis or a calculation as a plain labelled rectangle without compartments.
+
 == Notes
 
 SysML 2 models carry free-text comments. Use `comment(...)` (alias `note(...)`) either on the model or

@@ -1,13 +1,19 @@
 package dev.kuml.sysml2.projection
 
 import dev.kuml.kerml.KermlFeature
+import dev.kuml.sysml2.AnalysisCaseDefinition
 import dev.kuml.sysml2.AttributeDefinition
+import dev.kuml.sysml2.CalcParameter
+import dev.kuml.sysml2.CalcParameterDirection
+import dev.kuml.sysml2.CalculationDefinition
 import dev.kuml.sysml2.EnumerationDefinition
 import dev.kuml.sysml2.FlowPropertyUsage
+import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortDirection
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.Sysml2Definition
+import dev.kuml.sysml2.Sysml2Limits
 import dev.kuml.sysml2.Sysml2Model
 
 /**
@@ -24,7 +30,68 @@ data class BddBoxContent(
     val widthProbe: List<String>,
     val actions: List<String>,
     val flows: List<String>,
+    /** Further compartments (wave 2I-b: calc / analysis / perform / exhibit), drawn after `actions` and `flows`. */
+    val compartments: List<BddCompartment> = emptyList(),
 )
+
+/**
+ * One extra compartment of a BDD box (wave 2I-b): a [header] line and the [lines] below it. [monospace] lines are drawn
+ * in a monospaced font (calculation expressions).
+ */
+data class BddCompartment(
+    val header: String,
+    val lines: List<String>,
+    val monospace: Boolean = false,
+)
+
+/** Characters per line before the `expression` and `objective` compartments of a BDD box wrap (wave 2I-b). */
+const val BDD_WRAP_CHARS: Int = 34
+
+/**
+ * Breaks [text] into lines of at most [width] characters, at spaces where possible and inside a word only when the word
+ * is longer than [width]. At most [BddProjection.MAX_COMPARTMENT_LINES] lines are returned; when the text is longer, the
+ * last line ends with an ellipsis. Pure and deterministic.
+ */
+fun wrapBddText(
+    text: String,
+    width: Int = BDD_WRAP_CHARS,
+): List<String> {
+    val out = mutableListOf<String>()
+    var cur = StringBuilder()
+    // Hostile input: look at no more than twice what can be drawn; anything beyond counts as truncated.
+    val limit = width * BddProjection.MAX_COMPARTMENT_LINES * 2
+    val source = if (text.length > limit) text.take(limit) else text
+    var truncated = text.length > limit
+
+    fun flush() {
+        if (cur.isNotEmpty()) out += cur.toString()
+        cur = StringBuilder()
+    }
+    loop@ for (word in source.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }) {
+        var rest = word
+        while (rest.length > width) {
+            flush()
+            out += rest.take(width)
+            rest = rest.drop(width)
+            if (out.size >= BddProjection.MAX_COMPARTMENT_LINES) {
+                truncated = true
+                break@loop
+            }
+        }
+        if (cur.isNotEmpty() && cur.length + 1 + rest.length > width) flush()
+        if (out.size >= BddProjection.MAX_COMPARTMENT_LINES) {
+            truncated = true
+            break
+        }
+        if (cur.isNotEmpty()) cur.append(' ')
+        cur.append(rest)
+    }
+    if (!truncated) flush()
+    if (truncated && out.size < BddProjection.MAX_COMPARTMENT_LINES) flush()
+    val capped = out.take(BddProjection.MAX_COMPARTMENT_LINES).toMutableList()
+    if (truncated && capped.isNotEmpty()) capped[capped.lastIndex] = capped.last().take(width - 1) + "…"
+    return capped
+}
 
 fun sysml2BddBoxContent(
     model: Sysml2Model,
@@ -51,7 +118,106 @@ fun sysml2BddBoxContent(
     }
     val actions = projection?.actionsByDef?.get(def.id)?.map { "$it()" } ?: emptyList()
     val flows = projection?.flowsByDef?.get(def.id) ?: emptyList()
-    return BddBoxContent(featureLines = full, widthProbe = probe, actions = actions, flows = flows)
+    return BddBoxContent(
+        featureLines = full,
+        widthProbe = probe,
+        actions = actions,
+        flows = flows,
+        compartments = analysisCompartments(model = model, def = def, projection = projection),
+    )
+}
+
+private fun nameOf(
+    model: Sysml2Model,
+    id: String,
+): String = model.definitions.firstOrNull { it.id == id }?.name ?: id
+
+private fun CalcParameter.typed(): String = if (typeName.isEmpty()) name else "$name : $typeName"
+
+/** At most [BddProjection.MAX_COMPARTMENT_LINES] lines, each clipped to [Sysml2Limits.CALC_TEXT] characters (hostile models). */
+private fun cap(lines: List<String>): List<String> =
+    lines.take(BddProjection.MAX_COMPARTMENT_LINES).map {
+        if (it.length > Sysml2Limits.CALC_TEXT) it.take(Sysml2Limits.CALC_TEXT - 1) + "…" else it
+    }
+
+/** Extra compartments of calculations, analysis cases and parts with `perform` / `exhibit` (wave 2I-b), in declaration order. */
+private fun analysisCompartments(
+    model: Sysml2Model,
+    def: Sysml2Definition,
+    projection: BddProjection?,
+): List<BddCompartment> {
+    val out = mutableListOf<BddCompartment>()
+    when (def) {
+        is CalculationDefinition -> {
+            if (def.parameters.isNotEmpty()) {
+                out +=
+                    BddCompartment(
+                        header = "parameters",
+                        lines =
+                            cap(
+                                def.parameters.take(BddProjection.MAX_COMPARTMENT_LINES).map {
+                                    val dir =
+                                        when (it.direction) {
+                                            CalcParameterDirection.IN -> "in"
+                                            CalcParameterDirection.OUT -> "out"
+                                            CalcParameterDirection.INOUT -> "inout"
+                                        }
+                                    "$dir ${it.typed()}"
+                                },
+                            ),
+                    )
+            }
+            if (def.expression.isNotBlank()) {
+                out += BddCompartment(header = "expression", lines = wrapBddText(text = def.expression), monospace = true)
+            }
+            def.result?.let { out += BddCompartment(header = "return", lines = listOf(it.typed())) }
+        }
+        is AnalysisCaseDefinition -> {
+            val subject = def.subjectId
+            if (subject != null && def.id !in (projection?.drawnSubjects ?: emptySet())) {
+                out += BddCompartment(header = "subject", lines = listOf("subject : ${nameOf(model = model, id = subject)}"))
+            }
+            if (def.objective.isNotBlank()) {
+                out += BddCompartment(header = "objective", lines = wrapBddText(text = def.objective))
+            }
+            val drawn = projection?.drawnCalcs ?: emptySet()
+            val calcLines =
+                def.calculations
+                    .filter { "${def.id}::${it.name}" !in drawn }
+                    .take(BddProjection.MAX_COMPARTMENT_LINES)
+                    .map { "${it.name} : ${nameOf(model = model, id = it.definitionId)}" }
+            if (calcLines.isNotEmpty()) out += BddCompartment(header = "calcs", lines = cap(calcLines))
+            def.result?.let { out += BddCompartment(header = "return", lines = listOf(it.typed())) }
+        }
+        is PartDefinition -> {
+            if (def.performs.isNotEmpty()) {
+                out +=
+                    BddCompartment(
+                        header = "perform actions",
+                        lines =
+                            cap(
+                                def.performs.take(BddProjection.MAX_COMPARTMENT_LINES).map {
+                                    "perform ${it.name} : ${nameOf(model = model, id = it.definitionId)}"
+                                },
+                            ),
+                    )
+            }
+            if (def.exhibits.isNotEmpty()) {
+                out +=
+                    BddCompartment(
+                        header = "exhibit states",
+                        lines =
+                            cap(
+                                def.exhibits.take(BddProjection.MAX_COMPARTMENT_LINES).map {
+                                    "exhibit ${it.name} : ${nameOf(model = model, id = it.definitionId)}"
+                                },
+                            ),
+                    )
+            }
+        }
+        else -> Unit
+    }
+    return out
 }
 
 private fun dirWord(d: PortDirection?): String =

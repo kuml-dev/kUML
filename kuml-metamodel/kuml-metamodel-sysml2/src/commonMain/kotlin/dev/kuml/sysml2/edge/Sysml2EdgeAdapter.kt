@@ -640,6 +640,13 @@ public class BddEdgeAdapter(
                                 dashArray = "5 4",
                                 arrowHead = Sysml2ArrowHead.OpenAngle,
                             )
+                        // Wave 2I-b: the subject of an analysis case, dashed with an open arrow and a «subject» label.
+                        BddEdgeKind.Subject ->
+                            Sysml2EdgeMetadata(
+                                stereotype = "«subject»",
+                                dashArray = "5 4",
+                                arrowHead = Sysml2ArrowHead.OpenAngle,
+                            )
                     },
                 )
             }

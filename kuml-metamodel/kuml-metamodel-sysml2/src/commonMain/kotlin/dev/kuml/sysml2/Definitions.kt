@@ -44,6 +44,10 @@ data class PartDefinition(
     override val features: List<KermlFeature> = emptyList(),
     override val specializations: List<KermlSpecialization> = emptyList(),
     val constraints: List<dev.kuml.uml.UmlConstraint> = emptyList(),
+    /** `perform drive : Drive` (wave 2I-b): actions this part performs; each must point at an [ActionDefinition]. */
+    val performs: List<BehaviorRef> = emptyList(),
+    /** `exhibit charging : Charging` (wave 2I-b): states this part exhibits; each must point at a [StateDefinition]. */
+    val exhibits: List<BehaviorRef> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Definition
 
@@ -689,4 +693,42 @@ data class ConstraintDefinition(
      * the depth is limited by [Sysml2Limits.CONSTRAINT_DEPTH] (the root counts as level 1).
      */
     val ownerConstraintId: String? = null,
+) : Sysml2Definition
+
+/**
+ * `calc def TotalMass { in m1 : Mass; return total : Mass; expression = "m1 + m2" }` (wave 2I-b): a calculation with
+ * typed [parameters], a raw-string [expression] and a [result]. Drawn as a `«calc def»` box in a BDD.
+ */
+@Serializable
+data class CalculationDefinition(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val isAbstract: Boolean = false,
+    override val features: List<KermlFeature> = emptyList(),
+    override val specializations: List<KermlSpecialization> = emptyList(),
+    val parameters: List<CalcParameter> = emptyList(),
+    val expression: String = "",
+    val result: CalcParameter? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Definition
+
+/**
+ * `analysis def MassAnalysis { subject vehicle; objective "..."; calc total : TotalMass; return r : Mass }`
+ * (wave 2I-b). [subjectId] and the [calculations] reference other definitions by id; usages stay fields of the
+ * definition (they are not separate model elements). Drawn as an `«analysis def»` box in a BDD.
+ */
+@Serializable
+data class AnalysisCaseDefinition(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val isAbstract: Boolean = false,
+    override val features: List<KermlFeature> = emptyList(),
+    override val specializations: List<KermlSpecialization> = emptyList(),
+    val subjectId: String? = null,
+    val objective: String = "",
+    val calculations: List<CalcUsageRef> = emptyList(),
+    val result: CalcParameter? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Definition

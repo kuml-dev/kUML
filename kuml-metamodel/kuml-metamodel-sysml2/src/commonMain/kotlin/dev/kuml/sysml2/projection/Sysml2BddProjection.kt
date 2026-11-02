@@ -2,20 +2,23 @@ package dev.kuml.sysml2.projection
 
 import dev.kuml.sysml2.ActionUsage
 import dev.kuml.sysml2.AllocationUsage
+import dev.kuml.sysml2.AnalysisCaseDefinition
 import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.CalculationDefinition
 import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.FlowPropertyUsage
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortDirection
 import dev.kuml.sysml2.PortUsage
+import dev.kuml.sysml2.Sysml2Limits
 import dev.kuml.sysml2.Sysml2Model
 
 /**
  * [Reference] is a `refPart` (wave 2E-b): a plain open-arrow reference without diamond. [Aggregation] is kept for
  * models that ask for a shared aggregation explicitly.
  */
-enum class BddEdgeKind { Composition, Aggregation, Reference, Association, Allocation }
+enum class BddEdgeKind { Composition, Aggregation, Reference, Association, Allocation, Subject }
 
 /**
  * A relationship edge of a BDD. [sourceId] is the owning end (diamond end for
@@ -38,6 +41,10 @@ data class BddProjection(
     val actionsByDef: Map<String, List<String>>,
     /** `<direction> <name> : <Type>` lines of the flow properties carried by the ports of a block (`flows` compartment). */
     val flowsByDef: Map<String, List<String>>,
+    /** `<analysisId>::<calcName>` of the calcs drawn as a composition edge (wave 2I-b); they leave the `calcs` compartment. */
+    val drawnCalcs: Set<String> = emptySet(),
+    /** Ids of the analyses whose subject is drawn as a dashed edge (wave 2I-b); they have no `subject` compartment line. */
+    val drawnSubjects: Set<String> = emptySet(),
 ) {
     companion object {
         const val MAX_COMPARTMENT_LINES: Int = 20
@@ -139,7 +146,47 @@ fun sysml2BddProjection(
                 )
         }
     }
-    return BddProjection(edges = edges, hiddenFeatureIds = hidden, actionsByDef = actions, flowsByDef = flows)
+    // Wave 2I-b: the calcs of an analysis are compositions to their calculation definitions, the subject is a dashed
+    // «subject» edge. Only edges whose ends are both in the diagram are drawn; everything else stays a compartment line.
+    val drawnCalcs = linkedSetOf<String>()
+    val drawnSubjects = linkedSetOf<String>()
+    for (an in model.definitions.filterIsInstance<AnalysisCaseDefinition>()) {
+        if (an.id !in visible) continue
+        for (ref in an.calculations.take(Sysml2Limits.CALC_ENTRIES)) {
+            if (ref.definitionId !in visible || ref.definitionId == an.id || defById[ref.definitionId] !is CalculationDefinition) continue
+            drawnCalcs += "${an.id}::${ref.name}"
+            edges +=
+                BddEdge(
+                    id = "comp:${an.id}::${ref.name}",
+                    kind = BddEdgeKind.Composition,
+                    sourceId = an.id,
+                    targetId = ref.definitionId,
+                    label = ref.name,
+                    endLabel = null,
+                )
+        }
+        val subject = an.subjectId
+        if (subject != null && subject in visible && subject != an.id && defById[subject] != null) {
+            drawnSubjects += an.id
+            edges +=
+                BddEdge(
+                    id = "subject:${an.id}",
+                    kind = BddEdgeKind.Subject,
+                    sourceId = an.id,
+                    targetId = subject,
+                    label = "«subject»",
+                    endLabel = null,
+                )
+        }
+    }
+    return BddProjection(
+        edges = edges,
+        hiddenFeatureIds = hidden,
+        actionsByDef = actions,
+        flowsByDef = flows,
+        drawnCalcs = drawnCalcs,
+        drawnSubjects = drawnSubjects,
+    )
 }
 
 private fun effectiveDir(

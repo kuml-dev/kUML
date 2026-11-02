@@ -200,6 +200,10 @@ public object ValidationService {
                         hint = it.hint,
                     )
                 }
+            is dev.kuml.sysml2.BdDiagram ->
+                dev.kuml.sysml2.constraint.Sysml2AnalysisChecker.check(model = ex.model, diagram = d).map {
+                    finding(code = it.code, error = true, elementId = it.elementId, message = it.message, hint = it.hint)
+                }
             is dev.kuml.sysml2.IbdDiagram ->
                 dev.kuml.sysml2.constraint.Sysml2IbdChecker.check(model = ex.model, diagram = d).map {
                     finding(

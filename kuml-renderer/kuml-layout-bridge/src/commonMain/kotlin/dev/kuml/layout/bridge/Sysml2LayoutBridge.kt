@@ -623,6 +623,8 @@ public object Sysml2LayoutBridge {
             val flows = content?.flows ?: emptyList()
             if (actions.isNotEmpty()) h += EXTRA_COMPARTMENT_GAP + (actions.size + 1) * FEATURE_LINE_H
             if (flows.isNotEmpty()) h += EXTRA_COMPARTMENT_GAP + (flows.size + 1) * FEATURE_LINE_H
+            val compartments = content?.compartments ?: emptyList()
+            for (c in compartments) h += EXTRA_COMPARTMENT_GAP + (c.lines.size + 1) * FEATURE_LINE_H
             val stereoW =
                 when (def) {
                     is dev.kuml.sysml2.EnumerationDefinition -> "«enumeration»"
@@ -630,12 +632,19 @@ public object Sysml2LayoutBridge {
                     is dev.kuml.sysml2.AttributeDefinition -> "«attribute def»"
                     is dev.kuml.sysml2.PortDefinition -> "«port def»"
                     is dev.kuml.sysml2.ConnectionDefinition -> "«connection def»"
+                    is dev.kuml.sysml2.CalculationDefinition -> "«calc def»"
+                    is dev.kuml.sysml2.AnalysisCaseDefinition -> "«analysis def»"
                     else -> "«part def»"
                 }.length * IBD_STEREO_CHAR_PX
             val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
             val bodyMax =
                 ((content?.widthProbe ?: emptyList()) + actions + flows).maxOfOrNull { it.length * BDD_BODY_CHAR_PX } ?: 0f
-            val contentW = maxOf(stereoW, nameW, bodyMax) + 2 * IBD_H_PAD
+            val compartmentMax =
+                compartments
+                    .flatMap { c ->
+                        (listOf(c.header) + c.lines).map { it.length * (if (c.monospace) BDD_MONO_CHAR_PX else BDD_BODY_CHAR_PX) }
+                    }.maxOrNull() ?: 0f
+            val contentW = maxOf(stereoW, nameW, bodyMax, compartmentMax) + 2 * IBD_H_PAD
             val puffer = minOf(BDD_EDGE_PUFFER_MAX_PX, BDD_EDGE_PUFFER_PX * maxOf(0, (edgeCount[id] ?: 0) - 2))
             Size(
                 width = maxOf(contentW, DEFAULT_WIDTH) + if (horizontalFlow) 0f else puffer,
@@ -670,6 +679,9 @@ public object Sysml2LayoutBridge {
      * lines (`kuml-body` CSS class). Slightly wider than [IBD_STEREO_CHAR_PX].
      */
     public const val BDD_BODY_CHAR_PX: Float = 6.6f
+
+    /** Estimated width per character of a monospaced line in a BDD box (calculation expressions, wave 2I-b). */
+    public const val BDD_MONO_CHAR_PX: Float = 7.4f
 
     /**
      * Content-aware [SizeProvider] for IBD nodes (V2.0.6 → V2.x).

@@ -127,6 +127,11 @@ internal fun renderSysml2Definition(
         is ActivityPartitionDefinition -> Unit
         // Wave C2: interruptible regions are frames computed from their members (renderRegionFrames), never node boxes.
         is dev.kuml.sysml2.InterruptibleRegionDefinition -> Unit
+        // Wave 2I-b: calculation and analysis case are block-like boxes with extra compartments.
+        is dev.kuml.sysml2.CalculationDefinition ->
+            renderBox(element = element, layout = layout, builder = builder, stereotype = "calc def", context = context)
+        is dev.kuml.sysml2.AnalysisCaseDefinition ->
+            renderBox(element = element, layout = layout, builder = builder, stereotype = "analysis def", context = context)
     }
 }
 
@@ -217,6 +222,26 @@ private fun renderBox(
                     name = "text",
                     attrs = mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
                 ) { text(line) }
+                cy += 13f
+            }
+        }
+        // Wave 2I-b: calc / analysis / perform / exhibit compartments, same arithmetic as the compartments above.
+        for (c in content?.compartments ?: emptyList()) {
+            divider()
+            tag(
+                name = "text",
+                attrs = mapOf("class" to "kuml-stereotype", "x" to "6", "y" to fmt(cy)),
+            ) { text(c.header) }
+            cy += 13f
+            for (line in c.lines) {
+                val attrs =
+                    buildMap<String, String> {
+                        put("class", "kuml-body")
+                        put("x", "6")
+                        put("y", fmt(cy))
+                        if (c.monospace) put("style", "font-family: monospace")
+                    }
+                tag(name = "text", attrs = attrs) { text(line) }
                 cy += 13f
             }
         }

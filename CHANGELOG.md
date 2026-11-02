@@ -6,6 +6,37 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### SysML 2 analysis cases, calculations, perform and exhibit (wave 2I-b)
+
+**Behaviour changes (visible in existing diagrams)**
+
+- None for models that do not use the new constructs: a BDD box without `perform`, `exhibit`, calc or analysis content is drawn exactly as before (checked: all SVGs of the vault examples are byte-identical to a run on the commit before this wave). The model JSON gains optional fields on `PartDefinition` (`performs`, `exhibits`); old JSON stays readable.
+- New checker errors (`SYSML2_*`, see below) only concern the new constructs; existing models are not affected.
+
+**Additions**
+
+- `calcDef(name) { input / output / inout(name, type); expression(text); returns(name, type) }` (`CalculationDefinition`): a `<<calc def>>` box with the compartments `parameters`, `expression` (monospaced, wrapped at 34 characters) and `return`.
+- `analysisDef(name) { subject(part); objective(text); calc(name, calcDef); returns(name, type) }` (`AnalysisCaseDefinition`): an `<<analysis def>>` box with `objective` and `return`; each calc is a composition edge labelled with the calc name, the subject a dashed `<<subject>>` edge. A calc or subject whose target is not in the diagram stays as a `calcs` / `subject` line.
+- `perform(name, action)` and `exhibit(name, state)` in `partDef { }`: the compartments `perform actions` and `exhibit states` (lines in declaration order). Each also has an id overload for forward references.
+- Checker `Sysml2AnalysisChecker` (reached by `kuml validate` for BDDs): `SYSML2_CALC_REF_UNKNOWN`, `SYSML2_ANALYSIS_SUBJECT_UNKNOWN`, `SYSML2_PERFORM_TARGET_NOT_ACTION`, `SYSML2_EXHIBIT_TARGET_NOT_STATE`, `SYSML2_DUPLICATE_USAGE_NAME` (the last one is an addition to the design), `SYSML2_ANALYSIS_LIMIT`. All are errors.
+- Limits: 64 parameters, calcs, performs or exhibits per definition, 512 characters per name, type or expression (the DSL refuses more).
+- The DSL printer round-trips the new constructs (id forms). Handbook: chapter "Analysis cases, calculations, perform and exhibit (wave 2I-b)"; ADR-0016 addendum.
+
+**Behaviour you may not expect**
+
+- A compartment shows at most 20 lines; longer lists and texts end with an ellipsis in the drawing (the model keeps everything). This is the same cap as the existing `actions` compartment.
+- The `calcs` and `subject` lines appear only for what is not drawn as an edge, so the same fact is never shown twice.
+- Type names of calc parameters are free text and are not checked. A reference to an unknown id is drawn with the raw id and reported by the checker.
+- Boxes with extra compartments have a little free space at the bottom (the layout bridge reckons 14 px per line, the renderer draws 13 px), as for the existing `actions` compartment.
+
+**Open**
+
+- No separate analysis view; analysis and calc usages are not model elements of their own (fields of the definition); no calc in PAR or IBD; views (`expose` / `filter`) are still not evaluated.
+- No edge for `exhibit` and `perform`.
+- The LaTeX renderer draws the new definitions as a plain labelled rectangle, without compartments.
+- Playground sources, vault example texts, README and kuml.dev were not extended; the Wasm playground was not run in a browser.
+- The desktop MCP (`kuml-desktop`) was not reachable while this wave was built (ECONNREFUSED); the desktop UI was not checked, only Gradle and rendered PNGs.
+
 ### SysML 2 package diagram (wave 2I-a)
 
 **Behaviour changes (visible in existing diagrams)**
