@@ -157,6 +157,7 @@ internal object NodeRendererDispatcher {
                     frame = NoteFrameStyle.DOG_EAR,
                     frameClasses = "kuml-comment kuml-sysml2-comment",
                     builder = builder,
+                    kind = element.note.kind,
                 )
             is Sysml2Definition ->
                 renderSysml2Definition(element = element, layout = layout, theme = theme, builder = builder, context = sysml2Context)
@@ -171,6 +172,7 @@ internal object NodeRendererDispatcher {
                     frame = NoteFrameStyle.DOG_EAR,
                     frameClasses = "kuml-comment kuml-erm-note",
                     builder = builder,
+                    kind = element.note.kind,
                 )
             is BpmnTextAnnotation ->
                 renderNote(
@@ -180,6 +182,7 @@ internal object NodeRendererDispatcher {
                     frame = NoteFrameStyle.BRACKET,
                     frameClasses = "kuml-bpmn-text-annotation",
                     builder = builder,
+                    kind = element.note.kind,
                 )
             is BpmnEvent -> renderBpmnEvent(event = element, layout = layout, theme = theme, builder = builder)
             is BpmnGateway -> renderBpmnGateway(gw = element, layout = layout, theme = theme, builder = builder)

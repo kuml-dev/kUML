@@ -1,5 +1,6 @@
 package dev.kuml.sysml2.dsl.print
 
+import dev.kuml.core.model.note.NoteKind
 import dev.kuml.kerml.KermlMultiplicity
 import dev.kuml.sysml2.ACT_MAX_REGION_DEPTH
 import dev.kuml.sysml2.ActDiagram
@@ -949,7 +950,8 @@ public object Sysml2DslPrinter {
                 model.commentLinks
                     .filter { it.link.noteId == c.id }
                     .joinToString("") { ", ${quote(it.link.targetId)}" }
-            sb.appendLine("    comment(${quote(c.note.body)}$anchors, id = ${quote(c.id)})")
+            val kindArg = if (c.note.kind != NoteKind.NOTE) ", kind = NoteKind.${c.note.kind.name}" else ""
+            sb.appendLine("    comment(${quote(c.note.body)}$anchors, id = ${quote(c.id)}$kindArg)")
         }
     }
 

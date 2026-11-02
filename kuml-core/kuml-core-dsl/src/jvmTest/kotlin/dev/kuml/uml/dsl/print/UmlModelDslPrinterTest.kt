@@ -525,4 +525,18 @@ class UmlModelDslPrinterTest :
                 it.contains("constraint(name = \"weird\"") && it.contains("line2")
             } shouldBe true
         }
+
+        test("a note kind is printed only when it is not the plain note") {
+            val kinded =
+                makeDiagram(
+                    listOf(
+                        UmlComment(id = "c1", body = "careful", kind = dev.kuml.core.model.note.NoteKind.WARNING),
+                        UmlComment(id = "c2", body = "plain"),
+                    ),
+                )
+            val printed = UmlModelDslPrinter.print(kinded)
+            printed shouldContain "kind = NoteKind.WARNING"
+            printed.lines().count { "NoteKind" in it } shouldBe 1
+            UmlModelDslPrinter.print(makeDiagram(listOf(UmlComment(id = "c2", body = "plain")))) shouldNotContain "NoteKind"
+        }
     })

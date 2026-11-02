@@ -1,6 +1,7 @@
 package dev.kuml.core.script.interpreter
 
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.core.model.note.NoteKind
 import dev.kuml.uml.AggregationKind
 import dev.kuml.uml.UmlClassifier
 import dev.kuml.uml.UmlEnumeration
@@ -588,8 +589,9 @@ internal object DslInterpreter {
         // firstAnchor / secondAnchor are classifier handles; further anchors are not supported in this slice.
         val anchorArg =
             arg(call = call, named = "firstAnchor", positionalIndex = 1) ?: arg(call = call, named = "anchor", positionalIndex = 1)
+        val kind = optNoteKindArg(call = call, named = "kind") ?: NoteKind.NOTE
         if (anchorArg == null) {
-            builder.comment(text = text)
+            builder.comment(text = text, kind = kind)
             return
         }
 
@@ -607,7 +609,7 @@ internal object DslInterpreter {
         val handle = resolveAnchor(a = anchorArg, label = "firstAnchor")
         val secondArg = arg(call = call, named = "secondAnchor", positionalIndex = 2)
         val second = secondArg?.let { resolveAnchor(a = it, label = "secondAnchor") }
-        builder.comment(text = text, firstAnchor = handle, secondAnchor = second)
+        builder.comment(text = text, firstAnchor = handle, secondAnchor = second, kind = kind)
     }
 
     // ── Argument helpers ─────────────────────────────────────────────────────────
@@ -653,6 +655,24 @@ internal object DslInterpreter {
     ): Boolean? {
         val a = call.args.firstOrNull { it.name == named } ?: return null
         return asBool(e = a.value, line = call.line)
+    }
+
+    private fun optNoteKindArg(
+        call: DslCall,
+        named: String,
+    ): NoteKind? {
+        val a = call.args.firstOrNull { it.name == named } ?: return null
+        val ref =
+            a.value as? DslMemberRef
+                ?: throw DslInterpretException(message = "Expected a NoteKind.* value", line = call.line)
+        if (ref.qualifier != "NoteKind") {
+            throw DslInterpretException(message = "Expected 'NoteKind.*', got '${ref.qualifier}.${ref.member}'", line = call.line)
+        }
+        return NoteKind.entries.firstOrNull { it.name == ref.member }
+            ?: throw DslInterpretException(
+                message = "Unknown NoteKind '${ref.member}' — one of ${NoteKind.entries.joinToString { it.name }}",
+                line = call.line,
+            )
     }
 
     private fun optVisibilityArg(

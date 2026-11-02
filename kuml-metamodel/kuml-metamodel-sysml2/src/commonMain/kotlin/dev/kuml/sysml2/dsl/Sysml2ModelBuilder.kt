@@ -2,6 +2,7 @@ package dev.kuml.sysml2.dsl
 
 import dev.kuml.core.model.note.KumlNote
 import dev.kuml.core.model.note.KumlNoteLink
+import dev.kuml.core.model.note.NoteKind
 import dev.kuml.kerml.KermlMultiplicity
 import dev.kuml.kerml.KermlSpecialization
 import dev.kuml.sysml2.ActDiagram
@@ -850,7 +851,8 @@ class Sysml2ModelBuilder(
         text: String,
         vararg anchors: String,
         id: String? = null,
-    ): Sysml2Comment = addComment(text = text, anchorIds = anchors.toList(), id = id)
+        kind: NoteKind = NoteKind.NOTE,
+    ): Sysml2Comment = addComment(text = text, anchorIds = anchors.toList(), id = id, kind = kind)
 
     /** Adds a model-level comment anchored to the given elements. */
     fun comment(
@@ -858,14 +860,16 @@ class Sysml2ModelBuilder(
         firstAnchor: Sysml2Element,
         vararg moreAnchors: Sysml2Element,
         id: String? = null,
-    ): Sysml2Comment = addComment(text = text, anchorIds = (listOf(firstAnchor) + moreAnchors).map { it.id }, id = id)
+        kind: NoteKind = NoteKind.NOTE,
+    ): Sysml2Comment = addComment(text = text, anchorIds = (listOf(firstAnchor) + moreAnchors).map { it.id }, id = id, kind = kind)
 
     /** Alias of [comment]. */
     fun note(
         text: String,
         vararg anchors: String,
         id: String? = null,
-    ): Sysml2Comment = addComment(text = text, anchorIds = anchors.toList(), id = id)
+        kind: NoteKind = NoteKind.NOTE,
+    ): Sysml2Comment = addComment(text = text, anchorIds = anchors.toList(), id = id, kind = kind)
 
     /** Alias of [comment]. */
     fun note(
@@ -873,15 +877,17 @@ class Sysml2ModelBuilder(
         firstAnchor: Sysml2Element,
         vararg moreAnchors: Sysml2Element,
         id: String? = null,
-    ): Sysml2Comment = addComment(text = text, anchorIds = (listOf(firstAnchor) + moreAnchors).map { it.id }, id = id)
+        kind: NoteKind = NoteKind.NOTE,
+    ): Sysml2Comment = addComment(text = text, anchorIds = (listOf(firstAnchor) + moreAnchors).map { it.id }, id = id, kind = kind)
 
     internal fun addComment(
         text: String,
         anchorIds: List<String>,
         id: String?,
+        kind: NoteKind = NoteKind.NOTE,
     ): Sysml2Comment {
         val noteId = id ?: nextCommentId()
-        val comment = Sysml2Comment(note = KumlNote(id = noteId, body = text))
+        val comment = Sysml2Comment(note = KumlNote(id = noteId, body = text, kind = kind))
         comments += comment
         for (target in anchorIds.distinct()) {
             commentLinks +=

@@ -1,6 +1,9 @@
 package dev.kuml.uml
 
 import dev.kuml.core.model.KumlMetaValue
+import dev.kuml.core.model.note.NoteKind
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,12 +59,15 @@ import kotlinx.serialization.Serializable
  *
  * @property body Free text of the note. May contain newlines; the renderer
  *   wraps long lines to fit the note's width.
+ * @property kind Semantic kind (symbol and colour tone); [NoteKind.NOTE] is the plain note.
  */
 @Serializable
+@OptIn(ExperimentalSerializationApi::class)
 data class UmlComment(
     override val id: String,
     val body: String,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val kind: NoteKind = NoteKind.NOTE,
 ) : UmlElement
 
 /**

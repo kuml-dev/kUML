@@ -37,5 +37,6 @@ internal fun renderUmlComment(
         frame = NoteFrameStyle.DOG_EAR,
         frameClasses = "kuml-comment",
         builder = builder,
+        kind = element.kind,
     )
 }

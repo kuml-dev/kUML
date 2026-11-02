@@ -3,6 +3,7 @@ package dev.kuml.cli.reverse
 import dev.kuml.erm.dsl.ermModel
 import dev.kuml.erm.model.ErmDataType
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 
@@ -73,5 +74,17 @@ class ErmModelDslPrinterNotesTest :
             val printed = ErmModelDslPrinter.print(model)
             printed shouldContain "note(\"say \\\"hi\\\" \\\\ \${'$'}x\\nline2\", users, \"view_0\", id = \"n1\")"
             printed shouldContain "note(\"free\", id = \"n2\")"
+        }
+
+        test("a note kind is printed only when it is not the plain note") {
+            val kinded =
+                ermModel(name = "M") {
+                    entity(name = "users") { id(name = "id", type = ErmDataType.Integer(64)) }
+                    note(text = "careful", kind = dev.kuml.core.model.note.NoteKind.WARNING)
+                    note(text = "plain")
+                }
+            val printed = ErmModelDslPrinter.print(kinded)
+            printed shouldContain "kind = NoteKind.WARNING"
+            printed.lines().count { "NoteKind" in it } shouldBe 1
         }
     })

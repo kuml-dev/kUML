@@ -3,6 +3,7 @@ package dev.kuml.layout.bridge
 import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.note.KumlNoteLimits
+import dev.kuml.core.model.note.NoteKind
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.uml.UmlComment
@@ -24,7 +25,11 @@ public object NoteDiagnostics {
 
     /** Checks `(id, body)` pairs against the display limits. */
     public fun forBodies(notes: List<Pair<String, String>>): List<NoteDiagnostic> =
-        notes.filter { (_, body) -> NoteLayout.isTruncated(body) }.map { (id, body) ->
+        forKindedBodies(notes.map { (id, body) -> Triple(id, body, NoteKind.NOTE) })
+
+    /** Checks `(id, body, kind)` triples; the kind matters because a symbol narrows the text column. */
+    public fun forKindedBodies(notes: List<Triple<String, String, NoteKind>>): List<NoteDiagnostic> =
+        notes.filter { (_, body, kind) -> NoteLayout.isTruncated(body = body, kind = kind) }.map { (id, body, _) ->
             NoteDiagnostic(
                 code = NOTE_TRUNCATED,
                 noteId = id,
@@ -36,19 +41,21 @@ public object NoteDiagnostics {
         }
 
     /** SysML 2 comments of [model]. */
-    public fun forSysml2(model: Sysml2Model): List<NoteDiagnostic> = forBodies(model.comments.map { it.id to it.note.body })
+    public fun forSysml2(model: Sysml2Model): List<NoteDiagnostic> =
+        forKindedBodies(model.comments.map { Triple(it.id, it.note.body, it.note.kind) })
 
     /** BPMN text annotations of all processes and collaborations of [model]. */
     public fun forBpmn(model: BpmnModel): List<NoteDiagnostic> =
-        forBodies(
+        forKindedBodies(
             (model.processes.flatMap { it.textAnnotations } + model.collaborations.flatMap { it.textAnnotations })
-                .map { it.id to it.note.body },
+                .map { Triple(it.id, it.note.body, it.note.kind) },
         )
 
     /** ERM notes of [model]. */
-    public fun forErm(model: ErmModel): List<NoteDiagnostic> = forBodies(model.notes.map { it.id to it.note.body })
+    public fun forErm(model: ErmModel): List<NoteDiagnostic> =
+        forKindedBodies(model.notes.map { Triple(it.id, it.note.body, it.note.kind) })
 
     /** UML comments of [diagram]. */
     public fun forUml(diagram: KumlDiagram): List<NoteDiagnostic> =
-        forBodies(diagram.elements.filterIsInstance<UmlComment>().map { it.id to it.body })
+        forKindedBodies(diagram.elements.filterIsInstance<UmlComment>().map { Triple(it.id, it.body, it.kind) })
 }

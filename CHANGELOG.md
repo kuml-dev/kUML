@@ -6,6 +6,26 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Notes N1: note kinds with symbols
+
+**Additions**
+
+- `NoteKind` (15 values: `NOTE`, `INFO`, `HINT`, `WARNING`, `ERROR`, `IMPORTANT`, `SUCCESS`, `QUESTION`, `TODO`, `DECISION`, `ASSUMPTION`, `RISK`, `EXAMPLE`, `REFERENCE`, `DEPRECATED`) and a `kind = NoteKind.X` argument on the note verbs of UML (`comment`), SysML 2 (`comment`/`note`), ERM (`note`) and BPMN (`textAnnotation`/`note`). Example: `comment(text = "Totals are not rounded.", order, kind = NoteKind.WARNING)`. `NoteKind` is a script default import.
+- SVG/PNG: every kind except `NOTE` has its own symbol (hand-drawn polygons on a 24 grid, `fill-rule="evenodd"`, `role="img"` with a fixed `aria-label`), a coloured accent stripe (BPMN: coloured bracket) and a theme-aware colour tone (light and dark palette, contrast fallback to the theme text colour below 3:1). The text column starts after the symbol, sizing and drawn wrap use the same width.
+- The DSL printers (UML, interpreter dialect, SysML 2, ERM) write `kind = NoteKind.X` only for non-plain notes; the interpreter understands it.
+
+**Behaviour changes**
+
+- Notes without a kind are unchanged: JSON gets no `kind` field for `NOTE` (old JSON stays readable), SVG output and the style block are byte-identical (checked against all vault example SVGs rendered on the commit before this wave).
+- `kuml-metamodel-uml` now exposes `kuml-core-model` as `api` (was `implementation`), because `NoteKind` appears in its public signatures.
+- `NoteLayout.displayText/sizeOf/isTruncated`, `NotePlacementInput` and `NoteMeasure` gained a `kind` parameter (defaulted, source compatible); internal `renderNote` has a new `kind` parameter. `NoteKind` was added to the script default imports (`KumlScript`, style worker).
+
+**Not done in this wave (open)**
+
+- Kinds for KerML, Service Blueprint and C4 notes; LaTeX and PDF output; desktop preview; text format; BPMN XML round trip (`kuml:kind`); vault examples 66 and later; playground sync.
+- The tone colours are not yet overridable per theme. There is no built-in dark theme, so dark colours are tested with a test-only theme.
+- The desktop MCP server (`kuml-desktop`) was not reachable in this session.
+
 ### SysML 2 analysis cases, calculations, perform and exhibit (wave 2I-b)
 
 **Behaviour changes (visible in existing diagrams)**

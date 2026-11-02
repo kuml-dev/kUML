@@ -1,5 +1,6 @@
 package dev.kuml.layout.bridge.note
 
+import dev.kuml.core.model.note.NoteKind
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
@@ -21,6 +22,13 @@ public interface NoteMeasure {
         body: String,
         maxWidth: Float,
     ): Size
+
+    /** Size for a note of [kind]; implementations that ignore the kind keep working unchanged. */
+    public fun measure(
+        body: String,
+        maxWidth: Float,
+        kind: NoteKind,
+    ): Size = measure(body = body, maxWidth = maxWidth)
 }
 
 /** The sizing contract shared with the renderer ([NoteLayout.sizeOf]). */
@@ -29,6 +37,12 @@ public object DefaultNoteMeasure : NoteMeasure {
         body: String,
         maxWidth: Float,
     ): Size = NoteLayout.sizeOf(body = body)
+
+    override fun measure(
+        body: String,
+        maxWidth: Float,
+        kind: NoteKind,
+    ): Size = NoteLayout.sizeOf(body = body, kind = kind)
 }
 
 /** Measures notes that wrap at [width] instead of [NoteLayout.MAX_W] (state machines: [NoteLayout.STM_MAX_W]). */
@@ -39,6 +53,12 @@ public class WidthLimitedNoteMeasure(
         body: String,
         maxWidth: Float,
     ): Size = NoteLayout.sizeOf(body = body, maxWidth = minOf(width, maxWidth))
+
+    override fun measure(
+        body: String,
+        maxWidth: Float,
+        kind: NoteKind,
+    ): Size = NoteLayout.sizeOf(body = body, maxWidth = minOf(width, maxWidth), kind = kind)
 }
 
 /** All numbers of the placement engine; the placement code contains no size constants of its own. */
@@ -93,6 +113,7 @@ public data class NotePlacementInput(
     val noteId: String,
     val body: String,
     val anchors: List<NoteAnchorRef>,
+    val kind: NoteKind = NoteKind.NOTE,
 )
 
 /** An anchor whose target the layout does not show. */
@@ -258,7 +279,7 @@ public object NotePlacer {
         val usedAlong = HashMap<String, MutableList<Point>>()
 
         for (note in limited) {
-            val size = measure.measure(body = note.body, maxWidth = config.maxNoteWidth)
+            val size = measure.measure(body = note.body, maxWidth = config.maxNoteWidth, kind = note.kind)
             if (note.anchors.size > config.maxAnchors) truncated += note.noteId
             val resolved = mutableListOf<Anchor>()
             for (ref in note.anchors.take(config.maxAnchors)) {

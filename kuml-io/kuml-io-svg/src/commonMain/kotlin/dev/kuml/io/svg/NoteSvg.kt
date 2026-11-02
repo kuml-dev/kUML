@@ -1,5 +1,6 @@
 package dev.kuml.io.svg
 
+import dev.kuml.core.model.note.NoteKind
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.bridge.NoteFrameStyle
@@ -24,6 +25,7 @@ internal fun renderNote(
     frame: NoteFrameStyle,
     frameClasses: String,
     builder: SvgBuilder,
+    kind: NoteKind = NoteKind.NOTE,
 ) {
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
@@ -33,13 +35,63 @@ internal fun renderNote(
         name = "g",
         attrs = mapOf("id" to id, "transform" to "translate(${fmt2(x)},${fmt2(y)})"),
     ) {
-        renderNoteFrame(w = w, h = h, frame = frame, frameClasses = frameClasses, builder = this)
-        val inset = if (frame == NoteFrameStyle.BRACKET) NoteLayout.H_PADDING / 2f + 8f else NoteLayout.H_PADDING / 2f
+        val tone = NoteIcons.tone(kind)
+        // A kinded bracket carries the tone on its own stroke; a dog-ear gets an accent stripe below.
+        val classes = if (kind.hasIcon && frame == NoteFrameStyle.BRACKET) "$frameClasses kuml-note-bracket-${tone.css}" else frameClasses
+        renderNoteFrame(w = w, h = h, frame = frame, frameClasses = classes, builder = this)
+        if (kind.hasIcon) {
+            if (frame == NoteFrameStyle.DOG_EAR) {
+                tag(
+                    name = "rect",
+                    attrs =
+                        mapOf(
+                            "x" to "0",
+                            "y" to "0",
+                            "width" to fmt2(NoteTones.ACCENT_WIDTH),
+                            "height" to fmt2(h),
+                            "class" to "kuml-note-accent-${tone.css}",
+                        ),
+                )
+            }
+            renderNoteIcon(kind = kind, x = NoteLayout.iconX(frame = frame, kind = kind), builder = this)
+        }
+        val inset = NoteLayout.textInset(frame = frame, kind = kind)
         // Wrap at the width of the box that was sized for the text (state machines wrap narrower than other diagrams).
+        // displayText takes the symbol column off this width itself, exactly as NoteLayout.sizeOf does.
         val inner = minOf(w - NoteLayout.H_PADDING + WRAP_EPS, NoteLayout.MAX_W - NoteLayout.H_PADDING)
-        renderNoteText(lines = NoteLayout.displayText(body = body, maxInnerWidth = inner).lines, xInset = inset, builder = this)
+        renderNoteText(
+            lines = NoteLayout.displayText(body = body, maxInnerWidth = inner, kind = kind).lines,
+            xInset = inset,
+            builder = this,
+        )
     }
 }
+
+/** The kind symbol: a 24-grid path scaled to [NoteLayout.ICON_SIZE]. The label is fixed text, never user input. */
+internal fun renderNoteIcon(
+    kind: NoteKind,
+    x: Float,
+    builder: SvgBuilder,
+) {
+    val scale = NoteLayout.ICON_SIZE / ICON_GRID
+    builder.tag(
+        name = "g",
+        attrs =
+            mapOf(
+                "class" to "kuml-note-icon",
+                "role" to "img",
+                "aria-label" to NoteIcons.label(kind),
+                "transform" to "translate(${fmt2(x)},${fmt2(NoteLayout.ICON_Y)}) scale(${fmt2(scale)})",
+            ),
+    ) {
+        tag(
+            name = "path",
+            attrs = mapOf("d" to NoteIcons.path(kind), "fill-rule" to "evenodd", "class" to "kuml-note-tone-${NoteIcons.tone(kind).css}"),
+        )
+    }
+}
+
+private const val ICON_GRID = 24f
 
 internal fun renderNoteFrame(
     w: Float,

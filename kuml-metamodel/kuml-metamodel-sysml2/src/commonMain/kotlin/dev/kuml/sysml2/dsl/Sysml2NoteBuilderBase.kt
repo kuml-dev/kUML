@@ -2,6 +2,7 @@ package dev.kuml.sysml2.dsl
 
 import dev.kuml.core.model.layout.LayoutSpecBuilder
 import dev.kuml.core.model.layout.LayoutSpecCollector
+import dev.kuml.core.model.note.NoteKind
 import dev.kuml.sysml2.Sysml2Comment
 import dev.kuml.sysml2.Sysml2Element
 import dev.kuml.sysml2.Sysml2LayoutSpec
@@ -22,8 +23,9 @@ abstract class Sysml2NoteBuilderBase internal constructor(
         text: String,
         vararg anchors: String,
         id: String? = null,
+        kind: NoteKind = NoteKind.NOTE,
     ): Sysml2Comment {
-        val c = modelBuilder.addComment(text = text, anchorIds = anchors.toList(), id = id)
+        val c = modelBuilder.addComment(text = text, anchorIds = anchors.toList(), id = id, kind = kind)
         noteIds += c.id
         return c
     }
@@ -34,14 +36,16 @@ abstract class Sysml2NoteBuilderBase internal constructor(
         firstAnchor: Sysml2Element,
         vararg moreAnchors: Sysml2Element,
         id: String? = null,
-    ): Sysml2Comment = comment(text = text, *(listOf(firstAnchor) + moreAnchors).map { it.id }.toTypedArray(), id = id)
+        kind: NoteKind = NoteKind.NOTE,
+    ): Sysml2Comment = comment(text = text, *(listOf(firstAnchor) + moreAnchors).map { it.id }.toTypedArray(), id = id, kind = kind)
 
     /** Alias of [comment]. */
     fun note(
         text: String,
         vararg anchors: String,
         id: String? = null,
-    ): Sysml2Comment = comment(text = text, *anchors, id = id)
+        kind: NoteKind = NoteKind.NOTE,
+    ): Sysml2Comment = comment(text = text, *anchors, id = id, kind = kind)
 
     /** Alias of [comment]. */
     fun note(
@@ -49,7 +53,8 @@ abstract class Sysml2NoteBuilderBase internal constructor(
         firstAnchor: Sysml2Element,
         vararg moreAnchors: Sysml2Element,
         id: String? = null,
-    ): Sysml2Comment = comment(text = text, firstAnchor = firstAnchor, *moreAnchors, id = id)
+        kind: NoteKind = NoteKind.NOTE,
+    ): Sysml2Comment = comment(text = text, firstAnchor = firstAnchor, *moreAnchors, id = id, kind = kind)
 
     /** Lists a model-level comment in this diagram. */
     fun include(comment: Sysml2Comment) {

@@ -347,6 +347,41 @@ hard instead of running out of the box. `kuml render` and `kuml validate` report
 warning `NOTE_TRUNCATED`. UML comments have no hard length limit; SysML 2, BPMN and ERM notes reject
 bodies above 65 536 characters.
 
+[[note-kinds]]
+=== Note kinds
+
+Every note verb takes an optional `kind = NoteKind.X` (UML `comment`, SysML 2 `comment`/`note`, ERM `note`,
+BPMN `textAnnotation`/`note`). `NoteKind.NOTE` is the default: a plain note, drawn exactly as before.
+The other 14 kinds add a symbol left of the text, a coloured accent stripe on the left edge (a coloured bracket for BPMN)
+and a colour tone. `NoteKind` is imported in every script by default.
+
+[source,kotlin]
+----
+classDiagram(name = "Orders") {
+    val order = classOf(name = "Order")
+    comment(text = "Totals are not rounded here.", order, kind = NoteKind.WARNING)
+    comment(text = "Orders are immutable once paid.", order, kind = NoteKind.DECISION)
+}
+----
+
+[cols="2,1,2",options="header"]
+|===
+| Kind | Symbol | Tone
+
+| `INFO`, `QUESTION`, `REFERENCE` | information, speech bubble, bookmark | info (blue)
+| `HINT`, `EXAMPLE` | light bulb, sparkle | hint (teal)
+| `SUCCESS`, `DECISION` | ring with check, arrow | success (green)
+| `WARNING`, `ASSUMPTION`, `TODO` | triangle with "!", inverted triangle, checkbox | warning (amber)
+| `ERROR`, `RISK` | octagon with cross, lightning bolt | danger (red)
+| `IMPORTANT` | diamond with "!" | important (purple)
+| `DEPRECATED` | prohibition sign | neutral (theme muted colour)
+|===
+
+Colours follow the theme: a light palette on light node fills, a dark palette on dark ones. A tone with less than 3:1 contrast
+against the note fill is replaced by the theme text colour. Colour is never the only carrier: every kind has its own symbol,
+and the symbol carries `role="img"` and an `aria-label` with the kind name. A kinded note is a little wider, because the text
+column starts after the symbol. Not yet supported: kinds in KerML, Service Blueprint and C4 notes.
+
 == Object diagrams
 
 Object diagrams show concrete instances. Use them for examples and snapshots.

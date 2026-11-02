@@ -41,7 +41,10 @@ internal fun LayoutGraph.withBpmnNotes(
     val shownIds = shown.map { it.id }.toSet()
     val noteNodes =
         shown.map {
-            LayoutNode(id = NodeId(it.id), intrinsicSize = NoteLayout.sizeOf(body = it.note.body, frame = NoteFrameStyle.BRACKET))
+            LayoutNode(
+                id = NodeId(it.id),
+                intrinsicSize = NoteLayout.sizeOf(body = it.note.body, frame = NoteFrameStyle.BRACKET, kind = it.note.kind),
+            )
         }
     val noteEdges =
         associations

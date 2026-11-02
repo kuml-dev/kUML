@@ -50,5 +50,5 @@ public object UmlCommentLayout {
     ): List<String> = NoteLayout.displayText(body = body, maxInnerWidth = maxInnerWidth).lines
 
     /** Computes the note box [Size] for [comment]. */
-    public fun sizeOf(comment: UmlComment): Size = NoteLayout.sizeOf(body = comment.body)
+    public fun sizeOf(comment: UmlComment): Size = NoteLayout.sizeOf(body = comment.body, kind = comment.kind)
 }

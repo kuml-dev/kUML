@@ -56,6 +56,7 @@ public object Sysml2NotePlacement {
                     NotePlacementInput(
                         noteId = c.id,
                         body = c.note.body,
+                        kind = c.note.kind,
                         anchors =
                             model.commentLinks
                                 .filter { it.link.noteId == c.id }

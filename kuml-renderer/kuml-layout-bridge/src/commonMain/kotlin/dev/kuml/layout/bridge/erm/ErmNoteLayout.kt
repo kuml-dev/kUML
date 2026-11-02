@@ -31,7 +31,10 @@ internal fun LayoutGraph.withErmNotes(
     val noteIds = notes.map { it.id }.toSet()
     val noteNodes =
         notes.map {
-            LayoutNode(id = NodeId(it.id), intrinsicSize = NoteLayout.sizeOf(body = it.note.body, frame = NoteFrameStyle.DOG_EAR))
+            LayoutNode(
+                id = NodeId(it.id),
+                intrinsicSize = NoteLayout.sizeOf(body = it.note.body, frame = NoteFrameStyle.DOG_EAR, kind = it.note.kind),
+            )
         }
     val noteEdges =
         model.noteLinks.mapNotNull { l ->

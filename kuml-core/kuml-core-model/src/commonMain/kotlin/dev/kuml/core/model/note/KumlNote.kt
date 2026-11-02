@@ -1,5 +1,7 @@
 package dev.kuml.core.model.note
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 
 /**
@@ -25,6 +27,34 @@ object KumlNoteLimits {
 }
 
 /**
+ * Semantic kind of a note. [NOTE] is the plain note (no symbol, no colour); every other
+ * kind carries a symbol and a colour tone in the SVG output. The kind is serialised only
+ * when it differs from [NOTE], so existing JSON stays byte-identical.
+ */
+@Serializable
+enum class NoteKind {
+    NOTE,
+    INFO,
+    HINT,
+    WARNING,
+    ERROR,
+    IMPORTANT,
+    SUCCESS,
+    QUESTION,
+    TODO,
+    DECISION,
+    ASSUMPTION,
+    RISK,
+    EXAMPLE,
+    REFERENCE,
+    DEPRECATED,
+    ;
+
+    /** True for every kind except [NOTE]. */
+    val hasIcon: Boolean get() = this != NOTE
+}
+
+/**
  * Free-text note shared by the notations that have no UML comment: SysML 2,
  * BPMN and ERM. A plain value type used via composition; it deliberately does
  * not implement [dev.kuml.core.model.KumlElement].
@@ -33,9 +63,11 @@ object KumlNoteLimits {
  * id but never echo the body.
  */
 @Serializable
+@OptIn(ExperimentalSerializationApi::class)
 data class KumlNote(
     val id: String,
     val body: String,
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val kind: NoteKind = NoteKind.NOTE,
 ) {
     init {
         require(id.isNotBlank()) { "Note id must not be blank" }

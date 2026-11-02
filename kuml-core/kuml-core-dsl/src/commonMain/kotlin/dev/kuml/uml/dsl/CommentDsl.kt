@@ -1,5 +1,6 @@
 package dev.kuml.uml.dsl
 
+import dev.kuml.core.model.note.NoteKind
 import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlNamedElement
@@ -46,12 +47,14 @@ import dev.kuml.uml.ids.UmlIds
  * @param anchors [dev.kuml.uml.UmlElement.id] values of zero or more elements
  *   this comment annotates. Each anchor produces a separate [UmlCommentLink].
  * @param id Explicit ID override; auto-derived via [UmlIds.comment] otherwise.
+ * @param kind Semantic kind of the note (symbol and colour in the SVG); [NoteKind.NOTE] is the plain note.
  * @return The built [UmlComment].
  */
 public fun UmlModelScope.comment(
     text: String,
     vararg anchors: String,
     id: String? = null,
+    kind: NoteKind = NoteKind.NOTE,
 ): UmlComment {
     val commentId =
         id
@@ -60,7 +63,7 @@ public fun UmlModelScope.comment(
                 taken = takenIds,
             )
     takenIds += commentId
-    val c = UmlComment(id = commentId, body = text)
+    val c = UmlComment(id = commentId, body = text, kind = kind)
     addComment(c)
     for (anchorId in anchors) {
         val linkId =
@@ -90,11 +93,13 @@ public fun UmlModelScope.comment(
     secondAnchor: UmlNamedElement? = null,
     vararg moreAnchors: UmlNamedElement,
     id: String? = null,
+    kind: NoteKind = NoteKind.NOTE,
 ): UmlComment =
     comment(
         text = text,
         anchors = (listOfNotNull(firstAnchor, secondAnchor) + moreAnchors).map { it.id }.toTypedArray(),
         id = id,
+        kind = kind,
     )
 
 /**
@@ -108,6 +113,7 @@ public fun UmlInteractionScope.comment(
     text: String,
     vararg anchors: String,
     id: String? = null,
+    kind: NoteKind = NoteKind.NOTE,
 ): UmlComment {
     val commentId =
         id
@@ -116,7 +122,7 @@ public fun UmlInteractionScope.comment(
                 taken = takenIds,
             )
     takenIds += commentId
-    val c = UmlComment(id = commentId, body = text)
+    val c = UmlComment(id = commentId, body = text, kind = kind)
     addComment(c)
     for (anchorId in anchors) {
         val linkId =
@@ -149,11 +155,13 @@ public fun UmlInteractionScope.comment(
     secondAnchor: UmlNamedElement? = null,
     vararg moreAnchors: UmlNamedElement,
     id: String? = null,
+    kind: NoteKind = NoteKind.NOTE,
 ): UmlComment =
     comment(
         text = text,
         anchors = (listOfNotNull(firstAnchor, secondAnchor) + moreAnchors).map { it.id }.toTypedArray(),
         id = id,
+        kind = kind,
     )
 
 /**
@@ -168,6 +176,7 @@ public fun UmlStateMachineScope.comment(
     text: String,
     vararg anchors: String,
     id: String? = null,
+    kind: NoteKind = NoteKind.NOTE,
 ): UmlComment {
     val commentId =
         id
@@ -176,7 +185,7 @@ public fun UmlStateMachineScope.comment(
                 taken = takenIds,
             )
     takenIds += commentId
-    val c = UmlComment(id = commentId, body = text)
+    val c = UmlComment(id = commentId, body = text, kind = kind)
     addComment(c)
     for (anchorId in anchors) {
         val linkId =
@@ -209,11 +218,13 @@ public fun UmlStateMachineScope.comment(
     secondAnchor: UmlNamedElement? = null,
     vararg moreAnchors: UmlNamedElement,
     id: String? = null,
+    kind: NoteKind = NoteKind.NOTE,
 ): UmlComment =
     comment(
         text = text,
         anchors = (listOfNotNull(firstAnchor, secondAnchor) + moreAnchors).map { it.id }.toTypedArray(),
         id = id,
+        kind = kind,
     )
 
 // ── Index helpers ─────────────────────────────────────────────────────────────

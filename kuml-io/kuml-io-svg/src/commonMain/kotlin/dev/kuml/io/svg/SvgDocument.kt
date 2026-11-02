@@ -153,6 +153,14 @@ internal object SvgDocument {
         // <defs>
         root.append(if (p) "  <defs>\n" else "<defs>")
         root.append(defsBuilder.toString())
+        // Note-kind tone colours: written only for tones a note in this diagram really uses (none: nothing, so
+        // diagrams without kinded notes stay byte-identical).
+        val toneCss = NoteTones.css(used = NoteTones.usedIn(nodesBuilder.toString() + edgesBuilder.toString()), theme = theme)
+        if (toneCss.isNotEmpty()) {
+            val toneStyle = SvgBuilder(pretty = p, indent = if (p) 2 else 0)
+            toneStyle.tag(name = "style") { text(toneCss) }
+            root.append(toneStyle.toString())
+        }
         root.append(if (p) "  </defs>\n" else "</defs>")
 
         // V3.0.11 — Canvas-Background. Without an explicit rect the SVG is

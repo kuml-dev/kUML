@@ -1,5 +1,6 @@
 package dev.kuml.cli.reverse
 
+import dev.kuml.core.model.note.NoteKind
 import dev.kuml.erm.model.ErmAttribute
 import dev.kuml.erm.model.ErmCategory
 import dev.kuml.erm.model.ErmDataType
@@ -207,7 +208,8 @@ internal object ErmModelDslPrinter {
             model.noteLinks
                 .filter { it.link.noteId == note.id }
                 .joinToString("") { ", " + (valNames[it.link.targetId] ?: "\"${escape(it.link.targetId)}\"") }
-        sb.appendLine("    note(\"${escape(note.note.body)}\"$anchors, id = \"${escape(note.id)}\")")
+        val kindArg = if (note.note.kind != NoteKind.NOTE) ", kind = NoteKind.${note.note.kind.name}" else ""
+        sb.appendLine("    note(\"${escape(note.note.body)}\"$anchors, id = \"${escape(note.id)}\"$kindArg)")
     }
 
     private fun renderCategory(

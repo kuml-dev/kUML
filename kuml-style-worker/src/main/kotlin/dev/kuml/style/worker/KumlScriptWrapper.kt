@@ -19,6 +19,7 @@ internal val KUML_DEFAULT_IMPORTS: List<String> =
     listOf(
         "dev.kuml.core.model.*",
         "dev.kuml.core.model.DiagramType.*",
+        "dev.kuml.core.model.note.NoteKind",
         "dev.kuml.core.dsl.*",
         "dev.kuml.uml.dsl.*",
         "dev.kuml.uml.*",

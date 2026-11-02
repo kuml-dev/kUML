@@ -3,6 +3,7 @@ package dev.kuml.uml.dsl.print
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
 import dev.kuml.core.model.KumlModel
+import dev.kuml.core.model.note.NoteKind
 import dev.kuml.uml.AggregationKind
 import dev.kuml.uml.Multiplicity
 import dev.kuml.uml.ParameterDirection
@@ -624,7 +625,7 @@ public object InterpreterUmlModelDslPrinter {
                 anchorIdsByCommentId[c.id]
                     .orEmpty()
                     .mapNotNull { identOf[it] }
-            val textArg = "text = ${quote(c.body)}"
+            val textArg = "text = ${quote(c.body)}" + if (c.kind != NoteKind.NOTE) ", kind = NoteKind.${c.kind.name}" else ""
             if (resolvedAnchors.isEmpty()) {
                 sb.appendLine("    comment($textArg)")
             } else {

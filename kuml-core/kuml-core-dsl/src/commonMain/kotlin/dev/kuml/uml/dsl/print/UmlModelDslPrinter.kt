@@ -5,6 +5,7 @@ import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
 import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.model.KumlModel
+import dev.kuml.core.model.note.NoteKind
 import dev.kuml.uml.AggregationKind
 import dev.kuml.uml.Multiplicity
 import dev.kuml.uml.ParameterDirection
@@ -491,6 +492,7 @@ public object UmlModelDslPrinter {
                 args += "anchors = arrayOf(${anchors.joinToString(", ") { quote(it) }})"
             }
             args += "id = ${quote(c.id)}"
+            if (c.kind != NoteKind.NOTE) args += "kind = NoteKind.${c.kind.name}"
             sb.appendLine("    comment(${args.joinToString(", ")})")
         }
     }

@@ -19,7 +19,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":kuml-core:kuml-core-model"))
+            api(project(":kuml-core:kuml-core-model"))
             implementation(libs.kotlinx.serialization.json)
         }
         commonTest.dependencies {
