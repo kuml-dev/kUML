@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -36,10 +35,8 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.MenuBar
-import androidx.compose.ui.window.rememberDialogState
 import dev.kuml.ai.vault.ApiKeyVault
 import dev.kuml.cli.workspace.WorkspacePdfExport
 import dev.kuml.desktop.ai.AiPanel
@@ -1275,36 +1272,5 @@ private fun ViewModeSegment(
             // tooltip above would be hidden by them, to the right it would leave the window.
             tooltipPlacement = tooltipStart(),
         )
-    }
-}
-
-/**
- * About dialog (P6, design review) — `strings.aboutTitle`/`aboutBody` already existed;
- * `Help → About` previously did nothing (`/* V3.0.12: About-Dialog */`) because no dialog
- * was ever built to show them.
- */
-@Composable
-private fun AboutDialog(
-    strings: Strings,
-    onClose: () -> Unit,
-) {
-    DialogWindow(
-        onCloseRequest = onClose,
-        title = strings.aboutTitle,
-        state = rememberDialogState(width = 420.dp, height = 250.dp),
-    ) {
-        MaterialTheme {
-            Surface(modifier = Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(16.dp),
-                    verticalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text("${strings.aboutBody}\n${strings.aboutVersion} ${AppVersion.current}")
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        Button(onClick = onClose) { Text(strings.dialogClose) }
-                    }
-                }
-            }
-        }
     }
 }

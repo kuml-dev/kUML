@@ -47,6 +47,7 @@ kotlin {
                     implementation(libs.batik.swing)
                     implementation(compose.desktop.currentOs)
                     implementation(libs.kotlinx.coroutines.core)
+                    implementation(libs.kotlin.logging) // About dialog license loader
                     implementation(libs.kotlinx.serialization.json)
                     implementation(libs.kotlin.scripting.common)
                     implementation(libs.kotlin.scripting.jvm)
@@ -222,9 +223,34 @@ compose.desktop {
 // would drag the build script into the configuration cache and fail serialization.
 tasks.named<ProcessResources>("jvmProcessResources") {
     val desktopVersion = project.version.toString()
+    // Commit date of HEAD (deterministic per commit). Empty when git is missing or the tree is not a
+    // checkout; AppVersion then reports the build date as unknown.
+    val gitDate =
+        providers
+            .exec {
+                commandLine("git", "log", "-1", "--format=%cs")
+                isIgnoreExitValue = true
+            }.standardOutput.asText
+    val desktopBuildDate =
+        providers.provider {
+            try {
+                gitDate.get().trim()
+            } catch (_: Exception) {
+                "" // git missing: build date stays unknown
+            }
+        }
     inputs.property("kumlDesktopVersion", desktopVersion)
+    inputs.property("kumlDesktopBuildDate", desktopBuildDate)
     filesMatching("dev/kuml/desktop/version.properties") {
-        expand("kumlVersion" to desktopVersion)
+        expand("kumlVersion" to desktopVersion, "kumlBuildDate" to desktopBuildDate.get())
+    }
+    // Bundled NOTICE for the About dialog's license view. Own path (not META-INF/NOTICE, which the
+    // PDF module already provides); copied verbatim, never expanded.
+    val noticeFile = rootProject.file("NOTICE")
+    inputs.file(noticeFile)
+    from(noticeFile) {
+        into("dev/kuml/desktop")
+        rename { "NOTICE.txt" }
     }
 }
 

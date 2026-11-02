@@ -36,9 +36,6 @@ data class Strings(
     val dialogUnsavedCancel: String,
     val dialogFileNotFound: String,
     val dialogIoError: String,
-    val aboutTitle: String,
-    val aboutBody: String,
-    val aboutVersion: String,
     val dialogClose: String,
     // V3.7.x — Export (design-review P3)
     val menuFileExportSvg: String,
@@ -213,6 +210,8 @@ data class Strings(
     // is limited to 255 parameters and this one would exceed it.
     val simulator: SimulatorStrings,
     val pdfExport: PdfExportStrings,
+    // About dialog texts: a separate class (JVM constructor limit of 255 parameters).
+    val about: AboutStrings,
     // V-next — editable OKF Knowledge Workspace documents (Read/Edit toggle, save gate)
     val docEditRead: String,
     val docEditEdit: String,
@@ -397,9 +396,6 @@ data class Strings(
                 dialogUnsavedCancel = "Abbrechen",
                 dialogFileNotFound = "Datei nicht gefunden",
                 dialogIoError = "Fehler beim Lesen/Schreiben der Datei",
-                aboutTitle = "Über kUML Desktop",
-                aboutBody = "kUML Desktop — die native Desktop-App für die kUML-Modellierungssprache.\nhttps://kuml.dev",
-                aboutVersion = "Version",
                 dialogClose = "Schließen",
                 menuFileExportSvg = "SVG exportieren…",
                 menuFileExportPng = "PNG exportieren…",
@@ -570,6 +566,25 @@ data class Strings(
                 simStartFailed = "Simulation konnte nicht gestartet werden: %s",
                 simAutoStopped = "Automatisch angehalten: %s",
                 simTraceTitle = "Verlauf",
+                about =
+                    AboutStrings(
+                        title = "Über kUML Desktop",
+                        body = "Die native Desktop-App für die kUML-Modellierungssprache.",
+                        version = "Version",
+                        productName = "kUML Desktop",
+                        copyright = "© 2025–2026 Irakli Betchvaia",
+                        buildDate = "Build-Datum",
+                        java = "Java",
+                        unknown = "unbekannt",
+                        copyInfo = "Versionsinfo kopieren",
+                        copied = "Kopiert",
+                        openLicenses = "Open-Source-Lizenzen",
+                        linkWebsiteA11y = "kUML-Webseite im Browser öffnen",
+                        linkLicenseA11y = "Apache-2.0-Lizenztext im Browser öffnen",
+                        browserFailed = "Der Browser konnte nicht geöffnet werden.",
+                        licensesTitle = "Open-Source-Lizenzen",
+                        licensesUnavailable = "Der Lizenztext konnte nicht geladen werden.",
+                    ),
                 pdfExport =
                     PdfExportStrings(
                         pdfPageStrategy = "Seitengröße",
@@ -762,9 +777,6 @@ data class Strings(
                 dialogUnsavedCancel = "Cancel",
                 dialogFileNotFound = "File not found",
                 dialogIoError = "Error reading/writing file",
-                aboutTitle = "About kUML Desktop",
-                aboutBody = "kUML Desktop — the native desktop app for the kUML modelling language.\nhttps://kuml.dev",
-                aboutVersion = "Version",
                 dialogClose = "Close",
                 menuFileExportSvg = "Export SVG…",
                 menuFileExportPng = "Export PNG…",
@@ -931,6 +943,25 @@ data class Strings(
                 simStartFailed = "Could not start simulation: %s",
                 simAutoStopped = "Auto-advance stopped: %s",
                 simTraceTitle = "Trace",
+                about =
+                    AboutStrings(
+                        title = "About kUML Desktop",
+                        body = "The native desktop app for the kUML modeling language.",
+                        version = "Version",
+                        productName = "kUML Desktop",
+                        copyright = "© 2025–2026 Irakli Betchvaia",
+                        buildDate = "Build date",
+                        java = "Java",
+                        unknown = "unknown",
+                        copyInfo = "Copy version info",
+                        copied = "Copied",
+                        openLicenses = "Open-source licenses",
+                        linkWebsiteA11y = "Open the kUML website in the browser",
+                        linkLicenseA11y = "Open the Apache 2.0 license text in the browser",
+                        browserFailed = "The browser could not be opened.",
+                        licensesTitle = "Open-source licenses",
+                        licensesUnavailable = "The license text could not be loaded.",
+                    ),
                 pdfExport =
                     PdfExportStrings(
                         pdfPageStrategy = "Page size",
@@ -1184,4 +1215,24 @@ data class PdfExportStrings(
     val pdfMinScale: String,
     val pdfLayoutSummary: String,
     val pdfDisabledOrientationAuto: String,
+)
+
+/** Texts of the About dialog and its license view (see [Strings.about]). */
+data class AboutStrings(
+    val title: String,
+    val body: String,
+    val version: String,
+    val productName: String,
+    val copyright: String,
+    val buildDate: String,
+    val java: String,
+    val unknown: String,
+    val copyInfo: String,
+    val copied: String,
+    val openLicenses: String,
+    val linkWebsiteA11y: String,
+    val linkLicenseA11y: String,
+    val browserFailed: String,
+    val licensesTitle: String,
+    val licensesUnavailable: String,
 )

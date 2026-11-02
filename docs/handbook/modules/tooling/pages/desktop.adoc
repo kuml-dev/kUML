@@ -135,9 +135,13 @@ Menu shortcuts follow the platform convention: *⌘ (Command)* on macOS, *Ctrl* 
 With a knowledge workspace open, *File ▸ Export Workspace ▸ As PDF...* exports it as a handbook, one PDF per document or a
 diagram folio; see xref:workspace-pdf-export.adoc[Workspace PDF export].
 
-== Version
+== About dialog
 
-*Help ▸ About kUML…* shows the installed version.
+*Help ▸ About kUML…* shows the product name, a one-line description, the copyright, and two links (the kUML website and the Apache License 2.0 text), which open in the default browser. If the platform has no browser support, the address is shown as selectable text instead of a link.
+
+The dialog lists three facts: the version, the build date (the commit date of the build, `unknown` when the build was made outside a git checkout) and the Java version the app runs on. *Copy version info* puts exactly these three displayed lines on the clipboard, which is handy for bug reports.
+
+*Open-source licenses* shows the bundled NOTICE plus the license texts of the bundled fonts (Inter and JetBrains Mono, SIL Open Font License 1.1).
 
 == Local MCP server
 

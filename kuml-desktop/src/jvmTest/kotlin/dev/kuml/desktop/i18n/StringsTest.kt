@@ -40,8 +40,14 @@ class StringsTest :
         test("DE menuFileRecentEmpty is non-empty") { Strings.DE.menuFileRecentEmpty.isNotEmpty() shouldBe true }
         test("EN dialogUnsavedTitle is non-empty") { Strings.EN.dialogUnsavedTitle.isNotEmpty() shouldBe true }
         test("DE dialogUnsavedTitle is non-empty") { Strings.DE.dialogUnsavedTitle.isNotEmpty() shouldBe true }
-        test("EN aboutTitle is non-empty") { Strings.EN.aboutTitle.isNotEmpty() shouldBe true }
-        test("DE aboutTitle is non-empty") { Strings.DE.aboutTitle.isNotEmpty() shouldBe true }
+        test("EN aboutTitle is non-empty") {
+            Strings.EN.about.title
+                .isNotEmpty() shouldBe true
+        }
+        test("DE aboutTitle is non-empty") {
+            Strings.DE.about.title
+                .isNotEmpty() shouldBe true
+        }
 
         // --- V3.6.4 — Knowledge Workspace viewer keys (both languages non-empty, EN ≠ DE) ---
         test("EN menuFileOpenWorkspace is non-empty") { Strings.EN.menuFileOpenWorkspace.isNotEmpty() shouldBe true }
@@ -626,5 +632,50 @@ class PdfExportStringsTest :
                 Regex("%\\d\\$[ds]").findAll(it.second).map { m -> m.value }.toSet() shouldBe
                     Regex("%\\d\\$[ds]").findAll(it.third).map { m -> m.value }.toSet()
             }
+        }
+
+        // --- About dialog ---
+        val aboutKeys: (Strings) -> List<String> = {
+            listOf(
+                it.about.productName,
+                it.about.body,
+                it.about.version,
+                it.about.copyright,
+                it.about.buildDate,
+                it.about.java,
+                it.about.unknown,
+                it.about.copyInfo,
+                it.about.copied,
+                it.about.openLicenses,
+                it.about.linkWebsiteA11y,
+                it.about.linkLicenseA11y,
+                it.about.browserFailed,
+                it.about.licensesTitle,
+                it.about.licensesUnavailable,
+            )
+        }
+        test("all About keys are non-blank in DE and EN") {
+            (aboutKeys(Strings.DE) + aboutKeys(Strings.EN)).forEach { it.shouldNotBeBlank() }
+        }
+        test("aboutCopyright is identical in DE and EN and names the author") {
+            Strings.DE.about.copyright shouldBe Strings.EN.about.copyright
+            Strings.DE.about.copyright shouldContain "Irakli Betchvaia"
+        }
+        test("aboutBody carries no URL") {
+            listOf(Strings.DE, Strings.EN).forEach { it.about.body.contains("http") shouldBe false }
+        }
+        test("no string in the English catalog uses the British spelling modelling") {
+            Strings::class.java.declaredFields
+                .filter { it.type == String::class.java }
+                .forEach {
+                    it.isAccessible = true
+                    (it.get(Strings.EN) as String).contains("modelling", ignoreCase = true) shouldBe false
+                }
+            AboutStrings::class.java.declaredFields
+                .filter { it.type == String::class.java }
+                .forEach {
+                    it.isAccessible = true
+                    (it.get(Strings.EN.about) as String).contains("modelling", ignoreCase = true) shouldBe false
+                }
         }
     })

@@ -27,8 +27,22 @@ internal object AppVersion {
             ?.trim()
             ?.takeIf { it.isNotEmpty() && PLACEHOLDER_MARKER !in it }
 
-    private fun fromResource(): String? =
+    /** Commit date of the build (`yyyy-MM-dd`), or null when unavailable (e.g. a non-git source tarball). */
+    val buildDate: String? by lazy { loadProperties()?.let { parseBuildDate(it) } }
+
+    /** Extracts a strict ISO date from [properties]; placeholders, blanks and other formats yield null. */
+    internal fun parseBuildDate(properties: Properties): String? =
+        properties
+            .getProperty("buildDate")
+            ?.trim()
+            ?.takeIf { PLACEHOLDER_MARKER !in it && ISO_DATE.matches(it) }
+
+    private val ISO_DATE = Regex("""\d{4}-\d{2}-\d{2}""")
+
+    private fun loadProperties(): Properties? =
         AppVersion::class.java.getResourceAsStream(RESOURCE)?.use { stream ->
-            parse(Properties().apply { load(stream) })
+            Properties().apply { load(stream) }
         }
+
+    private fun fromResource(): String? = loadProperties()?.let { parse(it) }
 }

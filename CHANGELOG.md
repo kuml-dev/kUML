@@ -6,6 +6,25 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### kUML Desktop: About dialog
+
+**Additions**
+
+- *Help ▸ About* now shows the product name, a one-line description, the copyright (Irakli Betchvaia), a clickable kuml.dev link and the Apache License 2.0 name with a link to its text. Links open only two fixed addresses; without browser support the address is shown as selectable text, and a failed launch shows an error line.
+- Version, build date and Java version are listed, with a *Copy version info* button that copies exactly the displayed lines. The build date is the commit date of the build, written to `version.properties` as `buildDate` by `jvmProcessResources` (via `providers.exec`, tolerant of a missing git; shown as unknown when empty).
+- *Open-source licenses* opens a second dialog with the bundled NOTICE (copied to `dev/kuml/desktop/NOTICE.txt`) and the Inter and JetBrains Mono OFL texts it references. The loader accepts only `*-OFL.txt` paths under `src/main/resources/`, rejects traversal, and caps each resource at 256 KiB.
+- All About texts live in a new nested `AboutStrings` class (the `Strings` constructor was at the JVM limit of 255 parameters); the existing `aboutTitle`, `aboutBody` and `aboutVersion` moved into it.
+
+**Changes**
+
+- The description now reads "modeling" (US spelling) and no longer repeats the product name or the URL.
+- `NOTICE` (root and `kuml-workspace-pdf`) names "Irakli Betchvaia" instead of "the kUML authors".
+
+**Verification**
+
+- Covered by unit tests only (row order and clipboard text, browser outcomes, license loader incl. hostile paths, build-date parsing, string catalogs). The dialog layout, the hover cursor, a real browser launch and the real clipboard have not been seen running (the desktop MCP server was unavailable).
+- Open points: the README and handbook still use "modelling" in several places; the kuml.dev footer says "© {year} kUML.".
+
 ### Port edge clamp: contract test and shared geometry
 
 **Additions**
