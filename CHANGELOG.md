@@ -6,6 +6,41 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Service Blueprint (wave 2G-c)
+
+**Behaviour changes (visible in existing diagrams)**
+
+- **Actor name on the card:** a step with an actor now shows the actor's name next to its role icon in a footer row of the card (icon 16 px, name 10 px, truncated with an ellipsis, full name in the tooltip). Before, only the role icon was drawn and two actors of the same role (for example two systems) could not be told apart.
+- **Card footer:** the actor sits left, the touchpoints right. A touchpoint is a numbered badge of its own symbol shape (16 px, 20 px step, the number is the legend number); when they do not fit beside the actor name (at least 60 px), the surplus collapses into one `+n` chip. The channel glyph moved out of the 16 px badge (it was unreadable there) into the touchpoint legend below the diagram, which now shows symbol, glyph and name per entry; the tooltip of a badge names the touchpoint and its channel.
+- **Cards grow with their content:** the card height is computed per card (title lines, marker row, footer; at least 80 px). Cards of one layer line up to the band's height; a card without actor and touchpoints and with a short title keeps the classic 184 x 80 px in a 112 px band. Cards with a footer are taller than before, and Journey diagrams whose customer steps carry an actor become taller, too.
+- **Pain reserve per card:** the extra row for the pain/opportunity marker is reserved per card, not for the whole diagram. The opportunity dot moved from the bottom-right corner to the marker row (right end), so it no longer collides with the badges; an opportunity without a pain point now also gets the row.
+- **Band height per layer:** every layer band has its own height (the tallest cell stack of that layer, at least 112 px) instead of one height for the whole diagram. Layers with short content get shorter.
+- **Several cards per cell are stacked** (declaration order, 14 px apart) instead of drawn on top of each other. The band grows with the stack. A cell with more than 12 cards is reported (see below).
+- **Title text uses the full card width** (168 px, 8 px inner padding): no space is reserved for an icon any more, so titles wrap slightly differently (25 characters per line). A word longer than a line is cut with a hyphen on cards and swimlane headers (it used to run out of the card); card titles are limited to 300 characters and 12 lines, headers to 60 characters and 6 lines (an ellipsis marks the cut). The full text stays in the model.
+- **Connections end at the card centre** of the source and target step instead of the cell centre (it only matters for stacked cells, but the endpoints of all connections can move for taller cards).
+- **Swimlane headers wrap** inside the 132 px label column instead of running into the lane.
+- **Note anchors** enter the card they belong to; in a stack they use the gap between two cards (the gap is 14 px so two tracks fit). Tracks keep out of every card area now. Separator-line caption width for the notes router follows the caption text.
+
+**Additions**
+
+- `blueprintDiagram(name, ..., labels = BlueprintLabels.GERMAN)` and the same parameter on `journeyDiagram`: swimlane headers, the three line captions and the pain/opportunity tooltip prefixes come from `BlueprintLabels`. The default is `BlueprintLabels.ENGLISH`, so existing scripts render the same texts as before. Nothing reads the JVM locale; the SVG and the LaTeX renderer use the same texts. `BlueprintLabels(...)` can be built field by field for other languages. `BlueprintDiagram.labels` is new (serialised with a default: old JSON stays readable).
+- `BlueprintGridConstants`: `cardHeight`, `layerHeights`, `stackedCards`, `footerBadgeLayout`, `wrapWords`, `cardTitleLines`, `laneLabelLines`, `captionWidth` and the card metrics; the one source for the SVG renderer and the layout bridge. `contentAwareRowHeight` is gone (replaced by `layerHeights`).
+- Constraint check: a cell with more than 12 cards is a warning.
+- Handbook page `blueprint.adoc`; vault tests for the invariants (stacked cards do not overlap, footer rows stay inside the card, German labels fit the column, connections and note anchors end at their own card).
+
+**Compatibility**
+
+- No JSON schema break: `BlueprintDiagram.labels` has a default.
+- `BlueprintLayoutBridge` keeps its `Cell` model; the heights are now per layer.
+- The desktop MCP (`kuml-desktop`) was not reachable while this wave was built (ECONNREFUSED); the check ran through Gradle and rendered PNGs.
+
+**Open**
+
+- The LaTeX renderer takes the new labels, but still writes the actor as a `[ROLE]` suffix and has no card footer; it is not touched otherwise.
+- An anchor line to a card in the middle of a stack of three or more uses a track in the gap between two cards; if another column has a card at that height, the track falls back to the channel below the grid and crosses the cards under it.
+- Playground sources, vault example texts and handbook SVGs were not regenerated; the vault examples from 66 on were not part of this wave.
+- Card text is laid out with an average character width (6.5 px at 12 px, 5.4 px at 9 px); a font with very wide glyphs can still reach the card edge.
+
 ### C4 diagrams (wave 2G-b)
 
 **Behaviour changes (visible in existing diagrams)**

@@ -4,6 +4,7 @@ import dev.kuml.blueprint.model.Actor
 import dev.kuml.blueprint.model.ActorRole
 import dev.kuml.blueprint.model.BlueprintDiagram
 import dev.kuml.blueprint.model.BlueprintDiagramFull
+import dev.kuml.blueprint.model.BlueprintLabels
 import dev.kuml.blueprint.model.BlueprintLayer
 import dev.kuml.blueprint.model.BlueprintLine
 import dev.kuml.blueprint.model.BlueprintModel
@@ -103,6 +104,7 @@ class BlueprintModelBuilder(
         name: String,
         layers: Set<BlueprintLayer> = setOf(BlueprintLayer.CUSTOMER_ACTIONS),
         emotionCurve: Boolean = true,
+        labels: BlueprintLabels = BlueprintLabels.ENGLISH,
         block: (dev.kuml.core.model.layout.LayoutBlockScope.() -> Unit)? = null,
     ) {
         diagrams +=
@@ -113,6 +115,7 @@ class BlueprintModelBuilder(
                 layout =
                     dev.kuml.core.model.layout.LayoutBlockScope
                         .specOf(block),
+                labels = labels,
             )
     }
 
@@ -126,6 +129,7 @@ class BlueprintModelBuilder(
         layers: Set<BlueprintLayer> = BlueprintLayer.entries.toSet(),
         lines: Set<BlueprintLine> = BlueprintLine.entries.toSet(),
         emotionCurve: Boolean = false,
+        labels: BlueprintLabels = BlueprintLabels.ENGLISH,
         block: (dev.kuml.core.model.layout.LayoutBlockScope.() -> Unit)? = null,
     ) {
         diagrams +=
@@ -137,6 +141,7 @@ class BlueprintModelBuilder(
                 layout =
                     dev.kuml.core.model.layout.LayoutBlockScope
                         .specOf(block),
+                labels = labels,
             )
     }
 

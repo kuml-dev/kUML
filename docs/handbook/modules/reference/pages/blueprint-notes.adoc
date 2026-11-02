@@ -21,3 +21,4 @@ blueprint(name = "Service") {
 * Each anchor gets a dotted line with a dot at the card. The line runs through the free margin above the
   card, so it does not cross the cards of later phases in the same lane.
 * An anchor that is no step is reported as `KUML-NOTE-W001`.
+* In a cell with several cards an anchor ends at its own card (see xref:blueprint.adoc[Service Blueprint]).

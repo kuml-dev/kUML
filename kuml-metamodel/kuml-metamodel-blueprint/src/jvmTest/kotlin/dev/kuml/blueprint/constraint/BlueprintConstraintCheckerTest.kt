@@ -131,4 +131,19 @@ class BlueprintConstraintCheckerTest :
                 }
             warnings(m).any { it.message.contains("emotion curve") }.shouldBeTrue()
         }
+
+        // ── stacked cards (wave 2G-c) ──
+        "a stack of up to twelve cards is fine, thirteen is a warning" {
+            fun withBackstage(n: Int) =
+                blueprint(name = "Stack") {
+                    val a = actor(name = "A")
+                    phase(name = "P") {
+                        customer(name = "C", sentiment = Sentiment.NEUTRAL)
+                        repeat(n) { i -> backstage(name = "B$i", actor = a) }
+                    }
+                    blueprintDiagram(name = "B")
+                }
+            warnings(withBackstage(12)).none { it.message.contains("stacks") }.shouldBeTrue()
+            warnings(withBackstage(13)).any { it.message.contains("stacks 13 cards") }.shouldBeTrue()
+        }
     })

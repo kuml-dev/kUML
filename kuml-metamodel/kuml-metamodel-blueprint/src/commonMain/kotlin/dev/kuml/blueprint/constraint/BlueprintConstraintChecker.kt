@@ -1,5 +1,6 @@
 package dev.kuml.blueprint.constraint
 
+import dev.kuml.blueprint.model.BlueprintGridConstants
 import dev.kuml.blueprint.model.BlueprintLayer
 import dev.kuml.blueprint.model.BlueprintModel
 
@@ -43,6 +44,7 @@ public enum class ViolationSeverity {
  * 10. `StepConnection` source/target resolve to a step or touchpoint — ERROR.
  * 11. Sentiment set only on CUSTOMER_ACTIONS steps — WARNING otherwise.
  * 12. At least one customer step carries a sentiment — WARNING (emotion curve empty).
+ * 13. More than [BlueprintGridConstants.MAX_CARDS_PER_CELL] cards in one cell — WARNING (tall stack).
  *
  * An empty result means the model passes all checks.
  *
@@ -211,5 +213,21 @@ public class BlueprintConstraintChecker {
                     ),
                 )
             }
+
+            // 13. very large cell stacks (wave 2G-c): several cards per cell are stacked, which is fine up to a point
+            model.steps
+                .groupBy { it.phaseRef to it.layer }
+                .filterValues { it.size > BlueprintGridConstants.MAX_CARDS_PER_CELL }
+                .forEach { (cell, steps) ->
+                    add(
+                        ConstraintViolation(
+                            elementId = steps.first().id,
+                            message =
+                                "Cell (phase '${cell.first}', layer ${cell.second}) stacks ${steps.size} cards " +
+                                    "(more than ${BlueprintGridConstants.MAX_CARDS_PER_CELL}); the band grows tall — consider splitting the phase",
+                            severity = ViolationSeverity.WARNING,
+                        ),
+                    )
+                }
         }
 }

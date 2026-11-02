@@ -60,9 +60,21 @@ internal object BlueprintNoteRouter {
         val cardBottom: Double,
         /** Lower lane boundary; defaults to the standard 24 px clearance zone below the card. */
         val laneBottom: Double = cardBottom + 24.0,
+        /** First candidate y above the card (the lane boundary, or the card above in a stack, plus a clearance). */
+        val topStart: Double = laneTop + LANE_LINE_CLEARANCE,
+        /** First candidate y below the card (the lane boundary, or the card below in a stack, minus a clearance), counted upwards. */
+        val bottomStart: Double = laneBottom - LANE_LINE_CLEARANCE,
     ) {
         val cardCx: Double get() = (cardLeft + cardRight) / 2.0
     }
+
+    /** A step card: a track keeps out of its area (plus [TRACK_CLEARANCE] above and below) wherever it overlaps in x. */
+    class Box(
+        val left: Double,
+        val top: Double,
+        val right: Double,
+        val bottom: Double,
+    )
 
     /** A horizontal line of the grid an anchor track must keep clear of: [y] between [xFrom] and [xTo]. */
     class HLine(
@@ -85,6 +97,7 @@ internal object BlueprintNoteRouter {
         cardEntries: MutableMap<Pair<Double, Double>, Int>,
         horizontalObstacles: List<HLine> = emptyList(),
         claimedTracks: MutableList<Double> = ArrayList(),
+        blocks: List<Box> = emptyList(),
     ): List<Pair<String, List<Pair<Double, Double>>>> {
         if (targets.isEmpty()) return emptyList()
         val n = targets.size
@@ -108,9 +121,10 @@ internal object BlueprintNoteRouter {
                         noteX = noteX,
                         obstacles = horizontalObstacles,
                         claimed = claimedTracks,
+                        blocks = blocks,
                     )
-                val entry = cardEntries[t.cardLeft to t.laneTop] ?: 0
-                cardEntries[t.cardLeft to t.laneTop] = entry + 1
+                val entry = cardEntries[t.cardLeft to t.cardTop] ?: 0
+                cardEntries[t.cardLeft to t.cardTop] = entry + 1
                 val endX = t.cardCx + ENTRY_OFFSETS[entry % ENTRY_OFFSETS.size]
                 Plan(target = t, trackY = trackY, endX = endX, endY = if (top) t.cardTop else t.cardBottom)
             }
@@ -141,9 +155,16 @@ internal object BlueprintNoteRouter {
         xHi: Double,
         obstacles: List<HLine>,
         claimed: List<Double>,
+        blocks: List<Box> = emptyList(),
     ): Boolean {
         val lo = minOf(xLo, xHi)
         val hi = maxOf(xLo, xHi)
+        if (blocks.any { b ->
+                b.right >= lo && b.left <= hi && y > b.top - TRACK_CLEARANCE + EPS && y < b.bottom + TRACK_CLEARANCE - EPS
+            }
+        ) {
+            return false
+        }
         if (obstacles.any { o -> abs(o.y - y) < o.clearance - EPS && o.xTo >= lo && o.xFrom <= hi }) return false
         return claimed.none { abs(it - y) < TRACK_SPACING - EPS }
     }
@@ -162,15 +183,16 @@ internal object BlueprintNoteRouter {
         noteX: Double,
         obstacles: List<HLine>,
         claimed: MutableList<Double>,
+        blocks: List<Box> = emptyList(),
     ): Pair<Double, Boolean> {
         val topZone =
-            generateSequence(t.laneTop + LANE_LINE_CLEARANCE) { it + TRACK_RASTER }
+            generateSequence(t.topStart) { it + TRACK_RASTER }
                 .takeWhile { it <= t.cardTop - TRACK_CLEARANCE + EPS }
                 .take(MAX_CANDIDATES)
                 .toList()
         // Raster counted from the lane boundary upwards: the track nearest to the boundary first.
         val bottomZone =
-            generateSequence(t.laneBottom - LANE_LINE_CLEARANCE) { it - TRACK_RASTER }
+            generateSequence(t.bottomStart) { it - TRACK_RASTER }
                 .takeWhile { it >= t.cardBottom + TRACK_CLEARANCE - EPS }
                 .take(MAX_CANDIDATES)
                 .toList()
@@ -181,7 +203,7 @@ internal object BlueprintNoteRouter {
                 bottomZone.map { it to false } + topZone.map { it to true }
             }
         for ((y, top) in candidates) {
-            if (freeOf(y = y, xLo = t.cardCx - ENTRY_REACH, xHi = noteX, obstacles = obstacles, claimed = claimed)) {
+            if (freeOf(y = y, xLo = t.cardCx - ENTRY_REACH, xHi = noteX, obstacles = obstacles, claimed = claimed, blocks = blocks)) {
                 claimed += y
                 return y to top
             }

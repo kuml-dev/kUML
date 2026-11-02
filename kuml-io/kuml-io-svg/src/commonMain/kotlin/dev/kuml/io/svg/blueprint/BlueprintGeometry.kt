@@ -1,7 +1,9 @@
 package dev.kuml.io.svg.blueprint
 
 import dev.kuml.blueprint.model.BlueprintGridConstants
+import dev.kuml.blueprint.model.BlueprintLabels
 import dev.kuml.blueprint.model.BlueprintLayer
+import dev.kuml.blueprint.model.BlueprintLine
 import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.blueprint.model.Phase
 
@@ -28,16 +30,12 @@ internal class BlueprintGeometry(
     private val model: BlueprintModel,
     visibleLayers: Set<BlueprintLayer>,
     private val showEmotionCurve: Boolean,
+    private val captionWidth: Double =
+        BlueprintGridConstants.captionWidth(labels = BlueprintLabels.ENGLISH, lines = BlueprintLine.entries),
 ) {
     val labelColumnWidth = BlueprintGridConstants.LABEL_COLUMN_WIDTH
     val columnWidth = BlueprintGridConstants.COLUMN_WIDTH
 
-    /**
-     * Content-aware — grows past [BlueprintGridConstants.ROW_HEIGHT] when a
-     * step title wraps onto enough lines to need more room (fix: cards used
-     * to overflow their fixed-height border for 3+ line titles).
-     */
-    val rowHeight = BlueprintGridConstants.contentAwareRowHeight(model)
     val cardMarginTop = BlueprintGridConstants.CARD_MARGIN_TOP
     val cardMarginBottom = BlueprintGridConstants.CARD_MARGIN_BOTTOM
     val emotionBandHeight = BlueprintGridConstants.EMOTION_BAND_HEIGHT
@@ -50,6 +48,12 @@ internal class BlueprintGeometry(
     /** Visible layers in canonical Shostack order (NOT set-iteration order). */
     val layers: List<BlueprintLayer> =
         BlueprintLayer.entries.filter { it in visibleLayers }
+
+    /**
+     * Content-aware height of every layer band (wave 2G-c): tall enough for the
+     * tallest cell stack of the layer, at least [BlueprintGridConstants.ROW_HEIGHT].
+     */
+    private val layerHeights: Map<BlueprintLayer, Double> = BlueprintGridConstants.layerHeights(model = model, layers = layers)
 
     /** X of the left edge of the phase content area (after the label column). */
     val contentLeft = padding + labelColumnWidth
@@ -65,18 +69,55 @@ internal class BlueprintGeometry(
     /** Top Y of the first layer band. */
     val gridTop = emotionTop + emotionHeight
 
+    /** Height of the band of [layer]. */
+    fun bandHeight(layer: BlueprintLayer): Double = layerHeights.getValue(layer)
+
     /** Y range [top, bottom] of a layer band. */
     fun bandY(layer: BlueprintLayer): ClosedFloatingPointRange<Double> {
         val idx = layers.indexOf(layer)
         require(idx >= 0) { "layer $layer not visible" }
-        val top = gridTop + rowHeight * idx
-        return top..(top + rowHeight)
+        val top = gridTop + layers.take(idx).sumOf { bandHeight(it) }
+        return top..(top + bandHeight(layer))
     }
 
     val contentRight = contentLeft + columnWidth * phases.size
 
     /** Bottom Y of the last layer band — where the touchpoint legend (if any) starts. */
-    val gridBottom = gridTop + rowHeight * layers.size
+    val gridBottom = gridTop + layers.sumOf { bandHeight(it) }
+
+    /** Placed step cards (stacked per cell), by step id. */
+    private val cardRects: Map<String, CardRect> = placeCards()
+
+    /** Rectangle of [stepId]'s card, `null` when its phase or layer is not shown. */
+    fun cardRect(stepId: String): CardRect? = cardRects[stepId]
+
+    /** Cards of one cell, top to bottom. */
+    fun cardsIn(
+        phaseId: String,
+        layer: BlueprintLayer,
+    ): List<CardRect> = model.stepsIn(phaseId = phaseId, layer = layer).mapNotNull { cardRects[it.id] }
+
+    private fun placeCards(): Map<String, CardRect> {
+        val out = LinkedHashMap<String, CardRect>()
+        phases.forEachIndexed { i, phase ->
+            for (layer in layers) {
+                val (cellX, cellY) = cellOrigin(phaseIndex = i, layer = layer)
+                val stacked =
+                    BlueprintGridConstants.stackedCards(model = model, phaseId = phase.id, layer = layer, layerHeight = bandHeight(layer))
+                for (c in stacked) {
+                    out[c.step.id] =
+                        CardRect(
+                            step = c.step,
+                            x = cellX + CARD_MARGIN_SIDE,
+                            y = cellY + c.yOffset,
+                            w = columnWidth - 2 * CARD_MARGIN_SIDE,
+                            h = c.height,
+                        )
+                }
+            }
+        }
+        return out
+    }
 
     /**
      * Touchpoints actually referenced by a visible step, badge-numbered —
@@ -136,6 +177,7 @@ internal class BlueprintGeometry(
         val cardEntries = HashMap<Pair<Double, Double>, Int>()
         val claimedTracks = ArrayList<Double>()
         val obstacles = horizontalObstacles()
+        val blocks = cardRects.values.map { BlueprintNoteRouter.Box(left = it.x, top = it.y, right = it.x + it.w, bottom = it.y + it.h) }
         for (n in order) {
             val size =
                 dev.kuml.layout.bridge.NoteLayout
@@ -145,20 +187,40 @@ internal class BlueprintGeometry(
             val h = maxOf(size.height.toDouble(), BlueprintNoteRouter.minNoteHeight(anchors = links.size.coerceAtLeast(1)))
             val steps = anchored.getValue(n.id)
             val first = steps.firstOrNull()?.let { cellOf(it) }
-            val desired = if (first != null) first.second + rowHeight / 2 - h / 2 else bottom
+            val desired = if (first != null) first.second + bandHeight(steps.first().layer) / 2 - h / 2 else bottom
             val y = maxOf(desired, bottom)
             bottom = y + h + NOTE_GAP
             val targets =
                 links.map { link ->
-                    val (cellX, cellY) = cellOf(stepById.getValue(link.targetId)) ?: error("filtered above")
+                    val step = stepById.getValue(link.targetId)
+                    val (_, cellY) = cellOf(step) ?: error("filtered above")
+                    val card = cardRects.getValue(step.id)
+                    val siblings = cardsIn(phaseId = step.phaseRef, layer = step.layer)
+                    val idx = siblings.indexOfFirst { it.step.id == step.id }
                     BlueprintNoteRouter.Target(
                         linkId = link.id,
                         laneTop = cellY,
-                        cardLeft = cellX + CARD_MARGIN_SIDE,
-                        cardTop = cellY + cardMarginTop,
-                        cardRight = cellX + columnWidth - CARD_MARGIN_SIDE,
-                        cardBottom = cellY + rowHeight - cardMarginBottom,
-                        laneBottom = cellY + rowHeight,
+                        cardLeft = card.x,
+                        cardTop = card.y,
+                        cardRight = card.x + card.w,
+                        cardBottom = card.y + card.h,
+                        laneBottom = cellY + bandHeight(step.layer),
+                        // In a stack the margin zone above/below a card is the gap to its neighbour card.
+                        topStart =
+                            if (idx ==
+                                0
+                            ) {
+                                cellY + BlueprintNoteRouter.LANE_LINE_CLEARANCE
+                            } else {
+                                siblings[idx - 1].let { it.y + it.h } +
+                                    BlueprintNoteRouter.TRACK_CLEARANCE
+                            },
+                        bottomStart =
+                            if (idx == siblings.lastIndex) {
+                                cellY + bandHeight(step.layer) - BlueprintNoteRouter.LANE_LINE_CLEARANCE
+                            } else {
+                                siblings[idx + 1].y - BlueprintNoteRouter.TRACK_CLEARANCE
+                            },
                     )
                 }
             val routes =
@@ -171,6 +233,7 @@ internal class BlueprintGeometry(
                     cardEntries = cardEntries,
                     horizontalObstacles = obstacles,
                     claimedTracks = claimedTracks,
+                    blocks = blocks,
                 )
             out += PlacedBlueprintNote(id = n.id, body = n.body, x = noteX, y = y, w = w, h = h, routes = routes)
         }
@@ -193,22 +256,19 @@ internal class BlueprintGeometry(
             }
         }
         // The captions of the separator lines sit right-aligned just above each lane boundary; a track must not cross them.
-        for (layer in layers.dropLast(1)) {
+        for (layer in if (captionWidth > 0.0) layers.dropLast(1) else emptyList()) {
             val bottom = bandY(layer).endInclusive
             out +=
                 BlueprintNoteRouter.HLine(
                     y = bottom - SEPARATOR_CAPTION_CENTER_PX,
-                    xFrom = contentRight - SEPARATOR_CAPTION_WIDTH_PX,
+                    xFrom = contentRight - captionWidth,
                     xTo = contentRight,
                     clearance = SEPARATOR_CAPTION_CLEARANCE_PX,
                 )
         }
-        for (step in model.steps) {
-            val (cellX, cellY) = cellOf(step) ?: continue
-            val left = cellX + CARD_MARGIN_SIDE
-            val right = cellX + columnWidth - CARD_MARGIN_SIDE
-            out += BlueprintNoteRouter.HLine(y = cellY + cardMarginTop, xFrom = left, xTo = right)
-            out += BlueprintNoteRouter.HLine(y = cellY + rowHeight - cardMarginBottom, xFrom = left, xTo = right)
+        for (card in cardRects.values) {
+            out += BlueprintNoteRouter.HLine(y = card.y, xFrom = card.x, xTo = card.x + card.w)
+            out += BlueprintNoteRouter.HLine(y = card.y + card.h, xFrom = card.x, xTo = card.x + card.w)
         }
         return out
     }
@@ -226,6 +286,18 @@ internal class BlueprintGeometry(
     ): Pair<Double, Double> = (contentLeft + columnWidth * phaseIndex) to bandY(layer).start
 }
 
+/** A step card placed in the grid: [x]/[y] top-left, [w]/[h] size. */
+internal class CardRect(
+    val step: dev.kuml.blueprint.model.JourneyStep,
+    val x: Double,
+    val y: Double,
+    val w: Double,
+    val h: Double,
+) {
+    val cx: Double get() = x + w / 2.0
+    val cy: Double get() = y + h / 2.0
+}
+
 /** A note placed in the note column; [routes] are the anchor polylines (link id to points), note edge first, card edge last. */
 internal class PlacedBlueprintNote(
     val id: String,
@@ -237,10 +309,9 @@ internal class PlacedBlueprintNote(
     val routes: List<Pair<String, List<Pair<Double, Double>>>>,
 )
 
-/** Distance of the caption text centre above its lane boundary, estimated width of the longest caption, and the clearance a track keeps. */
+/** Distance of the caption text centre above its lane boundary and the clearance a track keeps. */
 private const val SEPARATOR_CAPTION_CENTER_PX: Double = 16.0
-private const val SEPARATOR_CAPTION_WIDTH_PX: Double = 210.0
 private const val SEPARATOR_CAPTION_CLEARANCE_PX: Double = 9.0
 private const val NOTE_GUTTER: Double = 16.0
 private const val NOTE_GAP: Double = 12.0
-private const val CARD_MARGIN_SIDE: Double = 8.0
+private val CARD_MARGIN_SIDE: Double = BlueprintGridConstants.CARD_MARGIN_SIDE

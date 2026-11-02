@@ -150,7 +150,7 @@ classDiagram(name = "Zoo") {
 * Unknown ids, more than 32 `sameLayer` groups or 64 ids per group, and ids in both `first` and `last`
   are reported (`KUML-LAYOUT-W004`, `KUML-LAYOUT-E001`, `KUML-LAYOUT-W001`).
 * C4 and ERM diagrams take the block as well (`layout { }` in the diagram builder). Service Blueprint accepts it,
-  but its grid ignores every option and reports `KUML-LAYOUT-W001`. BPMN diagram blocks are not available yet.
+  but its grid ignores every option and reports `KUML-LAYOUT-W001` (see xref:blueprint.adoc[Service Blueprint]). BPMN diagram blocks are not available yet.
 
 === Which option acts where
 

@@ -105,7 +105,7 @@ internal object BlueprintLatexRenderer {
             // ── layer swimlane labels (left of grid) ──
             layers.forEachIndexed { li, layer ->
                 appendLine(
-                    """  \node[kuml-bp-label] at (-1.4, ${fmt(bandCenterY(li))}) {${escapeLatex(layerLabel(layer))}};""",
+                    """  \node[kuml-bp-label] at (-1.4, ${fmt(bandCenterY(li))}) {${escapeLatex(diagram.labels.layer(layer))}};""",
                 )
             }
             appendLine()
@@ -149,7 +149,15 @@ internal object BlueprintLatexRenderer {
             if (showLines.isNotEmpty()) {
                 val contentLeft = 0.0
                 val contentRight = COL_W * phases.size
-                renderLines(sb = this, lines = showLines, layers = layers, left = contentLeft, right = contentRight, bandTopY = ::bandTopY)
+                renderLines(
+                    sb = this,
+                    lines = showLines,
+                    labels = diagram.labels,
+                    layers = layers,
+                    left = contentLeft,
+                    right = contentRight,
+                    bandTopY = ::bandTopY,
+                )
             }
 
             // ── connections ──
@@ -188,6 +196,7 @@ internal object BlueprintLatexRenderer {
     private fun renderLines(
         sb: StringBuilder,
         lines: Set<BlueprintLine>,
+        labels: dev.kuml.blueprint.model.BlueprintLabels,
         layers: List<BlueprintLayer>,
         left: Double,
         right: Double,
@@ -198,7 +207,6 @@ internal object BlueprintLatexRenderer {
             val upper: BlueprintLayer,
             val lower: BlueprintLayer,
             val style: String,
-            val caption: String,
         )
 
         val boundaries =
@@ -208,21 +216,18 @@ internal object BlueprintLatexRenderer {
                     BlueprintLayer.CUSTOMER_ACTIONS,
                     BlueprintLayer.FRONTSTAGE,
                     "kuml-bp-line-interaction",
-                    "Line of Interaction",
                 ),
                 Boundary(
                     BlueprintLine.VISIBILITY,
                     BlueprintLayer.FRONTSTAGE,
                     BlueprintLayer.BACKSTAGE,
                     "kuml-bp-line-visibility",
-                    "Line of Visibility",
                 ),
                 Boundary(
                     BlueprintLine.INTERNAL_INTERACTION,
                     BlueprintLayer.BACKSTAGE,
                     BlueprintLayer.SUPPORT_PROCESSES,
                     "kuml-bp-line-internal",
-                    "Line of Internal Interaction",
                 ),
             )
         boundaries.forEach { bd ->
@@ -231,7 +236,7 @@ internal object BlueprintLatexRenderer {
             if (upperIdx < 0 || bd.lower !in layers) return@forEach
             val y = bandTopY(upperIdx) - ROW_H // bottom edge of the upper band
             sb.appendLine("""  \draw[${bd.style}] (${fmt(left)},${fmt(y)}) -- (${fmt(right)},${fmt(y)});""")
-            sb.appendLine("""  \node[kuml-bp-line-label] at (${fmt(right)},${fmt(y)}) {${escapeLatex(bd.caption)}};""")
+            sb.appendLine("""  \node[kuml-bp-line-label] at (${fmt(right)},${fmt(y)}) {${escapeLatex(labels.line(bd.line))}};""")
         }
     }
 
@@ -254,14 +259,6 @@ internal object BlueprintLatexRenderer {
         if (pi < 0 || li < 0) return null
         return colX(pi) to bandCenterY(li)
     }
-
-    private fun layerLabel(layer: BlueprintLayer): String =
-        when (layer) {
-            BlueprintLayer.CUSTOMER_ACTIONS -> "Customer Actions"
-            BlueprintLayer.FRONTSTAGE -> "Frontstage"
-            BlueprintLayer.BACKSTAGE -> "Backstage"
-            BlueprintLayer.SUPPORT_PROCESSES -> "Support Processes"
-        }
 
     private fun fmt(v: Double): String {
         val r = Math.round(v * 100.0) / 100.0

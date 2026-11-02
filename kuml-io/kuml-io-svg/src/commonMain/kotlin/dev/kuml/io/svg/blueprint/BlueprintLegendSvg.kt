@@ -1,6 +1,8 @@
 package dev.kuml.io.svg.blueprint
 
 import dev.kuml.blueprint.model.BlueprintGridConstants
+import dev.kuml.blueprint.model.Channel
+import dev.kuml.blueprint.model.ChannelKind
 import dev.kuml.blueprint.model.Touchpoint
 import dev.kuml.io.svg.SvgBuilder
 
@@ -24,14 +26,15 @@ private const val LEGEND_CHAR_WIDTH_PX = 5.4
  * Fix: touchpoint icons in the grid only ever showed the channel glyph —
  * the touchpoint's own name was never rendered anywhere, so two touchpoints
  * sharing a channel (e.g. two different push notifications) were
- * indistinguishable. Each chip's badge number matches the numbered circle
- * [dev.kuml.io.svg.blueprint.renderTouchpoint] draws on that touchpoint's
- * icon in the grid above.
+ * indistinguishable. Each chip's number matches the numbered symbol the card
+ * footer shows for that touchpoint (wave 2G-c); the legend also carries the
+ * channel glyph, which the small footer symbol cannot.
  */
 internal fun SvgBuilder.renderBlueprintLegend(
     rows: List<List<Pair<Int, Touchpoint>>>,
     x: Double,
     y: Double,
+    channelOf: (Touchpoint) -> Channel? = { null },
 ) {
     if (rows.isEmpty()) return
     val rowHeight = BlueprintGridConstants.LEGEND_ROW_HEIGHT
@@ -44,15 +47,22 @@ internal fun SvgBuilder.renderBlueprintLegend(
         val rowCy = y + rowIdx * rowHeight + rowHeight / 2.0
         var cursorX = x
         for ((badge, tp) in row) {
-            val badgeCx = cursorX + badgeR
-            rawXml(
-                """<circle cx="${f(badgeCx)}" cy="${f(rowCy)}" r="${f(badgeR)}" """ +
-                    """fill="#333" stroke="white" stroke-width="1"/>""" +
-                    """<text x="${f(badgeCx)}" y="${f(rowCy + 3.0)}" text-anchor="middle" """ +
-                    """font-size="9" font-weight="700" fill="white">$badge</text>""",
+            // The same numbered symbol as in the card footer, then the channel glyph, then the name.
+            renderTouchpoint(
+                tp = tp,
+                channel = channelOf(tp),
+                cx = cursorX + badgeR,
+                cy = rowCy,
+                size = badgeDiameter,
+                centerLabel = badge.toString(),
             )
+            val iconSize = BlueprintGridConstants.LEGEND_ICON_SIZE
+            val iconX = cursorX + badgeDiameter + badgeTextGap
+            val iconScale = iconSize / 24.0
+            val icon = BlueprintChannelIcons.fragmentFor(channelOf(tp)?.kind ?: ChannelKind.OTHER)
+            rawXml("""<g transform="translate(${f(iconX)},${f(rowCy - iconSize / 2.0)}) scale(${f(iconScale)})" color="#333">$icon</g>""")
             val label = tp.name ?: tp.id
-            val textX = cursorX + badgeDiameter + badgeTextGap
+            val textX = iconX + iconSize + BlueprintGridConstants.LEGEND_ICON_GAP
             tag(
                 name = "text",
                 attrs =

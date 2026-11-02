@@ -19,6 +19,9 @@ sealed interface BlueprintDiagram {
 
     /** Diagram-level `layout { }` hints (PAL wave 2B); `null` if none. The Service Blueprint grid ignores them (W001). */
     val layout: dev.kuml.core.model.layout.LayoutSpec?
+
+    /** Display texts (swimlane headers, line captions, tooltips); English by default (PAL wave 2G-c). */
+    val labels: BlueprintLabels
 }
 
 /**
@@ -35,6 +38,7 @@ data class JourneyDiagram(
     val showEmotionCurve: Boolean = true,
     override val elementIds: List<String> = emptyList(),
     override val layout: dev.kuml.core.model.layout.LayoutSpec? = null,
+    override val labels: BlueprintLabels = BlueprintLabels.ENGLISH,
 ) : BlueprintDiagram
 
 /**
@@ -52,4 +56,5 @@ data class BlueprintDiagramFull(
     val showEmotionCurve: Boolean = false,
     override val elementIds: List<String> = emptyList(),
     override val layout: dev.kuml.core.model.layout.LayoutSpec? = null,
+    override val labels: BlueprintLabels = BlueprintLabels.ENGLISH,
 ) : BlueprintDiagram

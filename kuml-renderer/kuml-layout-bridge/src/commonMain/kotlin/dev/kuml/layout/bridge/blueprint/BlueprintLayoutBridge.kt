@@ -41,10 +41,6 @@ public class BlueprintLayoutBridge {
     ): BlueprintLayout {
         val labelW = BlueprintGridConstants.LABEL_COLUMN_WIDTH
         val colW = BlueprintGridConstants.COLUMN_WIDTH
-        // Content-aware — mirrors BlueprintGeometry (kuml-io-svg) so the cell
-        // rectangles this bridge exposes (LaTeX renderer, MCP tools) match
-        // what the SVG renderer actually draws.
-        val rowH = BlueprintGridConstants.contentAwareRowHeight(model)
         val pad = BlueprintGridConstants.PADDING
         val headerH = BlueprintGridConstants.HEADER_HEIGHT
         val emotionH = BlueprintGridConstants.EMOTION_BAND_HEIGHT
@@ -72,6 +68,12 @@ public class BlueprintLayoutBridge {
         val emotionBand = if (showEmotion) emotionTop..(emotionTop + emotionH) else null
         val gridTop = emotionTop + (if (showEmotion) emotionH else 0.0)
 
+        // Content-aware per layer — mirrors BlueprintGeometry (kuml-io-svg) so the cell
+        // rectangles this bridge exposes (LaTeX renderer, MCP tools) match
+        // what the SVG renderer actually draws.
+        val layerHeights = BlueprintGridConstants.layerHeights(model = model, layers = layers)
+        val layerTops = layers.runningFold(gridTop) { top, layer -> top + layerHeights.getValue(layer) }
+
         val columnCenters = phases.indices.map { contentLeft + colW * it + colW / 2 }
         val cells =
             phases.flatMapIndexed { i, phase ->
@@ -80,9 +82,9 @@ public class BlueprintLayoutBridge {
                         phaseId = phase.id,
                         layer = layer,
                         x = contentLeft + colW * i,
-                        y = gridTop + rowH * j,
+                        y = layerTops[j],
                         width = colW,
-                        height = rowH,
+                        height = layerHeights.getValue(layer),
                     )
                 }
             }
@@ -96,7 +98,7 @@ public class BlueprintLayoutBridge {
             columnCenters = columnCenters,
             layerOrder = layers,
             canvasWidth = contentLeft + colW * phases.size + BlueprintGridConstants.noteColumnWidth(model) + pad,
-            canvasHeight = gridTop + rowH * layers.size + legendH + pad,
+            canvasHeight = layerTops.last() + legendH + pad,
             emotionBand = emotionBand,
         )
     }

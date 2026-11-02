@@ -12,6 +12,7 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.SvgDocument
 import dev.kuml.io.svg.blueprint.edge.renderConnection
 import dev.kuml.io.svg.renderNote
+import dev.kuml.io.svg.xmlEscapeContent
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 
@@ -58,7 +59,14 @@ internal fun renderBlueprintJourney(
             is JourneyDiagram -> emptySet()
         }
 
-    val geo = BlueprintGeometry(model = model, visibleLayers = effectiveLayers, showEmotionCurve = showEmotion)
+    val labels = diagram.labels
+    val geo =
+        BlueprintGeometry(
+            model = model,
+            visibleLayers = effectiveLayers,
+            showEmotionCurve = showEmotion,
+            captionWidth = BlueprintGridConstants.captionWidth(labels = labels, lines = showLines),
+        )
     // Touchpoint id -> legend badge number, so each touchpoint's icon in the
     // grid (below) can carry the same number the legend uses for its name.
     val badgeByTouchpointId = geo.legendEntries.associate { (badge, tp) -> tp.id to badge }
@@ -87,23 +95,42 @@ internal fun renderBlueprintJourney(
         //    per-layer tint + the swimlane (layer) header on the left.
         geo.layers.forEach { layer ->
             val band = geo.bandY(layer)
+            val bandH = geo.bandHeight(layer)
             rawXml(
                 """<rect x="${f(geo.contentLeft)}" y="${f(band.start)}" """ +
-                    """width="${f(geo.columnWidth * geo.phases.size)}" height="${f(geo.rowHeight)}" """ +
+                    """width="${f(geo.columnWidth * geo.phases.size)}" height="${f(bandH)}" """ +
                     """fill="${layerBandFill(layer)}"/>""",
             )
-            tag(
-                name = "text",
-                attrs =
-                    mapOf(
-                        "x" to f(geo.padding + 6),
-                        "y" to f(band.start + geo.rowHeight / 2),
-                        "class" to "kuml-body",
-                        "font-size" to "12",
-                        "font-weight" to "600",
-                        "fill" to "#1d2968",
-                    ),
-            ) { text(layerLabel(layer)) }
+            // Swimlane header: wrapped to the label column's width, vertically centred in the band.
+            val labelLines = BlueprintGridConstants.laneLabelLines(labels.layer(layer))
+            val labelX = geo.padding + BlueprintGridConstants.LABEL_COLUMN_TEXT_INSET
+            val firstY = band.start + bandH / 2 - (labelLines.size - 1) * BlueprintGridConstants.LABEL_LINE_HEIGHT / 2.0
+            if (labelLines.size == 1) {
+                tag(
+                    name = "text",
+                    attrs =
+                        mapOf(
+                            "x" to f(labelX),
+                            "y" to f(firstY),
+                            "class" to "kuml-body",
+                            "font-size" to "12",
+                            "font-weight" to "600",
+                            "fill" to "#1d2968",
+                        ),
+                ) { text(labelLines[0]) }
+            } else {
+                rawXml(
+                    buildString {
+                        append("""<text x="${f(labelX)}" y="${f(firstY)}" class="kuml-body" font-size="12" """)
+                        append("""font-weight="600" fill="#1d2968">""")
+                        labelLines.forEachIndexed { idx, line ->
+                            val dy = if (idx == 0) "0" else f(BlueprintGridConstants.LABEL_LINE_HEIGHT)
+                            append("""<tspan x="${f(labelX)}" dy="$dy">${xmlEscapeContent(line)}</tspan>""")
+                        }
+                        append("</text>")
+                    },
+                )
+            }
         }
 
         // 2. phase column headers
@@ -135,42 +162,30 @@ internal fun renderBlueprintJourney(
             )
         }
 
-        // 4. step cards + touchpoints per cell
+        // 4. step cards per cell: several cards of one cell are stacked top to bottom (declaration order);
+        //    each card carries its own footer (actor + touchpoint badges).
         geo.layers.forEach { layer ->
-            geo.phases.forEachIndexed { i, phase ->
-                val (cellX, cellY) = geo.cellOrigin(phaseIndex = i, layer = layer)
-                val stepsHere = model.stepsIn(phaseId = phase.id, layer = layer)
-                stepsHere.forEach { step ->
+            geo.phases.forEach { phase ->
+                geo.cardsIn(phaseId = phase.id, layer = layer).forEach { card ->
+                    val step = card.step
                     val actor = step.actorRef?.let { ref -> model.actors.firstOrNull { it.id == ref } }
+                    val footerTouchpoints =
+                        step.touchpointRefs.mapNotNull { tpId ->
+                            val tp = model.touchpoints.firstOrNull { it.id == tpId } ?: return@mapNotNull null
+                            val ch = tp.channelRef?.let { ref -> model.channels.firstOrNull { it.id == ref } }
+                            FooterTouchpoint(tp = tp, channel = ch, badge = badgeByTouchpointId[tp.id])
+                        }
                     renderStepCard(
                         step = step,
-                        cellX = cellX,
-                        cellY = cellY,
-                        cellW = geo.columnWidth,
-                        cellH = geo.rowHeight,
+                        x = card.x,
+                        y = card.y,
+                        w = card.w,
+                        h = card.h,
+                        labels = labels,
                         actor = actor,
                         accent = layerAccent(layer),
+                        touchpoints = footerTouchpoints,
                     )
-                    step.touchpointRefs.forEachIndexed { tIdx, tpId ->
-                        val tp = model.touchpoints.firstOrNull { it.id == tpId } ?: return@forEachIndexed
-                        val ch = tp.channelRef?.let { ref -> model.channels.firstOrNull { it.id == ref } }
-                        // Position touchpoint icons 8 px above the card bottom edge.
-                        // Card bottom = cellY + cardMarginTop + (rowHeight - cardMarginTop - cardMarginBottom)
-                        //             = cellY + rowHeight - cardMarginBottom
-                        // Icon cy     = card bottom - 8
-                        //
-                        // No longer needs a pain-specific offset: the pain dot + caption
-                        // now share their own row above this one (see renderStepCard),
-                        // so this row is exclusively the touchpoint icons' again.
-                        val tpStartX = cellX + 18
-                        renderTouchpoint(
-                            tp = tp,
-                            channel = ch,
-                            cx = tpStartX + tIdx * 30,
-                            cy = cellY + geo.rowHeight - geo.cardMarginBottom - 8,
-                            badge = badgeByTouchpointId[tp.id],
-                        )
-                    }
                 }
             }
         }
@@ -178,13 +193,13 @@ internal fun renderBlueprintJourney(
         // 5. separator lines (full view only), drawn over the bands/cards but
         //    under the connections.
         if (showLines.isNotEmpty()) {
-            renderBlueprintLines(lines = showLines, geo = geo)
+            renderBlueprintLines(lines = showLines, geo = geo, labels = labels)
         }
 
         // 6. connections on top
         model.connections.forEach { conn ->
-            val src = cellCenterOf(model = model, geo = geo, elementId = conn.sourceRef)
-            val dst = cellCenterOf(model = model, geo = geo, elementId = conn.targetRef)
+            val src = cardCenterOf(model = model, geo = geo, elementId = conn.sourceRef)
+            val dst = cardCenterOf(model = model, geo = geo, elementId = conn.targetRef)
             if (src != null && dst != null) {
                 renderConnection(id = conn.id, from = src, to = dst, style = conn.style)
             }
@@ -235,6 +250,7 @@ internal fun renderBlueprintJourney(
                 rows = geo.legendRows,
                 x = geo.contentLeft,
                 y = geo.gridBottom + BlueprintGridConstants.LEGEND_TOP_PADDING,
+                channelOf = { tp -> tp.channelRef?.let { ref -> model.channels.firstOrNull { it.id == ref } } },
             )
         }
     }
@@ -263,15 +279,7 @@ private fun layerAccent(layer: BlueprintLayer): String =
         BlueprintLayer.SUPPORT_PROCESSES -> "#8a4fbf"
     }
 
-private fun layerLabel(layer: BlueprintLayer): String =
-    when (layer) {
-        BlueprintLayer.CUSTOMER_ACTIONS -> "Customer Actions"
-        BlueprintLayer.FRONTSTAGE -> "Frontstage"
-        BlueprintLayer.BACKSTAGE -> "Backstage"
-        BlueprintLayer.SUPPORT_PROCESSES -> "Support Processes"
-    }
-
-private fun cellCenterOf(
+private fun cardCenterOf(
     model: BlueprintModel,
     geo: BlueprintGeometry,
     elementId: String,
@@ -282,8 +290,7 @@ private fun cellCenterOf(
                 .firstOrNull { it.id == elementId }
                 ?.let { tp -> model.steps.firstOrNull { tp.id in it.touchpointRefs } }
             ?: return null
-    val phaseIdx = geo.phases.indexOfFirst { it.id == step.phaseRef }
-    if (phaseIdx < 0 || step.layer !in geo.layers) return null
-    val (cx, cy) = geo.cellOrigin(phaseIndex = phaseIdx, layer = step.layer)
-    return (cx + geo.columnWidth / 2) to (cy + geo.rowHeight / 2)
+    // Connections end at the centre of the step's own card (not the cell centre), so stacked cards stay distinguishable.
+    val card = geo.cardRect(step.id) ?: return null
+    return card.cx to card.cy
 }

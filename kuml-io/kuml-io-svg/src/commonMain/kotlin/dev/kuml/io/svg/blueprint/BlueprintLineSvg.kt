@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.blueprint
 
 import dev.kuml.blueprint.model.BlueprintGridConstants
+import dev.kuml.blueprint.model.BlueprintLabels
 import dev.kuml.blueprint.model.BlueprintLayer
 import dev.kuml.blueprint.model.BlueprintLine
 import dev.kuml.io.svg.SvgBuilder
@@ -25,14 +26,14 @@ import dev.kuml.io.svg.SvgBuilder
 internal fun SvgBuilder.renderBlueprintLines(
     lines: Set<BlueprintLine>,
     geo: BlueprintGeometry,
+    labels: BlueprintLabels = BlueprintLabels.ENGLISH,
 ) {
-    // boundary spec: line, upper layer, lower layer, dash pattern, caption
+    // boundary spec: line, upper layer, lower layer, dash pattern; the caption comes from [labels]
     data class Boundary(
         val line: BlueprintLine,
         val upper: BlueprintLayer,
         val lower: BlueprintLayer,
         val dash: String?,
-        val caption: String,
     )
 
     val boundaries =
@@ -42,21 +43,18 @@ internal fun SvgBuilder.renderBlueprintLines(
                 BlueprintLayer.CUSTOMER_ACTIONS,
                 BlueprintLayer.FRONTSTAGE,
                 null,
-                "Line of Interaction",
             ),
             Boundary(
                 BlueprintLine.VISIBILITY,
                 BlueprintLayer.FRONTSTAGE,
                 BlueprintLayer.BACKSTAGE,
                 "8,4",
-                "Line of Visibility",
             ),
             Boundary(
                 BlueprintLine.INTERNAL_INTERACTION,
                 BlueprintLayer.BACKSTAGE,
                 BlueprintLayer.SUPPORT_PROCESSES,
                 "2,4",
-                "Line of Internal Interaction",
             ),
         )
 
@@ -86,6 +84,6 @@ internal fun SvgBuilder.renderBlueprintLines(
                     "font-style" to "italic",
                     "fill" to "#1d2968",
                 ),
-        ) { text(bd.caption) }
+        ) { text(BlueprintGridConstants.clipText(text = labels.line(bd.line), max = BlueprintGridConstants.MAX_LABEL_CHARS)) }
     }
 }

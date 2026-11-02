@@ -6,6 +6,7 @@ import dev.kuml.blueprint.model.Touchpoint
 import dev.kuml.blueprint.model.TouchpointSymbol
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt2
+import dev.kuml.io.svg.xmlEscapeContent
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -30,6 +31,7 @@ internal fun SvgBuilder.renderTouchpoint(
     cy: Double,
     size: Double = 26.0,
     badge: Int? = null,
+    centerLabel: String? = null,
 ) {
     val r = size / 2.0
     val shape =
@@ -53,6 +55,15 @@ internal fun SvgBuilder.renderTouchpoint(
             }
         }
     rawXml(shape)
+    if (centerLabel != null) {
+        // Compact form (card footer, wave 2G-c): the legend number sits inside the symbol instead of the channel glyph,
+        // which would be unreadable at this size; the channel stays available in the tooltip.
+        rawXml(
+            """<text x="${f(cx)}" y="${f(cy + 3.0)}" text-anchor="middle" """ +
+                """font-size="9" font-weight="700" fill="#333">${xmlEscapeContent(centerLabel)}</text>""",
+        )
+        return
+    }
     // Channel icon, scaled from the 24x24 box to ~60% of the symbol.
     val iconScale = (size * 0.6) / 24.0
     val tx = cx - 12.0 * iconScale

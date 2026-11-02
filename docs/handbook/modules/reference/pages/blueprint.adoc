@@ -1,0 +1,76 @@
+= Service Blueprint
+:description: Layout of Service Blueprints and Journey Maps: cards, stacking, footer, labels.
+
+A `blueprint(...)` model renders as a grid: phases are columns, the four Shostack layers are rows. This page
+describes how a step card and a band are laid out and how to switch the language of the texts.
+
+[kuml, blueprint-footer, svg]
+----
+blueprint(name = "Membership") {
+    val staff = actor(name = "Member office", role = ActorRole.STAFF)
+    val crm = actor(name = "CRM", role = ActorRole.SYSTEM)
+    val web = channel(name = "Web", kind = ChannelKind.WEB)
+    val form = touchpoint(name = "Form", channel = web)
+    phase(name = "Application") {
+        customer(name = "Fills in the application", sentiment = Sentiment.NEUTRAL, touchpoints = listOf(form))
+        frontstage(name = "Confirms receipt", actor = staff, touchpoints = listOf(form))
+        backstage(name = "Checks the data", actor = staff)
+        backstage(name = "Creates the member record", actor = crm)
+    }
+    blueprintDiagram(name = "Membership", emotionCurve = false)
+}
+----
+
+== The step card
+
+* The title uses the full card width (168 px) and wraps at word boundaries. A word that is longer than a line
+  is cut with a hyphen. A title is limited to 300 characters and 12 lines; an ellipsis marks the cut.
+* A pain point and an opportunity share one marker row above the footer (pain dot and caption left, opportunity
+  dot right). The caption is one line; the tooltip has the full text.
+* A step with an actor and/or touchpoints has a *footer* row: the actor's role icon and name left (truncated with
+  an ellipsis, the tooltip names role and full name), the touchpoints right.
+* A touchpoint is a badge in the symbol shape of the touchpoint (circle, diamond, square, hexagon) with its legend
+  number. Badges are 20 px apart. If they do not fit beside at least 60 px of actor name, the last ones collapse
+  into one `+n` chip. The legend below the diagram lists number, symbol, channel glyph and name.
+* The card height follows the content (title lines, marker row, footer), at least 80 px. The cards of one layer
+  fill the band: a card with a short title in a tall band is stretched to the same height as its neighbours.
+
+== Bands and stacking
+
+* Every layer band is as tall as the tallest cell of that layer, at least 112 px.
+* Several steps of the same phase and layer are *stacked* in declaration order, 14 px apart. The band grows with
+  the stack. More than 12 cards in one cell are reported as a warning by the constraint check.
+* Connections run from card centre to card centre. A note anchor ends at the card it belongs to.
+
+== Labels
+
+The swimlane headers, the three line captions and the tooltip prefixes are English by default. Pass `labels` to
+`blueprintDiagram` or `journeyDiagram` to change them; nothing depends on the JVM locale.
+
+[source,kotlin]
+----
+blueprintDiagram(name = "Mitgliedschaft", labels = BlueprintLabels.GERMAN)
+----
+
+[cols="2,2,2"]
+|===
+| Field | English (default) | `BlueprintLabels.GERMAN`
+
+| `customerActions` | Customer Actions | Kundenaktionen
+| `frontstage` | Frontstage | Frontstage
+| `backstage` | Backstage | Backstage
+| `supportProcesses` | Support Processes | Unterstützende Prozesse
+| `lineOfInteraction` | Line of Interaction | Interaktionslinie
+| `lineOfVisibility` | Line of Visibility | Sichtbarkeitslinie
+| `lineOfInternalInteraction` | Line of Internal Interaction | Linie der internen Interaktion
+| `painPrefix` | Pain: | Schmerzpunkt:
+| `opportunityPrefix` | Chance: | Chance:
+|===
+
+Other languages: `BlueprintLabels(customerActions = "...", ...)`. A swimlane header wraps inside the 132 px label
+column; headers and captions are limited to 60 characters.
+
+== Limits
+
+* The text width is estimated with an average character width, so a very wide font can still reach the card edge.
+* The LaTeX renderer uses the labels but has no footer: the actor is a `[ROLE]` suffix of the title.
