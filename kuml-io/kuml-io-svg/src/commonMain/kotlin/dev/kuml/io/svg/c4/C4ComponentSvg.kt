@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.c4
 
 import dev.kuml.c4.model.C4Component
+import dev.kuml.c4.model.c4TypeTag
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt2
 import dev.kuml.io.svg.xmlEscapeAttr
@@ -40,7 +41,6 @@ internal fun renderC4Component(
                     "class" to "kuml-c4component",
                 ),
         )
-        val tech = element.technology?.let { " $it" } ?: ""
         tag(
             name = "text",
             attrs =
@@ -50,7 +50,7 @@ internal fun renderC4Component(
                     "y" to "18",
                     "text-anchor" to "middle",
                 ),
-        ) { text("[Component:$tech]") }
+        ) { text(c4TypeTag(element)) }
         tag(
             name = "text",
             attrs =

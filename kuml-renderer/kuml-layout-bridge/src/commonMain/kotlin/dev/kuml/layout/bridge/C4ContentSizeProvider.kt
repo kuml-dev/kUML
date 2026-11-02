@@ -8,6 +8,7 @@ import dev.kuml.c4.model.C4Model
 import dev.kuml.c4.model.C4Person
 import dev.kuml.c4.model.C4Relationship
 import dev.kuml.c4.model.C4SoftwareSystem
+import dev.kuml.c4.model.c4TypeTag
 import dev.kuml.layout.LayoutDirection
 import dev.kuml.layout.Size
 import dev.kuml.layout.TextWrap
@@ -76,21 +77,18 @@ public class C4ContentSizeProvider
                     is C4Person -> out[e.id] = personSize(e)
                     is C4SoftwareSystem ->
                         out[e.id] =
-                            boxSize(name = e.name, header = "[Software System]", description = e.description, id = e.id)
+                            boxSize(name = e.name, header = c4TypeTag(e), description = e.description, id = e.id)
                     is C4Container -> {
-                        val tech = e.technology?.let { " $it" } ?: ""
-                        out[e.id] = boxSize(name = e.name, header = "[Container:$tech]", description = e.description, id = e.id)
+                        out[e.id] = boxSize(name = e.name, header = c4TypeTag(e), description = e.description, id = e.id)
                     }
                     is C4Component -> {
-                        val tech = e.technology?.let { " $it" } ?: ""
-                        out[e.id] = boxSize(name = e.name, header = "[Component:$tech]", description = e.description, id = e.id)
+                        out[e.id] = boxSize(name = e.name, header = c4TypeTag(e), description = e.description, id = e.id)
                     }
                     is C4DeploymentNode -> {
                         // Same shape as a Container box: stereotype header + bold name
                         // + optional wrapped description. The SVG renderer in
                         // kuml-io-svg/c4/C4DeploymentNodeSvg.kt mirrors this layout.
-                        val tech = e.technology?.let { ":$it" } ?: ""
-                        out[e.id] = boxSize(name = e.name, header = "[Deployment Node$tech]", description = e.description, id = e.id)
+                        out[e.id] = boxSize(name = e.name, header = c4TypeTag(e), description = e.description, id = e.id)
                     }
                     else -> {} // C4Model itself and unknown subtypes — fall back to default.
                 }
@@ -191,7 +189,9 @@ public class C4ContentSizeProvider
          * `kuml-io-svg`.
          */
         private fun personSize(p: C4Person): Size {
-            val nameW = estimateWidth(text = p.name, charPx = TITLE_CHAR_PX)
+            val tagW = if (p.external) estimateWidth(text = c4TypeTag(p), charPx = STEREO_CHAR_PX) else 0f
+            val tagH = if (p.external) PERSON_EXTERNAL_TAG_H else 0f
+            val nameW = maxOf(estimateWidth(text = p.name, charPx = TITLE_CHAR_PX), tagW)
             val descSingleW = p.description?.let { estimateWidth(text = it, charPx = DESC_CHAR_PX) } ?: 0f
             val descCappedW = descSingleW.coerceAtMost(DESC_WRAP_MAX_W - 2 * H_PAD)
             val contentW = maxOf(nameW, descCappedW)
@@ -215,9 +215,9 @@ public class C4ContentSizeProvider
             // Label box: name baseline at boxY+18; each desc line +13 below; +10 bottom.
             val labelBoxH =
                 if (descLines.isEmpty()) {
-                    PERSON_LABEL_BOX_H_NO_DESC
+                    PERSON_LABEL_BOX_H_NO_DESC + tagH
                 } else {
-                    PERSON_NAME_BASELINE_OFFSET +
+                    tagH + PERSON_NAME_BASELINE_OFFSET +
                         PERSON_NAME_TO_DESC_GAP +
                         (descLines.size - 1) * DESC_LINE_H +
                         PERSON_LABEL_BOX_BOTTOM_PAD
@@ -293,6 +293,9 @@ public class C4ContentSizeProvider
 
             /** Label box height when no description is present (matches the old `boxH = 28`). */
             public const val PERSON_LABEL_BOX_H_NO_DESC: Float = 28f
+
+            /** Extra label-box height of an external person for the `[External Person]` line (mirrors kuml-io-svg). */
+            public const val PERSON_EXTERNAL_TAG_H: Float = 14f
 
             // ── Connection-aware sizing (mirrors UmlContentSizeProvider) ───────
             public const val CONNECTION_PUFFER_PX: Float = 14f

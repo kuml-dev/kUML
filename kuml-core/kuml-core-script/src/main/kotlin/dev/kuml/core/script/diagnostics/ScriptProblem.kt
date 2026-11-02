@@ -53,7 +53,7 @@ public object ScriptProblems {
                     column = col,
                     function = fn,
                     message = decorate(msg = msg, code = code, fn = fn, line = line, col = col),
-                    hint = hintFor(code = code, fn = fn),
+                    hint = hintFor(code = code, fn = calledFunction(msg) ?: fn),
                 )
             if (out.size >= MAX_PROBLEMS) return out
         }
@@ -118,13 +118,16 @@ public object ScriptProblems {
         return "$msg (in $fn(...)$where)"
     }
 
+    /** Name of the function a K2 receiver-scope message is about: `fun relationship(...)` -> `relationship`. */
+    private fun calledFunction(msg: String): String? = Regex("""^'fun ([A-Za-z_][A-Za-z0-9_]*)\(""").find(msg)?.groupValues?.get(1)
+
     private fun hintFor(
         code: ScriptProblemCode,
         fn: String?,
     ): String? =
         when {
             code == ScriptProblemCode.RECEIVER_SCOPE && fn == "relationship" ->
-                "Use an explicit receiver, e.g. this@c4Model.relationship(...)."
+                "Declare relationships at model level, or call `this@c4Model.relationship(...)` inside the softwareSystem block."
             else -> null
         }
 

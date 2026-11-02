@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.c4
 
 import dev.kuml.c4.model.C4SoftwareSystem
+import dev.kuml.c4.model.c4TypeTag
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt2
 import dev.kuml.io.svg.xmlEscapeAttr
@@ -26,6 +27,7 @@ internal fun renderC4SoftwareSystem(
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
     val r = theme.borders.cornerRadiusPx
+    val ext = element.external
 
     builder.tag(
         name = "g",
@@ -39,31 +41,36 @@ internal fun renderC4SoftwareSystem(
                     "height" to fmt(h),
                     "rx" to fmt(r),
                     "ry" to fmt(r),
-                    "class" to "kuml-system",
+                    "class" to if (ext) "kuml-system-external" else "kuml-system",
                 ),
         )
         tag(
             name = "text",
             attrs =
                 mapOf(
-                    "class" to "kuml-stereotype",
+                    "class" to if (ext) "kuml-on-external-tag" else "kuml-stereotype",
                     "x" to fmt(w / 2f),
                     "y" to "18",
                     "text-anchor" to "middle",
                 ),
-        ) { text("[Software System]") }
+        ) { text(c4TypeTag(element)) }
         tag(
             name = "text",
             attrs =
                 mapOf(
-                    "class" to "kuml-title",
+                    "class" to if (ext) "kuml-on-external" else "kuml-title",
                     "x" to fmt(w / 2f),
                     "y" to "36",
                     "text-anchor" to "middle",
                 ),
         ) { text(element.name) }
         element.description?.let { desc ->
-            renderWrappedDescription(builder = this, desc = desc, boxWidth = w)
+            renderWrappedDescription(
+                builder = this,
+                desc = desc,
+                boxWidth = w,
+                cssClass = if (ext) "kuml-on-external-small" else "kuml-small",
+            )
         }
     }
 }

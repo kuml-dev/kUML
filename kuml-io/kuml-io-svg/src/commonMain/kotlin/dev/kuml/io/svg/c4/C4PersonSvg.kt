@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.c4
 
 import dev.kuml.c4.model.C4Person
+import dev.kuml.c4.model.c4TypeTag
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt2
 import dev.kuml.io.svg.xmlEscapeAttr
@@ -24,6 +25,8 @@ internal fun renderC4Person(
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
     val w = layout.bounds.size.width
+    val ext = element.external
+    val tagShift = if (ext) C4_EXTERNAL_TAG_H else 0f
 
     builder.tag(
         name = "g",
@@ -51,11 +54,11 @@ internal fun renderC4Person(
             } ?: emptyList()
         val boxH =
             if (descLines.isEmpty()) {
-                28f
+                28f + tagShift
             } else {
                 // name baseline at boxY+18, gap of 16 to first desc line baseline,
                 // 13 px per additional desc line, 10 px bottom pad.
-                18f + 16f + (descLines.size - 1) * C4DescriptionLayout.DESC_LINE_H + 10f
+                tagShift + 18f + 16f + (descLines.size - 1) * C4DescriptionLayout.DESC_LINE_H + 10f
             }
         tag(
             name = "rect",
@@ -65,16 +68,28 @@ internal fun renderC4Person(
                     "y" to fmt(boxY),
                     "width" to fmt(w - 8f),
                     "height" to fmt(boxH),
-                    "class" to "kuml-class",
+                    "class" to if (ext) "kuml-person-external" else "kuml-class",
                 ),
         )
+        if (ext) {
+            tag(
+                name = "text",
+                attrs =
+                    mapOf(
+                        "class" to "kuml-on-external-tag",
+                        "x" to fmt(cx),
+                        "y" to fmt(boxY + 14f),
+                        "text-anchor" to "middle",
+                    ),
+            ) { text(c4TypeTag(element)) }
+        }
         tag(
             name = "text",
             attrs =
                 mapOf(
-                    "class" to "kuml-title",
+                    "class" to if (ext) "kuml-on-external" else "kuml-title",
                     "x" to fmt(cx),
-                    "y" to fmt(boxY + 18f),
+                    "y" to fmt(boxY + tagShift + 18f),
                     "text-anchor" to "middle",
                 ),
         ) { text(element.name) }
@@ -84,9 +99,9 @@ internal fun renderC4Person(
                 name = "text",
                 attrs =
                     mapOf(
-                        "class" to "kuml-stereotype",
+                        "class" to if (ext) "kuml-on-external-small" else "kuml-stereotype",
                         "x" to fmt(cx),
-                        "y" to fmt(boxY + 34f),
+                        "y" to fmt(boxY + tagShift + 34f),
                         "text-anchor" to "middle",
                     ),
             ) {
@@ -104,5 +119,8 @@ internal fun renderC4Person(
         }
     }
 }
+
+/** Extra height of the label box of an external person for the `[External Person]` line (mirrored by the size provider). */
+internal const val C4_EXTERNAL_TAG_H: Float = 14f
 
 private fun fmt(v: Float): String = fmt2(v)

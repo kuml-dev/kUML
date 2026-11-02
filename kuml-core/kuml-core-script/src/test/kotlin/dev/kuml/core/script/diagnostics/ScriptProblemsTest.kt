@@ -1,6 +1,7 @@
 package dev.kuml.core.script.diagnostics
 
 import dev.kuml.core.script.KumlScriptHost
+import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotContain
@@ -26,6 +27,25 @@ class ScriptProblemsTest :
                 ).first()
             p.code shouldBe ScriptProblemCode.DSL_ERROR
             p.line shouldBe 3
+        }
+
+        test("relationship() inside a softwareSystem block explains where to declare it (PAL 2G-b)") {
+            val ps =
+                problems(
+                    """
+                    c4Model(name = "M") {
+                        val x = softwareSystem(name = "X")
+                        val a = softwareSystem(name = "A") {
+                            relationship(source = x, target = x)
+                        }
+                    }
+                    """.trimIndent(),
+                )
+            val hint = ps.mapNotNull { it.hint }.firstOrNull()
+            withClue(ps.toString()) {
+                (hint?.contains("this@c4Model.relationship(") == true && hint.contains("Declare relationships at model level")) shouldBe
+                    true
+            }
         }
 
         test("a type mismatch names the enclosing call") {

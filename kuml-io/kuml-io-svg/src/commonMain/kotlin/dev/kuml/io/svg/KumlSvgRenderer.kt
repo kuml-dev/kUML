@@ -732,11 +732,17 @@ public object KumlSvgRenderer {
             }
 
         // Notes (P-COM-04): placed after the layout, drawn below with their dotted anchor lines.
-        @Suppress("NAME_SHADOWING")
-        val layoutResult =
+        val notesPlaced =
             dev.kuml.layout.bridge.note.C4NotePlacement
                 .place(model = model, diagram = diagram, layout = layoutResult)
                 .layout
+        // PAL wave 2G-b: relationship labels are planned (wrapped, placed, opposite edges pushed apart) before the
+        // canvas is fixed; the canvas then grows with the labels.
+        val c4Fits = c4FitLabels(model = model, layoutResult = notesPlaced, theme = theme)
+
+        @Suppress("NAME_SHADOWING")
+        val layoutResult = c4Fits.first
+        val c4Plan = c4Fits.second
         return SvgDocument.render(
             layoutResult = layoutResult,
             theme = theme,
@@ -783,7 +789,6 @@ public object KumlSvgRenderer {
                     // ComponentDiagram anchor = C4Container → "[Container: <technology>]" + name
                     when (anchorElement) {
                         is C4Container -> {
-                            val tech = anchorElement.technology?.let { " $it" } ?: ""
                             tag(
                                 name = "text",
                                 attrs =
@@ -793,7 +798,12 @@ public object KumlSvgRenderer {
                                         "y" to "14",
                                         "text-anchor" to "middle",
                                     ),
-                            ) { text("[Container:$tech]") }
+                            ) {
+                                text(
+                                    dev.kuml.c4.model
+                                        .c4TypeTag(anchorElement),
+                                )
+                            }
                             tag(
                                 name = "text",
                                 attrs =
@@ -815,7 +825,12 @@ public object KumlSvgRenderer {
                                         "y" to "14",
                                         "text-anchor" to "middle",
                                     ),
-                            ) { text("[Software System]") }
+                            ) {
+                                text(
+                                    dev.kuml.c4.model
+                                        .c4TypeTag(anchorElement),
+                                )
+                            }
                             tag(
                                 name = "text",
                                 attrs =
@@ -911,16 +926,25 @@ public object KumlSvgRenderer {
             // Pre-compute all shifted routes so the stagger-detection and the
             // rendering pass both use the same (already-padded) coordinates.
             val shiftedEdgeRoutes: Map<EdgeId, EdgeRoute> =
-                layoutResult.edges.mapValues { (_, route) -> shiftRoute(route = route, dx = padding) }
-
-            val labelYOffsets: Map<String, Float> =
-                computeC4LabelStaggerOffsets(shiftedRoutes = shiftedEdgeRoutes, relationshipIndex = relationshipIndex)
+                layoutResult.edges.mapValues { (id, route) -> shiftRoute(route = c4Plan.routes[id.value] ?: route, dx = padding) }
 
             for ((edgeId, shiftedRoute) in shiftedEdgeRoutes) {
                 val rel = relationshipIndex[edgeId.value]
                 if (rel != null) {
-                    val yOff = labelYOffsets[edgeId.value] ?: 0f
-                    renderC4Relationship(rel = rel, route = shiftedRoute, theme = theme, builder = edgesBuilder, labelYOffset = yOff)
+                    val placedRect =
+                        c4Plan.placed[edgeId.value]?.rect?.let {
+                            it.copy(origin = it.origin.copy(x = it.origin.x + padding, y = it.origin.y + padding))
+                        }
+                    renderC4Relationship(
+                        rel = rel,
+                        route = shiftedRoute,
+                        theme = theme,
+                        builder = edgesBuilder,
+                        plannedLines = c4Plan.lines[edgeId.value],
+                        plannedRect = placedRect,
+                        lineHeightPx = c4Plan.lineHeightPx,
+                        fontSizePx = c4Plan.fontSizePx,
+                    )
                     continue
                 }
                 val interaction = interactionIndex[edgeId.value]
@@ -5718,70 +5742,77 @@ public object KumlSvgRenderer {
     private const val UML_INTERACTION_FINAL_OUTER_RADIUS_PX: Float = 12f
 
     /**
-     * Berechnet vertikale Stagger-Offsets für C4-Relationship-Labels, die durch
-     * denselben vertikalen Korridor (gleiche x-Koordinate) laufen und sich
-     * deshalb räumlich überlappen würden.
-     *
-     * Zwei Labels gelten als überlappend, wenn ihr via [EdgeLabelGeometry.midAnchor]
-     * berechneter Ankerpunkt in x **und** y näher als [LABEL_PROX_X] / [LABEL_PROX_Y]
-     * liegt. Überlappende Paare werden durch [LABEL_STAGGER_PX] auseinandergezogen:
-     * der erste Eintrag des Paares wandert um [LABEL_STAGGER_PX] nach oben, der
-     * zweite um [LABEL_STAGGER_PX] nach unten. Bei mehr als zwei Labels in einer
-     * engen Gruppe summieren sich die Versätze additiv (jede weitere Überlappung
-     * schiebt einen der Partner erneut um [LABEL_STAGGER_PX] weiter).
-     *
-     * Gibt eine leere Map zurück wenn das Diagramm ≤ 1 beschriftete Kante hat
-     * oder kein Paar die Schwellenwerte unterschreitet.
+     * Plans the C4 relationship labels (PAL wave 2G-b) and grows / shifts the layout so that every planned label
+     * rectangle lies inside the canvas. Returns the (possibly grown) layout and the plan, both in layout coordinates
+     * (canvas padding is added when drawing). The plan is translation invariant, so it is simply recomputed after a shift.
      */
-    private fun computeC4LabelStaggerOffsets(
-        shiftedRoutes: Map<EdgeId, EdgeRoute>,
-        relationshipIndex: Map<String, dev.kuml.c4.model.C4Relationship>,
-    ): Map<String, Float> {
-        /** x-Nähe: beide Labels müssen in derselben vertikalen Spur liegen. */
-        val labelProxX = 40f
-
-        /**
-         * y-Nähe: entspricht etwa 1,5× dem [ElkEngineConfiguration.layerSpacing]
-         * (90 px Default). Fängt den typischen Fall ab, bei dem zwei Kanten dasselbe
-         * Element als Source/Target teilen und ihre Labels im gemeinsamen Korridor landen.
-         */
-        val labelProxY = 120f
-
-        /** Versatz pro erkanntem Überlappungspaar — eine Schriftzeilen-Höhe + Halo-Puffer. */
-        val labelStaggerPx = 18f
-
-        // Nur Kanten, die tatsächlich ein Label rendern, zählen.
-        val anchors = mutableMapOf<String, EdgeLabelGeometry.LabelAnchor>()
-        for ((edgeId, route) in shiftedRoutes) {
-            val rel = relationshipIndex[edgeId.value] ?: continue
-            if (c4RelationshipLabel(rel).isEmpty()) continue
-            anchors[edgeId.value] = EdgeLabelGeometry.midAnchor(route)
-        }
-
-        if (anchors.size < 2) return emptyMap()
-
-        val result = mutableMapOf<String, Float>()
-        val ids = anchors.keys.toList()
-
-        for (i in ids.indices) {
-            for (j in i + 1 until ids.size) {
-                val idA = ids[i]
-                val idB = ids[j]
-                val anchorA = anchors[idA] ?: continue
-                val anchorB = anchors[idB] ?: continue
-
-                if (abs(anchorA.x - anchorB.x) < labelProxX &&
-                    abs(anchorA.y - anchorB.y) < labelProxY
-                ) {
-                    // Erstes Element des Paares wandert nach oben, zweites nach unten.
-                    result[idA] = (result[idA] ?: 0f) - labelStaggerPx
-                    result[idB] = (result[idB] ?: 0f) + labelStaggerPx
-                }
+    private fun c4FitLabels(
+        model: C4Model,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+    ): Pair<LayoutResult, dev.kuml.io.svg.c4.C4LabelPlan> {
+        val relationships = model.relationships.associateBy { it.id }
+        val edges =
+            layoutResult.edges.keys.mapNotNull { id ->
+                val rel = relationships[id.value] ?: return@mapNotNull null
+                dev.kuml.io.svg.c4.C4LabelEdge(
+                    id = id.value,
+                    sourceId = rel.source,
+                    targetId = rel.target,
+                    text =
+                        dev.kuml.io.svg.c4
+                            .c4RelationshipLabel(rel),
+                )
             }
-        }
 
-        return result
+        fun planFor(l: LayoutResult) =
+            dev.kuml.io.svg.c4.C4EdgeLabelPlan.plan(
+                routes = l.edges.entries.associate { it.key.value to it.value },
+                nodes = l.nodes.entries.associate { it.key.value to it.value.bounds },
+                edges = edges,
+                fontSizePx = theme.typography.small.sizePt,
+            )
+
+        var layout = layoutResult
+        var plan = planFor(layout)
+        if (plan.placed.isEmpty()) return layout to plan
+        val rects = plan.placed.values.map { it.rect }
+        val dx = maxOf(0f, -rects.minOf { it.origin.x })
+        val dy = maxOf(0f, -rects.minOf { it.origin.y })
+        if (dx > 0f || dy > 0f) {
+            layout = c4ShiftLayout(layoutResult = layout, dx = dx, dy = dy)
+            plan = planFor(layout)
+        }
+        val maxRight = plan.placed.values.maxOf { it.rect.origin.x + it.rect.size.width }
+        val maxBottom = plan.placed.values.maxOf { it.rect.origin.y + it.rect.size.height }
+        val growW = maxOf(0f, maxRight - layout.canvas.width)
+        val growH = maxOf(0f, maxBottom - layout.canvas.height)
+        if (growW > 0f || growH > 0f) {
+            layout = layout.copy(canvas = layout.canvas.copy(width = layout.canvas.width + growW, height = layout.canvas.height + growH))
+        }
+        return layout to plan
     }
+
+    private fun c4ShiftLayout(
+        layoutResult: LayoutResult,
+        dx: Float,
+        dy: Float,
+    ): LayoutResult =
+        layoutResult.copy(
+            canvas = layoutResult.canvas.copy(width = layoutResult.canvas.width + dx, height = layoutResult.canvas.height + dy),
+            nodes =
+                layoutResult.nodes.mapValues { (_, n) ->
+                    n.copy(
+                        bounds = n.bounds.copy(origin = n.bounds.origin.copy(x = n.bounds.origin.x + dx, y = n.bounds.origin.y + dy)),
+                        ports = n.ports.mapValues { (_, p) -> p.copy(x = p.x + dx, y = p.y + dy) },
+                    )
+                },
+            edges = layoutResult.edges.mapValues { (_, r) -> shiftRoute(route = r, dx = dx, dy = dy) },
+            groups =
+                layoutResult.groups.mapValues { (_, g) ->
+                    g.copy(bounds = g.bounds.copy(origin = g.bounds.origin.copy(x = g.bounds.origin.x + dx, y = g.bounds.origin.y + dy)))
+                },
+        )
 
     /**
      * Pick the wider of an edge's stereotype / plain-label texts for the

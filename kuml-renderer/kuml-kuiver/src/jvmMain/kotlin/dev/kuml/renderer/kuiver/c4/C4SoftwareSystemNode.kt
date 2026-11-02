@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import dev.kuml.c4.model.C4SoftwareSystem
+import dev.kuml.c4.model.c4TypeTag
 import dev.kuml.renderer.theme.KumlTheme
 
 /**
@@ -40,7 +41,7 @@ internal fun C4SoftwareSystemNode(
                 ).padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         Text(
-            text = "[Software System]",
+            text = c4TypeTag(element),
             style = theme.typography.small.copy(fontStyle = FontStyle.Italic),
             color = theme.colors.muted,
             modifier = Modifier.fillMaxWidth(),

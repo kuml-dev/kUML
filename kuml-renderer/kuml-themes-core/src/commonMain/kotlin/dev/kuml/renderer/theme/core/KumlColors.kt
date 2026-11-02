@@ -50,6 +50,14 @@ public data class KumlColors(
      * gültig bleibt (V3.x — Live-Simulation von Zustandsautomaten im Editor).
      */
     public val activeStateStroke: KumlColor? = null,
+    /** Fill of an external C4 software system (`external = true`); `null` -> neutral grey derived by the renderer (PAL wave 2G-b). */
+    public val c4SystemExternalFill: KumlColor? = null,
+    /** Border of an external C4 software system; `null` -> neutral dark grey. */
+    public val c4SystemExternalBorder: KumlColor? = null,
+    /** Fill of the label box of an external C4 person; `null` -> neutral grey. */
+    public val c4PersonExternalFill: KumlColor? = null,
+    /** Border and figure colour of an external C4 person; `null` -> neutral dark grey. */
+    public val c4PersonExternalBorder: KumlColor? = null,
 ) {
     /** Effektive Knoten-Füllung: [nodeFill] wenn gesetzt, sonst [background]. */
     public val effectiveNodeFill: KumlColor get() = nodeFill ?: background

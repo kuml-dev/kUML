@@ -351,3 +351,22 @@ away from elements and relationship labels. An anchor that is no element of the 
 C4 elements accept stereotypes for thematic styling. The default themes (`plain`, `kuml`,
 `elegant`, `playful`) all honour the C4 stock styles. Custom themes can map stereotypes to
 colours, shapes, and stroke widths — see xref:themes.adoc[themes & config].
+
+== Type tags, external elements and relationship labels
+
+Every element shows a bracketed type tag: `[Software System]`, `[Container: Kotlin/Ktor]`, `[Component: Spring]`.
+A container or component without `technology` shows just `[Container]`. Elements with `external = true` get the
+prefix `External `, for example `[External Software System]` and `[External Person]`, and are drawn grey
+with white text so that they stand out from your own system.
+
+Relationship labels (`description` plus `technology`) wrap at 36 characters on word boundaries and are never
+shortened. They sit on a translucent background beside their line, and the diagram canvas grows with them.
+Two edges between the same two elements, for example a request and its answer, are drawn 24 px apart.
+
+=== Layout block and relationships in a system block
+
+`layout { direction = Right }` is available in `containerDiagram` (and the other C4 diagrams that accept a
+layout block), see xref:layout.adoc[layout]. A `relationship(...)` is declared at model level; inside the
+`softwareSystem { }` block call it with an explicit receiver, `this@c4Model.relationship(...)`. The scripts
+report this as "Declare relationships at model level, or call `this@c4Model.relationship(...)` inside the
+softwareSystem block."

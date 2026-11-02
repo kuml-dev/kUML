@@ -6,6 +6,39 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### C4 diagrams (wave 2G-b)
+
+**Behaviour changes (visible in existing diagrams)**
+
+- **External elements are grey (P-C4-01b):** a software system or person with `external = true` is drawn with the classes `kuml-system-external` / `kuml-person-external` (neutral grey fill, white text; dark themes derive the fill from `muted`). The internal system keeps its look. `kuml-system` itself is unchanged because groups and packages use it too.
+- **Type tags (P-C4-01c):** one function `c4TypeTag` (`kuml-metamodel-c4`) now feeds the SVG renderer, the size provider and Kuiver. External elements carry the prefix `External `: `[External Software System]`, `[External Person]` (an external person gets a tag line in its label box; internal persons still have none). A container or component without technology shows `[Container]` instead of `[Container:]`; with technology the text is `[Container: Tech]`; the deployment node text is `[Deployment Node: Tech]` (a blank after the colon).
+- **Relationship labels (P-C4-01a):** planned with the central `LabelPlacer` instead of the old +-18 px stagger. A label is wrapped at 36 characters on word boundaries, never shortened (an input above 4096 characters is cut with an ellipsis as a DoS guard), drawn on a translucent background (canvas colour, opacity 0.9). Edges between the same two elements that are closer than 24 px are pushed 24 px apart, the label of an opposite pair stays out of the corridor between the two lines. A label may sit up to 24 px from its line. The canvas grows (and shifts) so that every label lies inside it. The Dynamic diagram keeps its own label drawing.
+- Edge elements of C4 relationships carry `data-edge-id`; label groups carry `data-label-id` / `data-label-rect`.
+
+**Additions**
+
+- `c4TypeTag(element)` and `c4IsExternal(element)`.
+- Theme fields `c4SystemExternalFill`, `c4SystemExternalBorder`, `c4PersonExternalFill`, `c4PersonExternalBorder` in `KumlColors` (nullable, default `null`: existing themes compile and render unchanged apart from the grey default).
+
+**Verified, unchanged**
+
+- `layout { }` in `containerDiagram` exists since wave 2B (`ContainerDiagramBuilder.layout`); a test now pins `direction = Right` in the pipeline.
+- **Hint for `relationship()` inside a `softwareSystem` block (fix):** the hint code existed but never fired, because the enclosing-call lookup named the outer call instead of `relationship`; the function name is now read from the compiler message. The text reads "Declare relationships at model level, or call `this@c4Model.relationship(...)` inside the softwareSystem block." The `@DslMarker` guard is untouched.
+- The layout engine already spreads the docking points of ten edges to one external system in the tested fixture (at least 16 px apart, no detours); no new router was needed there.
+
+**Compatibility**
+
+- No metamodel kind, JSON schema or OKF vocabulary changed; no migration.
+- The desktop MCP (`kuml-desktop`) was not reachable while this wave was built (ECONNREFUSED).
+
+**Open**
+
+- No `Document` / `Organization` kinds; they can only be typed through `technology` or a tag override.
+- The focus system is not blue (`c4.system = #1168BD`): only external elements changed colour. Blue would change every C4 example; the tokens for it are not added yet.
+- Wide labels in very narrow corridors between two layout layers can still touch a neighbouring line (the corridor is set by the layout engine); the central placer only searches up to 24 px from the line.
+- Opposite edges are pushed apart only for straight or orthogonal routes whose ends slide along a node border; other shapes keep the engine's route.
+- Playground sources and handbook SVGs were not regenerated.
+
 ### UML class and deployment diagrams (wave 2G-a)
 
 **Behaviour changes (visible in existing diagrams)**

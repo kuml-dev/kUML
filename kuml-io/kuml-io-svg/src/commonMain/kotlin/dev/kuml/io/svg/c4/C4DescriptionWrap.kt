@@ -49,6 +49,7 @@ internal fun renderWrappedDescription(
     firstBaselineY: Float = C4DescriptionLayout.DESC_FIRST_BASELINE_Y,
     centerX: Float = boxWidth / 2f,
     maxInnerWidth: Float = boxWidth - 2f * C4DescriptionLayout.H_PAD,
+    cssClass: String = "kuml-small",
 ) {
     val lines =
         TextWrap.wrapToWidth(
@@ -62,7 +63,7 @@ internal fun renderWrappedDescription(
         name = "text",
         attrs =
             mapOf(
-                "class" to "kuml-small",
+                "class" to cssClass,
                 "x" to fmtCoord(centerX),
                 "y" to fmtCoord(firstBaselineY),
                 "text-anchor" to "middle",

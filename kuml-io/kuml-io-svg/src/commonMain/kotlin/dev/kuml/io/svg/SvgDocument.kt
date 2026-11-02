@@ -2,6 +2,7 @@ package dev.kuml.io.svg
 
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.Point
+import dev.kuml.renderer.theme.core.KumlColor
 import dev.kuml.renderer.theme.core.KumlTheme
 
 /**
@@ -19,6 +20,17 @@ import dev.kuml.renderer.theme.core.KumlTheme
  * ```
  */
 internal object SvgDocument {
+    /** Neutral grey of an external C4 element when the theme defines none (PAL wave 2G-b). */
+    private const val C4_EXTERNAL_FILL: Int = 0x8A8A8A
+    private const val C4_EXTERNAL_BORDER: Int = 0x6B6B6B
+
+    private fun isDarkColor(c: KumlColor): Boolean {
+        val r = (c.rgb shr 16) and 0xFF
+        val g = (c.rgb shr 8) and 0xFF
+        val b = c.rgb and 0xFF
+        return (0.299 * r + 0.587 * g + 0.114 * b) < 140.0
+    }
+
     // "Powered by kUML" branding — watermark geometry constants. See the
     // property-level KDoc on SvgRenderOptions.watermark for the opt-in
     // contract; this text/comment pair is the sole place both branding
@@ -225,6 +237,32 @@ internal object SvgDocument {
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-system { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.thickPx}; }\n")
+                // PAL wave 2G-b: external C4 elements are grey with white text. `kuml-system` itself stays untouched
+                // (groups and packages use it too).
+                val darkCanvas = isDarkColor(c.background)
+                val extSysFill = (c.c4SystemExternalFill ?: if (darkCanvas) c.muted else KumlColor(C4_EXTERNAL_FILL)).toHex()
+                val extSysBorder = (c.c4SystemExternalBorder ?: KumlColor(C4_EXTERNAL_BORDER)).toHex()
+                val extPerFill = (c.c4PersonExternalFill ?: if (darkCanvas) c.muted else KumlColor(C4_EXTERNAL_FILL)).toHex()
+                val extPerBorder = (c.c4PersonExternalBorder ?: KumlColor(C4_EXTERNAL_BORDER)).toHex()
+                val onExternal =
+                    if (isDarkColor(
+                            c.c4SystemExternalFill ?: if (darkCanvas) c.muted else KumlColor(C4_EXTERNAL_FILL),
+                        )
+                    ) {
+                        "#FFFFFF"
+                    } else {
+                        "#111111"
+                    }
+                append(".kuml-system-external { fill: $extSysFill; stroke: $extSysBorder;")
+                append(" stroke-width: ${bo.thickPx}; }\n")
+                append(".kuml-person-external { fill: $extPerFill; stroke: $extPerBorder;")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-on-external { font-family: ${ty.title.family}; font-size: ${ty.title.sizePt}px;")
+                append(" font-weight: ${ty.title.weight}; fill: $onExternal; }\n")
+                append(".kuml-on-external-small { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
+                append(" fill: $onExternal; }\n")
+                append(".kuml-on-external-tag { font-family: ${ty.stereotype.family}; font-size: ${ty.stereotype.sizePt}px;")
+                append(" font-style: italic; fill: $onExternal; }\n")
                 append(".kuml-container { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.thinPx}; }\n")
                 append(".kuml-c4component { fill: $nodeFill; stroke: ${c.border.toHex()};")
