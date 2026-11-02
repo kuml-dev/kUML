@@ -6,6 +6,28 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Port edge clamp: contract test and shared geometry
+
+**Additions**
+
+- The port and pin clamp itself was delivered earlier (see "PAL wave 2C, partial: ports and pins" below). This wave adds the proof over the whole pipeline: `PortEdgeBorderContractTest` reads path coordinates and port or pin squares from the rendered SVG (no text metrics) and checks every pin or port end of IBD, ACT and PAR against one oracle: (a) the end lies on the border of its square (tolerance 0.01 px plus 0.01 px for the two-decimal rounding of the SVG), (b) the end segment arrives from outside, perpendicular to the face, (c) with an arrowhead the end segment is at least one arrowhead long, (d) it is axis parallel.
+- Coverage is counted, not claimed: the test fails unless all four faces, as source and as target, were exercised for ACT (example 49 and a synthetic four-action script with a pin on every side) and IBD (examples 27 and 54 and a synthetic script rendered with all four flow directions), and PAR (example 51; pins sit left for `in`, right for `out`, so only those faces exist). The oracle has a self test with deliberately wrong ends (inside, outside, oblique, from the wrong side, too short, beside the face).
+- `PinSide.toPortFace(isOutput)` (layout bridge): total mapping of an action pin side to a port face; `Auto` is decided by the pin direction (input left, output right).
+
+**Changes**
+
+- ACT pin routing (`Sysml2PinRouting`) takes its face normals from `PortEdgeClamp.normal` through `PinSide.toPortFace` instead of its own `when` with a silent bottom fallback.
+- The arrowhead length is defined once: `SvgInlineArrow` uses `PortEdgeClamp.ARROW_LEN_PX` (before, two constants of 12 px had to be kept in sync by hand).
+
+**Images**
+
+- No image changed by this wave (checked against `master` before it, see the measurement note in the wave report: vault example SVGs byte-identical).
+
+**Not done (open)**
+
+- ACT keeps its own 16 px stub at a pin (`Sysml2PinRouting.STUB_PX`), IBD and PAR use the arrowhead length of 12 px as the minimum. Not unified, a wave of its own because it would move the bends of example 49.
+- The ACT route building (`orthogonalize`) still works on end points, not on port rectangles, so only the face normal is shared with `PortEdgeClamp`, not `borderPoint` or `clamp`.
+
 ### Notes N3: formatted note text
 
 **Additions**

@@ -2,6 +2,7 @@ package dev.kuml.io.svg
 
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
+import dev.kuml.layout.bridge.port.PortEdgeClamp
 import dev.kuml.renderer.theme.core.KumlTheme
 import kotlin.math.sqrt
 
@@ -43,8 +44,8 @@ internal enum class ArrowStyle {
     CROSSHAIR,
 }
 
-/** Length from arrowhead tip to its base, in pixels. */
-private const val ARROW_LEN = 12f
+/** Length from arrowhead tip to its base, in pixels; single source is [PortEdgeClamp.ARROW_LEN_PX]. */
+private const val ARROW_LEN = PortEdgeClamp.ARROW_LEN_PX
 
 /** Half-width of the arrowhead at its base, in pixels. */
 private const val ARROW_WING = 5f

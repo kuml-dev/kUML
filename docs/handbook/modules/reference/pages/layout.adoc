@@ -225,7 +225,9 @@ never covers a label that is drawn later.
   and the Desktop. The halo is the 2 px two-pass text described above (Batik ignores `paint-order`). Pins and
   parameter rows come from one geometry (`ParConstraintGeometry`), so the SVG, the size estimate and the pin ends
   cannot drift apart. The layout engine reports the port or pin centre; when drawing, `PortEdgeClamp` clamps the edge
-  onto the outer border of the port or pin.
+  onto the outer border of the port or pin. `PinSide.toPortFace(isOutput)` maps an action pin side to the port face
+  (`Auto` by pin direction: input left, output right), so the ACT pin routing takes its face normals from
+  `PortEdgeClamp.normal`; the arrowhead length is the one constant `PortEdgeClamp.ARROW_LEN_PX`.
 * SysML 2 STM: transition labels are planned by `Sysml2DiagramLabelPlan.planStmLabels` over the one `LabelPlacer` (cost
   model `STM_COSTS`, candidates at positions along the arc length of the whole line, nearest the middle first, right of
   the direction of travel before left). Obstacles: states, pseudo-states and notes, the frame, header band, dividers and

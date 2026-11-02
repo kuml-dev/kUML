@@ -2,6 +2,8 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
+import dev.kuml.layout.bridge.port.PortEdgeClamp
+import dev.kuml.layout.bridge.port.toPortFace
 import dev.kuml.sysml2.PinSide
 import kotlin.math.abs
 
@@ -50,8 +52,8 @@ internal object Sysml2PinRouting {
         // Wave 2F (A4): a pin-to-pin flow must not cross foreign nodes: route around them from the pin stubs.
         val p0 = route.source
         val pn = route.target
-        val srcDir = sourceSide?.let { dir(it) } ?: inferDir(from = p0, toward = firstNeighbor(route))
-        val tgtDir = targetSide?.let { dir(it) } ?: inferDir(from = pn, toward = lastNeighbor(route))
+        val srcDir = sourceSide?.let { dir(side = it, isOutput = true) } ?: inferDir(from = p0, toward = firstNeighbor(route))
+        val tgtDir = targetSide?.let { dir(side = it, isOutput = false) } ?: inferDir(from = pn, toward = lastNeighbor(route))
         val s = Point(x = p0.x + srcDir.x * STUB_PX, y = p0.y + srcDir.y * STUB_PX)
         val t = Point(x = pn.x + tgtDir.x * STUB_PX, y = pn.y + tgtDir.y * STUB_PX)
         val mid =
@@ -85,8 +87,8 @@ internal object Sysml2PinRouting {
         }
         val p0 = route.source
         val pn = route.target
-        val srcDir = sourceSide?.let { dir(it) } ?: inferDir(from = p0, toward = firstNeighbor(route))
-        val tgtDir = targetSide?.let { dir(it) } ?: inferDir(from = pn, toward = lastNeighbor(route))
+        val srcDir = sourceSide?.let { dir(side = it, isOutput = true) } ?: inferDir(from = p0, toward = firstNeighbor(route))
+        val tgtDir = targetSide?.let { dir(side = it, isOutput = false) } ?: inferDir(from = pn, toward = lastNeighbor(route))
         val s = if (sourceSide != null) Point(x = p0.x + srcDir.x * STUB_PX, y = p0.y + srcDir.y * STUB_PX) else p0
         val t = if (targetSide != null) Point(x = pn.x + tgtDir.x * STUB_PX, y = pn.y + tgtDir.y * STUB_PX) else pn
         val srcVertical = abs(srcDir.y) > 0f
@@ -158,7 +160,7 @@ internal object Sysml2PinRouting {
     ): Boolean {
         if (side == null) return true
         val pts = points(route) ?: return false
-        return perpendicular(a = pts[0], b = pts[1], side = side)
+        return perpendicular(a = pts[0], b = pts[1], side = side, isOutput = true)
     }
 
     private fun lastSegmentOk(
@@ -167,7 +169,7 @@ internal object Sysml2PinRouting {
     ): Boolean {
         if (side == null) return true
         val pts = points(route) ?: return false
-        return perpendicular(a = pts[pts.size - 1], b = pts[pts.size - 2], side = side)
+        return perpendicular(a = pts[pts.size - 1], b = pts[pts.size - 2], side = side, isOutput = false)
     }
 
     /** `true` when the segment from the pin point [a] to [b] leaves outward, perpendicular to [side]. */
@@ -175,8 +177,9 @@ internal object Sysml2PinRouting {
         a: Point,
         b: Point,
         side: PinSide,
+        isOutput: Boolean,
     ): Boolean {
-        val d = dir(side)
+        val d = dir(side = side, isOutput = isOutput)
         val dx = b.x - a.x
         val dy = b.y - a.y
         return if (abs(d.y) > 0f) abs(dx) <= TOL && dy * d.y > 0f else abs(dy) <= TOL && dx * d.x > 0f
@@ -194,13 +197,11 @@ internal object Sysml2PinRouting {
 
     private fun lastNeighbor(route: EdgeRoute): Point = points(route)?.let { it.getOrNull(it.size - 2) } ?: route.source
 
-    private fun dir(side: PinSide): Point =
-        when (side) {
-            PinSide.Left -> Point(x = -1f, y = 0f)
-            PinSide.Right -> Point(x = 1f, y = 0f)
-            PinSide.Top -> Point(x = 0f, y = -1f)
-            else -> Point(x = 0f, y = 1f)
-        }
+    /** Outward unit normal of the pin face on [side]; the single geometry source is [PortEdgeClamp.normal]. */
+    private fun dir(
+        side: PinSide,
+        isOutput: Boolean,
+    ): Point = PortEdgeClamp.normal(side.toPortFace(isOutput = isOutput))
 
     private fun inferDir(
         from: Point,

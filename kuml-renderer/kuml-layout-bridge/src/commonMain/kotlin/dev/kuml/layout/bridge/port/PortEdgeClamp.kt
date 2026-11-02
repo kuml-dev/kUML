@@ -26,7 +26,7 @@ public data class PortAttachment(
  * Without an attachment a route is returned unchanged (byte-identical).
  */
 public object PortEdgeClamp {
-    /** Arrowhead length of the SVG renderer (`SvgInlineArrow.ARROW_LEN`); keep both in sync. */
+    /** Arrowhead length in px; single source, the SVG renderer's `SvgInlineArrow` uses this constant. */
     public const val ARROW_LEN_PX: Float = 12f
 
     /** Tolerance for "lies on the border", px. */

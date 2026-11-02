@@ -877,7 +877,8 @@ sysml2Model("Payment") {
 
 Pins: `PinSide.Auto` keeps input pins on the left and output pins on the right. An explicit side
 enlarges the action box by 18 px per pin on that side. Object flows with `sourcePin` / `targetPin`
-end at the pin squares.
+end at the pin squares: on the outer border of the square, perpendicular to the box side the pin sits on, with a
+16 px stub in front of the arrowhead. The contract is checked over the whole pipeline for all four sides.
 
 ==== Structural checks (`kuml validate`, ACT)
 
@@ -1082,6 +1083,8 @@ left, `out` and `inout` on the right, at the height of the parameter's row. A bi
 `"<constraint>::<parameter>"` ends at that pin. The helper `constraint.pin("name")` builds the endpoint id
 and fails while the model is built if the constraint has no such parameter. An endpoint that names a
 constraint but no existing parameter ends at the box centre and `kuml validate` warns (`PAR441`).
+A binding ends on the border of the pin square, perpendicular to the frame: on the outer face for a binding that
+comes from outside the constraint, on the inner face for a binding that runs inside it.
 
 A constraint can be nested in another one with `parent = outer`. The inner box is drawn inside the outer
 box; bindings between the outer pins and the inner pins, and between inner constraints, run inside the outer
