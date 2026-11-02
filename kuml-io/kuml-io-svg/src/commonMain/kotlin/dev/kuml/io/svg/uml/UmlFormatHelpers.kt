@@ -6,13 +6,10 @@ import dev.kuml.uml.UmlOperation
 import dev.kuml.uml.UmlParameter
 import dev.kuml.uml.UmlProperty
 import dev.kuml.uml.Visibility
+import dev.kuml.uml.displayLine
 
 /** Formatiert eine [UmlProperty] als `+ name: Type`. */
-internal fun UmlProperty.format(): String {
-    val vis = visibility.symbol()
-    val typeLabel = type.name
-    return "$vis $name: $typeLabel"
-}
+internal fun UmlProperty.format(): String = displayLine()
 
 /**
  * Formatiert eine [UmlOperation] als `+ name(params): ReturnType`.
@@ -57,4 +54,20 @@ internal fun Visibility.symbol(): String =
         Visibility.PRIVATE -> "-"
         Visibility.PROTECTED -> "#"
         Visibility.PACKAGE -> "~"
+    }
+
+/**
+ * Wraps already-escaped feature text in an underlined `<tspan>` when the feature is
+ * static (UML 2.5: class-scope features are underlined). The `kuml-static-underline`
+ * class makes the element findable by invariant tests. Using `text-decoration` on a
+ * tspan keeps the underline exactly as wide as the glyphs in every SVG consumer.
+ */
+internal fun staticUnderline(
+    escapedContent: String,
+    isStatic: Boolean,
+): String =
+    if (isStatic) {
+        "<tspan class=\"kuml-static-underline\" text-decoration=\"underline\">$escapedContent</tspan>"
+    } else {
+        escapedContent
     }

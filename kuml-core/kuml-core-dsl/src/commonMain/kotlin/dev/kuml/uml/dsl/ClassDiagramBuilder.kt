@@ -75,6 +75,15 @@ class ClassDiagramBuilder(
      */
     var mergeEdges: Boolean? = null
 
+    /**
+     * Opt-in (PAL wave 2G-a): draws one dashed dependency with an open arrowhead from a classifier to every
+     * other classifier of this diagram that one of its attributes is typed with. Several attributes of the same
+     * owner pointing to the same classifier give one edge whose label joins the attribute names with `", "`. No edge is
+     * drawn where the diagram already has an association between the two classifiers or a dependency from the owner to the
+     * target, for primitive or unknown types, or for an attribute typed with its own owner.
+     */
+    var attributeTypeEdges: Boolean = false
+
     // ── UmlModelScope ─────────────────────────────────────────────────────────
 
     override fun addNamedElement(element: UmlNamedElement) {
@@ -152,6 +161,7 @@ class ClassDiagramBuilder(
     override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
 
     fun build(): KumlDiagram {
+        val allElements = if (attributeTypeEdges) elements + attributeTypeDependencies() else elements.toList()
         val meta: Map<String, KumlMetaValue> =
             buildMap {
                 layoutEngine?.let { put(LayoutMetadataKeys.ENGINE, KumlMetaValue.Text(it)) }
@@ -161,7 +171,7 @@ class ClassDiagramBuilder(
             layout = layoutCollector.result(),
             name = name,
             type = DiagramType.CLASS,
-            elements = elements.toList(),
+            elements = allElements,
             metadata = meta,
             config =
                 ClassDiagramConfig(
@@ -173,4 +183,50 @@ class ClassDiagramBuilder(
                 ),
         )
     }
+
+    /** The dependencies [attributeTypeEdges] adds, in declaration order of the owners and their attributes. */
+    private fun attributeTypeDependencies(): List<dev.kuml.uml.UmlElement> {
+        val classifiers = elements.filterIsInstance<dev.kuml.uml.UmlNamedElement>().filter { it.isClassifierBox() }
+        val byId = classifiers.associateBy { it.id }
+        val byName = classifiers.associateBy { it.name }
+        val associated =
+            elements
+                .filterIsInstance<dev.kuml.uml.UmlAssociation>()
+                .filter { it.ends.size >= 2 }
+                .map { setOf(it.ends[0].typeId, it.ends[1].typeId) }
+                .toSet()
+        val existing =
+            elements
+                .filterIsInstance<dev.kuml.uml.UmlDependency>()
+                .map { it.clientId to it.supplierId }
+                .toSet()
+        val out = mutableListOf<dev.kuml.uml.UmlElement>()
+        val taken = takenIds.toMutableSet()
+        for (owner in classifiers) {
+            val attributes =
+                when (owner) {
+                    is dev.kuml.uml.UmlClass -> owner.attributes
+                    is dev.kuml.uml.UmlInterface -> owner.attributes
+                    else -> emptyList()
+                }
+            val labelsByTarget = linkedMapOf<String, MutableList<String>>()
+            for (attr in attributes) {
+                val target = attr.type.referencedId?.let(byId::get) ?: byName[attr.type.name] ?: continue
+                if (target.id == owner.id) continue
+                labelsByTarget.getOrPut(target.id) { mutableListOf() } += attr.name
+            }
+            for ((targetId, labels) in labelsByTarget) {
+                if (setOf(owner.id, targetId) in associated || (owner.id to targetId) in existing) continue
+                val id =
+                    dev.kuml.uml.ids.UmlIds
+                        .disambiguate(candidate = "attrtype::${owner.id}-->$targetId", taken = taken)
+                taken += id
+                out += dev.kuml.uml.UmlDependency(id = id, clientId = owner.id, supplierId = targetId, name = labels.joinToString(", "))
+            }
+        }
+        return out
+    }
+
+    private fun dev.kuml.uml.UmlNamedElement.isClassifierBox(): Boolean =
+        this is dev.kuml.uml.UmlClass || this is dev.kuml.uml.UmlInterface || this is dev.kuml.uml.UmlEnumeration
 }

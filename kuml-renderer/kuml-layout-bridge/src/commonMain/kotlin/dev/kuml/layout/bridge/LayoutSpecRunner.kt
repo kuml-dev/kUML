@@ -131,6 +131,9 @@ public object LayoutSpecRunner {
         kind: SpecDiagramKind = SpecDiagramKind.UML_CLASS,
         diagramName: String? = null,
     ): SpecLayoutOutcome {
+        if (kind == SpecDiagramKind.UML_CLASS) {
+            return layoutUmlClass(engine = engine, graph = graph, hints = hints, spec = spec, diagramName = diagramName)
+        }
         val outcome = layoutInner(engine = engine, graph = graph, hints = hints, spec = spec, kind = kind, diagramName = diagramName)
         // Wave 2E-a: every requirement diagram (grid or legacy) gets spread endpoints and nudged parallel segments.
         return when (kind) {
@@ -144,6 +147,66 @@ public object LayoutSpecRunner {
             else -> outcome
         }
     }
+
+    /**
+     * Wave 2G-a: UML layout with the auto wrap (more than [AUTO_WRAP_THRESHOLD] nodes in a layer wrap into
+     * `ceil(sqrt(n))` columns unless `wrapColumns`, `aspectRatio` or `maxWidth` is given), the grid of wide generalisation
+     * fans ([UmlWrapGrid]) and the band of edgeless classifiers ([UmlEdgelessBand]).
+     */
+    private fun layoutUmlClass(
+        engine: KumlLayoutEngine,
+        graph: LayoutGraph,
+        hints: LayoutHints,
+        spec: LayoutSpec?,
+        diagramName: String?,
+    ): SpecLayoutOutcome {
+        val split = UmlEdgelessBand.split(graph)
+        val engineGraph = split?.first ?: graph
+        val effective = withAutoWrap(spec = spec, graph = engineGraph)
+        val outcome =
+            layoutInner(
+                engine = engine,
+                graph = engineGraph,
+                hints = hints,
+                spec = effective,
+                kind = SpecDiagramKind.UML_CLASS,
+                diagramName = diagramName,
+            )
+        var result = outcome.result
+        val columns = effective?.wrapColumns?.takeIf { it in 1..LayoutLimits.WRAP_COLUMNS_MAX }
+        if (columns != null) {
+            val direction = hintsWith(base = hints, spec = sanitize(spec = effective, findings = mutableListOf())).direction
+            result = UmlWrapGrid.apply(result = result, graph = engineGraph, direction = direction, columns = columns)
+        }
+        if (split != null) result = UmlEdgelessBand.place(result = result, band = split.second)
+        return outcome.copy(result = result)
+    }
+
+    /** Sets `wrapColumns = ceil(sqrt(n))` when the widest layer holds more than [AUTO_WRAP_THRESHOLD] nodes and nothing steers the width. */
+    private fun withAutoWrap(
+        spec: LayoutSpec?,
+        graph: LayoutGraph,
+    ): LayoutSpec? {
+        if (spec?.wrapColumns != null || spec?.aspectRatio != null || spec?.maxWidth != null) return spec
+        if (graph.nodes.size <= AUTO_WRAP_THRESHOLD || graph.edges.isEmpty()) return spec
+        val layers =
+            wrapLayers(
+                nodes = graph.nodes.map { it.id.value },
+                edges = graph.edges.map { it.source.nodeId.value to it.target.nodeId.value },
+                columns = null,
+            )
+        val widest =
+            layers.values
+                .groupingBy { it }
+                .eachCount()
+                .values
+                .maxOrNull() ?: 0
+        if (widest <= AUTO_WRAP_THRESHOLD) return spec
+        val columns = UmlEdgelessBand.autoColumns(nodes = widest).coerceIn(2, LayoutLimits.WRAP_COLUMNS_MAX)
+        return (spec ?: LayoutSpec()).copy(wrapColumns = columns)
+    }
+
+    private const val AUTO_WRAP_THRESHOLD = 6
 
     private fun layoutInner(
         engine: KumlLayoutEngine,

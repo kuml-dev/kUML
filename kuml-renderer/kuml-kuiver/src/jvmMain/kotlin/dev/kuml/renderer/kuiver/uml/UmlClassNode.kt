@@ -9,12 +9,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import dev.kuml.renderer.theme.KumlTheme
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlOperation
 import dev.kuml.uml.UmlProperty
 import dev.kuml.uml.Visibility
+import dev.kuml.uml.displayLine
 
 /**
  * Renders a [UmlClass] as a three-section rectangle:
@@ -57,7 +59,12 @@ internal fun UmlClassNode(
         element.attributes.forEach { attr ->
             Text(
                 text = attr.format(),
-                style = theme.typography.body,
+                style =
+                    if (attr.isStatic) {
+                        theme.typography.body.copy(textDecoration = TextDecoration.Underline)
+                    } else {
+                        theme.typography.body
+                    },
                 color = theme.colors.foreground,
             )
         }
@@ -70,7 +77,12 @@ internal fun UmlClassNode(
         element.operations.forEach { op ->
             Text(
                 text = op.format(),
-                style = theme.typography.body,
+                style =
+                    if (op.isStatic) {
+                        theme.typography.body.copy(textDecoration = TextDecoration.Underline)
+                    } else {
+                        theme.typography.body
+                    },
                 color = theme.colors.foreground,
             )
         }
@@ -79,11 +91,7 @@ internal fun UmlClassNode(
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
 
-internal fun UmlProperty.format(): String {
-    val vis = visibility.symbol()
-    val typeLabel = type.name
-    return "$vis $name: $typeLabel"
-}
+internal fun UmlProperty.format(): String = displayLine()
 
 internal fun UmlOperation.format(): String {
     val vis = visibility.symbol()

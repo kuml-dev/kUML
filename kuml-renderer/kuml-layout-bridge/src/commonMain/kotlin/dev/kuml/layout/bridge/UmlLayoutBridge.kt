@@ -18,6 +18,7 @@ import dev.kuml.uml.UmlActivityNodeKind
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlComment
+import dev.kuml.uml.UmlCommunicationPath
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
@@ -638,7 +639,17 @@ public object UmlLayoutBridge {
                                     elementId = element.id,
                                     elementKind = element::class.simpleName ?: "Unknown",
                                 ),
-                            hints = HintsReader.read(element.metadata),
+                            hints =
+                                HintsReader.read(element.metadata).let {
+                                    if (element is dev.kuml.uml.UmlClass ||
+                                        element is dev.kuml.uml.UmlInterface ||
+                                        element is dev.kuml.uml.UmlEnumeration
+                                    ) {
+                                        it.copy(bandable = true)
+                                    } else {
+                                        it
+                                    }
+                                },
                             groupId = useCaseGroupMap[element.id],
                         ),
                     )
@@ -774,6 +785,7 @@ public object UmlLayoutBridge {
                 is UmlAssociation -> listOfNotNull(rel.name)
                 is UmlDependency -> listOfNotNull(rel.name)
                 is UmlConnector -> listOfNotNull(rel.name)
+                is UmlCommunicationPath -> listOfNotNull(rel.name)
                 is UmlInclude -> listOf("«include»")
                 is UmlExtend -> listOf("«extend»")
                 else -> return null

@@ -12,6 +12,7 @@ import dev.kuml.io.svg.c4.renderC4Relationship
 import dev.kuml.io.svg.uml.renderUmlActivityEdge
 import dev.kuml.io.svg.uml.renderUmlAssociation
 import dev.kuml.io.svg.uml.renderUmlCommentLink
+import dev.kuml.io.svg.uml.renderUmlCommunicationPath
 import dev.kuml.io.svg.uml.renderUmlConnector
 import dev.kuml.io.svg.uml.renderUmlDependency
 import dev.kuml.io.svg.uml.renderUmlExtend
@@ -26,6 +27,7 @@ import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlCommentLink
+import dev.kuml.uml.UmlCommunicationPath
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlExtend
@@ -127,6 +129,14 @@ internal object EdgeRendererDispatcher {
                     )
                 is UmlConnector ->
                     renderUmlConnector(
+                        rel = relationship,
+                        route = route,
+                        theme = theme,
+                        builder = this,
+                        placed = placedLabels,
+                    )
+                is UmlCommunicationPath ->
+                    renderUmlCommunicationPath(
                         rel = relationship,
                         route = route,
                         theme = theme,

@@ -3,6 +3,7 @@ package dev.kuml.cli.validate
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlAssociationClass
+import dev.kuml.uml.UmlCommunicationPath
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlGeneralization
 
@@ -199,6 +200,20 @@ internal object StructuralValidator {
                                 location = element.id,
                             ),
                         )
+                    }
+                }
+                is UmlCommunicationPath -> {
+                    for ((label, endId) in listOf("end1" to element.end1Id, "end2" to element.end2Id)) {
+                        if (endId !in knownIds) {
+                            violations.add(
+                                StructuralViolation(
+                                    id = "DANGLING_REFERENCE",
+                                    severity = "warning",
+                                    message = "Communication path '${element.id}' has unknown $label '$endId'.",
+                                    location = element.id,
+                                ),
+                            )
+                        }
                     }
                 }
                 else -> {}

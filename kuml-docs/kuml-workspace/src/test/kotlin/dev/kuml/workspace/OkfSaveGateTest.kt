@@ -20,13 +20,13 @@ class OkfSaveGateTest :
             return OkfValidator.validateDocument(root = root, doc = doc, strictVocabulary = true)
         }
 
-        test("an unrecognised type: (OKF-W-002) blocks the save") {
+        test("an unrecognised type: (OKF-W-002) does NOT block the save, it is a warning") {
             val root = tempWorkspace()
             try {
                 val findings = validate(root = root, markdown = "---\ntype: Blödsinn\n---\nBody")
                 val decision = OkfSaveGate.decide(findings)
-                val blocked = decision.shouldBeInstanceOf<OkfSaveDecision.Block>()
-                blocked.blocking.map { it.code } shouldBe listOf("OKF-W-002")
+                val allowed = decision.shouldBeInstanceOf<OkfSaveDecision.Allow>()
+                allowed.warnings.map { it.code } shouldBe listOf("OKF-W-002")
             } finally {
                 root.deleteRecursively()
             }
@@ -110,22 +110,33 @@ class OkfSaveGateTest :
             }
         }
 
+        test("a known newer diagram type (UmlDeploymentDiagram) saves without any warning") {
+            val root = tempWorkspace()
+            try {
+                val md = "---\ntype: UmlDeploymentDiagram\n---\n```kuml\nx\n```\n"
+                val findings = validate(root = root, markdown = md)
+                findings.map { it.code } shouldBe emptyList()
+                OkfSaveGate.decide(findings).shouldBeInstanceOf<OkfSaveDecision.Allow>()
+            } finally {
+                root.deleteRecursively()
+            }
+        }
+
         test("mixed findings: Block carries only the blocking codes, warnings carry the rest") {
             val root = tempWorkspace()
             try {
                 val md =
                     """
                     |---
-                    |type: Blödsinn
-                    |---
+                    |no frontmatter at all
                     |[missing](./nowhere.md)
                     """.trimMargin()
                 val findings = validate(root = root, markdown = md)
-                findings.map { it.code }.toSet() shouldBe setOf("OKF-W-002", "OKF-E-005")
+                findings.map { it.code }.toSet() shouldBe setOf("OKF-E-001", "OKF-E-005")
 
                 val decision = OkfSaveGate.decide(findings)
                 val blocked = decision.shouldBeInstanceOf<OkfSaveDecision.Block>()
-                blocked.blocking.map { it.code } shouldBe listOf("OKF-W-002")
+                blocked.blocking.map { it.code } shouldBe listOf("OKF-E-001")
                 blocked.warnings.map { it.code } shouldBe listOf("OKF-E-005")
             } finally {
                 root.deleteRecursively()

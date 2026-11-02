@@ -53,9 +53,11 @@ class V11DiagramBuildersTest :
             nodes shouldHaveSize 2
             d.elements.filterIsInstance<UmlArtifact>() shouldHaveSize 1
             val deps = d.elements.filterIsInstance<UmlDependency>()
-            deps shouldHaveSize 2
+            deps shouldHaveSize 1
             deps.any { it.name == "«deploy»" } shouldBe true
-            deps.any { it.name == "«communicationPath»" } shouldBe true
+            val paths = d.elements.filterIsInstance<dev.kuml.uml.UmlCommunicationPath>()
+            paths shouldHaveSize 1
+            paths.single().name shouldBe null
         }
 
         test("nested nodes inside a deployment node are captured under children") {

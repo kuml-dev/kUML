@@ -9,6 +9,7 @@ import dev.kuml.layout.Point
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlAssociationClass
+import dev.kuml.uml.UmlCommunicationPath
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlExtend
@@ -78,6 +79,8 @@ internal object SelfLoopRouter {
             is UmlDependency ->
                 if (element.clientId == element.supplierId) element.clientId else null
             is UmlConnector ->
+                if (element.end1Id == element.end2Id) element.end1Id else null
+            is UmlCommunicationPath ->
                 if (element.end1Id == element.end2Id) element.end1Id else null
             is UmlInclude ->
                 if (element.baseId == element.additionId) element.baseId else null

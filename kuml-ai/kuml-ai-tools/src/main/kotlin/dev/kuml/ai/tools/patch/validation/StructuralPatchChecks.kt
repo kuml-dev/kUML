@@ -6,6 +6,7 @@ package dev.kuml.ai.tools.patch.validation
 
 import dev.kuml.ai.tools.context.AnyKumlModel
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlCommunicationPath
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlGeneralization
 
@@ -140,6 +141,14 @@ internal object StructuralPatchChecks {
                     }
                     if (rel.supplierId !in knownIds) {
                         warningMessages.add("Dependency '${rel.id}' has unknown supplier '${rel.supplierId}'.")
+                    }
+                }
+                is UmlCommunicationPath -> {
+                    if (rel.end1Id !in knownIds) {
+                        warningMessages.add("Communication path '${rel.id}' has unknown end1 '${rel.end1Id}'.")
+                    }
+                    if (rel.end2Id !in knownIds) {
+                        warningMessages.add("Communication path '${rel.id}' has unknown end2 '${rel.end2Id}'.")
                     }
                 }
                 is UmlGeneralization -> {

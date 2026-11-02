@@ -42,7 +42,7 @@ internal fun renderUmlEnum(
             name = "text",
             attrs =
                 mapOf(
-                    "class" to "kuml-stereotype",
+                    "class" to "kuml-keyword",
                     "x" to fmt(w / 2f),
                     "y" to fmt(cy),
                     "text-anchor" to "middle",

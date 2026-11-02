@@ -36,18 +36,18 @@ class OkfDocumentWriterTest :
             }
         }
 
-        test("gate blocks the save: the file stays byte-identical, result is Blocked") {
+        test("gate blocks the save (OKF-E-001): the file stays byte-identical, result is Blocked") {
             val root = tempWorkspace()
             try {
                 val original = "---\ntype: Concept\n---\noriginal body"
                 val doc = File(root, "note.md").apply { writeText(original) }
-                val badContent = "---\ntype: Blödsinn\n---\nnew body"
+                val badContent = "no frontmatter\nnew body"
 
                 val result =
                     OkfDocumentWriter.save(root = root, target = doc, content = badContent, knownDocuments = listOf(doc))
 
                 val blocked = result.shouldBeInstanceOf<OkfWriteResult.Blocked>()
-                blocked.blocking.map { it.code } shouldBe listOf("OKF-W-002")
+                blocked.blocking.map { it.code } shouldBe listOf("OKF-E-001")
                 doc.readText(Charsets.UTF_8) shouldBe original
             } finally {
                 root.deleteRecursively()

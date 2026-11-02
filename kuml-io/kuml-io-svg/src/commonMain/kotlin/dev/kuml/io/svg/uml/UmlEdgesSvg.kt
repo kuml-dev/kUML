@@ -528,6 +528,33 @@ internal fun renderUmlConnector(
 }
 
 /**
+ * UML Communication Path — durchgezogene Linie ohne Pfeilkopf, wie ein [UmlConnector],
+ * aber ohne Stereotyp-Klammern; ein Label erscheint nur bei gesetztem `name`.
+ * Delegiert an [renderUmlConnector] (gleiche Linie, gleiche Label-Platzierung).
+ */
+internal fun renderUmlCommunicationPath(
+    rel: dev.kuml.uml.UmlCommunicationPath,
+    route: EdgeRoute,
+    theme: KumlTheme,
+    builder: SvgBuilder,
+    placed: Map<String, PlacedLabel>? = null,
+) = renderUmlConnector(
+    rel =
+        UmlConnector(
+            id = rel.id,
+            end1Id = rel.end1Id,
+            end2Id = rel.end2Id,
+            name = rel.name,
+            metadata = rel.metadata,
+            appliedStereotypes = rel.appliedStereotypes,
+        ),
+    route = route,
+    theme = theme,
+    builder = builder,
+    placed = placed,
+)
+
+/**
  * UML Comment anchor link — plain dashed line, no arrowhead, no label.
  *
  * Per the UML spec, the attachment between a [dev.kuml.uml.UmlComment] (note)

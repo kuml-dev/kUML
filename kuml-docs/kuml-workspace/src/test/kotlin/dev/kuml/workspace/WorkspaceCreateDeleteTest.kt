@@ -103,10 +103,10 @@ class WorkspaceCreateDeleteTest :
             }
         }
 
-        test("create blocked by the save gate creates nothing, not even directories") {
+        test("create blocked by the save gate (OKF-E-001) creates nothing, not even directories") {
             val root = ws()
             try {
-                val result = OkfDocumentWriter.create(root = root, relativePath = "deep/dir/new.md", content = "---\ntype: Quatsch\n---\nx")
+                val result = OkfDocumentWriter.create(root = root, relativePath = "deep/dir/new.md", content = "no frontmatter\nx")
                 result.shouldBeInstanceOf<OkfWriteResult.Blocked>()
                 File(root, "deep").exists() shouldBe false
             } finally {

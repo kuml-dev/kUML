@@ -433,12 +433,12 @@ class DesktopMcpWorkspaceToolsTest :
             }
         }
 
-        test("set: the save gate blocks an unknown type and creates nothing, not even folders") {
+        test("set: the save gate blocks a missing type (OKF-E-001) and creates nothing, not even folders") {
             withFix { f ->
                 val e =
                     f.error(
                         "kuml_desktop_workspace_set_document",
-                        args("path" to "fresh/dir/x.md", "content" to "---\ntype: Quatsch\n---\nx"),
+                        args("path" to "fresh/dir/x.md", "content" to "no frontmatter\nx"),
                     )
                 e["error"]!!.jsonPrimitive.content shouldBe "SAVE_BLOCKED"
                 (e["findings"] as JsonArray).size shouldBe 1

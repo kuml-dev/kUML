@@ -282,6 +282,14 @@ contain exactly one ` ```kuml ` fenced code block; the others are prose/collecti
 | `UmlActivityDiagram` | yes
 | `UmlComponentDiagram` | yes
 | `UmlUseCaseDiagram` | yes
+| `UmlDeploymentDiagram` | yes
+| `UmlObjectDiagram` | yes
+| `UmlPackageDiagram` | yes
+| `UmlProfileDiagram` | yes
+| `UmlCompositeStructureDiagram` | yes
+| `UmlCommunicationDiagram` | yes
+| `UmlTimingDiagram` | yes
+| `UmlInteractionOverviewDiagram` | yes
 |===
 
 === C4
@@ -359,7 +367,8 @@ The vocabulary is checked into the codebase as a machine-readable contract at
 `kuml-docs/kuml-workspace/src/main/resources/okf/kuml-okf-vocabulary.json` (`id`,
 `requiresKumlBlock`, `since`, `description` per entry) and is kept in lockstep with the
 `OkfType` enum by a dedicated contract test. An unrecognised `type:` value is not an
-error by default — custom types are allowed — but see `--strict-vocabulary` below.
+error by default — custom types are allowed — but see `--strict-vocabulary` below. `OKF-W-002` never
+blocks a save in the desktop editor either (see "The save gate"): only a missing `type:` (`OKF-E-001`) does.
 
 == OKF finding codes
 
@@ -450,14 +459,13 @@ Saving (Ctrl+S, ⌘S on macOS, or the Save button that appears once a document h
 does *not* write whatever is in the buffer unconditionally. A persistent banner above
 the document — never a pop-up dialog, so it can't be dismissed and forgotten — shows
 every current OKF finding (see "OKF finding codes" above) for the buffer, and exactly
-two of them **refuse the save outright**:
+one of them **refuses the save outright**:
 
 [cols="1,3"]
 |===
 | Code | Why it blocks
 
 | `OKF-E-001` | Frontmatter missing or has no `type:` field — the desktop editor's own header controls have nowhere to write to.
-| `OKF-W-002` | An unrecognised `type:` value — treated as blocking here regardless of the workspace marker's `strict` setting, because it is always fixable with a single click in the `type:` dropdown.
 |===
 
 There is deliberately **no "save anyway" override** for these two — the fix is one

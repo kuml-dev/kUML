@@ -10,6 +10,7 @@ import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlArtifact
 import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlCommentLink
+import dev.kuml.uml.UmlCommunicationPath
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlElement
 import dev.kuml.uml.UmlNamedElement
@@ -55,7 +56,7 @@ public class DeploymentDiagramBuilder(
 
     override fun addRelationship(relationship: UmlRelationship) {
         when (relationship) {
-            is UmlDependency, is UmlCommentLink -> {}
+            is UmlDependency, is UmlCommunicationPath, is UmlCommentLink -> {}
             else ->
                 require(false) {
                     "[$name] ${relationship::class.simpleName} is not a valid relationship for a deployment diagram."
@@ -131,14 +132,19 @@ public class DeploymentDiagramBuilder(
         return d
     }
 
+    /**
+     * Adds a communication path between two nodes: a plain solid line without
+     * arrowheads. Only [name] (if given) is drawn as a label.
+     */
     public fun communicationPath(
         end1: UmlNode,
         end2: UmlNode,
-    ): UmlDependency {
+        name: String? = null,
+    ): UmlCommunicationPath {
         val id = UmlIds.disambiguate(candidate = "commPath::${end1.id}--${end2.id}", taken = takenIds)
-        val d = UmlDependency(id = id, clientId = end1.id, supplierId = end2.id, name = "«communicationPath»")
-        addRelationship(d)
-        return d
+        val p = UmlCommunicationPath(id = id, end1Id = end1.id, end2Id = end2.id, name = name)
+        addRelationship(p)
+        return p
     }
 
     override fun addAppliedProfile(profile: KumlProfile) {

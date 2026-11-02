@@ -139,3 +139,28 @@ data class UmlConstraint(
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : UmlNamedElement
+
+// ── Display formatting (shared by all renderers + size estimation) ────────────
+
+/** UML visibility symbol: `+` public, `-` private, `#` protected, `~` package. */
+fun Visibility.displaySymbol(): String =
+    when (this) {
+        Visibility.PUBLIC -> "+"
+        Visibility.PRIVATE -> "-"
+        Visibility.PROTECTED -> "#"
+        Visibility.PACKAGE -> "~"
+    }
+
+/**
+ * The single-line display form of a property: `vis name: Type`, followed by
+ * ` = defaultValue` when a default is set. The default is rendered verbatim
+ * (no quoting, no truncation). Static properties are shown underlined by the
+ * renderers via [UmlProperty.isStatic]; the text itself is unchanged.
+ *
+ * All renderers and the box-width estimator MUST use this function so that the
+ * measured width and the drawn text cannot drift apart.
+ */
+fun UmlProperty.displayLine(): String {
+    val base = "${visibility.displaySymbol()} $name: ${type.name}"
+    return if (defaultValue != null) "$base = $defaultValue" else base
+}

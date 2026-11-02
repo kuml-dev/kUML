@@ -16,6 +16,7 @@ import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlAssociationEnd
+import dev.kuml.uml.UmlCommunicationPath
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlExtend
@@ -122,6 +123,9 @@ public object UmlAssociationLabelPlan {
                 }
                 is UmlDependency -> lines = listOfNotNull(StereotypeHelper.headerLabel(element = el, theme = theme.stereotypes), el.name)
                 is UmlConnector -> lines = listOfNotNull(StereotypeHelper.headerLabel(element = el, theme = theme.stereotypes), el.name)
+                is UmlCommunicationPath ->
+                    lines =
+                        listOfNotNull(StereotypeHelper.headerLabel(element = el, theme = theme.stereotypes), el.name)
                 is UmlGeneralization -> lines = listOfNotNull(StereotypeHelper.headerLabel(element = el, theme = theme.stereotypes))
                 is UmlInterfaceRealization -> lines = listOfNotNull(StereotypeHelper.headerLabel(element = el, theme = theme.stereotypes))
                 is UmlInclude -> lines = listOf("«include»")

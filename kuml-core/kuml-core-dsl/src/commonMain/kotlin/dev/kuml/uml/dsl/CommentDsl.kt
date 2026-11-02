@@ -79,16 +79,21 @@ public fun UmlModelScope.comment(
  * resolves to the [String] vararg overload above (an empty `vararg` array is
  * otherwise ambiguous between the two overloads; the required first argument
  * here removes the ambiguity).
+ *
+ * A comment may annotate two elements in the named form
+ * `comment("x", firstAnchor = a, secondAnchor = b)`; the positional form
+ * `comment("x", a, b)` and any further anchors (`comment("x", a, b, c)`) resolve identically.
  */
 public fun UmlModelScope.comment(
     text: String,
     firstAnchor: UmlNamedElement,
+    secondAnchor: UmlNamedElement? = null,
     vararg moreAnchors: UmlNamedElement,
     id: String? = null,
 ): UmlComment =
     comment(
         text = text,
-        anchors = (listOf(firstAnchor) + moreAnchors).map { it.id }.toTypedArray(),
+        anchors = (listOfNotNull(firstAnchor, secondAnchor) + moreAnchors).map { it.id }.toTypedArray(),
         id = id,
     )
 
@@ -133,16 +138,21 @@ public fun UmlInteractionScope.comment(
  * resolves to the [String] vararg overload above (an empty `vararg` array is
  * otherwise ambiguous between the two overloads; the required first argument
  * here removes the ambiguity).
+ *
+ * A comment may annotate two elements in the named form
+ * `comment("x", firstAnchor = a, secondAnchor = b)`; the positional form
+ * `comment("x", a, b)` and any further anchors (`comment("x", a, b, c)`) resolve identically.
  */
 public fun UmlInteractionScope.comment(
     text: String,
     firstAnchor: UmlNamedElement,
+    secondAnchor: UmlNamedElement? = null,
     vararg moreAnchors: UmlNamedElement,
     id: String? = null,
 ): UmlComment =
     comment(
         text = text,
-        anchors = (listOf(firstAnchor) + moreAnchors).map { it.id }.toTypedArray(),
+        anchors = (listOfNotNull(firstAnchor, secondAnchor) + moreAnchors).map { it.id }.toTypedArray(),
         id = id,
     )
 
@@ -188,16 +198,21 @@ public fun UmlStateMachineScope.comment(
  * resolves to the [String] vararg overload above (an empty `vararg` array is
  * otherwise ambiguous between the two overloads; the required first argument
  * here removes the ambiguity).
+ *
+ * A comment may annotate two elements in the named form
+ * `comment("x", firstAnchor = a, secondAnchor = b)`; the positional form
+ * `comment("x", a, b)` and any further anchors (`comment("x", a, b, c)`) resolve identically.
  */
 public fun UmlStateMachineScope.comment(
     text: String,
     firstAnchor: UmlNamedElement,
+    secondAnchor: UmlNamedElement? = null,
     vararg moreAnchors: UmlNamedElement,
     id: String? = null,
 ): UmlComment =
     comment(
         text = text,
-        anchors = (listOf(firstAnchor) + moreAnchors).map { it.id }.toTypedArray(),
+        anchors = (listOfNotNull(firstAnchor, secondAnchor) + moreAnchors).map { it.id }.toTypedArray(),
         id = id,
     )
 

@@ -62,7 +62,9 @@ plus a `tags:` list in either inline (`tags: [a, b]`) or block (`tags:` / `- a`)
 Obsidian properties beyond that — nested maps, Obsidian's typed properties (numbers,
 checkboxes, dates-as-objects) — are simply not read by kUML; they neither break
 anything nor get validated. Keep `type:` itself to a plain scalar drawn from the OKF
-vocabulary (or accept an `OKF-W-002` warning for a custom type, escalated to an error
+vocabulary (all UML diagram kinds are in it, including `UmlDeploymentDiagram`, `UmlObjectDiagram`,
+`UmlPackageDiagram`, `UmlProfileDiagram`, `UmlCompositeStructureDiagram`, `UmlCommunicationDiagram`,
+`UmlTimingDiagram` and `UmlInteractionOverviewDiagram`), or accept an `OKF-W-002` warning for a custom type, escalated to an error
 under `--strict-vocabulary` — see xref:knowledge-workspaces.adoc[Knowledge Workspaces]).
 
 == Callouts

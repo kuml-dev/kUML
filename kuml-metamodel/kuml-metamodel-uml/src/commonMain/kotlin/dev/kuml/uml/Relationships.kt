@@ -111,3 +111,28 @@ data class UmlDependency(
     override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
 ) : UmlRelationship,
     Stereotypable
+
+// ── Communication Path ────────────────────────────────────────────────────────
+
+/**
+ * A UML communication path — an association between two deployment [UmlNode]s over
+ * which signals and messages are exchanged (UML 2.5, 19.3.3).
+ *
+ * Rendered as a plain solid line without arrowheads and without a stereotype label;
+ * only an explicit [name] is drawn. Older models stored communication paths as a
+ * [UmlDependency] named `«communicationPath»`; those are still read and drawn as before.
+ *
+ * @property end1Id [UmlElement.id] of the first connected node.
+ * @property end2Id [UmlElement.id] of the second connected node.
+ * @property name Optional label (drawn only when set).
+ */
+@Serializable
+data class UmlCommunicationPath(
+    override val id: String,
+    val end1Id: String,
+    val end2Id: String,
+    val name: String? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlRelationship,
+    Stereotypable

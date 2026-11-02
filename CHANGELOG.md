@@ -6,6 +6,41 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### UML class and deployment diagrams (wave 2G-a)
+
+**Behaviour changes (visible in existing diagrams)**
+
+- **Auto wrap and grid (P-UML-01b):** a class diagram layer with more than 6 nodes wraps into `ceil(sqrt(n))` columns when nothing steers the width. A wide generalisation fan (more specialisations than one row holds, at least 4) is drawn as a column-aligned grid with one orthogonal, individually routed edge per specialisation (gutters of at least 32 px between the columns, no edge touches a box); see handbook `layout.adoc`. The pass only recognises edges with the default id (`gen::...`), skips horizontal flows and falls back to the engine layout when a specialisation has an edge other than a comment link.
+- **Band of edgeless classifiers (P-UML-01b):** classes, interfaces and enumerations without any edge (a comment link counts) move to a band 40 px below the diagram (new `NodeHints.bandable`, set by the UML bridge; callers other than the UML bridge are unaffected). This changes every existing class diagram that has isolated classifiers, for example the enumeration of vault example 01.
+- **Keyword size (P-UML-01e):** `«enumeration»` and `«interface»` are 12 px, italic, in the text colour (class `kuml-keyword`); edge and feature stereotypes keep `kuml-stereotype`.
+- **`communicationPath` (P-UML-02):** a plain solid line without arrowhead and without a `«communicationPath»` label; the label is drawn only when `name` is given. **API change:** `communicationPath(...)` returns the new `UmlCommunicationPath` instead of a `UmlDependency`.
+- **OKF save gate (P-UML-02):** `OKF-W-002` (unknown `type:`) no longer blocks a save in the desktop editor or the desktop MCP write tools; only `OKF-E-001` does. The OKF vocabulary gains `UmlDeploymentDiagram`, `UmlObjectDiagram`, `UmlPackageDiagram`, `UmlProfileDiagram`, `UmlCompositeStructureDiagram`, `UmlCommunicationDiagram`, `UmlTimingDiagram` and `UmlInteractionOverviewDiagram` (enum and `kuml-okf-vocabulary.json` together).
+
+**Additions**
+
+- **Default value and static (P-UML-01a):** an attribute with a `defaultValue` shows ` = value` verbatim after its type (`UmlProperty.displayLine()` in `kuml-metamodel-uml` is the single source for the SVG renderer, the kuiver renderer, the box-width estimate and the LaTeX renderer, so measured and drawn text cannot drift apart). Static attributes and operations are underlined (`kuml-static-underline`, a `text-decoration` tspan; kuiver: `TextDecoration.Underline`). The LaTeX renderer shows the default value but does not underline.
+- **`secondAnchor` (P-UML-01c):** `comment(text, firstAnchor, secondAnchor, ...)` (UML class-like scopes, sequence and state machine scopes); the positional form and three or more anchors resolve as before. The script interpreter accepts `secondAnchor` too; the interpreter printer still prints one anchor plus a TODO (unchanged contract).
+- **`attributeTypeEdges` (P-UML-01d):** opt-in dashed dependencies from attribute types, see handbook `uml-dsl.adoc`. The label sits at the centre of the edge, not at the target end.
+
+**Verified, unchanged**
+
+- Visibility defaults: attributes are private (`-`), operations public (`+`). This is the metamodel value; a test pins it. A nullable `Visibility?` ("no visibility shown") is not introduced, see Open.
+
+**Compatibility**
+
+- New JSON with a `UmlCommunicationPath` cannot be read by an older kUML (for example an older kUML Portal or an installed plugin). Old JSON with the dependency is read unchanged and drawn as before.
+- The "Unresolved reference 'layout'" problem of the vault prompt does not occur on this baseline: `ClassDiagramBuilder` has implemented `DiagramLayoutScope` since wave 2B.
+- The desktop MCP was not reachable while this wave was built; the save gate is covered by `OkfSaveGateTest`, `OkfDocumentWriterTest`, `WorkspaceStateEditingTest`, `WorkspaceStateMcpWritesTest` and `DesktopMcpWorkspaceToolsTest`, not by a live MCP call.
+
+**Open**
+
+- `Visibility?` on attributes (hide the symbol when nothing is declared).
+- A common collector line (one shared trunk) for the generalisation fan; each edge is individual here.
+- The attribute-type edge label at the target end (placed by the central label placer; now centred on the edge).
+- Printing `communicationPath` back from the model printers (they print neither deployment diagrams nor this type).
+- Comment links of an anchored specialisation inside a grid are drawn as straight lines and may cross neighbouring boxes.
+- The playground sources and the handbook SVGs were not regenerated.
+
 ### Activity and sequence diagrams (wave 2F)
 
 **Activity diagrams (P-ACT-01 to 03)**

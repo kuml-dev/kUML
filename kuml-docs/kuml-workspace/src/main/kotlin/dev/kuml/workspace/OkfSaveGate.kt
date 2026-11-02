@@ -18,17 +18,17 @@ public sealed interface OkfSaveDecision {
  * Decides whether a set of [OkfFinding]s for a single document permits a write
  * (kUML Desktop's editable-workspace document editor).
  *
- * A deliberately small, fixed set of codes blocks a save: both are dokumentlokal, and
- * both are fixable with a single click in the `type:` dropdown — so there is no reason
- * to ever let a workspace-local document accumulate one of these on disk via the
- * editor. `OKF-E-003` (missing kuml block for a diagram type), `OKF-W-004` (more than
+ * A deliberately small, fixed set of codes blocks a save: exactly one, `OKF-E-001`
+ * (missing/invalid `type:`), which is dokumentlokal and fixable with a single click in the
+ * `type:` dropdown. `OKF-W-002` (unknown type) never blocks: a vocabulary that lags a newer
+ * diagram type must not make a document unsaveable. `OKF-E-003` (missing kuml block for a diagram type), `OKF-W-004` (more than
  * one kuml block), and `OKF-E-005` (a broken link) do NOT block: a document may
  * legitimately point at a file that is about to be created, or be saved mid-edit while
  * the author is cutting and re-pasting the diagram block.
  */
 public object OkfSaveGate {
-    /** Finding codes that block a save. See the class KDoc for why exactly these two. */
-    public val BLOCKING_CODES: Set<String> = setOf("OKF-E-001", "OKF-W-002")
+    /** Finding codes that block a save. See the class KDoc for why exactly one. */
+    public val BLOCKING_CODES: Set<String> = setOf("OKF-E-001")
 
     /** Partitions [findings] into blocking/non-blocking per [BLOCKING_CODES]. */
     public fun decide(findings: List<OkfFinding>): OkfSaveDecision {

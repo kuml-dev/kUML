@@ -13,6 +13,7 @@ import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComment
+import dev.kuml.uml.UmlCommunicationPath
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
@@ -34,6 +35,7 @@ import dev.kuml.uml.UmlStateMachine
 import dev.kuml.uml.UmlStereotype
 import dev.kuml.uml.UmlUseCase
 import dev.kuml.uml.Visibility
+import dev.kuml.uml.displayLine
 
 /**
  * Content-aware [SizeProvider] for UML class diagrams (V2.0.44).
@@ -233,6 +235,10 @@ public class UmlContentSizeProvider
                         bump(e.supplierId)
                     }
                     is UmlConnector -> {
+                        bump(e.end1Id)
+                        bump(e.end2Id)
+                    }
+                    is UmlCommunicationPath -> {
                         bump(e.end1Id)
                         bump(e.end2Id)
                     }
@@ -776,20 +782,13 @@ public class UmlContentSizeProvider
         // ── Formatting helpers (mirrors UmlFormatHelpers.kt, kept local to bridge) ──
 
         private fun UmlProperty.toFormattedLine(): String {
-            val vis =
-                when (visibility) {
-                    Visibility.PUBLIC -> "+"
-                    Visibility.PRIVATE -> "-"
-                    Visibility.PROTECTED -> "#"
-                    Visibility.PACKAGE -> "~"
-                }
             // ADR-0017: merge applied (typed) stereotypes with the plain display-label
             // `stereotypes: List<String>` field — StereotypeHelper.featureStereotypeTspan()
             // renders both, so the width estimate has to account for both too, otherwise
             // a plain `stereotypes += "Column"` overflows the class box to the right.
             val names = (appliedStereotypes.map { it.stereotypeName } + stereotypes.filter { it.isNotBlank() }).distinct()
             val stereoPrefix = if (names.isEmpty()) "" else "«${names.joinToString(", ")}» "
-            return "$stereoPrefix$vis $name: ${type.name}"
+            return stereoPrefix + displayLine()
         }
 
         private fun UmlOperation.toFormattedLine(): String {

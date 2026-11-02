@@ -197,7 +197,7 @@ internal object BddGeneralizationBus {
             a.origin.y + a.size.height + margin > b.origin.y
 
     /** Shifts everything so the old margins around the content stay and the canvas fits the content tightly. */
-    private fun tighten(
+    internal fun tighten(
         original: LayoutResult,
         nodes: Map<NodeId, NodeLayout>,
         edges: Map<EdgeId, EdgeRoute>,

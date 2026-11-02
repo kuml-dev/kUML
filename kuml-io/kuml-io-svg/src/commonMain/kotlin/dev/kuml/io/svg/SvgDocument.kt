@@ -269,6 +269,11 @@ internal object SvgDocument {
                 append(".kuml-edge-label-halo { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
                 append(" fill: ${c.background.toHex()}; stroke: ${c.background.toHex()};")
                 append(" stroke-width: 3px; stroke-linejoin: round; }\n")
+                append(".kuml-static-underline { text-decoration: underline; }\n")
+                // P-UML-01e — «enumeration»/«interface» keyword: 12px (not the 10px stereotype size),
+                // italic, full text colour. Edge/feature stereotypes keep `.kuml-stereotype`.
+                append(".kuml-keyword { font-family: ${ty.stereotype.family}; font-size: 12px;")
+                append(" font-style: italic; fill: ${c.foreground.toHex()}; }\n")
                 append(".kuml-stereotype { font-family: ${ty.stereotype.family};")
                 append(" font-size: ${ty.stereotype.sizePt}px; font-style: italic;")
                 append(" fill: ${c.muted.toHex()}; }\n")

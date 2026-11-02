@@ -15,6 +15,7 @@ import dev.kuml.renderer.kuiver.uml.IncludeEdge
 import dev.kuml.renderer.kuiver.uml.InterfaceRealizationEdge
 import dev.kuml.renderer.theme.KumlTheme
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlCommunicationPath
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlExtend
@@ -74,6 +75,19 @@ internal object EdgeContentDispatcher {
                 )
             is UmlDependency -> DependencyEdge(relationship = relationship, source = source, target = target, theme = theme)
             is UmlConnector -> ConnectorEdge(relationship = relationship, source = source, target = target, theme = theme)
+            is UmlCommunicationPath ->
+                ConnectorEdge(
+                    relationship =
+                        UmlConnector(
+                            id = relationship.id,
+                            end1Id = relationship.end1Id,
+                            end2Id = relationship.end2Id,
+                            name = relationship.name,
+                        ),
+                    source = source,
+                    target = target,
+                    theme = theme,
+                )
             is UmlInclude -> IncludeEdge(relationship = relationship, source = source, target = target, theme = theme)
             is UmlExtend -> ExtendEdge(relationship = relationship, source = source, target = target, theme = theme)
             is C4Relationship -> C4RelationshipEdge(relationship = relationship, source = source, target = target, theme = theme)

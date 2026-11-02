@@ -125,7 +125,9 @@ classDiagram(name = "Domain") {
 
 | `attribute(name, type)`
 | `type` can be a `String` or any classifier-producing val (returns a typed reference).
-  Optional: `multiplicity`, `visibility`, `isStatic`, `defaultValue`.
+  Optional: `multiplicity`, `visibility`, `isStatic`, `defaultValue`. The default value is drawn verbatim after the
+  type (`- limit: Int = -5`, no quotes added, never shortened); a static attribute or operation is underlined.
+  *Visibility defaults:* attributes are `private` (`-`), operations `public` (`+`).
 
 | `operation(name)`
 | Block-form: add `parameter(...)`, `returnType`, `visibility`, `stereotype(...)`.
@@ -299,6 +301,13 @@ classDiagram(name = "Order Domain") {
 }
 ----
 
+=== Edges from attribute types
+
+`attributeTypeEdges = true` in a class diagram draws a dashed dependency with an open arrowhead from a classifier to
+every other classifier of the diagram that one of its attributes is typed with. Several attributes of one owner with the
+same target give one edge, labelled with the attribute names joined by `", "`. No edge is added where the diagram already has
+an association between the two, for primitive or unknown types, or for an attribute typed with its own owner. Off by default.
+
 == Comments
 
 A UML comment (note) is a free-text annotation box with a folded top-right corner,
@@ -317,7 +326,8 @@ classDiagram(name = "Order Domain") {
     )
 
     // Anchored to several elements, or by raw ID instead of a handle
-    // comment(text = "...", firstAnchor = order, moreAnchors = arrayOf(subscription))
+    // comment(text = "...", firstAnchor = order, secondAnchor = subscription)   // two anchors, named
+    // comment("...", order, subscription, customer)                              // three or more, positional
     // comment(text = "...", anchors = arrayOf("Order", "Subscription"))
 
     // Free-standing note (no anchors)
@@ -512,7 +522,9 @@ packageDiagram(name = "Order Domain Modules") {
 Deployment diagrams show the physical mapping of software artifacts to execution nodes
 and devices. Nested `executionEnvironment { }`, `node { }`, and `device { }` scopes
 model the hardware/container hierarchy; `artifact` places software inside a node;
-`communicationPath` connects two nodes.
+`communicationPath(end1, end2, name = null)` connects two nodes with a plain solid line: no arrowhead, no
+`«communicationPath»` label; only an explicit `name` is drawn. It is a `UmlCommunicationPath` (older models stored it as a
+dependency named `«communicationPath»`; those are still read and drawn as before).
 
 [source,kuml]
 ----

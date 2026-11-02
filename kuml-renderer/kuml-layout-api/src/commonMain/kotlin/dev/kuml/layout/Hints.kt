@@ -99,6 +99,11 @@ public data class NodeHints(
      * a member of a group) instead of inside the grid.
      */
     val rail: Boolean = false,
+    /**
+     * Wave 2G-a (UML class diagram): marks a classifier box (class, interface, enumeration) that moves to the band
+     * below the graph when it has no edge at all. Set by the UML layout bridge only.
+     */
+    val bandable: Boolean = false,
 ) {
     public companion object {
         /** NodeHints ohne jegliche Einschränkungen — vollständig automatisches Layout. */

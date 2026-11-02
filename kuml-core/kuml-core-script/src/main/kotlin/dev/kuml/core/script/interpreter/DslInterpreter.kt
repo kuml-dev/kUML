@@ -585,21 +585,29 @@ internal object DslInterpreter {
         call: DslCall,
     ) {
         val text = requireStringArg(call = call, named = "text", positionalIndex = 0)
-        // firstAnchor is a classifier handle; further anchors not supported in this slice.
+        // firstAnchor / secondAnchor are classifier handles; further anchors are not supported in this slice.
         val anchorArg =
             arg(call = call, named = "firstAnchor", positionalIndex = 1) ?: arg(call = call, named = "anchor", positionalIndex = 1)
         if (anchorArg == null) {
             builder.comment(text = text)
             return
         }
-        val v = anchorArg.value
-        if (v !is DslIdentifier) {
-            throw DslInterpretException(message = "comment 'firstAnchor' must reference a val handle", line = call.line)
-        }
-        val handle =
-            env.resolve(name = v.name, line = v.line) as? UmlNamedElement
+
+        fun resolveAnchor(
+            a: DslArg,
+            label: String,
+        ): UmlNamedElement {
+            val v = a.value
+            if (v !is DslIdentifier) {
+                throw DslInterpretException(message = "comment '$label' must reference a val handle", line = call.line)
+            }
+            return env.resolve(name = v.name, line = v.line) as? UmlNamedElement
                 ?: throw DslInterpretException(message = "comment anchor '${v.name}' is not a named element", line = v.line)
-        builder.comment(text = text, firstAnchor = handle)
+        }
+        val handle = resolveAnchor(a = anchorArg, label = "firstAnchor")
+        val secondArg = arg(call = call, named = "secondAnchor", positionalIndex = 2)
+        val second = secondArg?.let { resolveAnchor(a = it, label = "secondAnchor") }
+        builder.comment(text = text, firstAnchor = handle, secondAnchor = second)
     }
 
     // ── Argument helpers ─────────────────────────────────────────────────────────

@@ -167,7 +167,7 @@ private fun drawComponentBox(
                 tag(
                     name = "text",
                     attrs = mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-                ) { rawXml(stereoPrefix + xmlEscapeContent(attr.format())) }
+                ) { rawXml(stereoPrefix + staticUnderline(escapedContent = xmlEscapeContent(attr.format()), isStatic = attr.isStatic)) }
                 cy += 13f
             }
 
@@ -191,7 +191,7 @@ private fun drawComponentBox(
                 tag(
                     name = "text",
                     attrs = mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-                ) { rawXml(stereoPrefix + xmlEscapeContent(op.format(theme))) }
+                ) { rawXml(stereoPrefix + staticUnderline(escapedContent = xmlEscapeContent(op.format(theme)), isStatic = op.isStatic)) }
                 cy += 13f
             }
         }

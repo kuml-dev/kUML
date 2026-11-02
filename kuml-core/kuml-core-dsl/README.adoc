@@ -49,7 +49,7 @@ and the complete set of UML element builders (`classOf`, `interfaceOf`, `enumOf`
 
 | `deploymentDiagram(name, block)`
 | *V1.1* — nodes (hardware / execution environment / device), artifacts,
-  `deploy(artifact, node)`, `communicationPath(end1, end2)`.
+  `deploy(artifact, node)`, `communicationPath(end1, end2, name = null)` (a `UmlCommunicationPath`: plain line, no arrowhead).
 
 | `profileDiagram(name, block)`
 | *V1.1* — stereotype declarations with tagged-value definitions and

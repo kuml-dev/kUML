@@ -368,7 +368,7 @@ class WorkspaceStateEditingTest :
             }
         }
 
-        test("save with an unrecognised type: is Blocked, the file stays untouched") {
+        test("save with an unrecognised type: succeeds, OKF-W-002 stays a non-blocking warning") {
             val root = writeSampleWorkspace()
             try {
                 val workspace = WorkspaceScanner.scan(root = root)
@@ -380,9 +380,8 @@ class WorkspaceStateEditingTest :
                 state.setFrontmatterField(key = "type", value = "Quatsch")
                 val result = state.save(themeName = "plain", strings = Strings.EN)
 
-                result.shouldBeInstanceOf<OkfWriteResult.Blocked>()
-                doc.file.readText(Charsets.UTF_8) shouldBe original
-                state.blockingFindings.map { it.code } shouldContain "OKF-W-002"
+                result.shouldBeInstanceOf<OkfWriteResult.Written>()
+                state.blockingFindings.map { it.code } shouldBe emptyList()
             } finally {
                 root.deleteRecursively()
             }

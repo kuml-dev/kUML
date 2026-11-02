@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.kuml.renderer.theme.KumlTheme
 import dev.kuml.uml.UmlEnumeration
 
@@ -32,8 +33,8 @@ internal fun UmlEnumNode(
     ) {
         Text(
             text = "«enumeration»",
-            style = theme.typography.stereotype,
-            color = theme.colors.muted,
+            style = theme.typography.stereotype.copy(fontSize = 12.sp),
+            color = theme.colors.foreground,
             modifier = Modifier.fillMaxWidth(),
         )
         Text(

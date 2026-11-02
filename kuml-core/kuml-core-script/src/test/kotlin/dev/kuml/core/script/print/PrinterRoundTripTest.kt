@@ -118,7 +118,7 @@ class PrinterRoundTripTest :
                     val order = classOf(name = "Order")
                     val item = classOf(name = "OrderItem")
                     comment(text = "General remark, not attached to anything.")
-                    comment(text = "Applies to both.", firstAnchor = order, item)
+                    comment(text = "Applies to both.", firstAnchor = order, secondAnchor = item)
                 }
 
             val printed = UmlModelDslPrinter.print(original)
@@ -272,7 +272,7 @@ class PrinterRoundTripTest :
                     }
                     dependency(client = order, supplier = notifier, name = "notifies")
                     comment(text = "General remark, not attached to anything.")
-                    comment(text = "Encapsulates the order lifecycle.", firstAnchor = order, customer)
+                    comment(text = "Encapsulates the order lifecycle.", firstAnchor = order, secondAnchor = customer)
                 }
 
             val printed = UmlModelDslPrinter.print(original)

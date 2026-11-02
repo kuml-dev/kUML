@@ -4,6 +4,7 @@ import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlAssociationClass
 import dev.kuml.uml.UmlCommentLink
+import dev.kuml.uml.UmlCommunicationPath
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlExtend
@@ -68,6 +69,7 @@ internal object EndpointResolver {
             is UmlInterfaceRealization -> relationship.implementingId to relationship.interfaceId
             is UmlDependency -> relationship.clientId to relationship.supplierId
             is UmlConnector -> relationship.end1Id to relationship.end2Id
+            is UmlCommunicationPath -> relationship.end1Id to relationship.end2Id
             is UmlInclude -> relationship.baseId to relationship.additionId
             is UmlExtend -> relationship.baseId to relationship.extensionId
             is UmlLink -> relationship.sourceInstanceId to relationship.targetInstanceId

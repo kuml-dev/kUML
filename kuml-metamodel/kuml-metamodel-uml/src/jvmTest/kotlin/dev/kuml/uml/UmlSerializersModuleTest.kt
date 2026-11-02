@@ -39,6 +39,7 @@ class UmlSerializersModuleTest :
                 UmlComponent(id = "comp", name = "comp"),
                 UmlPort(id = "port", name = "port"),
                 UmlConnector(id = "conn", end1Id = "a", end2Id = "b"),
+                UmlCommunicationPath(id = "cpath", end1Id = "a", end2Id = "b", name = "JDBC"),
                 UmlProperty(id = "prop", name = "prop", type = UmlTypeRef(name = "String")),
                 UmlOperation(id = "op", name = "op"),
                 UmlParameter(id = "param", name = "param", type = UmlTypeRef(name = "String")),

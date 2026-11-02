@@ -293,7 +293,8 @@ internal object UmlClassLatexRenderer {
     private fun formatAttribute(p: UmlProperty): String {
         val visibility = visibilityGlyph(p.visibility)
         val type = p.type.name
-        return "$visibility ${p.name} : $type"
+        val default = p.defaultValue?.let { " = $it" } ?: ""
+        return "$visibility ${p.name} : $type$default"
     }
 
     private fun formatOperation(op: UmlOperation): String {

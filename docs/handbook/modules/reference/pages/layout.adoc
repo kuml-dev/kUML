@@ -165,6 +165,22 @@ diagrams only (`KUML-LAYOUT-W001` elsewhere, check 439 in `kuml validate`). `wra
 block definition diagrams with edges: an edge between two members of one `sameLayer` group is withheld from the
 layered engine and drawn straight between the facing sides of the aligned boxes (check 436 still warns).
 
+=== UML class diagrams: wrap, grid and band (wave 2G-a)
+
+* **Auto wrap.** If the widest layer of a class diagram with edges holds more than 6 nodes and none of `wrapColumns`,
+  `aspectRatio` or `maxWidth` is given, the layer wraps into `ceil(sqrt(n))` columns (11 nodes: 4 columns). An explicit
+  `wrapColumns` always wins.
+* **Grid for wide generalisation fans.** A general classifier with more specialisations than one row holds (at least 4)
+  gets them in a grid of the requested columns in declaration order, row by row. Boxes of one column share their left
+  edge. Every generalisation edge is routed orthogonally and on its own: it leaves the specialisation, runs through the
+  channel under its row to a vertical gutter between two columns (at least 32 px wide, one lane per edge), down the gutter to
+  a collector channel above the general classifier, and ends at its own point. No edge touches a box. Only edges whose
+  id starts with `gen::` (the default) are recognised; the other edges of a specialisation must be comment links, a
+  horizontal flow (`direction = Right` / `Left`) keeps the engine routes, and foreign boxes in the way of the grid move sideways.
+* **Band of edgeless classifiers.** Classes, interfaces and enumerations with no edge at all (a comment link counts as an edge)
+  are withheld from the layered engine and stand in a band 40 px below the diagram, left-aligned, in declaration order,
+  wrapped at the diagram's width but with at least 3 per row. Classifiers inside a package are not moved.
+
 === Labels and notes
 
 Labels and notes are placed after the layout, and always in the same order: labels first, then notes, so a note

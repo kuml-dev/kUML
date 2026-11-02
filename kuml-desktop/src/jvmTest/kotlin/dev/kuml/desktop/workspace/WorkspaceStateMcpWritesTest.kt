@@ -127,14 +127,14 @@ class WorkspaceStateMcpWritesTest :
             }
         }
 
-        test("createDocument blocked by the save gate creates nothing") {
+        test("createDocument blocked by the save gate (OKF-E-001) creates nothing") {
             val root = newWorkspace()
             try {
                 val state = open(root)
                 val out =
                     state.createDocument(
                         relativePath = "x/y.md",
-                        content = "---\ntype: Quatsch\n---\nx",
+                        content = "no frontmatter\nx",
                         themeName = theme,
                         strings = s,
                     )

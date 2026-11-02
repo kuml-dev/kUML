@@ -590,8 +590,8 @@ class WorkspaceState(
     /**
      * Re-runs [dev.kuml.workspace.OkfValidator.validateDocument] against the CURRENT
      * in-memory [buffer] (never against disk) on `Dispatchers.Default`, always with
-     * `strictVocabulary = true` — the Desktop save gate treats `OKF-W-002` as blocking
-     * regardless of the workspace marker's `strict` flag (see `OkfSaveGate`'s KDoc).
+     * `strictVocabulary = true` — the findings are surfaced as a banner; `OKF-W-002` is
+     * non-blocking (only `OKF-E-001` blocks a save, see `OkfSaveGate`'s KDoc).
      * Meant to be called from a debounced collector in the hosting screen, not per
      * keystroke directly.
      */

@@ -388,7 +388,7 @@ class InterpreterPrinterRoundTripTest :
                 classDiagram(name = "D") {
                     val order = classOf(name = "Order")
                     val item = classOf(name = "OrderItem")
-                    comment(text = "Applies to both.", firstAnchor = order, item)
+                    comment(text = "Applies to both.", firstAnchor = order, secondAnchor = item)
                 }
 
             val printed = InterpreterUmlModelDslPrinter.print(original)

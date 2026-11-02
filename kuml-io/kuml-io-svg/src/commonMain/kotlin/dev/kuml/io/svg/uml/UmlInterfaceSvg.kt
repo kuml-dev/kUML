@@ -43,7 +43,7 @@ internal fun renderUmlInterface(
             name = "text",
             attrs =
                 mapOf(
-                    "class" to "kuml-stereotype",
+                    "class" to "kuml-keyword",
                     "x" to fmt(w / 2f),
                     "y" to fmt(cy),
                     "text-anchor" to "middle",
@@ -79,7 +79,7 @@ internal fun renderUmlInterface(
             tag(
                 name = "text",
                 attrs = mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-            ) { rawXml(stereoPrefix + xmlEscapeContent(attr.format())) }
+            ) { rawXml(stereoPrefix + staticUnderline(escapedContent = xmlEscapeContent(attr.format()), isStatic = attr.isStatic)) }
             cy += 13f
         }
         if (element.attributes.isNotEmpty() && element.operations.isNotEmpty()) {
@@ -94,7 +94,7 @@ internal fun renderUmlInterface(
             tag(
                 name = "text",
                 attrs = mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-            ) { rawXml(stereoPrefix + xmlEscapeContent(op.format(theme))) }
+            ) { rawXml(stereoPrefix + staticUnderline(escapedContent = xmlEscapeContent(op.format(theme)), isStatic = op.isStatic)) }
             cy += 13f
         }
     }
