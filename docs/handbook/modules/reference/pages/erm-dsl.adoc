@@ -230,6 +230,8 @@ ignored for non-ERM diagrams.
 
 == Notes
 
+Note text may use bold, italic, code, links and lists, see xref:uml-dsl.adoc#formatted-note-text[Formatted note text].
+
 `note(text, anchors...)` adds a free-text note to the model; it returns the note id (`note_<n>`).
 Anchors are entity or view ids; without anchors the note is free-standing. Notes are drawn with a folded
 corner and dashed anchor lines in all four notations (Martin, Bachman, Chen, IDEF1X). An ERM diagram always

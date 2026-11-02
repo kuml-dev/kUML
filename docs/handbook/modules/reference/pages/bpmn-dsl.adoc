@@ -316,6 +316,8 @@ xref:bpmn-xml.adoc[BPMN 2.0 XML I/O].
 
 == Text annotations
 
+Note text may use bold, italic, code, links and lists, see xref:uml-dsl.adoc#formatted-note-text[Formatted note text].
+
 `textAnnotation(text, anchors...)` (alias `note(...)`) adds a BPMN text annotation to a process or a
 collaboration and returns its id. It is drawn as an open square bracket with the text next to it,
 connected to its anchors by dotted associations without arrowheads.

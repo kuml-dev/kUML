@@ -48,4 +48,16 @@ class NoteKindJsonTest :
             plain.decodeFromString<KumlNote>("""{"id":"n1","body":"t"}""").kind shouldBe NoteKind.NOTE
             plain.decodeFromString<UmlComment>("""{"id":"c1","body":"t"}""").kind shouldBe NoteKind.NOTE
         }
+
+        test("N3: a body with markup survives a JSON round trip byte for byte, KumlNote and UmlComment") {
+            val text = "**b** *i* `c` [l](https://kuml.dev) \\* C:\\Users\n- a\n1. x\n1. y \$x"
+            val note = KumlNote(id = "n1", body = text, kind = NoteKind.INFO)
+            val noteJson = plain.encodeToString(KumlNote.serializer(), note)
+            plain.decodeFromString<KumlNote>(noteJson) shouldBe note
+            plain.encodeToString(KumlNote.serializer(), plain.decodeFromString<KumlNote>(noteJson)) shouldBe noteJson
+            val comment = UmlComment(id = "c1", body = text, kind = NoteKind.INFO)
+            val commentJson = plain.encodeToString(UmlComment.serializer(), comment)
+            plain.decodeFromString<UmlComment>(commentJson) shouldBe comment
+            plain.encodeToString(UmlComment.serializer(), plain.decodeFromString<UmlComment>(commentJson)) shouldBe commentJson
+        }
     })

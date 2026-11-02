@@ -27,7 +27,7 @@ kotlin {
             api(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.3 — BPMN Layout Bridge
             api(project(":kuml-metamodel:kuml-metamodel-blueprint")) // V3.1.23 — Blueprint grid layout
             api(project(":kuml-metamodel:kuml-metamodel-erm")) // V3.4.2 — ERM layout bridge
-            implementation(project(":kuml-core:kuml-core-model"))
+            api(project(":kuml-core:kuml-core-model")) // N3 — NoteSpan appears in the public API
             implementation(libs.kotlinx.serialization.json)
             // PAL 2C-b1: diagnostics of the IBD obstacle router (KMP-capable kotlin-logging wrapper).
             implementation(libs.kotlin.logging)

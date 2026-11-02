@@ -337,8 +337,7 @@ classDiagram(name = "Order Domain") {
 
 TIP: `comment(...)` is available on all UML diagram bodies. SysML 2, BPMN and ERM have
 their own note verbs, see xref:sysml2.adoc#_notes[SysML 2 notes], xref:bpmn-dsl.adoc#_text_annotations[BPMN
-text annotations] and xref:erm-dsl.adoc#_notes[ERM notes]. C4 has none yet: `note(text)` in the C4
-diagram builders is accepted but draws nothing.
+text annotations], xref:erm-dsl.adoc#_notes[ERM notes] and xref:c4-dsl.adoc#_notes[C4 notes].
 
 .Display limits
 All note kinds share the same display limits: a note body is cut at 2000 characters and 30 lines
@@ -386,6 +385,48 @@ The same `kind` argument exists on C4 `note(...)` (on the model and in all six d
 `note(...)`, with the same symbols, stripes and tones. In BPMN XML a kinded annotation is written as `kuml:kind="WARNING"`
 (see xref:bpmn-xml.adoc[BPMN XML]). Not yet supported: kinds in KerML (it has no diagram type yet) and in LaTeX/TikZ output
 (which draws no notes at all).
+
+[[formatted-note-text]]
+=== Formatted note text
+
+The text of every note (UML `comment`, SysML 2 `comment`/`note`, C4 `note`, BPMN `textAnnotation`/`note`, ERM `note`,
+Service Blueprint `note`) understands a small markup. Text that uses none of it is drawn exactly as before.
+
+[cols="2,2",options="header"]
+|===
+| Write | Result
+
+| `+**bold**+` | bold
+| `+*italic*+` | italic
+| `+***both***+` | bold and italic
+| `+`code`+` | monospace
+| `+[text](https://example.org)+` | underlined link text
+| `+- item+` at the start of a line | bullet list item
+| `+1. item+` at the start of a line | numbered list item
+| `+\*+`, `+\`+`, `+\[+`, `+\]+`, `+\\+` | the character itself, without markup
+|===
+
+Rules:
+
+* Markup never spans lines: every line is read on its own, an unclosed marker stays plain text.
+* An opening `*` or `**` must not follow a letter or digit and must be followed by a non-space, a closing one must not
+  follow a space and must not be followed by a letter or digit. So `2*3*4`, `0..*` and `a * b` stay as written.
+  `_` has no meaning, so `snake_case` is safe.
+* Code is literal: nothing inside backticks is interpreted, and a code span stays within one line. In link text
+  code is not recognised.
+* A numbered list counts on from its first number (`1.` `1.` `1.` shows 1, 2, 3; `3.` `7.` shows 3, 4). Any other
+  line, including a blank one, ends the list. Indented lines and numbers above 999 are ordinary text.
+* Only `http://` and `https://` links are made. Anything else (`javascript:`, `data:`, `mailto:`, a relative path,
+  a URL with a space or a non-ASCII character) is shown as the literal text `[text](url)`, never as a link.
+* Limits: markup is read in the first 2000 characters only, at most 256 formatted spans per note, at most three nested
+  levels (link, bold and italic; bold-italic counts as two), links up to 2048 characters. Beyond a limit the rest stays
+  plain text. Nothing throws.
+* Formatted text is a little wider than plain text (bold and code are drawn about 10 percent wider when the box is sized),
+  and list items hang with an indent.
+
+A link is a real `<a href>` in the SVG. In a PNG it is only underlined (the URL is not kept), and whether it can be clicked
+in a viewer depends on how the SVG is embedded: an `<img>` element disables links, and some sanitisers remove `<a>`.
+LaTeX/TikZ output draws no notes yet.
 
 == Object diagrams
 

@@ -6,6 +6,32 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Notes N3: formatted note text
+
+**Additions**
+
+- Note text understands a small markup, in every notation that has notes (UML `comment`, SysML 2 `comment`/`note`, C4 `note`, BPMN `textAnnotation`/`note`, ERM `note`, Service Blueprint `note`): `**bold**`, `*italic*`, `***bold italic***`, `` `code` ``, `[text](https://url)`, `- ` bullet items, `1. ` numbered items (counted on from the first number) and backslash escapes (`\*`, `` \` ``, `\[`, `\]`, `\\`). One parser (`NoteMarkup` in `kuml-core-model`) and one layout and drawing path (`NoteLayout`, `renderNote`) serve all notations. The model does not change: the markup is part of the note text, so the DSL, the printers, JSON and BPMN XML carry it as before.
+- Only `http://` and `https://` links are made (printable ASCII, no space, up to 2048 characters). Everything else, for example `javascript:`, `data:`, `vbscript:`, `mailto:` or a relative path, is shown as the literal text `[text](url)`. The SVG renderer checks the address again before it writes `<a href>`; the address is escaped as an attribute value.
+- SVG: bold, italic and code are plain presentation attributes (`font-weight`, `font-style`, `font-family="monospace"`), a link is `<a href><tspan text-decoration="underline">`. No new CSS class, no colour, no `xlink`. A formatted line is one `<tspan>` with inline runs, written without pretty-print whitespace.
+- Layout: bold and code runs are sized 10 percent wider, lists hang (bullet indent 14 px, numbered items sized for the longest number of the run), wrapping works on characters so a long word or link breaks by width. `NoteText` gets an optional `styledLines` (`null` for a note without markup).
+- Limits: markup is read only in the first 2000 characters, at most 256 formatted spans per note, at most three nested levels (bold italic counts as two), and nothing throws; beyond a limit the rest stays plain text. The parser is O(depth x L^2) for L <= 2000.
+- Tests: `NoteMarkupTest` (plain text that must stay plain, styles, links, rejected schemes, lists, escapes, limits, adversarial input), `NoteLayoutFormatTest`, `NoteSvgFormatTest` (including a PNG render of a link through Batik), `NoteFormatSvgInvariantTest` (four new fixtures `*-format` for UML, SysML 2, C4 and BPMN in two themes: every text run inside its note, no overlap, injection, determinism), and round trips of text with markup characters through the UML, interpreter, SysML 2 and ERM printers, BPMN XML and JSON.
+- Handbook: new section "Formatted note text" in the UML DSL reference, linked from the SysML 2, C4, BPMN, ERM and Service Blueprint note pages. Also corrected the stale sentence there that C4 notes draw nothing.
+
+**Behaviour changes (visible in existing diagrams)**
+
+- A note whose text contains markup is now drawn formatted. Text without markup, including text with look-alike characters such as `2*3*4`, `0..*`, `snake_case`, `List<T>`, `C:\Users` or `<b>soon</b> &`, is unchanged: the plain-text code path is untouched and the note-kinds fixtures keep their `<b>soon</b> &` text.
+- Checked: the vault example and `kuml-io-svg` sample SVGs (614 files, all themes) rendered on the commit before this wave and after it are byte-identical; the only new files are the eight SVGs of the four new `*-format` fixtures.
+
+**Not done in this wave (open)**
+
+- Code background, link colour, nested lists and `_` for italics.
+- LaTeX/TikZ output (draws no notes at all), PDF, the desktop preview and the desktop UI.
+- Vault examples from number 66 on, the kuml.dev playground sync, KerML.
+- The C4 and Service Blueprint DSL printers do not write notes at all, so there is no printer round trip for them; BPMN has no DSL printer and is checked through XML export and import.
+- In a PNG a link is only underlined; the URL is lost. In an SVG it is clickable only when the SVG is embedded inline (an `<img>` element disables links, and a sanitiser may remove `<a>`); this was not checked for Obsidian, Antora or kuml.dev.
+- The desktop MCP server (`kuml-desktop`) was not reachable in this session (ECONNREFUSED), so the desktop preview was not looked at.
+
 ### Notes N2: placement without overlap, kinds in C4, Service Blueprint and BPMN XML
 
 **Additions**

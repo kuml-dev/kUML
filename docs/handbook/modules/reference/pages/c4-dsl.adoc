@@ -325,6 +325,8 @@ umlModel(name = "Banking system") {
 
 == Notes
 
+Note text may use bold, italic, code, links and lists, see xref:uml-dsl.adoc#formatted-note-text[Formatted note text].
+
 `note(text, vararg anchors, id = null, kind = NoteKind.NOTE)` adds a free-text note (kinds: see xref:uml-dsl.adoc#note-kinds[Note kinds]). It exists on the model and in every diagram
 block:
 

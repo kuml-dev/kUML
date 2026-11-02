@@ -40,6 +40,21 @@ class BpmnXmlNotesTest :
             back.associations.single().direction shouldBe BpmnAssociationDirection.NONE
         }
 
+        test("N3: text with markup characters round-trips through XML export and import unchanged") {
+            val text = "**b** *i* `c` [l](https://kuml.dev) \\* C:\\Users\n- a\n1. x\n1. y \$x"
+            val model =
+                bpmnModel(name = "M") {
+                    process(id = "p") {
+                        val t = task(name = "T")
+                        textAnnotation(text = text, t)
+                    }
+                }
+            val back = BpmnXmlImporter().import(BpmnXmlExporter().export(model)).processes.single()
+            back.textAnnotations
+                .single()
+                .note.body shouldBe text
+        }
+
         test("import normalises an association whose targetRef is the annotation") {
             val xml =
                 wrap(

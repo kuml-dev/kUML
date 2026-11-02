@@ -1,10 +1,14 @@
 package dev.kuml.io.svg
 
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.NoteMarkup
+import dev.kuml.core.model.note.NoteSpan
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.bridge.NoteFrameStyle
 import dev.kuml.layout.bridge.NoteLayout
+import dev.kuml.layout.bridge.NoteText
+import dev.kuml.layout.bridge.StyledLine
 
 /** Line style of a note anchor. */
 internal enum class NoteAnchorStyle { DASHED, DOTTED, DASHED_NO_DOT }
@@ -60,7 +64,7 @@ internal fun renderNote(
         // displayText takes the symbol column off this width itself, exactly as NoteLayout.sizeOf does.
         val inner = minOf(w - NoteLayout.H_PADDING + WRAP_EPS, NoteLayout.MAX_W - NoteLayout.H_PADDING)
         renderNoteText(
-            lines = NoteLayout.displayText(body = body, maxInnerWidth = inner, kind = kind).lines,
+            text = NoteLayout.displayText(body = body, maxInnerWidth = inner, kind = kind),
             xInset = inset,
             builder = this,
         )
@@ -149,6 +153,78 @@ internal fun renderNoteText(
                 attrs = mapOf("x" to fmt2(xInset), "dy" to if (idx == 0) "0" else fmt2(NoteLayout.LINE_H)),
             ) { text(line) }
         }
+    }
+}
+
+/**
+ * Renders [text]: the unchanged plain-text path when the note has no markup, otherwise one `<tspan>` per line with
+ * styled child runs. Formatted lines are built with a non-pretty builder and inserted as one raw line, because
+ * pretty-print whitespace between inline runs would show up as extra spaces.
+ */
+internal fun renderNoteText(
+    text: NoteText,
+    xInset: Float,
+    builder: SvgBuilder,
+) {
+    val styled = text.styledLines ?: return renderNoteText(lines = text.lines, xInset = xInset, builder = builder)
+    val startY = NoteLayout.V_PADDING / 2f + NoteLayout.LINE_H * 0.7f
+    builder.tag(
+        name = "text",
+        attrs = mapOf("class" to "kuml-body", "x" to fmt2(xInset), "y" to fmt2(startY)),
+    ) {
+        var prev = 0
+        styled.forEachIndexed { idx, line ->
+            // Blank lines draw nothing; their height is added to the dy of the next drawn line.
+            if (line.spans.isEmpty() && line.marker == null) return@forEachIndexed
+            val dy = if (idx - prev == 0) "0" else fmt2(NoteLayout.LINE_H * (idx - prev))
+            prev = idx
+            rawXml(styledLineXml(line = line, xInset = xInset, dy = dy))
+        }
+    }
+}
+
+private fun styledLineXml(
+    line: StyledLine,
+    xInset: Float,
+    dy: String,
+): String {
+    val inline = SvgBuilder(pretty = false)
+    val outerX = if (line.marker == null) xInset + line.indentPx else xInset
+    inline.tag(name = "tspan", attrs = mapOf("x" to fmt2(outerX), "dy" to dy)) {
+        val marker = line.marker
+        if (marker == null) {
+            line.spans.forEach { emitSpan(it) }
+        } else {
+            text(marker)
+            if (line.spans.isNotEmpty()) {
+                tag(name = "tspan", attrs = mapOf("x" to fmt2(xInset + line.indentPx))) { line.spans.forEach { emitSpan(it) } }
+            }
+        }
+    }
+    return inline.toString()
+}
+
+/** Presentation attributes of [span] in a fixed order; no colours and no classes. */
+private fun spanStyleAttrs(span: NoteSpan): Map<String, String> {
+    val attrs = LinkedHashMap<String, String>()
+    if (span.bold) attrs["font-weight"] = "bold"
+    if (span.italic) attrs["font-style"] = "italic"
+    if (span.code) attrs["font-family"] = "monospace"
+    return attrs
+}
+
+private fun SvgBuilder.emitSpan(span: NoteSpan) {
+    val href = span.href
+    val attrs = spanStyleAttrs(span)
+    if (href != null && NoteMarkup.isAllowedHref(href)) {
+        // Second safety layer: the href is re-validated here and escaped as an attribute value by SvgBuilder.tag.
+        tag(name = "a", attrs = mapOf("href" to href)) {
+            tag(name = "tspan", attrs = mapOf("text-decoration" to "underline") + attrs) { text(span.text) }
+        }
+    } else if (attrs.isEmpty()) {
+        text(span.text)
+    } else {
+        tag(name = "tspan", attrs = attrs) { text(span.text) }
     }
 }
 

@@ -1352,6 +1352,8 @@ are not resolved.
 
 == Notes
 
+Note text may use bold, italic, code, links and lists, see xref:uml-dsl.adoc#formatted-note-text[Formatted note text].
+
 SysML 2 models carry free-text comments. Use `comment(...)` (alias `note(...)`) either on the model or
 inside a diagram block:
 

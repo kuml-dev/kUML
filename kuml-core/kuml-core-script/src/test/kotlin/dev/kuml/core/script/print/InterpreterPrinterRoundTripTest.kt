@@ -242,6 +242,18 @@ class InterpreterPrinterRoundTripTest :
             reparse(printed) shouldBe original
         }
 
+        "N3: a comment with markup characters round-trips through the printer and the interpreter" {
+            val text = "**b** *i* `c` [l](https://kuml.dev) \\* C:\\Users\n- a\n1. x\n1. y \$x"
+            val original =
+                classDiagram(name = "D") {
+                    val order = classOf(name = "Order")
+                    comment(text = text, firstAnchor = order)
+                }
+
+            val printed = InterpreterUmlModelDslPrinter.print(original)
+            reparse(printed) shouldBe original
+        }
+
         "attribute defaultValue and isStatic round-trip" {
             val original =
                 classDiagram(name = "D") {

@@ -24,6 +24,18 @@ object KumlNoteLimits {
 
     /** Marker appended to the last visible line of a truncated note. */
     const val ELLIPSIS: String = "…"
+
+    /** Characters from this position on are never interpreted as markup (see [NoteMarkup]). */
+    const val MAX_PARSE_CHARS: Int = 2_000
+
+    /** Maximum number of formatted (non-plain) spans per note; the rest of the note stays plain text. */
+    const val MAX_SPANS: Int = 256
+
+    /** Maximum nesting depth of link, bold and italic (bold-italic counts as two levels). */
+    const val MAX_NESTING: Int = 3
+
+    /** Maximum length of a link target. */
+    const val MAX_URL_LEN: Int = 2_048
 }
 
 /**
