@@ -253,6 +253,8 @@ public object NotePlacer {
         val rect: Rect,
         val routes: List<List<Point>>,
         val cost: Float,
+        /** False if at least one anchor line obeys no routing rule from this position. */
+        val routed: Boolean = true,
     )
 
     /** Places [notes] into [layout]; [obstacles] is extended with the placed notes and routes. */
@@ -423,6 +425,8 @@ public object NotePlacer {
                         baseExtent = baseExtent,
                         config = config,
                     ),
+                extent = extent,
+                baseExtent = baseExtent,
                 obstacles = obstacles,
                 config = config,
                 budget = budget,
@@ -447,6 +451,8 @@ public object NotePlacer {
                                 baseExtent = baseExtent,
                                 config = config,
                             ),
+                        extent = extent,
+                        baseExtent = baseExtent,
                         obstacles = obstacles,
                         config = config,
                         budget = budget,
@@ -567,6 +573,7 @@ public object NotePlacer {
         // PAL 2C-b2b: with the 8 px part gap the first ring can be full; wider rings keep a free spot in reach.
         around(bbox, gap * 2f)
         around(bbox, gap * 3.5f)
+        // Notes N2: still wider rings keep a free spot in reach when many notes share an anchor.
         // Margin strips: right, bottom, left, top of the existing content.
         val cx = bbox.cx
         val cy = bbox.cy
@@ -582,24 +589,83 @@ public object NotePlacer {
         size: Size,
         anchors: List<Anchor>,
         candidates: List<Rect>,
+        extent: Rect,
+        baseExtent: Rect,
         obstacles: ObstacleIndex,
         config: NotePlacementConfig,
         budget: ObstacleIndex.Budget,
     ): Plan {
+        // Notes N2: a position on top of another note is never an option; the cost model only ranks the free ones.
         var best: Plan? = null
         for (rect in candidates) {
+            if (obstacles.overlapsNote(rect)) continue
             val plan = planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
             if (best == null || plan.cost < best.cost) best = plan
             if (budget.exhausted && best != null) break
         }
+        if (best != null && best.routed) return best
+        // No free position with a clean anchor line: the column fallback always finds room (rows below each other).
+        val column =
+            if (config.maxWidthFactor !=
+                null
+            ) {
+                null
+            } else {
+                columnPlan(size = size, anchors = anchors, extent = extent, baseExtent = baseExtent, obstacles = obstacles, config = config)
+            }
+        if (column != null && (best == null || column.routed || column.cost < best.cost)) return column
         return best
             ?: planFor(
-                rect = Rect(origin = Point(x = 0f, y = 0f), size = size),
+                rect = Rect(origin = Point(x = extent.right + config.candidateGap, y = extent.bottom + config.candidateGap), size = size),
                 anchors = anchors,
                 obstacles = obstacles,
                 config = config,
-                budget = budget,
+                budget = ObstacleIndex.Budget(config.workBudget),
             )
+    }
+
+    /**
+     * Notes N2 fallback: rows stacked below each other in a column right of the content (then right of the notes),
+     * then the same on the left. Every row is free of notes by construction, so this terminates after at most
+     * `notes + 1` rows per column; the first row whose anchor lines all obey the routing rules wins, else the cheapest.
+     */
+    private fun columnPlan(
+        size: Size,
+        anchors: List<Anchor>,
+        extent: Rect,
+        baseExtent: Rect,
+        obstacles: ObstacleIndex,
+        config: NotePlacementConfig,
+    ): Plan? {
+        val rows = obstacles.noteCount() + 1
+        val startY = anchors.minOf { it.rep.y } - size.height / 2f
+        val step = size.height + config.gridGap
+        // Right and left alternate row by row, so a crowd of notes grows in both directions instead of one tall column.
+        val xs =
+            listOf(
+                baseExtent.right + config.candidateGap,
+                baseExtent.left - config.candidateGap - size.width,
+                extent.right + config.candidateGap,
+                extent.left - config.candidateGap - size.width,
+            ).distinct()
+        // A separate, bounded budget: the fallback must run even when the main budget is spent.
+        val budget = ObstacleIndex.Budget(config.workBudget / 4)
+        var best: Plan? = null
+        // First pass: beside the content (right and left alternating); second pass: beside the notes already placed there.
+        for (pass in listOf(xs.take(2), xs.drop(2))) {
+            for (k in 0..(2 * rows)) {
+                val offset = if (k % 2 == 0) k / 2 else -(k + 1) / 2
+                for (x in pass) {
+                    val rect = Rect(origin = Point(x = x, y = startY + offset * step), size = size)
+                    if (obstacles.overlapsNote(rect)) continue
+                    val plan = planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
+                    if (plan.routed) return plan
+                    if (best == null || plan.cost < best.cost) best = plan
+                    if (budget.exhausted) return best
+                }
+            }
+        }
+        return best
     }
 
     private fun planFor(
@@ -612,6 +678,7 @@ public object NotePlacer {
         var cost = obstacles.rectCost(r = rect, costs = config.costs, budget = budget, partGap = config.minPartGap)
         val exits = assignExits(rect = rect, anchors = anchors, config = config)
         val routes = ArrayList<List<Point>>()
+        var routed = true
         for ((i, a) in anchors.withIndex()) {
             val exit = exits[i]
             var chosen: Pair<List<Point>, Float>? = null
@@ -631,11 +698,12 @@ public object NotePlacer {
                 if (r.second < NO_ROUTE_PENALTY) break
             }
             val (pts0, c) = chosen!!
+            if (c >= NO_ROUTE_PENALTY) routed = false
             val pts = removeTinyJog(pts0)
             routes += pts
             cost += c
         }
-        return Plan(rect = rect, routes = routes, cost = cost)
+        return Plan(rect = rect, routes = routes, cost = cost, routed = routed)
     }
 
     // ---------------------------------------------------------------- exits

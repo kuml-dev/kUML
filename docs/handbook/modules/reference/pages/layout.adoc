@@ -204,7 +204,7 @@ never covers a label that is drawn later.
   position collides. Activity edge labels (`[Part]`) stand beside their line, not on it.
 * Note anchors: a straight anchor that crosses nothing wins; otherwise one bend is allowed. An anchor that ends on a
   port arrives perpendicular and stays straight for the last 8 px, or reaches the side of the port square. A note keeps
-  8 px from every part box and from every other note (covering a part is excluded outright, the part never moves). The
+  8 px from every part box and from every other note (covering a part or another note is excluded outright, the part never moves; since notes N2 a position on another note is never chosen, however crowded the anchor is: the nearest rings come first, then rows in a column beside the content, right and left alternating). The
   anchors of one connection get their own attach points at least 16 px apart; the anchor of the owner of a frame-less
   IBD ends on the border of a real part, never on a virtual box. An anchor does not cross a part or another note and
   runs no closer than 3 px side by side with the anchor of another note.

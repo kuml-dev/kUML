@@ -330,4 +330,86 @@ class NotePlacerTest :
             r.layout.nodes.keys
                 .count { it.value.startsWith("n") } shouldBe 30
         }
+
+        test("notes N2: 20 notes on one element never overlap, even with a tiny work budget (the column fallback runs without it)") {
+            val layout = layoutOf(mapOf("A" to rect(x = 400f, y = 300f, w = 120f, h = 60f)), canvas = Size(width = 1200f, height = 900f))
+            val notes = (1..20).map { input("n$it", "A", body = "Note number $it with some text") }
+            val cfg = NotePlacementConfig(workBudget = 2_000L)
+            val r =
+                NotePlacer.place(
+                    layout = layout,
+                    notes = notes,
+                    resolver = AnchorGeometryResolver(layout),
+                    obstacles = obstaclesOf(layout),
+                    config = cfg,
+                )
+            val rects =
+                (1..20).map {
+                    r.layout.nodes
+                        .getValue(NodeId("n$it"))
+                        .bounds
+                }
+            for (i in rects.indices) {
+                for (j in i + 1 until rects.size) {
+                    rects[i].touches(rects[j]) shouldBe false
+                }
+                val aRect =
+                    r.layout.nodes
+                        .getValue(NodeId("A"))
+                        .bounds
+                rects[i].touches(aRect) shouldBe false
+            }
+        }
+
+        test("notes N2: inserting a note later does not move the notes placed before it") {
+            val layout = layoutOf(mapOf("A" to rect(x = 400f, y = 300f, w = 120f, h = 60f)), canvas = Size(width = 1200f, height = 900f))
+
+            fun place(count: Int) =
+                NotePlacer.place(
+                    layout = layout,
+                    notes = (1..count).map { input("n$it", "A") },
+                    resolver = AnchorGeometryResolver(layout),
+                    obstacles = obstaclesOf(layout),
+                )
+            val few = place(4)
+            val many = place(12)
+
+            fun offset(
+                r: NotePlacementResult,
+                id: String,
+            ): Pair<Float, Float> {
+                val a =
+                    r.layout.nodes
+                        .getValue(NodeId("A"))
+                        .bounds.origin
+                val n =
+                    r.layout.nodes
+                        .getValue(NodeId(id))
+                        .bounds.origin
+                return (n.x - a.x) to (n.y - a.y)
+            }
+            for (i in 1..4) offset(few, "n$i") shouldBe offset(many, "n$i")
+        }
+
+        test("notes N2: placement is deterministic down to the bit") {
+            val layout = layoutOf(mapOf("A" to rect(x = 400f, y = 300f, w = 120f, h = 60f)), canvas = Size(width = 1200f, height = 900f))
+
+            fun bits() =
+                NotePlacer
+                    .place(
+                        layout = layout,
+                        notes = (1..15).map { input("n$it", "A") },
+                        resolver = AnchorGeometryResolver(layout),
+                        obstacles = obstaclesOf(layout),
+                    ).layout.nodes.values
+                    .flatMap {
+                        listOf(
+                            it.bounds.origin.x
+                                .toBits(),
+                            it.bounds.origin.y
+                                .toBits(),
+                        )
+                    }
+            bits() shouldBe bits()
+        }
     })

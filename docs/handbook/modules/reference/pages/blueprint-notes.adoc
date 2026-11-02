@@ -1,7 +1,7 @@
 = Service Blueprint notes
 :description: Free-text notes in Service Blueprints and Journey Maps.
 
-`note(text, vararg stepIds, id = null)` in a `blueprint(...)` block adds a note. The ids are the values the step
+`note(text, vararg stepIds, id = null, kind = NoteKind.NOTE)` in a `blueprint(...)` block adds a note; a kind other than `NOTE` adds a symbol, an accent stripe and a tone (see xref:uml-dsl.adoc#note-kinds[Note kinds]). The ids are the values the step
 functions (`customer(...)`, `frontstage(...)`, `backstage(...)`, `support(...)`) return.
 
 [source,kotlin]

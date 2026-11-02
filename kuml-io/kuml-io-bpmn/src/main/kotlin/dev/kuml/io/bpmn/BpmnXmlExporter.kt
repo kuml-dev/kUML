@@ -21,6 +21,7 @@ import dev.kuml.bpmn.model.GatewayType
 import dev.kuml.bpmn.model.MessageFlow
 import dev.kuml.bpmn.model.SequenceFlow
 import dev.kuml.bpmn.model.TaskType
+import dev.kuml.core.model.note.NoteKind
 
 /**
  * Serializes a [BpmnModel] to a valid BPMN 2.0 XML string.
@@ -43,6 +44,11 @@ public class BpmnXmlExporter {
             appendLine()
             append("""             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"""")
             appendLine()
+            // Notes N2: the kuml namespace is declared only when a note really has a kind, so other exports stay as they were.
+            if (hasKindedNote(model)) {
+                append("""             xmlns:kuml="$KUML_NS"""")
+                appendLine()
+            }
             append("""             targetNamespace="http://kuml.dev/bpmn"""")
             appendLine()
             append("""             name=""")
@@ -56,6 +62,10 @@ public class BpmnXmlExporter {
 
             appendLine("</definitions>")
         }
+
+    private fun hasKindedNote(model: BpmnModel): Boolean =
+        model.processes.any { p -> p.textAnnotations.any { it.note.kind != NoteKind.NOTE } } ||
+            model.collaborations.any { c -> c.textAnnotations.any { it.note.kind != NoteKind.NOTE } }
 
     private fun appendProcess(
         process: BpmnProcess,
@@ -343,6 +353,8 @@ public class BpmnXmlExporter {
     ) {
         sb.append("    <textAnnotation id=")
         sb.append(xmlAttr(annotation.id))
+        // The value is an enum name, never free text.
+        if (annotation.note.kind != NoteKind.NOTE) sb.append(" kuml:kind=").append(xmlAttr(annotation.note.kind.name))
         sb.append("><text>")
         sb.append(xmlText(annotation.note.body))
         sb.appendLine("</text></textAnnotation>")

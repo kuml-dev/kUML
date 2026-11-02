@@ -26,6 +26,7 @@ import dev.kuml.bpmn.model.SequenceFlow
 import dev.kuml.bpmn.model.TaskType
 import dev.kuml.core.model.note.KumlNote
 import dev.kuml.core.model.note.KumlNoteLink
+import dev.kuml.core.model.note.NoteKind
 import org.w3c.dom.Element
 import org.xml.sax.InputSource
 import java.io.InputStream
@@ -148,7 +149,10 @@ public class BpmnXmlImporter {
                 ?.textContent
                 .orEmpty()
         // KumlNote enforces the 64 KiB hard limit; its message names the id, never the body.
-        return BpmnTextAnnotation(note = KumlNote(id = id, body = text))
+        // Notes N2: `kuml:kind` carries the note kind; absent, empty or unknown means a plain note (a foreign file stays readable).
+        val kindName = el.getAttributeNS(KUML_NS, "kind")
+        val kind = NoteKind.entries.firstOrNull { it.name == kindName } ?: NoteKind.NOTE
+        return BpmnTextAnnotation(note = KumlNote(id = id, body = text, kind = kind))
     }
 
     private fun parseRawAssociation(el: Element): RawAssociation =

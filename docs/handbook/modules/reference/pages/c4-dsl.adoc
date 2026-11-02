@@ -325,7 +325,7 @@ umlModel(name = "Banking system") {
 
 == Notes
 
-`note(text, vararg anchors, id = null)` adds a free-text note. It exists on the model and in every diagram
+`note(text, vararg anchors, id = null, kind = NoteKind.NOTE)` adds a free-text note (kinds: see xref:uml-dsl.adoc#note-kinds[Note kinds]). It exists on the model and in every diagram
 block:
 
 [source,kotlin]

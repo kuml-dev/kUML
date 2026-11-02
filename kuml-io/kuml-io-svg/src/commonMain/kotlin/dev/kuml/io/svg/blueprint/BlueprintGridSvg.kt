@@ -8,6 +8,8 @@ import dev.kuml.blueprint.model.BlueprintLine
 import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.blueprint.model.JourneyDiagram
 import dev.kuml.io.svg.NOTE_ANCHOR_DOT_RADIUS
+import dev.kuml.io.svg.NoteIcons
+import dev.kuml.io.svg.NoteTones
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.SvgDocument
 import dev.kuml.io.svg.blueprint.edge.renderConnection
@@ -90,6 +92,13 @@ internal fun renderBlueprintJourney(
         // Standard kUML CSS (kuml-title, kuml-body, etc.) so that text renders
         // correctly in standalone SVG/PNG — same style block used by all other renderers.
         SvgDocument.buildDefs(b = b, theme = theme)
+        // Notes N2: the tone colours of the symbols and accent stripes of the kinded notes (none for plain notes: no change).
+        val toneCss =
+            NoteTones.css(
+                used = geo.placedNotes.filter { it.kind.hasIcon }.mapTo(LinkedHashSet()) { NoteIcons.tone(it.kind) },
+                theme = theme,
+            )
+        if (toneCss.isNotEmpty()) tag(name = "style") { text(toneCss) }
 
         // 1. layer band backgrounds (z-order: background first) with distinct
         //    per-layer tint + the swimlane (layer) header on the left.
@@ -239,6 +248,7 @@ internal fun renderBlueprintJourney(
                 frame = dev.kuml.layout.bridge.NoteFrameStyle.DOG_EAR,
                 frameClasses = "kuml-comment kuml-blueprint-note",
                 builder = this,
+                kind = n.kind,
             )
         }
 

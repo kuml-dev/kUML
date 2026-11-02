@@ -380,7 +380,12 @@ classDiagram(name = "Orders") {
 Colours follow the theme: a light palette on light node fills, a dark palette on dark ones. A tone with less than 3:1 contrast
 against the note fill is replaced by the theme text colour. Colour is never the only carrier: every kind has its own symbol,
 and the symbol carries `role="img"` and an `aria-label` with the kind name. A kinded note is a little wider, because the text
-column starts after the symbol. Not yet supported: kinds in KerML, Service Blueprint and C4 notes.
+column starts after the symbol.
+
+The same `kind` argument exists on C4 `note(...)` (on the model and in all six diagram builders) and on Service Blueprint
+`note(...)`, with the same symbols, stripes and tones. In BPMN XML a kinded annotation is written as `kuml:kind="WARNING"`
+(see xref:bpmn-xml.adoc[BPMN XML]). Not yet supported: kinds in KerML (it has no diagram type yet) and in LaTeX/TikZ output
+(which draws no notes at all).
 
 == Object diagrams
 

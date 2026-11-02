@@ -11,6 +11,7 @@ import dev.kuml.c4.model.C4Relationship
 import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.dsl.layout.LayoutHintsBuilder
+import dev.kuml.core.model.note.NoteKind
 
 /**
  * Builder for a C4 model.
@@ -304,7 +305,8 @@ class C4ModelBuilder(
         text: String,
         vararg anchors: C4Element,
         id: String? = null,
-    ): String = noteRegistry.add(text = text, anchors = anchors.toList(), id = id)
+        kind: NoteKind = NoteKind.NOTE,
+    ): String = noteRegistry.add(text = text, anchors = anchors.toList(), id = id, kind = kind)
 
     /**
      * Builds the immutable C4Model.

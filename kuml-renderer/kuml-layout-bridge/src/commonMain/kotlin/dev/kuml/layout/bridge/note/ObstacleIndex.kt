@@ -130,6 +130,13 @@ public class ObstacleIndex {
     /** Number of registered obstacles (rectangles and polylines). */
     public val size: Int get() = rects.size + lines.size
 
+    /** True if [r] overlaps an already placed note (with its 8 px halo) or covers a part box: such a position is never acceptable (notes N2). */
+    internal fun overlapsNote(r: Rect): Boolean =
+        rects.any { (it.kind == ObstacleKind.NOTE && it.rect.intersects(r)) || (it.kind == ObstacleKind.NODE && it.core.intersects(r)) }
+
+    /** Number of notes placed so far. */
+    internal fun noteCount(): Int = rects.count { it.kind == ObstacleKind.NOTE }
+
     /** Cost of a note rectangle [r]; [exempt] are anchor owners whose own box may be touched by the line but not covered by the note. */
     internal fun rectCost(
         r: Rect,

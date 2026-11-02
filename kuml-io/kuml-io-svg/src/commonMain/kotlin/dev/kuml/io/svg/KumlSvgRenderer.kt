@@ -887,6 +887,7 @@ public object KumlSvgRenderer {
                     frame = dev.kuml.layout.bridge.NoteFrameStyle.DOG_EAR,
                     frameClasses = "kuml-comment kuml-c4-note",
                     builder = nodesBuilder,
+                    kind = note.kind,
                 )
             }
             for (link in model.noteLinks) {

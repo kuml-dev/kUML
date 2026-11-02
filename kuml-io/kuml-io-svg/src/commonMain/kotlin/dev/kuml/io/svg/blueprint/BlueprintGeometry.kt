@@ -181,7 +181,7 @@ internal class BlueprintGeometry(
         for (n in order) {
             val size =
                 dev.kuml.layout.bridge.NoteLayout
-                    .sizeOf(body = n.body)
+                    .sizeOf(body = n.body, kind = n.kind)
             val w = size.width.toDouble()
             val links = model.noteLinks.filter { it.noteId == n.id && stepById[it.targetId]?.let { s -> cellOf(s) } != null }
             val h = maxOf(size.height.toDouble(), BlueprintNoteRouter.minNoteHeight(anchors = links.size.coerceAtLeast(1)))
@@ -235,7 +235,7 @@ internal class BlueprintGeometry(
                     claimedTracks = claimedTracks,
                     blocks = blocks,
                 )
-            out += PlacedBlueprintNote(id = n.id, body = n.body, x = noteX, y = y, w = w, h = h, routes = routes)
+            out += PlacedBlueprintNote(id = n.id, body = n.body, kind = n.kind, x = noteX, y = y, w = w, h = h, routes = routes)
         }
         return out
     }
@@ -302,6 +302,7 @@ internal class CardRect(
 internal class PlacedBlueprintNote(
     val id: String,
     val body: String,
+    val kind: dev.kuml.core.model.note.NoteKind,
     val x: Double,
     val y: Double,
     val w: Double,

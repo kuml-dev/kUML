@@ -108,6 +108,11 @@ other way round (`sourceRef` = flow node) is read correctly. `associationDirecti
 is preserved in the model but the renderer always draws a plain dotted line. Associations between two
 other artifacts are ignored. An annotation text above 65 536 characters aborts the import with an error
 naming the annotation id.
+
+A text annotation with a note kind other than `NOTE` is written with the attribute `kuml:kind` (the kind name, for example
+`WARNING`); the namespace `xmlns:kuml="https://kuml.dev/schema/bpmn/1"` is declared only when at least one annotation has such a
+kind, so an export without kinds is unchanged. On import a missing, empty or unknown value gives a plain note, so files from other
+tools stay readable.
 |===
 
 A round-trip (export → import) is structurally consistent for ids, names, and element types.

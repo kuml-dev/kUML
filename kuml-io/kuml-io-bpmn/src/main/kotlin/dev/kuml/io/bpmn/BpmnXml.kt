@@ -20,3 +20,6 @@ public object BpmnXml {
     /** Parses a BPMN 2.0 XML [InputStream] and returns a [BpmnModel]. */
     public fun import(stream: InputStream): BpmnModel = BpmnXmlImporter().import(stream)
 }
+
+/** Namespace of the kUML extension attributes (`kuml:kind` on a text annotation); declared only where used. */
+internal const val KUML_NS: String = "https://kuml.dev/schema/bpmn/1"

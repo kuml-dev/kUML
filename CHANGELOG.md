@@ -6,6 +6,28 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Notes N2: placement without overlap, kinds in C4, Service Blueprint and BPMN XML
+
+**Additions**
+
+- C4 `note(text, vararg anchors, id, kind = NoteKind.X)` (on the model and in all six diagram builders) and Service Blueprint `note(text, vararg stepIds, id, kind = NoteKind.X)`: the same symbols, accent stripes and tones as in the other notations. The tone rules of a Blueprint SVG are written only for the tones in use.
+- BPMN XML: a text annotation with a kind other than `NOTE` is exported with `kuml:kind="WARNING"` (namespace `https://kuml.dev/schema/bpmn/1`, declared only when a kind is used) and imported again. A missing, empty or unknown value gives a plain note. An export without kinds is unchanged.
+- Tests: `NotePlacementInvariantTest` (15 notes on one SysML 2 element, a C4 context diagram and a Service Blueprint: no two notes within 8 px, no note on a part, no anchor line through another note, deterministic output), `NoteKindMoreDiagramsTest`, three synthetic placer tests (20 notes with a tiny work budget, order stability, bit-identical results) and three BPMN XML tests.
+
+**Behaviour changes (visible in existing diagrams)**
+
+- Note placement never chooses a position on top of another note or on a part box any more. Before, a position without a usable anchor line (penalty 200 000) lost against an overlapping one (penalty 50 000), so crowded anchors produced stacked notes and lines through text. When no free position near the anchor has a clean anchor line, the note goes into a row beside the content (right and left alternating, nearest to the anchor first); the fallback runs on its own work budget, so it also works when the main budget is spent. In the extreme case (15 notes on one element) the anchor lines of the outer rows are straight diagonals and long, but none runs through a note.
+- Checked: all vault example SVGs (all themes) rendered on the commit before this wave and after it are byte-identical, except the note-kinds fixture `sysml2-bdd` (15 notes on one element), which overlapped before. An attempt with two additional candidate rings (5 and 7 gaps) changed vault examples 54 and 57 and the state machine fixture `sysml2-stm-d2b` without need, so it was dropped.
+- Corrected: the known limitation "C4 `note(text)` is a no-op" below was out of date since PAL wave 2A; C4 notes are placed, drawn and now carry a kind.
+- Service Blueprint: notes were already stacked in a column right of the lanes (no overlap by construction, no line through a lane boundary); that placement is unchanged, only the size now includes the symbol column.
+
+**Not done in this wave (open)**
+
+- KerML: it has no diagram type, model builder or renderer (only metamodel base classes), so there is no note to give a kind. It needs a KerML diagram first.
+- LaTeX/TikZ output still draws no notes (no placement, no symbols as graphics, no colours). A TeX toolchain is present on the development machine, but the five renderers have no note code to extend; this is a wave of its own.
+- Blueprint placement next to the step instead of in the column; a warning when very many notes share one anchor; the text format (N3); playground sync; the desktop MCP server (`kuml-desktop`) was not reachable in this session (ECONNREFUSED).
+- The C4 DSL printer and the Service Blueprint printer do not write notes at all (before and after this wave), so there is no printer round trip for their kinds.
+
 ### Notes N1: note kinds with symbols
 
 **Additions**
@@ -583,7 +605,6 @@ over-long words. UML comments keep no hard length limit.
 
 ### Known limitations
 
-* C4 `note(text)` is a no-op (nothing stored, nothing drawn).
 * LaTeX/TikZ export draws no notes; BPMN choreographies and conversations, KerML and Blueprint have no notes.
 * SysML 2 notes cannot be anchored to ports or activity partitions; BPMN annotations cannot be
   anchored to pools, lanes or sequence flows; ERM notes only to entities and views.

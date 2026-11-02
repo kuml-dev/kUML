@@ -34,6 +34,7 @@ public object C4NotePlacement {
                     NotePlacementInput(
                         noteId = n.id,
                         body = n.body,
+                        kind = n.kind,
                         anchors =
                             model.noteLinks.filter { it.noteId == n.id }.map {
                                 NoteAnchorRef(
