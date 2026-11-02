@@ -308,6 +308,20 @@ internal object GradlePipeline {
                             options = svgOptions,
                         )
                     }
+                    is dev.kuml.sysml2.Sysml2PackageDiagram -> {
+                        val layout =
+                            layoutEngine.layout(
+                                graph = Sysml2LayoutBridge.toLayoutGraph(model = extracted.model, diagram = diagram),
+                                hints = Sysml2LayoutBridge.layoutHintsFor(model = extracted.model, diagram = diagram),
+                            )
+                        KumlSvgRenderer.toSvg(
+                            model = extracted.model,
+                            diagram = diagram,
+                            layoutResult = layout,
+                            theme = theme,
+                            options = svgOptions,
+                        )
+                    }
                 }
             is ExtractedDiagram.Bpmn -> {
                 when (val diagram = extracted.diagram) {

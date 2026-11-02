@@ -97,6 +97,19 @@ class LayoutBlockConformanceTest :
                         blueprintDiagram(name = "Blueprint") { layout { $block } }
                     }
                     """,
+                SpecDiagramKind.SYSML2_PKG to
+                    """
+                    import dev.kuml.sysml2.dsl.sysml2Model
+                    sysml2Model(name = "M") {
+                        pkg("A") { partDef(name = "X", id = "A::X") }
+                        pkg("B") { imports("A::*"); partDef(name = "Y", id = "B::Y") }
+                        packageDiagram(name = "D") {
+                            includeById("pkg:A")
+                            includeById("pkg:B")
+                            layout { $block }
+                        }
+                    }
+                    """,
                 SpecDiagramKind.JOURNEY to
                     """
                     import dev.kuml.blueprint.dsl.blueprint

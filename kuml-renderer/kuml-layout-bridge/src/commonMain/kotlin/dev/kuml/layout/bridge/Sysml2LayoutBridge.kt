@@ -1470,6 +1470,12 @@ public object Sysml2LayoutBridge {
             .withLayoutSpec(diagram = diagram)
     }
 
+    /** Package diagram (wave 2I-a): nested frames, `import` / `satisfy` edges; see [Sysml2PackageLayout]. */
+    public fun toLayoutGraph(
+        model: Sysml2Model,
+        diagram: dev.kuml.sysml2.Sysml2PackageDiagram,
+    ): LayoutGraph = Sysml2PackageLayout.toLayoutGraph(model = model, diagram = diagram)
+
     private fun reqEdge(
         id: String,
         source: String,

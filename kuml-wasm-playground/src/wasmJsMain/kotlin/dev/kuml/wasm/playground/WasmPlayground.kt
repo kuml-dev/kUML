@@ -368,6 +368,7 @@ public fun renderSysml2DiagramJson(
         is ActDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
         is SeqDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
         is ParDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
+        is dev.kuml.sysml2.Sysml2PackageDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
     }
 }
 

@@ -30,4 +30,22 @@ object Sysml2Limits {
     /** Maximum number of layout hint groups and ids per group. */
     const val LAYOUT_GROUPS: Int = 32
     const val LAYOUT_IDS_PER_GROUP: Int = 64
+
+    /** Maximum number of packages per model (wave 2I-a). */
+    const val PACKAGES: Int = 128
+
+    /** Maximum nesting depth of packages the DSL accepts (wave 2I-a). */
+    const val PACKAGE_DEPTH: Int = 8
+
+    /** Packages nested deeper than this are not drawn as frames but as collapsed cards (wave 2I-a). */
+    const val PACKAGE_DEPTH_FRAMES: Int = 3
+
+    /** Maximum number of imports per model (wave 2I-a). */
+    const val IMPORTS: Int = 256
+
+    /** Maximum number of stakeholders, concerns, exposes or filters of one view / viewpoint (wave 2I-a). */
+    const val VIEW_ENTRIES: Int = 32
+
+    /** Maximum number of viewpoints and of views per model (wave 2I-a). */
+    const val VIEWS: Int = 128
 }

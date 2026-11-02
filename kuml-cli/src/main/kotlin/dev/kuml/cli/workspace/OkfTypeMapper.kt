@@ -80,6 +80,8 @@ internal object OkfTypeMapper {
                     is UcDiagram -> OkfType.SYSML2_USE_CASE.id
                     is ReqDiagram -> OkfType.SYSML2_REQUIREMENT.id
                     is ParDiagram -> OkfType.SYSML2_PARAMETRIC.id
+                    // Wave 2I-a: no standard OKF type yet; the caller derives a custom type from the Kotlin type name.
+                    is dev.kuml.sysml2.Sysml2PackageDiagram -> null
                 }
             is ExtractedDiagram.Bpmn ->
                 when (extracted.diagram) {

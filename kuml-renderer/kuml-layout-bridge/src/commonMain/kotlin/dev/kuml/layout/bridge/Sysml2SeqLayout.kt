@@ -62,6 +62,9 @@ private fun baseHints(diagram: Sysml2Diagram): LayoutHints =
         // V2.0.45: Pin-Labels und Kantenlabels brauchen Platz.
         is ActDiagram ->
             LayoutHints.DEFAULT.copy(spacing = LayoutHints.DEFAULT.spacing.copy(nodeToNode = 100f, layerToLayer = 100f))
+        // Wave 2I-a: «import» labels sit on the arrows between frames; a wider layer gap keeps them clear of the frame edges.
+        is dev.kuml.sysml2.Sysml2PackageDiagram ->
+            LayoutHints.DEFAULT.copy(spacing = LayoutHints.DEFAULT.spacing.copy(nodeToNode = 40f, layerToLayer = 80f, edgeToEdge = 16f))
         is BdDiagram, is IbdDiagram, is UcDiagram, is ParDiagram -> LayoutHints.DEFAULT
     }
 

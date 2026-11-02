@@ -759,3 +759,47 @@ public class IbdEdgeAdapter(
         }
     }
 }
+
+// ─── Packages (wave 2I-a) ────────────────────────────────────────────────
+
+/**
+ * Package diagram adapter (wave 2I-a): `import` and `satisfy` edges, both dashed with an open arrow head.
+ *
+ * Edge ids: `import:<ownerPackageId>::<rawTarget>` (the [Sysml2Import.id]) and
+ * `satisfy:<viewId>::<viewpointId>` ([satisfyEdgeId]). The stereotype is `«import»`, `«import» *` or `«import» **`,
+ * prefixed with `public ` for a public import. The dash is `"6 4"`.
+ */
+public class PackageEdgeAdapter(
+    model: Sysml2Model,
+) : Sysml2EdgeAdapter {
+    private val index: Map<String, Sysml2EdgeMetadata> =
+        buildMap {
+            for (imp in model.imports) put(imp.id, importMetadata(imp))
+            for (v in model.views) for (vp in v.viewpointIds) put(satisfyEdgeId(viewId = v.id, viewpointId = vp), METADATA_SATISFY)
+        }
+
+    override fun metadataFor(edgeId: String): Sysml2EdgeMetadata? = index[edgeId]
+
+    public companion object {
+        public val METADATA_SATISFY: Sysml2EdgeMetadata =
+            Sysml2EdgeMetadata(stereotype = "«satisfy»", dashArray = "6 4", arrowHead = Sysml2ArrowHead.OpenAngle)
+
+        /** Edge id of the `«satisfy»` arrow from a view to a viewpoint. */
+        public fun satisfyEdgeId(
+            viewId: String,
+            viewpointId: String,
+        ): String = "satisfy:$viewId::$viewpointId"
+
+        /** Edge metadata of one import. */
+        public fun importMetadata(imp: dev.kuml.sysml2.Sysml2Import): Sysml2EdgeMetadata {
+            val suffix =
+                when (imp.kind) {
+                    dev.kuml.sysml2.Sysml2ImportKind.NAMESPACE -> " *"
+                    dev.kuml.sysml2.Sysml2ImportKind.NAMESPACE_RECURSIVE -> " **"
+                    dev.kuml.sysml2.Sysml2ImportKind.MEMBERSHIP -> ""
+                }
+            val prefix = if (imp.visibility == dev.kuml.sysml2.Sysml2ImportVisibility.PUBLIC) "public " else ""
+            return Sysml2EdgeMetadata(stereotype = "$prefix«import»$suffix", dashArray = "6 4", arrowHead = Sysml2ArrowHead.OpenAngle)
+        }
+    }
+}

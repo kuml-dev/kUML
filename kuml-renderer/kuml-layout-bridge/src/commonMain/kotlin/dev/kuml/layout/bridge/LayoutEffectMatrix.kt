@@ -29,6 +29,7 @@ public enum class SpecDiagramKind {
     SYSML2_ACT,
     SYSML2_PAR,
     SYSML2_SEQ,
+    SYSML2_PKG,
     C4,
     ERM,
     BPMN_PROCESS,
@@ -72,6 +73,7 @@ public object SpecDiagramKinds {
             is dev.kuml.sysml2.ActDiagram -> SpecDiagramKind.SYSML2_ACT
             is dev.kuml.sysml2.SeqDiagram -> SpecDiagramKind.SYSML2_SEQ
             is dev.kuml.sysml2.ParDiagram -> SpecDiagramKind.SYSML2_PAR
+            is dev.kuml.sysml2.Sysml2PackageDiagram -> SpecDiagramKind.SYSML2_PKG
         }
 }
 
@@ -110,6 +112,7 @@ public object LayoutEffectMatrix {
             SpecDiagramKind.SYSML2_ACT to all,
             SpecDiagramKind.SYSML2_PAR to all,
             SpecDiagramKind.SYSML2_SEQ to none,
+            SpecDiagramKind.SYSML2_PKG to all,
             SpecDiagramKind.C4 to all,
             SpecDiagramKind.ERM to all,
             SpecDiagramKind.BPMN_PROCESS to all,

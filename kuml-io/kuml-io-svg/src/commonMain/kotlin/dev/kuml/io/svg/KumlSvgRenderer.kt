@@ -2815,6 +2815,56 @@ public object KumlSvgRenderer {
     }
 
     /**
+     * Renders a SysML 2 package diagram (wave 2I-a): nested unfilled frames with name tabs, `import` / `satisfy` arrows
+     * (dashed, open head, labelled `«import»` / `«import» *` / `«import» **` / `«satisfy»`), definition / view /
+     * viewpoint cards and collapsed package cards. The frames come first (behind everything), the tabs and the
+     * `import X` text lines after the edges.
+     */
+    public fun toSvg(
+        model: Sysml2Model,
+        diagram: dev.kuml.sysml2.Sysml2PackageDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String {
+        val plan =
+            dev.kuml.layout.bridge.Sysml2PackageLayout
+                .plan(model = model, diagram = diagram)
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = plan.cards.map { it.card } + sysml2NoteElements(model),
+            )
+        val adapter =
+            dev.kuml.sysml2.edge
+                .PackageEdgeAdapter(model)
+        return renderSysml2Synthetic(
+            synthetic = synthetic,
+            rawLayoutResult = placeSysml2Notes(model = model, diagram = diagram, layout = layoutResult, adapter = adapter),
+            theme = theme,
+            options = options,
+            sysml2EdgeAdapter = adapter,
+            typeLabel = "package",
+            beforeNodes = { builder, lr, padding ->
+                dev.kuml.io.svg.sysml2
+                    .renderPackageFrames(plan = plan, layoutResult = lr, paddingPx = padding, builder = builder)
+            },
+            afterEdges = { builder, lr, padding, edgePolylines ->
+                dev.kuml.io.svg.sysml2.renderPackageTabs(
+                    plan = plan,
+                    layoutResult = lr,
+                    paddingPx = padding,
+                    builder = builder,
+                    edges = edgePolylines,
+                )
+            },
+            placeLabelsOnLine = true,
+            labelFrameStrips = true,
+        )
+    }
+
+    /**
      * Rendert ein SysML-2 STM-Diagramm als SVG (V2.0.9).
      *
      * Wickelt das STM in ein synthetisches [KumlDiagram] mit den sichtbaren

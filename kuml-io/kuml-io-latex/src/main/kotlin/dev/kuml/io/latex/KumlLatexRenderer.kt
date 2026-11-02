@@ -91,6 +91,21 @@ import dev.kuml.uml.UmlRelationship
  * @see LatexRenderOptions
  */
 public object KumlLatexRenderer {
+    /** Message of the refusal for package diagrams (wave 2I-a): the LaTeX renderer does not draw frames, tabs or view cards yet. */
+    public const val PACKAGE_DIAGRAM_UNSUPPORTED: String = "Package diagrams are not supported by the LaTeX renderer yet (wave 2I-a)"
+
+    /**
+     * Package diagrams (wave 2I-a) have no TikZ rendering yet. This always throws [UnsupportedOperationException] with
+     * [PACKAGE_DIAGRAM_UNSUPPORTED]; callers turn it into a plain error message instead of a stack trace.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    public fun toLatex(
+        model: Sysml2Model,
+        diagram: dev.kuml.sysml2.Sysml2PackageDiagram,
+        layoutResult: LayoutResult,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String = throw UnsupportedOperationException(PACKAGE_DIAGRAM_UNSUPPORTED)
+
     /**
      * Render the diagram as TikZ source.
      *

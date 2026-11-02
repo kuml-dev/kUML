@@ -63,6 +63,11 @@ wrapper is only needed when a single script contains multiple SysML 2 diagrams.
 | Parametric Diagram
 | `constraintDef(...)` + `bind(...)` + `parDiagram(name) { include(...) }`
 | Constraint properties: parameters, equations, numerical constraints.
+
+| PKG
+| Package Diagram
+| `pkg(name) { ... }` + `imports(...)` + `packageDiagram(name) { include(...) }`
+| Model organisation: nested packages, imports, views and viewpoints (wave 2I-a).
 |===
 
 == Block Definition Diagrams (BDD)
@@ -1184,6 +1189,93 @@ sysml2Model(name = "VehicleDynamicsModel") {
 
 Known limits: a binding that crosses more than one nesting level (outer pin to a grandchild pin) is drawn as a
 straight line between the two pins, and the LaTeX renderer still draws constraint boxes without pins.
+
+== Package diagrams (wave 2I-a)
+
+A package diagram shows how a model is organised: packages as nested frames, the definitions they own as cards,
+`import` relationships as dashed arrows, and views and viewpoints as cards. Kotlin reserves `package` and `import`, so
+the DSL words are `pkg` and `imports`.
+
+[source,kuml]
+----
+import dev.kuml.sysml2.dsl.sysml2Model
+
+sysml2Model(name = "PlatformStructure") {
+    pkg("Common") {
+        attributeDef("Mass", id = "Common::Mass")
+        portDef("PowerPort", id = "Common::PowerPort")
+    }
+    pkg("Vehicle") {
+        imports("Common::*")                        // the direct members
+        imports("Common::PowerPort", public = true) // one member, re-exported
+        partDef("Vehicle", id = "Vehicle::Vehicle")
+        pkg("Drive") {
+            imports("Common::**")                   // the namespace and everything nested in it
+            partDef("Motor", id = "Vehicle::Drive::Motor")
+        }
+    }
+    val safety = viewpoint("Safety") {
+        stakeholder("Safety engineer")
+        concern("Hazards are covered")
+    }
+    val overview = view("Safety Overview") {
+        satisfies(safety)
+        expose("Vehicle::*")
+        filter("@Safety")
+    }
+    packageDiagram(name = "Platform") {
+        includeById("pkg:Vehicle")
+        includeById("pkg:Common")
+        include(overview)
+        include(safety)
+    }
+}
+----
+
+* `pkg(name) { ... }` declares a package; every definition registered inside the block belongs to it. Packages nest
+  (up to 8 levels). The package id is `pkg:<qualifiedName>` (`pkg:Vehicle::Drive`). Names must not contain `::`.
+* A definition keeps its id; its qualified name is derived from its package (`Vehicle::Drive::Motor`). Two definitions with
+  the same name in different packages need an explicit `id = "..."` each.
+* `imports("P::*")` imports the direct members of `P`, `imports("P::**")` the whole sub-tree, `imports("P::X")` one
+  member. `public = true` marks a re-exporting import; the default is private. `imports` is only allowed inside a
+  `pkg` block.
+* `viewpoint(name) { stakeholder(..); concern(..) }` and `view(name) { satisfies(..); expose(..); filter(..) }`. Ids
+  are `viewpoint:<name>` and `view:<name>`. `satisfies` takes a handle or a name.
+* `packageDiagram(name) { include(...) }` takes packages (with their sub-tree and members), definitions (a card; on root
+  level when their package is not drawn), views and viewpoints. `includeById("pkg:Vehicle")` is the id form.
+
+=== What is drawn
+
+* Packages are **unfilled** frames (1 px) with a name tab at the top left. Three levels are frames; a package from the
+  fourth level on is a flat card inside the level-3 frame: its tab reads `C::D` or `C::D::E` (relative to the level-3
+  package), below it the names of its members (11 px, at most 8, then `+N more`).
+* An import is a dashed arrow (`6 4`) with an open head from the importing package to the target. The label is
+  `«import»`, `«import» *` or `«import» **`, with `public ` in front for a public import. The target is the frame of a
+  package (`*`, `**`) or the card of a member.
+* An import that cannot be an arrow is an italic text line `import X::*` under the tab of its frame: the target is
+  not drawn or unknown, or it is the own package, an ancestor or a descendant.
+* A view or viewpoint is a card with the keyword `«view»` or `«viewpoint»`, the name, and the fields `expose` and `filter`
+  (view) or `stakeholders` and `concerns` (viewpoint); empty fields are left out. A view points at each of its viewpoints
+  with a dashed `«satisfy»` arrow.
+* `layout { }` works as on the other layered diagrams. Notes can be anchored to definition cards.
+
+=== Package findings
+
+`kuml validate` reports `KUML-PKG-E001` (package cycle or unknown parent), `KUML-PKG-E002` (a view satisfies an unknown
+viewpoint), `KUML-PKG-E003` (limit exceeded: 128 packages, 8 levels, 256 imports, 128 views, 32 entries per view),
+`KUML-PKG-W001` (import target unknown), `KUML-PKG-W002` (a package lists an unknown member), `KUML-PKG-W003` (the
+diagram lists an unknown id), `KUML-PKG-W004` (import of the own package, an ancestor or a descendant), and
+`KUML-PKG-W005` (a package nested deeper than three levels in the diagram; it is drawn as a card).
+
+=== Known limits
+
+* **Views are not evaluated.** `expose` and `filter` are text on the view card; they do not change what a diagram
+  draws (ADR-0016, option 3, is wave 2I-b).
+* Stakeholders and concerns are text, not model elements.
+* There is no LaTeX rendering: `kuml render --format latex` stops with "Package diagrams are not supported by the LaTeX
+  renderer yet (wave 2I-a)".
+* BDD and IBD do not draw package frames.
+* The knowledge-workspace export (`kuml convert`) has no standard OKF type for package diagrams yet.
 
 == Notes
 

@@ -69,7 +69,9 @@ public object Sysml2LayoutHintChecker {
                 }
             ) +
                 // Wave 2E-a: requirement groups are valid `sameLayer` members (rows of the group grid).
-                (diagram as? ReqDiagram)?.groups.orEmpty().map { it.id }
+                (diagram as? ReqDiagram)?.groups.orEmpty().map { it.id } +
+                // Wave 2I-a: a drawn package brings its sub-tree and all members with it.
+                packageDiagramIds(model = model, diagram = diagram)
         if (spec.actorSide != null && diagram !is dev.kuml.sysml2.UcDiagram) {
             issues +=
                 LayoutIssue(
@@ -232,4 +234,22 @@ public object Sysml2LayoutHintChecker {
             is TransitionUsage -> u.sourceStateId to u.targetStateId
             else -> null
         }
+}
+
+/** Wave 2I-a: ids a package diagram draws: its elements plus the sub-tree and members of every included package. */
+private fun packageDiagramIds(
+    model: Sysml2Model,
+    diagram: Sysml2Diagram,
+): Set<String> {
+    if (diagram !is dev.kuml.sysml2.Sysml2PackageDiagram) return emptySet()
+    val index = model.packageIndex()
+    val out = LinkedHashSet<String>()
+    for (id in diagram.elementIds) {
+        val pkg = index.packageById(id) ?: continue
+        for (p in index.subtreeOf(pkg)) {
+            out += p.id
+            out += p.memberIds
+        }
+    }
+    return out
 }

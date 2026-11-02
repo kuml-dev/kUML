@@ -437,6 +437,18 @@ internal object DesktopRenderPipeline {
                             .map { f -> "[${f.code}] ${f.message}" }
                     KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
                 }
+            is dev.kuml.sysml2.Sysml2PackageDiagram ->
+                env.layoutThenRender(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    spec = diagram.layout,
+                    kind =
+                        dev.kuml.layout.bridge.SpecDiagramKinds
+                            .of(diagram),
+                    diagramName = diagram.name,
+                ) {
+                    KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = it, theme = env.theme, options = env.svgOptions)
+                }
         }
     }
 

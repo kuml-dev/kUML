@@ -172,6 +172,7 @@ public object Sysml2DslPrinter {
         topLevelUsages.forEach { printTopLevelUsage(sb = sb, usage = it, ctx = ctx) }
 
         printComments(sb = sb, model = model)
+        printPackageDeclarations(sb = sb, model = model)
 
         model.diagrams.forEach { printDiagram(sb = sb, d = it, ctx = ctx) }
 
@@ -1014,6 +1015,46 @@ public object Sysml2DslPrinter {
                     elementIds = d.elementIds,
                     noteIds = d.noteIds,
                 )
+            is dev.kuml.sysml2.Sysml2PackageDiagram ->
+                printSimpleIdDiagram(
+                    sb = sb,
+                    fnName = "packageDiagram",
+                    name = d.name,
+                    elementIds = d.elementIds,
+                    noteIds = d.noteIds,
+                )
+        }
+    }
+
+    /**
+     * Wave 2I-a: packages, imports, viewpoints and views in their id form (`packageById`, `importById`), so the
+     * membership survives the round trip exactly. Definitions are printed flat above.
+     */
+    private fun printPackageDeclarations(
+        sb: StringBuilder,
+        model: Sysml2Model,
+    ) {
+        for (p in model.packages) {
+            val parent = p.parentId?.let { ", parentId = ${quote(it)}" }.orEmpty()
+            val members = if (p.memberIds.isEmpty()) "" else ", memberIds = listOf(${p.memberIds.joinToString(", ") { quote(it) }})"
+            sb.appendLine("    packageById(name = ${quote(p.name)}, id = ${quote(p.id)}$parent$members)")
+        }
+        for (i in model.imports) {
+            val pub = if (i.visibility == dev.kuml.sysml2.Sysml2ImportVisibility.PUBLIC) ", public = true" else ""
+            sb.appendLine("    importById(ownerPackageId = ${quote(i.ownerPackageId)}, target = ${quote(i.rawTarget)}$pub)")
+        }
+        for (vp in model.viewpoints) {
+            sb.appendLine("    viewpoint(${quote(vp.name)}, id = ${quote(vp.id)}) {")
+            vp.stakeholders.forEach { sb.appendLine("        stakeholder(${quote(it)})") }
+            vp.concerns.forEach { sb.appendLine("        concern(${quote(it)})") }
+            sb.appendLine("    }")
+        }
+        for (v in model.views) {
+            sb.appendLine("    view(${quote(v.name)}, id = ${quote(v.id)}) {")
+            v.viewpointIds.forEach { sb.appendLine("        satisfiesById(${quote(it)})") }
+            v.exposes.forEach { sb.appendLine("        expose(${quote(it)})") }
+            v.filters.forEach { sb.appendLine("        filter(${quote(it)})") }
+            sb.appendLine("    }")
         }
     }
 

@@ -190,6 +190,16 @@ public object ValidationService {
                         hint = it.hint,
                     )
                 }
+            is dev.kuml.sysml2.Sysml2PackageDiagram ->
+                dev.kuml.sysml2.constraint.Sysml2PackageChecker.check(model = ex.model, diagram = d).map {
+                    finding(
+                        code = it.code,
+                        error = it.severity == dev.kuml.sysml2.constraint.PackageSeverity.Error,
+                        elementId = it.elementId,
+                        message = it.message,
+                        hint = it.hint,
+                    )
+                }
             is dev.kuml.sysml2.IbdDiagram ->
                 dev.kuml.sysml2.constraint.Sysml2IbdChecker.check(model = ex.model, diagram = d).map {
                     finding(
@@ -287,6 +297,7 @@ public object ValidationService {
                             is dev.kuml.sysml2.ActDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
                             is dev.kuml.sysml2.SeqDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
                             is dev.kuml.sysml2.ParDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
+                            is dev.kuml.sysml2.Sysml2PackageDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = e.model, diagram = d)
                         }
                     else -> null
                 }

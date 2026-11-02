@@ -215,6 +215,14 @@ public object KumlPngRenderer {
                         theme = theme,
                         options = svgOptions,
                     )
+                is dev.kuml.sysml2.Sysml2PackageDiagram ->
+                    KumlSvgRenderer.toSvg(
+                        model = model,
+                        diagram = diagram,
+                        layoutResult = layoutResult,
+                        theme = theme,
+                        options = svgOptions,
+                    )
             }
         return toPng(svg = svg, options = options)
     }

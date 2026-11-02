@@ -34,7 +34,18 @@ data class Sysml2Model(
     val comments: List<Sysml2Comment> = emptyList(),
     /** Anchor links from [comments] to definitions / usages. */
     val commentLinks: List<Sysml2CommentLink> = emptyList(),
+    /** Packages (wave 2I-a); empty for models without packages. */
+    val packages: List<Sysml2Package> = emptyList(),
+    /** Imports declared inside [packages] (wave 2I-a). */
+    val imports: List<Sysml2Import> = emptyList(),
+    /** Viewpoints (wave 2I-a). */
+    val viewpoints: List<Sysml2Viewpoint> = emptyList(),
+    /** Views (wave 2I-a). */
+    val views: List<Sysml2View> = emptyList(),
 ) {
+    /** Lookup helper over [packages] (qualified names, owners, import resolution; wave 2I-a). */
+    fun packageIndex(): Sysml2PackageIndex = Sysml2PackageIndex(this)
+
     /** Indexed lookup by element id. Computed lazily; rebuilt per instance. */
     fun elementById(id: String): Sysml2Element? {
         // Search definitions, their owned features (re-cast through Usages), and

@@ -42,6 +42,7 @@ import dev.kuml.layout.bridge.erm.ErmChenSizeProvider
 import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
 import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
+import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.sysml2.ActDiagram
@@ -241,6 +242,11 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
                 engine.layout(
                     graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
                     hints = LayoutHints.DEFAULT,
+                )
+            is dev.kuml.sysml2.Sysml2PackageDiagram ->
+                engine.layout(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                    hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
                 )
         }
     }

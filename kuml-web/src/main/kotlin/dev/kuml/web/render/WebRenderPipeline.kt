@@ -497,6 +497,41 @@ internal object WebRenderPipeline {
                     watermark = watermark,
                 )
             }
+            is dev.kuml.sysml2.Sysml2PackageDiagram -> {
+                val layoutResult =
+                    engine.layout(
+                        graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram),
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
+                when (format) {
+                    "svg" ->
+                        WebRenderResult.Svg(
+                            svg =
+                                KumlSvgRenderer.toSvg(
+                                    model = model,
+                                    diagram = diagram,
+                                    layoutResult = layoutResult,
+                                    theme = theme,
+                                    options = SvgRenderOptions(watermark = watermark),
+                                ),
+                            durationMs = durationMs,
+                        )
+                    "png" ->
+                        WebRenderResult.Png(
+                            pngBytes =
+                                KumlPngRenderer.toPng(
+                                    model = model,
+                                    diagram = diagram,
+                                    layoutResult = layoutResult,
+                                    theme = theme,
+                                    options = PngRenderOptions(widthPx = widthPx),
+                                ),
+                            durationMs = durationMs,
+                        )
+                    "latex" -> WebRenderResult.Error(KumlLatexRenderer.PACKAGE_DIAGRAM_UNSUPPORTED)
+                    else -> WebRenderResult.Error("Unsupported format: $format")
+                }
+            }
         }
     }
 

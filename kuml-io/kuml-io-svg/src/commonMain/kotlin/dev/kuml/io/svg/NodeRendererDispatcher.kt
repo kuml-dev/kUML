@@ -190,6 +190,9 @@ internal object NodeRendererDispatcher {
             // BPMN — V3.1.4 Collaboration
             is BpmnParticipant -> renderBpmnParticipant(participant = element, layout = layout, theme = theme, builder = builder)
             is BpmnLane -> renderBpmnLane(lane = element, layout = layout, horizontal = true, theme = theme, builder = builder)
+            is dev.kuml.layout.bridge.PkgCardElement ->
+                dev.kuml.io.svg.sysml2
+                    .renderPackageCard(element = element, layout = layout, builder = builder)
             else -> renderFallbackNode(element = element, layout = layout, builder = builder)
         }
     }

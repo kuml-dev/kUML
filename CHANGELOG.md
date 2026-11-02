@@ -6,6 +6,40 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### SysML 2 package diagram (wave 2I-a)
+
+**Behaviour changes (visible in existing diagrams)**
+
+- None. BDD, IBD, UC, REQ, STM, ACT, SEQ and PAR diagrams render exactly as before (checked: all 304 SVGs of the vault examples are byte-identical to a run on the previous `master` on the same machine).
+- The model JSON gains four optional fields (`packages`, `imports`, `viewpoints`, `views`) and the diagram list gains one kind (`Sysml2PackageDiagram`). Old `.kuml.json` files stay readable; the fields are written with their (empty) defaults only where a serialiser uses `encodeDefaults`.
+
+**Additions**
+
+- `packageDiagram("Name") { include(...) }` (`Sysml2PackageDiagram`): packages as nested unfilled frames with a name tab (three levels; deeper packages are flat cards inside the level-3 frame, tab `C::D`, members listed, at most 8 and then `+N more`), `import` arrows (dashed `6 4`, open head, labels `«import»`, `«import» *`, `«import» **`, `public «import»`), view and viewpoint cards, a dashed `«satisfy»` arrow from a view to each of its viewpoints.
+- DSL: `pkg(name, id) { ... }`, `imports(target, public)` (`P::*`, `P::**`, `P::Member`), `viewpoint(name) { stakeholder(..); concern(..) }`, `view(name) { satisfies(..); expose(..); filter(..) }`; id forms `packageById`, `importById`, `satisfiesById`, `includeById` (the DSL printer writes them, so packages round-trip). Definition ids are unchanged; a definition's qualified name is derived from its package. Package ids are `pkg:<qualifiedName>`, views `view:<name>`, viewpoints `viewpoint:<name>`.
+- Checker `Sysml2PackageChecker` with the codes `KUML-PKG-E001` (package cycle or unknown parent), `E002` (view satisfies an unknown viewpoint), `E003` (limit exceeded), `W001` (import target unknown), `W002` (package lists an unknown member), `W003` (diagram lists an unknown id), `W004` (import of the own package, an ancestor or a descendant), `W005` (package deeper than three levels in the diagram). `kuml validate` and the desktop findings report them.
+- Limits: 128 packages, 8 levels of nesting, 256 imports, 128 views and 128 viewpoints, 32 entries per view or viewpoint.
+- `layout { }` works on package diagrams like on the other layered diagrams (`SpecDiagramKind.SYSML2_PKG`); notes can be anchored to definition cards.
+- Handbook: chapter "Package diagrams (wave 2I-a)" in the SysML 2 reference; ADR-0016 accepted (partial).
+
+**Behaviour you may not expect**
+
+- An import of the own package, of an ancestor or of a descendant is drawn as a text line in the frame, not as an arrow (an arrow between a frame and its own ancestor or descendant cannot be routed).
+- An import whose target is a member of a collapsed package points at the collapsed card.
+- `public` is the only visibility mark; a plain import is private and carries no extra label.
+- A tab slides along the top of its frame until no arrow crosses it.
+- Unknown viewpoint names, unknown import targets and unknown diagram ids are findings of the checker, not build errors (forward references stay possible); id collisions between packages, definitions, views and viewpoints, and a definition in two packages, are build errors.
+
+**Open**
+
+- Views are not evaluated: `expose` and `filter` are plain text (ADR-0016, option 3; wave 2I-b).
+- Stakeholders and concerns are text, not model elements.
+- No LaTeX rendering of package diagrams: `--format latex` fails with a one-line script error ("Package diagrams are not supported by the LaTeX renderer yet (wave 2I-a)").
+- No package frames in BDD and IBD.
+- Knowledge-workspace export (`kuml convert`) has no standard OKF type for package diagrams; it derives a custom type from the Kotlin type name.
+- Playground sources, vault example texts and handbook SVGs were not extended; the Wasm playground only compiles the new branch, it was not run in a browser.
+- The desktop MCP (`kuml-desktop`) was not reachable while this wave was built (ECONNREFUSED); the check ran through Gradle and rendered PNGs.
+
 ### Service Blueprint (wave 2G-c)
 
 **Behaviour changes (visible in existing diagrams)**

@@ -1303,6 +1303,45 @@ internal object RenderPipeline {
                     else -> throw ScriptEvaluationException(message = "Unsupported format: $format")
                 }
             }
+            is dev.kuml.sysml2.Sysml2PackageDiagram -> {
+                // Wave 2I-a: refuse an unsupported format before any layout work, with a plain message instead of a stack trace.
+                if (format == "latex") throw ScriptEvaluationException(message = KumlLatexRenderer.PACKAGE_DIAGRAM_UNSUPPORTED)
+                val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                val layoutResult: LayoutResult =
+                    layoutWithSpec(
+                        engine = sysml2Engine,
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                        spec = diagram.layout,
+                        kind = SpecDiagramKind.SYSML2_PKG,
+                        diagramName = diagram.name,
+                    )
+                when (format) {
+                    "svg" ->
+                        writeText(
+                            out = output,
+                            text =
+                                KumlSvgRenderer.toSvg(
+                                    model = model,
+                                    diagram = diagram,
+                                    layoutResult = layoutResult,
+                                    theme = theme,
+                                    options = SvgRenderOptions(paddingPx = 64f, watermark = watermark),
+                                ),
+                        )
+                    "png" ->
+                        writeSysml2Png(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = layoutResult,
+                            theme = theme,
+                            width = width,
+                            output = output,
+                            watermark = watermark,
+                        )
+                    else -> throw ScriptEvaluationException(message = "Unsupported format: $format")
+                }
+            }
         }
     }
 

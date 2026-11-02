@@ -50,6 +50,7 @@ class Sysml2NotesSvgTest :
                     is ActDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                     is SeqDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                     is ParDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                    is dev.kuml.sysml2.Sysml2PackageDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                 }
             return engine.layout(graph = graph, hints = LayoutHints.DEFAULT)
         }
@@ -70,6 +71,8 @@ class Sysml2NotesSvgTest :
                     is ActDiagram -> KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = lr, theme = PlainTheme())
                     is SeqDiagram -> KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = lr, theme = PlainTheme())
                     is ParDiagram -> KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = lr, theme = PlainTheme())
+                    is dev.kuml.sysml2.Sysml2PackageDiagram ->
+                        KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = lr, theme = PlainTheme())
                 }
             SampleOutput.write(filename = "sysml2/notes-$sample.svg", content = svg)
             return svg

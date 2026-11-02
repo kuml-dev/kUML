@@ -136,6 +136,7 @@ object Sysml2NoteAnchors {
             is ActDiagram -> setOf(NoteAnchorKind.ACTION, NoteAnchorKind.PARTITION)
             is SeqDiagram -> setOf(NoteAnchorKind.LIFELINE)
             is ParDiagram -> setOf(NoteAnchorKind.CONSTRAINT)
+            is dev.kuml.sysml2.Sysml2PackageDiagram -> setOf(NoteAnchorKind.DEFINITION)
         }
 
     /** The owner id of [diagram] if it has one (IBD), for [kindOf]. */

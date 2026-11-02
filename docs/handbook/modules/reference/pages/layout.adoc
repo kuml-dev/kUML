@@ -154,7 +154,8 @@ classDiagram(name = "Zoo") {
 
 === Which option acts where
 
-Layered (ELK) pipelines honour all options: UML (except sequence and timing), SysML 2 (except sequence), C4, ERM
+Layered (ELK) pipelines honour all options: UML (except sequence and timing), SysML 2 (except sequence; this includes
+package diagrams, wave 2I-a), C4, ERM
 and BPMN process and collaboration diagrams. Grid, time-line and fixed-geometry pipelines honour none: UML
 sequence and timing, SysML 2 sequence, BPMN choreography and conversation, Service Blueprint and Journey. The
 table in `LayoutEffectMatrix` is the single source for this.

@@ -343,6 +343,15 @@ internal object AsciidocRenderPipeline {
                     )
                 KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme)
             }
+            is dev.kuml.sysml2.Sysml2PackageDiagram -> {
+                val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                val layoutResult =
+                    layoutEngine.layout(
+                        graph = layoutGraph,
+                        hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
+                    )
+                KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layoutResult, theme = theme)
+            }
         }
     }
 

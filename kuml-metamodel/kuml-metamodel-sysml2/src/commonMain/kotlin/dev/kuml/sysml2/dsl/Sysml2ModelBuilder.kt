@@ -72,6 +72,7 @@ import dev.kuml.sysml2.Sysml2CommentLink
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Element
+import dev.kuml.sysml2.Sysml2Limits
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.Sysml2Usage
 import dev.kuml.sysml2.TestCaseDefinition
@@ -121,6 +122,16 @@ class Sysml2ModelBuilder(
     private val diagrams = mutableListOf<Sysml2Diagram>()
     private val comments = mutableListOf<Sysml2Comment>()
     private val commentLinks = mutableListOf<Sysml2CommentLink>()
+    private val packages = mutableListOf<dev.kuml.sysml2.Sysml2Package>()
+    private val importDecls = mutableListOf<dev.kuml.sysml2.Sysml2Import>()
+    private val viewpoints = mutableListOf<dev.kuml.sysml2.Sysml2Viewpoint>()
+    private val views = mutableListOf<dev.kuml.sysml2.Sysml2View>()
+
+    /** Packages currently open (innermost last): `pkg { }` blocks nest. */
+    private val openPackages = ArrayDeque<String>()
+
+    /** Definition ids already claimed by a closed package, so an outer package does not list a nested package's members. */
+    private val claimedDefinitionIds = mutableSetOf<String>()
 
     internal companion object {
         /** Upper bound for names, ids and paths accepted by the new structural DSL functions. */
@@ -2182,6 +2193,196 @@ class Sysml2ModelBuilder(
         return usage
     }
 
+    // ── Packages, imports, views, viewpoints (wave 2I-a) ───────────────────
+
+    /**
+     * `pkg("Vehicle") { partDef("Engine"); imports("Common::*") }` - declares a package (wave 2I-a). Kotlin reserves
+     * `package`, so the DSL word is `pkg`. Every definition registered inside the block becomes a member of the
+     * package; packages nest. The package id is `pkg:<qualifiedName>` unless [id] is given.
+     *
+     * Two definitions with the same name in different packages need an explicit `id = ...` each - definition ids
+     * default to the plain name and must stay unique.
+     */
+    fun pkg(
+        name: String,
+        id: String? = null,
+        block: Sysml2ModelBuilder.() -> Unit = {},
+    ): dev.kuml.sysml2.Sysml2Package {
+        require(name.isNotBlank()) { "package name must not be blank" }
+        require(name.length <= MAX_NAME_CHARS) { "package name longer than $MAX_NAME_CHARS characters" }
+        require("::" !in name) { "package name '$name' must not contain '::' (it separates qualified names)" }
+        require(openPackages.size < Sysml2Limits.PACKAGE_DEPTH) { "packages nested deeper than ${Sysml2Limits.PACKAGE_DEPTH}" }
+        require(packages.size < Sysml2Limits.PACKAGES) { "more than ${Sysml2Limits.PACKAGES} packages" }
+        val parentId = openPackages.lastOrNull()
+        val qualified = (parentId?.let { qualifiedNameOfPackage(it) }?.plus("::") ?: "") + name
+        val pkgId = id ?: "pkg:$qualified"
+        require(packages.none { it.id == pkgId }) { "duplicate package id '$pkgId' (package '$qualified' declared twice)" }
+        val slot = packages.size
+        packages += dev.kuml.sysml2.Sysml2Package(id = pkgId, name = name, parentId = parentId)
+        val firstDefinition = definitions.size
+        openPackages.addLast(pkgId)
+        try {
+            this.block()
+        } finally {
+            openPackages.removeLast()
+        }
+        val members =
+            definitions
+                .drop(firstDefinition)
+                .map { it.id }
+                .filter { it !in claimedDefinitionIds }
+                .distinct()
+        claimedDefinitionIds += members
+        val result = packages[slot].copy(memberIds = members)
+        packages[slot] = result
+        return result
+    }
+
+    /** Id-only package declaration (used by the DSL printer): the members are given explicitly. */
+    fun packageById(
+        name: String,
+        id: String,
+        parentId: String? = null,
+        memberIds: List<String> = emptyList(),
+    ): dev.kuml.sysml2.Sysml2Package {
+        require(name.isNotBlank()) { "package name must not be blank" }
+        require(name.length <= MAX_NAME_CHARS) { "package name longer than $MAX_NAME_CHARS characters" }
+        require(packages.size < Sysml2Limits.PACKAGES) { "more than ${Sysml2Limits.PACKAGES} packages" }
+        require(packages.none { it.id == id }) { "duplicate package id '$id'" }
+        val pkg = dev.kuml.sysml2.Sysml2Package(id = id, name = name, parentId = parentId, memberIds = memberIds)
+        packages += pkg
+        return pkg
+    }
+
+    /**
+     * `imports("Common::*")` / `imports("Common::**")` / `imports("Common::Mass", public = true)` - declares an
+     * import in the package whose `pkg { }` block is open (wave 2I-a). Kotlin reserves `import`, hence `imports`.
+     * `::*` imports the direct members, `::**` the whole sub-tree, a plain name one member.
+     */
+    fun imports(
+        target: String,
+        public: Boolean = false,
+    ): dev.kuml.sysml2.Sysml2Import {
+        val owner =
+            openPackages.lastOrNull() ?: throw IllegalArgumentException("imports(\"$target\") is only allowed inside a pkg { } block")
+        return addImport(ownerPackageId = owner, rawTarget = target, public = public)
+    }
+
+    /** Id-only import declaration (used by the DSL printer). */
+    fun importById(
+        ownerPackageId: String,
+        target: String,
+        public: Boolean = false,
+    ): dev.kuml.sysml2.Sysml2Import = addImport(ownerPackageId = ownerPackageId, rawTarget = target, public = public)
+
+    private fun addImport(
+        ownerPackageId: String,
+        rawTarget: String,
+        public: Boolean,
+    ): dev.kuml.sysml2.Sysml2Import {
+        val raw = rawTarget.trim()
+        require(raw.isNotEmpty()) { "import target must not be blank" }
+        require(raw.length <= MAX_NAME_CHARS) { "import target longer than $MAX_NAME_CHARS characters" }
+        require(importDecls.size < Sysml2Limits.IMPORTS) { "more than ${Sysml2Limits.IMPORTS} imports" }
+        val (target, kind) =
+            when {
+                raw.endsWith("::**") -> raw.removeSuffix("::**") to dev.kuml.sysml2.Sysml2ImportKind.NAMESPACE_RECURSIVE
+                raw.endsWith("::*") -> raw.removeSuffix("::*") to dev.kuml.sysml2.Sysml2ImportKind.NAMESPACE
+                else -> raw to dev.kuml.sysml2.Sysml2ImportKind.MEMBERSHIP
+            }
+        require(target.isNotEmpty()) { "import target '$rawTarget' names no namespace" }
+        val impId = "import:$ownerPackageId::$raw"
+        require(importDecls.none { it.id == impId }) { "duplicate import '$raw' in package '$ownerPackageId'" }
+        val imp =
+            dev.kuml.sysml2.Sysml2Import(
+                id = impId,
+                ownerPackageId = ownerPackageId,
+                targetQualifiedName = target,
+                kind = kind,
+                visibility =
+                    if (public) dev.kuml.sysml2.Sysml2ImportVisibility.PUBLIC else dev.kuml.sysml2.Sysml2ImportVisibility.PRIVATE,
+            )
+        importDecls += imp
+        return imp
+    }
+
+    private fun qualifiedNameOfPackage(id: String): String {
+        val names = ArrayList<String>()
+        var cur: String? = id
+        var steps = 0
+        while (cur != null && steps++ <= Sysml2Limits.PACKAGE_DEPTH + 1) {
+            val p = packages.firstOrNull { it.id == cur } ?: break
+            names += p.name
+            cur = p.parentId
+        }
+        return names.asReversed().joinToString("::")
+    }
+
+    /**
+     * `viewpoint("Safety") { stakeholder("Safety engineer"); concern("Hazards are covered") }` (wave 2I-a).
+     * The id is `viewpoint:<name>` unless [id] is given. Stakeholders and concerns are plain text.
+     */
+    fun viewpoint(
+        name: String,
+        id: String = "viewpoint:$name",
+        block: ViewpointScope.() -> Unit = {},
+    ): dev.kuml.sysml2.Sysml2Viewpoint {
+        require(name.isNotBlank()) { "viewpoint name must not be blank" }
+        require(name.length <= MAX_NAME_CHARS) { "viewpoint name longer than $MAX_NAME_CHARS characters" }
+        require(viewpoints.size < Sysml2Limits.VIEWS) { "more than ${Sysml2Limits.VIEWS} viewpoints" }
+        require(viewpoints.none { it.id == id }) { "duplicate viewpoint id '$id'" }
+        val scope = ViewpointScope().apply(block)
+        val vp = dev.kuml.sysml2.Sysml2Viewpoint(id = id, name = name, stakeholders = scope.stakeholders(), concerns = scope.concerns())
+        viewpoints += vp
+        return vp
+    }
+
+    /**
+     * `view("Overview") { satisfies("Safety"); expose("Vehicle::*"); filter("@Safety") }` (wave 2I-a).
+     * The id is `view:<name>` unless [id] is given. `expose` and `filter` are plain text and are **not evaluated**.
+     */
+    fun view(
+        name: String,
+        id: String = "view:$name",
+        block: ViewScope.() -> Unit = {},
+    ): dev.kuml.sysml2.Sysml2View {
+        require(name.isNotBlank()) { "view name must not be blank" }
+        require(name.length <= MAX_NAME_CHARS) { "view name longer than $MAX_NAME_CHARS characters" }
+        require(views.size < Sysml2Limits.VIEWS) { "more than ${Sysml2Limits.VIEWS} views" }
+        require(views.none { it.id == id }) { "duplicate view id '$id'" }
+        val scope = ViewScope().apply(block)
+        val v =
+            dev.kuml.sysml2.Sysml2View(
+                id = id,
+                name = name,
+                viewpointIds = scope.viewpointIds(),
+                exposes = scope.exposes(),
+                filters = scope.filters(),
+            )
+        views += v
+        return v
+    }
+
+    /**
+     * `packageDiagram("Overview") { include(pkgA); include(view) }` - package diagram (wave 2I-a): packages as nested
+     * frames, imports as dashed arrows, views and viewpoints as cards.
+     */
+    fun packageDiagram(
+        name: String,
+        block: PackageDiagramBuilder.() -> Unit = {},
+    ): dev.kuml.sysml2.Sysml2PackageDiagram {
+        val builder = PackageDiagramBuilder(this).apply(block)
+        val diagram =
+            dev.kuml.sysml2.Sysml2PackageDiagram(
+                name = name,
+                elementIds = builder.ids(),
+                noteIds = builder.noteIds(),
+                layout = builder.layoutSpec(),
+            )
+        diagrams += diagram
+        return diagram
+    }
+
     fun build(): Sysml2Model {
         val model =
             Sysml2Model(
@@ -2191,7 +2392,12 @@ class Sysml2ModelBuilder(
                 diagrams = diagrams.toList(),
                 comments = comments.toList(),
                 commentLinks = commentLinks.toList(),
+                packages = packages.toList(),
+                imports = importDecls.toList(),
+                viewpoints = viewpoints.toList(),
+                views = views.toList(),
             )
+        checkPackageIds(model)
         // Checked here (not at comment()) so forward references via ids stay possible.
         // An unknown comment anchor is no longer a build error: Sysml2NoteChecker reports it as the
         // warning KUML-NOTE-W001 and the note is drawn free-standing.
@@ -2212,6 +2418,41 @@ class Sysml2ModelBuilder(
             }
         }
         return model
+    }
+
+    /** Id collisions between packages, definitions, views and viewpoints (wave 2I-a); only models with packages are checked. */
+    private fun checkPackageIds(model: Sysml2Model) {
+        if (model.packages.isEmpty() && model.views.isEmpty() && model.viewpoints.isEmpty()) return
+        val memberIds = model.packages.flatMap { it.memberIds }
+        val duplicateMember =
+            memberIds
+                .groupingBy { it }
+                .eachCount()
+                .entries
+                .firstOrNull { it.value > 1 }
+        require(duplicateMember == null) { "definition '${duplicateMember?.key}' is a member of more than one package" }
+        if (model.packages.isNotEmpty()) {
+            val defDuplicate =
+                model.definitions
+                    .map { it.id }
+                    .groupingBy { it }
+                    .eachCount()
+                    .entries
+                    .firstOrNull { it.value > 1 }
+            require(defDuplicate == null) {
+                "definition id '${defDuplicate?.key}' is used twice - give definitions with the same name in different " +
+                    "packages an explicit id = \"...\""
+            }
+        }
+        val all =
+            model.definitions.map { it.id } + model.packages.map { it.id } + model.views.map { it.id } + model.viewpoints.map { it.id }
+        val clash =
+            all
+                .groupingBy { it }
+                .eachCount()
+                .entries
+                .firstOrNull { it.value > 1 }
+        require(clash == null) { "id '${clash?.key}' is used by more than one package, definition, view or viewpoint" }
     }
 }
 

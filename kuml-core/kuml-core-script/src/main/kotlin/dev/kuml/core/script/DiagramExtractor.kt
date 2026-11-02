@@ -267,6 +267,14 @@ object DiagramExtractor {
                             "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
+            if (value is dev.kuml.sysml2.Sysml2PackageDiagram) {
+                throw ScriptEvaluationException(
+                    message =
+                        "Script '${input.name}' returned a bare Sysml2PackageDiagram. " +
+                            "Wrap it inside `sysml2Model(\"…\") { packageDiagram(\"…\") { … } }` " +
+                            "so the renderer has access to the surrounding Sysml2Model.",
+                )
+            }
             if (value is BpmnModel) {
                 value.firstDiagramOrNull()?.let {
                     return ExtractedDiagram.Bpmn(model = value, diagram = it)

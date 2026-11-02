@@ -68,6 +68,7 @@ object VaultExampleRenderer {
                 is ActDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                 is SeqDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
                 is ParDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
+                is dev.kuml.sysml2.Sysml2PackageDiagram -> Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
             }
         val kind =
             when (diagram) {
@@ -79,6 +80,7 @@ object VaultExampleRenderer {
                 is ActDiagram -> SpecDiagramKind.SYSML2_ACT
                 is SeqDiagram -> SpecDiagramKind.SYSML2_SEQ
                 is ParDiagram -> SpecDiagramKind.SYSML2_PAR
+                is dev.kuml.sysml2.Sysml2PackageDiagram -> SpecDiagramKind.SYSML2_PKG
             }
         return LayoutSpecRunner
             .layout(
@@ -269,6 +271,14 @@ object VaultExampleRenderer {
                                         sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     theme = theme,
                                 )
+                            is dev.kuml.sysml2.Sysml2PackageDiagram ->
+                                KumlSvgRenderer.toSvg(
+                                    model = model,
+                                    diagram = diagram,
+                                    layoutResult =
+                                        sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
+                                    theme = theme,
+                                )
                         }
                     // SysML2 LaTeX: attempt each overload via runCatching
                     val latex =
@@ -345,6 +355,8 @@ object VaultExampleRenderer {
                                             sysml2Layout(engine = elkEngine, model = model, diagram = diagram),
                                     )
                                 }.getOrNull()
+                            // Wave 2I-a: package diagrams have no LaTeX rendering yet.
+                            is dev.kuml.sysml2.Sysml2PackageDiagram -> null
                         }
                     RenderResult(svg = svg, latex = latex, error = null)
                 }
