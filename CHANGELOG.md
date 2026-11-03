@@ -167,6 +167,23 @@ All notable changes to this project are documented here. Format follows
 - Covered by unit tests only (row order and clipboard text, browser outcomes, license loader incl. hostile paths, build-date parsing, string catalogs). The dialog layout, the hover cursor, a real browser launch and the real clipboard have not been seen running (the desktop MCP server was unavailable).
 - Open points: the README and handbook still use "modelling" in several places; the kuml.dev footer says "© {year} kUML.".
 
+### Nacharbeit 2: ACT pin stub
+
+**Changes**
+
+- The ACT pin stub (`Sysml2PinRouting.STUB_PX`) is now derived from the shared arrowhead length (`PortEdgeClamp.ARROW_LEN_PX` + ACT corner radius = 16 px) instead of a separate literal; output unchanged. A flat 12 px stub was rejected: with the 4 px bend the arrowhead base would sit inside the corner arc (only 8 px of straight run remain) and the bend leg would end exactly at the edge of the 12 px pin-label zone.
+- New unit tests: the stub derivation, and a straight run of at least the arrowhead length after the bend for L, Z and S routes.
+
+**Images**
+
+- No image changed, vault example and sample SVGs byte-identical to `master` before.
+
+**Not done (open)**
+
+- ACT routes still start from pin end points rather than pin rectangles; recommended as a separate wave (move ACT pin geometry into the layout bridge as `PortAttachment`, reuse `PortEdgeClamp` with a bend-radius-aware stub, extend `PortEdgeBorderContractTest` to ACT).
+- IBD/PAR stub `max(ARROW_LEN_PX, 4)` may let an arrowhead overlap a 4 px corner directly at a port; unverified.
+- `Sysml2DiagramLabelPlan` keeps a private copy of the 12 px arrowhead length.
+
 ### Port edge clamp: contract test and shared geometry
 
 **Additions**
@@ -186,7 +203,7 @@ All notable changes to this project are documented here. Format follows
 
 **Not done (open)**
 
-- ACT keeps its own 16 px stub at a pin (`Sysml2PinRouting.STUB_PX`), IBD and PAR use the arrowhead length of 12 px as the minimum. Not unified, a wave of its own because it would move the bends of example 49.
+- ~~ACT keeps its own 16 px stub at a pin; not unified.~~ Done in "Nacharbeit 2: ACT pin stub" below: the stub is now derived from the shared arrowhead length (a flat 12 px was rejected).
 - The ACT route building (`orthogonalize`) still works on end points, not on port rectangles, so only the face normal is shared with `PortEdgeClamp`, not `borderPoint` or `clamp`.
 
 ### Notes N3: formatted note text

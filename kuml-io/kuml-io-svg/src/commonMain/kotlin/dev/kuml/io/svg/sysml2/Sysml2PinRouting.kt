@@ -14,11 +14,15 @@ import kotlin.math.abs
  * perpendicular to the pin side, an L or Z bend in between, and a perpendicular entry into the pin.
  */
 internal object Sysml2PinRouting {
-    /** Length of the perpendicular stub at a pin, px. */
-    const val STUB_PX: Float = 16f
-
     /** Corner radius used for the rebuilt route, px; small so the stub is never swallowed by a bend. */
     const val CORNER_RADIUS_PX: Float = 4f
+
+    /**
+     * Length of the perpendicular stub at a pin, px. Derived, not a literal: after a corner of radius
+     * [CORNER_RADIUS_PX] a straight run of exactly [PortEdgeClamp.ARROW_LEN_PX] remains, so the
+     * arrowhead sits completely on a straight line (12 + 4 = 16 px).
+     */
+    const val STUB_PX: Float = PortEdgeClamp.ARROW_LEN_PX + CORNER_RADIUS_PX
 
     private const val TOL = 0.5f
 

@@ -4,11 +4,19 @@ import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.port.PortEdgeClamp
 import dev.kuml.sysml2.PinSide
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.floats.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.shouldBe
 import kotlin.math.abs
+
+private fun direct(
+    x1: Float,
+    y1: Float,
+    x2: Float,
+    y2: Float,
+): EdgeRoute.Direct = EdgeRoute.Direct(source = Point(x = x1, y = y1), target = Point(x = x2, y = y2))
 
 class Sysml2C2bUnitTest :
     FunSpec({
@@ -133,6 +141,36 @@ class Sysml2C2bUnitTest :
             val pts = listOf(out.source) + out.waypoints + listOf(out.target)
             for (i in 0 until pts.size - 1) (abs(pts[i + 1].x - pts[i].x) <= 0.5f || abs(pts[i + 1].y - pts[i].y) <= 0.5f) shouldBe true
             (pts.last().x - pts[pts.size - 2].x).shouldBeGreaterThanOrEqual(12f)
+        }
+
+        test("ACT pin stub is derived from the shared arrowhead length") {
+            Sysml2PinRouting.STUB_PX shouldBe PortEdgeClamp.ARROW_LEN_PX + Sysml2PinRouting.CORNER_RADIUS_PX
+            Sysml2PinRouting.STUB_PX shouldBe 16f
+        }
+
+        test("orthogonalize: last segment keeps the arrowhead on a straight run after the bend") {
+            val cases =
+                listOf(
+                    // L: vertical exit, horizontal entry
+                    Triple(direct(x1 = 100f, y1 = 100f, x2 = 300f, y2 = 200f), PinSide.Bottom, PinSide.Left),
+                    // Z: vertical exit, vertical entry with horizontal offset
+                    Triple(direct(x1 = 100f, y1 = 100f, x2 = 40f, y2 = 200f), PinSide.Bottom, PinSide.Top),
+                    // S: opposing sides, target left of the source
+                    Triple(direct(x1 = 300f, y1 = 100f, x2 = 100f, y2 = 200f), PinSide.Right, PinSide.Left),
+                )
+            for ((route, srcSide, tgtSide) in cases) {
+                val out =
+                    Sysml2PinRouting.orthogonalize(
+                        route = route,
+                        sourceSide = srcSide,
+                        targetSide = tgtSide,
+                    ) as EdgeRoute.OrthogonalRounded
+                val pts = listOf(out.source) + out.waypoints + listOf(out.target)
+                val a = pts[pts.size - 2]
+                val b = pts.last()
+                val last = abs(b.x - a.x) + abs(b.y - a.y)
+                (last - Sysml2PinRouting.CORNER_RADIUS_PX).shouldBeGreaterThanOrEqual(PortEdgeClamp.ARROW_LEN_PX - 0.5f)
+            }
         }
 
         test("orthogonalize: already orthogonal perpendicular route stays unchanged") {
