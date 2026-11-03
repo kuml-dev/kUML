@@ -1,10 +1,12 @@
 package dev.kuml.desktop.workspace
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -25,6 +27,10 @@ import androidx.compose.ui.window.rememberDialogState
  * canvas) are exactly such components, so an `AlertDialog` opened from the main window is
  * hidden behind them: the user sees nothing happen ("New Workspace…" appeared dead). A
  * [DialogWindow] is a real window and always shows on top, like the About dialog.
+ *
+ * The optional [status] slot is a fixed area between the content and the button row. A dialog that sets
+ * it reserves the minimum height (56 dp) even while the slot is empty, so a message appearing or
+ * disappearing never moves the content or the buttons; it grows to at most 168 dp and scrolls beyond that.
  */
 @Composable
 fun WindowAlertDialog(
@@ -34,6 +40,7 @@ fun WindowAlertDialog(
     height: Dp = 260.dp,
     confirmButton: @Composable () -> Unit,
     dismissButton: @Composable () -> Unit,
+    status: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     DialogWindow(
@@ -48,6 +55,9 @@ fun WindowAlertDialog(
                     verticalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) { content() }
+                    if (status != null) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 56.dp, max = 168.dp)) { status() }
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                         horizontalArrangement = Arrangement.End,

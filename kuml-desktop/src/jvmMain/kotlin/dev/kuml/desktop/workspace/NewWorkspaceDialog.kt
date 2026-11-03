@@ -144,21 +144,17 @@ fun NewWorkspaceDialog(
                         modifier = Modifier.padding(start = 8.dp),
                     ) { Text(strings.newWorkspaceBrowse) }
                 }
-
-                val errorMessage =
-                    when (form.error) {
-                        NewWorkspaceError.TARGET_NOT_EMPTY -> strings.newWorkspaceTargetNotEmpty
-                        NewWorkspaceError.WRITE_FAILED -> strings.newWorkspaceFailed.format(form.runtimeError)
-                        NewWorkspaceError.NAME_EMPTY, null -> null
-                    }
-                if (errorMessage != null) {
-                    Text(
-                        errorMessage,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
+            }
+        },
+        status = {
+            val errorMessage =
+                when (form.error) {
+                    NewWorkspaceError.TARGET_NOT_EMPTY -> strings.newWorkspaceTargetNotEmpty
+                    NewWorkspaceError.WRITE_FAILED -> strings.newWorkspaceFailed.format(form.runtimeError)
+                    NewWorkspaceError.NAME_EMPTY, null -> null
                 }
+            if (errorMessage != null) {
+                StatusBanner(tone = StatusTone.ERROR, headline = errorMessage)
             }
         },
         confirmButton = {

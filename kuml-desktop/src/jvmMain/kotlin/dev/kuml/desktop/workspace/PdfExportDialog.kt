@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -44,7 +43,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Where the dialog is in its check-then-export flow. */
-private sealed interface PdfUiState {
+internal sealed interface PdfUiState {
     data object Idle : PdfUiState
 
     data class Preparing(
@@ -77,8 +76,10 @@ private sealed interface PdfUiState {
 
 /**
  * "Export workspace as PDF…" dialog. Three presets on top, advanced options folded away; options that do not apply
- * are shown disabled with the reason. "Check and export" renders and lays out first (cancellable, with progress), a
- * too-small diagram yields a non-modal bar with "use A3 landscape" / "export anyway", and only then a save dialog opens.
+ * are shown disabled with the reason. "Check and export" renders and lays out first (cancellable, with progress); every
+ * message (progress, warnings, overwrite question, result) appears in a fixed status area above the buttons, so the form
+ * never moves. A too-small diagram offers "use A3 landscape" (only with a fixed page size) and "export anyway"; only then
+ * a save dialog opens.
  * Rendering holds the shared evaluation gate, so it never runs concurrently with an MCP render.
  */
 @Composable
@@ -101,6 +102,7 @@ fun PdfExportDialog(
     DisposableEffect(Unit) { onDispose { cancelled.set(true) } }
 
     val busyWorking = ui is PdfUiState.Preparing
+    val view = pdfStatusView(ui = ui, form = form)
 
     fun closePrepared() {
         prepared?.close()
@@ -163,11 +165,11 @@ fun PdfExportDialog(
         }
     }
 
-    fun check() {
+    fun check(f: PdfExportFormState = form) {
         closePrepared()
         cancelled.set(false)
         ui = PdfUiState.Preparing(done = 0, total = 0)
-        val options = form.toOptions(producerVersion = producerVersion)
+        val options = f.toOptions(producerVersion = producerVersion)
         scope.launch {
             val result =
                 withContext(Dispatchers.IO) {
@@ -408,87 +410,29 @@ fun PdfExportDialog(
                             form.copy(split = it)
                     }
                 }
-
-                when (val s = ui) {
-                    PdfUiState.Idle -> Unit
-                    is PdfUiState.Preparing -> {
-                        Text(strings.pdfProgress.format(s.done, s.total), modifier = Modifier.padding(top = 8.dp))
-                        if (s.total >
-                            0
-                        ) {
-                            LinearProgressIndicator(progress = { s.done / s.total.toFloat() }, modifier = Modifier.fillMaxWidth())
-                        }
-                    }
-                    PdfUiState.Busy ->
-                        Text(
-                            strings.pdfBusy,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                    is PdfUiState.Warnings -> {
-                        if (s.failures.isNotEmpty()) {
-                            Text(
-                                strings.pdfDiagramFailures.format(
-                                    s.failures.size,
-                                    s.failures.joinToString { "${it.file}:${it.line}" },
-                                ),
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(top = 8.dp),
-                            )
-                        }
-                        if (s.summary.a3Diagrams > 0 || s.summary.tiledDiagrams > 0) {
-                            Text(
-                                strings.pdfLayoutSummary.format(s.summary.a3Diagrams, s.summary.tiledDiagrams, s.summary.tilePages),
-                                modifier = Modifier.padding(top = 8.dp),
-                            )
-                        }
-                        if (s.warnings.isNotEmpty()) {
-                            Text(
-                                strings.pdfScaleWarning.format(
-                                    s.warnings.size,
-                                    s.warnings.joinToString { "${it.documentPath}#${it.blockIndex + 1} (${it.message}; ${it.suggestion})" },
-                                ),
-                                modifier = Modifier.padding(top = 8.dp),
-                            )
-                        }
-                        Row(modifier = Modifier.padding(top = 4.dp)) {
-                            TextButton(onClick = { chooseAndWrite() }) { Text(strings.pdfExportAnyway) }
-                        }
-                    }
-                    is PdfUiState.ConfirmOverwrite -> {
-                        Text(
-                            if (s.existing.isEmpty()) {
-                                strings.pdfOverwriteConfirm
-                            } else {
-                                strings.pdfOverwriteDirConfirm.format(s.existing.size, s.existing.take(5).joinToString())
-                            },
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                        Row {
-                            Button(
-                                onClick = { write(target = s.target, overwrite = true) },
-                            ) { Text(strings.pdfSaveButton.removeSuffix("…")) }
-                            TextButton(onClick = {
-                                closePrepared()
-                                ui = PdfUiState.Idle
-                            }) { Text(strings.pdfCancel) }
-                        }
-                    }
-                    is PdfUiState.Done -> Text(strings.pdfExportDone.format(s.path), modifier = Modifier.padding(top = 8.dp))
-                    is PdfUiState.Failed ->
-                        Text(
-                            strings.pdfExportFailed.format(s.message),
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                }
             }
+        },
+        status = {
+            PdfStatusArea(
+                view = view,
+                strings = strings,
+                onUseA3 = {
+                    val next = form.withA3Landscape()
+                    form = next
+                    check(next)
+                },
+                onExportAnyway = { chooseAndWrite() },
+                onOverwrite = { (ui as? PdfUiState.ConfirmOverwrite)?.let { write(target = it.target, overwrite = true) } },
+                onCancelOverwrite = {
+                    closePrepared()
+                    ui = PdfUiState.Idle
+                },
+            )
         },
         confirmButton = {
             Button(
-                onClick = ::check,
-                enabled =
-                    trusted && form.canSubmit && !busyWorking && ui !is PdfUiState.Warnings && ui !is PdfUiState.ConfirmOverwrite,
+                onClick = { check() },
+                enabled = trusted && form.canSubmit && !busyWorking && !view.blocksPrimary(),
             ) {
                 Text(strings.pdfExportButton)
             }

@@ -277,6 +277,8 @@ data class Strings(
     val mcpSecurityNotice: String,
     val splitDividerDescription: String,
 ) {
+    // Nested in pdfExport: Strings itself is at the JVM constructor limit of 255 parameters.
+    val pdfStatus: PdfStatusStrings get() = pdfExport.status
     val pdfPageStrategy: String get() = pdfExport.pdfPageStrategy
     val pdfPageStrategyAuto: String get() = pdfExport.pdfPageStrategyAuto
     val pdfPageStrategyFixed: String get() = pdfExport.pdfPageStrategyFixed
@@ -614,6 +616,16 @@ data class Strings(
                         pdfMinScale = "Mindestgröße",
                         pdfLayoutSummary = "%1\$d auf A3 gesetzt, %2\$d aufgeteilt (%3\$d Seiten)",
                         pdfDisabledOrientationAuto = "Bei automatischer Seitengröße wählt kUML die Ausrichtung je Diagramm.",
+                        status =
+                            PdfStatusStrings(
+                                idleHint = "Das Layout wird vor dem Speichern geprüft.",
+                                warnHeadScale = "%1\$d Diagramm(e) zu klein zum Lesen",
+                                warnHeadFailures = "%1\$d Diagramm(e) nicht gerendert",
+                                useA3Landscape = "A3 quer verwenden",
+                                minScaleHint = "Tipp: Unter „Erweitert“ die Mindestgröße senken.",
+                                andMore = "… und %1\$d weitere",
+                                overwriteButton = "Überschreiben",
+                            ),
                     ),
                 simulator =
                     SimulatorStrings(
@@ -1004,6 +1016,16 @@ data class Strings(
                         pdfMinScale = "Minimum scale",
                         pdfLayoutSummary = "%1\$d set on A3, %2\$d split (%3\$d pages)",
                         pdfDisabledOrientationAuto = "With automatic page size, kUML picks the orientation per diagram.",
+                        status =
+                            PdfStatusStrings(
+                                idleHint = "The layout is checked before saving.",
+                                warnHeadScale = "%1\$d diagram(s) too small to read",
+                                warnHeadFailures = "%1\$d diagram(s) failed to render",
+                                useA3Landscape = "Use A3 landscape",
+                                minScaleHint = "Tip: lower the minimum scale under Advanced.",
+                                andMore = "… and %1\$d more",
+                                overwriteButton = "Overwrite",
+                            ),
                     ),
                 simulator =
                     SimulatorStrings(
@@ -1245,6 +1267,18 @@ data class PdfExportStrings(
     val pdfMinScale: String,
     val pdfLayoutSummary: String,
     val pdfDisabledOrientationAuto: String,
+    val status: PdfStatusStrings,
+)
+
+/** Texts of the fixed status area in the PDF export dialog (see [Strings.pdfStatus]). */
+data class PdfStatusStrings(
+    val idleHint: String,
+    val warnHeadScale: String,
+    val warnHeadFailures: String,
+    val useA3Landscape: String,
+    val minScaleHint: String,
+    val andMore: String,
+    val overwriteButton: String,
 )
 
 /** Texts of the Knowledge Workspace column dividers (see [Strings.workspaceLayout]). */

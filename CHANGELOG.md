@@ -6,6 +6,29 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### kUML Desktop: fixed status area in dialogs
+
+**Additions**
+
+- `WindowAlertDialog` has an optional `status` slot between the content and the buttons. A dialog that sets it reserves at least 56 dp (at most 168 dp, scrolling beyond that) even while empty, so messages no longer push the content or the buttons around.
+- The PDF export dialog shows progress, warnings, the overwrite question, success and failure in that area (`PdfStatusArea`, with the pure `pdfStatusView` mapping). A few affected diagrams are listed, the rest is counted.
+- "Use A3 landscape" is offered only with a fixed page size that is not already A3 landscape. Clicking it sets A3 landscape and checks again; it does not export silently. With the automatic page size a hint about the minimum scale is shown instead.
+- New nested `PdfStatusStrings` (DE and EN), reached through `PdfExportStrings.status` because `Strings` is at the JVM limit of 255 constructor parameters.
+
+**Changes**
+
+- Banners replace the plain text lines; "renderer busy" is amber instead of red and no longer blocks the main button. The main button is disabled only while a warning or an overwrite question needs a decision.
+- The New Workspace error is shown in the fixed area (shared `StatusBanner`).
+- The overwrite button has its own string instead of trimming the "Save…" label.
+
+**Not seen live**
+
+- Not verified in the running app: scrolling of long banners, banner colors in light and dark, whether the area still jumps, whether a 56 dp area is enough for the progress bar, and whether A3 landscape resolves the scale warning under a fixed page size (the warning is a result of the check). The logic is covered by unit tests and the banner by headless Compose tests; the Desktop MCP was not reachable.
+
+**Still open**
+
+- `McpServerDialog` and `AboutDialog` use `DialogWindow` directly and do not have the area. "Show in folder" / "Open file" do not exist. Icons follow in part b.
+
 ### kUML Desktop: preview toolbar with actual size, center and a visible-area limit
 
 **Additions**
