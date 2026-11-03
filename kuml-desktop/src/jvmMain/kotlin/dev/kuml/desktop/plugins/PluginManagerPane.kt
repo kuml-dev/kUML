@@ -17,6 +17,8 @@ import androidx.compose.ui.window.rememberDialogState
 import coil3.compose.AsyncImage
 import dev.kuml.codegen.m2m.TransformerRegistry
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import dev.kuml.plugin.loader.registry.KeyStatus
 import dev.kuml.plugin.loader.registry.PluginRegistryClient
 import dev.kuml.plugin.loader.registry.PluginRegistryEntry
@@ -137,7 +139,7 @@ fun PluginManagerPane(
                     }
                     Spacer(Modifier.weight(1f))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        Button(onClick = onClose) { Text(strings.dialogClose) }
+                        Button(onClick = onClose) { IconLabel(action = ButtonAction.CLOSE, text = strings.dialogClose) }
                     }
                 }
             }
@@ -262,6 +264,7 @@ private fun RegistryEntryCard(
                     )
                 }
                 if (allReviews.size > 3) {
+                    // no-icon: DISCLOSURE
                     TextButton(onClick = { expanded = !expanded }) {
                         Text(
                             if (expanded) {
@@ -295,7 +298,9 @@ private fun RegistryEntryCard(
                             modifier = Modifier.fillMaxSize(),
                         )
                         Box(Modifier.align(Alignment.TopEnd).padding(8.dp)) {
-                            Button(onClick = { fullScreenUrl = null }) { Text(strings.dialogClose) }
+                            Button(
+                                onClick = { fullScreenUrl = null },
+                            ) { IconLabel(action = ButtonAction.CLOSE, text = strings.dialogClose) }
                         }
                     }
                 }

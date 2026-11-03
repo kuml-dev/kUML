@@ -2,6 +2,8 @@ package dev.kuml.desktop.mcp
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +29,8 @@ import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.rememberDialogState
 import dev.kuml.desktop.AppState
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import kotlinx.coroutines.delay
 import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
@@ -110,13 +114,14 @@ internal fun McpServerDialog(
                                 color = MaterialTheme.colorScheme.error,
                             )
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { copy(manager.currentToken()) }) { Text(strings.mcpCopyToken) }
-                            Button(onClick = {
+                        McpTokenButtons(
+                            strings = strings,
+                            onCopyToken = { copy(manager.currentToken()) },
+                            onCopyCommand = {
                                 manager.currentToken()?.let { copy(claudeMcpAddCommand(port = running.port, token = it)) }
-                            }) { Text(strings.mcpCopyCommand) }
-                            OutlinedButton(onClick = { manager.regenerateToken() }) { Text(strings.mcpRegenerateToken) }
-                        }
+                            },
+                            onRegenerate = { manager.regenerateToken() },
+                        )
                         Text(
                             text = strings.mcpRegenerateWarning,
                             style = MaterialTheme.typography.bodySmall,
@@ -135,9 +140,28 @@ internal fun McpServerDialog(
                         if (copied) Text(strings.mcpCopied, color = MaterialTheme.colorScheme.primary)
                     }
                     Spacer(Modifier.weight(1f).height(1.dp))
-                    Row { Button(onClick = onClose) { Text(strings.dialogClose) } }
+                    Row { Button(onClick = onClose) { IconLabel(action = ButtonAction.CLOSE, text = strings.dialogClose) } }
                 }
             }
         }
+    }
+}
+
+/** The three token actions; wraps onto a second line instead of overflowing narrow dialogs. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun McpTokenButtons(
+    strings: Strings,
+    onCopyToken: () -> Unit,
+    onCopyCommand: () -> Unit,
+    onRegenerate: () -> Unit,
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        OutlinedButton(onClick = onCopyToken) { IconLabel(action = ButtonAction.COPY, text = strings.mcpCopyToken) }
+        Button(onClick = onCopyCommand) { IconLabel(action = ButtonAction.COPY, text = strings.mcpCopyCommand) }
+        OutlinedButton(onClick = onRegenerate) { IconLabel(action = ButtonAction.REGENERATE, text = strings.mcpRegenerateToken) }
     }
 }

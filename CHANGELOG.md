@@ -6,6 +6,20 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### kUML Desktop: dialog button icons (part b2a)
+
+**Additions**
+
+- Dialog buttons in the workspace, MCP, plugin and About dialogs now show an icon before their label (part b2a; the AI and simulation dialogs follow in b2b).
+- `IconLabel` and `ButtonAction` in `ui/IconLabel.kt`: the icon is derived from the action (exhaustive `when`), never passed directly. Buttons without an icon carry a `// no-icon: <reason>` comment (`ButtonIconException`), enforced by `DialogButtonCoverageTest`.
+- Six new stroke-only icons in `KumlIcons`: `Check`, `Warning`, `Copy`, `Refresh`, `Document`, `PageLandscape`. The copy buttons show a check mark once the text has been copied.
+
+**Changes**
+
+- The three token buttons of the MCP dialog now wrap onto a second line when the dialog is too narrow (`McpTokenButtons`).
+
+**Not seen live:** the desktop UI was checked with headless Compose tests only.
+
 ### kUML Desktop: menu icons
 
 **Additions**

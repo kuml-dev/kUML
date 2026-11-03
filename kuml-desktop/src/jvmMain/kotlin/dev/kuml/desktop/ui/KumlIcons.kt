@@ -153,6 +153,26 @@ object KumlIcons {
     /** Three squares plus one offset square — plugin manager. */
     val Plugins: ImageVector by lazy { buildPluginsIcon() }
 
+    // Dialog-button icons (welle desktop-dialog-button-icons b2a): same stroke family, only used by IconLabel.
+
+    /** Check mark — confirm / keep / copied. */
+    val Check: ImageVector by lazy { buildCheckIcon() }
+
+    /** Triangle with exclamation mark — proceed despite a warning. */
+    val Warning: ImageVector by lazy { buildWarningIcon() }
+
+    /** Two overlapping rounded squares — copy to the clipboard. */
+    val Copy: ImageVector by lazy { buildCopyIcon() }
+
+    /** Open circular arrow with an arrowhead — regenerate / reload. */
+    val Refresh: ImageVector by lazy { buildRefreshIcon() }
+
+    /** Sheet with folded corner and two text lines — open a document. */
+    val Document: ImageVector by lazy { buildDocumentIcon() }
+
+    /** Landscape sheet with folded corner — A3 landscape. */
+    val PageLandscape: ImageVector by lazy { buildPageLandscapeIcon() }
+
     private enum class SaveBadge { Vector, Raster }
 
     private const val VIEWPORT = 24f
@@ -788,6 +808,114 @@ object KumlIcons {
         x1 = x,
         y1 = y,
     )
+
+    private fun buildCheckIcon(): ImageVector =
+        builder("KumlCheck")
+            .apply {
+                strokePath(name = "KumlCheck.tick") {
+                    moveTo(5f, 12f)
+                    lineTo(10f, 17f)
+                    lineTo(19f, 7f)
+                }
+            }.build()
+
+    private fun buildWarningIcon(): ImageVector =
+        builder("KumlWarning")
+            .apply {
+                strokePath(name = "KumlWarning.triangle") {
+                    moveTo(12f, 3f)
+                    lineTo(22f, 20f)
+                    lineTo(2f, 20f)
+                    close()
+                    moveTo(12f, 9f)
+                    lineTo(12f, 13f)
+                    moveTo(12f, 16.5f)
+                    lineTo(12f, 16.6f)
+                }
+            }.build()
+
+    private fun buildCopyIcon(): ImageVector =
+        builder("KumlCopy")
+            .apply {
+                strokePath(name = "KumlCopy.sheets") {
+                    // Front square (9..20), then the back square's visible L (4..15).
+                    moveTo(11f, 9f)
+                    lineTo(18f, 9f)
+                    quarterArc(x = 20f, y = 11f)
+                    lineTo(20f, 18f)
+                    quarterArc(x = 18f, y = 20f)
+                    lineTo(11f, 20f)
+                    quarterArc(x = 9f, y = 18f)
+                    lineTo(9f, 11f)
+                    quarterArc(x = 11f, y = 9f)
+                    close()
+                    moveTo(15f, 9f)
+                    lineTo(15f, 6f)
+                    quarterArc(x = 13f, y = 4f, clockwise = false)
+                    lineTo(6f, 4f)
+                    quarterArc(x = 4f, y = 6f, clockwise = false)
+                    lineTo(4f, 13f)
+                    quarterArc(x = 6f, y = 15f, clockwise = false)
+                    lineTo(9f, 15f)
+                }
+            }.build()
+
+    private fun buildRefreshIcon(): ImageVector =
+        builder("KumlRefresh")
+            .apply {
+                strokePath(name = "KumlRefresh.arc") {
+                    // 300 degrees of a circle, gap at the top; arrowhead corner at the end.
+                    moveTo(15.5f, 5.94f)
+                    arcTo(
+                        horizontalEllipseRadius = 7f,
+                        verticalEllipseRadius = 7f,
+                        theta = 0f,
+                        isMoreThanHalf = true,
+                        isPositiveArc = true,
+                        x1 = 8.5f,
+                        y1 = 5.94f,
+                    )
+                    moveTo(5.3f, 5.94f)
+                    lineTo(8.5f, 5.94f)
+                    lineTo(8.5f, 9.1f)
+                }
+            }.build()
+
+    private fun buildDocumentIcon(): ImageVector =
+        builder("KumlDocument")
+            .apply {
+                strokePath(name = "KumlDocument.sheet") {
+                    moveTo(6f, 3f)
+                    lineTo(14f, 3f)
+                    lineTo(18f, 7f)
+                    lineTo(18f, 21f)
+                    lineTo(6f, 21f)
+                    close()
+                    moveTo(14f, 3f)
+                    lineTo(14f, 7f)
+                    lineTo(18f, 7f)
+                    moveTo(9f, 12f)
+                    lineTo(15f, 12f)
+                    moveTo(9f, 16f)
+                    lineTo(15f, 16f)
+                }
+            }.build()
+
+    private fun buildPageLandscapeIcon(): ImageVector =
+        builder("KumlPageLandscape")
+            .apply {
+                strokePath(name = "KumlPageLandscape.sheet") {
+                    moveTo(3f, 6f)
+                    lineTo(17f, 6f)
+                    lineTo(21f, 10f)
+                    lineTo(21f, 18f)
+                    lineTo(3f, 18f)
+                    close()
+                    moveTo(17f, 6f)
+                    lineTo(17f, 10f)
+                    lineTo(21f, 10f)
+                }
+            }.build()
 
     private fun buildDocumentNewIcon(): ImageVector =
         builder("KumlDocumentNew")

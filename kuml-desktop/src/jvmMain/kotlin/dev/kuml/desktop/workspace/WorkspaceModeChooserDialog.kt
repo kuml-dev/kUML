@@ -11,6 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 
 /**
  * Shown when [dev.kuml.workspace.WorkspaceMode] resolves to `UNKNOWN` — neither
@@ -38,7 +40,9 @@ fun WorkspaceModeChooserDialog(
         content = { Text(strings.workspaceUnknownMessage) },
         confirmButton = {
             Column(modifier = Modifier.fillMaxWidth()) {
+                // no-icon: CHOICE_SAME_KIND
                 Button(onClick = onChooseKnowledge) { Text(strings.workspaceOpenAsKnowledge) }
+                // no-icon: CHOICE_SAME_KIND
                 OutlinedButton(
                     onClick = onChooseEngineering,
                     modifier = Modifier.padding(top = 6.dp),
@@ -46,7 +50,7 @@ fun WorkspaceModeChooserDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onCancel) { Text(strings.workspaceOpenCancel) }
+            TextButton(onClick = onCancel) { IconLabel(action = ButtonAction.CANCEL, text = strings.workspaceOpenCancel) }
         },
     )
 }

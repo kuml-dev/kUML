@@ -21,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import dev.kuml.workspace.scaffold.WorkspaceScaffolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -142,7 +144,7 @@ fun NewWorkspaceDialog(
                         onClick = { chooseParentDir(form.parentDir)?.let { form = form.copy(parentDir = it, runtimeError = null) } },
                         enabled = !isCreating,
                         modifier = Modifier.padding(start = 8.dp),
-                    ) { Text(strings.newWorkspaceBrowse) }
+                    ) { IconLabel(action = ButtonAction.BROWSE, text = strings.newWorkspaceBrowse) }
                 }
             }
         },
@@ -158,10 +160,16 @@ fun NewWorkspaceDialog(
             }
         },
         confirmButton = {
-            Button(onClick = ::create, enabled = form.canCreate && !isCreating) { Text(strings.newWorkspaceCreate) }
+            Button(
+                onClick = ::create,
+                enabled = form.canCreate && !isCreating,
+            ) { IconLabel(action = ButtonAction.CREATE_WORKSPACE, text = strings.newWorkspaceCreate) }
         },
         dismissButton = {
-            TextButton(onClick = onCancel, enabled = !isCreating) { Text(strings.newWorkspaceCancel) }
+            TextButton(
+                onClick = onCancel,
+                enabled = !isCreating,
+            ) { IconLabel(action = ButtonAction.CANCEL, text = strings.newWorkspaceCancel) }
         },
     )
 }

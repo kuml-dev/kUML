@@ -25,6 +25,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.kuml.cli.workspace.WorkspacePdfExport
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import dev.kuml.workspace.OkfFinding
 import dev.kuml.workspace.WorkspaceScanner
 import dev.kuml.workspace.pdf.ExportPhase
@@ -413,6 +415,7 @@ fun PdfExportDialog(
                         form.copy(draft = it)
                 }
 
+                // no-icon: DISCLOSURE
                 TextButton(onClick = { form = form.copy(advancedExpanded = !form.advancedExpanded) }) {
                     Text((if (form.advancedExpanded) "▾ " else "▸ ") + strings.pdfAdvanced)
                 }
@@ -430,10 +433,12 @@ fun PdfExportDialog(
                     }, isError = !form.dateValid, singleLine = true, enabled = !busyWorking, modifier = Modifier.fillMaxWidth())
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("${strings.pdfMinScale}: ${form.minScalePercent} %", modifier = Modifier.padding(end = 8.dp))
+                        // no-icon: STEPPER
                         OutlinedButton(
                             onClick = { form = form.withMinScalePercent(form.minScalePercent - 5) },
                             enabled = !busyWorking && form.minScalePercent > PdfExportFormState.MIN_SCALE_PERCENT_RANGE.first,
                         ) { Text("−") }
+                        // no-icon: STEPPER
                         OutlinedButton(
                             onClick = { form = form.withMinScalePercent(form.minScalePercent + 5) },
                             enabled = !busyWorking && form.minScalePercent < PdfExportFormState.MIN_SCALE_PERCENT_RANGE.last,
@@ -474,7 +479,7 @@ fun PdfExportDialog(
                 onClick = { check() },
                 enabled = trusted && form.canSubmit && !busyWorking && !view.blocksPrimary(),
             ) {
-                Text(strings.pdfExportButton)
+                IconLabel(action = ButtonAction.EXPORT_PDF, text = strings.pdfExportButton)
             }
         },
         dismissButton = {
@@ -482,7 +487,12 @@ fun PdfExportDialog(
                 cancelled.set(true)
                 closePrepared()
                 onDismiss()
-            }) { Text(if (ui is PdfUiState.Done) strings.pdfClose else strings.pdfCancel) }
+            }) {
+                IconLabel(
+                    action = if (ui is PdfUiState.Done) ButtonAction.CLOSE else ButtonAction.CANCEL,
+                    text = if (ui is PdfUiState.Done) strings.pdfClose else strings.pdfCancel,
+                )
+            }
         },
     )
 }

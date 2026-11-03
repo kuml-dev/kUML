@@ -47,6 +47,8 @@ import dev.kuml.desktop.about.openLink
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.mcp.ClipboardWriter
 import dev.kuml.desktop.mcp.SystemClipboardWriter
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -126,12 +128,20 @@ internal fun AboutDialog(
                         OutlinedButton(onClick = {
                             val ok = runCatching { clipboard.write(AboutInfo.clipboardText(rows)) }.isSuccess
                             if (ok) copied = true
-                        }) { Text(if (copied) strings.about.copied else strings.about.copyInfo) }
+                        }) {
+                            IconLabel(
+                                action = ButtonAction.COPY,
+                                text = if (copied) strings.about.copied else strings.about.copyInfo,
+                                showAsDone = copied,
+                            )
+                        }
                     }
                     Box(modifier = Modifier.weight(1f))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        OutlinedButton(onClick = { showLicenses = true }) { Text(strings.about.openLicenses) }
-                        Button(onClick = onClose) { Text(strings.dialogClose) }
+                        OutlinedButton(
+                            onClick = { showLicenses = true },
+                        ) { IconLabel(action = ButtonAction.OPEN_LICENSES, text = strings.about.openLicenses) }
+                        Button(onClick = onClose) { IconLabel(action = ButtonAction.CLOSE, text = strings.dialogClose) }
                     }
                 }
             }
@@ -193,7 +203,7 @@ private fun LicensesDialog(
                         }
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        Button(onClick = onClose) { Text(strings.dialogClose) }
+                        Button(onClick = onClose) { IconLabel(action = ButtonAction.CLOSE, text = strings.dialogClose) }
                     }
                 }
             }

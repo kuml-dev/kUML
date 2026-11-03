@@ -6,6 +6,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import java.io.File
 
 /**
@@ -35,10 +37,10 @@ fun TrustDialog(
         height = 300.dp,
         content = { Text(strings.workspaceTrustMessage.format(root.absolutePath)) },
         confirmButton = {
-            Button(onClick = onTrust) { Text(strings.workspaceTrustAccept) }
+            Button(onClick = onTrust) { IconLabel(action = ButtonAction.CONFIRM, text = strings.workspaceTrustAccept) }
         },
         dismissButton = {
-            TextButton(onClick = onDecline) { Text(strings.workspaceTrustDecline) }
+            TextButton(onClick = onDecline) { IconLabel(action = ButtonAction.DECLINE, text = strings.workspaceTrustDecline) }
         },
     )
 }

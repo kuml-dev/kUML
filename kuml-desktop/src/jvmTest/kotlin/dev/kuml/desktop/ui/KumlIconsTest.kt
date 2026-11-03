@@ -98,6 +98,13 @@ class KumlIconsTest :
                 "SavePng" to KumlIcons.SavePng,
                 "PdfDocument" to KumlIcons.PdfDocument,
                 "Close" to KumlIcons.Close,
+                // Dialog buttons (b2a)
+                "Check" to KumlIcons.Check,
+                "Warning" to KumlIcons.Warning,
+                "Copy" to KumlIcons.Copy,
+                "Refresh" to KumlIcons.Refresh,
+                "Document" to KumlIcons.Document,
+                "PageLandscape" to KumlIcons.PageLandscape,
             ) + menuIcons
 
         test("all icons use a 24x24 viewport") {

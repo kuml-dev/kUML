@@ -54,6 +54,8 @@ import com.mikepenz.markdown.m3.Markdown
 import dev.kuml.desktop.editor.EditorActions
 import dev.kuml.desktop.editor.SyntaxTextEditor
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
 import dev.kuml.desktop.ui.tooltipStart
@@ -244,7 +246,7 @@ private fun DocumentHeaderBar(
                     color = Color(0xFFCC7A00),
                     fontSize = 11.sp,
                 )
-                TextButton(onClick = onSave) { Text(strings.menuFileSave) }
+                TextButton(onClick = onSave) { IconLabel(action = ButtonAction.SAVE, text = strings.menuFileSave) }
             }
             // Per-document PDF export, right-aligned and apart from the Read/Edit tabs. The band can sit above
             // the heavyweight editor SwingPanel, so the tooltip opens to the left, inside the band.
@@ -367,8 +369,12 @@ private fun DiskConflictBanner(
             fontSize = 11.sp,
             modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = { onResolve(false) }) { Text(strings.workspaceDiskConflictReload, fontSize = 11.sp) }
-        TextButton(onClick = { onResolve(true) }) { Text(strings.workspaceDiskConflictKeep, fontSize = 11.sp) }
+        TextButton(onClick = {
+            onResolve(false)
+        }) { IconLabel(action = ButtonAction.RELOAD, text = strings.workspaceDiskConflictReload, compact = true, fontSize = 11.sp) }
+        TextButton(onClick = {
+            onResolve(true)
+        }) { IconLabel(action = ButtonAction.CONFIRM, text = strings.workspaceDiskConflictKeep, compact = true, fontSize = 11.sp) }
     }
 }
 

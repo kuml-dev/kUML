@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 
 /** Banner colors per tone; the amber pair is the only place with fixed hex colors. */
 internal object StatusColors {
@@ -104,9 +106,9 @@ internal fun PdfStatusArea(
                 }
             StatusBanner(tone = view.tone(), headline = headline, details = details) {
                 if (view.offerA3Landscape) {
-                    Button(onClick = onUseA3) { Text(s.useA3Landscape) }
+                    Button(onClick = onUseA3) { IconLabel(action = ButtonAction.USE_A3, text = s.useA3Landscape) }
                 }
-                TextButton(onClick = onExportAnyway) { Text(strings.pdfExportAnyway) }
+                TextButton(onClick = onExportAnyway) { IconLabel(action = ButtonAction.PROCEED_RISKY, text = strings.pdfExportAnyway) }
             }
         }
         is PdfStatusView.Overwrite ->
@@ -119,8 +121,8 @@ internal fun PdfStatusArea(
                         strings.pdfOverwriteDirConfirm.format(view.count, view.names.joinToString())
                     },
             ) {
-                Button(onClick = onOverwrite) { Text(s.overwriteButton) }
-                TextButton(onClick = onCancelOverwrite) { Text(strings.pdfCancel) }
+                Button(onClick = onOverwrite) { IconLabel(action = ButtonAction.PROCEED_RISKY, text = s.overwriteButton) }
+                TextButton(onClick = onCancelOverwrite) { IconLabel(action = ButtonAction.CANCEL, text = strings.pdfCancel) }
             }
         is PdfStatusView.Done -> StatusBanner(tone = view.tone(), headline = strings.pdfExportDone.format(view.path))
         is PdfStatusView.Failed ->

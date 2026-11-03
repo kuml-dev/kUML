@@ -76,6 +76,8 @@ import dev.kuml.desktop.simulation.SimulationStartResult
 import dev.kuml.desktop.simulation.SimulationStatus
 import dev.kuml.desktop.simulation.payloadErrorText
 import dev.kuml.desktop.state.rememberAppSettingsBinding
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
 import dev.kuml.desktop.ui.ResizableSplit
@@ -1199,7 +1201,7 @@ private fun McpNoticeBar(
                     state.script = notice.previousScript
                 }
                 state.mcpNotice = null
-            }) { Text(strings.mcpUndo, fontSize = 11.sp) }
+            }) { IconLabel(action = ButtonAction.UNDO, text = strings.mcpUndo, compact = true, fontSize = 11.sp) }
         }
     }
 }
