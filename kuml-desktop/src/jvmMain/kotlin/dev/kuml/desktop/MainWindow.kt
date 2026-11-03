@@ -79,6 +79,8 @@ import dev.kuml.desktop.state.rememberAppSettingsBinding
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
 import dev.kuml.desktop.ui.ResizableSplit
+import dev.kuml.desktop.ui.menu.MenuEntryId
+import dev.kuml.desktop.ui.menu.menuIcon
 import dev.kuml.desktop.ui.platformShortcut
 import dev.kuml.desktop.ui.tooltipStart
 import dev.kuml.desktop.workspace.EngineeringFileScanner
@@ -508,10 +510,11 @@ fun FrameWindowScope.MainWindow(
         Menu(strings.menuFile) {
             Item(
                 strings.menuFileNew,
+                icon = menuIcon(id = MenuEntryId.FILE_NEW),
                 shortcut = platformShortcut(key = Key.N),
                 onClick = { confirmUnsavedAndThen { state.newScript() } },
             )
-            Item(strings.menuFileOpen, shortcut = platformShortcut(key = Key.O), onClick = {
+            Item(strings.menuFileOpen, icon = menuIcon(id = MenuEntryId.FILE_OPEN), shortcut = platformShortcut(key = Key.O), onClick = {
                 confirmUnsavedAndThen {
                     val file =
                         FileMenu.chooseOpen(
@@ -525,10 +528,10 @@ fun FrameWindowScope.MainWindow(
                     }
                 }
             })
-            Item(strings.menuFileNewWorkspace, onClick = {
+            Item(strings.menuFileNewWorkspace, icon = menuIcon(id = MenuEntryId.FILE_NEW_WORKSPACE), onClick = {
                 confirmUnsavedAndThen { showNewWorkspaceDialog = true }
             })
-            Item(strings.menuFileOpenWorkspace, onClick = {
+            Item(strings.menuFileOpenWorkspace, icon = menuIcon(id = MenuEntryId.FILE_OPEN_WORKSPACE), onClick = {
                 confirmUnsavedAndThen {
                     val dir =
                         FileMenu.chooseOpenDirectory(
@@ -543,12 +546,17 @@ fun FrameWindowScope.MainWindow(
                 // V-next — closing a workspace with unsaved OKF-document changes now goes
                 // through the same guard as everything else (previously ungated: a
                 // still-dirty knowledge document was silently discarded).
-                Item(strings.menuFileCloseWorkspace, onClick = { confirmUnsavedAndThen { state.openWorkspace = null } })
+                Item(
+                    strings.menuFileCloseWorkspace,
+                    icon = menuIcon(id = MenuEntryId.FILE_CLOSE_WORKSPACE),
+                    onClick = { confirmUnsavedAndThen { state.openWorkspace = null } },
+                )
             }
             // V-next — Ctrl+S now also saves the open Knowledge Workspace document, if any;
             // `menuFileSave` never had a shortcut before this welle.
             Item(
                 strings.menuFileSave,
+                icon = menuIcon(id = MenuEntryId.FILE_SAVE),
                 shortcut = platformShortcut(key = Key.S),
                 onClick = {
                     val knowledgeState = (state.openWorkspace as? OpenWorkspace.Knowledge)?.state
@@ -575,19 +583,27 @@ fun FrameWindowScope.MainWindow(
                     }
                 },
             )
-            Item(strings.menuFileSaveAs, shortcut = platformShortcut(key = Key.S, shift = true), onClick = {
-                val chosen =
-                    FileMenu.chooseSave(
-                        parent = windowHandle,
-                        initialDir = state.lastDir?.let { File(it) },
-                        suggestedName = state.currentFile?.name ?: "diagram.kuml.kts",
-                        strings = strings,
-                    )
-                if (chosen != null) {
-                    FileMenu.writeScript(file = chosen, content = state.script)
-                    state.markSaved(chosen)
-                }
-            })
+            Item(
+                strings.menuFileSaveAs,
+                icon =
+                    menuIcon(
+                        id = MenuEntryId.FILE_SAVE_AS,
+                    ),
+                shortcut = platformShortcut(key = Key.S, shift = true),
+                onClick = {
+                    val chosen =
+                        FileMenu.chooseSave(
+                            parent = windowHandle,
+                            initialDir = state.lastDir?.let { File(it) },
+                            suggestedName = state.currentFile?.name ?: "diagram.kuml.kts",
+                            strings = strings,
+                        )
+                    if (chosen != null) {
+                        FileMenu.writeScript(file = chosen, content = state.script)
+                        state.markSaved(chosen)
+                    }
+                },
+            )
             Separator()
             // P3, design review — Export the rendered diagram. Disabled until something has
             // actually been rendered; SVG export is zero-dependency (state.lastSvg is already
@@ -599,22 +615,27 @@ fun FrameWindowScope.MainWindow(
                     docSvg = knowledgeOpen?.state?.docSvg,
                     lastSvg = singleFileSvg(simulationBaseSvg = state.simulation?.baseSvg, lastSvg = state.lastSvg),
                 )
+            val exportEnabled = menuSvg != null
             Item(
                 strings.menuFileExportSvg,
-                enabled = menuSvg != null,
+                icon = menuIcon(id = MenuEntryId.FILE_EXPORT_SVG, enabled = exportEnabled),
+                enabled = exportEnabled,
                 onClick = { exportShownImage(ImageFormat.SVG) },
             )
             Item(
                 strings.menuFileExportPng,
-                enabled = menuSvg != null,
+                icon = menuIcon(id = MenuEntryId.FILE_EXPORT_PNG, enabled = exportEnabled),
+                enabled = exportEnabled,
                 onClick = { exportShownImage(ImageFormat.PNG) },
             )
             Menu(strings.menuFileExportWorkspace) {
                 // Engineering workspaces are not exported (no document tree); the dialog explains why when opened
                 // for an untrusted workspace, and the menu stays disabled here for engineering mode.
+                val pdfEnabled = state.openWorkspace is OpenWorkspace.Knowledge
                 Item(
                     strings.menuFileExportWorkspacePdf,
-                    enabled = state.openWorkspace is OpenWorkspace.Knowledge,
+                    icon = menuIcon(id = MenuEntryId.FILE_EXPORT_WORKSPACE_PDF, enabled = pdfEnabled),
+                    enabled = pdfEnabled,
                     onClick = { pdfDialogRequest = PdfExportFormState() },
                 )
             }
@@ -637,7 +658,7 @@ fun FrameWindowScope.MainWindow(
                 }
             }
             Separator()
-            Item(strings.menuFileQuit, onClick = {
+            Item(strings.menuFileQuit, icon = menuIcon(id = MenuEntryId.FILE_QUIT), onClick = {
                 confirmUnsavedAndThen {
                     stopSimulation()
                     state.mcpShutdown?.invoke()
@@ -649,17 +670,21 @@ fun FrameWindowScope.MainWindow(
         Menu(strings.menuEdit) {
             // P2, design review — wired to RSyntaxTextArea's built-in undo manager
             // (EditorPane.EditorActions) instead of the previous no-op placeholders.
+            val undoEnabled = showsEditorPane && (editorActions?.canUndo?.value ?: false)
+            val redoEnabled = showsEditorPane && (editorActions?.canRedo?.value ?: false)
             Item(
                 strings.menuEditUndo,
+                icon = menuIcon(id = MenuEntryId.EDIT_UNDO, enabled = undoEnabled),
                 // V-next: `showsEditorPane` (not bare `showsEditor`) so this also enables
                 // while editing a Knowledge document — see `showsEditorPane`'s KDoc above.
-                enabled = showsEditorPane && (editorActions?.canUndo?.value ?: false),
+                enabled = undoEnabled,
                 shortcut = platformShortcut(key = Key.Z),
                 onClick = { editorActions?.undo?.invoke() },
             )
             Item(
                 strings.menuEditRedo,
-                enabled = showsEditorPane && (editorActions?.canRedo?.value ?: false),
+                icon = menuIcon(id = MenuEntryId.EDIT_REDO, enabled = redoEnabled),
+                enabled = redoEnabled,
                 shortcut = platformShortcut(key = Key.Z, shift = true),
                 onClick = { editorActions?.redo?.invoke() },
             )
@@ -672,6 +697,7 @@ fun FrameWindowScope.MainWindow(
             // editor mounted to show it against.
             Item(
                 strings.menuEditFind,
+                icon = menuIcon(id = MenuEntryId.EDIT_FIND, enabled = showsEditorPane),
                 enabled = showsEditorPane,
                 shortcut = platformShortcut(key = Key.F),
                 onClick = {
@@ -737,18 +763,21 @@ fun FrameWindowScope.MainWindow(
                 Menu(strings.menuViewMode) {
                     RadioButtonItem(
                         strings.viewModeSource,
+                        icon = menuIcon(id = MenuEntryId.VIEW_MODE_SOURCE),
                         selected = state.viewMode == AppState.ViewMode.SOURCE,
                         shortcut = platformShortcut(key = Key.One),
                         onClick = { state.viewMode = AppState.ViewMode.SOURCE },
                     )
                     RadioButtonItem(
                         strings.viewModeSplit,
+                        icon = menuIcon(id = MenuEntryId.VIEW_MODE_SPLIT),
                         selected = state.viewMode == AppState.ViewMode.SPLIT,
                         shortcut = platformShortcut(key = Key.Two),
                         onClick = { state.viewMode = AppState.ViewMode.SPLIT },
                     )
                     RadioButtonItem(
                         strings.viewModeDiagram,
+                        icon = menuIcon(id = MenuEntryId.VIEW_MODE_DIAGRAM),
                         selected = state.viewMode == AppState.ViewMode.DIAGRAM,
                         shortcut = platformShortcut(key = Key.Three),
                         onClick = { state.viewMode = AppState.ViewMode.DIAGRAM },
@@ -760,6 +789,7 @@ fun FrameWindowScope.MainWindow(
             // P6, design review — actually opens the docs site instead of doing nothing.
             Item(
                 strings.menuHelpDocs,
+                icon = menuIcon(id = MenuEntryId.HELP_DOCS),
                 onClick = {
                     runCatching {
                         if (java.awt.Desktop.isDesktopSupported()) {
@@ -772,20 +802,24 @@ fun FrameWindowScope.MainWindow(
             )
             // P6, design review — the About text already existed in Strings; only the
             // dialog to show it was missing.
-            Item(strings.menuHelpAbout, onClick = { showAboutDialog = true })
+            Item(strings.menuHelpAbout, icon = menuIcon(id = MenuEntryId.HELP_ABOUT), onClick = { showAboutDialog = true })
         }
         // V3.0.24 — AI panel menu
         Menu(strings.menuAi) {
             // V3.7.1 — provider/model/key configuration, first item so it's found where a
             // user reporting a crash on "no api key configured" actually looked for it.
-            Item(strings.menuAiProviderSettings, onClick = { showAiProviderSettings = true })
+            Item(strings.menuAiProviderSettings, icon = menuIcon(id = MenuEntryId.AI_PROVIDER_SETTINGS), onClick = {
+                showAiProviderSettings =
+                    true
+            })
             Separator()
             CheckboxItem(
                 text = strings.aiPanelTitle,
+                icon = menuIcon(id = MenuEntryId.AI_PANEL),
                 checked = state.aiPanelOpen,
                 onCheckedChange = { state.aiPanelOpen = it },
             )
-            Item(strings.aiNewSession, onClick = { aiState.newSession() })
+            Item(strings.aiNewSession, icon = menuIcon(id = MenuEntryId.AI_NEW_SESSION), onClick = { aiState.newSession() })
         }
         // V3.0.13 — Tools menu
         Menu(strings.menuTools) {
@@ -793,34 +827,42 @@ fun FrameWindowScope.MainWindow(
             // Esc + close-icon: the editor's RSyntaxTextArea is a heavyweight Swing component
             // that can swallow Esc before Window(onKeyEvent) ever sees it (see Main.kt), so a
             // menu item is the one route that always works.
+            val simulateEnabled = state.simulation == null && !state.simulationStarting && state.lastDiagramSimulatable
+            val simulationRunning = state.simulation != null
             Item(
                 strings.menuToolsSimulate,
+                icon = menuIcon(id = MenuEntryId.TOOLS_SIMULATE, enabled = simulateEnabled),
                 // Review fix — also gated on `!state.simulationStarting`: `state.simulation`
                 // isn't assigned until the async start (script eval + ELK layout, 1-3s) actually
                 // finishes, so without this the item stayed enabled for that whole window and a
                 // second Ctrl+R started a second SimulationSession (see `startSimulation()`'s
                 // KDoc-level comment and `AppState.simulationStarting`'s KDoc).
-                enabled = state.simulation == null && !state.simulationStarting && state.lastDiagramSimulatable,
+                enabled = simulateEnabled,
                 shortcut = platformShortcut(key = Key.R),
                 onClick = { startSimulation() },
             )
             Item(
                 strings.menuToolsSimulateStop,
-                enabled = state.simulation != null,
+                icon = menuIcon(id = MenuEntryId.TOOLS_STOP_SIMULATION, enabled = simulationRunning),
+                enabled = simulationRunning,
                 onClick = { stopSimulation() },
             )
             // Cmd/Ctrl+Shift+I lives here, not in a key handler: the editor's RSyntaxTextArea
             // swallows key presses, a menu accelerator is the one route that always works.
             Item(
                 strings.menuToolsSimInspector,
-                enabled = state.simulation != null,
+                icon = menuIcon(id = MenuEntryId.TOOLS_SIM_INSPECTOR, enabled = simulationRunning),
+                enabled = simulationRunning,
                 shortcut = platformShortcut(key = Key.I, shift = true),
                 onClick = { state.simulation?.let { it.inspectorVisible = !it.inspectorVisible } },
             )
             Separator()
-            Item(strings.menuToolsMcpServer, onClick = { showMcpDialog = true })
+            Item(strings.menuToolsMcpServer, icon = menuIcon(id = MenuEntryId.TOOLS_MCP_SERVER), onClick = { showMcpDialog = true })
             Separator()
-            Item(strings.menuToolsPluginManager, onClick = { showPluginManager = true })
+            Item(strings.menuToolsPluginManager, icon = menuIcon(id = MenuEntryId.TOOLS_PLUGIN_MANAGER), onClick = {
+                showPluginManager =
+                    true
+            })
         }
     }
 

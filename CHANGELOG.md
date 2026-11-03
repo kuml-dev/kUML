@@ -6,6 +6,20 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### kUML Desktop: menu icons
+
+**Additions**
+
+- Menu items now show an icon next to the label (27 of the fixed entries across File, Edit, View > View mode, Help, AI and Tools). Selection lists such as theme, language and recent files, and the watermark toggle intentionally stay text-only.
+- 19 new stroke-only icons in `KumlIcons` (`DocumentNew`, `FolderOpen`, `WorkspaceNew`, `Workspace`, `Save`, `SaveAs`, `Quit`, `Undo`, `Redo`, `Search`, `Help`, `Info`, `Settings`, `Ai`, `ChatNew`, `SimStart`, `SimStop`, `Server`, `Plugins`). `Close`, `SaveSvg`, `SavePng`, `PdfDocument`, `SimInspector` and the view-mode icons are reused.
+- `MenuEntryId`, `MainMenuIcons` and `menuIcon(id, enabled)` in `ui/menu/MainMenuEntries.kt` map every menu entry to its icon (exhaustive `when`, so a new entry cannot be forgotten) and tint it 16x16 px; disabled entries are dimmed to 35 % alpha on the icon itself.
+
+**Changes**
+
+- `KumlIcons`: the internal zoom builder accepts "no sign" (plain lens) and the save builder accepts "no badge" (plain tray). `SaveSvg` and `SavePng` are unchanged; a regression test pins their path data.
+
+**Not seen live:** the tint against the macOS dark system menu bar and the dimming of disabled items are only verified by headless tests (colour logic and rendered alpha), not on a real native menu.
+
 ### Vault examples 66 to 73: note kinds and formatted note text
 
 **Additions**

@@ -145,6 +145,8 @@ xref:reference:layout.adoc[Layout].
 
 Menu shortcuts follow the platform convention: *⌘ (Command)* on macOS, *Ctrl* on Windows and Linux.
 
+Menu items carry an icon next to the label; selection lists (theme, language, recent files) and the watermark toggle stay text-only.
+
 [cols="2,2,2"]
 |===
 | Action | macOS | Windows / Linux
