@@ -3348,10 +3348,8 @@ public object KumlSvgRenderer {
                     }
                 }
                 // Wave C2: pin-to-pin object flows and handler pins end at the pin square instead of the box edge.
-                var pinSource: dev.kuml.layout.Point? = null
-                var pinTarget: dev.kuml.layout.Point? = null
-                var pinSourceSide: dev.kuml.sysml2.PinSide? = null
-                var pinTargetSide: dev.kuml.sysml2.PinSide? = null
+                var pinSource: dev.kuml.layout.bridge.port.PortAttachment? = null
+                var pinTarget: dev.kuml.layout.bridge.port.PortAttachment? = null
                 objectFlowsById[edgeId.value]?.let { f ->
                     val sb = shiftedBoundsById[f.sourceNodeId]
                     val tb = shiftedBoundsById[f.targetNodeId]
@@ -3361,19 +3359,13 @@ public object KumlSvgRenderer {
                     val tp = f.targetPin
                     if (sp != null && sb != null && sd != null) {
                         dev.kuml.io.svg.sysml2
-                            .actionPinAnchorWithSide(def = sd, bounds = sb, pinName = sp, direction = dev.kuml.sysml2.PinDirection.Output)
-                            ?.let {
-                                pinSource = it.first
-                                pinSourceSide = it.second
-                            }
+                            .actionPinAttachment(def = sd, bounds = sb, pinName = sp, direction = dev.kuml.sysml2.PinDirection.Output)
+                            ?.let { pinSource = it }
                     }
                     if (tp != null && tb != null && td != null) {
                         dev.kuml.io.svg.sysml2
-                            .actionPinAnchorWithSide(def = td, bounds = tb, pinName = tp, direction = dev.kuml.sysml2.PinDirection.Input)
-                            ?.let {
-                                pinTarget = it.first
-                                pinTargetSide = it.second
-                            }
+                            .actionPinAttachment(def = td, bounds = tb, pinName = tp, direction = dev.kuml.sysml2.PinDirection.Input)
+                            ?.let { pinTarget = it }
                     }
                 }
                 handlersById[edgeId.value]?.let { h ->
@@ -3382,21 +3374,23 @@ public object KumlSvgRenderer {
                     val hd = actionById[h.handlerNodeId]
                     if (hp != null && hb != null && hd != null) {
                         dev.kuml.io.svg.sysml2
-                            .actionPinAnchorWithSide(def = hd, bounds = hb, pinName = hp, direction = dev.kuml.sysml2.PinDirection.Input)
-                            ?.let {
-                                pinTarget = it.first
-                                pinTargetSide = it.second
-                            }
+                            .actionPinAttachment(def = hd, bounds = hb, pinName = hp, direction = dev.kuml.sysml2.PinDirection.Input)
+                            ?.let { pinTarget = it }
                     }
                 }
-                val anchoredRoute = routeWithEndpoints(route = boundaryRoute, source = pinSource, target = pinTarget)
+                val anchoredRoute =
+                    routeWithEndpoints(
+                        route = boundaryRoute,
+                        source = pinSource?.let(dev.kuml.layout.bridge.port.PortEdgeClamp::borderPoint),
+                        target = pinTarget?.let(dev.kuml.layout.bridge.port.PortEdgeClamp::borderPoint),
+                    )
                 // Wave C2b: pin edges run axis parallel with a perpendicular stub at the pin.
                 val clippedRoute =
-                    if (pinSourceSide != null || pinTargetSide != null) {
+                    if (pinSource != null || pinTarget != null) {
                         dev.kuml.io.svg.sysml2.Sysml2PinRouting.orthogonalize(
                             route = anchoredRoute,
-                            sourceSide = pinSourceSide,
-                            targetSide = pinTargetSide,
+                            source = pinSource,
+                            target = pinTarget,
                             obstacles =
                                 shiftedBoundsById
                                     .filterKeys { it != endpoints?.first && it != endpoints?.second }

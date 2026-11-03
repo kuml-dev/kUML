@@ -1,14 +1,23 @@
+@file:Suppress("RequireNamedArguments")
+
 package dev.kuml.io.svg.sysml2
 
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.ActObstacleRouting
+import dev.kuml.layout.bridge.port.PortAttachment
 import dev.kuml.layout.bridge.port.PortEdgeClamp
+import dev.kuml.layout.bridge.port.PortFace
+import dev.kuml.sysml2.ActionDefinition
+import dev.kuml.sysml2.ActionPin
+import dev.kuml.sysml2.PinDirection
 import dev.kuml.sysml2.PinSide
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.floats.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import kotlin.math.abs
 
 private fun direct(
@@ -17,6 +26,45 @@ private fun direct(
     x2: Float,
     y2: Float,
 ): EdgeRoute.Direct = EdgeRoute.Direct(source = Point(x = x1, y = y1), target = Point(x = x2, y = y2))
+
+/** A pin square whose [face] border point is exactly [point] (the pin is 10 px wide, like the drawn one). */
+private fun attachmentAt(
+    point: Point,
+    face: PortFace,
+): PortAttachment {
+    val origin =
+        when (face) {
+            PortFace.Left -> Point(x = point.x, y = point.y - 5f)
+            PortFace.Right -> Point(x = point.x - 10f, y = point.y - 5f)
+            PortFace.Top -> Point(x = point.x - 5f, y = point.y)
+            PortFace.Bottom -> Point(x = point.x - 5f, y = point.y - 10f)
+        }
+    return PortAttachment(rect = Rect(origin = origin, size = Size(width = 10f, height = 10f)), face = face)
+}
+
+private fun PinSide.face(isOutput: Boolean): PortFace =
+    when (this) {
+        PinSide.Left -> PortFace.Left
+        PinSide.Right -> PortFace.Right
+        PinSide.Top -> PortFace.Top
+        PinSide.Bottom -> PortFace.Bottom
+        PinSide.Auto -> if (isOutput) PortFace.Right else PortFace.Left
+    }
+
+private fun pointsOf(route: EdgeRoute): List<Point> =
+    when (route) {
+        is EdgeRoute.Direct -> listOf(route.source, route.target)
+        is EdgeRoute.OrthogonalRounded -> listOf(route.source) + route.waypoints + listOf(route.target)
+        is EdgeRoute.TreeRounded -> listOf(route.source) + route.waypoints + listOf(route.target)
+        is EdgeRoute.Bezier -> listOf(route.source, route.target)
+    }
+
+private fun segLen(
+    a: Point,
+    b: Point,
+): Float = abs(b.x - a.x) + abs(b.y - a.y)
+
+private fun actionWith(vararg pins: ActionPin): ActionDefinition = ActionDefinition(id = "A", name = "A", pins = pins.toList())
 
 class Sysml2C2bUnitTest :
     FunSpec({
@@ -118,8 +166,8 @@ class Sysml2C2bUnitTest :
             val out =
                 Sysml2PinRouting.orthogonalize(
                     route = route,
-                    sourceSide = PinSide.Bottom,
-                    targetSide = PinSide.Top,
+                    source = attachmentAt(route.source, PortFace.Bottom),
+                    target = attachmentAt(route.target, PortFace.Top),
                 ) as EdgeRoute.OrthogonalRounded
             val pts = listOf(out.source) + out.waypoints + listOf(out.target)
             for (i in 0 until pts.size - 1) (abs(pts[i + 1].x - pts[i].x) <= 0.5f || abs(pts[i + 1].y - pts[i].y) <= 0.5f) shouldBe true
@@ -135,8 +183,8 @@ class Sysml2C2bUnitTest :
             val out =
                 Sysml2PinRouting.orthogonalize(
                     route = route,
-                    sourceSide = PinSide.Bottom,
-                    targetSide = PinSide.Left,
+                    source = attachmentAt(route.source, PortFace.Bottom),
+                    target = attachmentAt(route.target, PortFace.Left),
                 ) as EdgeRoute.OrthogonalRounded
             val pts = listOf(out.source) + out.waypoints + listOf(out.target)
             for (i in 0 until pts.size - 1) (abs(pts[i + 1].x - pts[i].x) <= 0.5f || abs(pts[i + 1].y - pts[i].y) <= 0.5f) shouldBe true
@@ -162,8 +210,8 @@ class Sysml2C2bUnitTest :
                 val out =
                     Sysml2PinRouting.orthogonalize(
                         route = route,
-                        sourceSide = srcSide,
-                        targetSide = tgtSide,
+                        source = attachmentAt(route.source, srcSide.face(isOutput = true)),
+                        target = attachmentAt(route.target, tgtSide.face(isOutput = false)),
                     ) as EdgeRoute.OrthogonalRounded
                 val pts = listOf(out.source) + out.waypoints + listOf(out.target)
                 val a = pts[pts.size - 2]
@@ -181,11 +229,174 @@ class Sysml2C2bUnitTest :
                     waypoints = emptyList(),
                     cornerRadiusPx = 4f,
                 )
-            Sysml2PinRouting.orthogonalize(route = route, sourceSide = PinSide.Bottom, targetSide = PinSide.Top) shouldBe route
+            Sysml2PinRouting.orthogonalize(
+                route = route,
+                source = attachmentAt(route.source, PortFace.Bottom),
+                target = attachmentAt(route.target, PortFace.Top),
+            ) shouldBe route
         }
 
         test("orthogonalize: no pin at either end leaves the route alone") {
             val route = EdgeRoute.Direct(source = Point(x = 0f, y = 0f), target = Point(x = 30f, y = 40f))
-            Sysml2PinRouting.orthogonalize(route = route, sourceSide = null, targetSide = null) shouldBe route
+            Sysml2PinRouting.orthogonalize(route = route, source = null, target = null) shouldBe route
+        }
+
+        // ---- Nacharbeit 3: ACT routes derived from the pin rectangles -------------------------------------------------
+
+        // Literals computed from the pre-refactor formula `bounds + centre + (+-PIN_SIZE/2)` for a 120x80 box at (100, 50).
+        val bounds = rect(100f, 50f, 120f, 80f)
+        val oldAnchors =
+            listOf(
+                Triple(PinSide.Left, Point(x = 95f, y = 90f), PortFace.Left),
+                Triple(PinSide.Right, Point(x = 225f, y = 90f), PortFace.Right),
+                Triple(PinSide.Top, Point(x = 160f, y = 45f), PortFace.Top),
+                Triple(PinSide.Bottom, Point(x = 160f, y = 135f), PortFace.Bottom),
+            )
+
+        test("actionPinAttachment: rect is the drawn pin square and the face is the pin's outward face") {
+            for ((side, _, face) in oldAnchors) {
+                for (dir in PinDirection.entries) {
+                    val def = actionWith(ActionPin(name = "p", direction = dir, side = side))
+                    val att = actionPinAttachment(def = def, bounds = bounds, pinName = "p", direction = dir)!!
+                    val (cx, cy) = pinPositions(count = 1, side = side, w = 120f, h = 80f)[0]
+                    abs(att.rect.origin.x - (100f + cx - PIN_SIZE / 2f)) shouldBe 0f
+                    abs(att.rect.origin.y - (50f + cy - PIN_SIZE / 2f)) shouldBe 0f
+                    att.rect.size.width shouldBe PIN_SIZE
+                    att.rect.size.height shouldBe PIN_SIZE
+                    att.face shouldBe face
+                }
+            }
+        }
+
+        test("actionPinAttachment: border point equals the former pin anchor on all sides and directions") {
+            for ((side, anchor, _) in oldAnchors) {
+                for (dir in PinDirection.entries) {
+                    val def = actionWith(ActionPin(name = "p", direction = dir, side = side))
+                    val p = PortEdgeClamp.borderPoint(actionPinAttachment(def = def, bounds = bounds, pinName = "p", direction = dir)!!)
+                    abs(p.x - anchor.x) shouldBe 0f
+                    abs(p.y - anchor.y) shouldBe 0f
+                }
+            }
+        }
+
+        test("actionPinAttachment: Auto side resolves by direction; unknown pin gives null") {
+            val def =
+                actionWith(
+                    ActionPin(name = "in", direction = PinDirection.Input),
+                    ActionPin(name = "out", direction = PinDirection.Output),
+                )
+            actionPinAttachment(def, bounds, "in", PinDirection.Input)!!.face shouldBe PortFace.Left
+            actionPinAttachment(def, bounds, "out", PinDirection.Output)!!.face shouldBe PortFace.Right
+            actionPinAttachment(def, bounds, "nope", PinDirection.Input) shouldBe null
+            actionPinAttachment(def, bounds, "in", PinDirection.Output) shouldBe null
+        }
+
+        val faces = PortFace.entries
+        val srcP = Point(x = 300f, y = 300f)
+
+        test("orthogonalize: every face as source and as target ends on the border, perpendicular, with a full stub") {
+            val others = listOf(Point(x = 100f, y = 100f), Point(x = 520f, y = 120f), Point(x = 140f, y = 560f), Point(x = 520f, y = 540f))
+            for (face in faces) {
+                for (other in others) {
+                    for (asSource in listOf(true, false)) {
+                        val mine = attachmentAt(srcP, face)
+                        val theirs = attachmentAt(other, PortFace.Top)
+                        val route = EdgeRoute.Direct(source = if (asSource) srcP else other, target = if (asSource) other else srcP)
+                        val out =
+                            Sysml2PinRouting.orthogonalize(
+                                route = route,
+                                source = if (asSource) mine else theirs,
+                                target = if (asSource) theirs else mine,
+                            )
+                        val pts = pointsOf(out)
+                        for (i in 0 until pts.size - 1) {
+                            (abs(pts[i + 1].x - pts[i].x) <= 0.5f || abs(pts[i + 1].y - pts[i].y) <= 0.5f) shouldBe true
+                        }
+                        val (pin, nb) = if (asSource) pts[0] to pts[1] else pts.last() to pts[pts.size - 2]
+                        abs(pin.x - srcP.x) shouldBe 0f
+                        abs(pin.y - srcP.y) shouldBe 0f
+                        val n = PortEdgeClamp.normal(face)
+                        // perpendicular and coming from outside the pin
+                        ((nb.x - pin.x) * n.x + (nb.y - pin.y) * n.y).shouldBeGreaterThanOrEqual(Sysml2PinRouting.STUB_PX)
+                        (abs(nb.x - pin.x) * abs(n.y) + abs(nb.y - pin.y) * abs(n.x)) shouldBe 0f
+                    }
+                }
+            }
+        }
+
+        test("orthogonalize: same face at both ends yields a U route without a backward step at the pin") {
+            for (face in faces) {
+                val a = Point(x = 100f, y = 100f)
+                val b = Point(x = 300f, y = 220f)
+                val out =
+                    Sysml2PinRouting.orthogonalize(
+                        route = EdgeRoute.Direct(source = a, target = b),
+                        source = attachmentAt(a, face),
+                        target = attachmentAt(b, face),
+                    )
+                val pts = pointsOf(out)
+                for (i in 0 until pts.size - 1) {
+                    (abs(pts[i + 1].x - pts[i].x) <= 0.5f || abs(pts[i + 1].y - pts[i].y) <= 0.5f) shouldBe true
+                }
+                val n = PortEdgeClamp.normal(face)
+                ((pts[1].x - a.x) * n.x + (pts[1].y - a.y) * n.y).shouldBeGreaterThanOrEqual(Sysml2PinRouting.STUB_PX)
+                val e = pts.last()
+                val l = pts[pts.size - 2]
+                ((l.x - e.x) * n.x + (l.y - e.y) * n.y).shouldBeGreaterThanOrEqual(Sysml2PinRouting.STUB_PX)
+            }
+        }
+
+        test("actionPinAttachment: overlapping pins on a tiny box stay finite and deterministic") {
+            val pins = (0 until 3).map { ActionPin(name = "p$it", direction = PinDirection.Output, side = PinSide.Right) }
+            val def = actionWith(*pins.toTypedArray())
+            val tiny = rect(0f, 0f, 60f, 20f)
+
+            fun run(): List<Point> =
+                pins.flatMap { p ->
+                    val att = actionPinAttachment(def, tiny, p.name, PinDirection.Output)!!
+                    val bp = PortEdgeClamp.borderPoint(att)
+                    val out =
+                        Sysml2PinRouting.orthogonalize(
+                            route = EdgeRoute.Direct(source = bp, target = Point(x = 200f, y = 100f)),
+                            source = att,
+                            target = attachmentAt(Point(x = 200f, y = 100f), PortFace.Left),
+                        )
+                    // the end lies on the border of its own rect
+                    abs(pointsOf(out).first().x - (att.rect.origin.x + att.rect.size.width)) shouldBe 0f
+                    pointsOf(out)
+                }
+            val first = run()
+            first.all { it.x.isFinite() && it.y.isFinite() } shouldBe true
+            run() shouldBe first
+        }
+
+        test("orthogonalize: an end without a pin keeps the route's own end point") {
+            val route = EdgeRoute.Direct(source = Point(x = 11f, y = 22f), target = Point(x = 300f, y = 200f))
+            val tgt = attachmentAt(route.target, PortFace.Left)
+            val onlyTarget = Sysml2PinRouting.orthogonalize(route = route, source = null, target = tgt)
+            pointsOf(onlyTarget).first() shouldBe route.source
+            pointsOf(onlyTarget).last() shouldBe route.target
+            val src = attachmentAt(route.source, PortFace.Right)
+            val onlySource = Sysml2PinRouting.orthogonalize(route = route, source = src, target = null)
+            pointsOf(onlySource).first() shouldBe route.source
+            pointsOf(onlySource).last() shouldBe route.target
+        }
+
+        test("orthogonalize: obstacle between the pins keeps the stubs and avoids the obstacle") {
+            val a = Point(x = 100f, y = 100f)
+            val b = Point(x = 400f, y = 100f)
+            val obstacle = rect(200f, 60f, 100f, 80f)
+            val out =
+                Sysml2PinRouting.orthogonalize(
+                    route = EdgeRoute.Direct(source = a, target = b),
+                    source = attachmentAt(a, PortFace.Right),
+                    target = attachmentAt(b, PortFace.Left),
+                    obstacles = listOf(obstacle),
+                )
+            val pts = pointsOf(out)
+            ActObstacleRouting.hits(path = pts, obstacles = listOf(obstacle)) shouldBe false
+            segLen(pts[0], pts[1]).shouldBeGreaterThanOrEqual(Sysml2PinRouting.STUB_PX)
+            segLen(pts[pts.size - 2], pts.last()).shouldBeGreaterThanOrEqual(Sysml2PinRouting.STUB_PX)
+            pts[0] shouldNotBe pts.last()
         }
     })

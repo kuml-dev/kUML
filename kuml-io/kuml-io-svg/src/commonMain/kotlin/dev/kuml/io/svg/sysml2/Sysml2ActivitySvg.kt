@@ -5,6 +5,9 @@ import dev.kuml.io.svg.fmt3
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.bridge.ActTextWrap
+import dev.kuml.layout.bridge.port.PortAttachment
+import dev.kuml.layout.bridge.port.PortEdgeClamp
+import dev.kuml.layout.bridge.port.toPortFace
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActionPin
@@ -217,7 +220,7 @@ private fun SvgBuilder.renderActionPins(
 /**
  * Local (node-relative) pin-square centres for [count] pins on [side] of a [w] x [h] box. Left
  * and right pins are spread along the height, top and bottom pins along the width; one pin sits in
- * the middle. Shared by the pin drawing and the pin-to-pin edge anchoring ([actionPinAnchor]).
+ * the middle. Shared by the pin drawing and the pin-to-pin edge anchoring ([actionPinAttachment]).
  */
 internal fun pinPositions(
     count: Int,
@@ -241,36 +244,29 @@ internal fun pinPositions(
 }
 
 /**
- * Absolute point where an edge docks at the outer edge of the pin named [pinName] (direction
- * [direction]) of [def], laid out at [bounds]; `null` when the pin does not exist.
+ * The pin square named [pinName] (direction [direction]) of [def], laid out at [bounds], together with the face
+ * an edge docks at; `null` when the pin does not exist. The rectangle is exactly the square drawn by
+ * [renderActionPins] (centre from [pinPositions], side [PIN_SIZE]); the face is the pin's outward face
+ * ([toPortFace], so [PinSide.Auto] resolves by direction). Edge ends are derived from it through
+ * [PortEdgeClamp.borderPoint], the same geometry source as the IBD and PAR port ends.
  */
-internal fun actionPinAnchor(
+internal fun actionPinAttachment(
     def: ActionDefinition,
     bounds: dev.kuml.layout.Rect,
     pinName: String,
     direction: PinDirection,
-): dev.kuml.layout.Point? = actionPinAnchorWithSide(def = def, bounds = bounds, pinName = pinName, direction = direction)?.first
-
-/** Like [actionPinAnchor], additionally returning the box side the pin sits on (wave C2b: pin routing). */
-internal fun actionPinAnchorWithSide(
-    def: ActionDefinition,
-    bounds: dev.kuml.layout.Rect,
-    pinName: String,
-    direction: PinDirection,
-): Pair<dev.kuml.layout.Point, PinSide>? {
+): PortAttachment? {
     val pin = def.pins.firstOrNull { it.name == pinName && it.direction == direction } ?: return null
     val side = pin.effectiveSide
     val onSide = def.pins.filter { it.effectiveSide == side }
     val idx = onSide.indexOf(pin)
     val (cx, cy) = pinPositions(count = onSide.size, side = side, w = bounds.size.width, h = bounds.size.height)[idx]
-    val (ox, oy) =
-        when (side) {
-            PinSide.Left -> -PIN_SIZE / 2f to 0f
-            PinSide.Right -> PIN_SIZE / 2f to 0f
-            PinSide.Top -> 0f to -PIN_SIZE / 2f
-            else -> 0f to PIN_SIZE / 2f
-        }
-    return dev.kuml.layout.Point(x = bounds.origin.x + cx + ox, y = bounds.origin.y + cy + oy) to side
+    val rect =
+        dev.kuml.layout.Rect(
+            origin = dev.kuml.layout.Point(x = bounds.origin.x + cx - PIN_SIZE / 2f, y = bounds.origin.y + cy - PIN_SIZE / 2f),
+            size = dev.kuml.layout.Size(width = PIN_SIZE, height = PIN_SIZE),
+        )
+    return PortAttachment(rect = rect, face = side.toPortFace(isOutput = direction == PinDirection.Output))
 }
 
 /** Id of a pin label in the label plan: action id, direction and pin name. */

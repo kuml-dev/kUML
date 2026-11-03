@@ -167,6 +167,25 @@ All notable changes to this project are documented here. Format follows
 - Covered by unit tests only (row order and clipboard text, browser outcomes, license loader incl. hostile paths, build-date parsing, string catalogs). The dialog layout, the hover cursor, a real browser launch and the real clipboard have not been seen running (the desktop MCP server was unavailable).
 - Open points: the README and handbook still use "modelling" in several places; the kuml.dev footer says "© {year} kUML.".
 
+### Nacharbeit 3: ACT routes from pin rectangles
+
+**Changes**
+
+- ACT edge ends are now derived from the pin rectangles, as for IBD and PAR ports: `actionPinAttachment` (replacing `actionPinAnchorWithSide`) returns a `PortAttachment` (the drawn pin square plus its outward face), the end point is `PortEdgeClamp.borderPoint` of it, and `Sysml2PinRouting.orthogonalize` takes `PortAttachment?` for source and target instead of `PinSide?`. The face normal comes from the attachment, so the source and target side mapping (`PinSide.toPortFace`) happens in one place. `actionPinAnchor` had no other caller and was removed.
+- The routing logic itself did not change: same L, Z and S shapes, same 16 px stub, same obstacle routing. Only where the end points and directions come from changed.
+
+**Additions**
+
+- Unit tests (`Sysml2C2bUnitTest`): the attachment rectangle equals the drawn pin square; its border point equals the former anchor (literal values from the old formula) on all four sides for inputs and outputs; every face as source and as target ends on the border with a perpendicular full stub; same face at both ends gives a U route; three pins on a tiny box stay finite and deterministic; an end without a pin keeps its end point; an obstacle between the pins is avoided with both stubs kept. The five existing `orthogonalize` tests changed only their call form, expected values are unchanged.
+
+**Images**
+
+- No image changed: 37 SVG and PNG renderings (all vault examples with SysML 2 or activity content, plus the synthetic four-side ACT script of `PortEdgeBorderContractTest`) are byte-identical before and after (sha256 per SVG, `cmp` per PNG). The border point is computed from the rectangle, which could in theory differ from the old anchor by float rounding; it did not in any case.
+
+**Not done (open)**
+
+- ACT does not use `PortEdgeClamp.clamp`. Its stub contract differs (16 px, so that the arrowhead lies completely on a straight run after the 4 px bend, against `max(ARROW_LEN_PX, 4)` there), and unifying them is blocked by the unverified IBD/PAR corner overlap above.
+
 ### Nacharbeit 2: ACT pin stub
 
 **Changes**
@@ -180,7 +199,7 @@ All notable changes to this project are documented here. Format follows
 
 **Not done (open)**
 
-- ACT routes still start from pin end points rather than pin rectangles; recommended as a separate wave (move ACT pin geometry into the layout bridge as `PortAttachment`, reuse `PortEdgeClamp` with a bend-radius-aware stub, extend `PortEdgeBorderContractTest` to ACT).
+- ~~ACT routes still start from pin end points rather than pin rectangles.~~ Done in "Nacharbeit 3: ACT routes from pin rectangles" above (route building now takes `PortAttachment`s). Reusing `PortEdgeClamp.clamp` is still open, see there.
 - IBD/PAR stub `max(ARROW_LEN_PX, 4)` may let an arrowhead overlap a 4 px corner directly at a port; unverified.
 - `Sysml2DiagramLabelPlan` keeps a private copy of the 12 px arrowhead length.
 
@@ -204,7 +223,7 @@ All notable changes to this project are documented here. Format follows
 **Not done (open)**
 
 - ~~ACT keeps its own 16 px stub at a pin; not unified.~~ Done in "Nacharbeit 2: ACT pin stub" below: the stub is now derived from the shared arrowhead length (a flat 12 px was rejected).
-- The ACT route building (`orthogonalize`) still works on end points, not on port rectangles, so only the face normal is shared with `PortEdgeClamp`, not `borderPoint` or `clamp`.
+- ~~The ACT route building (`orthogonalize`) still works on end points, not on port rectangles.~~ Done in "Nacharbeit 3: ACT routes from pin rectangles": it now takes `PortAttachment`s and shares `borderPoint` and the face normal; `clamp` is still not used by ACT.
 
 ### Notes N3: formatted note text
 
