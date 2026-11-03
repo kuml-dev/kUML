@@ -17,6 +17,17 @@ panes can be moved:
 
 The position is saved when you release the mouse and restored on the next start.
 
+== Knowledge Workspace: column widths
+
+A Knowledge workspace shows three columns: the document tree, the Markdown editor and the diagram preview. Two dividers between them can be moved.
+
+* The columns start at 20 % (tree), 40 % (editor) and 40 % (preview). The first divider sets the share of the tree; the second sets the editor's share of the area to the right of the tree. Moving the first divider therefore scales editor and preview together.
+* Drag a divider with the mouse, or focus it and use the arrow keys (2 % per step, hold Shift for 10 %); Home and End jump to the limits.
+* Double-click a divider, or press Enter on it, to return that divider to its starting position.
+* The tree can take at most 40 % of the width, the editor at most 85 % of its area. Every column keeps at least 200 dp.
+* In a window narrower than 616 dp the minimum widths cannot all be met; the columns then use the starting position 20 / 40 / 40. Your chosen widths are kept and apply again when the window grows.
+* The widths are saved when you release the divider and restored the next time kUML Desktop starts.
+
 == Moving and zooming the diagram
 
 In the preview (and in the Knowledge Workspace viewer and the AI patch preview):

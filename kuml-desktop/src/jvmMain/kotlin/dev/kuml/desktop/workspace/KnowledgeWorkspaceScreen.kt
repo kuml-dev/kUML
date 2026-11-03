@@ -1,10 +1,8 @@
 package dev.kuml.desktop.workspace
 
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -15,6 +13,8 @@ import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.editor.EditorActions
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.render.DesktopRenderController
+import dev.kuml.desktop.ui.ResizableSplit
+import dev.kuml.desktop.ui.SPLIT_DIVIDER_WIDTH
 import dev.kuml.markdown.CodeBlockExtractor
 import dev.kuml.workspace.FrontmatterParser
 import dev.kuml.workspace.OkfType
@@ -55,6 +55,14 @@ fun KnowledgeWorkspaceScreen(
      * `reportKnowledgeSaveResult`.
      */
     onSaveResult: (OkfWriteResult) -> Unit = {},
+    /** Share of the width taken by the document tree (draggable divider, see [WorkspaceColumns]). */
+    navFraction: Double = WORKSPACE_NAV_DEFAULT_FRACTION,
+    onNavFractionChange: (Double) -> Unit = {},
+    onNavFractionCommit: (Double) -> Unit = {},
+    /** Share of the editor within the area right of the tree (second draggable divider). */
+    editorFraction: Double = WORKSPACE_EDITOR_DEFAULT_FRACTION,
+    onEditorFractionChange: (Double) -> Unit = {},
+    onEditorFractionCommit: (Double) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val linkHandler =
@@ -112,63 +120,146 @@ fun KnowledgeWorkspaceScreen(
         state.buffer?.let { PendingType.Override(type = OkfType.fromId(FrontmatterParser.parse(it).type)) }
             ?: PendingType.NoOverride
 
-    Row(modifier = modifier.fillMaxWidth().fillMaxHeight()) {
-        WorkspaceTreePane(
-            documents = state.documents,
-            selected = state.selected,
-            dirtyPath = state.selected?.relativePath?.takeIf { state.isDirty },
-            pendingTypeForSelected = pendingTypeForSelected,
-            onSelect = { doc ->
-                confirmUnsavedAndThen {
-                    scope.launch { state.select(doc = doc, themeName = themeName, strings = strings, watermark = showWatermark) }
-                }
-            },
-            strings = strings,
-            modifier = Modifier.weight(1f).fillMaxHeight(),
-        )
-        HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
-        DocumentEditorPane(
-            doc = state.selected,
-            buffer = state.buffer,
-            editing = state.editing,
-            isDirty = state.isDirty,
-            findings = state.findings,
-            blockingFindings = state.blockingFindings,
-            onToggleEditing = { state.setEditing(it) },
-            onBufferChange = { state.updateBuffer(it) },
-            onTypeChange = { state.setFrontmatterField(key = "type", value = it) },
-            onTitleChange = { state.setFrontmatterField(key = "title", value = it) },
-            onSave = {
-                scope.launch {
-                    val result = state.save(themeName = themeName, strings = strings, watermark = showWatermark)
-                    onSaveResult(result)
-                }
-            },
-            linkHandler = linkHandler,
-            backlinks = state.selected?.let { state.graphIndex.backlinks(it) }.orEmpty(),
-            onNavigateBacklink = { doc ->
-                confirmUnsavedAndThen {
-                    scope.launch { state.select(doc = doc, themeName = themeName, strings = strings, watermark = showWatermark) }
-                }
-            },
-            strings = strings,
-            diskConflict = state.diskConflict,
-            onResolveDiskConflict = { keepMine ->
-                scope.launch {
-                    state.resolveDiskConflict(keepMine = keepMine, themeName = themeName, strings = strings, watermark = showWatermark)
-                }
-            },
-            onEditorReady = onEditorReady,
-            modifier = Modifier.weight(2f).fillMaxHeight(),
-        )
-        HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
-        WorkspacePreviewPane(
-            docSvg = state.docSvg,
-            docError = state.docError,
-            isRendering = state.isRendering,
-            hasSelection = state.selected != null,
-            strings = strings,
-            modifier = Modifier.weight(2f).fillMaxHeight(),
-        )
-    }
+    WorkspaceColumns(
+        navFraction = navFraction,
+        onNavFractionChange = onNavFractionChange,
+        onNavFractionCommit = onNavFractionCommit,
+        editorFraction = editorFraction,
+        onEditorFractionChange = onEditorFractionChange,
+        onEditorFractionCommit = onEditorFractionCommit,
+        strings = strings,
+        modifier = modifier.fillMaxWidth().fillMaxHeight(),
+        tree = {
+            WorkspaceTreePane(
+                documents = state.documents,
+                selected = state.selected,
+                dirtyPath = state.selected?.relativePath?.takeIf { state.isDirty },
+                pendingTypeForSelected = pendingTypeForSelected,
+                onSelect = { doc ->
+                    confirmUnsavedAndThen {
+                        scope.launch { state.select(doc = doc, themeName = themeName, strings = strings, watermark = showWatermark) }
+                    }
+                },
+                strings = strings,
+                modifier = Modifier.fillMaxSize(),
+            )
+        },
+        editor = {
+            DocumentEditorPane(
+                doc = state.selected,
+                buffer = state.buffer,
+                editing = state.editing,
+                isDirty = state.isDirty,
+                findings = state.findings,
+                blockingFindings = state.blockingFindings,
+                onToggleEditing = { state.setEditing(it) },
+                onBufferChange = { state.updateBuffer(it) },
+                onTypeChange = { state.setFrontmatterField(key = "type", value = it) },
+                onTitleChange = { state.setFrontmatterField(key = "title", value = it) },
+                onSave = {
+                    scope.launch {
+                        val result = state.save(themeName = themeName, strings = strings, watermark = showWatermark)
+                        onSaveResult(result)
+                    }
+                },
+                linkHandler = linkHandler,
+                backlinks = state.selected?.let { state.graphIndex.backlinks(it) }.orEmpty(),
+                onNavigateBacklink = { doc ->
+                    confirmUnsavedAndThen {
+                        scope.launch { state.select(doc = doc, themeName = themeName, strings = strings, watermark = showWatermark) }
+                    }
+                },
+                strings = strings,
+                diskConflict = state.diskConflict,
+                onResolveDiskConflict = { keepMine ->
+                    scope.launch {
+                        state.resolveDiskConflict(
+                            keepMine = keepMine,
+                            themeName = themeName,
+                            strings = strings,
+                            watermark = showWatermark,
+                        )
+                    }
+                },
+                onEditorReady = onEditorReady,
+                modifier = Modifier.fillMaxSize(),
+            )
+        },
+        preview = {
+            WorkspacePreviewPane(
+                docSvg = state.docSvg,
+                docError = state.docError,
+                isRendering = state.isRendering,
+                hasSelection = state.selected != null,
+                strings = strings,
+                modifier = Modifier.fillMaxSize(),
+            )
+        },
+    )
+}
+
+internal const val WORKSPACE_NAV_DEFAULT_FRACTION: Double = 0.2
+internal const val WORKSPACE_NAV_MAX_FRACTION: Double = 0.40
+internal const val WORKSPACE_EDITOR_DEFAULT_FRACTION: Double = 0.5
+internal const val WORKSPACE_EDITOR_MAX_FRACTION: Double = 0.85
+internal const val WORKSPACE_NAV_DIVIDER_TAG = "kuml-workspace-nav-divider"
+internal const val WORKSPACE_EDITOR_DIVIDER_TAG = "kuml-workspace-editor-divider"
+
+/** Minimum width of every workspace column. */
+private val WORKSPACE_MIN_COLUMN = 200.dp
+
+/**
+ * The right-hand area (editor | divider | preview) must keep two minimum columns plus its own
+ * divider, so the outer split reserves that much for its end pane.
+ */
+private val WORKSPACE_NAV_END_MIN = WORKSPACE_MIN_COLUMN * 2 + SPLIT_DIVIDER_WIDTH
+
+/**
+ * Three columns as two nested [ResizableSplit]s: tree | (editor | preview). The inner share is a
+ * share of the remainder, so dragging the outer divider scales editor and preview proportionally
+ * and never changes the inner wish. Defaults 20 / 40 / 40.
+ */
+@Composable
+internal fun WorkspaceColumns(
+    navFraction: Double,
+    onNavFractionChange: (Double) -> Unit,
+    onNavFractionCommit: (Double) -> Unit,
+    editorFraction: Double,
+    onEditorFractionChange: (Double) -> Unit,
+    onEditorFractionCommit: (Double) -> Unit,
+    strings: Strings,
+    modifier: Modifier = Modifier,
+    tree: @Composable () -> Unit,
+    editor: @Composable () -> Unit,
+    preview: @Composable () -> Unit,
+) {
+    ResizableSplit(
+        fraction = navFraction,
+        onFractionChange = onNavFractionChange,
+        onFractionCommit = onNavFractionCommit,
+        dividerDescription = strings.workspaceLayout.navDividerDescription,
+        modifier = modifier,
+        defaultFraction = WORKSPACE_NAV_DEFAULT_FRACTION,
+        startMinPane = WORKSPACE_MIN_COLUMN,
+        endMinPane = WORKSPACE_NAV_END_MIN,
+        maxFraction = WORKSPACE_NAV_MAX_FRACTION,
+        testTag = WORKSPACE_NAV_DIVIDER_TAG,
+        start = tree,
+        end = {
+            ResizableSplit(
+                fraction = editorFraction,
+                onFractionChange = onEditorFractionChange,
+                onFractionCommit = onEditorFractionCommit,
+                dividerDescription = strings.workspaceLayout.editorDividerDescription,
+                modifier = Modifier.fillMaxSize(),
+                defaultFraction = WORKSPACE_EDITOR_DEFAULT_FRACTION,
+                startMinPane = WORKSPACE_MIN_COLUMN,
+                endMinPane = WORKSPACE_MIN_COLUMN,
+                maxFraction = WORKSPACE_EDITOR_MAX_FRACTION,
+                testTag = WORKSPACE_EDITOR_DIVIDER_TAG,
+                start = editor,
+                end = preview,
+            )
+        },
+    )
 }

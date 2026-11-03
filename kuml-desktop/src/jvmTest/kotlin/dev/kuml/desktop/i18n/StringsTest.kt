@@ -678,4 +678,24 @@ class PdfExportStringsTest :
                     (it.get(Strings.EN.about) as String).contains("modelling", ignoreCase = true) shouldBe false
                 }
         }
+
+        // --- Knowledge Workspace column dividers ---
+        val layoutKeys: (Strings) -> List<String> = {
+            listOf(it.workspaceLayout.navDividerDescription, it.workspaceLayout.editorDividerDescription)
+        }
+        test("workspace divider descriptions are non-blank in DE and EN") {
+            (layoutKeys(Strings.DE) + layoutKeys(Strings.EN)).forEach { it.shouldNotBeBlank() }
+        }
+        test("workspace divider descriptions differ between DE and EN and between the two dividers") {
+            Strings.DE.workspaceLayout.navDividerDescription shouldNotBe Strings.EN.workspaceLayout.navDividerDescription
+            Strings.DE.workspaceLayout.editorDividerDescription shouldNotBe Strings.EN.workspaceLayout.editorDividerDescription
+            listOf(Strings.DE, Strings.EN).forEach {
+                it.workspaceLayout.navDividerDescription shouldNotBe it.workspaceLayout.editorDividerDescription
+            }
+        }
+        test("workspace divider descriptions contain no gender markers") {
+            (layoutKeys(Strings.DE) + layoutKeys(Strings.EN)).forEach { text ->
+                listOf("*", ":in", "_in", "/in").forEach { text.contains(it) shouldBe false }
+            }
+        }
     })

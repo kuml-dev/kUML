@@ -44,6 +44,9 @@ fun rememberAppSettingsBinding(
         // Only the commit trigger, never the live editorSplitFraction: saving must happen once
         // per drag gesture (on release), not on every drag frame.
         state.editorSplitFractionCommitted,
+        // Same for the Knowledge Workspace column dividers: commit triggers only.
+        state.workspaceNavFractionCommitted,
+        state.workspaceEditorFractionCommitted,
     ) {
         saveJob?.cancel()
         saveJob =

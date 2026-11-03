@@ -48,6 +48,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import java.awt.AWTEvent
@@ -68,32 +69,71 @@ internal const val SPLIT_STEP_LARGE = 0.10
 internal const val SPLIT_DIVIDER_TEST_TAG = "kuml-split-divider"
 private const val DOUBLE_CLICK_MS = 400L
 
+internal const val SPLIT_MAX_FRACTION: Double = 1.0 - SPLIT_MIN_FRACTION
+private const val SPLIT_EPSILON = 1e-9
+
 /**
- * Allowed range of the start-pane share. The lower bound is the larger of [minFraction] and the
- * share that keeps [minPanePx] pixels for the pane; the upper bound mirrors it. A non-positive or
- * infinite [totalPx] falls back to [minFraction] (used when loading settings, no layout yet).
+ * Raw lower/upper share. The lower bound is the larger of [minFraction] and the share that keeps
+ * [startMinPx] pixels for the start pane; the upper bound is the smaller of [maxFraction] and the
+ * share that keeps [endMinPx] pixels for the end pane. A non-positive or infinite [totalPx]
+ * contributes no pixel constraint (used when loading settings, no layout yet). Returns null when
+ * the bounds cannot be met at the same time.
+ */
+private fun rawBounds(
+    totalPx: Float,
+    startMinPx: Float,
+    endMinPx: Float,
+    minFraction: Double,
+    maxFraction: Double,
+): ClosedFloatingPointRange<Double>? {
+    val known = totalPx > 0f && totalPx.isFinite()
+    val lo = maxOf(minFraction, if (known) (startMinPx / totalPx).toDouble() else 0.0)
+    val hi = minOf(maxFraction, if (known) 1.0 - (endMinPx / totalPx).toDouble() else 1.0)
+    if (lo > hi + SPLIT_EPSILON) return null
+    return lo..maxOf(lo, hi)
+}
+
+/**
+ * Allowed range of the start-pane share: [minPanePx] pixels for the start pane, [endMinPx] for
+ * the end pane, [minFraction]..[maxFraction] as share limits. If they cannot be met at once the
+ * range collapses to [fallback].
  */
 internal fun splitBounds(
     totalPx: Float,
     minPanePx: Float,
-): ClosedFloatingPointRange<Double> {
-    val byPixels = if (totalPx > 0f && totalPx.isFinite()) (minPanePx / totalPx).toDouble() else 0.0
-    val lo = maxOf(SPLIT_MIN_FRACTION, byPixels)
-    return if (lo >= 0.5) 0.5..0.5 else lo..(1.0 - lo)
-}
+    endMinPx: Float = minPanePx,
+    minFraction: Double = SPLIT_MIN_FRACTION,
+    maxFraction: Double = SPLIT_MAX_FRACTION,
+    fallback: Double = SPLIT_DEFAULT_FRACTION,
+): ClosedFloatingPointRange<Double> =
+    rawBounds(
+        totalPx = totalPx,
+        startMinPx = minPanePx,
+        endMinPx = endMinPx,
+        minFraction = minFraction,
+        maxFraction = maxFraction,
+    ) ?: (fallback..fallback)
 
-/** Clamps [fraction] into [splitBounds]; NaN/infinite input yields 0.5. Never divides by zero. */
+/** Clamps [fraction] into [splitBounds]; NaN/infinite input yields [fallback]. Never divides by zero. */
 internal fun clampSplitFraction(
     fraction: Double,
     totalPx: Float,
     minPanePx: Float,
     minFraction: Double = SPLIT_MIN_FRACTION,
+    endMinPx: Float = minPanePx,
+    maxFraction: Double = SPLIT_MAX_FRACTION,
+    fallback: Double = SPLIT_DEFAULT_FRACTION,
 ): Double {
-    if (fraction.isNaN() || fraction.isInfinite()) return SPLIT_DEFAULT_FRACTION
-    val byPixels = if (totalPx > 0f && totalPx.isFinite()) (minPanePx / totalPx).toDouble() else 0.0
-    val lo = maxOf(minFraction, byPixels)
-    if (lo >= 0.5) return SPLIT_DEFAULT_FRACTION
-    return fraction.coerceIn(lo, 1.0 - lo)
+    if (fraction.isNaN() || fraction.isInfinite()) return fallback
+    val range =
+        rawBounds(
+            totalPx = totalPx,
+            startMinPx = minPanePx,
+            endMinPx = endMinPx,
+            minFraction = minFraction,
+            maxFraction = maxFraction,
+        ) ?: return fallback
+    return fraction.coerceIn(range.start, range.endInclusive)
 }
 
 /** Absolute pointer position to share: the divider ends up centred under the pointer. */
@@ -112,7 +152,7 @@ internal fun fractionFromPointer(
  * because both neighbours in the editor/preview case are heavyweight SwingPanels).
  *
  * [fraction] is only the *wish*; the layout uses a clamped effective value (min 15 % and 200 dp
- * per pane) without writing it back, so shrinking and re-growing the window restores the wish.
+ * per pane, both overridable) without writing it back, so shrinking and re-growing the window restores the wish.
  * [onFractionChange] fires continuously while dragging, [onFractionCommit] exactly once per
  * gesture (release / cancel / key press), and is the place to persist. Both callbacks only set
  * Compose state and may be invoked from the AWT event thread.
@@ -124,6 +164,11 @@ fun ResizableSplit(
     onFractionCommit: (Double) -> Unit,
     dividerDescription: String,
     modifier: Modifier = Modifier,
+    defaultFraction: Double = SPLIT_DEFAULT_FRACTION,
+    startMinPane: Dp = SPLIT_MIN_PANE_DP,
+    endMinPane: Dp = SPLIT_MIN_PANE_DP,
+    maxFraction: Double = SPLIT_MAX_FRACTION,
+    testTag: String = SPLIT_DIVIDER_TEST_TAG,
     start: @Composable () -> Unit,
     end: @Composable () -> Unit,
 ) {
@@ -132,10 +177,26 @@ fun ResizableSplit(
     BoxWithConstraints(modifier = modifier) {
         val totalPx = constraints.maxWidth.toFloat()
         val dividerPx = with(density) { SPLIT_DIVIDER_WIDTH.toPx() }
-        val minPanePx = with(density) { SPLIT_MIN_PANE_DP.toPx() }
+        val minPanePx = with(density) { startMinPane.toPx() }
+        val endMinPx = with(density) { endMinPane.toPx() }
         val usable = (totalPx - dividerPx).coerceAtLeast(0f)
-        val effective = clampSplitFraction(fraction = fraction, totalPx = usable, minPanePx = minPanePx)
-        val bounds = splitBounds(totalPx = usable, minPanePx = minPanePx)
+        val effective =
+            clampSplitFraction(
+                fraction = fraction,
+                totalPx = usable,
+                minPanePx = minPanePx,
+                endMinPx = endMinPx,
+                maxFraction = maxFraction,
+                fallback = defaultFraction,
+            )
+        val bounds =
+            splitBounds(
+                totalPx = usable,
+                minPanePx = minPanePx,
+                endMinPx = endMinPx,
+                maxFraction = maxFraction,
+                fallback = defaultFraction,
+            )
         Row(
             modifier =
                 Modifier.fillMaxSize().onGloballyPositioned { rowOriginX = it.positionInWindow().x },
@@ -147,11 +208,16 @@ fun ResizableSplit(
                 effective = effective,
                 bounds = bounds,
                 dividerDescription = dividerDescription,
+                defaultFraction = defaultFraction,
+                testTag = testTag,
                 pointerToFraction = { windowX ->
                     clampSplitFraction(
                         fraction = fractionFromPointer(pointerXInRow = windowX - rowOriginX, rowWidthPx = totalPx, dividerPx = dividerPx),
                         totalPx = usable,
                         minPanePx = minPanePx,
+                        endMinPx = endMinPx,
+                        maxFraction = maxFraction,
+                        fallback = defaultFraction,
                     )
                 },
                 onFractionChange = onFractionChange,
@@ -168,6 +234,8 @@ private fun SplitDivider(
     effective: Double,
     bounds: ClosedFloatingPointRange<Double>,
     dividerDescription: String,
+    defaultFraction: Double,
+    testTag: String,
     pointerToFraction: (Float) -> Double,
     onFractionChange: (Double) -> Unit,
     onFractionCommit: (Double) -> Unit,
@@ -240,6 +308,14 @@ private fun SplitDivider(
         currentCommit(clamped)
     }
 
+    // Reset stores the wish (the default), not the clamped value: a narrow window must not
+    // overwrite the saved share with whatever the current bounds allow.
+    fun resetToDefault() {
+        lastValue = defaultFraction
+        currentChange(defaultFraction)
+        currentCommit(defaultFraction)
+    }
+
     val active = dragging || hoverVisible
     val lineColor =
         when {
@@ -255,7 +331,7 @@ private fun SplitDivider(
                 .background(
                     if (focused) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
                 ).onGloballyPositioned { dividerOriginX = it.positionInWindow().x }
-                .testTag(SPLIT_DIVIDER_TEST_TAG)
+                .testTag(testTag)
                 .semantics(mergeDescendants = true) {
                     contentDescription = dividerDescription
                     stateDescription = "${(currentEffective * 100).roundToInt()} %"
@@ -280,7 +356,7 @@ private fun SplitDivider(
                         Key.DirectionRight -> commitKey(currentEffective + step)
                         Key.MoveHome -> commitKey(currentBounds.start)
                         Key.MoveEnd -> commitKey(currentBounds.endInclusive)
-                        Key.Enter, Key.NumPadEnter -> commitKey(SPLIT_DEFAULT_FRACTION)
+                        Key.Enter, Key.NumPadEnter -> resetToDefault()
                         else -> return@onKeyEvent false
                     }
                     true
@@ -292,7 +368,7 @@ private fun SplitDivider(
                         focusRequester.requestFocus()
                         if (lastDown >= 0 && down.uptimeMillis - lastDown <= DOUBLE_CLICK_MS) {
                             lastDown = -1L
-                            commitKey(SPLIT_DEFAULT_FRACTION)
+                            resetToDefault()
                         } else {
                             lastDown = down.uptimeMillis
                         }

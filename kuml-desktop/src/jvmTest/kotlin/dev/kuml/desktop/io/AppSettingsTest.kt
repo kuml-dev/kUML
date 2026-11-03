@@ -177,4 +177,27 @@ class AppSettingsTest :
             back.editorSplitFraction shouldBe 0.3
             json.decodeFromString<AppSettings>("""{"theme":"dark"}""").editorSplitFraction shouldBe 0.5
         }
+
+        test("workspace column fractions default to 0.2 and 0.5, round-trip and tolerate old files") {
+            AppSettings.DEFAULT.workspaceNavFraction shouldBe 0.2
+            AppSettings.DEFAULT.workspaceEditorFraction shouldBe 0.5
+            val back =
+                json.decodeFromString<AppSettings>(
+                    json.encodeToString(AppSettings(workspaceNavFraction = 0.3, workspaceEditorFraction = 0.7)),
+                )
+            back.workspaceNavFraction shouldBe 0.3
+            back.workspaceEditorFraction shouldBe 0.7
+            val old = json.decodeFromString<AppSettings>("""{"theme":"dark"}""")
+            old.workspaceNavFraction shouldBe 0.2
+            old.workspaceEditorFraction shouldBe 0.5
+        }
+
+        test("a file with only one workspace fraction keeps the default of the other") {
+            val onlyNav = json.decodeFromString<AppSettings>("""{"workspaceNavFraction":0.3}""")
+            onlyNav.workspaceNavFraction shouldBe 0.3
+            onlyNav.workspaceEditorFraction shouldBe 0.5
+            val onlyEditor = json.decodeFromString<AppSettings>("""{"workspaceEditorFraction":0.6}""")
+            onlyEditor.workspaceNavFraction shouldBe 0.2
+            onlyEditor.workspaceEditorFraction shouldBe 0.6
+        }
     })

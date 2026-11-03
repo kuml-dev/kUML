@@ -6,6 +6,26 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### kUML Desktop: adjustable column widths in the Knowledge Workspace
+
+**Additions**
+
+- The three Knowledge Workspace columns (tree, editor, preview) are now separated by two draggable dividers instead of fixed 1 / 2 / 2 weights. Defaults are 20 / 40 / 40 (about 286 / 569 / 569 dp at 1440 dp). The tree takes 15 to 40 % of the width, the editor 15 to 85 % of the area right of the tree, every column keeps at least 200 dp.
+- Keyboard and reset behaviour match the editor/preview divider: arrow keys, Shift for larger steps, Home/End, and Enter or double-click to return that divider to its default (20 % or 50 %). Below a window width of 616 dp the default 20 / 40 / 40 is used; the chosen widths are kept and reapplied when the window grows.
+- Two new additive settings, `workspaceNavFraction` and `workspaceEditorFraction`, are saved when a divider is released. No `schemaVersion` change: older files load with the defaults, unknown or out-of-range values are clamped (NaN falls back to the default), and an older app ignores the new fields.
+- Both dividers have their own accessible description (new nested `WorkspaceLayoutStrings`, DE and EN).
+
+**Changes**
+
+- `ResizableSplit` gained optional parameters for the default share, separate minimum widths per side, an upper limit and a test tag; `splitBounds` and `clampSplitFraction` take the matching optional arguments. Existing callers behave as before.
+- Reset (Enter, double-click) now stores the divider's default itself rather than the value clamped to the current window, so a narrow window no longer overwrites the saved share.
+- The two 1 dp divider lines between the columns are replaced by the dividers' own line.
+
+**Verification**
+
+- The UI was not observed live; the Desktop MCP was unreachable. Layout logic, clamping, persistence and backward compatibility are covered by unit tests only.
+- Also not checked live: how the diagram preview behaves while the outer divider is dragged, and whether the mouse release is reliably seen next to the Batik preview panel.
+
 ### kUML Desktop: About dialog
 
 **Additions**

@@ -41,6 +41,11 @@ data class AppSettings(
     // Editor share of the width in view mode SPLIT (draggable divider). Additive, no
     // schemaVersion bump; clamped to 0.15..0.85 when loaded into AppState.
     val editorSplitFraction: Double = 0.5,
+    // Knowledge Workspace column shares (draggable dividers): tree share of the width, and
+    // editor share of the area right of the tree. Additive, no schemaVersion bump; clamped
+    // when loaded into AppState (tree 0.15..0.40, editor 0.15..0.85).
+    val workspaceNavFraction: Double = 0.2,
+    val workspaceEditorFraction: Double = 0.5,
 ) {
     companion object {
         val DEFAULT = AppSettings()

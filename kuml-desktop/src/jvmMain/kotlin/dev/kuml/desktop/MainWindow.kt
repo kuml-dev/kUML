@@ -827,6 +827,18 @@ fun FrameWindowScope.MainWindow(
                                 confirmUnsavedAndThen = { action -> confirmUnsavedAndThen(action) },
                                 onEditorReady = { editorActions = it },
                                 onSaveResult = { result -> reportKnowledgeSaveResult(result) },
+                                navFraction = state.workspaceNavFraction,
+                                onNavFractionChange = { state.workspaceNavFraction = it },
+                                onNavFractionCommit = {
+                                    state.workspaceNavFraction = it
+                                    state.workspaceNavFractionCommitted = it
+                                },
+                                editorFraction = state.workspaceEditorFraction,
+                                onEditorFractionChange = { state.workspaceEditorFraction = it },
+                                onEditorFractionCommit = {
+                                    state.workspaceEditorFraction = it
+                                    state.workspaceEditorFractionCommitted = it
+                                },
                             )
                         is OpenWorkspace.Engineering -> {
                             // The tree was scanned once when the workspace was opened, so a script

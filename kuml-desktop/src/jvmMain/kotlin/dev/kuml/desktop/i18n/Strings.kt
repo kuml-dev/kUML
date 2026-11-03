@@ -212,6 +212,8 @@ data class Strings(
     val pdfExport: PdfExportStrings,
     // About dialog texts: a separate class (JVM constructor limit of 255 parameters).
     val about: AboutStrings,
+    // Knowledge Workspace column dividers: a separate class (JVM constructor limit of 255 parameters).
+    val workspaceLayout: WorkspaceLayoutStrings,
     // V-next — editable OKF Knowledge Workspace documents (Read/Edit toggle, save gate)
     val docEditRead: String,
     val docEditEdit: String,
@@ -584,6 +586,11 @@ data class Strings(
                         browserFailed = "Der Browser konnte nicht geöffnet werden.",
                         licensesTitle = "Open-Source-Lizenzen",
                         licensesUnavailable = "Der Lizenztext konnte nicht geladen werden.",
+                    ),
+                workspaceLayout =
+                    WorkspaceLayoutStrings(
+                        navDividerDescription = "Trenner zwischen Dateibaum und Editor",
+                        editorDividerDescription = "Trenner zwischen Editor und Diagrammvorschau",
                     ),
                 pdfExport =
                     PdfExportStrings(
@@ -962,6 +969,11 @@ data class Strings(
                         licensesTitle = "Open-source licenses",
                         licensesUnavailable = "The license text could not be loaded.",
                     ),
+                workspaceLayout =
+                    WorkspaceLayoutStrings(
+                        navDividerDescription = "Divider between file tree and editor",
+                        editorDividerDescription = "Divider between editor and diagram preview",
+                    ),
                 pdfExport =
                     PdfExportStrings(
                         pdfPageStrategy = "Page size",
@@ -1215,6 +1227,12 @@ data class PdfExportStrings(
     val pdfMinScale: String,
     val pdfLayoutSummary: String,
     val pdfDisabledOrientationAuto: String,
+)
+
+/** Texts of the Knowledge Workspace column dividers (see [Strings.workspaceLayout]). */
+data class WorkspaceLayoutStrings(
+    val navDividerDescription: String,
+    val editorDividerDescription: String,
 )
 
 /** Texts of the About dialog and its license view (see [Strings.about]). */

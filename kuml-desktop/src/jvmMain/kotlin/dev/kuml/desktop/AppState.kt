@@ -11,6 +11,10 @@ import dev.kuml.desktop.mcp.McpNotice
 import dev.kuml.desktop.simulation.SimulationSession
 import dev.kuml.desktop.ui.clampSplitFraction
 import dev.kuml.desktop.workspace.OpenWorkspace
+import dev.kuml.desktop.workspace.WORKSPACE_EDITOR_DEFAULT_FRACTION
+import dev.kuml.desktop.workspace.WORKSPACE_EDITOR_MAX_FRACTION
+import dev.kuml.desktop.workspace.WORKSPACE_NAV_DEFAULT_FRACTION
+import dev.kuml.desktop.workspace.WORKSPACE_NAV_MAX_FRACTION
 import java.io.File
 
 /**
@@ -116,6 +120,36 @@ class AppState(
 
     /** Persistence trigger only: set once per drag gesture (see AppSettingsBinding). */
     var editorSplitFractionCommitted by mutableStateOf(editorSplitFraction)
+
+    /** Live Knowledge Workspace tree share (changes on every drag frame). Clamped on load. */
+    var workspaceNavFraction by mutableStateOf(
+        clampSplitFraction(
+            fraction = initialSettings.workspaceNavFraction,
+            totalPx = Float.POSITIVE_INFINITY,
+            minPanePx = 0f,
+            endMinPx = 0f,
+            maxFraction = WORKSPACE_NAV_MAX_FRACTION,
+            fallback = WORKSPACE_NAV_DEFAULT_FRACTION,
+        ),
+    )
+
+    /** Persistence trigger only: set once per drag gesture (see AppSettingsBinding). */
+    var workspaceNavFractionCommitted by mutableStateOf(workspaceNavFraction)
+
+    /** Live Knowledge Workspace editor share of the area right of the tree. Clamped on load. */
+    var workspaceEditorFraction by mutableStateOf(
+        clampSplitFraction(
+            fraction = initialSettings.workspaceEditorFraction,
+            totalPx = Float.POSITIVE_INFINITY,
+            minPanePx = 0f,
+            endMinPx = 0f,
+            maxFraction = WORKSPACE_EDITOR_MAX_FRACTION,
+            fallback = WORKSPACE_EDITOR_DEFAULT_FRACTION,
+        ),
+    )
+
+    /** Persistence trigger only: set once per drag gesture (see AppSettingsBinding). */
+    var workspaceEditorFractionCommitted by mutableStateOf(workspaceEditorFraction)
 
     // V3.7.4 — opt-in "Powered by kUML" watermark (View ▸ Wasserzeichen). See
     // AppSettings.showWatermark's KDoc for the default-off rationale.
@@ -240,6 +274,8 @@ class AppState(
             mcpServerEnabled = mcpServerEnabled,
             mcpServerPort = mcpServerPort,
             editorSplitFraction = editorSplitFraction,
+            workspaceNavFraction = workspaceNavFraction,
+            workspaceEditorFraction = workspaceEditorFraction,
         )
 
     /** Ansichtsmodus zwischen Editor (Quelltext) und Vorschau (Diagramm). Siehe [viewMode]. */
