@@ -23,6 +23,8 @@ class PreviewMouseNavigationTest :
             val panel = JPanel()
             var transform = AffineTransform()
             var fitCalls = 0
+            var actualSizeCalls = 0
+            var centerCalls = 0
 
             init {
                 installMouseNavigation(
@@ -32,6 +34,8 @@ class PreviewMouseNavigationTest :
                             transform = { transform },
                             setTransform = { transform = it },
                             fit = { fitCalls++ },
+                            actualSize = { actualSizeCalls++ },
+                            center = { centerCalls++ },
                         ),
                 )
             }
@@ -218,6 +222,85 @@ class PreviewMouseNavigationTest :
                 )
             }
             canvas.renderingTransform.scaleX shouldBe (scaleBefore * PREVIEW_ZOOM_STEP plusOrMinus 1e-6)
+            canvas.dispose()
+        }
+
+        test("double-click calls fit") {
+            val f = Fixture()
+            f.mouse(MouseEvent.MOUSE_CLICKED, 10, 10, clicks = 2)
+            f.fitCalls shouldBe 1
+        }
+
+        test("Home and Ctrl/Cmd+0 are bound to fit while the component is focused") {
+            val panel = javax.swing.JPanel()
+            var fits = 0
+            installViewKeys(component = panel) { fits++ }
+            val inputMap = panel.getInputMap(javax.swing.JComponent.WHEN_FOCUSED)
+            val keys =
+                listOf(
+                    javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_HOME, 0),
+                    javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_0, previewMenuMask()),
+                )
+            keys.forEach { key ->
+                val id = inputMap.get(key)
+                id shouldNotBe null
+                panel.actionMap.get(id).actionPerformed(null)
+            }
+            fits shouldBe 2
+        }
+
+        test("reapplyAfterResize re-applies 1:1 only for ActualSize and otherwise clamps") {
+            var actual = 0
+            var clamp = 0
+            PreviewLastView.entries.forEach { view ->
+                reapplyAfterResize(lastView = view, actualSize = { actual++ }, clamp = { clamp++ })
+            }
+            actual shouldBe 1
+            clamp shouldBe 2
+        }
+
+        test("the real canvas clamps a far drag, and 1:1 and center work through the shared path") {
+            System.setProperty("java.awt.headless", "true")
+            val canvas = createPreviewCanvas()
+            canvas.setSize(400, 300)
+            val rendered = CountDownLatch(1)
+            canvas.addGVTTreeRendererListener(
+                object : GVTTreeRendererAdapter() {
+                    override fun gvtRenderingCompleted(e: GVTTreeRendererEvent) = rendered.countDown()
+                },
+            )
+            val svg =
+                """<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">""" +
+                    """<rect x="10" y="10" width="180" height="80" fill="#1d2b4f"/></svg>"""
+            SwingUtilities.invokeAndWait { canvas.setSVGDocument(parseSvg(svg)) }
+            rendered.await(15, TimeUnit.SECONDS) shouldBe true
+            val nav = canvas.getClientProperty(PREVIEW_NAV_KEY) as PreviewNavigation
+
+            SwingUtilities.invokeAndWait { nav.setTransform(AffineTransform.getTranslateInstance(1e6, -1e6)) }
+            val total = canvas.viewBoxTransform
+            val shown =
+                total
+                    .createTransformedShape(
+                        java.awt.geom.Rectangle2D
+                            .Double(0.0, 0.0, 200.0, 100.0),
+                    ).bounds2D
+            shown.minX shouldBe (400.0 - 100.0 plusOrMinus 1e-6)
+            shown.maxY shouldBe (96.0 plusOrMinus 1e-6)
+
+            SwingUtilities.invokeAndWait { nav.actualSize() }
+            val actual = canvas.viewBoxTransform
+            actual.scaleX shouldBe (1.0 plusOrMinus 1e-9)
+            val c = actual.transform(Point2D.Double(100.0, 50.0), null)
+            c.x shouldBe (200.0 plusOrMinus 1e-6)
+            c.y shouldBe (150.0 plusOrMinus 1e-6)
+
+            SwingUtilities.invokeAndWait { nav.setTransform(pannedTransform(current = nav.transform(), dx = 20.0, dy = 10.0)) }
+            SwingUtilities.invokeAndWait { nav.center() }
+            val centered = canvas.viewBoxTransform
+            centered.scaleX shouldBe (1.0 plusOrMinus 1e-9)
+            val cc = centered.transform(Point2D.Double(100.0, 50.0), null)
+            cc.x shouldBe (200.0 plusOrMinus 1e-6)
+            cc.y shouldBe (150.0 plusOrMinus 1e-6)
             canvas.dispose()
         }
     })

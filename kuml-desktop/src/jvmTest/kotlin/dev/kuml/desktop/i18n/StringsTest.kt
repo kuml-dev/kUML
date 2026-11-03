@@ -634,6 +634,20 @@ class PdfExportStringsTest :
             }
         }
 
+        // --- Preview toolbar (1:1, center, fit shortcuts) ---
+        test("preview view strings are non-blank in DE and EN and differ between languages") {
+            listOf(Strings.DE, Strings.EN).forEach {
+                listOf(it.previewView.actualSize, it.previewView.center, it.previewView.homeKey, it.previewView.ctrlKey).forEach { v ->
+                    v.shouldNotBeBlank()
+                }
+                it.previewView.fitWithShortcuts.contains("%1\$s0") shouldBe true
+                it.previewView.fitWithShortcuts.contains("%2\$s") shouldBe true
+            }
+            Strings.DE.previewView.actualSize shouldNotBe Strings.EN.previewView.actualSize
+            Strings.DE.previewView.center shouldNotBe Strings.EN.previewView.center
+            Strings.DE.previewView.homeKey shouldNotBe Strings.EN.previewView.homeKey
+        }
+
         // --- About dialog ---
         val aboutKeys: (Strings) -> List<String> = {
             listOf(

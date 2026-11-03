@@ -39,8 +39,10 @@ In the preview (and in the Knowledge Workspace viewer and the AI patch preview):
 | Drag with the left mouse button | Pan the diagram
 | Mouse wheel or trackpad scroll | Pan (hold Shift to pan horizontally)
 | Ctrl or Cmd + scroll | Zoom around the pointer
-| Double-click | Fit the diagram to the window
-| Zoom buttons above the preview | Zoom in, zoom out, fit
+| Double-click, Home or Ctrl/Cmd+0 (preview focused) | Fit the diagram to the window
+| Zoom buttons above the preview | Zoom in, zoom out, actual size (1:1), fit, center
+| Actual size button | Show the diagram at 1:1, centered; stays 1:1 when the window is resized
+| Center button | Center the diagram without changing the zoom
 |===
 
 Batik's own gestures keep working: Shift + drag pans, Ctrl + Shift + drag zooms, the arrow keys

@@ -19,7 +19,7 @@ import java.awt.geom.AffineTransform
 private const val ZOOM_STEP = PREVIEW_ZOOM_STEP
 
 /**
- * Zoom in / zoom out / fit strip for a Batik preview [canvas] — shared by the single-file
+ * Zoom in / zoom out / 1:1 / fit / center strip for a Batik preview [canvas] — shared by the single-file
  * [PreviewPane] and the Knowledge Workspace's diagram column, so both offer the same controls.
  *
  * Design review (UI team session): "100 %" and "Fit" were identical code (Batik's
@@ -56,9 +56,21 @@ fun ZoomToolbar(
             tooltipPlacement = tooltipEnd(),
         )
         IconTooltipButton(
+            icon = KumlIcons.ActualSize,
+            description = strings.previewView.actualSize,
+            onClick = { navigationOf(canvas)?.actualSize?.invoke() },
+            tooltipPlacement = tooltipEnd(),
+        )
+        IconTooltipButton(
             icon = KumlIcons.FitToWindow,
-            description = strings.previewFit,
-            onClick = { canvas.resetRenderingTransform() },
+            description = fitTooltip(strings = strings, mac = isMacOs()),
+            onClick = { navigationOf(canvas)?.fit?.invoke() ?: canvas.resetRenderingTransform() },
+            tooltipPlacement = tooltipEnd(),
+        )
+        IconTooltipButton(
+            icon = KumlIcons.Center,
+            description = strings.previewView.center,
+            onClick = { navigationOf(canvas)?.center?.invoke() },
             tooltipPlacement = tooltipEnd(),
         )
     }
@@ -72,5 +84,25 @@ private fun zoomCanvas(
     val width = canvas.width.takeIf { it > 0 } ?: 400
     val height = canvas.height.takeIf { it > 0 } ?: 300
     val current = canvas.renderingTransform ?: AffineTransform()
-    canvas.renderingTransform = zoomedTransform(current = current, factor = factor, centerX = width / 2.0, centerY = height / 2.0)
+    val zoomed = zoomedTransform(current = current, factor = factor, centerX = width / 2.0, centerY = height / 2.0)
+    // Through the shared navigation path so the visible-area limit applies to buttons too.
+    navigationOf(canvas)?.setTransform?.invoke(zoomed) ?: run { canvas.renderingTransform = zoomed }
+}
+
+private fun navigationOf(canvas: JSVGCanvas): PreviewNavigation? = canvas.getClientProperty(PREVIEW_NAV_KEY) as? PreviewNavigation
+
+private fun isMacOs(): Boolean =
+    System
+        .getProperty("os.name")
+        .orEmpty()
+        .lowercase()
+        .contains("mac")
+
+/** Fit tooltip with its shortcuts: Home and Ctrl/Cmd+0 (modifier shown as the symbol on macOS). */
+internal fun fitTooltip(
+    strings: Strings,
+    mac: Boolean,
+): String {
+    val modifier = if (mac) "\u2318" else strings.previewView.ctrlKey
+    return strings.previewView.fitWithShortcuts.format(modifier, strings.previewView.homeKey)
 }

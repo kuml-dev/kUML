@@ -212,6 +212,8 @@ data class Strings(
     val pdfExport: PdfExportStrings,
     // About dialog texts: a separate class (JVM constructor limit of 255 parameters).
     val about: AboutStrings,
+    // Preview toolbar: 1:1, center and fit shortcut texts (JVM constructor limit of 255 parameters).
+    val previewView: PreviewViewStrings,
     // Knowledge Workspace column dividers: a separate class (JVM constructor limit of 255 parameters).
     val workspaceLayout: WorkspaceLayoutStrings,
     // V-next — editable OKF Knowledge Workspace documents (Read/Edit toggle, save gate)
@@ -568,6 +570,14 @@ data class Strings(
                 simStartFailed = "Simulation konnte nicht gestartet werden: %s",
                 simAutoStopped = "Automatisch angehalten: %s",
                 simTraceTitle = "Verlauf",
+                previewView =
+                    PreviewViewStrings(
+                        actualSize = "Tatsächliche Größe (1:1)",
+                        center = "Zentrieren",
+                        fitWithShortcuts = "Anpassen (%1\$s0 oder %2\$s)",
+                        homeKey = "Pos1",
+                        ctrlKey = "Strg+",
+                    ),
                 about =
                     AboutStrings(
                         title = "Über kUML Desktop",
@@ -950,6 +960,14 @@ data class Strings(
                 simStartFailed = "Could not start simulation: %s",
                 simAutoStopped = "Auto-advance stopped: %s",
                 simTraceTitle = "Trace",
+                previewView =
+                    PreviewViewStrings(
+                        actualSize = "Actual size (1:1)",
+                        center = "Center",
+                        fitWithShortcuts = "Fit (%1\$s0 or %2\$s)",
+                        homeKey = "Home",
+                        ctrlKey = "Ctrl+",
+                    ),
                 about =
                     AboutStrings(
                         title = "About kUML Desktop",
@@ -1233,6 +1251,17 @@ data class PdfExportStrings(
 data class WorkspaceLayoutStrings(
     val navDividerDescription: String,
     val editorDividerDescription: String,
+)
+
+/** Texts of the preview toolbar's 1:1, center and fit buttons (see [Strings.previewView]). */
+data class PreviewViewStrings(
+    val actualSize: String,
+    val center: String,
+    // Format with (modifier, home key): "%1$s0" is the modifier followed by the digit 0.
+    val fitWithShortcuts: String,
+    val homeKey: String,
+    // Modifier label on non-macOS platforms, including the trailing "+".
+    val ctrlKey: String,
 )
 
 /** Texts of the About dialog and its license view (see [Strings.about]). */

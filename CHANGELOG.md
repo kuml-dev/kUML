@@ -6,6 +6,24 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### kUML Desktop: preview toolbar with actual size, center and a visible-area limit
+
+**Additions**
+
+- Two new buttons in the preview toolbar (single-file preview and Knowledge Workspace): "Actual size (1:1)" shows the diagram at one pixel per viewBox unit, centered; "Center" centers it without changing the zoom. The Fit tooltip now names its shortcuts.
+- Home and Ctrl/Cmd+0 fit the diagram while the preview has focus (a click on the preview focuses it). Ctrl/Cmd+1 is taken by the "source" view mode, so 1:1 and Center have no shortcut.
+- The diagram can no longer be panned or zoomed out of sight: at least 25 % of it, and at least 96 px (or all of it, if it is smaller), stay in the viewport. The zoom is never changed by this limit; only the offset is.
+- New nested `PreviewViewStrings` (DE and EN).
+
+**Changes**
+
+- Drag, wheel, zoom buttons, double-click and the new buttons share one navigation path (`PreviewNavigation`, stored as a client property on the canvas), so the visible-area limit applies everywhere.
+- The view maths lives in the new pure `PreviewViewMath.kt`.
+
+**Not seen live**
+
+- Not verified in the running app: keyboard focus on the Compose `SwingPanel`, tooltips over the heavyweight panel for five buttons, and whether re-applying 1:1 after a window resize flickers against Batik's own re-fit. The headless tests cover the maths, the key bindings and a real Batik canvas.
+
 ### kUML Desktop: adjustable column widths in the Knowledge Workspace
 
 **Additions**

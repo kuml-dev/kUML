@@ -32,6 +32,12 @@ object KumlIcons {
     /** Lupe mit "−" — Zoom Out. */
     val ZoomOut: ImageVector by lazy { buildZoomIcon(name = "KumlZoomOut", plusSign = false) }
 
+    /** Zwei "1" um einen Doppelpunkt — tatsächliche Größe (1:1). */
+    val ActualSize: ImageVector by lazy { buildActualSizeIcon() }
+
+    /** Kreis mit Mittelpunkt und vier kurzen Strichen — Zentrieren. */
+    val Center: ImageVector by lazy { buildCenterIcon() }
+
     /** Rahmen mit vier nach außen zeigenden Eck-Klammern — Fit to Window. */
     val FitToWindow: ImageVector by lazy { buildFitToWindowIcon() }
 
@@ -168,6 +174,60 @@ object KumlIcons {
                         moveTo(10f, 7f)
                         lineTo(10f, 13f)
                     }
+                }
+            }.build()
+
+    private fun buildActualSizeIcon(): ImageVector =
+        builder("KumlActualSize")
+            .apply {
+                path(
+                    name = "KumlActualSize.digits",
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                ) {
+                    // Left "1": entry stroke and stem.
+                    moveTo(3.5f, 9f)
+                    lineTo(6f, 7f)
+                    lineTo(6f, 17f)
+                    // Right "1": entry stroke and stem.
+                    moveTo(15.5f, 9f)
+                    lineTo(18f, 7f)
+                    lineTo(18f, 17f)
+                }
+                // Colon between the digits: two filled dots.
+                path(name = "KumlActualSize.colon", fill = PLACEHOLDER) {
+                    circle(cx = 11f, cy = 10f, r = 1.25f)
+                    circle(cx = 11f, cy = 14f, r = 1.25f)
+                }
+            }.build()
+
+    private fun buildCenterIcon(): ImageVector =
+        builder("KumlCenter")
+            .apply {
+                path(
+                    name = "KumlCenter.ring",
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                ) {
+                    circle(cx = 12f, cy = 12f, r = 6f)
+                    // Four short ticks pointing at the centre.
+                    moveTo(12f, 2f)
+                    lineTo(12f, 4f)
+                    moveTo(12f, 20f)
+                    lineTo(12f, 22f)
+                    moveTo(2f, 12f)
+                    lineTo(4f, 12f)
+                    moveTo(20f, 12f)
+                    lineTo(22f, 12f)
+                }
+                path(name = "KumlCenter.dot", fill = PLACEHOLDER) {
+                    circle(cx = 12f, cy = 12f, r = 1.75f)
                 }
             }.build()
 
