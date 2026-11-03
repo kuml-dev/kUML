@@ -18,6 +18,8 @@ import androidx.compose.ui.window.rememberDialogState
 import dev.kuml.ai.settings.KumlAiSettingsStore
 import dev.kuml.ai.vault.ApiKeyVault
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import kotlinx.coroutines.launch
 
 /**
@@ -159,7 +161,11 @@ internal fun AiProviderSettingsDialog(
                                     enabled = !state.isClosing,
                                     onClick = { state.dismissLegacyKeychainNotice() },
                                 ) {
-                                    Text(strings.aiVaultLegacyKeychainDismiss)
+                                    IconLabel(
+                                        action = ButtonAction.ACKNOWLEDGE,
+                                        text = strings.aiVaultLegacyKeychainDismiss,
+                                        compact = true,
+                                    )
                                 }
                             }
                         }
@@ -167,7 +173,9 @@ internal fun AiProviderSettingsDialog(
 
                     Spacer(Modifier.height(8.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        Button(enabled = !state.isClosing, onClick = ::requestClose) { Text(strings.dialogClose) }
+                        Button(enabled = !state.isClosing, onClick = ::requestClose) {
+                            IconLabel(action = ButtonAction.CLOSE, text = strings.dialogClose)
+                        }
                     }
                 }
             }
@@ -193,12 +201,12 @@ internal fun AiProviderSettingsDialog(
                             enabled = !state.isClosing,
                             onClick = { state.launchTracked { state.confirmPrivacyDisable() } },
                         ) {
-                            Text(strings.aiPrivacyConfirmAccept)
+                            IconLabel(action = ButtonAction.PROCEED_RISKY, text = strings.aiPrivacyConfirmAccept)
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { state.cancelPrivacyDisable() }) {
-                            Text(strings.aiPrivacyConfirmCancel)
+                            IconLabel(action = ButtonAction.CANCEL, text = strings.aiPrivacyConfirmCancel)
                         }
                     },
                 )
@@ -255,6 +263,7 @@ private fun ProviderSettingsRow(
             } else {
                 var modelMenuExpanded by remember { mutableStateOf(false) }
                 Box {
+                    // no-icon: MENU_TRIGGER
                     OutlinedButton(enabled = !state.isClosing, onClick = { modelMenuExpanded = true }) {
                         Text(row.selectedModel.ifBlank { strings.aiDefaultModel }, maxLines = 1)
                     }
@@ -316,12 +325,14 @@ private fun ApiKeyRow(
     ) {
         if (row.hasKey && !editingKey) {
             Text("••••••••", style = MaterialTheme.typography.bodySmall)
-            TextButton(enabled = !state.isClosing, onClick = { editingKey = true }) { Text(strings.aiKeyChange) }
+            TextButton(enabled = !state.isClosing, onClick = { editingKey = true }) {
+                IconLabel(action = ButtonAction.EDIT, text = strings.aiKeyChange)
+            }
             TextButton(
                 enabled = !state.isClosing,
                 onClick = { state.launchTracked { state.deleteApiKey(providerId = row.id) } },
             ) {
-                Text(strings.aiKeyDelete)
+                IconLabel(action = ButtonAction.DELETE, text = strings.aiKeyDelete)
             }
         } else {
             OutlinedTextField(
@@ -341,7 +352,9 @@ private fun ApiKeyRow(
                     editingKey = false
                     state.launchTracked { state.saveApiKey(providerId = row.id, apiKey = toSave) }
                 },
-            ) { Text(strings.aiKeySave) }
+            ) {
+                IconLabel(action = ButtonAction.SAVE, text = strings.aiKeySave)
+            }
         }
     }
 }

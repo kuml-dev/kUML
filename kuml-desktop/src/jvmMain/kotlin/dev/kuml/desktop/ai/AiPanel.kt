@@ -29,6 +29,8 @@ import dev.kuml.desktop.ai.components.ConversationPane
 import dev.kuml.desktop.ai.components.InputPane
 import dev.kuml.desktop.ai.components.ProviderModelPicker
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import kotlinx.coroutines.launch
 
 @Composable
@@ -74,12 +76,16 @@ fun AiPanel(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(onClick = onOpenProviderSettings) { Text(strings.aiManageProviders) }
+                TextButton(onClick = onOpenProviderSettings) {
+                    IconLabel(action = ButtonAction.MANAGE_PROVIDERS, text = strings.aiManageProviders, compact = true)
+                }
                 Spacer(Modifier.weight(1f))
                 // Only shown once there's something to start over from — an empty chat has
                 // nothing for "new session" to reset.
                 if (messages.isNotEmpty()) {
-                    TextButton(onClick = { state.newSession() }) { Text(strings.aiNewSession) }
+                    TextButton(onClick = { state.newSession() }) {
+                        IconLabel(action = ButtonAction.NEW_SESSION, text = strings.aiNewSession, compact = true)
+                    }
                 }
             }
         }
@@ -88,6 +94,7 @@ fun AiPanel(
         Spacer(Modifier.height(6.dp))
         ConversationPane(
             messages = messages,
+            strings = strings,
             // weight(1f) instead of fillMaxHeight avoids macOS Stutter
             modifier = Modifier.weight(1f),
         )
@@ -120,6 +127,7 @@ fun AiPanel(
         isTurnMode = turnPatches.isNotEmpty(),
         isVisible = state.showPatchDialog,
         isApplying = state.isApplying,
+        strings = strings,
         onAcceptOne = { id -> scope.launch { state.acceptOne(id) } },
         onRejectOne = { id -> scope.launch { state.rejectOne(id) } },
         onAcceptAll = { scope.launch { state.acceptAll() } },

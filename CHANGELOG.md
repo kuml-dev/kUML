@@ -6,6 +6,23 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### kUML Desktop: dialog button icons in the AI and simulation dialogs (part b2b)
+
+**Additions**
+
+- Part b2b finishes b2: the dialog buttons of the AI panel, the patch preview, the AI provider settings, the tool-call inspector and the simulation bar and side panes now show an icon before their label. `DialogButtonCoverageTest` scans the whole desktop module instead of a fixed list.
+- Ten new `ButtonAction` values (`ACCEPT`, `REJECT`, `ACKNOWLEDGE`, `MANAGE_PROVIDERS`, `NEW_SESSION`, `INSPECT`, `EDIT`, `DELETE`, `SEND`, `ADD`) and five new stroke-only icons in `KumlIcons` (`Reject`, `Edit`, `Delete`, `Send`, `Add`). `Reject` is a ring with a bar so that it differs from `Close`.
+- Two new documented exceptions in `ButtonIconException`: `MENU_TRIGGER` (buttons that open a menu or list in place) and `ROW_INLINE` (buttons repeated in every row of a dense list).
+- `AiDialogStrings` (English and German) holds the accept, reject and inspect labels of the patch preview and the tool-call card.
+
+**Changes**
+
+- The footer warning of the patch preview is no longer hard-coded German; it follows the "Reject all" label of the chosen language. The German label for the tool-call details changed from "Inspect" to "Ansehen".
+- The patch preview, the tool-call inspector and the model picker now take their "Close" and "Model" texts from the existing language strings.
+- `IconLabel` takes an optional `contentColor`, used by the Material 2 patch preview buttons.
+
+**Not seen live:** the desktop UI was checked with headless Compose tests only.
+
 ### kUML Desktop: dialog button icons (part b2a)
 
 **Additions**

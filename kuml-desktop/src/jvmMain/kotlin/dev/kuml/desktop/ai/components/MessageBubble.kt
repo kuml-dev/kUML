@@ -17,16 +17,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.kuml.desktop.ai.ConversationMessage
+import dev.kuml.desktop.i18n.Strings
 
 @Composable
 fun MessageBubble(
     msg: ConversationMessage,
+    strings: Strings,
     onInspectToolArgs: (String) -> Unit,
 ) {
     when (msg) {
         is ConversationMessage.User -> UserBubble(msg)
         is ConversationMessage.Assistant -> AssistantBubble(msg)
-        is ConversationMessage.ToolCall -> ToolTraceCard(msg = msg, onInspect = onInspectToolArgs)
+        is ConversationMessage.ToolCall -> ToolTraceCard(msg = msg, strings = strings, onInspect = onInspectToolArgs)
         is ConversationMessage.ToolResult -> ToolResultRow(msg)
         is ConversationMessage.ErrorMessage -> ErrorBubble(msg)
     }

@@ -6,11 +6,16 @@ import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import java.io.File
 
+/** Measured: 62 button calls in the desktop module (2026-11-03), rounded down to the next five. */
+private const val MIN_BUTTONS = 60
+
 /**
- * Every dialog `Button(`/`OutlinedButton(`/`TextButton(` in the covered sources must either use
+ * Every dialog `Button(`/`OutlinedButton(`/`TextButton(` in the desktop module must either use
  * [IconLabel] or carry a `// no-icon: <ButtonIconException>` comment directly above it.
- * Part b2b widens [COVERED] to the whole desktop module.
+ * Part b2a covered the workspace, MCP and plugin dialogs; part b2b finishes b2 with the AI and
+ * simulation dialogs and scans the whole desktop module.
  */
+
 class DialogButtonCoverageTest :
     FunSpec({
         val sourceRoot: File =
@@ -19,17 +24,7 @@ class DialogButtonCoverageTest :
                 File(System.getProperty("user.dir"), "kuml-desktop/src/jvmMain/kotlin/dev/kuml/desktop"),
             ).firstOrNull { it.isDirectory } ?: error("desktop sources not found relative to user.dir=${System.getProperty("user.dir")}")
 
-        val covered = listOf("workspace", "mcp", "plugins", "AboutDialog.kt", "MainWindow.kt")
-
-        fun sources(): List<File> =
-            covered.flatMap { name ->
-                val f = File(sourceRoot, name)
-                when {
-                    f.isDirectory -> f.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
-                    f.isFile -> listOf(f)
-                    else -> error("missing covered source: $f")
-                }
-            }
+        fun sources(): List<File> = sourceRoot.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
 
         /** Replaces comments and string/char literal contents by spaces, keeping offsets and newlines. */
         fun mask(src: String): String {
@@ -128,7 +123,7 @@ class DialogButtonCoverageTest :
             return result
         }
 
-        test("every dialog button in the covered sources has an icon or a documented exception") {
+        test("every dialog button in the desktop module has an icon or a documented exception") {
             val all = sources().flatMap { violations(it) }
             withClue(all.joinToString("\n")) { all.shouldBeEmpty() }
         }
@@ -136,6 +131,19 @@ class DialogButtonCoverageTest :
         test("the scan actually sees the buttons (guards against an always-green test)") {
             val total =
                 sources().sumOf { callRegex.findAll(mask(it.readText())).count() }
-            (total >= 30) shouldBe true
+            (total >= MIN_BUTTONS) shouldBe true
+        }
+
+        test("every no-icon comment names a valid ButtonIconException") {
+            val tagRegex = Regex("""//\s*no-icon:\s*([A-Za-z_]+)""")
+            val valid = ButtonIconException.entries.map { it.name }.toSet()
+            val bad =
+                sources().flatMap { file ->
+                    file.readLines().mapIndexedNotNull { i, line ->
+                        val tag = tagRegex.find(line)?.groupValues?.get(1)
+                        if (tag != null && tag !in valid) "${file.name}:${i + 1} unknown no-icon tag '$tag'" else null
+                    }
+                }
+            withClue(bad.joinToString("\n")) { bad.shouldBeEmpty() }
         }
     })

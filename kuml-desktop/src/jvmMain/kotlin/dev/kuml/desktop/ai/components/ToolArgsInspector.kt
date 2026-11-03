@@ -13,11 +13,15 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import kotlinx.serialization.json.Json
 
 @Composable
 fun ToolArgsInspector(
     argsJson: String,
+    strings: Strings,
     onDismiss: () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
@@ -30,7 +34,9 @@ fun ToolArgsInspector(
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 8.dp),
                 )
-                TextButton(onClick = onDismiss) { Text("Schließen") }
+                TextButton(onClick = onDismiss) {
+                    IconLabel(action = ButtonAction.CLOSE, text = strings.dialogClose)
+                }
             }
         }
     }

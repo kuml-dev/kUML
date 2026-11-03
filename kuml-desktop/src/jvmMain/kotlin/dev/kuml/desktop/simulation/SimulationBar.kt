@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.kuml.desktop.AppState
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
 import dev.kuml.desktop.ui.isSendShortcut
@@ -185,6 +187,7 @@ internal fun SimulationBar(
                         onClick = { session.sendAsking(eventName = name) },
                     )
                 }
+                // no-icon: MENU_TRIGGER
                 OutlinedButton(onClick = { expanded = !expanded }, enabled = !stale) {
                     Text(text = strings.simMoreEvents, fontSize = 12.sp)
                 }
@@ -222,8 +225,16 @@ private fun ProseGuardDialog(
     WindowAlertDialog(
         title = strings.simProseTitle,
         onDismissRequest = { session.cancelProse() },
-        confirmButton = { TextButton(onClick = { session.answerProse(true) }) { Text(strings.simYes) } },
-        dismissButton = { TextButton(onClick = { session.answerProse(false) }) { Text(strings.simNo) } },
+        confirmButton = {
+            TextButton(
+                onClick = { session.answerProse(true) },
+            ) { IconLabel(action = ButtonAction.CONFIRM, text = strings.simYes, compact = true) }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { session.answerProse(false) },
+            ) { IconLabel(action = ButtonAction.DECLINE, text = strings.simNo, compact = true) }
+        },
     ) {
         Text(text = strings.simProseQuestion, fontSize = 12.sp)
         Text(text = dialog.current.guard.orEmpty(), fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
@@ -257,10 +268,12 @@ private fun EventButton(
         tooltipPlacement = tooltipEnd(),
     ) {
         if (enabled) {
+            // no-icon: DYNAMIC_EVENT
             Button(onClick = onClick, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
                 Text(text = name, fontSize = 12.sp)
             }
         } else {
+            // no-icon: DYNAMIC_EVENT
             OutlinedButton(onClick = {}, enabled = false, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
                 Text(text = name, fontSize = 12.sp)
             }
@@ -341,7 +354,7 @@ internal fun FreeformEventRow(
             onClick = { send() },
             modifier = Modifier.testTag(SimTestTags.SEND),
         ) {
-            Text(strings.aiSend)
+            IconLabel(action = ButtonAction.SEND, text = strings.aiSend)
         }
     }
 }

@@ -24,11 +24,13 @@ import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.withKeyDown
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.iconOffset
 import dev.kuml.desktop.ui.isMacOs
 import io.kotest.core.annotation.Tags
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.json.JsonPrimitive
+import kotlin.math.abs
 
 /**
  * Compose UI tests of the simulator side panel parts. Asserts semantics and text only, never
@@ -259,6 +261,21 @@ class SimulationPanesUiTest :
             }
         }
 
+        test("the add button carries an icon, the dense row button does not") {
+            val session = startTestSession(VARS_UML_SCRIPT)
+            try {
+                session.setVariable(name = "flag", value = JsonPrimitive(true))
+                runComposeUiTest {
+                    setThemedContent { SimulationVariablesPane(session = session, strings = en) }
+                    onNode(hasScrollAction()).performScrollToNode(hasTestTag(SimTestTags.ADD_BUTTON))
+                    (iconOffset(buttonTag = SimTestTags.ADD_BUTTON, text = en.simVarSet) > 10f) shouldBe true
+                    (abs(iconOffset(buttonTag = SimTestTags.variableUnset("flag"), text = en.simVarUnset)) < 2f) shouldBe true
+                }
+            } finally {
+                session.close()
+            }
+        }
+
         // ── Event row (payload) ──────────────────────────────────────────────
 
         test("an invalid payload shows an inline error and disables Send, a valid one enables it") {
@@ -279,6 +296,7 @@ class SimulationPanesUiTest :
                     waitForIdle()
                     onNodeWithTag(SimTestTags.PAYLOAD_ERROR, useUnmergedTree = true).assertDoesNotExist()
                     onNodeWithTag(SimTestTags.SEND).assertIsEnabled()
+                    (iconOffset(buttonTag = SimTestTags.SEND, text = en.aiSend) > 10f) shouldBe true
                 }
             } finally {
                 session.close()

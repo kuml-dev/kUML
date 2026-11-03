@@ -158,6 +158,21 @@ object KumlIcons {
     /** Check mark — confirm / keep / copied. */
     val Check: ImageVector by lazy { buildCheckIcon() }
 
+    /** Circle with a diagonal bar, the bar kept clear of the ring — reject / refuse. */
+    val Reject: ImageVector by lazy { buildRejectIcon() }
+
+    /** Pencil — edit a value. */
+    val Edit: ImageVector by lazy { buildEditIcon() }
+
+    /** Waste bin with a lid — delete a value. */
+    val Delete: ImageVector by lazy { buildDeleteIcon() }
+
+    /** Paper plane — send a message or event. */
+    val Send: ImageVector by lazy { buildSendIcon() }
+
+    /** Plus sign — add an entry. */
+    val Add: ImageVector by lazy { buildAddIcon() }
+
     /** Triangle with exclamation mark — proceed despite a warning. */
     val Warning: ImageVector by lazy { buildWarningIcon() }
 
@@ -816,6 +831,78 @@ object KumlIcons {
                     moveTo(5f, 12f)
                     lineTo(10f, 17f)
                     lineTo(19f, 7f)
+                }
+            }.build()
+
+    private fun buildRejectIcon(): ImageVector =
+        builder("KumlReject")
+            .apply {
+                strokePath(name = "KumlReject.ring") { circle(cx = 12f, cy = 12f, r = 9f) }
+                // Ends stay 2 units inside the ring so the symbol does not read as a zero.
+                strokePath(name = "KumlReject.bar") {
+                    moveTo(7.8f, 7.8f)
+                    lineTo(16.2f, 16.2f)
+                }
+            }.build()
+
+    private fun buildEditIcon(): ImageVector =
+        builder("KumlEdit")
+            .apply {
+                strokePath(name = "KumlEdit.pencil") {
+                    moveTo(4f, 20f)
+                    lineTo(5f, 15f)
+                    lineTo(16f, 4f)
+                    lineTo(20f, 8f)
+                    lineTo(9f, 19f)
+                    close()
+                    moveTo(14f, 6f)
+                    lineTo(18f, 10f)
+                }
+            }.build()
+
+    private fun buildDeleteIcon(): ImageVector =
+        builder("KumlDelete")
+            .apply {
+                strokePath(name = "KumlDelete.bin") {
+                    moveTo(4f, 7f)
+                    lineTo(20f, 7f)
+                    moveTo(9f, 7f)
+                    lineTo(9f, 4f)
+                    lineTo(15f, 4f)
+                    lineTo(15f, 7f)
+                    moveTo(6f, 7f)
+                    lineTo(7f, 20f)
+                    lineTo(17f, 20f)
+                    lineTo(18f, 7f)
+                    moveTo(10f, 11f)
+                    lineTo(10f, 16f)
+                    moveTo(14f, 11f)
+                    lineTo(14f, 16f)
+                }
+            }.build()
+
+    private fun buildSendIcon(): ImageVector =
+        builder("KumlSend")
+            .apply {
+                strokePath(name = "KumlSend.plane") {
+                    moveTo(3f, 12f)
+                    lineTo(21f, 4f)
+                    lineTo(15f, 20f)
+                    lineTo(11f, 13f)
+                    close()
+                    moveTo(21f, 4f)
+                    lineTo(11f, 13f)
+                }
+            }.build()
+
+    private fun buildAddIcon(): ImageVector =
+        builder("KumlAdd")
+            .apply {
+                strokePath(name = "KumlAdd.plus") {
+                    moveTo(12f, 5f)
+                    lineTo(12f, 19f)
+                    moveTo(5f, 12f)
+                    lineTo(19f, 12f)
                 }
             }.build()
 

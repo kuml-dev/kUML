@@ -40,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import dev.kuml.widget.compose.VariableEditOutcome
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -122,6 +124,7 @@ internal fun SimulationVariablesPane(
                             color = Color.Gray,
                             modifier = Modifier.weight(1f),
                         )
+                        // no-icon: ROW_INLINE
                         TextButton(enabled = !scrubbing, onClick = { addName = name }) { Text(text = strings.simVarSet, fontSize = 11.sp) }
                     }
                 }
@@ -156,6 +159,7 @@ private fun VariableRow(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
             )
+            // no-icon: ROW_INLINE
             TextButton(
                 enabled = !readOnly && isValidVariableName(name),
                 onClick = { session.removeVariable(name) },
@@ -358,6 +362,8 @@ private fun AddVariableRow(
             enabled = !readOnly,
             onClick = { add() },
             modifier = Modifier.testTag(SimTestTags.ADD_BUTTON),
-        ) { Text(strings.simVarSet) }
+        ) {
+            IconLabel(action = ButtonAction.ADD, text = strings.simVarSet, compact = true)
+        }
     }
 }

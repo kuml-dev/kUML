@@ -100,6 +100,11 @@ class KumlIconsTest :
                 "Close" to KumlIcons.Close,
                 // Dialog buttons (b2a)
                 "Check" to KumlIcons.Check,
+                "Reject" to KumlIcons.Reject,
+                "Edit" to KumlIcons.Edit,
+                "Delete" to KumlIcons.Delete,
+                "Send" to KumlIcons.Send,
+                "Add" to KumlIcons.Add,
                 "Warning" to KumlIcons.Warning,
                 "Copy" to KumlIcons.Copy,
                 "Refresh" to KumlIcons.Refresh,

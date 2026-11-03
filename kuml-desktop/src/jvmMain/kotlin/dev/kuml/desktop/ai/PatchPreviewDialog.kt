@@ -17,6 +17,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.Divider
+import androidx.compose.material.LocalContentAlpha
+import androidx.compose.material.LocalContentColor
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Surface
@@ -29,14 +31,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.rememberDialogState
+import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.preview.createPreviewCanvas
 import dev.kuml.desktop.preview.parseSvg
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.swing.SwingUtilities
@@ -49,6 +56,7 @@ fun PatchPreviewDialog(
     pendingPatches: List<AiPanelState.PendingPatchView>,
     isVisible: Boolean,
     isApplying: Boolean,
+    strings: Strings,
     onAcceptOne: (String) -> Unit,
     onRejectOne: (String) -> Unit,
     onAcceptAll: () -> Unit,
@@ -112,6 +120,7 @@ fun PatchPreviewDialog(
                             PatchPreviewCard(
                                 view = view,
                                 isApplying = isApplying,
+                                strings = strings,
                                 allowPerItemActions = !isTurnMode,
                                 onAccept = { onAcceptOne(view.patchId) },
                                 onReject = { onRejectOne(view.patchId) },
@@ -119,29 +128,63 @@ fun PatchPreviewDialog(
                         }
                     }
                     Divider()
-                    // Footer
-                    Column(Modifier.padding(12.dp)) {
-                        Text(
-                            FOOTER_WARNING_TEXT,
-                            style = MaterialTheme.typography.caption,
-                            color = MaterialTheme.colors.error,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = onRejectAll, enabled = !isApplying) {
-                                Text("Alle ablehnen")
-                            }
-                            Button(onClick = onAcceptAll, enabled = !isApplying) {
-                                Text("Alle übernehmen")
-                            }
-                            Spacer(Modifier.weight(1f))
-                            TextButton(onClick = onDismiss) { Text("Schließen") }
-                        }
-                    }
+                    PatchPreviewFooter(
+                        strings = strings,
+                        isApplying = isApplying,
+                        onRejectAll = onRejectAll,
+                        onAcceptAll = onAcceptAll,
+                        onDismiss = onDismiss,
+                    )
                 }
             }
         }
     }
+}
+
+/** Footer of [PatchPreviewDialog]: the rollback warning plus reject-all / accept-all / close. */
+@Composable
+internal fun PatchPreviewFooter(
+    strings: Strings,
+    isApplying: Boolean,
+    onRejectAll: () -> Unit,
+    onAcceptAll: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Column(Modifier.padding(12.dp)) {
+        Text(
+            strings.aiDialog.patchFooterWarning,
+            style = MaterialTheme.typography.caption,
+            color = MaterialTheme.colors.error,
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onRejectAll, enabled = !isApplying, modifier = Modifier.testTag("patch-reject-all")) {
+                Material2IconLabel(action = ButtonAction.REJECT, text = strings.aiDialog.rejectAll)
+            }
+            Button(onClick = onAcceptAll, enabled = !isApplying, modifier = Modifier.testTag("patch-accept-all")) {
+                Material2IconLabel(action = ButtonAction.ACCEPT, text = strings.aiDialog.acceptAll)
+            }
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag("patch-close")) {
+                Material2IconLabel(action = ButtonAction.CLOSE, text = strings.dialogClose)
+            }
+        }
+    }
+}
+
+/**
+ * [IconLabel] inside a Material 2 button: Material 2 does not feed the Material 3 `LocalContentColor`
+ * that [IconLabel] reads by default, so the button's own content colour (with its disabled alpha) is passed in.
+ */
+@Composable
+private fun Material2IconLabel(
+    action: ButtonAction,
+    text: String,
+    compact: Boolean = false,
+    fontSize: TextUnit = TextUnit.Unspecified,
+) {
+    val color = LocalContentColor.current.copy(alpha = LocalContentAlpha.current)
+    IconLabel(action = action, text = text, compact = compact, fontSize = fontSize, contentColor = color)
 }
 
 /**
@@ -168,6 +211,7 @@ private fun TurnPreviewSvg(
 private fun PatchPreviewCard(
     view: AiPanelState.PendingPatchView,
     isApplying: Boolean,
+    strings: Strings,
     allowPerItemActions: Boolean = true,
     onAccept: () -> Unit,
     onReject: () -> Unit,
@@ -228,10 +272,10 @@ private fun PatchPreviewCard(
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = onAccept, enabled = !isApplying, modifier = Modifier.height(32.dp)) {
-                        Text("Übernehmen", fontSize = 12.sp)
+                        Material2IconLabel(action = ButtonAction.ACCEPT, text = strings.aiDialog.accept, compact = true, fontSize = 12.sp)
                     }
                     OutlinedButton(onClick = onReject, enabled = !isApplying, modifier = Modifier.height(32.dp)) {
-                        Text("Ablehnen", fontSize = 12.sp)
+                        Material2IconLabel(action = ButtonAction.REJECT, text = strings.aiDialog.reject, compact = true, fontSize = 12.sp)
                     }
                 }
             }
@@ -283,7 +327,3 @@ internal fun kindColor(kind: String): Color =
         "removed" -> Color(0xFFc62828)
         else -> Color(0xFF1565c0)
     }
-
-/** Footer warning text — defined as a val for testability. */
-internal val FOOTER_WARNING_TEXT: String =
-    "Hinweis: „Alle ablehnen“ rollt auch bereits übernommene Patches zurück."

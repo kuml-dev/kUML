@@ -13,10 +13,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.ai.ConversationMessage
+import dev.kuml.desktop.i18n.Strings
 
 @Composable
 fun ConversationPane(
     messages: List<ConversationMessage>,
+    strings: Strings,
     modifier: Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -34,11 +36,11 @@ fun ConversationPane(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         items(messages, key = { it.id }) { msg ->
-            MessageBubble(msg = msg, onInspectToolArgs = { inspectArgs = it })
+            MessageBubble(msg = msg, strings = strings, onInspectToolArgs = { inspectArgs = it })
         }
     }
 
     inspectArgs?.let { args ->
-        ToolArgsInspector(argsJson = args, onDismiss = { inspectArgs = null })
+        ToolArgsInspector(argsJson = args, strings = strings, onDismiss = { inspectArgs = null })
     }
 }

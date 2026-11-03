@@ -26,6 +26,7 @@ fun ProviderModelPicker(
         // Provider dropdown
         var pExpanded by remember { mutableStateOf(false) }
         Box {
+            // no-icon: MENU_TRIGGER
             OutlinedButton(onClick = { pExpanded = true }) {
                 Text(state.selectedProviderId, maxLines = 1)
             }
@@ -56,8 +57,9 @@ fun ProviderModelPicker(
         var mExpanded by remember { mutableStateOf(false) }
         val ollamaModelListState by state.ollamaModelListState.collectAsState()
         Box {
+            // no-icon: MENU_TRIGGER
             OutlinedButton(onClick = { mExpanded = true }) {
-                Text(state.selectedModelId.ifBlank { "Model" }, maxLines = 1)
+                Text(state.selectedModelId.ifBlank { strings.aiDefaultModel }, maxLines = 1)
             }
             DropdownMenu(expanded = mExpanded, onDismissRequest = { mExpanded = false }) {
                 // P3 (design review — "kein stiller Rückfall"): for Ollama, the dropdown no

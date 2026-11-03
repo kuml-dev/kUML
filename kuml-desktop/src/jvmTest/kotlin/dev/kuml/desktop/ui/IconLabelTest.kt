@@ -34,6 +34,38 @@ import io.kotest.matchers.shouldBe
 @OptIn(ExperimentalTestApi::class)
 class IconLabelTest :
     FunSpec({
+        test("icon tint falls back to the ambient content colour when unspecified") {
+            resolveIconTint(contentColor = Color.Unspecified, localContentColor = Color.Red) shouldBe Color.Red
+            resolveIconTint(contentColor = Color.Blue, localContentColor = Color.Red) shouldBe Color.Blue
+        }
+
+        test("icon is drawn in the ambient content colour, not the vector's black stroke") {
+            runComposeUiTest {
+                setContent {
+                    Box(Modifier.testTag("t").background(Color.White)) {
+                        CompositionLocalProvider(LocalContentColor provides Color.Red) {
+                            IconLabel(action = ButtonAction.CLOSE, text = "")
+                        }
+                    }
+                }
+                val bmp = onNodeWithTag("t").captureToImage().asSkiaBitmap()
+                var red = 0
+                var dark = 0
+                for (y in 0 until bmp.height) {
+                    for (x in 0 until bmp.width) {
+                        val c = bmp.getColor(x, y)
+                        val r = (c shr 16) and 0xFF
+                        val g = (c shr 8) and 0xFF
+                        val b = c and 0xFF
+                        if (r > 200 && g < 80 && b < 80) red++
+                        if (r < 60 && g < 60 && b < 60) dark++
+                    }
+                }
+                red shouldBeGreaterThan 19
+                dark shouldBe 0
+            }
+        }
+
         test("every action renders a visible icon, normal and compact") {
             ButtonAction.entries.forEach { action ->
                 listOf(false, true).forEach { compact ->

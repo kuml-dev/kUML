@@ -20,10 +20,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.kuml.desktop.ai.ConversationMessage
 import dev.kuml.desktop.ai.ToolCallState
+import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 
 @Composable
 fun ToolTraceCard(
     msg: ConversationMessage.ToolCall,
+    strings: Strings,
     onInspect: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -54,7 +58,7 @@ fun ToolTraceCard(
                     modifier = Modifier.padding(top = 4.dp),
                 )
                 TextButton(onClick = { onInspect(msg.argsJson) }) {
-                    Text("Inspect")
+                    IconLabel(action = ButtonAction.INSPECT, text = strings.aiDialog.inspect, compact = true)
                 }
             }
         }

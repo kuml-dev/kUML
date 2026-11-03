@@ -288,6 +288,7 @@ data class Strings(
     val pdfLayoutSummary: String get() = pdfExport.pdfLayoutSummary
     val pdfDisabledOrientationAuto: String get() = pdfExport.pdfDisabledOrientationAuto
     val previewExport: PreviewExportStrings get() = pdfExport.previewExport
+    val aiDialog: AiDialogStrings get() = simulator.aiDialog
     val simInspectorTitle: String get() = simulator.simInspectorTitle
     val simVariablesTitle: String get() = simulator.simVariablesTitle
     val simInspectorToggle: String get() = simulator.simInspectorToggle
@@ -723,6 +724,18 @@ data class Strings(
                         simPayloadErrReserved = "Schlüssel '%s' ist reserviert",
                         simPayloadAtPosition = " an Position %d",
                         simInvalidPayload = "Payload ungültig, nichts gesendet: %s",
+                        aiDialog =
+                            run {
+                                val rejectAll = "Alle ablehnen"
+                                AiDialogStrings(
+                                    acceptAll = "Alle übernehmen",
+                                    rejectAll = rejectAll,
+                                    accept = "Übernehmen",
+                                    reject = "Ablehnen",
+                                    inspect = "Ansehen",
+                                    patchFooterWarning = "Hinweis: „$rejectAll“ rollt auch bereits übernommene Patches zurück.",
+                                )
+                            },
                     ),
                 docEditRead = "Lesen",
                 docEditEdit = "Bearbeiten",
@@ -1132,6 +1145,18 @@ data class Strings(
                         simPayloadErrReserved = "Key '%s' is reserved",
                         simPayloadAtPosition = " at position %d",
                         simInvalidPayload = "Invalid payload, nothing sent: %s",
+                        aiDialog =
+                            run {
+                                val rejectAll = "Reject all"
+                                AiDialogStrings(
+                                    acceptAll = "Accept all",
+                                    rejectAll = rejectAll,
+                                    accept = "Accept",
+                                    reject = "Reject",
+                                    inspect = "Inspect",
+                                    patchFooterWarning = "Note: “$rejectAll” also rolls back patches that were already accepted.",
+                                )
+                            },
                     ),
                 docEditRead = "Read",
                 docEditEdit = "Edit",
@@ -1278,6 +1303,18 @@ data class SimulatorStrings(
     val simPayloadErrReserved: String,
     val simPayloadAtPosition: String,
     val simInvalidPayload: String,
+    // Nested here, not in Strings: Strings itself is at the JVM constructor limit of 255 parameters.
+    val aiDialog: AiDialogStrings,
+)
+
+/** Texts of the AI patch preview dialog and the tool-call card (see [Strings.aiDialog]; stored in [SimulatorStrings]). */
+data class AiDialogStrings(
+    val acceptAll: String,
+    val rejectAll: String,
+    val accept: String,
+    val reject: String,
+    val inspect: String,
+    val patchFooterWarning: String,
 )
 
 /** Page-layout texts of the PDF export dialog (see [Strings.pdfExport]). */

@@ -32,6 +32,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.ButtonAction
+import dev.kuml.desktop.ui.IconLabel
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
 import dev.kuml.desktop.ui.tooltipStart
@@ -475,8 +477,12 @@ internal fun ProtectedGuardConfirmDialog(
     WindowAlertDialog(
         title = strings.simProtectedConfirmTitle,
         onDismissRequest = onCancel,
-        confirmButton = { TextButton(onClick = onConfirm) { Text(strings.simConfirm) } },
-        dismissButton = { TextButton(onClick = onCancel) { Text(strings.simCancel) } },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { IconLabel(action = ButtonAction.CONFIRM, text = strings.simConfirm, compact = true) }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) { IconLabel(action = ButtonAction.CANCEL, text = strings.simCancel, compact = true) }
+        },
     ) {
         Text(text = strings.simProtectedConfirmBody.format(transitionLabel))
     }
