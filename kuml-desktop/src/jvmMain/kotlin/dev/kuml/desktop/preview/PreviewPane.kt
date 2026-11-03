@@ -54,6 +54,8 @@ import javax.swing.SwingUtilities
 fun PreviewPane(
     state: AppState,
     modifier: Modifier = Modifier,
+    /** Save-as-image handler for the toolbar's SVG/PNG buttons; `null` keeps them disabled. */
+    onExport: ((ImageFormat) -> Unit)? = null,
 ) {
     val canvas = remember { createPreviewCanvas() }
     val patcher = remember { SimulationHighlightPatcher() }
@@ -64,7 +66,7 @@ fun PreviewPane(
     // Genau EIN Dokument pro Sitzung (Spez. C12): während einer laufenden Simulation ist
     // effectiveSvg konstant (baseSvg), spätere state.lastSvg-Renders (Editor weiter getippt)
     // lassen das Preview in Ruhe (Spez. D18 — der Nutzer sieht stattdessen das Veraltet-Banner).
-    val effectiveSvg = session?.baseSvg ?: state.lastSvg
+    val effectiveSvg = singleFileSvg(simulationBaseSvg = session?.baseSvg, lastSvg = state.lastSvg)
 
     DisposableEffect(canvas) {
         val listener =
@@ -109,7 +111,12 @@ fun PreviewPane(
     }
 
     Column(modifier = modifier.testTag("kuml-preview")) {
-        ZoomToolbar(canvas = canvas, strings = strings)
+        ZoomToolbar(
+            canvas = canvas,
+            strings = strings,
+            exportSvg = shownSvg(workspaceMode = false, docSvg = null, lastSvg = effectiveSvg),
+            onExport = onExport,
+        )
         if (session != null) {
             SimulationBar(state = state, session = session, strings = strings)
         }

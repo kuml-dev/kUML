@@ -287,6 +287,7 @@ data class Strings(
     val pdfMinScale: String get() = pdfExport.pdfMinScale
     val pdfLayoutSummary: String get() = pdfExport.pdfLayoutSummary
     val pdfDisabledOrientationAuto: String get() = pdfExport.pdfDisabledOrientationAuto
+    val previewExport: PreviewExportStrings get() = pdfExport.previewExport
     val simInspectorTitle: String get() = simulator.simInspectorTitle
     val simVariablesTitle: String get() = simulator.simVariablesTitle
     val simInspectorToggle: String get() = simulator.simInspectorToggle
@@ -625,6 +626,17 @@ data class Strings(
                                 minScaleHint = "Tipp: Unter „Erweitert“ die Mindestgröße senken.",
                                 andMore = "… und %1\$d weitere",
                                 overwriteButton = "Überschreiben",
+                            ),
+                        previewExport =
+                            PreviewExportStrings(
+                                saveSvg = "Als SVG speichern",
+                                savePng = "Als PNG speichern",
+                                nothingToSave = "Kein Diagramm zum Speichern",
+                                pdfThisDocument = "Dieses Dokument als PDF exportieren",
+                                scopeDocument = "Aktuelles Dokument (%s)",
+                                noDocumentOpen = "Kein Dokument geöffnet",
+                                saveFailed = "Das Diagramm konnte nicht gespeichert werden: %s",
+                                unsavedHint = "Ungespeicherte Änderungen sind im PDF nicht enthalten. Speichern Sie das Dokument vorher.",
                             ),
                     ),
                 simulator =
@@ -1026,6 +1038,17 @@ data class Strings(
                                 andMore = "… and %1\$d more",
                                 overwriteButton = "Overwrite",
                             ),
+                        previewExport =
+                            PreviewExportStrings(
+                                saveSvg = "Save as SVG",
+                                savePng = "Save as PNG",
+                                nothingToSave = "No diagram to save",
+                                pdfThisDocument = "Export this document as PDF",
+                                scopeDocument = "Current document (%s)",
+                                noDocumentOpen = "No document open",
+                                saveFailed = "The diagram could not be saved: %s",
+                                unsavedHint = "Unsaved changes are not included in the PDF. Save the document first.",
+                            ),
                     ),
                 simulator =
                     SimulatorStrings(
@@ -1268,6 +1291,21 @@ data class PdfExportStrings(
     val pdfLayoutSummary: String,
     val pdfDisabledOrientationAuto: String,
     val status: PdfStatusStrings,
+    val previewExport: PreviewExportStrings,
+)
+
+/** Texts of the preview's "Save as SVG / PNG" buttons and the per-document PDF export (see [Strings.previewExport]). */
+data class PreviewExportStrings(
+    val saveSvg: String,
+    val savePng: String,
+    val nothingToSave: String,
+    val pdfThisDocument: String,
+    // Format with the document path: exactly one %s.
+    val scopeDocument: String,
+    val noDocumentOpen: String,
+    // Format with the failure reason: exactly one %s.
+    val saveFailed: String,
+    val unsavedHint: String,
 )
 
 /** Texts of the fixed status area in the PDF export dialog (see [Strings.pdfStatus]). */

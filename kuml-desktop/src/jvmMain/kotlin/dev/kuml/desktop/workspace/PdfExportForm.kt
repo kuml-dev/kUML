@@ -19,8 +19,11 @@ enum class PdfPreset(
     DIAGRAMS(kind = PdfExportKind.DIAGRAMS),
 }
 
+/** Which part of the workspace is exported. */
+enum class PdfScope { ALL, FOLDER, DOCUMENT }
+
 /** Options that can be switched in the dialog; used to explain why one is unavailable. */
-enum class PdfOption { COVER, TOC, HEADER_FOOTER, DRAFT, SPLIT, SCOPE_FOLDER, ORIENTATION }
+enum class PdfOption { COVER, TOC, HEADER_FOOTER, DRAFT, SPLIT, SCOPE_FOLDER, SCOPE_DOCUMENT, ORIENTATION }
 
 /** An option is either usable or shown disabled together with the key of its explanation (never silently hidden). */
 sealed interface PdfOptionAvailability {
@@ -31,13 +34,15 @@ sealed interface PdfOptionAvailability {
     ) : PdfOptionAvailability
 }
 
-enum class PdfReason { TOC_FOR_DIAGRAMS, COVER_FOR_DIAGRAMS, SPLIT_NOT_DIAGRAMS, ORIENTATION_BY_PAGE_STRATEGY }
+enum class PdfReason { TOC_FOR_DIAGRAMS, COVER_FOR_DIAGRAMS, SPLIT_NOT_DIAGRAMS, ORIENTATION_BY_PAGE_STRATEGY, NO_DOCUMENT_OPEN }
 
 /** Pure, testable state of the PDF export dialog. */
 data class PdfExportFormState(
     val preset: PdfPreset = PdfPreset.HANDBOOK,
-    val folderScope: Boolean = false,
+    val scope: PdfScope = PdfScope.ALL,
     val folder: String = "",
+    /** Workspace-relative path of the open document (dialog context, not user input); `null` when none is open. */
+    val documentPath: String? = null,
     val page: PageFormat = PageFormat.A4,
     val orientation: PageOrientation = PageOrientation.AUTO,
     val pageStrategy: PageStrategy = PageStrategy.AUTO,
@@ -69,9 +74,17 @@ data class PdfExportFormState(
     val dateValid: Boolean
         get() = date.isBlank() || runCatching { LocalDate.parse(date.trim()) }.isSuccess
 
-    val folderValid: Boolean get() = !folderScope || (folder.isNotBlank() && !folder.contains(".."))
+    val folderValid: Boolean get() = scope != PdfScope.FOLDER || (folder.isNotBlank() && !folder.contains(".."))
 
-    val canSubmit: Boolean get() = dateValid && folderValid
+    /** A document scope needs a relative path without `..`, a leading slash, a drive letter or backslashes. */
+    val documentValid: Boolean
+        get() =
+            scope != PdfScope.DOCUMENT ||
+                documentPath.let { p ->
+                    p != null && p.isNotBlank() && !p.contains("..") && !p.startsWith("/") && !p.contains('\\') && !p.contains(':')
+                }
+
+    val canSubmit: Boolean get() = dateValid && folderValid && documentValid
 
     fun availability(option: PdfOption): PdfOptionAvailability =
         when (option) {
@@ -105,13 +118,27 @@ data class PdfExportFormState(
                 } else {
                     PdfOptionAvailability.Enabled
                 }
+            PdfOption.SCOPE_DOCUMENT ->
+                if (documentPath.isNullOrBlank()) {
+                    PdfOptionAvailability.Disabled(PdfReason.NO_DOCUMENT_OPEN)
+                } else {
+                    PdfOptionAvailability.Enabled
+                }
             PdfOption.HEADER_FOOTER, PdfOption.DRAFT, PdfOption.SCOPE_FOLDER -> PdfOptionAvailability.Enabled
         }
 
     fun toOptions(producerVersion: String): PdfExportOptions =
         PdfExportOptions(
             kind = preset.kind,
-            scope = if (folderScope) ExportScope.Folder(relativePath = folder.trim()) else ExportScope.All,
+            scope =
+                when (scope) {
+                    PdfScope.FOLDER -> ExportScope.Folder(relativePath = folder.trim())
+                    PdfScope.DOCUMENT ->
+                        ExportScope.Documents(
+                            relativePaths = listOf(requireNotNull(documentPath) { "document scope without a document path" }),
+                        )
+                    PdfScope.ALL -> ExportScope.All
+                },
             page = page,
             orientation = if (pageStrategy == PageStrategy.AUTO) PageOrientation.AUTO else orientation,
             pageStrategy = pageStrategy,
@@ -137,6 +164,10 @@ data class PdfExportFormState(
         )
 
     companion object {
+        /** Preset for the per-document PDF icon: scope is exactly [path], kind per document (no cover page). */
+        fun forDocument(path: String): PdfExportFormState =
+            PdfExportFormState(scope = PdfScope.DOCUMENT, documentPath = path).withPreset(PdfPreset.PER_DOCUMENT)
+
         const val DEFAULT_MIN_SCALE_PERCENT = 50
         val MIN_SCALE_PERCENT_RANGE = 25..100
     }

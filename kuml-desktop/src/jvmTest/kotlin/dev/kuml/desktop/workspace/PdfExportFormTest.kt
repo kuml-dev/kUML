@@ -40,14 +40,14 @@ class PdfExportFormTest :
         }
 
         test("folder scope and metadata map to options; invalid input blocks submit") {
-            val s = PdfExportFormState(folderScope = true, folder = " articles ", author = " Eva ", version = "2", date = "2026-10-28")
+            val s = PdfExportFormState(scope = PdfScope.FOLDER, folder = " articles ", author = " Eva ", version = "2", date = "2026-10-28")
             val o = s.toOptions(producerVersion = "p")
             o.scope shouldBe ExportScope.Folder(relativePath = "articles")
             o.metadata.author shouldBe "Eva"
             o.metadata.date.toString() shouldBe "2026-10-28"
             PdfExportFormState(date = "yesterday").canSubmit shouldBe false
-            PdfExportFormState(folderScope = true, folder = "").canSubmit shouldBe false
-            PdfExportFormState(folderScope = true, folder = "../x").canSubmit shouldBe false
+            PdfExportFormState(scope = PdfScope.FOLDER, folder = "").canSubmit shouldBe false
+            PdfExportFormState(scope = PdfScope.FOLDER, folder = "../x").canSubmit shouldBe false
         }
 
         test("automatic page size forces automatic orientation and disables the orientation choice with a reason") {
@@ -76,5 +76,50 @@ class PdfExportFormTest :
             PdfExportFormState().withMinScalePercent(10).minScalePercent shouldBe 25
             PdfExportFormState().withMinScalePercent(200).minScalePercent shouldBe 100
             PdfExportFormState().withMinScalePercent(53).minScalePercent shouldBe 50
+        }
+
+        test("document scope maps to Documents with exactly the open path") {
+            val s = PdfExportFormState(scope = PdfScope.DOCUMENT, documentPath = "models/organe.md")
+            s.toOptions(producerVersion = "p").scope shouldBe ExportScope.Documents(relativePaths = listOf("models/organe.md"))
+            s.canSubmit shouldBe true
+        }
+
+        test("document scope without an open document is unavailable and blocks submit") {
+            PdfExportFormState().availability(PdfOption.SCOPE_DOCUMENT) shouldBe
+                PdfOptionAvailability.Disabled(PdfReason.NO_DOCUMENT_OPEN)
+            PdfExportFormState(documentPath = "a.md").availability(PdfOption.SCOPE_DOCUMENT) shouldBe PdfOptionAvailability.Enabled
+            PdfExportFormState(scope = PdfScope.DOCUMENT, documentPath = null).canSubmit shouldBe false
+            PdfExportFormState(scope = PdfScope.DOCUMENT, documentPath = " ").canSubmit shouldBe false
+        }
+
+        test("document scope rejects parent segments, absolute and backslash paths") {
+            listOf("../x.md", "a/../../x.md", "/etc/x.md", "a\\b.md", "C:/x.md").forEach {
+                PdfExportFormState(scope = PdfScope.DOCUMENT, documentPath = it).canSubmit shouldBe false
+            }
+            // a stale invalid path is irrelevant while another scope is chosen
+            PdfExportFormState(scope = PdfScope.ALL, documentPath = "../x.md").canSubmit shouldBe true
+        }
+
+        test("forDocument presets the document scope with the per-document kind and no cover page") {
+            val s = PdfExportFormState.forDocument("chapters/eins.md")
+            s.scope shouldBe PdfScope.DOCUMENT
+            s.preset shouldBe PdfPreset.PER_DOCUMENT
+            s.cover shouldBe false
+            val o = s.toOptions(producerVersion = "p")
+            o.kind shouldBe PdfExportKind.PER_DOCUMENT
+            o.cover shouldBe false
+            o.scope shouldBe ExportScope.Documents(relativePaths = listOf("chapters/eins.md"))
+        }
+
+        test("the menu preset keeps the whole workspace as scope, even with a document open") {
+            val s = PdfExportFormState().copy(documentPath = "a.md")
+            s.scope shouldBe PdfScope.ALL
+            s.toOptions(producerVersion = "p").scope shouldBe ExportScope.All
+        }
+
+        test("the diagrams preset is allowed together with the document scope") {
+            val s = PdfExportFormState.forDocument("a.md").withPreset(PdfPreset.DIAGRAMS)
+            s.scope shouldBe PdfScope.DOCUMENT
+            s.toOptions(producerVersion = "p").kind shouldBe PdfExportKind.DIAGRAMS
         }
     })

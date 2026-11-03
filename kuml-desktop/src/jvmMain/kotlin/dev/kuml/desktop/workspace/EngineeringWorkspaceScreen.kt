@@ -29,6 +29,7 @@ import dev.kuml.desktop.editor.EditorPane
 import dev.kuml.desktop.editor.FindBar
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.io.FileMenu
+import dev.kuml.desktop.preview.ImageFormat
 import dev.kuml.desktop.preview.PreviewPane
 import java.io.File
 
@@ -53,6 +54,7 @@ fun EngineeringWorkspaceScreen(
     confirmUnsavedAndThen: (() -> Unit) -> Unit,
     modifier: Modifier = Modifier,
     onEditorReady: (EditorActions?) -> Unit = {},
+    onExportImage: ((ImageFormat) -> Unit)? = null,
 ) {
     // P5 — Ansichtsmodus: der Dateibaum bleibt in allen drei Modi sichtbar (Susan Kare, design
     // review: "Baum ist Navigation, nicht Inhalt"). Gewichte: SPLIT 1:2:2 (unverändert
@@ -103,6 +105,7 @@ fun EngineeringWorkspaceScreen(
             PreviewPane(
                 state = state,
                 modifier = Modifier.weight(previewWeight).fillMaxHeight(),
+                onExport = onExportImage,
             )
         }
     }

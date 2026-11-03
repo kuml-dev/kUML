@@ -43,10 +43,29 @@ In the preview (and in the Knowledge Workspace viewer and the AI patch preview):
 | Zoom buttons above the preview | Zoom in, zoom out, actual size (1:1), fit, center
 | Actual size button | Show the diagram at 1:1, centered; stays 1:1 when the window is resized
 | Center button | Center the diagram without changing the zoom
+| Save as SVG / Save as PNG buttons (right of a separator after the zoom buttons) | Save the diagram that is currently shown, see <<Saving the shown diagram as an image>>
 |===
 
 Batik's own gestures keep working: Shift + drag pans, Ctrl + Shift + drag zooms, the arrow keys
 move the diagram.
+
+== Saving the shown diagram as an image
+
+Two icon buttons at the right end of the zoom strip, *Save as SVG* and *Save as PNG*, save the diagram that is shown. The same
+two actions exist as *File ▸ Export SVG* and *File ▸ Export PNG*; the buttons and the menu use one code path and always export
+what is on screen:
+
+* In the single-file editor that is the rendered diagram. While a simulation runs, the preview shows the diagram as it was when
+  the simulation started, and that is what is saved.
+* In a knowledge workspace it is the diagram of the selected document, including unsaved edits in the editor. A document
+  without a diagram has nothing to save; the buttons and the menu items are then disabled (the tooltip says why) and never
+  fall back to the diagram of another file.
+
+Saving always goes through the file dialog; cancelling writes nothing, and a failure is reported in a message box. The
+suggested file name is the document's name with `.svg` or `.png`.
+
+The PNG is twice the diagram's natural width, between 800 and 4096 px (1600 px when the width cannot be read), on a white
+background.
 
 == Simulator: inspector, variables, payload, temporary guard editing
 
@@ -147,6 +166,17 @@ Menu shortcuts follow the platform convention: *⌘ (Command)* on macOS, *Ctrl* 
 
 With a knowledge workspace open, *File ▸ Export Workspace ▸ As PDF...* exports it as a handbook, one PDF per document or a
 diagram folio; see xref:workspace-pdf-export.adoc[Workspace PDF export].
+
+=== Exporting a single document
+
+The document header of the knowledge workspace has a *PDF* icon at its right end (tooltip: _Export this document as PDF_).
+It opens the same dialog with the scope already set to *Current document* and the _per document_ kind, without a cover page.
+The scope row of the dialog always offers *Current document (path)*; it is disabled when no document is open. Opening the
+dialog from the *File* menu keeps the whole workspace as the scope.
+
+The PDF is built from the files on disk. If the document has unsaved edits, the dialog says so; save it first.
+
+=== The dialog's status area
 
 All messages of the dialog appear in a fixed status area above the buttons, so the options never move: the
 check progress, the result, an overwrite question and any warning. When a diagram stays too small to read, the area

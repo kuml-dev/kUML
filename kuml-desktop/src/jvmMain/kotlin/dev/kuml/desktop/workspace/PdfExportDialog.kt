@@ -21,6 +21,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.kuml.cli.workspace.WorkspacePdfExport
 import dev.kuml.desktop.i18n.Strings
@@ -93,8 +94,13 @@ fun PdfExportDialog(
     chooseSaveFile: (suggestedName: String, initialDir: File?) -> File?,
     chooseSaveDirectory: (initialDir: File?) -> File?,
     onDismiss: () -> Unit,
+    /** Workspace-relative path of the selected document, or `null` when none is open (the document scope is then disabled). */
+    documentPath: String? = null,
+    /** Whether the selected document has unsaved edits; the PDF is built from the saved files on disk. */
+    documentDirty: Boolean = false,
+    initial: PdfExportFormState = PdfExportFormState(),
 ) {
-    var form by remember { mutableStateOf(PdfExportFormState()) }
+    var form by remember { mutableStateOf(initial.copy(documentPath = documentPath)) }
     var ui by remember { mutableStateOf<PdfUiState>(PdfUiState.Idle) }
     var prepared by remember { mutableStateOf<PreparedExport?>(null) }
     val cancelled = remember { AtomicBoolean(false) }
@@ -251,13 +257,47 @@ fun PdfExportDialog(
                         form.withPreset(PdfPreset.DIAGRAMS)
                 }
 
+                val documentAvailable = form.availability(PdfOption.SCOPE_DOCUMENT) == PdfOptionAvailability.Enabled
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-                    RadioButton(selected = !form.folderScope, onClick = { form = form.copy(folderScope = false) }, enabled = !busyWorking)
+                    RadioButton(
+                        selected = form.scope == PdfScope.ALL,
+                        onClick = { form = form.copy(scope = PdfScope.ALL) },
+                        enabled = !busyWorking,
+                    )
                     Text(strings.pdfScopeAll)
-                    RadioButton(selected = form.folderScope, onClick = { form = form.copy(folderScope = true) }, enabled = !busyWorking)
+                    RadioButton(
+                        selected = form.scope == PdfScope.FOLDER,
+                        onClick = { form = form.copy(scope = PdfScope.FOLDER) },
+                        enabled = !busyWorking,
+                    )
                     Text(strings.pdfScopeFolder)
+                    RadioButton(
+                        selected = form.scope == PdfScope.DOCUMENT,
+                        onClick = { form = form.copy(scope = PdfScope.DOCUMENT) },
+                        enabled = !busyWorking && documentAvailable,
+                    )
+                    // One line with an ellipsis: a long path must not widen the dialog.
+                    Text(
+                        text =
+                            if (documentAvailable) {
+                                strings.previewExport.scopeDocument.format(form.documentPath)
+                            } else {
+                                strings.previewExport.noDocumentOpen
+                            },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
-                if (form.folderScope) {
+                if (form.scope == PdfScope.DOCUMENT && documentDirty) {
+                    Text(
+                        strings.previewExport.unsavedHint,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(start = 12.dp),
+                    )
+                }
+                if (form.scope == PdfScope.FOLDER) {
                     OutlinedTextField(
                         value = form.folder,
                         onValueChange = { form = form.copy(folder = it) },
@@ -482,6 +522,7 @@ private fun OptionCheck(
                     PdfReason.COVER_FOR_DIAGRAMS -> strings.pdfDisabledCoverForDiagrams
                     PdfReason.SPLIT_NOT_DIAGRAMS -> strings.pdfDisabledSplitNotDiagrams
                     PdfReason.ORIENTATION_BY_PAGE_STRATEGY -> strings.pdfDisabledOrientationAuto
+                    PdfReason.NO_DOCUMENT_OPEN -> strings.previewExport.noDocumentOpen
                 }
             Text(
                 reason,

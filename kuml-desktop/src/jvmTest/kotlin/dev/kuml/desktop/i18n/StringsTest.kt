@@ -634,6 +634,27 @@ class PdfExportStringsTest :
             }
         }
 
+        test("preview export strings are non-blank in DE and EN, placeholders appear exactly once") {
+            listOf(Strings.DE, Strings.EN).forEach {
+                val p = it.previewExport
+                listOf(
+                    p.saveSvg,
+                    p.savePng,
+                    p.nothingToSave,
+                    p.pdfThisDocument,
+                    p.scopeDocument,
+                    p.noDocumentOpen,
+                    p.saveFailed,
+                    p.unsavedHint,
+                ).forEach { v -> v.shouldNotBeBlank() }
+                p.scopeDocument.split("%s").size shouldBe 2
+                p.saveFailed.split("%s").size shouldBe 2
+            }
+            Strings.DE.previewExport.saveSvg shouldNotBe Strings.EN.previewExport.saveSvg
+            Strings.DE.previewExport.scopeDocument
+                .format("a/b.md") shouldBe "Aktuelles Dokument (a/b.md)"
+        }
+
         // --- Preview toolbar (1:1, center, fit shortcuts) ---
         test("preview view strings are non-blank in DE and EN and differ between languages") {
             listOf(Strings.DE, Strings.EN).forEach {

@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.editor.EditorActions
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.preview.ImageFormat
 import dev.kuml.desktop.render.DesktopRenderController
 import dev.kuml.desktop.ui.ResizableSplit
 import dev.kuml.desktop.ui.SPLIT_DIVIDER_WIDTH
@@ -63,6 +64,10 @@ fun KnowledgeWorkspaceScreen(
     editorFraction: Double = WORKSPACE_EDITOR_DEFAULT_FRACTION,
     onEditorFractionChange: (Double) -> Unit = {},
     onEditorFractionCommit: (Double) -> Unit = {},
+    /** Opens the PDF export dialog for the document with the given workspace-relative path. */
+    onExportPdf: (String) -> Unit = {},
+    /** Saves the shown diagram (the selected document's) as an image. */
+    onExportImage: ((ImageFormat) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val linkHandler =
@@ -182,6 +187,7 @@ fun KnowledgeWorkspaceScreen(
                     }
                 },
                 onEditorReady = onEditorReady,
+                onExportPdf = { state.selected?.let { onExportPdf(it.relativePath) } },
                 modifier = Modifier.fillMaxSize(),
             )
         },
@@ -193,6 +199,7 @@ fun KnowledgeWorkspaceScreen(
                 hasSelection = state.selected != null,
                 strings = strings,
                 modifier = Modifier.fillMaxSize(),
+                onExport = onExportImage,
             )
         },
     )

@@ -1,11 +1,17 @@
 package dev.kuml.desktop.preview
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.i18n.Strings
@@ -38,8 +44,13 @@ fun ZoomToolbar(
     canvas: JSVGCanvas,
     strings: Strings,
     modifier: Modifier = Modifier,
+    // Export block: [exportSvg] is the diagram currently shown (null/blank: nothing to save, buttons disabled).
+    // [onExport] == null keeps the block visible but disabled, so the strip never jumps.
+    exportSvg: String? = null,
+    onExport: ((ImageFormat) -> Unit)? = null,
 ) {
     Row(
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
     ) {
@@ -72,6 +83,29 @@ fun ZoomToolbar(
             description = strings.previewView.center,
             onClick = { navigationOf(canvas)?.center?.invoke() },
             tooltipPlacement = tooltipEnd(),
+        )
+        Box(
+            Modifier
+                .padding(horizontal = 4.dp)
+                .width(1.dp)
+                .height(20.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant),
+        )
+        val canExport = !exportSvg.isNullOrBlank() && onExport != null
+        val exportStrings = strings.previewExport
+        IconTooltipButton(
+            icon = KumlIcons.SaveSvg,
+            description = if (canExport) exportStrings.saveSvg else exportStrings.nothingToSave,
+            onClick = { onExport?.invoke(ImageFormat.SVG) },
+            tooltipPlacement = tooltipEnd(),
+            enabled = canExport,
+        )
+        IconTooltipButton(
+            icon = KumlIcons.SavePng,
+            description = if (canExport) exportStrings.savePng else exportStrings.nothingToSave,
+            onClick = { onExport?.invoke(ImageFormat.PNG) },
+            tooltipPlacement = tooltipEnd(),
+            enabled = canExport,
         )
     }
 }

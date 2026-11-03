@@ -15,6 +15,7 @@ import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.preview.ImageFormat
 import dev.kuml.desktop.preview.ZoomToolbar
 import dev.kuml.desktop.preview.createPreviewCanvas
 import dev.kuml.desktop.preview.parseSvg
@@ -40,9 +41,10 @@ fun WorkspacePreviewPane(
     hasSelection: Boolean,
     strings: Strings,
     modifier: Modifier = Modifier,
+    onExport: ((ImageFormat) -> Unit)? = null,
 ) {
     when {
-        docSvg != null -> SvgCanvas(svg = docSvg, strings = strings, modifier = modifier)
+        docSvg != null -> SvgCanvas(svg = docSvg, strings = strings, modifier = modifier, onExport = onExport)
         docError != null -> MessageBox(text = docError, color = Color(0xFFCC0000), modifier = modifier)
         isRendering -> MessageBox(text = strings.statusRendering, color = Color.Gray, modifier = modifier)
         hasSelection -> MessageBox(text = strings.previewProseEmpty, color = Color.Gray, modifier = modifier)
@@ -55,6 +57,7 @@ private fun SvgCanvas(
     svg: String,
     strings: Strings,
     modifier: Modifier,
+    onExport: ((ImageFormat) -> Unit)?,
 ) {
     val canvas = remember { createPreviewCanvas() }
     LaunchedEffect(svg) {
@@ -64,7 +67,7 @@ private fun SvgCanvas(
         }
     }
     Column(modifier = modifier.fillMaxSize()) {
-        ZoomToolbar(canvas = canvas, strings = strings)
+        ZoomToolbar(canvas = canvas, strings = strings, exportSvg = svg, onExport = onExport)
         SwingPanel(factory = { canvas }, modifier = Modifier.weight(1f).fillMaxWidth())
     }
 }

@@ -82,6 +82,17 @@ object KumlIcons {
     /** Rückwärtspfeil — ursprünglichen Guard wiederherstellen. */
     val RevertGuard: ImageVector by lazy { buildRevertGuardIcon() }
 
+    // Export aus der Vorschau: Ablage-Schale mit Pfeil nach unten, rechts oben ein Abzeichen fürs Format.
+
+    /** Schale mit Pfeil und Kurve zwischen zwei Quadraten (Vektor-Abzeichen) — "Als SVG speichern". */
+    val SaveSvg: ImageVector by lazy { buildSaveIcon(name = "KumlSaveSvg", badgeIsRaster = false) }
+
+    /** Schale mit Pfeil und 2x2-Pixelraster (Raster-Abzeichen) — "Als PNG speichern". */
+    val SavePng: ImageVector by lazy { buildSaveIcon(name = "KumlSavePng", badgeIsRaster = true) }
+
+    /** Blatt mit Eselsohr und drei Textzeilen, ohne Pfeil — "Dieses Dokument als PDF exportieren". */
+    val PdfDocument: ImageVector by lazy { buildPdfDocumentIcon() }
+
     private const val VIEWPORT = 24f
     private const val STROKE_WIDTH = 2f
     private val PLACEHOLDER = SolidColor(Color.Black)
@@ -551,6 +562,117 @@ object KumlIcons {
                     lineTo(19f, 17f)
                     lineTo(15f, 19f)
                     lineTo(9f, 19f)
+                }
+            }.build()
+
+    /**
+     * Shared base of [SaveSvg]/[SavePng]: tray `M4 15 V19 H20 V15` and an arrow at x=8 (tip right edge x=13),
+     * kept clear of the format badge in the field x 14..23, y 2..9.
+     */
+    private fun buildSaveIcon(
+        name: String,
+        badgeIsRaster: Boolean,
+    ): ImageVector =
+        builder(name)
+            .apply {
+                path(
+                    name = "$name.base",
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                ) {
+                    moveTo(4f, 15f)
+                    lineTo(4f, 19f)
+                    lineTo(20f, 19f)
+                    lineTo(20f, 15f)
+                    moveTo(8f, 3f)
+                    lineTo(8f, 13f)
+                    moveTo(4f, 9f)
+                    lineTo(8f, 13f)
+                    lineTo(12f, 9f)
+                }
+                if (badgeIsRaster) {
+                    // Frame (thinner stroke, the field is only 7 units wide) with two of four 2.5-unit cells filled.
+                    path(
+                        name = "$name.frame",
+                        fill = null,
+                        stroke = PLACEHOLDER,
+                        strokeLineWidth = 1.5f,
+                        strokeLineJoin = StrokeJoin.Round,
+                    ) {
+                        moveTo(15.75f, 2.75f)
+                        lineTo(21.25f, 2.75f)
+                        lineTo(21.25f, 8.25f)
+                        lineTo(15.75f, 8.25f)
+                        close()
+                    }
+                    path(name = "$name.cells", fill = PLACEHOLDER) {
+                        moveTo(16.5f, 3.5f)
+                        lineTo(19f, 3.5f)
+                        lineTo(19f, 6f)
+                        lineTo(16.5f, 6f)
+                        close()
+                        moveTo(19f, 6f)
+                        lineTo(21f, 6f)
+                        lineTo(21f, 8f)
+                        lineTo(19f, 8f)
+                        close()
+                    }
+                } else {
+                    path(
+                        name = "$name.curve",
+                        fill = null,
+                        stroke = PLACEHOLDER,
+                        strokeLineWidth = STROKE_WIDTH,
+                        strokeLineCap = StrokeCap.Round,
+                    ) {
+                        moveTo(16f, 8f)
+                        curveTo(17f, 3f, 21f, 8f, 22f, 3f)
+                    }
+                    path(name = "$name.anchors", fill = PLACEHOLDER) {
+                        moveTo(15f, 7f)
+                        lineTo(17f, 7f)
+                        lineTo(17f, 9f)
+                        lineTo(15f, 9f)
+                        close()
+                        moveTo(21f, 2f)
+                        lineTo(23f, 2f)
+                        lineTo(23f, 4f)
+                        lineTo(21f, 4f)
+                        close()
+                    }
+                }
+            }.build()
+
+    /** Sheet with folded corner and three text lines. */
+    private fun buildPdfDocumentIcon(): ImageVector =
+        builder("KumlPdfDocument")
+            .apply {
+                path(
+                    name = "KumlPdfDocument.sheet",
+                    fill = null,
+                    stroke = PLACEHOLDER,
+                    strokeLineWidth = STROKE_WIDTH,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                ) {
+                    moveTo(6f, 2f)
+                    lineTo(14f, 2f)
+                    lineTo(19f, 7f)
+                    lineTo(19f, 22f)
+                    lineTo(6f, 22f)
+                    close()
+                    moveTo(14f, 2f)
+                    lineTo(14f, 7f)
+                    lineTo(19f, 7f)
+                    moveTo(9f, 12f)
+                    lineTo(16f, 12f)
+                    moveTo(9f, 15f)
+                    lineTo(16f, 15f)
+                    moveTo(9f, 18f)
+                    lineTo(13f, 18f)
                 }
             }.build()
 }

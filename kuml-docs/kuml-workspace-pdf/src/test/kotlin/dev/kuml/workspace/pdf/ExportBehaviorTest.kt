@@ -9,6 +9,7 @@ import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Files
@@ -144,6 +145,28 @@ class ExportBehaviorTest :
             TestSupport.open(res.files.first { it.name == "chapters-eins.pdf" }).use { pdf ->
                 TestSupport.text(pdf = pdf, page = 1) shouldContain "Erstes Kapitel"
                 TestSupport.text(pdf = pdf, page = 1) shouldContain "Seite 1 von"
+            }
+        }
+
+        test("per-document export of one document (desktop icon): only that document's text is in the PDF") {
+            val ws = fresh()
+            val dir = File(TestSupport.tempDir(), "single")
+            val res =
+                TestSupport.export(
+                    ws = ws,
+                    options =
+                        TestSupport.options(kind = PdfExportKind.PER_DOCUMENT) {
+                            copy(cover = false, scope = ExportScope.Documents(listOf("chapters/eins.md")))
+                        },
+                    target = dir,
+                )
+            res.files.map { it.name } shouldBe listOf("chapters-eins.pdf")
+            TestSupport.open(res.files.single()).use { pdf ->
+                val text = TestSupport.allText(pdf)
+                text shouldContain "Erstes Kapitel"
+                text shouldNotContain "Anhangsdokument"
+                text shouldNotContain "Glossar"
+                text shouldNotContain "Zusammenschluss"
             }
         }
 

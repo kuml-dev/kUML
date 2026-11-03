@@ -61,7 +61,13 @@ import dev.kuml.desktop.mcp.McpTokenStore
 import dev.kuml.desktop.mcp.McpValidatePort
 import dev.kuml.desktop.mcp.desktopMcpRegistry
 import dev.kuml.desktop.plugins.PluginManagerPane
+import dev.kuml.desktop.preview.ExportSaveResult
+import dev.kuml.desktop.preview.ImageFormat
 import dev.kuml.desktop.preview.PreviewPane
+import dev.kuml.desktop.preview.exportTarget
+import dev.kuml.desktop.preview.saveShownDiagram
+import dev.kuml.desktop.preview.shownSvg
+import dev.kuml.desktop.preview.singleFileSvg
 import dev.kuml.desktop.render.DesktopRenderController
 import dev.kuml.desktop.render.DesktopRenderPipeline
 import dev.kuml.desktop.render.RenderInputs
@@ -81,12 +87,12 @@ import dev.kuml.desktop.workspace.KnowledgeWorkspaceScreen
 import dev.kuml.desktop.workspace.NewWorkspaceDialog
 import dev.kuml.desktop.workspace.OpenWorkspace
 import dev.kuml.desktop.workspace.PdfExportDialog
+import dev.kuml.desktop.workspace.PdfExportFormState
 import dev.kuml.desktop.workspace.TrustDialog
 import dev.kuml.desktop.workspace.WorkspaceChangeEffect
 import dev.kuml.desktop.workspace.WorkspaceModeChooserDialog
 import dev.kuml.desktop.workspace.WorkspaceState
 import dev.kuml.desktop.workspace.WorkspaceTrust
-import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.mcp.McpRequestHandler
 import dev.kuml.mcp.McpServerInfo
 import dev.kuml.renderer.theme.core.ThemeRegistry
@@ -180,7 +186,9 @@ fun FrameWindowScope.MainWindow(
     var showNewWorkspaceDialog by remember { mutableStateOf(false) }
 
     // Wave F — "Export Workspace ▸ As PDF…" dialog.
-    var showPdfExportDialog by remember { mutableStateOf(false) }
+    // The request carries the initial form: the File menu opens with the whole workspace, the per-document
+    // icon in the document header with the scope set to that document.
+    var pdfDialogRequest by remember { mutableStateOf<PdfExportFormState?>(null) }
 
     rememberAppSettingsBinding(state = state, store = store)
 
@@ -311,6 +319,30 @@ fun FrameWindowScope.MainWindow(
     // banner/tree dirty-marker can't show on their own (a refused write, an I/O failure, or
     // the too-large cap) as a modal dialog. `Written`/`Blocked` need no dialog here — the
     // banner and the tree's dirty marker already reflect them (see `WorkspaceState.save`).
+    // Save-as-image for the toolbar buttons AND the File menu: one source ([shownSvg]) and one save path
+    // ([saveShownDiagram]). The SVG is read at click time, never cached, so the export is what is on screen now.
+    fun exportShownImage(format: ImageFormat) {
+        val knowledge = state.openWorkspace as? OpenWorkspace.Knowledge
+        val svg =
+            shownSvg(
+                workspaceMode = knowledge != null,
+                docSvg = knowledge?.state?.docSvg,
+                lastSvg = singleFileSvg(simulationBaseSvg = state.simulation?.baseSvg, lastSvg = state.lastSvg),
+            )
+        val baseName = FileMenu.exportBaseName(if (knowledge != null) knowledge.state.selected?.file else state.currentFile)
+        val target = exportTarget(format = format, svg = svg, baseName = baseName) ?: return
+        val result =
+            saveShownDiagram(
+                parent = windowHandle,
+                initialDir = state.lastDir?.let { File(it) },
+                target = target,
+                strings = strings,
+            )
+        if (result is ExportSaveResult.Failed) {
+            JOptionPane.showMessageDialog(windowHandle, strings.previewExport.saveFailed.format(result.message))
+        }
+    }
+
     fun reportKnowledgeSaveResult(result: OkfWriteResult) {
         val message =
             when (result) {
@@ -560,41 +592,22 @@ fun FrameWindowScope.MainWindow(
             // P3, design review — Export the rendered diagram. Disabled until something has
             // actually been rendered; SVG export is zero-dependency (state.lastSvg is already
             // an in-memory SVG string), PNG goes through the existing kuml-io-png renderer.
+            val knowledgeOpen = state.openWorkspace as? OpenWorkspace.Knowledge
+            val menuSvg =
+                shownSvg(
+                    workspaceMode = knowledgeOpen != null,
+                    docSvg = knowledgeOpen?.state?.docSvg,
+                    lastSvg = singleFileSvg(simulationBaseSvg = state.simulation?.baseSvg, lastSvg = state.lastSvg),
+                )
             Item(
                 strings.menuFileExportSvg,
-                enabled = state.lastSvg.isNotBlank(),
-                onClick = {
-                    val chosen =
-                        FileMenu.chooseExport(
-                            parent = windowHandle,
-                            initialDir = state.lastDir?.let { File(it) },
-                            suggestedName = "${FileMenu.exportBaseName(state.currentFile)}.svg",
-                            description = "SVG image (*.svg)",
-                            extension = "svg",
-                            strings = strings,
-                        )
-                    if (chosen != null) {
-                        FileMenu.writeScript(file = chosen, content = state.lastSvg)
-                    }
-                },
+                enabled = menuSvg != null,
+                onClick = { exportShownImage(ImageFormat.SVG) },
             )
             Item(
                 strings.menuFileExportPng,
-                enabled = state.lastSvg.isNotBlank(),
-                onClick = {
-                    val chosen =
-                        FileMenu.chooseExport(
-                            parent = windowHandle,
-                            initialDir = state.lastDir?.let { File(it) },
-                            suggestedName = "${FileMenu.exportBaseName(state.currentFile)}.png",
-                            description = "PNG image (*.png)",
-                            extension = "png",
-                            strings = strings,
-                        )
-                    if (chosen != null) {
-                        FileMenu.writeBytes(file = chosen, bytes = KumlPngRenderer.toPng(svg = state.lastSvg))
-                    }
-                },
+                enabled = menuSvg != null,
+                onClick = { exportShownImage(ImageFormat.PNG) },
             )
             Menu(strings.menuFileExportWorkspace) {
                 // Engineering workspaces are not exported (no document tree); the dialog explains why when opened
@@ -602,7 +615,7 @@ fun FrameWindowScope.MainWindow(
                 Item(
                     strings.menuFileExportWorkspacePdf,
                     enabled = state.openWorkspace is OpenWorkspace.Knowledge,
-                    onClick = { showPdfExportDialog = true },
+                    onClick = { pdfDialogRequest = PdfExportFormState() },
                 )
             }
             Separator()
@@ -827,6 +840,8 @@ fun FrameWindowScope.MainWindow(
                                 confirmUnsavedAndThen = { action -> confirmUnsavedAndThen(action) },
                                 onEditorReady = { editorActions = it },
                                 onSaveResult = { result -> reportKnowledgeSaveResult(result) },
+                                onExportPdf = { path -> pdfDialogRequest = PdfExportFormState.forDocument(path) },
+                                onExportImage = { format -> exportShownImage(format) },
                                 navFraction = state.workspaceNavFraction,
                                 onNavFractionChange = { state.workspaceNavFraction = it },
                                 onNavFractionCommit = {
@@ -877,6 +892,7 @@ fun FrameWindowScope.MainWindow(
                                 scriptFiles = scriptFiles,
                                 confirmUnsavedAndThen = { action -> confirmUnsavedAndThen(action) },
                                 onEditorReady = { editorActions = it },
+                                onExportImage = { format -> exportShownImage(format) },
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
                             )
                         }
@@ -911,7 +927,11 @@ fun FrameWindowScope.MainWindow(
                                 AppState.ViewMode.SOURCE ->
                                     editorColumn(Modifier.weight(1f).fillMaxHeight())
                                 AppState.ViewMode.DIAGRAM ->
-                                    PreviewPane(state = state, modifier = Modifier.weight(1f).fillMaxHeight())
+                                    PreviewPane(
+                                        state = state,
+                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                        onExport = { format -> exportShownImage(format) },
+                                    )
                                 // Draggable divider between editor and preview. Batik keeps the
                                 // image centre on resize (recenterOnResize) and re-renders per
                                 // frame, so a briefly stale image while dragging is accepted.
@@ -926,7 +946,13 @@ fun FrameWindowScope.MainWindow(
                                         dividerDescription = strings.splitDividerDescription,
                                         modifier = Modifier.weight(1f).fillMaxHeight(),
                                         start = { editorColumn(Modifier.fillMaxSize()) },
-                                        end = { PreviewPane(state = state, modifier = Modifier.fillMaxSize()) },
+                                        end = {
+                                            PreviewPane(
+                                                state = state,
+                                                modifier = Modifier.fillMaxSize(),
+                                                onExport = { format -> exportShownImage(format) },
+                                            )
+                                        },
                                     )
                             }
                         }
@@ -1027,10 +1053,11 @@ fun FrameWindowScope.MainWindow(
     }
 
     // Wave F — workspace PDF export.
-    if (showPdfExportDialog) {
+    val pdfRequest = pdfDialogRequest
+    if (pdfRequest != null) {
         val knowledge = state.openWorkspace as? OpenWorkspace.Knowledge
         if (knowledge == null) {
-            showPdfExportDialog = false
+            pdfDialogRequest = null
         } else {
             val root = knowledge.state.workspace.root
             PdfExportDialog(
@@ -1058,7 +1085,10 @@ fun FrameWindowScope.MainWindow(
                         title = strings.pdfExportTitle,
                     )
                 },
-                onDismiss = { showPdfExportDialog = false },
+                onDismiss = { pdfDialogRequest = null },
+                documentPath = knowledge.state.selected?.relativePath,
+                documentDirty = knowledge.state.isDirty,
+                initial = pdfRequest,
             )
         }
     }

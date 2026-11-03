@@ -6,6 +6,33 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### kUML Desktop: export from the preview
+
+**Additions**
+
+- The zoom strip has two icon buttons after a separator, *Save as SVG* and *Save as PNG*, in the single-file preview and in the knowledge workspace. They save the diagram that is shown (workspace: the selected document's, including unsaved editor edits; simulation: the frozen base diagram) through the file dialog. They are disabled with an explanatory tooltip when there is nothing to save.
+- *File ▸ Export SVG / Export PNG* now work in a knowledge workspace too (they were tied to the single-file diagram). Buttons and menu share one selection (`shownSvg`) and one save path (`saveShownDiagram`); in a workspace a document without a diagram never falls back to the stale single-file SVG.
+- PNG export is twice the diagram's natural width, clamped to 800..4096 px (1600 px when unreadable), instead of a fixed 1024 px. Cancelling writes nothing; write or transcoding errors are shown in a message box.
+- PDF export dialog: new scope *Current document (path)* next to *Entire workspace* and *Folder*, disabled with a reason when no document is open. A *PDF* icon in the document header opens the dialog with that scope and the per-document kind (no cover). A hint appears when the document has unsaved edits, because the PDF is built from disk.
+- New icons `SaveSvg`, `SavePng`, `PdfDocument` and nested `PreviewExportStrings` (DE and EN), reached through `PdfExportStrings.previewExport` because `Strings` is at the JVM limit of 255 constructor parameters.
+
+**Changes**
+
+- `PdfExportFormState.folderScope` is replaced by `scope: PdfScope` (`ALL`, `FOLDER`, `DOCUMENT`) and `documentPath`; `PdfExportFormState.forDocument(path)` builds the icon preset.
+- `ZoomToolbar` and `PreviewPane` take optional export parameters; existing calls are unchanged.
+
+**Tests**
+
+- New `ExportTargetTest` (file names, PNG width rules, selection rules, SVG well-formedness with an XXE-hardened parser, PNG signature and width, a real rendered diagram), more `PdfExportFormTest` cases, `StringsTest` and icon-bounds tests, and a PDFBox check in `kuml-workspace-pdf` that exporting one document puts only that document's text in the PDF.
+
+**Not seen live**
+
+- The new icons and the layout of the strip, the dialog's scope row and the header icon were not seen in the running app, and the Desktop MCP was not reachable. The tooltip placement (`tooltipEnd` in the strip, `tooltipStart` in the document header) follows the existing rule for heavyweight `SwingPanel` neighbours but is unconfirmed on screen. The icon geometry is checked only by bounds in a unit test.
+
+**Note**
+
+- The wave 2H entry below ("Removed: the Desktop button Use A3 landscape") is partly outdated: the button is back, shown only with a fixed page size (see the previous section).
+
 ### kUML Desktop: fixed status area in dialogs
 
 **Additions**

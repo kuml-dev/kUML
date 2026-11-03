@@ -1,6 +1,7 @@
 package dev.kuml.desktop.workspace
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -53,6 +54,9 @@ import com.mikepenz.markdown.m3.Markdown
 import dev.kuml.desktop.editor.EditorActions
 import dev.kuml.desktop.editor.SyntaxTextEditor
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.ui.IconTooltipButton
+import dev.kuml.desktop.ui.KumlIcons
+import dev.kuml.desktop.ui.tooltipStart
 import dev.kuml.workspace.FrontmatterParser
 import dev.kuml.workspace.OkfDocument
 import dev.kuml.workspace.OkfFinding
@@ -98,6 +102,7 @@ fun DocumentEditorPane(
     onNavigateBacklink: (OkfDocument) -> Unit = {},
     diskConflict: Boolean = false,
     onResolveDiskConflict: (keepMine: Boolean) -> Unit = {},
+    onExportPdf: (() -> Unit)? = null,
 ) {
     if (doc == null || buffer == null) return
 
@@ -123,6 +128,7 @@ fun DocumentEditorPane(
             onTypeChange = onTypeChange,
             onTitleChange = onTitleChange,
             onSave = onSave,
+            onExportPdf = onExportPdf,
             strings = strings,
         )
         if (diskConflict) {
@@ -197,6 +203,7 @@ fun DocumentEditorPane(
  * is, fall back to a picker in its own window (see `WindowAlertDialog`) instead of chasing
  * `compose.interop.blending`.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DocumentHeaderBar(
     editing: Boolean,
@@ -207,6 +214,7 @@ private fun DocumentHeaderBar(
     onTypeChange: (String) -> Unit,
     onTitleChange: (String) -> Unit,
     onSave: () -> Unit,
+    onExportPdf: (() -> Unit)?,
     strings: Strings,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)) {
@@ -237,6 +245,17 @@ private fun DocumentHeaderBar(
                     fontSize = 11.sp,
                 )
                 TextButton(onClick = onSave) { Text(strings.menuFileSave) }
+            }
+            // Per-document PDF export, right-aligned and apart from the Read/Edit tabs. The band can sit above
+            // the heavyweight editor SwingPanel, so the tooltip opens to the left, inside the band.
+            // The header only exists while a document is open (see the early return above), hence enabled.
+            if (onExportPdf != null) {
+                IconTooltipButton(
+                    icon = KumlIcons.PdfDocument,
+                    description = strings.previewExport.pdfThisDocument,
+                    onClick = onExportPdf,
+                    tooltipPlacement = tooltipStart(),
+                )
             }
         }
     }
