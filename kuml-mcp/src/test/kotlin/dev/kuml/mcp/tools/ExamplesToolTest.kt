@@ -50,7 +50,8 @@ class ExamplesToolTest :
             val result = ExamplesTool.call(args("language" to "uml", "diagramType" to "class"))
             val parsed = json.parseToJsonElement(result[0].text!!).jsonObject
             val examples = parsed["examples"]!!.jsonArray
-            examples shouldHaveSize 1
+            // 01 (order domain) plus the two note examples 66 and 70, in catalog order
+            examples shouldHaveSize 3
             val first = examples[0].jsonObject
             first["script"]!!.jsonPrimitive.content shouldContain "classDiagram("
             first["sourceNote"]!!.jsonPrimitive.content shouldBe "01 UML Klasse – Order Domain"

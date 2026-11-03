@@ -460,6 +460,54 @@ internal object ExampleCatalog {
                 diagramType = "req",
                 description = "SysML 2 requirement diagram with several anchored and free-standing notes.",
             ),
+            CuratedExample(
+                fileName = "66 UML-Klasse – Notiz-Arten mit Symbolen.md",
+                language = "uml",
+                diagramType = "class",
+                description = "UML class diagram with note kinds: symbol, accent stripe and colour per kind.",
+            ),
+            CuratedExample(
+                fileName = "67 SysML 2 BDD – Notiz-Arten.md",
+                language = "sysml2",
+                diagramType = "bdd",
+                description = "SysML 2 block definition diagram with note kinds.",
+            ),
+            CuratedExample(
+                fileName = "68 ERM – Notiz-Arten.md",
+                language = "erm",
+                diagramType = "martin",
+                description = "ERM diagram with note kinds anchored to entities.",
+            ),
+            CuratedExample(
+                fileName = "69 BPMN – Notiz-Arten.md",
+                language = "bpmn",
+                diagramType = "process",
+                description = "BPMN process with text annotations of several kinds (coloured bracket and symbol).",
+            ),
+            CuratedExample(
+                fileName = "70 UML-Klasse – Formatierter Notiztext.md",
+                language = "uml",
+                diagramType = "class",
+                description = "UML class diagram with formatted note text: bold, italic, code, lists and links.",
+            ),
+            CuratedExample(
+                fileName = "71 SysML 2 BDD – Formatierter Notiztext.md",
+                language = "sysml2",
+                diagramType = "bdd",
+                description = "SysML 2 block definition diagram with formatted note text.",
+            ),
+            CuratedExample(
+                fileName = "72 C4 Context – Notiz-Arten und Formatierung.md",
+                language = "c4",
+                diagramType = "context",
+                description = "C4 system context diagram with note kinds and formatted note text.",
+            ),
+            CuratedExample(
+                fileName = "73 BPMN – Formatierter Notiztext.md",
+                language = "bpmn",
+                diagramType = "process",
+                description = "BPMN process with formatted text annotations.",
+            ),
         )
 
     /** Distinct languages in catalog order: uml, c4, sysml2, bpmn, blueprint, erm. */

@@ -78,6 +78,14 @@ map_vault_to_web() {
     "58 C4 Context – Notizen.md") echo "c4-context-notes.kuml.kts" ;;
     "59 Service Blueprint – Notizen.md") echo "blueprint-notes.kuml.kts" ;;
     "60 SysML 2 REQ – Mehrere Notizen.md") echo "sysml2-req-multi-notes.kuml.kts" ;;
+    "66 UML-Klasse – Notiz-Arten mit Symbolen.md") echo "uml-class-note-kinds.kuml.kts" ;;
+    "67 SysML 2 BDD – Notiz-Arten.md") echo "sysml2-bdd-note-kinds.kuml.kts" ;;
+    "68 ERM – Notiz-Arten.md") echo "erm-note-kinds.kuml.kts" ;;
+    "69 BPMN – Notiz-Arten.md") echo "bpmn-note-kinds.kuml.kts" ;;
+    "70 UML-Klasse – Formatierter Notiztext.md") echo "uml-class-note-format.kuml.kts" ;;
+    "71 SysML 2 BDD – Formatierter Notiztext.md") echo "sysml2-bdd-note-format.kuml.kts" ;;
+    "72 C4 Context – Notiz-Arten und Formatierung.md") echo "c4-context-note-kinds-format.kuml.kts" ;;
+    "73 BPMN – Formatierter Notiztext.md") echo "bpmn-note-format.kuml.kts" ;;
     "07 BPMN animiert – PdV Mitgliedsantrag.md") echo "bpmn-pdv-mitgliedsantrag-animiert.kuml.kts" ;;
     "08 STM animiert – Traffic Light.md")         echo "stm-traffic-light-animiert.kuml.kts" ;;
     "19 UML Sequence animiert – API Submit.md")   echo "uml-sequence-api-submit-animiert.kuml.kts" ;;

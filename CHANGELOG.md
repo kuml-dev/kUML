@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Vault examples 66 to 73: note kinds and formatted note text
+
+**Additions**
+
+- Eight new vault examples show the note features of the notes waves: note kinds with symbols (UML class, SysML 2 BDD, ERM, BPMN), formatted note text (UML class, SysML 2 BDD, BPMN) and a C4 system context with kinds and formatting. They live in `vault-examples/` and run through `VaultExamplesRenderTest` like all others.
+- `scripts/sync-vault-examples.sh` maps the eight examples to playground sources (`uml-class-note-kinds`, `sysml2-bdd-note-kinds`, `erm-note-kinds`, `bpmn-note-kinds`, `uml-class-note-format`, `sysml2-bdd-note-format`, `c4-context-note-kinds-format`, `bpmn-note-format`).
+- Vault example 42 (state machine timer): the text now says that `trigger` and `timer` can be combined; the old checker error 124 no longer exists. The diagram block is unchanged.
+- `AiContextSeedingRoundtripTest`: the two UML class note examples (66, 70) are listed with the other documented comment-loss example (01), because comments have no bucket in the AI editing context.
+
 ### kUML Desktop: export from the preview
 
 **Additions**

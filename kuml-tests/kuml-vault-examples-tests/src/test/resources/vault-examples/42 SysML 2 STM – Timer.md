@@ -68,7 +68,7 @@ sysml2Model(name = "TimerAmpel") {
 |---|---|
 | `timer = after(duration = …)` | Relativer Timer, scharf geschaltet beim Betreten des Quellzustands, verworfen beim Verlassen |
 | `timer = at(iso = "…Z")` | Absoluter Zeitpunkt (UTC, Millisekunden-Genauigkeit); liegt er in der Vergangenheit, feuert er beim nächsten Vorspulen genau einmal |
-| `trigger` und `timer` zugleich | Fehler 124 des Checkers: ein Übergang hat entweder Ereignis oder Zeit |
+| `trigger` und `timer` zugleich | Beides lässt sich kombinieren: Der Übergang feuert beim Ereignis oder beim Ablauf des Timers; die Kante zeigt z. B. `tick, after(10s)`. Den früheren Checker-Fehler 124 gibt es nicht mehr |
 | Kantenbeschriftung | `after(30s)`, `at(2026-12-24T22:00:00Z)` |
 
 ## Simulation

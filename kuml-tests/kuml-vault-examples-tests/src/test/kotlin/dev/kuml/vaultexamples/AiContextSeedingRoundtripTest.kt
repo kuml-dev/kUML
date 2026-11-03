@@ -57,7 +57,15 @@ class AiContextSeedingRoundtripTest :
         // Fixtures with a DOCUMENTED, ACCEPTED loss — asserted explicitly below (see the two
         // dedicated tests), not silently included in (or silently excluded from) the general
         // lossless-roundtrip sweep.
-        val knownLossBaseNames = setOf("01 UML Klasse – Order Domain", "11 UML Paket – Domain Modules")
+        // The two note examples (66, 70) carry UmlComment elements, the same documented loss as
+        // "01 UML Klasse – Order Domain" (comments have no AnyKumlModel.Uml bucket).
+        val knownLossBaseNames =
+            setOf(
+                "01 UML Klasse – Order Domain",
+                "11 UML Paket – Domain Modules",
+                "66 UML-Klasse – Notiz-Arten mit Symbolen",
+                "70 UML-Klasse – Formatierter Notiztext",
+            )
 
         if (classDiagramExamples.isEmpty()) {
             println(

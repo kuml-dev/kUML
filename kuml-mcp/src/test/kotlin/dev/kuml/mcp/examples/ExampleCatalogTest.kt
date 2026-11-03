@@ -49,8 +49,9 @@ class ExampleCatalogTest :
             ExampleCatalog.languages() shouldBe listOf("uml", "c4", "sysml2", "bpmn", "blueprint", "erm")
         }
 
-        test("find returns the erm martin example") {
-            ExampleCatalog.find(language = "erm", diagramType = "martin") shouldHaveSize 1
+        test("find returns the erm martin examples") {
+            // 39 (E-Commerce schema) and 68 (note kinds)
+            ExampleCatalog.find(language = "erm", diagramType = "martin") shouldHaveSize 2
         }
 
         test("find returns multiple examples for uml component") {
@@ -62,7 +63,7 @@ class ExampleCatalogTest :
         }
 
         test("find returns multiple examples for bpmn process") {
-            ExampleCatalog.find(language = "bpmn", diagramType = "process") shouldHaveSize 3
+            ExampleCatalog.find(language = "bpmn", diagramType = "process") shouldHaveSize 5
         }
 
         test("diagramTypes(uml) contains composite-structure and interaction-overview") {
