@@ -15,13 +15,18 @@ class SubstrateRpcClientTest :
         lateinit var server: MockRpcServer
         lateinit var client: SubstrateRpcClient
 
-        beforeTest {
+        // One loopback-bound server per spec; handlers are reset per test.
+        beforeSpec {
             server = MockRpcServer()
             server.start()
-            client = SubstrateRpcClient(rpcUrl = server.baseUrl())
         }
 
-        afterTest { server.stop() }
+        afterSpec { server.stop() }
+
+        beforeTest {
+            server.reset()
+            client = SubstrateRpcClient(rpcUrl = server.baseUrl())
+        }
 
         test("call returns result on success") {
             runTest {
@@ -45,6 +50,8 @@ class SubstrateRpcClientTest :
 
         test("call throws NetworkError when server unavailable") {
             runTest {
+                // Only "connection refused or a non-2xx answer" is asserted: the closed
+                // port could in theory be reused by another process.
                 val deadServer = MockRpcServer()
                 deadServer.start()
                 deadServer.stop()

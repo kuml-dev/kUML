@@ -1,8 +1,13 @@
 package dev.kuml.runtime.chain.cosmos
 
 import com.sun.net.httpserver.HttpServer
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /**
  * Leichtgewichtiger in-process JSON-RPC-Mock-Server auf Basis von
@@ -12,9 +17,17 @@ import java.nio.charset.StandardCharsets
  * einfache GET-Requests (über [onGet]).
  */
 class MockRpcServer {
-    private val handlers = mutableMapOf<String, (String) -> String>()
-    private val getHandlers = mutableMapOf<String, (String) -> String>()
+    // Handlers are written by the test thread and read by HttpServer executor threads.
+    private val handlers = ConcurrentHashMap<String, (String) -> String>()
+    private val getHandlers = CopyOnWriteArrayList<Pair<String, (String) -> String>>()
     private lateinit var server: HttpServer
+    private var executor: ExecutorService? = null
+
+    /** Removes all registered handlers so one server can be reused across tests of a spec. */
+    fun reset() {
+        handlers.clear()
+        getHandlers.clear()
+    }
 
     fun onMethod(
         method: String,
@@ -31,16 +44,17 @@ class MockRpcServer {
         pathPrefix: String,
         handler: (requestUri: String) -> String,
     ) {
-        getHandlers[pathPrefix] = handler
+        getHandlers.removeIf { it.first == pathPrefix }
+        getHandlers.add(pathPrefix to handler)
     }
 
     fun start() {
-        server = HttpServer.create(InetSocketAddress(0), 0)
+        server = HttpServer.create(InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0)
         server.createContext("/") { exchange ->
             val isGet = exchange.requestMethod.equals("GET", ignoreCase = true)
             if (isGet) {
                 val uri = exchange.requestURI.toString()
-                val handler = getHandlers.entries.firstOrNull { uri.startsWith(it.key) }?.value
+                val handler = getHandlers.firstOrNull { uri.startsWith(it.first) }?.second
                 val response =
                     handler?.invoke(uri)
                         ?: """{"code":5,"message":"not found"}"""
@@ -59,15 +73,17 @@ class MockRpcServer {
                 exchange.responseBody.use { it.write(responseBytes) }
             }
         }
-        server.executor = null
+        executor = Executors.newFixedThreadPool(2)
+        server.executor = executor
         server.start()
     }
 
     fun stop() {
-        server.stop(0)
+        server.stop(1)
+        executor?.shutdownNow()
     }
 
-    fun baseUrl(): String = "http://127.0.0.1:${server.address.port}"
+    fun baseUrl(): String = "http://${server.address.address.hostAddress}:${server.address.port}"
 
     private fun extractMethod(body: String): String {
         val match = Regex(""""method"\s*:\s*"([^"]+)"""").find(body)

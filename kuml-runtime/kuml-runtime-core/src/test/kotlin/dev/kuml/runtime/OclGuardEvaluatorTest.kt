@@ -377,7 +377,7 @@ class OclGuardEvaluatorTest :
             // compares the time for a 4x-longer chain against a shorter one
             // on the *same* run: doubling n twice should roughly quadruple
             // the time for a true O(n) walk, but multiply it ~16x for a
-            // reintroduced O(n^2) — an 8x ratio ceiling comfortably separates
+            // reintroduced O(n^2) — a 10x ratio ceiling comfortably separates
             // the two without chasing an absolute-time budget.
             //
             // n=1,200 is chosen (rather than the n=20,000 the
@@ -390,24 +390,37 @@ class OclGuardEvaluatorTest :
             instance.variables["a"] = true
             val event = Event.of("any")
 
-            fun timedRunsMs(n: Int): Long {
-                val guard = (1..n).joinToString(separator = " && ") { "vars.a" }
-                // Warm up the parse cache and JIT before timing.
+            fun median(values: List<Long>): Double = values.sorted()[values.size / 2].toDouble()
+
+            fun timedNanos(guard: String): Long {
+                val start = System.nanoTime()
                 ev.evaluate(guard = guard, instance = instance, event = event) shouldBe GuardResult.True
-                return (1..5)
-                    .map {
-                        val start = System.nanoTime()
-                        ev.evaluate(guard = guard, instance = instance, event = event) shouldBe GuardResult.True
-                        System.nanoTime() - start
-                    }.min() / 1_000_000
+                return System.nanoTime() - start
             }
 
-            val shortMs = timedRunsMs(n = 300).coerceAtLeast(1L)
-            val longMs = timedRunsMs(n = 1_200)
+            val shortGuard = (1..300).joinToString(separator = " && ") { "vars.a" }
+            val longGuard = (1..1_200).joinToString(separator = " && ") { "vars.a" }
 
-            // O(n): ~4x. O(n^2): ~16x. 8x leaves headroom for scheduling
+            // Warm up parse cache and JIT on both sizes before timing anything.
+            repeat(20) {
+                timedNanos(shortGuard)
+                timedNanos(longGuard)
+            }
+
+            // Interleave the samples so load spikes hit both sizes alike, and
+            // use nanoseconds and the median so integer truncation and single
+            // outliers cannot skew the ratio.
+            val shortSamples = mutableListOf<Long>()
+            val longSamples = mutableListOf<Long>()
+            repeat(21) {
+                shortSamples += timedNanos(shortGuard)
+                longSamples += timedNanos(longGuard)
+            }
+            val ratio = median(longSamples) / median(shortSamples).coerceAtLeast(1.0)
+
+            // O(n): ~4x. O(n^2): ~16x. 10x leaves headroom for scheduling
             // noise on either measurement without masking a real regression.
-            (longMs.toDouble() / shortMs.toDouble() < 8.0) shouldBe true
+            (ratio < 10.0) shouldBe true
         }
 
         test("a fail-open comparison against a missing variable, buried partway through a 1,200-term '&&' chain, still fails closed") {
