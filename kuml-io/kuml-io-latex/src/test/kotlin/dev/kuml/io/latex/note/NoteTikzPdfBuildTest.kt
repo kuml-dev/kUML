@@ -94,4 +94,67 @@ class NoteTikzPdfBuildTest :
                 }
             }
         }
+
+        "BPMN process and collaboration notes compile (skipped when TeX is not installed)".config(enabled = tex) {
+            val three =
+                listOf(
+                    Triple(MARKUP_BODY, NoteKind.INFO, listOf("t1", "g1")),
+                    Triple("Second", NoteKind.RISK, listOf("end1")),
+                    Triple("Free", NoteKind.NOTE, emptyList()),
+                )
+            val docs =
+                mapOf(
+                    "bpmn-process" to NoteFixtures.renderBpmnProcess(notes = three, standalone = true),
+                    // No message flow: its arrow tip `open triangle 45` does not exist in current TikZ (pre-existing, not part of this wave).
+                    "bpmn-collab" to NoteFixtures.renderBpmnCollaboration(notes = three, standalone = true, messageFlow = false),
+                )
+            for ((name, doc) in docs) {
+                val log = compile(name = name, tex = doc)
+                log shouldNotContain "Undefined control sequence"
+                log shouldNotContain "shell escape"
+            }
+        }
+
+        "Service Blueprint notes compile, journey and full (skipped when TeX is not installed)".config(enabled = tex) {
+            val three =
+                listOf(
+                    Triple(MARKUP_BODY, NoteKind.HINT, listOf("s2a", "s2b")),
+                    Triple("Second", NoteKind.WARNING, listOf("s1")),
+                    Triple("Free", NoteKind.NOTE, emptyList()),
+                )
+            for (full in listOf(false, true)) {
+                val log =
+                    compile(name = "blueprint-$full", tex = NoteFixtures.renderBlueprint(notes = three, full = full, standalone = true))
+                log shouldNotContain "Undefined control sequence"
+                log shouldNotContain "shell escape"
+            }
+        }
+
+        "hostile BPMN and Blueprint notes compile as plain text and run nothing (skipped when TeX is not installed)".config(enabled = tex) {
+            val marker = File(System.getProperty("java.io.tmpdir"), "kuml-note-escape")
+            marker.delete()
+            var n = 0
+            for (body in HOSTILE_BODIES) {
+                val docs =
+                    listOf(
+                        NoteFixtures.renderBpmnProcess(notes = listOf(Triple(body, NoteKind.ERROR, listOf("t1"))), standalone = true),
+                        NoteFixtures.renderBpmnCollaboration(
+                            notes = listOf(Triple(body, NoteKind.INFO, listOf("tA"))),
+                            standalone = true,
+                            messageFlow = false,
+                        ),
+                        NoteFixtures.renderBlueprint(
+                            notes = listOf(Triple(body, NoteKind.RISK, listOf("s1"))),
+                            full = true,
+                            standalone = true,
+                        ),
+                    )
+                for (doc in docs) {
+                    val log = compile(name = "hostile-bp-${n++}", tex = doc)
+                    log shouldNotContain "Undefined control sequence"
+                    log shouldNotContain "write18 enabled"
+                }
+            }
+            marker.exists() shouldBe false
+        }
     })

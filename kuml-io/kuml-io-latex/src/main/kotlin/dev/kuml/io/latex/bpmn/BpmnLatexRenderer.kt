@@ -16,7 +16,11 @@ import dev.kuml.bpmn.model.MessageFlow
 import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.bpmn.model.SequenceFlow
 import dev.kuml.bpmn.model.TaskType
+import dev.kuml.io.latex.LatexRenderOptions
+import dev.kuml.io.latex.commentSafe
 import dev.kuml.io.latex.escapeLatex
+import dev.kuml.io.latex.note.NoteTikz
+import dev.kuml.io.latex.stripControl
 
 /**
  * Renders BPMN models as LaTeX/TikZ source — V3.1.8.
@@ -44,6 +48,7 @@ internal object BpmnLatexRenderer {
     fun render(
         model: BpmnModel,
         diagram: ProcessDiagram,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
     ): String {
         val process =
             model.processes.find { it.id == diagram.processId }
@@ -52,6 +57,14 @@ internal object BpmnLatexRenderer {
 
         return buildString {
             appendLine("""\begin{tikzpicture}[node distance=50pt and 80pt,>=stealth]""")
+            if (process.textAnnotations.isNotEmpty()) {
+                NoteTikz.appendNoteStyles(
+                    sb = this,
+                    indent = options.indent,
+                    kinds = BpmnNoteTikz.noteKinds(process.textAnnotations),
+                    association = true,
+                )
+            }
             appendLine()
 
             val nodeIds = process.flowNodes.map { it.id }
@@ -64,6 +77,8 @@ internal object BpmnLatexRenderer {
                 appendLine()
                 process.sequenceFlows.forEach { flow -> appendSequenceFlow(flow) }
             }
+
+            BpmnNoteTikz.appendProcessNotes(sb = this, process = process, options = options)
 
             appendLine()
             appendLine("""\end{tikzpicture}""")
@@ -79,6 +94,7 @@ internal object BpmnLatexRenderer {
     fun render(
         model: BpmnModel,
         diagram: CollaborationDiagram,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
     ): String {
         val collab =
             model.collaborations.find { it.id == diagram.collaborationId }
@@ -87,8 +103,17 @@ internal object BpmnLatexRenderer {
 
         return buildString {
             appendLine("""\begin{tikzpicture}[node distance=50pt and 80pt,>=stealth]""")
+            val annotations = BpmnNoteTikz.collaborationAnnotations(model = model, collab = collab)
+            if (annotations.isNotEmpty()) {
+                NoteTikz.appendNoteStyles(
+                    sb = this,
+                    indent = options.indent,
+                    kinds = BpmnNoteTikz.noteKinds(annotations),
+                    association = true,
+                )
+            }
             appendLine()
-            appendLine("""  % Collaboration: ${escapeLatex(model.name)}""")
+            appendLine("""  % Collaboration: ${commentSafe(model.name)}""")
             appendLine()
 
             appendCollaborationPools(collab)
@@ -97,6 +122,8 @@ internal object BpmnLatexRenderer {
                 appendLine()
                 collab.messageFlows.forEach { mf -> appendMessageFlow(mf) }
             }
+
+            BpmnNoteTikz.appendCollaborationNotes(sb = this, model = model, collab = collab, options = options)
 
             appendLine()
             appendLine("""\end{tikzpicture}""")
@@ -109,15 +136,20 @@ internal object BpmnLatexRenderer {
         collab.participants.forEachIndexed { pIdx, participant ->
             val poolId = sanitizeTikzId(participant.id)
             val poolLabel = escapeLatex(participant.name ?: participant.id)
+            val poolComment = commentSafe(participant.name ?: participant.id)
             val yOffset = if (pIdx == 0) "0" else "${-pIdx * 100}pt"
-            appendLine("""  % Pool: $poolLabel""")
+            appendLine("""  % Pool: $poolComment""")
             appendLine("""  \node[kuml-bpmn-pool] ($poolId) at (0,$yOffset) {};""")
             val rotatedLabel = """\rotatebox{90}{$poolLabel}"""
             appendLine("""  \node[kuml-bpmn-pool-header,minimum height=80pt,anchor=west] (ph_$poolId) at ($poolId.west) {$rotatedLabel};""")
 
             // If participant references a process, render its nodes inside the pool
             if (participant.processRef != null) {
-                appendLine("""  % (inner process nodes omitted — see ProcessDiagram for process ${participant.processRef})""")
+                appendLine(
+                    """  % (inner process nodes omitted — see ProcessDiagram for process ${stripControl(
+                        participant.processRef.orEmpty(),
+                    )})""",
+                )
             }
 
             if (participant.lanes.isNotEmpty()) {
@@ -142,7 +174,8 @@ internal object BpmnLatexRenderer {
     ) {
         val nodeId = sanitizeTikzId(node.id)
         val label = escapeLatex(node.name ?: "")
-        val pos = if (prevId != null) "right of=${sanitizeTikzId(prevId)}" else "at (0,0)"
+        // `at (0,0)` is a node position, not an option: it must stand outside the option brackets.
+        val pos = if (prevId != null) "[right of=${sanitizeTikzId(prevId)}]" else "at (0,0)"
 
         when (node) {
             is BpmnEvent -> appendEvent(event = node, nodeId = nodeId, label = label, pos = pos)
@@ -167,7 +200,7 @@ internal object BpmnLatexRenderer {
                 else -> "kuml-bpmn-intermediate"
             }
         val symbol = eventSymbol(event.definition)
-        appendLine("""  \node[$style] ($nodeId) [$pos] {$symbol};""")
+        appendLine("""  \node[$style] ($nodeId) $pos {$symbol};""")
         if (label.isNotBlank()) {
             appendLine("""  \node[kuml-bpmn-label,below=4pt of $nodeId] {$label};""")
         }
@@ -204,7 +237,7 @@ internal object BpmnLatexRenderer {
                 GatewayType.EVENT_BASED -> "\$\\odot\$"
                 GatewayType.COMPLEX -> "\$*\$"
             }
-        appendLine("""  \node[kuml-bpmn-gateway] ($nodeId) [$pos] {$symbol};""")
+        appendLine("""  \node[kuml-bpmn-gateway] ($nodeId) $pos {$symbol};""")
         if (label.isNotBlank()) {
             appendLine("""  \node[kuml-bpmn-label,below=4pt of $nodeId] {$label};""")
         }
@@ -227,7 +260,7 @@ internal object BpmnLatexRenderer {
                 TaskType.BUSINESS_RULE -> "{\\tiny BR}~"
                 TaskType.NONE -> ""
             }
-        appendLine("""  \node[kuml-bpmn-task] ($nodeId) [$pos] {$typePrefix$label};""")
+        appendLine("""  \node[kuml-bpmn-task] ($nodeId) $pos {$typePrefix$label};""")
     }
 
     private fun StringBuilder.appendSubProcess(
@@ -236,7 +269,7 @@ internal object BpmnLatexRenderer {
         label: String,
         pos: String,
     ) {
-        appendLine("""  \node[kuml-bpmn-subprocess] ($nodeId) [$pos] {$label\\\$[+]\$};""")
+        appendLine("""  \node[kuml-bpmn-subprocess] ($nodeId) $pos {$label\\\$[+]\$};""")
     }
 
     private fun StringBuilder.appendCallActivity(
@@ -245,7 +278,7 @@ internal object BpmnLatexRenderer {
         label: String,
         pos: String,
     ) {
-        appendLine("""  \node[kuml-bpmn-callactivity] ($nodeId) [$pos] {$label};""")
+        appendLine("""  \node[kuml-bpmn-callactivity] ($nodeId) $pos {$label};""")
     }
 
     // ── Sequence flow rendering ───────────────────────────────────────────────

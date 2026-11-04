@@ -7,7 +7,15 @@ import dev.kuml.blueprint.model.BlueprintLine
 import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.blueprint.model.JourneyDiagram
 import dev.kuml.blueprint.model.Sentiment
+import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.latex.escapeLatex
+import dev.kuml.io.latex.fmtCm
+import dev.kuml.io.latex.note.NoteTikz
+import dev.kuml.io.latex.note.NoteTikzSpec
+import dev.kuml.layout.Point
+import dev.kuml.layout.Rect
+import dev.kuml.layout.bridge.NoteFrameStyle
+import kotlin.math.max
 
 /**
  * Renders a User-Journey / Service-Blueprint model as LaTeX/TikZ source
@@ -31,6 +39,52 @@ internal object BlueprintLatexRenderer {
     private const val COL_W = 3.6 // cm per phase column
     private const val ROW_H = 2.0 // cm per layer band
     private const val EMOTION_H = 1.8 // cm emotion band height
+    private const val STEP_H = ROW_H - 0.6 // cm minimum step box height (see kuml-bp-step)
+    private const val STEP_STACK_PITCH = 0.4 // cm between stacked steps of one cell
+    private const val MIN_ROUTE_GAP = 0.06 // cm
+    private const val EXIT_START_CM = 0.05
+    private const val MAX_EXIT_STEP_CM = 0.04
+    private const val EXIT_SPAN_CM = 0.15
+
+    // Lanes below a band: clearance to the separator line / next boxes and minimum distance between two lanes.
+    internal const val LANE_CLEARANCE_CM = 0.05
+    internal const val LANE_PITCH_CM = 0.05
+
+    // The last vertical of a route runs right of the box edge; right of the last column it must clear the line label,
+    // which ends at the grid's right edge (box edge + 0.25 cm for the minimum box width).
+    private const val RIGHT_RUN_START_CM = 0.05
+    private const val RIGHT_RUN_STEP_CM = 0.05
+    private const val RIGHT_RUN_MAX_LANES = 6
+    private const val LAST_COLUMN_RUN_START_CM = 0.28
+    private const val LAST_COLUMN_RUN_STEP_CM = 0.03
+    private const val LAST_COLUMN_MAX_LANES = 4
+
+    /**
+     * Height in cm below the band bottom of lane [lane] (0-based) among [lanes] links in a strip of [gap] cm. Lanes keep
+     * [LANE_CLEARANCE_CM] to the separator line and the next boxes and at least [LANE_PITCH_CM] to each other; when the
+     * strip is too narrow for that, the surplus links share lanes (modulo).
+     */
+    internal fun laneOffsetCm(
+        gap: Double,
+        lanes: Int,
+        lane: Int,
+    ): Double {
+        val usable = gap - 2 * LANE_CLEARANCE_CM
+        val capacity = if (usable <= 0.0) 1 else (usable / LANE_PITCH_CM + 1e-9).toInt() + 1
+        val used = minOf(maxOf(lanes, 1), capacity)
+        if (used == 1) return gap / 2
+        return LANE_CLEARANCE_CM + (lane % used) * usable / (used - 1)
+    }
+
+    /** Where the note line of a step runs: band index, step south edge above the band bottom, free strip height. */
+    private data class StepRoute(
+        val band: Int,
+        val southAboveBandBottom: Double,
+        val gap: Double,
+        /** Distance of the anchor above the south edge for a box partly covered by a stacked box; null: east centre. */
+        val endLift: Double?,
+        val lastColumn: Boolean,
+    )
 
     /** Emits the blueprint-specific TikZ styles into the shared `\tikzset` block. */
     fun appendBlueprintTikzStyles(
@@ -55,6 +109,7 @@ internal object BlueprintLatexRenderer {
     fun render(
         model: BlueprintModel,
         diagram: BlueprintDiagram,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
     ): String {
         val visibleLayers =
             when (diagram) {
@@ -90,8 +145,16 @@ internal object BlueprintLatexRenderer {
 
         fun bandCenterY(layerIdx: Int) = bandTopY(layerIdx) - ROW_H / 2.0
 
+        val hasNotes = model.notes.isNotEmpty()
+        // Names of the drawn steps (only given when notes exist, so the output without notes is unchanged).
+        val stepNames = mutableMapOf<String, String>()
+        val stepRoutes = mutableMapOf<String, StepRoute>()
+
         return buildString {
             appendLine("""\begin{tikzpicture}[>=stealth]""")
+            if (hasNotes) {
+                NoteTikz.appendNoteStyles(sb = this, indent = options.indent, kinds = model.notes.map { it.kind })
+            }
             appendLine()
 
             // ── phase headers ──
@@ -136,8 +199,32 @@ internal object BlueprintLatexRenderer {
                         val yOff = if (steps.size > 1) (si - (steps.size - 1) / 2.0) * 0.4 else 0.0
                         val actor = step.actorRef?.let { ref -> model.actors.firstOrNull { it.id == ref } }
                         val roleSuffix = actor?.let { """\\\\{\footnotesize[${escapeLatex(it.role.name)}]}""" } ?: ""
+                        val nameOpt =
+                            if (hasNotes) {
+                                val name = "kumlbpstep${model.steps.indexOf(step)}"
+                                stepNames[step.id] = name
+                                // Routes run in the free strip just below this band (below the separator line and
+                                // its label, above the boxes of the next band), never inside a box or on a line.
+                                val nextStack =
+                                    layers.getOrNull(li + 1)?.let { next ->
+                                        phases.maxOf { model.stepsIn(phaseId = it.id, layer = next).size }
+                                    } ?: 1
+                                stepRoutes[step.id] =
+                                    StepRoute(
+                                        band = li,
+                                        southAboveBandBottom = (ROW_H - STEP_H) / 2.0 + yOff,
+                                        gap = max((ROW_H - STEP_H) / 2.0 - STEP_STACK_PITCH * (nextStack - 1) / 2.0, MIN_ROUTE_GAP),
+                                        // A box under a later (higher, drawn on top) box of its cell shows only the
+                                        // strip of one pitch at its bottom: anchor in the middle of that strip.
+                                        endLift = if (si < steps.size - 1) STEP_STACK_PITCH / 2.0 else null,
+                                        lastColumn = pi == phases.size - 1,
+                                    )
+                                " ($name)"
+                            } else {
+                                ""
+                            }
                         appendLine(
-                            """  \node[kuml-bp-step] at (${fmt(colX(pi))}, ${fmt(bandCenterY(li) + yOff)}) """ +
+                            """  \node[kuml-bp-step]$nameOpt at (${fmt(colX(pi))}, ${fmt(bandCenterY(li) + yOff)}) """ +
                                 """{${escapeLatex(step.name ?: step.id)}$roleSuffix};""",
                         )
                     }
@@ -188,9 +275,96 @@ internal object BlueprintLatexRenderer {
                 }
             }
 
+            if (hasNotes) {
+                appendNotes(
+                    model = model,
+                    stepNames = stepNames,
+                    stepRoutes = stepRoutes,
+                    gridTop = gridTop,
+                    columns = phases.size,
+                    options = options,
+                )
+            }
+
             appendLine()
             appendLine("""\end{tikzpicture}""")
         }
+    }
+
+    /**
+     * Notes in a column right of the grid (stacked downwards from the grid top, declaration order), a dashed line with
+     * a dot to the east edge of every drawn step they are linked to. Lines and dots come first; the notes follow
+     * and sit on top. A link to anything that is not a drawn step gets a constant comment, never the id.
+     */
+    private fun StringBuilder.appendNotes(
+        model: BlueprintModel,
+        stepNames: Map<String, String>,
+        stepRoutes: Map<String, StepRoute>,
+        gridTop: Double,
+        columns: Int,
+        options: LatexRenderOptions,
+    ) {
+        val ind = options.indent
+        val placed = BlueprintNoteTikz.place(model.notes)
+        val x0 = COL_W * columns + BlueprintNoteTikz.COLUMN_GAP_CM
+        appendLine()
+        appendLine("$ind% notes")
+        // Every drawn link gets its own exit column in the gap and its own lane in the strip below its band, so no
+        // two dashed lines ever lie on top of each other.
+        val drawn = model.noteLinks.filter { stepRoutes.containsKey(it.targetId) }
+        val perBand = drawn.groupingBy { stepRoutes.getValue(it.targetId).band }.eachCount()
+        val laneOfBand = mutableMapOf<Int, Int>()
+        val exitStep = minOf(MAX_EXIT_STEP_CM, EXIT_SPAN_CM / maxOf(drawn.size, 1))
+        var linkIndex = 0
+        for (pl in placed) {
+            val y = gridTop - (pl.yPt + pl.size.height / 2f) / BlueprintNoteTikz.PT_PER_CM
+            for (link in model.noteLinks.filter { it.noteId == pl.note.id }) {
+                val name = stepNames[link.targetId]
+                val route = stepRoutes[link.targetId]
+                if (name == null || route == null) {
+                    appendLine("$ind${BlueprintNoteTikz.OMITTED_ANCHOR}")
+                } else {
+                    val lane = laneOfBand.merge(route.band, 1, Int::plus)!! - 1
+                    val n = perBand.getValue(route.band)
+                    val runDx =
+                        if (route.lastColumn) {
+                            LAST_COLUMN_RUN_START_CM + LAST_COLUMN_RUN_STEP_CM * minOf(lane, LAST_COLUMN_MAX_LANES)
+                        } else {
+                            RIGHT_RUN_START_CM + RIGHT_RUN_STEP_CM * minOf(lane, RIGHT_RUN_MAX_LANES)
+                        }
+                    NoteTikz.renderAnchorCmRoutedToEast(
+                        fromX = x0,
+                        fromY = y,
+                        toName = name,
+                        options = options,
+                        out = this,
+                        leaveCm = EXIT_START_CM + linkIndex * exitStep,
+                        routeDy = route.southAboveBandBottom + laneOffsetCm(gap = route.gap, lanes = n, lane = lane),
+                        routeDx = runDx,
+                        endLiftCm = route.endLift,
+                    )
+                    NoteTikz.renderAnchorDotEast(toName = name, options = options, out = this, liftCm = route.endLift)
+                    linkIndex++
+                }
+            }
+        }
+        appendLine("$ind\\begin{scope}[shift={(${fmtCm(x0)},${fmtCm(gridTop)})}]")
+        for (pl in placed) {
+            NoteTikz.renderNote(
+                spec =
+                    NoteTikzSpec(
+                        id = "kumlbpnote${pl.k}",
+                        body = pl.note.body,
+                        kind = pl.note.kind,
+                        bounds = Rect(origin = Point(x = 0f, y = pl.yPt), size = pl.size),
+                        frame = NoteFrameStyle.DOG_EAR,
+                    ),
+                options = options,
+                out = this,
+            )
+        }
+        appendLine("$ind\\end{scope}")
+        if (placed.size < model.notes.size) appendLine("$ind${BlueprintNoteTikz.OMITTED_NOTE}")
     }
 
     private fun renderLines(
@@ -260,10 +434,7 @@ internal object BlueprintLatexRenderer {
         return colX(pi) to bandCenterY(li)
     }
 
-    private fun fmt(v: Double): String {
-        val r = Math.round(v * 100.0) / 100.0
-        return if (r == r.toLong().toDouble()) r.toLong().toString() else "%.2f".format(java.util.Locale.ROOT, r)
-    }
+    private fun fmt(v: Double): String = fmtCm(v)
 
     @Suppress("unused")
     private fun sentimentY(s: Sentiment): Double = (s.value + 2) / 4.0

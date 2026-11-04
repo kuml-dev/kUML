@@ -4,6 +4,7 @@ import dev.kuml.core.model.note.NoteKind
 import dev.kuml.core.model.note.NoteSpan
 import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.latex.escapeNoteText
+import dev.kuml.io.latex.fmtCm
 import dev.kuml.io.latex.fmtCoord
 import dev.kuml.io.latex.tikzId
 import dev.kuml.io.latex.uml.UmlEdgeLatexRenderer
@@ -22,10 +23,14 @@ internal data class NoteTikzSpec(
     val body: String,
     val kind: NoteKind,
     val bounds: Rect,
+    val frame: NoteFrameStyle = NoteFrameStyle.DOG_EAR,
 )
 
-/** Line style of a note anchor: [DASHED] with a dot at the anchored end (UML, SysML 2, C4). */
-internal enum class NoteTikzAnchor { DASHED, }
+/**
+ * Line style of a note anchor: [DASHED] with a dot at the anchored end (UML, SysML 2, C4, Service Blueprint),
+ * [DOTTED] without a dot (BPMN association).
+ */
+internal enum class NoteTikzAnchor { DASHED, DOTTED, }
 
 /**
  * TikZ output of note symbols (dog-ear frame, kind symbol, formatted text, anchor lines) for the LaTeX renderer.
@@ -52,12 +57,16 @@ internal object NoteTikz {
         sb: StringBuilder,
         indent: String,
         kinds: Collection<NoteKind>,
+        association: Boolean = false,
     ) {
         sb.appendLine("$indent% kUML note styles")
         sb.appendLine("$indent\\tikzset{")
         sb.appendLine("$indent  kuml-note/.style={draw=black, fill=white, line width=0.6pt},")
         sb.appendLine("$indent  kuml-note-fold/.style={draw=black, line width=0.6pt},")
         sb.appendLine("$indent  kuml-note-anchor/.style={draw=black, line width=0.6pt, dash pattern=on 4pt off 3pt},")
+        if (association) {
+            sb.appendLine("$indent  kuml-note-assoc/.style={draw=black, line width=0.6pt, dash pattern=on 1pt off 2pt},")
+        }
         sb.appendLine(
             "$indent  kuml-note-text/.style={font=\\sffamily\\fontsize{10pt}{15pt}\\selectfont, anchor=base west, inner sep=0pt, text=black},",
         )
@@ -85,7 +94,7 @@ internal object NoteTikz {
         val w = spec.bounds.size.width
         val h = spec.bounds.size.height
         val kind = spec.kind
-        val frame = NoteFrameStyle.DOG_EAR
+        val frame = spec.frame
 
         // Invisible node with the box size: anchor lines without a route attach to its border.
         out.appendLine(
@@ -93,22 +102,24 @@ internal object NoteTikz {
                 "minimum width=${fmtCoord(w)}pt, minimum height=${fmtCoord(h)}pt] " +
                 "(${tikzId(NodeId(spec.id))}) at (${pt(x = x, y = y)}) {};",
         )
-        val ear = NoteLayout.DOG_EAR_SIZE
-        out.appendLine(
-            "$ind\\draw[kuml-note] (${pt(x = x, y = y)}) -- (${pt(x = x + w - ear, y = y)}) -- (${pt(x = x + w, y = y + ear)}) -- " +
-                "(${pt(x = x + w, y = y + h)}) -- (${pt(x = x, y = y + h)}) -- cycle;",
-        )
-        out.appendLine(
-            "$ind\\draw[kuml-note-fold] (${pt(x = x + w - ear, y = y)}) -- (${pt(x = x + w - ear, y = y + ear)}) -- (${pt(
-                x =
-                    x + w,
-                y = y + ear,
-            )});",
-        )
+        if (frame == NoteFrameStyle.BRACKET) {
+            // BPMN text annotation: white area (hides lines behind it) and an open bracket; a kind puts its tone on the bracket.
+            val arm = NoteLayout.BRACKET_ARM
+            out.appendLine("$ind\\fill[white] (${pt(x = x, y = y)}) rectangle (${pt(x = x + w, y = y + h)});")
+            val toneOption = if (kind.hasIcon) ", draw=${colorName(NoteSymbols.tone(kind))}" else ""
+            out.appendLine(
+                "$ind\\draw[kuml-note-fold$toneOption] (${pt(x = x + arm, y = y)}) -- (${pt(x = x, y = y)}) -- " +
+                    "(${pt(x = x, y = y + h)}) -- (${pt(x = x + arm, y = y + h)});",
+            )
+        } else {
+            appendDogEar(x = x, y = y, w = w, h = h, ind = ind, out = out)
+        }
 
         if (kind.hasIcon) {
             val color = colorName(NoteSymbols.tone(kind))
-            out.appendLine("$ind\\fill[$color] (${pt(x = x, y = y)}) rectangle (${pt(x = x + ACCENT_WIDTH, y = y + h)});")
+            if (frame == NoteFrameStyle.DOG_EAR) {
+                out.appendLine("$ind\\fill[$color] (${pt(x = x, y = y)}) rectangle (${pt(x = x + ACCENT_WIDTH, y = y + h)});")
+            }
             appendSymbol(
                 kind = kind,
                 originX = x + NoteLayout.iconX(frame = frame, kind = kind),
@@ -143,6 +154,28 @@ internal object NoteTikz {
                 appendStyledLine(line = line, i = i, x = x, inset = inset, baseline = baseline, options = options, out = out)
             }
         }
+    }
+
+    private fun appendDogEar(
+        x: Float,
+        y: Float,
+        w: Float,
+        h: Float,
+        ind: String,
+        out: StringBuilder,
+    ) {
+        val ear = NoteLayout.DOG_EAR_SIZE
+        out.appendLine(
+            "$ind\\draw[kuml-note] (${pt(x = x, y = y)}) -- (${pt(x = x + w - ear, y = y)}) -- (${pt(x = x + w, y = y + ear)}) -- " +
+                "(${pt(x = x + w, y = y + h)}) -- (${pt(x = x, y = y + h)}) -- cycle;",
+        )
+        out.appendLine(
+            "$ind\\draw[kuml-note-fold] (${pt(x = x + w - ear, y = y)}) -- (${pt(x = x + w - ear, y = y + ear)}) -- (${pt(
+                x =
+                    x + w,
+                y = y + ear,
+            )});",
+        )
     }
 
     private fun appendStyledLine(
@@ -260,6 +293,89 @@ internal object NoteTikz {
         out: StringBuilder,
     ) {
         out.appendLine("${options.indent}\\draw[kuml-note-anchor] (${tikzId(NodeId(noteId))}) -- (${tikzId(NodeId(targetId))});")
+    }
+
+    private val NAME = Regex("[A-Za-z0-9_]+")
+
+    /**
+     * Association line between two TikZ names that are already valid (letters, digits, underscore): neither is
+     * prefixed again, unlike [renderAnchorBetween]. BPMN flow nodes carry the bare sanitised id as name.
+     */
+    fun renderAnchorNamed(
+        fromName: String,
+        toName: String,
+        style: NoteTikzAnchor,
+        options: LatexRenderOptions,
+        out: StringBuilder,
+    ) {
+        require(NAME.matches(fromName) && NAME.matches(toName)) { "Invalid TikZ node name" }
+        val tikzStyle = if (style == NoteTikzAnchor.DOTTED) "kuml-note-assoc" else "kuml-note-anchor"
+        out.appendLine("${options.indent}\\draw[$tikzStyle] ($fromName) -- ($toName);")
+    }
+
+    /** Dashed anchor line from the point ([fromX], [fromY]) in cm to the east anchor of the named node [toName]. */
+    fun renderAnchorCmToEast(
+        fromX: Double,
+        fromY: Double,
+        toName: String,
+        options: LatexRenderOptions,
+        out: StringBuilder,
+    ) {
+        require(NAME.matches(toName)) { "Invalid TikZ node name" }
+        out.appendLine("${options.indent}\\draw[kuml-note-anchor] (${fmtCm(fromX)},${fmtCm(fromY)}) -- ($toName.east);")
+    }
+
+    /**
+     * Dashed anchor line from the point ([fromX], [fromY]) in cm to the right edge of the named node [toName], routed
+     * through the gap below the node's row: first horizontally out of the note column into the gap of width
+     * [leaveCm] (so the vertical part never runs along the border of a stacked note), then vertically to the route
+     * height [routeDy] cm below the node's south east, then horizontally under the boxes of the columns in between,
+     * then up along a vertical [routeDx] cm right of the node's right edge, and finally horizontally onto the edge:
+     * at the east anchor, or at [endLiftCm] above the south east corner when the node is partly covered by a box
+     * stacked on top of it (so the end sits on its visible part). The line never crosses the label of another box.
+     */
+    fun renderAnchorCmRoutedToEast(
+        fromX: Double,
+        fromY: Double,
+        toName: String,
+        options: LatexRenderOptions,
+        out: StringBuilder,
+        leaveCm: Double = 0.2,
+        routeDy: Double = 0.15,
+        routeDx: Double = 0.0,
+        endLiftCm: Double? = null,
+    ) {
+        require(NAME.matches(toName)) { "Invalid TikZ node name" }
+        val dx = if (routeDx > 0.0) "xshift=${fmtCm(routeDx)}cm," else ""
+        val end =
+            if (endLiftCm == null) {
+                "($toName.east)"
+            } else {
+                "([yshift=${fmtCm(endLiftCm)}cm]$toName.south east)"
+            }
+        val up =
+            if (endLiftCm == null) {
+                "([${dx}yshift=0cm]$toName.east)"
+            } else {
+                "([${dx}yshift=${fmtCm(endLiftCm)}cm]$toName.south east)"
+            }
+        out.appendLine(
+            "${options.indent}\\draw[kuml-note-anchor] (${fmtCm(fromX)},${fmtCm(fromY)}) " +
+                "-- (${fmtCm(fromX - leaveCm)},${fmtCm(fromY)}) " +
+                "|- ([${dx}yshift=-${fmtCm(routeDy)}cm]$toName.south east) -- $up -- $end;",
+        )
+    }
+
+    /** The dot that marks the anchored end at the east anchor of the named node [toName] (or [liftCm] above its south east). */
+    fun renderAnchorDotEast(
+        toName: String,
+        options: LatexRenderOptions,
+        out: StringBuilder,
+        liftCm: Double? = null,
+    ) {
+        require(NAME.matches(toName)) { "Invalid TikZ node name" }
+        val at = if (liftCm == null) "$toName.east" else "[yshift=${fmtCm(liftCm)}cm]$toName.south east"
+        out.appendLine("${options.indent}\\fill ($at) circle (${fmtCoord(ANCHOR_DOT_RADIUS)}pt);")
     }
 
     private fun pt(

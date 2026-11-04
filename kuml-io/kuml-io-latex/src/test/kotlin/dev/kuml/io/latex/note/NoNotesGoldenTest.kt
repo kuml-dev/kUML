@@ -1,5 +1,6 @@
 package dev.kuml.io.latex.note
 
+import dev.kuml.core.model.note.NoteKind
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import java.nio.file.Files
@@ -19,6 +20,14 @@ class NoNotesGoldenTest :
                 "sysml2-bdd.tex" to { NoteFixtures.renderBdd() },
                 "sysml2-stm.tex" to { NoteFixtures.renderStm() },
                 "c4-context.tex" to { NoteFixtures.renderC4() },
+                // Notes of the dog-ear notations (frame default of NoteTikzSpec must keep this output unchanged).
+                "uml-class-with-note.tex" to { NoteFixtures.renderUml(body = "Plain **note** text", kind = NoteKind.INFO) },
+                "c4-context-with-note.tex" to { NoteFixtures.renderC4(body = "Plain note text", kind = NoteKind.NOTE) },
+                "bpmn-process.tex" to { NoteFixtures.renderBpmnProcess() },
+                "bpmn-process-standalone.tex" to { NoteFixtures.renderBpmnProcess(standalone = true) },
+                "bpmn-collaboration.tex" to { NoteFixtures.renderBpmnCollaboration() },
+                "blueprint-journey.tex" to { NoteFixtures.renderBlueprint() },
+                "blueprint-full.tex" to { NoteFixtures.renderBlueprint(full = true) },
             )
         val write = System.getenv("KUML_GOLDEN_WRITE") == "1"
         val dir = Paths.get(System.getProperty("user.dir")).resolve("src/test/resources/golden/no-notes")

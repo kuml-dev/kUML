@@ -6,6 +6,24 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 14: notes in the LaTeX/TikZ output, part 11b (BPMN, Service Blueprint)
+
+- **Additions:**
+  - BPMN text annotations are drawn: open bracket as in the SVG output (no accent stripe, the kind tone sits on the bracket stroke), the kind symbol, formatted text, and a dotted association line without end dot. In a process view every annotation gets one floor above the flow-node row, centred over its first drawn target; TikZ takes the base line from the real bounding box, so long task names and edge labels are not covered. In a collaboration view the annotations (also those of the referenced processes) form rows below the pools.
+  - Service Blueprint notes are drawn: dog-ear frame with accent stripe, one column right of the grid, stacked downwards from the grid top; a dashed line with a dot runs to the east edge of every drawn step the note is linked to. When a model has notes, its steps get TikZ names (`kumlbpstepN`) so the lines hit the real node border; without notes the output has no names.
+  - Placement is a simple LaTeX-side rule, not the SVG note router: positions differ from the SVG output.
+- **Behaviour changes:**
+  - LaTeX output of BPMN diagrams with annotations and of Blueprint models with notes changes. SVG output is byte-identical: all 687 SVG files of the `kuml-io-svg` and vault-example samples (all themes), and all PNGs, compared with the run on the base commit. The 56 vault-example `.tex` files are byte-identical too (the vault samples contain no BPMN or Blueprint LaTeX output with notes; the new output is covered by the tests and the PDF builds).
+  - Fixed because the new output could not be verified otherwise (all three were pre-existing and affect BPMN output only): the first flow node of a process was written as `[at (0,0)]` (an option, so TikZ stopped with `I do not know the key '/tikz/at (0'`); the standalone BPMN preamble lacked `shapes.geometric` (gateway `diamond`); the `% Pool:`, `% Collaboration:` and inner-process comments could be left by a line break (the observation of Nacharbeit 11). The first two change the BPMN golden references (`bpmn-process*.tex`) by one line each.
+  - Verified with `pdflatex`: a BPMN process (four notes, multi-anchor, all tones), a BPMN collaboration and a Blueprint journey and full view compile and the PNGs were inspected. Tests build PDFs for every kind and for hostile texts (skipped when TeX is not installed).
+- **Security:** note text goes through `escapeNoteText` exactly once. Coordinate and node names come from a reserved prefix plus the annotation index (never from an id; the prefix moves when a flow node name could collide), lines use `require`d names (`[A-Za-z0-9_]+`), and the constant comments name no id. A height limit of 12000 pt (TeX stops at 16383.99 pt) omits further notes with a comment, so 200 long notes cannot break the build. A test with `-no-shell-escape` checks that a `\write18` in a note creates no file.
+- **Still open:**
+  - BPMN: no association line in the collaboration view (the inner flow nodes are not drawn there); targets that are data objects or inner nodes of a sub-process get no line in the process view either. Both get a constant comment instead. Notes on ports, owner frames and partitions (see Nacharbeit 11) are unchanged.
+  - Blueprint: only steps are valid anchors; a link to a touchpoint or to a step in a hidden layer is not drawn.
+  - Height limit: from about 12000 pt further notes are left out (with a comment).
+  - Pre-existing and not changed: the BPMN message flow style uses the arrow tip `open triangle 45`, which no longer exists in current TikZ, so a collaboration with a message flow stops a `pdflatex` build (the tests use a collaboration without message flow). It sits in the shared style block, so fixing it changes every LaTeX output byte for byte; it needs its own wave.
+  - ERM has no LaTeX renderer; the CLI cannot render BPMN as LaTeX (`kuml render -f latex` supports it only for UML, C4, SysML 2 and Blueprint).
+
 ### Nacharbeit 13: CI disk-space safeguard (infrastructure)
 
 - New `Free disk space` step in `ci.yml`: removes only the Android SDK, .NET, GHC, the CodeQL bundle and unused Docker images (all verified as unused by the build), with `df -h` before and after. It is failure-tolerant and cannot turn the job red. A `Disk usage after build` diagnostic step (`if: always()`) reports free space, the largest workspace directories, Gradle caches, `build` directories and `/tmp`.
@@ -30,10 +48,10 @@ All notable changes to this project are documented here. Format follows
   - Verified with `pdflatex`: the output of the ten changed vault examples compiles, and the PNGs were inspected. A test builds PDFs for every note kind and for hostile texts (skipped when TeX is not installed).
 - **Security:** note text goes through `escapeNoteText` exactly once (all ten LaTeX specials, control characters, line breaks and the Unicode line separators become spaces, no `%` or `^^` can survive). No `\href`, `\url`, `\input`, `\write` or other macro is produced from note text; the tests check every macro in the output against the renderer's own set for 13 hostile texts, also inside bold, link and code markup. The PDF test runs `pdflatex -no-shell-escape` without a shell.
 - **Still open:**
-  - BPMN and Service Blueprint (planned as Nacharbeit 11b): these two LaTeX renderers have no layout result (BPMN positions nodes relatively, Blueprint computes its own grid), so the note placement cannot be reused and needs its own placement rule.
+  - BPMN and Service Blueprint (planned as Nacharbeit 11b): these two LaTeX renderers have no layout result (BPMN positions nodes relatively, Blueprint computes its own grid), so the note placement cannot be reused and needs its own placement rule. Closed in Nacharbeit 14 (see above).
   - Positions in LaTeX are not pixel-identical to SVG where the SVG pipeline adds diagram-specific planning (state-machine label planner, sequence lifeline stems, IBD port anchors). A note anchored only to a port, an owner frame, a partition or a nested constraint has no anchor geometry in LaTeX and is left out (vault examples 54 shows one of three notes, 56 none).
   - ERM has no LaTeX renderer. Links are drawn as underlined text without the URL and without a hyperlink. No dark theme. Characters outside the pdflatex `T1`/`utf8` set (emoji, CJK) still stop the TeX build; this is not specific to notes.
-  - Observation outside this wave: `BpmnLatexRenderer` writes `% Pool: ...` and `% Collaboration: ...` TeX comments with an escaped label that is not stripped of line breaks. A name with a line break would put the rest of the name outside the comment. Escaping prevents macros, so this is a robustness gap, not a macro injection; not changed here.
+  - Observation outside this wave: `BpmnLatexRenderer` writes `% Pool: ...` and `% Collaboration: ...` TeX comments with an escaped label that is not stripped of line breaks. A name with a line break would put the rest of the name outside the comment. Escaping prevents macros, so this is a robustness gap, not a macro injection; not changed here. Fixed in Nacharbeit 14 (see above).
 
 ### Nacharbeit 10: harden SuiChainAdapterTest mock server against load flakiness (test code only)
 
@@ -363,7 +381,7 @@ All notable changes to this project are documented here. Format follows
 **Not done in this wave (open)**
 
 - Code background, link colour, nested lists and `_` for italics.
-- LaTeX/TikZ output (partly done in Nacharbeit 11: UML, SysML 2 and C4; BPMN and Blueprint still open), PDF, the desktop preview and the desktop UI.
+- LaTeX/TikZ output (done in Nacharbeit 11 for UML, SysML 2 and C4 and in Nacharbeit 14 for BPMN and Blueprint), PDF, the desktop preview and the desktop UI.
 - Vault examples from number 66 on, the kuml.dev playground sync, KerML.
 - The C4 and Service Blueprint DSL printers did not write notes; this is closed in Nacharbeit 6 (see above). BPMN has no DSL printer and is checked through XML export and import.
 - In a PNG a link is only underlined; the URL is lost. In an SVG it is clickable only when the SVG is embedded inline (an `<img>` element disables links, and a sanitiser may remove `<a>`); this was not checked for Obsidian, Antora or kuml.dev.
@@ -387,7 +405,7 @@ All notable changes to this project are documented here. Format follows
 **Not done in this wave (open)**
 
 - KerML: it has no diagram type, model builder or renderer (only metamodel base classes), so there is no note to give a kind. It needs a KerML diagram first.
-- LaTeX/TikZ output: partly done in Nacharbeit 11 (UML, SysML 2 and C4 draw notes); BPMN and Blueprint are still open.
+- LaTeX/TikZ output: UML, SysML 2 and C4 draw notes (Nacharbeit 11), BPMN and Service Blueprint too (Nacharbeit 14, with the limits listed there).
 - Blueprint placement next to the step instead of in the column; a warning when very many notes share one anchor; the text format (N3); playground sync; the desktop MCP server (`kuml-desktop`) was not reachable in this session (ECONNREFUSED).
 - The C4 DSL printer and the Service Blueprint printer did not write notes (before and after this wave); this is closed in Nacharbeit 6 (see above).
 
@@ -968,7 +986,7 @@ over-long words. UML comments keep no hard length limit.
 
 ### Known limitations
 
-* LaTeX/TikZ export draws no notes for BPMN and Service Blueprint (UML, SysML 2 and C4 do, see Nacharbeit 11); BPMN choreographies and conversations and KerML have no notes.
+* LaTeX/TikZ export: BPMN collaboration views draw their annotations without association lines (the inner flow nodes are not drawn there), see Nacharbeit 14; BPMN choreographies and conversations and KerML have no notes.
 * SysML 2 notes cannot be anchored to ports or activity partitions; BPMN annotations cannot be
   anchored to pools, lanes or sequence flows; ERM notes only to entities and views.
 * Note diagnostics are reported by the CLI only (not by the web, desktop or MCP validate).

@@ -89,3 +89,26 @@ internal fun fmtCoord(v: Float): String {
     if (v.isNaN() || v.isInfinite()) return "0.000"
     return String.format(java.util.Locale.US, "%.3f", v)
 }
+
+/**
+ * Format a `Double` in TikZ cm units (the Service Blueprint renderer): at most two decimals, no trailing `.00`,
+ * dot separator regardless of the JVM locale. Non-finite values become `0`.
+ */
+internal fun fmtCm(v: Double): String {
+    if (v.isNaN() || v.isInfinite()) return "0"
+    val r = Math.round(v * 100.0) / 100.0
+    return if (r == r.toLong().toDouble()) r.toLong().toString() else "%.2f".format(java.util.Locale.ROOT, r)
+}
+
+/** Replaces control characters (including line breaks) and the Unicode line and paragraph separators by a space. */
+internal fun stripControl(raw: String): String {
+    val sb = StringBuilder(raw.length)
+    for (c in raw) sb.append(if (Character.isISOControl(c) || c == '\u2028' || c == '\u2029') ' ' else c)
+    return sb.toString()
+}
+
+/**
+ * Escape [raw] for a TeX line comment (`% …`). A line break inside a comment would end it and the rest of the
+ * text would run as TeX code, so control characters become a space ([stripControl]) before [escapeLatex].
+ */
+internal fun commentSafe(raw: String): String = escapeLatex(stripControl(raw))

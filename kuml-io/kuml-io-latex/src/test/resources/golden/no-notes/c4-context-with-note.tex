@@ -1,0 +1,81 @@
+\begin{tikzpicture}
+  % kUML plain theme — override these styles in your preamble to restyle.
+  \tikzset{
+    kuml-class/.style={draw=black, fill=white, line width=0.6pt, rectangle, inner sep=0pt, font=\sffamily},
+    kuml-interface/.style={kuml-class},
+    kuml-enum/.style={kuml-class},
+    kuml-stereotype/.style={font=\sffamily\itshape\small},
+    kuml-classname/.style={font=\sffamily\bfseries},
+    kuml-classname-abstract/.style={font=\sffamily\bfseries\itshape},
+    kuml-feature/.style={font=\sffamily\footnotesize},
+    kuml-association/.style={draw=black, line width=0.6pt, -{Stealth[length=2.2mm]}},
+    kuml-generalization/.style={draw=black, line width=0.6pt, -{Triangle[length=3mm, open]}},
+    kuml-realization/.style={draw=black, line width=0.6pt, dashed, -{Triangle[length=3mm, open]}},
+    kuml-dependency/.style={draw=black, line width=0.5pt, dashed, -{Stealth[length=2mm]}},
+    kuml-edge-plain/.style={draw=black, line width=0.6pt, -{Stealth[length=2.2mm]}},
+    kuml-edge-bidi/.style={draw=black, line width=0.6pt, {Stealth[length=2.2mm]}-{Stealth[length=2.2mm]}},
+    kuml-sysml2-edge-solid/.style={draw=black, line width=0.6pt, -{Stealth[length=2.2mm]}},
+    kuml-sysml2-edge-dashed/.style={draw=black, line width=0.6pt, dashed, -{Stealth[length=2.2mm]}},
+    kuml-sysml2-edge-dashed-noarrow/.style={draw=black, line width=0.6pt, dashed},
+    kuml-sysml2-edge-binding/.style={draw=black, line width=0.6pt},
+    kuml-sysml2-edge-generalization/.style={draw=black, line width=0.6pt, -{Triangle[length=3mm, open]}},
+    kuml-sysml2-frame/.style={draw=black, line width=0.6pt, rectangle, inner sep=0pt, font=\sffamily},
+    kuml-sysml2-edge-diamond-filled/.style={draw=black, line width=0.6pt, {Diamond[length=3mm]}-},
+    kuml-sysml2-edge-diamond-open/.style={draw=black, line width=0.6pt, {Diamond[open, length=3mm]}-},
+    kuml-sysml2-edge-containment/.style={draw=black, line width=0.6pt, {Circle[open, length=3mm]}-},
+    kuml-c4-person/.style={draw=black, fill=white, line width=0.6pt, rectangle, rounded corners=16pt, inner sep=0pt, font=\sffamily},
+    kuml-c4-system/.style={draw=black, fill=blue!10, line width=0.6pt, rectangle, inner sep=0pt, font=\sffamily},
+    kuml-c4-container/.style={draw=black, fill=blue!20, line width=0.6pt, rectangle, inner sep=0pt, font=\sffamily},
+    kuml-c4-component/.style={draw=black, fill=white, line width=0.6pt, rectangle, inner sep=0pt, font=\sffamily},
+    kuml-c4-node/.style={draw=black, fill=white, line width=0.6pt, rectangle, dashed, inner sep=0pt, font=\sffamily},
+    kuml-c4-code/.style={draw=black, fill=white, line width=0.6pt, rectangle, inner sep=0pt, font=\sffamily},
+    kuml-c4-label/.style={font=\sffamily},
+    kuml-c4-edge-label/.style={font=\sffamily\small},
+    % ── BPMN styles ─────────────────────────────────────────────────────────
+    kuml-bpmn-event/.style={circle,minimum size=28pt,draw=black,line width=1pt,font=\footnotesize,align=center,inner sep=2pt},
+    kuml-bpmn-start/.style={kuml-bpmn-event,fill=white},
+    kuml-bpmn-end/.style={kuml-bpmn-event,line width=3pt},
+    kuml-bpmn-intermediate/.style={kuml-bpmn-event,double,double distance=2pt},
+    kuml-bpmn-boundary/.style={kuml-bpmn-event,dashed},
+    kuml-bpmn-gateway/.style={diamond,minimum size=36pt,draw=black,line width=1pt,aspect=1.4,font=\footnotesize,align=center,inner sep=0pt},
+    kuml-bpmn-task/.style={rectangle,rounded corners=5pt,minimum width=80pt,minimum height=40pt,draw=black,line width=1pt,font=\footnotesize,align=center,text width=70pt,inner sep=4pt},
+    kuml-bpmn-subprocess/.style={kuml-bpmn-task,double,double distance=2pt},
+    kuml-bpmn-callactivity/.style={kuml-bpmn-task,line width=3pt},
+    kuml-bpmn-pool/.style={rectangle,draw=black,line width=1.5pt,minimum width=200pt,minimum height=80pt,align=left},
+    kuml-bpmn-pool-header/.style={rectangle,draw=black,line width=1pt,fill=gray!15,minimum width=25pt,font=\footnotesize\bfseries,align=center},
+    kuml-bpmn-lane/.style={rectangle,draw=black,line width=0.7pt,fill=white,minimum width=175pt,minimum height=70pt,align=left},
+    kuml-bpmn-lane-header/.style={rectangle,draw=black,line width=0.5pt,fill=gray!8,minimum width=20pt,font=\scriptsize,align=center},
+    kuml-bpmn-flow/.style={->,>=stealth,draw=black,line width=0.8pt},
+    kuml-bpmn-msgflow/.style={->,>=open triangle 45,draw=black,line width=0.8pt,dashed},
+    kuml-bpmn-label/.style={font=\scriptsize,align=center},
+    % ── Blueprint styles ────────────────────────────────────────────────────
+    kuml-bp-band/.style={draw=none, rectangle, minimum height=2.0cm, font=\sffamily},
+    kuml-bp-step/.style={draw, rounded corners=2pt, fill=white, minimum width=3.1cm, minimum height=1.4cm, align=center, font=\sffamily\small},
+    kuml-bp-label/.style={font=\sffamily\bfseries, anchor=west},
+    kuml-bp-phase/.style={font=\sffamily\bfseries, anchor=south},
+    kuml-bp-line-interaction/.style={draw=blue!40!black, line width=0.8pt},
+    kuml-bp-line-visibility/.style={draw=blue!40!black, line width=0.8pt, dashed},
+    kuml-bp-line-internal/.style={draw=blue!40!black, line width=0.8pt, dotted},
+    kuml-bp-line-label/.style={font=\sffamily\itshape\footnotesize, anchor=south east},
+    kuml-bp-emotion/.style={draw=orange!80!black, line width=1pt, mark=*, mark size=2pt},
+  }
+  % kUML note styles
+  \tikzset{
+    kuml-note/.style={draw=black, fill=white, line width=0.6pt},
+    kuml-note-fold/.style={draw=black, line width=0.6pt},
+    kuml-note-anchor/.style={draw=black, line width=0.6pt, dash pattern=on 4pt off 3pt},
+    kuml-note-text/.style={font=\sffamily\fontsize{10pt}{15pt}\selectfont, anchor=base west, inner sep=0pt, text=black},
+  }
+  \node[kuml-c4-person, anchor=north west, minimum width=160.000pt, minimum height=100.000pt] (n_u) at (20.000pt, -20.000pt) {};
+  \node[kuml-c4-label, anchor=center] at (n_u.center) {\begin{tabular}{c}\textit{\small \guillemotleft{}person\guillemotright{}}\\\textbf{User}\end{tabular}};
+  \node[kuml-c4-system, anchor=north west, minimum width=200.000pt, minimum height=100.000pt] (n_sys) at (260.000pt, -20.000pt) {};
+  \node[kuml-c4-label, anchor=center] at (n_sys.center) {\begin{tabular}{c}\textit{\small \guillemotleft{}software system\guillemotright{}}\\\textbf{MySystem}\end{tabular}};
+  \node[inner sep=0pt, outer sep=0pt, draw=none, anchor=north west, minimum width=140.000pt, minimum height=60.000pt] (n_n1) at (484.000pt, -40.000pt) {};
+  \draw[kuml-note] (484.000pt, -40.000pt) -- (610.000pt, -40.000pt) -- (624.000pt, -54.000pt) -- (624.000pt, -100.000pt) -- (484.000pt, -100.000pt) -- cycle;
+  \draw[kuml-note-fold] (610.000pt, -40.000pt) -- (610.000pt, -54.000pt) -- (624.000pt, -54.000pt);
+  \node[kuml-note-text] at (492.000pt, -58.500pt) {Plain note text};
+  \draw[kuml-edge-plain] (180.000pt, -70.000pt) -- (260.000pt, -70.000pt);
+  \node[kuml-c4-edge-label, anchor=center] at (220.000pt, -70.000pt) {\small Uses};
+  \draw[kuml-note-anchor] (484.000pt, -70.000pt) -- (460.000pt, -70.000pt);
+  \fill (460.000pt, -70.000pt) circle (2.000pt);
+\end{tikzpicture}

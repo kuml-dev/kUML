@@ -1079,7 +1079,7 @@ public object KumlLatexRenderer {
         model: BlueprintModel,
         diagram: BlueprintDiagram,
         options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
-    ): String = renderBlueprint(options = options) { BlueprintLatexRenderer.render(model = model, diagram = diagram) }
+    ): String = renderBlueprint(options = options) { BlueprintLatexRenderer.render(model = model, diagram = diagram, options = options) }
 
     /**
      * Render a Blueprint model's first diagram as TikZ source (V3.1.26).
@@ -1137,7 +1137,7 @@ public object KumlLatexRenderer {
         model: BpmnModel,
         diagram: ProcessDiagram,
         options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
-    ): String = renderBpmn(options = options) { BpmnLatexRenderer.render(model = model, diagram = diagram) }
+    ): String = renderBpmn(options = options) { BpmnLatexRenderer.render(model = model, diagram = diagram, options = options) }
 
     /**
      * Render a BPMN [CollaborationDiagram] as TikZ source (V3.1.8).
@@ -1158,7 +1158,7 @@ public object KumlLatexRenderer {
         model: BpmnModel,
         diagram: CollaborationDiagram,
         options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
-    ): String = renderBpmn(options = options) { BpmnLatexRenderer.render(model = model, diagram = diagram) }
+    ): String = renderBpmn(options = options) { BpmnLatexRenderer.render(model = model, diagram = diagram, options = options) }
 
     /**
      * Render a BPMN model's first diagram as TikZ source (V3.1.8).
@@ -1204,6 +1204,8 @@ public object KumlLatexRenderer {
         buildString {
             if (options.standalone) {
                 appendStandalonePreamble()
+                // The gateway uses the `diamond` shape; without this library a standalone BPMN document does not compile.
+                appendLine("\\usetikzlibrary{shapes.geometric}")
             }
             appendTikzStyles(options.indent)
             append(inner())
