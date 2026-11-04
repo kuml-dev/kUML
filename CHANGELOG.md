@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 15: C4 relationship labels on a backdrop in the LaTeX/TikZ output
+
+- **Additions:**
+  - C4 relationship labels (`label`, `[technology]` or `label [technology]`) are drawn on an opaque white backdrop (`fill=white, inner sep=1.5pt`), so the edge line is visibly interrupted behind the text instead of running through it.
+- **Behaviour changes:**
+  - The backdrop sits on the label node itself, not in the shared preamble style `kuml-c4-edge-label` (which is unchanged). This is deliberate: a change to the style line would rewrite all 12 no-notes goldens, whereas the node-option change touches exactly two of them (`c4-context.tex`, `c4-context-with-note.tex`), one line each. UML, SysML 2, BPMN and Blueprint LaTeX output is byte-identical.
+  - White is the renderer's canvas colour; there is no theme or page colour yet. The backdrop is fully opaque (no `opacity`), so the PDF gets no transparency group. No offset is used because it fails on diagonal and vertical edges.
+  - Label text still goes through `escapeLatex` exactly once; the constant takes no input.
+- **Still open:** a long label that overlaps a tinted box (`blue!10`, `blue!20`) shows its white backdrop on that box. Observation only, no fix in this wave.
+
 ### Nacharbeit 14: notes in the LaTeX/TikZ output, part 11b (BPMN, Service Blueprint)
 
 - **Additions:**

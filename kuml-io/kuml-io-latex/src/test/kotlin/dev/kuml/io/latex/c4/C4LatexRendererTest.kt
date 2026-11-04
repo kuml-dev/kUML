@@ -1189,4 +1189,65 @@ class C4LatexRendererTest :
 
             SampleOutput.write(filename = "c4/description-truncation.tex", content = tex)
         }
+
+        // ─── Relationship label backdrop (Nacharbeit 15) ──────────────────────
+
+        "C4 relationship label node carries an opaque white backdrop and no opacity" {
+            val tex = renderLabelledEdge(label = "Uses", technology = null)
+
+            tex shouldContain "\\node[kuml-c4-edge-label, anchor=center, fill=white, inner sep=1.5pt] at ("
+            tex shouldNotContain "opacity"
+        }
+
+        "C4 relationship label is escaped exactly once" {
+            val labelOnly = renderLabelledEdge(label = "R&D_100% #1", technology = null)
+            labelOnly shouldContain "{\\small R\\&D\\_100\\% \\#1}"
+            labelOnly shouldNotContain "\\\\&"
+
+            val withTech = renderLabelledEdge(label = "R&D_100% #1", technology = "A&B")
+            withTech shouldContain "{\\small R\\&D\\_100\\% \\#1 [A\\&B]}"
+            withTech shouldNotContain "\\\\&"
+            withTech shouldNotContain "\\\\_"
+        }
+
+        "C4 relationship without label and technology emits no label node" {
+            val tex = renderLabelledEdge(label = "", technology = null)
+
+            tex shouldNotContain "kuml-c4-edge-label, anchor"
+        }
+
+        "Shared preamble keeps the edge label style free of the backdrop" {
+            val tex = renderLabelledEdge(label = "Uses", technology = null)
+
+            tex shouldContain "kuml-c4-edge-label/.style={font=\\sffamily\\small},"
+        }
     })
+
+private fun renderLabelledEdge(
+    label: String,
+    technology: String?,
+): String {
+    val user = C4Person(id = "u", name = "User")
+    val system = C4SoftwareSystem(id = "s", name = "System")
+    val rel = C4Relationship(id = "r", source = "u", target = "s", label = label, technology = technology)
+    val model = C4Model(id = "m", name = "M", elements = listOf(user, system), relationships = listOf(rel))
+    val diagram =
+        SystemContextDiagram(id = "ctx", name = "Context", elements = listOf("u", "s"), relationships = listOf("r"))
+    val layout =
+        LayoutResult(
+            engineId = LayoutEngineId("test"),
+            seed = 1L,
+            canvas = Size(width = 400f, height = 200f),
+            nodes =
+                mapOf(
+                    NodeId("u") to NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 40f), size = Size(width = 120f, height = 80f))),
+                    NodeId("s") to NodeLayout(bounds = Rect(origin = Point(x = 260f, y = 40f), size = Size(width = 120f, height = 80f))),
+                ),
+            edges =
+                mapOf(
+                    EdgeId("r") to EdgeRoute.Direct(source = Point(x = 140f, y = 80f), target = Point(x = 260f, y = 80f)),
+                ),
+            groups = emptyMap(),
+        )
+    return KumlLatexRenderer.toLatex(diagram = diagram, model = model, layoutResult = layout)
+}

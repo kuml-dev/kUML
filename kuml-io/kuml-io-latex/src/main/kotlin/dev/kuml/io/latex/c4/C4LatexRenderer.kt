@@ -218,6 +218,17 @@ internal object C4LatexRenderer {
 
     // ─── Generic box emitter ──────────────────────────────────────────────────
 
+    /**
+     * TikZ node options that give a relationship label an opaque backdrop so the edge line
+     * does not run through the text.
+     *
+     * White is the renderer's canvas colour: no theme or page colour exists, so a future theme
+     * should turn this into a theme value. It is deliberately kept out of the shared preamble
+     * style `kuml-c4-edge-label` so that non-C4 output stays byte-identical. It is fully opaque
+     * (no `opacity`), so the PDF gets no transparency group.
+     */
+    private const val EDGE_LABEL_BACKDROP = "fill=white, inner sep=1.5pt"
+
     /** Maximum characters allowed in a description before truncation with an ellipsis. */
     private const val DESCRIPTION_MAX_CHARS = 200
 
@@ -370,7 +381,7 @@ internal object C4LatexRenderer {
             }
         val mid = compositeLabel?.let { routeMidPoint(route) } ?: return
         out.appendLine(
-            "${options.indent}\\node[kuml-c4-edge-label, anchor=center] " +
+            "${options.indent}\\node[kuml-c4-edge-label, anchor=center, $EDGE_LABEL_BACKDROP] " +
                 "at (${fmtCoord(mid.first)}pt, ${fmtCoord(-mid.second)}pt) " +
                 "{\\small ${escapeLatex(compositeLabel)}};",
         )
