@@ -1,3 +1,5 @@
+@file:Suppress("RequireNamedArguments")
+
 package dev.kuml.c4.dsl.print
 
 import dev.kuml.c4.dsl.c4Model
@@ -15,7 +17,9 @@ import dev.kuml.c4.model.SystemContextDiagram
 import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.dsl.layout.layout
 import dev.kuml.core.model.KumlMetaValue
+import dev.kuml.core.model.note.NoteKind
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.string.shouldStartWith
@@ -535,5 +539,124 @@ class C4DslPrinterTest :
             dsl shouldNotContain "evil-system\nobject Injected"
             dsl shouldContain "evil-system\\nobject Injected"
             dsl.lines().filter { "Injected" in it }.forEach { line -> line.trimStart() shouldStartWith "//" }
+        }
+        // ── notes (Nacharbeit 6) ─────────────────────────────────────────────
+
+        test("a model without notes prints no note call and no NoteKind") {
+            val model =
+                c4Model(name = "Plain") {
+                    val a = person(name = "A")
+                    val b = softwareSystem(name = "B") { container(name = "Web") }
+                    relationship(source = a, target = b)
+                    systemContextDiagram(name = "Ctx") { include(a, b) }
+                }
+            val dsl = C4DslPrinter.print(model)
+            dsl shouldNotContain "note("
+            dsl shouldNotContain "NoteKind"
+            dsl shouldNotContain "lateinit"
+        }
+
+        test("a model-level note with an anchor prints text, anchor var and explicit id") {
+            val model =
+                c4Model(name = "N") {
+                    val a = person(name = "A")
+                    note("Hello", a)
+                    systemContextDiagram(name = "Ctx") { include(a) }
+                }
+            val dsl = C4DslPrinter.print(model)
+            dsl shouldContain "    note(\"Hello\", c4v0, id = \"note-1\")"
+            dsl shouldNotContain "kind ="
+            // model-level notes come before the diagrams
+            (dsl.indexOf("note(") < dsl.indexOf("systemContextDiagram")) shouldBe true
+        }
+
+        test("a note listed in a diagram is printed inside that diagram block") {
+            val model =
+                c4Model(name = "N") {
+                    val a = person(name = "A")
+                    note("model level", a)
+                    systemContextDiagram(name = "Ctx") {
+                        include(a)
+                        note("free in diagram")
+                    }
+                }
+            val dsl = C4DslPrinter.print(model)
+            dsl shouldContain "        note(\"free in diagram\", id = \"note-2\")"
+            (dsl.indexOf("free in diagram") > dsl.indexOf("systemContextDiagram")) shouldBe true
+            (dsl.indexOf("model level") < dsl.indexOf("systemContextDiagram")) shouldBe true
+        }
+
+        test("a diagram with only a note still prints its block (all six diagram types)") {
+            val model =
+                c4Model(name = "N") {
+                    val sys = softwareSystem(name = "S") { container(name = "C") }
+                    systemContextDiagram(name = "D1") { note("n1") }
+                    systemLandscapeDiagram(name = "D2") { note("n2") }
+                    containerDiagram(name = "D3") {
+                        system = sys
+                        note("n3")
+                    }
+                    dynamicDiagram(name = "D4") { note("n4") }
+                    deploymentDiagram(name = "D5") { note("n5") }
+                }
+            val dsl = C4DslPrinter.print(model)
+            for (i in 1..5) dsl shouldContain "note(\"n$i\", id = \"note-$i\")"
+        }
+
+        test("kind is printed only when it is not NOTE") {
+            val model =
+                c4Model(name = "N") {
+                    val a = person(name = "A")
+                    for (k in NoteKind.entries) note("k-${k.name}", a, kind = k)
+                    systemContextDiagram(name = "Ctx") { include(a) }
+                }
+            val dsl = C4DslPrinter.print(model)
+            for (k in NoteKind.entries) {
+                val line = dsl.lines().single { "\"k-${k.name}\"" in it }
+                if (k == NoteKind.NOTE) line shouldNotContain "kind =" else line shouldContain "kind = NoteKind.${k.name}"
+            }
+        }
+
+        test("an anchor on a nested container gets a lateinit var") {
+            val model =
+                c4Model(name = "N") {
+                    lateinit var web: dev.kuml.c4.model.C4Container
+                    softwareSystem(name = "S") { web = container(name = "Web") }
+                    note("on web", web)
+                }
+            val dsl = C4DslPrinter.print(model)
+            dsl shouldContain "lateinit var c4v0: C4Container"
+            dsl shouldContain "c4v0 = container(\"Web\")"
+            dsl shouldContain "note(\"on web\", c4v0, id = \"note-1\")"
+        }
+
+        test("a note anchor without a printed element becomes a TODO") {
+            val base = c4Model(name = "N") { person(name = "A") }
+            val note =
+                dev.kuml.core.model.note
+                    .KumlNote(id = "n1", body = "x")
+            val link =
+                dev.kuml.core.model.note
+                    .KumlNoteLink(id = "l", noteId = "n1", targetId = "gone\nobject Injected")
+            val dsl = C4DslPrinter.print(base.copy(notes = listOf(note), noteLinks = listOf(link)))
+            dsl shouldContain "note(\"x\", id = \"n1\")"
+            dsl.lines().filter { "Injected" in it }.forEach { it.trimStart() shouldStartWith "//" }
+        }
+
+        test("a note listed in two diagrams is printed once and the second listing is commented") {
+            val base =
+                c4Model(name = "N") {
+                    val a = person(name = "A")
+                    systemContextDiagram(name = "D1") {
+                        include(a)
+                        note("shared")
+                    }
+                    systemContextDiagram(name = "D2") { include(a) }
+                }
+            val d2 = base.diagrams[1] as SystemContextDiagram
+            val patched = base.copy(diagrams = listOf(base.diagrams[0], d2.copy(noteIds = base.diagrams[0].noteIds)))
+            val dsl = C4DslPrinter.print(patched)
+            dsl.lines().count { "note(\"shared\"" in it } shouldBe 1
+            dsl shouldContain "// NOTE: note 'note-1' is also listed"
         }
     })

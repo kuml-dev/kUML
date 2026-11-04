@@ -6,6 +6,24 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 6: notes in the C4 and Service Blueprint DSL printers
+
+**Additions**
+
+- `C4DslPrinter` now writes notes. Every note is printed as `note("text", <anchor vars>, id = "…")`, with `kind = NoteKind.X` only when the kind is not `NOTE`. A note listed in a diagram's `noteIds` is printed inside that diagram block, all other notes at model level before the diagrams, so the registry order and the `noteIds` order are reproduced. Anchors on nested containers, components, code elements and deployment nodes get a `lateinit var`, but only when notes exist, so output without notes is unchanged.
+- New `BlueprintDslPrinter` (`dev.kuml.blueprint.dsl.print`). There was no Service Blueprint printer before; this is a minimal full-model printer (actors, channels, touchpoints, phases with their steps, connections, diagrams, notes). Ids are deterministic, so a blueprint built through the DSL round-trips with full data-class equality.
+
+**Tests**
+
+- `C4DslPrinterTest` (string level: anchors, free-standing diagram notes, every kind, nested anchors, unresolvable anchor, a note listed in two diagrams, diagram blocks that hold only a note) and `BlueprintDslPrinterTest`.
+- `C4NotePrinterRoundTripTest` and `BlueprintPrinterRoundTripTest` in `kuml-core-script`: every `NoteKind`, mixed model-level and diagram notes, several anchors, markup characters, `\`, `"`, `$x`, `${y}`, multi-line text, empty text and Unicode.
+
+**Still open**
+
+- C4 element ids are random and the DSL has no `id =` parameter for elements, so a C4 round trip is identical only after id normalization (the tests compare note id, body, kind, anchor element names and `noteIds`). An anchor on a container instance has no variable and is printed as a `// TODO`.
+- The Blueprint printer does not write `layout`, `metadata`, diagram `elementIds`, a `null` step name (printed as the empty string, with a `// TODO`) or a phase `order` that differs from its position.
+- BPMN still has no DSL printer. New note kinds, KerML, LaTeX, PDF and the desktop preview are out of scope.
+
 ### kUML Desktop: dialog button icons in the AI and simulation dialogs (part b2b)
 
 **Additions**
@@ -291,7 +309,7 @@ All notable changes to this project are documented here. Format follows
 - Code background, link colour, nested lists and `_` for italics.
 - LaTeX/TikZ output (draws no notes at all), PDF, the desktop preview and the desktop UI.
 - Vault examples from number 66 on, the kuml.dev playground sync, KerML.
-- The C4 and Service Blueprint DSL printers do not write notes at all, so there is no printer round trip for them; BPMN has no DSL printer and is checked through XML export and import.
+- The C4 and Service Blueprint DSL printers did not write notes; this is closed in Nacharbeit 6 (see above). BPMN has no DSL printer and is checked through XML export and import.
 - In a PNG a link is only underlined; the URL is lost. In an SVG it is clickable only when the SVG is embedded inline (an `<img>` element disables links, and a sanitiser may remove `<a>`); this was not checked for Obsidian, Antora or kuml.dev.
 - The desktop MCP server (`kuml-desktop`) was not reachable in this session (ECONNREFUSED), so the desktop preview was not looked at.
 
@@ -315,7 +333,7 @@ All notable changes to this project are documented here. Format follows
 - KerML: it has no diagram type, model builder or renderer (only metamodel base classes), so there is no note to give a kind. It needs a KerML diagram first.
 - LaTeX/TikZ output still draws no notes (no placement, no symbols as graphics, no colours). A TeX toolchain is present on the development machine, but the five renderers have no note code to extend; this is a wave of its own.
 - Blueprint placement next to the step instead of in the column; a warning when very many notes share one anchor; the text format (N3); playground sync; the desktop MCP server (`kuml-desktop`) was not reachable in this session (ECONNREFUSED).
-- The C4 DSL printer and the Service Blueprint printer do not write notes at all (before and after this wave), so there is no printer round trip for their kinds.
+- The C4 DSL printer and the Service Blueprint printer did not write notes (before and after this wave); this is closed in Nacharbeit 6 (see above).
 
 ### Notes N1: note kinds with symbols
 

@@ -19,6 +19,8 @@ import dev.kuml.c4.model.SystemContextDiagram
 import dev.kuml.c4.model.SystemLandscapeDiagram
 import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.KumlMetaValue
+import dev.kuml.core.model.note.KumlNote
+import dev.kuml.core.model.note.NoteKind
 
 /**
  * Pretty-prints a [C4Model] as a `*.kuml.kts` source string.
@@ -168,7 +170,25 @@ public object C4DslPrinter {
         }
 
         model.relationships.forEach { printRelationship(sb = sb, r = it, ctx = ctx) }
-        model.diagrams.forEach { printDiagram(sb = sb, d = it, model = model, ctx = ctx, elementById = elementById) }
+        // Notes listed in some diagram's noteIds are printed inside that diagram (first listing wins);
+        // all others are model-level. Model-level notes go before every diagram so the note registry
+        // order (model-level first, then per diagram) is reproduced on re-evaluation.
+        val diagramNoteIds = model.diagrams.flatMap { it.noteIds }.toSet()
+        val noteById = model.notes.associateBy { it.id }
+        val modelLevelNotes = model.notes.filter { it.id !in diagramNoteIds }
+        printNotes(sb = sb, indent = "    ", notes = modelLevelNotes, model = model, ctx = ctx)
+        val notesPrintedInDiagram = mutableSetOf<String>()
+        model.diagrams.forEach {
+            printDiagram(
+                sb = sb,
+                d = it,
+                model = model,
+                ctx = ctx,
+                elementById = elementById,
+                noteById = noteById,
+                notesPrinted = notesPrintedInDiagram,
+            )
+        }
 
         model.elements.filterNot { it.id in ctx.printed }.forEach { el ->
             sb.appendLine(
@@ -208,6 +228,8 @@ public object C4DslPrinter {
             ids += it.source
             ids += it.target
         }
+        // Note anchors need a variable too (only when notes exist, so note-free output is unchanged).
+        model.noteLinks.forEach { ids += it.targetId }
         // A containerInstance(...) call round-trips its containerId as `<var>.id` (see
         // printDeploymentNode), so the original container it points to must always have a
         // lateinit var predeclared for it, even if nothing else in the model references it.
@@ -476,6 +498,43 @@ public object C4DslPrinter {
         }
     }
 
+    // ── notes ──────────────────────────────────────────────────────────────
+
+    /**
+     * Prints [notes] as `note("text", <anchor vars>, id = "…"[, kind = NoteKind.X])` calls. The id is
+     * always explicit so the auto-id interleaving of model-level and diagram notes cannot shift.
+     * Anchors without a variable (a `containerInstance`, which returns `Unit`, or an orphan) are
+     * skipped with a `// TODO`.
+     */
+    private fun printNotes(
+        sb: StringBuilder,
+        indent: String,
+        notes: List<KumlNote>,
+        model: C4Model,
+        ctx: Ctx,
+    ) {
+        for (note in notes) {
+            val targets = model.noteLinks.filter { it.noteId == note.id }.map { it.targetId }
+            val vars = mutableListOf<String>()
+            for (t in targets) {
+                val v = ctx.varNames[t]
+                if (v == null) {
+                    sb.appendLine(
+                        "$indent// TODO: note '${sanitizeForComment(note.id)}' anchor '${sanitizeForComment(t)}' not serialized — " +
+                            "does not resolve to a printed C4 element (e.g. a container instance).",
+                    )
+                } else {
+                    vars += v
+                }
+            }
+            val args = mutableListOf(quote(note.body))
+            args += vars
+            args += "id = ${quote(note.id)}"
+            if (note.kind != NoteKind.NOTE) args += "kind = NoteKind.${note.kind.name}"
+            sb.appendLine("${indent}note(${args.joinToString(", ")})")
+        }
+    }
+
     // ── relationships ──────────────────────────────────────────────────────
 
     private fun printRelationship(
@@ -514,6 +573,39 @@ public object C4DslPrinter {
         model: C4Model,
         ctx: Ctx,
         elementById: Map<ElementId, C4Element>,
+        noteById: Map<String, KumlNote>,
+        notesPrinted: MutableSet<String>,
+    ) {
+        // Capture the diagram body, then splice the notes in before the closing brace.
+        val body = StringBuilder()
+        printDiagramBody(sb = body, d = d, model = model, ctx = ctx)
+        val closing = "    }\n"
+        val text = body.toString()
+        check(text.endsWith(closing)) { "diagram block must end with a closing brace" }
+        sb.append(text.removeSuffix(closing))
+        val notes = mutableListOf<KumlNote>()
+        for (id in d.noteIds) {
+            val n = noteById[id]
+            if (n == null) {
+                sb.appendLine("        // TODO: diagram ${quote(d.name)} lists unknown note id '${sanitizeForComment(id)}'.")
+            } else if (!notesPrinted.add(id)) {
+                sb.appendLine(
+                    "        // NOTE: note '${sanitizeForComment(id)}' is also listed in this diagram but was already " +
+                        "printed in an earlier diagram (a note can only be registered once).",
+                )
+            } else {
+                notes += n
+            }
+        }
+        printNotes(sb = sb, indent = "        ", notes = notes, model = model, ctx = ctx)
+        sb.append(closing)
+    }
+
+    private fun printDiagramBody(
+        sb: StringBuilder,
+        d: C4Diagram,
+        model: C4Model,
+        ctx: Ctx,
     ) {
         when (d) {
             is SystemContextDiagram -> printSystemContextDiagram(sb = sb, d = d, ctx = ctx)
