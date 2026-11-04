@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 8: harden AptosChainAdapterTest against load flakiness (test code only)
+
+- **Observed:** once, in a full parallel check, `AptosChainAdapterTest` ("blockClock currentBlock reflects ledger_version") failed with `AptosChainAdapterException$NetworkError ... HTTP/1.1 header parser received no bytes`. Green with `--max-workers=1` and on rerun.
+- **Cause:** reproduced once in 10 runs on unchanged code with 18 busy CPU processes (another test of the same spec, "subscribe is a cold flow", failed with a `NetworkError` caused by a `SocketException`: the server closed the connection without a response). The exact mechanism was not isolated; the single-thread dispatcher of the mock server plus `stop(0)` and per-test servers is the likely factor, not proven. After the change 10 of 10 runs under the same load were green. That is a small sample and shows no failure, it does not prove the cause is gone.
+- **Change (test helper and test only):** `MockRestServer` now binds to loopback, keeps its routes in a `CopyOnWriteArrayList`, serves requests on a fixed two-thread executor that is shut down in `stop()` (`stop(1)` instead of `stop(0)`), gains `reset()`, drains the request body, and turns handler exceptions into a 500 response. `AptosChainAdapterTest` uses one server per spec with `reset()` before each test, and the call counters are `AtomicInteger`. `Connection: close` was not needed and is not set. No production code changed.
+- **Observation, not changed:** the Sui `MockRpcServer` in the same module has the same pattern (`executor = null`, no loopback bind).
+
 ### Nacharbeit 7: regression tests for nullable text fields and unknown JSON keys (no behaviour change)
 
 - **Checked, no defect found:** `TimeObservationUsage.label`, `UcExtend.condition` and `UcExtend.extensionPoint` (all nullable). `null`, an empty and a blank value survive a JSON round-trip with `encodeDefaults = true` and `false`, an explicit `"label": null` and a missing key both decode to `null`, the DSL printer omits them, the checker (411) does not react, and the SVG renderer shows only the name (no `= `, no `null`, no empty `[]`, no extension-point block). No production code was changed.
