@@ -711,18 +711,18 @@ class PdfExportStringsTest :
         test("aboutBody carries no URL") {
             listOf(Strings.DE, Strings.EN).forEach { it.about.body.contains("http") shouldBe false }
         }
-        test("no string in the English catalog uses the British spelling modelling") {
+        test("no string in the English catalog uses the US spelling modeling") {
             Strings::class.java.declaredFields
                 .filter { it.type == String::class.java }
                 .forEach {
                     it.isAccessible = true
-                    (it.get(Strings.EN) as String).contains("modelling", ignoreCase = true) shouldBe false
+                    (it.get(Strings.EN) as String).contains("modeling", ignoreCase = true) shouldBe false
                 }
             AboutStrings::class.java.declaredFields
                 .filter { it.type == String::class.java }
                 .forEach {
                     it.isAccessible = true
-                    (it.get(Strings.EN.about) as String).contains("modelling", ignoreCase = true) shouldBe false
+                    (it.get(Strings.EN.about) as String).contains("modeling", ignoreCase = true) shouldBe false
                 }
         }
 

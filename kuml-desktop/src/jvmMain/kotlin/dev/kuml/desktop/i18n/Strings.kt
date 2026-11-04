@@ -1020,7 +1020,7 @@ data class Strings(
                 about =
                     AboutStrings(
                         title = "About kUML Desktop",
-                        body = "The native desktop app for the kUML modeling language.",
+                        body = "The native desktop app for the kUML modelling language.",
                         version = "Version",
                         productName = "kUML Desktop",
                         copyright = "© 2025–2026 Irakli Betchvaia",

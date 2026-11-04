@@ -111,7 +111,7 @@ Fidelity (below) is what actually distinguishes them.
 * *HR* (Hallucination Rate) — fraction of generated nodes with no fuzzy match in the
   gold-standard node names. **This is an algorithmic approximation**, not a semantic
   judge — it is stricter than a human/LLM judge would be, since a correct but
-  differently-named modeling decision counts as a false-positive hallucination.
+  differently-named modelling decision counts as a false-positive hallucination.
 * *RI* (Repair Iterations) — mean attempts-to-success among successful runs only.
 
 `score.py` in `research/gcr-benchmark/` implements all five metrics; see its docstring

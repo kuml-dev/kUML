@@ -26,7 +26,7 @@ image:https://img.shields.io/github/license/kuml-dev/kUML[Apache 2.0,link=https:
 == Why kUML?
 
 [.lead]
-*Modeling deserves a compiler.*
+*Modelling deserves a compiler.*
 
 Every feature in kUML exists in _some_ tool on the market. The specific combination does not exist anywhere else: *type-safe Kotlin DSL · UML 2.x + SysML 2 + C4 + BPMN 2.0 + ERM as first-class peers · executable behaviour runtime · LLM-first design · Apache 2.0.*
 

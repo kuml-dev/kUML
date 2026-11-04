@@ -48,7 +48,7 @@ useCaseDiagram(name = "kuml-desktop") {
     val switchDiagramTheme = useCase(name = "Switch Diagram Theme")
     val switchUiLanguage = useCase(name = "Switch UI Language")
 
-    // ── Use cases — AI-assisted modeling ─────────────────────────────────────────
+    // ── Use cases — AI-assisted modelling ─────────────────────────────────────────
 
     val chatWithAiAssistant = useCase(name = "Chat with AI Assistant")
     val reviewAiPatches = useCase(name = "Review AI Patches Before Apply")

@@ -89,7 +89,7 @@ This directory contains runnable kUML example scripts demonstrating the full fea
 | `desktop/`
 | kuml-desktop itself (self-referential dogfooding)
 | Use Case
-| `kuml-desktop-use-cases.kuml.kts` models the actors and implemented use cases of the `kuml-desktop` application (editing/rendering, AI-assisted modeling, knowledge-workspace browsing, plugin discovery); actor generalization plus `«include»`/`«extend»` relationships between use cases
+| `kuml-desktop-use-cases.kuml.kts` models the actors and implemented use cases of the `kuml-desktop` application (editing/rendering, AI-assisted modelling, knowledge-workspace browsing, plugin discovery); actor generalization plus `«include»`/`«extend»` relationships between use cases
 |===
 
 == Runnable Categories

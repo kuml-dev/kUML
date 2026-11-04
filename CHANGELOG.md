@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 12: British spelling "modelling" in English prose
+
+- English prose now uses the British spelling "modelling" consistently (owner decision of 2026-11-04): the README tagline, the `kuml-examples` README, the LLM benchmark handbook page, the English About text of the desktop app (its guard test in `StringsTest` now forbids the US spelling instead) and a comment in the desktop use-case example.
+- Unchanged on purpose: official names (Eclipse Modeling Framework, Kernel Modeling Language, SoaML), code identifiers, runtime messages, nuspec tags and earlier changelog entries. Rendered output is not affected.
+
 ### Nacharbeit 11: notes in the LaTeX/TikZ output (UML, SysML 2, C4)
 
 - **Additions:**
@@ -228,7 +233,7 @@ All notable changes to this project are documented here. Format follows
 **Verification**
 
 - Covered by unit tests only (row order and clipboard text, browser outcomes, license loader incl. hostile paths, build-date parsing, string catalogs). The dialog layout, the hover cursor, a real browser launch and the real clipboard have not been seen running (the desktop MCP server was unavailable).
-- Open points: the README and handbook still use "modelling" in several places; the kuml.dev footer says "© {year} kUML.".
+- Open points: ~~the README and handbook still use "modelling" in several places~~ (done in Nacharbeit 12); the kuml.dev footer says "© {year} kUML.".
 
 ### Nacharbeit 5: ACT and `PortEdgeClamp.clamp` (checked, intentionally kept separate)
 
