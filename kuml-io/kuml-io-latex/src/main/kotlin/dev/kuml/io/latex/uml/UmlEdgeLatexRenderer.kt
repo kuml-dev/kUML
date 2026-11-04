@@ -31,6 +31,9 @@ internal object UmlEdgeLatexRenderer {
         DEPENDENCY("kuml-dependency"),
         PLAIN("kuml-edge-plain"),
         BIDIRECTIONAL("kuml-edge-bidi"),
+
+        /** Anchor line of a note; the style is defined in the note `\tikzset` block only. */
+        NOTE_ANCHOR("kuml-note-anchor"),
     }
 
     fun render(

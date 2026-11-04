@@ -45,6 +45,27 @@ internal fun escapeLatex(raw: String): String {
 }
 
 /**
+ * Escape the text of a note (body, span text, list marker) for use inside a `\node{…}`.
+ *
+ * Control characters (including line breaks and tabs), the C1 range and the Unicode line/paragraph
+ * separators become a space, so a note can never end a TeX line comment or start a new paragraph with
+ * user-controlled content. The ellipsis and the bullet get their text macros; everything else goes through
+ * [escapeLatex], which neutralises all ten LaTeX special characters. No hyperlink macro is ever produced.
+ */
+internal fun escapeNoteText(raw: String): String {
+    val sb = StringBuilder(raw.length + 8)
+    for (c in raw) {
+        when {
+            Character.isISOControl(c) || c == '\u2028' || c == '\u2029' -> sb.append(' ')
+            c == '\u2026' -> sb.append("\\ldots{}")
+            c == '\u2022' -> sb.append("\\textbullet{}")
+            else -> sb.append(escapeLatex(c.toString()))
+        }
+    }
+    return sb.toString()
+}
+
+/**
  * Sanitise a [NodeId] into a valid TikZ node-name.
  *
  * TikZ node names must consist of alphanumeric characters and `_` only (hyphens

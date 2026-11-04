@@ -1,23 +1,15 @@
 package dev.kuml.io.svg
 
+import dev.kuml.layout.bridge.note.NoteSymbols
 import dev.kuml.renderer.theme.core.KumlColor
 import dev.kuml.renderer.theme.core.KumlTheme
 import kotlin.math.pow
 
-/** Colour tone of a note kind. Several kinds share a tone; the symbol tells them apart. */
-internal enum class NoteTone {
-    INFO,
-    HINT,
-    SUCCESS,
-    WARNING,
-    DANGER,
-    IMPORTANT,
-    NEUTRAL,
-    ;
+/** Colour tone of a note kind (shared with the LaTeX renderer). */
+internal typealias NoteTone = dev.kuml.layout.bridge.note.NoteTone
 
-    /** CSS class suffix (`kuml-note-tone-<suffix>`). */
-    val css: String get() = name.lowercase()
-}
+/** CSS class suffix (`kuml-note-tone-<suffix>`). */
+internal val NoteTone.css: String get() = key
 
 /**
  * Tone colours of the note symbols and the CSS rules for them.
@@ -33,26 +25,6 @@ internal object NoteTones {
 
     /** Width of the accent stripe on the left edge of a dog-ear note (px). */
     const val ACCENT_WIDTH: Float = 3f
-
-    private val LIGHT: Map<NoteTone, Int> =
-        mapOf(
-            NoteTone.INFO to 0x1F6FB2,
-            NoteTone.HINT to 0x0B7F72,
-            NoteTone.SUCCESS to 0x2E7D32,
-            NoteTone.WARNING to 0xA85F00,
-            NoteTone.DANGER to 0xC62828,
-            NoteTone.IMPORTANT to 0x7B3FA0,
-        )
-
-    private val DARK: Map<NoteTone, Int> =
-        mapOf(
-            NoteTone.INFO to 0x6CB4F0,
-            NoteTone.HINT to 0x4FD1C0,
-            NoteTone.SUCCESS to 0x7BD88F,
-            NoteTone.WARNING to 0xF2B44D,
-            NoteTone.DANGER to 0xFF7B7B,
-            NoteTone.IMPORTANT to 0xC79BF2,
-        )
 
     private fun isDark(c: KumlColor): Boolean {
         val r = (c.rgb shr 16) and 0xFF
@@ -91,7 +63,7 @@ internal object NoteTones {
             if (tone == NoteTone.NEUTRAL) {
                 c.muted
             } else {
-                KumlColor((if (isDark(fill)) DARK else LIGHT).getValue(tone))
+                KumlColor((if (isDark(fill)) NoteSymbols.DARK_RGB else NoteSymbols.LIGHT_RGB).getValue(tone))
             }
         return if (contrastRatio(a = wanted, b = fill) >= MIN_CONTRAST) wanted else c.foreground
     }

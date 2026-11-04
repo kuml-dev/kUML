@@ -6,6 +6,24 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 11: notes in the LaTeX/TikZ output (UML, SysML 2, C4)
+
+- **Additions:**
+  - A shared TikZ note helper (`NoteTikz` in `kuml-io-latex`): dog-ear frame with fold, accent stripe, the kind symbol as a filled TikZ path (even-odd rule, no external graphics), one colour per tone (`\definecolor`, only for tones in use), formatted text (bold, italic, code, lists, links as underlined text) with one TikZ node per wrapped line, and dashed anchor lines with a dot at the anchored end.
+  - UML comments, SysML 2 comments (BDD, IBD, UC, REQ, STM, ACT, PAR, SEQ) and C4 notes are drawn. Placement reuses `Sysml2NotePlacement` and `C4NotePlacement` (UML comments keep the ELK positions), so size, wrapping and the symbol are the same as in the SVG output.
+  - `NoteSymbols` and `NoteTone` in `kuml-layout-bridge` are now the single source of the symbol paths, tones, labels and palettes. `NoteIcons` and `NoteTones` in `kuml-io-svg` delegate to it (SVG output unchanged).
+- **Behaviour changes:**
+  - A UML comment used to be drawn as an empty rectangle labelled with its element id, with a solid arrow as its link. It is now a note with its text and a dashed anchor.
+  - LaTeX output of diagrams with notes changes. Notes cost nothing otherwise: the note styles and colours are written only when a note is drawn.
+  - Checked: all 550 SVG files of the `kuml-io-svg` and vault-example samples (all themes) are byte-identical to the run on the base commit. Of the 99 vault-example `.tex` files exactly 10 differ, all of them diagrams with notes (01, 53, 54, 55, 57, 60, 66, 67, 70, 71); the 89 others and all other `kuml-io-latex` sample files are byte-identical. Five hand-built no-notes references (TeX text, `src/test/resources/golden/no-notes/`) are compared exactly in a test.
+  - Verified with `pdflatex`: the output of the ten changed vault examples compiles, and the PNGs were inspected. A test builds PDFs for every note kind and for hostile texts (skipped when TeX is not installed).
+- **Security:** note text goes through `escapeNoteText` exactly once (all ten LaTeX specials, control characters, line breaks and the Unicode line separators become spaces, no `%` or `^^` can survive). No `\href`, `\url`, `\input`, `\write` or other macro is produced from note text; the tests check every macro in the output against the renderer's own set for 13 hostile texts, also inside bold, link and code markup. The PDF test runs `pdflatex -no-shell-escape` without a shell.
+- **Still open:**
+  - BPMN and Service Blueprint (planned as Nacharbeit 11b): these two LaTeX renderers have no layout result (BPMN positions nodes relatively, Blueprint computes its own grid), so the note placement cannot be reused and needs its own placement rule.
+  - Positions in LaTeX are not pixel-identical to SVG where the SVG pipeline adds diagram-specific planning (state-machine label planner, sequence lifeline stems, IBD port anchors). A note anchored only to a port, an owner frame, a partition or a nested constraint has no anchor geometry in LaTeX and is left out (vault examples 54 shows one of three notes, 56 none).
+  - ERM has no LaTeX renderer. Links are drawn as underlined text without the URL and without a hyperlink. No dark theme. Characters outside the pdflatex `T1`/`utf8` set (emoji, CJK) still stop the TeX build; this is not specific to notes.
+  - Observation outside this wave: `BpmnLatexRenderer` writes `% Pool: ...` and `% Collaboration: ...` TeX comments with an escaped label that is not stripped of line breaks. A name with a line break would put the rest of the name outside the comment. Escaping prevents macros, so this is a robustness gap, not a macro injection; not changed here.
+
 ### Nacharbeit 10: harden SuiChainAdapterTest mock server against load flakiness (test code only)
 
 - **Observed / cause:** the Sui `MockRpcServer` had the same pattern as the Aptos server hardened in Nacharbeit 8 (plain `mutableMapOf` shared between threads, no loopback bind, `executor = null`, `stop(0)`, no `reset()`, handler exceptions not visible). No failure of `SuiChainAdapterTest` has been observed. Under 18 busy CPU processes, 10 of 10 runs of the module (clean, `--no-build-cache --rerun-tasks`) were green with 14 tests each, and the baseline was not run under load before the change, so no failure was reproduced either way. This is a small sample and no proof; treat the change as hardening only.
@@ -334,7 +352,7 @@ All notable changes to this project are documented here. Format follows
 **Not done in this wave (open)**
 
 - Code background, link colour, nested lists and `_` for italics.
-- LaTeX/TikZ output (draws no notes at all), PDF, the desktop preview and the desktop UI.
+- LaTeX/TikZ output (partly done in Nacharbeit 11: UML, SysML 2 and C4; BPMN and Blueprint still open), PDF, the desktop preview and the desktop UI.
 - Vault examples from number 66 on, the kuml.dev playground sync, KerML.
 - The C4 and Service Blueprint DSL printers did not write notes; this is closed in Nacharbeit 6 (see above). BPMN has no DSL printer and is checked through XML export and import.
 - In a PNG a link is only underlined; the URL is lost. In an SVG it is clickable only when the SVG is embedded inline (an `<img>` element disables links, and a sanitiser may remove `<a>`); this was not checked for Obsidian, Antora or kuml.dev.
@@ -358,7 +376,7 @@ All notable changes to this project are documented here. Format follows
 **Not done in this wave (open)**
 
 - KerML: it has no diagram type, model builder or renderer (only metamodel base classes), so there is no note to give a kind. It needs a KerML diagram first.
-- LaTeX/TikZ output still draws no notes (no placement, no symbols as graphics, no colours). A TeX toolchain is present on the development machine, but the five renderers have no note code to extend; this is a wave of its own.
+- LaTeX/TikZ output: partly done in Nacharbeit 11 (UML, SysML 2 and C4 draw notes); BPMN and Blueprint are still open.
 - Blueprint placement next to the step instead of in the column; a warning when very many notes share one anchor; the text format (N3); playground sync; the desktop MCP server (`kuml-desktop`) was not reachable in this session (ECONNREFUSED).
 - The C4 DSL printer and the Service Blueprint printer did not write notes (before and after this wave); this is closed in Nacharbeit 6 (see above).
 
@@ -939,7 +957,7 @@ over-long words. UML comments keep no hard length limit.
 
 ### Known limitations
 
-* LaTeX/TikZ export draws no notes; BPMN choreographies and conversations, KerML and Blueprint have no notes.
+* LaTeX/TikZ export draws no notes for BPMN and Service Blueprint (UML, SysML 2 and C4 do, see Nacharbeit 11); BPMN choreographies and conversations and KerML have no notes.
 * SysML 2 notes cannot be anchored to ports or activity partitions; BPMN annotations cannot be
   anchored to pools, lanes or sequence flows; ERM notes only to entities and views.
 * Note diagnostics are reported by the CLI only (not by the web, desktop or MCP validate).

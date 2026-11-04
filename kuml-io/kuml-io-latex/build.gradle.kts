@@ -16,6 +16,7 @@ dependencies {
     api(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.8 — BPMN LaTeX/TikZ renderer
     api(project(":kuml-metamodel:kuml-metamodel-blueprint")) // V3.1.26 — Blueprint LaTeX/TikZ renderer
     implementation(project(":kuml-core:kuml-core-model"))
+    implementation(project(":kuml-renderer:kuml-layout-bridge")) // note placement + symbols shared with the SVG renderer
 
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)

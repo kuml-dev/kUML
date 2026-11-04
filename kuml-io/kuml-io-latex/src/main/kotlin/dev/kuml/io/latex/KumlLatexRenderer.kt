@@ -17,13 +17,21 @@ import dev.kuml.core.model.KumlElement
 import dev.kuml.io.latex.blueprint.BlueprintLatexRenderer
 import dev.kuml.io.latex.bpmn.BpmnLatexRenderer
 import dev.kuml.io.latex.c4.C4LatexRenderer
+import dev.kuml.io.latex.note.NoteTikz
+import dev.kuml.io.latex.note.NoteTikzAnchor
+import dev.kuml.io.latex.note.NoteTikzSpec
 import dev.kuml.io.latex.sysml2.Sysml2DefLatexRenderer
 import dev.kuml.io.latex.sysml2.edge.Sysml2EdgeLatexRenderer
 import dev.kuml.io.latex.uml.UmlClassLatexRenderer
 import dev.kuml.io.latex.uml.UmlEdgeLatexRenderer
+import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
+import dev.kuml.layout.bridge.NoteLayout
+import dev.kuml.layout.bridge.note.C4NotePlacement
+import dev.kuml.layout.bridge.note.Sysml2NotePlacement
+import dev.kuml.layout.bridge.note.WidthLimitedNoteMeasure
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActorDefinition
@@ -40,6 +48,7 @@ import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
+import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
@@ -55,6 +64,8 @@ import dev.kuml.sysml2.usesStmStructure
 import dev.kuml.sysml2.visibleStateIds
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlClassifier
+import dev.kuml.uml.UmlComment
+import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInterfaceRealization
@@ -124,6 +135,22 @@ public object KumlLatexRenderer {
         diagram: KumlDiagram,
         layoutResult: LayoutResult,
         options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String = renderKuml(diagram = diagram, layoutResult = layoutResult, options = options)
+
+    /**
+     * Shared body of the UML entry and the SysML 2 sequence diagram.
+     *
+     * [extraNotes] are notes the caller placed itself (SysML 2 comments), [anchorIds] the ids of their anchor
+     * edges in [layoutResult]. UML comments need neither: they are ordinary layout nodes and [UmlCommentLink]
+     * relationships.
+     */
+    private fun renderKuml(
+        diagram: KumlDiagram,
+        layoutResult: LayoutResult,
+        options: LatexRenderOptions,
+        extraNotes: List<NoteTikzSpec> = emptyList(),
+        anchorIds: Set<String> = emptySet(),
+        noteMaxWidth: Float = NoteLayout.MAX_W,
     ): String =
         buildString {
             if (options.standalone) {
@@ -133,6 +160,11 @@ public object KumlLatexRenderer {
             appendPictureOpen(options.scale)
             appendTikzStyles(options.indent)
 
+            val umlNotes = diagram.elements.filterIsInstance<UmlComment>().filter { NodeId(it.id) in layoutResult.nodes }
+            if (umlNotes.isNotEmpty() || extraNotes.isNotEmpty()) {
+                NoteTikz.appendNoteStyles(sb = this, indent = options.indent, kinds = umlNotes.map { it.kind } + extraNotes.map { it.kind })
+            }
+
             // Nodes — index elements by id once, then iterate the layout to
             // preserve the engine's deterministic ordering.
             val nodesById: Map<String, KumlElement> = diagram.elements.associateBy { it.id }
@@ -141,14 +173,28 @@ public object KumlLatexRenderer {
                 val element = nodesById[nodeId.value] ?: continue
                 renderNode(element = element, nodeId = nodeId, nodeLayout = nodeLayout, options = options)
             }
+            for (note in extraNotes) {
+                NoteTikz.renderNote(spec = note, options = options, out = this, maxWidth = noteMaxWidth)
+            }
 
             // Edges
             val relationshipsById: Map<String, UmlRelationship> =
                 diagram.elements.filterIsInstance<UmlRelationship>().associateBy { it.id }
 
             for ((edgeId, route) in layoutResult.edges) {
+                if (edgeId.value in anchorIds) {
+                    NoteTikz.renderAnchor(route = route, style = NoteTikzAnchor.DASHED, options = options, out = this)
+                    continue
+                }
                 val rel = relationshipsById[edgeId.value]
                 renderEdge(relationship = rel, route = route, options = options)
+            }
+            // A comment link the layout carries no route for still gets a line between the two named nodes.
+            for (link in relationshipsById.values.filterIsInstance<UmlCommentLink>()) {
+                if (EdgeId(link.id) in layoutResult.edges) continue
+                if (NodeId(link.commentId) in layoutResult.nodes && NodeId(link.annotatedElementId) in layoutResult.nodes) {
+                    NoteTikz.renderAnchorBetween(noteId = link.commentId, targetId = link.annotatedElementId, options = options, out = this)
+                }
             }
 
             appendPictureClose()
@@ -175,33 +221,68 @@ public object KumlLatexRenderer {
      *     default behaviour — kept here for safety.
      */
     private fun renderSysml2Synthetic(
+        model: Sysml2Model,
+        diagram: Sysml2Diagram,
         synthetic: KumlDiagram,
         layoutResult: LayoutResult,
         options: LatexRenderOptions,
         sysml2EdgeAdapter: Sysml2EdgeAdapter,
         frames: List<Pair<String, String>> = emptyList(),
-    ): String =
-        buildString {
+        noteMaxWidth: Float = NoteLayout.MAX_W,
+    ): String {
+        // Notes are placed here (the SVG renderer does the same after the layout); without comments the
+        // layout comes back unchanged, so the output stays byte-identical. Everything below uses the placed
+        // layout because the placement can shift the whole drawing.
+        val placed =
+            placeSysml2Notes(
+                model = model,
+                diagram = diagram,
+                layout = layoutResult,
+                adapter = sysml2EdgeAdapter,
+                noteMaxWidth = noteMaxWidth,
+            )
+        val notes =
+            sysml2NoteSpecs(
+                model = model,
+                layout = placed,
+                taken =
+                    layoutResult.nodes.keys
+                        .map { it.value }
+                        .toSet(),
+            )
+        val linkIds = model.commentLinks.map { it.id }.toSet()
+        return buildString {
             if (options.standalone) {
                 appendStandalonePreamble()
             }
 
             appendPictureOpen(options.scale)
             appendTikzStyles(options.indent)
+            if (notes.isNotEmpty()) {
+                NoteTikz.appendNoteStyles(sb = this, indent = options.indent, kinds = notes.map { it.kind })
+            }
 
             // Wave C1: group / subject frames (compound groups of the layout) sit behind the nodes.
-            appendSysml2Frames(frames = frames, layoutResult = layoutResult, options = options)
+            appendSysml2Frames(frames = frames, layoutResult = placed, options = options)
 
             val nodesById: Map<String, KumlElement> = synthetic.elements.associateBy { it.id }
-            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+            for ((nodeId, nodeLayout) in placed.nodes) {
                 val element = nodesById[nodeId.value] ?: continue
                 renderNode(element = element, nodeId = nodeId, nodeLayout = nodeLayout, options = options)
+            }
+            for (note in notes) {
+                NoteTikz.renderNote(spec = note, options = options, out = this, maxWidth = noteMaxWidth)
             }
 
             val relationshipsById: Map<String, UmlRelationship> =
                 synthetic.elements.filterIsInstance<UmlRelationship>().associateBy { it.id }
 
-            for ((edgeId, route) in layoutResult.edges) {
+            for ((edgeId, route) in placed.edges) {
+                // Anchor lines of notes first: the adapter fallback below would draw them as solid arrows.
+                if (edgeId.value in linkIds) {
+                    NoteTikz.renderAnchor(route = route, style = NoteTikzAnchor.DASHED, options = options, out = this)
+                    continue
+                }
                 val rel = relationshipsById[edgeId.value]
                 if (rel != null) {
                     renderEdge(relationship = rel, route = route, options = options)
@@ -223,6 +304,51 @@ public object KumlLatexRenderer {
                 appendStandaloneCoda()
             }
         }
+    }
+
+    /**
+     * Places the comments of [diagram]. [Sysml2NotePlacement] returns [layout] itself when the model has no comment
+     * the diagram shows. The SVG-only extras (state-machine label planner, sequence stems, port anchors) are not
+     * available here, so an anchor on a port or an owner frame stays unresolved and its note is left out.
+     */
+    private fun placeSysml2Notes(
+        model: Sysml2Model,
+        diagram: Sysml2Diagram,
+        layout: LayoutResult,
+        adapter: Sysml2EdgeAdapter?,
+        noteMaxWidth: Float,
+    ): LayoutResult =
+        Sysml2NotePlacement
+            .place(
+                model = model,
+                diagram = diagram,
+                layout = layout,
+                edgeLabels = { id ->
+                    val md = adapter?.metadataFor(id)
+                    listOfNotNull(md?.label?.takeIf { it.isNotEmpty() }, md?.endLabel?.takeIf { it.isNotEmpty() })
+                },
+                measure =
+                    if (noteMaxWidth <
+                        NoteLayout.MAX_W
+                    ) {
+                        WidthLimitedNoteMeasure(noteMaxWidth)
+                    } else {
+                        dev.kuml.layout.bridge.note.DefaultNoteMeasure
+                    },
+            ).layout
+
+    /** The comments of [model] that [layout] carries as nodes (so were placed), as draw specs. */
+    private fun sysml2NoteSpecs(
+        model: Sysml2Model,
+        layout: LayoutResult,
+        taken: Set<String>,
+    ): List<NoteTikzSpec> =
+        model.comments
+            .filter { it.id !in taken }
+            .mapNotNull { c ->
+                val node = layout.nodes[NodeId(c.id)] ?: return@mapNotNull null
+                NoteTikzSpec(id = c.id, body = c.note.body, kind = c.note.kind, bounds = node.bounds)
+            }
 
     /** Draws one rectangle with a bold name label per `(groupId, name)` pair that the layout knows. */
     private fun StringBuilder.appendSysml2Frames(
@@ -302,6 +428,13 @@ public object KumlLatexRenderer {
                     options = options,
                     out = this,
                 )
+            // A UML comment is a note, not a labelled rectangle (it is not a UmlNamedElement).
+            is UmlComment ->
+                NoteTikz.renderNote(
+                    spec = NoteTikzSpec(id = element.id, body = element.body, kind = element.kind, bounds = nodeLayout.bounds),
+                    options = options,
+                    out = this,
+                )
             else ->
                 UmlClassLatexRenderer.renderFallback(
                     nodeId = nodeId,
@@ -335,6 +468,8 @@ public object KumlLatexRenderer {
                 elements = elements,
             )
         return renderSysml2Synthetic(
+            model = model,
+            diagram = diagram,
             synthetic = synthetic,
             layoutResult = layoutResult,
             options = options,
@@ -377,6 +512,8 @@ public object KumlLatexRenderer {
                 elements = visible,
             )
         return renderSysml2Synthetic(
+            model = model,
+            diagram = diagram,
             synthetic = synthetic,
             layoutResult = layoutResult,
             options = options,
@@ -415,6 +552,8 @@ public object KumlLatexRenderer {
                 elements = elements,
             )
         return renderSysml2Synthetic(
+            model = model,
+            diagram = diagram,
             synthetic = synthetic,
             layoutResult = layoutResult,
             options = options,
@@ -462,6 +601,8 @@ public object KumlLatexRenderer {
                 elements = elements,
             )
         return renderSysml2Synthetic(
+            model = model,
+            diagram = diagram,
             synthetic = synthetic,
             layoutResult = layoutResult,
             options = options,
@@ -504,12 +645,15 @@ public object KumlLatexRenderer {
             )
         val tikz =
             renderSysml2Synthetic(
+                model = model,
+                diagram = diagram,
                 synthetic = synthetic,
                 // Drop the layout-only region-ordering edges ("stm:order:" prefix, see
                 // Sysml2LayoutBridge.STM_ORDER_EDGE_PREFIX; this module does not depend on the bridge).
                 layoutResult = layoutResult.copy(edges = layoutResult.edges.filterKeys { !it.value.startsWith("stm:order:") }),
                 options = options,
                 sysml2EdgeAdapter = StmEdgeAdapter(model = model, diagram = diagram),
+                noteMaxWidth = NoteLayout.STM_MAX_W,
             )
         // Wave A1: the TikZ backend draws every state as a flat box. Say so in the output
         // instead of silently dropping the structure (this module has no logging dependency).
@@ -568,6 +712,8 @@ public object KumlLatexRenderer {
                 elements = elements,
             )
         return renderSysml2Synthetic(
+            model = model,
+            diagram = diagram,
             synthetic = synthetic,
             layoutResult = layoutResult,
             options = options,
@@ -613,7 +759,24 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toLatex(diagram = synthetic, layoutResult = layoutResult, options = options)
+        // The comments are placed here and drawn by the shared UML path (SEQ has no edge adapter).
+        val placed =
+            placeSysml2Notes(model = model, diagram = diagram, layout = layoutResult, adapter = null, noteMaxWidth = NoteLayout.MAX_W)
+        return renderKuml(
+            diagram = synthetic,
+            layoutResult = placed,
+            options = options,
+            extraNotes =
+                sysml2NoteSpecs(
+                    model = model,
+                    layout = placed,
+                    taken =
+                        layoutResult.nodes.keys
+                            .map { it.value }
+                            .toSet(),
+                ),
+            anchorIds = model.commentLinks.map { it.id }.toSet(),
+        )
     }
 
     /**
@@ -650,6 +813,8 @@ public object KumlLatexRenderer {
                 elements = elements,
             )
         return renderSysml2Synthetic(
+            model = model,
+            diagram = diagram,
             synthetic = synthetic,
             layoutResult = layoutResult,
             options = options,
@@ -688,14 +853,31 @@ public object KumlLatexRenderer {
         model: C4Model,
         layoutResult: LayoutResult,
         options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
-    ): String =
-        buildString {
+    ): String {
+        // Notes are placed here, as the SVG renderer does; without notes the layout comes back unchanged.
+        val placed = C4NotePlacement.place(model = model, diagram = diagram, layout = layoutResult).layout
+        val original =
+            layoutResult.nodes.keys
+                .map { it.value }
+                .toSet()
+        val notes =
+            model.notes
+                .filter { it.id !in original }
+                .mapNotNull { n ->
+                    val node = placed.nodes[NodeId(n.id)] ?: return@mapNotNull null
+                    NoteTikzSpec(id = n.id, body = n.body, kind = n.kind, bounds = node.bounds)
+                }
+        val linkIds = model.noteLinks.map { it.id }.toSet()
+        return buildString {
             if (options.standalone) {
                 appendStandalonePreamble()
             }
 
             appendPictureOpen(options.scale)
             appendTikzStyles(options.indent)
+            if (notes.isNotEmpty()) {
+                NoteTikz.appendNoteStyles(sb = this, indent = options.indent, kinds = notes.map { it.kind })
+            }
 
             // Build element index for O(1) lookup by id.
             val elementIndex = model.elements.associateBy { it.id }
@@ -703,17 +885,31 @@ public object KumlLatexRenderer {
 
             // Nodes — iterate in layout order to match the SVG renderer's
             // deterministic ordering.
-            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+            for ((nodeId, nodeLayout) in placed.nodes) {
                 val element = elementIndex[nodeId.value] ?: continue
                 // renderNode dispatches C4Element to C4LatexRenderer via the
                 // is C4Element branch added in the renderNode when-expression.
                 renderNode(element = element, nodeId = nodeId, nodeLayout = nodeLayout, options = options)
             }
+            for (note in notes) {
+                NoteTikz.renderNote(spec = note, options = options, out = this)
+            }
 
-            // Edges — C4 relationships as plain solid arrows with mid-point labels.
+            // Edges — C4 relationships as plain solid arrows with mid-point labels. Anchor lines of notes are
+            // drawn dashed below and must not reach the relationship renderer.
             val visibleRelationships: List<C4Relationship> =
                 diagram.relationships.mapNotNull { relId -> relationshipIndex[relId] }
-            C4LatexRenderer.renderEdges(relationships = visibleRelationships, layoutResult = layoutResult, options = options, out = this)
+            C4LatexRenderer.renderEdges(
+                relationships = visibleRelationships,
+                layoutResult = if (linkIds.isEmpty()) placed else placed.copy(edges = placed.edges.filterKeys { it.value !in linkIds }),
+                options = options,
+                out = this,
+            )
+            for ((edgeId, route) in placed.edges) {
+                if (edgeId.value in linkIds) {
+                    NoteTikz.renderAnchor(route = route, style = NoteTikzAnchor.DASHED, options = options, out = this)
+                }
+            }
 
             appendPictureClose()
 
@@ -721,6 +917,7 @@ public object KumlLatexRenderer {
                 appendStandaloneCoda()
             }
         }
+    }
 
     // ─── Edge dispatch ────────────────────────────────────────────────────────
 
@@ -729,6 +926,10 @@ public object KumlLatexRenderer {
         route: EdgeRoute,
         options: LatexRenderOptions,
     ) {
+        if (relationship is UmlCommentLink) {
+            NoteTikz.renderAnchor(route = route, style = NoteTikzAnchor.DASHED, options = options, out = this)
+            return
+        }
         // Style picked per UML relationship kind. Unknown / missing relationships
         // get a neutral solid line — that's still useful diagnostically (the
         // layout said "there's an edge here", we just don't know what UML calls it).
