@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 7: regression tests for nullable text fields and unknown JSON keys (no behaviour change)
+
+- **Checked, no defect found:** `TimeObservationUsage.label`, `UcExtend.condition` and `UcExtend.extensionPoint` (all nullable). `null`, an empty and a blank value survive a JSON round-trip with `encodeDefaults = true` and `false`, an explicit `"label": null` and a missing key both decode to `null`, the DSL printer omits them, the checker (411) does not react, and the SVG renderer shows only the name (no `= `, no `null`, no empty `[]`, no extension-point block). No production code was changed.
+- **New tests:** `Sysml2NullableFieldRoundtripTest` (20 tests, metamodel) and `Sysml2NullableLabelSvgTest` (2 tests, SVG, font-independent text skeleton only).
+- **Unknown JSON keys (documented, not changed):** the metamodel classes do not configure `ignoreUnknownKeys`; the caller decides. A strict `Json` rejects a document with an unknown key (`SerializationException`), a tolerant one drops the key silently, so a round trip through an older reader loses newer fields. The test `Sysml2NullableFieldRoundtripTest` documents both. Productive tolerant instances in this repository: `ExtractedDiagramCodec`, `WasmPlayground`, `DumpJsonCommand`, `KumlWebServer`.
+- **kUML Portal (read only, not changed here):** `modelOpJson` (`ModelOp.kt`) already uses `ignoreUnknownKeys = true`. `DiagramLoroProjection.metaJson` (`Json { encodeDefaults = true }`) is strict: a `metadataJson` / `configJson` blob with a field unknown to an older Portal build is not decoded, the code logs a warning and falls back to empty metadata / no diagram config (data of that blob is lost on export). The KDoc of `modelOpJson` says `metaJson` has the same tolerant posture; it does not. Recommendation for the Portal: `ignoreUnknownKeys = true` on `metaJson`, or keep Portal and metamodel versions in step.
+- Desktop MCP server (`kuml-desktop`) was not reachable (ECONNREFUSED, nothing listens on the configured port); the separate `kuml` MCP server works. Not part of this wave.
+
 ### Nacharbeit 6: notes in the C4 and Service Blueprint DSL printers
 
 **Additions**
