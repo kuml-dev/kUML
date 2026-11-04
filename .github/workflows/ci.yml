@@ -12,6 +12,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Standard runners ship large toolchains this build never touches.
+      # Only paths verified as unused (no Android, .NET, Haskell or CodeQL
+      # usage in the build) are removed; /opt/hostedtoolcache as a whole is
+      # kept because it holds Java and Node. Failures here never fail the job.
+      - name: Free disk space
+        run: |
+          set +e
+          df -h /
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/.ghcup || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo docker image prune --all --force || true
+          df -h /
+          exit 0
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -37,6 +54,17 @@ jobs:
 
       - name: Build (excluding live LLM tests)
         run: ./gradlew build -DexcludeTags=live
+
+      - name: Disk usage after build
+        if: always()
+        continue-on-error: true
+        run: |
+          df -h /
+          timeout 120 du -xh --max-depth=1 "$GITHUB_WORKSPACE" 2>/dev/null | sort -rh | head -15
+          timeout 120 du -sh ~/.gradle ~/.gradle/caches ~/.gradle/wrapper 2>/dev/null
+          timeout 120 find "$GITHUB_WORKSPACE" -maxdepth 3 -name build -type d -prune -exec du -sh {} + 2>/dev/null | sort -rh | head -10
+          timeout 60 du -sh /tmp 2>/dev/null
+          exit 0
 
       - name: Upload test results
         if: always()

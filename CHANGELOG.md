@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 13: CI disk-space safeguard (infrastructure)
+
+- New `Free disk space` step in `ci.yml`: removes only the Android SDK, .NET, GHC, the CodeQL bundle and unused Docker images (all verified as unused by the build), with `df -h` before and after. It is failure-tolerant and cannot turn the job red. A `Disk usage after build` diagnostic step (`if: always()`) reports free space, the largest workspace directories, Gradle caches, `build` directories and `/tmp`.
+- Background: two runs on 2026-11-04 failed with `No space left on device`, and another with `Could not add file kotlin-compiler-embeddable ... to ZIP` in `:kuml-llm:kuml-llm-bench:distZip`. The cause was not printed and is not reproducible locally; lack of space or a damaged cache is plausible. The Gradle cache was deliberately left enabled.
+- Not yet verified: the effect is confirmed only by the first green CI run after the push. Other workflows are unchanged.
+
 ### Nacharbeit 12: British spelling "modelling" in English prose
 
 - English prose now uses the British spelling "modelling" consistently (owner decision of 2026-11-04): the README tagline, the `kuml-examples` README, the LLM benchmark handbook page, the English About text of the desktop app (its guard test in `StringsTest` now forbids the US spelling instead) and a comment in the desktop use-case example.
