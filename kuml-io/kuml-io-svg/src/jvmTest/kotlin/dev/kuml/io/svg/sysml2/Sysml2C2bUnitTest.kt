@@ -194,6 +194,49 @@ class Sysml2C2bUnitTest :
         test("ACT pin stub is derived from the shared arrowhead length") {
             Sysml2PinRouting.STUB_PX shouldBe PortEdgeClamp.ARROW_LEN_PX + Sysml2PinRouting.CORNER_RADIUS_PX
             Sysml2PinRouting.STUB_PX shouldBe 16f
+            Sysml2PinRouting.STUB_PX shouldBe PortEdgeClamp.arrowStubPx(Sysml2PinRouting.CORNER_RADIUS_PX)
+        }
+
+        // Guards for "ACT keeps its own router": each case is a place where PortEdgeClamp.clamp gives a different
+        // route. If someone swaps the router for clamp, these fail and the image change has to be decided on purpose.
+        test("ACT keeps the full stub at a source end without arrowhead, clamp would use the corner radius") {
+            val route = direct(200f, 200f, 80f, 80f)
+            val src = attachmentAt(route.source, PortFace.Top)
+            val tgt = attachmentAt(route.target, PortFace.Top)
+            val act = pointsOf(Sysml2PinRouting.orthogonalize(route = route, source = src, target = tgt))
+            val clamped =
+                pointsOf(PortEdgeClamp.clamp(route = route, source = src, target = tgt, sourceArrowhead = false, targetArrowhead = true))
+            abs(act[1].y - act[0].y) shouldBe Sysml2PinRouting.STUB_PX
+            abs(clamped[1].y - clamped[0].y) shouldBe Sysml2PinRouting.CORNER_RADIUS_PX
+        }
+
+        test("ACT drops inner way points of a non orthogonal route, clamp keeps them") {
+            val route =
+                EdgeRoute.OrthogonalRounded(
+                    source = Point(x = 200f, y = 200f),
+                    target = Point(x = 80f, y = 80f),
+                    waypoints = listOf(Point(x = 200f, y = 150f), Point(x = 140f, y = 150f), Point(x = 140f, y = 100f)),
+                    cornerRadiusPx = 4f,
+                )
+            val src = attachmentAt(route.source, PortFace.Top)
+            val tgt = attachmentAt(route.target, PortFace.Bottom)
+            val act = pointsOf(Sysml2PinRouting.orthogonalize(route = route, source = src, target = tgt))
+            val clamped =
+                pointsOf(PortEdgeClamp.clamp(route = route, source = src, target = tgt, sourceArrowhead = false, targetArrowhead = true))
+            act.none { it.y == 150f } shouldBe true
+            clamped.any { it.y == 150f } shouldBe true
+        }
+
+        test("ACT and clamp differ for pins on the same row, clamp adds a detour") {
+            val route = direct(200f, 200f, 80f, 200f)
+            val src = attachmentAt(route.source, PortFace.Top)
+            val tgt = attachmentAt(route.target, PortFace.Top)
+            val act = pointsOf(Sysml2PinRouting.orthogonalize(route = route, source = src, target = tgt))
+            val clamped =
+                pointsOf(PortEdgeClamp.clamp(route = route, source = src, target = tgt, sourceArrowhead = false, targetArrowhead = true))
+            act shouldNotBe clamped
+            act.size shouldBe 4
+            clamped.size shouldBe 6
         }
 
         test("orthogonalize: last segment keeps the arrowhead on a straight run after the bend") {

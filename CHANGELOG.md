@@ -167,6 +167,26 @@ All notable changes to this project are documented here. Format follows
 - Covered by unit tests only (row order and clipboard text, browser outcomes, license loader incl. hostile paths, build-date parsing, string catalogs). The dialog layout, the hover cursor, a real browser launch and the real clipboard have not been seen running (the desktop MCP server was unavailable).
 - Open points: the README and handbook still use "modelling" in several places; the kuml.dev footer says "© {year} kUML.".
 
+### Nacharbeit 5: ACT and `PortEdgeClamp.clamp` (checked, intentionally kept separate)
+
+**Changes**
+
+- No production code changed. `Sysml2PinRouting.STUB_PX` was already derived from `PortEdgeClamp.ARROW_LEN_PX` (Nacharbeit 2), so the stub value has one source. Output of every diagram is unchanged.
+
+**Measured**
+
+- Spike (not committed): `Sysml2PinRouting.orthogonalize` against `PortEdgeClamp.clamp` (radius 4) for all 16 face pairs and 49 relative positions (784 routes between two 10 px pins). With the ACT arrowhead layout (target only) 772 of 784 routes differ, 356 of them in the number of points. Even with an arrowhead at both ends 532 differ, 308 in point count. So `clamp` is not a drop-in replacement; swapping it would change ACT images.
+- Causes: ACT uses a fixed 16 px stub at both pin ends, `clamp` only at an arrowhead end (4 px elbow otherwise; setting `sourceArrowhead` on an arrowless source would only fake the stub); ACT discards the inner way points of a non orthogonal route and rebuilds an L, Z or S shape, `clamp` keeps them; for pins on one row or column ACT falls back to an S shape, `clamp` adds a detour of twice the stub; ACT always uses radius 4, `clamp` inherits and caps the radius. The ACT obstacle avoidance (`ActObstacleRouting`) has no counterpart in `clamp`.
+- The helpers `simplify` and `inferDir` exist in both classes with the same text. Sharing them would make them public API of the layout bridge for no change in output, so they stay duplicated.
+
+**Additions**
+
+- `Sysml2C2bUnitTest`: the stub equals `PortEdgeClamp.arrowStubPx(CORNER_RADIUS_PX)`, and three tests that fail when the ACT router is replaced by `clamp` (full stub at an arrowless source, way points of a non orthogonal route dropped, same-row pins).
+
+**Not done (open)**
+
+- A deliberate unification of both routers would change ACT images and needs its own decision; it was not attempted.
+
 ### Nacharbeit 4: arrowhead stub at IBD ports
 
 **Changes**
@@ -189,7 +209,7 @@ All notable changes to this project are documented here. Format follows
 **Not done (open)**
 
 - The two-way flow case has one arrowhead per edge, so a route with an arrowhead at both ends of the same edge was not exercised (the edge metadata has a head at one end only).
-- `Sysml2PinRouting` (ACT) still has its own router; reusing `clamp` there is open.
+- ~~`Sysml2PinRouting` (ACT) still has its own router; reusing `clamp` there is open.~~ Checked in "Nacharbeit 5": intentionally kept separate.
 
 ### Nacharbeit 3: ACT routes from pin rectangles
 
@@ -208,7 +228,7 @@ All notable changes to this project are documented here. Format follows
 
 **Not done (open)**
 
-- ACT does not use `PortEdgeClamp.clamp`. The stub contract is now the same (arrowhead plus 4 px corner radius = 16 px at an arrowhead end, see "Nacharbeit 4" above); the previous blocker, the unverified IBD/PAR corner overlap, is measured and fixed. Reusing `clamp` for ACT is still not done.
+- ACT does not use `PortEdgeClamp.clamp`. The stub contract is now the same (arrowhead plus 4 px corner radius = 16 px at an arrowhead end, see "Nacharbeit 4" above); the previous blocker, the unverified IBD/PAR corner overlap, is measured and fixed. ~~Reusing `clamp` for ACT is still not done.~~ Checked in "Nacharbeit 5": intentionally kept separate.
 
 ### Nacharbeit 2: ACT pin stub
 
@@ -223,7 +243,7 @@ All notable changes to this project are documented here. Format follows
 
 **Not done (open)**
 
-- ~~ACT routes still start from pin end points rather than pin rectangles.~~ Done in "Nacharbeit 3: ACT routes from pin rectangles" above (route building now takes `PortAttachment`s). Reusing `PortEdgeClamp.clamp` is still open, see there.
+- ~~ACT routes still start from pin end points rather than pin rectangles.~~ Done in "Nacharbeit 3: ACT routes from pin rectangles" above (route building now takes `PortAttachment`s). Reusing `PortEdgeClamp.clamp` was checked in "Nacharbeit 5" and intentionally kept separate.
 - ~~IBD/PAR stub `max(ARROW_LEN_PX, 4)` may let an arrowhead overlap a 4 px corner directly at a port; unverified.~~ Measured and fixed in "Nacharbeit 4": 2 of 32 arrowhead ends had a straight run of 6 px (< 12 px); guarded by `IbdParArrowStraightRunTest`.
 - ~~`Sysml2DiagramLabelPlan` keeps a private copy of the 12 px arrowhead length.~~ Done in "Nacharbeit 4": it uses `PortEdgeClamp.ARROW_LEN_PX`, output byte-identical.
 
@@ -247,7 +267,7 @@ All notable changes to this project are documented here. Format follows
 **Not done (open)**
 
 - ~~ACT keeps its own 16 px stub at a pin; not unified.~~ Done in "Nacharbeit 2: ACT pin stub" below: the stub is now derived from the shared arrowhead length (a flat 12 px was rejected).
-- ~~The ACT route building (`orthogonalize`) still works on end points, not on port rectangles.~~ Done in "Nacharbeit 3: ACT routes from pin rectangles": it now takes `PortAttachment`s and shares `borderPoint` and the face normal; `clamp` is still not used by ACT.
+- ~~The ACT route building (`orthogonalize`) still works on end points, not on port rectangles.~~ Done in "Nacharbeit 3: ACT routes from pin rectangles": it now takes `PortAttachment`s and shares `borderPoint` and the face normal; `clamp` is not used by ACT, see "Nacharbeit 5" for why.
 
 ### Notes N3: formatted note text
 
