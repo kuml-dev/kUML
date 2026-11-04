@@ -9,6 +9,7 @@ import dev.kuml.layout.bridge.note.ObstacleIndex
 import dev.kuml.layout.bridge.note.ObstacleKind
 import dev.kuml.layout.bridge.note.Sysml2NotePlacement
 import dev.kuml.layout.bridge.note.rectOf
+import dev.kuml.layout.bridge.port.PortEdgeClamp
 
 /** A port label to place: the label of the port square [anchorRect] of the owner [ownerId] (PAL wave 2C-b2). */
 public data class PortLabelSpec(
@@ -373,8 +374,7 @@ public object Sysml2DiagramLabelPlan {
 
     private const val STM_STRIP_PX: Float = 100_000f
 
-    /** Length and half width of a drawn transition arrow head in px. */
-    private const val ARROW_LEN_PX: Float = 12f
+    /** Half width of a drawn transition arrow head in px; its length is [PortEdgeClamp.ARROW_LEN_PX]. */
     private const val ARROW_HALF_WIDTH_PX: Float = 5f
 
     /** Bounding box of the arrow head at [tip] of a line that arrives from [from] (a square around the tip for a zero-length end). */
@@ -389,8 +389,8 @@ public object Sysml2DiagramLabelPlan {
         }
         val ux = (from.x - tip.x) / len
         val uy = (from.y - tip.y) / len
-        val bx = tip.x + ux * ARROW_LEN_PX
-        val by = tip.y + uy * ARROW_LEN_PX
+        val bx = tip.x + ux * PortEdgeClamp.ARROW_LEN_PX
+        val by = tip.y + uy * PortEdgeClamp.ARROW_LEN_PX
         val nx = -uy * ARROW_HALF_WIDTH_PX
         val ny = ux * ARROW_HALF_WIDTH_PX
         val xs = listOf(tip.x, bx + nx, bx - nx)

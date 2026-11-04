@@ -363,7 +363,7 @@ private data class EndCheckResult(
     val violations: List<String>,
 )
 
-private fun ibdSyntheticScript(flow: String): String =
+internal fun ibdSyntheticScript(flow: String): String =
     """
 import dev.kuml.sysml2.dsl.sysml2Model
 

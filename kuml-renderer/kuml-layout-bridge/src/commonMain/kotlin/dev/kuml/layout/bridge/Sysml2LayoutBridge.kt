@@ -2954,8 +2954,8 @@ public object Sysml2LayoutBridge {
         val bt = PortEdgeClamp.borderPoint(target)
         val ns = PortEdgeClamp.normal(source.face)
         val nt = PortEdgeClamp.normal(target.face)
-        val stubS = maxOf(if (sourceArrowhead) PortEdgeClamp.ARROW_LEN_PX else 0f, IBD_CORNER_RADIUS_PX)
-        val stubT = maxOf(if (targetArrowhead) PortEdgeClamp.ARROW_LEN_PX else 0f, IBD_CORNER_RADIUS_PX)
+        val stubS = if (sourceArrowhead) PortEdgeClamp.arrowStubPx(IBD_CORNER_RADIUS_PX) else IBD_CORNER_RADIUS_PX
+        val stubT = if (targetArrowhead) PortEdgeClamp.arrowStubPx(IBD_CORNER_RADIUS_PX) else IBD_CORNER_RADIUS_PX
         return Point(x = bs.x + ns.x * stubS, y = bs.y + ns.y * stubS) to Point(x = bt.x + nt.x * stubT, y = bt.y + nt.y * stubT)
     }
 

@@ -167,6 +167,30 @@ All notable changes to this project are documented here. Format follows
 - Covered by unit tests only (row order and clipboard text, browser outcomes, license loader incl. hostile paths, build-date parsing, string catalogs). The dialog layout, the hover cursor, a real browser launch and the real clipboard have not been seen running (the desktop MCP server was unavailable).
 - Open points: the README and handbook still use "modelling" in several places; the kuml.dev footer says "© {year} kUML.".
 
+### Nacharbeit 4: arrowhead stub at IBD ports
+
+**Changes**
+
+- Measured: of 32 arrowhead ends at IBD ports (IBD item flows are the only IBD/PAR edges with an arrowhead; no vault example has one, so the inputs are synthetic scripts in all four flow directions), 2 had a straight run of 6 px in front of the arrowhead, less than the 12 px arrowhead length. The cause is two things together: the end stub was 12 px, and the IBD route radius is `min(6, shortest segment / 2)`, so a 6 px arc started 6 px after the port border and the arrowhead base sat inside the corner arc. (The earlier note assumed a 4 px corner and 8 px of straight run; the real radius at that point is 6 px.)
+- `PortEdgeClamp.arrowStubPx(cornerRadiusPx)` (arrowhead length plus corner radius, 16 px at radius 4) is the end stub of a route that bends at an arrowhead end; a straight single segment still needs only `ARROW_LEN_PX`. `isValid` takes both minimums (`straight`, `bent`) instead of one stub value. `ibdStubPoints` uses the same stub.
+- `PortEdgeClamp.clamp` caps an inherited corner radius at `cornerRadiusPx` (4 px) when an end carries an arrowhead, so the stub and the arc stay consistent. Edges without an arrowhead keep their radius (6 px) and stub.
+- `Sysml2DiagramLabelPlan` no longer keeps its own 12 px arrowhead length; it uses `PortEdgeClamp.ARROW_LEN_PX`. Output byte-identical.
+- The ACT stub (`Sysml2PinRouting`, `ErmBachmanEdgeSvg`, other diagram types) is not touched.
+
+**Additions**
+
+- `IbdParArrowStraightRunTest` (module `kuml-vault-examples-tests`, because it needs the full pipeline): reads the raw path `d` and measures the straight run from the port or pin border to the start of the first arc. The existing contract rule (c) restores arcs to sharp corners and therefore cannot see this. Inputs: all vault examples with IBD ports or PAR pins, and synthetic IBD scripts (plain connectors, five flows between four parts, flows in both directions between two parts, a single straight flow) in all four flow directions. An oracle self test, a count guard (32 arrowhead ends) and a coverage guard (bent and straight arrowhead ends) are included.
+- `PortEdgeClampTest`: the arrow stub value, the bent end segment at an arrowhead end, the 12 px minimum of a straight segment, and the radius cap. The existing lower bounds of 12 px in that test still hold and were not changed.
+
+**Images**
+
+- All 77 vault example SVGs rendered by the CLI are byte-identical before and after (no vault example has an IBD/PAR arrowhead). Of the synthetic scripts, only the "five flows" script changed (all four directions); plain, two-way and single-flow scripts are identical. In the failing case the arc now ends 12 px before the arrowhead tip (corner moves 4 px away from the port).
+
+**Not done (open)**
+
+- The two-way flow case has one arrowhead per edge, so a route with an arrowhead at both ends of the same edge was not exercised (the edge metadata has a head at one end only).
+- `Sysml2PinRouting` (ACT) still has its own router; reusing `clamp` there is open.
+
 ### Nacharbeit 3: ACT routes from pin rectangles
 
 **Changes**
@@ -184,7 +208,7 @@ All notable changes to this project are documented here. Format follows
 
 **Not done (open)**
 
-- ACT does not use `PortEdgeClamp.clamp`. Its stub contract differs (16 px, so that the arrowhead lies completely on a straight run after the 4 px bend, against `max(ARROW_LEN_PX, 4)` there), and unifying them is blocked by the unverified IBD/PAR corner overlap above.
+- ACT does not use `PortEdgeClamp.clamp`. The stub contract is now the same (arrowhead plus 4 px corner radius = 16 px at an arrowhead end, see "Nacharbeit 4" above); the previous blocker, the unverified IBD/PAR corner overlap, is measured and fixed. Reusing `clamp` for ACT is still not done.
 
 ### Nacharbeit 2: ACT pin stub
 
@@ -200,8 +224,8 @@ All notable changes to this project are documented here. Format follows
 **Not done (open)**
 
 - ~~ACT routes still start from pin end points rather than pin rectangles.~~ Done in "Nacharbeit 3: ACT routes from pin rectangles" above (route building now takes `PortAttachment`s). Reusing `PortEdgeClamp.clamp` is still open, see there.
-- IBD/PAR stub `max(ARROW_LEN_PX, 4)` may let an arrowhead overlap a 4 px corner directly at a port; unverified.
-- `Sysml2DiagramLabelPlan` keeps a private copy of the 12 px arrowhead length.
+- ~~IBD/PAR stub `max(ARROW_LEN_PX, 4)` may let an arrowhead overlap a 4 px corner directly at a port; unverified.~~ Measured and fixed in "Nacharbeit 4": 2 of 32 arrowhead ends had a straight run of 6 px (< 12 px); guarded by `IbdParArrowStraightRunTest`.
+- ~~`Sysml2DiagramLabelPlan` keeps a private copy of the 12 px arrowhead length.~~ Done in "Nacharbeit 4": it uses `PortEdgeClamp.ARROW_LEN_PX`, output byte-identical.
 
 ### Port edge clamp: contract test and shared geometry
 

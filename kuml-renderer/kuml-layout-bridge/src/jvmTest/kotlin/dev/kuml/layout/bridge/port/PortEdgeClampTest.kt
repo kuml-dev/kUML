@@ -405,4 +405,56 @@ class PortEdgeClampTest :
                 )
             pts(out).size shouldBe 2
         }
+
+        test("arrowStubPx is the arrowhead length plus the corner radius") {
+            PortEdgeClamp.arrowStubPx(4f) shouldBe 16f
+            PortEdgeClamp.arrowStubPx(6f) shouldBe 18f
+        }
+
+        for (face in PortFace.entries) {
+            val att = PortAttachment(rect = rectAt(100f, 100f), face = face)
+
+            test("source $face, with arrowhead, bent route: end segment is arrowhead plus corner radius") {
+                val r =
+                    PortEdgeClamp.clamp(
+                        route = EdgeRoute.Direct(source = Point(100f, 100f), target = far),
+                        source = att,
+                        target = null,
+                        sourceArrowhead = true,
+                        targetArrowhead = false,
+                    )
+                (pts(r).size > 2) shouldBe true
+                checkEnd(route = r, att = att, atStart = true, minStub = PortEdgeClamp.arrowStubPx(4f))
+            }
+        }
+
+        test("an arrowhead on a straight single segment needs only the arrow length (12 px), no corner radius") {
+            val src = PortAttachment(rect = rectAt(100f, 100f), face = PortFace.Top)
+            val out =
+                PortEdgeClamp.clamp(
+                    route = EdgeRoute.Direct(source = Point(100f, 94f), target = Point(100f, 82f)),
+                    source = src,
+                    target = null,
+                    sourceArrowhead = true,
+                    targetArrowhead = false,
+                )
+            pts(out).size shouldBe 2
+            checkEnd(route = out, att = src, atStart = true, minStub = PortEdgeClamp.ARROW_LEN_PX)
+        }
+
+        test("an inherited corner radius is capped at an arrowhead end and kept otherwise") {
+            val src = PortAttachment(rect = rectAt(100f, 100f), face = PortFace.Top)
+            val tgt = PortAttachment(rect = rectAt(200f, 40f), face = PortFace.Left)
+            val route =
+                EdgeRoute.OrthogonalRounded(
+                    source = Point(100f, 94f),
+                    target = Point(194f, 40f),
+                    waypoints = listOf(Point(100f, 40f)),
+                    cornerRadiusPx = 6f,
+                )
+            val withArrow = PortEdgeClamp.clamp(route = route, source = src, target = tgt, sourceArrowhead = false, targetArrowhead = true)
+            (withArrow as EdgeRoute.OrthogonalRounded).cornerRadiusPx shouldBe 4f
+            val without = PortEdgeClamp.clamp(route = route, source = src, target = tgt, sourceArrowhead = false, targetArrowhead = false)
+            (without as EdgeRoute.OrthogonalRounded).cornerRadiusPx shouldBe 6f
+        }
     })

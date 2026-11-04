@@ -29,6 +29,12 @@ public object PortEdgeClamp {
     /** Arrowhead length in px; single source, the SVG renderer's `SvgInlineArrow` uses this constant. */
     public const val ARROW_LEN_PX: Float = 12f
 
+    /**
+     * Length of the end stub at an arrowhead end whose route bends: the arrowhead plus the corner radius, so that the
+     * rounded corner starts only after a straight run of [ARROW_LEN_PX] and does not run under the arrowhead.
+     */
+    public fun arrowStubPx(cornerRadiusPx: Float): Float = ARROW_LEN_PX + cornerRadiusPx
+
     /** Tolerance for "lies on the border", px. */
     public const val ON_BORDER_TOL_PX: Float = 0.01f
 
@@ -83,10 +89,12 @@ public object PortEdgeClamp {
     /**
      * Clamps [route] so that its first point lies on [source] and its last point on [target] (each optional).
      * Orthogonal routes keep their inner way points where possible; otherwise an L/Z route with perpendicular
-     * end segments is built. The end segment is at least [ARROW_LEN_PX] long at an end with an arrowhead
-     * ([sourceArrowhead] / [targetArrowhead]); without an arrowhead the minimum is 0 (the segment must still be
-     * perpendicular to the port face). Where an elbow is needed next to an arrowless end, the stub is
-     * [cornerRadiusPx] long so that the rounded corner does not degenerate.
+     * end segments is built. A straight single segment is at least [ARROW_LEN_PX] long at an end with an arrowhead
+     * ([sourceArrowhead] / [targetArrowhead]); a route that bends has an end segment of at least
+     * [arrowStubPx] (arrowhead plus [cornerRadiusPx]) there, so that the straight run before the rounded corner is
+     * still one arrowhead long. Without an arrowhead the minimum is 0 for a straight segment (it must still be
+     * perpendicular to the port face) and [cornerRadiusPx] for a bent route, so that the rounded corner does not
+     * degenerate.
      */
     public fun clamp(
         route: EdgeRoute,
@@ -97,8 +105,11 @@ public object PortEdgeClamp {
         cornerRadiusPx: Float = 4f,
     ): EdgeRoute {
         if (source == null && target == null) return route
-        val stubS = if (sourceArrowhead) ARROW_LEN_PX else 0f
-        val stubT = if (targetArrowhead) ARROW_LEN_PX else 0f
+        val stubS = if (sourceArrowhead) arrowStubPx(cornerRadiusPx) else 0f
+        val stubT = if (targetArrowhead) arrowStubPx(cornerRadiusPx) else 0f
+        // Minimum end segment of a straight single segment (no corner, no arc).
+        val straightS = if (sourceArrowhead) ARROW_LEN_PX else 0f
+        val straightT = if (targetArrowhead) ARROW_LEN_PX else 0f
         // Stub length used where a step has to build an elbow (never shorter than the corner radius).
         val elbowS = maxOf(stubS, cornerRadiusPx)
         val elbowT = maxOf(stubT, cornerRadiusPx)
@@ -111,14 +122,14 @@ public object PortEdgeClamp {
 
         // 1. Keep the way points when the route is already valid with the clamped end points.
         val kept = simplify(listOf(bs) + inner + listOf(bt))
-        if (isValid(kept, srcN, tgtN, stubS, stubT, source != null, target != null, cornerRadiusPx)) {
-            return rebuild(route, kept, cornerRadiusPx)
+        if (isValid(kept, srcN, tgtN, straightS, straightT, elbowS, elbowT, source != null, target != null)) {
+            return rebuild(route, kept, cornerRadiusPx, sourceArrowhead || targetArrowhead)
         }
 
         // 1b. A first/last segment that already leaves along the normal but is too short: push its lane outwards.
         val shifted = shiftShortStubs(kept, if (source != null) srcN else null, if (target != null) tgtN else null, elbowS, elbowT)
-        if (shifted != null && isValid(shifted, srcN, tgtN, stubS, stubT, source != null, target != null, cornerRadiusPx)) {
-            return rebuild(route, shifted, cornerRadiusPx)
+        if (shifted != null && isValid(shifted, srcN, tgtN, straightS, straightT, elbowS, elbowT, source != null, target != null)) {
+            return rebuild(route, shifted, cornerRadiusPx, sourceArrowhead || targetArrowhead)
         }
 
         // 2. Insert stubs and bridge the way points with elbows.
@@ -128,8 +139,8 @@ public object PortEdgeClamp {
         if (tgtN != null) seq += Point(x = bt.x + tgtN.x * elbowT, y = bt.y + tgtN.y * elbowT)
         seq += bt
         val ortho = elbows(seq, srcN, tgtN)
-        if (isValid(ortho, srcN, tgtN, stubS, stubT, source != null, target != null, cornerRadiusPx)) {
-            return rebuild(route, ortho, cornerRadiusPx)
+        if (isValid(ortho, srcN, tgtN, straightS, straightT, elbowS, elbowT, source != null, target != null)) {
+            return rebuild(route, ortho, cornerRadiusPx, sourceArrowhead || targetArrowhead)
         }
 
         // 3. Full rebuild: stubs plus an L or Z connection (inner way points are dropped).
@@ -196,7 +207,7 @@ public object PortEdgeClamp {
                 if (tgtN != null) add(t)
                 add(bt)
             }
-        return rebuild(route, simplify(full), cornerRadiusPx)
+        return rebuild(route, simplify(full), cornerRadiusPx, sourceArrowhead || targetArrowhead)
     }
 
     /**
@@ -252,13 +263,18 @@ public object PortEdgeClamp {
         original: EdgeRoute,
         pts: List<Point>,
         cornerRadiusPx: Float,
+        capRadius: Boolean,
     ): EdgeRoute {
         val wp = pts.drop(1).dropLast(1)
+
+        // At an arrowhead end the stub is arrowStubPx(cornerRadiusPx); a larger inherited radius would eat into the
+        // straight run in front of the arrowhead, so the radius is capped at cornerRadiusPx.
+        fun radiusOf(inherited: Float): Float = if (capRadius) minOf(inherited, cornerRadiusPx) else inherited
         return when {
             original is EdgeRoute.OrthogonalRounded ->
-                original.copy(source = pts.first(), target = pts.last(), waypoints = wp)
+                original.copy(source = pts.first(), target = pts.last(), waypoints = wp, cornerRadiusPx = radiusOf(original.cornerRadiusPx))
             original is EdgeRoute.TreeRounded ->
-                original.copy(source = pts.first(), target = pts.last(), waypoints = wp)
+                original.copy(source = pts.first(), target = pts.last(), waypoints = wp, cornerRadiusPx = radiusOf(original.cornerRadiusPx))
             else ->
                 EdgeRoute.OrthogonalRounded(source = pts.first(), target = pts.last(), waypoints = wp, cornerRadiusPx = cornerRadiusPx)
         }
@@ -276,18 +292,20 @@ public object PortEdgeClamp {
         pts: List<Point>,
         srcN: Point?,
         tgtN: Point?,
-        minStubS: Float,
-        minStubT: Float,
+        straightS: Float,
+        straightT: Float,
+        bentS: Float,
+        bentT: Float,
         hasSrc: Boolean,
         hasTgt: Boolean,
-        cornerRadiusPx: Float,
     ): Boolean {
         if (pts.size < 2) return false
         // A straight single segment may touch an arrowless end directly; as soon as the line bends, the end segment
-        // must be at least the corner radius long so that the rounded corner does not run flush along the port face.
+        // must be at least the bent minimum (corner radius, or arrowhead plus corner radius at an arrowhead end) long
+        // so that the rounded corner neither runs flush along the port face nor under the arrowhead.
         val bends = pts.size > 2
-        val needS = if (bends) maxOf(minStubS, cornerRadiusPx) else minStubS
-        val needT = if (bends) maxOf(minStubT, cornerRadiusPx) else minStubT
+        val needS = if (bends) bentS else straightS
+        val needT = if (bends) bentT else straightT
         for (i in 0 until pts.size - 1) {
             if (abs(pts[i + 1].x - pts[i].x) > TOL && abs(pts[i + 1].y - pts[i].y) > TOL) return false
         }
