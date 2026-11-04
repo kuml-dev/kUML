@@ -12,6 +12,7 @@ import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.i18n.Strings
+import dev.kuml.desktop.mcp.McpAvailabilityHint
 import dev.kuml.desktop.mcp.McpTokenButtons
 import dev.kuml.desktop.workspace.PdfStatusArea
 import dev.kuml.desktop.workspace.PdfStatusView
@@ -36,6 +37,49 @@ class DialogButtonOverflowTest :
                 hintMinScale = false,
             )
 
+        fun androidx.compose.ui.test.ComposeUiTest.assertNoEllipsis(name: String) {
+            // No label is ellipsized.
+            val texts =
+                onAllNodes(
+                    androidx.compose.ui.test
+                        .hasText("", substring = true),
+                ).fetchSemanticsNodes()
+            texts.forEach { n ->
+                val results = mutableListOf<TextLayoutResult>()
+                n.config
+                    .getOrNull(SemanticsActions.GetTextLayoutResult)
+                    ?.action
+                    ?.invoke(results)
+                results.forEach { r ->
+                    withClue("$name: text is ellipsized or wrapped: ${r.layoutInput.text}") {
+                        (0 until r.lineCount).none { r.isLineEllipsized(it) } shouldBe true
+                    }
+                }
+            }
+        }
+
+        fun checkTextOnly(
+            name: String,
+            content: @androidx.compose.runtime.Composable () -> Unit,
+        ) {
+            runComposeUiTest {
+                setContent { MaterialTheme { Box(Modifier.width(widthDp.dp)) { content() } } }
+                val texts =
+                    onAllNodes(
+                        androidx.compose.ui.test
+                            .hasText("", substring = true),
+                    ).fetchSemanticsNodes()
+                withClue("$name: text nodes found") { (texts.size >= 2) shouldBe true }
+                texts.forEach { n ->
+                    withClue("$name: text bounds ${n.boundsInRoot}") {
+                        (n.boundsInRoot.left >= 0f) shouldBe true
+                        (n.boundsInRoot.right <= widthDp.toFloat()) shouldBe true
+                    }
+                }
+                assertNoEllipsis(name)
+            }
+        }
+
         fun check(
             name: String,
             content: @androidx.compose.runtime.Composable () -> Unit,
@@ -50,24 +94,7 @@ class DialogButtonOverflowTest :
                         (n.boundsInRoot.right <= widthDp.toFloat()) shouldBe true
                     }
                 }
-                // No label is ellipsized.
-                val texts =
-                    onAllNodes(
-                        androidx.compose.ui.test
-                            .hasText("", substring = true),
-                    ).fetchSemanticsNodes()
-                texts.forEach { n ->
-                    val results = mutableListOf<TextLayoutResult>()
-                    n.config
-                        .getOrNull(SemanticsActions.GetTextLayoutResult)
-                        ?.action
-                        ?.invoke(results)
-                    results.forEach { r ->
-                        withClue("$name: text is ellipsized or wrapped: ${r.layoutInput.text}") {
-                            (0 until r.lineCount).none { r.isLineEllipsized(it) } shouldBe true
-                        }
-                    }
-                }
+                assertNoEllipsis(name)
             }
         }
 
@@ -95,6 +122,9 @@ class DialogButtonOverflowTest :
                         onCancelOverwrite = {},
                     )
                 }
+            }
+            test("McpAvailabilityHint fits 480 dp ($lang)") {
+                checkTextOnly("mcp hint $lang") { McpAvailabilityHint(strings) }
             }
             test("McpTokenButtons fit 480 dp ($lang)") {
                 check("mcp $lang") { McpTokenButtons(strings = strings, onCopyToken = {}, onCopyCommand = {}, onRegenerate = {}) }

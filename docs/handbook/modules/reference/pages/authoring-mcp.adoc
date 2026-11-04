@@ -275,6 +275,16 @@ The four stateless authoring tools (`kuml.describe`, `kuml.examples`, `kuml.gene
 * `Host` and `Origin` headers are checked (DNS-rebinding defence); request bodies are limited to 1 MiB; requests have timeouts; only one script evaluation runs at a time.
 * *Anyone holding the token can execute Kotlin code in the Desktop process* — script evaluation is the feature. Treat the token like a password and keep the server off when you do not need it.
 
+=== Troubleshooting: connection refused
+
+If an agent reports `connection refused` for the `kuml-desktop` server, check in this order:
+
+. *kUML Desktop is not open.* The server runs inside the app and stops when the app quits.
+. *The server is switched off.* Open *Tools ▸ MCP server…* and turn on *Enable MCP server*. The dialog shows the status either way.
+. *The port changed.* The port is remembered across restarts (`mcpServerPort` in `desktop-settings.json`) and the token is kept as long as that port is free. If it is taken at startup, a new port and a new token are assigned, and the dialog shows a notice. Remove the old entry (for example with `claude mcp remove kuml-desktop`), then copy the new command from the dialog and run it.
+
+The switch to a new port and token is a deliberate protection against another process taking over the old port, not a malfunction.
+
 === Workspace mode
 
 When an OKF workspace is open (*File ▸ Open Workspace...*), the script tools above answer

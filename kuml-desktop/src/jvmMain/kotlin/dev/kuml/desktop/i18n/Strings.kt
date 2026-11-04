@@ -277,6 +277,9 @@ data class Strings(
     val mcpSecurityNotice: String,
     val splitDividerDescription: String,
 ) {
+    // Nested in about (255-parameter constructor limit): the MCP dialog hint.
+    val mcpHint: McpHintStrings get() = about.mcpHint
+
     // Nested in pdfExport: Strings itself is at the JVM constructor limit of 255 parameters.
     val pdfStatus: PdfStatusStrings get() = pdfExport.status
     val pdfPageStrategy: String get() = pdfExport.pdfPageStrategy
@@ -600,6 +603,15 @@ data class Strings(
                         browserFailed = "Der Browser konnte nicht geöffnet werden.",
                         licensesTitle = "Open-Source-Lizenzen",
                         licensesUnavailable = "Der Lizenztext konnte nicht geladen werden.",
+                        mcpHint =
+                            McpHintStrings(
+                                appMustRun =
+                                    "Der MCP-Server läuft nur, solange kUML Desktop geöffnet und der Schalter oben eingeschaltet ist. " +
+                                        "Sonst meldet der Client connection refused.",
+                                portStable =
+                                    "Der Port bleibt über Neustarts erhalten, solange er frei ist. Ist er belegt, wird ein neuer Port " +
+                                        "mit neuem Token vergeben, und der Befehl muss erneut kopiert werden.",
+                            ),
                     ),
                 workspaceLayout =
                     WorkspaceLayoutStrings(
@@ -1023,6 +1035,15 @@ data class Strings(
                         browserFailed = "The browser could not be opened.",
                         licensesTitle = "Open-source licenses",
                         licensesUnavailable = "The license text could not be loaded.",
+                        mcpHint =
+                            McpHintStrings(
+                                appMustRun =
+                                    "The MCP server only runs while kUML Desktop is open and the switch above is on. " +
+                                        "Otherwise the client reports connection refused.",
+                                portStable =
+                                    "The port is kept across restarts as long as it is free. If it is taken, a new port " +
+                                        "and a new token are assigned and you need to copy the command again.",
+                            ),
                     ),
                 workspaceLayout =
                     WorkspaceLayoutStrings(
@@ -1373,6 +1394,12 @@ data class PreviewViewStrings(
     val ctrlKey: String,
 )
 
+/** Persistent hint in the MCP server dialog (see [Strings.mcpHint]); separate class (JVM 255-parameter limit). */
+data class McpHintStrings(
+    val appMustRun: String,
+    val portStable: String,
+)
+
 /** Texts of the About dialog and its license view (see [Strings.about]). */
 data class AboutStrings(
     val title: String,
@@ -1391,4 +1418,6 @@ data class AboutStrings(
     val browserFailed: String,
     val licensesTitle: String,
     val licensesUnavailable: String,
+    // MCP server dialog hint; nested here because Strings is at the JVM 255-parameter constructor limit.
+    val mcpHint: McpHintStrings,
 )

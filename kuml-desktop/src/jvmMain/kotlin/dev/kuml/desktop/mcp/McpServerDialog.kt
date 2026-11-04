@@ -5,10 +5,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -83,67 +83,89 @@ internal fun McpServerDialog(
     DialogWindow(
         onCloseRequest = onClose,
         title = strings.mcpDialogTitle,
-        state = rememberDialogState(width = 640.dp, height = 480.dp),
+        state = rememberDialogState(width = 640.dp, height = 600.dp),
     ) {
         MaterialTheme {
             Surface(Modifier.fillMaxSize()) {
                 Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(text = strings.mcpDialogTitle, style = MaterialTheme.typography.headlineSmall)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Switch(checked = state.mcpServerEnabled, onCheckedChange = { state.mcpServerEnabled = it })
-                        Text(strings.mcpEnabled)
-                    }
-                    Text(
-                        text =
-                            when (val s = status) {
-                                McpServerStatus.Off -> strings.mcpStatusOff
-                                is McpServerStatus.Running -> strings.mcpStatusRunning.format(s.port)
-                                is McpServerStatus.Error -> strings.mcpStatusError.format(s.message)
-                            },
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    HorizontalDivider()
-                    val running = status as? McpServerStatus.Running
-                    if (running != null) {
-                        Text("${strings.mcpPortLabel}: ${running.port}")
-                        Text("${strings.mcpTokenLabel}: ••••••••")
-                        if (running.portChanged) {
+                    Column(
+                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(text = strings.mcpDialogTitle, style = MaterialTheme.typography.headlineSmall)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Switch(checked = state.mcpServerEnabled, onCheckedChange = { state.mcpServerEnabled = it })
+                            Text(strings.mcpEnabled)
+                        }
+                        Text(
+                            text =
+                                when (val s = status) {
+                                    McpServerStatus.Off -> strings.mcpStatusOff
+                                    is McpServerStatus.Running -> strings.mcpStatusRunning.format(s.port)
+                                    is McpServerStatus.Error -> strings.mcpStatusError.format(s.message)
+                                },
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        McpAvailabilityHint(strings)
+                        HorizontalDivider()
+                        val running = status as? McpServerStatus.Running
+                        if (running != null) {
+                            Text("${strings.mcpPortLabel}: ${running.port}")
+                            Text("${strings.mcpTokenLabel}: ••••••••")
+                            if (running.portChanged) {
+                                Text(
+                                    text = strings.mcpPortChanged,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                            McpTokenButtons(
+                                strings = strings,
+                                onCopyToken = { copy(manager.currentToken()) },
+                                onCopyCommand = {
+                                    manager.currentToken()?.let { copy(claudeMcpAddCommand(port = running.port, token = it)) }
+                                },
+                                onRegenerate = { manager.regenerateToken() },
+                            )
                             Text(
-                                text = strings.mcpPortChanged,
+                                text = strings.mcpRegenerateWarning,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = strings.mcpCommandWarning,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = strings.mcpSecurityNotice,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )
+                            if (copied) Text(strings.mcpCopied, color = MaterialTheme.colorScheme.primary)
                         }
-                        McpTokenButtons(
-                            strings = strings,
-                            onCopyToken = { copy(manager.currentToken()) },
-                            onCopyCommand = {
-                                manager.currentToken()?.let { copy(claudeMcpAddCommand(port = running.port, token = it)) }
-                            },
-                            onRegenerate = { manager.regenerateToken() },
-                        )
-                        Text(
-                            text = strings.mcpRegenerateWarning,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = strings.mcpCommandWarning,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = strings.mcpSecurityNotice,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        if (copied) Text(strings.mcpCopied, color = MaterialTheme.colorScheme.primary)
                     }
-                    Spacer(Modifier.weight(1f).height(1.dp))
                     Row { Button(onClick = onClose) { IconLabel(action = ButtonAction.CLOSE, text = strings.dialogClose) } }
                 }
             }
         }
+    }
+}
+
+/** Persistent hint: when the server is reachable at all. Shown in every state (off, running, error). */
+@Composable
+internal fun McpAvailabilityHint(strings: Strings) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = strings.mcpHint.appMustRun,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = strings.mcpHint.portStable,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

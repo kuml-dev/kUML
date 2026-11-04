@@ -692,6 +692,18 @@ class PdfExportStringsTest :
         test("all About keys are non-blank in DE and EN") {
             (aboutKeys(Strings.DE) + aboutKeys(Strings.EN)).forEach { it.shouldNotBeBlank() }
         }
+        val mcpHintKeys: (Strings) -> List<String> = { listOf(it.mcpHint.appMustRun, it.mcpHint.portStable) }
+        test("all MCP hint keys are non-blank in DE and EN") {
+            (mcpHintKeys(Strings.DE) + mcpHintKeys(Strings.EN)).forEach { it.shouldNotBeBlank() }
+        }
+        test("MCP hint texts differ between DE and EN") {
+            Strings.DE.mcpHint.appMustRun shouldNotBe Strings.EN.mcpHint.appMustRun
+            Strings.DE.mcpHint.portStable shouldNotBe Strings.EN.mcpHint.portStable
+        }
+        test("MCP hint appMustRun names the literal client error in DE and EN") {
+            Strings.DE.mcpHint.appMustRun shouldContain "connection refused"
+            Strings.EN.mcpHint.appMustRun shouldContain "connection refused"
+        }
         test("aboutCopyright is identical in DE and EN and names the author") {
             Strings.DE.about.copyright shouldBe Strings.EN.about.copyright
             Strings.DE.about.copyright shouldContain "Irakli Betchvaia"

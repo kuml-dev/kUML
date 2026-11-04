@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 9: MCP dialog explains when the server is reachable
+
+- **Change:** the *Tools ▸ MCP server…* dialog now shows a permanent hint in every state (off, running, error): the server only runs while kUML Desktop is open and the switch is on, otherwise the client reports `connection refused`; and the port is kept across restarts while it is free, otherwise a new port and token are assigned. The dialog is taller (480 to 600 dp), its content scrolls and the *Close* button stays fixed at the bottom. New handbook section "Troubleshooting: connection refused" in the MCP authoring page.
+- **Tests:** string tests for the new texts (DE and EN, non-blank, different, `connection refused` named) and a font-independent overflow test of the hint at 480 dp.
+- **Not seen live:** the new hint and the scrolling layout in the MCP server dialog have not been seen in a running app yet. They are only covered by the strings and overflow tests; the dialog window itself is not tested headless.
+
 ### Nacharbeit 8: harden AptosChainAdapterTest against load flakiness (test code only)
 
 - **Observed:** once, in a full parallel check, `AptosChainAdapterTest` ("blockClock currentBlock reflects ledger_version") failed with `AptosChainAdapterException$NetworkError ... HTTP/1.1 header parser received no bytes`. Green with `--max-workers=1` and on rerun.
