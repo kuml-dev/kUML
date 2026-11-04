@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 10: harden SuiChainAdapterTest mock server against load flakiness (test code only)
+
+- **Observed / cause:** the Sui `MockRpcServer` had the same pattern as the Aptos server hardened in Nacharbeit 8 (plain `mutableMapOf` shared between threads, no loopback bind, `executor = null`, `stop(0)`, no `reset()`, handler exceptions not visible). No failure of `SuiChainAdapterTest` has been observed. Under 18 busy CPU processes, 10 of 10 runs of the module (clean, `--no-build-cache --rerun-tasks`) were green with 14 tests each, and the baseline was not run under load before the change, so no failure was reproduced either way. This is a small sample and no proof; treat the change as hardening only.
+- **Change (test helper and test only):** `MockRpcServer` binds to loopback, keeps its handlers in a `ConcurrentHashMap`, serves requests on a fixed two-thread executor that is shut down in `stop()` (`stop(1)` instead of `stop(0)`), gains `reset()`, and turns handler exceptions into a visible 500 response with a JSON-RPC error body (`-32603`). An unknown method still answers 200 with `-32601`. `SuiChainAdapterTest` uses one server per spec with `reset()` before each test, and the call counter is an `AtomicInteger`. The spec has 14 tests, unchanged. No production code changed.
+- **Not changed:** the `MockRpcServer` classes in `kuml-examples` (dap), `kuml-runtime-chain-cosmos` and `kuml-runtime-chain-evm`.
+
 ### Nacharbeit 9: MCP dialog explains when the server is reachable
 
 - **Change:** the *Tools ▸ MCP server…* dialog now shows a permanent hint in every state (off, running, error): the server only runs while kUML Desktop is open and the switch is on, otherwise the client reports `connection refused`; and the port is kept across restarts while it is free, otherwise a new port and token are assigned. The dialog is taller (480 to 600 dp), its content scrolls and the *Close* button stays fixed at the bottom. New handbook section "Troubleshooting: connection refused" in the MCP authoring page.
