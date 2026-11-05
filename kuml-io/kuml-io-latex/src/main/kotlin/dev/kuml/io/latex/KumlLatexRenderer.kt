@@ -941,6 +941,8 @@ public object KumlLatexRenderer {
         // get a neutral solid line — that's still useful diagnostically (the
         // layout said "there's an edge here", we just don't know what UML calls it).
         var arrowOverride: String? = null
+        var sourceEnd = UmlEdgeLatexRenderer.UmlLineEnd.NONE
+        var targetEnd = UmlEdgeLatexRenderer.UmlLineEnd.NONE
         val style =
             when (relationship) {
                 is UmlGeneralization -> UmlEdgeLatexRenderer.Style.GENERALIZATION
@@ -952,6 +954,12 @@ public object KumlLatexRenderer {
                             aggregation = relationship.aggregation,
                             navigability = relationship.navigability(),
                         )
+                    UmlEdgeLatexRenderer
+                        .lineEnds(aggregation = relationship.aggregation, navigability = relationship.navigability())
+                        .let { (s, t) ->
+                            sourceEnd = s
+                            targetEnd = t
+                        }
                     UmlEdgeLatexRenderer.Style.ASSOCIATION
                 }
                 is UmlInclude, is UmlExtend -> {
@@ -965,7 +973,14 @@ public object KumlLatexRenderer {
                 else -> UmlEdgeLatexRenderer.Style.PLAIN
             }
         UmlEdgeLatexRenderer.render(route = route, style = style, options = options, out = this, arrowOverride = arrowOverride)
-        UmlEdgeLabelLatexRenderer.render(labels = UmlEdgeLabels.of(relationship), route = route, options = options, out = this)
+        UmlEdgeLabelLatexRenderer.render(
+            labels = UmlEdgeLabels.of(relationship),
+            route = route,
+            options = options,
+            out = this,
+            sourceEnd = sourceEnd,
+            targetEnd = targetEnd,
+        )
     }
 
     // ─── Preamble + skeleton ─────────────────────────────────────────────────

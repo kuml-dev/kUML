@@ -6,6 +6,18 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 21: end labels clear diamonds and open heads in the LaTeX/TikZ output
+
+- **Fixes:**
+  - Role and multiplicity labels at an association end now keep clear of the diamond or open chevron drawn there. The distance from the endpoint is `max(10 pt, end length + 3 pt)`, capped at 40 % of the end segment: 19 pt for a diamond, 15 pt for a chevron, 10 pt for a plain or Stealth end, and 31 pt where a diamond and a chevron share the source end (`{diamond chevron}-`). That last combination is not in the design specification; it is simply the sum of both tip lengths.
+  - The tip lengths are now constants (`DIAMOND_LENGTH_PT`, `OPEN_HEAD_LENGTH_PT`) from which the arrow-option strings are built, so the output of `edgeEndsOverride` is unchanged. A new function `UmlEdgeLatexRenderer.lineEnds` returns the tips per end; a test checks that it agrees with `edgeEndsOverride` for all twelve combinations.
+- **Effect on output:** only `uml-class-edge-ends.tex` changes, and only the `at (...)` lines of end labels at a diamond or a chevron (3 edges). Plain and Stealth ends are byte-identical, as are all other goldens and the SVG, C4, SysML 2, BPMN and Blueprint outputs. The result was compiled with `pdflatex` and inspected as an image.
+- **Known limits:**
+  - There is still no label planner. End segments shorter than 47.5 pt (diamond), 37.5 pt (chevron) or 77.5 pt (diamond plus chevron) hit the 40 % cap and can still overlap the tip.
+  - Only the first and last non-degenerate segment of a route is considered.
+  - The offsets are in layout units and follow `LatexRenderOptions.scale`, whereas the tip lengths are fixed in pt, so clearance is exact only at scale 1.
+  - Wider spacing between components, so that long labels fit, is not part of this change; it belongs to the layout step and will follow separately.
+
 ### Nacharbeit 20: line ends of UML edges in the LaTeX/TikZ output
 
 - **Additions:**
@@ -15,8 +27,8 @@ All notable changes to this project are documented here. Format follows
   - The ends are set through an arrow option appended to the edge style, so the shared preamble is unchanged. The table lives in one function, `UmlEdgeLatexRenderer.edgeEndsOverride`.
 - **Effect on output:** a plain association (no diamond, both or neither end navigable) is byte-identical to before. Of the 13 existing goldens exactly one line changes, the shared association in `uml-class-edge-labels.tex`. New goldens `uml-class-edge-ends.tex` and `uml-usecase-edge-ends.tex`. SVG, C4, SysML 2, BPMN, Blueprint and notes output are unchanged. The result was compiled with `pdflatex` and inspected as an image.
 - **Known limits:**
-  - A role or multiplicity at the source end of a diamond edge overlaps the diamond (the 16pt diamond is longer than the 10pt label offset). Measured on the fixture edge `srcLabels`. There is no label planner; this is not fixed here.
-  - Role and multiplicity labels at a target end touch the 12pt chevron.
+  - ~~A role or multiplicity at the source end of a diamond edge overlaps the diamond.~~ Fixed in Nacharbeit 21.
+  - ~~Role and multiplicity labels at a target end touch the 12pt chevron.~~ Fixed in Nacharbeit 21.
   - A plain association still has a Stealth head, while the SVG draws none when both ends are navigable. After this change a diamond edge has no head but a plain edge does. Aligning this would change all goldens with associations.
   - The UML diamond (16pt) and the SysML 2 diamond (3mm) differ in size.
   - Include and extend are black in LaTeX and muted in SVG; `kuml-dependency` is drawn with a Stealth head elsewhere, SVG uses an open chevron.

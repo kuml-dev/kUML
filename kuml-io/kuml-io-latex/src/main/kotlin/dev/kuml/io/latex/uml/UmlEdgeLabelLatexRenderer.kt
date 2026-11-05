@@ -20,6 +20,7 @@ import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInterfaceRealization
 import dev.kuml.uml.UmlRelationship
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
@@ -122,6 +123,8 @@ internal data class UmlEdgeLabels(
  * backdrop at the route mid-point, roles and multiplicities beside the line near each end.
  *
  * There is no label planner: placement is deterministic, so labels on dense diagrams may overlap.
+ * End labels are pushed past the diamond or open head drawn at that end ([endLabelOffset]); only the
+ * first and last non-degenerate segments are considered.
  * Every user-supplied string goes through [esc] exactly once; the node options are constants.
  */
 internal object UmlEdgeLabelLatexRenderer {
@@ -130,9 +133,12 @@ internal object UmlEdgeLabelLatexRenderer {
     private const val CENTER_STYLE = "anchor=center, align=center, font=\\sffamily\\footnotesize, $EDGE_LABEL_BACKDROP"
     private const val END_STYLE_FONT = "font=\\sffamily\\footnotesize, inner sep=1.5pt"
 
-    /** Distance of an end label from the endpoint along the end segment (clears the 2.2 mm arrow tip). */
-    private const val END_OFFSET_PT = 10f
-    private const val END_OFFSET_MAX_FRACTION = 0.4f
+    /** Smallest distance of an end label from the endpoint along the end segment. */
+    internal const val END_OFFSET_MIN_PT = 10f
+
+    /** Free space kept between the tip of the line end and the label. */
+    internal const val END_LABEL_GAP_PT = 3f
+    internal const val END_OFFSET_MAX_FRACTION = 0.4f
     private const val MIN_SEGMENT = 1e-3f
 
     fun render(
@@ -140,14 +146,32 @@ internal object UmlEdgeLabelLatexRenderer {
         route: EdgeRoute,
         options: LatexRenderOptions,
         out: StringBuilder,
+        sourceEnd: UmlEdgeLatexRenderer.UmlLineEnd = UmlEdgeLatexRenderer.UmlLineEnd.NONE,
+        targetEnd: UmlEdgeLatexRenderer.UmlLineEnd = UmlEdgeLatexRenderer.UmlLineEnd.NONE,
     ) {
         if (labels.isEmpty) return
         renderCenter(labels = labels, route = route, options = options, out = out)
         endSegment(route = route, atSource = true)?.let { (p, q) ->
-            renderEnd(p = p, q = q, role = labels.sourceRole, multiplicity = labels.sourceMultiplicity, options = options, out = out)
+            renderEnd(
+                p = p,
+                q = q,
+                role = labels.sourceRole,
+                multiplicity = labels.sourceMultiplicity,
+                end = sourceEnd,
+                options = options,
+                out = out,
+            )
         }
         endSegment(route = route, atSource = false)?.let { (p, q) ->
-            renderEnd(p = p, q = q, role = labels.targetRole, multiplicity = labels.targetMultiplicity, options = options, out = out)
+            renderEnd(
+                p = p,
+                q = q,
+                role = labels.targetRole,
+                multiplicity = labels.targetMultiplicity,
+                end = targetEnd,
+                options = options,
+                out = out,
+            )
         }
     }
 
@@ -172,12 +196,23 @@ internal object UmlEdgeLabelLatexRenderer {
         )
     }
 
+    /**
+     * Distance of an end label from the endpoint: `max(10 pt, end length + 3 pt)`, capped at 40 % of the
+     * end segment. Segments shorter than 47.5 pt (diamond), 37.5 pt (open head) or 77.5 pt (diamond plus
+     * open head) therefore cannot fully clear the tip.
+     */
+    internal fun endLabelOffset(
+        end: UmlEdgeLatexRenderer.UmlLineEnd,
+        segmentLength: Float,
+    ): Float = min(max(END_OFFSET_MIN_PT, end.lengthPt + END_LABEL_GAP_PT), END_OFFSET_MAX_FRACTION * segmentLength)
+
     /** Places role and multiplicity beside the end segment [p] (the endpoint) to [q] (the next point inwards). */
     private fun renderEnd(
         p: Point,
         q: Point,
         role: String?,
         multiplicity: String?,
+        end: UmlEdgeLatexRenderer.UmlLineEnd,
         options: LatexRenderOptions,
         out: StringBuilder,
     ) {
@@ -188,7 +223,7 @@ internal object UmlEdgeLabelLatexRenderer {
         if (len < MIN_SEGMENT) return
         val ux = dx / len
         val uy = dy / len
-        val d = min(END_OFFSET_PT, END_OFFSET_MAX_FRACTION * len)
+        val d = endLabelOffset(end = end, segmentLength = len)
         val ax = p.x + ux * d
         val ay = p.y + uy * d
         val roleAnchor: String

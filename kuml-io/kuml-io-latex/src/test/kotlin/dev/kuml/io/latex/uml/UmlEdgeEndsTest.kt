@@ -26,6 +26,10 @@ private fun draw(
     return out.toString().trim()
 }
 
+private val TIP_LENGTH = Regex("""length=(\d+)pt""")
+
+private fun tipLength(side: String): Float = TIP_LENGTH.findAll(side).sumOf { it.groupValues[1].toInt() }.toFloat()
+
 class UmlEdgeEndsTest :
     StringSpec({
         val table =
@@ -98,5 +102,31 @@ class UmlEdgeEndsTest :
             tex shouldContain "kuml-association/.style={draw=black, line width=0.6pt, -{Stealth[length=2.2mm]}},"
             tex shouldContain "kuml-dependency/.style={draw=black, line width=0.5pt, dashed, -{Stealth[length=2mm]}},"
             tex shouldContain "kuml-edge-plain/.style={draw=black, line width=0.6pt, -{Stealth[length=2.2mm]}},"
+        }
+
+        // ── line end lengths stay consistent with the override strings ──────
+        for (agg in AggregationKind.values()) {
+            for (nav in UmlNavigability.values()) {
+                "lineEnds matches edgeEndsOverride for $agg / $nav" {
+                    val override = UmlEdgeLatexRenderer.edgeEndsOverride(aggregation = agg, navigability = nav)
+                    val (expectedSource, expectedTarget) =
+                        if (override == null) {
+                            0f to UmlEdgeLatexRenderer.STEALTH_LENGTH_PT
+                        } else {
+                            val cut = override.indexOf('-')
+                            tipLength(override.substring(0, cut)) to tipLength(override.substring(cut + 1))
+                        }
+                    val (source, target) = UmlEdgeLatexRenderer.lineEnds(aggregation = agg, navigability = nav)
+                    source.lengthPt shouldBe expectedSource
+                    target.lengthPt shouldBe expectedTarget
+                }
+            }
+        }
+        "tip constants are built from the length constants" {
+            UmlEdgeLatexRenderer.DIAMOND_OPEN shouldBe "Diamond[open, length=16pt, width=10pt]"
+            UmlEdgeLatexRenderer.DIAMOND_FILLED shouldBe "Diamond[length=16pt, width=10pt]"
+            UmlEdgeLatexRenderer.OPEN_HEAD shouldBe "Straight Barb[length=12pt, width=10pt]"
+            UmlEdgeLatexRenderer.DIAMOND_LENGTH_PT shouldBe 16
+            UmlEdgeLatexRenderer.OPEN_HEAD_LENGTH_PT shouldBe 12
         }
     })

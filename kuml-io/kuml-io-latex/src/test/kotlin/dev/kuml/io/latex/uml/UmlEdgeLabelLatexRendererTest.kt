@@ -1,6 +1,7 @@
 package dev.kuml.io.latex.uml
 
 import dev.kuml.io.latex.LatexRenderOptions
+import dev.kuml.io.latex.uml.UmlEdgeLatexRenderer.UmlLineEnd
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
 import dev.kuml.uml.AppliedStereotype
@@ -17,6 +18,7 @@ import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInterfaceRealization
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.floats.plusOrMinus
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
@@ -36,9 +38,18 @@ private fun end(
 private fun draw(
     labels: UmlEdgeLabels,
     route: EdgeRoute,
+    sourceEnd: UmlLineEnd = UmlLineEnd.NONE,
+    targetEnd: UmlLineEnd = UmlLineEnd.NONE,
 ): String {
     val out = StringBuilder()
-    UmlEdgeLabelLatexRenderer.render(labels = labels, route = route, options = LatexRenderOptions(), out = out)
+    UmlEdgeLabelLatexRenderer.render(
+        labels = labels,
+        route = route,
+        options = LatexRenderOptions(),
+        out = out,
+        sourceEnd = sourceEnd,
+        targetEnd = targetEnd,
+    )
     return out.toString()
 }
 
@@ -52,6 +63,12 @@ private fun direct(
 private fun lines(s: String) = s.lines().filter { it.isNotBlank() }
 
 private val ROLE_AND_MULT = UmlEdgeLabels(sourceRole = "r", sourceMultiplicity = "m")
+private val TARGET_ROLE_AND_MULT = UmlEdgeLabels(targetRole = "r", targetMultiplicity = "m")
+
+private fun offset(
+    end: UmlLineEnd,
+    length: Float,
+): Float = UmlEdgeLabelLatexRenderer.endLabelOffset(end = end, segmentLength = length)
 
 class UmlEdgeLabelLatexRendererTest :
     StringSpec({
@@ -292,5 +309,49 @@ class UmlEdgeLabelLatexRendererTest :
         "non-finite coordinates format as zero" {
             draw(labels = UmlEdgeLabels(name = "n"), route = direct(sx = Float.NaN, sy = 0f, tx = 100f, ty = 0f)) shouldContain
                 "at (0.000pt,"
+        }
+
+        // ── clearance of diamonds and open heads ────────────────────────────
+        "end label offset follows the line end" {
+            val e = UmlLineEnd.values().associateWith { offset(end = it, length = 200f) }
+            e.getValue(UmlLineEnd.DIAMOND) shouldBe 19f
+            e.getValue(UmlLineEnd.OPEN_HEAD) shouldBe 15f
+            e.getValue(UmlLineEnd.STEALTH) shouldBe 10f
+            e.getValue(UmlLineEnd.NONE) shouldBe 10f
+            e.getValue(UmlLineEnd.DIAMOND_AND_OPEN_HEAD) shouldBe 31f
+        }
+        "end label anchor point sits the offset away from the endpoint" {
+            val route = direct(sx = 0f, sy = 0f, tx = 200f, ty = 0f)
+            draw(labels = ROLE_AND_MULT, route = route, sourceEnd = UmlLineEnd.DIAMOND) shouldContain "at (19.000pt, -0.000pt)"
+            draw(labels = ROLE_AND_MULT, route = route) shouldContain "at (10.000pt, -0.000pt)"
+            draw(labels = TARGET_ROLE_AND_MULT, route = route, targetEnd = UmlLineEnd.OPEN_HEAD) shouldContain "at (185.000pt, -0.000pt)"
+        }
+        "short end segments cap the offset at 40 percent" {
+            offset(end = UmlLineEnd.DIAMOND, length = 30f) shouldBe (12f plusOrMinus 0.001f)
+            offset(end = UmlLineEnd.DIAMOND, length = 47.5f) shouldBe (19f plusOrMinus 0.001f)
+            (offset(end = UmlLineEnd.DIAMOND, length = 47f) < 19f) shouldBe true
+        }
+        "role and multiplicity share the cleared anchor point at a diamond, on both axes and ends" {
+            val diamond = UmlLineEnd.DIAMOND
+            val h = draw(labels = ROLE_AND_MULT, route = direct(sx = 0f, sy = 0f, tx = 200f, ty = 0f), sourceEnd = diamond)
+            h shouldContain "anchor=south west"
+            h shouldContain "anchor=north west"
+            lines(h).count { it.contains("at (19.000pt, -0.000pt)") } shouldBe 2
+            val v = draw(labels = ROLE_AND_MULT, route = direct(sx = 0f, sy = 0f, tx = 0f, ty = 200f), sourceEnd = diamond)
+            v shouldContain "anchor=north west"
+            v shouldContain "anchor=north east"
+            lines(v).count { it.contains("at (0.000pt, -19.000pt)") } shouldBe 2
+            val t = draw(labels = TARGET_ROLE_AND_MULT, route = direct(sx = 0f, sy = 0f, tx = 200f, ty = 0f), targetEnd = diamond)
+            lines(t).count { it.contains("at (181.000pt, -0.000pt)") } shouldBe 2
+        }
+        "special characters at a diamond end are escaped exactly once" {
+            val tex =
+                draw(
+                    labels = UmlEdgeLabels(sourceRole = "a_b&c", sourceMultiplicity = "5%"),
+                    route = direct(sx = 0f, sy = 0f, tx = 200f, ty = 0f),
+                    sourceEnd = UmlLineEnd.DIAMOND,
+                )
+            tex shouldContain "{a\\_b\\&c};"
+            tex shouldContain "{5\\%};"
         }
     })

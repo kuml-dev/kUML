@@ -38,14 +38,58 @@ internal object UmlEdgeLatexRenderer {
         NOTE_ANCHOR("kuml-note-anchor"),
     }
 
+    /** Length in pt of the diamond tips. */
+    internal const val DIAMOND_LENGTH_PT = 16
+
+    /** Length in pt of the open arrowhead. */
+    internal const val OPEN_HEAD_LENGTH_PT = 12
+
+    /**
+     * Length in pt of the stealth tip of style `kuml-association` (2.2 mm). It has no effect on label
+     * placement, because the minimum label offset is larger; it is kept so the table of ends is complete.
+     */
+    internal const val STEALTH_LENGTH_PT = 2.2f * 72.27f / 25.4f
+
     /** Open (hollow) diamond for shared aggregation, drawn at the source end. */
-    internal const val DIAMOND_OPEN = "Diamond[open, length=16pt, width=10pt]"
+    internal const val DIAMOND_OPEN = "Diamond[open, length=${DIAMOND_LENGTH_PT}pt, width=10pt]"
 
     /** Filled diamond for composition, drawn at the source end. */
-    internal const val DIAMOND_FILLED = "Diamond[length=16pt, width=10pt]"
+    internal const val DIAMOND_FILLED = "Diamond[length=${DIAMOND_LENGTH_PT}pt, width=10pt]"
 
     /** Open arrowhead (chevron) marking the single navigable end. */
-    internal const val OPEN_HEAD = "Straight Barb[length=12pt, width=10pt]"
+    internal const val OPEN_HEAD = "Straight Barb[length=${OPEN_HEAD_LENGTH_PT}pt, width=10pt]"
+
+    /** What is drawn at one end of an association line, with the length it occupies along the line. */
+    internal enum class UmlLineEnd(
+        val lengthPt: Float,
+    ) {
+        NONE(0f),
+        STEALTH(STEALTH_LENGTH_PT),
+        OPEN_HEAD(OPEN_HEAD_LENGTH_PT.toFloat()),
+        DIAMOND(DIAMOND_LENGTH_PT.toFloat()),
+
+        /** A diamond followed by an open head, both at the source end (`{diamond OPEN}-`). */
+        DIAMOND_AND_OPEN_HEAD((DIAMOND_LENGTH_PT + OPEN_HEAD_LENGTH_PT).toFloat()),
+    }
+
+    /**
+     * The tips at (source, target) for an association; mirrors [edgeEndsOverride] and is kept
+     * consistent with it by a test.
+     */
+    fun lineEnds(
+        aggregation: AggregationKind,
+        navigability: UmlNavigability,
+    ): Pair<UmlLineEnd, UmlLineEnd> {
+        val diamond = aggregation != AggregationKind.NONE
+        return when (navigability) {
+            UmlNavigability.BOTH, UmlNavigability.NEITHER ->
+                if (diamond) UmlLineEnd.DIAMOND to UmlLineEnd.NONE else UmlLineEnd.NONE to UmlLineEnd.STEALTH
+            UmlNavigability.TARGET_ONLY ->
+                (if (diamond) UmlLineEnd.DIAMOND else UmlLineEnd.NONE) to UmlLineEnd.OPEN_HEAD
+            UmlNavigability.SOURCE_ONLY ->
+                (if (diamond) UmlLineEnd.DIAMOND_AND_OPEN_HEAD else UmlLineEnd.OPEN_HEAD) to UmlLineEnd.NONE
+        }
+    }
 
     /**
      * Arrow-option override for an association, or `null` to keep the style's default
