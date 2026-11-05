@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 16: CI token limited to read access (infrastructure)
+
+- `ci.yml` now declares `permissions: contents: read` for the whole workflow. The build only checks out the repository and uploads test results; it uses no secrets, no `gh` call and no pull-request or check write access, so the default token scopes were wider than needed. Other workflows are unchanged.
+- **Not verified until the first CI run after the push:** that all five actions (`checkout`, `setup-java`, `setup-node`, `setup-gradle`, `upload-artifact`) work with read-only access. If one fails, the failing step names the missing scope.
+
 ### Nacharbeit 15: C4 relationship labels on a backdrop in the LaTeX/TikZ output
 
 - **Additions:**

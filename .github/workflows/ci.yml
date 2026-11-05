@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ master ]
 
+# The build only reads the repository; no step writes to it, comments on
+# pull requests or uses the token for anything else.
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build & Test
