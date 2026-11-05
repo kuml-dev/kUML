@@ -1,6 +1,7 @@
 package dev.kuml.io.latex.note
 
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.io.latex.uml.UmlEdgeLabelFixtures
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import java.nio.file.Files
@@ -28,6 +29,8 @@ class NoNotesGoldenTest :
                 "bpmn-collaboration.tex" to { NoteFixtures.renderBpmnCollaboration() },
                 "blueprint-journey.tex" to { NoteFixtures.renderBlueprint() },
                 "blueprint-full.tex" to { NoteFixtures.renderBlueprint(full = true) },
+                // UML edge labels (Nacharbeit 19): the only golden whose edges carry text.
+                "uml-class-edge-labels.tex" to { UmlEdgeLabelFixtures.render() },
             )
         val write = System.getenv("KUML_GOLDEN_WRITE") == "1"
         val dir = Paths.get(System.getProperty("user.dir")).resolve("src/test/resources/golden/no-notes")

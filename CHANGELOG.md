@@ -6,6 +6,22 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 19: UML edge labels in the LaTeX/TikZ output
+
+- **Additions:**
+  - Association name and stereotype are drawn at the route mid-point on a white backdrop (`fill=white, inner sep=1.5pt`, a constant local to the UML label renderer, not part of the shared preamble).
+  - Roles and multiplicities are drawn beside the line near each end (`\sffamily\footnotesize`, no backdrop). The offset is 10pt along the first or last non-degenerate segment, at most 40 percent of that segment.
+  - Fixed `\guillemotleft{}include\guillemotright{}` and `\guillemotleft{}extend\guillemotright{}` labels; name and stereotypes of dependencies, connectors, communication paths, generalisations and interface realisations.
+  - A multiplicity of `1` is not drawn, as in the SVG output. For an association class the line carries stereotypes, roles and multiplicities but no name (the class box already shows it).
+- **Effect on output:** only UML edges that carry labels change. Measured: all 12 existing no-notes goldens are byte-identical. New golden `uml-class-edge-labels.tex`. The route mid-point helper moved from the C4 renderer to `EdgeRouteGeometry.kt` without changing the arithmetic; the C4 goldens are byte-identical.
+- **Security:** each label text is escaped exactly once; control characters and line separators become spaces first, so a label cannot start a new paragraph or close the node.
+- **Known limits:**
+  - There is no label planner, so labels may overlap on dense diagrams and short edges.
+  - The centre of a polyline is the middle segment by point index, not by arc length.
+  - Aggregation and composition diamonds and the navigability distinction are still missing in LaTeX.
+  - Include, extend and connector edges are still drawn as solid arrows.
+- **Still open:** Should multiplicity `1` be shown? This is a joint question for SVG and LaTeX.
+
 ### Nacharbeit 18: edge labels beside the line or on a backdrop in the LaTeX/TikZ output (BPMN, SysML 2)
 
 - **Fixes:**
@@ -17,7 +33,7 @@ All notable changes to this project are documented here. Format follows
 - **Closed:** the open point from Nacharbeit 17 (message-flow label sits on the circle).
 - **Still open:**
   - C4 labels over a tinted box (Nacharbeit 15) are not changed here.
-  - The UML LaTeX renderer draws no edge labels at all (association name, multiplicities, roles).
+  - ~~The UML LaTeX renderer draws no edge labels at all (association name, multiplicities, roles).~~ Fixed in Nacharbeit 19.
 
 ### Nacharbeit 17: BPMN message flows build with `pdflatex` again (LaTeX/TikZ output)
 

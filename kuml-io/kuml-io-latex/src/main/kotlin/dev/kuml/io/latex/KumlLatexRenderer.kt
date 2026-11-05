@@ -23,6 +23,8 @@ import dev.kuml.io.latex.note.NoteTikzSpec
 import dev.kuml.io.latex.sysml2.Sysml2DefLatexRenderer
 import dev.kuml.io.latex.sysml2.edge.Sysml2EdgeLatexRenderer
 import dev.kuml.io.latex.uml.UmlClassLatexRenderer
+import dev.kuml.io.latex.uml.UmlEdgeLabelLatexRenderer
+import dev.kuml.io.latex.uml.UmlEdgeLabels
 import dev.kuml.io.latex.uml.UmlEdgeLatexRenderer
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
@@ -942,6 +944,7 @@ public object KumlLatexRenderer {
                 else -> UmlEdgeLatexRenderer.Style.PLAIN
             }
         UmlEdgeLatexRenderer.render(route = route, style = style, options = options, out = this)
+        UmlEdgeLabelLatexRenderer.render(labels = UmlEdgeLabels.of(relationship), route = route, options = options, out = this)
     }
 
     // ─── Preamble + skeleton ─────────────────────────────────────────────────

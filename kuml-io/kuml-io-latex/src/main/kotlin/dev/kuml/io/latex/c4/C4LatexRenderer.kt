@@ -12,13 +12,13 @@ import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.latex.escapeLatex
 import dev.kuml.io.latex.fmtCoord
+import dev.kuml.io.latex.routeMidPoint
 import dev.kuml.io.latex.tikzId
 import dev.kuml.io.latex.uml.UmlEdgeLatexRenderer
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
-import dev.kuml.layout.Point
 
 /**
  * Renders C4 model elements as TikZ nodes and edges.
@@ -385,49 +385,5 @@ internal object C4LatexRenderer {
                 "at (${fmtCoord(mid.first)}pt, ${fmtCoord(-mid.second)}pt) " +
                 "{\\small ${escapeLatex(compositeLabel)}};",
         )
-    }
-
-    /** Returns the mid-point of the edge route in layout coordinates, or null when empty. */
-    private fun routeMidPoint(route: EdgeRoute): Pair<Float, Float>? =
-        when (route) {
-            is EdgeRoute.Direct -> {
-                val mx = (route.source.x + route.target.x) / 2f
-                val my = (route.source.y + route.target.y) / 2f
-                mx to my
-            }
-            is EdgeRoute.OrthogonalRounded ->
-                midOfPolyline(source = route.source, waypoints = route.waypoints, target = route.target)
-            is EdgeRoute.TreeRounded ->
-                midOfPolyline(source = route.source, waypoints = route.waypoints, target = route.target)
-            is EdgeRoute.Bezier -> {
-                val mx = (route.source.x + route.target.x) / 2f
-                val my = (route.source.y + route.target.y) / 2f
-                mx to my
-            }
-        }
-
-    /**
-     * Returns the mid-point of a polyline defined by [source], [waypoints], and [target],
-     * or null when the polyline has fewer than two points.
-     *
-     * The mid-point is the average of the two points flanking the centre index of the
-     * assembled point list `[source] + waypoints + [target]`.
-     */
-    private fun midOfPolyline(
-        source: Point,
-        waypoints: List<Point>,
-        target: Point,
-    ): Pair<Float, Float>? {
-        val allPoints =
-            buildList {
-                add(source)
-                addAll(waypoints)
-                add(target)
-            }
-        if (allPoints.size < 2) return null
-        val mid = allPoints.size / 2
-        val a = allPoints[mid - 1]
-        val b = allPoints[mid]
-        return (a.x + b.x) / 2f to (a.y + b.y) / 2f
     }
 }

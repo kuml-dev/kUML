@@ -403,7 +403,7 @@ class Sysml2EdgeLabelLatexTest :
             tex shouldNotContain "\\\\&"
         }
 
-        "UML renderer emits no node clause for a named association (known gap)" {
+        "UML renderer draws the association name on a backdrop" {
             val a = UmlClass(id = "A", name = "A")
             val b = UmlClass(id = "B", name = "B")
             val assoc =
@@ -440,11 +440,10 @@ class Sysml2EdgeLabelLatexTest :
                     diagram = KumlDiagram(name = "T", elements = listOf(a, b, assoc)),
                     layoutResult = layout,
                 )
-            tex
-                .lineSequence()
-                .filter { it.contains("\\draw[kuml-association]") }
-                .toList()
-                .isNotEmpty() shouldBe true
-            tex.lineSequence().filter { it.contains("\\draw[kuml-association]") }.any { it.contains("node[") } shouldBe false
+            val drawn = tex.lines().filter { it.contains("\\draw[kuml-association]") }
+            drawn.isNotEmpty() shouldBe true
+            val nodes = tex.lines().filter { it.contains("{owns}") }
+            nodes.size shouldBe 1
+            nodes.single() shouldContain "fill=white"
         }
     })
