@@ -5,6 +5,8 @@ import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.label.EdgeCandidateMode
+import dev.kuml.layout.bridge.label.LabelCostModel
 import dev.kuml.layout.bridge.label.LabelEnd
 import dev.kuml.layout.bridge.label.LabelPlacer
 import dev.kuml.layout.bridge.label.LabelRequest
@@ -45,6 +47,20 @@ internal object ErmEdgeLabelPlan {
     /** Length along the line and half width across it that a cardinality glyph occupies at an entity border. */
     private const val GLYPH_ALONG_PX = 30f
     private const val GLYPH_HALF_PX = 8f
+
+    /**
+     * Cost model of the ERM name labels: candidates along the whole arc length of the line (not only the middle fractions of
+     * the three longest segments), up to 48 px away (a short self-loop has no free spot beside it). In the 1.5 times wider layout (spacing scale) the middle of a line often
+     * lies beside a foreign line or an entity, and the nearest free stretch is further along the same line.
+     */
+    internal val ERM_COSTS: LabelCostModel =
+        LabelCostModel(
+            edgeOffsets = listOf(4f, 8f, 12f, 16f, 24f, 36f, 48f),
+            edgeCandidateMode = EdgeCandidateMode.ARC_LENGTH,
+            arcStepPx = 8f,
+            arcMaxFraction = 0.45f,
+            perRequestWorkBudget = 400_000L,
+        )
 
     /**
      * @param routes drawn routes by relationship id (all edges of the diagram, note links included, act as foreign lines)
@@ -92,7 +108,7 @@ internal object ErmEdgeLabelPlan {
             }
         }
         if (requests.isEmpty()) return emptyMap()
-        val placed = LabelPlacer.place(requests = requests, index = index)
+        val placed = LabelPlacer.place(requests = requests, index = index, costs = ERM_COSTS)
         val byEdge = LinkedHashMap<String, MutableMap<String, PlacedLabel>>()
         for ((id, label) in placed) {
             val (edgeId, key) = id.split('#', limit = 2).let { it[0] to it[1] }

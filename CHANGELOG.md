@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 22b: ERM name labels at the wider layout spacing
+
+- **Why:** at `LAYOUT_SPACING_SCALE` 1.5 the self-loop `rel_1` of vault example 39 (Martin e-commerce schema) has no free spot beside it, because a foreign line runs closer than the label is wide. The planned name label crossed the line of `rel_9`, and `ErmLabelGeometryInvariantTest` failed (it was green at 1.25). The invariant test is unchanged.
+- **Change:** the ERM name labels are planned with their own cost model, `ErmEdgeLabelPlan.ERM_COSTS`: candidates along the whole arc length of the line (every 8 px, up to 45 % of it) instead of only the middle fractions of the three longest segments, and offsets of 4 to 48 px instead of 4 to 12 px. The label of a short self-loop moves above it. This applies to every ERM diagram, not only to that loop; the planner itself (`LabelPlacer`) is unchanged. `ErmEdgeLabelPlanSelfLoopTest` guards the self-loop case.
+- **Not verified:** how the new candidate set changes the label positions of the other ERM examples; the invariant test is green for all vault examples, but the positions were not compared one by one.
+
 ### Nacharbeit 22: more space between components (spacing factor 1.5)
 
 - **Change:** every ELK-laid-out diagram now spaces components 50 % further apart. The factor is the single constant `LAYOUT_SPACING_SCALE` in `kuml-layout-api` (`Geometry.kt`); `HintsMapper` applies it exactly once to the final value (diagram hint or engine default), on the root and on compound nodes. Both levels were compared as images (before, +25 % and +50 %); level B (1.5) was chosen. Going back to level A is a one-line change to `1.25f`.
