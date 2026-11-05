@@ -68,7 +68,7 @@
   \node[kuml-bpmn-label,below=4pt of end1] {Done};
 
   \draw[kuml-bpmn-flow] (start1) -- node[kuml-bpmn-label,midway,above] {go} (t1);
-  \draw[kuml-bpmn-flow] (t1) -- node[kuml-bpmn-label,near start,sloped] {amount \textgreater{} 1000} (g1);
+  \draw[kuml-bpmn-flow] (t1) -- node[kuml-bpmn-label,near start,sloped,fill=white, inner sep=1.5pt] {amount \textgreater{} 1000} (g1);
   \draw[kuml-bpmn-flow] (g1) -- (end1);
 
 \end{tikzpicture}

@@ -22,6 +22,7 @@ import dev.kuml.io.latex.KumlLatexRenderer
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 
 /**
  * End-to-end tests for the BPMN LaTeX/TikZ renderer — V3.1.8.
@@ -516,6 +517,75 @@ class BpmnLatexRendererTest :
             tex shouldContain """\mathsf"""
             // Must NOT contain \lightning — that would require wasysym/stmaryrd.
             (tex.contains("""\lightning""")) shouldBe false
+        }
+        // ── 23. Edge label placement and backdrop (Nacharbeit 18) ─────────────
+
+        fun collabWith(name: String?): BpmnModel {
+            val collab =
+                BpmnCollaboration(
+                    id = "collabL",
+                    participants =
+                        listOf(
+                            BpmnParticipant(id = "poolA", name = "A"),
+                            BpmnParticipant(id = "poolB", name = "B"),
+                        ),
+                    messageFlows = listOf(MessageFlow(id = "mfL", name = name, sourceRef = "poolA", targetRef = "poolB")),
+                )
+            return BpmnModel(
+                name = "M",
+                collaborations = listOf(collab),
+                diagrams = listOf(CollaborationDiagram(name = "D", collaborationId = "collabL")),
+            )
+        }
+
+        fun seqFlowLine(
+            name: String?,
+            condition: String?,
+        ): String {
+            val process =
+                BpmnProcess(
+                    id = "pL",
+                    flowNodes = listOf(BpmnTask(id = "tA", name = "A"), BpmnTask(id = "tB", name = "B")),
+                    sequenceFlows =
+                        listOf(SequenceFlow(id = "fL", sourceRef = "tA", targetRef = "tB", name = name, conditionExpression = condition)),
+                )
+            val model =
+                BpmnModel(
+                    name = "M",
+                    processes = listOf(process),
+                    diagrams = listOf(ProcessDiagram(name = "D", processId = "pL")),
+                )
+            return KumlLatexRenderer.toLatex(model = model).lines().single { it.contains("\\draw[kuml-bpmn-flow]") }
+        }
+
+        "named message flow label sits beside the line without a backdrop" {
+            val line = KumlLatexRenderer.toLatex(model = collabWith("Order")).lines().single { it.contains("\\draw[kuml-bpmn-msgflow]") }
+            line shouldContain "node[kuml-bpmn-label,midway,right=3pt] {Order}"
+            line shouldNotContain "fill=white"
+        }
+
+        "unnamed message flow has no node clause" {
+            val line = KumlLatexRenderer.toLatex(model = collabWith(null)).lines().single { it.contains("\\draw[kuml-bpmn-msgflow]") }
+            line shouldBe "  \\draw[kuml-bpmn-msgflow] (poolA) -- (poolB);"
+        }
+
+        "sequence flow condition gets the backdrop, the name does not" {
+            val line = seqFlowLine(name = "yes", condition = "x > 1")
+            line shouldContain "node[kuml-bpmn-label,midway,above] {yes}"
+            line shouldContain "node[kuml-bpmn-label,near start,sloped,fill=white, inner sep=1.5pt] {x \\textgreater{} 1}"
+        }
+
+        "sequence flow without label or condition has no node clause" {
+            seqFlowLine(name = null, condition = null) shouldNotContain "node["
+        }
+
+        "BPMN label texts are LaTeX-escaped exactly once" {
+            val msg = KumlLatexRenderer.toLatex(model = collabWith("a_b&c"))
+            msg shouldContain "{a\\_b\\&c}"
+            val seq = seqFlowLine(name = "a_b&c", condition = "a_b&c")
+            seq.split("{a\\_b\\&c}").size shouldBe 3
+            (msg + seq) shouldNotContain "\\\\_"
+            (msg + seq) shouldNotContain "\\\\&"
         }
     })
 

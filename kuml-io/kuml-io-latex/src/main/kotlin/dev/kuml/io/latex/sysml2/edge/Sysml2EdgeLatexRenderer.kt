@@ -24,10 +24,10 @@ import dev.kuml.sysml2.edge.Sysml2EdgeMetadata
  *    `KumlLatexRenderer.appendTikzStyles`. The arrow tip is appended per
  *    edge via `-{Stealth}` or `-{Latex}` depending on
  *    [Sysml2EdgeMetadata.arrowHead].
- *  - Labels: emitted as TikZ `node[midway, above]{…}` clauses on the line
+ *  - Labels: emitted as TikZ `node[midway, above=1pt, fill=white, inner sep=1.5pt]{…}` clauses on the line
  *    draw. Stereotype renders italic via the inline `\textit{…}` wrapping;
  *    plain labels stay upright. Two labels stack vertically using two
- *    `node[…, above]{…}` clauses with `yshift`.
+ *    `node[…, above=1pt, yshift=11pt, …]{…}` clauses.
  *
  * This is the parallel of `dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer`
  * — the two share the same metadata shape but the SVG side reuses CSS +
@@ -164,26 +164,28 @@ internal object Sysml2EdgeLatexRenderer {
     }
 
     /**
-     * Compose `node[midway, above]{…}` clauses for stereotype + label.
+     * Compose `node[midway, above=1pt, $EDGE_LABEL_BACKDROP]{…}` clauses for stereotype + label.
      *
      * The clauses sit **between the penultimate point and the final target**
      * in the TikZ draw command. When both stereotype and label are present
-     * the stereotype sits slightly higher via `yshift=8pt`.
+     * the stereotype sits slightly higher via `yshift=11pt`.
      *
      * Returns an empty string when both slots are null.
      */
+    private const val EDGE_LABEL_BACKDROP = "fill=white, inner sep=1.5pt"
+
     private fun labelNodes(metadata: Sysml2EdgeMetadata): String {
         val stereotype = metadata.stereotype
         val label = metadata.label
         if (stereotype == null && label == null) return ""
         return buildString {
             if (stereotype != null && label != null) {
-                append("node[midway, above, yshift=8pt]{\\textit{${escapeLatex(stereotype)}}} ")
-                append("node[midway, above]{${escapeLatex(label)}} ")
+                append("node[midway, above=1pt, yshift=11pt, $EDGE_LABEL_BACKDROP]{\\textit{${escapeLatex(stereotype)}}} ")
+                append("node[midway, above=1pt, $EDGE_LABEL_BACKDROP]{${escapeLatex(label)}} ")
             } else if (stereotype != null) {
-                append("node[midway, above]{\\textit{${escapeLatex(stereotype)}}} ")
+                append("node[midway, above=1pt, $EDGE_LABEL_BACKDROP]{\\textit{${escapeLatex(stereotype)}}} ")
             } else if (label != null) {
-                append("node[midway, above]{${escapeLatex(label)}} ")
+                append("node[midway, above=1pt, $EDGE_LABEL_BACKDROP]{${escapeLatex(label)}} ")
             }
         }
     }

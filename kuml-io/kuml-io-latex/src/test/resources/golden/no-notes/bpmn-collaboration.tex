@@ -73,6 +73,6 @@
   \node[kuml-bpmn-pool] (poolB) at (0,-100pt) {};
   \node[kuml-bpmn-pool-header,minimum height=80pt,anchor=west] (ph_poolB) at (poolB.west) {\rotatebox{90}{Vendor}};
 
-  \draw[kuml-bpmn-msgflow] (poolA) -- node[kuml-bpmn-label,midway,above] {Order} (poolB);
+  \draw[kuml-bpmn-msgflow] (poolA) -- node[kuml-bpmn-label,midway,right=3pt] {Order} (poolB);
 
 \end{tikzpicture}

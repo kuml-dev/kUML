@@ -1,6 +1,9 @@
 package dev.kuml.io.latex.sysml2
 
+import dev.kuml.core.model.KumlDiagram
 import dev.kuml.io.latex.KumlLatexRenderer
+import dev.kuml.io.latex.LatexRenderOptions
+import dev.kuml.io.latex.sysml2.edge.Sysml2EdgeLatexRenderer
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutEngineId
@@ -32,8 +35,15 @@ import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UcExtend
 import dev.kuml.sysml2.UcInclude
 import dev.kuml.sysml2.UseCaseDefinition
+import dev.kuml.sysml2.edge.Sysml2EdgeMetadata
+import dev.kuml.uml.Multiplicity
+import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlAssociationEnd
+import dev.kuml.uml.UmlClass
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 
 /**
  * V2.0.13 — one smoke test per SysML 2 diagram kind, confirming the
@@ -347,5 +357,94 @@ class Sysml2EdgeLabelLatexTest :
                 )
             val tex = KumlLatexRenderer.toLatex(model = model, diagram = diagram, layoutResult = layout)
             tex shouldContain "kuml-sysml2-edge-binding"
+        }
+
+        // ─── Label backdrop (Nacharbeit 18) ───────────────────────────────
+
+        fun sysmlEdge(metadata: Sysml2EdgeMetadata): String {
+            val out = StringBuilder()
+            Sysml2EdgeLatexRenderer.render(
+                route = EdgeRoute.Direct(source = Point(x = 0f, y = 0f), target = Point(x = 0f, y = 100f)),
+                metadata = metadata,
+                options = LatexRenderOptions.DEFAULT,
+                out = out,
+            )
+            return out.toString()
+        }
+
+        val backdrop = "fill=white, inner sep=1.5pt"
+
+        "edge label and stereotype both get above=1pt and the white backdrop, stereotype is raised by 11pt" {
+            val tex = sysmlEdge(Sysml2EdgeMetadata(stereotype = "include", label = "guard"))
+            tex shouldContain "node[midway, above=1pt, yshift=11pt, $backdrop]{\\textit{include}}"
+            tex shouldContain "node[midway, above=1pt, $backdrop]{guard}"
+        }
+
+        "edge with label only has the backdrop and no yshift" {
+            val tex = sysmlEdge(Sysml2EdgeMetadata(label = "guard"))
+            tex shouldContain "node[midway, above=1pt, $backdrop]{guard}"
+            tex shouldNotContain "yshift"
+        }
+
+        "edge with stereotype only has the backdrop and no yshift" {
+            val tex = sysmlEdge(Sysml2EdgeMetadata(stereotype = "satisfy"))
+            tex shouldContain "node[midway, above=1pt, $backdrop]{\\textit{satisfy}}"
+            tex shouldNotContain "yshift"
+        }
+
+        "edge without label or stereotype emits no node" {
+            sysmlEdge(Sysml2EdgeMetadata()) shouldNotContain "node["
+        }
+
+        "edge label is LaTeX-escaped exactly once" {
+            val tex = sysmlEdge(Sysml2EdgeMetadata(label = "a_b&c"))
+            tex shouldContain "{a\\_b\\&c}"
+            tex shouldNotContain "\\\\_"
+            tex shouldNotContain "\\\\&"
+        }
+
+        "UML renderer emits no node clause for a named association (known gap)" {
+            val a = UmlClass(id = "A", name = "A")
+            val b = UmlClass(id = "B", name = "B")
+            val assoc =
+                UmlAssociation(
+                    id = "assoc1",
+                    name = "owns",
+                    ends =
+                        listOf(
+                            UmlAssociationEnd(typeId = "A", multiplicity = Multiplicity()),
+                            UmlAssociationEnd(typeId = "B", multiplicity = Multiplicity()),
+                        ),
+                )
+            val layout =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = 1L,
+                    canvas = Size(width = 500f, height = 300f),
+                    nodes =
+                        mapOf(
+                            NodeId(
+                                "A",
+                            ) to NodeLayout(bounds = Rect(origin = Point(x = 0f, y = 0f), size = Size(width = 80f, height = 60f))),
+                            NodeId("B") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 200f, y = 0f), size = Size(width = 80f, height = 60f))),
+                        ),
+                    edges =
+                        mapOf(
+                            EdgeId("assoc1") to EdgeRoute.Direct(source = Point(x = 80f, y = 30f), target = Point(x = 200f, y = 30f)),
+                        ),
+                    groups = emptyMap(),
+                )
+            val tex =
+                KumlLatexRenderer.toLatex(
+                    diagram = KumlDiagram(name = "T", elements = listOf(a, b, assoc)),
+                    layoutResult = layout,
+                )
+            tex
+                .lineSequence()
+                .filter { it.contains("\\draw[kuml-association]") }
+                .toList()
+                .isNotEmpty() shouldBe true
+            tex.lineSequence().filter { it.contains("\\draw[kuml-association]") }.any { it.contains("node[") } shouldBe false
         }
     })

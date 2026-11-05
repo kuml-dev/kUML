@@ -6,6 +6,19 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 18: edge labels beside the line or on a backdrop in the LaTeX/TikZ output (BPMN, SysML 2)
+
+- **Fixes:**
+  - BPMN message-flow labels now sit beside the line (`midway,right=3pt`) instead of on the dashed line and the source circle. Message flows are always vertical and only 20pt long, so after the circle and the triangle only 10.5pt of line remain.
+  - BPMN sequence-flow conditions are drawn on an opaque white backdrop (`fill=white, inner sep=1.5pt`, as in the C4 output). The flow name keeps its placement (`midway,above`) and has no backdrop.
+  - SysML 2 edge labels and stereotypes are drawn on the same white backdrop with `above=1pt` (was `above`); when both are present the stereotype is raised by `yshift=11pt` (was `8pt`).
+- **Effect on output:** three goldens change by one line each (`bpmn-collaboration.tex`, `bpmn-process.tex`, `bpmn-process-standalone.tex`; the process goldens because they contain a condition label). All other goldens are byte-identical. Label text still goes through `escapeLatex` exactly once; the new option strings are constants.
+- **Tests:** placement and backdrop for message-flow, name and condition labels; SysML 2 label only, stereotype only, both, and neither; escaping of `a_b&c` for BPMN name, condition and SysML 2 label; a test that records that the UML renderer emits no edge label.
+- **Closed:** the open point from Nacharbeit 17 (message-flow label sits on the circle).
+- **Still open:**
+  - C4 labels over a tinted box (Nacharbeit 15) are not changed here.
+  - The UML LaTeX renderer draws no edge labels at all (association name, multiplicities, roles).
+
 ### Nacharbeit 17: BPMN message flows build with `pdflatex` again (LaTeX/TikZ output)
 
 - **Fix:** BPMN message flows in LaTeX output now use `arrows.meta` tips, an open triangle at the target and an open circle at the source (dashed line, as in the SVG output). The old tip `open triangle 45` no longer exists in current TikZ, so a collaboration with a message flow stopped `pdflatex` with `Unknown arrow tip kind 'open triangle 45'`. A collaboration with message flows now redefines `kuml-bpmn-msgflow` once, locally inside its `tikzpicture`; the `\draw` lines are unchanged. The `arrows.meta` library is already loaded by the standalone preamble; a hand-written preamble for fragment output needs it too.
@@ -13,7 +26,7 @@ All notable changes to this project are documented here. Format follows
 - **Tests:** unit tests check that the override appears exactly once, inside the picture and before the first message-flow draw, that the draw site does not use `open triangle 45`, and that it is absent without a message flow. A PDF test builds a collaboration with a named message flow; the collaboration notes test from Nacharbeit 14 now also uses a message flow (skipped when TeX is not installed).
 - **Still open:**
   - The shared preamble still defines the obsolete `open triangle 45` style. It is unused and harmless (TikZ resolves the tip only when a path uses the style) and will be removed when the goldens are next regenerated.
-  - In the rendered PDF the message flow label sits directly on the dashed line and the source circle, so it is hard to read (seen in a 200 dpi PNG of `bpmn-collaboration`). No label backdrop or offset added here.
+  - ~~In the rendered PDF the message flow label sits directly on the dashed line and the source circle, so it is hard to read.~~ Fixed in Nacharbeit 18.
 
 ### Nacharbeit 16: CI token limited to read access (infrastructure)
 

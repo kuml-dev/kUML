@@ -298,7 +298,7 @@ internal object BpmnLatexRenderer {
         val condPart =
             flow.conditionExpression
                 ?.takeIf { it.isNotBlank() }
-                ?.let { " node[kuml-bpmn-label,near start,sloped] {${escapeLatex(it)}}" }
+                ?.let { " node[kuml-bpmn-label,near start,sloped,$EDGE_LABEL_BACKDROP] {${escapeLatex(it)}}" }
                 ?: ""
         appendLine("""  \draw[kuml-bpmn-flow] ($src) --$labelPart$condPart ($tgt);""")
     }
@@ -314,6 +314,19 @@ internal object BpmnLatexRenderer {
         "  \\tikzset{kuml-bpmn-msgflow/.style={{Circle[open,length=4.5pt]}-{Triangle[open,length=5pt,width=3.75pt]}," +
             "draw=black,line width=0.8pt,dashed}}"
 
+    /**
+     * Opaque white backdrop for labels that sit on a line (see Nacharbeit 15 and the C4 renderer,
+     * which uses the same literal). Constant text; no user input reaches it.
+     */
+    private const val EDGE_LABEL_BACKDROP = "fill=white, inner sep=1.5pt"
+
+    /**
+     * Placement of message-flow labels: beside the line, not on it. Pools are stacked, so a
+     * message flow is always vertical and only 20pt long; after the circle (4.5pt) and the triangle
+     * (5pt) only 10.5pt of line remain, so a label on the line would collide with the tips.
+     */
+    private const val MESSAGE_FLOW_LABEL_PLACEMENT = "midway,right=3pt"
+
     // ── Message flow rendering ────────────────────────────────────────────────
 
     private fun StringBuilder.appendMessageFlow(mf: MessageFlow) {
@@ -322,7 +335,7 @@ internal object BpmnLatexRenderer {
         val labelPart =
             mf.name
                 ?.takeIf { it.isNotBlank() }
-                ?.let { " node[kuml-bpmn-label,midway,above] {${escapeLatex(it)}}" }
+                ?.let { " node[kuml-bpmn-label,$MESSAGE_FLOW_LABEL_PLACEMENT] {${escapeLatex(it)}}" }
                 ?: ""
         appendLine("""  \draw[kuml-bpmn-msgflow] ($src) --$labelPart ($tgt);""")
     }
