@@ -120,6 +120,10 @@ public data class LabelCostModel(
     val shortSegmentPenalty: Float = 0f,
     /** A foreign edge is at least as close to the label as its own edge. */
     val foreignCloserPenalty: Float = 0f,
+    /** Soft penalty: a foreign edge is within [foreignNearMarginPx] beyond the owner's distance (label reads ambiguous). */
+    val foreignNearPenalty: Float = 0f,
+    /** Margin in px for [foreignNearPenalty]. */
+    val foreignNearMarginPx: Float = 2f,
     /** When set, every label gets this work budget instead of sharing one budget (later ids no longer starve). */
     val perRequestWorkBudget: Long? = null,
     /**
@@ -559,7 +563,13 @@ public object LabelPlacer {
         }
         if (costs.foreignCloserPenalty > 0f && req.role == LabelRole.EDGE_CENTER && req.polyline.size >= 2 && !c.onLine) {
             val own = rectDistanceToPolyline(r = r, pts = req.polyline)
-            if (foreignAsClose(r = r, own = own, ownerId = req.ownerId, index = index)) cost += costs.foreignCloserPenalty
+            if (foreignAsClose(r = r, own = own, ownerId = req.ownerId, index = index)) {
+                cost += costs.foreignCloserPenalty
+            } else if (costs.foreignNearPenalty > 0f &&
+                foreignAsClose(r = r, own = own + costs.foreignNearMarginPx, ownerId = req.ownerId, index = index)
+            ) {
+                cost += costs.foreignNearPenalty
+            }
         }
         cost += costs.perPxAlong * c.along
         if (c.onLine) cost += costs.onLinePenalty

@@ -265,6 +265,7 @@ public object Sysml2DiagramLabelPlan {
             sharedSegmentPenalty = 600f,
             shortSegmentPenalty = 300f,
             foreignCloserPenalty = 20_000f,
+            foreignNearPenalty = 1_500f,
             perRequestWorkBudget = 400_000L,
         )
 

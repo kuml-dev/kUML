@@ -5,6 +5,7 @@ import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.EndpointRef
 import dev.kuml.layout.GroupId
 import dev.kuml.layout.Insets
+import dev.kuml.layout.LAYOUT_SPACING_SCALE
 import dev.kuml.layout.LayerPin
 import dev.kuml.layout.LayoutDirection
 import dev.kuml.layout.LayoutEdge
@@ -329,6 +330,6 @@ class ElkPortsAndLayerHintsTest :
             val b = result.nodes.getValue(NodeId("B"))
             a.ports shouldBe emptyMap()
             a.labels shouldBe emptyMap()
-            (b.bounds.origin.y - a.bounds.origin.y) shouldBe 140f // 50 + Standard-Layer-Abstand 90
+            (b.bounds.origin.y - a.bounds.origin.y) shouldBe (50f + 90f * LAYOUT_SPACING_SCALE) // 50 + base 90, scaled once
         }
     })

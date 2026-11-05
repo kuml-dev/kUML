@@ -55,10 +55,14 @@ public data class Insets(
     }
 }
 
+/** Global inter-component spacing scale. Level A = 1.25f; level B = 1.5f (one-line change). */
+public const val LAYOUT_SPACING_SCALE: Float = 1.5f
+
 /**
  * Abstands-Parameter für den Layout-Algorithmus.
  *
  * Steuerung über [LayoutHints.spacing]; Engines verwenden diese Werte als Mindestabstände.
+ * Die Werte sind Basiswerte; die ELK-Engine skaliert sie einmalig mit [LAYOUT_SPACING_SCALE].
  */
 @Serializable
 public data class Spacing(
@@ -85,7 +89,7 @@ public data class Spacing(
     val edgeToEdgeBetweenLayers: Float = Float.NaN,
 ) {
     public companion object {
-        /** Standard-Abstände: 40 px Knoten-zu-Knoten, 12 px Kante-zu-Kante, 16 px Gruppen-Padding. */
+        /** Standard-Basisabstände (engine scales them by [LAYOUT_SPACING_SCALE]): 40 px Knoten-zu-Knoten, 12 px Kante-zu-Kante, 16 px Gruppen-Padding. */
         public val DEFAULT: Spacing = Spacing(nodeToNode = 40f, edgeToEdge = 12f, groupPadding = 16f)
     }
 }

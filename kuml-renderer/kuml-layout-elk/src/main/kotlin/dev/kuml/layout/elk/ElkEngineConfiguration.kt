@@ -12,6 +12,10 @@ package dev.kuml.layout.elk
  * - Mindestabstand zwischen Kanten und Knoten ([edgeNodeSpacing])
  * - Kreuzungsminimierungs-Strategie ([crossingMinimizationStrategy])
  *
+ * **Spacing scale:** these are base values. `HintsMapper` multiplies the final spacing values
+ * (hints or these defaults) exactly once by `dev.kuml.layout.LAYOUT_SPACING_SCALE`; do not scale here.
+ * Note: [nodeSpacing] is not read by the mapper (`hints.spacing.nodeToNode` is used instead).
+ *
  * **Nicht konfigurierbar (Out of Scope V1):**
  * - Rundungsradius von Kanten (bleibt 0, Rundung passiert im Renderer)
  * - Grid-Constraints (ELK unterstützt kein Grid-Layout)

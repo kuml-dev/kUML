@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 22: more space between components (spacing factor 1.5)
+
+- **Change:** every ELK-laid-out diagram now spaces components 50 % further apart. The factor is the single constant `LAYOUT_SPACING_SCALE` in `kuml-layout-api` (`Geometry.kt`); `HintsMapper` applies it exactly once to the final value (diagram hint or engine default), on the root and on compound nodes. Both levels were compared as images (before, +25 % and +50 %); level B (1.5) was chosen. Going back to level A is a one-line change to `1.25f`.
+- **Parameters (old / now):**
+  - node to node 40 / 60; layer gap 90 / 135; edge to node 30 / 45; edge to edge 12 / 18.
+  - STM overrides 110 and 130 become 165 and 195; ERM overrides 70 and 110 become 105 and 165; sequence and other per-diagram overrides scale alike.
+  - Unchanged: group padding (16), edge-label spacing, the PAL channel sizes (`edgeToEdgeBetweenLayers`, port to port) and the lower bounds (8 and 25, applied after scaling).
+- **Effect (measured on the comparison images, PNG at a fixed width of 1024 px, so the effect shows as height; before / +25 % / +50 %):** UML class 737 / 762 / 785; use case 1103 / 1178 / 1249; BDD 1406 / 1492 / 1578; IBD 509 / 562 / 614; STM 1060 / 1160 / 1254; PAR 904 / 919 / 934; REQ 672 / 714 / 754; C4 container 1000 / 1072 / 1142; BPMN 3344 / 3623 / 3878; ERM 801 / 839 / 873. ACT and Blueprint are unchanged (see below). viewBox of the UML class diagram: 954x687 to 1014x777 at level B. Box and font sizes are unchanged.
+- **Does not follow the factor:** SysML 2 ACT swimlanes (output byte-identical in the test run), Blueprint (`BlueprintGeometry`), UML sequence row height (`UmlSequenceSvg`), SysML 2 sequence row height, `GridLayoutEngine`, and LaTeX BPMN (`BpmnLatexRenderer`, fixed `node distance`). `ElkEngineConfiguration.nodeSpacing` is not read by the mapper.
+
 ### Nacharbeit 21: end labels clear diamonds and open heads in the LaTeX/TikZ output
 
 - **Fixes:**

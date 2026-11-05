@@ -3,6 +3,7 @@ package dev.kuml.layout.elk
 import dev.kuml.layout.EdgeRouteStyle
 import dev.kuml.layout.GroupId
 import dev.kuml.layout.Insets
+import dev.kuml.layout.LAYOUT_SPACING_SCALE
 import dev.kuml.layout.LayoutDirection
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutHints
@@ -36,6 +37,12 @@ internal object HintsMapper {
             ?.let { maxOf(ELK_DEFAULT_EDGE_EDGE_BETWEEN_LAYERS, it.toDouble()) } ?: ELK_DEFAULT_EDGE_EDGE_BETWEEN_LAYERS
 
     private const val EDGE_LABEL_SPACING = 4.0
+
+    /**
+     * Applies the global [LAYOUT_SPACING_SCALE] to a final spacing value (hint or engine default).
+     * This is the single place where the factor is applied; engine defaults and hints are base values.
+     */
+    private fun scaled(v: Float): Double = (v * LAYOUT_SPACING_SCALE).toDouble()
 
     /**
      * Maps a [LayoutHints.deterministicSeed] to an ELK `RANDOM_SEED`. ELK interprets 0 as
@@ -100,11 +107,11 @@ internal object HintsMapper {
 
         // Node-to-node spacing (overridable via hints.spacing, then from config default)
         val nodeSpacing = hints.spacing.nodeToNode
-        root.setProperty(CoreOptions.SPACING_NODE_NODE, nodeSpacing.toDouble())
+        root.setProperty(CoreOptions.SPACING_NODE_NODE, scaled(nodeSpacing))
 
         // Edge-to-edge spacing
         // PAL 2B: never below 8 px between parallel edges (never lowers larger values).
-        root.setProperty(CoreOptions.SPACING_EDGE_EDGE, maxOf(hints.spacing.edgeToEdge, MIN_EDGE_TO_EDGE).toDouble())
+        root.setProperty(CoreOptions.SPACING_EDGE_EDGE, maxOf(scaled(hints.spacing.edgeToEdge), MIN_EDGE_TO_EDGE.toDouble()))
         root.setProperty(
             LayeredOptions.SPACING_EDGE_EDGE_BETWEEN_LAYERS,
             // Lower bound only: ELK's own default (10) stays unless a diagram asks for more (PAL 2D-a).
@@ -127,13 +134,13 @@ internal object HintsMapper {
             hints.spacing.layerToLayer.takeUnless { it.isNaN() } ?: config.layerSpacing
         root.setProperty(
             LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS,
-            layerSpacing.toDouble(),
+            scaled(layerSpacing),
         )
 
         // Edge-to-node spacing
         root.setProperty(
             CoreOptions.SPACING_EDGE_NODE,
-            config.edgeNodeSpacing.toDouble(),
+            scaled(config.edgeNodeSpacing),
         )
 
         // V11.x — Stub-Länge zwischen einem Knoten und dem ersten/letzten
@@ -150,7 +157,7 @@ internal object HintsMapper {
         // (~14 px Texthöhe + 4 px Halo) sicher in den Korridor passen.
         root.setProperty(
             LayeredOptions.SPACING_EDGE_NODE_BETWEEN_LAYERS,
-            maxOf(config.edgeNodeSpacing, 25f).toDouble(),
+            maxOf(scaled(config.edgeNodeSpacing), 25.0),
         )
 
         // Group padding (applied to each group node individually, set globally here as default)
@@ -405,8 +412,8 @@ internal object HintsMapper {
         config: ElkEngineConfiguration,
     ) {
         elkGroup.setProperty(CoreOptions.RANDOM_SEED, elkSeedOf(hints.deterministicSeed))
-        elkGroup.setProperty(CoreOptions.SPACING_NODE_NODE, hints.spacing.nodeToNode.toDouble())
-        elkGroup.setProperty(CoreOptions.SPACING_EDGE_EDGE, maxOf(hints.spacing.edgeToEdge, MIN_EDGE_TO_EDGE).toDouble())
+        elkGroup.setProperty(CoreOptions.SPACING_NODE_NODE, scaled(hints.spacing.nodeToNode))
+        elkGroup.setProperty(CoreOptions.SPACING_EDGE_EDGE, maxOf(scaled(hints.spacing.edgeToEdge), MIN_EDGE_TO_EDGE.toDouble()))
         elkGroup.setProperty(
             LayeredOptions.SPACING_EDGE_EDGE_BETWEEN_LAYERS,
             // Lower bound only: ELK's own default (10) stays unless a diagram asks for more (PAL 2D-a).
@@ -415,13 +422,13 @@ internal object HintsMapper {
         if (!hints.spacing.edgeToEdgeBetweenLayers.isNaN()) {
             elkGroup.setProperty(CoreOptions.SPACING_PORT_PORT, edgeEdgeBetweenLayers(hints))
         }
-        elkGroup.setProperty(CoreOptions.SPACING_EDGE_NODE, config.edgeNodeSpacing.toDouble())
+        elkGroup.setProperty(CoreOptions.SPACING_EDGE_NODE, scaled(config.edgeNodeSpacing))
         val layerSpacing =
             hints.spacing.layerToLayer.takeUnless { it.isNaN() } ?: config.layerSpacing
-        elkGroup.setProperty(LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS, layerSpacing.toDouble())
+        elkGroup.setProperty(LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS, scaled(layerSpacing))
         elkGroup.setProperty(
             LayeredOptions.SPACING_EDGE_NODE_BETWEEN_LAYERS,
-            maxOf(config.edgeNodeSpacing, 25f).toDouble(),
+            maxOf(scaled(config.edgeNodeSpacing), 25.0),
         )
     }
 
