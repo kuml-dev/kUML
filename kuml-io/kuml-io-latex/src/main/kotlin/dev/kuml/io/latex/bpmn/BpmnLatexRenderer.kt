@@ -103,6 +103,10 @@ internal object BpmnLatexRenderer {
 
         return buildString {
             appendLine("""\begin{tikzpicture}[node distance=50pt and 80pt,>=stealth]""")
+            if (collab.messageFlows.isNotEmpty()) {
+                // Local to this picture; see MESSAGE_FLOW_STYLE_OVERRIDE.
+                appendLine(MESSAGE_FLOW_STYLE_OVERRIDE)
+            }
             val annotations = BpmnNoteTikz.collaborationAnnotations(model = model, collab = collab)
             if (annotations.isNotEmpty()) {
                 NoteTikz.appendNoteStyles(
@@ -299,6 +303,17 @@ internal object BpmnLatexRenderer {
         appendLine("""  \draw[kuml-bpmn-flow] ($src) --$labelPart$condPart ($tgt);""")
     }
 
+    /**
+     * Redefines `kuml-bpmn-msgflow` inside a collaboration picture with `arrows.meta` tips: an open
+     * circle at the source and an open triangle at the target (sizes scaled from the SVG renderer).
+     * The shared preamble still carries the obsolete `open triangle 45` definition, which TikZ
+     * resolves only when used, so this later definition wins at every `\draw[kuml-bpmn-msgflow]`.
+     * The text is a constant; no user input reaches it. Needs the `arrows.meta` library.
+     */
+    private const val MESSAGE_FLOW_STYLE_OVERRIDE =
+        "  \\tikzset{kuml-bpmn-msgflow/.style={{Circle[open,length=4.5pt]}-{Triangle[open,length=5pt,width=3.75pt]}," +
+            "draw=black,line width=0.8pt,dashed}}"
+
     // ── Message flow rendering ────────────────────────────────────────────────
 
     private fun StringBuilder.appendMessageFlow(mf: MessageFlow) {
@@ -376,6 +391,10 @@ internal object BpmnLatexRenderer {
             appendLine(
                 "$indent  kuml-bpmn-flow/.style={->,>=stealth,draw=black,line width=0.8pt},",
             )
+            // Obsolete: the tip `open triangle 45` no longer exists in current TikZ. TikZ resolves `>=` only
+            // when a path uses the style, so this unused definition is harmless; the collaboration picture
+            // overrides it locally (MESSAGE_FLOW_STYLE_OVERRIDE). Removing it globally would change every
+            // golden and is left for the next golden regeneration.
             appendLine(
                 "$indent  kuml-bpmn-msgflow/.style={->,>=open triangle 45,draw=black," +
                     "line width=0.8pt,dashed},",

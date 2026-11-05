@@ -105,14 +105,20 @@ class NoteTikzPdfBuildTest :
             val docs =
                 mapOf(
                     "bpmn-process" to NoteFixtures.renderBpmnProcess(notes = three, standalone = true),
-                    // No message flow: its arrow tip `open triangle 45` does not exist in current TikZ (pre-existing, not part of this wave).
-                    "bpmn-collab" to NoteFixtures.renderBpmnCollaboration(notes = three, standalone = true, messageFlow = false),
+                    "bpmn-collab" to NoteFixtures.renderBpmnCollaboration(notes = three, standalone = true),
                 )
             for ((name, doc) in docs) {
                 val log = compile(name = name, tex = doc)
                 log shouldNotContain "Undefined control sequence"
                 log shouldNotContain "shell escape"
             }
+        }
+
+        "BPMN collaboration with a named message flow compiles (skipped when TeX is not installed)".config(enabled = tex) {
+            val log = compile(name = "bpmn-msgflow", tex = NoteFixtures.renderBpmnCollaboration(standalone = true))
+            log shouldNotContain "Unknown arrow tip"
+            log shouldNotContain "Undefined control sequence"
+            log shouldNotContain "shell escape"
         }
 
         "Service Blueprint notes compile, journey and full (skipped when TeX is not installed)".config(enabled = tex) {

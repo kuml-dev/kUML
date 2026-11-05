@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 17: BPMN message flows build with `pdflatex` again (LaTeX/TikZ output)
+
+- **Fix:** BPMN message flows in LaTeX output now use `arrows.meta` tips, an open triangle at the target and an open circle at the source (dashed line, as in the SVG output). The old tip `open triangle 45` no longer exists in current TikZ, so a collaboration with a message flow stopped `pdflatex` with `Unknown arrow tip kind 'open triangle 45'`. A collaboration with message flows now redefines `kuml-bpmn-msgflow` once, locally inside its `tikzpicture`; the `\draw` lines are unchanged. The `arrows.meta` library is already loaded by the standalone preamble; a hand-written preamble for fragment output needs it too.
+- **Effect on output:** only `bpmn-collaboration.tex` changes (one added line, the golden is updated). The other 11 no-notes goldens are byte-identical. Collaborations without message flows and all process views are unchanged.
+- **Tests:** unit tests check that the override appears exactly once, inside the picture and before the first message-flow draw, that the draw site does not use `open triangle 45`, and that it is absent without a message flow. A PDF test builds a collaboration with a named message flow; the collaboration notes test from Nacharbeit 14 now also uses a message flow (skipped when TeX is not installed).
+- **Still open:**
+  - The shared preamble still defines the obsolete `open triangle 45` style. It is unused and harmless (TikZ resolves the tip only when a path uses the style) and will be removed when the goldens are next regenerated.
+  - In the rendered PDF the message flow label sits directly on the dashed line and the source circle, so it is hard to read (seen in a 200 dpi PNG of `bpmn-collaboration`). No label backdrop or offset added here.
+
 ### Nacharbeit 16: CI token limited to read access (infrastructure)
 
 - `ci.yml` now declares `permissions: contents: read` for the whole workflow. The build only checks out the repository and uploads test results; it uses no secrets, no `gh` call and no pull-request or check write access, so the default token scopes were wider than needed. Other workflows are unchanged.
@@ -36,7 +45,7 @@ All notable changes to this project are documented here. Format follows
   - BPMN: no association line in the collaboration view (the inner flow nodes are not drawn there); targets that are data objects or inner nodes of a sub-process get no line in the process view either. Both get a constant comment instead. Notes on ports, owner frames and partitions (see Nacharbeit 11) are unchanged.
   - Blueprint: only steps are valid anchors; a link to a touchpoint or to a step in a hidden layer is not drawn.
   - Height limit: from about 12000 pt further notes are left out (with a comment).
-  - Pre-existing and not changed: the BPMN message flow style uses the arrow tip `open triangle 45`, which no longer exists in current TikZ, so a collaboration with a message flow stops a `pdflatex` build (the tests use a collaboration without message flow). It sits in the shared style block, so fixing it changes every LaTeX output byte for byte; it needs its own wave.
+  - ~~Pre-existing and not changed: the BPMN message flow style uses the arrow tip `open triangle 45`~~ Closed in Nacharbeit 17 (see above). The claim that the fix would change every LaTeX output byte for byte was wrong for the approach taken: the override is local to the collaboration picture, so only collaborations with message flows change.
   - ERM has no LaTeX renderer; the CLI cannot render BPMN as LaTeX (`kuml render -f latex` supports it only for UML, C4, SysML 2 and Blueprint).
 
 ### Nacharbeit 13: CI disk-space safeguard (infrastructure)

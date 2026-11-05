@@ -396,6 +396,28 @@ class BpmnLatexRendererTest :
             tex shouldContain "kuml-bpmn-msgflow"
         }
 
+        // ── 22b. MessageFlow arrow tip override (Nacharbeit 17) ───────────────
+
+        "Message flow override is emitted once, inside the picture and before the first message flow draw" {
+            val tex = KumlLatexRenderer.toLatex(model = collabModelWithMessageFlows(2))
+            val override = "\\tikzset{kuml-bpmn-msgflow/.style={{Circle[open,length=4.5pt]}-{Triangle[open,length=5pt,width=3.75pt]}"
+            tex.windowed(override.length).count { it == override } shouldBe 1
+            val picture = tex.substringAfter("\\begin{tikzpicture}")
+            picture shouldContain override
+            (picture.indexOf(override) < picture.indexOf("\\draw[kuml-bpmn-msgflow]")) shouldBe true
+        }
+
+        "Message flow draw site does not use the obsolete open triangle 45 tip" {
+            val tex = KumlLatexRenderer.toLatex(model = collabModelWithMessageFlows(1))
+            // The shared preamble keeps the unused old definition on purpose, so only the picture is asserted.
+            tex.substringAfter("\\begin{tikzpicture}").contains("open triangle 45") shouldBe false
+        }
+
+        "Collaboration without message flow has no message flow override" {
+            val tex = KumlLatexRenderer.toLatex(model = collabModelWithMessageFlows(0))
+            tex.contains("\\tikzset{kuml-bpmn-msgflow") shouldBe false
+        }
+
         // ── 23. LaTeX injection via Name ──────────────────────────────────────
 
         "Special LaTeX characters in task name are properly escaped" {
@@ -496,3 +518,22 @@ class BpmnLatexRendererTest :
             (tex.contains("""\lightning""")) shouldBe false
         }
     })
+
+private fun collabModelWithMessageFlows(count: Int): BpmnModel {
+    val collab =
+        BpmnCollaboration(
+            id = "collabN",
+            participants =
+                listOf(
+                    BpmnParticipant(id = "poolA", name = "A"),
+                    BpmnParticipant(id = "poolB", name = "B"),
+                ),
+            messageFlows =
+                (1..count).map { MessageFlow(id = "mf$it", name = "Msg $it", sourceRef = "poolA", targetRef = "poolB") },
+        )
+    return BpmnModel(
+        name = "M",
+        collaborations = listOf(collab),
+        diagrams = listOf(CollaborationDiagram(name = "D", collaborationId = "collabN")),
+    )
+}
