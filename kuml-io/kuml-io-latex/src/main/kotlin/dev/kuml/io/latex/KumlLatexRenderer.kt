@@ -68,11 +68,16 @@ import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlClassifier
 import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlCommentLink
+import dev.kuml.uml.UmlCommunicationPath
+import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
+import dev.kuml.uml.UmlExtend
 import dev.kuml.uml.UmlGeneralization
+import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInterfaceRealization
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlRelationship
+import dev.kuml.uml.navigability
 
 /**
  * Renders a kUML diagram + layout result as a LaTeX/TikZ source string.
@@ -935,15 +940,31 @@ public object KumlLatexRenderer {
         // Style picked per UML relationship kind. Unknown / missing relationships
         // get a neutral solid line — that's still useful diagnostically (the
         // layout said "there's an edge here", we just don't know what UML calls it).
+        var arrowOverride: String? = null
         val style =
             when (relationship) {
                 is UmlGeneralization -> UmlEdgeLatexRenderer.Style.GENERALIZATION
                 is UmlInterfaceRealization -> UmlEdgeLatexRenderer.Style.REALIZATION
                 is UmlDependency -> UmlEdgeLatexRenderer.Style.DEPENDENCY
-                is UmlAssociation -> UmlEdgeLatexRenderer.Style.ASSOCIATION
+                is UmlAssociation -> {
+                    arrowOverride =
+                        UmlEdgeLatexRenderer.edgeEndsOverride(
+                            aggregation = relationship.aggregation,
+                            navigability = relationship.navigability(),
+                        )
+                    UmlEdgeLatexRenderer.Style.ASSOCIATION
+                }
+                is UmlInclude, is UmlExtend -> {
+                    arrowOverride = "-{${UmlEdgeLatexRenderer.OPEN_HEAD}}"
+                    UmlEdgeLatexRenderer.Style.DEPENDENCY
+                }
+                is UmlConnector, is UmlCommunicationPath -> {
+                    arrowOverride = "-"
+                    UmlEdgeLatexRenderer.Style.PLAIN
+                }
                 else -> UmlEdgeLatexRenderer.Style.PLAIN
             }
-        UmlEdgeLatexRenderer.render(route = route, style = style, options = options, out = this)
+        UmlEdgeLatexRenderer.render(route = route, style = style, options = options, out = this, arrowOverride = arrowOverride)
         UmlEdgeLabelLatexRenderer.render(labels = UmlEdgeLabels.of(relationship), route = route, options = options, out = this)
     }
 

@@ -6,6 +6,23 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 20: line ends of UML edges in the LaTeX/TikZ output
+
+- **Additions:**
+  - Shared aggregation is drawn with an open diamond and composition with a filled diamond (16pt by 10pt) at the source end, as in the SVG output.
+  - A one-way navigable association gets an open chevron (`Straight Barb`, 12pt by 10pt) at the navigable end. With a diamond and a navigable source end, the chevron sits directly behind the diamond.
+  - `include` and `extend` edges end in the same open chevron instead of a Stealth head; connectors and communication paths are plain lines without an arrowhead.
+  - The ends are set through an arrow option appended to the edge style, so the shared preamble is unchanged. The table lives in one function, `UmlEdgeLatexRenderer.edgeEndsOverride`.
+- **Effect on output:** a plain association (no diamond, both or neither end navigable) is byte-identical to before. Of the 13 existing goldens exactly one line changes, the shared association in `uml-class-edge-labels.tex`. New goldens `uml-class-edge-ends.tex` and `uml-usecase-edge-ends.tex`. SVG, C4, SysML 2, BPMN, Blueprint and notes output are unchanged. The result was compiled with `pdflatex` and inspected as an image.
+- **Known limits:**
+  - A role or multiplicity at the source end of a diamond edge overlaps the diamond (the 16pt diamond is longer than the 10pt label offset). Measured on the fixture edge `srcLabels`. There is no label planner; this is not fixed here.
+  - Role and multiplicity labels at a target end touch the 12pt chevron.
+  - A plain association still has a Stealth head, while the SVG draws none when both ends are navigable. After this change a diamond edge has no head but a plain edge does. Aligning this would change all goldens with associations.
+  - The UML diamond (16pt) and the SysML 2 diamond (3mm) differ in size.
+  - Include and extend are black in LaTeX and muted in SVG; `kuml-dependency` is drawn with a Stealth head elsewhere, SVG uses an open chevron.
+  - An association class is still drawn as a plain edge in LaTeX, although it has navigability and aggregation.
+  - Arrow sizes are fixed in pt and do not follow `LatexRenderOptions.scale`, like the existing Stealth head.
+
 ### Nacharbeit 19: UML edge labels in the LaTeX/TikZ output
 
 - **Additions:**
@@ -18,8 +35,8 @@ All notable changes to this project are documented here. Format follows
 - **Known limits:**
   - There is no label planner, so labels may overlap on dense diagrams and short edges.
   - The centre of a polyline is the middle segment by point index, not by arc length.
-  - Aggregation and composition diamonds and the navigability distinction are still missing in LaTeX.
-  - Include, extend and connector edges are still drawn as solid arrows.
+  - ~~Aggregation and composition diamonds and the navigability distinction are still missing in LaTeX.~~ Fixed in Nacharbeit 20.
+  - ~~Include, extend and connector edges are still drawn as solid arrows.~~ Fixed in Nacharbeit 20.
 - **Still open:** Should multiplicity `1` be shown? This is a joint question for SVG and LaTeX.
 
 ### Nacharbeit 18: edge labels beside the line or on a backdrop in the LaTeX/TikZ output (BPMN, SysML 2)

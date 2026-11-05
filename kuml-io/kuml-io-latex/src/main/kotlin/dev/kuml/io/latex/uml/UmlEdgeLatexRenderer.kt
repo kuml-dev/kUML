@@ -4,6 +4,8 @@ import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.latex.fmtCoord
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
+import dev.kuml.uml.AggregationKind
+import dev.kuml.uml.UmlNavigability
 
 /**
  * Emits the TikZ source for a single edge route.
@@ -36,13 +38,48 @@ internal object UmlEdgeLatexRenderer {
         NOTE_ANCHOR("kuml-note-anchor"),
     }
 
+    /** Open (hollow) diamond for shared aggregation, drawn at the source end. */
+    internal const val DIAMOND_OPEN = "Diamond[open, length=16pt, width=10pt]"
+
+    /** Filled diamond for composition, drawn at the source end. */
+    internal const val DIAMOND_FILLED = "Diamond[length=16pt, width=10pt]"
+
+    /** Open arrowhead (chevron) marking the single navigable end. */
+    internal const val OPEN_HEAD = "Straight Barb[length=12pt, width=10pt]"
+
+    /**
+     * Arrow-option override for an association, or `null` to keep the style's default
+     * (the plain association, [AggregationKind.NONE] with both or neither end navigable,
+     * stays byte-identical to the output before the diamonds were drawn).
+     *
+     * Diamonds sit at the source end (the aggregate or composite), matching the SVG renderer;
+     * the open arrowhead sits at the one navigable end.
+     */
+    fun edgeEndsOverride(
+        aggregation: AggregationKind,
+        navigability: UmlNavigability,
+    ): String? {
+        val diamond =
+            when (aggregation) {
+                AggregationKind.NONE -> null
+                AggregationKind.SHARED -> DIAMOND_OPEN
+                AggregationKind.COMPOSITE -> DIAMOND_FILLED
+            }
+        return when (navigability) {
+            UmlNavigability.BOTH, UmlNavigability.NEITHER -> diamond?.let { "{$it}-" }
+            UmlNavigability.TARGET_ONLY -> if (diamond == null) "-{$OPEN_HEAD}" else "{$diamond}-{$OPEN_HEAD}"
+            UmlNavigability.SOURCE_ONLY -> if (diamond == null) "{$OPEN_HEAD}-" else "{$diamond $OPEN_HEAD}-"
+        }
+    }
+
     fun render(
         route: EdgeRoute,
         style: Style,
         options: LatexRenderOptions,
         out: StringBuilder,
+        arrowOverride: String? = null,
     ) {
-        val styleAttr = style.tikzStyle
+        val styleAttr = if (arrowOverride == null) style.tikzStyle else "${style.tikzStyle}, $arrowOverride"
         when (route) {
             is EdgeRoute.Direct -> renderDirect(route = route, styleAttr = styleAttr, options = options, out = out)
             is EdgeRoute.OrthogonalRounded ->
