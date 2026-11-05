@@ -69,7 +69,7 @@ editor, MCP server and the AI assistant sit on top.
 | C4 hierarchy and `C4Model`, all 6 diagram types.
 
 | `kuml-metamodel-kerml`, `kuml-metamodel-sysml2`
-| KerML foundation and SysML 2 on top of it, all 8 diagram types.
+| KerML foundation and SysML 2 on top of it, all 9 diagram types.
 
 | `kuml-metamodel-bpmn`
 | BPMN 2.0: processes, collaborations, events, gateways, tasks, pools and lanes, with a constraint checker.
@@ -112,7 +112,7 @@ editor, MCP server and the AI assistant sit on top.
 | SVG to PNG via Apache Batik.
 
 | `kuml-io-latex`
-| LaTeX/TikZ export for UML, SysML 2, C4 and BPMN.
+| LaTeX/TikZ export for UML, SysML 2, C4, BPMN and Service Blueprint (the CLI exposes UML, SysML 2, C4 and Service Blueprint).
 
 | `kuml-render-smil`, `kuml-io-anim`
 | Pure-SMIL animated SVG from execution traces, and export of animations to APNG, WebP or MP4 (the JVM distribution only; WebP and MP4 need external `img2webp` or `ffmpeg`).

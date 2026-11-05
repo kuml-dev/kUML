@@ -1399,7 +1399,7 @@ sysml2Model(name = "Vehicle") {
   them with the ids, never with the note text. `SYSML2_NOTE_ANCHOR_UNKNOWN` and `SYSML2_NOTE_DUPLICATE_ID`
   (errors) and `SYSML2_NOTE_NOT_SHOWN` (warning) remain.
 
-NOTE: The LaTeX/TikZ export does not draw notes yet.
+NOTE: The LaTeX/TikZ export draws notes (kinds, formatted text, anchor lines). A note anchored only to a port, an owner frame, a partition or a nested constraint has no anchor geometry there and is left out.
 
 == M2M transforms from UML to SysML 2
 

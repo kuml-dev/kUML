@@ -301,14 +301,12 @@ as warnings.
 
 == Rendering and export
 
-A BPMN model renders to SVG (with full OMG notation), PNG, and LaTeX/TikZ exactly like the
-other modelling languages:
+A BPMN model renders to SVG (with full OMG notation) and PNG:
 
 [source,bash]
 ----
 kuml render order-process.kuml.kts --format svg
 kuml render order-process.kuml.kts --format png --width 1600
-kuml render order-process.kuml.kts --format latex --latex-standalone
 ----
 
 BPMN models also round-trip through standard BPMN 2.0 XML — see

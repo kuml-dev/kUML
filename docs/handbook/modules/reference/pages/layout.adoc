@@ -35,6 +35,16 @@ Override per render:
 kuml render diagram.kuml.kts --engine kuml.grid
 ----
 
+=== Spacing between components
+
+Since 0.56.0 the layered engine spaces the components of every diagram 50 % further apart than before, so that longer
+labels fit. A single constant, `LAYOUT_SPACING_SCALE` (1.5) in `kuml-layout-api`, scales the node, layer, edge-to-node and
+edge-to-edge spacing; it applies to the final value, so spacing that a diagram sets itself (for example state machines,
+ERM and sequence diagrams) scales alike. Group padding, box sizes and font sizes are unchanged.
+
+Not affected, because they use their own fixed geometry: SysML 2 activity swimlanes, Service Blueprint, the row height of
+sequence diagrams, the `kuml.grid` engine and the LaTeX/TikZ output of BPMN.
+
 == DSL hints — taking control
 
 For predictable layouts, place a `layout { ... }` block on any element. The hints

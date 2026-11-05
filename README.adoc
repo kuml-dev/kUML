@@ -174,7 +174,7 @@ link:docs/handbook/modules/ROOT/pages/install.adoc[Installation].
 | link:docs/handbook/modules/reference/pages/uml-dsl.adoc[UML DSL]
 
 | *SysML 2*
-| 8
+| 9
 | link:docs/handbook/modules/reference/pages/sysml2.adoc[SysML 2 DSL]
 
 | *C4*

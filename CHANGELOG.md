@@ -6,6 +6,22 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.56.0] — 2026-11-05
+
+### Highlights
+
+- **SysML 2 grows into a complete diagram family.** State machines (composite and orthogonal states, timers, history, junctions), activity diagrams (signals, time events, interruptible regions, swimlanes), requirement and use-case diagrams, block definition and internal block diagrams with ports, flows and allocation, parametric diagrams, sequence-diagram extensions, package diagrams with views and viewpoints, and analysis cases and calculations.
+- **A new label and layout foundation (PAL waves 2A to 2I).** Deterministic layout, collision-free label placement for UML, SysML 2, C4, ERM and Service Blueprint, edge ends that dock on port and pin borders, and 50 % more space between components so that longer labels fit (`LAYOUT_SPACING_SCALE` 1.5).
+- **Notes on every diagram type.** Note kinds with symbols, formatted note text (bold, italic, code, lists, links), placement without overlap and anchors that attach to the drawn geometry, for UML, SysML 2, C4, BPMN, ERM and Service Blueprint; the C4 and Service Blueprint DSL printers write notes too, and there is a new Service Blueprint DSL printer.
+- **LaTeX/TikZ output catches up.** Notes (UML, SysML 2, C4, BPMN, Service Blueprint), UML edge labels, aggregation and composition diamonds, navigability, include/extend notation, labels on a backdrop, and BPMN message flows that build with `pdflatex` again.
+- **kUML Desktop.** Icons in the menu and on the dialog buttons, an About dialog, a preview toolbar (actual size, centre, export to SVG, PNG and PDF), adjustable column widths and scrollable documents in the Knowledge Workspace, a simulator inspector, and a hint in the MCP dialog that the server runs only while the app is open.
+- **Workspace PDF export** from the CLI, the Desktop and MCP, a workspace mode for the Desktop MCP server, and **multi-script model composition** (transform and generate over several `.kuml.kts` files).
+- **Breaking:** in the expression parser the word operators `and`, `or` and `not` are recognised in lowercase only and never directly after a `.`; uppercase `AND`, `OR`, `NOT` are no longer operators (see "Changed (potentially breaking)" below).
+- **Removed:** the outdated guides `docs/getting-started.adoc` and `docs/diagram-types.adoc`; the handbook replaces them.
+- **Infrastructure and tests.** CI frees runner disk space, logs disk usage and runs with a read-only token; several load-dependent mock-server tests were hardened.
+
+The detailed entries below are written per work wave and keep their original wave names.
+
 ### Nacharbeit 22b: ERM name labels at the wider layout spacing
 
 - **Why:** at `LAYOUT_SPACING_SCALE` 1.5 the self-loop `rel_1` of vault example 39 (Martin e-commerce schema) has no free spot beside it, because a foreign line runs closer than the label is wide. The planned name label crossed the line of `rel_9`, and `ErmLabelGeometryInvariantTest` failed (it was green at 1.25). The invariant test is unchanged.

@@ -308,6 +308,7 @@ always relative to the workspace root and use `/`. Without an open workspace the
 | `kuml_desktop_workspace_render_document` | Renders one kuml block of a document as SVG (text) or PNG (image content); `width` 64-8192, optional `theme`.
 | `kuml_desktop_workspace_render_all` | Renders every block into a temporary location and reports rendered, skipped and failed blocks; nothing is written into the workspace.
 | `kuml_desktop_workspace_open_document` | Shows a document in the editor (`edit:true` for the raw editor).
+| `kuml_desktop_workspace_export_pdf` | Exports the open workspace as PDF; see xref:tooling:workspace-pdf-export.adoc[Workspace PDF export].
 | `kuml_desktop_workspace_reload` | Re-scans the folder; `onDirty` = `fail` (default), `keep` or `discard` decides what happens to unsaved editor changes.
 |===
 

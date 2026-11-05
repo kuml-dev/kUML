@@ -17,8 +17,9 @@ Options available on every command:
 * `--version` — print version and exit (on the bare `kuml` command)
 * `--help` / `-h` — print the help of the command or subcommand
 
-Most commands take a single `*.kuml.kts` script as input. To process several scripts, call the command
-once per file (for example from a shell loop or from the Gradle plugin).
+Most commands take a single `*.kuml.kts` script as input. `kuml transform` and `kuml generate` can merge several
+UML class scripts (see the multi-script section below); for every other command, call it once per file (for example
+from a shell loop or from the Gradle plugin).
 
 == `kuml render`
 
@@ -33,7 +34,8 @@ Options:
 
 * `-o`, `--output <path>` — output file
 * `-f`, `--format svg|png|latex|tex|apng|webp|mp4` — default `svg`. `latex` / `tex` emit TikZ output
-  (UML, SysML 2, C4, and BPMN are all supported). `apng`, `webp` and `mp4` export an animation
+  for UML, SysML 2 (not package diagrams), C4 and Service Blueprint; BPMN and ERM cannot be rendered as LaTeX from
+  the CLI. `apng`, `webp` and `mp4` export an animation
   (see `--animated`); `webp` and `mp4` need `img2webp` or `ffmpeg` on the `PATH`.
 * `--theme <name>` — theme name (`kuml`, `plain`, `elegant`, `playful`); the default is `kuml`.
   Overrides `kuml.config.kts`.

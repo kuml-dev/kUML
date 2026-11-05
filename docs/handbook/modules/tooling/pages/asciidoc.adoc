@@ -216,7 +216,7 @@ CI before deploying to https://docs.kuml.dev. Because the script passes
 rendered image — see <<Showing the DSL source alongside the diagram>>.
 
 **Coverage** (V0.23.3): all five diagram families render — UML
-(`classDiagram`/`stateDiagram`/… family), C4, SysML 2 (all eight diagram types),
+(`classDiagram`/`stateDiagram`/… family), C4, SysML 2 (all nine diagram types),
 BPMN (Process/Collaboration/Choreography/Conversation), and Blueprint (Service
 Blueprint / Journey Map). Dispatch mirrors `kuml-cli`'s `RenderPipeline` (same
 bridges, same ELK engine).

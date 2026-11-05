@@ -383,8 +383,7 @@ column starts after the symbol.
 
 The same `kind` argument exists on C4 `note(...)` (on the model and in all six diagram builders) and on Service Blueprint
 `note(...)`, with the same symbols, stripes and tones. In BPMN XML a kinded annotation is written as `kuml:kind="WARNING"`
-(see xref:bpmn-xml.adoc[BPMN XML]). Not yet supported: kinds in KerML (it has no diagram type yet) and in LaTeX/TikZ output
-(which draws no notes at all).
+(see xref:bpmn-xml.adoc[BPMN XML]). Not yet supported: kinds in KerML (it has no diagram type yet).
 
 [[formatted-note-text]]
 === Formatted note text
@@ -426,7 +425,7 @@ Rules:
 
 A link is a real `<a href>` in the SVG. In a PNG it is only underlined (the URL is not kept), and whether it can be clicked
 in a viewer depends on how the SVG is embedded: an `<img>` element disables links, and some sanitisers remove `<a>`.
-LaTeX/TikZ output draws no notes yet.
+LaTeX/TikZ output draws notes for UML, SysML 2, C4, BPMN and Service Blueprint: a dog-ear frame, the kind symbol and tone, formatted text and an anchor line. Limits: ERM has no LaTeX renderer; BPMN collaborations have no association line (the inner nodes are not drawn there); a SysML 2 note anchored only to a port, an owner frame, a partition or a nested constraint is left out; in Service Blueprint only steps are valid anchors.
 
 == Object diagrams
 
