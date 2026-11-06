@@ -134,6 +134,38 @@ public class ObstacleIndex {
     internal fun overlapsNote(r: Rect): Boolean =
         rects.any { (it.kind == ObstacleKind.NOTE && it.rect.intersects(r)) || (it.kind == ObstacleKind.NODE && it.core.intersects(r)) }
 
+    /**
+     * Hard clearance rule (Nacharbeit 25): true if [r] comes closer than [clearance] px to a part box or to a diagram
+     * edge, or closer than [noteGap] px to an already placed note. Only the drawn edges count ([ObstacleKind.EDGE]); the
+     * anchor lines of notes are planned afterwards and never block a candidate. Every test counts against [budget].
+     */
+    internal fun violatesClearance(
+        r: Rect,
+        clearance: Float,
+        noteGap: Float,
+        budget: Budget,
+    ): Boolean {
+        for (o in rects) {
+            budget.spend()
+            val hit =
+                when (o.kind) {
+                    ObstacleKind.NODE -> o.core.inflated(clearance).intersects(r)
+                    ObstacleKind.NOTE -> o.core.inflated(noteGap).intersects(r)
+                    else -> false
+                }
+            if (hit) return true
+        }
+        val zone = r.inflated(clearance)
+        for (l in lines) {
+            if (l.kind != ObstacleKind.EDGE) continue
+            for (i in 0 until l.points.size - 1) {
+                budget.spend()
+                if (segmentIntersectsRect(a = l.points[i], b = l.points[i + 1], r = zone)) return true
+            }
+        }
+        return false
+    }
+
     /** Number of notes placed so far. */
     internal fun noteCount(): Int = rects.count { it.kind == ObstacleKind.NOTE }
 

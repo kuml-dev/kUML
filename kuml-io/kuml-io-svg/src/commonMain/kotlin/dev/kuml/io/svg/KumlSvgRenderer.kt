@@ -1661,7 +1661,7 @@ public object KumlSvgRenderer {
     }
 
     /** Edge routes shifted by [padding] and passed through [routeTransform] — shared by label placement and drawing. */
-    private fun sysml2ShiftedRoutes(
+    internal fun sysml2ShiftedRoutes(
         layoutResult: LayoutResult,
         padding: Float,
         routeTransform: (
@@ -2934,37 +2934,7 @@ public object KumlSvgRenderer {
                 dev.kuml.io.svg.sysml2
                     .stmObstacleNodes(model = model, visibleIds = visible, layoutResult = lr, paddingPx = padding)
             },
-            routeTransform = { routes, rects ->
-                val ends =
-                    model.usages.filterIsInstance<dev.kuml.sysml2.TransitionUsage>().map {
-                        Triple(it.id, it.sourceStateId, it.targetStateId)
-                    }
-
-                fun ids(kind: dev.kuml.sysml2.StateKind) =
-                    model.definitions
-                        .filterIsInstance<StateDefinition>()
-                        .filter { it.id in visible && it.effectiveKind == kind }
-                        .mapNotNull { d -> rects[d.id]?.let { d.id to it } }
-                        .toMap()
-                val pseudoSpread =
-                    dev.kuml.io.svg.sysml2.edge.StmPseudostateEndpoints.spread(
-                        routes = routes,
-                        ends = ends,
-                        circles = ids(dev.kuml.sysml2.StateKind.Junction),
-                        diamonds = ids(dev.kuml.sysml2.StateKind.Choice),
-                    )
-                val pseudoIds =
-                    model.definitions
-                        .filterIsInstance<StateDefinition>()
-                        .filter { it.id in visible && it.isPseudo }
-                        .map { it.id }
-                        .toSet()
-                dev.kuml.io.svg.sysml2.edge.StmEndpointSpread.spread(
-                    routes = pseudoSpread,
-                    ends = ends,
-                    boxes = rects.filterKeys { it !in pseudoIds },
-                )
-            },
+            routeTransform = stmRouteTransform(model = model, visible = visible),
             deferredNodeIds =
                 model.definitions
                     .filterIsInstance<StateDefinition>()
@@ -4011,8 +3981,51 @@ public object KumlSvgRenderer {
             (targetId.contains("::") && ports.any { targetId.endsWith("::${it.name}") || targetId == it.name })
     }
 
+    /**
+     * The STM route post-processing (pseudostate and endpoint spread) the renderer applies to the shifted routes; shared with
+     * the note placement so notes see the drawn routes, and with tests.
+     */
+    internal fun stmRouteTransform(
+        model: Sysml2Model,
+        visible: Set<String>,
+    ): (Map<String, dev.kuml.layout.EdgeRoute>, Map<String, dev.kuml.layout.Rect>) -> Map<String, dev.kuml.layout.EdgeRoute> =
+        { routes, rects ->
+            val ends =
+                model.usages.filterIsInstance<dev.kuml.sysml2.TransitionUsage>().map {
+                    Triple(it.id, it.sourceStateId, it.targetStateId)
+                }
+
+            fun ids(kind: dev.kuml.sysml2.StateKind) =
+                model.definitions
+                    .filterIsInstance<StateDefinition>()
+                    .filter { it.id in visible && it.effectiveKind == kind }
+                    .mapNotNull { d -> rects[d.id]?.let { d.id to it } }
+                    .toMap()
+            val pseudoSpread =
+                dev.kuml.io.svg.sysml2.edge.StmPseudostateEndpoints.spread(
+                    routes = routes,
+                    ends = ends,
+                    circles = ids(dev.kuml.sysml2.StateKind.Junction),
+                    diamonds = ids(dev.kuml.sysml2.StateKind.Choice),
+                )
+            val pseudoIds =
+                model.definitions
+                    .filterIsInstance<StateDefinition>()
+                    .filter { it.id in visible && it.isPseudo }
+                    .map { it.id }
+                    .toSet()
+            dev.kuml.io.svg.sysml2.edge.StmEndpointSpread.spread(
+                routes = pseudoSpread,
+                ends = ends,
+                boxes = rects.filterKeys { it !in pseudoIds },
+            )
+        }
+
     /** State machines: the diagram including notes may be at most this much wider than without notes (PAL wave 2D-b). */
     internal const val STM_NOTE_WIDTH_FACTOR: Float = 1.25f
+
+    /** State machines: clearance in px between a note and edges, states and other notes (Nacharbeit 25). */
+    internal const val STM_NOTE_EDGE_CLEARANCE: Float = 16f
 
     /**
      * Places the notes of [diagram] after the layout (see [Sysml2NotePlacement]); the result carries the notes as
@@ -4059,6 +4072,7 @@ public object KumlSvgRenderer {
         stmLabelMaxWidthPx: Float = dev.kuml.io.svg.sysml2.edge.StmLabelPlacer.DEFAULT_MAX_WIDTH_PX,
         noteMaxWidth: Float? = null,
         noteWidthFactor: Float? = null,
+        measure: dev.kuml.layout.bridge.note.NoteMeasure? = null,
     ): dev.kuml.layout.bridge.note.NotePlacementResult =
         Sysml2NotePlacement
             .place(
@@ -4081,6 +4095,8 @@ public object KumlSvgRenderer {
                     NotePlacementConfig(
                         localPorts = localPorts,
                         maxWidthFactor = noteWidthFactor,
+                        // State machines: a note never touches an edge or a state (16 px), else it goes into the strip below (Nacharbeit 25).
+                        edgeClearance = if (noteWidthFactor == null) null else STM_NOTE_EDGE_CLEARANCE,
                         // State machines (2D-b): a note on a composite title or on a transition line is worse than a longer anchor line.
                         costs =
                             if (noteWidthFactor == null) {
@@ -4093,12 +4109,13 @@ public object KumlSvgRenderer {
                     ),
                 placedLabels = placedLabels.mapValues { it.value.rect },
                 measure =
-                    if (noteMaxWidth == null) {
-                        dev.kuml.layout.bridge.note.DefaultNoteMeasure
-                    } else {
-                        dev.kuml.layout.bridge.note
-                            .WidthLimitedNoteMeasure(noteMaxWidth)
-                    },
+                    measure
+                        ?: if (noteMaxWidth == null) {
+                            dev.kuml.layout.bridge.note.DefaultNoteMeasure
+                        } else {
+                            dev.kuml.layout.bridge.note
+                                .WidthLimitedNoteMeasure(noteMaxWidth)
+                        },
             )
 
     /**

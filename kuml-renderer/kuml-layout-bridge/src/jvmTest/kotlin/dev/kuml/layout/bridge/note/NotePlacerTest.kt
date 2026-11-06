@@ -412,4 +412,193 @@ class NotePlacerTest :
                     }
             bits() shouldBe bits()
         }
+
+        // ------------------------------------------------------------ Nacharbeit 25: hard edge clearance
+
+        fun hitsPolyline(
+            r: Rect,
+            pts: List<Point>,
+            d: Float,
+        ): Boolean {
+            val zone = rect(x = r.origin.x - d, y = r.origin.y - d, w = r.size.width + 2 * d, h = r.size.height + 2 * d)
+            return (0 until pts.size - 1).any { i ->
+                val a = pts[i]
+                val b = pts[i + 1]
+                // axis-parallel segments only in these fixtures
+                val lx = minOf(a.x, b.x)
+                val hx = maxOf(a.x, b.x)
+                val ly = minOf(a.y, b.y)
+                val hy = maxOf(a.y, b.y)
+                lx <= zone.origin.x + zone.size.width &&
+                    hx >= zone.origin.x &&
+                    ly <= zone.origin.y + zone.size.height &&
+                    hy >= zone.origin.y
+            }
+        }
+
+        /** Horizontal and vertical lines every [step] px over -400..1300 x -400..1000: no free spot is left near the canvas (900 x 600). */
+        fun gridEdges(step: Float): Map<String, EdgeRoute> {
+            val out = LinkedHashMap<String, EdgeRoute>()
+            var y = -400f
+            while (y <= 1000f) {
+                out["h$y"] = EdgeRoute.Direct(source = Point(x = -400f, y = y), target = Point(x = 1300f, y = y))
+                y += step
+            }
+            var x = -400f
+            while (x <= 1300f) {
+                out["v$x"] = EdgeRoute.Direct(source = Point(x = x, y = -400f), target = Point(x = x, y = 1000f))
+                x += step
+            }
+            return out
+        }
+
+        test("clearance rule: a rectangle within the clearance of an edge or a part box is excluded, an anchor route is not an edge") {
+            val index = ObstacleIndex()
+            index.addPolyline(kind = ObstacleKind.EDGE, pts = listOf(Point(x = 0f, y = 100f), Point(x = 400f, y = 100f)), ownerId = "e")
+            index.addPolyline(
+                kind = ObstacleKind.ANCHOR_ROUTE,
+                pts = listOf(Point(x = 0f, y = 300f), Point(x = 400f, y = 300f)),
+                ownerId = "l",
+            )
+            index.addRect(kind = ObstacleKind.NODE, r = rect(x = 500f, y = 500f, w = 100f, h = 50f), ownerId = "n")
+            index.addRect(kind = ObstacleKind.NOTE, r = rect(x = 700f, y = 800f, w = 100f, h = 50f), ownerId = "m")
+            val budget = ObstacleIndex.Budget(100_000L)
+
+            fun violates(r: Rect) = index.violatesClearance(r = r, clearance = 16f, noteGap = 16f, budget = budget)
+            // 10 px above the edge: closer than 16 px
+            violates(rect(x = 50f, y = 40f, w = 100f, h = 50f)) shouldBe true
+            // 20 px above the edge: clear
+            violates(rect(x = 50f, y = 30f, w = 100f, h = 50f)) shouldBe false
+            // sitting on the anchor route only: not an edge, not excluded
+            violates(rect(x = 50f, y = 280f, w = 100f, h = 50f)) shouldBe false
+            // 10 px from a part box, 20 px from a part box
+            violates(rect(x = 390f, y = 500f, w = 100f, h = 50f)) shouldBe true
+            violates(rect(x = 380f, y = 500f, w = 100f, h = 50f)) shouldBe false
+            // 10 px from another note, 20 px from another note
+            violates(rect(x = 590f, y = 800f, w = 100f, h = 50f)) shouldBe true
+            violates(rect(x = 580f, y = 800f, w = 100f, h = 50f)) shouldBe false
+        }
+
+        test("clearance rule: a note keeps 16 px from every edge and box, the anchor line is still drawn") {
+            val layout =
+                layoutOf(
+                    nodes = mapOf("A" to rect(x = 400f, y = 300f, w = 120f, h = 60f)),
+                    edges = gridEdges(step = 80f),
+                )
+            val config = NotePlacementConfig(edgeClearance = 16f)
+            val r =
+                NotePlacer.place(
+                    layout = layout,
+                    notes = listOf(input("n1", "A"), input("n2", "A")),
+                    resolver = AnchorGeometryResolver(layout),
+                    obstacles = obstaclesOf(layout),
+                    config = config,
+                )
+            val notes =
+                listOf("n1", "n2").map {
+                    r.layout.nodes
+                        .getValue(NodeId(it))
+                        .bounds
+                }
+            val a =
+                r.layout.nodes
+                    .getValue(NodeId("A"))
+                    .bounds
+            val drawn =
+                r.layout.edges
+                    .filterKeys { !it.value.startsWith("link:") }
+                    .values
+                    .map { it.polylinePoints() }
+            for (n in notes) {
+                drawn.forEach { hitsPolyline(n, it, 16f) shouldBe false }
+                n.touches(rect(x = a.origin.x - 16f, y = a.origin.y - 16f, w = a.size.width + 32f, h = a.size.height + 32f)) shouldBe false
+            }
+            // every nearby spot is crossed by the grid, so both notes are in the strip below it (the grid ends at y = 1000)
+            notes.forEach { (it.origin.y - r.dy >= 1016f) shouldBe true }
+            notes[0].touches(notes[1]) shouldBe false
+            r.layout.edges.keys shouldContain EdgeId("link:n1::A")
+            r.layout.edges.keys shouldContain EdgeId("link:n2::A")
+        }
+
+        test("clearance rule off: the default config has no clearance and an explicit null changes nothing") {
+            NotePlacementConfig().edgeClearance shouldBe null
+            val layout =
+                layoutOf(
+                    nodes = mapOf("A" to rect(x = 100f, y = 100f, w = 120f, h = 60f), "B" to rect(x = 400f, y = 100f, w = 120f, h = 60f)),
+                    edges = mapOf("e" to EdgeRoute.Direct(source = Point(x = 220f, y = 130f), target = Point(x = 400f, y = 130f))),
+                )
+
+            fun rects(config: NotePlacementConfig) =
+                NotePlacer
+                    .place(
+                        layout = layout,
+                        notes = listOf(input("n1", "A"), input("n2", "B")),
+                        resolver = AnchorGeometryResolver(layout),
+                        obstacles = obstaclesOf(layout),
+                        config = config,
+                    ).layout.nodes
+                    .filterKeys { it.value.startsWith("n") }
+                    .mapValues { it.value.bounds }
+            rects(NotePlacementConfig()) shouldBe rects(NotePlacementConfig(edgeClearance = null))
+        }
+
+        test("strip fallback: with the rows below the content blocked, the search stops at the cap and reports the note") {
+            val layout =
+                layoutOf(
+                    nodes = mapOf("A" to rect(x = 400f, y = 300f, w = 120f, h = 60f)),
+                    edges = gridEdges(step = 80f),
+                )
+            val obstacles = obstaclesOf(layout)
+            // rungs every 20 px far below the content: every strip row is within 16 px of one
+            val rungs = ArrayList<Point>()
+            var y = 1000f
+            var left = true
+            while (y < 600f + 24f * 90f + 800f) {
+                rungs += Point(x = if (left) -1000f else 3000f, y = y)
+                rungs += Point(x = if (left) 3000f else -1000f, y = y)
+                left = !left
+                y += 20f
+            }
+            obstacles.addPolyline(kind = ObstacleKind.EDGE, pts = rungs, ownerId = "rungs")
+            val r =
+                NotePlacer.place(
+                    layout = layout,
+                    notes = listOf(input("n", "A")),
+                    resolver = AnchorGeometryResolver(layout),
+                    obstacles = obstacles,
+                    config = NotePlacementConfig(edgeClearance = 16f),
+                )
+            r.truncated shouldContain "n"
+            val note =
+                r.layout.nodes
+                    .getValue(NodeId("n"))
+                    .bounds
+            // 80 rows of 24 px below the content (600 + gap 24), the last row is row 79
+            (note.origin.y - r.dy) shouldBe (600f + 24f + 79f * 24f)
+            r.layout.edges.keys shouldContain EdgeId("link:n::A")
+        }
+
+        test("strip fallback: many notes stay bounded and never overlap each other") {
+            val layout =
+                layoutOf(
+                    nodes = mapOf("A" to rect(x = 400f, y = 300f, w = 120f, h = 60f)),
+                    edges = gridEdges(step = 80f),
+                )
+            val r =
+                NotePlacer.place(
+                    layout = layout,
+                    notes = (1..30).map { input("n$it", "A") },
+                    resolver = AnchorGeometryResolver(layout),
+                    obstacles = obstaclesOf(layout),
+                    config = NotePlacementConfig(edgeClearance = 16f),
+                )
+            val rects =
+                (1..30).map {
+                    r.layout.nodes
+                        .getValue(NodeId("n$it"))
+                        .bounds
+                }
+            for (i in rects.indices) for (j in i + 1 until rects.size) rects[i].touches(rects[j]) shouldBe false
+            r.truncated.shouldBeEmpty()
+        }
     })

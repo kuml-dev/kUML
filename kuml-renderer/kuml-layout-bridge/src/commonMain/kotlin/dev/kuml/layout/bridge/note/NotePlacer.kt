@@ -100,6 +100,14 @@ public data class NotePlacementConfig(
     val maxWidthFactor: Float? = null,
     /** Gap between vertically stacked notes (only used together with [maxWidthFactor]). */
     val stackGap: Float = 12f,
+    /**
+     * If set (Nacharbeit 25, state machines), a hard rule replaces the soft edge penalty: a candidate whose rectangle
+     * comes closer than this to a diagram edge or a part box (or closer than [gridGap] to another note) is excluded.
+     * The anchor lines of a note are exempt by construction (they are planned after the rectangle is chosen). When
+     * every nearby candidate is excluded, the note goes into a strip below all content (see `stripPlan`).
+     * Null keeps the behaviour of every other diagram type unchanged.
+     */
+    val edgeClearance: Float? = null,
 )
 
 /** One anchor link of a note: [linkId] names the drawn line, [targetId] the annotated element. */
@@ -255,6 +263,8 @@ public object NotePlacer {
         val cost: Float,
         /** False if at least one anchor line obeys no routing rule from this position. */
         val routed: Boolean = true,
+        /** True if the strip search hit [MAX_STRIP_ROWS] and this plan ignores the clearance rule (the note is reported as truncated). */
+        val stripExhausted: Boolean = false,
     )
 
     /** Places [notes] into [layout]; [obstacles] is extended with the placed notes and routes. */
@@ -312,6 +322,7 @@ public object NotePlacer {
                     config = config,
                     budget = budget,
                 )
+            if (plan.stripExhausted) truncated += note.noteId
             nodes[NodeId(note.noteId)] = NodeLayout(bounds = plan.rect)
             obstacles.addRect(kind = ObstacleKind.NOTE, r = plan.rect, ownerId = note.noteId)
             placedRects += plan.rect
@@ -596,14 +607,34 @@ public object NotePlacer {
         budget: ObstacleIndex.Budget,
     ): Plan {
         // Notes N2: a position on top of another note is never an option; the cost model only ranks the free ones.
+        val clearance = config.edgeClearance
         var best: Plan? = null
         for (rect in candidates) {
             if (obstacles.overlapsNote(rect)) continue
+            if (clearance != null &&
+                obstacles.violatesClearance(r = rect, clearance = clearance, noteGap = config.gridGap, budget = budget)
+            ) {
+                continue
+            }
             val plan = planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
             if (best == null || plan.cost < best.cost) best = plan
             if (budget.exhausted && best != null) break
         }
         if (best != null && best.routed) return best
+        if (clearance != null) {
+            // Nacharbeit 25: nothing nearby is clear of edges and boxes (or its anchor line is unroutable): the strip below the content.
+            val strip =
+                stripPlan(
+                    size = size,
+                    anchors = anchors,
+                    extent = extent,
+                    baseExtent = baseExtent,
+                    obstacles = obstacles,
+                    config = config,
+                    clearance = clearance,
+                )
+            return if (best == null || strip.routed || strip.cost < best.cost) strip else best
+        }
         // No free position with a clean anchor line: the column fallback always finds room (rows below each other).
         val column =
             if (config.maxWidthFactor !=
@@ -622,6 +653,52 @@ public object NotePlacer {
                 config = config,
                 budget = ObstacleIndex.Budget(config.workBudget),
             )
+    }
+
+    /**
+     * Nacharbeit 25 fallback for [NotePlacementConfig.edgeClearance]: rows one [STRIP_ROW_STEP] px lower each, starting
+     * [NotePlacementConfig.candidateGap] below the content, so the note grows downwards and the width stays within the budget.
+     * Within a row the x positions run left to right (centred on the anchor, flush left, flush right of the width budget).
+     * The first row with a position that obeys the clearance rule wins (the cheapest of that row); `extent` already contains
+     * every note placed so far, so that is the first row unless an obstacle lies below the content. After [MAX_STRIP_ROWS] rows
+     * the search stops and the last row is used regardless (reported through [Plan.stripExhausted]), so the loop is bounded.
+     */
+    private fun stripPlan(
+        size: Size,
+        anchors: List<Anchor>,
+        extent: Rect,
+        baseExtent: Rect,
+        obstacles: ObstacleIndex,
+        config: NotePlacementConfig,
+        clearance: Float,
+    ): Plan {
+        val maxWidth = config.maxWidthFactor?.let { baseExtent.size.width * it }
+        val minX = extent.left
+        val maxX = if (maxWidth == null) max(minX, extent.right - size.width) else max(minX, extent.left + maxWidth - size.width)
+        val anchorX = anchors.map { it.rep.x }.average().toFloat()
+        val xs =
+            listOf(anchorX - size.width / 2f, minX, maxX)
+                .map { it.coerceIn(minX, maxX) }
+                .distinct()
+                .sorted()
+        // A separate, bounded budget (like the column fallback): the strip must be found even when the main budget is spent.
+        val budget = ObstacleIndex.Budget(config.workBudget / 4)
+        var lastRect = Rect(origin = Point(x = xs.first(), y = extent.bottom + config.candidateGap), size = size)
+        for (row in 0 until MAX_STRIP_ROWS) {
+            val y = extent.bottom + config.candidateGap + row * STRIP_ROW_STEP
+            var best: Plan? = null
+            for (x in xs) {
+                val rect = Rect(origin = Point(x = x, y = y), size = size)
+                lastRect = rect
+                if (obstacles.overlapsNote(rect)) continue
+                if (obstacles.violatesClearance(r = rect, clearance = clearance, noteGap = config.gridGap, budget = budget)) continue
+                val plan = planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
+                if (best == null || plan.cost < best.cost) best = plan
+            }
+            if (best != null) return best
+        }
+        val plan = planFor(rect = lastRect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
+        return Plan(rect = plan.rect, routes = plan.routes, cost = plan.cost, routed = plan.routed, stripExhausted = true)
     }
 
     /**
@@ -1036,5 +1113,9 @@ public object NotePlacer {
     private const val STEM_FIRST_OFFSET: Float = 24f
     private const val STEM_STEP: Float = 24f
     private const val MAX_STEM_STEPS: Int = 80
+
+    /** Rows of the strip fallback (Nacharbeit 25): distance between two rows and the cap of the search. */
+    private const val STRIP_ROW_STEP: Float = 24f
+    private const val MAX_STRIP_ROWS: Int = 80
     private const val EMERGENCY_SEGMENTS: Int = 4
 }

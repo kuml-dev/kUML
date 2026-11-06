@@ -6,6 +6,23 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 25: notes in state-machine diagrams no longer cover edges
+
+#### Fixed
+
+- **A note in a state machine can no longer sit on an edge or touch a state.** *Why:* the 0.56.0 release promised placement without overlap, but in a state machine a note could land on a transition and the edge ran through the text. The placer only scored edges (a cost of 15 000) and preferred an awkward-but-clean spot on an edge over a free spot with a harder anchor line; the emergency fallback was an arbitrary rectangle.
+- **New switch `NotePlacementConfig.edgeClearance` (default `null`, so every other diagram type is unchanged).** State machines turn it on at 16 px: a candidate that comes closer than that to a drawn edge or a state box, or closer than 16 px to another note, is excluded. The anchor lines of a note are exempt by construction (they are planned after the rectangle is chosen).
+- **Strip-underneath fallback.** When nothing nearby is clear, the note goes into a strip below the content: rows 24 px apart, x positions left to right, the first row that obeys the rule wins, the search is capped at 80 rows (reported through `truncated`), and the width budget of 125 % is unchanged. The old arbitrary last-resort rectangle is not used while the clearance is set.
+- **Route data:** measured, not assumed. For the reproduction the routes the note placer sees and the routes that are drawn (padding shift, pseudostate and endpoint spread) deviate by 0.0 px, so the placer was not working on stale routes and no route-data change was made. `stmRouteTransform` was extracted from the renderer so tests run the very same function.
+- `placeSysml2NotesResult` takes an optional `measure` parameter (wins over `noteMaxWidth`) so tests can prove placement independent of the font.
+
+#### Verification
+
+- New `Sysml2StmNotesNoEdgeOverlapTest` (Traffic Light with five notes, one on transition `t3`; fixed note measure, drawn edges, 16 px clearance against edges, states and other notes). Red before the fix with 7 violations (notes Error and Info within 16 px of the edges Red to Green, Yellow to Red and Green to Yellow, Warning within 16 px of the state Yellow and of the note Decision); green after.
+- New `NotePlacerTest` cases: the clearance rule itself, notes in the strip below a full grid, default `null` unchanged, the 80-row cap, many notes stay bounded and apart.
+- Other diagram types were scanned, not changed: about 700 placed notes across the SVG tests and the vault examples (BDD, IBD, use case, requirement, activity, parallel, sequence; BPMN, ERM, blueprint and C4 use their own placement). No node overlaps; 4 notes crossed one edge each, all in the `Sysml2StmWave2dBRenderTest` fixtures that run without the width factor (the clearance is off there).
+- Live check of the CLI render of the reproduction (`kuml render ... -f png -w 1000`, local build): no note touches an edge or a state any more; three notes sit in the strip below Yellow. Not solved: some anchor lines now run across other notes or states (for example the Todo line through the Error note and the initial dot, the Decision line through Yellow). The requirement covers note rectangles, not anchor lines; routing them around obstacles is a separate follow-up.
+
 ### Nacharbeit 24: kUML Desktop, empty diagram area during simulation
 
 #### Fixed
