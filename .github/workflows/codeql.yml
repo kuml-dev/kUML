@@ -19,6 +19,22 @@ jobs:
       contents: read
 
     steps:
+      # The ephemeral runner ran out of disk space during the build ("No space left on device").
+      # Large preinstalled toolchains this repository never uses are removed first. The CodeQL tool
+      # cache (/opt/hostedtoolcache/CodeQL) is deliberately kept: the analysis needs it, and so
+      # does /opt/hostedtoolcache as a whole (Java and Node). Failures here never fail the job.
+      - name: Free disk space
+        run: |
+          set +e
+          df -h /
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/.ghcup || true
+          sudo docker image prune --all --force || true
+          df -h /
+          exit 0
+
       - name: Checkout
         uses: actions/checkout@v4
 
