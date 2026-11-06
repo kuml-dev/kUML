@@ -601,4 +601,175 @@ class NotePlacerTest :
             for (i in rects.indices) for (j in i + 1 until rects.size) rects[i].touches(rects[j]) shouldBe false
             r.truncated.shouldBeEmpty()
         }
+
+        // ------------------------------------------------------------ Nacharbeit 26: columns beside the content
+
+        fun stmLikeConfig() = NotePlacementConfig(edgeClearance = 16f, maxWidthFactor = 2.0f, maxNoteWidth = 220f)
+
+        fun wideLayout() =
+            layoutOf(
+                nodes =
+                    mapOf(
+                        "A" to rect(x = 40f, y = 100f, w = 120f, h = 60f),
+                        "B" to rect(x = 280f, y = 300f, w = 120f, h = 60f),
+                    ),
+                canvas = Size(width = 400f, height = 400f),
+            )
+
+        fun placeN(
+            layout: LayoutResult,
+            notes: List<NotePlacementInput>,
+            config: NotePlacementConfig,
+            measure: NoteMeasure = WidthLimitedNoteMeasure(220f),
+        ) = NotePlacer.place(
+            layout = layout,
+            notes = notes,
+            resolver = AnchorGeometryResolver(layout),
+            obstacles = obstaclesOf(layout),
+            measure = measure,
+            config = config,
+        )
+
+        test("nacharbeit 26: a note beside 400 px of content sits in the right column at anchor height, not in the strip") {
+            val layout = wideLayout()
+            val r =
+                placeN(
+                    layout,
+                    listOf(input("n", "B", body = "A fairly long note text that wraps over a few lines inside the box")),
+                    stmLikeConfig(),
+                )
+            val note =
+                r.layout.nodes
+                    .getValue(NodeId("n"))
+                    .bounds
+            val b =
+                r.layout.nodes
+                    .getValue(NodeId("B"))
+                    .bounds
+            (note.origin.x - r.dx) shouldBe 400f + 24f
+            val cy = note.origin.y + note.size.height / 2f
+            (kotlin.math.abs(cy - (b.origin.y + b.size.height / 2f)) <= note.size.height) shouldBe true
+        }
+
+        test("nacharbeit 26: two notes at one anchor share a column with at least the stack gap between them") {
+            val layout = wideLayout()
+            val r = placeN(layout, listOf(input("n1", "B"), input("n2", "B")), stmLikeConfig())
+            val a =
+                r.layout.nodes
+                    .getValue(NodeId("n1"))
+                    .bounds
+            val b =
+                r.layout.nodes
+                    .getValue(NodeId("n2"))
+                    .bounds
+            a.origin.x shouldBe b.origin.x
+            val gap = if (a.origin.y < b.origin.y) b.origin.y - (a.origin.y + a.size.height) else a.origin.y - (b.origin.y + b.size.height)
+            gap shouldBeGreaterThanOrEqualTo 12f
+        }
+
+        test("nacharbeit 26: an edge between anchor and right column sends the note to the left column") {
+            val layout =
+                layoutOf(
+                    nodes =
+                        mapOf(
+                            "A" to rect(x = 40f, y = 100f, w = 120f, h = 60f),
+                            "B" to rect(x = 150f, y = 300f, w = 120f, h = 60f),
+                        ),
+                    edges = mapOf("e" to EdgeRoute.Direct(source = Point(x = 330f, y = 0f), target = Point(x = 330f, y = 400f))),
+                    canvas = Size(width = 400f, height = 400f),
+                )
+            val r = placeN(layout, listOf(input("n", "A")), stmLikeConfig())
+            val note =
+                r.layout.nodes
+                    .getValue(NodeId("n"))
+                    .bounds
+            val a =
+                r.layout.nodes
+                    .getValue(NodeId("A"))
+                    .bounds
+            (note.origin.x + note.size.width <= a.origin.x) shouldBe true
+        }
+
+        test("nacharbeit 26: with an edge clearance the width budget admits two full columns (2.2x of the content)") {
+            val layout = wideLayout()
+            val notes = listOf(input("n1", "A"), input("n2", "B"), input("n3", "A"), input("n4", "B"))
+            val r = placeN(layout, notes, stmLikeConfig())
+            val rects =
+                notes.map {
+                    r.layout.nodes
+                        .getValue(NodeId(it.noteId))
+                        .bounds
+                }
+            val left = rects.minOf { it.origin.x }
+            val right = rects.maxOf { it.origin.x + it.size.width }
+            // columns on both sides are allowed even though 2 * (24 + 220) + 400 exceeds 2.0x
+            (right - left <= 400f + 2f * (24f + 220f) + 1f) shouldBe true
+            for (i in rects.indices) for (j in i + 1 until rects.size) rects[i].touches(rects[j]) shouldBe false
+        }
+
+        test("nacharbeit 26: without an edge clearance the width factor works as before") {
+            val layout = wideLayout()
+
+            fun rects(config: NotePlacementConfig) =
+                placeN(layout, listOf(input("n1", "A"), input("n2", "B")), config)
+                    .layout.nodes
+                    .filterKeys { it.value.startsWith("n") }
+                    .mapValues { it.value.bounds }
+            val withFactor = NotePlacementConfig(maxWidthFactor = 1.25f, maxNoteWidth = 220f)
+            rects(withFactor) shouldBe rects(withFactor.copy(edgeClearance = null))
+            rects(NotePlacementConfig()) shouldBe rects(NotePlacementConfig(maxWidthFactor = null))
+        }
+
+        test("nacharbeit 26: a fully fenced case still returns a plan and terminates") {
+            val layout = wideLayout()
+            val obstacles = obstaclesOf(layout)
+            val rungs = ArrayList<Point>()
+            var y = -2000f
+            var left = true
+            while (y < 4000f) {
+                rungs += Point(x = if (left) -3000f else 3000f, y = y)
+                rungs += Point(x = if (left) 3000f else -3000f, y = y)
+                left = !left
+                y += 20f
+            }
+            obstacles.addPolyline(kind = ObstacleKind.EDGE, pts = rungs, ownerId = "rungs")
+            val r =
+                NotePlacer.place(
+                    layout = layout,
+                    notes = listOf(input("n", "A")),
+                    resolver = AnchorGeometryResolver(layout),
+                    obstacles = obstacles,
+                    measure = WidthLimitedNoteMeasure(220f),
+                    config = stmLikeConfig(),
+                )
+            r.layout.nodes.keys shouldContain NodeId("n")
+            r.layout.edges.keys shouldContain EdgeId("link:n::A")
+        }
+
+        test("nacharbeit 26: 30 notes on one anchor terminate, never overlap and stay narrow") {
+            val layout = wideLayout()
+            val notes = (1..30).map { input("n$it", "A") }
+            val r = placeN(layout, notes, stmLikeConfig())
+            val rects =
+                notes.map {
+                    r.layout.nodes
+                        .getValue(NodeId(it.noteId))
+                        .bounds
+                }
+            for (i in rects.indices) for (j in i + 1 until rects.size) rects[i].touches(rects[j]) shouldBe false
+            val left = rects.minOf { it.origin.x }
+            val right = rects.maxOf { it.origin.x + it.size.width }
+            (right - left <= 400f + 2f * (24f + 220f) + 1f) shouldBe true
+        }
+
+        test("nacharbeit 26: placement with an edge clearance is deterministic down to the bit") {
+            val layout = wideLayout()
+            val notes = listOf(input("n1", "A"), input("n2", "B"), input("n3", "A"))
+
+            fun run() =
+                placeN(layout, notes, stmLikeConfig()).let { res ->
+                    res.layout.nodes.mapValues { it.value.bounds } to res.layout.edges.mapValues { it.value.polylinePoints() }
+                }
+            run() shouldBe run()
+        }
     })

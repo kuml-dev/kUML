@@ -10,7 +10,7 @@ import kotlin.math.abs
 /**
  * PAL wave 2D-b: font independent invariants of the rendered SVG of the fixtures in `sysml2-stm-d2b`: filled initial dot,
  * initial transition short and straight, `sameLayer` centres, state compartments inside their boxes in the order
- * `[invariant]`, entry, do, exit, composite entry text not crossed by an edge, notes within 125 % of the width, and the UML
+ * `[invariant]`, entry, do, exit, composite entry text not crossed by an edge, notes within the width of two note columns, and the UML
  * state compartment.
  */
 class Sysml2StmWave2dBRenderTest :
@@ -103,7 +103,7 @@ class Sysml2StmWave2dBRenderTest :
                 }
             }
 
-            test("fixture $variant: compartment order, text inside the box, composite text not crossed, notes within 125 percent") {
+            test("fixture $variant: compartment order, text inside the box, composite text not crossed, notes within two note columns") {
                 val svg = render(fixture(variant))
                 val bx = boxes(svg)
 
@@ -135,12 +135,12 @@ class Sysml2StmWave2dBRenderTest :
                     }
                 }
 
-                // P-STM-04e: with eight notes the picture is at most 125 percent as wide as without them
+                // P-STM-04e: with eight notes the picture is at most two note columns (2 * (24 + 220) px, Nacharbeit 26) wider than without them
                 val withoutNotes = fixture(variant).lines().filterNot { it.trimStart().startsWith("note(") }.joinToString("\n")
                 val plain = render(withoutNotes)
                 println("[2d-b] $variant width with notes=${width(svg)} without=${width(plain)}")
                 (svg.contains("n8")) shouldBe true
-                (width(svg) <= width(plain) * 1.25 + 1.0) shouldBe true
+                (width(svg) <= width(plain) + 2 * (24.0 + 220.0) + 1.0) shouldBe true
             }
         }
 

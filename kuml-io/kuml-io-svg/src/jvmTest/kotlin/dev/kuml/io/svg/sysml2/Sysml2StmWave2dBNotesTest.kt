@@ -20,7 +20,7 @@ import io.kotest.matchers.floats.shouldBeLessThanOrEqual
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 
-/** PAL wave 2D-b, P-STM-04e: notes of a state machine wrap at 220 px and stay within 125 % of the diagram width. */
+/** PAL wave 2D-b, P-STM-04e: notes of a state machine wrap at 220 px and stay within the width of two note columns (Nacharbeit 26 lifted the 125 % rule). */
 class Sysml2StmWave2dBNotesTest :
     FunSpec({
         val longText =
@@ -72,7 +72,7 @@ class Sysml2StmWave2dBNotesTest :
             }
         }
 
-        test("eight notes: width at most 125 percent, notes wrap at 220 px, no anchor line runs through another state") {
+        test("eight notes: width at most two note columns, notes wrap at 220 px, no anchor line runs through another state") {
             val withNotes = model(noteCount = 8)
             val (d, base) = laidOut(withNotes)
             val placed =
@@ -85,7 +85,7 @@ class Sysml2StmWave2dBNotesTest :
                         noteWidthFactor = KumlSvgRenderer.STM_NOTE_WIDTH_FACTOR,
                     ).layout
             println("[2d-b] base width=${base.canvas.width} with notes=${placed.canvas.width}")
-            placed.canvas.width shouldBeLessThanOrEqual base.canvas.width * 1.25f + 1f
+            placed.canvas.width shouldBeLessThanOrEqual base.canvas.width + 2f * (24f + NoteLayout.STM_MAX_W) + 1f
 
             val noteNodes = (0 until 8).map { placed.nodes.getValue(NodeId("n$it")).bounds }
             noteNodes.forEach { it.size.width shouldBeLessThanOrEqual NoteLayout.STM_MAX_W }

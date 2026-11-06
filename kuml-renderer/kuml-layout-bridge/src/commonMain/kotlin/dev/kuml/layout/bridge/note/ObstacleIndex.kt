@@ -292,6 +292,39 @@ public class ObstacleIndex {
         return false
     }
 
+    /**
+     * Nacharbeit 26: true if no segment of [pts] crosses a node, a foreign note, an edge label, a foreign edge or the
+     * anchor line of another note. [exemptOwners] are the anchor's own targets (state box, own edge and its label).
+     * A ranking criterion only: a route that is not clean stays legal.
+     */
+    internal fun routeIsClean(
+        pts: List<Point>,
+        exemptOwners: Set<String>,
+        budget: Budget,
+    ): Boolean {
+        for (o in rects) {
+            if (o.kind != ObstacleKind.NODE && o.kind != ObstacleKind.NOTE && !o.kind.isLabel) continue
+            if (o.ownerId != null && o.ownerId in exemptOwners) continue
+            val inner = o.core.inflated(-1.5f)
+            if (inner.size.width <= 0f || inner.size.height <= 0f) continue
+            for (i in 0 until pts.size - 1) {
+                budget.spend()
+                if (segmentIntersectsRect(a = pts[i], b = pts[i + 1], r = inner)) return false
+            }
+        }
+        for (l in lines) {
+            if (l.kind != ObstacleKind.EDGE && l.kind != ObstacleKind.ANCHOR_ROUTE) continue
+            if (l.ownerId != null && l.ownerId in exemptOwners) continue
+            for (i in 0 until pts.size - 1) {
+                for (j in 0 until l.points.size - 1) {
+                    budget.spend()
+                    if (segmentsCross(a = pts[i], b = pts[i + 1], c = l.points[j], d = l.points[j + 1])) return false
+                }
+            }
+        }
+        return true
+    }
+
     /** Rectangles that block routes (nodes, composite titles, labels, notes), nearest first to the segment a-b. */
     internal fun blockingRects(
         a: Point,

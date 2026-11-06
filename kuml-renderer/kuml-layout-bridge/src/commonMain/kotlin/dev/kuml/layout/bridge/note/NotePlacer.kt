@@ -95,7 +95,9 @@ public data class NotePlacementConfig(
     /**
      * If set (PAL wave 2D-b, state machines), the diagram including its notes may be at most this factor wider than
      * without notes. Candidate positions that would widen it further are dropped; when none is left, the notes are
-     * stacked vertically below the content instead.
+     * stacked vertically below the content instead. With [edgeClearance] (Nacharbeit 26) this is only an emergency brake
+     * for ring candidates and the strip, never below the width of two note columns; the columns beside the content
+     * are exempt.
      */
     val maxWidthFactor: Float? = null,
     /** Gap between vertically stacked notes (only used together with [maxWidthFactor]). */
@@ -104,7 +106,9 @@ public data class NotePlacementConfig(
      * If set (Nacharbeit 25, state machines), a hard rule replaces the soft edge penalty: a candidate whose rectangle
      * comes closer than this to a diagram edge or a part box (or closer than [gridGap] to another note) is excluded.
      * The anchor lines of a note are exempt by construction (they are planned after the rectangle is chosen). When
-     * every nearby candidate is excluded, the note goes into a strip below all content (see `stripPlan`).
+     * every nearby candidate is excluded, the note goes into a strip below all content (see `stripPlan`). Since
+     * Nacharbeit 26 the notes first try columns beside the content, at the anchor's height, and prefer positions whose
+     * anchor lines cross nothing; the strip is the last fallback.
      * Null keeps the behaviour of every other diagram type unchanged.
      */
     val edgeClearance: Float? = null,
@@ -150,6 +154,7 @@ public data class NotePlacementResult(
  */
 public object NotePlacer {
     private const val WIDTH_EPS = 0.5f
+    private const val TIE_EPS = 1f
 
     private class Exit(
         val point: Point,
@@ -265,6 +270,8 @@ public object NotePlacer {
         val routed: Boolean = true,
         /** True if the strip search hit [MAX_STRIP_ROWS] and this plan ignores the clearance rule (the note is reported as truncated). */
         val stripExhausted: Boolean = false,
+        /** Nacharbeit 26: true if no anchor line crosses a node, a foreign note, a label or an edge (only evaluated with an edge clearance). */
+        val clean: Boolean = false,
     )
 
     /** Places [notes] into [layout]; [obstacles] is extended with the placed notes and routes. */
@@ -487,8 +494,7 @@ public object NotePlacer {
         baseExtent: Rect,
         config: NotePlacementConfig,
     ): List<Rect> {
-        val factor = config.maxWidthFactor ?: return candidates
-        val maxWidth = baseExtent.size.width * factor
+        val maxWidth = effectiveMaxWidth(baseExtent = baseExtent, config = config) ?: return candidates
         val fits = candidates.filter { extent.union(it).size.width <= maxWidth + WIDTH_EPS }
         val minX = extent.left
         val maxX = max(minX, extent.left + maxWidth - size.width)
@@ -608,33 +614,27 @@ public object NotePlacer {
     ): Plan {
         // Notes N2: a position on top of another note is never an option; the cost model only ranks the free ones.
         val clearance = config.edgeClearance
+        if (clearance != null) {
+            return bestPlanWithClearance(
+                size = size,
+                anchors = anchors,
+                candidates = candidates,
+                extent = extent,
+                baseExtent = baseExtent,
+                obstacles = obstacles,
+                config = config,
+                budget = budget,
+                clearance = clearance,
+            )
+        }
         var best: Plan? = null
         for (rect in candidates) {
             if (obstacles.overlapsNote(rect)) continue
-            if (clearance != null &&
-                obstacles.violatesClearance(r = rect, clearance = clearance, noteGap = config.gridGap, budget = budget)
-            ) {
-                continue
-            }
             val plan = planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
             if (best == null || plan.cost < best.cost) best = plan
             if (budget.exhausted && best != null) break
         }
         if (best != null && best.routed) return best
-        if (clearance != null) {
-            // Nacharbeit 25: nothing nearby is clear of edges and boxes (or its anchor line is unroutable): the strip below the content.
-            val strip =
-                stripPlan(
-                    size = size,
-                    anchors = anchors,
-                    extent = extent,
-                    baseExtent = baseExtent,
-                    obstacles = obstacles,
-                    config = config,
-                    clearance = clearance,
-                )
-            return if (best == null || strip.routed || strip.cost < best.cost) strip else best
-        }
         // No free position with a clean anchor line: the column fallback always finds room (rows below each other).
         val column =
             if (config.maxWidthFactor !=
@@ -656,6 +656,128 @@ public object NotePlacer {
     }
 
     /**
+     * Nacharbeit 26 selection for [NotePlacementConfig.edgeClearance]: lexicographic, a crossing-free anchor line beats a
+     * cheap one. A: columns beside the content; B: the ring candidates; C: the strip below; D: the cheapest of everything
+     * found (the old cost model, crossings priced as before). Every stage only returns a plan that is clean and routed.
+     */
+    private fun bestPlanWithClearance(
+        size: Size,
+        anchors: List<Anchor>,
+        candidates: List<Rect>,
+        extent: Rect,
+        baseExtent: Rect,
+        obstacles: ObstacleIndex,
+        config: NotePlacementConfig,
+        budget: ObstacleIndex.Budget,
+        clearance: Float,
+    ): Plan {
+        // A: side columns derived from the content extent.
+        val columns =
+            columnPlans(
+                size = size,
+                anchors = anchors,
+                baseExtent = baseExtent,
+                obstacles = obstacles,
+                config = config,
+                clearance = clearance,
+            )
+        pickClean(columns)?.let { return it }
+        // B: ring candidates (inside the width budget).
+        var bestClean: Plan? = null
+        var bestAny: Plan? = null
+        for (rect in candidates) {
+            if (obstacles.overlapsNote(rect)) continue
+            if (obstacles.violatesClearance(r = rect, clearance = clearance, noteGap = config.gridGap, budget = budget)) continue
+            val plan = planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
+            if (bestAny == null || plan.cost < bestAny.cost) bestAny = plan
+            if (plan.clean && (bestClean == null || plan.cost < bestClean.cost)) bestClean = plan
+            if (budget.exhausted && bestAny != null) break
+        }
+        bestClean?.let { return it }
+        // C: the strip below the content.
+        val strip =
+            stripPlan(
+                size = size,
+                anchors = anchors,
+                extent = extent,
+                baseExtent = baseExtent,
+                obstacles = obstacles,
+                config = config,
+                clearance = clearance,
+            )
+        if (strip.clean) return strip
+        // D: nothing is clean: the cheapest routed plan of all stages (old cost model), else the cheapest at all.
+        val pool = (columns + listOfNotNull(bestAny, strip))
+        val routed = pool.filter { it.routed }
+        val chosen = (routed.ifEmpty { pool }).minBy { it.cost }
+        // The strip is the last resort of the old behaviour: keep its exhausted flag when it wins.
+        return chosen
+    }
+
+    /** The cheapest clean plan; ties within 1 px of cost go to the earlier plan (the right column is listed first). */
+    private fun pickClean(plans: List<Plan>): Plan? {
+        var best: Plan? = null
+        for (p in plans) {
+            if (!p.clean) continue
+            if (best == null || p.cost < best.cost - TIE_EPS) best = p
+        }
+        return best
+    }
+
+    /**
+     * Nacharbeit 26: candidate positions in a column right of the content and one left of it, both measured from
+     * [baseExtent] (never from the extent that grows with every note, so notes form a column, not a staircase).
+     * The preferred y centres the note on the mean anchor height; further rows alternate 0, +1, -1, +2, -2 ... steps
+     * of one note height plus [NotePlacementConfig.stackGap]. Right side first so ties resolve to the right.
+     */
+    private fun columnPlans(
+        size: Size,
+        anchors: List<Anchor>,
+        baseExtent: Rect,
+        obstacles: ObstacleIndex,
+        config: NotePlacementConfig,
+        clearance: Float,
+    ): List<Plan> {
+        val gap = config.candidateGap
+        val h = size.height
+        val y0 = anchors.map { it.rep.y }.average().toFloat() - h / 2f
+        val step = h + max(config.stackGap, config.gridGap)
+        val rows = obstacles.noteCount() + 1
+        // Separate, bounded budget: the columns must be searched even when the main budget is spent.
+        val budget = ObstacleIndex.Budget(config.workBudget / 4)
+        val xs = listOf(baseExtent.right + gap, baseExtent.left - gap - size.width)
+        val out = ArrayList<Plan>()
+        for (x in xs) {
+            for (k in 0..(2 * rows)) {
+                if (budget.exhausted) break
+                val offset = if (k % 2 == 0) k / 2 else -(k + 1) / 2
+                val y = y0 + offset * step
+                if (y < baseExtent.top - h) continue
+                val rect = Rect(origin = Point(x = x, y = y), size = size)
+                if (obstacles.overlapsNote(rect)) continue
+                if (obstacles.violatesClearance(r = rect, clearance = clearance, noteGap = config.gridGap, budget = budget)) continue
+                out += planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
+            }
+        }
+        return out
+    }
+
+    /**
+     * The width budget for ring and strip candidates. Without an edge clearance: [NotePlacementConfig.maxWidthFactor]
+     * times the base width. With one (Nacharbeit 26): at least what two note columns need, so the budget never forbids
+     * what the columns already allow: `max(base * factor, base + 2 * (gap + maxNoteWidth))`.
+     */
+    private fun effectiveMaxWidth(
+        baseExtent: Rect,
+        config: NotePlacementConfig,
+    ): Float? {
+        val factor = config.maxWidthFactor ?: return null
+        val plain = baseExtent.size.width * factor
+        if (config.edgeClearance == null) return plain
+        return max(plain, baseExtent.size.width + 2f * (config.candidateGap + config.maxNoteWidth))
+    }
+
+    /**
      * Nacharbeit 25 fallback for [NotePlacementConfig.edgeClearance]: rows one [STRIP_ROW_STEP] px lower each, starting
      * [NotePlacementConfig.candidateGap] below the content, so the note grows downwards and the width stays within the budget.
      * Within a row the x positions run left to right (centred on the anchor, flush left, flush right of the width budget).
@@ -672,7 +794,7 @@ public object NotePlacer {
         config: NotePlacementConfig,
         clearance: Float,
     ): Plan {
-        val maxWidth = config.maxWidthFactor?.let { baseExtent.size.width * it }
+        val maxWidth = effectiveMaxWidth(baseExtent = baseExtent, config = config)
         val minX = extent.left
         val maxX = if (maxWidth == null) max(minX, extent.right - size.width) else max(minX, extent.left + maxWidth - size.width)
         val anchorX = anchors.map { it.rep.x }.average().toFloat()
@@ -780,7 +902,11 @@ public object NotePlacer {
             routes += pts
             cost += c
         }
-        return Plan(rect = rect, routes = routes, cost = cost, routed = routed)
+        val clean =
+            config.edgeClearance != null &&
+                routed &&
+                routes.indices.all { obstacles.routeIsClean(pts = routes[it], exemptOwners = anchors[it].exempt, budget = budget) }
+        return Plan(rect = rect, routes = routes, cost = cost, routed = routed, clean = clean)
     }
 
     // ---------------------------------------------------------------- exits

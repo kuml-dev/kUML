@@ -6,6 +6,29 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 26: notes of state-machine diagrams sit beside their anchor
+
+#### Why
+
+The Nacharbeit 25 fix kept notes clear of edges, but the 125 % width budget removed every position beside the diagram (a 400 px diagram plus a 220 px note is already 1.6x), so almost every note fell into the strip below the content and its anchor line ran across the whole diagram, through other notes and states.
+
+#### Change
+
+- Side columns derived from the content extent (right first, then left), with the anchor height as the preferred position and stacking in steps of one note height plus gap.
+- Lexicographic choice: columns, then ring candidates, then the strip, each stage returning only a plan whose anchor lines cross no state, foreign note, edge label, foreign edge or other anchor line; if nothing is clean, the previous cost model decides.
+- The width budget now only limits ring candidates and the strip, and never drops below the width of two note columns. `STM_NOTE_WIDTH_FACTOR` goes from 1.25 to 2.0.
+- The strip is the last fallback.
+- Scope: only paths with an edge clearance, which today is only the state machine. All other diagram types use the unchanged code path.
+
+#### Verification
+
+- New `Sysml2StmNotesBesideAnchorTest` (five notes on the traffic light, drawn edges and anchor lines): red on the previous master (anchor lines through Start, Yellow, the Warning note and the Error note), green now.
+- New `NotePlacerTest` cases: right column at anchor height, shared column with stack gap, left column when an edge blocks the right, two-column width, regression without clearance, fully fenced input, 30 notes on one anchor, bit-exact determinism.
+- Changed: `Sysml2StmWave2dBNotesTest` replaces the 125 % assertion by the two-column bound, because this change deliberately lifts that rule. Its other assertions are unchanged.
+- Visual check of a CLI PNG: every note beside its anchor, short horizontal lines, nothing crossed. Weak points: the Todo line for the initial pseudostate is diagonal and about 140 px long, and the side (left or right) of a note looks arbitrary.
+- Other diagram types were not rendered before and after; they are unchanged by construction (the new logic hangs on the edge clearance, which only the state machine sets). Activity diagrams pass no width factor and were not changed.
+- Not verified: other platforms, real-world models beyond the traffic light.
+
 ### Nacharbeit 25: notes in state-machine diagrams no longer cover edges
 
 #### Fixed

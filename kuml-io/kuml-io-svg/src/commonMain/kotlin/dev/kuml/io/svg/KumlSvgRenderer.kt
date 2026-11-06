@@ -4021,8 +4021,12 @@ public object KumlSvgRenderer {
             )
         }
 
-    /** State machines: the diagram including notes may be at most this much wider than without notes (PAL wave 2D-b). */
-    internal const val STM_NOTE_WIDTH_FACTOR: Float = 1.25f
+    /**
+     * State machines: emergency brake for ring and strip candidates (PAL wave 2D-b, Nacharbeit 26: 1.25 became 2.0). It is
+     * not a placement rule: the note columns beside the content are exempt, and the effective budget never drops below
+     * `content + 2 * (24 + maxNoteWidth)`, the worst case of two full columns.
+     */
+    internal const val STM_NOTE_WIDTH_FACTOR: Float = 2.0f
 
     /** State machines: clearance in px between a note and edges, states and other notes (Nacharbeit 25). */
     internal const val STM_NOTE_EDGE_CLEARANCE: Float = 16f
