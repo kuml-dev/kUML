@@ -82,7 +82,9 @@ import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
 import dev.kuml.desktop.ui.ResizableSplit
 import dev.kuml.desktop.ui.menu.MenuEntryId
+import dev.kuml.desktop.ui.menu.applySubmenuIcons
 import dev.kuml.desktop.ui.menu.menuIcon
+import dev.kuml.desktop.ui.menu.menuIconToSwing
 import dev.kuml.desktop.ui.platformShortcut
 import dev.kuml.desktop.ui.tooltipStart
 import dev.kuml.desktop.workspace.EngineeringFileScanner
@@ -156,6 +158,24 @@ internal fun rejectionMessage(
 
 /** Protocol revision of the desktop's Streamable-HTTP MCP endpoint (tool annotations need >= 2025-03-26). */
 private const val DESKTOP_MCP_PROTOCOL_VERSION = "2025-03-26"
+
+private const val SUBMENU_ICON_ATTEMPTS = 10
+private const val SUBMENU_ICON_RETRY_MS = 100L
+private const val STATUS_NOTICE_MS = 6_000L
+
+/** What a Simulate request does for the diagram currently shown. */
+enum class SimulateRequestOutcome { START, REFUSE_UNSUPPORTED }
+
+/**
+ * Decides a Simulate request from one snapshot of the render result: a diagram is refused only when one
+ * was rendered ([lastSvg] not blank) and it is known not to be simulatable. With no diagram yet, or after a
+ * render error, the request goes through to the session start, which reports the precise failure.
+ */
+internal fun simulateRequestOutcome(
+    lastSvg: String,
+    simulatable: Boolean,
+): SimulateRequestOutcome =
+    if (lastSvg.isNotBlank() && !simulatable) SimulateRequestOutcome.REFUSE_UNSUPPORTED else SimulateRequestOutcome.START
 
 /**
  * Top-Level-Composable für das kUML Desktop Hauptfenster.
@@ -447,6 +467,15 @@ fun FrameWindowScope.MainWindow(
         // TimeLimitedGuardEvaluator thread pool, for `state.simulation` to overwrite one with
         // the other and leak the loser's pool for the JVM's lifetime.
         if (state.simulationStarting) return
+        // Nacharbeit 23 — a diagram that is known not to be simulatable is refused without side effects
+        // (no stop, no view-mode switch, no IO); the reason shows briefly in the status bar.
+        if (simulateRequestOutcome(lastSvg = state.lastSvg, simulatable = state.lastDiagramSimulatable) ==
+            SimulateRequestOutcome.REFUSE_UNSUPPORTED
+        ) {
+            state.statusNotice = strings.simUnsupportedDiagram
+            state.statusNoticeSerial++
+            return
+        }
         stopSimulation()
         // Spez. A4 — a simulation needs the diagram visible; SOURCE-only leaves nothing to
         // highlight, so switch to SPLIT (never DIAGRAM — the user might still want the editor).
@@ -507,6 +536,36 @@ fun FrameWindowScope.MainWindow(
     // available the moment a Knowledge document's Read/Edit toggle switches to Edit, exactly
     // like they would for the plain script editor.
     val showsEditorPane = (showsEditor && state.viewMode != AppState.ViewMode.DIAGRAM) || knowledgeEditing
+
+    // Nacharbeit 23 — Compose's `Menu` has no icon parameter, so the two File submenus get their symbols
+    // through the underlying JMenu. Re-applied (idempotently) for a few frames because Compose builds the
+    // JMenuBar asynchronously and may rebuild submenus when the recent-files list or workspace changes.
+    val exportWorkspaceSubmenuIcon = menuIconToSwing(id = MenuEntryId.FILE_EXPORT_WORKSPACE_MENU)
+    val recentSubmenuIcon = menuIconToSwing(id = MenuEntryId.FILE_RECENT_MENU)
+    LaunchedEffect(strings, exportWorkspaceSubmenuIcon, recentSubmenuIcon, state.recentFiles.size, state.openWorkspace) {
+        repeat(SUBMENU_ICON_ATTEMPTS) {
+            applySubmenuIcons(
+                menuBar = window.jMenuBar,
+                topMenuText = strings.menuFile,
+                icons =
+                    mapOf(
+                        strings.menuFileExportWorkspace to exportWorkspaceSubmenuIcon,
+                        strings.menuFileRecent to recentSubmenuIcon,
+                    ),
+            )
+            delay(SUBMENU_ICON_RETRY_MS)
+        }
+    }
+
+    // Nacharbeit 23 — the "not simulatable" reason is shown only after an attempt, fades after a few seconds
+    // and is cleared by any edit of the script.
+    LaunchedEffect(state.statusNotice, state.statusNoticeSerial) {
+        if (state.statusNotice != null) {
+            delay(STATUS_NOTICE_MS)
+            state.statusNotice = null
+        }
+    }
+    LaunchedEffect(state.script) { state.statusNotice = null }
 
     MenuBar {
         Menu(strings.menuFile) {
@@ -829,7 +888,7 @@ fun FrameWindowScope.MainWindow(
             // Esc + close-icon: the editor's RSyntaxTextArea is a heavyweight Swing component
             // that can swallow Esc before Window(onKeyEvent) ever sees it (see Main.kt), so a
             // menu item is the one route that always works.
-            val simulateEnabled = state.simulation == null && !state.simulationStarting && state.lastDiagramSimulatable
+            val simulateEnabled = state.simulation == null && !state.simulationStarting
             val simulationRunning = state.simulation != null
             Item(
                 strings.menuToolsSimulate,
@@ -1236,11 +1295,9 @@ private fun StatusBar(
         when {
             simLine != null -> simLine
             state.lastError != null -> state.lastError!! to Color(0xFFCC0000)
+            // Nacharbeit 23 — the reason a simulation request was refused, shown only after the attempt.
+            state.statusNotice != null -> state.statusNotice!! to Color.Gray
             state.isRendering -> strings.statusRendering to Color.Gray
-            // V3.x — Nortons "deaktiviertes Element ohne Begründung ist eine Beleidigung":
-            // explain why Werkzeuge ▸ Simulieren is greyed out for the current diagram.
-            session == null && !state.lastDiagramSimulatable && state.lastSvg.isNotBlank() ->
-                strings.simUnsupportedDiagram to Color.Gray
             state.lastSvg.isNotBlank() -> strings.statusReady to Color(0xFF228822)
             else -> strings.statusNoDiagram to Color.Gray
         }

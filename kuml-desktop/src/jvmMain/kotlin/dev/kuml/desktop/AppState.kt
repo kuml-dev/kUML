@@ -1,6 +1,7 @@
 package dev.kuml.desktop
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -51,6 +52,12 @@ class AppState(
 
     /** Letzter Render-/Compile-Fehler; null wenn kein Fehler. */
     var lastError by mutableStateOf<String?>(null)
+
+    /** Short-lived grey status-bar notice (e.g. why Simulate was refused); runtime-only, never persisted. */
+    var statusNotice by mutableStateOf<String?>(null)
+
+    /** Bumped on every notice so that repeating the same one restarts its expiry timer. */
+    internal var statusNoticeSerial by mutableIntStateOf(0)
 
     /** Aktives Theme (eines aus ThemeRegistry.names()). */
     var theme by mutableStateOf(initialSettings.theme)

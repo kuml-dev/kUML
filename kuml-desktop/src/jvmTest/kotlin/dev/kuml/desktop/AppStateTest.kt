@@ -53,6 +53,16 @@ class AppStateTest :
             s.language shouldBe "en"
         }
 
+        test("default statusNotice is null") {
+            AppState().statusNotice shouldBe null
+        }
+
+        test("statusNotice mutation is observable") {
+            val s = AppState()
+            s.statusNotice = "notice"
+            s.statusNotice shouldBe "notice"
+        }
+
         test("lastError mutation is observable") {
             val s = AppState()
             s.lastError = "Script error"

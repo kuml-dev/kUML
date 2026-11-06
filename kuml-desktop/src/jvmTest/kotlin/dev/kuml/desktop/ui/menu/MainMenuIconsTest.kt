@@ -43,7 +43,7 @@ class MainMenuIconsTest :
                     MenuEntryId.FILE_RECENT_EMPTY,
                     MenuEntryId.FILE_RECENT_CLEAR,
                 )
-            withIcon.size shouldBe 27
+            withIcon.size shouldBe 29
         }
 
         /** Renders [painter] into a 16x16 bitmap and returns the alpha values (0..255) of all pixels. */
@@ -95,9 +95,12 @@ class MainMenuIconsTest :
             val file = candidates.firstOrNull { it.isFile }
             withClue("MainWindow.kt not found relative to user.dir=${System.getProperty("user.dir")}") { (file != null) shouldBe true }
             val source = file!!.readText()
+            // Submenu headers have no Compose icon parameter; they are wired through the Swing interop helper.
+            val submenuIds = setOf(MenuEntryId.FILE_EXPORT_WORKSPACE_MENU, MenuEntryId.FILE_RECENT_MENU)
             withIcon.forEach { id ->
-                withClue("menuIcon(id = MenuEntryId.${id.name}") {
-                    Regex("""menuIcon\(\s*id\s*=\s*MenuEntryId\.${id.name}\b""").findAll(source).count() shouldBe 1
+                val callee = if (id in submenuIds) "menuIconToSwing" else "menuIcon"
+                withClue("$callee(id = MenuEntryId.${id.name}") {
+                    Regex("""$callee\(\s*id\s*=\s*MenuEntryId\.${id.name}\b""").findAll(source).count() shouldBe 1
                 }
             }
             MainMenuIcons.INTENTIONALLY_WITHOUT_ICON.forEach { id ->
@@ -105,11 +108,19 @@ class MainMenuIconsTest :
             }
         }
 
+        test("the submenu headers have their own symbols") {
+            MainMenuIcons.iconFor(MenuEntryId.FILE_EXPORT_WORKSPACE_MENU) shouldBe KumlIcons.Workspace
+            MainMenuIcons.iconFor(MenuEntryId.FILE_RECENT_MENU) shouldBe KumlIcons.History
+            (MenuEntryId.FILE_EXPORT_WORKSPACE_MENU in MainMenuIcons.INTENTIONALLY_WITHOUT_ICON) shouldBe false
+            (MenuEntryId.FILE_RECENT_MENU in MainMenuIcons.INTENTIONALLY_WITHOUT_ICON) shouldBe false
+        }
+
         test("easily confused icons have different path data") {
             fun data(icon: androidx.compose.ui.graphics.vector.ImageVector): String = pathFingerprint(icon)
             listOf(
                 listOf(KumlIcons.Search, KumlIcons.ZoomIn, KumlIcons.ZoomOut),
                 listOf(KumlIcons.Save, KumlIcons.SaveAs),
+                listOf(KumlIcons.History, KumlIcons.Workspace, KumlIcons.FolderOpen),
                 listOf(KumlIcons.Undo, KumlIcons.Redo, KumlIcons.SimReset),
             ).forEach { group ->
                 group.map { data(it) }.toSet().size shouldBe group.size

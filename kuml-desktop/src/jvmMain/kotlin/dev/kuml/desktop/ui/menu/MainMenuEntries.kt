@@ -5,12 +5,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.LayoutDirection
 import dev.kuml.desktop.ui.KumlIcons
 
 /**
@@ -27,7 +33,9 @@ enum class MenuEntryId {
     FILE_SAVE_AS,
     FILE_EXPORT_SVG,
     FILE_EXPORT_PNG,
+    FILE_EXPORT_WORKSPACE_MENU,
     FILE_EXPORT_WORKSPACE_PDF,
+    FILE_RECENT_MENU,
     FILE_QUIT,
     EDIT_UNDO,
     EDIT_REDO,
@@ -81,7 +89,9 @@ object MainMenuIcons {
             MenuEntryId.FILE_SAVE_AS -> KumlIcons.SaveAs
             MenuEntryId.FILE_EXPORT_SVG -> KumlIcons.SaveSvg
             MenuEntryId.FILE_EXPORT_PNG -> KumlIcons.SavePng
+            MenuEntryId.FILE_EXPORT_WORKSPACE_MENU -> KumlIcons.Workspace
             MenuEntryId.FILE_EXPORT_WORKSPACE_PDF -> KumlIcons.PdfDocument
+            MenuEntryId.FILE_RECENT_MENU -> KumlIcons.History
             MenuEntryId.FILE_QUIT -> KumlIcons.Quit
             MenuEntryId.EDIT_UNDO -> KumlIcons.Undo
             MenuEntryId.EDIT_REDO -> KumlIcons.Redo
@@ -151,6 +161,28 @@ fun menuIcon(
     val swingColor = if (isMac) null else javax.swing.UIManager.getColor("Menu.foreground")
     val tint = menuIconTint(isMac = isMac, systemDark = systemDark, swingColor = swingColor, enabled = enabled)
     return remember(delegate, tint) { TintedMenuIconPainter(delegate = delegate, tint = tint) }
+}
+
+/**
+ * Swing icon for a submenu header. Compose's `Menu` has no `icon` parameter, so the submenu symbols are set
+ * on the underlying `JMenu` through [applySubmenuIcons]; this renders the same vector, size and tint as the
+ * item icons.
+ */
+@Composable
+fun menuIconToSwing(
+    id: MenuEntryId,
+    enabled: Boolean = true,
+): javax.swing.Icon? {
+    val painter = menuIcon(id = id, enabled = enabled) ?: return null
+    val density = LocalDensity.current
+    return remember(painter, density) {
+        val px = (MENU_ICON_SIZE_PX * density.density).toInt().coerceAtLeast(1)
+        val bitmap = ImageBitmap(px, px)
+        CanvasDrawScope().draw(density, LayoutDirection.Ltr, Canvas(bitmap), Size(px.toFloat(), px.toFloat())) {
+            with(painter) { draw(size = size) }
+        }
+        javax.swing.ImageIcon(bitmap.toAwtImage())
+    }
 }
 
 private class TintedMenuIconPainter(

@@ -102,6 +102,9 @@ object KumlIcons {
     /** Opened folder — File > Open. */
     val FolderOpen: ImageVector by lazy { buildFolderOpenIcon() }
 
+    /** Clock face with a counter-clockwise arrow — File > Open Recent. */
+    val History: ImageVector by lazy { buildHistoryIcon() }
+
     /** Folder with a "+" — File > New Workspace. */
     val WorkspaceNew: ImageVector by lazy { buildWorkspaceNewIcon() }
 
@@ -1032,6 +1035,31 @@ object KumlIcons {
                     lineTo(21.5f, 11f)
                     lineTo(18.5f, 19f)
                     close()
+                }
+            }.build()
+
+    private fun buildHistoryIcon(): ImageVector =
+        builder("KumlHistory")
+            .apply {
+                strokePath(name = "KumlHistory.dial") {
+                    // About 315 degrees of a circle (centre 12,12, radius 8), ending on the left with an arrow tip.
+                    moveTo(6.34f, 17.66f)
+                    arcTo(
+                        horizontalEllipseRadius = 8f,
+                        verticalEllipseRadius = 8f,
+                        theta = 0f,
+                        isMoreThanHalf = true,
+                        isPositiveArc = false,
+                        x1 = 4f,
+                        y1 = 12f,
+                    )
+                    moveTo(1.8f, 14.2f)
+                    lineTo(4f, 12f)
+                    lineTo(6.2f, 14.2f)
+                    // Clock hands.
+                    moveTo(12f, 7.5f)
+                    lineTo(12f, 12f)
+                    lineTo(15.5f, 14f)
                 }
             }.build()
 

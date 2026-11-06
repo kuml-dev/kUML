@@ -89,6 +89,7 @@ class DesktopRenderController(
     private fun applyResult(result: DesktopRenderResult) {
         when (result) {
             is DesktopRenderResult.Svg -> {
+                state.statusNotice = null
                 state.lastSvg = result.svg
                 state.lastError = null
                 // V3.x — Live-Simulation: drives Werkzeuge ▸ Simulieren's enabled state
@@ -96,6 +97,7 @@ class DesktopRenderController(
                 state.lastDiagramSimulatable = result.simulatable
             }
             is DesktopRenderResult.Error -> {
+                state.statusNotice = null
                 state.lastError = result.message
                 state.lastDiagramSimulatable = false
             }

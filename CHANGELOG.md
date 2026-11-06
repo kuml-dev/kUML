@@ -6,6 +6,21 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 23: kUML Desktop, File menu alignment and Simulate hint
+
+#### Fixed
+
+- **File menu: text edges line up.** *Why:* "Export Workspace" and "Open Recent" are submenus, and Compose's `Menu` has no `icon` parameter, so they had no symbol and their text sat about 22 px to the left of the iconed items. *Change:* both submenu headers now get a symbol (workspace and clock) through the underlying Swing `JMenu` (`applySubmenuIcons`), with the same vector, size and tint as the item icons. The icons are re-applied for a short time after start and whenever the language, the recent-files list or the open workspace changes, because Compose builds the menu bar asynchronously. The View menu and all other menus are unchanged. Two new `MenuEntryId` values, `FILE_EXPORT_WORKSPACE_MENU` and `FILE_RECENT_MENU`, and `KumlIcons.History` back this.
+- **Simulate: the reason appears only after an attempt.** *Why:* the line "Simulation is only available for UML state machines and SysML 2 STM" was shown permanently in the status bar for every other diagram type, including at start. *Change:* the permanent line is removed (the status bar shows "Ready" again). Tools > Simulate and its shortcut are now clickable for such diagrams; the request is then refused without side effects (no stop of a running session, no view-mode change, no script evaluation) and the reason shows in grey in the status bar, for 6 seconds or until the script changes or a new render result arrives. With no diagram yet, or after a render error, the request still goes to the session start, which reports the precise failure. Simulate stays disabled while a simulation runs or starts. The wording of the text is unchanged (German and English).
+
+#### Verification
+
+- Seen live on 2026-11-06 (macOS, app started from the branch):
+  - File menu: symbols at "Export Workspace" and "Open Recent", text edges aligned with the other items.
+  - Status bar at start: "Ready". Tools > Simulate and Cmd+R on a class diagram: the grey reason appears, the view does not change, the text is gone after about 6 seconds.
+  - Menu icons in the Edit, Help, AI and Tools menus, the icons of the preview toolbar, the hint in the MCP server dialog and the About dialog (version 0.56.0).
+- Not verified live: starting a simulation on a state machine after this change (the attempt to load an example into the running app failed; the start path is unchanged and only covered by the existing tests), dark mode tint, dimming of disabled entries, symbols on the dialog buttons beyond the MCP and About dialogs, opening a link and the clipboard in the About dialog.
+
 ## [0.56.0] — 2026-11-05
 
 ### Highlights
