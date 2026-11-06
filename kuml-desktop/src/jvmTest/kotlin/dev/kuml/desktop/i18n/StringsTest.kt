@@ -745,4 +745,14 @@ class PdfExportStringsTest :
                 listOf("*", ":in", "_in", "/in").forEach { text.contains(it) shouldBe false }
             }
         }
+        test("the simulation preview fallback texts exist in both languages and differ") {
+            listOf(
+                Strings.EN.simPreviewFallbackHint,
+                Strings.DE.simPreviewFallbackHint,
+                Strings.EN.simPreviewUnavailable,
+                Strings.DE.simPreviewUnavailable,
+            ).forEach { it.isNotBlank() shouldBe true }
+            Strings.EN.simPreviewFallbackHint shouldNotBe Strings.DE.simPreviewFallbackHint
+            Strings.EN.simPreviewUnavailable shouldNotBe Strings.DE.simPreviewUnavailable
+        }
     })

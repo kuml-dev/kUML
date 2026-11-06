@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
@@ -24,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
@@ -64,6 +67,8 @@ internal fun SimulationBar(
     state: AppState,
     session: SimulationSession,
     strings: Strings,
+    /** The preview shows the plain diagram because the session's base SVG cannot be shown (Nacharbeit 24). */
+    fallbackHint: Boolean = false,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val enabledEvents = session.enabledEvents()
@@ -99,6 +104,15 @@ internal fun SimulationBar(
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
+        if (fallbackHint) {
+            Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = strings.simPreviewFallbackHint,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    fontSize = 12.sp,
+                )
+            }
+        }
         if (stale) {
             Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -147,7 +161,7 @@ internal fun SimulationBar(
                 onClick = { session.inspectorVisible = !session.inspectorVisible },
                 tooltipPlacement = tooltipEnd(),
             )
-            VerticalDivider(modifier = Modifier.padding(horizontal = 2.dp))
+            BarDivider()
             if (session.hasTimers) {
                 // Virtual time: disabled with a stated reason when no timer is armed (never a silent no-op).
                 val timers = session.armedTimers()
@@ -170,7 +184,7 @@ internal fun SimulationBar(
                     disabledHint = strings.simNoTimerArmed,
                     onClick = { session.advanceAsking(TimeStep.Next) },
                 )
-                VerticalDivider(modifier = Modifier.padding(horizontal = 2.dp))
+                BarDivider()
             }
             // Takes all remaining width so the close button below naturally lands at the row's
             // trailing edge without a second fillMaxWidth-in-a-Row footgun.
@@ -358,3 +372,18 @@ internal fun FreeformEventRow(
         }
     }
 }
+
+/**
+ * Thin vertical separator between the bar's button groups. It must have a FIXED height: Material 3's
+ * [VerticalDivider] calls `fillMaxHeight()`, and inside this bar's `Row` (which sits in a height-bounded
+ * `Column`) that stretched the whole bar to the full window height. The `SwingPanel` below it then got a
+ * zero-height slot and the diagram area stayed blank for the whole simulation (Nacharbeit 24).
+ */
+@Composable
+internal fun RowScope.BarDivider() {
+    VerticalDivider(
+        modifier = Modifier.padding(horizontal = 2.dp).height(BAR_DIVIDER_HEIGHT).align(Alignment.CenterVertically),
+    )
+}
+
+internal val BAR_DIVIDER_HEIGHT = 24.dp

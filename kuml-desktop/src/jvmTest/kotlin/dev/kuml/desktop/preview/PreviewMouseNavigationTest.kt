@@ -303,4 +303,40 @@ class PreviewMouseNavigationTest :
             cc.y shouldBe (150.0 plusOrMinus 1e-6)
             canvas.dispose()
         }
+
+        test("a panned view survives swapping in a new document through setSVGDocument") {
+            System.setProperty("java.awt.headless", "true")
+            val canvas = createPreviewCanvas()
+            canvas.setSize(400, 300)
+
+            fun svg(color: String) =
+                """<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">""" +
+                    """<rect x="10" y="10" width="180" height="80" fill="$color"/></svg>"""
+
+            fun load(color: String) {
+                val rendered = CountDownLatch(1)
+                val listener =
+                    object : GVTTreeRendererAdapter() {
+                        override fun gvtRenderingCompleted(e: GVTTreeRendererEvent) = rendered.countDown()
+                    }
+                canvas.addGVTTreeRendererListener(listener)
+                SwingUtilities.invokeAndWait { canvas.setSVGDocument(parseSvg(svg(color))) }
+                rendered.await(15, TimeUnit.SECONDS) shouldBe true
+                canvas.removeGVTTreeRendererListener(listener)
+                // the settle step is posted via invokeLater after the render
+                SwingUtilities.invokeAndWait { }
+                SwingUtilities.invokeAndWait { }
+            }
+            load("#1d2b4f")
+            val nav = canvas.getClientProperty(PREVIEW_NAV_KEY) as PreviewNavigation
+            SwingUtilities.invokeAndWait { nav.setTransform(AffineTransform.getTranslateInstance(30.0, -10.0)) }
+            load("#aa0000")
+            canvas.renderingTransform.translateX shouldBe (30.0 plusOrMinus 1e-6)
+            canvas.renderingTransform.translateY shouldBe (-10.0 plusOrMinus 1e-6)
+            // after "fit" the next document is fitted again
+            SwingUtilities.invokeAndWait { nav.fit() }
+            load("#00aa00")
+            canvas.renderingTransform.translateX shouldBe (0.0 plusOrMinus 1e-6)
+            canvas.dispose()
+        }
     })

@@ -372,6 +372,8 @@ data class Strings(
     val simPayloadErrReserved: String get() = simulator.simPayloadErrReserved
     val simPayloadAtPosition: String get() = simulator.simPayloadAtPosition
     val simInvalidPayload: String get() = simulator.simInvalidPayload
+    val simPreviewFallbackHint: String get() = simulator.simPreviewFallbackHint
+    val simPreviewUnavailable: String get() = simulator.simPreviewUnavailable
 
     companion object {
         val DE =
@@ -736,6 +738,8 @@ data class Strings(
                         simPayloadErrReserved = "Schlüssel '%s' ist reserviert",
                         simPayloadAtPosition = " an Position %d",
                         simInvalidPayload = "Payload ungültig, nichts gesendet: %s",
+                        simPreviewFallbackHint = "Hervorhebung nicht verfügbar – Diagramm ohne Zustandsmarkierung",
+                        simPreviewUnavailable = "Simulation beendet: Das Diagramm konnte nicht angezeigt werden",
                         aiDialog =
                             run {
                                 val rejectAll = "Alle ablehnen"
@@ -1166,6 +1170,8 @@ data class Strings(
                         simPayloadErrReserved = "Key '%s' is reserved",
                         simPayloadAtPosition = " at position %d",
                         simInvalidPayload = "Invalid payload, nothing sent: %s",
+                        simPreviewFallbackHint = "Highlighting unavailable – showing the diagram without state markers",
+                        simPreviewUnavailable = "Simulation ended: the diagram could not be displayed",
                         aiDialog =
                             run {
                                 val rejectAll = "Reject all"
@@ -1324,6 +1330,8 @@ data class SimulatorStrings(
     val simPayloadErrReserved: String,
     val simPayloadAtPosition: String,
     val simInvalidPayload: String,
+    val simPreviewFallbackHint: String,
+    val simPreviewUnavailable: String,
     // Nested here, not in Strings: Strings itself is at the JVM constructor limit of 255 parameters.
     val aiDialog: AiDialogStrings,
 )

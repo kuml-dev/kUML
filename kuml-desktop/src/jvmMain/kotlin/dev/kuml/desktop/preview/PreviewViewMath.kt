@@ -151,11 +151,44 @@ private fun parseLength(text: String?): Double? {
 /** Which view the user last asked for; decides what a window resize re-applies. */
 internal enum class PreviewLastView { Fit, ActualSize, Free }
 
-/** After a resize: 1:1 is re-applied, anything else is only clamped. */
+/**
+ * After a resize: 1:1 is re-applied, "fit" is re-fitted (Batik recomputes its fit transform on every
+ * resize, so the identity user transform is always right for it, whereas merely clamping would keep a
+ * translation that was computed against a transient viewport size), anything else is only clamped.
+ */
 internal fun reapplyAfterResize(
     lastView: PreviewLastView,
     actualSize: () -> Unit,
     clamp: () -> Unit,
+    refit: () -> Unit = clamp,
 ) {
-    if (lastView == PreviewLastView.ActualSize) actualSize() else clamp()
+    when (lastView) {
+        PreviewLastView.ActualSize -> actualSize()
+        PreviewLastView.Fit -> refit()
+        PreviewLastView.Free -> clamp()
+    }
 }
+
+/** What to do with the view once a freshly loaded document has been rendered. */
+internal enum class FitAction {
+    /** The viewport has no usable size yet; wait for the first resize with a positive size. */
+    Defer,
+
+    /** The user last asked for "fit": show the new document fitted. */
+    FitNow,
+
+    /** The user had zoomed or panned: carry the previous rendering transform over to the new document. */
+    KeepTransform,
+}
+
+/** Decides [FitAction] for a viewport of [viewportW] x [viewportH] and the user's [lastView]. */
+internal fun fitDecision(
+    viewportW: Double,
+    viewportH: Double,
+    lastView: PreviewLastView,
+): FitAction =
+    when {
+        !viewportW.isFinite() || !viewportH.isFinite() || viewportW <= 0.0 || viewportH <= 0.0 -> FitAction.Defer
+        lastView == PreviewLastView.Fit -> FitAction.FitNow
+        else -> FitAction.KeepTransform
+    }

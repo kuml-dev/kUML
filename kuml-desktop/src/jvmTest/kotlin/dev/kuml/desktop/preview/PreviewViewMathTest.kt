@@ -188,4 +188,29 @@ class PreviewViewMathTest :
                 contentBoundsOf(doc = doc("""viewBox="0 0 NaN 5""""), fallback = { null }) shouldBe null
             }
         }
+
+        context("fitDecision and reapplyAfterResize") {
+            test("a viewport without a positive size defers the fit") {
+                fitDecision(viewportW = 0.0, viewportH = 300.0, lastView = PreviewLastView.Fit) shouldBe FitAction.Defer
+                fitDecision(viewportW = 400.0, viewportH = 0.0, lastView = PreviewLastView.Free) shouldBe FitAction.Defer
+                fitDecision(viewportW = Double.NaN, viewportH = 300.0, lastView = PreviewLastView.Fit) shouldBe FitAction.Defer
+            }
+            test("a sized viewport fits when the user last fitted and keeps the transform otherwise") {
+                fitDecision(viewportW = 400.0, viewportH = 300.0, lastView = PreviewLastView.Fit) shouldBe FitAction.FitNow
+                fitDecision(viewportW = 400.0, viewportH = 300.0, lastView = PreviewLastView.Free) shouldBe FitAction.KeepTransform
+                fitDecision(viewportW = 400.0, viewportH = 300.0, lastView = PreviewLastView.ActualSize) shouldBe FitAction.KeepTransform
+            }
+            test("a resize re-fits Fit, re-applies 1:1 and clamps Free") {
+                val calls = mutableListOf<String>()
+                PreviewLastView.entries.forEach { view ->
+                    reapplyAfterResize(
+                        lastView = view,
+                        actualSize = { calls += "actual" },
+                        clamp = { calls += "clamp" },
+                        refit = { calls += "refit" },
+                    )
+                }
+                calls shouldBe listOf("refit", "actual", "clamp")
+            }
+        }
     })

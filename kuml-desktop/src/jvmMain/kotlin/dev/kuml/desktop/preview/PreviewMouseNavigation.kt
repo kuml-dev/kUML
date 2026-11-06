@@ -1,8 +1,11 @@
 package dev.kuml.desktop.preview
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.batik.swing.JSVGCanvas
 import org.apache.batik.swing.gvt.GVTTreeRendererAdapter
 import org.apache.batik.swing.gvt.GVTTreeRendererEvent
+import org.apache.batik.swing.svg.GVTTreeBuilderAdapter
+import org.apache.batik.swing.svg.GVTTreeBuilderEvent
 import org.apache.batik.swing.svg.SVGDocumentLoaderAdapter
 import org.apache.batik.swing.svg.SVGDocumentLoaderEvent
 import java.awt.Component
@@ -24,6 +27,8 @@ import javax.swing.JComponent
 import javax.swing.KeyStroke
 import javax.swing.SwingUtilities
 import kotlin.math.pow
+
+private val logger = KotlinLogging.logger {}
 
 /** Zoom step shared by the preview's buttons and the Ctrl/Cmd + mouse-wheel zoom. */
 internal const val PREVIEW_ZOOM_STEP = 1.25
@@ -178,10 +183,13 @@ internal fun installViewKeys(
  * Every transform change (drag, wheel, buttons, keys) goes through one path that keeps at least
  * a quarter of the diagram (and at least 96 px) in view; see [clampedTransform].
  */
-internal fun createPreviewCanvas(): JSVGCanvas =
+internal fun createPreviewCanvas(onDocumentFailed: (String) -> Unit = {}): JSVGCanvas =
     JSVGCanvas(null, true, false).also { canvas ->
         var lastView = PreviewLastView.Fit
+        var viewBeforeDocument = PreviewLastView.Fit
+        var transformBeforeDocument = AffineTransform()
         var clampedForDocument = false
+        var fitPending = false
 
         fun viewport(): Pair<Double, Double> = canvas.width.toDouble() to canvas.height.toDouble()
 
@@ -243,35 +251,82 @@ internal fun createPreviewCanvas(): JSVGCanvas =
         installMouseNavigation(component = canvas, navigation = navigation)
         installViewKeys(component = canvas, fit = navigation.fit)
 
+        // Applies the post-render view decision for a freshly loaded document (see [fitDecision]).
+        fun settleNewDocument() {
+            val (w, h) = viewport()
+            when (fitDecision(viewportW = w, viewportH = h, lastView = viewBeforeDocument)) {
+                FitAction.Defer -> fitPending = true
+                FitAction.FitNow -> {
+                    fitPending = false
+                    lastView = PreviewLastView.Fit
+                    apply(clamp(current()))
+                }
+                FitAction.KeepTransform -> {
+                    fitPending = false
+                    lastView = viewBeforeDocument
+                    apply(clamp(transformBeforeDocument))
+                }
+            }
+            logger.debug { "preview: new document settled viewport=${w}x$h view=$viewBeforeDocument pending=$fitPending" }
+        }
+
         // Batik recomputes its fit transform on resize; run after it so 1:1 can be re-applied.
         canvas.addComponentListener(
             object : ComponentAdapter() {
                 override fun componentResized(e: ComponentEvent) {
                     SwingUtilities.invokeLater {
-                        reapplyAfterResize(
-                            lastView = lastView,
-                            actualSize = { navigation.actualSize() },
-                            clamp = { apply(clamp(current())) },
-                        )
+                        if (fitPending && canvas.width > 0 && canvas.height > 0) {
+                            settleNewDocument()
+                        } else {
+                            reapplyAfterResize(
+                                lastView = lastView,
+                                actualSize = { navigation.actualSize() },
+                                clamp = { apply(clamp(current())) },
+                                refit = { navigation.fit() },
+                            )
+                        }
                     }
                 }
             },
         )
-        // A new document restarts the view at "fit"; clamp once after its first render.
+        // A new document restarts the view at "fit"; settle it once after its first render. NOT keyed on
+        // SVGDocumentLoaderListener: that only fires for URI loads, never for `setSVGDocument`, which
+        // the preview always uses, so the build listener is the reliable "new document" signal.
         canvas.addSVGDocumentLoaderListener(
             object : SVGDocumentLoaderAdapter() {
-                override fun documentLoadingStarted(e: SVGDocumentLoaderEvent) {
+                override fun documentLoadingFailed(e: SVGDocumentLoaderEvent) {
+                    logger.warn { "preview: document loading failed" }
+                    onDocumentFailed("load")
+                }
+            },
+        )
+        canvas.addGVTTreeBuilderListener(
+            object : GVTTreeBuilderAdapter() {
+                override fun gvtBuildStarted(e: GVTTreeBuilderEvent) {
+                    viewBeforeDocument = lastView
+                    transformBeforeDocument = AffineTransform(current())
                     clampedForDocument = false
+                    fitPending = false
                     lastView = PreviewLastView.Fit
+                }
+
+                override fun gvtBuildFailed(e: GVTTreeBuilderEvent) {
+                    logger.warn { "preview: GVT build failed" }
+                    onDocumentFailed("build")
                 }
             },
         )
         canvas.addGVTTreeRendererListener(
             object : GVTTreeRendererAdapter() {
+                override fun gvtRenderingFailed(e: GVTTreeRendererEvent) {
+                    logger.warn { "preview: GVT rendering failed" }
+                    onDocumentFailed("render")
+                }
+
                 override fun gvtRenderingCompleted(e: GVTTreeRendererEvent) {
                     if (clampedForDocument) return
                     clampedForDocument = true
-                    SwingUtilities.invokeLater { apply(clamp(current())) }
+                    SwingUtilities.invokeLater { settleNewDocument() }
                 }
             },
         )

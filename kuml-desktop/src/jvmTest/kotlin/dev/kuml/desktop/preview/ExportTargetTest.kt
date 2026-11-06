@@ -141,4 +141,61 @@ class ExportTargetTest :
             val failure = runCatching { exportBytes(target) }.exceptionOrNull()
             (failure != null) shouldBe true
         }
+
+        context("previewDocumentChoice") {
+            val sim = "<svg id=\"sim\"/>"
+            val plain = "<svg id=\"plain\"/>"
+
+            test("an active session with a parsed base shows the simulation") {
+                previewDocumentChoice(sessionActive = true, baseSvg = sim, baseParsed = true, lastSvg = plain, lastParsed = true) shouldBe
+                    PreviewChoice.Simulation(svg = sim)
+            }
+            test("an active session with an unparsed base falls back to the parsed plain render") {
+                previewDocumentChoice(sessionActive = true, baseSvg = sim, baseParsed = false, lastSvg = plain, lastParsed = true) shouldBe
+                    PreviewChoice.FallbackStatic(svg = plain, reason = FallbackReason.BASE_UNRENDERABLE)
+            }
+            test("an active session without a base falls back to the plain render") {
+                previewDocumentChoice(sessionActive = true, baseSvg = null, baseParsed = false, lastSvg = plain, lastParsed = true) shouldBe
+                    PreviewChoice.FallbackStatic(svg = plain, reason = FallbackReason.BASE_UNRENDERABLE)
+            }
+            test("a blank base never counts even when flagged as parsed") {
+                previewDocumentChoice(sessionActive = true, baseSvg = "  ", baseParsed = true, lastSvg = plain, lastParsed = true) shouldBe
+                    PreviewChoice.FallbackStatic(svg = plain, reason = FallbackReason.BASE_UNRENDERABLE)
+            }
+            test("an active session with nothing displayable is empty") {
+                previewDocumentChoice(sessionActive = true, baseSvg = sim, baseParsed = false, lastSvg = plain, lastParsed = false) shouldBe
+                    PreviewChoice.Empty
+                previewDocumentChoice(sessionActive = true, baseSvg = sim, baseParsed = false, lastSvg = "", lastParsed = true) shouldBe
+                    PreviewChoice.Empty
+            }
+            test("without a session the parsed last render is shown") {
+                previewDocumentChoice(
+                    sessionActive = false,
+                    baseSvg = null,
+                    baseParsed = false,
+                    lastSvg = plain,
+                    lastParsed = true,
+                ) shouldBe
+                    PreviewChoice.Normal(svg = plain)
+                previewDocumentChoice(sessionActive = false, baseSvg = sim, baseParsed = true, lastSvg = plain, lastParsed = true) shouldBe
+                    PreviewChoice.Normal(svg = plain)
+            }
+            test("without a session a blank or unparsed last render is empty") {
+                previewDocumentChoice(sessionActive = false, baseSvg = null, baseParsed = false, lastSvg = "", lastParsed = false) shouldBe
+                    PreviewChoice.Empty
+                previewDocumentChoice(
+                    sessionActive = false,
+                    baseSvg = null,
+                    baseParsed = false,
+                    lastSvg = plain,
+                    lastParsed = false,
+                ) shouldBe
+                    PreviewChoice.Empty
+            }
+            test("export follows the choice: the fallback exports the plain render, not the base") {
+                singleFileSvg(simulationBaseSvg = sim, lastSvg = plain) shouldBe sim
+                singleFileSvg(simulationBaseSvg = sim, lastSvg = plain, fallbackStatic = true) shouldBe plain
+                singleFileSvg(simulationBaseSvg = null, lastSvg = plain) shouldBe plain
+            }
+        }
     })

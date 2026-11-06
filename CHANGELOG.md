@@ -6,6 +6,20 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 24: kUML Desktop, empty diagram area during simulation
+
+#### Fixed
+
+- **The diagram area is no longer squeezed to zero height by the simulation bar (the actual cause).** *Why:* the bar's button groups were separated by Material 3 `VerticalDivider`, which calls `fillMaxHeight()`. Inside the bar's `Row`, which sits in a height-bounded `Column`, that stretched the whole bar to the full window height. The preview's `SwingPanel` below it received a slot of height 0 (measured live: panel 1765 × 0 px, its Swing container `visible=false`), so the diagram stayed blank for the whole simulation while the simulation itself kept working and the diagram came back after closing it. The simulation base SVG and Batik were not at fault. *Change:* both dividers are now `BarDivider()`, a fixed 24 dp high and vertically centred. *Tests:* `SimulationBarLayoutTest` places the bar in a 700 dp `Column` above a weighted box and requires the box to keep at least 550 dp and the bar to stay below 150 dp; it fails with the old `VerticalDivider` and passes now.
+- **Preview never ends up blank without a visible reason.** *Why:* while a simulation ran, the preview parsed the session's base SVG and, if that returned nothing, silently kept whatever the canvas held, with no log and no hint. A Batik build or render failure is reported only through listeners and was never observed at all. *Change:* the choice of document is now one pure function (`previewDocumentChoice`: simulation, plain fallback, normal or empty). If the base SVG cannot be parsed, or Batik reports a build or render failure for it, the preview shows the plain render without state markers and a one-line hint under the simulation bar ("Highlighting unavailable", German and English); highlight patching is switched off in that state and image export delivers the plain render that is shown. If nothing can be shown at all, the session ends and the status bar says why. Every such decision is logged (WARN or DEBUG, lengths only, never script content).
+- **The view is settled for every new document.** *Why:* the "new document" hook listened to `SVGDocumentLoaderListener`, which Batik fires only for URI loads, never for `setSVGDocument`, which the preview always uses; the one-off clamp and the last-view reset therefore never ran after the first document. A resize in "fit" mode also only clamped, keeping a translation computed for a transient viewport size. *Change:* the Batik GVT build listener now marks a new document. After its first render the view is fitted (last view "fit"), or the previous zoom and pan are carried over (last view free or 1:1), and the step is deferred until the canvas has a positive size (`fitDecision`). A resize in "fit" mode now re-fits instead of clamping.
+
+#### Verification
+
+- Verified by tests: `previewDocumentChoice` (all four outcomes and their edge cases), the export choice, `fitDecision`, the resize rule, and a real Batik canvas that keeps a panned view across `setSVGDocument` and re-fits after "fit".
+- Checked with the Traffic Light STM: the simulation base SVG and the plain render both parse and carry the same `viewBox`, so the SVG content is not the cause.
+- **Live check in the running app (Traffic Light STM, Tools > Simulate):** before the fix the preview was blank (panel 1765 × 0 px); after the fix the diagram is shown with the active state `Red` highlighted, the inspector and the trace beside it. The two document-handling defects above were found by code reading and are kept as hardening, but they were not the cause of the blank area.
+
 ### Nacharbeit 23: kUML Desktop, File menu alignment and Simulate hint
 
 #### Fixed

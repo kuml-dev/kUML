@@ -42,7 +42,64 @@ sealed interface ExportSaveResult {
 fun singleFileSvg(
     simulationBaseSvg: String?,
     lastSvg: String,
-): String = simulationBaseSvg ?: lastSvg
+    /** The preview fell back to the plain render (the base SVG is unrenderable), so that is what is shown and exported. */
+    fallbackStatic: Boolean = false,
+): String = if (fallbackStatic) lastSvg else simulationBaseSvg ?: lastSvg
+
+/** Why the preview shows the plain diagram although a simulation session is active. */
+internal enum class FallbackReason { BASE_UNRENDERABLE, }
+
+/** What the preview canvas shows; [Empty] means there is nothing usable to show. */
+internal sealed interface PreviewChoice {
+    /** The session's frozen base SVG, with live highlight patching. */
+    data class Simulation(
+        val svg: String,
+    ) : PreviewChoice
+
+    /** A session is active but its base SVG cannot be shown: the plain render, without state markers. */
+    data class FallbackStatic(
+        val svg: String,
+        val reason: FallbackReason,
+    ) : PreviewChoice
+
+    /** No session: the latest render. */
+    data class Normal(
+        val svg: String,
+    ) : PreviewChoice
+
+    data object Empty : PreviewChoice
+}
+
+/** The SVG this choice shows, or `null` for [PreviewChoice.Empty]. */
+internal fun PreviewChoice.svgOrNull(): String? =
+    when (this) {
+        is PreviewChoice.Simulation -> svg
+        is PreviewChoice.FallbackStatic -> svg
+        is PreviewChoice.Normal -> svg
+        PreviewChoice.Empty -> null
+    }
+
+/**
+ * Pure decision of which document the preview shows. "Parsed" means the SVG could be turned into a document
+ * AND (for [baseParsed]) has not since failed to build or render in Batik. A blank or `null` SVG never counts.
+ */
+internal fun previewDocumentChoice(
+    sessionActive: Boolean,
+    baseSvg: String?,
+    baseParsed: Boolean,
+    lastSvg: String,
+    lastParsed: Boolean,
+): PreviewChoice {
+    val baseUsable = !baseSvg.isNullOrBlank() && baseParsed
+    val lastUsable = lastSvg.isNotBlank() && lastParsed
+    return when {
+        sessionActive && baseUsable -> PreviewChoice.Simulation(baseSvg.orEmpty())
+        sessionActive && lastUsable -> PreviewChoice.FallbackStatic(svg = lastSvg, reason = FallbackReason.BASE_UNRENDERABLE)
+        sessionActive -> PreviewChoice.Empty
+        lastUsable -> PreviewChoice.Normal(lastSvg)
+        else -> PreviewChoice.Empty
+    }
+}
 
 /**
  * The single source of "the diagram that is shown", for toolbar AND File menu. A blank string counts as none.

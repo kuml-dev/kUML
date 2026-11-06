@@ -351,7 +351,12 @@ fun FrameWindowScope.MainWindow(
             shownSvg(
                 workspaceMode = knowledge != null,
                 docSvg = knowledge?.state?.docSvg,
-                lastSvg = singleFileSvg(simulationBaseSvg = state.simulation?.baseSvg, lastSvg = state.lastSvg),
+                lastSvg =
+                    singleFileSvg(
+                        simulationBaseSvg = state.simulation?.baseSvg,
+                        lastSvg = state.lastSvg,
+                        fallbackStatic = state.simulationPreviewFallback,
+                    ),
             )
         val baseName = FileMenu.exportBaseName(if (knowledge != null) knowledge.state.selected?.file else state.currentFile)
         val target = exportTarget(format = format, svg = svg, baseName = baseName) ?: return
@@ -674,7 +679,12 @@ fun FrameWindowScope.MainWindow(
                 shownSvg(
                     workspaceMode = knowledgeOpen != null,
                     docSvg = knowledgeOpen?.state?.docSvg,
-                    lastSvg = singleFileSvg(simulationBaseSvg = state.simulation?.baseSvg, lastSvg = state.lastSvg),
+                    lastSvg =
+                        singleFileSvg(
+                            simulationBaseSvg = state.simulation?.baseSvg,
+                            lastSvg = state.lastSvg,
+                            fallbackStatic = state.simulationPreviewFallback,
+                        ),
                 )
             val exportEnabled = menuSvg != null
             Item(

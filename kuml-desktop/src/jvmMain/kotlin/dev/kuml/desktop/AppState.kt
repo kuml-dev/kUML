@@ -203,6 +203,12 @@ class AppState(
      */
     internal var simulationStarting by mutableStateOf(false)
 
+    /**
+     * Set by the preview pane while a simulation is active but its frozen base SVG cannot be shown, so the
+     * plain render is displayed instead (Nacharbeit 24). Export must then deliver the plain render, too.
+     */
+    internal var simulationPreviewFallback by mutableStateOf(false)
+
     /** Whether the last successfully rendered diagram type can be simulated (Spez. A3). */
     var lastDiagramSimulatable by mutableStateOf(false)
 
