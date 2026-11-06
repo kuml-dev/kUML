@@ -84,6 +84,15 @@ Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unters
 | 58 | [[58 C4 Context – Notizen]] | Notizen (PAL-Welle 2A) |
 | 59 | [[59 Service Blueprint – Notizen]] | Notizen (PAL-Welle 2A) |
 | 60 | [[60 SysML 2 REQ – Mehrere Notizen]] | Notizen (PAL-Welle 2A) |
+| 66 | [[66 UML-Klasse – Notiz-Arten mit Symbolen]] | Notizen (PAL-Welle N1) |
+| 67 | [[67 SysML 2 BDD – Notiz-Arten]] | Notizen (PAL-Welle N1) |
+| 68 | [[68 ERM – Notiz-Arten]] | Notizen (PAL-Welle N1) |
+| 69 | [[69 BPMN – Notiz-Arten]] | Notizen (PAL-Welle N1) |
+| 70 | [[70 UML-Klasse – Formatierter Notiztext]] | Notizen (PAL-Welle N2) |
+| 71 | [[71 SysML 2 BDD – Formatierter Notiztext]] | Notizen (PAL-Welle N2) |
+| 72 | [[72 C4 Context – Notiz-Arten und Formatierung]] | Notizen (PAL-Welle N1/N2) |
+| 73 | [[73 BPMN – Formatierter Notiztext]] | Notizen (PAL-Welle N2) |
+| 74 | [[74 SysML 2 STM – Notiz-Arten mit Symbolen]] | Notizen (Nacharbeit 26) |
 | 47 | [[47 SysML 2 UC – Systemgrenzen und Generalisierung]] | Anwendungsfälle — Systemgrenzen, Akteur-Generalisierung (Welle C1) |
 | 07 | [[07 SysML 2 ACT – Order Processing]] | Verhalten |
 | 06 | [[06 SysML 2 SEQ – Login Flow]] | Verhalten (Interaktion) |
@@ -202,6 +211,15 @@ Der [Playground auf kuml.dev](https://kuml.dev/playground) speist seine Beispiel
 | 58 | [[58 C4 Context – Notizen]] | `c4-context-notes` |
 | 59 | [[59 Service Blueprint – Notizen]] | `blueprint-notes` |
 | 60 | [[60 SysML 2 REQ – Mehrere Notizen]] | `sysml2-req-multi-notes` |
+| 66 | [[66 UML-Klasse – Notiz-Arten mit Symbolen]] | `uml-class-note-kinds` |
+| 67 | [[67 SysML 2 BDD – Notiz-Arten]] | `sysml2-bdd-note-kinds` |
+| 68 | [[68 ERM – Notiz-Arten]] | `erm-note-kinds` |
+| 69 | [[69 BPMN – Notiz-Arten]] | `bpmn-note-kinds` |
+| 70 | [[70 UML-Klasse – Formatierter Notiztext]] | `uml-class-note-format` |
+| 71 | [[71 SysML 2 BDD – Formatierter Notiztext]] | `sysml2-bdd-note-format` |
+| 72 | [[72 C4 Context – Notiz-Arten und Formatierung]] | `c4-context-note-kinds-format` |
+| 73 | [[73 BPMN – Formatierter Notiztext]] | `bpmn-note-format` |
+| 74 | [[74 SysML 2 STM – Notiz-Arten mit Symbolen]] | `sysml2-stm-note-kinds` |
 | 40 | [[40 UML Component – kUML Plugin API]] | *(noch kein Playground-Eintrag — Lücke; aus [[06 Archiv/kUML Präsentation Deutsch|Präsentation]] extrahiert, 2026-07-12)* |
 
 ### Playground-Keys ohne Vault-Anker
@@ -242,7 +260,7 @@ Audit-Ergebnis vom 2026-07-02: Alle 28 klassischen Diagrammtypen (UML 14, C4 6, 
 - Neue Diagrammtypen und Handbuch-Einbettung sind laut Wellenspezifikation explizit out of scope (→ V3.2.19).
 - `comment()` (UML-Notiz) für Aktivitätsdiagramme — **strukturell nicht möglich, nicht nur unbeworben.** Direkt am Renderer verifiziert (2026-07-21): `comment()` in einem `activityDiagram { … }`-Block lässt das gesamte Skript fehlschlagen (nicht nur „wird nicht angezeigt"). Laut `CommentDsl.kt` ist die DSL-Funktion bewusst nur für Klassen-, Sequenz- und State-Machine-Diagramme implementiert (einzige Typen mit Renderer-/Layout-Bridge-Anbindung für `UmlComment`/`UmlCommentLink`). Kein Vault-Beispiel für Activity+Comment anlegen, bis das im Kern erweitert wird.
 
-**CI-Verifikation**: `./gradlew clean :kuml-tests:kuml-vault-examples-tests:test` — 44 Tests, 0 Failures (Stand 2026-07-02).
+**CI-Verifikation**: `./gradlew clean :kuml-tests:kuml-vault-examples-tests:test` — 341 Tests, 0 Failures, 0 Skips (Stand 2026-11-03).
 
 ## Wozu diese Notizen?
 

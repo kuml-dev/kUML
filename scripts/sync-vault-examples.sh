@@ -86,6 +86,7 @@ map_vault_to_web() {
     "71 SysML 2 BDD – Formatierter Notiztext.md") echo "sysml2-bdd-note-format.kuml.kts" ;;
     "72 C4 Context – Notiz-Arten und Formatierung.md") echo "c4-context-note-kinds-format.kuml.kts" ;;
     "73 BPMN – Formatierter Notiztext.md") echo "bpmn-note-format.kuml.kts" ;;
+    "74 SysML 2 STM – Notiz-Arten mit Symbolen.md") echo "sysml2-stm-note-kinds.kuml.kts" ;;
     "07 BPMN animiert – PdV Mitgliedsantrag.md") echo "bpmn-pdv-mitgliedsantrag-animiert.kuml.kts" ;;
     "08 STM animiert – Traffic Light.md")         echo "stm-traffic-light-animiert.kuml.kts" ;;
     "19 UML Sequence animiert – API Submit.md")   echo "uml-sequence-api-submit-animiert.kuml.kts" ;;

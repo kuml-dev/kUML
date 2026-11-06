@@ -78,3 +78,4 @@
 71 SysML 2 BDD – Formatierter Notiztext.md
 72 C4 Context – Notiz-Arten und Formatierung.md
 73 BPMN – Formatierter Notiztext.md
+74 SysML 2 STM – Notiz-Arten mit Symbolen.md
