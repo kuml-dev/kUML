@@ -61,6 +61,17 @@ class ApplyPatchTest :
             result.instance.seqCounter shouldBe instance.seqCounter
         }
 
+        test("C-style guard operators are accepted like the simulation evaluates them") {
+            val instance = runtime.start(model)
+            val guard = "!(vars.count > 1) || vars.n != 2"
+            val result = runtime.applyPatch(instance = instance, patch = ModelPatch.ChangeGuard(transitionId = "t1", newOcl = guard))
+
+            result.shouldBeInstanceOf<PatchResult.Applied>()
+            result.model.transitions
+                .first { it.id == "t1" }
+                .guard shouldBe guard
+        }
+
         test("atomicity — original instance/model are never mutated") {
             val instance = runtime.start(model)
             val originalGuard =

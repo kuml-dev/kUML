@@ -193,7 +193,7 @@ class BehaviourWidgetStatePayloadAndVariablesTest :
 
         test("revertGuard restores an original guard that the OCL type check would reject") {
             // Original guard written in the AST dialect; changeGuard's OCL check refuses it.
-            val original = "vars.a > 1 && vars.b"
+            val original = "vars.a == 1"
             val s = state(model = machine(goGuard = original))
             s.changeGuard(transitionId = "t-go", newOcl = original).shouldBeInstanceOf<PatchOutcome.Rejected>()
             s.changeGuard(transitionId = "t-go", newOcl = "true") shouldBe PatchOutcome.Applied

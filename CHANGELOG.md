@@ -6,6 +6,22 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 27: the OCL guard editor accepts `!`, `&&`, `||` and `!=`
+
+#### Why
+
+A guard such as `!emergency` ran in the simulation and passed `kuml validate`, because both use the lenient expression parser. The strict OCL lexer behind the guard editor and `ModelPatch.ChangeGuard` rejected it with "Unexpected character: '!' at position 0", so a guard could be simulated but not edited or patched.
+
+#### Change
+
+- `OclLexer` maps `!` to `not`, `&&` to `and`, `||` to `or` and `!=` to `<>`. A lone `|` still separates an iterator variable from its body.
+- Scope: syntax check, highlighting and live guard patches. The OCL evaluator and standard OCL semantics are unchanged.
+
+#### Verification
+
+- New `OclSyntaxTest` cases (C-style operators accepted, equal to the word forms, lone `|` unchanged) and an `ApplyPatchTest` case for a patched guard.
+- Not verified: the guard editor UI in the running desktop app.
+
 ### Nacharbeit 26: notes of state-machine diagrams sit beside their anchor
 
 #### Why

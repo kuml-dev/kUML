@@ -113,6 +113,26 @@ internal object OclLexer {
                     push(OclToken.Op(">="), tokenStart, tokenStart + 2)
                     i += 2
                 }
+                // C-style spellings used by the lenient guard parser (kuml-core-expr) and by the
+                // simulation, accepted here too so a guard such as `!emergency` is edited,
+                // patched and type-checked the same way it is evaluated. They map onto the OCL
+                // word operators; `||` is matched before the single `|` of iterator bodies.
+                i + 1 < input.length && input.substring(i, i + 2) == "&&" -> {
+                    push(OclToken.Ident("and"), tokenStart, tokenStart + 2)
+                    i += 2
+                }
+                i + 1 < input.length && input.substring(i, i + 2) == "||" -> {
+                    push(OclToken.Ident("or"), tokenStart, tokenStart + 2)
+                    i += 2
+                }
+                i + 1 < input.length && input.substring(i, i + 2) == "!=" -> {
+                    push(OclToken.Op("<>"), tokenStart, tokenStart + 2)
+                    i += 2
+                }
+                input[i] == '!' -> {
+                    push(OclToken.Ident("not"), tokenStart, tokenStart + 1)
+                    i++
+                }
                 // "@pre" — post-condition pre-state snapshot marker (OCL 2.x `expr@pre`).
                 i + 3 < input.length &&
                     input.substring(i, i + 4) == "@pre" &&

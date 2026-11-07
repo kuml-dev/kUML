@@ -100,6 +100,26 @@ class OclSyntaxTest :
                 ) shouldBe OclCheckResult.Ok
             }
 
+            test("accepts the C-style operators of the lenient guard parser") {
+                val scope = OclScope(mapOf("emergency" to OclType.BOOLEAN, "n" to OclType.INTEGER))
+                listOf("!emergency", "!emergency && n > 1", "emergency || n != 2", "!(emergency || n > 1)").forEach {
+                    OclSyntax.typeCheck(expr = it, scope = scope) shouldBe OclCheckResult.Ok
+                }
+            }
+
+            test("C-style operators and their OCL word forms type-check alike") {
+                val scope = OclScope(mapOf("emergency" to OclType.BOOLEAN, "n" to OclType.INTEGER))
+                OclSyntax.typeCheck(expr = "not emergency and n <> 2", scope = scope) shouldBe
+                    OclSyntax.typeCheck(expr = "!emergency && n != 2", scope = scope)
+            }
+
+            test("a single pipe still separates iterator variable and body") {
+                val tokens = OclSyntax.highlight("items->select(x | x > 1)")
+                tokens.none { it.kind == OclTokenKind.ERROR } shouldBe true
+                // exactly one operator token covers the lone '|' (offset 16)
+                tokens.count { it.start == 16 && it.end == 17 } shouldBe 1
+            }
+
             test("reports a syntax error with a non-null range") {
                 val result = OclSyntax.typeCheck(expr = "self.", scope = OclScope(emptyMap()))
                 val error = result.shouldBeInstanceOf<OclCheckResult.Error>()
