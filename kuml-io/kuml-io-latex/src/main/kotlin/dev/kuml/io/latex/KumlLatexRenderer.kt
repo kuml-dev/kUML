@@ -165,7 +165,7 @@ public object KumlLatexRenderer {
             }
 
             appendPictureOpen(options.scale)
-            appendTikzStyles(options.indent)
+            appendPictureStyles(options)
 
             val umlNotes = diagram.elements.filterIsInstance<UmlComment>().filter { NodeId(it.id) in layoutResult.nodes }
             if (umlNotes.isNotEmpty() || extraNotes.isNotEmpty()) {
@@ -264,7 +264,7 @@ public object KumlLatexRenderer {
             }
 
             appendPictureOpen(options.scale)
-            appendTikzStyles(options.indent)
+            appendPictureStyles(options)
             if (notes.isNotEmpty()) {
                 NoteTikz.appendNoteStyles(sb = this, indent = options.indent, kinds = notes.map { it.kind })
             }
@@ -881,7 +881,7 @@ public object KumlLatexRenderer {
             }
 
             appendPictureOpen(options.scale)
-            appendTikzStyles(options.indent)
+            appendPictureStyles(options)
             if (notes.isNotEmpty()) {
                 NoteTikz.appendNoteStyles(sb = this, indent = options.indent, kinds = notes.map { it.kind })
             }
@@ -1000,10 +1000,58 @@ public object KumlLatexRenderer {
         // every modern engine; fontenc T1 enables proper hyphenation + guillemets.
         appendLine("\\usepackage[T1]{fontenc}")
         appendLine("\\usepackage[english]{babel}")
+        appendTikzLibraryLines(extraLibraries)
+        appendLine("\\begin{document}")
+    }
+
+    /** The `\usetikzlibrary` lines shared by the standalone preamble and [sharedPreamble]. */
+    private fun StringBuilder.appendTikzLibraryLines(extraLibraries: List<String>) {
         appendLine("\\usetikzlibrary{${BASE_TIKZ_LIBRARIES.joinToString(", ")}}")
         val extras = extraLibraries.filterNot { it in BASE_TIKZ_LIBRARIES }.distinct()
         if (extras.isNotEmpty()) appendLine("\\usetikzlibrary{${extras.joinToString(", ")}}")
-        appendLine("\\begin{document}")
+    }
+
+    /** Name of the shared preamble file written next to a folder export. */
+    public const val SHARED_PREAMBLE_FILE: String = "kuml-preamble.tex"
+
+    /**
+     * Content of [SHARED_PREAMBLE_FILE]: the packages (loaded only if the host document has not loaded them yet,
+     * which avoids option clashes), the union of the TikZ libraries of [families] and the `kuml-*` styles, once.
+     * It has no `\documentclass`; a host document pulls it in with `\input{kuml-preamble}`. Snippets rendered
+     * with [LatexRenderOptions.sharedPreamble] rely on it.
+     */
+    public fun sharedPreamble(families: Set<LatexFamily>): String =
+        buildString {
+            appendLine("% kUML shared preamble: load it once per document, after the document class, with \\input{kuml-preamble}.")
+            appendLine("\\makeatletter")
+            for (pkg in PREAMBLE_PACKAGES) {
+                val opt = pkg.options?.let { "[$it]" } ?: ""
+                appendLine("\\@ifpackageloaded{${pkg.name}}{}{\\usepackage$opt{${pkg.name}}}")
+            }
+            appendLine("\\makeatother")
+            appendTikzLibraryLines(LatexFamily.entries.filter { it in families }.flatMap { it.extraTikzLibraries })
+            appendTikzStyles(indent = "")
+        }
+
+    /** The `kuml-*` style block exactly as a snippet embeds it; tests use it to compare snippets. */
+    internal fun tikzStyleBlock(indent: String): String = buildString { appendTikzStyles(indent) }
+
+    private class PreamblePackage(
+        val name: String,
+        val options: String?,
+    )
+
+    private val PREAMBLE_PACKAGES: List<PreamblePackage> =
+        listOf(
+            PreamblePackage(name = "tikz", options = null),
+            PreamblePackage(name = "inputenc", options = "utf8"),
+            PreamblePackage(name = "fontenc", options = "T1"),
+            PreamblePackage(name = "babel", options = "english"),
+        )
+
+    /** Writes the style block unless the snippet relies on a shared preamble that already holds it. */
+    private fun StringBuilder.appendPictureStyles(options: LatexRenderOptions) {
+        if (!options.sharedPreamble) appendTikzStyles(options.indent)
     }
 
     private val BASE_TIKZ_LIBRARIES: List<String> = listOf("arrows.meta", "calc", "positioning")
@@ -1155,9 +1203,9 @@ public object KumlLatexRenderer {
         buildString {
             if (options.standalone) {
                 // Blueprint needs extra TikZ libraries beyond the shared preamble.
-                appendStandalonePreamble(extraLibraries = listOf("shapes.geometric", "plotmarks"))
+                appendStandalonePreamble(extraLibraries = LatexFamily.BLUEPRINT.extraTikzLibraries)
             }
-            appendTikzStyles(options.indent)
+            appendPictureStyles(options)
             append(inner())
             if (options.standalone) {
                 appendStandaloneCoda()
@@ -1251,9 +1299,9 @@ public object KumlLatexRenderer {
         buildString {
             if (options.standalone) {
                 // The gateway uses the `diamond` shape; without this library a standalone BPMN document does not compile.
-                appendStandalonePreamble(extraLibraries = listOf("shapes.geometric"))
+                appendStandalonePreamble(extraLibraries = LatexFamily.BPMN.extraTikzLibraries)
             }
-            appendTikzStyles(options.indent)
+            appendPictureStyles(options)
             append(inner())
             if (options.standalone) {
                 appendStandaloneCoda()

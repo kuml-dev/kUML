@@ -107,4 +107,60 @@ class LatexExportServiceTest :
             b.shouldBeInstanceOf<LatexExportResult.Success>().tex shouldContain "Invoice"
             b.tex shouldNotContain "Order"
         }
+
+        test("exportFile with a shared preamble gives a snippet without the style block and without a document") {
+            val r =
+                LatexExportService
+                    .exportFile(input = File("src/test/resources/latex/uml-class.kuml.kts"), themeName = null, sharedPreamble = true)
+                    .shouldBeInstanceOf<LatexFileExportResult.Rendered>()
+            r.family shouldBe dev.kuml.io.latex.LatexFamily.UML
+            r.tex shouldNotContain "\\documentclass"
+            r.tex shouldNotContain "\\tikzset{kuml-class"
+            r.tex shouldStartWith "\\begin{tikzpicture}"
+        }
+
+        test("exportFile skips families without LaTeX output and names the reason") {
+            val erm =
+                LatexExportService.exportFile(
+                    input = File("src/test/resources/latex-folder/erm.kuml.kts"),
+                    themeName = null,
+                    sharedPreamble = true,
+                )
+            erm.shouldBeInstanceOf<LatexFileExportResult.Skipped>().reason shouldContain "ERM"
+            val choreo =
+                LatexExportService.exportFile(
+                    input = File("src/test/resources/latex-folder/bpmn-choreography.kuml.kts"),
+                    themeName = null,
+                    sharedPreamble = true,
+                )
+            choreo.shouldBeInstanceOf<LatexFileExportResult.Skipped>().reason shouldContain "choreography"
+        }
+
+        test("exportFile reports a script that does not compile as failed") {
+            val dir = Files.createTempDirectory("kuml-exportfile").toFile()
+            try {
+                val f = File(dir, "bad.kuml.kts").also { it.writeText("this is not kotlin (") }
+                LatexExportService
+                    .exportFile(
+                        input = f,
+                        themeName = null,
+                        sharedPreamble = true,
+                    ).shouldBeInstanceOf<LatexFileExportResult.Failed>()
+            } finally {
+                dir.deleteRecursively()
+            }
+        }
+
+        test("export keeps producing exactly what the render pipeline writes") {
+            val a = LatexExportService.export(script = script("latex/uml-class.kuml.kts"), themeName = null, standalone = true)
+            val b =
+                LatexExportService.exportFile(
+                    input = File("src/test/resources/latex/uml-class.kuml.kts"),
+                    themeName = null,
+                    sharedPreamble = false,
+                )
+            // Same pipeline: the snippet (non-standalone, not shared) is contained in the standalone document.
+            val snippet = b.shouldBeInstanceOf<LatexFileExportResult.Rendered>().tex
+            a.shouldBeInstanceOf<LatexExportResult.Success>().tex shouldContain snippet
+        }
     })

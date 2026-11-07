@@ -24,7 +24,10 @@ application {
     // ~700ms off cold-start at no measurable cost for typical single-shot CLI usage
     // (the dominant runtime cost is the script compile, not loop-body hot code).
     // See V1.0.1 jlink plan + ADR-0007 for the longer-term path.
-    applicationDefaultJvmArgs = listOf("-XX:TieredStopAtLevel=1")
+    // ReservedCodeCacheSize: with TieredStopAtLevel=1 the JVM reserves only 48 MB of code cache. A folder export
+    // (`kuml workspace export --format latex`) compiles dozens of scripts in one process and filled it up
+    // ("Out of space in CodeCache"). The reservation is virtual address space, not memory in use.
+    applicationDefaultJvmArgs = listOf("-XX:TieredStopAtLevel=1", "-XX:ReservedCodeCacheSize=256m")
 }
 
 // V3.1.15 — `kuml ai` command group requires kuml-ai-core.

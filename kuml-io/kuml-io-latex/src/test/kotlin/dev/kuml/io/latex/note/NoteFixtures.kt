@@ -125,6 +125,7 @@ internal object NoteFixtures {
         body: String? = null,
         kind: NoteKind = NoteKind.NOTE,
         standalone: Boolean = false,
+        shared: Boolean = false,
     ): String {
         val (d, l) = uml(body = body, kind = kind)
         return KumlLatexRenderer.toLatex(
@@ -132,7 +133,7 @@ internal object NoteFixtures {
             layoutResult = l,
             options =
                 dev.kuml.io.latex
-                    .LatexRenderOptions(standalone = standalone),
+                    .LatexRenderOptions(standalone = standalone, sharedPreamble = shared),
         )
     }
 
@@ -201,6 +202,7 @@ internal object NoteFixtures {
         body: String? = null,
         kind: NoteKind = NoteKind.NOTE,
         standalone: Boolean = false,
+        shared: Boolean = false,
     ): String {
         val (m, d, l) = bddModel(body = body, kind = kind)
         return KumlLatexRenderer.toLatex(
@@ -209,7 +211,7 @@ internal object NoteFixtures {
             layoutResult = l,
             options =
                 dev.kuml.io.latex
-                    .LatexRenderOptions(standalone = standalone),
+                    .LatexRenderOptions(standalone = standalone, sharedPreamble = shared),
         )
     }
 
@@ -248,6 +250,7 @@ internal object NoteFixtures {
         body: String? = null,
         kind: NoteKind = NoteKind.NOTE,
         standalone: Boolean = false,
+        shared: Boolean = false,
     ): String {
         val (m, d, l) = stmModel(body = body, kind = kind)
         return KumlLatexRenderer.toLatex(
@@ -256,7 +259,7 @@ internal object NoteFixtures {
             layoutResult = l,
             options =
                 dev.kuml.io.latex
-                    .LatexRenderOptions(standalone = standalone),
+                    .LatexRenderOptions(standalone = standalone, sharedPreamble = shared),
         )
     }
 
@@ -303,6 +306,7 @@ internal object NoteFixtures {
         body: String? = null,
         kind: NoteKind = NoteKind.NOTE,
         standalone: Boolean = false,
+        shared: Boolean = false,
     ): String {
         val (m, d, l) = c4(body = body, kind = kind)
         return KumlLatexRenderer.toLatex(
@@ -311,7 +315,7 @@ internal object NoteFixtures {
             layoutResult = l,
             options =
                 dev.kuml.io.latex
-                    .LatexRenderOptions(standalone = standalone),
+                    .LatexRenderOptions(standalone = standalone, sharedPreamble = shared),
         )
     }
 
@@ -389,6 +393,7 @@ internal object NoteFixtures {
         notes: List<Triple<String, NoteKind, List<String>>> = emptyList(),
         flowIds: List<String> = listOf("start1", "t1", "g1", "end1"),
         standalone: Boolean = false,
+        shared: Boolean = false,
         noteIdOf: (Int) -> String = { "a$it" },
     ): String {
         val (m, d) = bpmnProcessModel(notes = notes, flowIds = flowIds, noteIdOf = noteIdOf)
@@ -397,7 +402,7 @@ internal object NoteFixtures {
             diagram = d,
             options =
                 dev.kuml.io.latex
-                    .LatexRenderOptions(standalone = standalone),
+                    .LatexRenderOptions(standalone = standalone, sharedPreamble = shared),
         )
     }
 
@@ -463,6 +468,7 @@ internal object NoteFixtures {
     fun renderBpmnCollaboration(
         notes: List<Triple<String, NoteKind, List<String>>> = emptyList(),
         standalone: Boolean = false,
+        shared: Boolean = false,
         poolName: String = "Customer",
         messageFlow: Boolean = true,
     ): String {
@@ -472,7 +478,7 @@ internal object NoteFixtures {
             diagram = d,
             options =
                 dev.kuml.io.latex
-                    .LatexRenderOptions(standalone = standalone),
+                    .LatexRenderOptions(standalone = standalone, sharedPreamble = shared),
         )
     }
 
@@ -546,12 +552,13 @@ internal object NoteFixtures {
         notes: List<Triple<String, NoteKind, List<String>>> = emptyList(),
         full: Boolean = false,
         standalone: Boolean = false,
+        shared: Boolean = false,
         extraSteps: List<JourneyStep> = emptyList(),
     ): String =
         KumlLatexRenderer.toLatex(
             model = blueprintModel(notes = notes, full = full, extraSteps = extraSteps),
             options =
                 dev.kuml.io.latex
-                    .LatexRenderOptions(standalone = standalone),
+                    .LatexRenderOptions(standalone = standalone, sharedPreamble = shared),
         )
 }

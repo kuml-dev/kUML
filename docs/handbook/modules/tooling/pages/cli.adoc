@@ -428,11 +428,45 @@ kuml workspace info <dir>
 kuml workspace validate <dir> [--strict-vocabulary] [--document <path>]... [--evaluate] [--strict]
 kuml workspace render <dir> [-f svg|png] [-o <dir>] [--document <path>]... [--strict] [--no-mirror]
 kuml workspace convert <src> --to okf|kts [--force] [--output <dir>] [--strict]
+kuml workspace export <dir> --format latex [-o <dir>] [--force] [--strict] [--theme <name>]
 kuml workspace export <dir> --format pdf [--kind handbook|per-document|diagrams] [--page-strategy auto|fixed] [--min-scale 0.25..1.0] [--tiling|--no-tiling] [-o <file-or-dir>] [--force] [--strict]
 ----
 
 `export` writes the workspace as PDF (handbook, one PDF per document, or a diagram folio) and runs the
 workspace's diagram scripts; see xref:workspace-pdf-export.adoc[Workspace PDF export].
+
+=== LaTeX folder export
+
+`kuml workspace export <dir> --format latex` turns every `*.kuml.kts` below `<dir>` into a TikZ
+figure that shares one preamble:
+
+----
+out/                       (default: <dir>/.kuml-out/export/latex)
+  kuml-preamble.tex        packages, TikZ libraries, kuml-* styles (once)
+  main.tex                 collects the figures, one per \kumlfigure
+  uml-class.tex            one file per script, sub folders are kept
+  sub/bpmn-process.tex
+----
+
+To use the figures in your own document, put `\input{kuml-preamble}` after `\documentclass` and
+`\input{sub/bpmn-process}` where a figure belongs. The preamble loads a package only if your
+document has not loaded it yet, so your own `babel` options stay in force.
+
+* File names are sanitised (`[A-Za-z0-9._-]`) and made unique case-insensitively; a rename is
+  reported as `NOTE`. `main` and `kuml-preamble` are reserved at the top level.
+* `SKIP` — the diagram family has no LaTeX output (ERM, SysML 2 package, BPMN choreography and
+  conversation), or the script is a symbolic link. `ERROR` — the script failed. `WARN` — the figure is
+  written but left out of `main.tex` because it references a TikZ node that is not defined (currently the
+  BPMN collaboration). Only the first diagram of a script is exported (`NOTE`).
+* Exit codes: `0` everything exported (SKIP, WARN and NOTE do not change it); `3` at least one script
+  failed (the other figures are still written), or any failure, skip or exclusion with `--strict`, in
+  which case nothing is written; `2` usage errors (no scripts found, output exists without `--force`,
+  output is a symbolic link, a PDF-only option was given); `4` I/O error.
+* Existing files are replaced only with `--force`; files of earlier runs that are no longer produced
+  stay. Each file is replaced atomically, the set as a whole is not.
+* Trust model: the command runs every script it finds, like `kuml workspace render`. There is no time
+  limit per script. Use pdflatex with `-no-shell-escape`.
+* Not covered: Markdown diagrams of Knowledge workspaces, XeLaTeX and LuaLaTeX (not tested).
 
 `init` scaffolds a new workspace into `--output` (default `./<slug>` from `--name`); `info`,
 `validate` and `render` take the workspace root as a positional `<dir>`; `convert` (added in

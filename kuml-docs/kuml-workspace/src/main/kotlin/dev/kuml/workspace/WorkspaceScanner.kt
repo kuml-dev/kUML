@@ -88,6 +88,46 @@ public object WorkspaceScanner {
         }
     }
 
+    /** Upper bound of [diagramScripts], for the same reason as [MAX_MD_FILE_COUNT]. */
+    internal const val MAX_SCRIPT_FILE_COUNT = 5_000
+
+    private fun walkFiles(
+        scanRoot: File,
+        excludeCanonical: Set<File>,
+    ): Sequence<File> =
+        scanRoot
+            .walkTopDown()
+            .onEnter { dir -> isWalkableDir(dir = dir, scanRoot = scanRoot, excludeCanonical = excludeCanonical) }
+            .filter { it.isFile }
+
+    /**
+     * All `*.kuml.kts` files under [root], walked with the same rules as [scan] (hidden, symlinked and excluded
+     * directories are skipped), sorted by their relative path with `/` separators. Files that are symbolic links
+     * are returned too; the caller decides what to do with them.
+     *
+     * @throws IllegalArgumentException when more than [MAX_SCRIPT_FILE_COUNT] scripts exist.
+     */
+    public fun diagramScripts(
+        root: File,
+        excludeDirs: Set<File> = emptySet(),
+    ): List<File> = diagramScripts(root = root, excludeDirs = excludeDirs, maxFiles = MAX_SCRIPT_FILE_COUNT)
+
+    internal fun diagramScripts(
+        root: File,
+        excludeDirs: Set<File>,
+        maxFiles: Int,
+    ): List<File> {
+        val scanRoot = canonicalRoot(root)
+        val scripts =
+            walkFiles(scanRoot = scanRoot, excludeCanonical = canonicalExcludes(excludeDirs))
+                .filter { it.name.endsWith(".kuml.kts") }
+                .toList()
+        require(scripts.size <= maxFiles) {
+            "Script scan aborted: $scanRoot contains ${scripts.size} kUML scripts, exceeding the safety cap of $maxFiles."
+        }
+        return scripts.sortedBy { it.relativeTo(scanRoot).invariantSeparatorsPath }
+    }
+
     public fun scan(
         root: File,
         excludeDirs: Set<File> = emptySet(),
@@ -98,12 +138,7 @@ public object WorkspaceScanner {
         val markerFound = markerFile.isFile
         val marker = if (markerFound) WorkspaceMarkerParser.parse(markerFile.readText()) else null
 
-        val allFiles =
-            scanRoot
-                .walkTopDown()
-                .onEnter { dir -> isWalkableDir(dir = dir, scanRoot = scanRoot, excludeCanonical = excludeCanonical) }
-                .filter { it.isFile }
-                .toList()
+        val allFiles = walkFiles(scanRoot = scanRoot, excludeCanonical = excludeCanonical).toList()
 
         val mdFiles = allFiles.filter { it.extension == "md" }
         require(mdFiles.size <= MAX_MD_FILE_COUNT) {

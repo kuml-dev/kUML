@@ -6,6 +6,30 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 31: Shared LaTeX preamble and folder export (`kuml workspace export --format latex`)
+
+#### Why
+
+Every standalone LaTeX file repeats the complete preamble and the whole `kuml-*` style block. A collection of figures in one document had no export: each diagram had to be rendered, named and stitched together by hand.
+
+#### Change
+
+- `kuml-io-latex`: new `LatexRenderOptions.sharedPreamble` (default `false`, mutually exclusive with `standalone`) leaves the `kuml-*` `\tikzset` block out of a snippet. `KumlLatexRenderer.sharedPreamble(families)` writes `kuml-preamble.tex`: packages loaded only if the host document has not loaded them (`\@ifpackageloaded`, so a German `babel` does not clash), the union of the TikZ libraries of the families used, and the styles once. `LatexFamily` is now the single source of the per-family libraries. Default and standalone output are byte-identical to before (all goldens unchanged).
+- `LatexDocumentAssembler` builds `main.tex` (`\kumlfigure` scales a figure down to the line width or 85 % of the text height, never up; figure paths are whitelisted, captions are escaped, reasons are comment-safe). `LatexSourceCheck` finds `(name)` references that no node defines.
+- `kuml workspace export <dir> --format latex [-o <dir>] [--force] [--strict] [--theme <name>]`: every `*.kuml.kts` below the folder (same walk rules as the workspace scan: hidden, symlinked and excluded directories are skipped, at most 5000 scripts) becomes `<name>.tex`, plus `kuml-preamble.tex` and `main.tex`. Names are sanitised and made unique case-insensitively. Diagram families without LaTeX output (ERM, SysML 2 package, BPMN choreography and conversation) are reported as `SKIP`; a script that fails is an `ERROR` (exit 3, the other figures are still written). Only the first diagram of a script is exported (`NOTE`). A figure that references an undefined TikZ node (today: the BPMN collaboration) is written but left out of `main.tex` (`WARN`). Existing files need `--force`; all targets are checked before the first write, no path component may be a symbolic link, and every file is replaced atomically. `--strict` turns any failure, skip or exclusion into exit 3 and writes nothing. PDF-only options are rejected with exit 2.
+- `LatexExportService.exportFile`, `unsupportedReason` and `familyOf` are the per-file entry for the folder export (and for the Desktop in a later wave); `export()` and `LatexExportResult` are unchanged.
+- The `kuml` launcher now passes `-XX:ReservedCodeCacheSize=256m`: with `-XX:TieredStopAtLevel=1` the JVM reserves only 48 MB of code cache, and exporting 72 scripts in one process ended in "Out of space in CodeCache".
+
+#### Verification
+
+- New tests: `SharedPreambleTest`, `LatexDocumentAssemblerTest`, `LatexSourceCheckTest`, `WorkspaceScannerDiagramScriptsTest`, `LatexFolderExportTest`, `WorkspaceExportLatexCommandTest`, extended `LatexExportServiceTest`, and `LatexFolderPdfBuildTest` (builds the 15 fixtures with pdflatex).
+- Real run with the installed CLI: the 15 test fixtures export 15 figures (1 excluded: the BPMN collaboration) and `main.tex` builds with pdflatex to 12 pages; the 72 scripts of the kuml.dev playground export 65 figures (7 skipped: 5 ERM, choreography, conversation; 1 excluded: the BPMN collaboration) and build to 46 pages. Pages were rasterised and looked at.
+- Building the 65-figure document first failed with "Too many unprocessed floats"; `main.tex` therefore places figures with `[H]` (package `float`).
+
+#### Not verified
+
+XeLaTeX and LuaLaTeX; Windows paths; TeX on CI (the pdflatex test is skipped there); a time limit per script (like `kuml render`, none); Knowledge workspaces with Markdown diagrams (not exported yet); the Desktop still has its own `isLatexCapable` (to be merged in a later wave). Known, unchanged render issues remain visible in the PDFs (for example the label of the initial pseudo-state overlapping its box).
+
 ### Nacharbeit 30: LaTeX (TikZ) export in the Desktop app, and `--latex-standalone` for every diagram family
 
 #### Why

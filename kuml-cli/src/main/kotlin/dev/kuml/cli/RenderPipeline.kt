@@ -241,6 +241,9 @@ internal object RenderPipeline {
      * @param latexStandalone When `true` and format is `"latex"`, emit a complete
      *   `\documentclass{standalone}` document instead of a bare tikzpicture snippet.
      *   Only meaningful for LaTeX output — ignored for SVG / PNG.
+     * @param latexSharedPreamble When `true` and format is `"latex"`, emit a snippet that relies on a shared
+     *   preamble file (see [KumlLatexRenderer.sharedPreamble]) instead of embedding the `kuml-*` styles.
+     *   Mutually exclusive with [latexStandalone].
      * @param animated When `true` and format is `"svg"`, inject SMIL animations (V3.1.31).
      * @param traceFile Optional path to a `kuml.trace.v1` JSON file for trace-driven animation.
      *   When `null` and [animated] is `true`, a demo animation sequence is synthesised.
@@ -266,7 +269,9 @@ internal object RenderPipeline {
         notation: String? = null,
         watermark: Boolean = false,
         extractedSink: ((ExtractedDiagram) -> Unit)? = null,
+        latexSharedPreamble: Boolean = false,
     ): RenderOutcome {
+        val latex = LatexRenderOptions(standalone = latexStandalone, sharedPreamble = latexSharedPreamble)
         // 1. Evaluate script
         val evalResult = KumlScriptHost.eval(file = input)
 
@@ -328,7 +333,7 @@ internal object RenderPipeline {
                         width = width,
                         theme = theme,
                         layoutEngineOverride = layoutEngineOverride,
-                        latexStandalone = latexStandalone,
+                        latex = latex,
                         animated = animated,
                         traceFile = traceFile,
                         speed = speed,
@@ -342,7 +347,7 @@ internal object RenderPipeline {
                         width = width,
                         theme = theme,
                         watermark = watermark,
-                        latexStandalone = latexStandalone,
+                        latex = latex,
                     )
                 is ExtractedDiagram.Sysml2 ->
                     renderSysml2(
@@ -355,7 +360,7 @@ internal object RenderPipeline {
                         traceFile = traceFile,
                         speed = speed,
                         watermark = watermark,
-                        latexStandalone = latexStandalone,
+                        latex = latex,
                     )
                 is ExtractedDiagram.Bpmn ->
                     renderBpmn(
@@ -368,7 +373,7 @@ internal object RenderPipeline {
                         traceFile = traceFile,
                         speed = speed,
                         watermark = watermark,
-                        latexStandalone = latexStandalone,
+                        latex = latex,
                     )
                 is ExtractedDiagram.Blueprint ->
                     renderBlueprint(
@@ -377,7 +382,7 @@ internal object RenderPipeline {
                         format = format,
                         width = width,
                         theme = theme,
-                        latexStandalone = latexStandalone,
+                        latex = latex,
                     )
                 is ExtractedDiagram.Erm ->
                     renderErm(
@@ -442,9 +447,6 @@ internal object RenderPipeline {
         }
     }
 
-    /** Single place that turns the CLI standalone flag into renderer options, for every diagram family. */
-    private fun latexOptions(standalone: Boolean): LatexRenderOptions = LatexRenderOptions(standalone = standalone)
-
     private fun renderUml(
         extracted: ExtractedDiagram.Uml,
         output: Path,
@@ -452,7 +454,7 @@ internal object RenderPipeline {
         width: Int,
         theme: KumlTheme,
         layoutEngineOverride: String? = null,
-        latexStandalone: Boolean = false,
+        latex: LatexRenderOptions = LatexRenderOptions(),
         animated: Boolean = false,
         traceFile: File? = null,
         speed: Double = 1.0,
@@ -678,7 +680,7 @@ internal object RenderPipeline {
                 writeBinary(out = output, bytes = pngBytes)
             }
             "latex" -> {
-                val opts = latexOptions(latexStandalone)
+                val opts = latex
                 val tex = KumlLatexRenderer.toLatex(diagram = diagram, layoutResult = layoutResult, options = opts)
                 writeText(out = output, text = tex)
             }
@@ -782,7 +784,7 @@ internal object RenderPipeline {
         traceFile: File? = null,
         speed: Double = 1.0,
         watermark: Boolean = false,
-        latexStandalone: Boolean = false,
+        latex: LatexRenderOptions = LatexRenderOptions(),
     ) {
         val model = extracted.model
         // SysML 2 uses ELK (same as all other diagram types)
@@ -823,7 +825,7 @@ internal object RenderPipeline {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult = layoutResult,
-                                    options = latexOptions(latexStandalone),
+                                    options = latex,
                                 ),
                         )
                     "png" ->
@@ -871,7 +873,7 @@ internal object RenderPipeline {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult = layoutResult,
-                                    options = latexOptions(latexStandalone),
+                                    options = latex,
                                 ),
                         )
                     "png" ->
@@ -919,7 +921,7 @@ internal object RenderPipeline {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult = layoutResult,
-                                    options = latexOptions(latexStandalone),
+                                    options = latex,
                                 ),
                         )
                     "png" ->
@@ -978,7 +980,7 @@ internal object RenderPipeline {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult = layoutResult,
-                                    options = latexOptions(latexStandalone),
+                                    options = latex,
                                 ),
                         )
                     "png" ->
@@ -1062,7 +1064,7 @@ internal object RenderPipeline {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult = layoutResult,
-                                    options = latexOptions(latexStandalone),
+                                    options = latex,
                                 ),
                         )
                     "png" ->
@@ -1187,7 +1189,7 @@ internal object RenderPipeline {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult = layoutResult,
-                                    options = latexOptions(latexStandalone),
+                                    options = latex,
                                 ),
                         )
                     "png" ->
@@ -1235,7 +1237,7 @@ internal object RenderPipeline {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult = layoutResult,
-                                    options = latexOptions(latexStandalone),
+                                    options = latex,
                                 ),
                         )
                     "png" ->
@@ -1294,7 +1296,7 @@ internal object RenderPipeline {
                                     model = model,
                                     diagram = diagram,
                                     layoutResult = layoutResult,
-                                    options = latexOptions(latexStandalone),
+                                    options = latex,
                                 ),
                         )
                     "png" ->
@@ -1385,7 +1387,7 @@ internal object RenderPipeline {
         width: Int,
         theme: KumlTheme,
         watermark: Boolean = false,
-        latexStandalone: Boolean = false,
+        latex: LatexRenderOptions = LatexRenderOptions(),
     ) {
         val diagram = extracted.diagram
         val model = extracted.model
@@ -1463,7 +1465,7 @@ internal object RenderPipeline {
                         diagram = diagram,
                         model = model,
                         layoutResult = layoutResult,
-                        options = latexOptions(latexStandalone),
+                        options = latex,
                     )
                 writeText(out = output, text = tex)
             }
@@ -1493,7 +1495,7 @@ internal object RenderPipeline {
         traceFile: File? = null,
         speed: Double = 1.0,
         watermark: Boolean = false,
-        latexStandalone: Boolean = false,
+        latex: LatexRenderOptions = LatexRenderOptions(),
     ) {
         val model = extracted.model
         val bpmnDiagram = extracted.diagram
@@ -1591,7 +1593,7 @@ internal object RenderPipeline {
                     "latex" ->
                         writeText(
                             out = output,
-                            text = KumlLatexRenderer.toLatex(model = model, diagram = bpmnDiagram, options = latexOptions(latexStandalone)),
+                            text = KumlLatexRenderer.toLatex(model = model, diagram = bpmnDiagram, options = latex),
                         )
                     else -> throw ScriptEvaluationException(message = "Unsupported format for BPMN: $format (supported: svg, png, latex)")
                 }
@@ -1633,7 +1635,7 @@ internal object RenderPipeline {
                     "latex" ->
                         writeText(
                             out = output,
-                            text = KumlLatexRenderer.toLatex(model = model, diagram = bpmnDiagram, options = latexOptions(latexStandalone)),
+                            text = KumlLatexRenderer.toLatex(model = model, diagram = bpmnDiagram, options = latex),
                         )
                     else -> throw ScriptEvaluationException(message = "Unsupported format for BPMN: $format (supported: svg, png, latex)")
                 }
@@ -1732,7 +1734,7 @@ internal object RenderPipeline {
         format: String,
         width: Int,
         @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
-        latexStandalone: Boolean = false,
+        latex: LatexRenderOptions = LatexRenderOptions(),
     ) {
         val model: BlueprintModel = extracted.model
         val diagram: BlueprintDiagram = extracted.diagram
@@ -1751,7 +1753,7 @@ internal object RenderPipeline {
                 writeBinary(out = output, bytes = pngBytes)
             }
             "latex" -> {
-                val opts = latexOptions(latexStandalone)
+                val opts = latex
                 val tex = KumlLatexRenderer.toLatex(model = model, diagram = diagram, options = opts)
                 writeText(out = output, text = tex)
             }

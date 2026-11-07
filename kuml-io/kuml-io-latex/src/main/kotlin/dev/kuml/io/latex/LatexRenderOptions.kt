@@ -28,12 +28,20 @@ package dev.kuml.io.latex
  *   (1 layout px → 1 TikZ pt); 0.5 halves the picture, 2.0 doubles it.
  * @property indent Leading whitespace per logical TikZ statement —
  *   purely cosmetic, makes the produced source pleasant to diff.
+ * @property sharedPreamble If true, the snippet is meant for a document that `\input`s
+ *   [KumlLatexRenderer.sharedPreamble]: the `kuml-*` `\tikzset` block is left out. Mutually exclusive with
+ *   [standalone].
  */
 public data class LatexRenderOptions(
     val standalone: Boolean = false,
     val scale: Double = 1.0,
     val indent: String = "  ",
+    val sharedPreamble: Boolean = false,
 ) {
+    init {
+        require(!(standalone && sharedPreamble)) { "standalone and sharedPreamble are mutually exclusive" }
+    }
+
     public companion object {
         /** Default options — snippet mode, identity scale. */
         public val DEFAULT: LatexRenderOptions = LatexRenderOptions()

@@ -13,6 +13,8 @@ import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.float
 import dev.kuml.cli.ExitCodes
+import dev.kuml.cli.export.LatexFolderExport
+import dev.kuml.cli.export.LatexFolderExportException
 import dev.kuml.workspace.WorkspaceScanner
 import dev.kuml.workspace.pdf.ExportMetadata
 import dev.kuml.workspace.pdf.ExportScope
@@ -28,14 +30,19 @@ import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
 /**
- * `kuml workspace export --format pdf` — handbook, per-document PDFs or a diagram folio of a knowledge
- * workspace. Executes the workspace's ```kuml blocks (same trust model as `workspace render`).
+ * `kuml workspace export` — two formats:
+ *
+ * - `--format pdf`: handbook, per-document PDFs or a diagram folio of a knowledge workspace. Executes the
+ *   workspace's ```kuml blocks.
+ * - `--format latex`: every `*.kuml.kts` below the folder as a TikZ snippet, plus a shared `kuml-preamble.tex`
+ *   and a `main.tex` that collects them. Executes every script found.
+ *
+ * Both run user-authored code, the same trust model as `workspace render`.
  */
 internal class WorkspaceExportCommand : CliktCommand(name = "export") {
     private val dir by argument(help = "Path to the OKF workspace root").file(mustExist = true, canBeFile = false)
 
-    @Suppress("unused")
-    private val format by option("--format", help = "Export format (currently only: pdf)").choice("pdf").required()
+    private val format by option("--format", help = "Export format: pdf or latex").choice("pdf", "latex").required()
 
     private val kind by option("--kind", help = "handbook (one book), per-document (one PDF per document) or diagrams (folio)")
         .choice("handbook", "per-document", "diagrams")
@@ -60,13 +67,18 @@ internal class WorkspaceExportCommand : CliktCommand(name = "export") {
     private val date by option("--date", help = "Date, ISO-8601 (overrides index.md frontmatter)")
     private val lang by option("--lang", help = "Label language").choice("de", "en")
     private val theme by option("--theme", help = "Diagram theme")
-    private val output by option("-o", "--output", help = "Output file (handbook, folio) or directory (per-document, --split)").file()
+    private val output by option(
+        "-o",
+        "--output",
+        help = "Output file (handbook, folio), directory (per-document, --split) or, for latex, the output directory",
+    ).file()
     private val force by option("--force", help = "Overwrite existing output files").flag()
     private val strict by option("--strict", help = "Exit 3 without writing on any warning (illegible diagram) or failed diagram").flag()
     private val split by option("--split", help = "diagrams only: one PDF per diagram").flag()
     private val aiNotes by option("--ai-notes", help = "Reserved: AI explanations are not available from the CLI in this version").flag()
 
-    override fun help(context: Context): String = "Export a knowledge workspace to PDF (handbook, per-document or diagram folio)."
+    override fun help(context: Context): String =
+        "Export a workspace to PDF (handbook, per-document or diagram folio) or a folder of kUML scripts to LaTeX/TikZ."
 
     private fun usage(msg: String): Nothing {
         echo("Error: $msg", err = true)
@@ -89,7 +101,91 @@ internal class WorkspaceExportCommand : CliktCommand(name = "export") {
         }
     }
 
+    /**
+     * PDF-only options whose value differs from the default. A value that equals the default
+     * (for example an explicit `--page a4`) cannot be told from "not given" and is not reported.
+     */
+    internal fun pdfOnlyOptionsGiven(): List<String> =
+        listOfNotNull(
+            "--kind".takeIf { kind != "handbook" },
+            "--scope".takeIf { scopes.isNotEmpty() },
+            "--page".takeIf { page != "a4" },
+            "--orientation".takeIf { orientation != "auto" },
+            "--page-strategy".takeIf { pageStrategy != null },
+            "--min-scale".takeIf { minScale != 0.5f },
+            "--no-tiling".takeIf { !tiling },
+            "--cover".takeIf { cover },
+            "--no-cover".takeIf { noCover },
+            "--no-toc".takeIf { noToc },
+            "--no-header-footer".takeIf { noHeaderFooter },
+            "--draft".takeIf { draft },
+            "--author".takeIf { author != null },
+            "--version".takeIf { version != null },
+            "--date".takeIf { date != null },
+            "--lang".takeIf { lang != null },
+            "--split".takeIf { split },
+            "--ai-notes".takeIf { aiNotes },
+        )
+
+    private fun runLatexExport(root: File) {
+        val ignored = pdfOnlyOptionsGiven()
+        if (ignored.isNotEmpty()) usage("${ignored.joinToString(", ")} only apply to --format pdf")
+        val defaultBase = File(root, ".kuml-out/export")
+        val target = (output ?: File(defaultBase, "latex")).absoluteFile.normalize()
+        val excludes = buildSet { if (target.startsWith(root)) add(target) }
+        try {
+            val prepared = LatexFolderExport.prepare(root = root, excludeDirs = excludes, themeName = theme)
+            prepared.notes.forEach { echo("NOTE ${shown(it)}", err = true) }
+            prepared.skipped.forEach { echo("SKIP ${shown(it.source)}: ${shown(it.reason)}", err = true) }
+            val excluded = prepared.figures.filter { it.excludedReason != null }
+            excluded.forEach {
+                echo(
+                    "WARN ${shown(it.source)}: excluded from main.tex - ${shown(it.excludedReason.orEmpty())}",
+                    err = true,
+                )
+            }
+            prepared.failures.forEach { echo("ERROR ${shown(it.source)}: ${shown(it.reason)}", err = true) }
+            if (strict && (prepared.failures.isNotEmpty() || prepared.skipped.isNotEmpty() || excluded.isNotEmpty())) {
+                echo("Error: --strict: nothing written.", err = true)
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
+            if (prepared.figures.isEmpty()) {
+                echo("Error: no diagram could be exported.", err = true)
+                throw ProgramResult(if (prepared.failures.isNotEmpty()) ExitCodes.SCRIPT_ERROR else ExitCodes.USAGE)
+            }
+            val result = LatexFolderExport.write(prepared = prepared, outDir = target, overwrite = force)
+            echo("Wrote ${prepared.figures.size} figure(s) plus kuml-preamble.tex and main.tex: ${result.outDir.path}")
+            echo("${prepared.failures.size} failed, ${prepared.skipped.size} skipped, ${excluded.size} excluded from main.tex")
+            if (prepared.failures.isNotEmpty()) throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+        } catch (e: LatexFolderExportException) {
+            echo("Error: ${shown(e.message.orEmpty())}", err = true)
+            throw ProgramResult(
+                when (e.code) {
+                    LatexFolderExportException.Code.OUTPUT_EXISTS -> {
+                        echo("Hint: pass --force to overwrite.", err = true)
+                        ExitCodes.USAGE
+                    }
+                    LatexFolderExportException.Code.IO -> ExitCodes.IO_ERROR
+                    else -> ExitCodes.USAGE
+                },
+            )
+        } catch (e: IllegalArgumentException) {
+            echo("Error: ${shown(e.message.orEmpty())}", err = true)
+            throw ProgramResult(ExitCodes.USAGE)
+        } catch (e: java.io.IOException) {
+            echo("Error: I/O error: ${e.javaClass.simpleName}", err = true)
+            throw ProgramResult(ExitCodes.IO_ERROR)
+        }
+    }
+
+    /** Terminal-safe: control characters (ANSI escapes, line breaks) in paths and reasons become a space. */
+    private fun shown(raw: String): String = raw.map { if (Character.isISOControl(it)) ' ' else it }.joinToString("")
+
     override fun run() {
+        if (format == "latex") {
+            runLatexExport(WorkspaceScanner.canonicalRoot(dir))
+            return
+        }
         if (aiNotes) usage("--ai-notes is not available from the CLI in this version (no AI provider is wired into the export).")
         if (cover && noCover) usage("--cover and --no-cover are mutually exclusive")
         val parsedDate =
