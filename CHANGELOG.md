@@ -6,6 +6,28 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 29: activity-diagram notes keep clear of edges, pin labels, lane borders and each other
+
+#### Why
+
+In an activity diagram a note could lie across an edge, end exactly where a pin label is drawn, be cut by a line, or straddle the border of a swimlane. The strict placement rules of Nacharbeit 25 and 26 (16 px clearance, no crossing anchor line, strip fallback) only ran for state machines, because they were switched on by the state-machine-only `noteWidthFactor` argument. Activity diagrams still used the soft cost model, and pin labels are planned after the notes, so the notes could not see them.
+
+#### Change
+
+- New `StrictNotePolicy` (clearance, width factor, costs, lanes, hard labels, sort order) replaces the implicit coupling to `noteWidthFactor`. `placeSysml2Notes` and `placeSysml2NotesResult` take `strictNotes`; the state-machine call passes the policy with its unchanged values. The old `noteWidthFactor` argument stays and maps to the same policy.
+- Activity diagrams use the policy with their swimlanes, hard clearance to pin labels, edge labels and lane title strips, and notes processed in the order of their anchors' height.
+- Lane invariant: a note lies fully inside one lane (16 px from its border) or fully outside all lanes (24 px away), never across a border.
+- New first stage in the placer: a position beside the anchor inside the anchor's own lane. Then the near side column, the far side column, the ring, the strip below, and the cheapest plan as before. Without lanes the order is exactly the state-machine order.
+- The pin-label zones are estimated before the notes are placed (`actNoteObstacles`): the label on the pin's outward side plus its neighbouring positions, plus 4 px.
+
+#### Verification
+
+- New `Sysml2ActNotesClearanceTest` (order example with five notes, fork/join, linear flow, diagram without lanes): 16 px to edges, nodes, pin-label zones, lane title strips and other notes, plus the lane invariant. On the previous `master` (`917b828b`) the order example fails with 7 violations (edge crossings, a pin-label zone, three lane-border straddles); it passes now.
+- New `NotePlacerLaneTest` (6 tests): stage 1 keeps a note inside a roomy lane, the lane invariant, hard labels, ordering, and equality with the state-machine behaviour without lanes.
+- The SVGs of the vault examples were rendered before and after and compared byte by byte; only the activity examples with notes may differ.
+- Not verified: the UML activity diagram (`DiagramType.ACTIVITY`) was not looked at and is unchanged; Windows and Linux fonts; lanes with very dense content; the routes the tests measure are the layout routes the placer sees, not the final drawn routes after clipping and pin routing (that deviation was not measured for activity diagrams).
+- Known weak points: pin-label sizes are estimates and 4 px only partly absorbs font differences; the drawn label can still land elsewhere. When a lane has no room, notes go outside the lanes and their anchor lines get long. Growing lanes or nodes to make room is deliberately not part of this change.
+
 ### Nacharbeit 28: a plain UML association is a bare line in the LaTeX/TikZ output
 
 #### Why

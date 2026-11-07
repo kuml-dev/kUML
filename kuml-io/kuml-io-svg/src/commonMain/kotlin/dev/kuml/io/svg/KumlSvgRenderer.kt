@@ -2921,7 +2921,9 @@ public object KumlSvgRenderer {
                     adapter = StmEdgeAdapter(model = model, diagram = diagram),
                     stmLabelMaxWidthPx = labelMaxWidthPx,
                     noteMaxWidth = dev.kuml.layout.bridge.NoteLayout.STM_MAX_W,
-                    noteWidthFactor = STM_NOTE_WIDTH_FACTOR,
+                    strictNotes =
+                        dev.kuml.layout.bridge.note
+                            .StrictNotePolicy(widthFactor = STM_NOTE_WIDTH_FACTOR),
                 ),
             theme = theme,
             options = options,
@@ -3028,14 +3030,19 @@ public object KumlSvgRenderer {
         @Suppress("NAME_SHADOWING")
         val layoutResult =
             sysml2WidenForLabelOverhang(
+                // Wave 2F: swimlane columns, region clearance and orthogonal re-routing come first.
                 layoutResult =
-                    placeSysml2Notes(
-                        model = model,
-                        diagram = diagram,
-                        // Wave 2F: swimlane columns, region clearance and orthogonal re-routing come first.
-                        layout = Sysml2LayoutBridge.normalizeActLayout(model = model, diagram = diagram, layoutResult = layoutResult),
-                        adapter = adapter,
-                    ),
+                    Sysml2LayoutBridge.normalizeActLayout(model = model, diagram = diagram, layoutResult = layoutResult).let { normalized ->
+                        placeSysml2Notes(
+                            model = model,
+                            diagram = diagram,
+                            layout = normalized,
+                            adapter = adapter,
+                            // Nacharbeit 29: the strict rules (clearance, lanes, pin labels) apply to activity notes too.
+                            strictNotes = actStrictNotePolicy(model = model, layout = normalized),
+                            configure = actNoteObstacles(model = model, layout = normalized),
+                        )
+                    },
                 sysml2EdgeAdapter = adapter,
                 padding = options.paddingPx,
             ).first
@@ -4048,6 +4055,7 @@ public object KumlSvgRenderer {
         stmLabelMaxWidthPx: Float = dev.kuml.io.svg.sysml2.edge.StmLabelPlacer.DEFAULT_MAX_WIDTH_PX,
         noteMaxWidth: Float? = null,
         noteWidthFactor: Float? = null,
+        strictNotes: dev.kuml.layout.bridge.note.StrictNotePolicy? = null,
     ): LayoutResult =
         placeSysml2NotesResult(
             model = model,
@@ -4061,7 +4069,111 @@ public object KumlSvgRenderer {
             stmLabelMaxWidthPx = stmLabelMaxWidthPx,
             noteMaxWidth = noteMaxWidth,
             noteWidthFactor = noteWidthFactor,
+            strictNotes = strictNotes,
         ).layout
+
+    /**
+     * The placer configuration of a note run. [strictNotes] switches on the strict rules (clearance, strip fallback,
+     * lanes); the legacy [noteWidthFactor] stands for the state-machine defaults of that policy. Without either, the
+     * legacy soft cost model of every other diagram type applies, unchanged.
+     */
+    private fun noteConfig(
+        localPorts: Boolean,
+        noteWidthFactor: Float?,
+        strictNotes: dev.kuml.layout.bridge.note.StrictNotePolicy?,
+    ): NotePlacementConfig {
+        val base = NotePlacementConfig(localPorts = localPorts)
+        val policy =
+            strictNotes
+                ?: noteWidthFactor?.let {
+                    dev.kuml.layout.bridge.note
+                        .StrictNotePolicy(widthFactor = it)
+                }
+                ?: return base
+        return policy.toConfig(base)
+    }
+
+    /**
+     * The strict note rules of an activity diagram (Nacharbeit 29): the state-machine defaults plus the swimlanes of
+     * [layout] (final coordinates), hard clearance to labels and titles, and notes placed in the order of their anchors' height.
+     */
+    internal fun actStrictNotePolicy(
+        model: Sysml2Model,
+        layout: LayoutResult,
+    ): dev.kuml.layout.bridge.note.StrictNotePolicy {
+        val partitionIds =
+            model.definitions
+                .filterIsInstance<ActivityPartitionDefinition>()
+                .map { it.id }
+                .toSet()
+        val lanes =
+            layout.groups
+                .filterKeys { it.value in partitionIds }
+                .map { (id, g) ->
+                    dev.kuml.layout.bridge.note
+                        .LaneRect(id = id.value, rect = g.bounds)
+                }
+        return dev.kuml.layout.bridge.note.StrictNotePolicy(
+            lanes = lanes,
+            hardLabelsAndTitles = true,
+            sortByAnchorY = true,
+        )
+    }
+
+    /**
+     * Adds the estimated pin-label zones of an activity diagram to the note obstacles (Nacharbeit 29). The pin labels are
+     * planned after the notes, so the notes cannot see their final place; the zone covers the label on the pin's outward
+     * side and the neighbouring positions it may be moved to (the pin's height or width in both directions), plus 4 px.
+     * It is an estimate: the drawn label can still land elsewhere.
+     */
+    internal fun actNoteObstacles(
+        model: Sysml2Model,
+        layout: LayoutResult,
+    ): (ObstacleIndex) -> Unit =
+        { index ->
+            val margin = 4f
+            for (def in model.definitions.filterIsInstance<ActionDefinition>()) {
+                val bounds = layout.nodes[NodeId(def.id)]?.bounds ?: continue
+                for (spec in dev.kuml.io.svg.sysml2
+                    .actionPinLabelSpecs(def = def, bounds = bounds, dockedPins = emptySet())) {
+                    val label =
+                        dev.kuml.layout.bridge.label.Sysml2LabelSizing
+                            .sizeOf(
+                                dev.kuml.layout.bridge.label.Sysml2LabelSizing
+                                    .wrapPortLabel(text = spec.text),
+                            )
+                    val pin = spec.pinRect
+                    val w = label.width + 2f * margin
+                    val h = label.height + 2f * margin
+                    val cx = pin.origin.x + pin.size.width / 2f
+                    val cy = pin.origin.y + pin.size.height / 2f
+                    val zone =
+                        when (spec.side) {
+                            dev.kuml.layout.bridge.label.LabelSide.WEST ->
+                                dev.kuml.layout.Rect(
+                                    origin = dev.kuml.layout.Point(x = pin.origin.x - w, y = cy - h),
+                                    size = dev.kuml.layout.Size(width = w, height = 2f * h),
+                                )
+                            dev.kuml.layout.bridge.label.LabelSide.EAST ->
+                                dev.kuml.layout.Rect(
+                                    origin = dev.kuml.layout.Point(x = pin.origin.x + pin.size.width, y = cy - h),
+                                    size = dev.kuml.layout.Size(width = w, height = 2f * h),
+                                )
+                            dev.kuml.layout.bridge.label.LabelSide.NORTH ->
+                                dev.kuml.layout.Rect(
+                                    origin = dev.kuml.layout.Point(x = cx - w, y = pin.origin.y - h),
+                                    size = dev.kuml.layout.Size(width = 2f * w, height = h),
+                                )
+                            else ->
+                                dev.kuml.layout.Rect(
+                                    origin = dev.kuml.layout.Point(x = cx - w, y = pin.origin.y + pin.size.height),
+                                    size = dev.kuml.layout.Size(width = 2f * w, height = h),
+                                )
+                        }
+                    index.addRect(kind = ObstacleKind.PORT_LABEL, r = zone, ownerId = def.id)
+                }
+            }
+        }
 
     /** Like [placeSysml2Notes], but keeps the shift the layout got so positions planned beforehand can follow it. */
     internal fun placeSysml2NotesResult(
@@ -4077,6 +4189,7 @@ public object KumlSvgRenderer {
         noteMaxWidth: Float? = null,
         noteWidthFactor: Float? = null,
         measure: dev.kuml.layout.bridge.note.NoteMeasure? = null,
+        strictNotes: dev.kuml.layout.bridge.note.StrictNotePolicy? = null,
     ): dev.kuml.layout.bridge.note.NotePlacementResult =
         Sysml2NotePlacement
             .place(
@@ -4095,22 +4208,7 @@ public object KumlSvgRenderer {
                     }
                 },
                 configure = configure,
-                config =
-                    NotePlacementConfig(
-                        localPorts = localPorts,
-                        maxWidthFactor = noteWidthFactor,
-                        // State machines: a note never touches an edge or a state (16 px), else it goes into the strip below (Nacharbeit 25).
-                        edgeClearance = if (noteWidthFactor == null) null else STM_NOTE_EDGE_CLEARANCE,
-                        // State machines (2D-b): a note on a composite title or on a transition line is worse than a longer anchor line.
-                        costs =
-                            if (noteWidthFactor == null) {
-                                dev.kuml.layout.bridge.note
-                                    .NoteCostModel()
-                            } else {
-                                dev.kuml.layout.bridge.note
-                                    .NoteCostModel(titleRect = 80_000f, lineThroughRect = 15_000f)
-                            },
-                    ),
+                config = noteConfig(localPorts = localPorts, noteWidthFactor = noteWidthFactor, strictNotes = strictNotes),
                 placedLabels = placedLabels.mapValues { it.value.rect },
                 measure =
                     measure

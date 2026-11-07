@@ -112,6 +112,16 @@ public data class NotePlacementConfig(
      * Null keeps the behaviour of every other diagram type unchanged.
      */
     val edgeClearance: Float? = null,
+    /** Nacharbeit 29: swimlanes (see [StrictNotePolicy.lanes]); only used together with [edgeClearance]. */
+    val lanes: List<LaneRect> = emptyList(),
+    /** Nacharbeit 29: labels and composite titles are hard obstacles (see [StrictNotePolicy.hardLabelsAndTitles]). */
+    val hardLabelsAndTitles: Boolean = false,
+    /** Nacharbeit 29: place the notes in the order of their anchors' height. */
+    val sortByAnchorY: Boolean = false,
+    /** Distance a note keeps from the border of its lane. */
+    val laneInset: Float = 16f,
+    /** Distance a note outside all lanes keeps from them. */
+    val laneOuterGap: Float = 24f,
 )
 
 /** One anchor link of a note: [linkId] names the drawn line, [targetId] the annotated element. */
@@ -286,7 +296,10 @@ public object NotePlacer {
         val truncated = mutableListOf<String>()
         val unresolved = mutableListOf<UnresolvedAnchor>()
         if (notes.size > config.maxNotes) truncated += notes.drop(config.maxNotes).map { it.noteId }
-        val limited = notes.take(config.maxNotes)
+        val limited =
+            notes.take(config.maxNotes).let { taken ->
+                if (config.sortByAnchorY) taken.sortedBy { anchorHeight(note = it, resolver = resolver) } else taken
+            }
         val budget = ObstacleIndex.Budget(config.workBudget)
 
         val nodes = LinkedHashMap(layout.nodes)
@@ -671,23 +684,44 @@ public object NotePlacer {
         budget: ObstacleIndex.Budget,
         clearance: Float,
     ): Plan {
-        // A: side columns derived from the content extent.
+        val laneMode = config.lanes.isNotEmpty()
+        val laneExt = laneExtent(baseExtent = baseExtent, config = config)
+        if (laneMode) {
+            // Nacharbeit 29, stage 1: inside the anchor's own lane, beside the anchor.
+            inLanePlans(
+                size = size,
+                anchors = anchors,
+                candidates = candidates,
+                obstacles = obstacles,
+                config = config,
+                clearance = clearance,
+            ).let { pickClean(it) }?.let { return it }
+        }
+        // A: side columns derived from the content extent (with lanes: the near column first, then the far one).
         val columns =
             columnPlans(
                 size = size,
                 anchors = anchors,
-                baseExtent = baseExtent,
+                baseExtent = if (laneMode) laneExt else baseExtent,
                 obstacles = obstacles,
                 config = config,
                 clearance = clearance,
             )
-        pickClean(columns)?.let { return it }
+        if (laneMode) {
+            val nearRight = anchors.map { it.rep.x }.average().toFloat() >= laneExt.cx
+            val right = columns.filter { it.rect.left > laneExt.cx }
+            val left = columns.filter { it.rect.left <= laneExt.cx }
+            val (near, far) = if (nearRight) right to left else left to right
+            (pickClean(near) ?: pickClean(far))?.let { return it }
+        } else {
+            pickClean(columns)?.let { return it }
+        }
         // B: ring candidates (inside the width budget).
         var bestClean: Plan? = null
         var bestAny: Plan? = null
         for (rect in candidates) {
             if (obstacles.overlapsNote(rect)) continue
-            if (obstacles.violatesClearance(r = rect, clearance = clearance, noteGap = config.gridGap, budget = budget)) continue
+            if (blocked(rect = rect, obstacles = obstacles, config = config, clearance = clearance, budget = budget)) continue
             val plan = planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
             if (bestAny == null || plan.cost < bestAny.cost) bestAny = plan
             if (plan.clean && (bestClean == null || plan.cost < bestClean.cost)) bestClean = plan
@@ -712,6 +746,130 @@ public object NotePlacer {
         val chosen = (routed.ifEmpty { pool }).minBy { it.cost }
         // The strip is the last resort of the old behaviour: keep its exhausted flag when it wins.
         return chosen
+    }
+
+    /** The content extent together with every lane (lanes may extend beyond the nodes). */
+    private fun laneExtent(
+        baseExtent: Rect,
+        config: NotePlacementConfig,
+    ): Rect = config.lanes.fold(baseExtent) { acc, l -> acc.union(l.rect) }
+
+    /** Hard exclusion of a note rectangle: clearance to edges/nodes/notes (and labels), plus the lane invariant. */
+    private fun blocked(
+        rect: Rect,
+        obstacles: ObstacleIndex,
+        config: NotePlacementConfig,
+        clearance: Float,
+        budget: ObstacleIndex.Budget,
+    ): Boolean =
+        obstacles.violatesClearance(
+            r = rect,
+            clearance = clearance,
+            noteGap = config.gridGap,
+            budget = budget,
+            hardLabels = config.hardLabelsAndTitles,
+        ) ||
+            !laneAllows(rect = rect, config = config)
+
+    /**
+     * Lane invariant (Nacharbeit 29): a rectangle lies fully inside one lane (inset by [NotePlacementConfig.laneInset])
+     * or fully outside the union of all lanes, [NotePlacementConfig.laneOuterGap] px away. Without lanes everything passes.
+     */
+    private fun laneAllows(
+        rect: Rect,
+        config: NotePlacementConfig,
+    ): Boolean {
+        if (config.lanes.isEmpty()) return true
+        if (config.lanes.any { insideLane(rect = rect, lane = it.rect, inset = config.laneInset) }) return true
+        return config.lanes.none { it.rect.inflated(config.laneOuterGap).intersects(rect) }
+    }
+
+    private fun insideLane(
+        rect: Rect,
+        lane: Rect,
+        inset: Float,
+    ): Boolean =
+        rect.left >= lane.left + inset &&
+            rect.right <= lane.right - inset &&
+            rect.top >= lane.top + inset &&
+            rect.bottom <= lane.bottom - inset
+
+    /**
+     * Stage 1 of the lane mode: positions inside the lane that holds the anchors' mean point, beside the anchors
+     * (left and right of their box at the anchor's height, then up and down in rows) plus the ring candidates that lie
+     * in that lane. Bounded by its own budget; only plans that obey the hard rules are produced.
+     */
+    private fun inLanePlans(
+        size: Size,
+        anchors: List<Anchor>,
+        candidates: List<Rect>,
+        obstacles: ObstacleIndex,
+        config: NotePlacementConfig,
+        clearance: Float,
+    ): List<Plan> {
+        val mx = anchors.map { it.rep.x }.average().toFloat()
+        val my = anchors.map { it.rep.y }.average().toFloat()
+        val lane = config.lanes.firstOrNull { it.rect.contains(Point(x = mx, y = my)) }?.rect ?: return emptyList()
+        val gap = config.candidateGap
+        val h = size.height
+        val w = size.width
+        var box =
+            rectOf(left = anchors.first().rep.x, top = anchors.first().rep.y, right = anchors.first().rep.x, bottom = anchors.first().rep.y)
+        for (a in anchors) {
+            val b =
+                when (val g = a.geometry) {
+                    is AnchorGeometry.Around -> g.r
+                    is AnchorGeometry.Port -> g.box
+                    else -> rectOf(left = a.rep.x, top = a.rep.y, right = a.rep.x, bottom = a.rep.y)
+                }
+            box = box.union(b)
+        }
+        val step = h + max(config.stackGap, config.gridGap)
+        val rows = obstacles.noteCount() + 2
+        val xs =
+            listOf(
+                box.right + gap,
+                box.left - gap - w,
+                lane.right - config.laneInset - w,
+                lane.left + config.laneInset,
+            ).distinct()
+        val rects = ArrayList<Rect>()
+        rects += candidates.filter { insideLane(rect = it, lane = lane, inset = config.laneInset) }
+        for (k in 0..(2 * rows)) {
+            val offset = if (k % 2 == 0) k / 2 else -(k + 1) / 2
+            val y = my - h / 2f + offset * step
+            for (x in xs) rects += Rect(origin = Point(x = x, y = y), size = size)
+        }
+        // A separate, bounded budget: this stage must be searched even when the main budget is spent.
+        val budget = ObstacleIndex.Budget(config.workBudget / 4)
+        val out = ArrayList<Plan>()
+        for (rect in rects) {
+            if (budget.exhausted) break
+            if (!insideLane(rect = rect, lane = lane, inset = config.laneInset)) continue
+            if (obstacles.overlapsNote(rect)) continue
+            if (blocked(rect = rect, obstacles = obstacles, config = config, clearance = clearance, budget = budget)) continue
+            out += planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
+        }
+        return out
+    }
+
+    /** Mean height of the anchors of [note] (large when none resolves), the sort key of [NotePlacementConfig.sortByAnchorY]. */
+    private fun anchorHeight(
+        note: NotePlacementInput,
+        resolver: AnchorGeometryResolver,
+    ): Float {
+        val ys =
+            note.anchors.mapNotNull { ref ->
+                when (val g = resolver.resolve(ref.targetId)) {
+                    null -> null
+                    is AnchorGeometry.At -> g.p.y
+                    is AnchorGeometry.Port -> g.box.cy
+                    is AnchorGeometry.Stem -> g.top
+                    is AnchorGeometry.Along -> polylineMidpoint(g.pts).y
+                    is AnchorGeometry.Around -> g.r.cy
+                }
+            }
+        return if (ys.isEmpty()) Float.MAX_VALUE else ys.average().toFloat()
     }
 
     /** The cheapest clean plan; ties within 1 px of cost go to the earlier plan (the right column is listed first). */
@@ -755,7 +913,7 @@ public object NotePlacer {
                 if (y < baseExtent.top - h) continue
                 val rect = Rect(origin = Point(x = x, y = y), size = size)
                 if (obstacles.overlapsNote(rect)) continue
-                if (obstacles.violatesClearance(r = rect, clearance = clearance, noteGap = config.gridGap, budget = budget)) continue
+                if (blocked(rect = rect, obstacles = obstacles, config = config, clearance = clearance, budget = budget)) continue
                 out += planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
             }
         }
@@ -813,7 +971,7 @@ public object NotePlacer {
                 val rect = Rect(origin = Point(x = x, y = y), size = size)
                 lastRect = rect
                 if (obstacles.overlapsNote(rect)) continue
-                if (obstacles.violatesClearance(r = rect, clearance = clearance, noteGap = config.gridGap, budget = budget)) continue
+                if (blocked(rect = rect, obstacles = obstacles, config = config, clearance = clearance, budget = budget)) continue
                 val plan = planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
                 if (best == null || plan.cost < best.cost) best = plan
             }

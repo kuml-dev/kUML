@@ -144,6 +144,7 @@ public class ObstacleIndex {
         clearance: Float,
         noteGap: Float,
         budget: Budget,
+        hardLabels: Boolean = false,
     ): Boolean {
         for (o in rects) {
             budget.spend()
@@ -151,6 +152,10 @@ public class ObstacleIndex {
                 when (o.kind) {
                     ObstacleKind.NODE -> o.core.inflated(clearance).intersects(r)
                     ObstacleKind.NOTE -> o.core.inflated(noteGap).intersects(r)
+                    // Nacharbeit 29 (activity diagrams): labels and composite titles are hard obstacles like nodes.
+                    ObstacleKind.PORT_LABEL, ObstacleKind.EDGE_LABEL, ObstacleKind.COMPOSITE_TITLE,
+                    ObstacleKind.MULTIPLICITY, ObstacleKind.ROLE,
+                    -> hardLabels && o.core.inflated(clearance).intersects(r)
                     else -> false
                 }
             if (hit) return true
