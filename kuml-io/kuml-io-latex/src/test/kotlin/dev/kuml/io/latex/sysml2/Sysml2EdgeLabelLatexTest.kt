@@ -440,7 +440,7 @@ class Sysml2EdgeLabelLatexTest :
                     diagram = KumlDiagram(name = "T", elements = listOf(a, b, assoc)),
                     layoutResult = layout,
                 )
-            val drawn = tex.lines().filter { it.contains("\\draw[kuml-association]") }
+            val drawn = tex.lines().filter { it.contains("\\draw[kuml-association") }
             drawn.isNotEmpty() shouldBe true
             val nodes = tex.lines().filter { it.contains("{owns}") }
             nodes.size shouldBe 1

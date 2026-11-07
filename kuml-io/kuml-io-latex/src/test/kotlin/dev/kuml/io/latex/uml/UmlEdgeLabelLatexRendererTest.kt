@@ -316,7 +316,6 @@ class UmlEdgeLabelLatexRendererTest :
             val e = UmlLineEnd.values().associateWith { offset(end = it, length = 200f) }
             e.getValue(UmlLineEnd.DIAMOND) shouldBe 19f
             e.getValue(UmlLineEnd.OPEN_HEAD) shouldBe 15f
-            e.getValue(UmlLineEnd.STEALTH) shouldBe 10f
             e.getValue(UmlLineEnd.NONE) shouldBe 10f
             e.getValue(UmlLineEnd.DIAMOND_AND_OPEN_HEAD) shouldBe 31f
         }

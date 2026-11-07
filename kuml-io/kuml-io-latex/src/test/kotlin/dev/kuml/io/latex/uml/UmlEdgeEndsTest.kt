@@ -34,8 +34,8 @@ class UmlEdgeEndsTest :
     StringSpec({
         val table =
             listOf(
-                Triple(AggregationKind.NONE, UmlNavigability.BOTH, null),
-                Triple(AggregationKind.NONE, UmlNavigability.NEITHER, null),
+                Triple(AggregationKind.NONE, UmlNavigability.BOTH, "-"),
+                Triple(AggregationKind.NONE, UmlNavigability.NEITHER, "-"),
                 Triple(AggregationKind.NONE, UmlNavigability.TARGET_ONLY, "-{$OH}"),
                 Triple(AggregationKind.NONE, UmlNavigability.SOURCE_ONLY, "{$OH}-"),
                 Triple(AggregationKind.SHARED, UmlNavigability.BOTH, "{$DO}-"),
@@ -51,9 +51,10 @@ class UmlEdgeEndsTest :
             "override for $agg / $nav" { UmlEdgeLatexRenderer.edgeEndsOverride(aggregation = agg, navigability = nav) shouldBe expected }
         }
 
-        "standard association has nothing added" {
-            draw(route = direct, style = UmlEdgeLatexRenderer.Style.ASSOCIATION, override = null) shouldBe
-                "\\draw[kuml-association] $DIRECT_TAIL"
+        "standard association is a bare line, as in the SVG" {
+            val override = UmlEdgeLatexRenderer.edgeEndsOverride(aggregation = AggregationKind.NONE, navigability = UmlNavigability.BOTH)
+            draw(route = direct, style = UmlEdgeLatexRenderer.Style.ASSOCIATION, override = override) shouldBe
+                "\\draw[kuml-association, -] $DIRECT_TAIL"
         }
         "direct route with composition" {
             draw(route = direct, style = UmlEdgeLatexRenderer.Style.ASSOCIATION, override = "{$DF}-") shouldBe
@@ -89,7 +90,7 @@ class UmlEdgeEndsTest :
             tex shouldContain "\\draw[kuml-association, {$DO}-{$OH}]"
             tex shouldContain "\\draw[kuml-association, {$DF $OH}-]"
             tex shouldContain "\\draw[kuml-association, -{$OH}]"
-            tex shouldContain "\\draw[kuml-association] (90.000pt, -960.000pt)"
+            tex shouldContain "\\draw[kuml-association, -] (90.000pt, -960.000pt)"
         }
         "use case fixture draws include, extend and connector" {
             val tex = UmlEdgeEndsFixtures.renderUseCase()
@@ -109,13 +110,9 @@ class UmlEdgeEndsTest :
             for (nav in UmlNavigability.values()) {
                 "lineEnds matches edgeEndsOverride for $agg / $nav" {
                     val override = UmlEdgeLatexRenderer.edgeEndsOverride(aggregation = agg, navigability = nav)
-                    val (expectedSource, expectedTarget) =
-                        if (override == null) {
-                            0f to UmlEdgeLatexRenderer.STEALTH_LENGTH_PT
-                        } else {
-                            val cut = override.indexOf('-')
-                            tipLength(override.substring(0, cut)) to tipLength(override.substring(cut + 1))
-                        }
+                    val cut = override!!.indexOf('-')
+                    val expectedSource = tipLength(override.substring(0, cut))
+                    val expectedTarget = tipLength(override.substring(cut + 1))
                     val (source, target) = UmlEdgeLatexRenderer.lineEnds(aggregation = agg, navigability = nav)
                     source.lengthPt shouldBe expectedSource
                     target.lengthPt shouldBe expectedTarget

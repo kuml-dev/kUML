@@ -240,7 +240,7 @@ class KumlLatexRendererTest :
 
             val tex = KumlLatexRenderer.toLatex(diagram = diagram, layoutResult = layout)
 
-            tex shouldContain "\\draw[kuml-association]"
+            tex shouldContain "\\draw[kuml-association, -]"
             tex shouldContain "(80.000pt, -30.000pt) -- (200.000pt, -30.000pt)"
 
             SampleOutput.write(filename = "uml/association.tex", content = tex)

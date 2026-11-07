@@ -44,12 +44,6 @@ internal object UmlEdgeLatexRenderer {
     /** Length in pt of the open arrowhead. */
     internal const val OPEN_HEAD_LENGTH_PT = 12
 
-    /**
-     * Length in pt of the stealth tip of style `kuml-association` (2.2 mm). It has no effect on label
-     * placement, because the minimum label offset is larger; it is kept so the table of ends is complete.
-     */
-    internal const val STEALTH_LENGTH_PT = 2.2f * 72.27f / 25.4f
-
     /** Open (hollow) diamond for shared aggregation, drawn at the source end. */
     internal const val DIAMOND_OPEN = "Diamond[open, length=${DIAMOND_LENGTH_PT}pt, width=10pt]"
 
@@ -64,7 +58,6 @@ internal object UmlEdgeLatexRenderer {
         val lengthPt: Float,
     ) {
         NONE(0f),
-        STEALTH(STEALTH_LENGTH_PT),
         OPEN_HEAD(OPEN_HEAD_LENGTH_PT.toFloat()),
         DIAMOND(DIAMOND_LENGTH_PT.toFloat()),
 
@@ -83,7 +76,7 @@ internal object UmlEdgeLatexRenderer {
         val diamond = aggregation != AggregationKind.NONE
         return when (navigability) {
             UmlNavigability.BOTH, UmlNavigability.NEITHER ->
-                if (diamond) UmlLineEnd.DIAMOND to UmlLineEnd.NONE else UmlLineEnd.NONE to UmlLineEnd.STEALTH
+                (if (diamond) UmlLineEnd.DIAMOND else UmlLineEnd.NONE) to UmlLineEnd.NONE
             UmlNavigability.TARGET_ONLY ->
                 (if (diamond) UmlLineEnd.DIAMOND else UmlLineEnd.NONE) to UmlLineEnd.OPEN_HEAD
             UmlNavigability.SOURCE_ONLY ->
@@ -92,9 +85,9 @@ internal object UmlEdgeLatexRenderer {
     }
 
     /**
-     * Arrow-option override for an association, or `null` to keep the style's default
-     * (the plain association, [AggregationKind.NONE] with both or neither end navigable,
-     * stays byte-identical to the output before the diamonds were drawn).
+     * Arrow-option override for an association. The style `kuml-association` carries a
+     * stealth head, so the plain association ([AggregationKind.NONE] with both or neither
+     * end navigable) must override it with `-` to be a bare line, as in the SVG output.
      *
      * Diamonds sit at the source end (the aggregate or composite), matching the SVG renderer;
      * the open arrowhead sits at the one navigable end.
@@ -110,7 +103,7 @@ internal object UmlEdgeLatexRenderer {
                 AggregationKind.COMPOSITE -> DIAMOND_FILLED
             }
         return when (navigability) {
-            UmlNavigability.BOTH, UmlNavigability.NEITHER -> diamond?.let { "{$it}-" }
+            UmlNavigability.BOTH, UmlNavigability.NEITHER -> if (diamond == null) "-" else "{$diamond}-"
             UmlNavigability.TARGET_ONLY -> if (diamond == null) "-{$OPEN_HEAD}" else "{$diamond}-{$OPEN_HEAD}"
             UmlNavigability.SOURCE_ONLY -> if (diamond == null) "{$OPEN_HEAD}-" else "{$diamond $OPEN_HEAD}-"
         }

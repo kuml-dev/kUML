@@ -6,6 +6,24 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 28: a plain UML association is a bare line in the LaTeX/TikZ output
+
+#### Why
+
+The SVG renderer draws no arrowhead on an association whose ends are both navigable (the DSL default) or neither navigable. The LaTeX renderer left the style `kuml-association` untouched for that case, and that style carries a stealth head, so the same diagram showed an arrow in the TikZ output but not in the SVG.
+
+#### Change
+
+- `edgeEndsOverride` now returns `-` for a plain association (no aggregation, both or neither end navigable), which removes the head. Diamonds and the open head for a single navigable end are unchanged.
+- `lineEnds` reports no tip at either end for that case, and the unused `STEALTH` end is removed.
+- The five UML goldens change by exactly one token per association: `\draw[kuml-association]` becomes `\draw[kuml-association, -]`.
+- Not changed: SysML 2 associations in the LaTeX output (they take another path, no comparison with their SVG was made).
+
+#### Verification
+
+- `UmlEdgeEndsTest`, `KumlLatexRendererTest`, `Sysml2EdgeLabelLatexTest`, `UmlEdgeLabelLatexRendererTest` and the no-notes goldens adapted to the new output.
+- Not verified: a pdflatex build of the changed output (no TeX toolchain on this machine).
+
 ### Nacharbeit 27: the OCL guard editor accepts `!`, `&&`, `||` and `!=`
 
 #### Why
