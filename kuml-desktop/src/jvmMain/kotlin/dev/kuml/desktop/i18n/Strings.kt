@@ -292,6 +292,7 @@ data class Strings(
     val pdfDisabledOrientationAuto: String get() = pdfExport.pdfDisabledOrientationAuto
     val previewExport: PreviewExportStrings get() = pdfExport.previewExport
     val latexExport: LatexExportStrings get() = pdfExport.latexExport
+    val workspaceLatexExport: WorkspaceLatexExportStrings get() = pdfExport.workspaceLatex
     val aiDialog: AiDialogStrings get() = simulator.aiDialog
     val simInspectorTitle: String get() = simulator.simInspectorTitle
     val simVariablesTitle: String get() = simulator.simVariablesTitle
@@ -674,6 +675,44 @@ data class Strings(
                                 export = "Exportieren…",
                                 fileDescription = "LaTeX/TikZ (*.tex)",
                                 rendering = "LaTeX wird erzeugt…",
+                            ),
+                        workspaceLatex =
+                            WorkspaceLatexExportStrings(
+                                menuItem = "Als LaTeX (TikZ)…",
+                                title = "Workspace als LaTeX exportieren",
+                                modeDetecting = "Workspace-Typ wird erkannt…",
+                                modeKnowledge = "Knowledge-Workspace: ein Dokument mit Kapiteln, Abbildungen und Bildern",
+                                modeEngineering = "Engineering-Ordner: pro kUML-Skript eine TikZ-Abbildung, dazu main.tex",
+                                targetLabel = "Ausgabeordner",
+                                browse = "Wählen…",
+                                strictLabel =
+                                    "Streng: nichts schreiben, wenn ein Diagramm fehlschlägt, übersprungen wird oder eine Warnung erzeugt",
+                                themeLabel = "Diagramm-Theme",
+                                idleHint =
+                                    "Der Export führt die Diagramm-Skripte dieses Workspace aus. " +
+                                        "Er schreibt main.tex, kuml-preamble.tex und die Abbildungen in den Ausgabeordner.",
+                                unsavedHint = "Ungespeicherte Änderungen werden nicht exportiert. Speichern Sie das Dokument vorher.",
+                                preparing = "Diagramme werden gerendert…",
+                                writing = "Dateien werden geschrieben…",
+                                exportButton = "Exportieren",
+                                cancel = "Abbrechen",
+                                close = "Schließen",
+                                targetIsRoot = "Der Ausgabeordner darf nicht der Workspace-Ordner selbst sein.",
+                                targetInvalid = "Geben Sie einen Ausgabeordner an (ohne Steuerzeichen).",
+                                overwriteHeadline = "%1\$d vorhandene Datei(en) würden ersetzt, zum Beispiel: %2\$s",
+                                overwriteButton = "Ersetzen",
+                                keepExisting = "Vorhandene behalten",
+                                strictBlockedHeadline = "Strenger Modus: Es wurde nichts geschrieben.",
+                                nothingToExport = "Es konnte kein Diagramm exportiert werden. Es wurde nichts geschrieben.",
+                                doneHeadline = "Exportiert nach %s",
+                                failedHeadline = "Export fehlgeschlagen: %s",
+                                ioError = "Ein-/Ausgabefehler: %s",
+                                busy = "Der Renderer ist beschäftigt. Versuchen Sie es gleich noch einmal.",
+                                cancelled = "Abgebrochen. Es wurde nichts geschrieben.",
+                                showFolder = "Ordner anzeigen",
+                                copyReport = "Bericht kopieren",
+                                openFolderFailed = "Der Ordner konnte nicht geöffnet werden: %s",
+                                moreLines = "… und %d weitere Zeile(n). „Bericht kopieren“ enthält alle.",
                             ),
                     ),
                 simulator =
@@ -1128,6 +1167,43 @@ data class Strings(
                                 fileDescription = "LaTeX/TikZ (*.tex)",
                                 rendering = "Generating LaTeX…",
                             ),
+                        workspaceLatex =
+                            WorkspaceLatexExportStrings(
+                                menuItem = "As LaTeX (TikZ)…",
+                                title = "Export workspace as LaTeX",
+                                modeDetecting = "Detecting the workspace type…",
+                                modeKnowledge = "Knowledge workspace: one document with chapters, figures and images",
+                                modeEngineering = "Engineering folder: one TikZ figure per kUML script, plus main.tex",
+                                targetLabel = "Output folder",
+                                browse = "Choose…",
+                                strictLabel = "Strict: write nothing if a diagram fails, is skipped or produces a warning",
+                                themeLabel = "Diagram theme",
+                                idleHint =
+                                    "The export runs the diagram scripts of this workspace. " +
+                                        "It writes main.tex, kuml-preamble.tex and the figures into the output folder.",
+                                unsavedHint = "Unsaved changes are not exported. Save the document first.",
+                                preparing = "Rendering the diagrams…",
+                                writing = "Writing the files…",
+                                exportButton = "Export",
+                                cancel = "Cancel",
+                                close = "Close",
+                                targetIsRoot = "The output folder must not be the workspace folder itself.",
+                                targetInvalid = "Enter an output folder (no control characters).",
+                                overwriteHeadline = "%1\$d existing file(s) would be replaced, for example: %2\$s",
+                                overwriteButton = "Replace",
+                                keepExisting = "Keep existing",
+                                strictBlockedHeadline = "Strict mode: nothing was written.",
+                                nothingToExport = "No diagram could be exported. Nothing was written.",
+                                doneHeadline = "Exported to %s",
+                                failedHeadline = "Export failed: %s",
+                                ioError = "I/O error: %s",
+                                busy = "The renderer is busy. Try again in a moment.",
+                                cancelled = "Cancelled. Nothing was written.",
+                                showFolder = "Show folder",
+                                copyReport = "Copy report",
+                                openFolderFailed = "The folder could not be opened: %s",
+                                moreLines = "… and %d more line(s). “Copy report” has all of them.",
+                            ),
                     ),
                 simulator =
                     SimulatorStrings(
@@ -1400,6 +1476,7 @@ data class PdfExportStrings(
     val status: PdfStatusStrings,
     val previewExport: PreviewExportStrings,
     val latexExport: LatexExportStrings,
+    val workspaceLatex: WorkspaceLatexExportStrings,
 )
 
 /** Texts of the LaTeX (TikZ) export: menu item, toolbar button, the mode dialog (see [Strings.latexExport]). */
@@ -1420,6 +1497,48 @@ data class LatexExportStrings(
     val export: String,
     val fileDescription: String,
     val rendering: String,
+)
+
+/** Texts of the workspace LaTeX export dialog (see [Strings.workspaceLatexExport]); formats are noted per field. */
+data class WorkspaceLatexExportStrings(
+    val menuItem: String,
+    val title: String,
+    val modeDetecting: String,
+    val modeKnowledge: String,
+    val modeEngineering: String,
+    val targetLabel: String,
+    val browse: String,
+    val strictLabel: String,
+    val themeLabel: String,
+    val idleHint: String,
+    val unsavedHint: String,
+    val preparing: String,
+    val writing: String,
+    val exportButton: String,
+    val cancel: String,
+    val close: String,
+    val targetIsRoot: String,
+    val targetInvalid: String,
+    // Format with (count: %1$d, first file names: %2$s).
+    val overwriteHeadline: String,
+    val overwriteButton: String,
+    val keepExisting: String,
+    val strictBlockedHeadline: String,
+    val nothingToExport: String,
+    // Format with the output folder: exactly one %s.
+    val doneHeadline: String,
+    // Format with the reason: exactly one %s.
+    val failedHeadline: String,
+    // Format with the exception class name: exactly one %s.
+    val ioError: String,
+    val busy: String,
+    val cancelled: String,
+    val showFolder: String,
+    val copyReport: String,
+    // Format with the reason: exactly one %s.
+    val openFolderFailed: String,
+    // Format with the number of hidden lines: exactly one %d.
+    val moreLines: String,
 )
 
 /** Texts of the preview's "Save as SVG / PNG" buttons and the per-document PDF export (see [Strings.previewExport]). */

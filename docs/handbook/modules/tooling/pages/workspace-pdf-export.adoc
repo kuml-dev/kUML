@@ -150,7 +150,8 @@ evaluation slot for up to 15 minutes, so other evaluating tools may answer `BUSY
 == The same workspace as LaTeX
 
 `kuml workspace export <dir> --format latex` exports a Knowledge workspace as a LaTeX project instead of a PDF; see
-xref:cli.adoc[the CLI reference]. Both exports use the same plan (documents, reading order, titles, metadata,
+xref:cli.adoc[the CLI reference]; kUML Desktop has the sister entry *File ▸ Export Workspace ▸ As LaTeX...*
+(xref:desktop.adoc#_exporting_a_workspace_as_latex[Desktop]). Both exports use the same plan (documents, reading order, titles, metadata,
 language), so they agree on what is in the book. They differ in what they add:
 
 [cols="2,2,2"]

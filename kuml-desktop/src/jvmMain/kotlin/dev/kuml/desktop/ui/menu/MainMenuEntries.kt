@@ -36,6 +36,7 @@ enum class MenuEntryId {
     FILE_EXPORT_LATEX,
     FILE_EXPORT_WORKSPACE_MENU,
     FILE_EXPORT_WORKSPACE_PDF,
+    FILE_EXPORT_WORKSPACE_LATEX,
     FILE_RECENT_MENU,
     FILE_QUIT,
     EDIT_UNDO,
@@ -93,6 +94,7 @@ object MainMenuIcons {
             MenuEntryId.FILE_EXPORT_LATEX -> KumlIcons.SaveTex
             MenuEntryId.FILE_EXPORT_WORKSPACE_MENU -> KumlIcons.Workspace
             MenuEntryId.FILE_EXPORT_WORKSPACE_PDF -> KumlIcons.PdfDocument
+            MenuEntryId.FILE_EXPORT_WORKSPACE_LATEX -> KumlIcons.SaveTex
             MenuEntryId.FILE_RECENT_MENU -> KumlIcons.History
             MenuEntryId.FILE_QUIT -> KumlIcons.Quit
             MenuEntryId.EDIT_UNDO -> KumlIcons.Undo

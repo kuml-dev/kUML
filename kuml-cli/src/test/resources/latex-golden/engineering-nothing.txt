@@ -1,0 +1,5 @@
+exit=3
+--stdout--
+--stderr--
+ERROR broken.kuml.kts: Script evaluation failed: Syntax error: Expecting an argument.
+Error: no diagram could be exported.

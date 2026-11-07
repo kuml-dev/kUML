@@ -136,6 +136,10 @@ public object LatexFolderExport {
         )
     }
 
+    /** The relative paths [write] produces, in write order. */
+    public fun plannedPaths(prepared: PreparedLatexFolder): List<String> =
+        prepared.figures.map { it.target } + KumlLatexRenderer.SHARED_PREAMBLE_FILE + MAIN_FILE
+
     /**
      * Writes the figures, then `kuml-preamble.tex`, then `main.tex`. Every file is replaced atomically on its own;
      * the set is not atomic, so an I/O error midway leaves earlier files in place. Files of earlier runs that are
@@ -155,12 +159,13 @@ public object LatexFolderExport {
         val files = LinkedHashMap<String, String>()
         prepared.figures.forEach { files[it.target] = it.tex }
         files[KumlLatexRenderer.SHARED_PREAMBLE_FILE] = prepared.preamble
-        files["main.tex"] = prepared.main
+        files[MAIN_FILE] = prepared.main
         val written = LatexOutputGuard.writeAll(outDir = outDir, files = files, overwrite = overwrite)
         return LatexFolderResult(outDir = outDir.absoluteFile.normalize(), written = written)
     }
 
     private const val MAX_LISTED_NAMES = 5
+    private const val MAIN_FILE = "main.tex"
 
     /** Produces only names that [LatexDocumentAssembler] accepts: start with a letter or digit, no `..`. */
     private fun sanitizeSegment(raw: String): String {

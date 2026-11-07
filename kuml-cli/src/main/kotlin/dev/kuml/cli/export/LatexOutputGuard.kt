@@ -78,6 +78,21 @@ internal object LatexOutputGuard {
         }
     }
 
+    /**
+     * The entries of [relativePaths] that already exist below [outDir] (links are not followed). A path that would
+     * leave [outDir] is reported as existing, so a caller never offers to overwrite it; [writeAllBytes] refuses it.
+     */
+    fun existing(
+        outDir: File,
+        relativePaths: List<String>,
+    ): List<String> {
+        val out = outDir.absoluteFile.normalize().toPath()
+        return relativePaths.filter { rel ->
+            val target = out.resolve(rel).normalize()
+            !target.startsWith(out) || Files.exists(target, LinkOption.NOFOLLOW_LINKS)
+        }
+    }
+
     private fun checkedTarget(
         out: Path,
         rel: String,

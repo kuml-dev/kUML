@@ -189,6 +189,32 @@ Menu items carry an icon next to the label; selection lists (theme, language, re
 | Send the event in the payload field (simulation) | ⌘↩ | Ctrl+Enter
 |===
 
+== Exporting a workspace as LaTeX
+
+With any workspace open (Knowledge or Engineering), *File ▸ Export Workspace ▸ As LaTeX...* writes the workspace as a
+LaTeX project: a Knowledge workspace becomes one document (`main.tex`, chapters, figures, images), an Engineering
+folder one TikZ figure per `*.kuml.kts` script plus a `main.tex` that collects them. It is the code of
+`kuml workspace export --format latex`, so the files and the report lines are the same; see
+xref:cli.adoc[the CLI reference] for the layout of the output, the constructs that are shown differently and the build
+command (always with `-no-shell-escape`).
+
+The dialog has an *Output folder* (default `.kuml-out/export/latex` below the workspace; it must not be the workspace
+folder itself), a *Strict* option and the diagram theme. The first line says which kind of workspace was detected.
+Exporting runs the diagram scripts, so the dialog is disabled for a workspace you have not trusted.
+
+* *Strict* writes nothing if any diagram failed, was skipped or produced a warning (a `NOTE` never blocks); the
+  status area then shows the same protocol the CLI prints.
+* If files of an earlier export would be replaced, the status area asks first and lists a few of them. *Replace* is the
+  dialog's counterpart of `--force`; *Keep existing* leaves everything as it is. There is no checkbox.
+* *Cancel* stops a run while the diagrams are rendered and discards its result; once the files are being written it is
+  disabled.
+* After a run the area shows the two summary lines of the CLI (`Wrote ...`, `N failed, N skipped, ...`) and the protocol
+  (`NOTE`, `SKIP`, `WARN`, `ERROR`). It is amber when anything was skipped, excluded or warned about, red when a diagram
+  failed (the other files are still written, like exit code 3 in the CLI). *Show folder* appears only if the system can
+  open a folder; *Copy report* puts the summary and the full protocol on the clipboard.
+
+The export reads the files on disk. In a Knowledge workspace the dialog warns when the open document has unsaved edits.
+
 == Exporting a workspace as PDF
 
 With a knowledge workspace open, *File ▸ Export Workspace ▸ As PDF...* exports it as a handbook, one PDF per document or a

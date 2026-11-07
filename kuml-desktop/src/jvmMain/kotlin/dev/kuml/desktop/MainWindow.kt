@@ -59,6 +59,7 @@ import dev.kuml.desktop.mcp.McpServerDialog
 import dev.kuml.desktop.mcp.McpServerStatus
 import dev.kuml.desktop.mcp.McpTokenStore
 import dev.kuml.desktop.mcp.McpValidatePort
+import dev.kuml.desktop.mcp.SystemClipboardWriter
 import dev.kuml.desktop.mcp.desktopMcpRegistry
 import dev.kuml.desktop.plugins.PluginManagerPane
 import dev.kuml.desktop.preview.ExportSaveResult
@@ -109,6 +110,7 @@ import dev.kuml.desktop.workspace.PdfExportDialog
 import dev.kuml.desktop.workspace.PdfExportFormState
 import dev.kuml.desktop.workspace.TrustDialog
 import dev.kuml.desktop.workspace.WorkspaceChangeEffect
+import dev.kuml.desktop.workspace.WorkspaceLatexExportDialog
 import dev.kuml.desktop.workspace.WorkspaceModeChooserDialog
 import dev.kuml.desktop.workspace.WorkspaceState
 import dev.kuml.desktop.workspace.WorkspaceTrust
@@ -245,6 +247,8 @@ fun FrameWindowScope.MainWindow(
     // The request carries the initial form: the File menu opens with the whole workspace, the per-document
     // icon in the document header with the scope set to that document.
     var pdfDialogRequest by remember { mutableStateOf<PdfExportFormState?>(null) }
+    // "Export Workspace ▸ As LaTeX…" dialog (Knowledge and Engineering workspaces).
+    var workspaceLatexDialogOpen by remember { mutableStateOf(false) }
     // LaTeX (TikZ) export: the open mode dialog, and a guard against a second click while the first render runs.
     var latexDialog by remember { mutableStateOf<LatexDialogSession?>(null) }
     var latexBusy by remember { mutableStateOf(false) }
@@ -837,14 +841,21 @@ fun FrameWindowScope.MainWindow(
                 onClick = { exportLatex() },
             )
             Menu(strings.menuFileExportWorkspace) {
-                // Engineering workspaces are not exported (no document tree); the dialog explains why when opened
-                // for an untrusted workspace, and the menu stays disabled here for engineering mode.
+                // PDF needs the document tree of a Knowledge workspace. LaTeX works for both kinds: a Knowledge
+                // workspace becomes one document, an Engineering folder one figure per script.
                 val pdfEnabled = state.openWorkspace is OpenWorkspace.Knowledge
                 Item(
                     strings.menuFileExportWorkspacePdf,
                     icon = menuIcon(id = MenuEntryId.FILE_EXPORT_WORKSPACE_PDF, enabled = pdfEnabled),
                     enabled = pdfEnabled,
                     onClick = { pdfDialogRequest = PdfExportFormState() },
+                )
+                val workspaceLatexEnabled = state.openWorkspace != null
+                Item(
+                    strings.workspaceLatexExport.menuItem,
+                    icon = menuIcon(id = MenuEntryId.FILE_EXPORT_WORKSPACE_LATEX, enabled = workspaceLatexEnabled),
+                    enabled = workspaceLatexEnabled,
+                    onClick = { workspaceLatexDialogOpen = true },
                 )
             }
             Separator()
@@ -1354,6 +1365,53 @@ fun FrameWindowScope.MainWindow(
                 documentPath = knowledge.state.selected?.relativePath,
                 documentDirty = knowledge.state.isDirty,
                 initial = pdfRequest,
+            )
+        }
+    }
+
+    // "Export Workspace ▸ As LaTeX…" — the same code path as `kuml workspace export --format latex`.
+    if (workspaceLatexDialogOpen) {
+        val open = state.openWorkspace
+        val themeNamesForExport = ThemeRegistry.names().ifEmpty { listOf("kuml") }
+        val root =
+            when (open) {
+                is OpenWorkspace.Knowledge -> open.state.workspace.root
+                is OpenWorkspace.Engineering -> open.root
+                null -> null
+            }
+        if (root == null) {
+            workspaceLatexDialogOpen = false
+        } else {
+            val desktopOpen =
+                java.awt.Desktop.isDesktopSupported() &&
+                    java.awt.Desktop
+                        .getDesktop()
+                        .isSupported(java.awt.Desktop.Action.OPEN)
+            WorkspaceLatexExportDialog(
+                strings = strings,
+                workspaceRoot = root,
+                trusted = WorkspaceTrust.isTrusted(trustedPaths = state.trustedWorkspaces.toList(), root = root),
+                themeName = state.theme.takeIf { it in themeNamesForExport } ?: themeNamesForExport.first(),
+                themeNames = themeNamesForExport,
+                evalGate = mcpTools.evalGate,
+                initialDir = state.lastDir?.let { File(it) },
+                chooseSaveDirectory = { initial ->
+                    FileMenu.chooseOpenDirectory(
+                        parent = windowHandle,
+                        initialDir = initial,
+                        strings = strings,
+                        title = strings.workspaceLatexExport.title,
+                    )
+                },
+                canOpenFolder = desktopOpen,
+                openFolder = {
+                    java.awt.Desktop
+                        .getDesktop()
+                        .open(it)
+                },
+                copyToClipboard = { SystemClipboardWriter.write(it) },
+                onDismiss = { workspaceLatexDialogOpen = false },
+                documentDirty = (open as? OpenWorkspace.Knowledge)?.state?.isDirty == true,
             )
         }
     }

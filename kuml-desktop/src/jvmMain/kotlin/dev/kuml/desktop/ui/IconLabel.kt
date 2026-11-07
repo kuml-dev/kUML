@@ -36,6 +36,7 @@ enum class ButtonAction {
     OPEN_LICENSES,
     USE_A3,
     EXPORT_PDF,
+    EXPORT_LATEX,
     BROWSE,
     CREATE_WORKSPACE,
     SAVE,
@@ -63,6 +64,7 @@ fun buttonIcon(action: ButtonAction): ImageVector =
         ButtonAction.OPEN_LICENSES -> KumlIcons.Document
         ButtonAction.USE_A3 -> KumlIcons.PageLandscape
         ButtonAction.EXPORT_PDF -> KumlIcons.PdfDocument
+        ButtonAction.EXPORT_LATEX -> KumlIcons.SaveTex
         ButtonAction.BROWSE -> KumlIcons.FolderOpen
         ButtonAction.CREATE_WORKSPACE -> KumlIcons.WorkspaceNew
         ButtonAction.SAVE -> KumlIcons.Save

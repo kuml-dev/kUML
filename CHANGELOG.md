@@ -6,6 +6,33 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 33: Desktop dialog "Export Workspace > As LaTeX..."
+
+#### Why
+
+The LaTeX export of a workspace (Nacharbeit 31 and 32) existed only on the command line. Desktop users could export a workspace as PDF but not as LaTeX.
+
+#### Change
+
+- The logic of `kuml workspace export --format latex` moved out of `WorkspaceExportCommand` into a public, shared `WorkspaceLatexRun` (detect, prepare, strict rule, existing-file check, guarded write) and `LatexRunReport` (the report lines, counts and summary lines, `shown()`). The command is now a thin caller. The Desktop dialog calls the same functions and re-types nothing; an architecture test (`WorkspaceLatexNoDuplicateLogicTest`) forbids the lower layers and the CLI's report strings in Desktop code.
+- New menu entry *File > Export Workspace > As LaTeX...* (enabled for Knowledge and Engineering workspaces; PDF stays Knowledge-only) and dialog `WorkspaceLatexExportDialog`: output folder (default `.kuml-out/export/latex`, never the workspace folder itself), *Strict*, theme, detected workspace kind. Status area: progress, overwrite question (lists the files), strict refusal with the protocol, result with the CLI's summary lines and `NOTE/SKIP/WARN/ERROR` protocol, *Show folder* (only when the system can open a folder, a failure is shown in the banner), *Copy report*.
+- `--force` is the banner question *Replace / Keep existing*, there is no checkbox. The rendered result is kept in memory for it, so scripts do not run twice.
+- Cancel discards the result while diagrams are rendered; once files are written it is disabled (one compare-and-set decides between "write" and "cancel", so "Cancelled, nothing written" is never shown after files were written). The shared evaluation gate is held only while scripts run. An untrusted workspace disables the button.
+- The output folder is written to exactly as typed, so the existing guard still refuses a symbolic link in it; only the exclusion of the target from the scan uses the canonical path. Unexpected exceptions become a "failed" banner with only the class name.
+- A document with unsaved edits in a Knowledge workspace gets the same hint as the PDF dialog (the export reads the files on disk).
+- Texts in German and English (`WorkspaceLatexExportStrings`, nested in `PdfExportStrings`, because `Strings` is at the 255-parameter limit); new `ButtonAction.EXPORT_LATEX`; handbook: Desktop page has a new section, CLI, Knowledge-workspace and PDF-export pages link to it.
+- The MCP tool is deliberately not part of this wave. `kuml_desktop_workspace_export_pdf` exists, but port, timeout, schema, trust and `restrictToRoot` path rules with their tests are not small; they belong in their own wave.
+
+#### Verification
+
+- Golden test `WorkspaceExportLatexGoldenTest` (exit code, stdout and stderr of plain, second run, `--force`, `--strict` and "nothing to export" for a Knowledge workspace and an Engineering folder) was recorded from the unchanged command first, committed, and stays green after the refactor: the CLI output is byte-identical.
+- New tests: `WorkspaceLatexRunTest` (kuml-cli); `WorkspaceLatexExportFormTest`, `WorkspaceLatexExportStatusTest`, `WorkspaceLatexExportStatusAreaUiTest` (Compose, tag `compose-ui`), `WorkspaceLatexNoDuplicateLogicTest`, `WorkspaceLatexExportStringsTest`, and `WorkspaceLatexExportRunTest` (kuml-desktop), which runs the function the dialog calls on real workspaces: Knowledge and Engineering, strict, overwrite, broken script, nothing to export, cancel before writing, busy gate, gate release after a failure, a symbolic link as output folder.
+- Handbook pages checked: `desktop.adoc`, `cli.adoc`, `knowledge-workspaces.adoc`, `workspace-pdf-export.adoc`.
+
+#### Not verified
+
+The real window was not started and looked at (no automated UI start). Windows and Linux; macOS with another file manager (`Desktop.Action.OPEN`); a `pdflatex` build of a file written by the dialog (covered by the CLI tests of Nacharbeit 32; the CI TeX job is a later wave). Not touched and not claimed as done: CI TeX job, note placement, the BPMN collaboration compile bug, the label of the initial pseudo-state.
+
 ### Nacharbeit 32: LaTeX export for Knowledge workspaces (`kuml workspace export --format latex`)
 
 #### Why

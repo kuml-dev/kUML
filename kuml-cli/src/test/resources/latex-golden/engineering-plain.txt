@@ -1,0 +1,7 @@
+exit=3
+--stdout--
+Wrote 1 figure(s) plus kuml-preamble.tex and main.tex: <ROOT>/out
+1 failed, 1 skipped, 0 excluded from main.tex
+--stderr--
+SKIP erm.kuml.kts: ERM diagrams have no LaTeX output yet
+ERROR broken.kuml.kts: Script evaluation failed: Syntax error: Expecting an argument.

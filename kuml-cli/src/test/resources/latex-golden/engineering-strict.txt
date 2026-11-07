@@ -1,0 +1,6 @@
+exit=3
+--stdout--
+--stderr--
+SKIP erm.kuml.kts: ERM diagrams have no LaTeX output yet
+ERROR broken.kuml.kts: Script evaluation failed: Syntax error: Expecting an argument.
+Error: --strict: nothing written.

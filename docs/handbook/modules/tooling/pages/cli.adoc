@@ -438,7 +438,8 @@ workspace's diagram scripts; see xref:workspace-pdf-export.adoc[Workspace PDF ex
 === LaTeX folder export
 
 `kuml workspace export <dir> --format latex` turns every `*.kuml.kts` below `<dir>` into a TikZ
-figure that shares one preamble:
+figure that shares one preamble (kUML Desktop offers the same export as *File ▸ Export Workspace ▸ As LaTeX...*, see
+xref:desktop.adoc#_exporting_a_workspace_as_latex[Desktop]):
 
 ----
 out/                       (default: <dir>/.kuml-out/export/latex)

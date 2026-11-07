@@ -214,7 +214,8 @@ than one ` ```kuml ` block is split by `--to kts` into `<stem>-1.kuml.kts`,
 `kuml-preamble.tex`, one TikZ file per diagram, the local images). Documents and their order are the ones of the
 PDF export. Diagrams run like in `workspace render`, so only export workspaces you trust. See
 xref:cli.adoc[the CLI reference] for the layout of the output, the constructs that are shown differently, the exit
-codes and the build command (always with `-no-shell-escape`).
+codes and the build command (always with `-no-shell-escape`). kUML Desktop runs the same export from
+*File ▸ Export Workspace ▸ As LaTeX...*; see xref:desktop.adoc#_exporting_a_workspace_as_latex[Desktop].
 
 == Trust model
 

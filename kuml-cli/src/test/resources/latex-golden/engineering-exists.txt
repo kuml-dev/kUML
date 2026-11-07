@@ -1,0 +1,7 @@
+exit=2
+--stdout--
+--stderr--
+SKIP erm.kuml.kts: ERM diagrams have no LaTeX output yet
+ERROR broken.kuml.kts: Script evaluation failed: Syntax error: Expecting an argument.
+Error: Output already exists (3 file(s), first: a.tex)
+Hint: pass --force to overwrite.
