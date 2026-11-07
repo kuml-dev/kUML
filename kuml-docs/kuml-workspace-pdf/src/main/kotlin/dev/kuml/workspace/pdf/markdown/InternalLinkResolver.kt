@@ -1,13 +1,13 @@
 package dev.kuml.workspace.pdf.markdown
 
 import dev.kuml.workspace.OkfDocument
-import dev.kuml.workspace.pdf.model.LinkTarget
+import dev.kuml.workspace.pdf.source.SourceLink
 import java.io.File
 
 /** Outcome of resolving a link found in Markdown. */
 internal sealed interface ResolvedTarget {
     data class Link(
-        val target: LinkTarget,
+        val target: SourceLink,
     ) : ResolvedTarget
 
     /** Not clickable: plain text, with an optional suffix such as "(not in export)". */
@@ -46,13 +46,13 @@ internal class InternalLinkResolver(
                 ?.lowercase()
         if (scheme != null) {
             return if (scheme == "http" || scheme == "https" || scheme == "mailto") {
-                ResolvedTarget.Link(target = LinkTarget.External(uri = target))
+                ResolvedTarget.Link(target = SourceLink.External(uri = target))
             } else {
                 ResolvedTarget.PlainText(suffix = null)
             }
         }
         if (target.startsWith("#")) {
-            return ResolvedTarget.Link(target = LinkTarget.Internal(anchorId = docAnchor(from.relativePath)))
+            return ResolvedTarget.Link(target = SourceLink.Internal(anchorId = docAnchor(from.relativePath)))
         }
         val withoutFragment = target.substringBefore('#').trim()
         val combined =
@@ -83,7 +83,7 @@ internal class InternalLinkResolver(
     private fun documentLink(path: String): ResolvedTarget {
         val doc = byPath[path] ?: return ResolvedTarget.PlainText(suffix = null)
         return if (doc.relativePath in inExport) {
-            ResolvedTarget.Link(target = LinkTarget.Internal(anchorId = docAnchor(doc.relativePath)))
+            ResolvedTarget.Link(target = SourceLink.Internal(anchorId = docAnchor(doc.relativePath)))
         } else {
             ResolvedTarget.PlainText(suffix = "($notInExportLabel)")
         }

@@ -14,6 +14,8 @@ public data class LatexExcludedFigure(
 
 /** Builds the `main.tex` that collects the figures of a folder export. */
 public object LatexDocumentAssembler {
+    private val PLACEMENT = Regex("^!?[htbpH]{1,4}$")
+    private val HEIGHT = Regex("^0\\.[0-9]{1,2}$")
     private val SAFE_INPUT = Regex("^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$")
 
     /**
@@ -35,21 +37,7 @@ public object LatexDocumentAssembler {
             appendLine("\\usepackage{graphicx}")
             appendLine("\\usepackage{float}")
             appendLine("\\input{kuml-preamble}")
-            appendLine("\\newsavebox{\\kumlbox}")
-            appendLine("% \\kumlfigure{<file without .tex>}{<caption>}: scales a figure down to fit, never up.")
-            appendLine("\\newcommand{\\kumlfigure}[2]{%")
-            appendLine("  \\sbox{\\kumlbox}{\\input{#1}}%")
-            appendLine("  \\begin{figure}[H]\\centering")
-            appendLine("  \\ifdim\\wd\\kumlbox>\\linewidth")
-            appendLine("    \\resizebox{\\linewidth}{!}{\\usebox{\\kumlbox}}%")
-            appendLine("  \\else\\ifdim\\ht\\kumlbox>0.85\\textheight")
-            appendLine("    \\resizebox{!}{0.85\\textheight}{\\usebox{\\kumlbox}}%")
-            appendLine("  \\else")
-            appendLine("    \\usebox{\\kumlbox}%")
-            appendLine("  \\fi\\fi")
-            appendLine("  \\caption{#2}")
-            appendLine("  \\end{figure}%")
-            appendLine("}")
+            append(figureMacro())
             appendLine("\\begin{document}")
             for (f in figures) {
                 val caption = f.caption?.let { escapeLatex(stripControl(it)) } ?: ""
@@ -60,7 +48,44 @@ public object LatexDocumentAssembler {
         }
     }
 
+    /**
+     * The `\kumlfigure{<file without .tex>}{<caption>}` macro of the main document: it scales a figure down to
+     * fit the page, never up. Also used by the Knowledge-workspace LaTeX export.
+     *
+     * @param placement float placement specifier; the default `H` (package `float`) keeps a folder export's figures
+     *   in order. A document with running text and chapter headings should pass `htbp`: `H` can leave blank pages
+     *   when a tall figure meets a chapter break.
+     * @param maxHeight largest figure height as a fraction of `\textheight`, such as `0.85`.
+     */
+    public fun figureMacro(
+        placement: String = "H",
+        maxHeight: String = "0.85",
+    ): String {
+        require(PLACEMENT.matches(placement)) { "Unsafe float placement" }
+        require(HEIGHT.matches(maxHeight)) { "Unsafe height factor" }
+        return buildString {
+            appendLine("\\newsavebox{\\kumlbox}")
+            appendLine("% \\kumlfigure{<file without .tex>}{<caption>}: scales a figure down to fit, never up.")
+            appendLine("\\newcommand{\\kumlfigure}[2]{%")
+            appendLine("  \\sbox{\\kumlbox}{\\input{#1}}%")
+            appendLine("  \\begin{figure}[$placement]\\centering")
+            appendLine("  \\ifdim\\wd\\kumlbox>\\linewidth")
+            appendLine("    \\resizebox{\\linewidth}{!}{\\usebox{\\kumlbox}}%")
+            appendLine("  \\else\\ifdim\\ht\\kumlbox>$maxHeight\\textheight")
+            appendLine("    \\resizebox{!}{$maxHeight\\textheight}{\\usebox{\\kumlbox}}%")
+            appendLine("  \\else")
+            appendLine("    \\usebox{\\kumlbox}%")
+            appendLine("  \\fi\\fi")
+            appendLine("  \\caption{#2}")
+            appendLine("  \\end{figure}%")
+            appendLine("}")
+        }
+    }
+
+    /** `true` if [input] is a figure path that `\input` may safely load: relative, `/`-separated, no `..`. */
+    public fun isSafeInput(input: String): Boolean = SAFE_INPUT.matches(input) && ".." !in input
+
     private fun requireSafeInput(input: String) {
-        require(SAFE_INPUT.matches(input) && ".." !in input) { "Unsafe figure path: $input" }
+        require(isSafeInput(input)) { "Unsafe figure path: $input" }
     }
 }

@@ -146,6 +146,31 @@ evaluation slot for up to 15 minutes, so other evaluating tools may answer `BUSY
 `OUTPUT_TOO_LARGE`, `SCALE_TOO_SMALL` (with `strict`), `EXPORT_TIMEOUT`, `BUSY`, `WORKSPACE_NOT_TRUSTED`,
 `WORKSPACE_MODE_UNSUPPORTED`.
 
+[[latex]]
+== The same workspace as LaTeX
+
+`kuml workspace export <dir> --format latex` exports a Knowledge workspace as a LaTeX project instead of a PDF; see
+xref:cli.adoc[the CLI reference]. Both exports use the same plan (documents, reading order, titles, metadata,
+language), so they agree on what is in the book. They differ in what they add:
+
+[cols="2,2,2"]
+|===
+|Feature |PDF handbook |LaTeX project
+
+|Documents, reading order, glossary, further documents |yes |yes (same code)
+|Diagrams |vector drawing of the SVG |TikZ (all families with LaTeX output; BPMN collaboration is left out)
+|Element table after each diagram |yes |no
+|Traceability and open-items chapters |yes |no
+|Cover logo, header and footer, draft mark |yes |no (title block of the `report` class)
+|A3 pages, tiling of large diagrams |yes |no (scaled down to the page)
+|External links |footnote with the address |`\href` plus footnote
+|AI notes |optional |no
+|Result |one PDF |sources you build and edit yourself
+|===
+
+[[latex-differences]]
+Two exports of the same workspace are therefore not page-for-page identical.
+
 == Known limits
 
 * Diagram text is converted to outlines and is therefore not searchable; body text is.

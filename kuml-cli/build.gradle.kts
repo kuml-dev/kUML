@@ -96,6 +96,7 @@ dependencies {
     implementation(project(path = ":kuml-docs:kuml-markdown"))
     implementation(project(path = ":kuml-docs:kuml-asciidoc")) // V3.2.19 — `kuml asciidoc` subcommand, Antora pre-render step
     api(project(path = ":kuml-docs:kuml-workspace-pdf")) // Wave F — workspace PDF export (API types appear on WorkspacePdfExport)
+    api(project(path = ":kuml-docs:kuml-workspace-latex")) // Nacharbeit 32 — Knowledge LaTeX export (types on WorkspaceLatexExport)
     implementation(project(path = ":kuml-docs:kuml-workspace")) // V3.6.1 — OKF workspace core module + vocabulary (FT-2)
     implementation(project(path = ":kuml-scaffold")) // generic template-scaffold engine, extracted from this module
 

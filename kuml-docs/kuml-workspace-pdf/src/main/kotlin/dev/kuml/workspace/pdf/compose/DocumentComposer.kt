@@ -11,8 +11,6 @@ import dev.kuml.workspace.pdf.PdfExportOptions
 import dev.kuml.workspace.pdf.TraceKind
 import dev.kuml.workspace.pdf.labels.PdfLabels
 import dev.kuml.workspace.pdf.markdown.InternalLinkResolver
-import dev.kuml.workspace.pdf.markdown.MarkdownContext
-import dev.kuml.workspace.pdf.markdown.MarkdownToBlocks
 import dev.kuml.workspace.pdf.model.Block
 import dev.kuml.workspace.pdf.model.ComposedDocument
 import dev.kuml.workspace.pdf.model.CoverData
@@ -23,7 +21,9 @@ import dev.kuml.workspace.pdf.plan.ExportPlan
 import dev.kuml.workspace.pdf.render.DrawnSvg
 import dev.kuml.workspace.pdf.render.SvgGraphicsRenderer
 import dev.kuml.workspace.pdf.render.SvgRenderException
-import dev.kuml.workspace.pdf.security.TextSanitizer
+import dev.kuml.workspace.pdf.source.SourceReader
+import dev.kuml.workspace.pdf.source.WorkspaceSource
+import dev.kuml.workspace.pdf.source.WorkspaceSource.toSourcePlan
 import org.apache.pdfbox.pdmodel.PDDocument
 import java.time.LocalDate
 
@@ -49,21 +49,15 @@ internal class DocumentComposer(
     private val warnings: MutableList<String>,
     private val exportedOn: LocalDate = LocalDate.now(),
 ) {
-    private val links =
-        InternalLinkResolver(
-            allDocuments = ws.documents,
-            inExport = plan.all.map { it.relativePath }.toSet(),
-            notInExportLabel = labels.notInExport,
-        )
+    private val sourcePlan = plan.toSourcePlan()
+    private val reader: SourceReader =
+        WorkspaceSource.reader(workspace = ws, plan = sourcePlan, language = labels.lang, limits = options.limits)
 
     private val reported = HashSet<DiagramKey>()
 
-    private fun docTitle(d: OkfDocument) = d.frontmatter.title?.takeIf { it.isNotBlank() } ?: d.file.nameWithoutExtension
+    private fun docTitle(d: OkfDocument) = WorkspaceSource.documentTitle(d)
 
-    fun workspaceTitle(): String =
-        options.metadata.title
-            ?: plan.indexDoc?.frontmatter?.title
-            ?: ws.root.name
+    fun workspaceTitle(): String = WorkspaceSource.metadata(workspace = ws, plan = sourcePlan, override = options.metadata).title
 
     // ---- one document -> section -------------------------------------------------------------------------
 
@@ -74,23 +68,10 @@ internal class DocumentComposer(
         images: LocalImages,
         drawCache: MutableMap<DiagramKey, DrawnSvg?>,
     ): Section {
-        val ctx =
-            MarkdownContext(links = links, imageLoader = {
-                from,
-                rel,
-                ->
-                images.forMarkdown(from = from, rel = rel)
-            }, limits = options.limits)
-        val raw = MarkdownToBlocks.convert(doc = d, ctx = ctx, docAnchor = InternalLinkResolver.docAnchor(d.relativePath))
-        var title = docTitle(d)
-        var blocks = raw
-        val first = raw.firstOrNull()
-        if (first is Block.Heading && first.level == 1) {
-            title = first.text.ifBlank { title }
-            blocks = raw.drop(1)
-        }
+        val source = reader.document(document = d, level = level)
+        val blocks = SourceToPdfBlocks.map(blocks = source.blocks, from = d, images = images)
         val resolved = resolveRefs(blocks = blocks, d = d, doc = doc, drawCache = drawCache)
-        return Section(title = title, level = level, anchorId = InternalLinkResolver.docAnchor(d.relativePath), blocks = resolved)
+        return Section(title = source.title, level = level, anchorId = source.anchorId, blocks = resolved)
     }
 
     /** Replaces [Block.DiagramRef] placeholders at any nesting depth (list items, quotes, callouts). */
@@ -144,10 +125,7 @@ internal class DocumentComposer(
     private fun blockTitle(
         d: OkfDocument,
         index: Int,
-    ): String {
-        val block = d.kumlBlocks.getOrNull(index)
-        return block?.name ?: if (d.kumlBlocks.size > 1) "${docTitle(d)} (${index + 1})" else docTitle(d)
-    }
+    ): String = WorkspaceSource.blockTitle(document = d, index = index)
 
     private fun diagramBlocks(
         d: OkfDocument,
@@ -209,18 +187,15 @@ internal class DocumentComposer(
                 ?.frontmatter
                 ?.fields
                 .orEmpty()
-        val m = options.metadata
+        val m = WorkspaceSource.metadata(workspace = ws, plan = sourcePlan, override = options.metadata)
         return CoverData(
-            title = workspaceTitle(),
-            subtitle = m.subtitle ?: fm["subtitle"],
-            author = m.author ?: fm["author"],
-            organization =
-                (fm["organization"] ?: fm["organisation"])
-                    ?.let { TextSanitizer.clean(text = it, maxLength = 200).replace('\n', ' ').trim() }
-                    ?.takeIf { it.isNotEmpty() },
-            version = m.version ?: fm["version"],
-            date = m.date ?: fm["date"]?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() },
-            status = m.status ?: fm["status"],
+            title = m.title,
+            subtitle = m.subtitle,
+            author = m.author,
+            organization = m.organization,
+            version = m.version,
+            date = m.date,
+            status = m.status,
             exportedOn = exportedOn,
             documentCount = documentCount,
             producer = options.producerVersion,

@@ -15,13 +15,25 @@ import java.nio.file.StandardCopyOption
  * first byte is written, so a refusal leaves the directory untouched.
  */
 internal object LatexOutputGuard {
+    /** Text files, written as UTF-8. */
+    fun writeAll(
+        outDir: File,
+        files: Map<String, String>,
+        overwrite: Boolean,
+    ): List<File> =
+        writeAllBytes(
+            outDir = outDir,
+            files = files.mapValues { it.value.toByteArray(Charsets.UTF_8) },
+            overwrite = overwrite,
+        )
+
     /**
      * @param files relative path (with `/`) to content; written in iteration order.
      * @return the written files.
      */
-    fun writeAll(
+    fun writeAllBytes(
         outDir: File,
-        files: Map<String, String>,
+        files: Map<String, ByteArray>,
         overwrite: Boolean,
     ): List<File> {
         val out = outDir.absoluteFile.normalize().toPath()
@@ -88,16 +100,16 @@ internal object LatexOutputGuard {
         out: Path,
         outReal: Path,
         rel: String,
-        content: String,
+        content: ByteArray,
         overwrite: Boolean,
     ): File {
         val target = checkedTarget(out = out, rel = rel)
         val parent = target.parent
         Files.createDirectories(parent)
         if (!parent.toRealPath().startsWith(outReal)) outside(rel)
-        val tmp = Files.createTempFile(parent, ".kuml-", ".tex.tmp")
+        val tmp = Files.createTempFile(parent, ".kuml-", ".tmp")
         try {
-            Files.writeString(tmp, content, Charsets.UTF_8)
+            Files.write(tmp, content)
             try {
                 Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE)
             } catch (_: AtomicMoveNotSupportedException) {

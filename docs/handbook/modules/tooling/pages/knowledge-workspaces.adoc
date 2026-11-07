@@ -208,7 +208,15 @@ Consistent with `OKF-W-004` ("one file = one diagram"), a knowledge document wit
 than one ` ```kuml ` block is split by `--to kts` into `<stem>-1.kuml.kts`,
 `<stem>-2.kuml.kts`, ... (1-based) and reported as `OKF-C-002`.
 
-=== Trust model
+=== Export as LaTeX
+
+`kuml workspace export <dir> --format latex` writes a Knowledge workspace as a LaTeX project (`main.tex`,
+`kuml-preamble.tex`, one TikZ file per diagram, the local images). Documents and their order are the ones of the
+PDF export. Diagrams run like in `workspace render`, so only export workspaces you trust. See
+xref:cli.adoc[the CLI reference] for the layout of the output, the constructs that are shown differently, the exit
+codes and the build command (always with `-no-shell-escape`).
+
+== Trust model
 
 `--to kts` is pure text extraction and never evaluates anything — converting a
 knowledge document to a script never runs its diagram code. `--to okf` evaluates every

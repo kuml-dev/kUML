@@ -12,6 +12,7 @@ import dev.kuml.workspace.pdf.layout.PdfLayoutEngine
 import dev.kuml.workspace.pdf.plan.ExportPlanner
 import dev.kuml.workspace.pdf.render.PdfFontSet
 import dev.kuml.workspace.pdf.security.ExportOutputGuard
+import dev.kuml.workspace.pdf.source.WorkspaceSource
 import dev.kuml.workspace.pdf.writer.FinishInfo
 import dev.kuml.workspace.pdf.writer.PdfDocumentFinisher
 import org.apache.pdfbox.io.IOUtils
@@ -25,7 +26,6 @@ import java.nio.file.StandardCopyOption
 import java.time.Clock
 import java.time.Duration
 import java.time.ZonedDateTime
-import java.util.Locale
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -111,18 +111,7 @@ public object WorkspacePdfExporter {
         if (options.kind == PdfExportKind.DIAGRAMS && total == 0) {
             throw PdfExportException(code = PdfExportException.Code.EMPTY_SCOPE, message = "The selected scope contains no kuml diagrams")
         }
-        val lang =
-            options.language
-                ?: plan.indexDoc?.frontmatter?.fields?.get("lang")?.let {
-                    if (it.startsWith("de", ignoreCase = true)) {
-                        PdfLanguage.DE
-                    } else if (it.startsWith("en", ignoreCase = true)) {
-                        PdfLanguage.EN
-                    } else {
-                        null
-                    }
-                }
-                ?: if (Locale.getDefault().language == "de") PdfLanguage.DE else PdfLanguage.EN
+        val lang = WorkspaceSource.language(indexDoc = plan.indexDoc, override = options.language)
         val labels = PdfLabels(lang)
 
         // 1. render diagrams (cached; timeouts per diagram and overall)

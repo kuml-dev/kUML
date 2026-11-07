@@ -428,7 +428,7 @@ kuml workspace info <dir>
 kuml workspace validate <dir> [--strict-vocabulary] [--document <path>]... [--evaluate] [--strict]
 kuml workspace render <dir> [-f svg|png] [-o <dir>] [--document <path>]... [--strict] [--no-mirror]
 kuml workspace convert <src> --to okf|kts [--force] [--output <dir>] [--strict]
-kuml workspace export <dir> --format latex [-o <dir>] [--force] [--strict] [--theme <name>]
+kuml workspace export <dir> --format latex [-o <dir>] [--force] [--strict] [--theme <name>]   # Engineering folder or Knowledge workspace
 kuml workspace export <dir> --format pdf [--kind handbook|per-document|diagrams] [--page-strategy auto|fixed] [--min-scale 0.25..1.0] [--tiling|--no-tiling] [-o <file-or-dir>] [--force] [--strict]
 ----
 
@@ -466,7 +466,60 @@ document has not loaded it yet, so your own `babel` options stay in force.
   stay. Each file is replaced atomically, the set as a whole is not.
 * Trust model: the command runs every script it finds, like `kuml workspace render`. There is no time
   limit per script. Use pdflatex with `-no-shell-escape`.
-* Not covered: Markdown diagrams of Knowledge workspaces, XeLaTeX and LuaLaTeX (not tested).
+* Not covered: XeLaTeX and LuaLaTeX (not tested).
+
+==== Knowledge workspaces
+
+If `<dir>` is a Knowledge workspace, the same command exports the Markdown documents and their
+```` ```kuml ```` diagrams as one LaTeX project (document class `report`, one chapter per document):
+
+----
+out/                       (default: <dir>/.kuml-out/export/latex)
+  main.tex                 the book: title block, table of contents, all documents
+  kuml-preamble.tex        packages, TikZ libraries, kuml-* styles (once)
+  figures/f001-<name>.tex  one TikZ file per ```kuml block
+  images/i001-<name>.png   the local images the documents reference
+----
+
+Build it twice (table of contents and references) with shell escape off:
+
+[source,bash]
+----
+pdflatex -interaction=nonstopmode -halt-on-error -no-shell-escape main.tex
+----
+
+* *Which mode applies.* The scanner decides: as soon as one `*.kuml.kts` exists the folder is an
+  Engineering folder and the script export above runs; a `.kuml-workspace.toml` marker with
+  `mode = "knowledge"` forces the Markdown export. A folder with an `index.md` and more Markdown
+  documents and no script is a Knowledge workspace.
+* *Same plan as the PDF.* Documents, reading order (links of `index.md`, then glossary, then further
+  documents), titles, cover metadata (`title`, `subtitle`, `author`, `organization`, `version`,
+  `status`, `date`) and the label language (`lang`, else the JVM locale; German or English) come from
+  the code that drives xref:workspace-pdf-export.adoc[the PDF export]. The date defaults to the day of
+  the export.
+* *Diagrams.* Every ```` ```kuml ```` block runs like in `kuml workspace render` and becomes a
+  `\kumlfigure`. `SKIP`, `ERROR` and `WARN` (a figure that references an undefined TikZ node, currently
+  the BPMN collaboration) leave a visible framed note at that place; the figure file is still written
+  for `WARN`. Only the first diagram of a block is exported.
+* *Text is escaped.* Every character of document text goes through one escaper: the ten TeX special
+  characters, `"`, brackets and `|` are neutralised, code is set line by line without `verbatim`,
+  links are limited to `http`, `https` and `mailto`, labels are counters. Characters pdflatex cannot
+  typeset (emoji, CJK, Cyrillic, ...) become a visible `[U+XXXX]` marker and a `WARN`.
+* *Images.* Only PNG and JPEG files inside the workspace (checked by content, at most 10 MB and
+  8000 px per side, 500 images, 200 MB in total; no links, no remote URLs). A refused image gives
+  a `WARN` and a framed note.
+* *Constructs that are shown differently* (`NOTE`, they do not block `--strict`): raw HTML and
+  footnote syntax (`[^1]`) are shown as text, math is shown as text, strikethrough is not drawn,
+  a bracketed text that looks like a reference link is shown as text, an image inside a sentence is
+  shown as its alt text, lists and quotes nested deeper than four levels are flattened, tables keep at
+  most 12 columns, code blocks at most 2000 lines.
+* *Exit codes* as above: `0` (NOTE only), `3` for `ERROR`, or with `--strict` for any `SKIP`, `ERROR`
+  or `WARN` (nothing is written); `2` for usage errors; `4` for I/O errors. The options of this
+  command are `-o`, `--force`, `--strict` and `--theme`; the PDF options are rejected. A workspace
+  without diagrams is valid.
+* The export has no table of facts per diagram, no traceability chapter, no open-items chapter, no
+  cover logo, no AI notes and no A3 or tiled pages; see the comparison in
+  xref:workspace-pdf-export.adoc#latex[Workspace PDF export].
 
 `init` scaffolds a new workspace into `--output` (default `./<slug>` from `--name`); `info`,
 `validate` and `render` take the workspace root as a positional `<dir>`; `convert` (added in

@@ -6,6 +6,31 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 32: LaTeX export for Knowledge workspaces (`kuml workspace export --format latex`)
+
+#### Why
+
+`kuml workspace export --format latex` (Nacharbeit 31) only handled folders of `*.kuml.kts` scripts; a Knowledge workspace (Markdown documents with ```` ```kuml ```` blocks) ended in "not exported yet". Authors who want the handbook as editable LaTeX had only the PDF.
+
+#### Change
+
+- Architecture: the Markdown parser stays in one place. `kuml-workspace-pdf` now converts a document to a neutral, PDFBox-free model (`SourceBlock`, `SourceInline`, `SourceDocument`; images are only referenced, raw HTML and unsupported constructs are reported as `SourceDiagnostic`) and exposes a small public facade, `WorkspaceSource` (plan, metadata, label language, titles, `SourceReader`) plus `WorkspaceImageFiles` (the single place that decides which image files may be read). The PDF composer maps the neutral model to its layout blocks (`SourceToPdfBlocks`); the layout engine and its block model are untouched.
+- New module `kuml-docs/kuml-workspace-latex`: `LatexKnowledgeExporter.prepare` builds `main.tex` (class `report`, one chapter per document, babel before the shared preamble, `shorthands=off`, hyperref last), `kuml-preamble.tex`, `figures/*.tex` and `images/*`. It runs no scripts: diagrams come through the `LatexDiagramSource` port, implemented in `kuml-cli` (`WorkspaceLatexExport`) with `LatexExportService.exportFile`. Documents, order, titles, metadata and language come from `WorkspaceSource`, so PDF and LaTeX agree on them.
+- One text escaper (`LatexEscaper`) for all document text: the ten special characters, `"`, brackets, `|` and angle brackets; code is set line by line without `verbatim`; URLs only for http/https/mailto and percent-encoded; labels are counters; characters pdflatex cannot typeset become `\kumlglyph{U+XXXX}` plus a `WARN`.
+- `kuml workspace export <dir> --format latex` decides by the scanner's mode: Knowledge workspace gives the Markdown export, otherwise the unchanged script export. Same options (`-o`, `--force`, `--strict`, `--theme`). `--strict` fails on any `SKIP`, `ERROR` or `WARN` (missing image, excluded figure, placeholder characters) and writes nothing; `NOTE` (HTML, footnote syntax, math, strikethrough, flattened nesting) does not block.
+- `LatexOutputGuard` writes binary files (`writeAllBytes`); `LatexDocumentAssembler.figureMacro(placement, maxHeight)` and `isSafeInput` are public (default output of the folder export unchanged). The Knowledge export uses `[htbp]` and 0.7 of the text height, because `[H]` left blank pages when a tall figure met a chapter break.
+- PDF side effects: a quote or callout no longer prints the `>` markers of its continuation lines as text (visible in the real run: "Hinweis > Dies ist ...").
+
+#### Verification
+
+- New tests: `WorkspaceSourceTest`, `WorkspaceImageFilesTest`, `PdfImageFallbackTest` (kuml-workspace-pdf; all earlier PDF suites unchanged and green); `LatexEscaperTest`, `LatexBlockWriterTest`, `LatexFigureCollectorTest`, `LatexImageCollectorTest`, `LatexKnowledgeExporterTest`, `LatexInjectionTest` (18 hostile payloads at every position of a workspace, control sequences of the output compared with the same document built from harmless text), `LatexKnowledgePdfBuildTest` (kuml-workspace-latex); `LatexOutputGuardTest`, `WorkspaceExportLatexKnowledgeCommandTest`, `WorkspaceLatexKnowledgePdfBuildTest` (kuml-cli).
+- Real run with the installed CLI on `kuml-cli/src/test/resources/latex-knowledge` (5 documents, UML, C4, SysML 2 STM and a BPMN collaboration): exit 0, 3 figures, 1 image, 1 figure excluded; two pdflatex runs (`-no-shell-escape`) give a 10-page PDF without errors; the pages were rasterised and looked at. The same workspace as PDF handbook (13 pages) has the same documents in the same order.
+- A hostile workspace (`\write18`, `\input`, `\end{document}`, bidi and control characters, emoji) builds with pdflatex; the payload appears as text and the touched file does not exist.
+
+#### Not verified
+
+Windows and Linux; TeX on CI (the pdflatex tests are skipped there, marker in the test name); XeLaTeX and LuaLaTeX; the Desktop UI (a later wave). Differences from the PDF, all by design: no element table after a diagram, no traceability or open-items chapter, no cover logo, no AI notes, no A3 or tiling, the BPMN collaboration is left out (undefined TikZ nodes), footnotes are set by LaTeX. Not in this wave: the overlapping label of the "initial pseudo-state" in the STM figure (renderer issue). README and website were not changed (release work).
+
 ### Nacharbeit 31: Shared LaTeX preamble and folder export (`kuml workspace export --format latex`)
 
 #### Why

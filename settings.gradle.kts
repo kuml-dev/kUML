@@ -174,6 +174,7 @@ include(
     "kuml-docs:kuml-asciidoc",      // V1.1.8 — AsciiDoc + Antora preprocessor
     "kuml-docs:kuml-workspace",     // V3.6.1 — OKF workspace core module + vocabulary (FT-2)
     "kuml-docs:kuml-workspace-pdf", // Wave F — workspace PDF export
+    "kuml-docs:kuml-workspace-latex", // Nacharbeit 32 — Knowledge workspace LaTeX export
 )
 
 // ── Packaging ────────────────────────────────────────── Phase 2 ──

@@ -15,7 +15,12 @@ import com.github.ajalt.clikt.parameters.types.float
 import dev.kuml.cli.ExitCodes
 import dev.kuml.cli.export.LatexFolderExport
 import dev.kuml.cli.export.LatexFolderExportException
+import dev.kuml.workspace.OkfWorkspace
+import dev.kuml.workspace.WorkspaceMode
 import dev.kuml.workspace.WorkspaceScanner
+import dev.kuml.workspace.latex.LatexIssueLevel
+import dev.kuml.workspace.latex.LatexKnowledgeExportException
+import dev.kuml.workspace.latex.LatexKnowledgeOptions
 import dev.kuml.workspace.pdf.ExportMetadata
 import dev.kuml.workspace.pdf.ExportScope
 import dev.kuml.workspace.pdf.PageFormat
@@ -134,6 +139,10 @@ internal class WorkspaceExportCommand : CliktCommand(name = "export") {
         val target = (output ?: File(defaultBase, "latex")).absoluteFile.normalize()
         val excludes = buildSet { if (target.startsWith(root)) add(target) }
         try {
+            knowledgeWorkspace(root = root, excludes = excludes + defaultBase.absoluteFile.normalize())?.let {
+                runKnowledgeLatex(ws = it, target = target)
+                return
+            }
             val prepared = LatexFolderExport.prepare(root = root, excludeDirs = excludes, themeName = theme)
             prepared.notes.forEach { echo("NOTE ${shown(it)}", err = true) }
             prepared.skipped.forEach { echo("SKIP ${shown(it.source)}: ${shown(it.reason)}", err = true) }
@@ -176,6 +185,54 @@ internal class WorkspaceExportCommand : CliktCommand(name = "export") {
             echo("Error: I/O error: ${e.javaClass.simpleName}", err = true)
             throw ProgramResult(ExitCodes.IO_ERROR)
         }
+    }
+
+    /**
+     * The scanned workspace if [root] is a Knowledge workspace, `null` for an Engineering folder. Engineering wins as
+     * soon as one `*.kuml.kts` exists, unless a `.kuml-workspace.toml` marker states a mode (the scanner's rule).
+     */
+    private fun knowledgeWorkspace(
+        root: File,
+        excludes: Set<File>,
+    ): OkfWorkspace? {
+        val hasMarker = File(root, ".kuml-workspace.toml").isFile
+        if (!hasMarker && WorkspaceScanner.diagramScripts(root = root, excludeDirs = excludes).isNotEmpty()) return null
+        return WorkspaceScanner.scan(root = root, excludeDirs = excludes).takeIf { it.mode == WorkspaceMode.KNOWLEDGE }
+    }
+
+    private fun runKnowledgeLatex(
+        ws: OkfWorkspace,
+        target: File,
+    ) {
+        val prepared =
+            try {
+                WorkspaceLatexExport.prepare(
+                    workspace = ws,
+                    options = LatexKnowledgeOptions(generator = WorkspaceLatexExport.generator),
+                    themeName = theme,
+                )
+            } catch (e: LatexKnowledgeExportException) {
+                echo("Error: ${shown(e.message.orEmpty())}", err = true)
+                throw ProgramResult(if (e.code == LatexKnowledgeExportException.Code.IO) ExitCodes.IO_ERROR else ExitCodes.USAGE)
+            }
+        prepared.warnings.forEach { echo("NOTE ${shown(it)}", err = true) }
+        prepared.issues.forEach { echo("${it.level} ${shown(it.source)}: ${shown(it.message)}", err = true) }
+        val blocking = prepared.issues.filter { it.level != LatexIssueLevel.NOTE }
+        if (strict && blocking.isNotEmpty()) {
+            echo("Error: --strict: nothing written.", err = true)
+            throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+        }
+        val result = WorkspaceLatexExport.write(prepared = prepared, outDir = target, overwrite = force)
+        val count = { level: LatexIssueLevel -> prepared.issues.count { it.level == level } }
+        echo(
+            "Wrote main.tex, kuml-preamble.tex, ${prepared.figureCount} figure(s), ${prepared.imageCount} image(s) " +
+                "for ${prepared.documentCount} document(s): ${result.outDir.path}",
+        )
+        echo(
+            "${count(LatexIssueLevel.ERROR)} failed, ${count(LatexIssueLevel.SKIP)} skipped, " +
+                "${prepared.excludedFigureCount} excluded from main.tex, ${count(LatexIssueLevel.WARN)} warnings",
+        )
+        if (count(LatexIssueLevel.ERROR) > 0) throw ProgramResult(ExitCodes.SCRIPT_ERROR)
     }
 
     /** Terminal-safe: control characters (ANSI escapes, line breaks) in paths and reasons become a space. */

@@ -70,7 +70,7 @@ public object LatexFolderExport {
         if (scripts.isEmpty()) {
             throw LatexFolderExportException(
                 code = LatexFolderExportException.Code.NO_SCRIPTS,
-                message = "No *.kuml.kts scripts found below $scanRoot (Knowledge workspaces with Markdown diagrams are not exported yet).",
+                message = "No *.kuml.kts scripts found below $scanRoot (a Knowledge workspace needs an index.md plus Markdown documents).",
             )
         }
         val figures = mutableListOf<LatexFolderFigure>()
