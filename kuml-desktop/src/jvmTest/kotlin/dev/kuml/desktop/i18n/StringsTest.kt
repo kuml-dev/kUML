@@ -755,4 +755,50 @@ class PdfExportStringsTest :
             Strings.EN.simPreviewFallbackHint shouldNotBe Strings.DE.simPreviewFallbackHint
             Strings.EN.simPreviewUnavailable shouldNotBe Strings.DE.simPreviewUnavailable
         }
+
+        // --- LaTeX export texts: complete in both languages, placeholders match ---
+        test("LaTeX export texts are non-blank in EN and DE") {
+            for (l in listOf(Strings.EN.latexExport, Strings.DE.latexExport)) {
+                listOf(
+                    l.menuItem,
+                    l.toolbarTooltip,
+                    l.unsupportedDiagram,
+                    l.needsScript,
+                    l.dialogTitle,
+                    l.standaloneLabel,
+                    l.standaloneHint,
+                    l.snippetLabel,
+                    l.snippetHint,
+                    l.multiDiagramHint,
+                    l.cancel,
+                    l.export,
+                    l.fileDescription,
+                    l.rendering,
+                ).forEach { it.shouldNotBeBlank() }
+            }
+        }
+
+        test("LaTeX multi-diagram hint has the same positional placeholders in EN and DE") {
+            fun placeholders(text: String) =
+                Regex("""%\d\$[sd]""")
+                    .findAll(text)
+                    .map { it.value }
+                    .toList()
+                    .sorted()
+            placeholders(Strings.EN.latexExport.multiDiagramHint) shouldBe listOf("%1\$d", "%2\$s")
+            placeholders(Strings.DE.latexExport.multiDiagramHint) shouldBe listOf("%1\$d", "%2\$s")
+            Strings.EN.latexExport.multiDiagramHint
+                .format(2, "X") shouldContain "X"
+            Strings.DE.latexExport.multiDiagramHint
+                .format(2, "X") shouldContain "X"
+        }
+
+        test("LaTeX export menu item and tooltip differ between EN and DE, German text does not gender") {
+            Strings.EN.latexExport.menuItem shouldNotBe Strings.DE.latexExport.menuItem
+            Strings.EN.latexExport.toolbarTooltip shouldNotBe Strings.DE.latexExport.toolbarTooltip
+            val de = Strings.DE.latexExport
+            listOf(de.unsupportedDiagram, de.needsScript, de.standaloneHint, de.snippetHint, de.multiDiagramHint).forEach {
+                (it.contains("*") || it.contains(":innen") || it.contains("_innen")) shouldBe false
+            }
+        }
     })

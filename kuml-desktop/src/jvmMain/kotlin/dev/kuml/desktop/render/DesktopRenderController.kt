@@ -95,11 +95,13 @@ class DesktopRenderController(
                 // V3.x — Live-Simulation: drives Werkzeuge ▸ Simulieren's enabled state
                 // and the "not simulatable" status-bar hint (see MainWindow.kt).
                 state.lastDiagramSimulatable = result.simulatable
+                state.lastDiagramLatexCapable = result.latexCapable
             }
             is DesktopRenderResult.Error -> {
                 state.statusNotice = null
                 state.lastError = result.message
                 state.lastDiagramSimulatable = false
+                state.lastDiagramLatexCapable = false
             }
         }
     }

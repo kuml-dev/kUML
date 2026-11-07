@@ -67,7 +67,14 @@ private fun SvgCanvas(
         }
     }
     Column(modifier = modifier.fillMaxSize()) {
-        ZoomToolbar(canvas = canvas, strings = strings, exportSvg = svg, onExport = onExport)
+        // A Knowledge-Workspace document is Markdown, not a script: the LaTeX button stays visible but disabled, with the reason.
+        ZoomToolbar(
+            canvas = canvas,
+            strings = strings,
+            exportSvg = svg,
+            onExport = onExport,
+            latexDisabledReason = strings.latexExport.needsScript,
+        )
         SwingPanel(factory = { canvas }, modifier = Modifier.weight(1f).fillMaxWidth())
     }
 }

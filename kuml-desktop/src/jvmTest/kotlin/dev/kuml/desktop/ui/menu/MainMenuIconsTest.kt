@@ -43,7 +43,7 @@ class MainMenuIconsTest :
                     MenuEntryId.FILE_RECENT_EMPTY,
                     MenuEntryId.FILE_RECENT_CLEAR,
                 )
-            withIcon.size shouldBe 29
+            withIcon.size shouldBe 30
         }
 
         /** Renders [painter] into a 16x16 bitmap and returns the alpha values (0..255) of all pixels. */

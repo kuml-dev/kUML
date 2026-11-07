@@ -60,6 +60,9 @@ fun PreviewPane(
     modifier: Modifier = Modifier,
     /** Save-as-image handler for the toolbar's SVG/PNG buttons; `null` keeps them disabled. */
     onExport: ((ImageFormat) -> Unit)? = null,
+    /** LaTeX button handler; `null` keeps it disabled, showing [latexDisabledReason] as its tooltip. */
+    onExportLatex: (() -> Unit)? = null,
+    latexDisabledReason: String? = null,
 ) {
     var batikFailureSerial by remember { mutableIntStateOf(0) }
     val canvas =
@@ -192,6 +195,8 @@ fun PreviewPane(
             strings = strings,
             exportSvg = shownSvg(workspaceMode = false, docSvg = null, lastSvg = effectiveSvg),
             onExport = onExport,
+            onExportLatex = onExportLatex,
+            latexDisabledReason = latexDisabledReason,
         )
         if (session != null) {
             SimulationBar(

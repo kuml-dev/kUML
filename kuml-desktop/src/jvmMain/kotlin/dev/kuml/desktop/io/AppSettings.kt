@@ -46,6 +46,10 @@ data class AppSettings(
     // when loaded into AppState (tree 0.15..0.40, editor 0.15..0.85).
     val workspaceNavFraction: Double = 0.2,
     val workspaceEditorFraction: Double = 0.5,
+    // LaTeX export: the mode last confirmed in the export dialog (true = complete document, false = figure
+    // only). It is preselected next time; the dialog has no "do not ask again". Additive field with a
+    // default, so old settings files decode without it and no schemaVersion bump is needed.
+    val latexStandalone: Boolean = true,
 ) {
     companion object {
         val DEFAULT = AppSettings()

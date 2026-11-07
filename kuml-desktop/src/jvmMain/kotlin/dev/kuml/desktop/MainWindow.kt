@@ -63,8 +63,19 @@ import dev.kuml.desktop.mcp.desktopMcpRegistry
 import dev.kuml.desktop.plugins.PluginManagerPane
 import dev.kuml.desktop.preview.ExportSaveResult
 import dev.kuml.desktop.preview.ImageFormat
+import dev.kuml.desktop.preview.LatexExportRequest
+import dev.kuml.desktop.preview.LatexMode
+import dev.kuml.desktop.preview.LatexRenderOutcome
 import dev.kuml.desktop.preview.PreviewPane
+import dev.kuml.desktop.preview.chooseLatexFile
 import dev.kuml.desktop.preview.exportTarget
+import dev.kuml.desktop.preview.isStandalone
+import dev.kuml.desktop.preview.latexModeOf
+import dev.kuml.desktop.preview.latexSuggestedFileName
+import dev.kuml.desktop.preview.latexUnavailableReason
+import dev.kuml.desktop.preview.latexUnavailableText
+import dev.kuml.desktop.preview.renderLatex
+import dev.kuml.desktop.preview.saveLatex
 import dev.kuml.desktop.preview.saveShownDiagram
 import dev.kuml.desktop.preview.shownSvg
 import dev.kuml.desktop.preview.singleFileSvg
@@ -80,6 +91,8 @@ import dev.kuml.desktop.ui.ButtonAction
 import dev.kuml.desktop.ui.IconLabel
 import dev.kuml.desktop.ui.IconTooltipButton
 import dev.kuml.desktop.ui.KumlIcons
+import dev.kuml.desktop.ui.LatexDialogState
+import dev.kuml.desktop.ui.LatexExportDialog
 import dev.kuml.desktop.ui.ResizableSplit
 import dev.kuml.desktop.ui.menu.MenuEntryId
 import dev.kuml.desktop.ui.menu.applySubmenuIcons
@@ -178,6 +191,25 @@ internal fun simulateRequestOutcome(
     if (lastSvg.isNotBlank() && !simulatable) SimulateRequestOutcome.REFUSE_UNSUPPORTED else SimulateRequestOutcome.START
 
 /**
+ * One open LaTeX export dialog: the script and file name as they were at the click (the export is of exactly
+ * that text), the first render in the preselected mode, and what the dialog shows.
+ */
+private class LatexDialogSession(
+    val script: String,
+    val baseName: String,
+    val themeName: String,
+    val initialMode: LatexMode,
+    val firstRender: LatexRenderOutcome.Ready,
+) {
+    val dialogState =
+        LatexDialogState(
+            initialMode = initialMode,
+            diagramCount = firstRender.diagramCount,
+            firstDiagramName = firstRender.firstDiagramName,
+        )
+}
+
+/**
  * Top-Level-Composable für das kUML Desktop Hauptfenster.
  * Deklariert die native [MenuBar] und legt [EditorPane] + [PreviewPane] nebeneinander.
  */
@@ -213,6 +245,9 @@ fun FrameWindowScope.MainWindow(
     // The request carries the initial form: the File menu opens with the whole workspace, the per-document
     // icon in the document header with the scope set to that document.
     var pdfDialogRequest by remember { mutableStateOf<PdfExportFormState?>(null) }
+    // LaTeX (TikZ) export: the open mode dialog, and a guard against a second click while the first render runs.
+    var latexDialog by remember { mutableStateOf<LatexDialogSession?>(null) }
+    var latexBusy by remember { mutableStateOf(false) }
 
     rememberAppSettingsBinding(state = state, store = store)
 
@@ -371,6 +406,95 @@ fun FrameWindowScope.MainWindow(
             JOptionPane.showMessageDialog(windowHandle, strings.previewExport.saveFailed.format(result.message))
         }
     }
+
+    // LaTeX export. Always generated from the script text (editor buffer), never from the SVG on screen, so a
+    // running simulation can not leak into the file. Available for a single file and for an Engineering workspace
+    // (both edit a script); a Knowledge-Workspace document is Markdown.
+    val latexReason =
+        latexUnavailableReason(
+            hasRenderedDiagram = state.lastSvg.isNotBlank(),
+            renderFailed = state.lastError != null,
+            latexCapable = state.lastDiagramLatexCapable,
+            sourceIsScript = state.openWorkspace !is OpenWorkspace.Knowledge,
+        )
+
+    fun showLatexFailure(message: String) {
+        JOptionPane.showMessageDialog(windowHandle, strings.previewExport.saveFailed.format(message))
+    }
+
+    // Step 1: render once in the remembered mode (this also tells how many diagrams the script holds), then ask.
+    fun exportLatex() {
+        if (latexReason != null || latexBusy) return
+        val script = state.script
+        val theme = state.theme
+        val initialMode = latexModeOf(state.latexStandalone)
+        val baseName = FileMenu.exportBaseName(state.currentFile)
+        latexBusy = true
+        scope.launch {
+            try {
+                val outcome =
+                    withContext(Dispatchers.IO) {
+                        renderLatex(LatexExportRequest(script = script, themeName = theme, standalone = initialMode.isStandalone()))
+                    }
+                when (outcome) {
+                    is LatexRenderOutcome.Failed -> showLatexFailure(outcome.message)
+                    is LatexRenderOutcome.Ready ->
+                        latexDialog =
+                            LatexDialogSession(
+                                script = script,
+                                baseName = baseName,
+                                themeName = theme,
+                                initialMode = initialMode,
+                                firstRender = outcome,
+                            )
+                }
+            } finally {
+                latexBusy = false
+            }
+        }
+    }
+
+    // Step 2: the dialog was confirmed. The chosen mode is remembered now (not on Cancel); the file chooser comes
+    // after the dialog. A changed mode needs one more render. Success is silent, like SVG and PNG.
+    fun confirmLatexExport(
+        session: LatexDialogSession,
+        mode: LatexMode,
+    ) {
+        latexDialog = null
+        state.latexStandalone = mode.isStandalone()
+        scope.launch {
+            val outcome =
+                if (mode == session.initialMode) {
+                    session.firstRender
+                } else {
+                    withContext(Dispatchers.IO) {
+                        renderLatex(
+                            LatexExportRequest(script = session.script, themeName = session.themeName, standalone = mode.isStandalone()),
+                        )
+                    }
+                }
+            when (outcome) {
+                is LatexRenderOutcome.Failed -> showLatexFailure(outcome.message)
+                is LatexRenderOutcome.Ready -> {
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            val chosen =
+                                chooseLatexFile(
+                                    parent = windowHandle,
+                                    initialDir = state.lastDir?.let { File(it) },
+                                    suggestedName = latexSuggestedFileName(session.baseName),
+                                    strings = strings,
+                                )
+                            chosen?.let { saveLatex(file = it, tex = outcome.tex) }
+                        }
+                    if (result is ExportSaveResult.Failed) showLatexFailure(result.message)
+                }
+            }
+        }
+    }
+
+    val latexToolbarHandler: (() -> Unit)? = if (latexReason == null) ({ exportLatex() }) else null
+    val latexToolbarReason: String? = latexReason?.let { latexUnavailableText(reason = it, strings = strings) }
 
     fun reportKnowledgeSaveResult(result: OkfWriteResult) {
         val message =
@@ -699,6 +823,12 @@ fun FrameWindowScope.MainWindow(
                 enabled = exportEnabled,
                 onClick = { exportShownImage(ImageFormat.PNG) },
             )
+            Item(
+                strings.latexExport.menuItem,
+                icon = menuIcon(id = MenuEntryId.FILE_EXPORT_LATEX, enabled = latexReason == null),
+                enabled = latexReason == null,
+                onClick = { exportLatex() },
+            )
             Menu(strings.menuFileExportWorkspace) {
                 // Engineering workspaces are not exported (no document tree); the dialog explains why when opened
                 // for an untrusted workspace, and the menu stays disabled here for engineering mode.
@@ -1006,6 +1136,8 @@ fun FrameWindowScope.MainWindow(
                                 confirmUnsavedAndThen = { action -> confirmUnsavedAndThen(action) },
                                 onEditorReady = { editorActions = it },
                                 onExportImage = { format -> exportShownImage(format) },
+                                onExportLatex = latexToolbarHandler,
+                                latexDisabledReason = latexToolbarReason,
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
                             )
                         }
@@ -1044,6 +1176,8 @@ fun FrameWindowScope.MainWindow(
                                         state = state,
                                         modifier = Modifier.weight(1f).fillMaxHeight(),
                                         onExport = { format -> exportShownImage(format) },
+                                        onExportLatex = latexToolbarHandler,
+                                        latexDisabledReason = latexToolbarReason,
                                     )
                                 // Draggable divider between editor and preview. Batik keeps the
                                 // image centre on resize (recenterOnResize) and re-renders per
@@ -1064,6 +1198,8 @@ fun FrameWindowScope.MainWindow(
                                                 state = state,
                                                 modifier = Modifier.fillMaxSize(),
                                                 onExport = { format -> exportShownImage(format) },
+                                                onExportLatex = latexToolbarHandler,
+                                                latexDisabledReason = latexToolbarReason,
                                             )
                                         },
                                     )
@@ -1162,6 +1298,15 @@ fun FrameWindowScope.MainWindow(
                 state.openWorkspace = OpenWorkspace.Engineering(root = workspace.root, scriptFiles = files)
             },
             onCancel = { pendingUnknownWorkspace = null },
+        )
+    }
+
+    latexDialog?.let { session ->
+        LatexExportDialog(
+            state = session.dialogState,
+            strings = strings,
+            onConfirm = { mode -> confirmLatexExport(session = session, mode = mode) },
+            onCancel = { latexDialog = null },
         )
     }
 

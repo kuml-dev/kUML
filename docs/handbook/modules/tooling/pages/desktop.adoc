@@ -44,6 +44,7 @@ In the preview (and in the Knowledge Workspace viewer and the AI patch preview):
 | Actual size button | Show the diagram at 1:1, centered; stays 1:1 when the window is resized
 | Center button | Center the diagram without changing the zoom
 | Save as SVG / Save as PNG buttons (right of a separator after the zoom buttons) | Save the diagram that is currently shown, see <<Saving the shown diagram as an image>>
+| Save as LaTeX (TikZ) button (third of the export buttons, backslash badge) | Save the diagram as a `.tex` file, see <<Exporting the diagram as LaTeX (TikZ)>>
 |===
 
 Batik's own gestures keep working: Shift + drag pans, Ctrl + Shift + drag zooms, the arrow keys
@@ -66,6 +67,30 @@ suggested file name is the document's name with `.svg` or `.png`.
 
 The PNG is twice the diagram's natural width, between 800 and 4096 px (1600 px when the width cannot be read), on a white
 background.
+
+== Exporting the diagram as LaTeX (TikZ)
+
+The third export button and *File ▸ Export LaTeX (TikZ)…* write the diagram as TikZ source. A dialog comes first and
+asks what the file contains:
+
+* *Complete document* (the default): a `.tex` file that compiles directly with `pdflatex`.
+* *Figure only*: just the `tikzpicture` environment, to include in your own document.
+
+The choice you confirm is remembered and preselected next time; there is no "do not ask again". Cancel writes nothing.
+After the dialog comes the file dialog (suggested name: the document's name with `.tex`). Success is silent, like SVG and
+PNG; a failure is reported in a message box.
+
+The LaTeX is generated from the script text in the editor, with the same code as `kuml render --format latex` (so the
+output equals what the command line writes for the same script). It is never derived from the SVG on screen, so a running
+simulation, its state markers and its frozen base render never reach the file.
+
+* *Only the first diagram is exported.* If the script contains several diagrams, the dialog says so and names the diagram
+  that is exported. One file per diagram is not offered yet.
+* The button and the menu item are disabled, with the reason in the tooltip, when nothing is rendered or the script does not
+  compile, when the diagram has no LaTeX output (package diagrams, ER diagrams, BPMN choreography and conversation
+  diagrams), and in a knowledge workspace, whose documents are Markdown rather than scripts. In an engineering workspace
+  the export works for the open `.kuml.kts` script.
+* The theme is passed through but LaTeX output does not use one.
 
 == Simulator: inspector, variables, payload, temporary guard editing
 

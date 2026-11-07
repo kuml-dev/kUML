@@ -6,6 +6,26 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 30: LaTeX (TikZ) export in the Desktop app, and `--latex-standalone` for every diagram family
+
+#### Why
+
+The Desktop app could export SVG and PNG but not the LaTeX that `kuml render --format latex` has long produced. Building it on the existing code exposed a gap: the `--latex-standalone` flag only reached UML and Blueprint diagrams. C4 and all SysML 2 diagrams silently ignored it, and BPMN had no LaTeX branch in the command line at all, although the renderer for it existed.
+
+#### Change
+
+- `RenderPipeline`: one `latexOptions()` helper now serves every family. `renderC4`, `renderSysml2` and `renderBpmn` take `latexStandalone`; BPMN process and collaboration diagrams now export LaTeX (choreography and conversation still do not).
+- `KumlLatexRenderer`: the standalone preamble is one function that takes extra TikZ libraries (BPMN and Blueprint use it instead of appending their own line). One visible effect: their extra `\usetikzlibrary` line now sits before `\begin{document}` where it belongs, not after it; the BPMN golden file is updated for that.
+- New public `LatexExportService` in `kuml-cli` (`dev.kuml.cli.export`): runs the CLI's own LaTeX path from a script string and returns the TikZ text, the diagram count and the first diagram's name, or a failure with its message. The Desktop app uses it, so there is one implementation of the per-family LaTeX code. Temporary files live in an owner-only directory and are removed afterwards.
+- Desktop: *File ▸ Export LaTeX (TikZ)…* and a third export button (backslash badge) open a dialog (complete document or figure only, remembered choice, no "do not ask again"), then the file dialog. Only the first diagram is exported; the dialog names it when the script holds more. The button stays visible when unavailable and says why in its tooltip. In a knowledge workspace (Markdown) it is disabled; in an engineering workspace it exports the open script. EN and DE texts; new setting `latexStandalone` (default true, additive, `schemaVersion` stays 1).
+
+#### Verification
+
+- `LatexStandaloneAllFamiliesTest`: 15 fixtures from the vault examples (UML class, sequence, state; C4; SysML 2 BDD, IBD, UC, REQ, STM, ACT, SEQ, PAR; BPMN process and collaboration; Blueprint), each in standalone and snippet mode, plus an opt-in test that compiles the standalone output with a real `pdflatex` (it is disabled with a printed reason when none is installed; no Gradle dependency on TeX).
+- With MacTeX (TeX Live 2026) 14 of the 15 documents compile and were rasterised and looked at. The 15th, the BPMN collaboration, does not compile: its message flows name nodes (`p_customer_start_1`) that the collaboration TikZ never defines (`No shape named`). That is a renderer content bug, not a preamble problem; it is reported as a finding, its compile test is disabled with that reason, and it is not fixed in this wave.
+- `LatexExportServiceTest` (10 tests) and the Desktop tests (`LatexExportTest`, `ZoomToolbarLatexTest`, settings, strings, icons).
+- Not verified: Windows and Linux; a hand-driven run of the Desktop window (the dialog and file chooser were not clicked through); package, ERM, choreography and conversation diagrams (disabled by design). Visual finding, unchanged: in several generated pictures (SysML 2 sequence and activity) the content is very small or sparse; the initial pseudo-state label in state machines overlaps.
+
 ### Nacharbeit 29: activity-diagram notes keep clear of edges, pin labels, lane borders and each other
 
 #### Why

@@ -39,6 +39,7 @@ fun rememberAppSettingsBinding(
         // gap, not introduced here); fixed alongside since it is the same class of bug.
         state.viewMode,
         state.showWatermark,
+        state.latexStandalone,
         state.mcpServerEnabled,
         state.mcpServerPort,
         // Only the commit trigger, never the live editorSplitFraction: saving must happen once

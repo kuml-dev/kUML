@@ -55,6 +55,8 @@ fun EngineeringWorkspaceScreen(
     modifier: Modifier = Modifier,
     onEditorReady: (EditorActions?) -> Unit = {},
     onExportImage: ((ImageFormat) -> Unit)? = null,
+    onExportLatex: (() -> Unit)? = null,
+    latexDisabledReason: String? = null,
 ) {
     // P5 — Ansichtsmodus: der Dateibaum bleibt in allen drei Modi sichtbar (Susan Kare, design
     // review: "Baum ist Navigation, nicht Inhalt"). Gewichte: SPLIT 1:2:2 (unverändert
@@ -106,6 +108,8 @@ fun EngineeringWorkspaceScreen(
                 state = state,
                 modifier = Modifier.weight(previewWeight).fillMaxHeight(),
                 onExport = onExportImage,
+                onExportLatex = onExportLatex,
+                latexDisabledReason = latexDisabledReason,
             )
         }
     }

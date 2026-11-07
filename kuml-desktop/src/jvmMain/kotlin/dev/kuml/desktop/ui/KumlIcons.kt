@@ -90,6 +90,9 @@ object KumlIcons {
     /** Schale mit Pfeil und 2x2-Pixelraster (Raster-Abzeichen) — "Als PNG speichern". */
     val SavePng: ImageVector by lazy { buildSaveIcon(name = "KumlSavePng", badge = SaveBadge.Raster) }
 
+    /** Save tray with a backslash badge: the LaTeX control-sequence marker, not a brand (see [SaveBadge.Tex]). */
+    val SaveTex: ImageVector by lazy { buildSaveIcon(name = "KumlSaveTex", badge = SaveBadge.Tex) }
+
     /** Blatt mit Eselsohr und drei Textzeilen, ohne Pfeil — "Dieses Dokument als PDF exportieren". */
     val PdfDocument: ImageVector by lazy { buildPdfDocumentIcon() }
 
@@ -191,7 +194,7 @@ object KumlIcons {
     /** Landscape sheet with folded corner — A3 landscape. */
     val PageLandscape: ImageVector by lazy { buildPageLandscapeIcon() }
 
-    private enum class SaveBadge { Vector, Raster }
+    private enum class SaveBadge { Vector, Raster, Tex }
 
     private const val VIEWPORT = 24f
     private const val STROKE_WIDTH = 2f
@@ -721,6 +724,19 @@ object KumlIcons {
                         lineTo(21f, 8f)
                         lineTo(19f, 8f)
                         close()
+                    }
+                } else if (badge == SaveBadge.Tex) {
+                    // A single backslash, (15,9) to (19,13): the free field right of the arrow and above the tray
+                    // (design decision: the LaTeX control-sequence marker). Stroke as thick as the tray so it holds at 16 px.
+                    path(
+                        name = "$name.backslash",
+                        fill = null,
+                        stroke = PLACEHOLDER,
+                        strokeLineWidth = STROKE_WIDTH,
+                        strokeLineCap = StrokeCap.Round,
+                    ) {
+                        moveTo(15f, 9f)
+                        lineTo(19f, 13f)
                     }
                 } else if (badge == SaveBadge.Vector) {
                     path(

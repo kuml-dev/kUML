@@ -200,4 +200,13 @@ class AppSettingsTest :
             onlyEditor.workspaceNavFraction shouldBe 0.2
             onlyEditor.workspaceEditorFraction shouldBe 0.6
         }
+
+        test("latexStandalone defaults to true, round-trips, and a file without the field decodes to true with schemaVersion 1") {
+            AppSettings.DEFAULT.latexStandalone shouldBe true
+            val off = AppSettings(latexStandalone = false)
+            json.decodeFromString<AppSettings>(json.encodeToString(off)).latexStandalone shouldBe false
+            val old = json.decodeFromString<AppSettings>("""{"schemaVersion":1,"theme":"dark","unknownFutureKey":1}""")
+            old.latexStandalone shouldBe true
+            old.schemaVersion shouldBe 1
+        }
     })

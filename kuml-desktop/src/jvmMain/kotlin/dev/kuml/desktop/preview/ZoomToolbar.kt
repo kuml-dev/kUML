@@ -48,6 +48,10 @@ fun ZoomToolbar(
     // [onExport] == null keeps the block visible but disabled, so the strip never jumps.
     exportSvg: String? = null,
     onExport: ((ImageFormat) -> Unit)? = null,
+    // LaTeX button: [onExportLatex] == null keeps it visible but disabled; [latexDisabledReason] is its tooltip then
+    // (the toolbar must not decide why, the caller knows).
+    onExportLatex: (() -> Unit)? = null,
+    latexDisabledReason: String? = null,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -106,6 +110,18 @@ fun ZoomToolbar(
             onClick = { onExport?.invoke(ImageFormat.PNG) },
             tooltipPlacement = tooltipEnd(),
             enabled = canExport,
+        )
+        IconTooltipButton(
+            icon = KumlIcons.SaveTex,
+            description =
+                if (onExportLatex != null) {
+                    strings.latexExport.toolbarTooltip
+                } else {
+                    latexDisabledReason ?: exportStrings.nothingToSave
+                },
+            onClick = { onExportLatex?.invoke() },
+            tooltipPlacement = tooltipEnd(),
+            enabled = onExportLatex != null,
         )
     }
 }

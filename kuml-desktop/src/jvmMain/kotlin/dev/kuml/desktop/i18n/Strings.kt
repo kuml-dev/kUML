@@ -291,6 +291,7 @@ data class Strings(
     val pdfLayoutSummary: String get() = pdfExport.pdfLayoutSummary
     val pdfDisabledOrientationAuto: String get() = pdfExport.pdfDisabledOrientationAuto
     val previewExport: PreviewExportStrings get() = pdfExport.previewExport
+    val latexExport: LatexExportStrings get() = pdfExport.latexExport
     val aiDialog: AiDialogStrings get() = simulator.aiDialog
     val simInspectorTitle: String get() = simulator.simInspectorTitle
     val simVariablesTitle: String get() = simulator.simVariablesTitle
@@ -652,6 +653,27 @@ data class Strings(
                                 noDocumentOpen = "Kein Dokument geöffnet",
                                 saveFailed = "Das Diagramm konnte nicht gespeichert werden: %s",
                                 unsavedHint = "Ungespeicherte Änderungen sind im PDF nicht enthalten. Speichern Sie das Dokument vorher.",
+                            ),
+                        latexExport =
+                            LatexExportStrings(
+                                menuItem = "LaTeX (TikZ) exportieren…",
+                                toolbarTooltip = "Als LaTeX (TikZ) speichern",
+                                unsupportedDiagram =
+                                    "Der LaTeX-Export unterstützt UML-, C4-, SysML-2-, BPMN- und Blueprint-Diagramme " +
+                                        "(nicht Paket- und ER-Diagramme).",
+                                needsScript =
+                                    "Der LaTeX-Export braucht ein kUML-Skript mit einem Diagramm; " +
+                                        "Markdown-Dokumente werden nicht unterstützt.",
+                                dialogTitle = "LaTeX (TikZ) exportieren",
+                                standaloneLabel = "Vollständiges Dokument",
+                                standaloneHint = "Eine .tex-Datei, die sich direkt mit pdflatex übersetzen lässt.",
+                                snippetLabel = "Nur die Abbildung",
+                                snippetHint = "Nur die tikzpicture-Umgebung, zum Einbinden in ein eigenes Dokument.",
+                                multiDiagramHint = "Das Skript enthält %1\$d Diagramme. Exportiert wird nur das erste: „%2\$s“.",
+                                cancel = "Abbrechen",
+                                export = "Exportieren…",
+                                fileDescription = "LaTeX/TikZ (*.tex)",
+                                rendering = "LaTeX wird erzeugt…",
                             ),
                     ),
                 simulator =
@@ -1087,6 +1109,25 @@ data class Strings(
                                 saveFailed = "The diagram could not be saved: %s",
                                 unsavedHint = "Unsaved changes are not included in the PDF. Save the document first.",
                             ),
+                        latexExport =
+                            LatexExportStrings(
+                                menuItem = "Export LaTeX (TikZ)…",
+                                toolbarTooltip = "Save as LaTeX (TikZ)",
+                                unsupportedDiagram =
+                                    "LaTeX export supports UML, C4, SysML 2, BPMN and Blueprint diagrams " +
+                                        "(not package or ER diagrams).",
+                                needsScript = "LaTeX export needs a kUML script with a diagram; Markdown documents are not supported.",
+                                dialogTitle = "Export LaTeX (TikZ)",
+                                standaloneLabel = "Complete document",
+                                standaloneHint = "A .tex file that compiles directly with pdflatex.",
+                                snippetLabel = "Figure only",
+                                snippetHint = "Just the tikzpicture environment, to include in your own document.",
+                                multiDiagramHint = "The script contains %1\$d diagrams. Only the first one is exported: \"%2\$s\".",
+                                cancel = "Cancel",
+                                export = "Export…",
+                                fileDescription = "LaTeX/TikZ (*.tex)",
+                                rendering = "Generating LaTeX…",
+                            ),
                     ),
                 simulator =
                     SimulatorStrings(
@@ -1358,6 +1399,27 @@ data class PdfExportStrings(
     val pdfDisabledOrientationAuto: String,
     val status: PdfStatusStrings,
     val previewExport: PreviewExportStrings,
+    val latexExport: LatexExportStrings,
+)
+
+/** Texts of the LaTeX (TikZ) export: menu item, toolbar button, the mode dialog (see [Strings.latexExport]). */
+data class LatexExportStrings(
+    val menuItem: String,
+    val toolbarTooltip: String,
+    // Why the export is unavailable, one text per cause.
+    val unsupportedDiagram: String,
+    val needsScript: String,
+    val dialogTitle: String,
+    val standaloneLabel: String,
+    val standaloneHint: String,
+    val snippetLabel: String,
+    val snippetHint: String,
+    // Format with (diagram count: %1$d, first diagram name: %2$s).
+    val multiDiagramHint: String,
+    val cancel: String,
+    val export: String,
+    val fileDescription: String,
+    val rendering: String,
 )
 
 /** Texts of the preview's "Save as SVG / PNG" buttons and the per-document PDF export (see [Strings.previewExport]). */

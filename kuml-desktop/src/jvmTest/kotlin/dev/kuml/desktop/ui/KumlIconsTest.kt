@@ -96,6 +96,7 @@ class KumlIconsTest :
                 // Export aus der Vorschau
                 "SaveSvg" to KumlIcons.SaveSvg,
                 "SavePng" to KumlIcons.SavePng,
+                "SaveTex" to KumlIcons.SaveTex,
                 "PdfDocument" to KumlIcons.PdfDocument,
                 "Close" to KumlIcons.Close,
                 // Dialog buttons (b2a)
@@ -151,7 +152,7 @@ class KumlIconsTest :
                 walk(icon.root)
                 return out
             }
-            listOf(KumlIcons.SaveSvg, KumlIcons.SavePng, KumlIcons.PdfDocument).forEach { icon ->
+            listOf(KumlIcons.SaveSvg, KumlIcons.SavePng, KumlIcons.SaveTex, KumlIcons.PdfDocument).forEach { icon ->
                 withClue(icon.name) {
                     val c = coords(icon)
                     (c.isNotEmpty()) shouldBe true
@@ -159,6 +160,8 @@ class KumlIconsTest :
                 }
             }
             KumlIcons.SaveSvg shouldNotBe KumlIcons.SavePng
+            KumlIcons.SaveTex shouldNotBe KumlIcons.SaveSvg
+            KumlIcons.SaveTex shouldNotBe KumlIcons.SavePng
             KumlIcons.PdfDocument shouldNotBe KumlIcons.SaveSvg
         }
 

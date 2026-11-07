@@ -985,7 +985,12 @@ public object KumlLatexRenderer {
 
     // ─── Preamble + skeleton ─────────────────────────────────────────────────
 
-    private fun StringBuilder.appendStandalonePreamble() {
+    /**
+     * The one standalone preamble every family shares. [extraLibraries] are TikZ libraries a family needs on top
+     * of [BASE_TIKZ_LIBRARIES]; they follow on a second `\usetikzlibrary` line, so no family loads libraries
+     * through a second code path.
+     */
+    private fun StringBuilder.appendStandalonePreamble(extraLibraries: List<String> = emptyList()) {
         appendLine("\\documentclass[border=10pt]{standalone}")
         appendLine("\\usepackage{tikz}")
         // `inputenc` enables UTF-8 input so non-ASCII characters (e.g. ×, «, »)
@@ -995,9 +1000,13 @@ public object KumlLatexRenderer {
         // every modern engine; fontenc T1 enables proper hyphenation + guillemets.
         appendLine("\\usepackage[T1]{fontenc}")
         appendLine("\\usepackage[english]{babel}")
-        appendLine("\\usetikzlibrary{arrows.meta, calc, positioning}")
+        appendLine("\\usetikzlibrary{${BASE_TIKZ_LIBRARIES.joinToString(", ")}}")
+        val extras = extraLibraries.filterNot { it in BASE_TIKZ_LIBRARIES }.distinct()
+        if (extras.isNotEmpty()) appendLine("\\usetikzlibrary{${extras.joinToString(", ")}}")
         appendLine("\\begin{document}")
     }
+
+    private val BASE_TIKZ_LIBRARIES: List<String> = listOf("arrows.meta", "calc", "positioning")
 
     private fun StringBuilder.appendStandaloneCoda() {
         appendLine("\\end{document}")
@@ -1145,9 +1154,8 @@ public object KumlLatexRenderer {
     ): String =
         buildString {
             if (options.standalone) {
-                appendStandalonePreamble()
                 // Blueprint needs extra TikZ libraries beyond the shared preamble.
-                appendLine("\\usetikzlibrary{shapes.geometric, plotmarks}")
+                appendStandalonePreamble(extraLibraries = listOf("shapes.geometric", "plotmarks"))
             }
             appendTikzStyles(options.indent)
             append(inner())
@@ -1242,9 +1250,8 @@ public object KumlLatexRenderer {
     ): String =
         buildString {
             if (options.standalone) {
-                appendStandalonePreamble()
                 // The gateway uses the `diamond` shape; without this library a standalone BPMN document does not compile.
-                appendLine("\\usetikzlibrary{shapes.geometric}")
+                appendStandalonePreamble(extraLibraries = listOf("shapes.geometric"))
             }
             appendTikzStyles(options.indent)
             append(inner())

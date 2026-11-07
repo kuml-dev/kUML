@@ -162,6 +162,9 @@ class AppState(
     // AppSettings.showWatermark's KDoc for the default-off rationale.
     var showWatermark by mutableStateOf(initialSettings.showWatermark)
 
+    /** LaTeX export dialog: last confirmed mode (true = complete document), preselected next time. */
+    var latexStandalone by mutableStateOf(initialSettings.latexStandalone)
+
     // Local MCP server (Werkzeuge ▸ MCP-Server…) -- persisted switch + remembered port.
     var mcpServerEnabled by mutableStateOf(initialSettings.mcpServerEnabled)
     var mcpServerPort by mutableStateOf(initialSettings.mcpServerPort)
@@ -211,6 +214,9 @@ class AppState(
 
     /** Whether the last successfully rendered diagram type can be simulated (Spez. A3). */
     var lastDiagramSimulatable by mutableStateOf(false)
+
+    /** Whether the last successfully rendered diagram can be exported as LaTeX (UML, C4, SysML 2, BPMN, Blueprint; not packages or ERM). */
+    var lastDiagramLatexCapable by mutableStateOf(false)
 
     /**
      * Lädt Dateiinhalt in den Editor und aktualisiert Metadaten.
@@ -289,6 +295,7 @@ class AppState(
             editorSplitFraction = editorSplitFraction,
             workspaceNavFraction = workspaceNavFraction,
             workspaceEditorFraction = workspaceEditorFraction,
+            latexStandalone = latexStandalone,
         )
 
     /** Ansichtsmodus zwischen Editor (Quelltext) und Vorschau (Diagramm). Siehe [viewMode]. */

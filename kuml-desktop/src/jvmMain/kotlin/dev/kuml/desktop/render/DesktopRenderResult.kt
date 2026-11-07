@@ -7,6 +7,9 @@ sealed class DesktopRenderResult {
         // simulated. Defaults to false so every pre-existing caller/`is Svg ->` destructuring
         // in this codebase stays source-compatible.
         val simulatable: Boolean = false,
+        // Whether the LaTeX export can handle this diagram (see isLatexCapable). Defaults to false for the
+        // same source-compatibility reason as [simulatable]; the UI cannot derive the family from the SVG.
+        val latexCapable: Boolean = false,
         /** Non-fatal note diagnostics (`[KUML-NOTE-W001] ...`); the diagram is still drawn. */
         val warnings: List<String> = emptyList(),
     ) : DesktopRenderResult()

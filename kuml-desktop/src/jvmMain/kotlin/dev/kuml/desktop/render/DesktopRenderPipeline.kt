@@ -12,6 +12,7 @@ import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.core.script.ScriptEvaluationException
+import dev.kuml.desktop.preview.isLatexCapable
 import dev.kuml.desktop.simulation.isSimulatable
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SvgRenderOptions
@@ -227,6 +228,7 @@ internal object DesktopRenderPipeline {
             DesktopRenderResult.Svg(
                 svg = svg,
                 simulatable = isSimulatable(ctx.extracted),
+                latexCapable = isLatexCapable(ctx.extracted),
                 warnings =
                     ValidationService
                         .findingsOf(ctx.extracted)

@@ -33,6 +33,7 @@ enum class MenuEntryId {
     FILE_SAVE_AS,
     FILE_EXPORT_SVG,
     FILE_EXPORT_PNG,
+    FILE_EXPORT_LATEX,
     FILE_EXPORT_WORKSPACE_MENU,
     FILE_EXPORT_WORKSPACE_PDF,
     FILE_RECENT_MENU,
@@ -89,6 +90,7 @@ object MainMenuIcons {
             MenuEntryId.FILE_SAVE_AS -> KumlIcons.SaveAs
             MenuEntryId.FILE_EXPORT_SVG -> KumlIcons.SaveSvg
             MenuEntryId.FILE_EXPORT_PNG -> KumlIcons.SavePng
+            MenuEntryId.FILE_EXPORT_LATEX -> KumlIcons.SaveTex
             MenuEntryId.FILE_EXPORT_WORKSPACE_MENU -> KumlIcons.Workspace
             MenuEntryId.FILE_EXPORT_WORKSPACE_PDF -> KumlIcons.PdfDocument
             MenuEntryId.FILE_RECENT_MENU -> KumlIcons.History

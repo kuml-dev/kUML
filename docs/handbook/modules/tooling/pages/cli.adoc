@@ -48,7 +48,9 @@ Options:
   for trace-driven animation (without it a demo sequence is synthesised); `--speed <factor>` sets
   the playback speed.
 * `--latex-standalone` — emit a complete compilable LaTeX document instead of a bare `tikzpicture`
-  snippet (only with `--format latex`).
+  snippet (only with `--format latex`). It applies to every diagram family that has a LaTeX output: UML, C4,
+  SysML 2 (not the package diagram), BPMN process and collaboration diagrams, and Blueprint. Earlier versions
+  honoured it for UML and Blueprint only. ERM, BPMN choreography and conversation diagrams have no LaTeX output.
 * `--notation martin|bachman|chen|idef1x` — ERM notation override (ERM diagrams only).
 * `--watermark` — opt-in visible "Powered by kUML" label in the bottom-right corner; the
   canvas grows downward so it structurally cannot overlap diagram content (added in v0.38.0).
