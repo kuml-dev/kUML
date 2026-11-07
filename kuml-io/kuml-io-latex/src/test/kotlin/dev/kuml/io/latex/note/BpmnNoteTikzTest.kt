@@ -121,9 +121,10 @@ class BpmnNoteTikzTest :
         }
 
         "collaboration: the height limit accounts for the pool offset" {
-            // The fixture has two pools. Whatever the note height, the lowest drawn note edge stays above the pool-reduced
+            // The fixture has two pools (180pt in total). Whatever the note height, the lowest drawn note edge stays above the pool-reduced
             // limit; without the pool term some of these heights would end between the reduced and the full limit.
-            val limit = BpmnNoteTikz.MAX_STACK_PT - 2 * BpmnNoteTikz.POOL_PITCH_PT
+            // two stacked pools of 80pt with a 20pt gap
+            val limit = BpmnNoteTikz.MAX_STACK_PT - 180f
             for (words in listOf(60, 75, 90, 105, 120, 135, 150, 165, 180)) {
                 val body = "word ".repeat(words)
                 val tex = NoteFixtures.renderBpmnCollaboration(notes = (0 until 400).map { Triple(body, NoteKind.NOTE, emptyList()) })

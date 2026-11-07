@@ -27,9 +27,10 @@ class LatexFolderPdfBuildTest :
                     val prepared = LatexFolderExport.prepare(root = root, excludeDirs = setOf(out), themeName = null)
                     prepared.failures shouldBe emptyList()
                     LatexFolderExport.write(prepared = prepared, outDir = out, overwrite = false)
+                    // every fixture, the BPMN collaboration included, is part of main.tex
                     prepared.figures
                         .filter { it.excludedReason != null }
-                        .map { it.source } shouldBe listOf("bpmn-collaboration.kuml.kts")
+                        .map { it.source } shouldBe emptyList()
 
                     val process =
                         ProcessBuilder(

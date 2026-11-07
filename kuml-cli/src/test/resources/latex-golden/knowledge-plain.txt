@@ -1,7 +1,7 @@
 exit=0
 --stdout--
-Wrote main.tex, kuml-preamble.tex, 3 figure(s), 1 image(s) for 5 document(s): <ROOT>/out
-0 failed, 0 skipped, 1 excluded from main.tex, 2 warnings
+Wrote main.tex, kuml-preamble.tex, 4 figure(s), 1 image(s) for 5 document(s): <ROOT>/out
+0 failed, 0 skipped, 0 excluded from main.tex, 1 warnings
 --stderr--
 WARN ueberblick.md:39: image not exported (not a local file inside the workspace)
 NOTE ueberblick.md:8: reference link is shown as text
@@ -11,4 +11,3 @@ NOTE ueberblick.md:41: HTML block is shown as text
 NOTE ueberblick.md:43: strikethrough is not drawn
 NOTE ueberblick.md:43: reference link is shown as text
 NOTE ueberblick.md:43: footnote syntax is shown as text
-WARN modelle/zusammenarbeit.md:10: figure excluded from main.tex - undefined TikZ node reference(s): p_customer_start_1, p_customer_task_1, p_supplier_end_1, p_supplier_start_1, p_supplier_task_2

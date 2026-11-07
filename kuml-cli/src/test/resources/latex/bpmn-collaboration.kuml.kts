@@ -26,16 +26,16 @@ bpmnModel(name = "Customer-Supplier Collaboration") {
         // Lieferanten-Pool mit zwei Lanes: Order-Handling liegt bei "Einkauf", Versand bei "Logistik"
         pool(name = "Supplier", id = "pool_supplier") {
             process(processId = "p_supplier")
-            lane(name = "Einkauf") { contains("p_supplier_start_1", "p_supplier_task_1") }
-            lane(name = "Logistik") { contains("p_supplier_task_2", "p_supplier_end_1") }
+            lane(name = "Einkauf") { contains("p_supplier_start_1", "p_supplier_task_2") }
+            lane(name = "Logistik") { contains("p_supplier_task_3", "p_supplier_end_4") }
         }
 
         // Externe Spedition — kein einsehbarer interner Prozess
         val carrier = blackBoxPool(name = "Spedition", id = "pool_carrier")
 
         messageFlow(from = "p_customer_start_1", to = "p_supplier_start_1", name = "Purchase Order")
-        messageFlow(from = "p_supplier_end_1", to = "p_customer_task_1", name = "Shipping Notification")
-        messageFlow(from = "p_supplier_task_2", to = carrier, name = "Pickup Request")
+        messageFlow(from = "p_supplier_end_4", to = "p_customer_task_2", name = "Shipping Notification")
+        messageFlow(from = "p_supplier_task_3", to = carrier, name = "Pickup Request")
     }
     collaborationDiagram(name = "Customer-Supplier", collaborationId = "collab_1")
 }

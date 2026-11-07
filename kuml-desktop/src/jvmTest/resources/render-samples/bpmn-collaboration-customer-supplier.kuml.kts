@@ -24,7 +24,7 @@ bpmnModel(name = "Customer-Supplier Collaboration") {
         pool(name = "Customer", id = "pool_customer") { process(processId = "p_customer") }
         pool(name = "Supplier", id = "pool_supplier") { process(processId = "p_supplier") }
         messageFlow(from = "p_customer_start_1", to = "p_supplier_start_1", name = "Purchase Order")
-        messageFlow(from = "p_supplier_end_1", to = "p_customer_task_1", name = "Shipping Notification")
+        messageFlow(from = "p_supplier_end_4", to = "p_customer_task_2", name = "Shipping Notification")
     }
     collaborationDiagram(name = "Customer-Supplier", collaborationId = "collab_1")
 }

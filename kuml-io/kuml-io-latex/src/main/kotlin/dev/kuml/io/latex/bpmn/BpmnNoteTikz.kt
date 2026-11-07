@@ -36,9 +36,6 @@ internal object BpmnNoteTikz {
     const val MAX_STACK_PT = 12000f
     const val ROW_MAX_W = 600f
 
-    /** Generous vertical pitch of one pool, used to keep the notes below the TeX dimension limit. */
-    const val POOL_PITCH_PT = 100f
-
     internal const val OMITTED_ANCHOR = "% note anchor omitted: target not drawn in this view"
     internal const val OMITTED_NOTE = "% note omitted: picture height limit reached"
 
@@ -182,7 +179,10 @@ internal object BpmnNoteTikz {
         }
     }
 
-    /** Annotations of a collaboration view: rows below the pools; inner flow nodes are not drawn, so no association line. */
+    /**
+     * Annotations of a collaboration view: rows below the pools. The inner flow nodes are drawn now, but an
+     * association line to one is not (yet) drawn, so the anchor stays a constant comment.
+     */
     fun appendCollaborationNotes(
         sb: StringBuilder,
         model: BpmnModel,
@@ -194,12 +194,9 @@ internal object BpmnNoteTikz {
         if (annotations.isEmpty()) return
         val associations = collab.associations + referenced.flatMap { it.associations }
         val ind = options.indent
-        val reserved =
-            collab.participants
-                .flatMap { pt ->
-                    val id = BpmnLatexRenderer.sanitizeTikzId(pt.id)
-                    listOf(id, "ph_$id") + pt.lanes.flatMap { l -> BpmnLatexRenderer.sanitizeTikzId(l.id).let { listOf(it, "lh_$it") } }
-                }.toSet()
+        val plan = BpmnCollaborationLayout.plan(model = model, collab = collab)
+        // Pools, lanes and flow nodes are all named TikZ nodes now; the note prefix must collide with none of them.
+        val reserved = plan.definedNames
         val p = prefixFor(reserved)
         val items = items(annotations)
 
@@ -220,8 +217,8 @@ internal object BpmnNoteTikz {
         var rowTop = NOTE_BASE_GAP
         var rowH = 0f
         var truncated = false
-        // The base is the south west of the pools, which sit about POOL_PITCH_PT apart below the origin.
-        val maxStack = MAX_STACK_PT - collab.participants.size * POOL_PITCH_PT
+        // The base is the south west of the pools, which reach plan.height below the origin.
+        val maxStack = MAX_STACK_PT - plan.height
         for (item in items) {
             val w = item.size.width
             val h = item.size.height

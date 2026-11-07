@@ -29,8 +29,8 @@ class WorkspaceLatexKnowledgePdfBuildTest :
                     val ws = WorkspaceScanner.scan(root = root)
                     val prepared =
                         WorkspaceLatexExport.prepare(workspace = ws, options = LatexKnowledgeOptions(generator = "test"), themeName = null)
-                    prepared.excludedFigureCount shouldBe 1
-                    prepared.figureCount shouldBe 3
+                    prepared.excludedFigureCount shouldBe 0
+                    prepared.figureCount shouldBe 4
                     WorkspaceLatexExport.write(prepared = prepared, outDir = out, overwrite = false)
                     var log = ""
                     repeat(2) {

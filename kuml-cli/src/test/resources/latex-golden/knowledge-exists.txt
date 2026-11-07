@@ -9,6 +9,5 @@ NOTE ueberblick.md:41: HTML block is shown as text
 NOTE ueberblick.md:43: strikethrough is not drawn
 NOTE ueberblick.md:43: reference link is shown as text
 NOTE ueberblick.md:43: footnote syntax is shown as text
-WARN modelle/zusammenarbeit.md:10: figure excluded from main.tex - undefined TikZ node reference(s): p_customer_start_1, p_customer_task_1, p_supplier_end_1, p_supplier_start_1, p_supplier_task_2
 Error: Output already exists (7 file(s), first: images/i001-farbflache.png)
 Hint: pass --force to overwrite.

@@ -6,6 +6,31 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 35: BPMN collaboration LaTeX output compiles
+
+#### Why
+
+The LaTeX output of a BPMN collaboration did not compile (`Package pgf Error: No shape named 'p_customer_start_1' is known`). Two causes: (1) the renderer drew only pools, lanes and headers, never the flow nodes of the referenced processes, so a message flow to a node had nothing to attach to; (2) the fixture, the handbook example, the Desktop sample and the vault example used element ids that the DSL never generates (`p_customer_task_1`, `p_supplier_end_1`: the id counter is shared by all node kinds, so the first task after a start event is `_2`). The SVG renderer silently ignores such flows; the LaTeX source check correctly flagged them.
+
+#### Change
+
+- New `BpmnCollaborationLayout` (kuml-io-latex): deterministic absolute layout. Equal-width pools stacked with a 20pt gap, one band per leaf lane, nested lanes wrap their children (this also fixes lanes that used to overlap), flow nodes of every referenced process placed left to right in their lane band, no new TikZ library. Lengths are capped far below TeX's 16383pt limit (a 200-node process is cut with a comment).
+- `BpmnLatexRenderer`: draws the flow nodes and sequence flows inside the pools; message flows end at the node anchors (`.south`/`.north`), and at a pool or lane on its facing border, straight above or below the node. Pool-to-pool flows are unchanged. A message flow endpoint that is not drawn is still written as is, so `LatexSourceCheck` keeps flagging dangling flows and the export keeps such a figure out of `main.tex`.
+- Name hygiene: pool, lane and node names are claimed once (pools, lanes, nodes); duplicates and ids that sanitise to nothing are renamed (structure) or left out with a comment (nodes); a process referenced by two pools is drawn once.
+- `BpmnNoteTikz`: reserved note names now include all pool, lane and node names; the height budget uses the real pool height. Association lines to inner nodes are not drawn (still a constant comment).
+- Corrected the ids in `bpmn-collaboration.kuml.kts`, the Desktop render sample, the repo copy of vault example 32, the knowledge fixture `zusammenarbeit.md` and the handbook (`bpmn-dsl.adoc`, plus a sentence on the shared id counter).
+- Tests: `LatexStandaloneAllFamiliesTest` no longer has a known-defect list (15/15 families compile). The dangling-flow tests use a new fixture `latex-dangling/bpmn-collaboration-dangling.kuml.kts`; new tests for lanes, name clashes, hostile text, size caps (`BpmnCollaborationLatexTest`, `BpmnCollaborationPdfBuildTest`). Goldens regenerated: `golden/no-notes/bpmn-collaboration.tex` and `latex-golden/knowledge-*.txt` (the knowledge export now has 4 figures, 0 excluded).
+- `scripts/ci/check_latex_tests.py` is stricter: the `[known-compile-defect]` marker route is gone (any skip fails), plus floors (`LatexStandaloneAllFamiliesTest` >= 15, `BpmnCollaborationPdfBuildTest` >= 2).
+
+#### Verification
+
+- Reproduced first with the local CLI (`pgf Error: No shape named 'p_customer_start_1'`), then compiled with MacTeX (pdflatex) and rasterised: pools, lanes, dashed message flows with open tips and labels render; compared with the SVG of the same model.
+- Strict job command of `ci.yml` run locally (`-Pkuml.latex.require=true -Pkuml.latex.only=true --no-build-cache`), guard output: NoteTikzPdfBuildTest 7/0/0, BpmnCollaborationPdfBuildTest 2/0/0, LatexKnowledgePdfBuildTest 1/0/0, LatexFolderPdfBuildTest 1/0/0, WorkspaceLatexKnowledgePdfBuildTest 1/0/0, LatexStandaloneAllFamiliesTest 15/0/0 (executed/skipped/failed).
+
+#### Not verified
+
+The GitHub run of the strict job (before the push), the second CI runner OS, other TeX engines (lualatex, xelatex), association lines from notes to inner flow nodes, the vault copy of example 32 and the kuml.dev playground sources (same wrong ids; outside this repo). Differences to the SVG: the LaTeX layout is linear with estimated node widths, not the layout-engine layout; a message flow starting at an event with a label crosses the label; very wide task texts can overlap their neighbour.
+
 ### Nacharbeit 34: CI job that builds the exported LaTeX with a real TeX
 
 #### Why

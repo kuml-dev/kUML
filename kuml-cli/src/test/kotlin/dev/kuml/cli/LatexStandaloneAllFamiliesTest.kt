@@ -81,16 +81,9 @@ class LatexStandaloneAllFamiliesTest :
             val mode = if (Pdflatex.required) "kuml.latex.require=true, the compile tests will FAIL" else "the compile tests are skipped"
             println("[LatexStandaloneAllFamiliesTest] pdflatex not found on PATH or /Library/TeX/texbin: $mode")
         }
-        KNOWN_COMPILE_DEFECTS.forEach { (family, reason) ->
-            println(
-                "[LatexStandaloneAllFamiliesTest] pdflatex test for $family disabled, known renderer defect (not a preamble issue): $reason",
-            )
-        }
         for (family in FAMILIES) {
-            // Known defects stay disabled (visible as skipped); the marker in the name is what the CI skip guard allows.
-            val marker = if (family in KNOWN_COMPILE_DEFECTS) " [known-compile-defect]" else ""
-            test("pdflatex compiles the standalone document for $family$marker")
-                .config(enabled = Pdflatex.enabled && family !in KNOWN_COMPILE_DEFECTS, timeout = 300.seconds) {
+            test("pdflatex compiles the standalone document for $family")
+                .config(enabled = Pdflatex.enabled, timeout = 300.seconds) {
                     val pdflatex = Pdflatex.requireExecutable().absolutePath
                     val dir = Files.createTempDirectory("kuml-latex-pdflatex")
                     try {
@@ -124,17 +117,6 @@ class LatexStandaloneAllFamiliesTest :
         }
     }) {
     companion object {
-        /**
-         * Families whose generated TikZ does not compile for a reason beyond the document preamble. They are
-         * reported as findings instead of being fixed in this wave (open question 3 of the plan).
-         */
-        private val KNOWN_COMPILE_DEFECTS: Map<String, String> =
-            mapOf(
-                "bpmn-collaboration" to
-                    "message flows reference node names such as p_customer_start_1 that the collaboration TikZ never defines " +
-                    "(pgf: No shape named `p_customer_start_1')",
-            )
-
         private val FAMILIES =
             listOf(
                 "uml-class",

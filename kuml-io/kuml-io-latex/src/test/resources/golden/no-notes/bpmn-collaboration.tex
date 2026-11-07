@@ -64,14 +64,14 @@
   % Collaboration: Exchange
 
   % Pool: Customer
-  \node[kuml-bpmn-pool] (poolA) at (0,0) {};
-  \node[kuml-bpmn-pool-header,minimum height=80pt,anchor=west] (ph_poolA) at (poolA.west) {\rotatebox{90}{Customer}};
-  % (inner process nodes omitted — see ProcessDiagram for process procA)
-  \node[kuml-bpmn-lane,anchor=north west] (laneA) at (poolA.north west) {};
-  \node[kuml-bpmn-lane-header,anchor=west,minimum height=60pt] (lh_laneA) at (laneA.west) {\rotatebox{90}{Front}};
+  \node[kuml-bpmn-pool,anchor=north west,minimum width=200pt,minimum height=80pt] (poolA) at (0pt,0pt) {};
+  \node[kuml-bpmn-pool-header,anchor=north west,minimum height=80pt] (ph_poolA) at (poolA.north west) {\rotatebox{90}{Customer}};
+  \node[kuml-bpmn-lane,anchor=north west,minimum width=175pt,minimum height=80pt] (laneA) at (25pt,0pt) {};
+  \node[kuml-bpmn-lane-header,anchor=north west,minimum height=80pt] (lh_laneA) at (laneA.north west) {\rotatebox{90}{Front}};
+  \node[kuml-bpmn-task] (tA) at (105pt,-40pt) {Work};
   % Pool: Vendor
-  \node[kuml-bpmn-pool] (poolB) at (0,-100pt) {};
-  \node[kuml-bpmn-pool-header,minimum height=80pt,anchor=west] (ph_poolB) at (poolB.west) {\rotatebox{90}{Vendor}};
+  \node[kuml-bpmn-pool,anchor=north west,minimum width=200pt,minimum height=80pt] (poolB) at (0pt,-100pt) {};
+  \node[kuml-bpmn-pool-header,anchor=north west,minimum height=80pt] (ph_poolB) at (poolB.north west) {\rotatebox{90}{Vendor}};
 
   \draw[kuml-bpmn-msgflow] (poolA) -- node[kuml-bpmn-label,midway,right=3pt] {Order} (poolB);
 

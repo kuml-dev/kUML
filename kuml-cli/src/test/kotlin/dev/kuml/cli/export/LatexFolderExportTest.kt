@@ -144,17 +144,35 @@ class LatexFolderExportTest :
             val root = tmp()
             val out = File(tmp(), "out")
             try {
-                put(root, "collab.kuml.kts", "latex/bpmn-collaboration.kuml.kts")
+                put(root, "collab.kuml.kts", "latex-dangling/bpmn-collaboration-dangling.kuml.kts")
                 put(root, "ok.kuml.kts", "latex/uml-class.kuml.kts")
                 val p = LatexFolderExport.prepare(root = root, excludeDirs = emptySet(), themeName = null)
                 val collab = p.figures.first { it.source == "collab.kuml.kts" }
                 (collab.excludedReason ?: "") shouldContain "undefined TikZ node"
+                (collab.excludedReason ?: "") shouldContain "p_customer_no_such_node"
                 p.figures.first { it.source == "ok.kuml.kts" }.excludedReason shouldBe null
                 LatexFolderExport.write(prepared = p, outDir = out, overwrite = false)
                 File(out, "collab.tex").isFile shouldBe true
                 val main = File(out, "main.tex").readText()
                 main shouldContain "% excluded: collab.tex"
                 main shouldNotContain "\\kumlfigure{collab}"
+            } finally {
+                root.deleteRecursively()
+                out.parentFile.deleteRecursively()
+            }
+        }
+
+        test("a complete BPMN collaboration is part of main.tex").config(timeout = 120.seconds) {
+            val root = tmp()
+            val out = File(tmp(), "out")
+            try {
+                put(root, "collab.kuml.kts", "latex/bpmn-collaboration.kuml.kts")
+                val p = LatexFolderExport.prepare(root = root, excludeDirs = emptySet(), themeName = null)
+                p.figures.first { it.source == "collab.kuml.kts" }.excludedReason shouldBe null
+                LatexFolderExport.write(prepared = p, outDir = out, overwrite = false)
+                val main = File(out, "main.tex").readText()
+                main shouldContain "\\kumlfigure{collab}"
+                main shouldNotContain "% excluded: collab.tex"
             } finally {
                 root.deleteRecursively()
                 out.parentFile.deleteRecursively()

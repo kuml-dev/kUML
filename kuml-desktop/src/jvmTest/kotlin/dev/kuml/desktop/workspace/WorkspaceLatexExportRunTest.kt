@@ -59,9 +59,9 @@ class WorkspaceLatexExportRunTest :
                 val first = run(root, form(root))
                 val done = first.state.shouldBeInstanceOf<LatexUiState.Done>()
                 File(root, "out/main.tex").isFile shouldBe true
-                done.summary[0] shouldContain "Wrote main.tex, kuml-preamble.tex, 3 figure(s), 1 image(s) for 5 document(s)"
-                done.summary[1] shouldBe "0 failed, 0 skipped, 1 excluded from main.tex, 2 warnings"
-                done.lines.any { it.text.startsWith("WARN modelle/zusammenarbeit.md") } shouldBe true
+                done.summary[0] shouldContain "Wrote main.tex, kuml-preamble.tex, 4 figure(s), 1 image(s) for 5 document(s)"
+                done.summary[1] shouldBe "0 failed, 0 skipped, 0 excluded from main.tex, 1 warnings"
+                done.lines.any { it.text.startsWith("WARN ueberblick.md") } shouldBe true
                 latexReportText(done) shouldContain "NOTE ueberblick.md"
                 latexStatusView(done).tone() shouldBe StatusTone.WARNING
 

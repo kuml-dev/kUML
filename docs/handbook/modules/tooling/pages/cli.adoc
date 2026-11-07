@@ -34,8 +34,8 @@ Options:
 
 * `-o`, `--output <path>` — output file
 * `-f`, `--format svg|png|latex|tex|apng|webp|mp4` — default `svg`. `latex` / `tex` emit TikZ output
-  for UML, SysML 2 (not package diagrams), C4 and Service Blueprint; BPMN and ERM cannot be rendered as LaTeX from
-  the CLI. `apng`, `webp` and `mp4` export an animation
+  for UML, SysML 2 (not package diagrams), C4, BPMN process and collaboration diagrams, and Service Blueprint; ERM,
+  BPMN choreography and conversation diagrams cannot be rendered as LaTeX from the CLI. `apng`, `webp` and `mp4` export an animation
   (see `--animated`); `webp` and `mp4` need `img2webp` or `ffmpeg` on the `PATH`.
 * `--theme <name>` — theme name (`kuml`, `plain`, `elegant`, `playful`); the default is `kuml`.
   Overrides `kuml.config.kts`.
@@ -457,8 +457,8 @@ document has not loaded it yet, so your own `babel` options stay in force.
   reported as `NOTE`. `main` and `kuml-preamble` are reserved at the top level.
 * `SKIP` — the diagram family has no LaTeX output (ERM, SysML 2 package, BPMN choreography and
   conversation), or the script is a symbolic link. `ERROR` — the script failed. `WARN` — the figure is
-  written but left out of `main.tex` because it references a TikZ node that is not defined (currently the
-  BPMN collaboration). Only the first diagram of a script is exported (`NOTE`).
+  written but left out of `main.tex` because it references a TikZ node that is not defined (for example a BPMN
+  message flow to an element id that does not exist). Only the first diagram of a script is exported (`NOTE`).
 * Exit codes: `0` everything exported (SKIP, WARN and NOTE do not change it); `3` at least one script
   failed (the other figures are still written), or any failure, skip or exclusion with `--strict`, in
   which case nothing is written; `2` usage errors (no scripts found, output exists without `--force`,
@@ -502,8 +502,8 @@ and runs the pdflatex build tests in a mode where a missing TeX is a failure, no
   the code that drives xref:workspace-pdf-export.adoc[the PDF export]. The date defaults to the day of
   the export.
 * *Diagrams.* Every ```` ```kuml ```` block runs like in `kuml workspace render` and becomes a
-  `\kumlfigure`. `SKIP`, `ERROR` and `WARN` (a figure that references an undefined TikZ node, currently
-  the BPMN collaboration) leave a visible framed note at that place; the figure file is still written
+  `\kumlfigure`. `SKIP`, `ERROR` and `WARN` (a figure that references an undefined TikZ node, for example a BPMN
+  message flow to an element id that does not exist) leave a visible framed note at that place; the figure file is still written
   for `WARN`. Only the first diagram of a block is exported.
 * *Text is escaped.* Every character of document text goes through one escaper: the ten TeX special
   characters, `"`, brackets and `|` are neutralised, code is set line by line without `verbatim`,

@@ -1,7 +1,6 @@
 package dev.kuml.io.latex.bpmn
 
 import dev.kuml.bpmn.model.BpmnCallActivity
-import dev.kuml.bpmn.model.BpmnCollaboration
 import dev.kuml.bpmn.model.BpmnEvent
 import dev.kuml.bpmn.model.BpmnFlowNode
 import dev.kuml.bpmn.model.BpmnGateway
@@ -19,8 +18,8 @@ import dev.kuml.bpmn.model.TaskType
 import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.latex.commentSafe
 import dev.kuml.io.latex.escapeLatex
+import dev.kuml.io.latex.fmtCoord
 import dev.kuml.io.latex.note.NoteTikz
-import dev.kuml.io.latex.stripControl
 
 /**
  * Renders BPMN models as LaTeX/TikZ source — V3.1.8.
@@ -34,6 +33,10 @@ import dev.kuml.io.latex.stripControl
  * readable linearised diagram without requiring a layout engine. The SVG
  * renderer uses the full kUML layout bridge; the LaTeX renderer deliberately
  * opts for this simpler approach to stay self-contained for export/document use.
+ *
+ * A collaboration view is laid out with absolute coordinates by [BpmnCollaborationLayout]: equal-width pools, one
+ * band per leaf lane, and the flow nodes of every referenced process inside their pool (so message flows can end
+ * at them). No TikZ library beyond the shared preamble is needed.
  *
  * TikZ node names are sanitised via [sanitizeTikzId] — any character outside
  * `[A-Za-z0-9_]` is replaced by `_`.
@@ -88,8 +91,8 @@ internal object BpmnLatexRenderer {
     // ── Collaboration diagram ─────────────────────────────────────────────────
 
     /**
-     * Renders a [CollaborationDiagram] view: all participant pools and message
-     * flows of the referenced collaboration as TikZ nodes and draw-paths.
+     * Renders a [CollaborationDiagram] view: all participant pools with their lanes, the flow nodes and sequence
+     * flows of the referenced processes, and the message flows of the collaboration as TikZ nodes and draw-paths.
      */
     fun render(
         model: BpmnModel,
@@ -120,11 +123,12 @@ internal object BpmnLatexRenderer {
             appendLine("""  % Collaboration: ${commentSafe(model.name)}""")
             appendLine()
 
-            appendCollaborationPools(collab)
+            val plan = BpmnCollaborationLayout.plan(model = model, collab = collab)
+            appendCollaborationPools(plan)
 
             if (collab.messageFlows.isNotEmpty()) {
                 appendLine()
-                collab.messageFlows.forEach { mf -> appendMessageFlow(mf) }
+                collab.messageFlows.forEach { mf -> appendMessageFlow(mf = mf, targets = plan.targets) }
             }
 
             BpmnNoteTikz.appendCollaborationNotes(sb = this, model = model, collab = collab, options = options)
@@ -136,38 +140,56 @@ internal object BpmnLatexRenderer {
 
     // ── Pool rendering ────────────────────────────────────────────────────────
 
-    private fun StringBuilder.appendCollaborationPools(collab: BpmnCollaboration) {
-        collab.participants.forEachIndexed { pIdx, participant ->
-            val poolId = sanitizeTikzId(participant.id)
-            val poolLabel = escapeLatex(participant.name ?: participant.id)
-            val poolComment = commentSafe(participant.name ?: participant.id)
-            val yOffset = if (pIdx == 0) "0" else "${-pIdx * 100}pt"
-            appendLine("""  % Pool: $poolComment""")
-            appendLine("""  \node[kuml-bpmn-pool] ($poolId) at (0,$yOffset) {};""")
-            val rotatedLabel = """\rotatebox{90}{$poolLabel}"""
-            appendLine("""  \node[kuml-bpmn-pool-header,minimum height=80pt,anchor=west] (ph_$poolId) at ($poolId.west) {$rotatedLabel};""")
+    /** A TeX length in pt without trailing zeros (`-0` becomes `0`). */
+    private fun pt(v: Float): String {
+        val text = fmtCoord(v).trimEnd('0').trimEnd('.')
+        return "${if (text == "-0" || text.isEmpty()) "0" else text}pt"
+    }
 
-            // If participant references a process, render its nodes inside the pool
-            if (participant.processRef != null) {
+    /** TikZ y of a layout y: the layout grows downwards, TikZ upwards. */
+    private fun ty(v: Float): String = pt(-v)
+
+    private fun StringBuilder.appendCollaborationPools(plan: BpmnCollaborationLayout.Plan) {
+        for (pool in plan.pools) {
+            val participant = pool.participant
+            val poolLabel = escapeLatex(participant.name ?: participant.id)
+            appendLine("""  % Pool: ${commentSafe(participant.name ?: participant.id)}""")
+            appendLine(
+                """  \node[kuml-bpmn-pool,anchor=north west,minimum width=${pt(plan.width)},minimum height=${pt(pool.height)}] """ +
+                    """(${pool.name}) at (0pt,${ty(pool.top)}) {};""",
+            )
+            appendLine(
+                """  \node[kuml-bpmn-pool-header,anchor=north west,minimum height=${pt(pool.height)}] """ +
+                    """(${pool.headerName}) at (${pool.name}.north west) {\rotatebox{90}{$poolLabel}};""",
+            )
+
+            for (lane in pool.lanes) {
+                val laneLabel = escapeLatex(lane.lane.name ?: lane.lane.id)
+                val x = BpmnCollaborationLayout.POOL_HEADER_W + BpmnCollaborationLayout.LANE_HEADER_W * lane.depth
                 appendLine(
-                    """  % (inner process nodes omitted — see ProcessDiagram for process ${stripControl(
-                        participant.processRef.orEmpty(),
-                    )})""",
+                    """  \node[kuml-bpmn-lane,anchor=north west,minimum width=${pt(plan.width - x)},minimum height=${pt(lane.height)}] """ +
+                        """(${lane.name}) at (${pt(x)},${ty(pool.top + lane.top)}) {};""",
+                )
+                appendLine(
+                    """  \node[kuml-bpmn-lane-header,anchor=north west,minimum height=${pt(lane.height)}] """ +
+                        """(${lane.headerName}) at (${lane.name}.north west) {\rotatebox{90}{$laneLabel}};""",
                 )
             }
 
-            if (participant.lanes.isNotEmpty()) {
-                participant.lanes.forEachIndexed { lIdx, lane ->
-                    val laneId = sanitizeTikzId(lane.id)
-                    val laneLabel = escapeLatex(lane.name ?: lane.id)
-                    appendLine("""  \node[kuml-bpmn-lane,anchor=north west] ($laneId) at ($poolId.north west) {};""")
-                    appendLine(
-                        """  \node[kuml-bpmn-lane-header,anchor=west,minimum height=60pt] """ +
-                            """(lh_$laneId) at ($laneId.west) {\rotatebox{90}{$laneLabel}};""",
-                    )
-                }
+            for (placed in pool.nodes) {
+                appendFlowNodeAt(node = placed.node, nodeId = placed.name, pos = "at (${pt(placed.x)},${ty(pool.top + placed.y)})")
+            }
+            if (pool.omittedNodes) appendLine(OMITTED_NODES)
+
+            val process = pool.process
+            if (process != null) {
+                val drawn = pool.nodes.map { it.node.id }.toSet()
+                process.sequenceFlows
+                    .filter { it.sourceRef in drawn && it.targetRef in drawn }
+                    .forEach { flow -> appendSequenceFlow(flow) }
             }
         }
+        if (plan.omittedPools) appendLine(OMITTED_POOLS)
     }
 
     // ── Flow node rendering ───────────────────────────────────────────────────
@@ -176,11 +198,17 @@ internal object BpmnLatexRenderer {
         node: BpmnFlowNode,
         prevId: String?,
     ) {
-        val nodeId = sanitizeTikzId(node.id)
-        val label = escapeLatex(node.name ?: "")
         // `at (0,0)` is a node position, not an option: it must stand outside the option brackets.
         val pos = if (prevId != null) "[right of=${sanitizeTikzId(prevId)}]" else "at (0,0)"
+        appendFlowNodeAt(node = node, nodeId = sanitizeTikzId(node.id), pos = pos)
+    }
 
+    private fun StringBuilder.appendFlowNodeAt(
+        node: BpmnFlowNode,
+        nodeId: String,
+        pos: String,
+    ) {
+        val label = escapeLatex(node.name ?: "")
         when (node) {
             is BpmnEvent -> appendEvent(event = node, nodeId = nodeId, label = label, pos = pos)
             is BpmnGateway -> appendGateway(gw = node, nodeId = nodeId, label = label, pos = pos)
@@ -327,9 +355,15 @@ internal object BpmnLatexRenderer {
      */
     private const val MESSAGE_FLOW_LABEL_PLACEMENT = "midway,right=3pt"
 
+    private const val OMITTED_NODES = "  % some flow nodes omitted: empty or duplicate name, or picture width limit reached"
+    private const val OMITTED_POOLS = "  % some pools omitted: picture height limit reached"
+
     // ── Message flow rendering ────────────────────────────────────────────────
 
-    private fun StringBuilder.appendMessageFlow(mf: MessageFlow) {
+    private fun StringBuilder.appendMessageFlow(
+        mf: MessageFlow,
+        targets: Map<String, BpmnCollaborationLayout.Target>,
+    ) {
         val src = sanitizeTikzId(mf.sourceRef)
         val tgt = sanitizeTikzId(mf.targetRef)
         val labelPart =
@@ -337,7 +371,41 @@ internal object BpmnLatexRenderer {
                 ?.takeIf { it.isNotBlank() }
                 ?.let { " node[kuml-bpmn-label,$MESSAGE_FLOW_LABEL_PLACEMENT] {${escapeLatex(it)}}" }
                 ?: ""
-        appendLine("""  \draw[kuml-bpmn-msgflow] ($src) --$labelPart ($tgt);""")
+        val from = targets[src]
+        val to = targets[tgt]
+        // An endpoint that is not drawn is written as it is: the figure then fails the source check instead of
+        // silently losing the flow. Pool-to-pool flows keep the plain centre-to-border line.
+        val container = BpmnCollaborationLayout.TargetKind.NODE
+        val bothContainers = from != null && to != null && from.kind != container && to.kind != container
+        if (from == null || to == null || bothContainers) {
+            appendLine("""  \draw[kuml-bpmn-msgflow] ($src) --$labelPart ($tgt);""")
+            return
+        }
+        val targetBelow = to.centerY > from.centerY
+        val start = messageFlowPoint(name = src, own = from, other = tgt, otherTarget = to, towardsBelow = targetBelow)
+        val end = messageFlowPoint(name = tgt, own = to, other = src, otherTarget = from, towardsBelow = !targetBelow)
+        appendLine("""  \draw[kuml-bpmn-msgflow] $start --$labelPart $end;""")
+    }
+
+    /**
+     * The point where a message flow meets [name]. A node is met at its south/north anchor; a pool or lane is met on
+     * its facing border, straight above/below the node at the other end, so that the line stays vertical.
+     */
+    private fun messageFlowPoint(
+        name: String,
+        own: BpmnCollaborationLayout.Target,
+        other: String,
+        otherTarget: BpmnCollaborationLayout.Target,
+        towardsBelow: Boolean,
+    ): String {
+        val side = if (towardsBelow) "south" else "north"
+        return if (own.kind == BpmnCollaborationLayout.TargetKind.NODE) {
+            "($name.$side)"
+        } else {
+            val border = if (otherTarget.centerY > own.centerY) "south" else "north"
+            val otherSide = if (border == "south") "north" else "south"
+            "($other.$otherSide |- $name.$border)"
+        }
     }
 
     // ── TikZ style block ──────────────────────────────────────────────────────

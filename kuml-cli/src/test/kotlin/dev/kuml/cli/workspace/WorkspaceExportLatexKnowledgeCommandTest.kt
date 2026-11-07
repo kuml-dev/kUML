@@ -34,9 +34,9 @@ class WorkspaceExportLatexKnowledgeCommandTest :
                 val out = File(root, "out")
                 val r = run(root, "-o", out.absolutePath)
                 r.statusCode shouldBe 0
-                r.stdout shouldContain "Wrote main.tex, kuml-preamble.tex, 3 figure(s), 1 image(s) for 5 document(s)"
-                r.stdout shouldContain "0 failed, 0 skipped, 1 excluded from main.tex, 2 warnings"
-                r.stderr shouldContain "WARN modelle/zusammenarbeit.md"
+                r.stdout shouldContain "Wrote main.tex, kuml-preamble.tex, 4 figure(s), 1 image(s) for 5 document(s)"
+                r.stdout shouldContain "0 failed, 0 skipped, 0 excluded from main.tex, 1 warnings"
+                r.stderr shouldNotContain "zusammenarbeit"
                 r.stderr shouldContain "WARN ueberblick.md"
                 r.stderr shouldContain "NOTE ueberblick.md"
                 File(out, "main.tex").isFile shouldBe true

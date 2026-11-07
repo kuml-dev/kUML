@@ -64,8 +64,8 @@ class WorkspaceLatexRunTest :
                 val result = WorkspaceLatexRun.write(prepared = prepared, outDir = target, overwrite = false)
                 File(target, "main.tex").isFile shouldBe true
                 val summary = LatexRunReport.summaryLines(prepared = prepared, result = result)
-                summary[0] shouldContain "Wrote main.tex, kuml-preamble.tex, 3 figure(s)"
-                summary[1] shouldBe "0 failed, 0 skipped, 1 excluded from main.tex, 2 warnings"
+                summary[0] shouldContain "Wrote main.tex, kuml-preamble.tex, 4 figure(s)"
+                summary[1] shouldBe "0 failed, 0 skipped, 0 excluded from main.tex, 1 warnings"
                 WorkspaceLatexRun.existingTargets(prepared = prepared, outDir = target).shouldNotBeEmpty()
                 val refused =
                     shouldThrow<LatexFolderExportException> {
