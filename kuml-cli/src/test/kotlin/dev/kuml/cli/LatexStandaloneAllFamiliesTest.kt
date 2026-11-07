@@ -13,6 +13,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Nacharbeit 30 — `latexStandalone` must reach every diagram family, not only UML and Blueprint.
@@ -76,9 +77,9 @@ class LatexStandaloneAllFamiliesTest :
             }
         }
 
-        val pdflatex = findPdflatex()
-        if (pdflatex == null) {
-            println("[LatexStandaloneAllFamiliesTest] pdflatex not found on PATH or /Library/TeX/texbin: compile tests are disabled")
+        if (Pdflatex.executable == null) {
+            val mode = if (Pdflatex.required) "kuml.latex.require=true, the compile tests will FAIL" else "the compile tests are skipped"
+            println("[LatexStandaloneAllFamiliesTest] pdflatex not found on PATH or /Library/TeX/texbin: $mode")
         }
         KNOWN_COMPILE_DEFECTS.forEach { (family, reason) ->
             println(
@@ -86,8 +87,11 @@ class LatexStandaloneAllFamiliesTest :
             )
         }
         for (family in FAMILIES) {
-            test("pdflatex compiles the standalone document for $family")
-                .config(enabled = pdflatex != null && family !in KNOWN_COMPILE_DEFECTS) {
+            // Known defects stay disabled (visible as skipped); the marker in the name is what the CI skip guard allows.
+            val marker = if (family in KNOWN_COMPILE_DEFECTS) " [known-compile-defect]" else ""
+            test("pdflatex compiles the standalone document for $family$marker")
+                .config(enabled = Pdflatex.enabled && family !in KNOWN_COMPILE_DEFECTS, timeout = 300.seconds) {
+                    val pdflatex = Pdflatex.requireExecutable().absolutePath
                     val dir = Files.createTempDirectory("kuml-latex-pdflatex")
                     try {
                         val tex = render(family, standalone = true, dir = dir)
@@ -149,17 +153,5 @@ class LatexStandaloneAllFamiliesTest :
                 "bpmn-collaboration",
                 "blueprint",
             )
-
-        private fun findPdflatex(): String? {
-            val onPath =
-                System
-                    .getenv("PATH")
-                    .orEmpty()
-                    .split(File.pathSeparator)
-                    .map { File(it, "pdflatex") }
-                    .firstOrNull { it.canExecute() }
-            val fallback = File("/Library/TeX/texbin/pdflatex").takeIf { it.canExecute() }
-            return (onPath ?: fallback)?.absolutePath
-        }
     }
 }

@@ -6,6 +6,29 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 34: CI job that builds the exported LaTeX with a real TeX
+
+#### Why
+
+Every pdflatex test was skipped on GitHub CI because the runners have no TeX, so "the exported LaTeX compiles" was verified on one Mac only.
+
+#### Change
+
+- New job `latex-pdf` in `.github/workflows/ci.yml` (`ubuntu-24.04`, independent of `build`): installs TeX Live from apt (download first, install offline, archive cache), then runs the three modules that hold pdflatex tests with `-Pkuml.latex.require=true -Pkuml.latex.only=true`. The default job `build` is unchanged.
+- `-Pkuml.latex.require=true` is forwarded as the system property `kuml.latex.require`: a missing pdflatex then fails the tests instead of skipping them. `-Pkuml.latex.only=true` limits `:kuml-io:kuml-io-latex`, `:kuml-docs:kuml-workspace-latex` and `:kuml-cli` to the pdflatex test classes. Both are off by default.
+- One shared test helper `Pdflatex` (`Pdflatex.kt`, three byte-identical copies apart from the package line) replaces the five private pdflatex lookups.
+- `scripts/ci/check_latex_tests.py` reads the test XML: an unmarked skip, a failure, a class that ran nothing or is missing, or differing helper copies fail the job. The only exception route is `[known-compile-defect]` in the test name (used for `bpmn-collaboration`, which stays disabled and visible as skipped). The per-family pdflatex timeout is now 300 s.
+
+#### Verification
+
+- Local, MacTeX, exact CI command with `--no-build-cache --rerun-tasks`: build green; guard table executed/skipped/failed per class: NoteTikzPdfBuildTest 7/0/0, LatexKnowledgePdfBuildTest 1/0/0, LatexFolderPdfBuildTest 1/0/0, WorkspaceLatexKnowledgePdfBuildTest 1/0/0, LatexStandaloneAllFamiliesTest 14/1 (marked)/0.
+- No TeX (fallback paths temporarily removed, PATH without texbin): default mode green with all pdflatex tests skipped; strict mode red with the tests failing on "pdflatex not found"; the guard fails in both cases.
+- `actionlint .github/workflows/ci.yml` clean, YAML parses.
+
+#### Not verified
+
+The GitHub run of the new job (before the push), the apt package set and run time on the real runner, and the container route (colima was not running). Making `latex-pdf` a required status check is a repository setting to change by hand after the first green run. Website and README not touched (internal CI change); handbook `cli.adoc` got one note, `export.adoc` needs none.
+
 ### Nacharbeit 33: Desktop dialog "Export Workspace > As LaTeX..."
 
 #### Why

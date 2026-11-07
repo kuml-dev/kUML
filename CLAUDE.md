@@ -170,6 +170,11 @@ kuml/
 # Alle Tests außer @Tag("live")
 ./gradlew test -DexcludeTags=live
 
+# Strikter LaTeX-Lauf (wie CI-Job `latex-pdf`): fehlendes pdflatex = Fehler statt Skip
+./gradlew clean :kuml-io:kuml-io-latex:test :kuml-docs:kuml-workspace-latex:test :kuml-cli:test \
+  -Pkuml.latex.require=true -Pkuml.latex.only=true --no-build-cache --rerun-tasks --continue
+python3 -I scripts/ci/check_latex_tests.py   # Skip-Wächter: ungekennzeichnete Skips = Fehler
+
 # Code formatieren
 ./gradlew ktlintFormat
 

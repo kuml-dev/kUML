@@ -11,11 +11,6 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
-private val PDFLATEX: File? =
-    (System.getenv("PATH").orEmpty().split(File.pathSeparator) + "/Library/TeX/texbin" + "/usr/bin" + "/usr/local/bin")
-        .map { File(it, "pdflatex") }
-        .firstOrNull { it.canExecute() }
-
 private fun errorExcerpt(log: String): String {
     val lines = log.lines()
     val i = lines.indexOfFirst { it.startsWith("! ") }
@@ -26,7 +21,8 @@ private fun errorExcerpt(log: String): String {
 class LatexKnowledgePdfBuildTest :
     FunSpec({
         test("a hostile workspace builds into a PDF and runs nothing (skipped when TeX is not installed)")
-            .config(enabled = PDFLATEX != null, timeout = 300.seconds) {
+            .config(enabled = Pdflatex.enabled, timeout = 300.seconds) {
+                val pdflatex = Pdflatex.requireExecutable()
                 val pwn = File("/tmp/kuml-pwn-${UUID.randomUUID()}")
                 val hostile =
                     "\\write18{touch ${pwn.path}} \\input{/etc/passwd} \\begin{document} \\end{document} }}} \\\\[1cm] " +
@@ -56,7 +52,7 @@ class LatexKnowledgePdfBuildTest :
                 var log = ""
                 repeat(2) {
                     val process =
-                        ProcessBuilder(PDFLATEX!!.path, "-interaction=nonstopmode", "-halt-on-error", "-no-shell-escape", "main.tex")
+                        ProcessBuilder(pdflatex.path, "-interaction=nonstopmode", "-halt-on-error", "-no-shell-escape", "main.tex")
                             .directory(out)
                             .redirectErrorStream(true)
                             .start()

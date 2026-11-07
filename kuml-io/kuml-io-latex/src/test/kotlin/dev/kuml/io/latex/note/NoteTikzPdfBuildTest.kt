@@ -8,11 +8,6 @@ import java.io.File
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 
-private val PDFLATEX: File? =
-    (System.getenv("PATH").orEmpty().split(File.pathSeparator) + "/Library/TeX/texbin" + "/usr/bin" + "/usr/local/bin")
-        .map { File(it, "pdflatex") }
-        .firstOrNull { it.canExecute() }
-
 /** Compiles [tex] with pdflatex (no shell escape, no shell, 60 s limit) and returns the log; fails on a non-zero exit. */
 private fun compile(
     name: String,
@@ -22,7 +17,7 @@ private fun compile(
     try {
         File(dir, "$name.tex").writeText(tex)
         val process =
-            ProcessBuilder(PDFLATEX!!.path, "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", "$name.tex")
+            ProcessBuilder(Pdflatex.requireExecutable().path, "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", "$name.tex")
                 .directory(dir)
                 .redirectErrorStream(true)
                 .start()
@@ -50,7 +45,7 @@ private const val MARKUP_BODY =
  */
 class NoteTikzPdfBuildTest :
     StringSpec({
-        val tex = PDFLATEX != null
+        val tex = Pdflatex.enabled
 
         "UML notes of every kind compile (skipped when TeX is not installed)".config(enabled = tex) {
             for (kind in NoteKind.entries) {

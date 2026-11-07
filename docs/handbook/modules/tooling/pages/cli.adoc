@@ -489,6 +489,9 @@ Build it twice (table of contents and references) with shell escape off:
 pdflatex -interaction=nonstopmode -halt-on-error -no-shell-escape main.tex
 ----
 
+NOTE: Whether the exported LaTeX compiles is checked in CI by the job `latex-pdf`, which installs TeX Live
+and runs the pdflatex build tests in a mode where a missing TeX is a failure, not a skip.
+
 * *Which mode applies.* The scanner decides: as soon as one `*.kuml.kts` exists the folder is an
   Engineering folder and the script export above runs; a `.kuml-workspace.toml` marker with
   `mode = "knowledge"` forces the Markdown export. A folder with an `index.md` and more Markdown

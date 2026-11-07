@@ -1,5 +1,6 @@
 package dev.kuml.cli.export
 
+import dev.kuml.cli.Pdflatex
 import dev.kuml.layout.LayoutEngineRegistry
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -10,11 +11,6 @@ import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
-private val PDFLATEX: File? =
-    (System.getenv("PATH").orEmpty().split(File.pathSeparator) + "/Library/TeX/texbin" + "/usr/bin" + "/usr/local/bin")
-        .map { File(it, "pdflatex") }
-        .firstOrNull { it.canExecute() }
-
 /** Builds the real folder export with pdflatex. Without a TeX installation the test is skipped (marker in its name). */
 class LatexFolderPdfBuildTest :
     FunSpec({
@@ -22,7 +18,8 @@ class LatexFolderPdfBuildTest :
         afterEach { LayoutEngineRegistry.clear() }
 
         test("the exported fixture folder builds into one PDF (skipped when TeX is not installed)")
-            .config(enabled = PDFLATEX != null, timeout = 300.seconds) {
+            .config(enabled = Pdflatex.enabled, timeout = 300.seconds) {
+                val pdflatex = Pdflatex.requireExecutable()
                 val root = Files.createTempDirectory("kuml-folder-pdf").toFile()
                 try {
                     File("src/test/resources/latex").copyRecursively(root)
@@ -36,7 +33,7 @@ class LatexFolderPdfBuildTest :
 
                     val process =
                         ProcessBuilder(
-                            PDFLATEX!!.path,
+                            pdflatex.path,
                             "-interaction=nonstopmode",
                             "-halt-on-error",
                             "-no-shell-escape",

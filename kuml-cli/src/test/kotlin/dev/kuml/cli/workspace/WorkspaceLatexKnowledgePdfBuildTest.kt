@@ -1,5 +1,6 @@
 package dev.kuml.cli.workspace
 
+import dev.kuml.cli.Pdflatex
 import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.workspace.WorkspaceScanner
 import dev.kuml.workspace.latex.LatexKnowledgeOptions
@@ -12,11 +13,6 @@ import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
-private val PDFLATEX: File? =
-    (System.getenv("PATH").orEmpty().split(File.pathSeparator) + "/Library/TeX/texbin" + "/usr/bin" + "/usr/local/bin")
-        .map { File(it, "pdflatex") }
-        .firstOrNull { it.canExecute() }
-
 /** Builds the real Knowledge export with pdflatex. Without a TeX installation the test is skipped (marker in its name). */
 class WorkspaceLatexKnowledgePdfBuildTest :
     FunSpec({
@@ -24,7 +20,8 @@ class WorkspaceLatexKnowledgePdfBuildTest :
         afterEach { LayoutEngineRegistry.clear() }
 
         test("the exported Knowledge fixture builds into one PDF (skipped when TeX is not installed)")
-            .config(enabled = PDFLATEX != null, timeout = 300.seconds) {
+            .config(enabled = Pdflatex.enabled, timeout = 300.seconds) {
+                val pdflatex = Pdflatex.requireExecutable()
                 val root = Files.createTempDirectory("kuml-knowledge-pdf").toFile()
                 try {
                     File("src/test/resources/latex-knowledge").copyRecursively(root)
@@ -38,7 +35,7 @@ class WorkspaceLatexKnowledgePdfBuildTest :
                     var log = ""
                     repeat(2) {
                         val process =
-                            ProcessBuilder(PDFLATEX!!.path, "-interaction=nonstopmode", "-halt-on-error", "-no-shell-escape", "main.tex")
+                            ProcessBuilder(pdflatex.path, "-interaction=nonstopmode", "-halt-on-error", "-no-shell-escape", "main.tex")
                                 .directory(out)
                                 .redirectErrorStream(true)
                                 .start()

@@ -183,6 +183,28 @@ tasks.named("check") { dependsOn("verifyDetektCoverage") }
 // See docs/release.md for the full setup walkthrough.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Strict LaTeX CI switches (Nacharbeit 34) ─────────────────────────────────
+// -Pkuml.latex.require=true  forwards `kuml.latex.require` to every test JVM: the pdflatex
+//                            PDF build tests then FAIL without TeX instead of being skipped.
+// -Pkuml.latex.only=true     restricts the three modules that hold those tests to exactly
+//                            the pdflatex test classes (used by the `latex-pdf` CI job).
+// Both are off by default, so the normal build keeps skipping those tests without TeX.
+val latexRequire = providers.gradleProperty("kuml.latex.require").map { it == "true" }.orElse(false)
+val latexOnly = providers.gradleProperty("kuml.latex.only").map { it == "true" }.orElse(false)
+val latexTestModules = setOf(":kuml-io:kuml-io-latex", ":kuml-docs:kuml-workspace-latex", ":kuml-cli")
+subprojects {
+    val modulePath = path
+    tasks.withType<Test>().configureEach {
+        if (latexRequire.get()) systemProperty("kuml.latex.require", "true")
+        if (latexOnly.get() && modulePath in latexTestModules) {
+            filter {
+                includeTestsMatching("*PdfBuildTest")
+                includeTestsMatching("*LatexStandaloneAllFamiliesTest")
+            }
+        }
+    }
+}
+
 // Modules that are intentionally NOT published to Maven Central. Matched
 // against `Project.name` (the leaf name), not the colon-path — so to keep
 // a sub-module out of the publication set its leaf name must appear here.
