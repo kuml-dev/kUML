@@ -508,6 +508,12 @@ internal object ExampleCatalog {
                 diagramType = "process",
                 description = "BPMN process with formatted text annotations.",
             ),
+            CuratedExample(
+                fileName = "74 SysML 2 STM – Notiz-Arten mit Symbolen.md",
+                language = "sysml2",
+                diagramType = "stm",
+                description = "SysML 2 state machine (traffic light) with five note kinds, each beside its state or transition.",
+            ),
         )
 
     /** Distinct languages in catalog order: uml, c4, sysml2, bpmn, blueprint, erm. */
