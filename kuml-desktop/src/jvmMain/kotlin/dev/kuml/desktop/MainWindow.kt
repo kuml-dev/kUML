@@ -434,7 +434,9 @@ fun FrameWindowScope.MainWindow(
             try {
                 val outcome =
                     withContext(Dispatchers.IO) {
-                        renderLatex(LatexExportRequest(script = script, themeName = theme, standalone = initialMode.isStandalone()))
+                        renderLatex(
+                            request = LatexExportRequest(script = script, themeName = theme, standalone = initialMode.isStandalone()),
+                        )
                     }
                 when (outcome) {
                     is LatexRenderOutcome.Failed -> showLatexFailure(outcome.message)
@@ -469,7 +471,12 @@ fun FrameWindowScope.MainWindow(
                 } else {
                     withContext(Dispatchers.IO) {
                         renderLatex(
-                            LatexExportRequest(script = session.script, themeName = session.themeName, standalone = mode.isStandalone()),
+                            request =
+                                LatexExportRequest(
+                                    script = session.script,
+                                    themeName = session.themeName,
+                                    standalone = mode.isStandalone(),
+                                ),
                         )
                     }
                 }
