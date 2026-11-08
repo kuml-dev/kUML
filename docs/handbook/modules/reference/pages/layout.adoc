@@ -218,6 +218,11 @@ never covers a label that is drawn later.
   anchors of one connection get their own attach points at least 16 px apart; the anchor of the owner of a frame-less
   IBD ends on the border of a real part, never on a virtual box. An anchor does not cross a part or another note and
   runs no closer than 3 px side by side with the anchor of another note.
+* Strict note placement of the structural SysML 2 diagrams (BDD including `allocate` edges, IBD, use case): a note keeps
+  16 px from edges, nodes, ports, labels, titles and other notes, an anchor line keeps 6 px from foreign notes, nodes and
+  ports (a soft cost reaches up to 12 px), and a note lies fully inside or fully outside a frame (the IBD owner frame, the
+  use case subject frames). BDD and IBD prefer the sides across the layout flow (above and below for `Right`, beside for
+  `Down`); this is a soft preference worth 40 px of anchor length, so a short anchor can win.
 * SysML 2 IBD routing: connectors are routed around the parts of the diagram (`IbdObstacleRouter`: straight, L and Z
   candidates, then a grid A* with a hard node limit; 8 px clearance; deterministic). Neighbouring part ports keep a
   pitch of `max(24, label width + 8)` px on top and bottom sides and `max(24, line height + 6)` px on left and

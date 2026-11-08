@@ -2421,6 +2421,7 @@ public object KumlSvgRenderer {
                 layout = layoutResult,
                 adapter = bddAdapter,
                 placedLabels = bddLabels,
+                strictNotes = structuralStrictNotePolicy(direction = diagram.layout?.direction),
             )
         // Second pass: with the notes in place, the labels move away from them (and from their anchor lines).
         val bddFinalLabels =
@@ -2536,6 +2537,12 @@ public object KumlSvgRenderer {
                 localPorts = true,
                 configure = portObstacles(layout = enrichedLayout, extras = ibdExtras, portLabelRects = portRectsOf(ibdLabels)),
                 placedLabels = ibdLabels,
+                strictNotes =
+                    structuralStrictNotePolicy(
+                        direction = diagram.layout?.direction,
+                        layout = enrichedLayout,
+                        laneGroupPrefixes = listOf("frame:"),
+                    ),
             )
         val notedLayout = notedResult.layout
         // Second pass: with the notes in place, the labels move away from them (and from their anchor lines).
@@ -2680,6 +2687,14 @@ public object KumlSvgRenderer {
                 layout = layoutResult,
                 adapter = ucAdapter,
                 placedLabels = ucLabels,
+                // Every layout group of a use case diagram is a subject frame: a note lies fully inside or fully outside it.
+                strictNotes =
+                    structuralStrictNotePolicy(
+                        direction = null,
+                        layout = layoutResult,
+                        laneGroupPrefixes = listOf(""),
+                        flow = dev.kuml.layout.bridge.note.FlowAxis.NONE,
+                    ),
             )
         val ucFinalLabels =
             if (model.comments.isEmpty()) ucLabels else planSysml2EdgeLabels(layout = ucNoted.layout, adapter = ucAdapter)
@@ -4119,6 +4134,47 @@ public object KumlSvgRenderer {
             sortByAnchorY = true,
         )
     }
+
+    /**
+     * The strict note rules of the structural SysML 2 diagrams (Nacharbeit 38: BDD, IBD, use case): the state-machine
+     * defaults plus hard clearance to labels and titles, the flow-axis preference of [direction] and, where the diagram
+     * has them, the frames in [layout] whose group id starts with one of [laneGroupPrefixes] as lanes (a note lies fully
+     * inside or fully outside a frame).
+     */
+    internal fun structuralStrictNotePolicy(
+        direction: dev.kuml.core.model.layout.LayoutFlow?,
+        layout: LayoutResult? = null,
+        laneGroupPrefixes: List<String> = emptyList(),
+        flow: dev.kuml.layout.bridge.note.FlowAxis? = null,
+    ): dev.kuml.layout.bridge.note.StrictNotePolicy {
+        val flowAxis =
+            flow ?: when (direction) {
+                null -> dev.kuml.layout.bridge.note.FlowAxis.VERTICAL
+                dev.kuml.core.model.layout.LayoutFlow.Right,
+                dev.kuml.core.model.layout.LayoutFlow.Left,
+                -> dev.kuml.layout.bridge.note.FlowAxis.HORIZONTAL
+                else -> dev.kuml.layout.bridge.note.FlowAxis.VERTICAL
+            }
+        val lanes =
+            layout
+                ?.groups
+                .orEmpty()
+                .filterKeys { id -> laneGroupPrefixes.any { id.value.startsWith(it) } }
+                .map { (id, g) ->
+                    dev.kuml.layout.bridge.note
+                        .LaneRect(id = id.value, rect = g.bounds)
+                }
+        return dev.kuml.layout.bridge.note.StrictNotePolicy(
+            lanes = lanes,
+            hardLabelsAndTitles = true,
+            sortByAnchorY = false,
+            flow = flowAxis,
+            anchorNearPenalty = STRUCTURAL_NEAR_PENALTY,
+            hardAnchorLines = true,
+        )
+    }
+
+    private const val STRUCTURAL_NEAR_PENALTY: Float = 300f
 
     /**
      * Adds the estimated pin-label zones of an activity diagram to the note obstacles (Nacharbeit 29). The pin labels are

@@ -122,6 +122,14 @@ public data class NotePlacementConfig(
     val laneInset: Float = 16f,
     /** Distance a note outside all lanes keeps from them. */
     val laneOuterGap: Float = 24f,
+    /** Nacharbeit 38: the layout flow axis; a note placed along it pays [axisPenaltyPx] (only with [edgeClearance]). */
+    val flowAxis: FlowAxis = FlowAxis.NONE,
+    /** Nacharbeit 38: extra cost of a note beside its anchor along the flow axis. */
+    val axisPenaltyPx: Float = StrictNotePolicy.DEFAULT_OFF_AXIS_PENALTY,
+    /** Nacharbeit 38: soft cost of an anchor line within 6..12 px of a foreign node or port; 0 = off. */
+    val anchorNearPenalty: Float = 0f,
+    /** Nacharbeit 38: a note rectangle may not sit on the anchor line of an earlier note (6 px). */
+    val hardAnchorLines: Boolean = false,
 )
 
 /** One anchor link of a note: [linkId] names the drawn line, [targetId] the annotated element. */
@@ -707,7 +715,19 @@ public object NotePlacer {
                 config = config,
                 clearance = clearance,
             )
-        if (laneMode) {
+        val flowMode = config.flowAxis != FlowAxis.NONE && !laneMode
+        if (flowMode) {
+            // Nacharbeit 38: with a flow preference the columns and the ring compete on cost (axis penalty included).
+            var bestFlow: Plan? = pickClean(columns)
+            for (rect in candidates) {
+                if (obstacles.overlapsNote(rect)) continue
+                if (blocked(rect = rect, obstacles = obstacles, config = config, clearance = clearance, budget = budget)) continue
+                val plan = planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
+                if (plan.clean && (bestFlow == null || plan.cost < bestFlow.cost - TIE_EPS)) bestFlow = plan
+                if (budget.exhausted) break
+            }
+            bestFlow?.let { return it }
+        } else if (laneMode) {
             val nearRight = anchors.map { it.rep.x }.average().toFloat() >= laneExt.cx
             val right = columns.filter { it.rect.left > laneExt.cx }
             val left = columns.filter { it.rect.left <= laneExt.cx }
@@ -768,6 +788,7 @@ public object NotePlacer {
             noteGap = config.gridGap,
             budget = budget,
             hardLabels = config.hardLabelsAndTitles,
+            hardAnchorLines = config.hardAnchorLines,
         ) ||
             !laneAllows(rect = rect, config = config)
 
@@ -1025,6 +1046,38 @@ public object NotePlacer {
         return best
     }
 
+    /**
+     * Nacharbeit 38: [NotePlacementConfig.axisPenaltyPx] if the note lies beside its anchors along the flow axis (left/right
+     * for a horizontal flow, above/below for a vertical one); a soft preference that a short anchor line can outweigh.
+     */
+    private fun axisPenalty(
+        rect: Rect,
+        anchors: List<Anchor>,
+        config: NotePlacementConfig,
+    ): Float {
+        if (config.flowAxis == FlowAxis.NONE || config.edgeClearance == null || anchors.isEmpty()) return 0f
+        var box =
+            rectOf(left = anchors.first().rep.x, top = anchors.first().rep.y, right = anchors.first().rep.x, bottom = anchors.first().rep.y)
+        for (a in anchors) {
+            val b =
+                when (val g = a.geometry) {
+                    is AnchorGeometry.Around -> g.r
+                    is AnchorGeometry.Port -> g.box
+                    else -> rectOf(left = a.rep.x, top = a.rep.y, right = a.rep.x, bottom = a.rep.y)
+                }
+            box = box.union(b)
+        }
+        val sepX = max(0f, max(rect.left - box.right, box.left - rect.right))
+        val sepY = max(0f, max(rect.top - box.bottom, box.top - rect.bottom))
+        val alongFlow =
+            when (config.flowAxis) {
+                FlowAxis.HORIZONTAL -> sepX > sepY
+                FlowAxis.VERTICAL -> sepY > sepX
+                FlowAxis.NONE -> false
+            }
+        return if (alongFlow) config.axisPenaltyPx else 0f
+    }
+
     private fun planFor(
         rect: Rect,
         anchors: List<Anchor>,
@@ -1033,6 +1086,7 @@ public object NotePlacer {
         budget: ObstacleIndex.Budget,
     ): Plan {
         var cost = obstacles.rectCost(r = rect, costs = config.costs, budget = budget, partGap = config.minPartGap)
+        cost += axisPenalty(rect = rect, anchors = anchors, config = config)
         val exits = assignExits(rect = rect, anchors = anchors, config = config)
         val routes = ArrayList<List<Point>>()
         var routed = true
@@ -1164,7 +1218,14 @@ public object NotePlacer {
             var cost = polylineLength(cand) + (cand.size - 2) * config.costs.bend
             for (i in 0 until cand.size - 1) {
                 cost +=
-                    obstacles.segmentCost(a = cand[i], b = cand[i + 1], exemptOwners = anchor.exempt, costs = config.costs, budget = budget)
+                    obstacles.segmentCost(
+                        a = cand[i],
+                        b = cand[i + 1],
+                        exemptOwners = anchor.exempt,
+                        costs = config.costs,
+                        budget = budget,
+                        nearPenalty = config.anchorNearPenalty,
+                    )
                 for (o in own) {
                     for (j in 0 until o.size - 1) {
                         if (segmentsCross(a = cand[i], b = cand[i + 1], c = o[j], d = o[j + 1])) cost += config.costs.anchorRouteCrossing

@@ -6,6 +6,36 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 38: strict note placement in BDD, BDD with allocations, IBD and SysML 2 use case diagrams
+
+#### Why
+
+Notes in the structural SysML 2 diagrams still used the old soft cost model: a note could sit within a few pixels of an edge (BDD: `comment-2` 16 px from the `Engine`/`Vehicle` generalisation, `comment-3` against the `Engine` box), on a port label, or across a frame border. The state machine and activity diagrams already had the strict rules (Nacharbeit 25, 26, 29).
+
+#### Change
+
+- `StrictNotePolicy` / `NotePlacementConfig` got three neutral-by-default fields: `flow` (`FlowAxis.NONE | HORIZONTAL | VERTICAL`), `offAxisPenaltyPx` (40 px of extra anchor length) and `anchorNearPenalty` (soft cost for an anchor line 6 to 12 px past a foreign node or port; the hard 6 px limit is unchanged). State machines and activity diagrams keep their old values and placement.
+- `NotePlacer`: a note beside its anchor along the flow axis pays `offAxisPenaltyPx`; with a flow axis the side columns and the ring positions compete on cost (before, a clean column always won). The preference is soft: a short anchor line can outweigh it, the hard rules (clearance, lanes) never are.
+- New `hardAnchorLines` option (on for the structural diagrams only): a note rectangle keeps 6 px from the anchor lines of notes placed before it. Without it the vault example `sysml2-bdd` had an anchor line running through another note once the flow preference was active (caught by `NotePlacementInvariantTest`).
+- `KumlSvgRenderer.structuralStrictNotePolicy` is the one policy factory for the structural diagrams: BDD (flow from `layout { direction }`, also the BDD with `allocate` edges, which is the same renderer path), IBD (flow plus the owner frame as a lane: a note lies fully inside or fully outside the frame) and use case (subject frames as lanes, no flow axis).
+- Handbook: `layout.adoc`, `sysml2.adoc`.
+
+#### Verification
+
+- New `Sysml2StructuralNotesClearanceTest` (real ELK layout, fixed note measure): BDD with allocations and IBD for `Right` and `Down`, use case with a subject frame, a crowded fixture with 8 notes, axis preference. Shared checker `NoteGeometryAssertions` (16 px note clearance to edges, nodes, ports, labels and notes; 6 px for anchor lines; frame invariant; nothing truncated). With the policy switched off the BDD `Right` fixture fails with the two violations named above.
+- New `NotePlacerFlowAxisTest`: preference for both axes, softness, `FlowAxis.NONE` equals the old placement.
+- Rendered and looked at (PNG): BDD `Right` and `Down`, IBD `Right`.
+
+#### Not verified
+
+- The IBD `Down` and the use case with notes were not looked at as PNG, only the geometry tests cover them. Notes placed by the soft fallback outside the content bounds were not checked against the viewBox beyond the existing renderer behaviour.
+
+#### Not fixed
+
+- UML class and UML use case diagrams: their `UmlComment` nodes are ELK nodes, so the strict placer would need a note pipeline without ELK nodes (an adapter, a resolver and a changed layout input). Left untouched.
+- The bumps on crossing lines: no line-jump code exists in the renderers (`EdgePathBuilder`, `Sysml2EdgeRenderer`, `UmlEdgesSvg` draw straight segments with optional rounded corners; the SysML 2 use case example renders without any arc). The diagram that shows them was not available, so nothing was changed; a source script is needed.
+- The nearest-free-side fallback outside the diagram bounds is the existing one (side columns, then the strip below the content); no new rule was added.
+
 ### Nacharbeit 37: separate remembered directories for open and export dialogs (kUML Desktop)
 
 #### Why

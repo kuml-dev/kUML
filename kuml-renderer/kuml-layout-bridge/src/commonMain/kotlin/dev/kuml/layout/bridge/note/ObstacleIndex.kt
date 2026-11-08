@@ -145,6 +145,7 @@ public class ObstacleIndex {
         noteGap: Float,
         budget: Budget,
         hardLabels: Boolean = false,
+        hardAnchorLines: Boolean = false,
     ): Boolean {
         for (o in rects) {
             budget.spend()
@@ -161,11 +162,18 @@ public class ObstacleIndex {
             if (hit) return true
         }
         val zone = r.inflated(clearance)
+        // Nacharbeit 38: the anchor lines of notes placed earlier are hard obstacles too (LINE_CLEARANCE px).
+        val anchorZone = r.inflated(LINE_CLEARANCE)
         for (l in lines) {
-            if (l.kind != ObstacleKind.EDGE) continue
+            val z =
+                when {
+                    l.kind == ObstacleKind.EDGE -> zone
+                    hardAnchorLines && l.kind == ObstacleKind.ANCHOR_ROUTE -> anchorZone
+                    else -> continue
+                }
             for (i in 0 until l.points.size - 1) {
                 budget.spend()
-                if (segmentIntersectsRect(a = l.points[i], b = l.points[i + 1], r = zone)) return true
+                if (segmentIntersectsRect(a = l.points[i], b = l.points[i + 1], r = z)) return true
             }
         }
         return false
@@ -232,11 +240,19 @@ public class ObstacleIndex {
         exemptOwners: Set<String>,
         costs: NoteCostModel,
         budget: Budget,
+        nearPenalty: Float = 0f,
     ): Float {
         var cost = 0f
         for (o in rects) {
             budget.spend()
             if (o.ownerId != null && o.ownerId in exemptOwners) continue
+            // Nacharbeit 38: a soft band of 6..12 px around foreign boxes and ports.
+            if (nearPenalty > 0f &&
+                (o.kind == ObstacleKind.NODE || o.kind == ObstacleKind.PORT) &&
+                segmentIntersectsRect(a = a, b = b, r = o.core.inflated(ANCHOR_NEAR_PX))
+            ) {
+                cost += nearPenalty
+            }
             // Boxes count only with their interior: touching the border at the anchor end is fine.
             val hitRect =
                 when (o.kind) {
@@ -431,6 +447,7 @@ public class ObstacleIndex {
         const val NOTE_INFLATE: Float = 8f
         const val PORT_INFLATE: Float = 4f
         const val LINE_CLEARANCE: Float = 6f
+        const val ANCHOR_NEAR_PX: Float = 12f
         const val OVERLAP_TOLERANCE: Float = 8f
         const val ANCHOR_SPACING: Float = 3f
         const val PART_OVERLAP_PENALTY: Float = 400_000f
