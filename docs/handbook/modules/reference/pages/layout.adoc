@@ -275,8 +275,15 @@ reqDiagram("Requirements") {
   same `x` centre for `Right`, 0.5 px). An edge between two members is drawn straight between the facing sides
   and does not pull the members into different layers. If the members cannot share a layer (for example because of
   a `first` constraint) the group is left as laid out and a warning is logged.
-* In a state machine the initial pseudo-state is pinned to the layer before its single target and drawn 36 px in
-  front of it, centred on the target, with a two-point edge; if that spot is occupied the engine placement stays.
+* In a state machine (SysML 2 STM and UML) the initial pseudo-state always gets a layer of its own in front of all
+  other states, also in a diagram without a `layout { }` block. Edges that close a cycle are reversed by the engine,
+  never the edge out of the initial. Afterwards the initial is placed in three steps, the first clear spot wins:
+  (1) 36 px in front of everything (all nodes and edge bends), centred on its target; (2) 36 px directly in front of
+  the target; (3) the engine position stays. The edge is a straight two-point line. A spot is clear when the dot and
+  its edge keep 8 px to every other node and edge. A frame around the machine (UML) is refitted around the moved dot.
+  Edge labels are placed later and are not part of that check. Initial pseudo-states inside a composite state or
+  region are left to the engine. UML state machines keep their nodes in a compound frame, where layer hints are
+  ignored, so there the cycle-breaking priority and the placement above do the work.
 * Layer hints are honoured for nodes that are not inside a compound group. ELK ignores them inside
   compounds and reports `hint.ignored.layerInCompound`.
 * Sequence diagrams ignore all hints (lifeline order is the declaration order); `kuml validate` warns (`LAYOUT412`).

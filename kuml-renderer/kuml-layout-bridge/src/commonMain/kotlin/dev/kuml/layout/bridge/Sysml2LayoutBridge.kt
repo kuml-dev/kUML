@@ -1638,6 +1638,7 @@ public object Sysml2LayoutBridge {
                 LayoutNode(
                     id = NodeId(def.id),
                     intrinsicSize = sizeProvider.sizeOf(elementId = def.id, elementKind = kindHint),
+                    hints = if (def.isInitial) NodeHints(initialState = true) else NodeHints.NONE,
                 )
         }
         val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
@@ -1753,6 +1754,7 @@ public object Sysml2LayoutBridge {
                 LayoutNode(
                     id = NodeId(s.id),
                     intrinsicSize = sizeProvider.sizeOf(elementId = s.id, elementKind = kindHint),
+                    hints = if (s.effectiveKind == StateKind.Initial) NodeHints(initialState = true) else NodeHints.NONE,
                     groupId = containerOf(s),
                 )
         }

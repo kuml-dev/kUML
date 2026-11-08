@@ -6,6 +6,33 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 36: initial pseudo-state at the start of the flow, SysML 2 relations in LaTeX
+
+#### Why
+
+In a state machine the initial pseudo-state could end up beside or behind its first state, with its edge running across other edges (a two-state machine with a back edge: the dot sat on the `openCmd` line). The SysML 2 LaTeX output drew the initial as a box with the words "initial pseudo-state", and the BDD relations lost the multiplicity / role name at the target end and drew open V heads as filled heads.
+
+#### Change
+
+- Cause: the layered engine reverses the edge that closes a cycle; for `initial -> A, A -> B, B -> A` it reversed `A -> B`, so `B` came first. Layer hints cannot fix this (they need a layout block, and are ignored inside the compound frame of a UML state machine).
+- New `EdgeHints.keepDirection` and `withForwardEdgePriority` (layout bridge): a depth-first walk starting at the initials marks every edge that does not close a cycle; ELK gets `priority.direction = 1` for them, so the closing edge is reversed. Applies to SysML 2 STM and UML state machines. New `NodeHints.initialState` (set by both bridges).
+- `StmInitialPinning`: three-step placement, first clear spot wins: in front of everything (all nodes and edge bends), directly in front of the target, engine position. Straight edge; clear means 8 px to every other node and edge (strict) for step 1. Now also for UML (`UML_STATE`). The UML state-machine frame is refitted at the flow start; the canvas keeps the engine margins instead of leaving the old initial slot as an empty band. At most 64 initials are placed. Initials inside a composite state or region are left to the engine.
+- Layer indices of initials also apply when a layout block is present (they were recomputed without the initials in the runner pass before). With no layout block nothing is hinted: a try with partition hints changed the node placement of the whole diagram and moved labels in vault example 42.
+- STM `edgeToEdgeBetweenLayers` 16 -> 40: with the correct layer order vault example 42 (Timer) has two horizontal edge segments 20 px apart, where the label planner found no free spot and drew a label across its own line. Existing STM renders get a little taller.
+- LaTeX (SysML 2): the initial is a filled circle (`% initial pseudo-state` comment, no node text), the node name stays as an empty anchor node for edges.
+- LaTeX (SysML 2 BDD and other `Sysml2EdgeLatexRenderer` edges): the end label (multiplicity / role name) is drawn next to the target end like in the SVG; `OpenAngle` heads (reference part, UC include / extend, requirement relations, allocation, subject) are open V heads (`Straight Barb`) instead of filled `Stealth`, composed from the existing styles so the shared preamble is unchanged.
+- Handbook: `layout.adoc`, `sysml2.adoc`.
+
+#### Verification
+
+- Reproduced first with the local CLI (SysML 2 and UML, two states, back edge, note on the initial), SVG and PNG; after the change the dot sits above the first state with a straight edge, the note anchor follows. Rasterised LaTeX (pdflatex, pdftoppm) of the same STM and of a BDD with composition, reference part and association compared with the SVG.
+- New tests: `StmInitialPositionTest` (initial before every state in all four directions, SysML 2 and UML, UML frame contains the dot, no hints without a layout block, first/last keeps the layer pin, a blocked spot), `Sysml2StmLatexTest` (filled dot, no node text, PDF build), `Sysml2AssociationLatexTest`.
+- Gates run locally with `--no-build-cache`: see the commit; strict LaTeX job command with `-Pkuml.latex.require=true -Pkuml.latex.only=true` and `scripts/ci/check_latex_tests.py` (guard passed, NoteTikzPdfBuildTest 7/0/0, BpmnCollaborationPdfBuildTest 2/0/0, LatexKnowledgePdfBuildTest 1/0/0, LatexFolderPdfBuildTest 1/0/0, WorkspaceLatexKnowledgePdfBuildTest 1/0/0, LatexStandaloneAllFamiliesTest 15/0/0).
+
+#### Not verified
+
+Initials inside composite states and regions (left to the engine), the UML activity initial node, the final state and the other pseudo-states in LaTeX (still boxes), UML state machines in LaTeX (the output has no state nodes at all, pre-existing), edge labels in the placement check (they are placed later), diamond proportions in LaTeX versus SVG (the LaTeX diamond is smaller, meaning is the same), navigability variants of associations (the SysML 2 BDD model has none), the GitHub run of the strict LaTeX job, other platforms.
+
 ### Nacharbeit 35: BPMN collaboration LaTeX output compiles
 
 #### Why

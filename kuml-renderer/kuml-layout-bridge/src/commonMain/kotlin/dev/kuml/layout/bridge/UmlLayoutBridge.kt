@@ -13,6 +13,7 @@ import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.PortId
 import dev.kuml.layout.Size
+import dev.kuml.uml.PseudostateKind
 import dev.kuml.uml.UmlActivityNode
 import dev.kuml.uml.UmlActivityNodeKind
 import dev.kuml.uml.UmlAssociation
@@ -501,7 +502,14 @@ public object UmlLayoutBridge {
                                     LayoutNode(
                                         id = NodeId(vertex.id),
                                         intrinsicSize = size,
-                                        hints = HintsReader.read(vertex.metadata),
+                                        hints =
+                                            HintsReader.read(vertex.metadata).let {
+                                                if (vertex is UmlPseudostate && vertex.kind == PseudostateKind.INITIAL) {
+                                                    it.copy(initialState = true)
+                                                } else {
+                                                    it
+                                                }
+                                            },
                                         groupId = parentGroupId,
                                     ),
                                 )

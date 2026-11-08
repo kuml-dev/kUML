@@ -277,7 +277,20 @@ public object LayoutSpecRunner {
                         alignedGroups.any { g -> e.source.nodeId.value in g && e.target.nodeId.value in g }
                 }.map { it.id }
                 .toSet()
-        val engineGraph = if (internalEdgeIds.isEmpty()) graph else graph.copy(edges = graph.edges.filterNot { it.id in internalEdgeIds })
+        val withoutInternal =
+            if (internalEdgeIds.isEmpty()) {
+                graph
+            } else {
+                graph.copy(
+                    edges = graph.edges.filterNot { it.id in internalEdgeIds },
+                )
+            }
+        val engineGraph =
+            if (kind == SpecDiagramKind.SYSML2_STM || kind == SpecDiagramKind.UML_STATE) {
+                withoutInternal.withForwardEdgePriority()
+            } else {
+                withoutInternal
+            }
 
         fun aligned(result: LayoutResult): LayoutResult {
             val centred =
@@ -287,12 +300,8 @@ public object LayoutSpecRunner {
                     graph = graph,
                     internalEdges = internalEdgeIds,
                 )
-            return if (kind == SpecDiagramKind.SYSML2_STM) {
-                centred.pinInitialsToTargets(
-                    graph = graph,
-                    direction = effectiveHints.direction,
-                    pseudoSize = Sysml2LayoutBridge.STM_PSEUDO_SIZE,
-                )
+            return if (kind == SpecDiagramKind.SYSML2_STM || kind == SpecDiagramKind.UML_STATE) {
+                centred.pinInitialsToTargets(graph = graph, direction = effectiveHints.direction)
             } else {
                 centred
             }

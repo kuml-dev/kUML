@@ -57,7 +57,7 @@ private fun baseHints(diagram: Sysml2Diagram): LayoutHints =
         // V2.0.44: viele Kantenlabels (`event [guard] / action`) um gemeinsame Zustände.
         is StmDiagram ->
             LayoutHints.DEFAULT.copy(
-                spacing = Spacing(nodeToNode = 80f, edgeToEdge = 28f, groupPadding = 24f, edgeToEdgeBetweenLayers = 16f),
+                spacing = Spacing(nodeToNode = 80f, edgeToEdge = 28f, groupPadding = 24f, edgeToEdgeBetweenLayers = 40f),
             )
         // V2.0.45: Pin-Labels und Kantenlabels brauchen Platz.
         is ActDiagram ->

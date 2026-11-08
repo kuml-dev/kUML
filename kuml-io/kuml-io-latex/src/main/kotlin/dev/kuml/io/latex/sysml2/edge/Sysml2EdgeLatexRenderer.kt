@@ -51,6 +51,18 @@ internal object Sysml2EdgeLatexRenderer {
         out: StringBuilder,
     ) {
         val style = pickStyle(metadata)
+        renderLine(route = route, metadata = metadata, style = style, options = options, out = out)
+        // Role name / multiplicity at the target end (the SVG draws it there as well).
+        metadata.endLabel?.takeIf { it.isNotEmpty() }?.let { renderEndLabel(route = route, text = it, options = options, out = out) }
+    }
+
+    private fun renderLine(
+        route: EdgeRoute,
+        metadata: Sysml2EdgeMetadata,
+        style: String,
+        options: LatexRenderOptions,
+        out: StringBuilder,
+    ) {
         when (route) {
             is EdgeRoute.Direct -> renderDirect(route = route, metadata = metadata, style = style, options = options, out = out)
             is EdgeRoute.OrthogonalRounded ->
@@ -77,6 +89,35 @@ internal object Sysml2EdgeLatexRenderer {
                 )
             is EdgeRoute.Bezier -> renderBezier(route = route, metadata = metadata, style = style, options = options, out = out)
         }
+    }
+
+    /**
+     * The end label sits [END_LABEL_OFFSET_PX] behind the target end along the last segment, shifted like in the SVG
+     * ([dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer]): 6 px to the right and just beside the line.
+     */
+    private fun renderEndLabel(
+        route: EdgeRoute,
+        text: String,
+        options: LatexRenderOptions,
+        out: StringBuilder,
+    ) {
+        val tip = route.target
+        val prev =
+            when (route) {
+                is EdgeRoute.Direct -> route.source
+                is EdgeRoute.OrthogonalRounded -> route.waypoints.lastOrNull() ?: route.source
+                is EdgeRoute.TreeRounded -> route.waypoints.lastOrNull() ?: route.source
+                is EdgeRoute.Bezier -> route.controlPoints.lastOrNull() ?: route.source
+            }
+        val dx = prev.x - tip.x
+        val dy = prev.y - tip.y
+        val len = kotlin.math.sqrt(dx * dx + dy * dy).takeIf { it > 0.001f } ?: 1f
+        val x = tip.x + dx / len * END_LABEL_OFFSET_PX + 6f
+        val y = tip.y + dy / len * END_LABEL_OFFSET_PX + (if (dy > 0f) 10f else -2f)
+        out.appendLine(
+            "${options.indent}\\node[anchor=base west, inner sep=0pt, font=\\footnotesize] at " +
+                "(${fmtCoord(x)}pt, ${fmtCoord(-y)}pt) {${escapeLatex(text)}};",
+        )
     }
 
     private fun renderDirect(
@@ -160,8 +201,16 @@ internal object Sysml2EdgeLatexRenderer {
         if (metadata.arrowHead == Sysml2ArrowHead.None) {
             return if (metadata.dashArray != null) "kuml-sysml2-edge-dashed-noarrow" else "kuml-sysml2-edge-binding"
         }
+        // The SVG draws OpenAngle as an open V, so LaTeX must not turn it into a filled head (a different meaning).
+        if (metadata.arrowHead == Sysml2ArrowHead.OpenAngle) {
+            // Composed from the existing no-arrow styles so the shared preamble stays unchanged.
+            return (if (metadata.dashArray != null) "kuml-sysml2-edge-dashed-noarrow" else "kuml-sysml2-edge-binding") +
+                ", -{Straight Barb[length=2.4mm, width=2.4mm]}"
+        }
         return if (metadata.dashArray != null) "kuml-sysml2-edge-dashed" else "kuml-sysml2-edge-solid"
     }
+
+    private const val END_LABEL_OFFSET_PX: Float = 18f
 
     /**
      * Compose `node[midway, above=1pt, $EDGE_LABEL_BACKDROP]{…}` clauses for stereotype + label.

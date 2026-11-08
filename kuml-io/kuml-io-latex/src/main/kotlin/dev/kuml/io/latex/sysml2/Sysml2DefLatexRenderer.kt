@@ -142,6 +142,11 @@ internal object Sysml2DefLatexRenderer {
                 // Wave C2: the region frame is a plain rectangle with the region name in LaTeX.
                 is InterruptibleRegionDefinition -> "interruptible region"
             }
+        // The initial pseudo-state is a filled dot like in the SVG, without box, name or stereotype text.
+        if (definition is StateDefinition && definition.effectiveKind == StateKind.Initial) {
+            renderInitialDot(nodeId = nodeId, layout = layout, options = options, out = out)
+            return
+        }
         // Wave C1: an assumption is drawn with a dashed border.
         val dashed = definition is RequirementDefinition && definition.isAssumption
         renderBox(
@@ -152,6 +157,27 @@ internal object Sysml2DefLatexRenderer {
             options = options,
             out = out,
             dashed = dashed,
+        )
+    }
+
+    private fun renderInitialDot(
+        nodeId: NodeId,
+        layout: NodeLayout,
+        options: LatexRenderOptions,
+        out: StringBuilder,
+    ) {
+        val b = layout.bounds
+        val cx = b.origin.x + b.size.width / 2f
+        val cy = b.origin.y + b.size.height / 2f
+        val radius = minOf(b.size.width, b.size.height) / 2f
+        out.appendLine("${options.indent}% initial pseudo-state")
+        out.appendLine(
+            "${options.indent}\\fill (${fmtCoord(cx)}pt, ${fmtCoord(-cy)}pt) circle[radius=${fmtCoord(radius)}pt];",
+        )
+        // A coordinate with the node's name keeps the edge anchors working (edges reference node names).
+        out.appendLine(
+            "${options.indent}\\node[inner sep=0pt, minimum width=${fmtCoord(b.size.width)}pt, " +
+                "minimum height=${fmtCoord(b.size.height)}pt] (${tikzId(nodeId)}) at (${fmtCoord(cx)}pt, ${fmtCoord(-cy)}pt) {};",
         )
     }
 

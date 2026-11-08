@@ -35,31 +35,41 @@ internal fun LayoutGraph.withSpec(
     spec: LayoutSpec?,
     initialIds: Set<String> = emptySet(),
 ): LayoutGraph {
-    if (spec == null || spec.isEmpty) return this
     val known = nodes.map { it.id.value }.toSet()
+    // Initial pseudo-states come from the caller and from the node hints set by the bridges.
+    val initials =
+        (initialIds + nodes.filter { it.hints.initialState }.map { it.id.value })
+            .filter { it in known }
+            .toSet()
+    // Without a layout block nothing is hinted: partition hints switch the engine to another node placement for the
+    // whole diagram, which moved labels in existing state machines. The initial is then ordered by the cycle-breaking
+    // priority (see withForwardEdgePriority) and placed by pinInitialsToTargets.
+    if (spec == null || spec.isEmpty) return this
+    val sp = spec ?: LayoutSpec()
     val first =
-        spec.first
+        sp.first
             .filter { it in known }
             .take(LayoutLimits.IDS_PER_GROUP)
             .toSet()
     val last =
-        spec.last
+        sp.last
             .filter { it in known && it !in first }
             .take(LayoutLimits.IDS_PER_GROUP)
             .toSet()
     val groups =
-        spec.sameLayer
+        sp.sameLayer
             .take(LayoutLimits.GROUPS)
             .map { g -> g.take(LayoutLimits.IDS_PER_GROUP).filter { it in known } }
             .filter { it.size >= 2 }
-    val wrap = spec.wrapColumns?.takeIf { it in 1..LayoutLimits.GROUPS }
+    val wrap = sp.wrapColumns?.takeIf { it in 1..LayoutLimits.GROUPS }
 
-    val initials = initialIds.filter { it in known }.toSet()
     var layers: Map<String, Int>? = null
     if (wrap != null || groups.isNotEmpty() || (initials.isNotEmpty() && (first.isNotEmpty() || last.isNotEmpty()))) {
+        // Initials are the DFS roots first, so a cycle through the first real state never breaks at the initial edge.
+        val ordered = nodes.map { it.id.value }.let { ids -> ids.filter { it in initials } + ids.filter { it !in initials } }
         val base =
             wrapLayers(
-                nodes = nodes.map { it.id.value },
+                nodes = ordered,
                 edges = edges.map { it.source.nodeId.value to it.target.nodeId.value },
                 columns = wrap,
             )

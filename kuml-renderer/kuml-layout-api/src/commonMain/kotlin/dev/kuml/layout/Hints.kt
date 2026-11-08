@@ -104,6 +104,11 @@ public data class NodeHints(
      * below the graph when it has no edge at all. Set by the UML layout bridge only.
      */
     val bandable: Boolean = false,
+    /**
+     * State machines (SysML 2 STM, UML): marks an initial pseudo-state. The layout bridge uses it to give the initial a
+     * layer of its own in front of every other node and to place it at the start of the flow. Set by the bridges only.
+     */
+    val initialState: Boolean = false,
 ) {
     public companion object {
         /** NodeHints ohne jegliche Einschränkungen — vollständig automatisches Layout. */
@@ -129,6 +134,12 @@ public data class EdgeHints(
      * horizontal flows (Left / Right).
      */
     val targetAnchorOffset: Float? = null,
+    /**
+     * State machines: the edge belongs to the forward flow of the machine (it does not close a cycle). A layered engine
+     * should reverse another edge when it has to break a cycle, so the initial pseudo-state and the first real state
+     * stay at the start of the flow. Set by the layout runner only.
+     */
+    val keepDirection: Boolean = false,
 ) {
     public companion object {
         /** EdgeHints ohne Einschränkungen — Engine wählt den Routing-Stil. */

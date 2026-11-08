@@ -656,8 +656,9 @@ Blank texts give no line; the box grows with the longest line, so text never lea
 not evaluate it. A blank invariant is reported as rule 131. A composite state shows the same lines under its
 title; the frame is at least as wide as the longest line.
 
-Initial pseudo-states are drawn as a solid dot in the border colour of the theme. The
-dot is placed 36 px in front of its target, centred on it, with a straight edge (see xref:layout.adoc[layout hints]).
+Initial pseudo-states are drawn as a solid dot in the border colour of the theme, in SVG and in LaTeX (a filled
+circle without box or text). The dot is placed at the start of the flow, centred on its target, with a straight edge
+(see xref:layout.adoc[layout hints]).
 
 Notes in a state machine wrap at 220 px, and the diagram including its notes is kept within 125 % of its width
 without notes where a position allows it; otherwise notes are stacked below the diagram.
@@ -734,7 +735,7 @@ rejected). Restoring a snapshot taken at an earlier scrub position in the deskto
 
 ==== Limits of this version
 
-* The LaTeX backend draws every state as a flat box and notes that in a comment.
+* The LaTeX backend draws every state as a flat box and notes that in a comment; only the initial pseudo-state is a filled dot there (the final state and the other pseudo-states are still boxes).
 * Regions are stacked or placed side by side by the layout engine; dashed separators follow the actual geometry.
 * UML state machines (`stateDiagram`) have no DSL for orthogonal regions yet; only SysML 2 models reach the region runtime.
 

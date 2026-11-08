@@ -251,6 +251,8 @@ internal class ElkGraphBuilder(
                     ElkGraphUtil.createSimpleEdge(sourceNode, targetNode)
                 }
             elkEdge.identifier = edge.id.value
+            // Edges of the forward flow are less likely to be reversed by cycle breaking (greedy cycle breaker).
+            if (edge.hints.keepDirection) elkEdge.setProperty(LayeredOptions.PRIORITY_DIRECTION, 1)
             edge.centerLabel?.let { size ->
                 val label = ElkGraphUtil.createLabel(elkEdge)
                 label.width = size.width.toDouble()

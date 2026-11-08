@@ -1,7 +1,9 @@
 package dev.kuml.io.latex.sysml2
 
 import dev.kuml.io.latex.KumlLatexRenderer
+import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.latex.SampleOutput
+import dev.kuml.io.latex.note.Pdflatex
 import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
@@ -14,6 +16,9 @@ import dev.kuml.sysml2.dsl.sysml2Model
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import java.io.File
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
 
 /**
  * Strukturelle + Determinismus-Tests für den SysML-2-STM-TikZ-Renderer
@@ -68,9 +73,73 @@ class Sysml2StmLatexTest :
             // reguläre States; Pseudo-State-Marker erscheinen als
             // `«initial pseudo-state»` / `«final pseudo-state»`.
             tex shouldContain "state"
-            tex shouldContain "initial pseudo-state"
+            // The initial pseudo-state is a filled dot: the words appear only as a TeX comment, never as node text.
+            tex shouldContain "% initial pseudo-state"
+            tex shouldContain "\\fill ("
+            tex shouldContain "circle[radius=12.000pt]"
+            tex.lines().filter { "initial pseudo-state" in it }.all { it.trimStart().startsWith("%") } shouldBe true
 
             SampleOutput.write(filename = "sysml2-stm/traffic-light-stm.tex", content = tex)
+        }
+
+        "STM with an initial dot compiles to a PDF (skipped when TeX is not installed)".config(enabled = Pdflatex.enabled) {
+            val model =
+                sysml2Model(name = "Door") {
+                    val init = stateDef(name = "Init", isInitial = true)
+                    val closed = stateDef(name = "Closed")
+                    transition(name = "i", source = init, target = closed)
+                    stmDiagram(name = "STM") {
+                        include(init)
+                        include(closed)
+                    }
+                }
+            val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
+            val layout =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = 1L,
+                    canvas = Size(width = 300f, height = 200f),
+                    nodes =
+                        mapOf(
+                            NodeId("Init") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 100f, y = 20f), size = Size(width = 24f, height = 24f))),
+                            NodeId("Closed") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 80f), size = Size(width = 140f, height = 50f))),
+                        ),
+                    edges = emptyMap(),
+                    groups = emptyMap(),
+                )
+            val tex =
+                KumlLatexRenderer.toLatex(
+                    model = model,
+                    diagram = stm,
+                    layoutResult = layout,
+                    options = LatexRenderOptions(standalone = true),
+                )
+            val dir = Files.createTempDirectory("kuml-stm-pdf-").toFile()
+            try {
+                File(dir, "stm.tex").writeText(tex)
+                val process =
+                    ProcessBuilder(
+                        Pdflatex.requireExecutable().path,
+                        "-no-shell-escape",
+                        "-interaction=nonstopmode",
+                        "-halt-on-error",
+                        "stm.tex",
+                    ).directory(dir)
+                        .redirectErrorStream(true)
+                        .start()
+                process.outputStream.close()
+                val output = process.inputStream.bufferedReader().readText()
+                if (!process.waitFor(60, TimeUnit.SECONDS)) {
+                    process.destroyForcibly()
+                    error("pdflatex timed out")
+                }
+                check(process.exitValue() == 0) { "pdflatex failed:\n${output.takeLast(2000)}" }
+                File(dir, "stm.pdf").exists() shouldBe true
+            } finally {
+                dir.deleteRecursively()
+            }
         }
 
         "deterministic STM output" {
