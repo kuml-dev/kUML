@@ -107,7 +107,10 @@ internal object EdgePathBuilder {
             val curr = all[i]
             val next = if (i + 1 < all.size) all[i + 1] else null
 
-            if (radius > 0f && next != null) {
+            // A waypoint that lies on the straight line (stub point, duplicate) is no corner: a clamped arc there would
+            // draw a half circle bump on the line (Nacharbeit 42).
+            val collinear = next != null && abs(crossProduct(p1 = prev, p2 = curr, p3 = next)) < COLLINEAR_EPS
+            if (radius > 0f && next != null && !collinear) {
                 // Compute actual radius clamped to segment length
                 val segLen = segmentLength(a = prev, b = curr)
                 val nextSegLen = segmentLength(a = curr, b = next)
@@ -160,6 +163,8 @@ internal object EdgePathBuilder {
     }
 
     private fun fmt(v: Float): String = fmt2(v)
+
+    private const val COLLINEAR_EPS = 0.01f
 
     private fun segmentLength(
         a: Point,

@@ -47,7 +47,7 @@ class Sysml2C4RenderTest :
                 is EdgeRoute.Bezier -> listOf(r.source) + r.controlPoints + listOf(r.target)
             }
 
-        for (n in listOf("par-nested", "seq-nested", "req-wrap")) {
+        for (n in listOf("par-nested", "seq-nested", "req-wrap", "usecase-personalschleuse")) {
             test("render $n without error") {
                 val r = VaultExampleRenderer.render(script = script(n))
                 r.error shouldBe null

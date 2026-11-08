@@ -19,9 +19,15 @@ import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.ReqGroupGrid.corners
 import dev.kuml.layout.bridge.ReqGroupGrid.moved
 import dev.kuml.layout.bridge.ReqGroupGrid.union
+import dev.kuml.layout.bridge.note.bottom
+import dev.kuml.layout.bridge.note.cy
+import dev.kuml.layout.bridge.note.left
+import dev.kuml.layout.bridge.note.right
+import dev.kuml.layout.bridge.note.top
 import dev.kuml.layout.polylinePoints
 import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Grid layout of use-case diagrams with a subject frame (wave 2E-b).
@@ -39,6 +45,14 @@ import kotlin.math.max
 internal object UcFrameGrid {
     private const val ACTOR_GAP_PX = 48f
     private const val ACTOR_FRAME_GAP_PX = 120f
+    private const val CORRIDOR_MARGIN_PX = 48f
+
+    /** Distance of the spur of a C shaped line from the column it runs along. */
+    private const val SPUR_GAP_PX = 18f
+    private const val C_RADIUS_PX = 8f
+
+    /** Minimum distance of the spur of a C shaped line from the border of its subject frame. */
+    private const val FRAME_CLEARANCE_PX = 8f
 
     /** Gap between two rows of use cases: room for the lines (with their labels) that run between neighbours of one row. */
     private const val ROW_GUTTER_PX = 72f
@@ -73,7 +87,16 @@ internal object UcFrameGrid {
         val right = actors.drop(leftN)
         val leftW = left.maxOfOrNull { it.intrinsicSize.width } ?: 0f
         val rightW = right.maxOfOrNull { it.intrinsicSize.width } ?: 0f
-        val extraW = (if (left.isEmpty()) 0f else leftW + ACTOR_FRAME_GAP_PX) + (if (right.isEmpty()) 0f else rightW + ACTOR_FRAME_GAP_PX)
+
+        // Every line of an actor needs its own corridor between the actor column and the frame (12 px pitch plus stubs).
+        fun corridorGap(side: List<LayoutNode>): Float {
+            val ids = side.map { it.id }.toSet()
+            val lines = graph.edges.count { it.source.nodeId in ids || it.target.nodeId in ids }
+            return max(ACTOR_FRAME_GAP_PX, lines * UcEdgeLanes.PREF_GAP_PX + CORRIDOR_MARGIN_PX)
+        }
+        val leftGap = corridorGap(left)
+        val rightGap = corridorGap(right)
+        val extraW = (if (left.isEmpty()) 0f else leftW + leftGap) + (if (right.isEmpty()) 0f else rightW + rightGap)
 
         // frames, one cell each; loose use cases (no frame) form one more cell
         class Cell(
@@ -131,7 +154,7 @@ internal object UcFrameGrid {
                 sameLayerRows = emptyList(),
             )
         val bodyH = row.size.height
-        val bodyX0 = if (left.isEmpty()) 0f else leftW + ACTOR_FRAME_GAP_PX
+        val bodyX0 = if (left.isEmpty()) 0f else leftW + leftGap
 
         val nodes = LinkedHashMap<NodeId, Rect>()
         val groups = LinkedHashMap<GroupId, Rect>()
@@ -176,22 +199,58 @@ internal object UcFrameGrid {
         val order = actors.withIndex().associate { it.value.id to it.index }
         val byHeight = compareBy<LayoutNode>({ barycenter(it) }, { order.getValue(it.id) })
         stack(left.sortedWith(byHeight)) { leftW - it.intrinsicSize.width } // right-aligned to the actor column
-        stack(right.sortedWith(byHeight)) { bodyRight + ACTOR_FRAME_GAP_PX }
+        stack(right.sortedWith(byHeight)) { bodyRight + rightGap }
 
         val content = union(nodes.values + groups.values)
         val borders = ReqGroupGrid.borderStrips(content)
-        val plans = ReqGroupGrid.planAttachments(graph = graph, nodes = nodes)
+        val useCaseIds = nodes.keys.filter { id -> graph.nodes.none { it.id == id && it.hints.rail } }.toSet()
+
+        // A line between two use cases of one column with other use cases in between runs as a C along the column
+        // (two bends) instead of detouring around the use cases in between.
+        val cLines = LinkedHashMap<EdgeId, Boolean>() // edge id to "leaves on the east side"
+        val cSpur = HashMap<EdgeId, Float>()
+        for (e in graph.edges) {
+            val s = nodes[e.source.nodeId] ?: continue
+            val t = nodes[e.target.nodeId] ?: continue
+            if (e.source.nodeId !in useCaseIds || e.target.nodeId !in useCaseIds) continue
+            val side =
+                columnDetour(
+                    s = s,
+                    t = t,
+                    self = setOf(e.source.nodeId, e.target.nodeId),
+                    nodes = nodes,
+                    useCaseIds = useCaseIds,
+                    frames = groups.values.toList(),
+                )
+                    ?: continue
+            cLines[e.id] = side.first
+            cSpur[e.id] = side.second
+        }
+
+        val plans =
+            ReqGroupGrid.planAttachments(graph = graph, nodes = nodes, ellipse = { it in useCaseIds }, sameSide = cLines)
         val routes = LinkedHashMap<EdgeId, EdgeRoute>()
         for (e in graph.edges) {
             val s = nodes[e.source.nodeId] ?: continue
             val t = nodes[e.target.nodeId] ?: continue
+            val plan = plans.getValue(e.id)
+            val spur = cSpur[e.id]
+            if (spur != null) {
+                routes[e.id] =
+                    EdgeRoute.OrthogonalRounded(
+                        source = plan.sourceAt,
+                        target = plan.targetAt,
+                        waypoints = listOf(Point(x = spur, y = plan.sourceAt.y), Point(x = spur, y = plan.targetAt.y)),
+                        cornerRadiusPx = C_RADIUS_PX,
+                    )
+                continue
+            }
             val others = nodes.entries.filter { it.key != e.source.nodeId && it.key != e.target.nodeId }.map { it.value }
-            routes[e.id] = ReqGroupGrid.routeBetween(source = s, target = t, plan = plans.getValue(e.id), obstacles = others + borders)
+            routes[e.id] = ReqGroupGrid.routeBetween(source = s, target = t, plan = plan, obstacles = others + borders)
         }
 
         // Lines between two use cases of one row run as a U through the gap below the row (the label then sits in the
         // free gap instead of on the neighbouring ellipses). Every line of a row gets its own lane.
-        val useCaseIds = nodes.keys.filter { id -> graph.nodes.none { it.id == id && it.hints.rail } }.toSet()
         val lanes = HashMap<Float, Int>()
         for (e in graph.edges) {
             val s = nodes[e.source.nodeId] ?: continue
@@ -215,6 +274,18 @@ internal object UcFrameGrid {
                 )
         }
 
+        // Post passes (Nacharbeit 42): micro jogs out, shared corridors apart, line ends on the ellipse outline.
+        val ends = graph.edges.associate { it.id to (it.source.nodeId to it.target.nodeId) }
+        val planned = UcEdgeLanes.plan(routes = routes, ends = ends, nodes = nodes, frames = groups.values.toList())
+        val finalRoutes =
+            UcEdgeLanes.clipToEllipses(
+                routes = planned.routes,
+                useCases = nodes.filterKeys { it in useCaseIds },
+                ends = ends,
+            )
+        routes.clear()
+        routes.putAll(finalRoutes)
+
         val all = ArrayList<Point>()
         nodes.values.forEach { all += corners(it) }
         groups.values.forEach { all += corners(it) }
@@ -231,5 +302,56 @@ internal object UcFrameGrid {
             edges = routes.entries.associateTo(LinkedHashMap()) { (id, r) -> id to with(ReqGroupGrid) { r.moved(dx = -minX, dy = -minY) } },
             groups = groups.entries.associateTo(LinkedHashMap()) { (id, r) -> id to GroupLayout(bounds = r.moved(dx = -minX, dy = -minY)) },
         )
+    }
+
+    /**
+     * `(east side?, spur x)` of the C shaped line between [s] and [t] if both stand in one column with another use case
+     * of that column between them and one of the two column gutters is free; `null` for every other pair.
+     */
+    internal fun columnDetour(
+        s: Rect,
+        t: Rect,
+        self: Set<NodeId>,
+        nodes: Map<NodeId, Rect>,
+        useCaseIds: Set<NodeId>,
+        frames: List<Rect> = emptyList(),
+    ): Pair<Boolean, Float>? {
+        // the columns of the grid are left aligned (the ellipses differ in width), so one column = one left edge
+        if (kotlin.math.abs(s.left - t.left) > 1f) return null
+        val top = min(s.cy, t.cy)
+        val bottom = max(s.cy, t.cy)
+        val between =
+            nodes.filter { (id, r) ->
+                id in useCaseIds &&
+                    id !in self &&
+                    kotlin.math.abs(r.left - s.left) <= 1f &&
+                    r.cy > top &&
+                    r.cy < bottom
+            }
+        if (between.isEmpty()) return null
+        val column = between.values + s + t
+        val right = column.maxOf { it.right }
+        val left = column.minOf { it.left }
+        val others = nodes.filter { (id, _) -> id !in self && id !in between.keys }.values
+
+        fun free(
+            x0: Float,
+            x1: Float,
+        ): Boolean = others.none { it.right > x0 - 4f && it.left < x1 + 4f && it.bottom > top && it.top < bottom }
+        val east = right + SPUR_GAP_PX
+        val west = left - SPUR_GAP_PX
+
+        // the spur must stay clear of the border of the frame it runs in (the lane planner may shift it a little)
+        val frame = frames.firstOrNull { it.left <= s.left && it.right >= s.right && it.top <= s.top && it.bottom >= s.bottom }
+
+        fun insideFrame(x: Float): Boolean =
+            frame == null || (x >= frame.left + FRAME_CLEARANCE_PX && x <= frame.right - FRAME_CLEARANCE_PX)
+        val eastOk = insideFrame(east) && free(x0 = right, x1 = east)
+        val westOk = insideFrame(west) && free(x0 = west, x1 = left)
+        return when {
+            eastOk -> true to east
+            westOk -> false to west
+            else -> null
+        }
     }
 }

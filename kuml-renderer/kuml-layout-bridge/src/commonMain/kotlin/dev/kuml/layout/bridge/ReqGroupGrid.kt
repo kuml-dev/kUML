@@ -46,6 +46,9 @@ internal object ReqGroupGrid {
     private const val CORNER_RADIUS_PX = 8f
     private const val ATTACH_MARGIN_PX = 12f
 
+    /** Share of a side an ellipse spreads its attachment points over (centred). */
+    private const val ELLIPSE_BAND = 0.6f
+
     /** True when the diagram has groups and the spec asks for a grid. */
     fun applies(
         graph: LayoutGraph,
@@ -346,6 +349,8 @@ internal object ReqGroupGrid {
         val down: Boolean,
         val sourceAt: Point,
         val targetAt: Point,
+        /** True for a line that leaves and arrives on the same side (a C shaped line along a column), `down` = east side. */
+        val sameSide: Boolean = false,
     )
 
     private fun sideOf(
@@ -366,6 +371,8 @@ internal object ReqGroupGrid {
     internal fun planAttachments(
         graph: LayoutGraph,
         nodes: Map<NodeId, Rect>,
+        ellipse: (NodeId) -> Boolean = { false },
+        sameSide: Map<EdgeId, Boolean> = emptyMap(),
     ): Map<EdgeId, Plan> {
         class End(
             val edge: EdgeId,
@@ -379,13 +386,14 @@ internal object ReqGroupGrid {
         for ((order, e) in graph.edges.withIndex()) {
             val s = nodes[e.source.nodeId] ?: continue
             val t = nodes[e.target.nodeId] ?: continue
-            val (vertical, forward) = sideOf(source = s, target = t)
+            val same = sameSide[e.id]
+            val (vertical, forward) = if (same != null) false to same else sideOf(source = s, target = t)
             sides[e.id] = vertical to forward
-            // source leaves on the forward side, target arrives on the opposite side
+            // source leaves on the forward side, target arrives on the opposite side (the same side for a C shaped line)
             val sourceSideForward = forward
             ends.getOrPut(Triple(e.source.nodeId, vertical, sourceSideForward)) { ArrayList() } +=
                 End(e.id, true, if (vertical) t.centerX() else t.centerY(), order)
-            ends.getOrPut(Triple(e.target.nodeId, vertical, !sourceSideForward)) { ArrayList() } +=
+            ends.getOrPut(Triple(e.target.nodeId, vertical, if (same != null) forward else !sourceSideForward)) { ArrayList() } +=
                 End(e.id, false, if (vertical) s.centerX() else s.centerY(), order)
         }
         val at = LinkedHashMap<Pair<EdgeId, Boolean>, Point>()
@@ -394,9 +402,12 @@ internal object ReqGroupGrid {
             val (_, vertical, forward) = k
             val sorted = list.sortedWith(compareBy({ it.key }, { it.order }, { if (it.atSource) 0 else 1 }))
             val len = if (vertical) box.size.width else box.size.height
-            val usable = max(0f, len - 2 * ATTACH_MARGIN_PX)
+            // An ellipse is only flat near the middle of a side: the points stay in the middle band so the stub to the outline is short.
+            val band = if (ellipse(k.first)) ELLIPSE_BAND * len else null
+            val margin = if (band != null) (len - band) / 2f else ATTACH_MARGIN_PX
+            val usable = max(0f, len - 2 * margin)
             for ((i, end) in sorted.withIndex()) {
-                val along = if (sorted.size == 1 || usable <= 0f) len / 2f else ATTACH_MARGIN_PX + (i + 0.5f) * usable / sorted.size
+                val along = if (sorted.size == 1 || usable <= 0f) len / 2f else margin + (i + 0.5f) * usable / sorted.size
                 at[end.edge to end.atSource] =
                     if (vertical) {
                         Point(x = box.origin.x + along, y = if (forward) box.bottom() else box.origin.y)
@@ -408,7 +419,13 @@ internal object ReqGroupGrid {
         val out = LinkedHashMap<EdgeId, Plan>()
         for ((id, side) in sides) {
             out[id] =
-                Plan(vertical = side.first, down = side.second, sourceAt = at.getValue(id to true), targetAt = at.getValue(id to false))
+                Plan(
+                    vertical = side.first,
+                    down = side.second,
+                    sourceAt = at.getValue(id to true),
+                    targetAt = at.getValue(id to false),
+                    sameSide = sameSide.containsKey(id),
+                )
         }
         return out
     }
@@ -444,7 +461,8 @@ internal object ReqGroupGrid {
         return EdgeRoute.OrthogonalRounded(
             source = sAttach,
             target = tAttach,
-            waypoints = simplify(poly),
+            // The end points take part in the collinearity test: the stub point in line with port and track is no waypoint.
+            waypoints = simplify(listOf(sAttach) + poly + listOf(tAttach)).drop(1).dropLast(1),
             cornerRadiusPx = CORNER_RADIUS_PX,
         )
     }

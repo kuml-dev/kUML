@@ -2741,6 +2741,12 @@ public object KumlSvgRenderer {
                 layout = layoutResult,
                 adapter = ucAdapter,
                 placedLabels = ucLabels,
+                // A use case is an ellipse: note lines end on its outline, not on the bounding box.
+                extras =
+                    dev.kuml.layout.bridge.note.Sysml2NoteAnchorExtras.useCaseEllipses(
+                        layout = layoutResult,
+                        ids = elements.filterIsInstance<UseCaseDefinition>().map { it.id },
+                    ),
                 // Every layout group of a use case diagram is a subject frame: a note lies fully inside or fully outside it.
                 strictNotes =
                     structuralStrictNotePolicy(

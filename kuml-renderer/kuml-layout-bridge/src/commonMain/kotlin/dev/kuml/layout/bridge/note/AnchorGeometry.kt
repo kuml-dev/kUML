@@ -46,6 +46,18 @@ public sealed interface AnchorGeometry {
     public data class Around(
         val r: Rect,
     ) : AnchorGeometry
+
+    /** An ellipse (use case): the line ends on the outline, never on the bounding box. */
+    public data class Ellipse(
+        val cx: Float,
+        val cy: Float,
+        val rx: Float,
+        val ry: Float,
+    ) : AnchorGeometry {
+        /** The bounding box of the ellipse. */
+        public val bounds: Rect
+            get() = Rect(origin = Point(x = cx - rx, y = cy - ry), size = dev.kuml.layout.Size(width = 2f * rx, height = 2f * ry))
+    }
 }
 
 /**

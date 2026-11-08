@@ -231,6 +231,8 @@ never covers a label that is drawn later.
   ports (a soft cost reaches up to 12 px), and a note lies fully inside or fully outside a frame (the IBD owner frame, the
   use case subject frames). BDD and IBD prefer the sides across the layout flow (above and below for `Right`, beside for
   `Down`); this is a soft preference worth 40 px of anchor length, so a short anchor can win.
+* Use case notes: a use case is an ellipse, so the dotted anchor line ends exactly on the ellipse outline (an axis projection of
+  the note's exit when possible, otherwise the point on the ray from the centre) and never runs through the ellipse.
 * SysML 2 IBD routing: connectors are routed around the parts of the diagram (`IbdObstacleRouter`: straight, L and Z
   candidates, then a grid A* with a hard node limit; 8 px clearance; deterministic). Neighbouring part ports keep a
   pitch of `max(24, label width + 8)` px on top and bottom sides and `max(24, line height + 6)` px on left and
@@ -360,7 +362,18 @@ layered engine:
 * Actors stand outside the frame. `actorSide = ActorSide.Auto` (default): up to two actors on the left, more are split
   (the first half left, the rest right); `Left`, `Right` and `Both` are explicit. Within one side the actors are ordered
   by the mean height of the use cases they touch (ties: declaration order).
-* All lines are routed orthogonally around the final nodes; the ends on one side of a node are spread evenly.
+* All lines are routed orthogonally around the final nodes; the ends on one side of a node are spread evenly. At a use
+  case the ends stay in the middle band of the side (60 percent) and finish on the ellipse outline, not on its bounding
+  box.
+* Lines of different edges are separated where possible: parallel segments that overlap are moved to at least 8 px (12 px
+  preferred) from each other, never onto or across the border of the subject frame, the gap between actor column and frame grows with the number of lines of the actors, and a
+  jog shorter than 16 px is straightened (a jog that cannot be, gets sharp corners instead of a bump). The first and the
+  last segment of a line stay on their port. The limits: diagrams with more than 2000 line segments are left as routed,
+  the separation runs at most three passes, and a conflict that has no free lane stays (overlapping lines are then
+  possible).
+* A line between two use cases of one column with other use cases in between (typically `extend` and `include`) runs as a
+  C along the column with two bends, on the side whose gutter is free, instead of detouring around the use cases in
+  between. Lines between neighbours of one row keep their U through the gap below the row.
 * Without a subject frame the layered engine is used as before.
 
 [source,kotlin]

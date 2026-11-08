@@ -197,6 +197,7 @@ public object NotePlacer {
                 is AnchorGeometry.Stem -> Point(x = geometry.x, y = geometry.top + STEM_FIRST_OFFSET)
                 is AnchorGeometry.Along -> freePointOn(pts = geometry.pts, obstacles = obstacles, used = used, spacing = spacing)
                 is AnchorGeometry.Around -> Point(x = geometry.r.cx, y = geometry.r.cy)
+                is AnchorGeometry.Ellipse -> Point(x = geometry.cx, y = geometry.cy)
             }
 
         // A point anchor (port, lifeline stem) sits ON a box or line: that box must still not be crossed on the way.
@@ -220,6 +221,7 @@ public object NotePlacer {
                 is AnchorGeometry.Stem -> Point(x = geometry.x, y = from.y.coerceIn(geometry.top, geometry.bottom))
                 is AnchorGeometry.Along -> rep
                 is AnchorGeometry.Around -> nearestBorderPoint(r = geometry.r, p = from)
+                is AnchorGeometry.Ellipse -> EllipseGeometry.onRay(e = geometry, toward = from)
             }
 
         /**
@@ -249,6 +251,13 @@ public object NotePlacer {
                         )
                     }
                 outer + lateral
+            } else if (geometry is AnchorGeometry.Ellipse) {
+                // Axis projections first (they keep the last segment axis-parallel), the ray for a diagonal direct line.
+                listOfNotNull(
+                    EllipseGeometry.horizontalHit(e = geometry, y = from.y, fromLeft = from.x < geometry.cx),
+                    EllipseGeometry.verticalHit(e = geometry, x = from.x, fromTop = from.y < geometry.cy),
+                    attach(from),
+                ).distinct()
             } else {
                 listOf(attach(from))
             }
@@ -279,6 +288,8 @@ public object NotePlacer {
                         (route.size == 2 || distance(a = prev, b = q) >= PORT_STRAIGHT_PX)
                 }
                 is AnchorGeometry.Stem -> kotlin.math.abs(prev.y - q.y) < AXIS_EPS
+                // The last segment must not run through the ellipse: it leaves the outline point outward.
+                is AnchorGeometry.Ellipse -> EllipseGeometry.leavesOutward(e = geometry, q = q, prev = prev)
                 else -> true
             }
         }
@@ -574,6 +585,7 @@ public object NotePlacer {
         fun boxOf(a: Anchor): Rect =
             when (val g = a.geometry) {
                 is AnchorGeometry.Around -> g.r
+                is AnchorGeometry.Ellipse -> g.bounds
                 is AnchorGeometry.Port -> g.box
                 else -> rectOf(left = a.rep.x, top = a.rep.y, right = a.rep.x, bottom = a.rep.y)
             }
@@ -844,6 +856,7 @@ public object NotePlacer {
             val b =
                 when (val g = a.geometry) {
                     is AnchorGeometry.Around -> g.r
+                    is AnchorGeometry.Ellipse -> g.bounds
                     is AnchorGeometry.Port -> g.box
                     else -> rectOf(left = a.rep.x, top = a.rep.y, right = a.rep.x, bottom = a.rep.y)
                 }
@@ -892,6 +905,7 @@ public object NotePlacer {
                     is AnchorGeometry.Stem -> g.top
                     is AnchorGeometry.Along -> polylineMidpoint(g.pts).y
                     is AnchorGeometry.Around -> g.r.cy
+                    is AnchorGeometry.Ellipse -> g.cy
                 }
             }
         return if (ys.isEmpty()) Float.MAX_VALUE else ys.average().toFloat()
@@ -1066,6 +1080,7 @@ public object NotePlacer {
             val b =
                 when (val g = a.geometry) {
                     is AnchorGeometry.Around -> g.r
+                    is AnchorGeometry.Ellipse -> g.bounds
                     is AnchorGeometry.Port -> g.box
                     else -> rectOf(left = a.rep.x, top = a.rep.y, right = a.rep.x, bottom = a.rep.y)
                 }

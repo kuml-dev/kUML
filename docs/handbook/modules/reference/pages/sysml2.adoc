@@ -1399,6 +1399,7 @@ sysml2Model(name = "Vehicle") {
   activity diagrams: 16 px clearance to edges, nodes, ports, labels and other notes, notes fully inside or outside a
   frame (IBD owner frame, use case subject frame), and in BDD and IBD a preference for the sides across the layout
   flow. See xref:layout.adoc#_labels_and_notes[Labels and notes].
+* In a use case diagram a note line ends on the outline of the ellipse, not on its bounding box.
 * Anchorable: definitions and usages that the diagram draws, and also transitions (STM), connections and
   part ports (IBD, `comment(text, "Battery::dcOut")`), the owner of an IBD, activity partitions (ACT), nested
   constraints (PAR) and lifelines (SEQ). In a sequence diagram the line ends on the lifeline stem; for an

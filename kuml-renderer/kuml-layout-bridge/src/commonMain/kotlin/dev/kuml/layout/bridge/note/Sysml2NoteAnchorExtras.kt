@@ -16,6 +16,22 @@ import dev.kuml.sysml2.projection.sysml2IbdProjection
  */
 public object Sysml2NoteAnchorExtras {
     /**
+     * Use case diagram: every use case is drawn as an ellipse that fills its layout bounds, so a note line must end
+     * on that outline and not on the bounding box ([ids] are the use case node ids).
+     */
+    public fun useCaseEllipses(
+        layout: LayoutResult,
+        ids: Collection<String>,
+    ): Map<String, AnchorGeometry> {
+        val out = LinkedHashMap<String, AnchorGeometry>()
+        for (id in ids) {
+            val b = layout.nodes[NodeId(id)]?.bounds ?: continue
+            out[id] = AnchorGeometry.Ellipse(cx = b.cx, cy = b.cy, rx = b.size.width / 2f, ry = b.size.height / 2f)
+        }
+        return out
+    }
+
+    /**
      * IBD: part ports (by port usage id `Battery::dcOut` and by usage path `Vehicle::battery::dcOut`) and the
      * owner. The owner frame is a layout group (`frame:<owner>`) when the diagram draws one; without a frame
      * the owner anchors to the box that surrounds all visible parts.

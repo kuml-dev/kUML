@@ -114,4 +114,50 @@ class ReqGroupGridTest :
             ReqGroupGrid.applies(graph = grouped, spec = LayoutSpec(sameLayer = listOf(listOf("n", "m")))) shouldBe false
             ReqGroupGrid.applies(graph = flat, spec = LayoutSpec(wrapColumns = 2)) shouldBe false
         }
+
+        // planAttachments: ellipse band and C lines on one side
+        fun rectAt(
+            x: Float,
+            y: Float,
+        ) = dev.kuml.layout.Rect(origin = Point(x = x, y = y), size = Size(width = 100f, height = 50f))
+
+        fun graphOf(vararg ids: String): LayoutGraph =
+            LayoutGraph(
+                nodes = listOf("a", "b").map { LayoutNode(id = NodeId(it), intrinsicSize = s100) },
+                edges =
+                    ids.map {
+                        dev.kuml.layout.LayoutEdge(
+                            id = dev.kuml.layout.EdgeId(it),
+                            source = dev.kuml.layout.EndpointRef(nodeId = NodeId("a")),
+                            target = dev.kuml.layout.EndpointRef(nodeId = NodeId("b")),
+                        )
+                    },
+            )
+
+        test("planAttachments: the ends at an ellipse stay in the middle 60 percent of the side") {
+            val nodes = mapOf(NodeId("a") to rectAt(0f, 0f), NodeId("b") to rectAt(0f, 200f))
+            val g = graphOf("e1", "e2", "e3", "e4", "e5")
+            val ellipse = ReqGroupGrid.planAttachments(graph = g, nodes = nodes, ellipse = { it == NodeId("a") })
+            val xs = ellipse.values.map { it.sourceAt.x }
+            xs.all { it >= 20f && it <= 80f } shouldBe true
+            // a plain box uses the wider band (12 px margin)
+            val plain = ReqGroupGrid.planAttachments(graph = g, nodes = nodes).values.map { it.sourceAt.x }
+            (plain.max() - plain.min() > xs.max() - xs.min()) shouldBe true
+            plain.all { it >= 12f && it <= 88f } shouldBe true
+        }
+
+        test("planAttachments: a C line leaves and arrives on the same (east or west) side") {
+            val nodes = mapOf(NodeId("a") to rectAt(0f, 0f), NodeId("b") to rectAt(0f, 200f))
+            val g = graphOf("e1")
+            val east = ReqGroupGrid.planAttachments(graph = g, nodes = nodes, sameSide = mapOf(dev.kuml.layout.EdgeId("e1") to true))
+            val pe = east.getValue(dev.kuml.layout.EdgeId("e1"))
+            pe.sameSide shouldBe true
+            pe.vertical shouldBe false
+            pe.sourceAt.x shouldBe 100f
+            pe.targetAt.x shouldBe 100f
+            val west = ReqGroupGrid.planAttachments(graph = g, nodes = nodes, sameSide = mapOf(dev.kuml.layout.EdgeId("e1") to false))
+            val pw = west.getValue(dev.kuml.layout.EdgeId("e1"))
+            pw.sourceAt.x shouldBe 0f
+            pw.targetAt.x shouldBe 0f
+        }
     })

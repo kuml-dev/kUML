@@ -6,6 +6,43 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 42: use case diagram anchors, actor corridors and corner bumps (SVG)
+
+#### Why
+
+Looked at as PNG before the change (`usecase-personalschleuse` fixture, 5 actors, 13 use cases, 11 notes): note lines ended on the corner of a use case's bounding box or in free space next to the ellipse, the lines of one actor ran in shared vertical corridors (up to three on one x, no pitch), every actor line carried a half circle bump after its 12 px stub, and the `extend` line between two use cases of one column detoured with up to eight bends around the use case in between.
+
+Causes found in the code: `AnchorGeometryResolver` returned the bounding box for every node, so the note anchor snapped to the box border; `ReqGroupGrid.routeBetween` kept the stub point as a waypoint although it lies on the line between port and track, and `EdgePathBuilder` drew a clamped arc (a half circle) at such a collinear point; the grid routed every edge alone, so nothing separated shared corridors afterwards; attachment points were spread over the whole box side instead of the ellipse part that is close to the box.
+
+#### Change
+
+- `AnchorGeometry.Ellipse` and `EllipseGeometry` (new, `kuml-layout-bridge`, note package): note anchors at a use case end on the ellipse outline. The placer tries the horizontal and the vertical projection of the note exit first (the last segment stays axis-parallel) and the point on the ray from the centre second; the last segment must leave the outline outward. The SVG renderer hands the use case ellipses in through the existing `extras` map; every other anchor kind is unchanged.
+- `UcEdgeLanes` (new, `kuml-layout-bridge`): post-routing passes of the use case grid. `collapseJogs` straightens jogs shorter than 16 px (a jog that cannot be moved gets sharp corners), `separate` moves overlapping parallel segments of different edges to 12 px lanes (8 px fallback; crossing-minimising order, edge id as last key, obstacle and stub checks, a monotone slot assignment by dynamic programming), `clipToEllipses` moves line ends at a use case from the box side onto the outline. First and last segment of a line never move. Skipped above 2000 segments.
+- `UcFrameGrid`: attachment points at a use case stay in the middle 60 percent of a side; the gap between actor column and frame grows with the number of lines of the actors on that side (at least 120 px); a line between two use cases of one column with another use case in between runs as a C along the column on the free side (two bends). Lines of one row keep their U below the row.
+- `ReqGroupGrid.routeBetween` tests collinearity including the end points, so the stub point no longer becomes a waypoint (also in the requirement grid, where it only removes the bump).
+- `EdgePathBuilder`: a collinear waypoint is no corner and is drawn as a straight line instead of a clamped arc (all diagram types; only affects paths with a collinear waypoint).
+
+#### Verification
+
+- `EllipseGeometryTest`, `NotePlacerEllipseAnchorTest` (ellipse anchor ends on the outline and arrives from outside; a rectangle anchor is unchanged), `UcEdgeLanesTest` (12 px lanes, order independence, ports stay, obstacle side, jog collapse, sharp-corner fallback, clip, segment cap).
+- `UcPersonalschleuseInvariantTest` (real pipeline, SVG geometry only, no fonts): note anchors and association ends at a use case lie on the ellipse (residual at most 1.5 px), notes overlap no ellipse, actor or note and keep 8 px from each other, no two edges share a collinear piece or run closer than 7.5 px, no half circle and no S jog, the extend line has two bends. Counts: 13 ellipses, 11 notes, 5 actors, 18 edges, 15 anchors.
+- Fixture rendered with the local CLI before and after and looked at as PNG.
+- `./gradlew :kuml-renderer:kuml-layout-bridge:jvmTest :kuml-io:kuml-io-svg:jvmTest :kuml-tests:kuml-vault-examples-tests:test` green; detekt and ktlint of the three modules green.
+
+#### Not verified
+
+- LaTeX/TikZ: `KumlLatexRenderer.toLatex(UcDiagram)` shares the grid layout (new corridors and ellipse-side attachment points apply there too) but draws no notes and was not rendered for this fixture.
+- Use case diagrams without a subject frame (layered engine) get the ellipse note anchors from the renderer but not the lane separation.
+
+#### Not fixed
+
+- Notes still sit outside the subject frame for crowded diagrams (reserving room next to the use cases inside the frame is a layout-API change, planned as wave H2); the anchor lines are therefore long. The invariant test reports the lengths and does not assert them.
+- No line jumps at real crossings; perpendicular crossings stay unmarked.
+- No generic collinear nudger for other diagram types; `UcEdgeLanes` is use case only and not shared with `ParLanePlan`.
+- The router still treats a use case as its bounding box (ellipses are not obstacles).
+- UML use case diagrams: comment placement and anchors are ELK based and unchanged.
+- Follow-up: copy the vault-example SVGs to `presentation-de/diagrams/` (renderer update routine); not part of this commit. README and kuml.dev are not affected (no release).
+
 ### Nacharbeit 41: separate lanes for bindings in nested parametric constraints (SVG)
 
 #### Why
