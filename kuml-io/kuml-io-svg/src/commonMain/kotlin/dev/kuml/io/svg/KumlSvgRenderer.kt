@@ -956,6 +956,51 @@ public object KumlSvgRenderer {
         }
     }
 
+    /**
+     * Nacharbeit 39: the notes of a UML sequence diagram are placed after the layout, against the scene the draw functions
+     * produce, by [dev.kuml.layout.bridge.note.SeqNotePlacer]. Comment nodes and links an older layout may still carry
+     * are dropped first, so the lifelines never depend on notes.
+     */
+    internal fun placeUmlSeqNotes(
+        diagram: KumlDiagram,
+        interaction: UmlInteraction,
+        rawLayout: LayoutResult,
+        labelBackdropFill: String = "white",
+        measure: dev.kuml.layout.bridge.note.NoteMeasure = dev.kuml.layout.bridge.note.DefaultNoteMeasure,
+    ): dev.kuml.layout.bridge.note.NotePlacementResult {
+        val comments = diagram.elements.filterIsInstance<dev.kuml.uml.UmlComment>()
+        val links = diagram.elements.filterIsInstance<dev.kuml.uml.UmlCommentLink>()
+        val noteIds = comments.map { dev.kuml.layout.NodeId(it.id) }.toSet()
+        val linkIds = links.map { dev.kuml.layout.EdgeId(it.id) }.toSet()
+        val base =
+            rawLayout.copy(
+                nodes = rawLayout.nodes.filterKeys { it !in noteIds },
+                edges = rawLayout.edges.filterKeys { it !in linkIds },
+            )
+        val empty =
+            dev.kuml.layout.bridge.note
+                .NotePlacementResult(layout = base, unresolved = emptyList(), truncated = emptyList())
+        if (comments.isEmpty() || base.nodes.isEmpty()) return empty
+        val scene = SeqNoteScenes.uml(interaction = interaction, layout = base, labelBackdropFill = labelBackdropFill)
+        val inputs =
+            comments.map { c ->
+                dev.kuml.layout.bridge.note.NotePlacementInput(
+                    noteId = c.id,
+                    body = c.body,
+                    kind = c.kind,
+                    anchors =
+                        links
+                            .filter { it.commentId == c.id }
+                            .map {
+                                dev.kuml.layout.bridge.note
+                                    .NoteAnchorRef(linkId = it.id, targetId = it.annotatedElementId)
+                            },
+                )
+            }
+        return dev.kuml.layout.bridge.note.SeqNotePlacer
+            .place(layout = base, notes = inputs, scene = scene, measure = measure)
+    }
+
     private fun renderUmlSequence(
         diagram: KumlDiagram,
         layoutResult: LayoutResult,
@@ -965,6 +1010,15 @@ public object KumlSvgRenderer {
         val interaction =
             diagram.elements.filterIsInstance<UmlInteraction>().firstOrNull()
                 ?: return SvgDocument.render(layoutResult = layoutResult, theme = theme, options = options) { _, _ -> } // fallback
+
+        @Suppress("NAME_SHADOWING")
+        val layoutResult =
+            placeUmlSeqNotes(
+                diagram = diagram,
+                interaction = interaction,
+                rawLayout = layoutResult,
+                labelBackdropFill = theme.colors.effectiveNodeFill.toHex(),
+            ).layout
 
         val visibleIds = interaction.lifelines.map { it.id }.toSet()
 
@@ -4310,96 +4364,58 @@ public object KumlSvgRenderer {
             .map { it.text }
 
     /**
-     * Sequence diagrams are laid out without edges (messages are drawn by the renderer). Notes anchor at the
-     * lifeline stem, 24 px below the head (or just above the lifeline's first message), and avoid the stems of the
-     * other lifelines and the message arrows.
+     * Sequence diagrams are laid out without edges (messages are drawn by the renderer). Nacharbeit 39: the notes are
+     * placed by [SeqNotePlacer] against the scene the draw functions really produce (activation bars, fragment frames,
+     * tags, guards, operand separators, `ref` frames, message paths and labels, stems); a note keeps 16 px from all of
+     * them and from other notes. A participant is anchored on its stem, a message by a corridor below its line.
      */
     internal fun placeSeqNotes(
         model: Sysml2Model,
         diagram: SeqDiagram,
         layout: LayoutResult,
-    ): LayoutResult {
-        if (model.comments.isEmpty() || layout.nodes.isEmpty()) return layout
-        val headH = dev.kuml.io.svg.sysml2.SYSML2_SEQ_HEAD_HEIGHT
-        val rowH = dev.kuml.io.svg.sysml2.SYSML2_SEQ_MESSAGE_ROW_HEIGHT
-        val ids = diagram.elementIds.toSet()
-        val messages =
-            model.usages
-                .filterIsInstance<dev.kuml.sysml2.MessageUsage>()
-                .filter { it.sourceLifelineId in ids && it.targetLifelineId in ids }
-                .sortedWith(compareBy({ it.seqNo }, { it.id }))
-        val rows =
-            dev.kuml.io.svg.sysml2.SeqRowOffsets
-                .of(
-                    fragments = model.usages.filterIsInstance<dev.kuml.sysml2.CombinedFragmentUsage>(),
-                    refs =
-                        model.usages.filterIsInstance<dev.kuml.sysml2.InteractionUseUsage>().filter { u ->
-                            u.lifelineIds.any { it in ids }
-                        },
-                    messages = messages,
-                )
+    ): LayoutResult = placeSeqNotesResult(model = model, diagram = diagram, layout = layout).layout
 
-        fun head(id: String) = layout.nodes[NodeId(id)]?.bounds
-
-        fun messageY(m: dev.kuml.sysml2.MessageUsage): Float? =
-            head(m.sourceLifelineId)?.let { it.origin.y + headH + (m.seqNo + 1) * rowH + rows.offsetAt(m.seqNo) }
-
-        val extras = HashMap<String, AnchorGeometry>()
-        for (id in ids) {
-            val h = head(id) ?: continue
-            extras[id] =
-                AnchorGeometry.Stem(x = h.origin.x + h.size.width / 2f, top = h.origin.y + headH, bottom = h.origin.y + h.size.height)
-        }
-        return Sysml2NotePlacement
-            .place(
-                model = model,
+    /** Like [placeSeqNotes] with the placement report (degraded notes, crossings). */
+    internal fun placeSeqNotesResult(
+        model: Sysml2Model,
+        diagram: SeqDiagram,
+        layout: LayoutResult,
+        measure: dev.kuml.layout.bridge.note.NoteMeasure = dev.kuml.layout.bridge.note.DefaultNoteMeasure,
+    ): dev.kuml.layout.bridge.note.NotePlacementResult {
+        val empty =
+            dev.kuml.layout.bridge.note
+                .NotePlacementResult(layout = layout, unresolved = emptyList(), truncated = emptyList())
+        if (model.comments.isEmpty() || layout.nodes.isEmpty()) return empty
+        val scene = SeqNoteScenes.sysml2(model = model, diagram = diagram, layout = layout)
+        val taken =
+            layout.nodes.keys
+                .map { it.value }
+                .toSet()
+        val visible =
+            model.notesVisibleIn(
                 diagram = diagram,
-                layout = layout,
-                extras = extras,
-                nodeObstacle = { id, r ->
-                    if (id in
-                        ids
-                    ) {
-                        dev.kuml.layout.Rect(origin = r.origin, size = dev.kuml.layout.Size(width = r.size.width, height = headH))
-                    } else {
-                        r
-                    }
-                },
-                configure = { o ->
-                    for (id in ids) {
-                        val h = head(id) ?: continue
-                        val bottom = h.origin.y + h.size.height // the stem is drawn down to the bottom of the lifeline node
-                        val x = h.origin.x + h.size.width / 2f
-                        o.addPolyline(
-                            kind = ObstacleKind.LIFELINE,
-                            pts = listOf(dev.kuml.layout.Point(x = x, y = h.origin.y + headH), dev.kuml.layout.Point(x = x, y = bottom)),
-                            ownerId = id,
-                        )
-                    }
-                    for (m in messages) {
-                        val y = messageY(m) ?: continue
-                        val a = head(m.sourceLifelineId) ?: continue
-                        val b = head(m.targetLifelineId) ?: continue
-                        val ax = a.origin.x + a.size.width / 2f
-                        val bx = b.origin.x + b.size.width / 2f
-                        o.addPolyline(
-                            kind = ObstacleKind.EDGE,
-                            pts = listOf(dev.kuml.layout.Point(x = ax, y = y), dev.kuml.layout.Point(x = bx, y = y)),
-                        )
-                        if (m.messageLabel.isNotEmpty()) {
-                            val w = m.messageLabel.length * SYSML2_LABEL_CHAR_PX + 8f
-                            o.addRect(
-                                kind = ObstacleKind.EDGE_LABEL,
-                                r =
-                                    dev.kuml.layout.Rect(
-                                        origin = dev.kuml.layout.Point(x = (ax + bx) / 2f - w / 2f, y = y - 18f),
-                                        size = dev.kuml.layout.Size(width = w, height = 16f),
-                                    ),
-                            )
-                        }
-                    }
-                },
-            ).layout
+                isAnchorVisible = { it in scene.stems || it in scene.messages },
+            )
+        val inputs =
+            visible.comments
+                .filter { it.id !in taken }
+                .map { c ->
+                    dev.kuml.layout.bridge.note.NotePlacementInput(
+                        noteId = c.id,
+                        body = c.note.body,
+                        kind = c.note.kind,
+                        anchors =
+                            model.commentLinks
+                                .filter { it.link.noteId == c.id }
+                                .map {
+                                    dev.kuml.layout.bridge.note
+                                        .NoteAnchorRef(linkId = it.id, targetId = it.link.targetId)
+                                },
+                    )
+                }
+        if (inputs.isEmpty()) return empty
+        return dev.kuml.layout.bridge.note.SeqNotePlacer
+            .place(layout = layout, notes = inputs, scene = scene, measure = measure)
     }
 
     /**

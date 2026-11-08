@@ -459,6 +459,20 @@ the canvas ends 24 px below the lowest lifeline end. The width of a fragment fra
 fragments and the room for a self loop in the last row. The same row model is used by messages, activation bars, frames
 and notes.
 
+=== Sequence notes (Nacharbeit 39)
+
+Notes of UML and SysML 2 sequence diagrams are placed after the layout by `SeqNotePlacer`, against what the renderer
+really draws (the draw functions are run into a scratch builder and read back): stems, heads, activation bars (SysML 2),
+`ref` frames, fragment frames, operator tags, guards, operand separators, message lines and labels. The candidate order is
+fixed: the inner column right of the anchor, the inner column left, the right margin, the left margin; vertically a note
+starts at the anchor height and moves at most three message rows (six in the margins). A note keeps 16 px from everything
+drawn and from other notes. A participant is anchored on its stem by a horizontal line; a message by a corridor 8 px
+below its line (or a vertical line from a note below it). An anchor line never crosses a foreign note, head, bar, tag,
+guard, label or operand separator; crossings of foreign stems, messages and frame edges are allowed but minimised. A note
+across several lifelines goes to the margin of its outermost lifeline. If no column is admissible, the note goes to the
+right margin as a last resort (`degraded`); it never overlaps anything. In dense diagrams the margin column grows
+downwards, and anchor lines get long.
+
 == When the engine can't honour a hint
 
 Conflicts produce a `LayoutWarning` in `LayoutResult.warnings`:

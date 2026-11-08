@@ -163,6 +163,10 @@ public data class NotePlacementResult(
     /** Shift the layout got because a note landed at negative coordinates; positions planned before placement must move by it. */
     val dx: Float = 0f,
     val dy: Float = 0f,
+    /** Sequence diagrams (Nacharbeit 39): notes that fit no admissible column and went into the last-resort margin position. */
+    val degraded: List<String> = emptyList(),
+    /** Sequence diagrams (Nacharbeit 39): tolerated crossings of anchor lines with foreign stems, messages and frame edges. */
+    val crossings: Int = 0,
 )
 
 /**

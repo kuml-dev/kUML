@@ -261,7 +261,11 @@ public object UmlLayoutBridge {
             }
         }
 
+        // Nacharbeit 39: a sequence diagram keeps notes out of the graph. The lifelines are fixed columns, and a comment node with
+        // an edge to a lifeline would let ELK move them; the renderer places the notes after the layout (SeqNotePlacer).
+        val isSequence = diagram.elements.any { it is UmlInteraction }
         for (element in diagram.elements) {
+            if (isSequence && (element is UmlComment || element is dev.kuml.uml.UmlCommentLink)) continue
             when (element) {
                 is UmlPackage -> {
                     // V1: max. 1 Ebene — Package wird zur Group, Members zu Nodes.

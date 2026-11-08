@@ -14,8 +14,8 @@ import dev.kuml.uml.UmlLifeline
 import dev.kuml.uml.UmlMessage
 import kotlin.math.abs
 
-private const val SEQ_HEAD_HEIGHT = 40f
-private const val SEQ_ROW_HEIGHT = 32f
+internal const val SEQ_HEAD_HEIGHT = 40f
+internal const val SEQ_ROW_HEIGHT = 32f
 
 /**
  * Horizontaler Atemraum links + rechts des Frames relativ zu den äußersten

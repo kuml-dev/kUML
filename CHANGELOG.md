@@ -6,6 +6,41 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 39: strictly collision-free notes in UML and SysML 2 sequence diagrams (SVG)
+
+#### Why
+
+Notes in sequence diagrams were placed against stems, head boxes and message lines only (SysML 2) or by ELK as free nodes (UML). They could sit on activation bars, fragment frames, operator tags, guards, operand separators, `ref` frames or message labels, and notes anchored to a message were not visible at all (message ids were no resolvable anchors). In UML, comment edges in the ELK graph could also move the lifelines.
+
+#### Change
+
+- New `SeqNotePlacer` (`kuml-layout-bridge`, `note/SeqNotePlacer.kt`) with `SeqNoteScene` and `SeqNotePolicy`. Fixed, bounded candidate order: inner column right of the anchor, inner column left, right margin, left margin; vertical search from the anchor height up to 3 message rows (6 rows in the margin columns). Hard rules: 16 px clearance to stems, heads, activation bars, `ref` frames, fragment frames and tags, guards, operand separators, message lines and labels, and to other notes; 6 px to earlier anchor lines. Anchor lines: horizontal onto the stem (participant), or a corridor 8 px below the message line and then up onto it (message), or one vertical line from a note below the message. A line never crosses a foreign note, head, bar, tag, guard, label or operand separator and never runs along a message, frame edge or stem; crossings of foreign stems, messages and frame edges are counted and minimised (`NotePlacementResult.crossings`). A note across several lifelines goes to the margin of the side of its outermost lifeline. When no column is admissible the note goes into the right margin as a last resort and is reported in `NotePlacementResult.degraded`; a note rectangle never overlaps anything.
+- The scene is not re-derived: `SeqSceneCapture` / `SeqNoteScenes` run the real draw functions (fragments, execution bars, `ref` frames, duration constraints, time observations, messages, UML guards) into a scratch builder and read their primitives back, so the obstacles are exactly what is drawn (only text widths are estimated, 7.2 px per character).
+- SysML 2: `KumlSvgRenderer.placeSeqNotes` uses the placer; message ids are anchors now.
+- UML: `UmlLayoutBridge` keeps `UmlComment` and `UmlCommentLink` out of the ELK graph of a sequence diagram (lifelines no longer depend on notes); `renderUmlSequence` places the notes after the layout with the same placer (anchors: lifeline ids and message ids). UML sequence has no activation bars; the activation-bar rule applies to SysML 2 only.
+- `NotePlacementResult` got `degraded` and `crossings` (defaults keep all other callers unchanged).
+- Handbook: `layout.adoc` (section Sequence notes).
+
+#### Verification
+
+- New `SeqNotesCollisionTest` (12 tests, real ELK layout for SysML 2, hand-made lifeline layout for UML). The oracle parses the final SVG: no note comes within 15 px of any drawn rectangle, text, line or stem, notes do not touch each other, stay inside the canvas, and no anchor line passes through a foreign note, head or activation bar. Fixtures: 15 notes on messages, participant notes, a note across lifelines, alt inside loop plus opt with 15 notes, activation bars (SysML 2), a wide note in a narrow diagram plus a free-standing and an unresolved anchor, determinism.
+- `./gradlew --no-build-cache --rerun-tasks :kuml-renderer:kuml-layout-bridge:check :kuml-io:kuml-io-svg:check` and `./gradlew clean check --no-build-cache` (see the final report of the wave for the numbers); detekt and ktlint clean.
+- Rendered and looked at as PNG: SysML 2 (a), (d), (f) and UML (d).
+
+#### Not verified
+
+- Anchor-line crossings of foreign stems and messages are only counted, not asserted. The `degraded` fallback does not validate its lane route against frames and messages.
+- UML sequence diagrams through ELK with comments were not rendered as a full CLI run; the UML fixtures use a hand-made lifeline layout.
+- `kuml render` with the local CLI build on all fixtures was not run.
+
+#### Not fixed
+
+- Dense diagrams: with one note per message the notes stack in the margin column, far below their messages, with long anchor lines (visible in the 15-note fixtures, the canvas grows tall) and the degraded fallback lane can run along frame edges. Inner columns are rarely free because every message spans its gap. Gap widening (making room between lifelines) was not implemented.
+- Notes across several lifelines get one horizontal line per anchor, no inserted time row.
+- LaTeX: SysML 2 sequence diagrams use the generic note placement and probably have the same defect (not checked); UML sequence is not rendered in LaTeX.
+- The geometry of frames, guards and so on is read back from the draw output instead of shared geometry functions; `ObstacleIndex`/`StrictNotePolicy` were not extended, the sequence placer is separate from `NotePlacer` (deviation from the plan, to keep other diagram families untouched).
+- SMIL animation, Desktop, CLI, Web and Asciidoc go through `KumlSvgRenderer`; not looked at separately. kuml.dev needs no change (no DSL change).
+
 ### Nacharbeit 38: strict note placement in BDD, BDD with allocations, IBD and SysML 2 use case diagrams
 
 #### Why
