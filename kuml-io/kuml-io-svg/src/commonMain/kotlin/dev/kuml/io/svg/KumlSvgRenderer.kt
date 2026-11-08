@@ -1225,6 +1225,9 @@ public object KumlSvgRenderer {
     // STM label placement: hard top/left limit (below the frame title) and canvas clearance right/bottom.
     private const val STM_LABEL_FRAME_LEFT_PX: Float = 8f
     private const val STM_LABEL_FRAME_TOP_PX: Float = 20f
+
+    /** Nacharbeit 43: a transition label without a free spot is wrapped at this fraction of the normal width and planned again. */
+    private const val STM_NARROW_WRAP_FACTOR: Float = 0.6f
     private const val STM_LABEL_CANVAS_CLEARANCE_PX: Float = 12f
 
     /** Builds a UML state-machine transition's "trigger [guard] / effect" label text. */
@@ -1631,27 +1634,22 @@ public object KumlSvgRenderer {
         adapter: Sysml2EdgeAdapter,
         maxWidthPx: Float,
     ): Map<String, dev.kuml.io.svg.sysml2.edge.StmLabelBlock> {
-        val wrapped = LinkedHashMap<String, List<dev.kuml.io.svg.sysml2.edge.StmLabelLine>>()
+        val parts = HashMap<String, List<dev.kuml.sysml2.edge.EdgeLabelPart>>()
         val fullText = HashMap<String, String>()
-        val specs = ArrayList<dev.kuml.layout.bridge.label.StmLabelSpec>()
         for (id in layoutEdgeIds.sorted()) {
-            val parts = adapter.metadataFor(id)?.labelParts.orEmpty()
-            if (parts.isEmpty()) continue
-            val lines =
-                dev.kuml.io.svg.sysml2.edge.StmLabelPlacer
-                    .wrap(parts = parts, maxWidthPx = maxWidthPx)
-            wrapped[id] = lines
-            fullText[id] = parts.joinToString(" ") { it.text }
-            specs +=
-                dev.kuml.layout.bridge.label.StmLabelSpec(
-                    id = id,
-                    lines = lines.map { it.text },
-                    size =
-                        dev.kuml.io.svg.sysml2.edge.StmLabelPlacer
-                            .boxSize(lines),
-                )
+            val p = adapter.metadataFor(id)?.labelParts.orEmpty()
+            if (p.isEmpty()) continue
+            parts[id] = p
+            fullText[id] = p.joinToString(" ") { it.text }
         }
-        if (specs.isEmpty()) return emptyMap()
+        if (parts.isEmpty()) return emptyMap()
+
+        fun wrapAt(
+            id: String,
+            width: Float,
+        ): List<dev.kuml.io.svg.sysml2.edge.StmLabelLine> =
+            dev.kuml.io.svg.sysml2.edge.StmLabelPlacer
+                .wrap(parts = parts.getValue(id), maxWidthPx = width)
         val simple =
             obstacles
                 .filter { it.kind == dev.kuml.io.svg.sysml2.edge.StmObstacleKind.Simple }
@@ -1668,14 +1666,46 @@ public object KumlSvgRenderer {
                         regionNameRects = it.regionNameRects,
                     )
                 }
-        val plan =
+
+        fun planWith(
+            wrapped: Map<String, List<dev.kuml.io.svg.sysml2.edge.StmLabelLine>>,
+        ): dev.kuml.layout.bridge.label.Sysml2LabelPlanResult =
             dev.kuml.layout.bridge.label.Sysml2DiagramLabelPlan.planStmLabels(
                 edges = routes,
                 nodes = simple,
                 composites = composites,
-                labels = specs,
+                labels =
+                    wrapped.entries.sortedBy { it.key }.map { (id, lines) ->
+                        dev.kuml.layout.bridge.label.StmLabelSpec(
+                            id = id,
+                            lines = lines.map { it.text },
+                            size =
+                                dev.kuml.io.svg.sysml2.edge.StmLabelPlacer
+                                    .boxSize(lines),
+                        )
+                    },
                 frameTop = STM_LABEL_FRAME_TOP_PX,
             )
+
+        var wrapped: Map<String, List<dev.kuml.io.svg.sysml2.edge.StmLabelLine>> =
+            parts.keys.sorted().associateWith { wrapAt(id = it, width = maxWidthPx) }
+        var plan = planWith(wrapped)
+        // Nacharbeit 43: a label that has no free spot (it crosses its own line or a foreign line) is wrapped narrower and the
+        // plan is repeated; the repeat is kept only when it leaves fewer such labels, so a crowded diagram never gets worse.
+        val crowded = plan.labels.filter { !it.value.clean }.keys
+        if (crowded.isNotEmpty()) {
+            val narrower =
+                wrapped.mapValues { (id, lines) ->
+                    if (id !in crowded) lines else wrapAt(id = id, width = maxWidthPx * STM_NARROW_WRAP_FACTOR)
+                }
+            if (narrower != wrapped) {
+                val retry = planWith(narrower)
+                if (retry.labels.count { !it.value.clean } < crowded.size) {
+                    wrapped = narrower
+                    plan = retry
+                }
+            }
+        }
         val out = LinkedHashMap<String, dev.kuml.io.svg.sysml2.edge.StmLabelBlock>()
         for ((id, placed) in plan.labels) {
             val lines = wrapped[id] ?: continue
@@ -2570,7 +2600,7 @@ public object KumlSvgRenderer {
                 adapter = ibdAdapter,
                 configure = portObstacles(layout = layout, extras = extras, portLabelRects = emptyList()),
                 portLabels = Sysml2LayoutBridge.ibdPortLabelSpecs(model = model, diagram = diagram, layout = layout),
-                titleRects = Sysml2LayoutBridge.ibdTitleRects(model = model, layout = layout),
+                titleRects = Sysml2LayoutBridge.ibdTitleObstacles(model = model, layout = layout),
             )
 
         fun portRectsOf(plan: Map<String, dev.kuml.layout.bridge.label.PlacedLabel>): List<dev.kuml.layout.Rect> =

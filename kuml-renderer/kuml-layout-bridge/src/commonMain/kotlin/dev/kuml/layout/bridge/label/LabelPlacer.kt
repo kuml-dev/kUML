@@ -95,8 +95,18 @@ public data class LabelCostModel(
     val maxDistancePx: Float = 12f,
     /** Per px a multiplicity / role label sits away from its edge end (prefers the end when nothing else differs). */
     val perPxAlong: Float = 5f,
-    /** Foreign line closer than this to a label counts as touching. */
+    /** Line closer than this to a label counts as touching (the owner's own line, and foreign lines unless [foreignLineClearance] says otherwise). */
     val lineClearance: Float = 2f,
+    /**
+     * Foreign line closer than this to a label counts as touching (Nacharbeit 43: state machines keep 4 px to other edges).
+     * Defaults to [lineClearance], so every other diagram type is unchanged.
+     */
+    val foreignLineClearance: Float = lineClearance,
+    /**
+     * When set, a label that crosses its own line without sitting on it deliberately is reported as not clean
+     * (Nacharbeit 43). Off by default: the parametric report and the other diagram types keep their meaning of `clean`.
+     */
+    val ownCrossUnclean: Boolean = false,
     /** A port / pin label inside its owner box; chosen only when every outside position collides hard. */
     val innerPenalty: Float = 8_000f,
     /** Offsets (px, label edge to line) tried on each side of an edge, nearest first (PAL wave 2C-b3: parametric diagrams search further out). */
@@ -216,7 +226,17 @@ public object LabelPlacer {
             }
             if (perRequest != null) totalLeft -= (workAtStart - work).coerceAtLeast(0L)
             val chosen = best ?: candidates.firstOrNull() ?: continue
-            val clean = !chosen.onLine && bestCost < minOf(costs.hardOverlap, costs.foreignEdge)
+            val cleanLimit =
+                if (costs.ownCrossUnclean) {
+                    minOf(
+                        costs.hardOverlap,
+                        costs.foreignEdge,
+                        costs.ownEdge,
+                    )
+                } else {
+                    minOf(costs.hardOverlap, costs.foreignEdge)
+                }
+            val clean = !chosen.onLine && bestCost < cleanLimit
             result[req.id] = PlacedLabel(rect = chosen.rect, onLine = chosen.onLine, clean = clean, segment = chosen.segment)
             if (req.role == LabelRole.MULTIPLICITY) multSign[req.ownerId to req.end] = chosen.sign
             index.addRect(kind = kindOf(req.role), r = chosen.rect, ownerId = req.ownerId)
@@ -535,9 +555,11 @@ public object LabelPlacer {
             if (o.ownerId != null && req.role == LabelRole.PORT && (o.ownerId == req.ownerId || o.ownerId == req.parentId)) continue
             cost += costs.hardOverlap
         }
-        val clear = r.inflated(costs.lineClearance)
+        val clearOwn = r.inflated(costs.lineClearance)
+        val clearForeign = if (costs.foreignLineClearance == costs.lineClearance) clearOwn else r.inflated(costs.foreignLineClearance)
         for (l in index.lines) {
             if (l.kind != ObstacleKind.EDGE && l.kind != ObstacleKind.LIFELINE && l.kind != ObstacleKind.FRAGMENT) continue
+            val clear = if (l.ownerId == req.ownerId) clearOwn else clearForeign
             var hit = false
             for (i in 0 until l.points.size - 1) {
                 if (segmentIntersectsRect(a = l.points[i], b = l.points[i + 1], r = clear)) {

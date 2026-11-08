@@ -233,7 +233,7 @@ class Sysml2StructuralNotesClearanceTest :
                         )
                     },
                     portLabels = Sysml2LayoutBridge.ibdPortLabelSpecs(model = model, diagram = d, layout = enriched),
-                    titleRects = Sysml2LayoutBridge.ibdTitleRects(model = model, layout = enriched),
+                    titleRects = Sysml2LayoutBridge.ibdTitleObstacles(model = model, layout = enriched),
                 )
             val noted =
                 KumlSvgRenderer.placeSysml2NotesResult(

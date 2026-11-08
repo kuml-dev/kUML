@@ -24,6 +24,9 @@ import io.kotest.matchers.string.shouldNotContain
 /**
  * V2.0.13 — verifies the `trigger [guard] / effect` STM transition label
  * format appears verbatim in the SVG output.
+ *
+ * Nacharbeit 43: the gap between the states is wide enough for the label on one line; a label wider than its gap is
+ * wrapped narrower by the renderer, which would change the line count these tests assert.
  */
 class Sysml2StmEdgeLabelSvgTest :
     StringSpec({
@@ -54,18 +57,18 @@ class Sysml2StmEdgeLabelSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(width = 500f, height = 200f),
+                canvas = Size(width = 640f, height = 200f),
                 nodes =
                     mapOf(
                         NodeId("Off") to
                             NodeLayout(bounds = Rect(origin = Point(x = 40f, y = 60f), size = Size(width = 120f, height = 60f))),
                         NodeId("On") to
-                            NodeLayout(bounds = Rect(origin = Point(x = 300f, y = 60f), size = Size(width = 120f, height = 60f))),
+                            NodeLayout(bounds = Rect(origin = Point(x = 440f, y = 60f), size = Size(width = 120f, height = 60f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("transition:Off::On") to
-                            EdgeRoute.Direct(source = Point(x = 160f, y = 90f), target = Point(x = 300f, y = 90f)),
+                            EdgeRoute.Direct(source = Point(x = 160f, y = 90f), target = Point(x = 440f, y = 90f)),
                     ),
                 groups = emptyMap(),
             )

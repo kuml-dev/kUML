@@ -220,6 +220,11 @@ never covers a label that is drawn later.
   the port square and at least 2 px from every line, arrow tip, box, port and other label; a position straight in
   front of the edge that docks at the port is never used. A position inside the box is taken only when every outside
   position collides. Activity edge labels (`[Part]`) stand beside their line, not on it.
+* IBD part boxes without nested frames carry a full-width title band (stereotype and name) as a hard obstacle, so a
+  port label that has to go inside a box does not cover the title (if every position is blocked the least bad one is
+  still taken). State machine transition labels keep 4 px from foreign edges; a label that crosses its own line is
+  reported as not clean, wrapped narrower (0.6 of the normal width) and placed again, and the second plan is kept only
+  if it leaves fewer unclean labels.
 * Note anchors: a straight anchor that crosses nothing wins; otherwise one bend is allowed. An anchor that ends on a
   port arrives perpendicular and stays straight for the last 8 px, or reaches the side of the port square. A note keeps
   8 px from every part box and from every other note (covering a part or another note is excluded outright, the part never moves; since notes N2 a position on another note is never chosen, however crowded the anchor is: the nearest rings come first, then rows in a column beside the content, right and left alternating). The

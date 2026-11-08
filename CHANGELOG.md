@@ -76,6 +76,50 @@ Bindings inside a composite constraint ran on shared lines. Looked at as PNG bef
 - Crossings are minimised by the ordering rules only, right-angle crossings remain.
 - Follow-up: copy the vault-example SVGs to `presentation-de/diagrams/` (renderer update routine); not part of this commit.
 
+### Nacharbeit 43: port labels off part titles and back edge labels beside their line (SVG)
+
+#### Why
+
+Two leftovers of Nacharbeit 40, reproduced with the local CLI as PNG before changing code:
+
+- IBD: a part box without nested frames reported no title obstacle, so a port label that fell back to the inside of the box was drawn through its stereotype and name (hub with three ports, each wired to its own source).
+- STM: in a crowded layout the label of a back edge (`retreat [retryCount < maxRetries && !aborted] / reset()`, 200 px wide) fitted nowhere beside its line. The placer took the least bad spot, which crossed the label's own line, and still reported it `clean`, because the own-line penalty (10 000) is below the clean limit (20 000).
+
+#### Change
+
+- `ibdTitleObstacles` (new, `Sysml2LayoutBridge`) = `ibdTitleRects` plus a full-width title band per part box without nested frames (`partTitleBands`, header height from `STEREOTYPE_LINE_H`, `NAME_LINE_H` and a 4 px margin). The IBD renderer plans labels against it. The band has no owner id, so it is a hard obstacle for every label.
+- `LabelCostModel.foreignLineClearance` (default = `lineClearance`) and `ownCrossUnclean` (default `false`). Only `STM_COSTS` sets them (4 px to foreign edges; a label that crosses its own line is `clean = false`). All other cost models are unchanged.
+- STM renderer: a label that is not clean is wrapped at 0.6 of the normal width and the plan is run again; the second plan is kept only if it leaves fewer unclean labels.
+
+#### Deviations from the design
+
+- `onLine` stays an ordinary last resort with the existing 5 000 penalty; no extra penalty for edges with a counter edge. The on-line candidate is drawn with a halo and is readable, while a candidate that crosses its own line is not, so penalising `onLine` above `ownEdge` would have made the result worse. The "between the two edges" penalty was not added either: `foreignCloserPenalty` and `foreignNearPenalty` already cover a label that sits closer to the counter edge than to its own.
+- The title band is not `COMPOSITE_TITLE_HEIGHT` based; it is the drawn header height plus 4 px.
+
+#### Verification
+
+- `PortLabelTitleBandTest` (bridge, real ELK): no port label covers a title band for a hub and a two-part chain, deterministic, a negative test showing the old title list lets a label cover a title, and a 3 000-box diagram that finishes inside the work budget.
+- `Sysml2StmBackEdgeLabelTest` (svg, fixed routes of the crowded case): no label, widened by 1 px, touches its own line, the counter edge or any other edge; no label covers a state or another label; deterministic. With the wrap factor set to 1.0 the test fails ("label transition:Beta::Alpha touches the line of transition:Beta::Alpha"), so it guards the fix.
+- `StmBackEdgeLabelTest` (bridge): cost model facts, 4 px foreign clearance, own-line rule, crowded label not clean and a narrower one clean. `Sysml2IbdLabelCollisionTest` extended with the hub.
+- PNG before/after with the local CLI: the STM back edge label moved from across its line (left edge over the vertical segment) to beside it, wrapped in 4 short lines; the 3-port hub labels are outside the box.
+- Goldens: none changed. `Sysml2StmEdgeLabelSvgTest` used a 140 px gap that is narrower than its label (the label sat on both states); the new rule wraps such a label narrower, so the test's states moved apart to keep asserting the one-line structure.
+
+#### Not verified
+
+- No box with nested frames was added to the title-band test (only the exemption by construction).
+- LaTeX output was not checked for either defect.
+- The original I19/I7 models were not available.
+
+#### Not fixed
+
+- IBD with crowded ports: in a dense diagram (8 parts, 14 connectors) and in a hub with four long port names every candidate of a port label is hard-blocked (neighbouring labels, port squares, lines); the label still lands inside the box over the title, as before. It needs more port label candidates, which this wave did not touch.
+- Defect (c): node-over-node overlap and edges through nodes were not reproduced in the dense IBD fixture (no overlap, no edge through a box). A dense BDD was not rendered. No change was made.
+- I19/I7: no original model, so nothing is claimed verified.
+
+#### Surfaces checked
+
+`layout.adoc` (Labels and notes) updated; README, kuml.dev What's New (no release in this wave) and the CLAUDE.md sizing section not changed, as they do not describe this behaviour.
+
 ### Nacharbeit 40: room for transition labels in SysML 2 state machines (SVG)
 
 #### Why

@@ -95,7 +95,7 @@ class Sysml2IbdLabelCollisionTest :
                     layout = enriched,
                     adapter = IbdEdgeAdapter(model = m, diagram = d),
                     portLabels = Sysml2LayoutBridge.ibdPortLabelSpecs(model = m, diagram = d, layout = enriched),
-                    titleRects = Sysml2LayoutBridge.ibdTitleRects(model = m, layout = enriched),
+                    titleRects = Sysml2LayoutBridge.ibdTitleObstacles(model = m, layout = enriched),
                 )
             return enriched to labels.mapValues { it.value.rect }
         }
@@ -110,6 +110,45 @@ class Sysml2IbdLabelCollisionTest :
                     if (overlap(a = sorted[i].value, b = sorted[j].value)) {
                         throw AssertionError("labels ${sorted[i].key} and ${sorted[j].key} overlap")
                     }
+                }
+            }
+            plan(m).second shouldBe rects
+        }
+
+        // Nacharbeit 43: a hub whose neighbours' connector lines block the spots outside the box. A port label used to fall
+        // back to the inside of the box, over its title (the box has no nested frame, so no title obstacle existed).
+        fun hubModel(): Sysml2Model =
+            sysml2Model(name = "Hub") {
+                val dc = portDef(name = "DcPort")
+                val link = connectionDef(name = "Link")
+                val hub =
+                    partDef(name = "Hub") {
+                        port(name = "p1", typeId = dc.id)
+                        port(name = "p2", typeId = dc.id)
+                        port(name = "p3", typeId = dc.id)
+                    }
+                val sources = (1..3).map { i -> partDef(name = "Source$i") { port(name = "out$i", typeId = dc.id) } }
+                val system =
+                    partDef(name = "System") {
+                        part(name = "hub", typeId = hub.id)
+                        sources.forEachIndexed { i, s -> part(name = "source${i + 1}", typeId = s.id) }
+                        for (n in 1..3) {
+                            connect(name = "c$n", typeId = link.id, sourceEndId = "source$n.out$n", targetEndId = "hub.p$n")
+                        }
+                    }
+                ibd(name = "Hub IBD", owner = system)
+            }
+
+        test("title band: no port label covers the title of a part box without nested frames") {
+            val m = hubModel()
+            val (layout, rects) = plan(m)
+            val bands = Sysml2LayoutBridge.ibdTitleObstacles(model = m, layout = layout)
+            (bands.size >= 4) shouldBe true
+            val ports = rects.filterKeys { it.startsWith("port:") }
+            (ports.size >= 6) shouldBe true
+            for ((id, r) in ports.entries.sortedBy { it.key }) {
+                for (band in bands) {
+                    if (overlap(a = r, b = band)) throw AssertionError("port label $id covers a part title")
                 }
             }
             plan(m).second shouldBe rects

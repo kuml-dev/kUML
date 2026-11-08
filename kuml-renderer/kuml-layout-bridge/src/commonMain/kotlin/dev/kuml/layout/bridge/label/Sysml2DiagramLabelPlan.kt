@@ -251,10 +251,15 @@ public object Sysml2DiagramLabelPlan {
         return Sysml2LabelPlanResult(labels = LabelPlacer.place(requests = requests, index = index, costs = costs), lines = lines)
     }
 
-    /** Cost model of the state machine: 2 px free space, search along the whole line up to 14 px away (PAL wave 2D-a). */
+    /**
+     * Cost model of the state machine: 2 px free space to the own line and to nodes, 4 px to foreign edges (Nacharbeit 43),
+     * search along the whole line up to 14 px away (PAL wave 2D-a). A label that crosses its own line is not clean.
+     */
     public val STM_COSTS: LabelCostModel =
         LabelCostModel(
             lineClearance = 2f,
+            foreignLineClearance = 4f,
+            ownCrossUnclean = true,
             nodeClearance = 2f,
             edgeOffsets = listOf(3f, 6f, 10f, 14f),
             maxDistancePx = 14f,

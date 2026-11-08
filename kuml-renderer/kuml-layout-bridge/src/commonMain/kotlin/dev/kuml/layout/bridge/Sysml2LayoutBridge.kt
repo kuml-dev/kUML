@@ -3451,6 +3451,26 @@ public object Sysml2LayoutBridge {
         return out
     }
 
+    /**
+     * The text obstacles of an IBD for the label plan (Nacharbeit 43): [ibdTitleRects] plus a full-width title band for
+     * every part box that has no nested frame, so a port or connector label never lands on the text of such a box.
+     * Boxes with nested frames keep their estimated title rectangle (their band would cover the nested frames too).
+     */
+    public fun ibdTitleObstacles(
+        model: Sysml2Model,
+        layout: LayoutResult,
+    ): List<Rect> {
+        val hosts = layout.ibdNestedFrames.map { it.nodeId }.toSet()
+        val partIds =
+            model.usages
+                .filterIsInstance<PartUsage>()
+                .map { it.id }
+                .toSet()
+        val plain = layout.nodes.keys.filter { it.value in partIds && it.value !in hosts }
+        return ibdTitleRects(model = model, layout = layout) +
+            partTitleBands(layout = layout, nodeIds = plain, hasStereotype = { true })
+    }
+
     /** Absolute (layout coordinate) rectangle of [frame]. */
     public fun ibdFrameAbs(
         frame: dev.kuml.layout.IbdNestedFrame,
