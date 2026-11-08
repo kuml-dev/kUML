@@ -7,6 +7,7 @@ import dev.kuml.layout.NodeId
 import dev.kuml.layout.Point
 import dev.kuml.layout.Size
 import dev.kuml.layout.Spacing
+import dev.kuml.layout.bridge.label.StmLabelLayerGap
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.DurationConstraintUsage
@@ -34,11 +35,14 @@ import dev.kuml.sysml2.UcDiagram
  *   [normalizeSeqLayout] die Reihenfolge nach dem Layout (Doppelsicherung, wirkt auch bei der Grid-Engine).
  */
 public fun Sysml2LayoutBridge.layoutHintsFor(
-    @Suppress("UNUSED_PARAMETER") model: Sysml2Model,
+    model: Sysml2Model,
     diagram: Sysml2Diagram,
-): LayoutHints = withLayoutDirection(diagram = diagram, hints = baseHints(diagram))
+): LayoutHints = withLayoutDirection(diagram = diagram, hints = baseHints(model = model, diagram = diagram))
 
-private fun baseHints(diagram: Sysml2Diagram): LayoutHints =
+private fun baseHints(
+    model: Sysml2Model,
+    diagram: Sysml2Diagram,
+): LayoutHints =
     when (diagram) {
         is SeqDiagram -> LayoutHints.DEFAULT.copy(preserveNodeOrder = true)
         // V2.0.8+: Stereotyp-Labels auf jeder REQ-Kante brauchen mehr Platz als die 40-px-Defaults.
@@ -55,9 +59,17 @@ private fun baseHints(diagram: Sysml2Diagram): LayoutHints =
                     ),
             )
         // V2.0.44: viele Kantenlabels (`event [guard] / action`) um gemeinsame Zustände.
+        // Wave F: the layer gap also holds the widest transition label along the flow direction.
         is StmDiagram ->
             LayoutHints.DEFAULT.copy(
-                spacing = Spacing(nodeToNode = 80f, edgeToEdge = 28f, groupPadding = 24f, edgeToEdgeBetweenLayers = 40f),
+                spacing =
+                    Spacing(
+                        nodeToNode = 80f,
+                        edgeToEdge = 28f,
+                        groupPadding = 24f,
+                        layerToLayer = StmLabelLayerGap.requiredLayerGapBase(model = model, diagram = diagram) ?: Float.NaN,
+                        edgeToEdgeBetweenLayers = 40f,
+                    ),
             )
         // V2.0.45: Pin-Labels und Kantenlabels brauchen Platz.
         is ActDiagram ->

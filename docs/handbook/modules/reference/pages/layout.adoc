@@ -42,6 +42,11 @@ labels fit. A single constant, `LAYOUT_SPACING_SCALE` (1.5) in `kuml-layout-api`
 edge-to-edge spacing; it applies to the final value, so spacing that a diagram sets itself (for example state machines,
 ERM and sequence diagrams) scales alike. Group padding, box sizes and font sizes are unchanged.
 
+State machines add one more rule (Nacharbeit 40): the layer gap is at least as wide as the widest transition label along the
+flow direction (its width for `direction = Right` / `Left`, its height for `Down` / `Up`) plus 8 px on each side. The label
+size comes from the same wrap (`labelMaxWidth`, default 220 px) and character estimate (7.2 px) that draw the label. The gap
+is a property of the whole diagram: every layer gap widens, not only the one with the long label.
+
 Not affected, because they use their own fixed geometry: SysML 2 activity swimlanes, Service Blueprint, the row height of
 sequence diagrams, the `kuml.grid` engine and the LaTeX/TikZ output of BPMN.
 
@@ -201,6 +206,9 @@ never covers a label that is drawn later.
 * SysML 2 IBD and BDD: connector labels are planned (`Sysml2EdgeLabelPlan`) before the notes; once the notes
   stand, the labels move away from them and from their anchor lines. The renderer draws each label exactly at its
   planned rectangle.
+* SysML 2 state machines: the layout reserves the room a transition label needs between two layers (see Spacing between
+  components); the label itself is placed afterwards from the final routes and never covers a state or another label
+  unless no free position exists (`PlacedLabel.clean` is then `false`).
 * Port labels and edge labels share one plan (`Sysml2DiagramLabelPlan`): one `LabelPlacer` run, arrow tips are
   12 x 12 px obstacles, a port label stays off the side where its edge docks, and the clearance to foreign lines is
   2 px. A port label longer than 24 characters wraps to at most two lines and is never cut. A label is drawn as one

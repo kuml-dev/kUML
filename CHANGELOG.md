@@ -6,6 +6,39 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 40: room for transition labels in SysML 2 state machines (SVG)
+
+#### Why
+
+A transition label such as `T21 [supplyVoltage > 11.5 && !emergency] / switchLights('green'); notifyController()` on a left-to-right state machine was wider than the gap between two states. ELK is not told about labels (they are placed after the layout), so the label sat on a state. Looked at as PNG before the change: `T22` overlapped state `Gelb`, `T23` ran over its border.
+
+#### Change
+
+- `StmLabelWrap` (new, `kuml-layout-bridge`) holds the transition label wrap and box size that lived in the SVG module's `StmLabelPlacer`; `StmLabelPlacer` and `StmLabelLine` now delegate. The layout and the renderer measure the same label.
+- `StmLabelLayerGap` (new): `layoutHintsFor` sets `layerToLayer` for state machines to the widest label extent along the flow direction plus 8 px per side (only when that exceeds the engine default of 90 base px). The whole diagram gets the wider gap; ELK layered has no per-gap spacing.
+- `Sysml2LabelSizing.CHAR_PX_EDGE_LABEL` (7.2) is the one constant for STM edge labels. `CHAR_PX` (6.6, PAR/ACT/notes) is deliberately unchanged: the renders showed the STM estimate is already generous (about 5.4 px drawn), so raising 6.6 to 7.2 globally would only enlarge PAR/ACT/note boxes. No golden changed.
+- `LabelPlacer` already treats label/label, label/node and label/port overlap as hard cost and reports `PlacedLabel.clean`; no second resolver was added.
+- Handbook `layout.adoc` (Spacing, Labels and notes) and the CLAUDE.md sizing section updated.
+
+#### Verification
+
+- New `Sysml2StmLabelRoomTest` (bridge, real ELK): hint present for Right with long labels and absent for Down and short labels; gap between neighbouring columns at least widest label + 16 px; no label covers a state or another label for Right and Down; deterministic plan; one character constant.
+- New `Sysml2IbdLabelCollisionTest` (svg): no two labels overlap in a three-flow IBD, deterministic.
+- Fixtures rendered with the local CLI before and after: Right gap grew (canvas 983 to 1189 px), `T22` and `T23` now sit in the gaps.
+- detekt and ktlint clean for `kuml-layout-bridge` and `kuml-io-svg`; `scripts/ci/check_latex_tests.py` passes; see the final report for the full `clean check --no-build-cache` result.
+
+#### Not verified
+
+- The original I19/I7 IBD model was not available; the IBD test uses a stand-in. It passes on the old code too, so it is a guard, not a proven fix.
+- `Down` flow was rendered but its gap was never too small, so it is unchanged by design.
+- LaTeX output was not checked for the same defect.
+
+#### Not fixed
+
+- IBD: a port label can still sit over the title of a part box (titles of boxes without nested frames are no obstacles), and a flow label can sit on its own connector line.
+- STM: a label on a long back edge (`T21` here) can still be struck through by its own line.
+- Node overlap in general, edges through nodes, long detours, UML bridge (6.6 px), parametric binding lines and note placement.
+
 ### Nacharbeit 39: strictly collision-free notes in UML and SysML 2 sequence diagrams (SVG)
 
 #### Why

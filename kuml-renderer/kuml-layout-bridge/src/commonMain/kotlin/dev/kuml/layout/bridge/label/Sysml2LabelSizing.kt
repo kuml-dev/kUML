@@ -10,6 +10,13 @@ public object Sysml2LabelSizing {
     /** Estimated width of one label character. */
     public const val CHAR_PX: Float = 6.6f
 
+    /**
+     * Estimated width of one character of an STM/IBD edge label (wave F). Kept apart from [CHAR_PX]: the edge labels
+     * were sized with 7.2 since PAL wave 2D-a, while PAR, ACT and note labels stay at 6.6, so a change of one
+     * family cannot move the other. Both the layout (room for the label) and the renderer (box of the label) read this.
+     */
+    public const val CHAR_PX_EDGE_LABEL: Float = 7.2f
+
     /** Height of one label line. */
     public const val LINE_PX: Float = 15f
     private const val PAD_PX: Float = 8f
