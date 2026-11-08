@@ -21,7 +21,7 @@ class AppSettingsStore(
             if (!Files.exists(file)) {
                 AppSettings.DEFAULT
             } else {
-                json.decodeFromString<AppSettings>(Files.readString(file))
+                json.decodeFromString<AppSettings>(Files.readString(file)).migratedDirs()
             }
         } catch (_: Exception) {
             AppSettings.DEFAULT

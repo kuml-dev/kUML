@@ -6,6 +6,29 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 37: separate remembered directories for open and export dialogs (kUML Desktop)
+
+#### Why
+
+The desktop app remembered a single directory (`lastDir`) for all file dialogs. Opening a script and exporting an image or PDF are different places, so opening something reset the export start directory and vice versa.
+
+#### Change
+
+- `AppSettings` has two persisted values, `lastOpenDir` and `lastExportDir`. The legacy `lastDir` is read once on load (`migratedDirs()`: it seeds whichever new value is missing, new values are never overwritten) and no longer written. Additive, no `schemaVersion` bump. Downgrading to an older build loses the remembered directory once.
+- Open family (`lastOpenDir`): Open, Save, Save As, Open Workspace and the parent folder of New Workspace. Open Workspace stores the parent of the chosen folder, like New Workspace.
+- Export family (`lastExportDir`): SVG/PNG export, LaTeX export, PDF export (file and target directory) and the workspace LaTeX export directory. Export file choices store the file's parent; directory choices store the chosen directory itself (the folder just used is reused). Only an approved choice is stored; cancelling changes nothing.
+- New `DialogDirs.resolve`: a stored directory that no longer exists falls back to the home directory.
+- `AppSettingsBinding` now watches both values so they are saved without waiting for quit.
+- Handbook: `desktop.adoc`.
+
+#### Verification
+
+- New `DialogDirsTest`; extended `AppSettingsTest`, `AppSettingsStoreTest` (legacy migration through `load()`) and `AppStateTest` (open and export tracked separately).
+
+#### Not verified
+
+- The real `JFileChooser` dialogs were not clicked in a running app, and Windows and Linux paths were not tried.
+
 ### Nacharbeit 36: initial pseudo-state at the start of the flow, SysML 2 relations in LaTeX
 
 #### Why

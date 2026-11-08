@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import dev.kuml.desktop.io.AppSettings
+import dev.kuml.desktop.io.DialogDirs
 import dev.kuml.desktop.io.RecentFiles
 import dev.kuml.desktop.mcp.McpNotice
 import dev.kuml.desktop.simulation.SimulationSession
@@ -77,8 +78,11 @@ class AppState(
     /** Liste der zuletzt geöffneten Dateien (Pfade). */
     val recentFiles: SnapshotStateList<String> = mutableStateListOf(*initialSettings.recentFiles.toTypedArray())
 
-    /** Zuletzt verwendetes Verzeichnis für Datei-Dialoge. */
-    var lastDir by mutableStateOf<String?>(initialSettings.lastDir)
+    /** Start directory for open-type dialogs (Open, Save As, workspace dialogs). */
+    var lastOpenDir by mutableStateOf<String?>(initialSettings.lastOpenDir ?: initialSettings.lastDir)
+
+    /** Start directory for export-type dialogs (SVG/PNG, LaTeX, PDF). */
+    var lastExportDir by mutableStateOf<String?>(initialSettings.lastExportDir ?: initialSettings.lastDir)
 
     /** Fensterbreite in Pixeln. */
     var windowWidth by mutableStateOf(initialSettings.windowWidth)
@@ -220,7 +224,7 @@ class AppState(
 
     /**
      * Lädt Dateiinhalt in den Editor und aktualisiert Metadaten.
-     * Setzt isDirty=false, aktualisiert currentFile, lastDir und recentFiles.
+     * Setzt isDirty=false, aktualisiert currentFile, lastOpenDir und recentFiles.
      */
     fun loadFrom(
         file: File,
@@ -230,21 +234,36 @@ class AppState(
         savedScript = content
         currentFile = file
         isDirty = false
-        lastDir = file.parentFile?.absolutePath
+        lastOpenDir = file.parentFile?.absolutePath
         val updated = RecentFiles.add(list = recentFiles.toList(), path = file.absolutePath)
         recentFiles.clear()
         recentFiles.addAll(updated)
     }
 
+    /** Remembers the directory of an exported file as the next export start directory. */
+    fun noteExported(file: File) {
+        lastExportDir = file.parentFile?.absolutePath ?: lastExportDir
+    }
+
+    /** Remembers a chosen export target directory itself as the next export start directory. */
+    fun noteExportDir(dir: File) {
+        lastExportDir = DialogDirs.dirOfDirectoryChoice(dir)
+    }
+
+    /** Remembers the parent of a chosen workspace directory as the next open start directory. */
+    fun noteOpenedDir(dir: File) {
+        lastOpenDir = DialogDirs.parentOfDirectoryChoice(dir)
+    }
+
     /**
      * Markiert den aktuellen Zustand als gespeichert unter der gegebenen Datei.
-     * Setzt isDirty=false, aktualisiert currentFile, lastDir und recentFiles.
+     * Setzt isDirty=false, aktualisiert currentFile, lastOpenDir und recentFiles.
      */
     fun markSaved(file: File) {
         savedScript = script
         currentFile = file
         isDirty = false
-        lastDir = file.parentFile?.absolutePath
+        lastOpenDir = file.parentFile?.absolutePath
         val updated = RecentFiles.add(list = recentFiles.toList(), path = file.absolutePath)
         recentFiles.clear()
         recentFiles.addAll(updated)
@@ -280,7 +299,8 @@ class AppState(
             theme = theme,
             language = language,
             recentFiles = recentFiles.toList(),
-            lastDir = lastDir,
+            lastOpenDir = lastOpenDir,
+            lastExportDir = lastExportDir,
             windowWidth = windowWidth,
             windowHeight = windowHeight,
             windowX = windowX,

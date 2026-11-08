@@ -25,7 +25,8 @@ class AppSettingsStoreTest :
                     theme = "dark",
                     language = "de",
                     recentFiles = listOf("/tmp/diagram.kuml.kts"),
-                    lastDir = "/tmp",
+                    lastOpenDir = "/tmp/open",
+                    lastExportDir = "/tmp/export",
                     windowWidth = 1600,
                     windowHeight = 1000,
                     windowX = 50,
@@ -34,6 +35,20 @@ class AppSettingsStoreTest :
             try {
                 store.save(original)
                 store.load() shouldBe original
+            } finally {
+                tempDir.toFile().deleteRecursively()
+            }
+        }
+
+        test("load() migrates a legacy lastDir into both new directories") {
+            val tempDir = Files.createTempDirectory("kuml-store-test")
+            val settingsFile = tempDir.resolve("settings.json")
+            Files.writeString(settingsFile, """{"lastDir": "/legacy"}""")
+            try {
+                val loaded = AppSettingsStore(settingsFile).load()
+                loaded.lastOpenDir shouldBe "/legacy"
+                loaded.lastExportDir shouldBe "/legacy"
+                loaded.lastDir shouldBe null
             } finally {
                 tempDir.toFile().deleteRecursively()
             }

@@ -65,6 +65,8 @@ what is on screen:
 Saving always goes through the file dialog; cancelling writes nothing, and a failure is reported in a message box. The
 suggested file name is the document's name with `.svg` or `.png`.
 
+Image, LaTeX and PDF exports remember their own start directory, separate from the one used by Open, Save As and the workspace dialogs. A remembered directory that no longer exists falls back to the home directory.
+
 The PNG is twice the diagram's natural width, between 800 and 4096 px (1600 px when the width cannot be read), on a white
 background.
 

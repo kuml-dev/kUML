@@ -47,6 +47,7 @@ import dev.kuml.desktop.editor.EditorPane
 import dev.kuml.desktop.editor.FindBar
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.io.AppSettingsStore
+import dev.kuml.desktop.io.DialogDirs
 import dev.kuml.desktop.io.FileMenu
 import dev.kuml.desktop.io.UnsavedChoice
 import dev.kuml.desktop.io.UnsavedSaveTarget
@@ -364,7 +365,7 @@ fun FrameWindowScope.MainWindow(
             val chosen =
                 FileMenu.chooseSave(
                     parent = windowHandle,
-                    initialDir = state.lastDir?.let { File(it) },
+                    initialDir = DialogDirs.resolve(stored = state.lastOpenDir),
                     suggestedName = "diagram.kuml.kts",
                     strings = strings,
                 )
@@ -402,10 +403,11 @@ fun FrameWindowScope.MainWindow(
         val result =
             saveShownDiagram(
                 parent = windowHandle,
-                initialDir = state.lastDir?.let { File(it) },
+                initialDir = DialogDirs.resolve(stored = state.lastExportDir),
                 target = target,
                 strings = strings,
             )
+        if (result is ExportSaveResult.Saved) state.noteExported(result.file)
         if (result is ExportSaveResult.Failed) {
             JOptionPane.showMessageDialog(windowHandle, strings.previewExport.saveFailed.format(result.message))
         }
@@ -492,12 +494,13 @@ fun FrameWindowScope.MainWindow(
                             val chosen =
                                 chooseLatexFile(
                                     parent = windowHandle,
-                                    initialDir = state.lastDir?.let { File(it) },
+                                    initialDir = DialogDirs.resolve(stored = state.lastExportDir),
                                     suggestedName = latexSuggestedFileName(session.baseName),
                                     strings = strings,
                                 )
                             chosen?.let { saveLatex(file = it, tex = outcome.tex) }
                         }
+                    if (result is ExportSaveResult.Saved) state.noteExported(result.file)
                     if (result is ExportSaveResult.Failed) showLatexFailure(result.message)
                 }
             }
@@ -720,7 +723,7 @@ fun FrameWindowScope.MainWindow(
                     val file =
                         FileMenu.chooseOpen(
                             parent = windowHandle,
-                            initialDir = state.lastDir?.let { File(it) },
+                            initialDir = DialogDirs.resolve(stored = state.lastOpenDir),
                             strings = strings,
                         )
                     if (file != null) {
@@ -737,10 +740,13 @@ fun FrameWindowScope.MainWindow(
                     val dir =
                         FileMenu.chooseOpenDirectory(
                             parent = windowHandle,
-                            initialDir = state.lastDir?.let { File(it) },
+                            initialDir = DialogDirs.resolve(stored = state.lastOpenDir),
                             strings = strings,
                         )
-                    if (dir != null) openWorkspaceDirectory(dir)
+                    if (dir != null) {
+                        state.noteOpenedDir(dir)
+                        openWorkspaceDirectory(dir)
+                    }
                 }
             })
             if (state.openWorkspace != null) {
@@ -795,7 +801,7 @@ fun FrameWindowScope.MainWindow(
                     val chosen =
                         FileMenu.chooseSave(
                             parent = windowHandle,
-                            initialDir = state.lastDir?.let { File(it) },
+                            initialDir = DialogDirs.resolve(stored = state.lastOpenDir),
                             suggestedName = state.currentFile?.name ?: "diagram.kuml.kts",
                             strings = strings,
                         )
@@ -1342,24 +1348,26 @@ fun FrameWindowScope.MainWindow(
                 trusted = WorkspaceTrust.isTrusted(trustedPaths = state.trustedWorkspaces.toList(), root = root),
                 producerVersion = WorkspacePdfExport.producer,
                 evalGate = mcpTools.evalGate,
-                initialDir = state.lastDir?.let { File(it) },
+                initialDir = DialogDirs.resolve(stored = state.lastExportDir),
                 chooseSaveFile = { name, initial ->
-                    FileMenu.chooseExport(
-                        parent = windowHandle,
-                        initialDir = initial,
-                        suggestedName = name,
-                        description = "PDF (*.pdf)",
-                        extension = "pdf",
-                        strings = strings,
-                    )
+                    FileMenu
+                        .chooseExport(
+                            parent = windowHandle,
+                            initialDir = initial,
+                            suggestedName = name,
+                            description = "PDF (*.pdf)",
+                            extension = "pdf",
+                            strings = strings,
+                        )?.also { state.noteExported(it) }
                 },
                 chooseSaveDirectory = { initial ->
-                    FileMenu.chooseOpenDirectory(
-                        parent = windowHandle,
-                        initialDir = initial,
-                        strings = strings,
-                        title = strings.pdfExportTitle,
-                    )
+                    FileMenu
+                        .chooseOpenDirectory(
+                            parent = windowHandle,
+                            initialDir = initial,
+                            strings = strings,
+                            title = strings.pdfExportTitle,
+                        )?.also { state.noteExportDir(it) }
                 },
                 onDismiss = { pdfDialogRequest = null },
                 documentPath = knowledge.state.selected?.relativePath,
@@ -1394,14 +1402,15 @@ fun FrameWindowScope.MainWindow(
                 themeName = state.theme.takeIf { it in themeNamesForExport } ?: themeNamesForExport.first(),
                 themeNames = themeNamesForExport,
                 evalGate = mcpTools.evalGate,
-                initialDir = state.lastDir?.let { File(it) },
+                initialDir = DialogDirs.resolve(stored = state.lastExportDir),
                 chooseSaveDirectory = { initial ->
-                    FileMenu.chooseOpenDirectory(
-                        parent = windowHandle,
-                        initialDir = initial,
-                        strings = strings,
-                        title = strings.workspaceLatexExport.title,
-                    )
+                    FileMenu
+                        .chooseOpenDirectory(
+                            parent = windowHandle,
+                            initialDir = initial,
+                            strings = strings,
+                            title = strings.workspaceLatexExport.title,
+                        )?.also { state.noteExportDir(it) }
                 },
                 canOpenFolder = desktopOpen,
                 openFolder = {
@@ -1420,7 +1429,7 @@ fun FrameWindowScope.MainWindow(
     if (showNewWorkspaceDialog) {
         NewWorkspaceDialog(
             strings = strings,
-            initialParentDir = state.lastDir?.let { File(it) } ?: File(System.getProperty("user.home")),
+            initialParentDir = DialogDirs.resolve(stored = state.lastOpenDir),
             chooseParentDir = { initial ->
                 FileMenu.chooseOpenDirectory(
                     parent = windowHandle,
@@ -1430,7 +1439,7 @@ fun FrameWindowScope.MainWindow(
                 )
             },
             onCreated = { dir ->
-                state.lastDir = dir.parentFile?.absolutePath
+                state.lastOpenDir = dir.parentFile?.absolutePath
                 showNewWorkspaceDialog = false
                 openWorkspaceDirectory(dir)
             },

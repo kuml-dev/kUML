@@ -30,6 +30,30 @@ class AppSettingsTest :
             s.viewMode shouldBe "SPLIT"
         }
 
+        test("round-trip preserves lastOpenDir and lastExportDir") {
+            val original = AppSettings(lastOpenDir = "/a", lastExportDir = "/b")
+            json.decodeFromString<AppSettings>(json.encodeToString(original)) shouldBe original
+        }
+
+        test("migratedDirs seeds both directories from legacy lastDir and clears it") {
+            val m = json.decodeFromString<AppSettings>("""{"lastDir":"/x"}""").migratedDirs()
+            m.lastOpenDir shouldBe "/x"
+            m.lastExportDir shouldBe "/x"
+            m.lastDir shouldBe null
+        }
+
+        test("migratedDirs never overwrites present new values") {
+            val m = AppSettings(lastDir = "/x", lastOpenDir = "/a", lastExportDir = "/b").migratedDirs()
+            m.lastOpenDir shouldBe "/a"
+            m.lastExportDir shouldBe "/b"
+        }
+
+        test("migratedDirs fills only the missing new value") {
+            val m = AppSettings(lastDir = "/x", lastOpenDir = "/a").migratedDirs()
+            m.lastOpenDir shouldBe "/a"
+            m.lastExportDir shouldBe "/x"
+        }
+
         test("JSON round-trip preserves all fields") {
             val original =
                 AppSettings(

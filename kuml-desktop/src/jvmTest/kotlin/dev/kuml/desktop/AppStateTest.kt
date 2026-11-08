@@ -93,7 +93,31 @@ class AppStateTest :
             state.theme shouldBe "dark"
             state.language shouldBe "de"
             state.recentFiles shouldContain "/tmp/previous.kuml.kts"
-            state.lastDir shouldBe "/tmp"
+            state.lastOpenDir shouldBe "/tmp"
+            state.lastExportDir shouldBe "/tmp"
+        }
+
+        test("open and export directories are tracked separately") {
+            val a = Files.createTempDirectory("kuml-dir-a").toFile()
+            val b = Files.createTempDirectory("kuml-dir-b").toFile()
+            try {
+                val state = AppState()
+                state.loadFrom(file = File(a, "x.kuml.kts"), content = "")
+                state.lastOpenDir shouldBe a.absolutePath
+                state.lastExportDir shouldBe null
+                state.noteExported(File(b, "out.svg"))
+                state.lastExportDir shouldBe b.absolutePath
+                state.lastOpenDir shouldBe a.absolutePath
+                state.markSaved(File(a, "y.kuml.kts"))
+                state.lastExportDir shouldBe b.absolutePath
+                val s = state.toSettings()
+                s.lastOpenDir shouldBe a.absolutePath
+                s.lastExportDir shouldBe b.absolutePath
+                s.lastDir shouldBe null
+            } finally {
+                a.deleteRecursively()
+                b.deleteRecursively()
+            }
         }
 
         test("loadFrom() sets script, currentFile, isDirty=false and adds to recentFiles") {

@@ -22,7 +22,7 @@ enum class NewWorkspaceError { NAME_EMPTY, TARGET_NOT_EMPTY, WRITE_FAILED }
  * "pure-function-extraction" pattern already used in this module for [renderDelayFor]-style
  * helpers (see `MainWindow.kt`).
  *
- * [parentDir] is the folder the user picks (or the app's remembered `lastDir`) — [targetDir]
+ * [parentDir] is the folder the user picks (or the app's remembered `lastOpenDir`) — [targetDir]
  * (parent + slug) is what actually gets created.
  */
 data class NewWorkspaceFormState(
