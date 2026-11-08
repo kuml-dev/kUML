@@ -21,9 +21,10 @@ class KumlCoreModelSnapshotTest :
     FunSpec({
 
         val kumlCoreModelSrcPath =
-            Paths.get(
-                "/Users/irakli/IdeaProjects/kUML/kuml-core/kuml-core-model/src/main/kotlin",
-            )
+            Paths
+                .get("..", "..", "kuml-core", "kuml-core-model", "src", "main", "kotlin")
+                .toAbsolutePath()
+                .normalize()
 
         test("kuml-core-model sources produce a stable UML model without errors") {
             if (!Files.isDirectory(kumlCoreModelSrcPath)) {

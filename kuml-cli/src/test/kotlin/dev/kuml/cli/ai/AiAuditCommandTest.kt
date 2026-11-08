@@ -61,7 +61,7 @@ class AiAuditCommandTest :
         val sessionOpened =
             ComplianceEvent.SessionOpened(
                 sessionId = "SES-AUDIT-001",
-                ownerId = "irakli",
+                ownerId = "alice",
                 timestamp = "2026-01-15T10:00:00Z",
                 providerId = "anthropic",
                 modelId = "claude-sonnet-4-6",
@@ -70,7 +70,7 @@ class AiAuditCommandTest :
         val patchApplied =
             ComplianceEvent.PatchApplied(
                 sessionId = "SES-AUDIT-001",
-                ownerId = "irakli",
+                ownerId = "alice",
                 timestamp = "2026-01-15T10:00:01Z",
                 patchId = "PAT-AUDIT-001",
                 patchKind = "uml.class",
@@ -79,7 +79,7 @@ class AiAuditCommandTest :
         val sessionClosed =
             ComplianceEvent.SessionClosed(
                 sessionId = "SES-AUDIT-001",
-                ownerId = "irakli",
+                ownerId = "alice",
                 timestamp = "2026-01-15T10:00:02Z",
                 appliedCount = 1,
                 rejectedCount = 0,
@@ -97,7 +97,7 @@ class AiAuditCommandTest :
             writeLogLines(testDate, sessionOpened, patchApplied, sessionClosed)
             val result = KumlCli().test("ai audit --date $testDate")
             result.output shouldContain "SES-AUDIT-001"
-            result.output shouldContain "irakli"
+            result.output shouldContain "alice"
             result.output shouldContain "session.opened"
             result.output shouldContain "patch.applied"
             result.output shouldContain "session.closed"

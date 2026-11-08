@@ -349,7 +349,7 @@ fun Project.configureKumlPublishing() {
                 developer {
                     id.set("ibetchvaia")
                     name.set("Irakli Betchvaia")
-                    email.set("ibetchvaia@gmail.com")
+                    email.set("irakli@betchvaia.de")
                 }
             }
 

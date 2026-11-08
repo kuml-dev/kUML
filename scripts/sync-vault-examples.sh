@@ -4,7 +4,7 @@
 # Syncs the kUML example notes from the Obsidian vault into two targets:
 #   1. kuml-tests/kuml-vault-examples-tests/src/test/resources/vault-examples/
 #      → consumed by VaultExamplesRenderTest as classpath resources (CI-safe).
-#   2. /Users/irakli/WebstormProjects/kuml.dev/playground-sources/
+#   2. <kuml.dev checkout>/playground-sources/
 #      → each ` ```kuml ` fenced block is extracted into a .kuml.kts file
 #        (only when content actually changed, to avoid noisy commits).
 #

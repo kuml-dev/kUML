@@ -10,7 +10,7 @@ import dev.kuml.uml.dsl.extends
  * PZB Datenbank-Schema — Klassendiagramm der Exposed-Tabellen.
  *
  * Reales Modell aus dem PZB-Projekt
- * (`/Users/irakli/IdeaProjects/PDV/PZB/Database/src/main/kotlin/de/pdv/pzb/server/db/v2/tables`).
+ * (Exposed-Tabellendefinitionen der Datenbank-Schicht, Version 2).
  * Dient als anspruchsvolles Test-Fixture für den kUML-Renderer: 19 Tabellen,
  * eine abstrakte Basisklasse, Vererbung in alle Klassen, Foreign-Key-Assoziationen
  * mit Multiplicities (`1` für `reference`, `0..1` für `optReference`).

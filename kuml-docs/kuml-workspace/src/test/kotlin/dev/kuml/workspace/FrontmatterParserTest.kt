@@ -128,12 +128,12 @@ class FrontmatterParserTest :
                 """
                 |---
                 |type: Concept
-                |title: "C:\\Users\\irakli"
+                |title: "C:\\Users\\alice"
                 |---
                 |Body
                 """.trimMargin()
             val fm = FrontmatterParser.parse(md)
-            fm.title shouldBe "C:\\Users\\irakli"
+            fm.title shouldBe "C:\\Users\\alice"
         }
 
         test("a single-quoted value is NOT un-escaped (no writer in this codebase produces one)") {

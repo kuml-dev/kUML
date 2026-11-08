@@ -31,7 +31,7 @@ next tag.
 ### 2. GPG signing key
 
 ```bash
-gpg --quick-generate-key "kUML Release <ibetchvaia@gmail.com>" rsa4096 sign 0
+gpg --quick-generate-key "kUML Release <irakli@betchvaia.de>" rsa4096 sign 0
 gpg --list-secret-keys --keyid-format=long
 # Note the key id, e.g. ABC1234567890DEF
 
