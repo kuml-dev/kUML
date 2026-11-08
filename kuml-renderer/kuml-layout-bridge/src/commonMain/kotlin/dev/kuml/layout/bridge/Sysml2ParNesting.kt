@@ -66,6 +66,32 @@ public object ParConstraintGeometry {
     /** Left indent of the parameter text; leaves room for the inner routing lanes. */
     public const val PARAM_TEXT_INDENT: Float = 18f
 
+    /**
+     * Left indent of the parameter text of [constraint]: at least [PARAM_TEXT_INDENT], wider when many inward-binding
+     * pins put corridor columns (8 px pitch) on the west side of an owner box. Depends on [model] only, so the SVG
+     * renderer, the size provider and the label geometry agree.
+     */
+    public fun paramTextIndent(
+        model: Sysml2Model,
+        constraint: ConstraintDefinition,
+    ): Float {
+        val childIds =
+            model.definitions
+                .filterIsInstance<ConstraintDefinition>()
+                .filter { it.ownerConstraintId == constraint.id }
+                .map { it.id }
+        if (childIds.isEmpty()) return PARAM_TEXT_INDENT
+        val west = HashSet<String>()
+        for (b in model.usages.filterIsInstance<BindingConnectorUsage>()) {
+            for ((own, other) in listOf(b.sourceEndId to b.targetEndId, b.targetEndId to b.sourceEndId)) {
+                val p = constraint.parameters.firstOrNull { own == "${constraint.id}::${it.name}" } ?: continue
+                if (pinSide(p.direction) == PortSide.West && childIds.any { other.startsWith("$it::") }) west += p.name
+            }
+        }
+        if (west.isEmpty()) return PARAM_TEXT_INDENT
+        return maxOf(PARAM_TEXT_INDENT, ParCompositeLayout.LANE_X0 + (west.size - 1) * ParCompositeLayout.LANE_PITCH + 6f)
+    }
+
     /** Average width of an 11 pt monospace glyph (expression compartment). */
     public const val EXPRESSION_CHAR_PX: Float = 7.2f
 
@@ -311,13 +337,23 @@ internal object ParCompositeLayout {
     const val BOTTOM_PAD: Float = 20f
     const val APPROACH: Float = 8f
     const val LANE_X0: Float = 6f
-    const val LANE_STEP: Float = 4f
+    const val LANE_PITCH: Float = 8f
     const val CORNER_RADIUS: Float = 0f
+
+    /** Width of a side zone: room for [corridors] owner corridor columns and [approaches] approach columns of the edge child. */
+    private fun zone(
+        corridors: Int,
+        approaches: Int,
+    ): Float {
+        val base = if (corridors > 0) LANE_X0 + (corridors - 1) * LANE_PITCH + LANE_PITCH else LANE_PITCH
+        return maxOf(SIDE_ZONE, base + approaches * LANE_PITCH)
+    }
 
     fun box(
         id: String,
         model: Sysml2Model,
         nesting: ParNesting,
+        plan: ParLanePlan,
         ownSize: (String) -> Size,
         memo: MutableMap<String, ParBox> = HashMap(),
     ): ParBox {
@@ -328,16 +364,45 @@ internal object ParCompositeLayout {
             if (kids.isEmpty()) {
                 ParBox(size = own, children = emptyMap())
             } else {
-                val boxes = kids.associateWith { box(id = it, model = model, nesting = nesting, ownSize = ownSize, memo = memo) }
-                val rowW = boxes.values.sumOf { it.size.width.toDouble() }.toFloat() + GUTTER * (kids.size - 1)
-                val w = maxOf(own.width, rowW + 2 * SIDE_ZONE)
-                val y0 = own.height + CHANNEL_H
-                var x = (w - rowW) / 2f
+                val boxes =
+                    kids.associateWith {
+                        box(
+                            id = it,
+                            model = model,
+                            nesting = nesting,
+                            plan = plan,
+                            ownSize = ownSize,
+                            memo = memo,
+                        )
+                    }
+                val gaps =
+                    (0 until kids.size - 1).map { i ->
+                        val slots =
+                            plan.approachCount(child = kids[i], side = PortSide.East) +
+                                plan.shortCount(owner = id, gapIndex = i) +
+                                plan.approachCount(child = kids[i + 1], side = PortSide.West) + 1
+                        maxOf(GUTTER, LANE_PITCH * slots)
+                    }
+                val rowW = boxes.values.sumOf { it.size.width.toDouble() }.toFloat() + gaps.sum()
+                val zoneL =
+                    zone(
+                        corridors = plan.corridorCount(owner = id, side = PortSide.West),
+                        approaches = plan.approachCount(child = kids.first(), side = PortSide.West),
+                    )
+                val zoneR =
+                    zone(
+                        corridors = plan.corridorCount(owner = id, side = PortSide.East),
+                        approaches = plan.approachCount(child = kids.last(), side = PortSide.East),
+                    )
+                val w = maxOf(own.width, zoneL + rowW + zoneR)
+                val channelH = maxOf(CHANNEL_H, 8f + plan.channelCount(owner = id) * LANE_PITCH + 8f)
+                val y0 = own.height + channelH
+                var x = zoneL + (w - zoneL - rowW - zoneR) / 2f
                 val rects = LinkedHashMap<String, Rect>()
-                for (k in kids) {
+                kids.forEachIndexed { i, k ->
                     val b = boxes.getValue(k)
                     rects[k] = Rect(origin = Point(x = x, y = y0), size = b.size)
-                    x += b.size.width + GUTTER
+                    x += b.size.width + (gaps.getOrNull(i) ?: 0f)
                 }
                 val h = y0 + (boxes.values.maxOfOrNull { it.size.height } ?: 0f) + BOTTOM_PAD
                 ParBox(size = Size(width = w, height = h), children = rects)
@@ -347,7 +412,7 @@ internal object ParCompositeLayout {
     }
 
     /** Declaration order, refined so that a constraint producing a value comes before the one consuming it. */
-    private fun orderChildren(
+    internal fun orderChildren(
         model: Sysml2Model,
         nesting: ParNesting,
         owner: String,
@@ -393,6 +458,7 @@ internal object ParCompositeLayout {
         rootBounds: Rect,
         model: Sysml2Model,
         nesting: ParNesting,
+        plan: ParLanePlan,
         ownSize: (String) -> Size,
     ): Map<String, Rect> {
         val memo = HashMap<String, ParBox>()
@@ -403,7 +469,7 @@ internal object ParCompositeLayout {
             at: Rect,
         ) {
             out[id] = at
-            val b = box(id = id, model = model, nesting = nesting, ownSize = ownSize, memo = memo)
+            val b = box(id = id, model = model, nesting = nesting, plan = plan, ownSize = ownSize, memo = memo)
             for ((k, r) in b.children) {
                 walk(id = k, at = Rect(origin = Point(x = at.origin.x + r.origin.x, y = at.origin.y + r.origin.y), size = r.size))
             }
@@ -421,12 +487,53 @@ internal object ParCompositeLayout {
         visibleIds: List<String>,
         layout: LayoutResult,
         ownSize: (String) -> Size,
-    ): LayoutResult =
-        clampPins(
-            model = model,
-            visibleIds = visibleIds,
-            layout = enrichNested(model = model, visibleIds = visibleIds, layout = layout, ownSize = ownSize),
-        )
+    ): LayoutResult {
+        val nesting = ParNesting.of(model = model, visibleIds = visibleIds)
+        if (!nesting.hasNesting()) return clampPins(model = model, visibleIds = visibleIds, layout = layout)
+        val plan = ParLanePlan.of(model = model, nesting = nesting, visible = visibleIds.toSet())
+        val routed =
+            enrichNested(model = model, visibleIds = visibleIds, layout = layout, ownSize = ownSize, nesting = nesting, plan = plan)
+        return applyPinShare(layout = clampPins(model = model, visibleIds = visibleIds, layout = routed), plan = plan)
+    }
+
+    /**
+     * Shifts the end stubs of bindings that share a pin by a few px (the pin square is 8 px high), after
+     * [clampPins] has snapped every end to the pin centre. Only the first and last segment move, and only when
+     * they are horizontal, so the pin end stays on the pin face.
+     */
+    private fun applyPinShare(
+        layout: LayoutResult,
+        plan: ParLanePlan,
+    ): LayoutResult {
+        val edges = LinkedHashMap(layout.edges)
+        var changed = false
+        for (id in plan.routedIds()) {
+            val s0 = plan.share(bindingId = id, end = 0)
+            val s1 = plan.share(bindingId = id, end = 1)
+            if (s0 == 0f && s1 == 0f) continue
+            val route = edges[EdgeId(id)] as? EdgeRoute.OrthogonalRounded ?: continue
+            val pts = (listOf(route.source) + route.waypoints + listOf(route.target)).toMutableList()
+            if (pts.size < 4) continue
+            val n = pts.size
+            if (s0 != 0f && pts[0].y == pts[1].y) {
+                pts[0] = Point(x = pts[0].x, y = pts[0].y + s0)
+                pts[1] = Point(x = pts[1].x, y = pts[1].y + s0)
+            }
+            if (s1 != 0f && pts[n - 1].y == pts[n - 2].y) {
+                pts[n - 1] = Point(x = pts[n - 1].x, y = pts[n - 1].y + s1)
+                pts[n - 2] = Point(x = pts[n - 2].x, y = pts[n - 2].y + s1)
+            }
+            edges[EdgeId(id)] =
+                EdgeRoute.OrthogonalRounded(
+                    source = pts.first(),
+                    target = pts.last(),
+                    waypoints = pts.drop(1).dropLast(1),
+                    cornerRadiusPx = route.cornerRadiusPx,
+                )
+            changed = true
+        }
+        return if (changed) layout.copy(edges = edges) else layout
+    }
 
     /**
      * PAL 2C (P-IBD-08): lets every binding edge end on the outer border of its pin square, perpendicular to the box
@@ -501,16 +608,16 @@ internal object ParCompositeLayout {
         visibleIds: List<String>,
         layout: LayoutResult,
         ownSize: (String) -> Size,
+        nesting: ParNesting,
+        plan: ParLanePlan,
     ): LayoutResult {
-        val nesting = ParNesting.of(model = model, visibleIds = visibleIds)
-        if (!nesting.hasNesting()) return layout
         val nodes = LinkedHashMap(layout.nodes)
         val edges = LinkedHashMap(layout.edges)
         val rects = LinkedHashMap<String, Rect>()
         for (id in nesting.constraints.keys) {
             if (nesting.isNested(id)) continue
             val nl = layout.nodes[NodeId(id)] ?: continue
-            rects += absoluteRects(rootId = id, rootBounds = nl.bounds, model = model, nesting = nesting, ownSize = ownSize)
+            rects += absoluteRects(rootId = id, rootBounds = nl.bounds, model = model, nesting = nesting, plan = plan, ownSize = ownSize)
         }
         for ((id, r) in rects) {
             if (!nesting.isNested(id)) continue
@@ -523,7 +630,6 @@ internal object ParCompositeLayout {
             if (NodeId(id) !in nodes) nodes[NodeId(id)] = NodeLayout(bounds = r, ports = ports)
         }
         val visible = visibleIds.toSet()
-        var lane = 0
         for (b in model.usages.filterIsInstance<BindingConnectorUsage>()) {
             val a = parResolveEnd(endpoint = b.sourceEndId, visibleIds = visible, nesting = nesting) ?: continue
             val z = parResolveEnd(endpoint = b.targetEndId, visibleIds = visible, nesting = nesting) ?: continue
@@ -538,15 +644,31 @@ internal object ParCompositeLayout {
             val pz = z.parameterIndex?.let { ParConstraintGeometry.pinPoint(constraint = cz, index = it, bounds = rz) } ?: centre(rz)
             val sa = a.parameterIndex?.let { ParConstraintGeometry.pinSide(ca.parameters[it].direction) }
             val sz = z.parameterIndex?.let { ParConstraintGeometry.pinSide(cz.parameters[it].direction) }
-            val k = lane++
+            val routed = plan.route(b.id)
             val pts =
                 innerRoute(
-                    a = Inner(id = a.nodeId, rect = ra, pin = pa, side = sa, index = a.parameterIndex, c = ca),
-                    z = Inner(id = z.nodeId, rect = rz, pin = pz, side = sz, index = z.parameterIndex, c = cz),
-                    nesting = nesting,
-                    rects = rects,
+                    a =
+                        Inner(
+                            id = a.nodeId,
+                            rect = ra,
+                            pin = pa,
+                            side = sa,
+                            index = a.parameterIndex,
+                            share = plan.share(bindingId = b.id, end = 0),
+                        ),
+                    z =
+                        Inner(
+                            id = z.nodeId,
+                            rect = rz,
+                            pin = pz,
+                            side = sz,
+                            index = z.parameterIndex,
+                            share = plan.share(bindingId = b.id, end = 1),
+                        ),
+                    routed = routed,
+                    ownerRect = routed?.let { rects[it.owner] },
+                    plan = plan,
                     ownSize = ownSize,
-                    lane = k,
                 )
             edges[EdgeId(b.id)] =
                 EdgeRoute.OrthogonalRounded(
@@ -565,7 +687,7 @@ internal object ParCompositeLayout {
         val pin: Point,
         val side: PortSide?,
         val index: Int?,
-        val c: ConstraintDefinition,
+        val share: Float,
     )
 
     private fun centre(r: Rect) = Point(x = r.origin.x + r.size.width / 2f, y = r.origin.y + r.size.height / 2f)
@@ -573,83 +695,83 @@ internal object ParCompositeLayout {
     private fun innerRoute(
         a: Inner,
         z: Inner,
-        nesting: ParNesting,
-        rects: Map<String, Rect>,
+        routed: ParRouted?,
+        ownerRect: Rect?,
+        plan: ParLanePlan,
         ownSize: (String) -> Size,
-        lane: Int,
     ): List<Point> {
         val raw: List<Point> =
             when {
-                // Pins unknown: fall back to a straight line between the box centres (checker warns about the binding).
-                a.side == null || z.side == null -> listOf(a.pin, z.pin)
-                // owner pin -> child pin (or the reverse): follow the owner's inner lane, then the channel
-                nesting.ownerOf(z.id) == a.id -> ownerToChild(owner = a, child = z, ownSize = ownSize, lane = lane)
-                nesting.ownerOf(a.id) == z.id -> ownerToChild(owner = z, child = a, ownSize = ownSize, lane = lane).reversed()
-                nesting.ownerOf(a.id) == nesting.ownerOf(z.id) && nesting.ownerOf(a.id) != null -> {
-                    val owner = rects.getValue(nesting.ownerOf(a.id)!!)
-                    siblings(a = a, z = z, ownerRect = owner, ownerHeader = ownSize(nesting.ownerOf(a.id)!!).height, lane = lane)
-                }
-                else -> listOf(a.pin, z.pin)
+                // Pins unknown or binding outside the plan: straight line between the pins (the checker warns about it).
+                a.side == null || z.side == null || a.index == null || z.index == null || routed == null -> listOf(a.pin, z.pin)
+                routed.kind == ParRouteKind.OwnerToChild && routed.aIsOwner ->
+                    ownerToChild(owner = a, child = z, routed = routed, plan = plan, ownSize = ownSize)
+                routed.kind == ParRouteKind.OwnerToChild ->
+                    ownerToChild(owner = z, child = a, routed = routed, plan = plan, ownSize = ownSize).reversed()
+                routed.kind == ParRouteKind.SiblingShort -> siblingShort(a = a, z = z, routed = routed, plan = plan)
+                else -> siblingLong(a = a, z = z, routed = routed, ownerRect = ownerRect ?: a.rect, plan = plan, ownSize = ownSize)
             }
         return simplify(raw)
     }
 
+    /** Approach point of a child pin: column [LANE_PITCH] apart per rank, ending in a horizontal stub to the pin. */
     private fun approach(
         p: Inner,
-        pin: Point = p.pin,
-    ): Point = Point(x = if (p.side == PortSide.West) pin.x - APPROACH else pin.x + APPROACH, y = pin.y)
+        plan: ParLanePlan,
+    ): Point {
+        val r = plan.approachRank(child = p.id, side = p.side!!, paramIndex = p.index!!)
+        val dx = APPROACH + r * LANE_PITCH
+        return Point(x = if (p.side == PortSide.West) p.pin.x - dx + p.share else p.pin.x + dx + p.share, y = p.pin.y)
+    }
 
     private fun channelY(
         ownerRect: Rect,
         ownerHeader: Float,
         lane: Int,
-    ): Float = ownerRect.origin.y + ownerHeader + 8f + (lane % 5) * 5f
+    ): Float = ownerRect.origin.y + ownerHeader + 8f + lane * LANE_PITCH
 
     private fun ownerToChild(
         owner: Inner,
         child: Inner,
+        routed: ParRouted,
+        plan: ParLanePlan,
         ownSize: (String) -> Size,
-        lane: Int,
     ): List<Point> {
-        val k = minOf(owner.index ?: 0, 2)
+        val j = plan.corridorRank(owner = owner.id, side = owner.side!!, paramIndex = owner.index!!) ?: 0
         val laneX =
-            if (owner.side ==
-                PortSide.West
-            ) {
-                owner.rect.origin.x + LANE_X0 + LANE_STEP * k
+            if (owner.side == PortSide.West) {
+                owner.rect.origin.x + LANE_X0 + LANE_PITCH * j + owner.share
             } else {
-                owner.rect.origin.x + owner.rect.size.width - LANE_X0 -
-                    LANE_STEP * k
+                owner.rect.origin.x + owner.rect.size.width - LANE_X0 - LANE_PITCH * j + owner.share
             }
-        val ch = channelY(ownerRect = owner.rect, ownerHeader = ownSize(owner.id).height, lane = lane)
-        val app = approach(p = child)
+        val ch = channelY(ownerRect = owner.rect, ownerHeader = ownSize(owner.id).height, lane = plan.channelLane(routed.id))
+        val app = approach(p = child, plan = plan)
         return listOf(owner.pin, Point(x = laneX, y = owner.pin.y), Point(x = laneX, y = ch), Point(x = app.x, y = ch), app, child.pin)
     }
 
-    private fun siblings(
+    private fun siblingShort(
         a: Inner,
         z: Inner,
-        ownerRect: Rect,
-        ownerHeader: Float,
-        lane: Int,
+        routed: ParRouted,
+        plan: ParLanePlan,
     ): List<Point> {
-        val leftToRight = a.rect.origin.x < z.rect.origin.x
-        val adjacentGap =
-            if (leftToRight) {
-                z.rect.origin.x - (a.rect.origin.x + a.rect.size.width)
-            } else {
-                a.rect.origin.x -
-                    (z.rect.origin.x + z.rect.size.width)
-            }
-        val facing =
-            if (leftToRight) a.side == PortSide.East && z.side == PortSide.West else a.side == PortSide.West && z.side == PortSide.East
-        if (facing && adjacentGap in 1f..(GUTTER + 0.5f)) {
-            val mid = if (leftToRight) a.rect.origin.x + a.rect.size.width + adjacentGap / 2f else a.rect.origin.x - adjacentGap / 2f
-            return listOf(a.pin, Point(x = mid, y = a.pin.y), Point(x = mid, y = z.pin.y), z.pin)
-        }
-        val ch = channelY(ownerRect = ownerRect, ownerHeader = ownerHeader, lane = lane)
-        val pa = approach(p = a)
-        val pz = approach(p = z)
+        val left = if (a.rect.origin.x < z.rect.origin.x) a else z
+        val nE = plan.approachCount(child = left.id, side = PortSide.East)
+        val mid = left.rect.origin.x + left.rect.size.width + LANE_PITCH * (nE + 1 + plan.shortRank(routed.id))
+        return listOf(a.pin, Point(x = mid, y = a.pin.y), Point(x = mid, y = z.pin.y), z.pin)
+    }
+
+    private fun siblingLong(
+        a: Inner,
+        z: Inner,
+        routed: ParRouted,
+        ownerRect: Rect,
+        plan: ParLanePlan,
+        ownSize: (String) -> Size,
+    ): List<Point> {
+        val ch = channelY(ownerRect = ownerRect, ownerHeader = ownSize(routed.owner).height, lane = plan.channelLane(routed.id))
+        val pa = approach(p = a, plan = plan)
+        val pz = approach(p = z, plan = plan)
         return listOf(a.pin, pa, Point(x = pa.x, y = ch), Point(x = pz.x, y = ch), pz, z.pin)
     }
 

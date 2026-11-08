@@ -55,6 +55,9 @@ internal fun renderConstraintDefinition(
     val hasExpression = expressionLines.isNotEmpty()
     val unitOf = context?.let { ParConstraintGeometry.unitLookup(it.model) } ?: { _: String -> null }
     val hasParameters = element.parameters.isNotEmpty()
+    val paramIndent =
+        context?.let { ParConstraintGeometry.paramTextIndent(model = it.model, constraint = element) }
+            ?: ParConstraintGeometry.PARAM_TEXT_INDENT
 
     builder.tag(
         name = "g",
@@ -122,7 +125,7 @@ internal fun renderConstraintDefinition(
                     attrs =
                         mapOf(
                             "class" to "kuml-body",
-                            "x" to fmt(ParConstraintGeometry.PARAM_TEXT_INDENT),
+                            "x" to fmt(paramIndent),
                             "y" to fmt(ParConstraintGeometry.paramBaseline(expressionLines = expressionLines.size, index = index)),
                         ),
                 ) { text(ParConstraintGeometry.parameterLine(p = parameter, unitOf = unitOf)) }

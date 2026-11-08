@@ -6,6 +6,39 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 41: separate lanes for bindings in nested parametric constraints (SVG)
+
+#### Why
+
+Bindings inside a composite constraint ran on shared lines. Looked at as PNG before the change (`par-binding-lanes`, `par-binding-channel7` fixtures): all bindings to one child pin side shared one vertical column and overlapped, owner corridors from the third pin on shared one column at 4 px pitch, channel lanes were 5 px apart and wrapped after five bindings (seven bindings drew two on one line), and the box did not grow with the bindings.
+
+#### Change
+
+- `ParLanePlan` (new, `kuml-layout-bridge`, `Sysml2ParLanes.kt`): a pure planning pass over model and nesting, no coordinates. It ranks channel lanes (per owner, 0..n-1), owner corridor columns, child approach columns and short sibling columns, and computes a 1 to 4 px shift for bindings that share a pin. All orderings end in the binding id, so the declaration order of the bindings does not change a pixel.
+- Rules (derived and checked by crossing counts, not copied from the spec): the topmost pin takes the nearest approach column and the innermost corridor column (the spec's "furthest column for the upper pin" is geometrically inverted and was not used); channel lanes put the target that is farthest from the corridor on top.
+- Pitch 8 px everywhere (`LANE_PITCH`, replaces `LANE_STEP` 4 px). `ParCompositeLayout.box` now sizes from the plan: channel height `max(30, 16 + 8n)`, side zones from the corridor and approach column counts, per-gap gutters from the approach and short-route columns.
+- `ParConstraintGeometry.paramTextIndent(model, constraint)`: the parameter text of an owner box moves right (at least 18 px) so corridor columns do not cross it. SVG renderer, size provider and label geometry use it.
+- Pin sharing is applied after the pin clamp (the clamp snaps ends to the pin centre) and only to horizontal end segments.
+
+#### Verification
+
+- `ParLanePlanTest` (bridge): lanes 0..6 for seven bindings, unique corridor and approach ranks, topmost pin innermost/nearest, order independence, no shift without sharing.
+- `ParBindingLanesInvariantTest` (real ELK, polylines after `parEnrich`, no fonts): axis-parallel segments, no collinear overlap of different connectors, parallel neighbours at least 8 px apart (except the 2 px pin-share bundle), end points at least 2 px apart, seven distinct channel heights 8 px apart with the child below the lowest lane, determinism under reversed binding order, crossing bound (7 crossings on the fixture, bound 9).
+- Both fixtures rendered with the local CLI before and after and looked at as PNG: the shared verticals and the wrap are gone.
+
+#### Not verified
+
+- LaTeX: `KumlLatexRenderer` has no reference to `ParNesting` or `parEnrich`; nested bindings were not rendered there.
+- The east corridor side is not given extra text indent (parameter text is left-aligned).
+
+#### Not fixed
+
+- No generic post-pass separating collinear segments across diagram types; the check lives in the test only.
+- Bindings routed by ELK (outside the composite) are untouched; more than 5 bindings on one pin get a shrinking shift (still within the 8 px pin).
+- Owner-to-grandchild bindings and bindings that name a missing parameter keep the old straight-line fallback.
+- Crossings are minimised by the ordering rules only, right-angle crossings remain.
+- Follow-up: copy the vault-example SVGs to `presentation-de/diagrams/` (renderer update routine); not part of this commit.
+
 ### Nacharbeit 40: room for transition labels in SysML 2 state machines (SVG)
 
 #### Why

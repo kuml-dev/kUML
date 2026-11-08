@@ -2562,6 +2562,7 @@ public object Sysml2LayoutBridge {
         val nesting = ParNesting.of(model = model, visibleIds = diagram.elementIds)
 
         fun ownSize(id: String) = sizeProvider.sizeOf(elementId = id, elementKind = "ConstraintDefinition")
+        val plan = ParLanePlan.of(model = model, nesting = nesting, visible = diagram.elementIds.toSet())
         val boxMemo = HashMap<String, ParBox>()
         val nodes = mutableListOf<LayoutNode>()
         for (id in diagram.elementIds) {
@@ -2575,7 +2576,15 @@ public object Sysml2LayoutBridge {
             val kind = def::class.simpleName ?: "Sysml2Definition"
             val size =
                 if (def is ConstraintDefinition) {
-                    ParCompositeLayout.box(id = def.id, model = model, nesting = nesting, ownSize = ::ownSize, memo = boxMemo).size
+                    ParCompositeLayout
+                        .box(
+                            id = def.id,
+                            model = model,
+                            nesting = nesting,
+                            plan = plan,
+                            ownSize = ::ownSize,
+                            memo = boxMemo,
+                        ).size
                 } else {
                     sizeProvider.sizeOf(elementId = def.id, elementKind = kind)
                 }
@@ -2754,7 +2763,7 @@ public object Sysml2LayoutBridge {
                     val paramMaxW =
                         c?.parameters?.maxOfOrNull { p ->
                             ParConstraintGeometry.parameterLine(p = p, unitOf = units).length * BDD_BODY_CHAR_PX +
-                                ParConstraintGeometry.PARAM_TEXT_INDENT
+                                ParConstraintGeometry.paramTextIndent(model = model, constraint = c)
                         } ?: 0f
                     val contentW = maxOf(nameW, exprW, paramMaxW) + 2 * IBD_H_PAD
                     dev.kuml.layout.Size(width = maxOf(contentW, PAR_CONSTRAINT_WIDTH), height = h)

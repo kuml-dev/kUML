@@ -1092,6 +1092,13 @@ box; bindings between the outer pins and the inner pins, and between inner const
 box and carry no label. Two levels are recommended; the hard limit is four levels (the outer constraint counts
 as level one) and 64 parameters per constraint.
 
+Inside an outer box every binding runs on its own lane: horizontal lanes in the channel below the outer box's own text,
+vertical corridors along the outer frame and vertical approach columns in front of the inner pins are all 8 px apart.
+Lanes are never compressed; the outer box grows with the number of bindings (taller channel, wider side zones and gaps),
+and the parameter text of an outer box moves right when many corridors run along its left frame. Bindings that end on the
+same pin are shifted against each other by 2 px. The assignment depends only on the model, not on the order in which the
+bindings are declared.
+
 Rendered live below (vault source: `03 Bereiche/kUML/Beispiele/51 SysML 2 PAR – Verschachtelte Constraints.md`):
 
 [source,kuml]

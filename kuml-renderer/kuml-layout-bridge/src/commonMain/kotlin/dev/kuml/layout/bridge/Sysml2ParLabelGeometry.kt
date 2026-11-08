@@ -53,6 +53,7 @@ internal object Sysml2ParLabelGeometry {
             val x0 = b.origin.x
             val y0 = b.origin.y
             val w = b.size.width
+            val indent = ParConstraintGeometry.paramTextIndent(model = model, constraint = c)
 
             fun centred(
                 baseline: Float,
@@ -84,12 +85,12 @@ internal object Sysml2ParLabelGeometry {
                 val tw =
                     minOf(
                         ParConstraintGeometry.parameterLine(p = p, unitOf = units).length * Sysml2LayoutBridge.BDD_BODY_CHAR_PX,
-                        w - ParConstraintGeometry.PARAM_TEXT_INDENT,
+                        w - indent,
                     )
                 val base = ParConstraintGeometry.paramBaseline(expressionLines = lines.size, index = i)
                 out +=
                     Rect(
-                        origin = dev.kuml.layout.Point(x = x0 + ParConstraintGeometry.PARAM_TEXT_INDENT, y = y0 + base - TEXT_ASCENT),
+                        origin = dev.kuml.layout.Point(x = x0 + indent, y = y0 + base - TEXT_ASCENT),
                         size = Size(width = tw, height = TEXT_H),
                     )
             }
