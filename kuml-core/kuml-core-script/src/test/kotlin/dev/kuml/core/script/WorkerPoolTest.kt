@@ -1,8 +1,8 @@
 package dev.kuml.core.script
 
 import io.kotest.assertions.throwables.shouldNotThrowAny
-import io.kotest.assertions.withClue
 import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -52,6 +52,8 @@ class WorkerPoolTest :
         test("the script line of a comment is the same in the sandboxed worker (Nacharbeit 45)") {
             val pool = WorkerPool(poolSize = 1, maxConcurrentWorkers = 1)
             try {
+                // A cold runner needs longer than the checkout timeout to start the only worker.
+                awaitIdle(pool, 1).shouldBeTrue()
                 val result =
                     pool.evaluate(
                         source =
