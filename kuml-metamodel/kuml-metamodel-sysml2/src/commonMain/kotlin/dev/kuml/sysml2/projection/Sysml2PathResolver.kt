@@ -96,7 +96,7 @@ object Sysml2PathResolver {
                 ?.definitionId ?: return null
         val steps = splitSteps(path.removePrefix(top).removePrefix("::")) ?: return null
         for (step in steps) {
-            val usage = model.usages.firstOrNull { it.id == "$def::$step" } as? PartUsage ?: return null
+            val usage = structuralUsage(model = model, id = "$def::$step") as? PartUsage ?: return null
             def = usage.definitionId
         }
         return def
@@ -116,6 +116,15 @@ object Sysml2PathResolver {
         return (listOf(ownerId) + segs).joinToString("::")
     }
 
+    /**
+     * The part, port or flow property with [id]. Nacharbeit 46 (N-IBD-D): an attribute may share its id with a port
+     * (`Def::name`); lookups by structural role must not be shadowed by it.
+     */
+    internal fun structuralUsage(
+        model: Sysml2Model,
+        id: String,
+    ) = model.usages.firstOrNull { it.id == id && (it is PartUsage || it is PortUsage || it is FlowPropertyUsage) }
+
     private fun splitSteps(rest: String): List<String>? {
         if (rest.isEmpty()) return emptyList()
         val parts = rest.split("::")
@@ -132,7 +141,7 @@ object Sysml2PathResolver {
         var i = 0
         while (i < steps.size) {
             val id = "$def::${steps[i]}"
-            val usage = model.usages.firstOrNull { it.id == id } ?: return null to null
+            val usage = structuralUsage(model = model, id = id) ?: return null to null
             when (usage) {
                 is PartUsage -> def = usage.definitionId
                 is PortUsage -> return walkFromPort(model = model, port = usage, rest = steps.drop(i + 1))

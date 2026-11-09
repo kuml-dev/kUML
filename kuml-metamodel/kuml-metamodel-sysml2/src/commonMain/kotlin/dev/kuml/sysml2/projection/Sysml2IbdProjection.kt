@@ -78,7 +78,7 @@ fun sysml2IbdProjection(
         owner.features.filter { f ->
             f.typeId != null &&
                 f.typeId in partDefIds &&
-                model.usages.firstOrNull { it.id == f.id }.let { it == null || it is dev.kuml.sysml2.PartUsage }
+                (model.usages.none { it.id == f.id } || model.usages.any { it.id == f.id && it is PartUsage })
         }
     val filter = diagram.elementIds.takeIf { it.isNotEmpty() }?.toSet()
     val nodes = if (filter == null) ownerParts else ownerParts.filter { it.id in filter }
@@ -87,12 +87,17 @@ fun sysml2IbdProjection(
 
     fun resolve(id: String) = Sysml2PathResolver.resolve(model = model, ownerId = owner.id, endpointId = id, visibleNodeIds = nodeIds)
 
-    val connections =
+    val (nestedPaths, parents) = nestedPartPaths(model = model, nodes = nodes, partDefIds = partDefIds)
+    val ownerConnections =
         model.usages.filterIsInstance<ConnectionUsage>().filter { it.id.startsWith(prefix) }.mapNotNull {
             val s = resolve(it.sourceEndId) ?: return@mapNotNull null
             val t = resolve(it.targetEndId) ?: return@mapNotNull null
             IbdWire(usage = it, source = s, target = t)
         }
+    // Nacharbeit 46 (N-IBD-B): connections declared inside the definition of a nested part, once per instance.
+    val connections =
+        ownerConnections +
+            nestedInstanceConnections(model = model, nestedPaths = nestedPaths, visibleNodeIds = nodeIds) { resolve(it) }
     val flows =
         model.usages.filterIsInstance<FlowUsage>().filter { it.id.startsWith(prefix) }.mapNotNull {
             val s = resolve(it.sourceEndId) ?: return@mapNotNull null
@@ -134,7 +139,6 @@ fun sysml2IbdProjection(
     // a child part, which reads as a note on that part.
     val ownerNoted = model.commentLinks.any { it.link.targetId == owner.id }
     val showFrame = ends.any { it.ownerPort != null || it.steps.size > 1 } || ownerNoted
-    val (nestedPaths, parents) = nestedPartPaths(model = model, nodes = nodes, partDefIds = partDefIds)
     return IbdProjection(
         nestedPartPaths = nestedPaths,
         parentOf = parents,
@@ -173,7 +177,7 @@ internal fun nestedPartPaths(
                 if (paths.size >= MAX_NESTED_PARTS) break
                 val typeId = f.typeId ?: continue
                 if (typeId !in partDefIds) continue
-                if (model.usages.firstOrNull { it.id == f.id } !is PartUsage) continue
+                if (model.usages.none { it.id == f.id && it is PartUsage }) continue
                 val childPath = "$path::${f.id.substringAfterLast("::")}"
                 paths += childPath
                 parents[childPath] = path
@@ -184,4 +188,56 @@ internal fun nestedPartPaths(
         depth++
     }
     return paths to parents
+}
+
+/** Upper bound for the synthetic wires of connections declared in nested part definitions (denial-of-service guard). */
+internal const val MAX_NESTED_WIRES: Int = 512
+
+/**
+ * One synthetic [IbdWire] per instance and per connection declared directly in the definition of a nested part
+ * (Nacharbeit 46, N-IBD-B). The connection `Logik::l1` of the instance `Anlage::steuerung::logik` becomes
+ * `Anlage::steuerung::logik::l1` with its ends rewritten from the definition to the instance path, so a definition
+ * used twice yields two wires. Wires with an end that does not resolve to a visible part or port are skipped.
+ * Flows and bindings declared in nested definitions are not collected.
+ */
+internal fun nestedInstanceConnections(
+    model: Sysml2Model,
+    nestedPaths: List<String>,
+    visibleNodeIds: Set<String>,
+    resolve: (String) -> ResolvedEnd?,
+): List<IbdWire<ConnectionUsage>> {
+    val wires = ArrayList<IbdWire<ConnectionUsage>>()
+    val connectionsOf =
+        model.usages
+            .filterIsInstance<ConnectionUsage>()
+            .groupBy { it.id.substringBeforeLast("::", missingDelimiterValue = "") }
+    for (path in nestedPaths) {
+        val defId = Sysml2PathResolver.definitionOfPath(model = model, path = path, visibleNodeIds = visibleNodeIds) ?: continue
+        for (c in connectionsOf[defId].orEmpty()) {
+            if (wires.size >= MAX_NESTED_WIRES) return wires
+            val localName = c.id.removePrefix("$defId::")
+            val src = instanceEnd(end = c.sourceEndId, defId = defId, path = path)
+            val dst = instanceEnd(end = c.targetEndId, defId = defId, path = path)
+            val s = resolve(src) ?: continue
+            val t = resolve(dst) ?: continue
+            val id = "$path::$localName"
+            wires +=
+                IbdWire(
+                    usage = c.copy(id = id, qualifiedName = id, sourceEndId = src, targetEndId = dst),
+                    source = s,
+                    target = t,
+                )
+        }
+    }
+    return wires
+}
+
+/** Rewrites an end declared in the definition [defId] (`Def::x::y`, or a bare `x`) to the instance [path]. */
+private fun instanceEnd(
+    end: String,
+    defId: String,
+    path: String,
+): String {
+    val qualified = if (end.contains("::") || end.contains('.')) end else "$defId::$end"
+    return if (qualified.startsWith("$defId::")) "$path::${qualified.removePrefix("$defId::")}" else qualified
 }

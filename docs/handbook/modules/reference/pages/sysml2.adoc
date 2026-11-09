@@ -219,10 +219,13 @@ connection typed by the definition is drawn that way. There is no legend.
 |===
 | Code | Severity | Rule
 | `IBD501` | Warning | an end of a `connect(...)` or flow does not resolve to a part, port or owner port; the edge is not drawn
+| `IBD502` | Warning | a port and an attribute of one part definition share a name; rename one to keep them distinguishable
+| `IBD503` | Warning | connection definitions of one name are defined more than once and one is used in the diagram; the edges cannot be told apart by label
 |===
 
 Use `Owner::port`, `part.port` or a bare owner-port name as an end. `kuml validate`, the Desktop validate and the
-Desktop render warnings report `IBD501`.
+Desktop render warnings report `IBD501`, `IBD502` and `IBD503`. A `connectionDef` without an explicit `id` gets a unique
+id when its name is already taken (`Name#2`); the label of a connection still shows the model name.
 
 == Use Case Diagrams (UC)
 
@@ -1476,7 +1479,9 @@ Parts nested inside a visible part are drawn box in box, recursively (depth limi
 part box is level 1 and keeps its two-line head (`<<part>>` and `name : Type`); every nested part is a frame inside
 its parent with a single header line of 22 px (`name : Type`). A frame keeps 16 px inner distance to the frames
 inside it on the left, right and bottom and a little more below its header, so port labels fit. The fill alternates by
-level: odd levels use the part colour, even levels the canvas colour. The attribute compartment (`showAttributes`) sits
+level: odd levels use the part colour, even levels the canvas colour. The title `name : Type` of a visible part with nested
+parts stays in its head, above the child frames. Connections declared inside the definition of a nested part are drawn
+once per instance (a definition used twice gives two edges); a connection whose end is not visible is not drawn. The attribute compartment (`showAttributes`) sits
 below the header of every part that has attributes. A port sits on the border of the frame of its own part. A connector
 that ends on a nested port is routed to a gate on the border of the visible part box and then runs straight into the
 frame; it crosses only the frames around its target, never another part. The gate and the port move along the frame (or

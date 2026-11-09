@@ -6,6 +6,42 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 46: IBD nesting, connections declared in nested definitions, port and attribute of one name, connection definitions of one name
+
+#### Why
+
+Four IBD defects with box-in-box models. Reproduced with the local CLI (`which kuml` pointed at the build) before the fix, on a generic Anlage > Steuerung > Logik model: the title of a visible part with nested parts was missing (hidden under the child frames), and the connections declared inside the definition of the nested part (`Logik::l1`) were not drawn at all.
+
+#### Change
+
+- N-IBD-A: `renderUsageBox` puts the title of a part with nested frames in its head (same baseline as with an attribute compartment) instead of the middle of the box. The head height stays 50 px (`LEVEL1_HEADER_H = 40` from the spec was not introduced: the head already holds two lines, and 40 would have moved every nested box and golden).
+- N-IBD-B: `sysml2IbdProjection` adds one synthetic wire per instance and per connection declared directly in the definition of a nested part (level 2 and deeper): id `<instance path>::<name>`, ends rewritten from the definition to the instance path, at most 512 wires (`MAX_NESTED_WIRES`). `IbdEdgeAdapter` also indexes these wires, so style and label are the same as for an owner connection.
+- N-IBD-D: `Sysml2PathResolver` looks up parts, ports and flow properties by role (`structuralUsage`), so an attribute with the id of a port (`Def::name`) no longer shadows it; the projection checks use the part role too. New warning `IBD502`.
+- N-IBD-E: `connectionDef(name = ...)` without `id` derives a unique id (`Name#2`) when the id is taken, so edges find their own definition (style) instead of the first one of that name. The label shows the definition name (`connDef.name`), not the id. New warning `IBD503`.
+- Handbook: `sysml2.adoc` (IBD findings, IBD frame).
+
+#### Verification
+
+- New: `Sysml2NestedConnectionsTest` (projection, resolver with attribute first and port first, checker 502/503, edge adapter), `Sysml2IbdNestingSvgTest` (full ELK pipeline: title y above the child frames, both nested edges with their own dash style, port label with type next to an attribute of the same name, definition used twice), one case in `Sysml2IbdLatexTest` (dash class per definition).
+- Looked at as PNG with the local CLI before and after (title visible, `l1`/`l2` drawn, dashed edge only for the dashed definition).
+- No existing golden or expectation had to change (see the final check run in the commit message).
+
+#### Not verified
+
+- Windows and Linux were not run.
+- The LaTeX picture of nested parts and ports: LaTeX IBD never drew nested frames or ports (UML class fallback), so N-IBD-A, -B and -D are not shared there; only the edge style (E) is.
+- A connection whose end is not visible is skipped without a warning.
+
+#### Not fixed
+
+- No warning for a connection declared twice (in the owner by path and in the definition); both are drawn.
+- Connections declared in the definition of the visible level-1 part are still not drawn (open question: same defect, but it can change existing diagrams).
+- Flows and bindings declared in nested definitions.
+- N-IBD-C and N-IBD-F.
+- The same id collision of port and attribute in `BddBoxContent` (BDD).
+- A note cannot attach to a synthetic nested connection.
+- Two ports on one nested frame can be drawn on the same point (seen in the PNG with `ein` and `stellsignal` of one part; the same with the owner-declared path form, so not new).
+
 ### Nacharbeit 45: notes not drawn are reported (KUML-NOTE-W002), note line numbers, owner note on the IBD frame, note box geometry
 
 #### Why

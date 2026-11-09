@@ -93,4 +93,51 @@ class Sysml2IbdLatexTest :
             val two = KumlLatexRenderer.toLatex(model = model, diagram = ibd, layoutResult = layout)
             one shouldBe two
         }
+        // Nacharbeit 46 (N-IBD-E): the style of a connection comes from its own definition, also when two definitions
+        // share a name. (LaTeX IBD draws neither nested frames nor ports; only the edge style is shared with the SVG.)
+        "two same-named connection definitions keep their own line style" {
+            val model =
+                sysml2Model(name = "M") {
+                    val plain = connectionDef(name = "Signal")
+                    val dashed = connectionDef(name = "Signal", style = dev.kuml.sysml2.ConnectionLineStyle.DASHED)
+                    val a = partDef(name = "Regler")
+                    val b = partDef(name = "Klappe")
+                    val owner =
+                        partDef(name = "Anlage") {
+                            part(name = "regler", typeId = a.id)
+                            part(name = "klappe", typeId = b.id)
+                            connect(name = "c1", typeId = plain.id, sourceEndId = "regler", targetEndId = "klappe")
+                            connect(name = "c2", typeId = dashed.id, sourceEndId = "regler", targetEndId = "klappe")
+                        }
+                    ibd(name = "Anlage", owner = owner)
+                }
+            val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
+            val layout =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = 1L,
+                    canvas = Size(width = 420f, height = 200f),
+                    nodes =
+                        mapOf(
+                            NodeId("Anlage::regler") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 120f, height = 60f))),
+                            NodeId("Anlage::klappe") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 260f, y = 20f), size = Size(width = 120f, height = 60f))),
+                        ),
+                    edges =
+                        mapOf(
+                            dev.kuml.layout.EdgeId("conn:Anlage::c1") to
+                                dev.kuml.layout.EdgeRoute
+                                    .Direct(source = Point(x = 140f, y = 40f), target = Point(x = 260f, y = 40f)),
+                            dev.kuml.layout.EdgeId("conn:Anlage::c2") to
+                                dev.kuml.layout.EdgeRoute
+                                    .Direct(source = Point(x = 140f, y = 60f), target = Point(x = 260f, y = 60f)),
+                        ),
+                    groups = emptyMap(),
+                )
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = ibd, layoutResult = layout)
+            // Uses of the styles, not their `/.style` definitions in the preamble.
+            Regex("kuml-sysml2-edge-dashed-noarrow(?![/\\w])").containsMatchIn(tex) shouldBe true
+            Regex("kuml-sysml2-edge-binding(?![/\\w])").containsMatchIn(tex) shouldBe true
+        }
     })

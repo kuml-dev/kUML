@@ -218,14 +218,17 @@ private fun renderUsageBox(
                 null
             }
         val headH = Sysml2LayoutBridge.STEREOTYPE_LINE_H + Sysml2LayoutBridge.NAME_LINE_H + Sysml2LayoutBridge.BOX_V_PADDING
-        // Content line — `name : Type [mult]`, vertically centred (in the head area when a compartment follows).
+        // Nacharbeit 46 (N-IBD-A): a box with nested frames reserves its head area for the title, like a compartment does;
+        // otherwise the title would sit mid-box underneath the child frames.
+        val hasNested = usage is PartUsage && context?.ibdFrames?.any { it.nodeId == usage.id } == true
+        // Content line — `name : Type [mult]`, vertically centred (in the head area when a compartment or nested frames follow).
         tag(
             name = "text",
             attrs =
                 mapOf(
                     "class" to "kuml-title",
                     "x" to fmt(cx),
-                    "y" to fmt((if (compartment != null) headH else h) / 2f + 10f),
+                    "y" to fmt((if (compartment != null || hasNested) headH else h) / 2f + 10f),
                     "text-anchor" to "middle",
                 ),
         ) { text(usage.formatIbd()) }

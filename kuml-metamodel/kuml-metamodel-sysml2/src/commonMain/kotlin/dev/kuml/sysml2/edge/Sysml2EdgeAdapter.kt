@@ -684,7 +684,10 @@ public class IbdEdgeAdapter(
     private val index: Map<String, Sysml2EdgeMetadata> =
         buildMap {
             val projection = sysml2IbdProjection(model = model, diagram = diagram)
-            for (conn in model.usages.filterIsInstance<ConnectionUsage>()) {
+            // Nacharbeit 46 (N-IBD-B): connections declared in nested part definitions exist only as projection wires.
+            val allConnections =
+                (model.usages.filterIsInstance<ConnectionUsage>() + projection.connections.map { it.usage }).distinctBy { it.id }
+            for (conn in allConnections) {
                 val wire = projection.connections.firstOrNull { it.usage.id == conn.id }
                 val arrows =
                     if (wire == null) {
@@ -701,7 +704,7 @@ public class IbdEdgeAdapter(
                 put(
                     "conn:${conn.id}",
                     Sysml2EdgeMetadata(
-                        label = formatConnectionLabel(conn),
+                        label = formatConnectionLabel(conn = conn, typeName = connDef?.name),
                         arrowHead = Sysml2ArrowHead.None,
                         midArrows = arrows,
                         dashArray = connDef?.style?.let { connectionDashArray(it) },
@@ -754,9 +757,13 @@ public class IbdEdgeAdapter(
          * Liefert `null` zurück, wenn Name **und** Definition leer sind — der
          * Renderer fällt dann auf eine label-lose Linie zurück.
          */
-        public fun formatConnectionLabel(conn: ConnectionUsage): String? {
+        public fun formatConnectionLabel(
+            conn: ConnectionUsage,
+            typeName: String? = null,
+        ): String? {
             val name = conn.name.takeIf { it.isNotBlank() }
-            val type = conn.definitionId.takeIf { it.isNotBlank() }
+            // Nacharbeit 46 (N-IBD-E): show the model name of the connection definition, not its (possibly uniquified) id.
+            val type = (typeName ?: conn.definitionId).takeIf { it.isNotBlank() }
             return when {
                 name != null && type != null -> "$name : $type"
                 name != null -> name

@@ -144,6 +144,13 @@ class Sysml2ModelBuilder(
 
     // ── Definitions ──────────────────────────────────────────────────────
 
+    private fun uniqueDefinitionId(base: String): String {
+        if (definitions.none { it.id == base }) return base
+        var n = 2
+        while (definitions.any { it.id == "$base#$n" }) n++
+        return "$base#$n"
+    }
+
     /**
      * `part def Vehicle { … }` — declare a [PartDefinition].
      *
@@ -293,21 +300,24 @@ class Sysml2ModelBuilder(
     /** `connection def PowerLine { … }` — a connection-typed definition. */
     fun connectionDef(
         name: String,
-        id: String = name,
+        id: String? = null,
         isAbstract: Boolean = false,
         specializesId: String? = null,
         style: dev.kuml.sysml2.ConnectionLineStyle = dev.kuml.sysml2.ConnectionLineStyle.SOLID,
         color: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): ConnectionDefinition {
-        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
+        // Nacharbeit 46 (N-IBD-E): without an explicit id, a second definition of the same name must not share the id of
+        // the first (edges look the definition up by id); the model name stays unchanged.
+        val defId = id ?: uniqueDefinitionId(base = name)
+        val builder = DefinitionBuilder(parentId = defId, modelBuilder = this).apply(block)
         val def =
             ConnectionDefinition(
-                id = id,
+                id = defId,
                 name = name,
                 isAbstract = isAbstract,
                 features = builder.features(),
-                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = id, generalId = it)) }.orEmpty(),
+                specializations = specializesId?.let { listOf(KermlSpecialization(specificId = defId, generalId = it)) }.orEmpty(),
                 style = style,
                 color = color,
             )
