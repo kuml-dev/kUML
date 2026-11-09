@@ -1,6 +1,7 @@
 package dev.kuml.core.script
 
 import io.kotest.assertions.throwables.shouldNotThrowAny
+import io.kotest.assertions.withClue
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -58,12 +59,16 @@ class WorkerPoolTest :
                                 "sysml2Model(\"Noted\") {\n    val a = partDef(\"A\")\n" +
                                 "    comment(text = \"hello\", firstAnchor = a, id = \"n1\")\n    bdd(\"B\") { include(a) }\n}\n",
                     )
-                val success = result.shouldBeInstanceOf<EvaluatedScript.Success>()
-                success.diagram
-                    .shouldBeInstanceOf<ExtractedDiagram.Sysml2>()
-                    .model.comments
-                    .single()
-                    .note.sourceLine shouldBe 5
+                withClue("evaluation result: $result") {
+                    val success = result.shouldBeInstanceOf<EvaluatedScript.Success>()
+                    val comments =
+                        success.diagram
+                            .shouldBeInstanceOf<ExtractedDiagram.Sysml2>()
+                            .model.comments
+                    withClue("comments: ${comments.map { it.note }}") {
+                        comments.single().note.sourceLine shouldBe 5
+                    }
+                }
             } finally {
                 pool.close()
             }
