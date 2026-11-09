@@ -3,15 +3,15 @@ package dev.kuml.layout.bridge.label
 import dev.kuml.layout.Size
 import dev.kuml.sysml2.edge.EdgeLabelPart
 import kotlin.math.floor
-import kotlin.math.max
 
 /**
  * One wrapped line of an STM edge label: styled [parts] (a short label keeps several parts on one line, a
- * wrapped label has exactly one). [hyphenated] marks a line that ends in a `-` inserted by a hard break inside a word.
+ * wrapped label has exactly one). [brokenInWord] marks a line that ends in the middle of a word; no character was
+ * added, so the lines of a broken word concatenated give the original word.
  */
 public data class StmLabelLine(
     val parts: List<EdgeLabelPart>,
-    val hyphenated: Boolean = false,
+    val brokenInWord: Boolean = false,
 ) {
     /** The text of the line as drawn. */
     val text: String get() = parts.joinToString(" ") { it.text }
@@ -40,8 +40,10 @@ public object StmLabelWrap {
 
     /**
      * Wraps [parts] to lines of at most [maxWidthPx]. A label that fits stays on one line; otherwise every part
-     * starts on its own line. Inside a part the break order is: at spaces, after `,` `(` and around `&&` `||`
-     * `and` `or`, and only for a word that is still too long hard inside the word with a trailing `-`.
+     * starts on its own line. Inside a part the break order is: at spaces; before `&&` and `||`; after `-`, `/` and
+     * `,` (the character stays at the end of the line); after `(` only for a group that does not fit otherwise;
+     * and only for a word that is still too long hard inside the word, without an inserted character. `)`, `]`
+     * and `,` never start a line.
      */
     public fun wrap(
         parts: List<EdgeLabelPart>,
@@ -54,8 +56,8 @@ public object StmLabelWrap {
         val out = ArrayList<StmLabelLine>()
         for (p in parts) {
             val text = p.text.take(MAX_PART_CHARS)
-            for ((line, hyphen) in wrapText(text = text, maxC = maxC)) {
-                out += StmLabelLine(parts = listOf(p.copy(text = line)), hyphenated = hyphen)
+            for ((line, broken) in wrapText(text = text, maxC = maxC)) {
+                out += StmLabelLine(parts = listOf(p.copy(text = line)), brokenInWord = broken)
             }
         }
         return out
@@ -95,7 +97,13 @@ public object StmLabelWrap {
                 place(unit = word, spaceBefore = true)
                 continue
             }
-            for ((k, atom) in softAtoms(word).withIndex()) {
+            // A glued `/ effect` that does not fit as a whole is un-glued: the `/` stays, the effect wraps on.
+            var rest = word
+            if (word.startsWith("/ ")) {
+                place(unit = "/", spaceBefore = true)
+                rest = word.substring(2)
+            }
+            for ((k, atom) in softAtoms(word = rest, maxC = maxC).withIndex()) {
                 if (atom.length <= maxC) {
                     place(unit = atom, spaceBefore = k == 0)
                     continue
@@ -116,46 +124,49 @@ public object StmLabelWrap {
         return words
     }
 
-    /** Break opportunities inside one overlong word: after `,` and `(` and around `&&` / `||`. */
-    private fun softAtoms(word: String): List<String> {
-        val out = ArrayList<String>()
-        val cur = StringBuilder()
-        var i = 0
-        while (i < word.length) {
-            val c = word[i]
-            cur.append(c)
-            val two = if (i + 1 < word.length) word.substring(i, i + 2) else ""
-            if (two == "&&" || two == "||") {
-                // break before the operator
-                cur.setLength(cur.length - 1)
-                if (cur.isNotEmpty()) out += cur.toString()
-                cur.setLength(0)
-                out += two
-                i += 2
-                continue
+    /**
+     * Break opportunities inside one overlong word. First level: before `&&` / `||` and after `-`, `/` and `,`.
+     * An atom that is still longer than [maxC] is split a second time after a `(` that has content. `)`, `]`, `,`
+     * and `;` are never separated from the atom before them.
+     */
+    private fun softAtoms(
+        word: String,
+        maxC: Int,
+    ): List<String> =
+        splitAt(text = word) { i ->
+            val prev = word[i - 1]
+            val next = word[i]
+            val afterSeparator = (prev == '-' || prev == '/' || prev == ',') && next !in NO_LINE_START
+            afterSeparator || word.startsWith("&&", i) || word.startsWith("||", i)
+        }.flatMap { atom ->
+            if (atom.length <= maxC) {
+                listOf(atom)
+            } else {
+                splitAt(text = atom) { i -> atom[i - 1] == '(' && atom[i] !in NO_LINE_START }
             }
-            if (c == ',' || c == '(') {
-                out += cur.toString()
-                cur.setLength(0)
-            }
-            i++
         }
-        if (cur.isNotEmpty()) out += cur.toString()
+
+    private const val NO_LINE_START = ")];,"
+
+    private fun splitAt(
+        text: String,
+        breakBefore: (Int) -> Boolean,
+    ): List<String> {
+        val out = ArrayList<String>()
+        var start = 0
+        for (i in 1 until text.length) {
+            if (breakBefore(i)) {
+                out += text.substring(start, i)
+                start = i
+            }
+        }
+        out += text.substring(start)
         return out
     }
 
+    /** Last resort: cuts a word into pieces of [maxC] characters; no character is added, the pieces give the word. */
     private fun hardBreak(
         word: String,
         maxC: Int,
-    ): List<String> {
-        val step = max(1, maxC - 1)
-        val out = ArrayList<String>()
-        var i = 0
-        while (word.length - i > maxC) {
-            out += word.substring(i, i + step) + "-"
-            i += step
-        }
-        out += word.substring(i)
-        return out
-    }
+    ): List<String> = word.chunked(maxC)
 }

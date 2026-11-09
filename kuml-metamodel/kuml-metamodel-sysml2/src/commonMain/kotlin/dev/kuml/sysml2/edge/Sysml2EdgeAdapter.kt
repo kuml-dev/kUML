@@ -393,12 +393,13 @@ public class StmEdgeAdapter(
         public fun formatTransitionLabel(transition: TransitionUsage): String? =
             transitionLabelParts(transition).takeIf { it.isNotEmpty() }?.joinToString(" ") { it.text }
 
-        /** Optional `name:`, trigger and timer label, `[guard]` and `/ effect` as separate styled parts. */
+        /**
+         * Optional name, trigger and timer label, `[guard]` and `/ effect` as separate styled parts. The name carries a
+         * trailing colon only when more text follows; a `showName` transition without trigger, guard and effect shows
+         * the bare name.
+         */
         public fun transitionLabelParts(transition: TransitionUsage): List<EdgeLabelPart> {
             val parts = mutableListOf<EdgeLabelPart>()
-            if (transition.showName && transition.name.isNotBlank()) {
-                parts += EdgeLabelPart(text = "${transition.name}:", kind = EdgeLabelKind.Name)
-            }
             listOfNotNull(transition.trigger?.takeIf { it.isNotBlank() }, transition.timer?.label())
                 .takeIf { it.isNotEmpty() }
                 ?.let { parts += EdgeLabelPart(text = it.joinToString(", "), kind = EdgeLabelKind.Trigger) }
@@ -407,6 +408,10 @@ public class StmEdgeAdapter(
                 parts += EdgeLabelPart(text = "[$it]", kind = kind)
             }
             transition.effect?.takeIf { it.isNotBlank() }?.let { parts += EdgeLabelPart(text = "/ $it", kind = EdgeLabelKind.Effect) }
+            if (transition.showName && transition.name.isNotBlank()) {
+                val text = if (parts.isEmpty()) transition.name else "${transition.name}:"
+                parts.add(0, EdgeLabelPart(text = text, kind = EdgeLabelKind.Name))
+            }
             return parts
         }
     }

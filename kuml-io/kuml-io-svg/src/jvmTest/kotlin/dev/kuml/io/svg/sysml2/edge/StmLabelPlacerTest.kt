@@ -15,9 +15,8 @@ class StmLabelPlacerTest :
 
         val guard60 = "stroemungOk and not stbAusgeloest and druckImBereich(p1,p22)"
 
-        /** The text of all lines without separators; a trailing hyphen of a hard break is dropped. */
-        fun glued(lines: List<StmLabelLine>) =
-            lines.joinToString("") { (if (it.hyphenated) it.text.dropLast(1) else it.text).replace(" ", "") }
+        /** The text of all lines without separators; a hard break adds no character. */
+        fun glued(lines: List<StmLabelLine>) = lines.joinToString("") { it.text.replace(" ", "") }
 
         test("maxChars follows the width") {
             StmLabelPlacer.maxChars(220f) shouldBe 30
@@ -55,7 +54,7 @@ class StmLabelPlacerTest :
                 StmLabelPlacer.wrap(
                     parts = listOf(p("[CLOSED and OPEN or CLOSED and OPEN or CLOSED and OPEN]", EdgeLabelKind.Guard)),
                 )
-            lines.none { it.hyphenated } shouldBe true
+            lines.none { it.brokenInWord } shouldBe true
             lines.forEach { it.text.trim() shouldBe it.text }
         }
 
@@ -64,17 +63,18 @@ class StmLabelPlacerTest :
             lines.first().text.startsWith("/ doSomethingLong") shouldBe true
         }
 
-        test("an overlong word breaks hard with a hyphen") {
+        test("an overlong word breaks hard without an inserted hyphen") {
             val lines = StmLabelPlacer.wrap(parts = listOf(p("x".repeat(100))))
             (lines.size >= 4) shouldBe true
-            lines.dropLast(1).forEach { it.hyphenated shouldBe true }
-            lines.last().hyphenated shouldBe false
+            lines.dropLast(1).forEach { it.brokenInWord shouldBe true }
+            lines.none { it.text.contains('-') } shouldBe true
+            lines.last().brokenInWord shouldBe false
             glued(lines) shouldBe "x".repeat(100)
         }
 
         test("break opportunities after comma and open parenthesis") {
             val lines = StmLabelPlacer.wrap(parts = listOf(p("call(argumentNumberOne,argumentNumberTwo,argumentNumberThree)")))
-            lines.none { it.hyphenated } shouldBe true
+            lines.none { it.brokenInWord } shouldBe true
             glued(lines) shouldBe "call(argumentNumberOne,argumentNumberTwo,argumentNumberThree)"
         }
 

@@ -6,6 +6,38 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 50: STM label wrap without mid-word hyphens, bare name without colon
+
+#### Why
+
+Two STM items (N-STM-A c and d), reproduced first with a generic fixture (`layout { labelMaxWidth = 150 }`, `which kuml` pointed at the build). The width does reach `StmLabelWrap.wrap` (150 px gives 20 characters), so the cause was not a wrongly passed width but the wrap itself:
+
+- c: reproduced. A word of 23 characters such as `Zulauf.schliessen(` was cut in the middle and got a `-` inserted (`schli-` / `essen(`); `Kuehlung.freigeben()` (21 characters with the `/ ` prefix) left a lone `)` on its own line; `Auf-/Zulauf` was not a break opportunity. The report of `Spannungsau-` at 12 characters did not reproduce with this width; a single word of 16 characters stays whole.
+- d: reproduced. `showName = true` without trigger, guard and effect drew `init:` with a dangling colon.
+
+#### Change
+
+- c: `StmLabelWrap` break order inside a part: at spaces; before `&&` and `||`; after `-`, `/` and `,`; after `(` only for an atom that is still too long; hard break last. `)`, `]`, `,` and `;` never start a line. A glued `/ effect` that does not fit as a whole is un-glued (the `/` stays, the effect wraps on). The hard break adds no hyphen and cuts pieces of `maxChars`, so the pieces concatenated give the word. The limit stays hard, `boxSize` is unchanged.
+- API change: `StmLabelLine.hyphenated` is renamed to `StmLabelLine.brokenInWord` (the line ends in the middle of a word; no character was added). No binary-compatibility dump exists in the repo.
+- d: `Sysml2EdgeAdapter.transitionLabelParts` adds the colon only when trigger, timer, guard or effect follows; otherwise the bare name. `formatTransitionLabel` and `metadata.label` (LaTeX) follow.
+- Handbook: `sysml2.adoc` (transition labels: break order, no inserted hyphen, bare name).
+
+#### Verification
+
+- New `StmLabelWrapTest` (8 cases, layout-bridge, font independent). `StmLabelPlacerTest` adjusted: the hard-break case now expects `brokenInWord` and no `-`, `glued` no longer drops a hyphen, `hyphenated` renamed. New case in `Sysml2StmShowNameTest` (name only gives `init`, name plus trigger gives `init:`, `tick`).
+- Looked at as PNG with the local CLI before and after (`scratch/stm-wrap.kuml.kts`, not committed).
+
+#### Not verified
+
+- No run against the real PAL source.
+- LaTeX: (c) does not apply (the LaTeX renderer does not use `StmLabelWrap`); (d) reaches it through `metadata.label`. Not looked at as a PDF.
+
+#### Not fixed
+
+- N-STM-A (a), (b) and (e).
+- `maxChars` and `CHAR_W` are unchanged on purpose (they size the layer gap).
+- A group of arguments that cannot be broken at a separator or after `(` is still cut inside a word as the last resort.
+
 ### Nacharbeit 49: REQ subject edges, group-local wrapColumns, derive/trace labels, empty part def height
 
 #### Why

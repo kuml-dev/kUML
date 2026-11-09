@@ -633,8 +633,9 @@ routed to the frame and flagged by warning 115.
 ==== Transition labels
 
 A label reads `[name:] trigger[, timer] [guard] / effect`. It is never cut: text wider than the wrap width (default 220 px,
-`layout { labelMaxWidth = 120..400 }`) wraps at spaces, then after `,` and `(` and around `&&` / `||`, and only for a
-word that is still too long inside the word with a `-`; every part (name, event, guard, effect) starts on its own line
+`layout { labelMaxWidth = 120..400 }`) wraps at spaces, then before `&&` / `||` and after `-`, `/` and `,`; parentheses stay together (a break after `(` only for
+an argument list that does not fit otherwise, and `)`, `]` and `,` never start a line); only a word longer than
+`labelMaxWidth / 7.2` characters is split inside the word, and no hyphen is inserted; every part (name, event, guard, effect) starts on its own line
 once the label wraps. A prose guard stays italic on every line. The full text is also the `<title>` of the label group
 in the SVG. A label is drawn as halo text (2 px, background colour) under the fill text, with no backdrop rectangle, so
 it never hides a line or an arrow head. The planner puts the label beside a long, unshared segment of its own line, right
@@ -642,7 +643,8 @@ of the direction of travel first, and never on another line, arrow head, state, 
 segments and two line ends at one side of a state keep 16 px.
 
 `transition(name = "T37", ..., showName = true)` prints the transition name as `T37:` in front of the label (default
-`false`; the DSL printer writes it only when `true`).
+`false`; the DSL printer writes it only when `true`). A transition that has a name but no trigger, timer, guard or effect
+shows only the name, without the colon.
 
 ==== Structural checks (`kuml validate`)
 

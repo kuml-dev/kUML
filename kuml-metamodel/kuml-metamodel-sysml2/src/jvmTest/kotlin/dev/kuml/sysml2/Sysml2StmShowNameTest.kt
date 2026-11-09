@@ -44,6 +44,18 @@ class Sysml2StmShowNameTest :
             parts(model()).first().kind shouldBe EdgeLabelKind.Name
         }
 
+        test("name without trigger, guard and effect shows the bare name, with more text it gets a colon") {
+            fun only(trigger: String?) =
+                sysml2Model(name = "M") {
+                    val a = stateDef(name = "A")
+                    val b = stateDef(name = "B")
+                    transition(name = "init", source = a, target = b, trigger = trigger, id = "t1", showName = true)
+                }
+            parts(only(trigger = null)).map { it.text } shouldBe listOf("init")
+            parts(only(trigger = null)).single().kind shouldBe EdgeLabelKind.Name
+            parts(only(trigger = "tick")).map { it.text } shouldBe listOf("init:", "tick")
+        }
+
         test("without showName no name part") {
             parts(model(showName = false)).map { it.text } shouldBe listOf("tick, after(10s)", "[g]", "/ e")
         }
