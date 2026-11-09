@@ -24,7 +24,7 @@ class NoteLayoutTest :
         test("short text yields the default size") {
             val s = NoteLayout.sizeOf(body = "hi")
             s.width shouldBe 140f
-            s.height shouldBe 60f
+            s.height shouldBe 32f
         }
 
         test("100000 chars are cut at 30 lines with an ellipsis and a bounded height") {

@@ -37,6 +37,11 @@ class Sysml2Example54NoteTest :
                     )
             }
         }
+        // Nacharbeit 45: a note on the owner makes the IBD draw its owner frame, and the owner anchor ends on it.
+        val ownerFrame =
+            Regex(
+                """<rect x="([-0-9.]+)" y="([-0-9.]+)" width="([-0-9.]+)" height="([-0-9.]+)" class="kuml-ibd-frame"/>""",
+            ).find(svg)!!.groupValues.drop(1).map(String::toDouble).let { SvgRect(it[0], it[1], it[2], it[3]) }
         val connector =
             SvgGeometry
                 .edgePolylines(svg)
@@ -93,10 +98,16 @@ class Sysml2Example54NoteTest :
             bad.joinToString("\n") shouldBe ""
         }
 
-        test("every anchor ends on the border of its target: a port square, the connector or a part, never in empty space") {
+        test(
+            "every anchor ends on the border of its target: a port square, the connector, a part or the owner frame, never in empty space",
+        ) {
             for (a in anchors) {
                 val end = a.last()
-                val ok = ports.any { onBorder(end, it) } || onConnector(end) || parts.any { onBorder(end, it.second) }
+                val ok =
+                    ports.any { onBorder(end, it) } ||
+                        onConnector(end) ||
+                        parts.any { onBorder(end, it.second) } ||
+                        onBorder(end, ownerFrame)
                 ok shouldBe true
             }
         }

@@ -4411,12 +4411,24 @@ public object KumlSvgRenderer {
         layout: LayoutResult,
     ): LayoutResult = placeSeqNotesResult(model = model, diagram = diagram, layout = layout).layout
 
-    /** Like [placeSeqNotes] with the placement report (degraded notes, crossings). */
+    /** Like [placeSeqNotes] with the placement report (degraded notes, crossings, undrawn notes = `KUML-NOTE-W002`). */
     internal fun placeSeqNotesResult(
         model: Sysml2Model,
         diagram: SeqDiagram,
         layout: LayoutResult,
         measure: dev.kuml.layout.bridge.note.NoteMeasure = dev.kuml.layout.bridge.note.DefaultNoteMeasure,
+    ): dev.kuml.layout.bridge.note.NotePlacementResult =
+        Sysml2NotePlacement.withUndrawn(
+            model = model,
+            diagram = diagram,
+            placed = placeSeqNotesUnchecked(model = model, diagram = diagram, layout = layout, measure = measure),
+        )
+
+    private fun placeSeqNotesUnchecked(
+        model: Sysml2Model,
+        diagram: SeqDiagram,
+        layout: LayoutResult,
+        measure: dev.kuml.layout.bridge.note.NoteMeasure,
     ): dev.kuml.layout.bridge.note.NotePlacementResult {
         val empty =
             dev.kuml.layout.bridge.note

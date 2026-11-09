@@ -72,4 +72,25 @@ class ExtractedDiagramCodecTest :
             val s2 = decoded.shouldBeInstanceOf<ExtractedDiagram.Sysml2>()
             s2.model.diagrams.contains(s2.diagram) shouldBe true
         }
+
+        test("the script line of a SysML 2 comment survives the round-trip (Nacharbeit 45)") {
+            // Script lines: 1 import, 2 blank, 3 model, 4 partDef, 5 comment
+            val decoded =
+                roundTrip(
+                    """
+                    import dev.kuml.sysml2.dsl.sysml2Model
+
+                    sysml2Model("Noted") {
+                        val a = partDef("A")
+                        comment(text = "hello", firstAnchor = a, id = "n1")
+                        bdd("B") { include(a) }
+                    }
+                    """.trimIndent(),
+                )
+            decoded
+                .shouldBeInstanceOf<ExtractedDiagram.Sysml2>()
+                .model.comments
+                .single()
+                .note.sourceLine shouldBe 5
+        }
     })

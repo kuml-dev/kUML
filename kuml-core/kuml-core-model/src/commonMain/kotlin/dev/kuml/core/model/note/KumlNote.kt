@@ -80,6 +80,11 @@ data class KumlNote(
     val id: String,
     val body: String,
     @EncodeDefault(EncodeDefault.Mode.NEVER) val kind: NoteKind = NoteKind.NOTE,
+    /**
+     * Line of the script the note was declared on (`comment(...)` / `note(...)`), 1-based, `null` when unknown.
+     * Serialised only when set, so existing JSON stays byte-identical. Used by findings (`KUML-NOTE-W001/W002`).
+     */
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val sourceLine: Int? = null,
 ) {
     init {
         require(id.isNotBlank()) { "Note id must not be blank" }
@@ -87,6 +92,11 @@ data class KumlNote(
             "Note '$id' body has ${body.length} chars, limit is ${KumlNoteLimits.MAX_BODY_CHARS}"
         }
     }
+
+    /** Equality ignores [sourceLine]: where a note was written is not part of what the note is (round-trips through the printer differ in it). */
+    override fun equals(other: Any?): Boolean = other is KumlNote && id == other.id && body == other.body && kind == other.kind
+
+    override fun hashCode(): Int = 31 * (31 * id.hashCode() + body.hashCode()) + kind.hashCode()
 }
 
 /** Anchor link from a note ([noteId]) to the annotated element ([targetId]). */
@@ -113,6 +123,8 @@ data class KumlNoteIssue(
     val severity: Severity,
     val subjectId: String,
     val message: String,
+    /** Script line of the note the finding is about (1-based), `null` when unknown. */
+    val sourceLine: Int? = null,
 ) {
     enum class Severity { ERROR, WARNING }
 }

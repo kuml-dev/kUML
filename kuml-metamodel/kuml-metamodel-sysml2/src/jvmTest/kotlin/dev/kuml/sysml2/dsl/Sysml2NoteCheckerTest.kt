@@ -40,7 +40,7 @@ class Sysml2NoteCheckerTest :
             Sysml2NoteAnchors.kindOf(model = m, id = "nope") shouldBe null
         }
 
-        test("W002: a note listed in a BDD but anchored to a transition names element, anchor and diagram") {
+        test("W002: a note listed in a BDD but anchored to a transition names note, anchor and the reason") {
             val m =
                 sysml2Model(name = "M") {
                     val a = stateDef(name = "A")
@@ -55,8 +55,8 @@ class Sysml2NoteCheckerTest :
             val diagram = m.diagrams.single()
             val w = Sysml2NoteChecker.check(model = m, diagram = diagram).single { it.code == KumlNoteCodes.ANCHOR_NOT_DRAWABLE }
             w.message shouldContain "transition:A::B"
-            w.message shouldContain "Notiz n"
-            w.message shouldContain "Diagramm Overview"
+            w.message shouldContain "note not drawn: n, anchor"
+            w.message shouldContain "(kind-unsupported)"
             Sysml2NoteChecker.check(m).none { it.code == KumlNoteCodes.ANCHOR_NOT_DRAWABLE } shouldBe true
         }
 

@@ -42,6 +42,52 @@ public object Sysml2NotePlacement {
         placedLabels: Map<String, Rect> = emptyMap(),
         measure: NoteMeasure = DefaultNoteMeasure,
     ): NotePlacementResult {
+        val placed =
+            placeNotes(
+                model = model,
+                diagram = diagram,
+                layout = layout,
+                extras = extras,
+                edgeLabels = edgeLabels,
+                configure = configure,
+                config = config,
+                nodeObstacle = nodeObstacle,
+                placedLabels = placedLabels,
+                measure = measure,
+            )
+        return withUndrawn(model = model, diagram = diagram, placed = placed)
+    }
+
+    /**
+     * Adds the `KUML-NOTE-W002` check to [placed]: declared minus drawn, computed against the unfiltered model, and
+     * reported to the surrounding [NoteUndrawnCollector] scope.
+     */
+    public fun withUndrawn(
+        model: Sysml2Model,
+        diagram: Sysml2Diagram,
+        placed: NotePlacementResult,
+    ): NotePlacementResult {
+        val drawn =
+            placed.layout.nodes.keys
+                .map { it.value }
+                .toSet()
+        val undrawn = Sysml2NoteDrawCheck.undrawn(model = model, diagram = diagram, drawnNoteIds = drawn)
+        NoteUndrawnCollector.report(undrawn)
+        return if (undrawn.isEmpty()) placed else placed.copy(undrawn = undrawn)
+    }
+
+    private fun placeNotes(
+        model: Sysml2Model,
+        diagram: Sysml2Diagram,
+        layout: LayoutResult,
+        extras: Map<String, AnchorGeometry>,
+        edgeLabels: (String) -> List<String>,
+        configure: (ObstacleIndex) -> Unit,
+        config: NotePlacementConfig,
+        nodeObstacle: (String, Rect) -> Rect,
+        placedLabels: Map<String, Rect>,
+        measure: NoteMeasure,
+    ): NotePlacementResult {
         if (model.comments.isEmpty()) return NotePlacementResult(layout = layout, unresolved = emptyList(), truncated = emptyList())
         val resolver = AnchorGeometryResolver(layout = layout, extras = extras)
         val taken =

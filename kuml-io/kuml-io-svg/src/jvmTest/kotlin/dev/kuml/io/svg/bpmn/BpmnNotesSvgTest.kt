@@ -47,7 +47,7 @@ class BpmnNotesSvgTest :
             val graph = BpmnLayoutBridge.toLayoutGraph(model = model, diagram = d, sizeProvider = BpmnContentSizeProvider(model))
             val lr = engine().layout(graph = graph, hints = LayoutHints.DEFAULT)
             val size = lr.nodes[NodeId("ann1")]!!.bounds.size
-            (size.width >= NoteLayout.DEFAULT_W && size.height >= NoteLayout.DEFAULT_H) shouldBe true
+            (size.width >= NoteLayout.DEFAULT_W && size.height >= NoteLayout.MIN_H) shouldBe true
             val kd = KumlDiagram(name = "Order", type = DiagramType.BPMN_PROCESS, elements = process.renderableElements())
             val svg = KumlSvgRenderer.toSvg(diagram = kd, layoutResult = lr, theme = PlainTheme())
             SampleOutput.write(filename = "bpmn/notes-process.svg", content = svg)

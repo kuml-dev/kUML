@@ -117,7 +117,7 @@ class NoteSvgFormatTest :
 private val PLAIN_REFERENCE: String =
     listOf(
         "<g id=\"n1\" transform=\"translate(10,10)\">",
-        "  <path d=\"M 0 0 L 126 0 L 140.0 14 L 140.0 60.0 L 0 60.0 Z\" class=\"kuml-comment\"/>",
+        "  <path d=\"M 0 0 L 126 0 L 140.0 14 L 140.0 32.0 L 0 32.0 Z\" class=\"kuml-comment\"/>",
         "  <path d=\"M 126 0 L 126 14 L 140.0 14\" class=\"kuml-comment-fold\"/>",
         "  <text class=\"kuml-body\" x=\"8\" y=\"18.50\">",
         "    <tspan x=\"8\" dy=\"0\">",

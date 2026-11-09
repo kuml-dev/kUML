@@ -51,4 +51,20 @@ class DesktopRenderPipelineNoteWarningsTest :
                 .shouldBeInstanceOf<DesktopRenderResult.Svg>()
                 .warnings shouldBe emptyList()
         }
+
+        test("render carries KUML-NOTE-W002 for a note the diagram declared but did not draw (Nacharbeit 45)") {
+            val nested =
+                """
+                sysml2Model(name = "N") {
+                    val wheel = partDef(name = "Wheel")
+                    val axle = partDef(name = "Axle") { part(name = "wheel", typeId = wheel.id) }
+                    val car = partDef(name = "Car") { part(name = "axle", typeId = axle.id) }
+                    comment(text = "SECRET-BODY", "Axle::wheel", id = "nested")
+                    ibd(name = "Car internals", owner = car)
+                }
+                """.trimIndent()
+            val result = DesktopRenderPipeline.render(script = nested, themeName = "plain").shouldBeInstanceOf<DesktopRenderResult.Svg>()
+            result.warnings shouldBe listOf("[KUML-NOTE-W002] note not drawn: nested, anchor Axle::wheel (nested)")
+            result.svg shouldNotContain "SECRET-BODY"
+        }
     })

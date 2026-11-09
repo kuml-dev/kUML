@@ -35,7 +35,7 @@ public object UmlCommentLayout {
     public const val DEFAULT_W: Float = NoteLayout.DEFAULT_W
 
     /** Default note height when the body is empty or very short. */
-    public const val DEFAULT_H: Float = NoteLayout.DEFAULT_H
+    public const val DEFAULT_H: Float = NoteLayout.MIN_H
 
     /** Maximum note width. */
     public const val MAX_W: Float = NoteLayout.MAX_W

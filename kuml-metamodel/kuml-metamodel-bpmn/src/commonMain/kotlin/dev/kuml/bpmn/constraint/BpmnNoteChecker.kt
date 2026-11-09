@@ -22,6 +22,9 @@ object BpmnNoteChecker {
                 .map { it.id }
                 .toSet()
         val anchorable = model.allAnchorableIds()
+        val lines =
+            (model.processes.flatMap { it.textAnnotations } + model.collaborations.flatMap { it.textAnnotations })
+                .associate { it.id to it.note.sourceLine }
         val issues = mutableListOf<KumlNoteIssue>()
         for (a in associations) {
             if (a.link.noteId !in annotationIds) {
@@ -31,6 +34,7 @@ object BpmnNoteChecker {
                         severity = KumlNoteIssue.Severity.ERROR,
                         subjectId = a.id,
                         message = "Association '${a.id}' refers to unknown text annotation '${a.link.noteId}'",
+                        sourceLine = lines[a.link.noteId],
                     )
             }
             val target = a.link.targetId
@@ -42,6 +46,7 @@ object BpmnNoteChecker {
                             severity = KumlNoteIssue.Severity.ERROR,
                             subjectId = a.id,
                             message = "Association '${a.id}' refers to unknown element '$target'",
+                            sourceLine = lines[a.link.noteId],
                         )
                 } else {
                     issues +=
@@ -50,6 +55,7 @@ object BpmnNoteChecker {
                             severity = KumlNoteIssue.Severity.WARNING,
                             subjectId = a.id,
                             message = "Association '${a.id}' targets '$target', which is a pool, lane or flow; it is not rendered",
+                            sourceLine = lines[a.link.noteId],
                         )
                 }
             }

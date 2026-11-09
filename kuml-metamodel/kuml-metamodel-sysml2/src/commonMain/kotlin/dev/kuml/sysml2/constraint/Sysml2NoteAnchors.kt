@@ -101,12 +101,14 @@ object Sysml2NoteAnchors {
                 else -> NoteAnchorKind.DEFINITION
             }
         }
+        // The typed usage first: a definition's `features` hold the untyped KerML view of the same usage, which would
+        // classify every part, port or action declared inside a definition as OTHER.
         val usage: Any? =
-            model.definitions
-                .asSequence()
-                .flatMap { it.features.asSequence() }
-                .firstOrNull { it.id == id }
-                ?: model.usages.firstOrNull { it.id == id }
+            model.usages.firstOrNull { it.id == id }
+                ?: model.definitions
+                    .asSequence()
+                    .flatMap { it.features.asSequence() }
+                    .firstOrNull { it.id == id }
         return when (usage) {
             null -> null
             is PartUsage -> NoteAnchorKind.PART

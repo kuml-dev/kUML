@@ -1404,10 +1404,12 @@ sysml2Model(name = "Vehicle") {
   part ports (IBD, `comment(text, "Battery::dcOut")`), the owner of an IBD, activity partitions (ACT), nested
   constraints (PAR) and lifelines (SEQ). In a sequence diagram the line ends on the lifeline stem; for an
   inner lifeline it may have to cross another lifeline when no free column exists.
+* Note boxes: text wraps 14 px earlier than the box width allows, so it never runs under the folded corner (right
+  padding 22 px, left 8 px; BPMN brackets keep 8 px right), and a one-line note is 32 px high (minimum height).
 * Body limit: 65 536 characters (hard), display limit 2000 characters / 30 lines; at most 8 anchors per
   note and 200 notes per diagram are drawn (`KUML-NOTE-W003`).
 * A note whose anchor id does not exist is drawn free-standing and reported as `KUML-NOTE-W001`
-  (`Anker unbekannt: <id> (Notiz <noteId>)`); an anchor the diagram kind cannot draw is `KUML-NOTE-W002`.
+  (`Anker unbekannt: <id> (Notiz <noteId>)`); a note the diagram declares but does not draw (a nested part the diagram does not show, a row-only action, another level, an anchor kind the diagram cannot draw) is `KUML-NOTE-W002` with the reason in parentheses. A note on the owner of an IBD makes the diagram draw its owner frame, and the line ends on that frame.
   `kuml validate`, `kuml render`, `kuml workspace validate --evaluate`, Desktop validate and render report
   them with the ids, never with the note text. `SYSML2_NOTE_ANCHOR_UNKNOWN` and `SYSML2_NOTE_DUPLICATE_ID`
   (errors) and `SYSML2_NOTE_NOT_SHOWN` (warning) remain.

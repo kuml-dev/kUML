@@ -151,19 +151,25 @@ public object WorkspaceBlockEvaluator {
         }
     }
 
-    /** Maps a note finding to a workspace finding (code `KUML-NOTE-W00x` etc., line of the block). */
+    /**
+     * Maps a note finding to a workspace finding (code `KUML-NOTE-W00x` etc.). When the note's script line is known
+     * the finding sits on that document line (`block.startLine + blockLine`, the same convention as
+     * [failureFindings]) and the message names the block line; otherwise it sits on the fence line.
+     */
     public fun noteFinding(
         doc: OkfDocument,
         block: KumlCodeBlock,
         finding: NoteChecks.Finding,
-    ): OkfFinding =
-        OkfFinding(
+    ): OkfFinding {
+        val blockLine = finding.sourceLine
+        return OkfFinding(
             code = finding.code,
             severity = if (finding.isError) OkfSeverity.ERROR else OkfSeverity.WARNING,
             file = doc.relativePath,
-            line = block.startLine,
-            message = finding.message,
+            line = if (blockLine != null) block.startLine + blockLine else block.startLine,
+            message = if (blockLine != null) "${finding.message} (block line $blockLine)" else finding.message,
         )
+    }
 
     /**
      * Opt-in deep check for `workspace validate --evaluate`: evaluates every kuml block of

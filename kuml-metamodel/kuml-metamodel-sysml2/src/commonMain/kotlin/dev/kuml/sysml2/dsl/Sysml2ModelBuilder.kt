@@ -3,6 +3,7 @@ package dev.kuml.sysml2.dsl
 import dev.kuml.core.model.note.KumlNote
 import dev.kuml.core.model.note.KumlNoteLink
 import dev.kuml.core.model.note.NoteKind
+import dev.kuml.core.model.note.callerScriptLine
 import dev.kuml.kerml.KermlMultiplicity
 import dev.kuml.kerml.KermlSpecialization
 import dev.kuml.sysml2.ActDiagram
@@ -887,7 +888,7 @@ class Sysml2ModelBuilder(
         kind: NoteKind = NoteKind.NOTE,
     ): Sysml2Comment {
         val noteId = id ?: nextCommentId()
-        val comment = Sysml2Comment(note = KumlNote(id = noteId, body = text, kind = kind))
+        val comment = Sysml2Comment(note = KumlNote(id = noteId, body = text, kind = kind, sourceLine = callerScriptLine()))
         comments += comment
         for (target in anchorIds.distinct()) {
             commentLinks +=

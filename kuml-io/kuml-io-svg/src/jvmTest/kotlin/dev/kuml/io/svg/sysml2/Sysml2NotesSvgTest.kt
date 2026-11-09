@@ -102,7 +102,7 @@ class Sysml2NotesSvgTest :
             val lr = Sysml2NotePlacement.place(model = model, diagram = bdd, layout = layout(model, bdd)).layout
             val n = lr.nodes[NodeId("n1")]!!
             (n.bounds.size.width >= NoteLayout.DEFAULT_W) shouldBe true
-            (n.bounds.size.height >= NoteLayout.DEFAULT_H) shouldBe true
+            (n.bounds.size.height >= NoteLayout.MIN_H) shouldBe true
             val svg = render(model, bdd, "bdd")
             assertNotes(svg)
             svg shouldContain "&lt;b&gt;note&lt;/b&gt;"

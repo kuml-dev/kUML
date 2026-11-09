@@ -28,8 +28,8 @@ class NoteChecksCliTest :
             result.output shouldContain "KUML-NOTE-W001"
             result.output shouldContain "Anker unbekannt: Gibtsnicht (Notiz ghost)"
             result.output shouldContain "KUML-NOTE-W002"
-            result.output shouldContain "Notiz ontransition"
-            result.output shouldContain "Diagramm Overview"
+            result.output shouldContain "note not drawn: ontransition, anchor"
+            result.output shouldContain "(kind-unsupported)"
             result.output shouldNotContain "SECRET-NOTE-BODY"
         }
 

@@ -117,8 +117,8 @@ folds the findings into the structural part of the JSON output (`category: "note
 | Code | Severity | Meaning
 
 | `NOTE_TRUNCATED` | warning | A note exceeds the display limit of 2000 characters / 30 lines and is rendered cut. The message names the note id and the limits, never the text.
-| `KUML-NOTE-W001` | warning | A note anchors an element id that does not exist (`Anker unbekannt: <id> (Notiz <noteId>)`). The note is drawn free-standing. Also reported for C4 and Service Blueprint notes.
-| `KUML-NOTE-W002` | warning | The anchor exists, but this diagram kind cannot draw an anchor of that kind.
+| `KUML-NOTE-W001` | warning | A note anchors an element id that does not exist (`Anker unbekannt: <id> (Notiz <noteId>)`). The note is drawn free-standing. Also reported for C4 and Service Blueprint notes. A note with only unknown anchors is never also W002.
+| `KUML-NOTE-W002` | warning | A note the diagram declares (lists in its notes, or anchors at the level it draws) is not drawn: `note not drawn: <noteId>, anchor <anchorId> (<reason>)`. The anchor exists; the reason says why it is not shown: `nested` (a part inside a composite whose level this diagram does not draw), `row-only` (an action or attribute that is only a row in a compartment), `other-level` (another owner or level) or `kind-unsupported` (this diagram kind cannot draw an anchor of that kind). A drawn note is never reported, even if one of several anchors is missing. Reported by `render`, Desktop and MCP render, never by plain `validate`, because only the layout shows what was drawn (`kind-unsupported` for a listed note is also found by `validate`).
 | `KUML-NOTE-W003` | warning | More than 8 anchors on one note or more than 200 notes; the rest is not drawn.
 | `SYSML2_NOTE_ANCHOR_UNKNOWN` | error | A comment link points to an unknown comment.
 | `SYSML2_NOTE_DUPLICATE_ID` | error | A comment id collides with another element.
@@ -130,6 +130,8 @@ folds the findings into the structural part of the JSON output (`category: "note
 |===
 
 `kuml render` prints the same findings as warnings on stderr and still renders.
+
+The findings carry the line of the `comment(...)` / `note(...)` call in the script (1-based) when it is known. In `kuml workspace validate --evaluate` and `kuml workspace render` that is the document line `block start line + block line`, and the message ends with `(block line N)`; without a known line the finding sits on the fence line. The line comes from the script, so a note built outside a script (JSON import, Kotlin API) has none.
 
 == OCL violation output
 

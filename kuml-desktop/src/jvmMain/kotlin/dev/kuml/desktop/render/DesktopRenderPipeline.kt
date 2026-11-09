@@ -4,6 +4,7 @@ import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.bpmn.model.ConversationDiagram
 import dev.kuml.bpmn.model.ProcessDiagram
+import dev.kuml.cli.NoteChecks
 import dev.kuml.cli.Severity
 import dev.kuml.cli.ValidationService
 import dev.kuml.core.model.DiagramType
@@ -29,6 +30,7 @@ import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.layout.bridge.layoutHintsFor
+import dev.kuml.layout.bridge.note.NoteUndrawnCollector
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.runtime.sysml2.Sysml2StateMachineAdapter
@@ -222,9 +224,13 @@ internal object DesktopRenderPipeline {
                     is PipelineContext.Ready -> prepared
                 }
             val env = RenderEnv(theme = ctx.theme, elkEngine = ctx.elkEngine, watermark = watermark)
-            val svg =
-                renderSvg(extracted = ctx.extracted, env = env)
-                    ?: return DesktopRenderResult.Error(ERM_NOT_SUPPORTED_MESSAGE)
+            // The collector gathers the notes the diagram declared but did not draw (KUML-NOTE-W002).
+            val (svgOrNull, undrawn) = NoteUndrawnCollector.collecting { renderSvg(extracted = ctx.extracted, env = env) }
+            val svg = svgOrNull ?: return DesktopRenderResult.Error(ERM_NOT_SUPPORTED_MESSAGE)
+            val undrawnWarnings =
+                NoteChecks
+                    .undrawn(undrawn = undrawn, alreadyReported = NoteChecks.of(ctx.extracted))
+                    .map { "[${it.code}] ${it.message}" }
             DesktopRenderResult.Svg(
                 svg = svg,
                 simulatable = isSimulatable(ctx.extracted),
@@ -233,7 +239,7 @@ internal object DesktopRenderPipeline {
                     ValidationService
                         .findingsOf(ctx.extracted)
                         .filter { !it.code.startsWith("KUML-LAYOUT") }
-                        .map { it.text() } + env.layoutFindings,
+                        .map { it.text() } + undrawnWarnings + env.layoutFindings,
             )
         } catch (e: ScriptEvaluationException) {
             DesktopRenderResult.Error(e.message ?: "Script-Fehler")

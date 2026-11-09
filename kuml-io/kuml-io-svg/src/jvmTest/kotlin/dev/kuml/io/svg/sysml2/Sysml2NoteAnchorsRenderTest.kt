@@ -108,7 +108,7 @@ class Sysml2NoteAnchorsRenderTest :
             Sysml2NoteChecker.check(model = model, diagram = d).shouldBeEmpty()
             val svg = render(model, d, "stm-transition")
             svg shouldContain "id=\"nt\""
-            svg shouldContain "Note on the second transition"
+            svg shouldContain "Note on the second"
             anchorCount(svg) shouldBe 1
         }
 

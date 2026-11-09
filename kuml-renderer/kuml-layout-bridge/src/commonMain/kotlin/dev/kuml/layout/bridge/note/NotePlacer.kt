@@ -167,6 +167,8 @@ public data class NotePlacementResult(
     val degraded: List<String> = emptyList(),
     /** Sequence diagrams (Nacharbeit 39): tolerated crossings of anchor lines with foreign stems, messages and frame edges. */
     val crossings: Int = 0,
+    /** Notes the diagram declares but did not draw (`KUML-NOTE-W002`); empty when the placer ran no draw check. */
+    val undrawn: List<UndrawnNote> = emptyList(),
 )
 
 /**

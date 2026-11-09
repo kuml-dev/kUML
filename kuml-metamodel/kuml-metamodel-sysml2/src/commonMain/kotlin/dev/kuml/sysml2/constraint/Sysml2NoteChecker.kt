@@ -25,6 +25,7 @@ public object Sysml2NoteChecker {
         if (model.comments.isEmpty() && model.commentLinks.isEmpty()) return emptyList()
         val issues = mutableListOf<KumlNoteIssue>()
         val noteIds = model.comments.map { it.id }
+        val lines = model.comments.associate { it.id to it.note.sourceLine }
         val anchorable = model.allAnchorableIds()
 
         val seen = mutableSetOf<String>()
@@ -36,6 +37,7 @@ public object Sysml2NoteChecker {
                         severity = KumlNoteIssue.Severity.ERROR,
                         subjectId = id,
                         message = "Comment id '$id' is not unique in the model",
+                        sourceLine = lines[id],
                     )
             }
         }
@@ -56,6 +58,7 @@ public object Sysml2NoteChecker {
                         severity = KumlNoteIssue.Severity.WARNING,
                         subjectId = l.link.noteId,
                         message = "Anker unbekannt: ${l.link.targetId} (Notiz ${l.link.noteId})",
+                        sourceLine = lines[l.link.noteId],
                     )
             }
         }
@@ -69,6 +72,7 @@ public object Sysml2NoteChecker {
                         severity = KumlNoteIssue.Severity.WARNING,
                         subjectId = c.id,
                         message = "Comment '${c.id}' has no anchor and is listed in no diagram, so it is not shown",
+                        sourceLine = c.note.sourceLine,
                     )
             }
         }
@@ -89,6 +93,7 @@ public object Sysml2NoteChecker {
         val supported = Sysml2NoteAnchors.supported(diagram)
         val owner = Sysml2NoteAnchors.ownerOf(diagram)
         val listed = diagram.noteIds.toSet()
+        val lines = model.comments.associate { it.id to it.note.sourceLine }
         val extra = mutableListOf<KumlNoteIssue>()
         for (l in model.commentLinks) {
             if (l.link.noteId !in listed) continue
@@ -100,8 +105,9 @@ public object Sysml2NoteChecker {
                         severity = KumlNoteIssue.Severity.WARNING,
                         subjectId = l.link.noteId,
                         message =
-                            "Anker in diesem Diagramm nicht darstellbar: ${l.link.targetId} " +
-                                "(Notiz ${l.link.noteId}, Diagramm ${diagram.name})",
+                            "note not drawn: ${l.link.noteId}, anchor ${l.link.targetId} " +
+                                "(${KumlNoteCodes.NoteNotDrawnReason.KIND_UNSUPPORTED})",
+                        sourceLine = lines[l.link.noteId],
                     )
             }
         }

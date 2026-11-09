@@ -17,6 +17,57 @@ public object C4NotePlacement {
         layout: LayoutResult,
         config: NotePlacementConfig = NotePlacementConfig(),
     ): NotePlacementResult {
+        val placed = placeNotes(model = model, diagram = diagram, layout = layout, config = config)
+        val drawn =
+            placed.layout.nodes.keys
+                .map { it.value }
+                .toSet()
+        val undrawn = undrawnNotes(model = model, diagram = diagram, drawnNoteIds = drawn)
+        NoteUndrawnCollector.report(undrawn)
+        return if (undrawn.isEmpty()) placed else placed.copy(undrawn = undrawn)
+    }
+
+    /**
+     * Notes [diagram] declares (lists in `noteIds`, or anchors in its elements and relationships) that are not in
+     * [drawnNoteIds]. Notes with only unknown anchors are `KUML-NOTE-W001`, not W002.
+     */
+    public fun undrawnNotes(
+        model: C4Model,
+        diagram: C4Diagram,
+        drawnNoteIds: Set<String>,
+    ): List<UndrawnNote> {
+        if (model.notes.isEmpty()) return emptyList()
+        val known = model.elements.map { it.id }.toSet() + model.relationships.map { it.id }
+        val explicit = diagram.noteIds.toSet()
+        val scope = diagram.elements.toSet() + diagram.relationships
+        val out = mutableListOf<UndrawnNote>()
+        for (n in model.notes) {
+            if (n.id in drawnNoteIds) continue
+            val anchors =
+                model.noteLinks
+                    .filter { it.noteId == n.id }
+                    .map { it.targetId }
+                    .filter { it in known }
+            if (anchors.isEmpty()) continue
+            if (n.id !in explicit && anchors.none { it in scope }) continue
+            val anchor = anchors.firstOrNull { it in scope } ?: anchors.first()
+            out +=
+                UndrawnNote(
+                    noteId = n.id,
+                    anchorId = anchor,
+                    reason = dev.kuml.core.model.note.KumlNoteCodes.NoteNotDrawnReason.OTHER_LEVEL,
+                    sourceLine = n.sourceLine,
+                )
+        }
+        return out
+    }
+
+    private fun placeNotes(
+        model: C4Model,
+        diagram: C4Diagram,
+        layout: LayoutResult,
+        config: NotePlacementConfig,
+    ): NotePlacementResult {
         val none = NotePlacementResult(layout = layout, unresolved = emptyList(), truncated = emptyList())
         if (model.notes.isEmpty()) return none
         val resolver = AnchorGeometryResolver(layout = layout)

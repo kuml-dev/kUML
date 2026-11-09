@@ -64,7 +64,7 @@ class ErmNotesSvgTest :
             test("$notation: notes render with a fold and dashed anchors") {
                 val (lr, svg) = render(notation)
                 val size = lr.nodes[NodeId("n1")]!!.bounds.size
-                (size.width >= NoteLayout.DEFAULT_W && size.height >= NoteLayout.DEFAULT_H) shouldBe true
+                (size.width >= NoteLayout.DEFAULT_W && size.height >= NoteLayout.MIN_H) shouldBe true
                 svg shouldContain "class=\"kuml-comment kuml-erm-note\""
                 svg shouldContain "id=\"n1\""
                 svg shouldContain "id=\"free\""

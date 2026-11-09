@@ -6,6 +6,42 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 45: notes not drawn are reported (KUML-NOTE-W002), note line numbers, owner note on the IBD frame, note box geometry
+
+#### Why
+
+PAL 3.A "Notizen und Validierung". A note a diagram declares could vanish without a word: `Sysml2NotePlacement` filtered notes by `AnchorGeometryResolver.canResolve` before placing them, so a note on a nested part or on a row of a compartment simply was not drawn and no warning said so. Findings had no line, the workspace path put every finding on the fence line. Looked at as PNG: a note on the owner of a frame-less IBD ended its line on a child part (also in the shipped example 54). The text of a dog-ear note could run under the folded corner, and a one-line note was 60 px high.
+
+#### Change
+
+- `KUML-NOTE-W002` now means "note not drawn": `note not drawn: <noteId>, anchor <anchorId> (<reason>)`, reasons `nested`, `row-only`, `other-level`, `kind-unsupported` (`KumlNoteCodes.NoteNotDrawnReason`). One function decides it for every SysML 2 diagram kind (`Sysml2NoteDrawCheck`: declared minus drawn, computed against the unfiltered model; unknown anchors stay W001 only; a drawn note is never W002). `NotePlacementResult.undrawn` carries it, `C4NotePlacement.undrawnNotes` does the same for C4. The text of the old W001 message is unchanged; the old German W002 text ("nicht darstellbar") is replaced.
+- Transport: `NoteUndrawnCollector.collecting { ... }` (thread-local on the JVM, expect/actual with a plain variable on JS and wasm) gathers the reports of the placers during one render. `kuml render` (stderr and `RenderOutcome.noteFindings`, so `workspace render` too) and Desktop render (and with it MCP render) wrap their render call in it; `NoteChecks.undrawn` turns the result into findings and drops notes that W001/W002 already reported (one warning per note). This replaces the planned field on `SvgRenderOptions`: the placers are called from a dozen render paths that have no options object.
+- Line numbers: `KumlNote.sourceLine` (optional, serialised only when set, ignored by `equals`), filled by `callerScriptLine()` at `comment(...)`/`note(...)` time from the `.kts` frame of the stack. `KumlNoteIssue.sourceLine` and `NoteChecks.Finding.sourceLine` carry it; `ValidationService` fills `Finding.line`; `WorkspaceBlockEvaluator.noteFinding` reports `block.startLine + blockLine` and adds `(block line N)` to the message. The line survives `ExtractedDiagramCodec` and the sandboxed worker.
+- IBD: a note on the owner makes the projection show the owner frame (`Sysml2IbdProjection`), and the note line ends on that frame instead of on the lowest child part.
+- `Sysml2NoteAnchors.kindOf` looks at the typed usage first. Before, every part, port or action declared inside a definition was classified `OTHER`.
+- Note boxes (`NoteLayout`): `H_PAD_LEFT` 8, `H_PAD_RIGHT_DOG_EAR` 22, `H_PAD_RIGHT_BRACKET` 8, `horizontalPadding(frame)` (30 dog-ear, 24 bracket, which includes the 8 px bracket gap); `sizeOf` and `NoteSvg`/`NoteTikz` wrap at the same frame-aware width, so the text rectangle never meets the fold. `DEFAULT_H` (60) is replaced by `MIN_H` (32). `H_PADDING` is now 30 (the dog-ear value).
+
+#### Verification
+
+- `./gradlew clean` then tests with `--no-build-cache`: `:kuml-core:kuml-core-model:jvmTest`, `:kuml-core:kuml-core-script:test` (round trip and `WorkerPool` test for the line), `:kuml-renderer:kuml-layout-bridge:jvmTest`, `:kuml-metamodel:*:jvmTest` (sysml2, bpmn, erm), `:kuml-io:kuml-io-svg:jvmTest` (664 tests), `:kuml-io:kuml-io-latex:test` and `:kuml-cli:test` (together 1112 tests, 0 failed), Desktop render pipeline and MCP tests.
+- New: `Sysml2NotesUndrawnSvgTest` (owner note ends on `kuml-ibd-frame` within 0.5 px, nested and row-only reports, SEQ end x equals the lifeline x), `NoteGeometryN45Test` (every `NoteKind` x four bodies, text right edge left of the fold column, `MIN_H`), `NoteUndrawnCollectorTest`, `NoteUndrawnCliTest` (reason, line, no note body in messages), a workspace test for the block line, a Desktop render test.
+- Goldens and expected values changed: `NoteSvgFormatTest` reference (height 60 to 32), `c4-context-with-note.tex` (note height 32, centred), `NoteLayoutTest`/`NoteKindLayoutTest` (height, inset constants), `Sysml2NoteAnchorsRenderTest` (the STM note text now wraps one word earlier), existing W002 assertions (new message text). No other golden changed.
+- Looked at as PNG with the local CLI (`which kuml` pointed at the build, not Homebrew): IBD owner note before and after, SEQ note on the far side, example 54.
+
+#### Not verified
+
+- `workspace validate --evaluate` still only evaluates; it reports W001 with the line but not W002, because W002 needs a layout. Use `workspace render` or `render`.
+- The LaTeX renderer calls the same placers, so a collecting scope would see its reports, but no surface wraps a LaTeX run in one.
+- Windows and Linux were not run.
+
+#### Not fixed
+
+- Families without a W002 check: UML class and statechart, BPMN, ERM, Service Blueprint (their notes are layout nodes, so a note is not dropped silently, but a note with an unresolvable anchor is only W001), UML sequence comments, and a C4 render test for undrawn notes (pure function tested only).
+- No SEQ defect was reproduced: the anchor line ends on the anchor lifeline stem even when it crosses a foreign stem (tolerated). Only a regression assertion was added.
+- Partial loss: a drawn note with several anchors where one line is missing is not reported.
+- Theme token for note colours, `NotePlacement.Above/Below/Left/Right/Near` and the obstacle model (P-COM-02/-03), placing a SEQ note on the anchor's side, reducing the minimum width (140), a check at 3200 px.
+- The IBD change shows an owner frame for every IBD with an owner note (example 54 now has one).
+
 ### Nacharbeit 44: BPMN task-type marker and association lines (LaTeX), collaboration SVG measured
 
 #### Why

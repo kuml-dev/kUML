@@ -17,6 +17,7 @@ object ErmNoteChecker {
         if (model.noteLinks.isEmpty()) return emptyList()
         val noteIds = model.notes.map { it.id }.toSet()
         val anchorable = model.anchorableIds()
+        val lines = model.notes.associate { it.id to it.note.sourceLine }
         val issues = mutableListOf<KumlNoteIssue>()
         for (l in model.noteLinks) {
             if (l.link.noteId !in noteIds) {
@@ -26,6 +27,7 @@ object ErmNoteChecker {
                         severity = KumlNoteIssue.Severity.ERROR,
                         subjectId = l.id,
                         message = "Note link '${l.id}' refers to unknown note '${l.link.noteId}'",
+                        sourceLine = lines[l.link.noteId],
                     )
             }
             val target = l.link.targetId
@@ -38,6 +40,7 @@ object ErmNoteChecker {
                         severity = KumlNoteIssue.Severity.ERROR,
                         subjectId = l.id,
                         message = "Note link '${l.id}' anchors $what '$target'",
+                        sourceLine = lines[l.link.noteId],
                     )
             }
         }

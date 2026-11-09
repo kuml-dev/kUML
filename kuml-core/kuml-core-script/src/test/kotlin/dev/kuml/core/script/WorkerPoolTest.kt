@@ -48,6 +48,27 @@ class WorkerPoolTest :
             return pool.stats().idle >= n
         }
 
+        test("the script line of a comment is the same in the sandboxed worker (Nacharbeit 45)") {
+            val pool = WorkerPool(poolSize = 1, maxConcurrentWorkers = 1)
+            try {
+                val result =
+                    pool.evaluate(
+                        source =
+                            "import dev.kuml.sysml2.dsl.sysml2Model\n\n" +
+                                "sysml2Model(\"Noted\") {\n    val a = partDef(\"A\")\n" +
+                                "    comment(text = \"hello\", firstAnchor = a, id = \"n1\")\n    bdd(\"B\") { include(a) }\n}\n",
+                    )
+                val success = result.shouldBeInstanceOf<EvaluatedScript.Success>()
+                success.diagram
+                    .shouldBeInstanceOf<ExtractedDiagram.Sysml2>()
+                    .model.comments
+                    .single()
+                    .note.sourceLine shouldBe 5
+            } finally {
+                pool.close()
+            }
+        }
+
         test("warm-hit latency is far below the ~1.5 s Welle-2 cold-start") {
             val pool = WorkerPool(poolSize = 2, maxConcurrentWorkers = 4)
             try {

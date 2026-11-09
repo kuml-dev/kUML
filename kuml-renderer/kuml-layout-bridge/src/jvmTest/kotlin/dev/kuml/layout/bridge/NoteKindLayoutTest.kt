@@ -13,11 +13,11 @@ class NoteKindLayoutTest :
         val long = "The quick brown fox jumps over the lazy dog and keeps running through the whole text field"
 
         test("NOTE keeps the measures of before the kinds were added") {
-            NoteLayout.textInset(NoteFrameStyle.DOG_EAR, NoteKind.NOTE) shouldBe NoteLayout.H_PADDING / 2f
-            NoteLayout.textInset(NoteFrameStyle.BRACKET, NoteKind.NOTE) shouldBe NoteLayout.H_PADDING / 2f + 8f
+            NoteLayout.textInset(NoteFrameStyle.DOG_EAR, NoteKind.NOTE) shouldBe NoteLayout.H_PAD_LEFT
+            NoteLayout.textInset(NoteFrameStyle.BRACKET, NoteKind.NOTE) shouldBe NoteLayout.H_PAD_LEFT + 8f
             NoteLayout.sizeOf(body = long) shouldBe NoteLayout.sizeOf(body = long, kind = NoteKind.NOTE)
             NoteLayout.sizeOf(body = "hi").width shouldBe 140f
-            NoteLayout.sizeOf(body = "hi").height shouldBe 60f
+            NoteLayout.sizeOf(body = "hi").height shouldBe NoteLayout.MIN_H
             NoteLayout.displayText(body = long) shouldBe NoteLayout.displayText(body = long, kind = NoteKind.NOTE)
         }
 

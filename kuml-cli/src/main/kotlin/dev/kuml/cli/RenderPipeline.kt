@@ -67,6 +67,7 @@ import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.layout.bridge.normalizeActLayout
+import dev.kuml.layout.bridge.note.NoteUndrawnCollector
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.render.smil.SpeedFactor
@@ -322,8 +323,65 @@ internal object RenderPipeline {
             System.err.println("[kuml] ${if (f.isError) "ERROR" else "WARNING"} [${f.code}] ${f.message}")
         }
 
-        // 4–6. Branch on diagram kind: layout → render → write
+        // 4–6. Branch on diagram kind: layout → render → write. The collector gathers the notes the diagram declared
+        // but did not draw (KUML-NOTE-W002), which only the placement against the real layout can tell.
+        var undrawnFindings: List<NoteChecks.Finding> = emptyList()
         try {
+            val undrawn =
+                NoteUndrawnCollector
+                    .collecting {
+                        renderExtracted(
+                            extracted = extracted,
+                            output = output,
+                            format = format,
+                            width = width,
+                            theme = theme,
+                            layoutEngineOverride = layoutEngineOverride,
+                            latex = latex,
+                            animated = animated,
+                            traceFile = traceFile,
+                            speed = speed,
+                            watermark = watermark,
+                            notation = notation,
+                        )
+                    }.second
+            undrawnFindings = NoteChecks.undrawn(undrawn = undrawn, alreadyReported = noteFindings)
+            undrawnFindings.forEach { f ->
+                System.err.println("[kuml] WARNING [${f.code}] ${f.message}${f.sourceLine?.let { " (line $it)" }.orEmpty()}")
+            }
+        } catch (e: IOException) {
+            throw e
+        } catch (e: Exception) {
+            if (e is ScriptEvaluationException) throw e
+            if (e is IllegalArgumentException) throw e
+            if (e is AnimEncoderException) throw e
+            throw IOException("Failed to write output file: ${e.message}", e)
+        } finally {
+            layoutFindingSink.remove()
+        }
+        return RenderOutcome(
+            diagramCount = diagramCount,
+            noteFindings = noteFindings + undrawnFindings,
+            layoutFindings = collected.toList(),
+        )
+    }
+
+    @Suppress("LongParameterList")
+    private fun renderExtracted(
+        extracted: ExtractedDiagram,
+        output: Path,
+        format: String,
+        width: Int,
+        theme: KumlTheme,
+        layoutEngineOverride: String?,
+        latex: LatexRenderOptions,
+        animated: Boolean,
+        traceFile: File?,
+        speed: Double,
+        watermark: Boolean,
+        notation: String?,
+    ) {
+        run {
             when (extracted) {
                 is ExtractedDiagram.Uml ->
                     renderUml(
@@ -396,17 +454,7 @@ internal object RenderPipeline {
                         watermark = watermark,
                     )
             }
-        } catch (e: IOException) {
-            throw e
-        } catch (e: Exception) {
-            if (e is ScriptEvaluationException) throw e
-            if (e is IllegalArgumentException) throw e
-            if (e is AnimEncoderException) throw e
-            throw IOException("Failed to write output file: ${e.message}", e)
-        } finally {
-            layoutFindingSink.remove()
         }
-        return RenderOutcome(diagramCount = diagramCount, noteFindings = noteFindings, layoutFindings = collected.toList())
     }
 
     /**

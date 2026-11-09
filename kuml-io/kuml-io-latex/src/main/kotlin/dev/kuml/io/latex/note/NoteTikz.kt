@@ -131,7 +131,8 @@ internal object NoteTikz {
         }
 
         val inset = NoteLayout.textInset(frame = frame, kind = kind)
-        val inner = minOf(w - NoteLayout.H_PADDING + WRAP_EPS, maxWidth - NoteLayout.H_PADDING)
+        val padding = NoteLayout.horizontalPadding(frame)
+        val inner = minOf(w - padding + WRAP_EPS, maxWidth - padding)
         val text = NoteLayout.displayText(body = spec.body, maxInnerWidth = inner, kind = kind)
         val baseline = y + NoteLayout.V_PADDING / 2f + NoteLayout.LINE_H * 0.7f
         val styled = text.styledLines

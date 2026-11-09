@@ -346,7 +346,7 @@ c4Model(name = "Shop") {
 A note appears in a diagram when the diagram lists it (a `note(...)` inside the diagram block) or when one of its
 anchors is visible. Each anchor gets a dotted line with a dot at the anchor end. Notes are placed after the layout,
 away from elements and relationship labels. An anchor that is no element of the model is reported as
-`KUML-NOTE-W001`.
+`KUML-NOTE-W001`; a note the diagram declares but does not draw is `KUML-NOTE-W002` (`render`).
 
 == Stereotypes and styling
 

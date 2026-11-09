@@ -69,7 +69,7 @@ public enum class Severity { ERROR, WARNING }
  * Messages name ids, diagram names and limits, never note bodies.
  */
 public object ValidationService {
-    private val anchorInMessage = Regex("""(?:Anker unbekannt|Anker in diesem Diagramm nicht darstellbar): (\S{1,200})""")
+    private val anchorInMessage = Regex("""(?:Anker unbekannt: |note not drawn: \S{1,200}, anchor )(\S{1,200})""")
 
     /** Validates [script] (the source text); [fileName] only shapes messages. Never throws for script errors. */
     public fun validate(
@@ -125,7 +125,7 @@ public object ValidationService {
                 Finding(
                     code = f.code,
                     severity = if (f.isError) Severity.ERROR else Severity.WARNING,
-                    line = null,
+                    line = f.sourceLine,
                     column = null,
                     diagramId = diagramId,
                     anchorId = anchor,

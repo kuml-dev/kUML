@@ -6,6 +6,7 @@ import dev.kuml.core.model.note.KumlNoteIssue
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.erm.constraint.ErmNoteChecker
 import dev.kuml.layout.bridge.NoteDiagnostics
+import dev.kuml.layout.bridge.note.UndrawnNote
 import dev.kuml.sysml2.constraint.Sysml2NoteChecker
 
 /**
@@ -21,7 +22,28 @@ public object NoteChecks {
         val isError: Boolean,
         val subjectId: String,
         val message: String,
+        /** Script line of the note the finding is about (1-based), `null` when unknown. */
+        val sourceLine: Int? = null,
     )
+
+    /** The `KUML-NOTE-W002` findings for notes a render declared but did not draw (see [NoteUndrawnCollector]). */
+    public fun undrawn(
+        undrawn: List<UndrawnNote>,
+        alreadyReported: List<Finding> = emptyList(),
+    ): List<Finding> {
+        val reported = alreadyReported.filter { it.code == KumlNoteCodes.ANCHOR_NOT_DRAWABLE || it.code == KumlNoteCodes.ANCHOR_UNKNOWN }
+        return undrawn
+            .filter { u -> reported.none { it.subjectId == u.noteId } }
+            .map { u ->
+                Finding(
+                    code = KumlNoteCodes.ANCHOR_NOT_DRAWABLE,
+                    isError = false,
+                    subjectId = u.noteId,
+                    message = u.message(),
+                    sourceLine = u.sourceLine,
+                )
+            }
+    }
 
     public fun of(extracted: ExtractedDiagram): List<Finding> {
         val issues: List<KumlNoteIssue>
@@ -80,6 +102,7 @@ public object NoteChecks {
                     emptyList()
                 }
             }
+        val lines = noteLines(extracted)
         val structural =
             issues.map {
                 Finding(
@@ -87,9 +110,31 @@ public object NoteChecks {
                     isError = it.severity == KumlNoteIssue.Severity.ERROR,
                     subjectId = it.subjectId,
                     message = it.message,
+                    sourceLine = it.sourceLine ?: lines[it.subjectId],
                 )
             }
-        val display = truncated.map { Finding(code = it.code, isError = false, subjectId = it.noteId, message = it.message) }
+        val display =
+            truncated.map {
+                Finding(code = it.code, isError = false, subjectId = it.noteId, message = it.message, sourceLine = lines[it.noteId])
+            }
         return structural + display
+    }
+
+    /** Script line of each note of [extracted] (note id to line); notes without a known line are absent. */
+    private fun noteLines(extracted: ExtractedDiagram): Map<String, Int> {
+        val pairs: List<Pair<String, Int?>> =
+            when (extracted) {
+                is ExtractedDiagram.Sysml2 -> extracted.model.comments.map { it.id to it.note.sourceLine }
+                is ExtractedDiagram.Bpmn ->
+                    (
+                        extracted.model.processes.flatMap { it.textAnnotations } +
+                            extracted.model.collaborations.flatMap { it.textAnnotations }
+                    ).map { it.id to it.note.sourceLine }
+                is ExtractedDiagram.Erm -> extracted.model.notes.map { it.id to it.note.sourceLine }
+                is ExtractedDiagram.C4 -> extracted.model.notes.map { it.id to it.sourceLine }
+                is ExtractedDiagram.Blueprint -> extracted.model.notes.map { it.id to it.sourceLine }
+                else -> emptyList()
+            }
+        return pairs.mapNotNull { (id, line) -> line?.let { id to it } }.toMap()
     }
 }

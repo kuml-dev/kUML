@@ -50,8 +50,23 @@ public object NoteLayout {
     /** Avg width of an 11pt regular sans-serif char (note body). */
     public const val BODY_CHAR_PX: Float = 6.6f
 
-    /** Horizontal padding (left + right) inside the note box. */
-    public const val H_PADDING: Float = 16f
+    /** Left padding between the note box and the text column (UML note, SysML 2 comment, ERM note). */
+    public const val H_PAD_LEFT: Float = 8f
+
+    /**
+     * Right padding of a dog-ear note: the text never reaches into the folded corner. The fold is [DOG_EAR_SIZE] wide
+     * and the text keeps [H_PAD_LEFT] of air beside it (14 + 8 = 22).
+     */
+    public const val H_PAD_RIGHT_DOG_EAR: Float = 22f
+
+    /** Right padding of a BPMN bracket note: the bracket has no fold on the right, only the margin. */
+    public const val H_PAD_RIGHT_BRACKET: Float = 8f
+
+    /**
+     * Horizontal padding (left + right) of a dog-ear note, [H_PAD_LEFT] + [H_PAD_RIGHT_DOG_EAR]. Frame-aware code
+     * calls [horizontalPadding]; this constant is the dog-ear value for callers that size UML/SysML/ERM notes only.
+     */
+    public const val H_PADDING: Float = 30f
 
     /** Vertical padding (top + bottom) inside the note box. */
     public const val V_PADDING: Float = 16f
@@ -65,11 +80,17 @@ public object NoteLayout {
     /** Arm length of the BPMN bracket. */
     public const val BRACKET_ARM: Float = 12f
 
+    /** Extra gap between the bracket and the text (the bracket sits at the left edge). */
+    public const val BRACKET_TEXT_GAP: Float = 8f
+
     /** Default note width for empty or very short bodies. */
     public const val DEFAULT_W: Float = 140f
 
-    /** Default note height for empty or very short bodies. */
-    public const val DEFAULT_H: Float = 60f
+    /**
+     * Minimum note height: one text line plus the vertical padding (15 + 16 = 31, rounded to 32). A note with one
+     * short line is 32 px high, not taller than its text needs.
+     */
+    public const val MIN_H: Float = 32f
 
     /** Maximum note width. */
     public const val MAX_W: Float = 260f
@@ -120,6 +141,13 @@ public object NoteLayout {
     /** Estimated width of [line] including its indent. */
     public fun lineWidth(line: StyledLine): Float = line.indentPx + line.spans.fold(0f) { acc, span -> acc + spanWidth(span) }
 
+    /** Horizontal padding (left + right) of the text area of a note with [frame]. */
+    public fun horizontalPadding(frame: NoteFrameStyle): Float =
+        when (frame) {
+            NoteFrameStyle.DOG_EAR -> H_PAD_LEFT + H_PAD_RIGHT_DOG_EAR
+            NoteFrameStyle.BRACKET -> H_PAD_LEFT + BRACKET_TEXT_GAP + H_PAD_RIGHT_BRACKET
+        }
+
     /** Width taken from the text area by the symbol of [kind] (0 for [NoteKind.NOTE]). */
     public fun iconColumn(kind: NoteKind): Float = if (kind.hasIcon) ICON_COL else 0f
 
@@ -128,7 +156,7 @@ public object NoteLayout {
         frame: NoteFrameStyle,
         kind: NoteKind,
     ): Float {
-        val base = if (frame == NoteFrameStyle.BRACKET) H_PADDING / 2f + 8f else H_PADDING / 2f
+        val base = if (frame == NoteFrameStyle.BRACKET) H_PAD_LEFT + BRACKET_TEXT_GAP else H_PAD_LEFT
         return if (kind.hasIcon) base + ICON_COL else base
     }
 
@@ -365,26 +393,29 @@ public object NoteLayout {
         return line.copy(spans = spans + ellipsis)
     }
 
-    /** Computes the note box [Size] for [body]. Brackets and dog-ears are sized identically. */
-    @Suppress("UNUSED_PARAMETER")
+    /**
+     * Computes the note box [Size] for [body]. The text wraps at the box width minus [horizontalPadding] of [frame]
+     * (and the symbol column), so a dog-ear note never lets text run under its fold; the height is at least [MIN_H].
+     */
     public fun sizeOf(
         body: String,
         frame: NoteFrameStyle = NoteFrameStyle.DOG_EAR,
         maxWidth: Float = MAX_W,
         kind: NoteKind = NoteKind.NOTE,
     ): Size {
-        val text = displayText(body = body, maxInnerWidth = maxWidth - H_PADDING, kind = kind)
+        val padding = horizontalPadding(frame)
+        val text = displayText(body = body, maxInnerWidth = maxWidth - padding, kind = kind)
         val lines = text.lines
         val widestLine =
             text.styledLines?.let { styled -> styled.maxOfOrNull { lineWidth(it) } }
                 ?: lines.maxOfOrNull { it.length * BODY_CHAR_PX }
                 ?: 0f
-        val w = maxOf(minOf(DEFAULT_W, maxWidth), minOf(maxWidth, widestLine + H_PADDING + iconColumn(kind)))
+        val w = maxOf(minOf(DEFAULT_W, maxWidth), minOf(maxWidth, widestLine + padding + iconColumn(kind)))
         val h =
             if (kind.hasIcon) {
-                maxOf(DEFAULT_H, lines.size * LINE_H + V_PADDING, ICON_SIZE + V_PADDING)
+                maxOf(MIN_H, lines.size * LINE_H + V_PADDING, ICON_SIZE + V_PADDING)
             } else {
-                maxOf(DEFAULT_H, lines.size * LINE_H + V_PADDING)
+                maxOf(MIN_H, lines.size * LINE_H + V_PADDING)
             }
         return Size(width = w, height = h)
     }

@@ -62,7 +62,8 @@ internal fun renderNote(
         val inset = NoteLayout.textInset(frame = frame, kind = kind)
         // Wrap at the width of the box that was sized for the text (state machines wrap narrower than other diagrams).
         // displayText takes the symbol column off this width itself, exactly as NoteLayout.sizeOf does.
-        val inner = minOf(w - NoteLayout.H_PADDING + WRAP_EPS, NoteLayout.MAX_W - NoteLayout.H_PADDING)
+        val padding = NoteLayout.horizontalPadding(frame)
+        val inner = minOf(w - padding + WRAP_EPS, NoteLayout.MAX_W - padding)
         renderNoteText(
             text = NoteLayout.displayText(body = body, maxInnerWidth = inner, kind = kind),
             xInset = inset,

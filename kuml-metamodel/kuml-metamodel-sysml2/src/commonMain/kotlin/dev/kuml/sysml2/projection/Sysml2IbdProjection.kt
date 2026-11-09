@@ -130,7 +130,10 @@ fun sysml2IbdProjection(
             bindings.flatMap { listOf(it.source, it.target) }
     )
     val boundary = ends.mapNotNull { it.ownerPort }.distinctBy { it.id }
-    val showFrame = ends.any { it.ownerPort != null || it.steps.size > 1 }
+    // A note on the owner needs the owner frame to point at (Nacharbeit 45): without a frame the line could only end on
+    // a child part, which reads as a note on that part.
+    val ownerNoted = model.commentLinks.any { it.link.targetId == owner.id }
+    val showFrame = ends.any { it.ownerPort != null || it.steps.size > 1 } || ownerNoted
     val (nestedPaths, parents) = nestedPartPaths(model = model, nodes = nodes, partDefIds = partDefIds)
     return IbdProjection(
         nestedPartPaths = nestedPaths,

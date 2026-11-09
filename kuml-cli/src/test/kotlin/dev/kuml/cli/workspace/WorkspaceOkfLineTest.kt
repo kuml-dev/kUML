@@ -31,4 +31,21 @@ class WorkspaceOkfLineTest :
                 }
             }
         }
+
+        // Document lines: 1 '---', 2 'type', 3 '---', 4 '# T', 5 '```kuml' (fence), 6 import, 7 model, 8 partDef, 9 comment (block line 4)
+        val noteDoc =
+            "---\ntype: Concept\n---\n# T\n```kuml\nimport dev.kuml.sysml2.dsl.sysml2Model\n" +
+                "sysml2Model(\"M\") {\n    val a = partDef(\"A\")\n    comment(text = \"x\", \"Nope\", id = \"n1\")\n    bdd(\"B\") { include(a) }\n}\n```\n"
+
+        test("KUML-NOTE-W001 sits on the line of the comment call, not on the fence") {
+            val root = Files.createTempDirectory("kuml-note-line").toFile()
+            try {
+                File(root, "note.md").writeText(noteDoc)
+                val result = KumlCli().test(listOf("workspace", "validate", root.absolutePath, "--evaluate"))
+                result.output shouldContain "KUML-NOTE-W001"
+                result.output shouldContain "(block line 4)"
+            } finally {
+                root.deleteRecursively()
+            }
+        }
     })
