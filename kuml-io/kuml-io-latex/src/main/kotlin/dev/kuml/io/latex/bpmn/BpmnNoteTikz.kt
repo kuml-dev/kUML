@@ -11,6 +11,8 @@ import dev.kuml.io.latex.fmtCoord
 import dev.kuml.io.latex.note.NoteTikz
 import dev.kuml.io.latex.note.NoteTikzAnchor
 import dev.kuml.io.latex.note.NoteTikzSpec
+import dev.kuml.io.latex.tikzId
+import dev.kuml.layout.NodeId
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
@@ -180,8 +182,10 @@ internal object BpmnNoteTikz {
     }
 
     /**
-     * Annotations of a collaboration view: rows below the pools. The inner flow nodes are drawn now, but an
-     * association line to one is not (yet) drawn, so the anchor stays a constant comment.
+     * Annotations of a collaboration view: rows below the pools. The rows follow the x position of each note's
+     * first drawn target (notes without a drawn target come last, in declaration order), and a dotted association
+     * line runs from the top edge of the note to every association target that is drawn in this view. A target
+     * outside the view (or a note cut by the height limit) gets a constant comment instead.
      */
     fun appendCollaborationNotes(
         sb: StringBuilder,
@@ -198,7 +202,16 @@ internal object BpmnNoteTikz {
         // Pools, lanes and flow nodes are all named TikZ nodes now; the note prefix must collide with none of them.
         val reserved = plan.definedNames
         val p = prefixFor(reserved)
-        val items = items(annotations)
+        // Drawn flow nodes by id: first occurrence wins; a node without a usable TikZ name is never in the plan.
+        val drawn = LinkedHashMap<String, BpmnCollaborationLayout.PlacedNode>()
+        for (pool in plan.pools) for (placed in pool.nodes) drawn.putIfAbsent(placed.node.id, placed)
+
+        fun linksOf(item: Item) = associations.filter { it.link.noteId == item.annotation.id }
+
+        fun firstTargetX(item: Item): Float? = linksOf(item).firstNotNullOfOrNull { drawn[it.link.targetId]?.x }
+        val all = items(annotations)
+        // Stable sort: notes with a drawn target by its x, the others behind them in declaration order.
+        val items = all.filter { firstTargetX(it) != null }.sortedBy { firstTargetX(it) } + all.filter { firstTargetX(it) == null }
 
         sb.appendLine()
         sb.appendLine("$ind% text annotations")
@@ -207,9 +220,9 @@ internal object BpmnNoteTikz {
         } else {
             sb.appendLine("$ind\\coordinate (${p}base) at (current bounding box.south west);")
         }
-        for (item in items) {
-            for (assoc in associations.filter { it.link.noteId == item.annotation.id }) {
-                sb.appendLine("$ind$OMITTED_ANCHOR")
+        for (item in all) {
+            for (assoc in linksOf(item)) {
+                if (assoc.link.targetId !in drawn) sb.appendLine("$ind$OMITTED_ANCHOR")
             }
         }
         sb.appendLine("$ind\\begin{scope}[shift={(${p}base)}]")
@@ -217,6 +230,7 @@ internal object BpmnNoteTikz {
         var rowTop = NOTE_BASE_GAP
         var rowH = 0f
         var truncated = false
+        val shown = mutableListOf<Item>()
         // The base is the south west of the pools, which reach plan.height below the origin.
         val maxStack = MAX_STACK_PT - plan.height
         for (item in items) {
@@ -243,10 +257,25 @@ internal object BpmnNoteTikz {
                 options = options,
                 out = sb,
             )
+            // Anchor at the top centre of the note; the named invisible note node is anchored north west.
+            sb.appendLine("$ind\\coordinate (${p}a${item.k}) at (${tikzId(NodeId("$p${item.k}"))}.north);")
+            shown += item
             x += w + NOTE_GAP
             rowH = maxOf(rowH, h)
         }
         sb.appendLine("$ind\\end{scope}")
+        for (item in shown) {
+            for (assoc in linksOf(item)) {
+                val target = drawn[assoc.link.targetId] ?: continue
+                NoteTikz.renderAnchorNamed(
+                    fromName = "${p}a${item.k}",
+                    toName = target.name,
+                    style = NoteTikzAnchor.DOTTED,
+                    options = options,
+                    out = sb,
+                )
+            }
+        }
         if (truncated) sb.appendLine("$ind$OMITTED_NOTE")
     }
 }

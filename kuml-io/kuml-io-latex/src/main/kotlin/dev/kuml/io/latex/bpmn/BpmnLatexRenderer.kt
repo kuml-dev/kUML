@@ -281,18 +281,41 @@ internal object BpmnLatexRenderer {
         label: String,
         pos: String,
     ) {
-        val typePrefix =
-            when (task.taskType) {
-                TaskType.USER -> "{\\tiny User}~"
-                TaskType.SERVICE -> "{\\tiny Service}~"
-                TaskType.SEND -> "{\\tiny Send}~"
-                TaskType.RECEIVE -> "{\\tiny Receive}~"
-                TaskType.MANUAL -> "{\\tiny Manual}~"
-                TaskType.SCRIPT -> "{\\tiny Script}~"
-                TaskType.BUSINESS_RULE -> "{\\tiny BR}~"
-                TaskType.NONE -> ""
+        appendLine("""  \node[kuml-bpmn-task] ($nodeId) $pos {$label};""")
+        appendTaskTypeMarker(taskType = task.taskType, nodeId = nodeId)
+    }
+
+    /**
+     * Task-type marker in the top-left corner of the task, 4pt from the edges: one capital letter, or a small
+     * gear for a service task. NONE draws nothing. `nodeId` is the sanitised TikZ name, never a raw id.
+     */
+    private fun StringBuilder.appendTaskTypeMarker(
+        taskType: TaskType,
+        nodeId: String,
+    ) {
+        val letter =
+            when (taskType) {
+                TaskType.USER -> "U"
+                TaskType.SEND -> "S"
+                TaskType.RECEIVE -> "R"
+                TaskType.MANUAL -> "M"
+                TaskType.SCRIPT -> "\\#"
+                TaskType.BUSINESS_RULE -> "B"
+                TaskType.SERVICE, TaskType.NONE -> null
             }
-        appendLine("""  \node[kuml-bpmn-task] ($nodeId) $pos {$typePrefix$label};""")
+        when {
+            letter != null ->
+                appendLine(
+                    """  \node[kuml-bpmn-tasktype,anchor=north west] at ([xshift=4pt,yshift=-4pt]$nodeId.north west) {$letter};""",
+                )
+            taskType == TaskType.SERVICE -> {
+                appendLine("""  \begin{scope}[shift={([xshift=7pt,yshift=-7pt]$nodeId.north west)}]""")
+                appendLine("""    \draw[line width=0.4pt] (0pt,0pt) circle (2.2pt);""")
+                appendLine("""    \foreach \a in {0,45,...,315} \draw[line width=0.4pt] (\a:2.2pt) -- (\a:3.2pt);""")
+                appendLine("""  \end{scope}""")
+            }
+            else -> Unit
+        }
     }
 
     private fun StringBuilder.appendSubProcess(
@@ -443,7 +466,11 @@ internal object BpmnLatexRenderer {
             appendLine(
                 "$indent  kuml-bpmn-task/.style={rectangle,rounded corners=5pt,minimum width=80pt," +
                     "minimum height=40pt,draw=black,line width=1pt,font=\\footnotesize," +
-                    "align=center,text width=70pt,inner sep=4pt},",
+                    "align=center,text width=70pt,inner xsep=4pt,inner ysep=10pt},",
+            )
+            // Task-type marker (letter or gear) in the top-left corner; the 10pt top padding above keeps it clear of the label.
+            appendLine(
+                "$indent  kuml-bpmn-tasktype/.style={inner sep=0pt,font=\\sffamily\\bfseries\\fontsize{6}{6}\\selectfont},",
             )
             appendLine(
                 "$indent  kuml-bpmn-subprocess/.style={kuml-bpmn-task,double,double distance=2pt},",

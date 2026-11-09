@@ -112,12 +112,19 @@ class BpmnNoteTikzTest :
             tex shouldNotContain "current bounding box"
         }
 
-        "collaboration: notes below the pools, no lines, a constant comment per association" {
+        "collaboration: notes below the pools, a dotted line to a drawn target, no comment for it" {
             val tex = NoteFixtures.renderBpmnCollaboration(notes = notes(listOf("tA"), emptyList()))
             tex shouldContain "\\coordinate (kumlnotebase) at (current bounding box.south west);"
-            tex shouldContain BpmnNoteTikz.OMITTED_ANCHOR
-            tex shouldNotContain "kuml-note-assoc]"
+            tex shouldNotContain BpmnNoteTikz.OMITTED_ANCHOR
+            tex shouldContain "\\draw[kuml-note-assoc] (kumlnotea0) -- (tA);"
             tex shouldContain "kuml-note-text"
+        }
+
+        "collaboration: a target outside the view gives one constant comment, no line and no id" {
+            val tex = NoteFixtures.renderBpmnCollaboration(notes = notes(listOf("nope-123")))
+            Regex(Regex.escape(BpmnNoteTikz.OMITTED_ANCHOR)).findAll(tex).count() shouldBe 1
+            tex shouldNotContain "kuml-note-assoc]"
+            tex shouldNotContain "nope"
         }
 
         "collaboration: the height limit accounts for the pool offset" {

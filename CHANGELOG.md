@@ -6,6 +6,36 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 44: BPMN task-type marker and association lines (LaTeX), collaboration SVG measured
+
+#### Why
+
+Looked at as PDF and PNG (vault example "BPMN Collaboration - Customer und Supplier"): the LaTeX output wrote the task type as `{\tiny User}` text in front of the label, and notes in the collaboration view had no line to their target (a constant comment only).
+
+#### Change
+
+- `BpmnLatexRenderer`: the task type is a marker in the top-left corner (letters U, S, R, M, B, `\#` for script, a TikZ gear for service, nothing for none) instead of a text prefix. New style `kuml-bpmn-tasktype`; `kuml-bpmn-task` gets `inner ysep=10pt` so the marker never touches the label. Subprocess and call activity inherit the padding. The SVG output is unchanged.
+- `BpmnNoteTikz.appendCollaborationNotes`: notes are ordered by the x position of their first drawn target (others last, declaration order) and a dotted association line (`kuml-note-assoc`, same as the process view) runs from the top centre of the note to every drawn target. A target outside the view keeps the constant comment, a note cut by the height limit gets no line.
+
+#### Verification
+
+- New `BpmnTaskTypeMarkerLatexTest`, `BpmnTaskTypePdfBuildTest` (strict pdflatex run, registered in `scripts/ci/check_latex_tests.py`), `BpmnCollaborationNoteAnchorTest`; `BpmnLatexRendererTest` and `BpmnNoteTikzTest` adjusted.
+- Goldens changed (all 15 `golden/no-notes/*.tex`): preamble only (task style line and the new `kuml-bpmn-tasktype` line); no node or note output changed.
+- Example rendered with the local CLI as SVG, PNG and PDF and looked at.
+- `:kuml-io:kuml-io-latex:test` 301 tests, 0 skipped, 0 failed; ktlint and detekt of the module green; strict run `-Pkuml.latex.require=true -Pkuml.latex.only=true` green.
+
+#### Finding, collaboration SVG (measured, not fixed)
+
+Example "Customer und Supplier" as PNG: pools do not overlap and flow nodes lie inside their lanes (I1, I2 hold). Defects seen: the label "Pickup Request" overlaps the label "Goods Shipped"; the message flow from "Place Order" runs around the whole frame and its label is cut at the right frame edge; the black-box pool "Spedition" is much narrower than the other pools and the lane columns leave a wide empty band right of the nodes. No geometric invariant tests were written in this wave.
+
+#### Not verified
+
+- Other OS, GitHub CI (nothing pushed), real BPMN icons, documents other than the checked example.
+
+#### Not fixed
+
+- Collaboration SVG layout (label overlap, outer message-flow route, pool widths), crossing optimisation, whitespace heuristic, real icons, notes next to their target. Handbook pages `bpmn-xml.adoc` and `bpmn-uml-bridge.adoc` checked, unchanged. kuml.dev not touched.
+
 ### Nacharbeit 42: use case diagram anchors, actor corridors and corner bumps (SVG)
 
 #### Why

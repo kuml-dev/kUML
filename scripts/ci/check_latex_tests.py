@@ -25,6 +25,7 @@ RESULT_GLOBS = [
 CLASSES = {
     "NoteTikzPdfBuildTest": None,
     "BpmnCollaborationPdfBuildTest": None,
+    "BpmnTaskTypePdfBuildTest": None,
     "LatexKnowledgePdfBuildTest": None,
     "LatexFolderPdfBuildTest": None,
     "WorkspaceLatexKnowledgePdfBuildTest": None,
@@ -33,6 +34,7 @@ CLASSES = {
 # class simple name -> minimum number of executed tests (a floor against silently dropped tests)
 MIN_EXECUTED = {
     "BpmnCollaborationPdfBuildTest": 2,
+    "BpmnTaskTypePdfBuildTest": 1,
     "LatexStandaloneAllFamiliesTest": 15,
 }
 SUPPORT_COPIES = [

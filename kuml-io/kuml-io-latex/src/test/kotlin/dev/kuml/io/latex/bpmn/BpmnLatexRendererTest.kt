@@ -189,22 +189,24 @@ class BpmnLatexRendererTest :
 
         // ── 11. UserTask ──────────────────────────────────────────────────────
 
-        "UserTask renders kuml-bpmn-task with User type prefix" {
+        "UserTask renders kuml-bpmn-task with a U marker, not the type name" {
             val task =
                 BpmnTask(id = "task1", name = "Review", taskType = TaskType.USER)
             val tex = KumlLatexRenderer.toLatex(model = minimalModel(task))
             tex shouldContain "kuml-bpmn-task"
-            tex shouldContain "User"
+            tex shouldContain "{U};"
+            tex shouldNotContain "User"
         }
 
         // ── 12. ServiceTask ───────────────────────────────────────────────────
 
-        "ServiceTask renders kuml-bpmn-task with Service type prefix" {
+        "ServiceTask renders kuml-bpmn-task with a gear marker, not the type name" {
             val task =
                 BpmnTask(id = "task2", name = "Call API", taskType = TaskType.SERVICE)
             val tex = KumlLatexRenderer.toLatex(model = minimalModel(task))
             tex shouldContain "kuml-bpmn-task"
-            tex shouldContain "Service"
+            tex shouldContain "circle (2.2pt)"
+            tex shouldNotContain "Service"
         }
 
         // ── 13. Task NONE ─────────────────────────────────────────────────────
@@ -218,21 +220,22 @@ class BpmnLatexRendererTest :
 
         // ── 14. SendTask ──────────────────────────────────────────────────────
 
-        "SendTask renders kuml-bpmn-task with Send type prefix" {
+        "SendTask renders kuml-bpmn-task with an S marker, not the type name" {
             val task = BpmnTask(id = "task4", name = "Send Email", taskType = TaskType.SEND)
             val tex = KumlLatexRenderer.toLatex(model = minimalModel(task))
             tex shouldContain "kuml-bpmn-task"
-            tex shouldContain "Send"
+            tex shouldContain "{S};"
         }
 
         // ── 15. ScriptTask ────────────────────────────────────────────────────
 
-        "ScriptTask renders kuml-bpmn-task with Script type prefix" {
+        "ScriptTask renders kuml-bpmn-task with a # marker, not the type name" {
             val task =
                 BpmnTask(id = "task5", name = "Execute Script", taskType = TaskType.SCRIPT)
             val tex = KumlLatexRenderer.toLatex(model = minimalModel(task))
             tex shouldContain "kuml-bpmn-task"
-            tex shouldContain "Script"
+            tex shouldContain "{\\#};"
+            tex shouldNotContain "{\\tiny Script}"
         }
 
         // ── 16. SubProcess ────────────────────────────────────────────────────

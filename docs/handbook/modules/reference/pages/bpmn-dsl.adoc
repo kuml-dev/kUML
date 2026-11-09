@@ -132,7 +132,7 @@ bpmnModel("Fulfilment") {
 | Builder | Notes
 
 | `task(name, type, block)`
-| `TaskType`: `NONE`, `USER`, `SERVICE`, `SEND`, `RECEIVE`, `MANUAL`, `SCRIPT`, `BUSINESS_RULE`.
+| `TaskType`: `NONE`, `USER`, `SERVICE`, `SEND`, `RECEIVE`, `MANUAL`, `SCRIPT`, `BUSINESS_RULE`. In LaTeX output the type is a marker in the top-left corner of the task (letters U, S, R, M, B, `#` for script; a small gear for service; none for `NONE`), not part of the label.
 The trailing block configures loop markers and boundary events via `TaskBuilder`.
 
 | `subProcess(name, expanded, triggeredByEvent, transactional, block)`
@@ -561,3 +561,7 @@ bpmnModel(name = "PdV Kommunikation") {
 * xref:bpmn-xml.adoc[BPMN 2.0 XML I/O] — import from / export to OMG BPMN 2.0 XML
 * xref:tooling:cli.adoc[CLI Reference] — `kuml render`, `kuml import`, `kuml export`
 * xref:uml-dsl.adoc[UML DSL Reference] · xref:sysml2.adoc[SysML 2 DSL] · xref:c4-dsl.adoc[C4 DSL]
+
+== Notes in the LaTeX collaboration view
+
+Text annotations of a collaboration are placed in rows below the pools, ordered by the horizontal position of their first target. A dotted association line connects each note to every target drawn in the view; a target that is not drawn in the view gets no line.
