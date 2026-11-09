@@ -166,7 +166,13 @@ data class ConnectionUsage(
     /** Id of the target endpoint (typically a [PortUsage]). */
     val targetEndId: String,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    /** Direction of the connection; [ConnectionDirection.FORWARD] draws an open arrow head at the target end. */
+    val direction: ConnectionDirection = ConnectionDirection.NONE,
 ) : Sysml2Usage
+
+/** Direction of a [ConnectionUsage] in the IBD (Nacharbeit 47): `NONE` = plain structural link, `FORWARD` = source to target. */
+@Serializable
+enum class ConnectionDirection { NONE, FORWARD }
 
 /**
  * `actor reader : Reader` — V2.0.7 actor-usage, typed by an

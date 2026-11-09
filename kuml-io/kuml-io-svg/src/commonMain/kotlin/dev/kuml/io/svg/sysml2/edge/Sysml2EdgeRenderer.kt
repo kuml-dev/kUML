@@ -296,10 +296,24 @@ internal object Sysml2EdgeRenderer {
             if (metadata.headAtSource) {
                 // Composition / aggregation: the diamond sits on the owning (source) end.
                 val (srcNext, srcTip) = route.sourceArrowDirection()
-                renderInlineArrow(from = srcNext, tip = srcTip, style = arrowStyle, theme = theme, builder = builder)
+                renderInlineArrow(
+                    from = srcNext,
+                    tip = srcTip,
+                    style = arrowStyle,
+                    theme = theme,
+                    builder = builder,
+                    strokeColor = metadata.strokeColor,
+                )
             } else {
                 val (arrowFrom, arrowTip) = route.arrowDirection()
-                renderInlineArrow(from = arrowFrom, tip = arrowTip, style = arrowStyle, theme = theme, builder = builder)
+                renderInlineArrow(
+                    from = arrowFrom,
+                    tip = arrowTip,
+                    style = arrowStyle,
+                    theme = theme,
+                    builder = builder,
+                    strokeColor = metadata.strokeColor,
+                )
             }
         }
         metadata.endLabel?.let { emitEndLabel(route = route, content = it, builder = builder) }

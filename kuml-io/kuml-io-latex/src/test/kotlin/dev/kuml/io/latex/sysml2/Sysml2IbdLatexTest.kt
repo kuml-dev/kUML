@@ -140,4 +140,53 @@ class Sysml2IbdLatexTest :
             Regex("kuml-sysml2-edge-dashed-noarrow(?![/\\w])").containsMatchIn(tex) shouldBe true
             Regex("kuml-sysml2-edge-binding(?![/\\w])").containsMatchIn(tex) shouldBe true
         }
+
+        // Nacharbeit 47 (N-IBD-F a, b): a FORWARD connection carries the open head, a flow without via next to the
+        // matching connection is no own line. (C and F c do not concern LaTeX: no attribute compartment, no frame.)
+        "FORWARD connection draws an open head and a derived flow adds no own edge" {
+            val model =
+                sysml2Model(name = "M") {
+                    val link = connectionDef(name = "Leitung", style = dev.kuml.sysml2.ConnectionLineStyle.DASHED)
+                    val medium = partDef(name = "Medium")
+                    val a = partDef(name = "Regler")
+                    val b = partDef(name = "Klappe")
+                    val owner =
+                        partDef(name = "Anlage") {
+                            part(name = "regler", typeId = a.id)
+                            part(name = "klappe", typeId = b.id)
+                            connect(
+                                name = "c1",
+                                typeId = link.id,
+                                sourceEndId = "regler",
+                                targetEndId = "klappe",
+                                direction = dev.kuml.sysml2.ConnectionDirection.FORWARD,
+                            )
+                            flow(item = medium, from = "regler", to = "klappe")
+                        }
+                    ibd(name = "Anlage", owner = owner)
+                }
+            val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
+            val layout =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = 1L,
+                    canvas = Size(width = 420f, height = 200f),
+                    nodes =
+                        mapOf(
+                            NodeId("Anlage::regler") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 120f, height = 60f))),
+                            NodeId("Anlage::klappe") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 260f, y = 20f), size = Size(width = 120f, height = 60f))),
+                        ),
+                    edges =
+                        mapOf(
+                            dev.kuml.layout.EdgeId("conn:Anlage::c1") to
+                                dev.kuml.layout.EdgeRoute
+                                    .Direct(source = Point(x = 140f, y = 40f), target = Point(x = 260f, y = 40f)),
+                        ),
+                    groups = emptyMap(),
+                )
+            val tex = KumlLatexRenderer.toLatex(model = model, diagram = ibd, layoutResult = layout)
+            tex shouldContain "kuml-sysml2-edge-dashed-noarrow, -{Straight Barb"
+        }
     })

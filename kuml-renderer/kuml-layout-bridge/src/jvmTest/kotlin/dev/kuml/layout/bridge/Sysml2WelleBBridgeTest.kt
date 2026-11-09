@@ -40,7 +40,8 @@ class Sysml2WelleBBridgeTest :
                     connect(name = "w", typeId = "L", sourceEndId = "a.o", targetEndId = "b.i")
                     connect(name = "d", typeId = "L", sourceEndId = "S::ext", targetEndId = "b.i")
                     flow(item = "Item", from = "a.o", to = "b.i", via = "w")
-                    flow(item = "Item", from = "a.o", to = "b.i")
+                    // No connection joins a.o and ext: stays an own line (a flow next to `w` without via would be carried by it).
+                    flow(item = "Item", from = "a.o", to = "S::ext")
                 }
             }
         val ibd = IbdDiagram(name = "i", ownerId = "S")
@@ -55,7 +56,7 @@ class Sysml2WelleBBridgeTest :
             ids.count { it.startsWith("flow:") } shouldBe 1
         }
 
-        test("frame is added with owner ports on the border; legacy ibd is untouched") {
+        test("frame is added with owner ports on the border; a portless ibd now gets the frame too (Nacharbeit 47)") {
             val g = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = ibd)
             val nodes =
                 g.nodes
@@ -124,12 +125,19 @@ class Sysml2WelleBBridgeTest :
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            Sysml2LayoutBridge.addIbdOwnerFrame(
-                model = legacy,
-                diagram = IbdDiagram(name = "i", ownerId = "S"),
-                layoutResult = lr2,
-            ) shouldBe
-                lr2
+            val legacyFramed =
+                Sysml2LayoutBridge.addIbdOwnerFrame(
+                    model = legacy,
+                    diagram = IbdDiagram(name = "i", ownerId = "S"),
+                    layoutResult = lr2,
+                )
+            legacyFramed.groups.keys.map { it.value } shouldContain "frame:S"
+            legacyFramed.nodes.keys
+                .map { it.value }
+                .toSet() shouldBe
+                lr2.nodes.keys
+                    .map { it.value }
+                    .toSet()
         }
 
         test("bdd graph gets composition / aggregation edges and smaller boxes for hidden rows") {

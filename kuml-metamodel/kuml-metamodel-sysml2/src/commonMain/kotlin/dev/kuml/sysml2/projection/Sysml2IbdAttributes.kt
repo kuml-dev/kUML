@@ -1,5 +1,6 @@
 package dev.kuml.sysml2.projection
 
+import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.Sysml2Model
@@ -60,5 +61,11 @@ private fun line(
     IbdAttributeLine(
         name = a.name,
         typeName = model.definitions.firstOrNull { it.id == a.definitionId }?.name ?: a.definitionId,
-        value = a.defaultExpression?.takeIf { it.isNotBlank() },
+        value =
+            a.defaultExpression?.takeIf { it.isNotBlank() }?.let {
+                formatAttributeValue(
+                    raw = it,
+                    typeUnit = (model.definitions.firstOrNull { d -> d.id == a.definitionId } as? AttributeDefinition)?.unit,
+                )
+            },
     )

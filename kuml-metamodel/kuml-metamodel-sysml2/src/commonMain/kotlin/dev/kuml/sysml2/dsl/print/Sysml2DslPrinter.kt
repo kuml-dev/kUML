@@ -746,6 +746,9 @@ public object Sysml2DslPrinter {
                             "targetEndId = ${quote(usage.targetEndId)}",
                         )
                     multiplicityExpr(usage.multiplicity)?.let { args += "multiplicity = $it" }
+                    if (usage.direction != dev.kuml.sysml2.ConnectionDirection.NONE) {
+                        args += "direction = dev.kuml.sysml2.ConnectionDirection.${usage.direction.name}"
+                    }
                     sb.appendLine("$indent connect(${args.joinToString(", ")})")
                 }
                 else -> {

@@ -127,6 +127,7 @@ internal fun EdgeRoute.sourceArrowDirection(): Pair<Point, Point> =
  * @param style Which arrow shape / colour to draw.
  * @param theme Theme for colour lookup.
  * @param builder SVG builder for the edges group.
+ * @param strokeColor Optional CSS colour overriding the theme edge colour of the head.
  */
 internal fun renderInlineArrow(
     from: Point,
@@ -134,6 +135,7 @@ internal fun renderInlineArrow(
     style: ArrowStyle,
     theme: KumlTheme,
     builder: SvgBuilder,
+    strokeColor: String? = null,
 ) {
     val dx = tip.x - from.x
     val dy = tip.y - from.y
@@ -152,7 +154,8 @@ internal fun renderInlineArrow(
     val rx = tip.x - nx * ARROW_LEN - px * ARROW_WING
     val ry = tip.y - ny * ARROW_LEN - py * ARROW_WING
 
-    val edgeColor = theme.colors.edge.toHex()
+    // An edge with its own line colour (IBD connectionDef colour) draws its head in that colour.
+    val edgeColor = strokeColor ?: theme.colors.edge.toHex()
     val mutedColor = theme.colors.edgeMuted.toHex()
     val bgColor = theme.colors.background.toHex()
 

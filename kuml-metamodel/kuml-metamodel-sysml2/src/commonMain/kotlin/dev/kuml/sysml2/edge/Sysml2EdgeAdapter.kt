@@ -4,6 +4,7 @@ import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.ConnectionDefinition
+import dev.kuml.sysml2.ConnectionDirection
 import dev.kuml.sysml2.ConnectionLineStyle
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ControlFlowUsage
@@ -675,7 +676,8 @@ public class BddEdgeAdapter(
  * Namen zurück; vollständig anonyme Connectoren bleiben unbeschriftet.
  *
  * Linienstil bleibt solide, kein Arrow-Head — IBD-Connectoren sind weiterhin
- * bidirektionale strukturelle Links.
+ * bidirektionale strukturelle Links, ausser [ConnectionUsage.direction] ist
+ * [ConnectionDirection.FORWARD]: dann sitzt ein offener Pfeilkopf am Ziel-Ende.
  */
 public class IbdEdgeAdapter(
     model: Sysml2Model,
@@ -694,7 +696,7 @@ public class IbdEdgeAdapter(
                         emptyList()
                     } else {
                         projection.carriedFlows
-                            .filter { it.usage.viaConnectionId == conn.id }
+                            .filter { projection.carrierOf[it.usage.id] == conn.id }
                             .map { f ->
                                 val forward = !(sameEnd(a = f.source, b = wire.target) && !sameEnd(a = f.source, b = wire.source))
                                 Sysml2MidArrow(forward = forward, label = itemLabel(model = model, itemTypeId = f.usage.definitionId))
@@ -705,7 +707,8 @@ public class IbdEdgeAdapter(
                     "conn:${conn.id}",
                     Sysml2EdgeMetadata(
                         label = formatConnectionLabel(conn = conn, typeName = connDef?.name),
-                        arrowHead = Sysml2ArrowHead.None,
+                        arrowHead =
+                            if (conn.direction == ConnectionDirection.FORWARD) Sysml2ArrowHead.OpenAngle else Sysml2ArrowHead.None,
                         midArrows = arrows,
                         dashArray = connDef?.style?.let { connectionDashArray(it) },
                         strokeColor = connDef?.color,

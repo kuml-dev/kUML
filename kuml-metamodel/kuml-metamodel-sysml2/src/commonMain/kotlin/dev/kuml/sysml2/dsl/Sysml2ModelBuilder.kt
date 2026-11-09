@@ -2779,6 +2779,7 @@ class DefinitionBuilder internal constructor(
         sourceEndId: String,
         targetEndId: String,
         multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+        direction: dev.kuml.sysml2.ConnectionDirection = dev.kuml.sysml2.ConnectionDirection.NONE,
     ): ConnectionUsage {
         val qn = "$parentId::$name"
         val usage =
@@ -2790,6 +2791,7 @@ class DefinitionBuilder internal constructor(
                 multiplicity = multiplicity,
                 sourceEndId = Sysml2PathResolver.toQualified(ownerId = parentId, dotted = sourceEndId),
                 targetEndId = Sysml2PathResolver.toQualified(ownerId = parentId, dotted = targetEndId),
+                direction = direction,
             )
         collected += toFeature(usage = usage, typeId = typeId)
         modelBuilder.registerUsage(usage)

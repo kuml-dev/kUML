@@ -27,9 +27,9 @@ data class IbdWire<T>(
  * What an IBD of one owner shows. Single source of truth for layout bridge,
  * edge adapter and SVG renderer.
  *
- * @property showFrame `true` when some end sits on an owner port or is nested
- *   deeper than one path step below a visible part; otherwise the IBD renders
- *   exactly as before (no frame, no boundary ports).
+ * @property showFrame `true` whenever the owner resolves (Nacharbeit 47): the owner frame with its name tab is always
+ *   drawn. Only an unresolvable owner yields `false` (no frame, no boundary ports).
+ * @property carrierOf flow id to carrying connection id; see [flowCarriers].
  */
 data class IbdProjection(
     val partNodes: List<KermlFeature>,
@@ -43,13 +43,12 @@ data class IbdProjection(
     val nestedPartPaths: List<String> = emptyList(),
     /** Parent path (or visible node id) of every nested part path. */
     val parentOf: Map<String, String> = emptyMap(),
+    /** Flow usage id to the id of the visible connection that carries it (explicit `via`, or derived from equal ends). */
+    val carrierOf: Map<String, String> = emptyMap(),
 ) {
     /** Flows carried by a visible connection (drawn as a mid-arrow on it). */
     val carriedFlows: List<IbdWire<FlowUsage>>
-        get() {
-            val ids = connections.map { it.usage.id }.toSet()
-            return flows.filter { it.usage.viaConnectionId != null && it.usage.viaConnectionId in ids }
-        }
+        get() = flows.filter { it.usage.id in carrierOf }
 
     /** Flows without a visible connector: drawn as an own line. */
     val ownLineFlows: List<IbdWire<FlowUsage>> get() = flows - carriedFlows.toSet()
@@ -135,10 +134,8 @@ fun sysml2IbdProjection(
             bindings.flatMap { listOf(it.source, it.target) }
     )
     val boundary = ends.mapNotNull { it.ownerPort }.distinctBy { it.id }
-    // A note on the owner needs the owner frame to point at (Nacharbeit 45): without a frame the line could only end on
-    // a child part, which reads as a note on that part.
-    val ownerNoted = model.commentLinks.any { it.link.targetId == owner.id }
-    val showFrame = ends.any { it.ownerPort != null || it.steps.size > 1 } || ownerNoted
+    // Nacharbeit 47 (N-IBD-F c): the owner frame is always drawn, so the owner name is visible and notes can point at it.
+    val showFrame = true
     return IbdProjection(
         nestedPartPaths = nestedPaths,
         parentOf = parents,
@@ -149,6 +146,7 @@ fun sysml2IbdProjection(
         bindings = bindings,
         showFrame = showFrame,
         unresolvedEnds = unresolved,
+        carrierOf = flowCarriers(flows = flows, connections = connections),
     )
 }
 
@@ -240,4 +238,37 @@ private fun instanceEnd(
 ): String {
     val qualified = if (end.contains("::") || end.contains('.')) end else "$defId::$end"
     return if (qualified.startsWith("$defId::")) "$path::${qualified.removePrefix("$defId::")}" else qualified
+}
+
+/**
+ * Which visible connection carries which flow (Nacharbeit 47, N-IBD-F b). A flow with an explicit `via` that names a
+ * visible connection is carried by it. A flow without `via` is carried by the one visible connection joining the same
+ * two ends (same node and owner port, either direction); with none or several such connections it has no carrier
+ * and is drawn as an own line.
+ */
+internal fun flowCarriers(
+    flows: List<IbdWire<FlowUsage>>,
+    connections: List<IbdWire<ConnectionUsage>>,
+): Map<String, String> {
+    val ids = connections.map { it.usage.id }.toSet()
+
+    fun same(
+        a: ResolvedEnd,
+        b: ResolvedEnd,
+    ) = a.nodeId == b.nodeId && a.ownerPort?.id == b.ownerPort?.id
+    val result = LinkedHashMap<String, String>()
+    for (f in flows) {
+        val via = f.usage.viaConnectionId
+        if (via != null) {
+            if (via in ids) result[f.usage.id] = via
+            continue
+        }
+        val matches =
+            connections.filter { c ->
+                (same(a = c.source, b = f.source) && same(a = c.target, b = f.target)) ||
+                    (same(a = c.source, b = f.target) && same(a = c.target, b = f.source))
+            }
+        if (matches.size == 1) result[f.usage.id] = matches.single().usage.id
+    }
+    return result
 }

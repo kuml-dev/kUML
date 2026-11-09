@@ -112,7 +112,7 @@ class PortsFlowsProjectionTest :
             Sysml2PathResolver.resolve(model = m, ownerId = "Vehicle", endpointId = "Vehicle::ghost", visibleNodeIds = nodes).shouldBeNull()
         }
 
-        test("ibd projection: frame only for owner port or deep path, flows carried by connector") {
+        test("ibd projection: owner frame always drawn (Nacharbeit 47), flows carried by connector") {
             val m = vehicleModel()
             val p = sysml2IbdProjection(model = m, diagram = IbdDiagram(name = "i", ownerId = "Vehicle"))
             p.showFrame shouldBe true
@@ -132,7 +132,7 @@ class PortsFlowsProjectionTest :
                         connect(name = "c", typeId = "P", sourceEndId = "S::a::o", targetEndId = "S::b::i")
                     }
                 }
-            sysml2IbdProjection(model = legacy, diagram = IbdDiagram(name = "i", ownerId = "S")).showFrame shouldBe false
+            sysml2IbdProjection(model = legacy, diagram = IbdDiagram(name = "i", ownerId = "S")).showFrame shouldBe true
         }
 
         test("bdd projection: composition, aggregation, hidden features") {

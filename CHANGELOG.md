@@ -6,6 +6,44 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 47: IBD attribute values, connection direction, flow double edge, owner frame
+
+#### Why
+
+Four IBD defects (N-IBD-C, F a, F b, F c). Reproduced by comparing the vault-examples render output of `master` with the branch (see below) and by the new tests; not reproduced as a PNG with the local CLI for F a and F b (read from the code: `IbdEdgeAdapter` hard-coded no head, and a flow without `via` was always an own line).
+
+#### Change
+
+- N-IBD-C: the IBD attribute compartment formats a numeric default like the BDD (`formatAttributeValue`, unit from the attribute type): `messwert : Raumdruck = -5 Pa` (non-breaking space) instead of `-5.0`, `20 °C` instead of `20.0[°C]`. The master render of `ibd-box-in-box-3-ebenen` showed `weight : Mass = 12.0[kg]` before.
+- N-IBD-F a: `ConnectionUsage.direction` (`ConnectionDirection.NONE` default, `FORWARD`), parameter `direction` on `connect(...)`, printed only when not `NONE` (print round trip). `IbdEdgeAdapter` gives `FORWARD` an open head at the target end. The SVG head is drawn in the line colour of the `connectionDef` (new `strokeColor` parameter of `renderInlineArrow`) and carries no dash pattern (it is its own element). LaTeX shows the head through the existing `OpenAngle` composition (new test). Old JSON without the field still decodes.
+- N-IBD-F b: `IbdProjection.carrierOf` (flow id to connection id). A flow with `via` naming a visible connection is carried by it; a flow without `via` is carried by the one visible connection that joins the same two ends (same node and owner port, either direction). With none or several matching connections the flow keeps its own line, no warning. `IbdEdgeAdapter` uses `carrierOf` instead of `viaConnectionId`.
+- N-IBD-F c: `showFrame` is true whenever the owner resolves; the owner frame with its title tab is always drawn. An unresolvable owner still gives no frame.
+- Handbook: `sysml2.adoc` (attribute display form, connection direction, carrier rule with the hint to give `via`, owner frame).
+
+#### Verification
+
+- New: `Sysml2IbdWaveMTest` in `kuml-metamodel-sysml2` (carrierOf: via, derived, none, ambiguous; frame; direction JSON/printer round trip; nested projection wire keeps `direction`; attribute display form), `Sysml2IbdWaveMTest` in `kuml-io-svg` (full ELK pipeline: IBD and BDD values, head colour and no dash on the head, NONE has no head, one edge instead of two, own line without or with ambiguous connections, frame), one case in `Sysml2IbdLatexTest`.
+- Changed expectations (intended): `PortsFlowsProjectionTest` (portless IBD now has `showFrame`), `Sysml2IbdNestingSvgTest` (frame always drawn), `Sysml2WelleBBridgeTest` (portless IBD gets a frame; the second fixture flow now joins ends that no connection joins, so it stays an own line).
+- Render output compared before/after (`kuml-vault-examples-tests` sample output, `master` vs branch, both `clean` and `--no-build-cache`). Changed SVGs:
+  - F c, owner frame now always drawn (canvas grows): `27 SysML 2 IBD - Hybrid Vehicle Wiring` in all themes, `arrow-straight-run/syn-*`, `port-edge-border/ibd27` and `ibdSynthetic*`.
+  - C, value display form: `ibd-box-in-box-3-ebenen`.
+  - F b: no example changed (same edge ids and mid-arrow counts).
+  - Unchanged: `54 SysML 2 IBD - Notizen an Port, Verbindung und Owner`, `sysml2-welle-b/ibd`, `13 UML Composite Structure`.
+
+#### Not verified
+
+- F a and F b were not looked at as PNG with the local CLI; only the SVG structure is asserted.
+- Windows and Linux were not run.
+- LaTeX: C and F c do not apply (no attribute compartment, no frame); F a and F b share the edge adapter.
+
+#### Not fixed
+
+- Vault examples are not edited; the ones listed above render differently (frame, value format). Whether they are adapted is a separate decision.
+- An owner port makes the layout wider (remainder of N-IBD-C).
+- N-IBD-F d to g.
+- No warning when several connections could carry a flow.
+- `BACKWARD` and `BOTH` directions; `headAtSource` in LaTeX.
+
 ### Nacharbeit 46: IBD nesting, connections declared in nested definitions, port and attribute of one name, connection definitions of one name
 
 #### Why

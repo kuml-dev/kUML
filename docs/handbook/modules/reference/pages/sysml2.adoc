@@ -200,7 +200,8 @@ only drawn at an end that carries an arrowhead (item flows); plain connectors to
 
 A part box lists the attributes of its definition below a rule, as `name : Type = value` (`= value` only when a value
 exists; a redefinition on the part usage supplies it), at most eight lines and then `... n more`.
-`ibd(name, owner = x, showAttributes = false)` switches the compartment off.
+`ibd(name, owner = x, showAttributes = false)` switches the compartment off. A numeric value is shown in display form, in the IBD
+as in the BDD: `-5.0` with an attribute type of unit `Pa` becomes `-5 Pa` (non-breaking space), `20.0[°C]` becomes `20 °C`.
 
 === Connection line style
 
@@ -211,6 +212,23 @@ connectionDef(name = "Feed", style = ConnectionLineStyle.DASHED, color = "#1D296
 
 `style` is `SOLID` (default), `DASHED`, `DOTTED` or `DASH_DOT`; `color` is `#RRGGBB` or omitted (theme colour). Every
 connection typed by the definition is drawn that way. There is no legend.
+
+=== Connection direction
+
+[source,kotlin]
+----
+connect(name = "feed", typeId = line.id, sourceEndId = "tank.out", targetEndId = "pump.in", direction = ConnectionDirection.FORWARD)
+----
+
+`direction` is `ConnectionDirection.NONE` (default, no arrow head) or `FORWARD` (an open arrow head at the target end, in the
+line colour of the connection definition and without the dash pattern). There is no `BACKWARD` or `BOTH`.
+
+=== Flow carried by a connection
+
+A `flow(...)` is drawn as a mid-arrow with the item name on a connection. With `via = ...` the named connection carries it.
+Without `via`, the one visible connection that joins the same two ends (same part and same owner port, in either direction)
+carries it, so no second line is drawn. When no connection joins the ends, the flow keeps its own line. When more than one
+connection joins the same ends, the flow also keeps its own line and no warning is given: give `via` in that case.
 
 
 === IBD findings
@@ -1471,9 +1489,9 @@ direction, the conjugation is visible as `~Type` in the label.
 
 == IBD frame
 
-An IBD draws an owner frame with boundary ports only when a connection, flow or binding ends on a port
-of the owner, or reaches deeper than one path step below a visible part. Otherwise it renders without
-a frame.
+An IBD always draws its owner frame with the title tab (`ibd [part] Owner`), also when the owner has no ports, no
+nested parts and no note. Boundary ports are drawn on it when a connection, flow or binding ends on a port of the owner.
+Only an owner that cannot be resolved renders without a frame.
 
 Parts nested inside a visible part are drawn box in box, recursively (depth limit 8, at most 256 paths). The visible
 part box is level 1 and keeps its two-line head (`<<part>>` and `name : Type`); every nested part is a frame inside

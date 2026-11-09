@@ -153,7 +153,7 @@ class Sysml2IbdNestingSvgTest :
             svg shouldContain "id=\"conn:Anlage::steuerung::b::l1\""
         }
 
-        test("without nested connections nothing changes: no connection edge, no owner frame") {
+        test("without nested connections there is no connection edge; the owner frame is always drawn (Nacharbeit 47)") {
             val m =
                 sysml2Model(name = "Anlage") {
                     val a = partDef(name = "Regler")
@@ -162,6 +162,6 @@ class Sysml2IbdNestingSvgTest :
                 }
             val svg = render(m)
             svg shouldNotContain "id=\"conn:"
-            svg shouldNotContain "class=\"kuml-ibd-frame\""
+            svg shouldContain "class=\"kuml-ibd-frame\""
         }
     })
