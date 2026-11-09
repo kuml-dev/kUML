@@ -224,19 +224,20 @@ public object LayoutSpecRunner {
         val checked = sanitize(spec = spec, findings = findings)
         checkIds(spec = checked, graph = graph, findings = findings, withGroups = kind == SpecDiagramKind.SYSML2_REQ)
         val effectiveHints = hintsWith(base = hints, spec = checked)
-        if (kind == SpecDiagramKind.SYSML2_REQ && checked != null && ReqGroupGrid.applies(graph = graph, spec = checked)) {
+        if (kind == SpecDiagramKind.SYSML2_REQ && ReqGroupGrid.applies(graph = graph, spec = checked)) {
+            val gridSpec = checked ?: LayoutSpec()
             // Wave 2E-a: group grid. The aspect iteration below is skipped, the grid chooses its own column count.
             val gridResult =
-                ReqGroupGrid.layout(engine = engine, graph = graph, hints = effectiveHints, spec = checked, findings = findings)
+                ReqGroupGrid.layout(engine = engine, graph = graph, hints = effectiveHints, spec = gridSpec, findings = findings)
             val horizontalFlow =
                 effectiveHints.direction == LayoutDirection.LeftToRight || effectiveHints.direction == LayoutDirection.RightToLeft
             reportUnreached(
                 result = gridResult,
-                target = checked.aspectRatio,
-                maxWidth = checked.maxWidth,
+                target = gridSpec.aspectRatio,
+                maxWidth = gridSpec.maxWidth,
                 horizontal = horizontalFlow,
-                explicit = checked.aspectRatio != null || checked.maxWidth != null,
-                bothSides = checked.aspectRatio != null,
+                explicit = gridSpec.aspectRatio != null || gridSpec.maxWidth != null,
+                bothSides = gridSpec.aspectRatio != null,
                 findings = findings,
             )
             return SpecLayoutOutcome(result = gridResult, findings = findings)

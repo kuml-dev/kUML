@@ -309,6 +309,15 @@ public object Sysml2LayoutBridge {
     public const val REQ_DEFAULT_WIDTH: Float = 280f
     public const val REQ_DEFAULT_HEIGHT: Float = 120f
 
+    /** Minimum width of an empty part def in a REQ diagram (Nacharbeit 49). */
+    internal const val REQ_EMPTY_PART_MIN_WIDTH: Float = 100f
+
+    /** Cap of the edge-driven height of an empty part def in a REQ diagram (Nacharbeit 49). */
+    internal const val REQ_EMPTY_PART_MAX_HEIGHT: Float = 200f
+
+    /** Number of attached edges up to which an empty part def keeps the compact box (Nacharbeit 49). */
+    internal const val REQ_EMPTY_PART_COMPACT_EDGES: Int = 2
+
     /**
      * Default-Größe für eine reguläre [StateDefinition]-Box in einem
      * STM-Diagramm (V2.0.9). Spiegelt die IBD-Box-Größe — auch die STM-Box
@@ -1053,9 +1062,31 @@ public object Sysml2LayoutBridge {
                     val uc = model.definitions.firstOrNull { it.id == id } as? UseCaseDefinition
                     ucUseCaseContentSize(name = uc?.name, description = uc?.description.orEmpty())
                 }
+                "PartDefinition" -> {
+                    val part = model.definitions.firstOrNull { it.id == id } as? PartDefinition
+                    if (part != null && reqPartIsEmpty(part)) {
+                        reqEmptyPartSize(part)
+                    } else {
+                        dev.kuml.layout.Size(width = REQ_DEFAULT_WIDTH, height = REQ_DEFAULT_HEIGHT)
+                    }
+                }
                 else -> dev.kuml.layout.Size(width = REQ_DEFAULT_WIDTH, height = REQ_DEFAULT_HEIGHT)
             }
         }
+
+    /** Nacharbeit 49: a part def without features, constraints, performs and exhibits shows only stereotype and name. */
+    private fun reqPartIsEmpty(part: PartDefinition): Boolean =
+        part.features.isEmpty() && part.constraints.isEmpty() && part.performs.isEmpty() && part.exhibits.isEmpty()
+
+    /** Compact box of an empty part def in a REQ diagram: stereotype line + name line + padding, width from the text. */
+    private fun reqEmptyPartSize(part: PartDefinition): dev.kuml.layout.Size {
+        val stereoW = "«part def»".length * IBD_STEREO_CHAR_PX
+        val nameW = part.name.length * IBD_TITLE_CHAR_PX
+        return dev.kuml.layout.Size(
+            width = maxOf(REQ_EMPTY_PART_MIN_WIDTH, maxOf(stereoW, nameW) + 2 * IBD_H_PAD),
+            height = STEREOTYPE_LINE_H + NAME_LINE_H + BOX_V_PADDING,
+        )
+    }
 
     /**
      * Content-aware size for a UC/REQ actor node — the stick-figure glyph
@@ -1390,10 +1421,37 @@ public object Sysml2LayoutBridge {
                 continue
             }
             val kind = def::class.simpleName ?: "Sysml2Definition"
+            var size = sizeProvider.sizeOf(elementId = def.id, elementKind = kind)
+            // Nacharbeit 49: a compact (empty) part def that carries many edges (a hub) keeps the old default box.
+            if (def is PartDefinition && reqPartIsEmpty(def) && size.height <= reqEmptyPartSize(def).height) {
+                val attached =
+                    diagram.satisfies.count { it.sourceId == def.id } +
+                        diagram.verifies.count { it.sourceId == def.id } +
+                        diagram.refines.count { it.sourceId == def.id } +
+                        diagram.traces.count { it.sourceId == def.id || it.targetId == def.id } +
+                        (
+                            if (diagram.layout?.showSubjectEdges == true) {
+                                model.definitions.count { it is RequirementDefinition && it.id in visibleIds && it.subjectRef == def.id }
+                            } else {
+                                0
+                            }
+                        )
+                // Up to REQ_EMPTY_PART_COMPACT_EDGES edges the compact box carries them; a block with more edges keeps the
+                // old default box, because the route bands (end spreading, nudging) were tuned on that size and a smaller
+                // hub moved parallel segments closer than 6 px in the vault fixtures.
+                if (attached > REQ_EMPTY_PART_COMPACT_EDGES) {
+                    val needed = 2 * ReqEdgeBands.CORNER_MARGIN_PX + (attached - 1) * ReqEdgeBands.MIN_END_GAP_PX
+                    size =
+                        dev.kuml.layout.Size(
+                            width = REQ_DEFAULT_WIDTH,
+                            height = minOf(REQ_EMPTY_PART_MAX_HEIGHT, maxOf(REQ_DEFAULT_HEIGHT, needed)),
+                        )
+                }
+            }
             nodes +=
                 LayoutNode(
                     id = NodeId(def.id),
-                    intrinsicSize = sizeProvider.sizeOf(elementId = def.id, elementKind = kind),
+                    intrinsicSize = size,
                     hints = if (def is PartDefinition) NodeHints(rail = true) else NodeHints.NONE,
                 )
         }
@@ -1569,6 +1627,7 @@ public object Sysml2LayoutBridge {
                     padding = REQ_GROUP_PADDING,
                     layoutAsCompound = true,
                     minSize = REQ_GROUP_MIN_SIZE,
+                    wrapColumns = g.wrapColumns,
                 )
             }
     }

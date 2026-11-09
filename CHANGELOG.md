@@ -6,6 +6,44 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 49: REQ subject edges, group-local wrapColumns, derive/trace labels, empty part def height
+
+#### Why
+
+Four REQ items (N-REQ-A a to d), reproduced first with generic models (`which kuml` pointed at the build):
+
+- a: not reproduced as a bug. With `showSubjectEdges = true` the bridge and the SVG draw the «subject» edge (`subject:Watchdog::Platform` in the `req-grid-subject` fixture). The edges the author expected were missing because the pair already had a `satisfy` edge (suppressed by design) or because the subject was not in the diagram. `subjectRef` is an id; the DSL default id equals the name, so name versus id was not the cause.
+- b: missing feature. `group { layout { wrapColumns } }` did not exist (the REQ builder `layout` cannot be called inside a group).
+- c: reproduced for edges between one pair whose labels land on the same spot (routes closer than a label height). With well separated routes the labels did not collide.
+- d: the height does not come from a connection buffer (the REQ path has none). `reqContentAwareSizeProvider` had no `PartDefinition` branch, so every block got the 280 x 120 default.
+
+#### Change
+
+- b: `RequirementGroup.wrapColumns` (default `null`), group-scope `layout { wrapColumns = n }` (new receiver `GroupLayoutScope`, offers `wrapColumns` only), `groupById(..., wrapColumns)`, printer round trip, `LayoutGroup.wrapColumns` (public field with default, no binary-compatibility dump exists in the repo). The group grid uses the local value for the members of exactly that group; a local value alone (no diagram `layout`) switches the grid on (`ReqGroupGrid.applies`, `LayoutSpecRunner`). Range 1..32 like the diagram value: check `LAYOUT444` (error).
+- a: no behaviour change. New warning `LAYOUT443`: `showSubjectEdges = true` and the subject of a requirement is not in the diagram. Handbook explains the satisfy suppression.
+- c: `Sysml2LabelPlacement.stackSamePairLabels`: labels of edges between the same pair of node boxes that collide are stacked across the edge direction (derive, trace, then by id, 4 px gap). Routes unchanged, no collision means no change.
+- d: an empty `partDef` (no features, constraints, performs, exhibits) is `16 + 18 + 16 = 50` px high and at least 100 px wide in a REQ diagram. A block with more than two attached edges (satisfy, verify, refine, trace, opt-in subject) keeps the old 280 x 120 box.
+- Handbook: `layout.adoc` (group-local value, label stack, checks 443 and 444), `sysml2.adoc` (satisfy suppression, invisible subject).
+
+#### Verification
+
+- New: `ReqNacharbeit49Test` (9 cases, layout-bridge: local columns give 2 and 3 rows, no engine call, local wins only in its group, `applies`, empty part sizes, hub keeps default, subject edge versus satisfy), `Sysml2Nacharbeit49Test` (5 cases: DSL, scope offers `wrapColumns` only, printer, 444, 443), `Sysml2LabelStackTest` (3 cases, font independent, rectangles only), one SVG case in `Sysml2ReqEdgeLabelSvgTest` («subject» edge id and label).
+- Looked at as PNG with the local CLI: `req-grid-subject` (subject edge drawn for the unsatisfied subject only), a generic 6-member group with `wrapColumns = 3` (2 rows, stacked derive/trace labels, compact block).
+- Vault examples: the first full run failed `Sysml2ReqLayoutInvariantTest` (parallel segments under 6 px) after shrinking hub blocks; hubs now keep the default box and the test is green. Fixtures and goldens were not changed.
+
+#### Not verified
+
+- LaTeX: the LaTeX REQ renderer has its own label placement, so (c) does not apply; (d) reaches it only through the layout sizes. Not looked at as a PDF.
+- Windows and Linux were not run.
+- The PNGs of the vault examples were not looked at one by one.
+
+#### Not fixed
+
+- N-REQ-A (e), (f), (g), P-REQ-03 and P-REQ-04 (rail placement of blocks far from the requirements); arrangement of groups relative to each other.
+- A compact block with few edges can still sit far from its requirements (rail placement, not height).
+- The label stack is not re-checked against group frame strips.
+- The route bands are sensitive to small box size changes (a hub 8 px lower already produced two parallel segments 5 px apart); that is why hubs keep the old size. A real fix belongs to the routing.
+
 ### Nacharbeit 48: IBD port order, owner port side, port flow glyph, item-flow label
 
 #### Why

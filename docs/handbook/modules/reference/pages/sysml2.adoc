@@ -413,7 +413,10 @@ sysml2Model(name = "VehicleRequirements") {
 `requirementDef` accepts `priority` (`HIGH`, `MEDIUM`, `LOW`), `status` (`DRAFT` ... `VERIFIED`), `source`,
 `isAssumption = true` (dashed border, `<<assumption>>`) and `subjectRef` (the id of the constrained element;
 the card shows a line `subject: <Name>`). Since wave 2E-a a `<<subject>>` edge is drawn only with
-`layout { showSubjectEdges = true }` (default `false`, and never for a pair that already has a `satisfy` edge);
+`layout { showSubjectEdges = true }` (default `false`). The edge is **not** drawn for a pair that already has a `satisfy`
+edge (in either direction): the `satisfy` edge already connects the two, so a diagram in which every subject is also
+the satisfier shows no `<<subject>>` edge at all, only the `subject: <Name>` line in the card. If the subject is not
+included in the diagram, no edge can be drawn and `kuml validate` warns (`LAYOUT443`);
 **migration:** diagrams that relied on the automatic subject edge add that one line to their `layout` block.
 The free-text `subject` stays available. Titles are wrapped
 instead of truncated; the box width is between 160 and 240 px and the height grows with the content.

@@ -3213,7 +3213,14 @@ class ReqDiagramBuilder internal constructor(
     ): RequirementGroup {
         val path = if (parentPath == null) name else "$parentPath/$name"
         val scope = RequirementGroupScope(owner = this, path = path).apply(block)
-        val g = RequirementGroup(id = "group:$path", name = name, memberIds = scope.memberIds(), childGroupIds = scope.childIds())
+        val g =
+            RequirementGroup(
+                id = "group:$path",
+                name = name,
+                memberIds = scope.memberIds(),
+                childGroupIds = scope.childIds(),
+                wrapColumns = scope.wrapColumnsValue(),
+            )
         groups += g
         return g
     }
@@ -3224,8 +3231,9 @@ class ReqDiagramBuilder internal constructor(
         name: String,
         memberIds: List<String> = emptyList(),
         childGroupIds: List<String> = emptyList(),
+        wrapColumns: Int? = null,
     ): RequirementGroup {
-        val g = RequirementGroup(id = id, name = name, memberIds = memberIds, childGroupIds = childGroupIds)
+        val g = RequirementGroup(id = id, name = name, memberIds = memberIds, childGroupIds = childGroupIds, wrapColumns = wrapColumns)
         groups += g
         return g
     }
@@ -3528,6 +3536,15 @@ class RequirementGroupScope internal constructor(
 ) {
     private val members = mutableListOf<String>()
     private val children = mutableListOf<String>()
+    private var wrapColumns: Int? = null
+
+    /**
+     * Group-local layout (Nacharbeit 49): `layout { wrapColumns = 3 }` sets the column count of this group's member grid.
+     * Only `wrapColumns` is accepted here; the range is checked by `Sysml2LayoutHintChecker` (code 444).
+     */
+    fun layout(block: GroupLayoutScope.() -> Unit) {
+        wrapColumns = GroupLayoutScope().apply(block).wrapColumns ?: wrapColumns
+    }
 
     /** Add an element to the group (and to the diagram). */
     fun include(definition: Sysml2Definition) = includeById(definition.id)
@@ -3549,6 +3566,15 @@ class RequirementGroupScope internal constructor(
     internal fun memberIds(): List<String> = members.toList()
 
     internal fun childIds(): List<String> = children.toList()
+
+    internal fun wrapColumnsValue(): Int? = wrapColumns
+}
+
+/** Receiver of a group-local `layout { }` block (Nacharbeit 49). Deliberately offers `wrapColumns` only. */
+@Sysml2Dsl
+class GroupLayoutScope internal constructor() {
+    /** Column count of the group's member grid; `null` = use the diagram value. */
+    var wrapColumns: Int? = null
 }
 
 /** Replaces every character outside `[A-Za-z0-9_-]` with `_` — used for deterministic frame ids. */

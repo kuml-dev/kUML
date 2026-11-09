@@ -518,6 +518,8 @@ data class RequirementGroup(
     val name: String,
     val memberIds: List<String> = emptyList(),
     val childGroupIds: List<String> = emptyList(),
+    /** Nacharbeit 49: group-local column count of the member grid (`group("G") { layout { wrapColumns = 3 } }`); `null` = diagram value. */
+    val wrapColumns: Int? = null,
 )
 
 /**

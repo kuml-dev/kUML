@@ -54,7 +54,10 @@ internal object ReqGroupGrid {
         graph: LayoutGraph,
         spec: LayoutSpec?,
     ): Boolean {
-        if (spec == null || graph.groups.isEmpty()) return false
+        if (graph.groups.isEmpty()) return false
+        // Nacharbeit 49: a group-local `wrapColumns` alone also asks for the grid (ELK would ignore it inside compounds).
+        if (graph.groups.any { it.wrapColumns != null }) return true
+        if (spec == null) return false
         val groupIds = graph.groups.map { it.id.value }.toSet()
         return spec.wrapColumns != null ||
             spec.aspectRatio != null ||
@@ -539,7 +542,7 @@ internal object ReqGroupGrid {
         fun packGroup(g: LayoutGroup): Packed {
             val cards = graph.nodes.filter { it.groupId == g.id }
             val children = graph.groups.filter { it.parent == g.id }.map { it to packGroup(it) }
-            val content = packFlat(cards = cards, children = children)
+            val content = packFlat(cards = cards, children = children, localColumns = g.wrapColumns)
             val pad = g.padding
             val minW = g.minSize?.width ?: 0f
             val minH = g.minSize?.height ?: 0f
@@ -563,10 +566,16 @@ internal object ReqGroupGrid {
         fun packFlat(
             cards: List<LayoutNode>,
             children: List<Pair<LayoutGroup, Packed>>,
+            localColumns: Int? = null,
         ): Packed {
             if (cards.isEmpty() && children.isEmpty()) return Packed(size = Size(width = 0f, height = 0f))
             val sizes = cards.map { it.intrinsicSize } + children.map { it.second.size }
-            val cols = chooseColumns(cells = sizes, spec = spec, horizontal = horizontal)
+            val cols =
+                chooseColumns(
+                    cells = sizes,
+                    spec = if (localColumns != null) spec.copy(wrapColumns = localColumns) else spec,
+                    horizontal = horizontal,
+                )
             val packing =
                 pack(
                     cells = sizes,

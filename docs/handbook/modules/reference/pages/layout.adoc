@@ -312,7 +312,8 @@ reqDiagram("Requirements") {
 * Checks: `LAYOUT431` unknown id, `LAYOUT432` `wrapColumns` outside 1..32, `LAYOUT434` too many groups/ids,
   `LAYOUT435` id in `first` and `last`, `LAYOUT436` connected elements in one `sameLayer` group,
   `LAYOUT437` `maxWidth`/`aspectRatio`/`labelMaxWidth` out of range, `LAYOUT438` `showSubjectEdges` on a diagram
-  that is not a requirement diagram (wave 2E-a).
+  that is not a requirement diagram (wave 2E-a), `LAYOUT443` `showSubjectEdges = true` but the subject of a requirement
+  is not shown in the diagram (warning; no edge can be drawn), `LAYOUT444` group-local `wrapColumns` outside 1..32.
 
 === Requirement groups as a grid (wave 2E-a)
 
@@ -342,6 +343,18 @@ reqDiagram("Platform") {
   is closest to `aspectRatio` (default 1.6; the block rail counts), within `maxWidth`; ties go to fewer columns.
 * The same rule applies inside every group: cards (in `include` order), then child groups, fill the group row by row.
   The `include` order is the reading order.
+* A group can set its own column count with a group-local `layout` block; it applies to the members of exactly that
+  group (cards and child groups) and wins over the diagram value there. The top-level grid keeps using the diagram
+  value. The block accepts `wrapColumns` only (range 1..32, `LAYOUT444` otherwise). A group-local value alone, without any
+  diagram `layout`, is enough to switch the grid on:
++
+[source,kotlin]
+----
+group("Safety") {
+    include(auth); include(audit); include(failSafe)
+    layout { wrapColumns = 3 }   // three cards per row inside this frame
+}
+----
 * `direction = Right` transposes the grid (frames are filled column by column, so `wrapColumns = 2` gives
   A C / B D); `Up` and `Left` mirror rows and columns.
 * `sameLayer(groupA, groupB)` (group handles or the ids `group:<name>`) puts the groups in one row. If that row is
@@ -353,6 +366,9 @@ reqDiagram("Platform") {
   segments (parallel segments of different edges that are closer than 8 px move to a 10 px pitch).
 * Determinism: the result depends only on the model. The engine seed is fixed, the model order is the tie-breaker,
   the grid code iterates only ordered collections, and two renders of one script are byte-identical.
+* Labels of several edges between the same pair of nodes (for example `derive` and `trace`) that would overlap are stacked
+  across the edge direction, `derive` first, then `trace`, then the rest by edge id; labels that do not collide stay where
+  they are.
 * Edge labels avoid group frames; a label that finds no free spot takes the cheapest position and is never dropped. There is one `<<satisfy>>`
   label per source block (on the satisfy edge with the smallest id), and containment has no text label.
 

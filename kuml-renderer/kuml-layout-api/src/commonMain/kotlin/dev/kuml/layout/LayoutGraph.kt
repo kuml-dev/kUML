@@ -113,6 +113,11 @@ public data class LayoutGroup(
      * kein Mindestmaß, Verhalten unverändert (Engine-Default).
      */
     val minSize: Size? = null,
+    /**
+     * Group-lokale Spaltenzahl des Member-Rasters (Nacharbeit 49, SysML-2-REQ-Gruppenraster). `null` = Wert des
+     * Diagramm-Layouts. Wird nur vom Gruppenraster der Requirement-Diagramme ausgewertet.
+     */
+    val wrapColumns: Int? = null,
 )
 
 /**

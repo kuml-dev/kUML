@@ -126,4 +126,20 @@ class Sysml2ReqEdgeLabelSvgTest :
             val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = layout, theme = PlainTheme())
             svg shouldContain "stroke-dasharray"
         }
+
+        "a «subject» edge from the layout is drawn dashed between the two ids with its «subject» label (Nacharbeit 49)" {
+            val subjectId = "subject:SafetyReq::Vehicle"
+            val withSubject =
+                layout.copy(
+                    edges =
+                        layout.edges +
+                            (
+                                EdgeId(subjectId) to
+                                    EdgeRoute.Direct(source = Point(x = 600f, y = 90f), target = Point(x = 140f, y = 100f))
+                            ),
+                )
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = diagram, layoutResult = withSubject, theme = PlainTheme())
+            svg shouldContain "data-edge-id=\"$subjectId\""
+            svg shouldContain "«subject»"
+        }
     })

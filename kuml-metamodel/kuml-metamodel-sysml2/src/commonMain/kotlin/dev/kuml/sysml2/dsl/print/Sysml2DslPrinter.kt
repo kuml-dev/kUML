@@ -1234,7 +1234,8 @@ public object Sysml2DslPrinter {
             sb.appendLine(
                 "        groupById(id = ${quote(it.id)}, name = ${quote(it.name)}, " +
                     "memberIds = listOf(${it.memberIds.joinToString(", ") { id -> quote(id) }}), " +
-                    "childGroupIds = listOf(${it.childGroupIds.joinToString(", ") { id -> quote(id) }}))",
+                    "childGroupIds = listOf(${it.childGroupIds.joinToString(", ") { id -> quote(id) }})" +
+                    (it.wrapColumns?.let { n -> ", wrapColumns = $n" } ?: "") + ")",
             )
         }
         sb.appendLine("    }")

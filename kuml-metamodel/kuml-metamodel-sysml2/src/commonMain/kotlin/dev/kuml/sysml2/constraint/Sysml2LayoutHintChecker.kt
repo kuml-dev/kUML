@@ -40,13 +40,49 @@ public data class LayoutIssue(
  * | 437 | Error | `maxWidth` outside 200..20000 or `aspectRatio` outside 0.1..10 (or not a finite number), or `labelMaxWidth` outside 120..400 |
  * | 438 | Warning | `showSubjectEdges` is set on a diagram that is not a requirement diagram (wave 2E-a) |
  * | 439 | Warning | `actorSide` is set on a diagram that is not a use-case diagram (wave 2E-b) |
+ * | 443 | Warning | `showSubjectEdges = true`, but the subject of a requirement is not in the diagram, so no «subject» edge can be drawn |
+ * | 444 | Error | group-local `wrapColumns` outside 1..[Sysml2Limits.LAYOUT_GROUPS] (Nacharbeit 49) |
  */
 public object Sysml2LayoutHintChecker {
+    private fun groupWrapColumnIssues(diagram: ReqDiagram): List<LayoutIssue> =
+        diagram.groups.mapNotNull { g ->
+            val n = g.wrapColumns ?: return@mapNotNull null
+            if (n in 1..Sysml2Limits.LAYOUT_GROUPS) return@mapNotNull null
+            LayoutIssue(
+                code = 444,
+                severity = LayoutSeverity.Error,
+                elementId = g.name,
+                message = "wrapColumns = $n of group '${g.name}' is outside 1..${Sysml2Limits.LAYOUT_GROUPS}.",
+                hint = "Choose a value in range.",
+            )
+        }
+
+    private fun invisibleSubjectIssues(
+        model: Sysml2Model,
+        diagram: ReqDiagram,
+        visible: Set<String>,
+    ): List<LayoutIssue> =
+        diagram.elementIds.mapNotNull { id ->
+            val req = model.definitions.firstOrNull { it.id == id } as? dev.kuml.sysml2.RequirementDefinition ?: return@mapNotNull null
+            val ref = req.subjectRef ?: return@mapNotNull null
+            if (ref in visible) return@mapNotNull null
+            LayoutIssue(
+                code = 443,
+                severity = LayoutSeverity.Warning,
+                elementId = id,
+                message =
+                    "Requirement '${req.name}' has the subject '$ref', which is not shown in the diagram; " +
+                        "no «subject» edge is drawn.",
+                hint = "Include the subject in the diagram or remove showSubjectEdges.",
+            )
+        }
+
     public fun check(
         model: Sysml2Model,
         diagram: Sysml2Diagram,
     ): List<LayoutIssue> {
-        val spec = diagram.layout ?: return emptyList()
+        val groupIssues = (diagram as? ReqDiagram)?.let { groupWrapColumnIssues(it) }.orEmpty()
+        val spec = diagram.layout ?: return groupIssues
         val name = diagram.name
         if (diagram is SeqDiagram) {
             return listOf(
@@ -60,6 +96,7 @@ public object Sysml2LayoutHintChecker {
             )
         }
         val issues = mutableListOf<LayoutIssue>()
+        issues += groupIssues
         val visible: Set<String> =
             (
                 if (diagram.elementIds.isEmpty()) {
@@ -91,6 +128,9 @@ public object Sysml2LayoutHintChecker {
                     message = "showSubjectEdges has no effect outside requirement diagrams.",
                     hint = "Remove it from this layout block.",
                 )
+        }
+        if (spec.showSubjectEdges == true && diagram is ReqDiagram) {
+            issues += invisibleSubjectIssues(model = model, diagram = diagram, visible = diagram.elementIds.toSet())
         }
         val cap = Sysml2Limits.LAYOUT_GROUPS * Sysml2Limits.LAYOUT_IDS_PER_GROUP
         val all = (spec.first + spec.last + spec.sameLayer.flatten()).take(cap).distinct()
