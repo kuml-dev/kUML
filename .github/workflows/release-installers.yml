@@ -11,7 +11,7 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write  # gh release upload (DEB/RPM attach to the GitHub Release)
       packages: write  # required to push to ghcr.io
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +38,42 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-installers
-          path: kuml-packaging/build/dist/*.{deb,rpm}
+          # One glob per line: upload-artifact does not expand `{deb,rpm}`
+          # brace patterns, so the former single pattern matched nothing and
+          # the packages were silently discarded ("No files were found").
+          path: |
+            kuml-packaging/build/dist/*.deb
+            kuml-packaging/build/dist/*.rpm
+          if-no-files-found: error
+
+      - name: Attach DEB + RPM to the GitHub Release
+        # The Release is created by release.yml for the same tag, in parallel
+        # with this workflow, so wait for it to exist before uploading. The
+        # apt repository (kuml-dev/apt) pulls its .deb files from here.
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          shopt -s nullglob
+          FILES=(kuml-packaging/build/dist/*.deb kuml-packaging/build/dist/*.rpm)
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "::error::no .deb/.rpm found in kuml-packaging/build/dist"
+            exit 1
+          fi
+          for attempt in $(seq 1 30); do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              if gh release upload "$TAG" "${FILES[@]}" --clobber; then
+                exit 0
+              fi
+              echo "::warning::gh release upload attempt $attempt failed for $TAG"
+            else
+              echo "Release $TAG does not exist yet (attempt $attempt/30)"
+            fi
+            sleep 30
+          done
+          echo "::error::could not attach DEB/RPM to release $TAG"
+          exit 1
 
       - name: Log in to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
