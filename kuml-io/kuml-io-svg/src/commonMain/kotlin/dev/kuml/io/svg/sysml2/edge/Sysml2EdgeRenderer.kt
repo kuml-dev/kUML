@@ -317,7 +317,10 @@ internal object Sysml2EdgeRenderer {
             }
         }
         metadata.endLabel?.let { emitEndLabel(route = route, content = it, builder = builder) }
-        if (metadata.midArrows.isNotEmpty()) emitMidArrows(route = route, arrows = metadata.midArrows, builder = builder)
+        // With a planned label the item-flow texts are part of that label block; without a plan they sit at the arrows.
+        if (metadata.midArrows.isNotEmpty()) {
+            emitMidArrows(route = route, arrows = metadata.midArrows, builder = builder, drawItemLabels = plannedLabel == null)
+        }
 
         // STM labels are emitted later by emitStmLabels, after all edges, so no later edge paints over them.
         if (suppressLabels) return
@@ -395,7 +398,8 @@ internal object Sysml2EdgeRenderer {
     )
 
     /**
-     * The lines an edge label of [metadata] is drawn in (stereotype first, then the label, each word-wrapped): the
+     * The lines an edge label of [metadata] is drawn in (stereotype first, then the label, then the item-flow labels,
+     * each word-wrapped): the
      * single source for the size the label plan reserves and the text [emitPlannedLabel] draws.
      */
     internal fun drawnLabelLines(metadata: Sysml2EdgeMetadata): List<DrawnLabelLine> {
@@ -411,6 +415,13 @@ internal object Sysml2EdgeRenderer {
                 // Wave 2F: the «Type» of an object flow is secondary text, upright.
                 out +=
                     DrawnLabelLine(text = it, css = if (l.startsWith("«")) "kuml-object-type" else "kuml-body")
+            }
+        }
+        // Nacharbeit 48 (N-IBD-F g): the item-flow labels follow the connection label in the same block, one line per
+        // mid-line arrow in declaration order, so the plan reserves one rectangle for both and they cannot overlap.
+        metadata.midArrows.forEach { arrow ->
+            wrapWords(text = arrow.label, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(arrow.label) }.forEach {
+                out += DrawnLabelLine(text = it, css = "kuml-body")
             }
         }
         return out
@@ -797,6 +808,7 @@ internal object Sysml2EdgeRenderer {
         route: EdgeRoute,
         arrows: List<dev.kuml.sysml2.edge.Sysml2MidArrow>,
         builder: SvgBuilder,
+        drawItemLabels: Boolean,
     ) {
         val pts =
             when (route) {
@@ -847,6 +859,7 @@ internal object Sysml2EdgeRenderer {
                         "class" to "kuml-sysml2-port-dir",
                     ),
             )
+            if (!drawItemLabels) return@forEachIndexed
             val vertical = kotlin.math.abs(uy) > kotlin.math.abs(ux)
             builder.tag(
                 name = "text",

@@ -39,6 +39,7 @@ import dev.kuml.sysml2.Sysml2Usage
 import dev.kuml.sysml2.TimeObservationUsage
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UseCaseUsage
+import dev.kuml.sysml2.effectivePortDirection
 import dev.kuml.sysml2.projection.Sysml2PathResolver
 
 /**
@@ -356,7 +357,8 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
         val (side, placement) = placements.getValue(portId.value)
         val resolved = resolvedByKey[portId.value]
         val labelText = labels.getValue(portId.value)
-        if (resolved?.direction != null && resolved.direction != PortDirection.InOut) {
+        val flowDirection = if (resolved != null && context != null) resolved.effectivePortDirection(context.model) else null
+        if (flowDirection != null) {
             // Inward unit vector (into the box) for the side the port sits on.
             val (ix, iy) =
                 when (side) {
@@ -365,8 +367,7 @@ private fun SvgBuilder.renderIbdBoundaryPorts(
                     Sysml2LayoutBridge.IbdSide.Top -> 0f to 1f
                     Sysml2LayoutBridge.IbdSide.Bottom -> 0f to -1f
                 }
-            val (dx, dy) = if (resolved.direction == PortDirection.In) ix to iy else -ix to -iy
-            appendDirectionTriangle(cx = px, cy = py, dx = dx, dy = dy)
+            appendPortFlowGlyph(cx = px, cy = py, inwardX = ix, inwardY = iy, direction = flowDirection)
         }
 
         val planned = context?.ibdPortLabels?.get("${usage.id}::${portId.value}")
@@ -513,14 +514,43 @@ internal fun SvgBuilder.appendPortLabel(
     }
 }
 
-/** Filled 6 px triangle at ([cx], [cy]) pointing along the unit vector ([dx], [dy]). */
+/**
+ * Flow glyph of a port (Nacharbeit 48, N-IBD-F f): a filled triangle pointing into the box for `in`, out of it for
+ * `out`, and two triangles base to base for `inout`. Carries `data-flow` and the class `kuml-ibd-port-flow`.
+ */
+internal fun SvgBuilder.appendPortFlowGlyph(
+    cx: Float,
+    cy: Float,
+    inwardX: Float,
+    inwardY: Float,
+    direction: PortDirection,
+) {
+    val flow =
+        when (direction) {
+            PortDirection.In -> "in"
+            PortDirection.Out -> "out"
+            PortDirection.InOut -> "inout"
+        }
+    when (direction) {
+        PortDirection.In -> appendDirectionTriangle(cx = cx, cy = cy, dx = inwardX, dy = inwardY, flow = flow)
+        PortDirection.Out -> appendDirectionTriangle(cx = cx, cy = cy, dx = -inwardX, dy = -inwardY, flow = flow)
+        PortDirection.InOut -> {
+            val r = 2f
+            appendDirectionTriangle(cx = cx + inwardX * r, cy = cy + inwardY * r, dx = inwardX, dy = inwardY, flow = flow, r = r)
+            appendDirectionTriangle(cx = cx - inwardX * r, cy = cy - inwardY * r, dx = -inwardX, dy = -inwardY, flow = flow, r = r)
+        }
+    }
+}
+
+/** Filled triangle (default 6 px) at ([cx], [cy]) pointing along the unit vector ([dx], [dy]). */
 internal fun SvgBuilder.appendDirectionTriangle(
     cx: Float,
     cy: Float,
     dx: Float,
     dy: Float,
+    flow: String? = null,
+    r: Float = 3f,
 ) {
-    val r = 3f
     val nx = -dy
     val ny = dx
     val tipX = cx + dx * r
@@ -529,14 +559,13 @@ internal fun SvgBuilder.appendDirectionTriangle(
     val b1y = cy - dy * r + ny * r
     val b2x = cx - dx * r - nx * r
     val b2y = cy - dy * r - ny * r
-    tag(
-        name = "polygon",
-        attrs =
-            mapOf(
-                "points" to "${fmt(tipX)},${fmt(tipY)} ${fmt(b1x)},${fmt(b1y)} ${fmt(b2x)},${fmt(b2y)}",
-                "class" to "kuml-sysml2-port-dir",
-            ),
-    )
+    val attrs =
+        mutableMapOf(
+            "points" to "${fmt(tipX)},${fmt(tipY)} ${fmt(b1x)},${fmt(b1y)} ${fmt(b2x)},${fmt(b2y)}",
+            "class" to if (flow == null) "kuml-sysml2-port-dir" else "kuml-sysml2-port-dir kuml-ibd-port-flow",
+        )
+    if (flow != null) attrs["data-flow"] = flow
+    tag(name = "polygon", attrs = attrs)
 }
 
 /** `name : Type` (`name : ~Type` for a conjugated port), wrapped (never cut) by the renderer. */

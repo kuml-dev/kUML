@@ -1484,8 +1484,31 @@ allocate("Controller", "Vehicle")
 ----
 
 Dotted paths exist only in the DSL; the model stores `Owner::part::port`. A conjugated port inverts
-`in` and `out` of its flow properties (`effectiveDirection`); the drawn triangle shows the declared
-direction, the conjugation is visible as `~Type` in the label.
+`in` and `out` of its flow properties (`effectiveDirection`); the conjugation is also visible as `~Type` in the label.
+
+In an IBD every drawn port carries a small flow glyph: a triangle pointing into the box for `in`, out of it for `out`,
+and two triangles base to base for `inout`. The direction is the declared `direction =` of the port usage; without
+one it is derived from the flow properties of the port definition (with conjugation applied, different directions give
+`inout`). A port without a direction and without flow properties has no glyph. In the SVG the triangles carry
+`data-flow="in|out|inout"` and the class `kuml-ibd-port-flow`.
+
+Boundary ports of the owner sit on the frame side the flow enters or leaves through:
+
+[cols="1,1,1,1,1"]
+|===
+| Port | flow down (default) | flow right | flow left | flow up
+
+| `in` | top | left | right | bottom
+| `out` | bottom | right | left | top
+| `inout` or no direction | nearest to the connected part | | |
+|===
+
+The flow is the `layout { direction = ... }` of the IBD. If the preferred side would force the connector through the
+part it ends on, the nearest side is used. Ports on one side keep the order of their connectors; ports at the same
+position keep their declaration order. Part ports keep the side of their connector.
+
+A connection that carries an item flow (`flow(..., via = ...)`, or the one connection that joins the same two ends)
+shows the item type below the connection label in the same label block, one line per flow.
 
 == IBD frame
 

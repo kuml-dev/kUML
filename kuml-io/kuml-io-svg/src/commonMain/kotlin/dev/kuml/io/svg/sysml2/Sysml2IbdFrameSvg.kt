@@ -7,8 +7,8 @@ import dev.kuml.layout.GroupLayout
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
-import dev.kuml.sysml2.PortDirection
 import dev.kuml.sysml2.PortUsage
+import dev.kuml.sysml2.effectivePortDirection
 
 /**
  * Draws the IBD owner frame (`kuml-ibd-frame`) with the title tab `ibd [part] Owner`. The tab is a pentagon
@@ -99,9 +99,9 @@ internal fun renderIbdOwnerPorts(
                         "class" to "kuml-port kuml-sysml2-port",
                     ),
             )
-            if (port.direction != null && port.direction != PortDirection.InOut) {
-                val (dx, dy) = if (port.direction == PortDirection.In) ix to iy else -ix to -iy
-                appendDirectionTriangle(cx = cx + padding, cy = cy + padding, dx = dx, dy = dy)
+            val flowDirection = port.effectivePortDirection(context.model)
+            if (flowDirection != null) {
+                appendPortFlowGlyph(cx = cx + padding, cy = cy + padding, inwardX = ix, inwardY = iy, direction = flowDirection)
             }
             appendPortLabel(placement = placement, text = label, offsetX = padding, offsetY = padding)
         }

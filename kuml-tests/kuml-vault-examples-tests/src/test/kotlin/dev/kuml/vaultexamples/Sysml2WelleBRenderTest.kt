@@ -99,8 +99,11 @@ class Sysml2WelleBRenderTest :
             svg shouldContain "id=\"Vehicle::fuelIn\""
             svg shouldContain "id=\"Vehicle::telemetry\""
             svg shouldContain "fuelIn : FuelPort"
-            // three directed ports get a triangle, the undirected one stays an empty square
-            count(svg, "class=\"kuml-sysml2-port-dir\"") shouldBe 3
+            // three declared ports get one triangle each; `telemetry` has no declared direction, but its port definition has
+            // flow properties in both directions, so it gets the `inout` glyph (two triangles, Nacharbeit 48)
+            count(svg, "data-flow=\"in\"") shouldBe 2
+            count(svg, "data-flow=\"out\"") shouldBe 1
+            count(svg, "data-flow=\"inout\"") shouldBe 2
             checkIbdGeometry(svg)
             // the tab is a pentagon inside the frame, not an overlapping rectangle
             svg shouldContain "class=\"kuml-ibd-frame-tab\""

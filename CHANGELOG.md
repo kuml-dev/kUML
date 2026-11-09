@@ -6,6 +6,47 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 48: IBD port order, owner port side, port flow glyph, item-flow label
+
+#### Why
+
+Four IBD items (N-IBD-F d, e, f, g), reproduced first with a generic Source / Sink / Frame model (`which kuml` pointed at the build):
+
+- d: not reproduced as a wrong order. In the fixture the ports followed their route coordinates, which differ. The code did, however, resolve equal coordinates by the port id (owner ports: always by id), not by declaration.
+- e: reproduced. With the default flow (down) the `in` owner ports sat on the right frame side and the `out` port on the left; the side came only from the position of the connected part port.
+- f: reproduced. A port whose direction comes only from the `flowProperty` of its `portDef` (no `direction =`) drew no triangle; `inout` never drew one.
+- g: not reproduced as an overlap in a PNG. Read from the code: the item-flow text of a mid-line arrow was drawn by `emitMidArrows` at fixed offsets, outside the label plan, so the planned connection label did not know it.
+
+#### Change
+
+- d: `ibdSpreadPorts` / `ibdSpreadPortsInFrames` take a `declarationIndex` (default empty, existing callers unchanged). Order along a side: coordinate (compared at 1 px), then declaration order (`ibdPortDeclarationOrder`: position of the port usage in `model.usages`), then the key. Both part port sites (`enrichIbdPortPositions`, `ibdContentFrame`) pass it. Owner ports are processed in declaration order instead of id order, so ports at the same coordinate keep it. Where a side is too short, the existing even distribution still wins over the declaration order.
+- e: `ibdPreferredOwnerSide(direction, flow)`: `in` on the entering side, `out` on the leaving side (down: top / bottom, right: left / right, left: right / left, up: bottom / top; `inout` and undirected ports keep the old placement). `placeOwnerPort` has a `prefer` parameter; the preferred side is used unless it is the excluded one (the connector would have to cross the part), then the nearest side as before. The diagram flow comes from `IbdDiagram.layout.direction` (default down).
+- f: `PortUsage.effectivePortDirection(model)` (declared direction wins; otherwise from the flow properties of the port definition with conjugation; different directions give `inout`; none gives `null`). Part ports and owner ports draw the glyph from it: the existing triangle for `in` / `out`, two triangles base to base for `inout`. The triangles carry `data-flow="in|out|inout"` and the class `kuml-ibd-port-flow` next to `kuml-sysml2-port-dir`.
+- g: `drawnLabelLines` appends the item-flow labels (one line per mid-line arrow, declaration order, after the connection label), so the label plan reserves one rectangle for both and the planned label draws both in one `data-label-rect` block. `emitMidArrows` draws only the arrows for a planned edge; without a plan (legacy path) it still draws the text at the arrow. `midArrows[].label` is unchanged (tests, LaTeX).
+- Handbook: `sysml2.adoc` (port glyph and owner port side).
+
+#### Verification
+
+- New: `EffectivePortDirectionTest` (5 cases, `kuml-metamodel-sysml2`), `Sysml2IbdPortOrderTest` (5 cases, `kuml-layout-bridge`: tie by declaration, coordinate first, declaration index, side table, preferred side and the excluded fallback), `Sysml2IbdPortOrderAndFlowSvgTest` (4 cases, `kuml-io-svg`, full ELK pipeline: glyph counts per `data-flow` including conjugation, `inout` and a plain port without glyph; owner port sides for down and right; owner ports at one coordinate in declaration order; item label in the one label block and nowhere else). The owner order test fails with the old `sortedBy { it.id }` (checked by reverting the line once).
+- Looked at as PNG with the local CLI before and after (fixture in the session scratchpad, not committed): in ports on top and out port at the bottom, triangles on the flow-property-only ports, `kb : Line` and `Water` in one block.
+- Changed expectation (intended): `Sysml2WelleBRenderTest` "ports" (vault-examples tests): the port `telemetry` has no declared direction, but its port definition has flow properties in both directions, so it now draws the `inout` glyph; the assertion counts the glyphs by `data-flow` instead of three triangles. No sample or golden file was edited.
+- Kotest note for test names: a name starting with `f:` or `x:` is a focus or disable prefix and silently skips the other tests of the spec.
+
+#### Not verified
+
+- Windows and Linux were not run (the worker-pool tests are flaky under load on Windows).
+- LaTeX: the LaTeX IBD renderer draws neither ports nor owner frames, so e and f do not apply there; g and the part port order share only the edge adapter. Parity for the flow glyph is a gap.
+- The effect of (d) on the vault examples is only what the full test runs showed; the PNGs of the examples were not looked at one by one.
+
+#### Not fixed
+
+- `side =` on a port (the author choosing the side) and binding a port to a side: new DSL API with builder, printer, round trip, LaTeX and handbook; not part of this wave. Part ports keep the side of the route.
+- Unconnected ports are not drawn at all (ports come from the wires), so their placement in declaration order has nothing to order.
+- No fallback for an owner port whose forced side makes the connector cross the owner frame. The only check is the part it connects to (excluded side). The routes of the forced ports can be long (an `in` port on the top frame side wired to a part below another part runs around it).
+- The 1 px tolerance only joins coordinates that round to the same pixel; ports on one side with distinct coordinates keep the order of the routes, not of the declaration. On a side that is too short the even distribution overrides the declaration order.
+- Item-flow labels now sit below the connection label (not at the arrows); two flows of the same item type give two identical lines.
+- Collisions of a label block with foreign edges, ports and part titles, duplicate labels with fan-out, collinear neighbour edges, P-IBD-08 (all need a real placement model).
+
 ### Nacharbeit 47: IBD attribute values, connection direction, flow double edge, owner frame
 
 #### Why

@@ -46,6 +46,7 @@ import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
+import dev.kuml.sysml2.PortDirection
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.SeqDiagram
@@ -63,6 +64,7 @@ import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.constraint.Sysml2StmChecker
 import dev.kuml.sysml2.edge.IbdEdgeAdapter
 import dev.kuml.sysml2.edge.ReqEdgeAdapter
+import dev.kuml.sysml2.effectivePortDirection
 import dev.kuml.sysml2.projection.sysml2BddBoxContent
 import dev.kuml.sysml2.projection.sysml2BddProjection
 import dev.kuml.sysml2.projection.sysml2IbdProjection
@@ -2837,6 +2839,7 @@ public object Sysml2LayoutBridge {
                     boxSize = size,
                     ports = ports.mapKeys { it.key.value },
                     labels = partLabels[nodeId] ?: emptyMap(),
+                    declarationIndex = ibdPortDeclarationOrder(model = model, nodeId = nodeId.value, keys = ports.keys.map { it.value }),
                 )
             for (k in ports.keys.toList()) ports[k] = spread.getValue(k.value)
         }
@@ -3037,13 +3040,22 @@ public object Sysml2LayoutBridge {
         ports: Map<String, Point>,
         labels: Map<String, String>,
         frameOf: (String) -> Rect?,
+        declarationIndex: Map<String, Int> = emptyMap(),
     ): Map<String, Point> {
-        if (ports.keys.all { frameOf(it) == null }) return ibdSpreadPorts(boxSize = boxSize, ports = ports, labels = labels)
+        if (ports.keys.all { frameOf(it) == null }) {
+            return ibdSpreadPorts(boxSize = boxSize, ports = ports, labels = labels, declarationIndex = declarationIndex)
+        }
         val spread = HashMap<String, Point>()
         val groups = ports.keys.groupBy { frameOf(it) }
         for ((frame, keys) in groups) {
             if (frame == null) {
-                spread += ibdSpreadPorts(boxSize = boxSize, ports = ports.filterKeys { it in keys }, labels = labels)
+                spread +=
+                    ibdSpreadPorts(
+                        boxSize = boxSize,
+                        ports = ports.filterKeys { it in keys },
+                        labels = labels,
+                        declarationIndex = declarationIndex,
+                    )
             } else {
                 val local =
                     keys.associateWith {
@@ -3052,7 +3064,7 @@ public object Sysml2LayoutBridge {
                             y = ports.getValue(it).y - frame.origin.y,
                         )
                     }
-                val done = ibdSpreadPorts(boxSize = frame.size, ports = local, labels = labels)
+                val done = ibdSpreadPorts(boxSize = frame.size, ports = local, labels = labels, declarationIndex = declarationIndex)
                 for ((k, p) in done) spread[k] = Point(x = p.x + frame.origin.x, y = p.y + frame.origin.y)
             }
         }
@@ -3185,17 +3197,40 @@ public object Sysml2LayoutBridge {
     }
 
     /**
+     * Declaration order of the ports of one part (Nacharbeit 48, N-IBD-F d): for every port key (`steps` joined by `::`)
+     * the position of its [dev.kuml.sysml2.PortUsage] in `model.usages`. Keys that do not resolve get no entry.
+     */
+    internal fun ibdPortDeclarationOrder(
+        model: Sysml2Model,
+        nodeId: String,
+        keys: Collection<String>,
+    ): Map<String, Int> {
+        val result = LinkedHashMap<String, Int>()
+        for (key in keys) {
+            val port =
+                dev.kuml.sysml2.projection.Sysml2PathResolver
+                    .resolve(model = model, ownerId = "", endpointId = "$nodeId::$key", visibleNodeIds = setOf(nodeId))
+                    ?.terminalPort ?: continue
+            val index = model.usages.indexOfFirst { it.id == port.id }
+            if (index >= 0) result[key] = index
+        }
+        return result
+    }
+
+    /**
      * Spreads the part ports of one box along their sides so that neighbouring ports keep a pitch of
      * `max(24, labelW + 8)` (top/bottom) or `max(24, lineH + 6)` (left/right). [ports] holds the local port centres
      * (on the box border), [labels] the label texts; [measure] is the text-width function (default: the estimate the
-     * renderer's label placement uses). Order along the side and the port keys decide ties, never insertion order of a
-     * hash map. If a side is too short for the requested pitch, the ports are distributed evenly over the side.
+     * renderer's label placement uses). Order along the side decides first (coordinates compared at 1 px); ports at the
+     * same coordinate keep their declaration order ([declarationIndex], Nacharbeit 48 N-IBD-F d) and then their keys,
+     * never the insertion order of a hash map. If a side is too short for the requested pitch, the ports are distributed evenly over the side.
      */
     public fun ibdSpreadPorts(
         boxSize: Size,
         ports: Map<String, Point>,
         labels: Map<String, String>,
         measure: (String) -> Float = { estimateLabelSize(text = it).width },
+        declarationIndex: Map<String, Int> = emptyMap(),
     ): Map<String, Point> {
         val half = IBD_PORT_SIZE_PX / 2f
         val out = LinkedHashMap(ports)
@@ -3205,7 +3240,13 @@ public object Sysml2LayoutBridge {
             val keys =
                 ports.keys
                     .filter { sides[it] == side }
-                    .sortedWith(compareBy({ if (horizontal) ports.getValue(it).x else ports.getValue(it).y }, { it }))
+                    .sortedWith(
+                        compareBy(
+                            { kotlin.math.round(if (horizontal) ports.getValue(it).x else ports.getValue(it).y) },
+                            { declarationIndex[it] ?: Int.MAX_VALUE },
+                            { it },
+                        ),
+                    )
             if (keys.size < 2) continue
             val length = if (horizontal) boxSize.width else boxSize.height
 
@@ -3730,16 +3771,48 @@ public object Sysml2LayoutBridge {
     private const val IBD_OWNER_PORT_CORNER_GAP_PX: Float = 16f
 
     /**
+     * Frame side an owner port of the given [direction] prefers (Nacharbeit 48, N-IBD-F e): `in` on the side the flow
+     * enters from, `out` on the side it leaves to, for the diagram flow [flow] (`null` = down). `inout` and undirected
+     * ports have no preference (`null`).
+     */
+    internal fun ibdPreferredOwnerSide(
+        direction: PortDirection?,
+        flow: dev.kuml.core.model.layout.LayoutFlow?,
+    ): IbdSide? {
+        val entering =
+            when (flow ?: dev.kuml.core.model.layout.LayoutFlow.Down) {
+                dev.kuml.core.model.layout.LayoutFlow.Down -> IbdSide.Top
+                dev.kuml.core.model.layout.LayoutFlow.Up -> IbdSide.Bottom
+                dev.kuml.core.model.layout.LayoutFlow.Right -> IbdSide.Left
+                dev.kuml.core.model.layout.LayoutFlow.Left -> IbdSide.Right
+            }
+        val leaving =
+            when (entering) {
+                IbdSide.Top -> IbdSide.Bottom
+                IbdSide.Bottom -> IbdSide.Top
+                IbdSide.Left -> IbdSide.Right
+                IbdSide.Right -> IbdSide.Left
+            }
+        return when (direction) {
+            PortDirection.In -> entering
+            PortDirection.Out -> leaving
+            PortDirection.InOut, null -> null
+        }
+    }
+
+    /**
      * Side and position of an owner port on the frame (PAL 2C-b1). The side is the frame side nearest to the box
      * [partBox] of the connected part(s) ([exclude] removes a side that would force the line through the part); ties
      * resolve in the order top, bottom, left, right. The coordinate along that side is the projection of the mean of the
-     * [targets] (centres of the connected part ports), kept at least 16 px away from the frame corners.
+     * [targets] (centres of the connected part ports), kept at least 16 px away from the frame corners. A [prefer]red side
+     * (the side of the port direction, see [ibdPreferredOwnerSide]) replaces the nearest side unless it is [exclude]d.
      */
     internal fun placeOwnerPort(
         frame: Rect,
         targets: List<Point>,
         partBox: Rect,
         exclude: IbdSide? = null,
+        prefer: IbdSide? = null,
     ): Pair<IbdSide, Float> {
         val l = frame.origin.x
         val t = frame.origin.y
@@ -3752,7 +3825,7 @@ public object Sysml2LayoutBridge {
                 IbdSide.Left to partBox.origin.x - l,
                 IbdSide.Right to r - (partBox.origin.x + partBox.size.width),
             ).filter { it.first != exclude }
-        val side = dists.minWith(compareBy({ kotlin.math.abs(it.second) })).first
+        val side = prefer?.takeIf { it != exclude } ?: dists.minWith(compareBy({ kotlin.math.abs(it.second) })).first
         val vertical = side == IbdSide.Top || side == IbdSide.Bottom
         val mean = if (vertical) targets.map { it.x }.average().toFloat() else targets.map { it.y }.average().toFloat()
         val lo = (if (vertical) l else t) + IBD_OWNER_PORT_CORNER_GAP_PX
@@ -3919,6 +3992,7 @@ public object Sysml2LayoutBridge {
                     ports = m,
                     labels = labelTexts[nodeId] ?: emptyMap(),
                     frameOf = frameOfPort(nodeId),
+                    declarationIndex = ibdPortDeclarationOrder(model = model, nodeId = nodeId.value, keys = m.keys),
                 )
             for (k in m.keys.toList()) m[k] = spread.getValue(k)
         }
@@ -4040,7 +4114,9 @@ public object Sysml2LayoutBridge {
             return Triple(Point(x = box.l + local.x, y = box.t + local.y), side, nodeId)
         }
         val places = mutableListOf<OwnerPlace>()
-        for (port in projection.boundaryPorts.sortedBy { it.id }) {
+        // Nacharbeit 48 (N-IBD-F d): declaration order, so that ports at the same coordinate keep it (not the id order).
+        val ownerDeclaration = projection.boundaryPorts.associate { p -> p.id to model.usages.indexOfFirst { it.id == p.id } }
+        for (port in projection.boundaryPorts.sortedWith(compareBy({ ownerDeclaration.getValue(it.id) }, { it.id }))) {
             val id = NodeId(port.id)
             var cp: Point? = null
             var cpSide: IbdSide? = null
@@ -4090,6 +4166,7 @@ public object Sysml2LayoutBridge {
                     targets = targets.ifEmpty { listOf(Point(x = ex, y = ey)) },
                     partBox = partBox,
                     exclude = forbidden,
+                    prefer = ibdPreferredOwnerSide(direction = port.effectivePortDirection(model), flow = diagram.layout?.direction),
                 )
             places +=
                 OwnerPlace(
