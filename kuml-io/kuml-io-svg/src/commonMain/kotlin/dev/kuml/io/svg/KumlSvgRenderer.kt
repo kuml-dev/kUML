@@ -2142,6 +2142,7 @@ public object KumlSvgRenderer {
         fitViewBox: Boolean = false,
         suppressLabelEdgeIds: Set<String> = emptySet(),
         labelFrameStrips: Boolean = false,
+        reqLabelPolicy: Boolean = false,
     ): String {
         // Widen the frame (and canvas) BEFORE computing anything padding-relative
         // below, so every subsequent step already sees the final geometry — see
@@ -2370,6 +2371,7 @@ public object KumlSvgRenderer {
                         allRoutes = shiftedRoutes,
                         obstacles = nodeRects,
                         hardObstacles = frameObstacles,
+                        preferSourceEnd = reqLabelPolicy,
                         backdropFor = { r ->
                             val cx = r.origin.x + r.size.width / 2f
                             val cy = r.origin.y + r.size.height / 2f
@@ -2897,6 +2899,7 @@ public object KumlSvgRenderer {
             synthetic = synthetic,
             suppressLabelEdgeIds = satisfyLabelSuppressed,
             labelFrameStrips = true,
+            reqLabelPolicy = true,
             rawLayoutResult = placeSysml2Notes(model = model, diagram = diagram, layout = layoutResult, adapter = ReqEdgeAdapter(diagram)),
             theme = theme,
             options = options,

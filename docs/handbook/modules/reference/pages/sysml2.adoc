@@ -410,6 +410,9 @@ sysml2Model(name = "VehicleRequirements") {
 
 === Requirement attributes, test cases, groups and relationships
 
+A source that satisfies several requirements carries one `<<satisfy>>` label; it sits just after the satisfier box and
+never covers the text of a requirement box.
+
 `requirementDef` accepts `priority` (`HIGH`, `MEDIUM`, `LOW`), `status` (`DRAFT` ... `VERIFIED`), `source`,
 `isAssumption = true` (dashed border, `<<assumption>>`) and `subjectRef` (the id of the constrained element;
 the card shows a line `subject: <Name>`). Since wave 2E-a a `<<subject>>` edge is drawn only with

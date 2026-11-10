@@ -538,7 +538,8 @@ internal object Sysml2EdgeRenderer {
      * Places and draws the [pending] labels of REQ / UC / ACT edges (wave C2b): each label is centred on the
      * longest free segment of its own line, on an opaque backdrop chosen by [backdropFor] (box centre ->
      * colour). [allRoutes] are all drawn edges in canvas coordinates, [obstacles] node rectangles to avoid.
-     * Painted as one group after every edge, so no later line runs over a label.
+     * Painted as one group after every edge, so no later line runs over a label. With [preferSourceEnd] (requirement
+     * diagrams only, Nacharbeit 59) a label sits just after the source end of its line and never covers box text.
      */
     internal fun emitLabelsOnLine(
         pending: List<PendingEdgeLabel>,
@@ -547,6 +548,7 @@ internal object Sysml2EdgeRenderer {
         backdropFor: (dev.kuml.layout.Rect) -> String,
         builder: SvgBuilder,
         hardObstacles: List<dev.kuml.layout.Rect> = emptyList(),
+        preferSourceEnd: Boolean = false,
     ) {
         if (pending.isEmpty()) return
 
@@ -584,6 +586,7 @@ internal object Sysml2EdgeRenderer {
                 allRoutes = allRoutes.mapValues { polylinePoints(it.value) },
                 obstacles = obstacles,
                 hardObstacles = hardObstacles,
+                preferSourceEnd = preferSourceEnd,
             )
         builder.tag(name = "g", attrs = mapOf("class" to "kuml-edge-labels")) {
             for (id in placed.keys.sorted()) {

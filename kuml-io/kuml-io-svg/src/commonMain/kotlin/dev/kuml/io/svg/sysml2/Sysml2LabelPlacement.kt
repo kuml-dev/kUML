@@ -43,6 +43,7 @@ internal object Sysml2LabelPlacement {
         allRoutes: Map<String, List<Point>>,
         obstacles: List<Rect>,
         hardObstacles: List<Rect> = emptyList(),
+        preferSourceEnd: Boolean = false,
     ): Map<String, Rect> {
         val segs = ArrayList<Seg>()
         for ((id, pl) in allRoutes.entries.sortedBy { it.key }) {
@@ -57,7 +58,21 @@ internal object Sysml2LabelPlacement {
             val order = own.sortedWith(compareBy({ if (isAxis(it)) 0 else 1 }, { -length(it) })).take(MAX_SEGMENTS)
             var best: Rect? = null
             var bestCost = Float.MAX_VALUE
-            search@ for (seg in order) {
+            if (preferSourceEnd) {
+                // Source-end candidates first, then the usual longest-segment candidates as fallback; one cost model.
+                val all = sourceEndCandidates(req = req) + order.flatMap { candidates(seg = it, req = req) }
+                for (c in all) {
+                    if (++iter > MAX_ITER) break
+                    val cost =
+                        costSourceEnd(r = c, req = req, segs = segs, obstacles = obstacles, placed = placed.values) +
+                            (if (hardObstacles.any { overlaps(a = c, b = it) }) HARD_COST else 0f)
+                    if (cost < bestCost) {
+                        bestCost = cost
+                        best = c
+                    }
+                }
+            }
+            search@ for (seg in if (preferSourceEnd) emptyList() else order) {
                 for (c in candidates(seg = seg, req = req)) {
                     if (++iter > MAX_ITER) break@search
                     val cost =
@@ -211,6 +226,65 @@ internal object Sysml2LabelPlacement {
             val cy = seg.a.y + uy * t
             Rect(origin = Point(x = cx - req.w / 2f, y = cy - req.h / 2f), size = dev.kuml.layout.Size(width = req.w, height = req.h))
         }
+    }
+
+    /**
+     * Nacharbeit 59 (opt-in, `preferSourceEnd`): candidates along the label's own polyline starting at the source end
+     * (`points[0]`): centres at arc length `12 + along/2 + k * (along + GAP)`, k = 0..5, kept only where the centre
+     * lies inside the usable range of its segment. Order: arc length ascending.
+     */
+    private fun sourceEndCandidates(req: LabelRequest): List<Rect> {
+        val pl = req.polyline
+        val out = ArrayList<Rect>()
+        var base = 0f
+        for (i in 0 until min(pl.size - 1, MAX_SEGMENTS)) {
+            val a = pl[i]
+            val b = pl[i + 1]
+            val len = sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y))
+            if (len < 0.01f) continue
+            val ux = (b.x - a.x) / len
+            val uy = (b.y - a.y) / len
+            val along = abs(ux) * req.w + abs(uy) * req.h
+            val lo = min(along / 2f + END_MARGIN, len / 2f)
+            val hi = max(len - along / 2f - END_MARGIN, len / 2f)
+            for (k in 0..5) {
+                val s = END_MARGIN + along / 2f + k * (along + GAP)
+                val t = s - base
+                if (t in lo..hi) {
+                    val cx = a.x + ux * t
+                    val cy = a.y + uy * t
+                    out +=
+                        Rect(
+                            origin = Point(x = cx - req.w / 2f, y = cy - req.h / 2f),
+                            size = dev.kuml.layout.Size(width = req.w, height = req.h),
+                        )
+                }
+            }
+            base += len
+        }
+        return out
+    }
+
+    private fun costSourceEnd(
+        r: Rect,
+        req: LabelRequest,
+        segs: List<Seg>,
+        obstacles: List<Rect>,
+        placed: Collection<Rect>,
+    ): Float {
+        var cost = 0f
+        val ir = inflate(r = r, d = INFLATE)
+        for (p in placed) if (overlaps(a = ir, b = p)) cost += 100f
+        for (o in obstacles) if (overlaps(a = ir, b = o)) cost += 400f
+        for (s in segs) {
+            if (s.edge == req.id) continue
+            if (segIntersects(p = s.a, q = s.b, r = ir)) cost += 20f
+        }
+        val src = req.polyline.first()
+        val cx = r.origin.x + r.size.width / 2f
+        val cy = r.origin.y + r.size.height / 2f
+        cost += 0.05f * sqrt((cx - src.x) * (cx - src.x) + (cy - src.y) * (cy - src.y))
+        return cost
     }
 
     private fun cost(

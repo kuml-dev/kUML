@@ -6,6 +6,33 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 59: requirement diagram: «satisfy» label sits at the satisfier and never covers box text
+
+**Why.** In a bundle of `satisfy` edges the label was centred on the longest segment, i.e. far from the satisfier, and
+a label that crossed two foreign lines (+40) lost against one that covered the title of a requirement box (+10), so box
+text could be hidden (PAL-FB-054).
+
+**Change.** `Sysml2LabelPlacement.placeAll` has a new opt-in parameter `preferSourceEnd` (default `false`, so use-case,
+activity, parametric and package diagrams are unchanged). With it, candidates start at the source end of the label's own
+line, node overlap costs 400 instead of 10, and a small distance term (0.05 per px) pulls the label towards the satisfier;
+frame strips stay hard obstacles and a label is never dropped. Only `toSvg(ReqDiagram)` switches it on
+(`reqLabelPolicy`). Handbook sentence added in `sysml2.adoc`.
+
+**Verification.** New `Sysml2ReqSatisfyLabelPolicyTest` (source end, no box overlap, off frame strips) and
+`Sysml2LabelPlacementSourceEndTest` (pure geometry, never dropped, default identical). Rendered a requirement diagram with
+two satisfiers and two groups before and after with the local CLI: both labels moved to the satisfier end.
+
+**Not verified.** Linux and Windows runs.
+
+**Not fixed.**
+- Parallel `satisfy` bundles across frames and notes: they come from node placement; changing `PITCH_PX` or `ReqEdgeBands`
+  would move goldens and vault examples.
+- The partDef column far from its requirements (column assignment in `ReqGroupGrid`, own wave).
+- Contains bundles across note text (routing-caused, not touched).
+- "Parent below children": not reproducible. Contains edges are already fed parent to child into the layout, and the
+  reproduction fixture drew the parent above its children, so no orientation fix applies.
+- No golden or vault example changed.
+
 ### Nacharbeit 58: state machine: explicit aspectRatio / maxWidth may rotate the flow, edges into composite children avoid the header texts
 
 **Why.** Three findings from the design team's generic state-machine fixtures: (a) `aspectRatio` / `maxWidth` had no effect on a chain or cycle (one state per layer, so wrapping has nothing to wrap), (b) a cycle Off -> Running -> Stopped -> Off drawn with the flow reversed and the start at the bottom, (e) an edge into a child of a composite state ran straight through the composite's title and its `entry` / `exit` / invariant lines.
