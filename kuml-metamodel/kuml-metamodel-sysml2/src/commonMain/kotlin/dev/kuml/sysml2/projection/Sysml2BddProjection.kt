@@ -39,7 +39,7 @@ data class BddProjection(
     /** Feature ids drawn as an edge or an own compartment (or not drawn at all, like flows) instead of a feature line. */
     val hiddenFeatureIds: Set<String>,
     val actionsByDef: Map<String, List<String>>,
-    /** `<direction> <name> : <Type>` lines of the flow properties carried by the ports of a block (`flows` compartment). */
+    /** `<direction> <port>.<flow> : <Type>` lines of the flow properties carried by the ports of a block (`flows` compartment). */
     val flowsByDef: Map<String, List<String>>,
     /** `<analysisId>::<calcName>` of the calcs drawn as a composition edge (wave 2I-b); they leave the `calcs` compartment. */
     val drawnCalcs: Set<String> = emptySet(),
@@ -81,7 +81,7 @@ fun sysml2BddProjection(
                             sourceId = def.id,
                             targetId = target,
                             label = u.name,
-                            endLabel = if (mult == "1") null else mult,
+                            endLabel = mult,
                         )
                 }
                 is dev.kuml.sysml2.FlowUsage -> hidden += u.id
@@ -98,16 +98,20 @@ fun sysml2BddProjection(
         val lines = linkedSetOf<String>()
         for (p in model.usages.filterIsInstance<PortUsage>()) {
             if (!p.id.startsWith(ownPrefix) || p.id.removePrefix(ownPrefix).contains("::")) continue
+            var portHasFlows = false
             for (fp in model.usages.filterIsInstance<FlowPropertyUsage>()) {
                 if (!fp.id.startsWith("${p.definitionId}::")) continue
+                portHasFlows = true
                 val dir =
                     when (effectiveDir(p = p, fp = fp)) {
                         PortDirection.In -> "in"
                         PortDirection.Out -> "out"
                         PortDirection.InOut -> "inout"
                     }
-                lines += "$dir ${fp.name} : ${defById[fp.definitionId]?.name ?: fp.definitionId}"
+                lines += "$dir ${p.name}.${fp.name} : ${defById[fp.definitionId]?.name ?: fp.definitionId}"
             }
+            // The flow lines already carry the port name, so the plain port row would show the port twice.
+            if (portHasFlows) hidden += p.id
         }
         if (lines.isNotEmpty()) flows[def.id] = lines.take(BddProjection.MAX_COMPARTMENT_LINES)
     }

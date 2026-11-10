@@ -137,13 +137,14 @@ class Sysml2WelleBRenderTest :
             svg shouldContain "burn()"
             // rows of drawn composition edges are gone from the Vehicle box
             svg shouldNotContain "engine : Engine"
-            // flows compartment carries `<dir> <name> : <Type>`; the old signals compartment (type names only) is gone
-            svg shouldContain "out fuel : Mass"
+            // flows compartment carries `<dir> <port>.<flow> : <Type>` (Nacharbeit 52); the old signals compartment (type names only) is gone
+            svg shouldContain "out fuelPort.fuel : Mass"
             Regex(">\\s*flows\\s*<").containsMatchIn(svg) shouldBe true
             Regex(">\\s*signals\\s*<").containsMatchIn(svg) shouldBe false
             // the port is named `fuelPort`, so the direction word is no longer doubled (`out out`)
             svg shouldNotContain "out out :"
-            svg shouldContain "out fuelPort : FuelPort"
+            // the port has a flow property, so its plain row is replaced by the flow line (Nacharbeit 52)
+            svg shouldNotContain "out fuelPort : FuelPort"
             svg shouldContain "A vehicle owns its engine."
         }
     })

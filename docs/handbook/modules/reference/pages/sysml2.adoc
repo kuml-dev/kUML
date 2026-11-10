@@ -1564,7 +1564,10 @@ ends are visible; the matching rows leave the feature compartment. Blocks show `
   separator whatever the locale). The older `default = 1500.kg` form shows as `1500 kg` too. `kuml validate` reports a
   default whose unit differs from the type's unit (501) and an enumeration default that is not a literal (502, 503).
   New unit constants and literals: `Unit.PASCAL` (`5.Pa`), `Unit.CELSIUS` (`21.degC`, symbol `°C`), `Unit.MILLIAMPERE`
-  (`4.mA`); any other symbol works with `attributeDef(unitSymbol = "bar")`.
+  (`4.mA`); any other symbol works with `attributeDef(unitSymbol = "bar")`. A `unitSymbol` is a fixed symbol and is
+  printed as written for one and for many (`1 Tür`, `4 Tür`); it is never inflected, so give the singular or symbol form.
+* **Ports with flow properties:** the port row is replaced by one `<dir> <port>.<flow> : <Type>` line per flow property
+  (`in fuelIn.fuel : Mass`), so the port is not listed twice. A port without flow properties keeps its normal row.
 * **Enumerations:** `enumerationDef("Colour") { literal("Red"); literal("Green") }` is drawn as `<<enumeration>>` with one
   literal compartment (at most 64 literals); `attribute("colour", colour.id, defaultLiteral = "Red")` shows
   `colour : Colour = Red`. A `defaultLiteral` is shown verbatim (no number or unit normalisation), while a numeric
@@ -1572,7 +1575,7 @@ ends are visible; the matching rows leave the feature compartment. Blocks show `
 * **Action definitions** in a BDD are blocks with `<<action def>>`. An `allocate` edge docks at the line of the
   allocated action in the `actions` compartment of the target block when the flow is `Right` or `Left`.
 * **Roles and multiplicities:** the role name of a composition or reference is a label in the middle of the line (placed
-  by the label placer, never stacked at the target); the multiplicity (`1` is not drawn) stays at the target end.
+  by the label placer, never stacked at the target); the multiplicity stays at the target end and is always drawn, `1` included.
 * **`refPart`** is a reference: a plain line with an open arrow at the referenced block, no diamond. (Until now it was
   drawn as an open diamond, which UML reserves for shared aggregation.)
 * **Generalisation:** a block with three or more specialisations that has no other edge is placed centred above (flow

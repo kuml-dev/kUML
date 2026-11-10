@@ -51,7 +51,9 @@ class Sysml2PortSvgTest :
                     groups = emptyMap(),
                 )
             val svg = KumlSvgRenderer.toSvg(model = model, diagram = d, layoutResult = layout, theme = PlainTheme())
-            svg shouldContain "in p : ~P"
+            // a port with flow properties is listed once, as flow lines naming the port (Nacharbeit 52)
+            svg shouldContain "in p.f : Mass"
+            svg shouldNotContain "~P"
             svg shouldContain "actions"
             svg shouldContain "unit = k&lt;g&gt;"
             svg shouldNotContain "<b>"

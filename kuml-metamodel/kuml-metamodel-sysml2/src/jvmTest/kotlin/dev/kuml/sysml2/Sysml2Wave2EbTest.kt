@@ -188,6 +188,13 @@ class Sysml2Wave2EbTest :
             Unit(symbol = "bar", longName = "bar", quantityKind = "Pressure").toString() shouldBe "bar"
         }
 
+        test("formatAttributeValue: a unit symbol is printed verbatim and never inflected for one or many (Nacharbeit 52)") {
+            formatAttributeValue(raw = "1", typeUnit = "Tür") shouldBe "1${NBSP}Tür"
+            formatAttributeValue(raw = "4", typeUnit = "Tür") shouldBe "4${NBSP}Tür"
+            formatAttributeValue(raw = "1.0", typeUnit = "mol") shouldBe "1${NBSP}mol"
+            (formatAttributeValue(raw = "1", typeUnit = "Tür") == "1${NBSP}Türen") shouldBe false
+        }
+
         test("formatAttributeValue: integral numbers lose .0, the unit comes from the type, NBSP, ASCII minus, locale independent") {
             val saved = java.util.Locale.getDefault()
             try {
@@ -279,7 +286,8 @@ class Sysml2Wave2EbTest :
             edges.getValue("agg:Hub::pumps").kind shouldBe BddEdgeKind.Reference
             edges.getValue("agg:Hub::pumps").label shouldBe "pumps"
             edges.getValue("agg:Hub::pumps").endLabel shouldBe "1..*"
-            edges.getValue("comp:Hub::tank").endLabel shouldBe null
+            // multiplicity 1 is shown too (Nacharbeit 52)
+            edges.getValue("comp:Hub::tank").endLabel shouldBe "1"
             val adapter = BddEdgeAdapter(model = m, diagram = d)
             adapter.metadataFor("agg:Hub::pumps")!!.arrowHead shouldBe Sysml2ArrowHead.OpenAngle
             adapter.metadataFor("agg:Hub::pumps")!!.headAtSource shouldBe false

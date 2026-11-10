@@ -6,6 +6,40 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 52: BDD edge multiplicity 1 drawn, flow port listed once, unit symbols documented as fixed
+
+#### Why
+
+N-BDD-B/C parts (a), (f), (h). Reproduction used generic fixtures (`Door`, `DoorLock`, `Pump`, `FuelPort`).
+
+- (h): `Sysml2BddProjection` suppressed the end label when the multiplicity was `1`, so some edges showed a multiplicity and some did not.
+- (f): a port whose definition carries flow properties was drawn twice, as a port row and as a flow line.
+- (a): kUML builds no plural anywhere; `formatAttributeValue` prints `<number><NBSP><unit>` with the unit exactly as given (`unitSymbol` of the attribute definition or the `[..]` suffix). A plural such as `Türen` therefore comes from the symbol the model author wrote.
+
+#### Change
+
+- (h) Composition and reference edges always carry their multiplicity as end label, `1` included. Analysis-case compositions and `«subject»` edges still have none. Text feature lines do not show `[1]` (unchanged).
+- (f) For a port with at least one flow property, the port row is dropped (the port id joins `hiddenFeatureIds`) and the flow lines now read `<dir> <port>.<flow> : <Type>`, e.g. `in fuelIn.fuel : Mass`. Ports without flow properties keep their row. The conjugation sign `~` is no longer shown for such a port (deliberate, the effective direction of the flow line already reflects it).
+- (a) No code change: the unit symbol stays verbatim. Pinned by a test; handbook states that `unitSymbol` is never inflected.
+- Handbook `sysml2.adoc`: unit symbol sentence, port flow line format, always-visible edge multiplicity.
+- Changed tests: `Sysml2Wave2EbTest` (composition with multiplicity 1 now has end label `"1"`), `PortsFlowsProjectionTest` (flow line format, hidden port ids). Vault example sources were not edited.
+
+#### Verification
+
+See the commit message for the build and test results. New tests: projection level (`PortsFlowsProjectionTest`), SVG text nodes (`Sysml2BddSvgTest`), `formatAttributeValue` (`Sysml2Wave2EbTest`).
+
+#### Not verified
+
+- Real glyph width; Intel Mac and Windows.
+- LaTeX BDD: `kuml-io-latex` does not use `BddProjection`, so it is unaffected by (f) and (h) and still shows the old double port line and no edge labels. Not changed, not in scope.
+
+#### Not fixed
+
+- `unitPlural` or any singular/plural distinction for units (would need a new DSL, metamodel, JSON and printer field).
+- Placement of edge labels beyond (h); flow lines of a hidden port are still capped by `MAX_COMPARTMENT_LINES`.
+- N-BDD-B/C (b), (c), (d), (e), (g) and P-BDD-04 to 06.
+- Vault examples whose render changed (a BDD composition of multiplicity 1 now shows a `1`): see the build result in the commit message.
+
 ### Nacharbeit 51: BDD box width includes the attribute value, `defaultLiteral` shown verbatim
 
 #### Why

@@ -143,12 +143,12 @@ class PortsFlowsProjectionTest :
             proj.edges.map { it.id } shouldContain "agg:Vehicle::tank"
             proj.hiddenFeatureIds shouldContain "Vehicle::engine"
             // flows carry the flow-property name and its TYPE: `<dir> <name> : <Type>` (conjugation flips the direction)
-            proj.flowsByDef["Tank"] shouldBe listOf("in fuel : Fuel", "out exhaust : Fuel")
-            proj.flowsByDef["Engine"] shouldBe listOf("out fuel : Fuel", "in exhaust : Fuel")
+            proj.flowsByDef["Tank"] shouldBe listOf("in outlet.fuel : Fuel", "out outlet.exhaust : Fuel")
+            proj.flowsByDef["Engine"] shouldBe listOf("out injector.fuel : Fuel", "in injector.exhaust : Fuel")
             // BDD showing only Vehicle keeps all lines (targets invisible)
             val only = sysml2BddProjection(model = m, diagram = dev.kuml.sysml2.BdDiagram(name = "b", elementIds = listOf("Vehicle")))
             only.edges.shouldBeEmpty()
-            only.hiddenFeatureIds shouldBe setOf("Vehicle::flow1")
+            only.hiddenFeatureIds shouldBe setOf("Vehicle::flow1", "Vehicle::fuelIn")
         }
 
         test("bdd box content: direction word appears exactly once, flows replace the old signals compartment") {
@@ -161,9 +161,55 @@ class PortsFlowsProjectionTest :
             val proj =
                 sysml2BddProjection(model = m, diagram = dev.kuml.sysml2.BdDiagram(name = "b", elementIds = listOf("Engine", "Mass")))
             val content = sysml2BddBoxContent(model = m, def = m.definitions.first { it.id == "Engine" }, projection = proj)
-            content.featureLines shouldBe listOf("out out : FuelPort")
-            content.flows shouldBe listOf("in fuel : Mass")
+            // the port row is replaced by the flow line, which names the port (Nacharbeit 52)
+            content.featureLines shouldBe emptyList()
+            content.flows shouldBe listOf("in out.fuel : Mass")
             content.flows.none { it == "Mass" } shouldBe true
+        }
+
+        test("bdd projection: a port without flow properties keeps its row, a port with flows is hidden (Nacharbeit 52)") {
+            val m =
+                sysml2Model(name = "B") {
+                    attributeDef(name = "Mass")
+                    portDef(name = "FuelPort") { flowProperty(name = "fuel", typeId = "Mass", direction = PortDirection.In) }
+                    portDef(name = "PlainPort")
+                    partDef(name = "Pump") {
+                        port(name = "fuelIn", typeId = "FuelPort", direction = PortDirection.In)
+                        port(name = "ctrl", typeId = "PlainPort", direction = PortDirection.In)
+                    }
+                }
+            val proj =
+                sysml2BddProjection(
+                    model = m,
+                    diagram = dev.kuml.sysml2.BdDiagram(name = "b", elementIds = listOf("Pump", "Mass", "FuelPort", "PlainPort")),
+                )
+            proj.flowsByDef["Pump"] shouldBe listOf("in fuelIn.fuel : Mass")
+            proj.hiddenFeatureIds shouldContain "Pump::fuelIn"
+            proj.hiddenFeatureIds.contains("Pump::ctrl") shouldBe false
+            val content = sysml2BddBoxContent(model = m, def = m.definitions.first { it.id == "Pump" }, projection = proj)
+            content.featureLines shouldBe listOf("in ctrl : PlainPort")
+        }
+
+        test("bdd projection: multiplicity 1 is an end label on composition and reference edges (Nacharbeit 52)") {
+            val m =
+                sysml2Model(name = "M") {
+                    val lock = partDef(name = "DoorLock")
+                    val ctl = partDef(name = "Ctl")
+                    val door =
+                        partDef(name = "Door") {
+                            part(name = "lock", typeId = lock.id)
+                            refPart(name = "ctl", typeId = ctl.id)
+                        }
+                    bdd(name = "B") {
+                        include(door)
+                        include(lock)
+                        include(ctl)
+                    }
+                }
+            val d = m.diagrams.filterIsInstance<dev.kuml.sysml2.BdDiagram>().single()
+            val edges = sysml2BddProjection(model = m, diagram = d).edges.associateBy { it.id }
+            edges.getValue("comp:Door::lock").endLabel shouldBe "1"
+            edges.getValue("agg:Door::ctl").endLabel shouldBe "1"
         }
 
         test("allocate validates targets and prints back") {

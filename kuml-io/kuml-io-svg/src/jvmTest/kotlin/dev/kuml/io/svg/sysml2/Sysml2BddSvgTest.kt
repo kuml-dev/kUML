@@ -19,7 +19,9 @@ import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.PartDefinition
+import dev.kuml.sysml2.PortDirection
 import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.sysml2.dsl.sysml2Model
 import dev.kuml.sysml2.projection.DEFAULT_LITERAL_META_KEY
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
@@ -237,6 +239,65 @@ class Sysml2BddSvgTest :
             // The edge uses the default `kuml-edge` style — fallback path; the
             // SysML-2-specific Generalisation arrow lives in a follow-up V2.x wave.
             SampleOutput.write(filename = "sysml2-bdd/specialisation.svg", content = svg)
+        }
+
+        "multiplicity 1 and 4 are both drawn at the edge end, a flow port shows once as a flow line (Nacharbeit 52)" {
+            val model =
+                sysml2Model(name = "N52") {
+                    attributeDef(name = "Mass")
+                    portDef(name = "FuelPort") { flowProperty(name = "fuel", typeId = "Mass", direction = PortDirection.In) }
+                    val lock = partDef(name = "DoorLock")
+                    val ctl = partDef(name = "Ctl")
+                    partDef(name = "Pump") { port(name = "fuelIn", typeId = "FuelPort", direction = PortDirection.In) }
+                    val door =
+                        partDef(name = "Door") {
+                            part(name = "lock", typeId = lock.id)
+                            part(name = "ctl", typeId = ctl.id, multiplicity = KermlMultiplicity(lower = 4, upper = 4))
+                        }
+                    bdd(name = "B") {
+                        include(door)
+                        include(lock)
+                        include(ctl)
+                    }
+                }
+            val bdd = BdDiagram(name = "B", elementIds = listOf("Door", "DoorLock", "Ctl", "Pump", "Mass"))
+
+            fun box(
+                x: Float,
+                y: Float,
+            ) = NodeLayout(bounds = Rect(origin = Point(x = x, y = y), size = Size(width = 160f, height = 70f)))
+
+            val layout =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = 1L,
+                    canvas = Size(width = 620f, height = 400f),
+                    nodes =
+                        mapOf(
+                            NodeId("Door") to box(x = 220f, y = 20f),
+                            NodeId("DoorLock") to box(x = 40f, y = 200f),
+                            NodeId("Ctl") to box(x = 400f, y = 200f),
+                            NodeId("Pump") to box(x = 220f, y = 300f),
+                            NodeId("Mass") to box(x = 440f, y = 300f),
+                        ),
+                    edges =
+                        mapOf(
+                            EdgeId("comp:Door::lock") to
+                                EdgeRoute.Direct(source = Point(x = 260f, y = 90f), target = Point(x = 120f, y = 200f)),
+                            EdgeId("comp:Door::ctl") to
+                                EdgeRoute.Direct(source = Point(x = 340f, y = 90f), target = Point(x = 480f, y = 200f)),
+                        ),
+                    groups = emptyMap(),
+                )
+
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = bdd, layoutResult = layout, theme = PlainTheme())
+
+            SampleOutput.write(filename = "sysml2-bdd/multiplicity-one-and-flow-port.svg", content = svg)
+            val texts = Regex("""<text[^>]*>([^<]*)</text>""").findAll(svg).map { it.groupValues[1].trim() }.toList()
+            texts.count { it == "1" } shouldBe 1
+            texts.count { it == "4" } shouldBe 1
+            texts.count { it == "in fuelIn.fuel : Mass" } shouldBe 1
+            texts.none { it.contains("fuelIn : FuelPort") } shouldBe true
         }
 
         "deterministic output — same input renders byte-identically" {
