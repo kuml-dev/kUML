@@ -2430,8 +2430,7 @@ public object Sysml2LayoutBridge {
                         )
                     }
                     ActivityNodeKind.AcceptTimeEvent.name -> {
-                        val label = def?.timeExpression?.takeIf { it.isNotBlank() } ?: def?.name.orEmpty()
-                        val lines = ActTextWrap.timeLines(label)
+                        val lines = ActTextWrap.timeEventLines(name = def?.name, time = def?.timeExpression).all
                         val labelW = lines.maxOf { it.length } * ACT_LABEL_CHAR_PX + 8f
                         dev.kuml.layout.Size(
                             width = maxOf(labelW.coerceAtLeast(ACT_TIME_EVENT_W), ACT_TIME_EVENT_W),

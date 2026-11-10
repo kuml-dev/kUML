@@ -258,6 +258,77 @@ class Sysml2ActSvgTest :
             SampleOutput.write(filename = "sysml2-act/order-initial.svg", content = svg)
         }
 
+        fun groupOf(
+            svg: String,
+            id: String,
+        ): String {
+            val start = svg.indexOf("<g id=\"$id\"")
+            check(start >= 0) { "no group $id" }
+            return svg.substring(start, svg.indexOf("</g>", startIndex = start))
+        }
+
+        fun timeEventSvg(
+            name: String,
+            time: String,
+        ): String {
+            val model =
+                sysml2Model(name = "T") {
+                    val t = acceptTimeEvent(name = name, time = time)
+                    actDiagram(name = "Timer") { include(t) }
+                }
+            val act = model.diagrams.filterIsInstance<ActDiagram>().single()
+            val id = name
+            val layout =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = 1L,
+                    canvas = Size(width = 300f, height = 200f),
+                    nodes =
+                        mapOf(
+                            NodeId(id) to
+                                NodeLayout(bounds = Rect(origin = Point(x = 50f, y = 50f), size = Size(width = 100f, height = 60f))),
+                        ),
+                    edges = emptyMap(),
+                    groups = emptyMap(),
+                )
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = layout, theme = PlainTheme())
+            return groupOf(svg = svg, id = id)
+        }
+
+        fun tspans(group: String): List<Triple<String, Double, String>> =
+            Regex("""<tspan[^>]*y="([-0-9.]+)"[^>]*data-part="(\w+)"[^>]*>([^<]*)</tspan>""")
+                .findAll(group)
+                .map { Triple(it.groupValues[2], it.groupValues[1].toDouble(), it.groupValues[3].trim()) }
+                .toList()
+
+        "ACT final node: inner disc uses the filled pseudo class, outer circle keeps the node class" {
+            val (model, act) = orderModel()
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = fakeLayout(), theme = PlainTheme())
+
+            val group = groupOf(svg = svg, id = "Final")
+            val circles = Regex("""<circle[^>]*>""").findAll(group).map { it.value }.toList()
+            circles.size shouldBe 2
+            circles.count { it.contains("class=\"kuml-pseudo-filled\"") } shouldBe 1
+            circles.single { it.contains("kuml-pseudo-filled") } shouldNotContain "fill="
+            circles.count { it.contains("class=\"kuml-class\"") } shouldBe 1
+            group shouldNotContain "currentColor"
+        }
+
+        "ACT accept-time-event shows the name first, then the time expression" {
+            val group = timeEventSvg(name = "Warten", time = "after 5 min")
+            val parts = tspans(group = group)
+            parts.map { it.first } shouldBe listOf("name", "time")
+            parts[0].third shouldBe "Warten"
+            parts[1].third shouldBe "after 5 min"
+            (parts[0].second < parts[1].second) shouldBe true
+        }
+
+        "ACT accept-time-event shows an identical name and time only once" {
+            val parts = tspans(group = timeEventSvg(name = "after 5 min", time = "after 5 min"))
+            parts.size shouldBe 1
+            parts.single().first shouldBe "time"
+        }
+
         "ACT initial node is one filled dot that differs from the node fill" {
             val (model, act) = orderModel()
             val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = fakeLayout(), theme = PlainTheme())

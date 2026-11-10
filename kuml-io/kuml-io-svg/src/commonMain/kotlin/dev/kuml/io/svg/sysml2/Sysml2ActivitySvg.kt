@@ -387,8 +387,8 @@ private fun renderInitialNode(
 }
 
 /**
- * Final node — Donut: äußerer Kreis (Stroke + weißer Fill) + innerer
- * gefüllter Kreis. Innenradius ist Hälfte des Außenradius — etablierte
+ * Final node — Donut: äußerer Kreis (Stroke) + innerer
+ * gefüllter Kreis (`kuml-pseudo-filled`, wie der Initial-Knoten; `.kuml-class` würde ihn hohl rendern). Innenradius ist Hälfte des Außenradius — etablierte
  * Konvention für den Final-Marker.
  */
 private fun renderFinalNode(
@@ -427,8 +427,7 @@ private fun renderFinalNode(
                     "cx" to fmt(cx),
                     "cy" to fmt(cy),
                     "r" to fmt(innerR),
-                    "class" to "kuml-class",
-                    "fill" to "currentColor",
+                    "class" to "kuml-pseudo-filled",
                 ),
         )
     }
@@ -685,8 +684,8 @@ private const val ACT_SIGNAL_LINE: Float = 15f
 
 /**
  * Wave C2 — accept-time-event: an hourglass of two triangles ([ACT_TIME_EVENT_SYMBOL_W] x
- * [ACT_TIME_EVENT_SYMBOL_H]) centred at the top of the node box, the time expression as 11 px
- * label 4 px below it.
+ * [ACT_TIME_EVENT_SYMBOL_H]) centred at the top of the node box, the name (if any) and the time
+ * expression (once if identical) as 11 px label lines 4 px below it.
  */
 private fun renderTimeEventNode(
     element: ActionDefinition,
@@ -707,14 +706,17 @@ private fun renderTimeEventNode(
     ) {
         tag(name = "polygon", attrs = mapOf("points" to upper, "class" to "kuml-class", "data-part" to "hourglass-top"))
         tag(name = "polygon", attrs = mapOf("points" to lower, "class" to "kuml-class", "data-part" to "hourglass-bottom"))
-        val label = element.timeExpression?.takeIf { it.isNotBlank() } ?: element.name
-        val lines = ActTextWrap.timeLines(label)
+        val parts = ActTextWrap.timeEventLines(name = element.name, time = element.timeExpression)
         tag(
             name = "text",
             attrs = mapOf("class" to "kuml-body", "text-anchor" to "middle", "font-size" to "11"),
         ) {
-            lines.forEachIndexed { i, line ->
-                tag(name = "tspan", attrs = mapOf("x" to fmt(w / 2f), "y" to fmt(sh + 4f + 11f + i * 13f))) { text(line) }
+            parts.all.forEachIndexed { i, line ->
+                val part = if (i < parts.name.size) "name" else "time"
+                tag(
+                    name = "tspan",
+                    attrs = mapOf("x" to fmt(w / 2f), "y" to fmt(sh + 4f + 11f + i * 13f), "data-part" to part),
+                ) { text(line) }
             }
         }
     }

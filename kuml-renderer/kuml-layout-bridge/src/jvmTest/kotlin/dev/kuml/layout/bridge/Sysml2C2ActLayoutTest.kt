@@ -35,14 +35,28 @@ class Sysml2C2ActLayoutTest :
         "accept-time-event: narrow hourglass; a very long label wraps and widens instead of being cut" {
             val m =
                 sysml2Model(name = "T") {
+                    acceptTimeEvent(name = "1s", time = "1s")
                     acceptTimeEvent(name = "short", time = "1s")
                     acceptTimeEvent(name = "long", time = "after ".repeat(40))
                 }
-            val s = size(m, "short", ActivityNodeKind.AcceptTimeEvent)
+            val s = size(m, "1s", ActivityNodeKind.AcceptTimeEvent)
             s.height shouldBe Sysml2LayoutBridge.ACT_TIME_EVENT_H + Sysml2LayoutBridge.ACT_TIME_EVENT_LABEL_HEIGHT
+            // a distinct name adds exactly one more label line
+            size(m, "short", ActivityNodeKind.AcceptTimeEvent).height shouldBe s.height + Sysml2LayoutBridge.ACT_TIME_LINE_PX
             val long = size(m, "long", ActivityNodeKind.AcceptTimeEvent)
             (long.width > Sysml2LayoutBridge.ACT_TIME_EVENT_MAX_WIDTH) shouldBe true
             (ActTextWrap.timeLines("after ".repeat(40)).size <= 4) shouldBe true
+        }
+
+        "timeEventLines: empty name, duplicate name and long name" {
+            ActTextWrap.timeEventLines(name = "", time = "1s").let {
+                it.name shouldBe emptyList()
+                it.time shouldBe listOf("1s")
+            }
+            ActTextWrap.timeEventLines(name = " 1s ", time = "1s").name shouldBe emptyList()
+            ActTextWrap.timeEventLines(name = "Warten", time = "1s").all shouldBe listOf("Warten", "1s")
+            (ActTextWrap.timeEventLines(name = "word ".repeat(30), time = "1s").name.size <= 2) shouldBe true
+            ActTextWrap.timeEventLines(name = null, time = null).all shouldBe listOf("")
         }
 
         "explicit pin sides grow the box, Auto pins leave the size exactly as before" {

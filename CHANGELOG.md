@@ -6,6 +6,29 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 62: activity diagram: the final node is drawn filled, accept-time-events show their name
+
+**Why.** Two symbol defects found with the local CLI on a generic fixture. The inner disc of `finalNode()` was hollow:
+`.kuml-class { fill: ... }` beats the presentation attribute `fill="currentColor"` (same cause as the initial node in
+Nacharbeit 61). `acceptTimeEvent(name, time)` never drew its name, because the renderer and the layout bridge both used
+`timeExpression ?: name`, although `time` is required.
+
+**Change.** The inner disc of the final node uses the class `kuml-pseudo-filled` (as the initial node). New
+`ActTextWrap.timeEventLines(name, time)`: name block (at most 2 lines) first, then the time block; a name equal to the time
+expression after `trim()` is shown once. Renderer and layout bridge use the same list, so node height grows by one line
+height (13 px per line) when a distinct name is present. Name and time lines carry `data-part="name"` / `"time"`. A flow
+final needed no change (hollow circle with X is the correct notation). Handbook row for `acceptTimeEvent` updated.
+
+**Verification.** `Sysml2ActSvgTest` (3 new structural tests, no byte goldens), `Sysml2C2ActLayoutTest` (height with name is
+exactly one line larger, `timeEventLines` unit test). Fixture PNG before and after with the local CLI.
+`check_latex_tests.py` and `./gradlew clean check --no-build-cache` as listed in the hand-over.
+
+**Not verified.** Windows and Linux rendering, PNG/LaTeX renderers (LaTeX lists ACT nodes as text).
+
+**Not fixed.** `forkNode`/`joinNode` bar is drawn with `kuml-class` and `fill="currentColor"` (node fill, not solid black;
+seen in the PNG, left as is); the dead `fill="white"` attributes on the outer circle of the final node and the flow final;
+other ACT items (b), (d), (e), (g), (h), (i), (j); other diagram types; LaTeX.
+
 ### Nacharbeit 61: activity diagram: several unnamed flow finals stay separate nodes, the initial node is drawn filled
 
 **Why.** Two unnamed `flowFinalNode()` calls both received the id `FlowFinal`. The layout bridge resolves nodes by id, so both

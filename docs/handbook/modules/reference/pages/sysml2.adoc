@@ -886,7 +886,7 @@ handlers and pins on any side of an action.
 
 | `sendSignal("Notify", signal = "Ping")` | pentagon with the tip on the right
 | `acceptEvent("Wait", signal = "Pong")` | rectangle with a notch on the left
-| `acceptTimeEvent("Timeout", time = "after 10 min")` | hourglass with the time label below
+| `acceptTimeEvent("Timeout", time = "after 10 min")` | hourglass with the name and the time expression below it (shown once if identical)
 | `callBehavior("Check", activityId = "StockCheck")` | action with a rake symbol; the SVG group carries `data-kuml-calls`
 | `interruptibleRegion("Payment")` | dashed rounded frame around the nodes created with `region = payment`
 | `exceptionHandler(protectedNode, handler, type = "IOError")` | lightning-bolt edge labelled with the type

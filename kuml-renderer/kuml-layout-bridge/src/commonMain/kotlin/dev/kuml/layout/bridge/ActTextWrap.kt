@@ -66,6 +66,31 @@ public object ActTextWrap {
     /** Lines of the label under an accept-time-event hourglass (11 px text). */
     public fun timeLines(label: String): List<String> = wrap(text = label, maxWidthPx = 120f, maxLines = 4, charPx = 6.2f).lines
 
+    /** Lines of an accept-time-event label: the [name] block first, then the [time] block. */
+    public data class TimeEventLines(
+        val name: List<String>,
+        val time: List<String>,
+    ) {
+        /** Name lines followed by time lines. */
+        val all: List<String> get() = name + time
+    }
+
+    /**
+     * Name (at most 2 lines) and time expression of an accept-time-event. A name equal (after trim) to the time
+     * expression is shown once, as time. Never empty: with neither, the old single empty line is kept.
+     */
+    public fun timeEventLines(
+        name: String?,
+        time: String?,
+    ): TimeEventLines {
+        val n = name?.trim().orEmpty()
+        val t = time?.trim().orEmpty()
+        val nameLines =
+            if (n.isEmpty() || n == t) emptyList() else wrap(text = n, maxWidthPx = 120f, maxLines = 2, charPx = 6.2f).lines
+        val timeLines = if (t.isEmpty() && nameLines.isNotEmpty()) emptyList() else timeLines(t)
+        return TimeEventLines(name = nameLines, time = timeLines)
+    }
+
     private fun breakLines(
         text: String,
         widthPx: Float,
