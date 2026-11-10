@@ -2,10 +2,12 @@ package dev.kuml.cli.workspace
 
 import dev.kuml.cli.NoteChecks
 import dev.kuml.core.script.DiagramExtractor
+import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.core.script.diagnostics.ScriptProblem
 import dev.kuml.core.script.diagnostics.ScriptProblems
 import dev.kuml.markdown.KumlCodeBlock
+import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.workspace.OkfDocument
 import dev.kuml.workspace.OkfFinding
 import dev.kuml.workspace.OkfSeverity
@@ -109,10 +111,21 @@ public object WorkspaceBlockEvaluator {
         }
     }
 
-    /** Result of evaluating one block: diagram count plus the note findings of its first diagram. */
+    /** A requirement declared by a block: its `reqId`, name and statement (non-empty reqId and text only). */
+    public data class RequirementDeclaration(
+        val reqId: String,
+        val name: String,
+        val text: String,
+    )
+
+    /**
+     * Result of evaluating one block: diagram count, the note findings of its first diagram and the requirements
+     * its SysML 2 model declares (every definition of the model, drawn or not; external stubs excluded).
+     */
     public data class BlockEvaluation(
         val diagramCount: Int,
         val noteFindings: List<NoteChecks.Finding>,
+        val requirements: List<RequirementDeclaration> = emptyList(),
     )
 
     /**
@@ -136,20 +149,28 @@ public object WorkspaceBlockEvaluator {
                 } else {
                     val returnValue = result.value.returnValue
                     val count = DiagramExtractor.countRenderableDiagrams(returnValue)
-                    val notes =
+                    val extracted =
                         if (count == 0) {
-                            emptyList()
+                            null
                         } else {
-                            runCatching { NoteChecks.of(DiagramExtractor.extractAny(returnValue = returnValue, input = script)) }
-                                .getOrDefault(emptyList())
+                            runCatching { DiagramExtractor.extractAny(returnValue = returnValue, input = script) }.getOrNull()
                         }
-                    Result.success(BlockEvaluation(diagramCount = count, noteFindings = notes))
+                    val notes = extracted?.let { runCatching { NoteChecks.of(it) }.getOrDefault(emptyList()) }.orEmpty()
+                    val requirements = (extracted as? ExtractedDiagram.Sysml2)?.let { requirementsOf(it) }.orEmpty()
+                    Result.success(BlockEvaluation(diagramCount = count, noteFindings = notes, requirements = requirements))
                 }
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    private fun requirementsOf(extracted: ExtractedDiagram.Sysml2): List<RequirementDeclaration> =
+        extracted.model.definitions
+            .filterIsInstance<RequirementDefinition>()
+            // External stubs only carry a copy of another requirement's text; counting them would flag every `copy`.
+            .filter { it.externalSource == null && it.reqId.isNotBlank() && it.text.isNotBlank() }
+            .map { RequirementDeclaration(reqId = it.reqId, name = it.name, text = it.text) }
 
     /**
      * Maps a note finding to a workspace finding (code `KUML-NOTE-W00x` etc.). When the note's script line is known
@@ -182,11 +203,15 @@ public object WorkspaceBlockEvaluator {
         strict: Boolean,
     ): List<OkfFinding> {
         val findings = mutableListOf<OkfFinding>()
+        val declarations = mutableListOf<Declared>()
         for (doc in documents) {
             doc.kumlBlocks.forEachIndexed { idx, block ->
                 val evaluation = evaluateBlock(doc = doc, block = block, blockIdx = idx)
                 evaluation.onSuccess { ev ->
                     findings += ev.noteFindings.map { noteFinding(doc = doc, block = block, finding = it) }
+                    ev.requirements.forEach {
+                        declarations += Declared(doc = doc, block = block, reqId = it.reqId, text = it.text)
+                    }
                 }
                 val count = evaluation.map { it.diagramCount }
                 count.onSuccess { n ->
@@ -209,7 +234,72 @@ public object WorkspaceBlockEvaluator {
                 }
             }
         }
+        findings += reqIdConflictFindings(declarations)
         return findings
+    }
+
+    /** One requirement declaration with its origin; the name is deliberately not kept (log hygiene). */
+    internal data class Declared(
+        val doc: OkfDocument,
+        val block: KumlCodeBlock,
+        val reqId: String,
+        val text: String,
+    )
+
+    private const val MAX_TEXT = 4096
+    private const val MAX_CONFLICT_FINDINGS = 100
+    private val whitespace = Regex("\\s+")
+
+    // Same normalisation as Sysml2ReqUcChecker.normalise (REQUC218); keep the two in step.
+    private fun normalise(text: String): String = text.take(MAX_TEXT).trim().replace(whitespace, " ")
+
+    /**
+     * `OKF-W-009`: the same `reqId` declared with different (whitespace-normalised, case-sensitive) text in
+     * different documents. The first declaration (in document path order) is the reference; every later document
+     * whose text differs gets one finding. Duplicates inside one document are REQUC218's business, not reported
+     * here. Findings name the reqId and both documents only, never requirement text or names.
+     */
+    internal fun reqIdConflictFindings(declared: List<Declared>): List<OkfFinding> {
+        val sorted = declared.sortedBy { it.doc.relativePath }
+        val reference = LinkedHashMap<String, Declared>()
+        val reported = HashSet<Pair<String, String>>()
+        val out = mutableListOf<OkfFinding>()
+        var suppressed = 0
+        for (d in sorted) {
+            if (d.reqId.isBlank() || d.text.isBlank()) continue
+            val ref = reference.getOrPut(d.reqId) { d }
+            if (ref.doc.relativePath == d.doc.relativePath) continue
+            if (normalise(ref.text) == normalise(d.text)) continue
+            if (!reported.add(d.reqId to d.doc.relativePath)) continue
+            if (out.size >= MAX_CONFLICT_FINDINGS) {
+                suppressed++
+                continue
+            }
+            out +=
+                OkfFinding(
+                    code = "OKF-W-009",
+                    severity = OkfSeverity.WARNING,
+                    file = d.doc.relativePath,
+                    line = d.block.startLine,
+                    message =
+                        "Requirement reqId '${d.reqId}' is declared with different text in " +
+                            "${ref.doc.relativePath} and ${d.doc.relativePath}.",
+                    suggestion =
+                        "Make the texts identical, or rename one reqId. Use externalRequirement(reqId, source, text) " +
+                            "for a copy and connect it with copy.",
+                )
+        }
+        if (suppressed > 0) {
+            out +=
+                OkfFinding(
+                    code = "OKF-W-009",
+                    severity = OkfSeverity.WARNING,
+                    file = out.last().file,
+                    line = out.last().line,
+                    message = "$suppressed further reqId conflict(s) suppressed.",
+                )
+        }
+        return out
     }
 
     /**

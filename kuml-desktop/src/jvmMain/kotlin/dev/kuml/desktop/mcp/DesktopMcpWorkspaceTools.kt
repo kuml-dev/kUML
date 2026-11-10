@@ -857,7 +857,11 @@ internal class DesktopMcpWorkspaceTools(
             putJsonArray("findings") { findings.forEach { addFinding(it) } }
             putJsonArray("unsavedDocuments") { unsaved?.let { add(JsonPrimitive(it.replace('\\', '/'))) } }
             if (!evaluate && docs.any { it.kumlBlocks.isNotEmpty() }) {
-                put("note", "Diagram counts per kuml block are only checked with evaluate=true (executes block code).")
+                put(
+                    "note",
+                    "Diagram counts per kuml block and reqId conflicts across documents (OKF-W-009) " +
+                        "are only checked with evaluate=true (executes block code).",
+                )
             }
         }
     }

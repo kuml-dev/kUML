@@ -171,7 +171,8 @@ internal class WorkspaceValidateCommand : CliktCommand(name = "validate") {
         "--evaluate",
         help =
             "Also evaluate every kuml block (EXECUTES block code) to report blocks that " +
-                "produce several diagrams (OKF-W-008) or fail (OKF-E-007)",
+                "produce several diagrams (OKF-W-008), fail (OKF-E-007) or declare the same reqId with " +
+                "different text in several documents (OKF-W-009)",
     ).flag(default = false)
 
     private val strict by option(
@@ -228,7 +229,8 @@ internal class WorkspaceValidateCommand : CliktCommand(name = "validate") {
                 }
                 if (!evaluate && docs.any { it.kumlBlocks.isNotEmpty() }) {
                     echo(
-                        "Note: diagram counts per kuml block are only checked with --evaluate (executes block code).",
+                        "Note: diagram counts per kuml block and reqId conflicts across documents (OKF-W-009) " +
+                            "are only checked with --evaluate (executes block code).",
                         err = true,
                     )
                 }

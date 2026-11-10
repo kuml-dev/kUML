@@ -304,7 +304,7 @@ always relative to the workspace root and use `/`. Without an open workspace the
 | `kuml_desktop_workspace_get_document` | Content and `revision` of one document (max 512 KiB). If the document is open with unsaved changes, you get that unsaved buffer plus `dirty:true` and the `diskRevision`.
 | `kuml_desktop_workspace_set_document` | Writes a document to disk through the same save gate as Ctrl+S. With `baseRevision` it updates an existing document, without it creates a new one (missing folders are created).
 | `kuml_desktop_workspace_delete_document` | Permanently deletes a document. Needs `confirm:true`; there is no trash.
-| `kuml_desktop_workspace_validate` | OKF findings for the documents on disk (one document or all). `evaluate:true` additionally runs the kuml blocks.
+| `kuml_desktop_workspace_validate` | OKF findings for the documents on disk (one document or all). `evaluate:true` additionally runs the kuml blocks, which also reports `OKF-W-009` (same requirement `reqId` with different text in several of the selected documents).
 | `kuml_desktop_workspace_render_document` | Renders one kuml block of a document as SVG (text) or PNG (image content); `width` 64-8192, optional `theme`.
 | `kuml_desktop_workspace_render_all` | Renders every block into a temporary location and reports rendered, skipped and failed blocks; nothing is written into the workspace.
 | `kuml_desktop_workspace_open_document` | Shows a document in the editor (`edit:true` for the raw editor).

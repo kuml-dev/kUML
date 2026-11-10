@@ -295,6 +295,19 @@ class WorkspaceCommandTest :
             |```
             """.trimMargin()
 
+        fun reqDoc(text: String) =
+            """
+            |---
+            |type: Concept
+            |---
+            |```kuml
+            |sysml2Model(name = "Fixture") {
+            |    val r = requirementDef(name = "Start", reqId = "R-1", text = "$text")
+            |    reqDiagram(name = "A") { include(r) }
+            |}
+            |```
+            """.trimMargin()
+
         val singleDiagramDoc =
             """
             |---
@@ -566,6 +579,70 @@ class WorkspaceCommandTest :
                 strict.statusCode shouldBe ExitCodes.VALIDATION_VIOLATIONS
                 strict.output shouldContain "ERROR"
                 strict.output shouldContain "OKF-W-008"
+            } finally {
+                root.deleteRecursively()
+            }
+        }
+
+        test("validate --evaluate reports OKF-W-009 for the same reqId with different text in two documents") {
+            val root = tempWorkspace()
+            try {
+                File(root, "a.md").writeText(reqDoc("The system shall start."))
+                File(root, "b.md").writeText(reqDoc("The system shall stop."))
+
+                val plain = KumlCli().test(listOf("workspace", "validate", root.absolutePath))
+                plain.output shouldNotContain "[OKF-W-009]"
+
+                val eval = KumlCli().test(listOf("workspace", "validate", root.absolutePath, "--evaluate"))
+                eval.statusCode shouldBe 0
+                eval.output shouldContain "WARN"
+                eval.output shouldContain "OKF-W-009"
+                eval.output shouldContain "R-1"
+                eval.output shouldContain "a.md"
+                eval.output shouldContain "b.md"
+                eval.output shouldNotContain "shall start"
+                eval.output shouldNotContain "shall stop"
+
+                val strict = KumlCli().test(listOf("workspace", "validate", root.absolutePath, "--evaluate", "--strict"))
+                strict.statusCode shouldBe 0
+                strict.output shouldContain "WARN"
+
+                val json = KumlCli().test(listOf("workspace", "validate", root.absolutePath, "--evaluate", "-o", "json"))
+                json.output shouldContain "\"code\": \"OKF-W-009\""
+                json.output shouldContain "\"severity\": \"warning\""
+
+                val scoped =
+                    KumlCli().test(listOf("workspace", "validate", root.absolutePath, "--evaluate", "--document", "a.md"))
+                scoped.output shouldNotContain "OKF-W-009"
+            } finally {
+                root.deleteRecursively()
+            }
+        }
+
+        test("validate --evaluate stays silent for identical reqId text, whitespace differences and a single document") {
+            val root = tempWorkspace()
+            try {
+                File(root, "a.md").writeText(reqDoc("The system shall start."))
+                File(root, "c.md").writeText(reqDoc("The  system shall   start. "))
+                val same = KumlCli().test(listOf("workspace", "validate", root.absolutePath, "--evaluate"))
+                same.output shouldNotContain "OKF-W-009"
+                File(root, "c.md").delete()
+                val single = KumlCli().test(listOf("workspace", "validate", root.absolutePath, "--evaluate"))
+                single.output shouldNotContain "OKF-W-009"
+            } finally {
+                root.deleteRecursively()
+            }
+        }
+
+        test("validate --evaluate reports one OKF-W-009 per differing document, in path order") {
+            val root = tempWorkspace()
+            try {
+                File(root, "a.md").writeText(reqDoc("The system shall start."))
+                File(root, "b.md").writeText(reqDoc("The system shall stop."))
+                File(root, "c.md").writeText(reqDoc("The system shall pause."))
+                val result = KumlCli().test(listOf("workspace", "validate", root.absolutePath, "--evaluate"))
+                Regex("OKF-W-009").findAll(result.output).count() shouldBe 2
+                (result.output.indexOf("b.md:") < result.output.indexOf("c.md:")) shouldBe true
             } finally {
                 root.deleteRecursively()
             }

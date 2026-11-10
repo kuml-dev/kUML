@@ -35,7 +35,9 @@ validate`/`render` operate on a whole document tree. Keep the two mental models 
 
 `validate` and `render` accept the repeatable option `--document <path>`. Only the named
 documents are parsed — the rest of the workspace is not scanned, so authors do not depend on
-other documents, and workspace-wide checks such as `OKF-W-006` do not run.
+other documents, and workspace-wide checks such as `OKF-W-006` do not run. The same holds for
+`OKF-W-009` (same `reqId`, different text across documents): a scoped `--evaluate` run only compares
+the selected documents.
 
 [source,bash]
 ----
@@ -395,6 +397,8 @@ blocks a save in the desktop editor either (see "The save gate"): only a missing
 | `OKF-W-006` | WARNING | The workspace root has no `index.md` with `type: KumlWorkspace`. | n/a — workspace-wide, never raised for a single document
 | `OKF-E-007` | ERROR | A ```kuml block failed to render, or (`validate --evaluate`) failed to evaluate or evaluates without producing a renderable diagram. | n/a — render, or validate with `--evaluate`
 | `OKF-W-008` | WARNING (or ERROR under `--strict`) | A ```kuml block produces more than one diagram; only the first is rendered. Reported by `render` and by `validate --evaluate`. | n/a — needs script evaluation
+
+| `OKF-W-009` | WARNING | The same `reqId` is declared with different text in different documents (whitespace-normalised, case-sensitive; identical text and a single document stay silent). Reported only by `validate --evaluate`, and only for the documents that were evaluated; every requirement definition of a block counts, drawn or not, external stubs do not. `--strict` does not promote it. The line is the opening fence of the block. | n/a — needs script evaluation
 |===
 
 The last column refers to kUML Desktop's editable Knowledge Workspace document editor —
@@ -435,7 +439,7 @@ regardless of strictness.
 == Trust model
 
 `kuml workspace validate` is purely structural and executes no code. The opt-in flag
-`--evaluate` (needed for `OKF-W-008`, and for `OKF-E-007` outside of `render`) evaluates every
+`--evaluate` (needed for `OKF-W-008` and `OKF-W-009`, and for `OKF-E-007` outside of `render`) evaluates every
 ` ```kuml ` block and therefore *does* run block code, exactly like `render`. `--strict` only
 affects `OKF-W-008`, and only together with `--evaluate`.
 

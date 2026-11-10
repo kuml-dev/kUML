@@ -6,6 +6,30 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 56: the same requirement reqId with different text in different documents is reported (OKF-W-009)
+
+#### Why
+
+P-REQ-03. `REQUC218` compares requirements of one script only; two documents of a workspace could declare `R-1` with different statements and nothing noticed. Reproduction before the fix (generic fixtures, local CLI): `kuml workspace validate <dir> --evaluate` with `a.md` and `b.md` declaring `R-1` with different text gave no finding.
+
+#### Change
+
+- `WorkspaceBlockEvaluator.evaluateBlock` extracts the diagram once and now also returns the requirements of a SysML 2 model (`BlockEvaluation.requirements`; non-empty `reqId` and text, external stubs skipped). `evaluateDocuments` aggregates them across the evaluated documents (`reqIdConflictFindings`) and reports `OKF-W-009` (WARNING, not promoted by `--strict`) on every later document whose whitespace-normalised, case-sensitive text differs from the first declaration (documents in path order). One finding per reqId and document, capped at 100 plus a summary finding. The message names the reqId and both documents, never requirement text or names; the line is the opening fence of the block (the model has no per-requirement source position).
+- Only with `--evaluate` (CLI) or `evaluate:true` (MCP), because `reqId` and text live in the script. Hints in the CLI and the MCP note name the new check. Handbook `knowledge-workspaces.adoc` and `authoring-mcp.adoc` updated.
+- New tests: three `WorkspaceCommandTest` cases (conflict, JSON, `--strict`, `--document` scope, silent cases, three documents) and `ReqIdConflictFindingsTest` (empty text/reqId, single document, case, cap).
+
+#### Verification
+
+`./gradlew clean check --no-build-cache --rerun-tasks` was BUILD SUCCESSFUL in 19m 17s (10,672 test cases in the result XMLs, 5 skipped, 0 failed; detekt, ktlint and the LaTeX tests are part of `check`). `python3 -I scripts/ci/check_latex_tests.py` passed. The first run failed once on a test assertion of mine (the plain-validate hint names the code), fixed before the commit. Local CLI reproduction after the fix: the conflict warns, identical text and a single document stay silent.
+
+#### Not fixed
+
+Only the evaluate path (no check without scripts); a block without a renderable diagram contributes no requirements; conflicts with documents outside a scoped call are not seen; the same reqId with different text inside one document is `REQUC218`'s job; P-REQ-04, REQ layout and all other items untouched.
+
+#### Not verified
+
+Windows, real customer workspaces, and the Desktop UI display of the new code. The Desktop MCP port is stubbed in `DesktopMcpWorkspaceToolsTest`; the MCP path shares `evaluateDocuments` and was verified through that function only.
+
 ### Nacharbeit 55: REQ group frames keep notes off their lines, notes owned by one group get room inside it, duplicate membership is reported
 
 #### Why
