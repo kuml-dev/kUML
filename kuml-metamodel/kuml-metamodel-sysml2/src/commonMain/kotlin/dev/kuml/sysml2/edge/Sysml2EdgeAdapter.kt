@@ -133,6 +133,11 @@ public data class Sysml2EdgeMetadata(
     val strokeColor: String? = null,
     /** `stroke-linecap` of the line (dotted connections use `round`). */
     val lineCap: String? = null,
+    /**
+     * Wrap width of the label in characters; `null` keeps the renderer default. Use case `extend` conditions wrap
+     * narrower so that the label fits between a column of use cases and the border of the subject frame (Nacharbeit 54).
+     */
+    val labelWrapChars: Int? = null,
 )
 
 /** Kind of one [EdgeLabelPart]. */
@@ -225,6 +230,12 @@ public class UcEdgeAdapter(
         /** Display cap of an `extend` condition: three lines of 28 characters (wave 2E-b). */
         public const val EXTEND_CONDITION_DISPLAY_MAX: Int = 84
 
+        /** Wrap width of an `extend` condition in characters (about 160 px; Nacharbeit 54). */
+        public const val EXTEND_LABEL_WRAP_CHARS: Int = 23
+
+        /** Conditions up to this many characters (with brackets) keep the default wrap (one line, as before); longer ones wrap narrow. */
+        public const val EXTEND_NARROW_WRAP_FROM: Int = 40
+
         /** Display cap of an extension-point name (wave 2E-b). */
         public const val EXTENSION_POINT_DISPLAY_MAX: Int = 40
 
@@ -233,7 +244,8 @@ public class UcEdgeAdapter(
             val cond = ext.condition?.trim()?.takeIf { it.isNotEmpty() }
             if (cond == null) return METADATA_EXTEND
             val shown = if (cond.length > EXTEND_CONDITION_DISPLAY_MAX) cond.take(EXTEND_CONDITION_DISPLAY_MAX - 1) + "…" else cond
-            return METADATA_EXTEND.copy(label = "[$shown]")
+            val wrap = if (shown.length + 2 > EXTEND_NARROW_WRAP_FROM) EXTEND_LABEL_WRAP_CHARS else null
+            return METADATA_EXTEND.copy(label = "[$shown]", labelWrapChars = wrap)
         }
 
         public val METADATA_ASSOCIATION: Sysml2EdgeMetadata =

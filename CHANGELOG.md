@@ -6,6 +6,41 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 54: extend labels stay inside the subject frame, actor boxes grow with their lines
+
+#### Why
+
+UC items (a) and (d). Reproduction with the local CLI and a neutral fixture (`Operator`, eight use cases `Process Order` ... `Merge Orders`, `wrapColumns = 1`, `actorSide = Right`, an `extend` with a 56-character condition that runs as a C):
+
+- (a) the label was 272 x 49 px and, because the frame is only about 207 px wide with the spur 17 px from the border, no free spot existed inside it; the placer took the least bad one, outside the frame (a group border is a `FRAGMENT` line with cost 20000, so crossing it was tolerated).
+- (d) `planAttachments` spreads line ends over `height - 24` px, so eight lines on the 100 px actor gave 9.5 px, and the lane planner fell back to 8 px.
+
+#### Change
+
+- `Sysml2EdgeMetadata.labelWrapChars` (new, default `null`); `extend` conditions longer than 38 characters (40 with brackets) wrap at 23 characters; shorter ones keep the default wrap, so existing one-line labels do not change (a general 23-character wrap made `uc-grid` labels taller and a foreign actor line then crossed one). `drawnLabelLines` honours it, so size and drawing stay in sync. The 84-character display cap is unchanged.
+- `LabelRequest.extraCandidates`; new `FrameKeeper`; `Sysml2DiagramLabelPlan.compute(keepInsideFrames)` (default `false`, so all other diagram types are unchanged). With the flag the owner frame is the group that contains both ends of the line; the label may only take the frame deflated by 4 px (hard `avoid` half planes), extra candidates beside every segment are clamped into it, and a final guard clamps the chosen rectangle in. A label that then sits on its own line gets the halo and is marked not clean. A label wider than the frame is marked not clean. Only the UC path passes `true`.
+- `UcFrameGrid.actorHeight(lines)`: 14 px per line end plus 24, never below 100, at most 212. The corridor between actor column and frame uses 14 px per line. `UcEdgeLanes.plan(actorIds)`: corridors that lead to an actor use 14 px only; the pitch order is 14, 12, 8 px. Deviation from the brief ("no fallback to 8 px"): a group that cannot get 14 px stayed unmoved in `UcPersonalschleuseInvariantTest` (two association lines 1.5 px apart), which is worse than 8 px, so 8 px stays as the last resort.
+- `Sysml2ActorSvg`: the figure keeps its 100 px size and is centred in a taller box; a 100 px box renders as before.
+- `UcEdgeLanes.nudgeEnds`: when a conflict consists only of fixed end segments (the taller actor box moved ports so that two lines ended 1.5 px apart in `usecase-personalschleuse`), the end segment at a use case slides along the ellipse side by 8 px.
+- Changed test: `Sysml2Wave2EbRenderTest.foreignLines` takes the nearest `include`/`extend` line (not any line) as the owner of a label; in the `uc-grid` example the label sits on its own dashed line (the row gutter has two actor lines 3 px apart below it), and an association line was nearer to its centre. Nothing else in that test was relaxed.
+- Handbook `sysml2.adoc` (UC section). Tests: `UcExtendLabelInFrameTest`, `Sysml2UcNacharbeit54Test`, additions to `UcFrameGridTest` and `UcEdgeLanesTest`. Vault example sources were not edited.
+
+#### Verification
+
+`./gradlew clean check --no-build-cache --rerun-tasks` was BUILD SUCCESSFUL in 19m 34s (10,659 test cases in the result XMLs, 5 skipped, 0 failed; detekt, ktlint and the vault example tests are part of `check`). `scripts/ci/check_latex_tests.py` passed. The reproduction fixture was rendered with the local CLI before and after and inspected as PNG: the label is inside the frame; the eight actor lines run in separate lanes.
+
+**Not verified:** no Windows run, no Intel Mac, LaTeX output was not compared visually (taller actor box and routes follow the layout automatically). The `KUML-LAYOUT-W005` report for UC diagrams was not wired: the flag `clean = false` is set, but only the PAR path reports it.
+
+**Not fixed:**
+
+- In the narrow-frame repro the label still sits on its own C line (with halo), because the frame leaves no room beside it; fixing that needs frame growth, which was out of scope.
+- A single word wider than the frame cannot be kept inside.
+- The 84-character cut of long conditions contradicts "nothing is cut"; left as is (locked by `Sysml2Wave2EbTest`).
+- The label of an adjacent extend with `wrapColumns = 2` can sit on a foreign line.
+- More than 13 lines on one actor: the pitch shrinks below 14 px (cap of the box).
+
+**Not covered:** (b) `actorSide = Both`, (c) `aspectRatio`, frame growth, other sections, release and tag.
+
 ### Nacharbeit 53: refPart type validated, typed attributes get no edge (locked), attribute default text pinned
 
 #### Why

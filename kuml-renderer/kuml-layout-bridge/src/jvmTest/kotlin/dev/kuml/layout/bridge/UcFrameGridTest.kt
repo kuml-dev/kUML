@@ -165,4 +165,72 @@ class UcFrameGridTest :
                 id shouldNotBe null
             }
         }
+
+        test("actorHeight: grows with the line ends at the 14 px pitch and is capped") {
+            UcFrameGrid.actorHeight(lines = 2) shouldBe 100f
+            UcFrameGrid.actorHeight(lines = 8) shouldBe 136f
+            UcFrameGrid.actorHeight(lines = 100) shouldBe 212f
+        }
+
+        test("an actor with eight lines: line ends at least 14 px apart, parallel stretches at least 12 px apart") {
+            val gid = GroupId("frame")
+            val nodes =
+                (1..8).map { LayoutNode(id = NodeId("u$it"), intrinsicSize = Size(width = 140f, height = 60f), groupId = gid) } +
+                    LayoutNode(id = NodeId("actor"), intrinsicSize = Size(width = 60f, height = 100f), hints = NodeHints(rail = true))
+            val edges =
+                (1..8).map {
+                    LayoutEdge(
+                        id = EdgeId("e$it"),
+                        source = EndpointRef(nodeId = NodeId("actor")),
+                        target = EndpointRef(nodeId = NodeId("u$it")),
+                    )
+                }
+            val g =
+                LayoutGraph(
+                    nodes = nodes,
+                    edges = edges,
+                    groups = listOf(LayoutGroup(id = gid, padding = Insets(top = 24f, right = 24f, bottom = 24f, left = 24f))),
+                )
+            val res =
+                UcFrameGrid.layout(
+                    engine = NoEngine,
+                    graph = g,
+                    hints = LayoutHints.DEFAULT,
+                    spec = LayoutSpec(wrapColumns = 1, actorSide = dev.kuml.core.model.layout.ActorSide.Right),
+                )
+            res.nodes
+                .getValue(NodeId("actor"))
+                .bounds.size.height shouldBe 136f
+            val ends = res.edges.values.map { it.polylinePoints().first() }
+            // ends on the same side of the actor box (same x: a vertical side; same y: top or bottom) keep 14 px
+            for ((_, side) in ends.groupBy { it.x }) {
+                val ys = side.map { it.y }.sorted()
+                for (i in 1 until ys.size) (ys[i] - ys[i - 1]) shouldBeGreaterThanOrEqualTo 13.99f
+            }
+            for ((_, side) in ends.groupBy { it.y }) {
+                val xs = side.map { it.x }.sorted()
+                for (i in 1 until xs.size) (xs[i] - xs[i - 1]) shouldBeGreaterThanOrEqualTo 13.99f
+            }
+            // parallel segments of different edges that share a stretch keep 12 px
+            val segs =
+                res.edges.entries.flatMap { (id, route) ->
+                    val pts = route.polylinePoints()
+                    (0 until pts.size - 1).map { Triple(id, pts[it], pts[it + 1]) }
+                }
+            for (i in segs.indices) {
+                for (j in i + 1 until segs.size) {
+                    val (ia, a0, a1) = segs[i]
+                    val (ib, b0, b1) = segs[j]
+                    if (ia == ib) continue
+                    if (abs(a0.y - a1.y) < 0.01f && abs(b0.y - b1.y) < 0.01f) {
+                        val shared = min(max(a0.x, a1.x), max(b0.x, b1.x)) - max(min(a0.x, a1.x), min(b0.x, b1.x))
+                        if (shared > 1f) abs(a0.y - b0.y) shouldBeGreaterThanOrEqualTo 11.99f
+                    }
+                    if (abs(a0.x - a1.x) < 0.01f && abs(b0.x - b1.x) < 0.01f) {
+                        val shared = min(max(a0.y, a1.y), max(b0.y, b1.y)) - max(min(a0.y, a1.y), min(b0.y, b1.y))
+                        if (shared > 1f) abs(a0.x - b0.x) shouldBeGreaterThanOrEqualTo 11.99f
+                    }
+                }
+            }
+        }
     })

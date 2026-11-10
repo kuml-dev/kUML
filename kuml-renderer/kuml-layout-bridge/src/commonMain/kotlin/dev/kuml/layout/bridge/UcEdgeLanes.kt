@@ -27,6 +27,9 @@ internal object UcEdgeLanes {
     const val MIN_GAP_PX = 8f
     const val PREF_GAP_PX = 12f
 
+    /** Preferred pitch of corridors that lead to an actor; 12 and 8 px stay as fallbacks, an unmoved overlap is worse (Nacharbeit 54). */
+    const val ACTOR_PITCH_PX = 14f
+
     /** A jog shorter than this (twice the corner radius) cannot be drawn as two clean corners. */
     const val JOG_MAX_PX = 16f
 
@@ -46,6 +49,11 @@ internal object UcEdgeLanes {
         var radius: Float,
         val sourceRect: Rect?,
         val targetRect: Rect?,
+        /** True when one end of the wire is an actor box (Nacharbeit 54): its corridors keep the actor pitch. */
+        val actorEnd: Boolean = false,
+        /** Which end is the actor box (the other end is a use case ellipse whose side the line may slide along). */
+        val sourceActor: Boolean = false,
+        val targetActor: Boolean = false,
     ) {
         fun toRoute(): EdgeRoute.OrthogonalRounded =
             EdgeRoute.OrthogonalRounded(
@@ -77,8 +85,9 @@ internal object UcEdgeLanes {
         ends: Map<EdgeId, Pair<NodeId, NodeId>>,
         nodes: Map<NodeId, Rect>,
         frames: List<Rect> = emptyList(),
+        actorIds: Set<NodeId> = emptySet(),
     ): Result {
-        val wires = wiresOf(routes = routes, ends = ends, nodes = nodes)
+        val wires = wiresOf(routes = routes, ends = ends, nodes = nodes, actorIds = actorIds)
         val total = wires.sumOf { it.pts.size - 1 }
         if (total > MAX_SEGMENTS) return Result(routes = routes, stats = Stats(skipped = true))
         val allRects = nodes.values.toList()
@@ -94,6 +103,7 @@ internal object UcEdgeLanes {
         routes: Map<EdgeId, EdgeRoute>,
         ends: Map<EdgeId, Pair<NodeId, NodeId>>,
         nodes: Map<NodeId, Rect>,
+        actorIds: Set<NodeId> = emptySet(),
     ): List<Wire> {
         val out = ArrayList<Wire>()
         for ((id, r) in routes) {
@@ -113,6 +123,9 @@ internal object UcEdgeLanes {
                             nodes[it.first]
                         },
                     targetRect = e?.let { nodes[it.second] },
+                    actorEnd = e != null && (e.first in actorIds || e.second in actorIds),
+                    sourceActor = e != null && e.first in actorIds,
+                    targetActor = e != null && e.second in actorIds,
                 )
         }
         return out
@@ -201,7 +214,17 @@ internal object UcEdgeLanes {
                 }
                 val base = g.map { it.coord }.average().toFloat()
                 var done = false
-                for (pitch in listOf(PREF_GAP_PX, MIN_GAP_PX)) {
+                val pitches =
+                    if (g.any { wires[it.wire].actorEnd }) {
+                        listOf(
+                            ACTOR_PITCH_PX,
+                            PREF_GAP_PX,
+                            MIN_GAP_PX,
+                        )
+                    } else {
+                        listOf(PREF_GAP_PX, MIN_GAP_PX)
+                    }
+                for (pitch in pitches) {
                     val slots =
                         assignSlots(
                             wires = wires,
@@ -235,9 +258,56 @@ internal object UcEdgeLanes {
             for (w in wires) w.pts = simplify(w.pts)
             if (!progressed) break
         }
+        nudgeEnds(wires = wires, rects = rects, frames = frames)
         // final count of what is still in conflict
         left = conflictGroups(segmentsOf(wires)).size
         return moved to left
+    }
+
+    /**
+     * Last resort for a conflict between segments that are all fixed (the end segments stay on their ports): the end
+     * segment at a use case slides along the ellipse side to a coordinate [MIN_GAP_PX] away from the other segments, as
+     * long as it stays 12 px inside the vertical (horizontal) extent of the use case (Nacharbeit 54: a taller actor box
+     * moves the actor ports, so two end segments can end up on almost the same coordinate).
+     */
+    private fun nudgeEnds(
+        wires: List<Wire>,
+        rects: List<Rect>,
+        frames: List<Rect>,
+    ) {
+        val groups = conflictGroups(segmentsOf(wires))
+        for (g in groups) {
+            for (seg in g.sortedBy { wires[it.wire].id.value }) {
+                val w = wires[seg.wire]
+                val n = w.pts.size
+                val atSource = seg.index == 0
+                val atTarget = seg.index == n - 2
+                if (!atSource && !atTarget) continue
+                if ((atSource && w.sourceActor) || (atTarget && w.targetActor)) continue
+                val box = (if (atSource) w.sourceRect else w.targetRect) ?: continue
+                val lo = (if (seg.horizontal) box.origin.y else box.origin.x) + 12f
+                val hi = (if (seg.horizontal) box.origin.y + box.size.height else box.origin.x + box.size.width) - 12f
+                val others = g.filter { it.wire != seg.wire && it.horizontal == seg.horizontal }
+                val before = conflictGroups(segmentsOf(wires)).size
+                val tried =
+                    others
+                        .flatMap { listOf(it.coord - MIN_GAP_PX - 0.5f, it.coord + MIN_GAP_PX + 0.5f) }
+                        .filter { it in lo..hi }
+                        .sortedBy { abs(it - seg.coord) }
+                var fixed = false
+                for (c in tried) {
+                    val snapshot = w.pts.toList()
+                    if (tryMove(w = w, s = seg.index, coord = c, rects = rects, frames = frames) &&
+                        conflictGroups(segmentsOf(wires)).size < before
+                    ) {
+                        fixed = true
+                        break
+                    }
+                    w.pts = snapshot.toMutableList()
+                }
+                if (fixed) break
+            }
+        }
     }
 
     /**
@@ -317,7 +387,17 @@ internal object UcEdgeLanes {
         rects: List<Rect>,
         frames: List<Rect>,
     ): Boolean {
-        val probe = Wire(id = w.id, pts = w.pts.toMutableList(), radius = w.radius, sourceRect = w.sourceRect, targetRect = w.targetRect)
+        val probe =
+            Wire(
+                id = w.id,
+                pts = w.pts.toMutableList(),
+                radius = w.radius,
+                sourceRect = w.sourceRect,
+                targetRect = w.targetRect,
+                actorEnd = w.actorEnd,
+                sourceActor = w.sourceActor,
+                targetActor = w.targetActor,
+            )
         return tryMove(w = probe, s = s, coord = coord, rects = rects, frames = frames)
     }
 

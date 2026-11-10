@@ -40,15 +40,19 @@ internal fun renderSysml2Actor(
     // Geometrie: vertikales Drei-Drittel-Layout — Figur in den oberen ~80 % der
     // Bounds, Name in den unteren ~20 %. Skaliert automatisch mit der Bounds-
     // Größe, ohne Hardcoded-Magic-Numbers auf den Default-Maßen hängen zu bleiben.
+    // Nacharbeit 54: the figure keeps its size (UC_ACTOR_HEIGHT) when the layout makes the box taller (many lines);
+    // it is centred vertically. A box of the default height renders exactly as before.
+    val figH = ACTOR_FIGURE_HEIGHT
+    val figY = (h - figH) / 2f
     val headRadius = 8f
-    val headCy = headRadius + 4f
+    val headCy = figY + headRadius + 4f
     val bodyTop = headCy + headRadius
-    val bodyBottom = h * 0.55f
+    val bodyBottom = figY + figH * 0.55f
     val armsY = bodyTop + (bodyBottom - bodyTop) * 0.35f
     val legSpread = 10f
     val armSpread = 12f
-    val legsBottom = h * 0.78f
-    val nameY = h * 0.92f
+    val legsBottom = figY + figH * 0.78f
+    val nameY = figY + figH * 0.92f
 
     builder.tag(
         name = "g",
@@ -90,5 +94,8 @@ internal fun renderSysml2Actor(
         ) { text(element.name) }
     }
 }
+
+/** Height of the stick figure incl. name: the default actor box height of the layout bridge. */
+internal const val ACTOR_FIGURE_HEIGHT: Float = 100f
 
 private fun fmt(v: Float): String = fmt3(v)

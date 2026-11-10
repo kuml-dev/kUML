@@ -140,4 +140,35 @@ class UcEdgeLanesTest :
                 }
             UcEdgeLanes.plan(routes = routes, ends = none, nodes = emptyMap()).stats.skipped shouldBe true
         }
+
+        test("a corridor that leads to an actor uses the 14 px pitch, never 8 px") {
+            val routes = cluster(listOf(1, 2, 3))
+            val ends = routes.keys.associateWith { NodeId("actor") to NodeId("u${it.value}") }
+            val out = UcEdgeLanes.plan(routes = routes, ends = ends, nodes = emptyMap(), actorIds = setOf(NodeId("actor")))
+            val xs =
+                out.routes.values
+                    .flatMap { xsOfVerticals(it) }
+                    .sorted()
+            for (i in 1 until xs.size) (xs[i] - xs[i - 1]) shouldBeGreaterThanOrEqualTo 13.99f
+        }
+
+        test("a corridor at an actor that cannot get 14 or 12 px falls back to 8 px instead of staying on top of its neighbour") {
+            // two wires 4 px apart; walls leave only the 8 px gap between x = 498 and x = 506
+            val routes =
+                mapOf(
+                    EdgeId("a") to route(p(x = 400f, y = 100f), p(x = 500f, y = 100f), p(x = 500f, y = 300f), p(x = 700f, y = 300f)),
+                    EdgeId("b") to route(p(x = 400f, y = 120f), p(x = 504f, y = 120f), p(x = 504f, y = 320f), p(x = 700f, y = 320f)),
+                )
+            val ends = routes.keys.associateWith { NodeId("actor") to NodeId("u${it.value}") }
+            val nodes =
+                mapOf(
+                    NodeId("wl") to rect(x = 300f, y = 150f, w = 198f, h = 100f),
+                    NodeId("wr") to rect(x = 506f, y = 150f, w = 294f, h = 100f),
+                )
+            val out = UcEdgeLanes.plan(routes = routes, ends = ends, nodes = nodes, actorIds = setOf(NodeId("actor")))
+            out.stats.unresolved shouldBe 0
+            val xa = xsOfVerticals(out.routes.getValue(EdgeId("a"))).single()
+            val xb = xsOfVerticals(out.routes.getValue(EdgeId("b"))).single()
+            abs(xb - xa) shouldBeGreaterThanOrEqualTo 7.99f
+        }
     })

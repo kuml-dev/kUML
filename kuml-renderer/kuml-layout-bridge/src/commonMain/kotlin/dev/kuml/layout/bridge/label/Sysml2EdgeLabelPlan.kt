@@ -24,6 +24,7 @@ public object Sysml2EdgeLabelPlan {
         costs: LabelCostModel = LabelCostModel(lineClearance = 2f),
         portLabels: List<PortLabelSpec> = emptyList(),
         titleRects: List<dev.kuml.layout.Rect> = emptyList(),
+        keepInsideFrames: Boolean = false,
     ): Map<String, PlacedLabel> =
         Sysml2DiagramLabelPlan.compute(
             layout = layout,
@@ -32,5 +33,6 @@ public object Sysml2EdgeLabelPlan {
             titleRects = titleRects,
             configure = configure,
             costs = costs,
+            keepInsideFrames = keepInsideFrames,
         )
 }

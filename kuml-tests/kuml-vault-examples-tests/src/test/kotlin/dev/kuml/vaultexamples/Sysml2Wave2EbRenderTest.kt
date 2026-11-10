@@ -96,7 +96,11 @@ class Sysml2Wave2EbRenderTest :
             l: SvgRect,
         ): Map<String, List<Pair<Double, Double>>> {
             val all = edges(svg)
-            val own = all.minByOrNull { SvgGeometry.distance(it.value, SvgRect(l.cx, l.cy, 0.0, 0.0)) }?.key
+            // Labels of a use case diagram belong to `include` / `extend` lines (an association has none), so the owner is
+            // the nearest of those; with 14 px actor lanes an association line can be nearer to the centre of a label that
+            // sits on its own line (Nacharbeit 54).
+            val candidates = all.filterKeys { !it.startsWith("assoc:") }.ifEmpty { all }
+            val own = candidates.minByOrNull { SvgGeometry.distance(it.value, SvgRect(l.cx, l.cy, 0.0, 0.0)) }?.key
             return all.filterKeys { it != own }
         }
 

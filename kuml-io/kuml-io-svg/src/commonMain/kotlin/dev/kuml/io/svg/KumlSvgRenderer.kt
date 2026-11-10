@@ -2763,7 +2763,7 @@ public object KumlSvgRenderer {
             )
         // Wave 2E-b: the edge labels are planned by the shared label placer (like the BDD): labels, notes, labels.
         val ucAdapter = UcEdgeAdapter(diagram)
-        val ucLabels = planSysml2EdgeLabels(layout = layoutResult, adapter = ucAdapter)
+        val ucLabels = planSysml2EdgeLabels(layout = layoutResult, adapter = ucAdapter, keepInsideFrames = true)
         val ucNoted =
             placeSysml2NotesResult(
                 model = model,
@@ -2787,7 +2787,11 @@ public object KumlSvgRenderer {
                     ),
             )
         val ucFinalLabels =
-            if (model.comments.isEmpty()) ucLabels else planSysml2EdgeLabels(layout = ucNoted.layout, adapter = ucAdapter)
+            if (model.comments.isEmpty()) {
+                ucLabels
+            } else {
+                planSysml2EdgeLabels(layout = ucNoted.layout, adapter = ucAdapter, keepInsideFrames = true)
+            }
         return renderSysml2Synthetic(
             synthetic = synthetic,
             rawLayoutResult = ucNoted.layout,
@@ -4376,6 +4380,7 @@ public object KumlSvgRenderer {
         configure: (ObstacleIndex) -> Unit = {},
         portLabels: List<dev.kuml.layout.bridge.label.PortLabelSpec> = emptyList(),
         titleRects: List<dev.kuml.layout.Rect> = emptyList(),
+        keepInsideFrames: Boolean = false,
     ): Map<String, dev.kuml.layout.bridge.label.PlacedLabel> {
         val sizes = LinkedHashMap<String, dev.kuml.layout.Size>()
         for (edgeId in layout.edges.keys) {
@@ -4387,7 +4392,14 @@ public object KumlSvgRenderer {
                     .sizeOf(lines.map { it.text })
         }
         return dev.kuml.layout.bridge.label.Sysml2EdgeLabelPlan
-            .compute(layout = layout, labelSizes = sizes, configure = configure, portLabels = portLabels, titleRects = titleRects)
+            .compute(
+                layout = layout,
+                labelSizes = sizes,
+                configure = configure,
+                portLabels = portLabels,
+                titleRects = titleRects,
+                keepInsideFrames = keepInsideFrames,
+            )
     }
 
     /** The lines an edge label is drawn in: wrapped by the state-machine rule at [maxWidthPx], nothing is cut. */

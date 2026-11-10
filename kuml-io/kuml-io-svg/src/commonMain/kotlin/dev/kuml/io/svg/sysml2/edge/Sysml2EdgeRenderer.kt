@@ -404,14 +404,15 @@ internal object Sysml2EdgeRenderer {
      */
     internal fun drawnLabelLines(metadata: Sysml2EdgeMetadata): List<DrawnLabelLine> {
         val out = ArrayList<DrawnLabelLine>()
+        val wrapChars = metadata.labelWrapChars ?: EDGE_LABEL_WRAP_CHARS
         metadata.stereotype?.let { st ->
-            wrapWords(text = st, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(st) }.forEach {
+            wrapWords(text = st, maxChars = wrapChars).ifEmpty { listOf(st) }.forEach {
                 out +=
                     DrawnLabelLine(text = it, css = "kuml-stereotype")
             }
         }
         metadata.label?.let { l ->
-            wrapWords(text = l, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(l) }.forEach {
+            wrapWords(text = l, maxChars = wrapChars).ifEmpty { listOf(l) }.forEach {
                 // Wave 2F: the «Type» of an object flow is secondary text, upright.
                 out +=
                     DrawnLabelLine(text = it, css = if (l.startsWith("«")) "kuml-object-type" else "kuml-body")
@@ -420,7 +421,7 @@ internal object Sysml2EdgeRenderer {
         // Nacharbeit 48 (N-IBD-F g): the item-flow labels follow the connection label in the same block, one line per
         // mid-line arrow in declaration order, so the plan reserves one rectangle for both and they cannot overlap.
         metadata.midArrows.forEach { arrow ->
-            wrapWords(text = arrow.label, maxChars = EDGE_LABEL_WRAP_CHARS).ifEmpty { listOf(arrow.label) }.forEach {
+            wrapWords(text = arrow.label, maxChars = wrapChars).ifEmpty { listOf(arrow.label) }.forEach {
                 out += DrawnLabelLine(text = it, css = "kuml-body")
             }
         }

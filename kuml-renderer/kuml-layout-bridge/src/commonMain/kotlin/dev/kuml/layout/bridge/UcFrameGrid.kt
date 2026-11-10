@@ -58,6 +58,24 @@ internal object UcFrameGrid {
     private const val ROW_GUTTER_PX = 72f
     private const val LANE_PITCH_PX = 14f
 
+    /** Minimum distance of two line ends on an actor box (Nacharbeit 54). */
+    const val ACTOR_END_PITCH_PX: Float = 14f
+
+    /** Margin top and bottom of the band of line ends on an actor box (as in the shared attachment planner). */
+    private const val ACTOR_BAND_MARGIN_PX = 12f
+
+    /** An actor box never grows by more than this (13 line ends at the 14 px pitch); beyond that the pitch shrinks. */
+    private const val ACTOR_MAX_EXTRA_PX = 112f
+
+    /**
+     * Height of an actor box that carries [lines] line ends: [base] as long as `lines` ends fit at the
+     * [ACTOR_END_PITCH_PX] pitch, otherwise taller, capped at `base + 112`.
+     */
+    internal fun actorHeight(
+        lines: Int,
+        base: Float = Sysml2LayoutBridge.UC_ACTOR_HEIGHT,
+    ): Float = min(max(base, lines * ACTOR_END_PITCH_PX + 2f * ACTOR_BAND_MARGIN_PX), base + ACTOR_MAX_EXTRA_PX)
+
     /** True when the diagram has at least one subject frame. */
     fun applies(graph: LayoutGraph): Boolean = graph.groups.isNotEmpty()
 
@@ -92,7 +110,7 @@ internal object UcFrameGrid {
         fun corridorGap(side: List<LayoutNode>): Float {
             val ids = side.map { it.id }.toSet()
             val lines = graph.edges.count { it.source.nodeId in ids || it.target.nodeId in ids }
-            return max(ACTOR_FRAME_GAP_PX, lines * UcEdgeLanes.PREF_GAP_PX + CORRIDOR_MARGIN_PX)
+            return max(ACTOR_FRAME_GAP_PX, lines * ACTOR_END_PITCH_PX + CORRIDOR_MARGIN_PX)
         }
         val leftGap = corridorGap(left)
         val rightGap = corridorGap(right)
@@ -166,16 +184,27 @@ internal object UcFrameGrid {
         }
         val bodyRight = bodyX0 + row.size.width
 
+        // An actor with many lines grows so that the line ends keep the actor pitch (Nacharbeit 54).
+        val actorH =
+            actors.associate { a ->
+                a.id to
+                    actorHeight(
+                        lines = graph.edges.count { it.source.nodeId == a.id || it.target.nodeId == a.id },
+                        base = a.intrinsicSize.height,
+                    )
+            }
+
         fun stack(
             list: List<LayoutNode>,
             x: (LayoutNode) -> Float,
         ) {
             if (list.isEmpty()) return
-            val total = list.sumOf { it.intrinsicSize.height.toDouble() }.toFloat() + ACTOR_GAP_PX * (list.size - 1)
+            val total = list.sumOf { actorH.getValue(it.id).toDouble() }.toFloat() + ACTOR_GAP_PX * (list.size - 1)
             var y = (bodyH - total) / 2f
             for (a in list) {
-                nodes[a.id] = Rect(origin = Point(x = x(a), y = y), size = a.intrinsicSize)
-                y += a.intrinsicSize.height + ACTOR_GAP_PX
+                val h = actorH.getValue(a.id)
+                nodes[a.id] = Rect(origin = Point(x = x(a), y = y), size = Size(width = a.intrinsicSize.width, height = h))
+                y += h + ACTOR_GAP_PX
             }
         }
 
@@ -276,7 +305,14 @@ internal object UcFrameGrid {
 
         // Post passes (Nacharbeit 42): micro jogs out, shared corridors apart, line ends on the ellipse outline.
         val ends = graph.edges.associate { it.id to (it.source.nodeId to it.target.nodeId) }
-        val planned = UcEdgeLanes.plan(routes = routes, ends = ends, nodes = nodes, frames = groups.values.toList())
+        val planned =
+            UcEdgeLanes.plan(
+                routes = routes,
+                ends = ends,
+                nodes = nodes,
+                frames = groups.values.toList(),
+                actorIds = actors.map { it.id }.toSet(),
+            )
         val finalRoutes =
             UcEdgeLanes.clipToEllipses(
                 routes = planned.routes,

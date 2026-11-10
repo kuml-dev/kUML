@@ -8,7 +8,12 @@ import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.note.ObstacleIndex
 import dev.kuml.layout.bridge.note.ObstacleKind
 import dev.kuml.layout.bridge.note.Sysml2NotePlacement
+import dev.kuml.layout.bridge.note.bottom
+import dev.kuml.layout.bridge.note.left
 import dev.kuml.layout.bridge.note.rectOf
+import dev.kuml.layout.bridge.note.right
+import dev.kuml.layout.bridge.note.segmentIntersectsRect
+import dev.kuml.layout.bridge.note.top
 import dev.kuml.layout.bridge.port.PortEdgeClamp
 
 /** A port label to place: the label of the port square [anchorRect] of the owner [ownerId] (PAL wave 2C-b2). */
@@ -83,6 +88,9 @@ public object Sysml2DiagramLabelPlan {
      * @param arrowheads arrow-tip points (the [ARROWHEAD_PX] square around each becomes an obstacle)
      * @param titleRects estimated rectangles of texts inside boxes (part titles, nested frame headers): composite titles
      * @param configure adds more obstacles (drawn port squares, owner ports)
+     * @param keepInsideFrames an edge label whose line runs inside one subject frame (layout group) is kept inside that
+     *   frame, 4 px clear of its border (Nacharbeit 54, use case diagrams); the rectangle is clamped into the frame as
+     *   the last resort and reported as not clean when it then sits on something
      */
     public fun compute(
         layout: LayoutResult,
@@ -92,6 +100,7 @@ public object Sysml2DiagramLabelPlan {
         titleRects: List<Rect> = emptyList(),
         configure: (ObstacleIndex) -> Unit = {},
         costs: LabelCostModel = LabelCostModel(lineClearance = 2f),
+        keepInsideFrames: Boolean = false,
     ): Map<String, PlacedLabel> {
         if (edgeLabelSizes.isEmpty() && portLabels.isEmpty()) return emptyMap()
         val index = Sysml2NotePlacement.obstaclesOf(layout = layout)
@@ -123,11 +132,97 @@ public object Sysml2DiagramLabelPlan {
             val size = edgeLabelSizes[id.value] ?: continue
             val pts = polylineOf(route)
             if (pts.size < 2) continue
-            requests += LabelRequest(id = id.value, role = LabelRole.EDGE_CENTER, ownerId = id.value, size = size, polyline = pts)
+            val allowed = if (keepInsideFrames) allowedRegionOf(layout = layout, pts = pts, size = size) else null
+            requests +=
+                LabelRequest(
+                    id = id.value,
+                    role = LabelRole.EDGE_CENTER,
+                    ownerId = id.value,
+                    size = size,
+                    polyline = pts,
+                    avoid = allowed?.let { FrameKeeper.avoidFor(it) } ?: emptyList(),
+                    extraCandidates = allowed?.let { FrameKeeper.candidatesFor(polyline = pts, size = size, allowed = it) } ?: emptyList(),
+                )
         }
         if (requests.isEmpty()) return emptyMap()
-        return LabelPlacer.place(requests = requests, index = index, costs = costs)
+        val placed = LabelPlacer.place(requests = requests, index = index, costs = costs)
+        if (!keepInsideFrames) return placed
+        return guardInsideFrames(layout = layout, sizes = edgeLabelSizes, placed = placed)
     }
+
+    /**
+     * The region inside the subject frame that contains both ends of [pts] (the label may take it), or `null` when the
+     * line does not run inside one frame (a loose line, an actor line, a line between two frames) or the label is wider
+     * or taller than the frame allows (it then cannot be kept inside; the caller reports it).
+     */
+    private fun allowedRegionOf(
+        layout: LayoutResult,
+        pts: List<Point>,
+        size: Size,
+    ): Rect? {
+        val allowed = frameRegionOf(layout = layout, pts = pts) ?: return null
+        return if (FrameKeeper.fits(size = size, allowed = allowed)) allowed else null
+    }
+
+    private fun frameRegionOf(
+        layout: LayoutResult,
+        pts: List<Point>,
+    ): Rect? {
+        val first = pts.first()
+        val last = pts.last()
+        val frame =
+            layout.groups.entries
+                .sortedBy { it.key.value }
+                .map { it.value.bounds }
+                .firstOrNull { inflatedContains(r = it, p = first) && inflatedContains(r = it, p = last) }
+                ?: return null
+        return FrameKeeper.allowedRegion(frame)
+    }
+
+    /** Last line of defence: a label that still leaves its frame is moved in and reported as not clean. */
+    private fun guardInsideFrames(
+        layout: LayoutResult,
+        sizes: Map<String, Size>,
+        placed: Map<String, PlacedLabel>,
+    ): Map<String, PlacedLabel> {
+        val out = LinkedHashMap<String, PlacedLabel>(placed)
+        for ((id, label) in placed) {
+            val route =
+                layout.edges.entries
+                    .firstOrNull { it.key.value == id }
+                    ?.value ?: continue
+            val pts = polylineOf(route)
+            if (pts.size < 2) continue
+            val size = sizes[id] ?: continue
+            val region = frameRegionOf(layout = layout, pts = pts) ?: continue
+            if (!FrameKeeper.fits(size = size, allowed = region)) {
+                // wider than the frame (one unbreakable word): cannot be kept inside, reported as not clean
+                out[id] = label.copy(clean = false)
+                continue
+            }
+            val allowed = region
+            val rect =
+                if (FrameKeeper.inside(
+                        r = label.rect,
+                        allowed = allowed,
+                    )
+                ) {
+                    label.rect
+                } else {
+                    FrameKeeper.clamp(r = label.rect, allowed = allowed)
+                }
+            // a label that lies on its own line (the frame leaves no room beside it) gets the canvas coloured backdrop
+            val onOwnLine = (0 until pts.size - 1).any { segmentIntersectsRect(a = pts[it], b = pts[it + 1], r = rect) }
+            if (rect == label.rect && !onOwnLine) continue
+            out[id] = label.copy(rect = rect, onLine = label.onLine || onOwnLine, clean = false)
+        }
+        return out
+    }
+
+    private fun inflatedContains(
+        r: Rect,
+        p: Point,
+    ): Boolean = p.x >= r.left - 1f && p.x <= r.right + 1f && p.y >= r.top - 1f && p.y <= r.bottom + 1f
 
     /** Cost model of the parametric diagram: 2 px free space all round, search outwards up to 24 px (PAL wave 2C-b3). */
     public val PAR_COSTS: LabelCostModel =

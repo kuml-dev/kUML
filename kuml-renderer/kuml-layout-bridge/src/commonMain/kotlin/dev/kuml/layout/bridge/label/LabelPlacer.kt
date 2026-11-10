@@ -46,6 +46,8 @@ public enum class LabelSide { NORTH, EAST, SOUTH, WEST }
  * @property parentId the owner box of a port label: obstacles owned by it (the box itself) do not count against the label
  * @property avoid rectangles this label must not cover (hard obstacles that exist only for this request, wave 2D-a)
  * @property segmentFlags per polyline segment a bit mask of [SEGMENT_SHARED] / [SEGMENT_SHORT] (used by [EdgeCandidateMode.ARC_LENGTH])
+ * @property extraCandidates more rectangles a [LabelRole.EDGE_CENTER] label may take (Nacharbeit 54: spots inside a subject
+ *   frame); they are costed like every other candidate
  */
 public data class LabelRequest(
     val id: String,
@@ -60,6 +62,7 @@ public data class LabelRequest(
     val parentId: String? = null,
     val avoid: List<Rect> = emptyList(),
     val segmentFlags: List<Int> = emptyList(),
+    val extraCandidates: List<Rect> = emptyList(),
 )
 
 /** Segment runs along a segment of another edge (bit of [LabelRequest.segmentFlags]). */
@@ -261,11 +264,13 @@ public object LabelPlacer {
     ): List<Candidate> =
         when (req.role) {
             LabelRole.EDGE_CENTER ->
-                if (costs.edgeCandidateMode == EdgeCandidateMode.ARC_LENGTH) {
-                    arcCandidates(req = req, costs = costs)
-                } else {
-                    edgeCandidates(req = req, offsets = costs.edgeOffsets)
-                }
+                (
+                    if (costs.edgeCandidateMode == EdgeCandidateMode.ARC_LENGTH) {
+                        arcCandidates(req = req, costs = costs)
+                    } else {
+                        edgeCandidates(req = req, offsets = costs.edgeOffsets)
+                    }
+                ) + req.extraCandidates.map { Candidate(rect = it, onLine = false, sign = 0, t = 0.5f) }
             LabelRole.MULTIPLICITY, LabelRole.ROLE -> endCandidates(req = req, takenSign = taken)
             LabelRole.PORT -> portCandidates(req)
         }
