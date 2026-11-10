@@ -223,6 +223,15 @@ public object LayoutSpecRunner {
         }
         val checked = sanitize(spec = spec, findings = findings)
         checkIds(spec = checked, graph = graph, findings = findings, withGroups = kind == SpecDiagramKind.SYSML2_REQ)
+        for (m in graph.ignoredMemberships) {
+            findings +=
+                LayoutSpecFinding(
+                    code = LayoutCodes.DUPLICATE_GROUP_MEMBERSHIP,
+                    message =
+                        "group: '${m.nodeId.value}' is a member of '${m.keptGroup.value}' and '${m.ignoredGroup.value}'; " +
+                            "it stands in '${m.keptGroup.value}' only (the first group in declaration order).",
+                )
+        }
         val effectiveHints = hintsWith(base = hints, spec = checked)
         if (kind == SpecDiagramKind.SYSML2_REQ && ReqGroupGrid.applies(graph = graph, spec = checked)) {
             val gridSpec = checked ?: LayoutSpec()

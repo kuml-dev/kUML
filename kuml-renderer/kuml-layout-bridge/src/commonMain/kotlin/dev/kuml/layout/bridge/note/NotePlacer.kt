@@ -130,6 +130,12 @@ public data class NotePlacementConfig(
     val anchorNearPenalty: Float = 0f,
     /** Nacharbeit 38: a note rectangle may not sit on the anchor line of an earlier note (6 px). */
     val hardAnchorLines: Boolean = false,
+    /**
+     * Nacharbeit 55: the area inside the group frame that is reserved for a note (note id to rectangle, layout
+     * coordinates). A note with an area is tried there first (the cheapest free position whose anchor lines can be
+     * routed); when none works the general search decides as for every other note.
+     */
+    val noteHomes: Map<String, Rect> = emptyMap(),
 )
 
 /** One anchor link of a note: [linkId] names the drawn line, [targetId] the annotated element. */
@@ -358,15 +364,16 @@ public object NotePlacer {
                 continue
             }
             val plan =
-                choosePlan(
-                    size = size,
-                    anchors = resolved,
-                    extent = extent,
-                    baseExtent = baseExtent,
-                    obstacles = obstacles,
-                    config = config,
-                    budget = budget,
-                )
+                homePlan(noteId = note.noteId, size = size, anchors = resolved, obstacles = obstacles, config = config, budget = budget)
+                    ?: choosePlan(
+                        size = size,
+                        anchors = resolved,
+                        extent = extent,
+                        baseExtent = baseExtent,
+                        obstacles = obstacles,
+                        config = config,
+                        budget = budget,
+                    )
             if (plan.stripExhausted) truncated += note.noteId
             nodes[NodeId(note.noteId)] = NodeLayout(bounds = plan.rect)
             obstacles.addRect(kind = ObstacleKind.NOTE, r = plan.rect, ownerId = note.noteId)
@@ -457,6 +464,35 @@ public object NotePlacer {
         }
 
     // ---------------------------------------------------------------- candidate search
+
+    /** The cheapest routable plan inside the area of [noteId] in [NotePlacementConfig.noteHomes], or null when there is none. */
+    private fun homePlan(
+        noteId: String,
+        size: Size,
+        anchors: List<Anchor>,
+        obstacles: ObstacleIndex,
+        config: NotePlacementConfig,
+        budget: ObstacleIndex.Budget,
+    ): Plan? {
+        val home = config.noteHomes[noteId] ?: return null
+        if (size.width > home.size.width + 0.5f || size.height > home.size.height - HOME_TOP_GAP_PX + 0.5f) return null
+        var best: Plan? = null
+        var candidates = 0
+        var y = home.top + HOME_TOP_GAP_PX
+        while (y + size.height <= home.bottom + 0.5f && candidates < HOME_MAX_CANDIDATES) {
+            // the rightmost position is always tried, so the notes of a strip fill it exactly whatever the step
+            val xs = generateSequence(home.left) { it + HOME_STEP_PX }.takeWhile { it + size.width <= home.right + 0.5f }.toList()
+            for (x in xs + (home.right - size.width)) {
+                if (candidates++ >= HOME_MAX_CANDIDATES) break
+                val rect = Rect(origin = Point(x = x, y = y), size = size)
+                if (obstacles.overlapsNote(rect)) continue
+                val plan = planFor(rect = rect, anchors = anchors, obstacles = obstacles, config = config, budget = budget)
+                if (plan.routed && (best == null || plan.cost < best.cost)) best = plan
+            }
+            y += HOME_STEP_PX
+        }
+        return best
+    }
 
     private fun choosePlan(
         size: Size,
@@ -1483,5 +1519,10 @@ public object NotePlacer {
     /** Rows of the strip fallback (Nacharbeit 25): distance between two rows and the cap of the search. */
     private const val STRIP_ROW_STEP: Float = 24f
     private const val MAX_STRIP_ROWS: Int = 80
+
+    /** Nacharbeit 55: grid step and candidate cap of the search inside a group's note area. */
+    private const val HOME_STEP_PX: Float = 6f
+    private const val HOME_TOP_GAP_PX: Float = 12f
+    private const val HOME_MAX_CANDIDATES: Int = 600
     private const val EMERGENCY_SEGMENTS: Int = 4
 }

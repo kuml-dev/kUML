@@ -421,7 +421,9 @@ included in the diagram, no edge can be drawn and `kuml validate` warns (`LAYOUT
 The free-text `subject` stays available. Titles are wrapped
 instead of truncated; the box width is between 160 and 240 px and the height grows with the content.
 `testCaseDef` adds a verification element (rounded box, `<<testCase>>`). `group("Name") { ... }` draws a framed
-group with a name tab; groups nest up to three levels and an element belongs to at most one group.
+group with a name tab; groups nest up to three levels and an element belongs to at most one group (listed in two, it stands in
+the first and the layout reports `KUML-LAYOUT-W007`). A note anchored only to requirements of one group is placed inside
+that group's frame (see the layout chapter).
 New relationships: `refine(source, requirement)`, `trace(source, target)` and `copy(slave, master)`.
 
 [source,kuml]

@@ -1529,16 +1529,23 @@ public object Sysml2LayoutBridge {
             edges += reqEdge(id = "${ReqEdgeAdapter.SUBJECT_EDGE_PREFIX}$id::$ref", source = id, target = ref)
         }
 
-        val groups = c1RequirementGroups(diagram = diagram, visibleNodeIds = visibleNodeIds)
-        val groupOfNode = mutableMapOf<String, GroupId>()
-        for (g in diagram.groups.take(C1_MAX_GROUPS)) {
-            val gid = GroupId(g.id)
-            if (groups.none { it.id == gid }) continue
-            for (m in g.memberIds) if (m in visibleNodeIds && m !in groupOfNode) groupOfNode[m] = gid
-        }
+        val liveGroups = c1RequirementGroups(diagram = diagram, visibleNodeIds = visibleNodeIds)
+        val membership =
+            ReqNoteRoom.membership(
+                diagram = diagram,
+                liveGroupIds = liveGroups.map { it.id.value }.toSet(),
+                visibleNodeIds = visibleNodeIds,
+            )
+        val groupOfNode = membership.groupOfNode
+        // Nacharbeit 55: a group reserves room inside its frame for the notes only it owns.
+        val strips =
+            ReqNoteRoom
+                .ownedNotes(model = model, diagram = diagram, groupOfNode = groupOfNode, visibleNodeIds = visibleNodeIds)
+                .mapValues { (_, notes) -> ReqNoteRoom.stripOf(notes) }
+        val groups = liveGroups.map { g -> strips[g.id]?.let { g.copy(noteStrip = it) } ?: g }
         val finalNodes = if (groupOfNode.isEmpty()) nodes else nodes.map { n -> groupOfNode[n.id.value]?.let { n.copy(groupId = it) } ?: n }
 
-        return LayoutGraph(nodes = finalNodes, edges = edges, groups = groups)
+        return LayoutGraph(nodes = finalNodes, edges = edges, groups = groups, ignoredMemberships = membership.ignored)
             .withLayoutSpec(diagram = diagram)
     }
 

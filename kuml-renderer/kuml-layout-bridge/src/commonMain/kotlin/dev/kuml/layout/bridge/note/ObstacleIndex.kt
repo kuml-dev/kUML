@@ -32,6 +32,12 @@ public enum class ObstacleKind {
     /** An already placed note. */
     NOTE,
 
+    /**
+     * A strip a note rectangle may never cover (Nacharbeit 55: the band around a requirement-group frame line). Routes
+     * ignore it: an anchor line has to cross a frame line to reach a card inside.
+     */
+    KEEP_OUT,
+
     /** A drawn port square (rectangle); a route may touch it only at its anchor end. */
     PORT,
 
@@ -132,7 +138,10 @@ public class ObstacleIndex {
 
     /** True if [r] overlaps an already placed note (with its 8 px halo) or covers a part box: such a position is never acceptable (notes N2). */
     internal fun overlapsNote(r: Rect): Boolean =
-        rects.any { (it.kind == ObstacleKind.NOTE && it.rect.intersects(r)) || (it.kind == ObstacleKind.NODE && it.core.intersects(r)) }
+        rects.any {
+            (it.kind == ObstacleKind.NOTE && it.rect.intersects(r)) ||
+                ((it.kind == ObstacleKind.NODE || it.kind == ObstacleKind.KEEP_OUT) && it.core.intersects(r))
+        }
 
     /**
      * Hard clearance rule (Nacharbeit 25): true if [r] comes closer than [clearance] px to a part box or to a diagram
@@ -245,6 +254,7 @@ public class ObstacleIndex {
         var cost = 0f
         for (o in rects) {
             budget.spend()
+            if (o.kind == ObstacleKind.KEEP_OUT) continue
             if (o.ownerId != null && o.ownerId in exemptOwners) continue
             // Nacharbeit 38: a soft band of 6..12 px around foreign boxes and ports.
             if (nearPenalty > 0f &&

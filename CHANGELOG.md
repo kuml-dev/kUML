@@ -6,6 +6,37 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 55: REQ group frames keep notes off their lines, notes owned by one group get room inside it, duplicate membership is reported
+
+#### Why
+
+N-REQ-A items (e) and (g); (f) was tried and reverted (see Not fixed). Reproduction with the local CLI and neutral fixtures (three groups of three requirements, `wrapColumns = 3`, notes anchored to one card, to two cards of one group and to cards of two groups; nested groups with a requirement `include`d twice):
+
+- (e) the note placer sees a group frame only as a soft 2000-cost line, so with the cards filling the frame a note could sit on the frame line, and a note about one group's cards had no room inside that group.
+- (g) the bridge already gives every node one group (the first in declaration order), so frames of the grid path cannot overlap or enclose a stranger (checked by the new geometry test on nested groups). The second membership was dropped silently.
+
+#### Change
+
+- `ObstacleKind.KEEP_OUT`: a hard obstacle for note rectangles (`overlapsNote`), ignored by anchor-line routing. `Sysml2NotePlacement.place` adds an 8 px strip on each side of every requirement-group frame line (REQ diagrams only; `obstaclesOf`, which all diagram types share, is unchanged). It sits in `Sysml2NotePlacement`, so the SVG and the LaTeX renderer share it.
+- `ReqNoteRoom` (new): group membership and the notes a single group owns (all anchors are requirements of that group). `LayoutGroup.noteStrip` (new, default `null`): the bridge sets it; `ReqGroupGrid.packGroup` grows the frame by that strip below the cards (notes side by side, widths plus 12 px gaps).
+- `NotePlacementConfig.noteHomes` (new): the placer first searches the owning group's strip (6 px grid, at most 600 candidates) for the cheapest position whose anchor lines can be routed; otherwise the general search runs as before.
+- `LayoutGraph.ignoredMemberships` (new, default empty) and `LayoutCodes.DUPLICATE_GROUP_MEMBERSHIP` = `KUML-LAYOUT-W007`: a requirement listed in two groups stands in the first one and the layout warns.
+- Handbook `layout.adoc` (group grid section, warning table) and `sysml2.adoc`. Vault example sources were not edited.
+- New tests: `ReqNacharbeit55Test` (sibling and child frames, no stranger in a frame, duplicate membership with finding, 8 px band, owned notes inside their frame without covering cards, two-group note reserves nothing).
+
+#### Verification
+
+`./gradlew clean check --no-build-cache --rerun-tasks` was BUILD SUCCESSFUL in 19m 24s (10,665 test cases in the result XMLs, 5 skipped, 0 failed; detekt, ktlint, the vault example tests and the LaTeX tests are part of `check`). `python3 -I scripts/ci/check_latex_tests.py` passed. Neutral fixtures were rendered to PNG with the local CLI and looked at: owned notes stand inside their frame, the two-group note stays outside, no note sits on a frame line.
+
+**Not verified:** GitHub CI, Linux/Windows font differences, LaTeX output visually (it shares the same placement code and bridge layout).
+
+**Not fixed:**
+
+- (f) separating the diagram `wrapColumns` from the cards inside a group was implemented and reverted: it changes the picture of the fixtures `sysml2-e2a/req-grid`, `req-grid-right` and `req-grid-subject` (all use groups with a diagram `wrapColumns = 2`), and `Sysml2ReqLayoutInvariantTest` ("no two parallel segments ... closer than 6 px") then fails on `req-grid-right` (`satisfy:Platform::Logging` / `satisfy:Platform::LocalDeadline`, 5 px apart). It passes again without the change. A separate `groupColumns` option (proposal of Alan Kay) is the safer route.
+- A note owned by one group goes into the strip only if its anchor lines can be routed from there; otherwise it lands wherever the general search puts it (possibly outside the frame), and the reserved strip stays empty. The strip is always below the cards, also for `direction = Right`.
+- Notes anchored in several groups (P-COM-02), free choice of note side or position, edge bundles (P-REQ-04), P-REQ-03, items (a) to (d).
+- Diagrams without any `wrapColumns`/`aspectRatio`/`maxWidth`/`sameLayer` (ELK path): group frames come from ELK and were not changed; frames and strips only exist in the grid path. The duplicate-membership warning applies to both paths.
+
 ### Nacharbeit 54: extend labels stay inside the subject frame, actor boxes grow with their lines
 
 #### Why

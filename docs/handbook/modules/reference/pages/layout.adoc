@@ -355,6 +355,12 @@ group("Safety") {
     layout { wrapColumns = 3 }   // three cards per row inside this frame
 }
 ----
+* A note whose anchors are all requirements of one group stands inside that frame: the frame reserves a strip below its
+  cards for it and the note goes there when its anchor line can be routed. No note covers a frame line (an 8 px band on
+  each side is kept free). A note anchored in several groups, or whose strip position has no clear anchor line, is
+  placed by the general rule and can end up outside the frame.
+* A requirement that is `include`d in two groups stands in the first one in declaration order only; the layout reports
+  `KUML-LAYOUT-W007`.
 * `direction = Right` transposes the grid (frames are filled column by column, so `wrapColumns = 2` gives
   A C / B D); `Up` and `Left` mirror rows and columns.
 * `sameLayer(groupA, groupB)` (group handles or the ids `group:<name>`) puts the groups in one row. If that row is
@@ -536,6 +542,10 @@ Conflicts produce a `LayoutWarning` in `LayoutResult.warnings`:
 | `KUML-LAYOUT-W006`
 | An interruptible-region frame still overlaps a node that is not a member of the region (activity diagram, wave 2F).
   The warning lists the nodes.
+
+| `KUML-LAYOUT-W007`
+| A requirement diagram lists one requirement in two groups. It stands in the first group in declaration order only
+  (Nacharbeit 55).
 
 | `engine.performance.large_graph`
 | Graph exceeds the engine's recommended max (`maxRecommendedNodes`). Suggest a different

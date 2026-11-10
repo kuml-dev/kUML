@@ -133,6 +133,9 @@ object LayoutCodes {
 
     /** An interruptible-region frame still overlaps a node that is not a member of it (PAL wave 2F). */
     const val REGION_OVERLAP = "KUML-LAYOUT-W006"
+
+    /** A requirement stands in two groups; only the first one in declaration order holds it (Nacharbeit 55). */
+    const val DUPLICATE_GROUP_MEMBERSHIP = "KUML-LAYOUT-W007"
     const val OUT_OF_RANGE = "KUML-LAYOUT-E001"
 
     /** Informational: a `sameLayer` of groups widens its row beyond the column count (wave 2E-a). Not an error. */

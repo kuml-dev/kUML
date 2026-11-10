@@ -4,8 +4,11 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.ReqNoteRoom
+import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.label.Sysml2LabelSizing
 import dev.kuml.layout.polylinePoints
+import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
 
@@ -112,14 +115,78 @@ public object Sysml2NotePlacement {
         if (inputs.isEmpty()) return NotePlacementResult(layout = layout, unresolved = emptyList(), truncated = emptyList())
         val obstacles = obstaclesOf(layout = layout, edgeLabels = edgeLabels, nodeObstacle = nodeObstacle, placedLabels = placedLabels)
         configure(obstacles)
+        // Nacharbeit 55: requirement-group frames keep notes off their lines; notes owned by one group go to its strip (the area, see NotePlacementConfig.noteHomes).
+        val homes =
+            if (diagram is ReqDiagram) {
+                reqGroupRoom(
+                    model = model,
+                    diagram = diagram,
+                    layout = layout,
+                    obstacles = obstacles,
+                )
+            } else {
+                emptyMap()
+            }
         return NotePlacer.place(
             layout = layout,
             notes = inputs,
             resolver = resolver,
             obstacles = obstacles,
             measure = measure,
-            config = config,
+            config = if (homes.isEmpty()) config else config.copy(noteHomes = homes),
         )
+    }
+
+    /**
+     * Requirement diagrams with groups (Nacharbeit 55): adds a hard [ObstacleKind.KEEP_OUT] band of
+     * [ReqNoteRoom.BAND_PX] on each side of every group frame line and returns the slots of the notes a single group
+     * owns (inside that group's frame, in the strip the layout bridge reserved).
+     */
+    private fun reqGroupRoom(
+        model: Sysml2Model,
+        diagram: ReqDiagram,
+        layout: LayoutResult,
+        obstacles: ObstacleIndex,
+    ): Map<String, Rect> {
+        if (layout.groups.isEmpty()) return emptyMap()
+        val b = ReqNoteRoom.BAND_PX
+        for ((id, g) in layout.groups) {
+            val f = g.bounds
+            val x = f.origin.x
+            val y = f.origin.y
+            val w = f.size.width
+            val h = f.size.height
+            val strips =
+                listOf(
+                    Rect(origin = Point(x = x - b, y = y - b), size = Size(width = w + 2f * b, height = 2f * b)),
+                    Rect(origin = Point(x = x - b, y = y + h - b), size = Size(width = w + 2f * b, height = 2f * b)),
+                    Rect(origin = Point(x = x - b, y = y - b), size = Size(width = 2f * b, height = h + 2f * b)),
+                    Rect(origin = Point(x = x + w - b, y = y - b), size = Size(width = 2f * b, height = h + 2f * b)),
+                )
+            strips.forEach { obstacles.addRect(kind = ObstacleKind.KEEP_OUT, r = it, ownerId = id.value) }
+        }
+        val visibleIds =
+            layout.nodes.keys
+                .map { it.value }
+                .toSet()
+        val membership =
+            ReqNoteRoom.membership(
+                diagram = diagram,
+                liveGroupIds =
+                    layout.groups.keys
+                        .map { it.value }
+                        .toSet(),
+                visibleNodeIds = visibleIds,
+            )
+        val owned =
+            ReqNoteRoom.ownedNotes(model = model, diagram = diagram, groupOfNode = membership.groupOfNode, visibleNodeIds = visibleIds)
+        val out = LinkedHashMap<String, Rect>()
+        for ((gid, notes) in owned) {
+            val frame = layout.groups[gid]?.bounds ?: continue
+            val home = ReqNoteRoom.home(frame = frame, notes = notes, padding = Sysml2LayoutBridge.REQ_GROUP_PADDING) ?: continue
+            notes.forEach { (noteId, _) -> out[noteId] = home }
+        }
+        return out
     }
 
     /** The obstacle model of an existing layout. */

@@ -13,6 +13,19 @@ public data class LayoutGraph(
     val nodes: List<LayoutNode>,
     val edges: List<LayoutEdge>,
     val groups: List<LayoutGroup> = emptyList(),
+    /**
+     * Group memberships the bridge dropped because a node can stand in one group only (Nacharbeit 55, SysML-2-REQ):
+     * the first group in declaration order wins. The layout reports each entry as `KUML-LAYOUT-W007`.
+     */
+    val ignoredMemberships: List<IgnoredMembership> = emptyList(),
+)
+
+/** A node that is a member of [ignoredGroup] as well, but stands in [keptGroup] (the first one in declaration order). */
+@Serializable
+public data class IgnoredMembership(
+    val nodeId: NodeId,
+    val keptGroup: GroupId,
+    val ignoredGroup: GroupId,
 )
 
 /**
@@ -118,6 +131,11 @@ public data class LayoutGroup(
      * Diagramm-Layouts. Wird nur vom Gruppenraster der Requirement-Diagramme ausgewertet.
      */
     val wrapColumns: Int? = null,
+    /**
+     * Room the group frame reserves below its content for the notes only this group owns (Nacharbeit 55, SysML-2-REQ
+     * group grid): width = widest note, height = top gap plus the stacked notes. `null` = nothing reserved.
+     */
+    val noteStrip: Size? = null,
 )
 
 /**

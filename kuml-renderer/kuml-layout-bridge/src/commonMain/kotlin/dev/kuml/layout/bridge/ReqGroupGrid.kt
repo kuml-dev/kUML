@@ -546,10 +546,12 @@ internal object ReqGroupGrid {
             val pad = g.padding
             val minW = g.minSize?.width ?: 0f
             val minH = g.minSize?.height ?: 0f
+            // Nacharbeit 55: the room for the notes only this group owns sits below the content, inside the frame.
+            val strip = g.noteStrip ?: Size(width = 0f, height = 0f)
             val frame =
                 Size(
-                    width = max(minW, content.size.width + pad.left + pad.right),
-                    height = max(minH, content.size.height + pad.top + pad.bottom),
+                    width = max(minW, max(content.size.width, strip.width) + pad.left + pad.right),
+                    height = max(minH, content.size.height + strip.height + pad.top + pad.bottom),
                 )
             val out = Packed(size = frame)
             content.nodes.forEach { (id, r) -> out.nodes[id] = r.moved(dx = pad.left, dy = pad.top) }
