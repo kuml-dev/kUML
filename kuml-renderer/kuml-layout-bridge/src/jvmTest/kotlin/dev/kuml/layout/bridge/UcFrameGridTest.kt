@@ -1,5 +1,6 @@
 package dev.kuml.layout.bridge
 
+import dev.kuml.core.model.layout.ActorSide
 import dev.kuml.core.model.layout.LayoutSpec
 import dev.kuml.layout.DiagramKind
 import dev.kuml.layout.EdgeId
@@ -28,6 +29,7 @@ import dev.kuml.layout.bridge.note.top
 import dev.kuml.layout.polylinePoints
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.comparables.shouldBeGreaterThanOrEqualTo
+import io.kotest.matchers.comparables.shouldBeLessThanOrEqualTo
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import kotlin.math.abs
@@ -231,6 +233,168 @@ class UcFrameGridTest :
                         if (shared > 1f) abs(a0.x - b0.x) shouldBeGreaterThanOrEqualTo 11.99f
                     }
                 }
+            }
+        }
+
+        // ---- Nacharbeit 57: explicit aspectRatio / maxWidth in the real geometry, actorSide=Both by use case position ----
+
+        /** Eight use cases of one frame (u1..u8, 140 x 60), actors [actors] (name to the use case numbers they touch). */
+        fun shopGraph(actors: List<Pair<String, List<Int>>>): LayoutGraph {
+            val gid = GroupId("frame")
+            val nodes =
+                (1..8).map { LayoutNode(id = NodeId("u$it"), intrinsicSize = Size(width = 140f, height = 60f), groupId = gid) } +
+                    actors.map {
+                        LayoutNode(id = NodeId(it.first), intrinsicSize = Size(width = 60f, height = 100f), hints = NodeHints(rail = true))
+                    }
+            val edges =
+                actors.flatMap { (a, us) ->
+                    us.map {
+                        LayoutEdge(
+                            id = EdgeId("$a-u$it"),
+                            source = EndpointRef(nodeId = NodeId(a)),
+                            target = EndpointRef(nodeId = NodeId("u$it")),
+                        )
+                    }
+                }
+            return LayoutGraph(
+                nodes = nodes,
+                edges = edges,
+                groups = listOf(LayoutGroup(id = gid, padding = Insets(top = 24f, right = 24f, bottom = 24f, left = 24f))),
+            )
+        }
+
+        fun shopLayout(
+            g: LayoutGraph,
+            spec: LayoutSpec,
+        ): LayoutResult = UcFrameGrid.layout(engine = NoEngine, graph = g, hints = LayoutHints.DEFAULT, spec = spec)
+
+        fun picture(res: LayoutResult): Rect = ReqGroupGrid.union(res.nodes.values.map { it.bounds } + res.groups.values.map { it.bounds })
+
+        fun ratio(res: LayoutResult): Double = picture(res).let { it.size.width.toDouble() / it.size.height }
+
+        fun columns(res: LayoutResult): Int =
+            (1..8)
+                .map {
+                    res.nodes
+                        .getValue(NodeId("u$it"))
+                        .bounds.origin.x
+                }.distinct()
+                .size
+
+        val oneActor = listOf("act" to (1..8).toList())
+
+        test("aspectRatio 1.0 (Right): the chosen column count is the closest to the target in the real geometry") {
+            val g = shopGraph(oneActor)
+            val spec = LayoutSpec(aspectRatio = 1.0, actorSide = ActorSide.Right)
+            val res = shopLayout(g, spec)
+            val dist = abs(ratio(res) - 1.0)
+            for (c in 1..8) {
+                val ref = shopLayout(g, LayoutSpec(wrapColumns = c, actorSide = ActorSide.Right))
+                dist shouldBeLessThanOrEqualTo abs(ratio(ref) - 1.0) + 1e-6
+            }
+            columns(res) shouldBe 2
+            dist shouldBeLessThanOrEqualTo 0.35
+        }
+
+        test("aspectRatio 3.0 (Right): at least as wide as the default picture") {
+            val g = shopGraph(oneActor)
+            val wide = shopLayout(g, LayoutSpec(aspectRatio = 3.0, actorSide = ActorSide.Right))
+            val default = shopLayout(g, LayoutSpec(actorSide = ActorSide.Right))
+            ratio(wide) shouldBeGreaterThanOrEqualTo ratio(default)
+        }
+
+        test("maxWidth (Right): the picture is not wider than the limit when a column count reaches it") {
+            val g = shopGraph(oneActor)
+            val limit = picture(shopLayout(g, LayoutSpec(wrapColumns = 2, actorSide = ActorSide.Right))).size.width.toInt() + 1
+            val res = shopLayout(g, LayoutSpec(maxWidth = limit, actorSide = ActorSide.Right))
+            picture(res).size.width shouldBeLessThanOrEqualTo limit.toFloat()
+        }
+
+        test("regression: without aspectRatio and maxWidth the column count is still the shared estimate") {
+            val g = shopGraph(oneActor)
+            // one actor on the right with eight lines: width 60, corridor max(120, 8 * 14 + 48) = 160; frame padding 24 per side
+            val expected =
+                ReqGroupGrid.chooseColumns(
+                    cells = List(8) { Size(width = 140f, height = 60f) },
+                    spec = LayoutSpec(),
+                    horizontal = false,
+                    extra = Size(width = 60f + 160f + 48f, height = 48f),
+                )
+            val res = shopLayout(g, LayoutSpec(actorSide = ActorSide.Right))
+            val ref = shopLayout(g, LayoutSpec(wrapColumns = expected, actorSide = ActorSide.Right))
+            res.nodes.keys shouldBe ref.nodes.keys
+            for ((id, n) in res.nodes) n.bounds shouldBe ref.nodes.getValue(id).bounds
+        }
+
+        // left column u1 u3 u5 u7, right column u2 u4 u6 u8; the first two actors only touch the right column
+        val adversarial =
+            listOf(
+                "a1" to listOf(2, 4),
+                "a2" to listOf(6, 8),
+                "a3" to listOf(1, 3),
+                "a4" to listOf(5, 7),
+            )
+
+        test("Both: actors go to the side of their use cases, two per side") {
+            val res = shopLayout(shopGraph(adversarial), LayoutSpec(wrapColumns = 2, actorSide = ActorSide.Both))
+            val frame = res.groups.getValue(GroupId("frame")).bounds
+            for (a in listOf("a3", "a4")) {
+                res.nodes
+                    .getValue(NodeId(a))
+                    .bounds.right shouldBeLessThanOrEqualTo frame.left
+            }
+            for (a in listOf("a1", "a2")) {
+                res.nodes
+                    .getValue(NodeId(a))
+                    .bounds.left shouldBeGreaterThanOrEqualTo frame.right
+            }
+        }
+
+        test("Both: no line of a left actor ends in the right column") {
+            val res = shopLayout(shopGraph(adversarial), LayoutSpec(wrapColumns = 2, actorSide = ActorSide.Both))
+            val splitX =
+                res.nodes
+                    .getValue(NodeId("u2"))
+                    .bounds.left
+            for (id in listOf("a3-u1", "a3-u3", "a4-u5", "a4-u7")) {
+                res.edges
+                    .getValue(EdgeId(id))
+                    .polylinePoints()
+                    .maxOf { it.x } shouldBeLessThanOrEqualTo splitX
+            }
+        }
+
+        test("Auto, Left and Right keep the declaration order, whatever the use cases are") {
+            val g = shopGraph(adversarial)
+            val auto = shopLayout(g, LayoutSpec(wrapColumns = 2, actorSide = ActorSide.Auto))
+            val frame = auto.groups.getValue(GroupId("frame")).bounds
+            for (a in listOf("a1", "a2")) {
+                auto.nodes
+                    .getValue(NodeId(a))
+                    .bounds.right shouldBeLessThanOrEqualTo frame.left
+            }
+            for (a in listOf("a3", "a4")) {
+                auto.nodes
+                    .getValue(NodeId(a))
+                    .bounds.left shouldBeGreaterThanOrEqualTo frame.right
+            }
+            val right = shopLayout(g, LayoutSpec(wrapColumns = 2, actorSide = ActorSide.Right))
+            val rf = right.groups.getValue(GroupId("frame")).bounds
+            for (a in listOf("a1", "a2", "a3", "a4")) {
+                right.nodes
+                    .getValue(NodeId(a))
+                    .bounds.left shouldBeGreaterThanOrEqualTo rf.right
+            }
+        }
+
+        test("Both: an explicit Both with actors on their natural sides equals the declaration-order result") {
+            val natural = adversarial.sortedBy { if (it.first in setOf("a3", "a4")) 0 else 1 }
+            val both = shopLayout(shopGraph(natural), LayoutSpec(wrapColumns = 2, actorSide = ActorSide.Both))
+            val frame = both.groups.getValue(GroupId("frame")).bounds
+            for (a in listOf("a3", "a4")) {
+                both.nodes
+                    .getValue(NodeId(a))
+                    .bounds.right shouldBeLessThanOrEqualTo frame.left
             }
         }
     })

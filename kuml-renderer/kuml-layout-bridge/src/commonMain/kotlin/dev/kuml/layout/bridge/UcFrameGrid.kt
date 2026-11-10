@@ -1,6 +1,7 @@
 package dev.kuml.layout.bridge
 
 import dev.kuml.core.model.layout.ActorSide
+import dev.kuml.core.model.layout.LayoutLimits
 import dev.kuml.core.model.layout.LayoutSpec
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
@@ -25,6 +26,7 @@ import dev.kuml.layout.bridge.note.left
 import dev.kuml.layout.bridge.note.right
 import dev.kuml.layout.bridge.note.top
 import dev.kuml.layout.polylinePoints
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -91,6 +93,84 @@ internal object UcFrameGrid {
             ActorSide.Both -> if (n <= 1) n else ceil(n / 2.0).toInt()
         }
 
+    /**
+     * Side assignment for an explicit [ActorSide.Both] (Nacharbeit 57): the [leftN] actors whose use cases lie furthest
+     * left (mean x of the centres in the first placement, ties and actors without lines by declaration order) go to the
+     * left side, the rest to the right. The counts stay those of [leftCount]; each side keeps declaration order.
+     */
+    private fun splitBoth(
+        actors: List<LayoutNode>,
+        leftN: Int,
+        graph: LayoutGraph,
+        useCases: Map<NodeId, Rect>,
+    ): Pair<List<LayoutNode>, List<LayoutNode>> {
+        fun meanX(a: LayoutNode): Double {
+            val xs =
+                graph.edges.mapNotNull { e ->
+                    val other =
+                        when (a.id) {
+                            e.source.nodeId -> e.target.nodeId
+                            e.target.nodeId -> e.source.nodeId
+                            else -> null
+                        }
+                    other?.let { useCases[it] }?.let { it.origin.x + it.size.width / 2f }
+                }
+            return if (xs.isEmpty()) Double.MAX_VALUE else xs.average()
+        }
+        val ranked = actors.withIndex().sortedWith(compareBy({ meanX(it.value) }, { it.index }))
+        val leftIds = ranked.take(leftN).map { it.value.id }.toSet()
+        return actors.filter { it.id in leftIds } to actors.filter { it.id !in leftIds }
+    }
+
+    /**
+     * Column count of a use-case grid. Without an explicit `aspectRatio` / `maxWidth` (and without `wrapColumns`) this is
+     * the shared estimate of [ReqGroupGrid.chooseColumns], unchanged. With an explicit target the candidate pictures are
+     * measured with the real geometry: the row gutter of this grid, the frame padding, the actor columns and the height
+     * of the taller actor stack (Nacharbeit 57).
+     */
+    private fun chooseUcColumns(
+        sizes: List<Size>,
+        spec: LayoutSpec,
+        framePad: Size,
+        actorExtraW: Float,
+        actorStackH: Float,
+    ): Int {
+        val explicit = spec.wrapColumns == null && (spec.aspectRatio != null || spec.maxWidth != null)
+        if (!explicit) {
+            return ReqGroupGrid.chooseColumns(
+                cells = sizes,
+                spec = spec,
+                horizontal = false,
+                extra = Size(width = actorExtraW + framePad.width, height = framePad.height),
+            )
+        }
+        val n = sizes.size
+        if (n <= 1) return 1
+        val target = spec.aspectRatio ?: LayoutLimits.GRID_DEFAULT_ASPECT
+        var best = -1
+        var bestDist = Double.MAX_VALUE
+        var narrowest = 1
+        var narrowestWidth = Float.MAX_VALUE
+        for (c in 1..n) {
+            val pk = ReqGroupGrid.pack(cells = sizes, cols = c, horizontal = false, sameLayerRows = emptyList(), gutterY = ROW_GUTTER_PX)
+            val width = pk.size.width + framePad.width + actorExtraW
+            val height = max(pk.size.height + framePad.height, actorStackH)
+            if (height <= 0f) continue
+            if (width < narrowestWidth) {
+                narrowestWidth = width
+                narrowest = c
+            }
+            val limit = spec.maxWidth
+            if (limit != null && width > limit) continue
+            val dist = abs(width.toDouble() / height - target)
+            if (dist < bestDist) {
+                bestDist = dist
+                best = c
+            }
+        }
+        return if (best > 0) best else narrowest
+    }
+
     fun layout(
         engine: KumlLayoutEngine,
         graph: LayoutGraph,
@@ -101,88 +181,6 @@ internal object UcFrameGrid {
         fun isActor(n: LayoutNode): Boolean = n.hints.rail
         val actors = graph.nodes.filter { isActor(it) && it.groupId == null }
         val leftN = leftCount(n = actors.size, side = spec.actorSide)
-        val left = actors.take(leftN)
-        val right = actors.drop(leftN)
-        val leftW = left.maxOfOrNull { it.intrinsicSize.width } ?: 0f
-        val rightW = right.maxOfOrNull { it.intrinsicSize.width } ?: 0f
-
-        // Every line of an actor needs its own corridor between the actor column and the frame (12 px pitch plus stubs).
-        fun corridorGap(side: List<LayoutNode>): Float {
-            val ids = side.map { it.id }.toSet()
-            val lines = graph.edges.count { it.source.nodeId in ids || it.target.nodeId in ids }
-            return max(ACTOR_FRAME_GAP_PX, lines * ACTOR_END_PITCH_PX + CORRIDOR_MARGIN_PX)
-        }
-        val leftGap = corridorGap(left)
-        val rightGap = corridorGap(right)
-        val extraW = (if (left.isEmpty()) 0f else leftW + leftGap) + (if (right.isEmpty()) 0f else rightW + rightGap)
-
-        // frames, one cell each; loose use cases (no frame) form one more cell
-        class Cell(
-            val group: dev.kuml.layout.LayoutGroup?,
-            val size: Size,
-            val nodes: LinkedHashMap<NodeId, Rect>,
-        )
-        val cells = ArrayList<Cell>()
-        val frameCells = graph.groups.filter { it.parent == null }
-        val asplit = Size(width = extraW, height = 0f)
-        for (g in frameCells) {
-            val members = graph.nodes.filter { it.groupId == g.id }
-            val sizes = members.map { it.intrinsicSize }
-            val cols =
-                ReqGroupGrid.chooseColumns(
-                    cells = sizes,
-                    spec = spec,
-                    horizontal = false,
-                    extra = Size(width = extraW + g.padding.left + g.padding.right, height = g.padding.top + g.padding.bottom),
-                )
-            val pk = ReqGroupGrid.pack(cells = sizes, cols = cols, horizontal = false, sameLayerRows = emptyList(), gutterY = ROW_GUTTER_PX)
-            val pad = g.padding
-            val frame =
-                Size(
-                    width = max(g.minSize?.width ?: 0f, pk.size.width + pad.left + pad.right),
-                    height = max(g.minSize?.height ?: 0f, pk.size.height + pad.top + pad.bottom),
-                )
-            val nodes = LinkedHashMap<NodeId, Rect>()
-            members.forEachIndexed { i, m ->
-                nodes[m.id] =
-                    Rect(
-                        origin = Point(x = pk.positions[i].x + pad.left, y = pk.positions[i].y + pad.top),
-                        size = m.intrinsicSize,
-                    )
-            }
-            cells += Cell(g, frame, nodes)
-        }
-        val loose = graph.nodes.filter { it.groupId == null && !isActor(it) }
-        if (loose.isNotEmpty()) {
-            val sizes = loose.map { it.intrinsicSize }
-            val cols = ReqGroupGrid.chooseColumns(cells = sizes, spec = spec, horizontal = false, extra = asplit)
-            val pk = ReqGroupGrid.pack(cells = sizes, cols = cols, horizontal = false, sameLayerRows = emptyList(), gutterY = ROW_GUTTER_PX)
-            val nodes = LinkedHashMap<NodeId, Rect>()
-            loose.forEachIndexed { i, m -> nodes[m.id] = Rect(origin = pk.positions[i], size = m.intrinsicSize) }
-            cells += Cell(null, pk.size, nodes)
-        }
-        val row =
-            ReqGroupGrid.pack(
-                cells =
-                    cells.map {
-                        it.size
-                    },
-                cols = cells.size.coerceAtLeast(1),
-                horizontal = false,
-                sameLayerRows = emptyList(),
-            )
-        val bodyH = row.size.height
-        val bodyX0 = if (left.isEmpty()) 0f else leftW + leftGap
-
-        val nodes = LinkedHashMap<NodeId, Rect>()
-        val groups = LinkedHashMap<GroupId, Rect>()
-        for ((i, c) in cells.withIndex()) {
-            val dx = bodyX0 + row.positions[i].x
-            val dy = row.positions[i].y
-            c.nodes.forEach { (id, r) -> nodes[id] = r.moved(dx = dx, dy = dy) }
-            c.group?.let { groups[it.id] = Rect(origin = Point(x = dx, y = dy), size = c.size) }
-        }
-        val bodyRight = bodyX0 + row.size.width
 
         // An actor with many lines grows so that the line ends keep the actor pitch (Nacharbeit 54).
         val actorH =
@@ -193,6 +191,153 @@ internal object UcFrameGrid {
                         base = a.intrinsicSize.height,
                     )
             }
+
+        // Everything from the actor split to the placed use cases; a function because an explicit `Both` may place twice.
+        class Placement(
+            val left: List<LayoutNode>,
+            val right: List<LayoutNode>,
+            val leftW: Float,
+            val rightGap: Float,
+            val nodes: LinkedHashMap<NodeId, Rect>,
+            val groups: LinkedHashMap<GroupId, Rect>,
+            val bodyH: Float,
+            val bodyRight: Float,
+        )
+
+        fun place(
+            left: List<LayoutNode>,
+            right: List<LayoutNode>,
+        ): Placement {
+            val leftW = left.maxOfOrNull { it.intrinsicSize.width } ?: 0f
+            val rightW = right.maxOfOrNull { it.intrinsicSize.width } ?: 0f
+
+            // Every line of an actor needs its own corridor between the actor column and the frame (12 px pitch plus stubs).
+            fun corridorGap(side: List<LayoutNode>): Float {
+                val ids = side.map { it.id }.toSet()
+                val lines = graph.edges.count { it.source.nodeId in ids || it.target.nodeId in ids }
+                return max(ACTOR_FRAME_GAP_PX, lines * ACTOR_END_PITCH_PX + CORRIDOR_MARGIN_PX)
+            }
+            val leftGap = corridorGap(left)
+            val rightGap = corridorGap(right)
+            val extraW = (if (left.isEmpty()) 0f else leftW + leftGap) + (if (right.isEmpty()) 0f else rightW + rightGap)
+
+            // Height of the taller actor stack (an explicit aspect target must see it, Nacharbeit 57).
+            fun stackH(side: List<LayoutNode>): Float =
+                if (side.isEmpty()) 0f else side.sumOf { actorH.getValue(it.id).toDouble() }.toFloat() + ACTOR_GAP_PX * (side.size - 1)
+            val actorStackH = max(stackH(left), stackH(right))
+
+            // frames, one cell each; loose use cases (no frame) form one more cell
+            class Cell(
+                val group: dev.kuml.layout.LayoutGroup?,
+                val size: Size,
+                val nodes: LinkedHashMap<NodeId, Rect>,
+            )
+            val cells = ArrayList<Cell>()
+            val frameCells = graph.groups.filter { it.parent == null }
+            val asplit = Size(width = extraW, height = 0f)
+            for (g in frameCells) {
+                val members = graph.nodes.filter { it.groupId == g.id }
+                val sizes = members.map { it.intrinsicSize }
+                val cols =
+                    chooseUcColumns(
+                        sizes = sizes,
+                        spec = spec,
+                        framePad = Size(width = g.padding.left + g.padding.right, height = g.padding.top + g.padding.bottom),
+                        actorExtraW = extraW,
+                        actorStackH = actorStackH,
+                    )
+                val pk =
+                    ReqGroupGrid.pack(
+                        cells = sizes,
+                        cols = cols,
+                        horizontal = false,
+                        sameLayerRows = emptyList(),
+                        gutterY = ROW_GUTTER_PX,
+                    )
+                val pad = g.padding
+                val frame =
+                    Size(
+                        width = max(g.minSize?.width ?: 0f, pk.size.width + pad.left + pad.right),
+                        height = max(g.minSize?.height ?: 0f, pk.size.height + pad.top + pad.bottom),
+                    )
+                val cellNodes = LinkedHashMap<NodeId, Rect>()
+                members.forEachIndexed { i, m ->
+                    cellNodes[m.id] =
+                        Rect(
+                            origin = Point(x = pk.positions[i].x + pad.left, y = pk.positions[i].y + pad.top),
+                            size = m.intrinsicSize,
+                        )
+                }
+                cells += Cell(g, frame, cellNodes)
+            }
+            val loose = graph.nodes.filter { it.groupId == null && !isActor(it) }
+            if (loose.isNotEmpty()) {
+                val sizes = loose.map { it.intrinsicSize }
+                val cols =
+                    chooseUcColumns(
+                        sizes = sizes,
+                        spec = spec,
+                        framePad = Size(width = 0f, height = 0f),
+                        actorExtraW = asplit.width,
+                        actorStackH = actorStackH,
+                    )
+                val pk =
+                    ReqGroupGrid.pack(
+                        cells = sizes,
+                        cols = cols,
+                        horizontal = false,
+                        sameLayerRows = emptyList(),
+                        gutterY = ROW_GUTTER_PX,
+                    )
+                val cellNodes = LinkedHashMap<NodeId, Rect>()
+                loose.forEachIndexed { i, m -> cellNodes[m.id] = Rect(origin = pk.positions[i], size = m.intrinsicSize) }
+                cells += Cell(null, pk.size, cellNodes)
+            }
+            val row =
+                ReqGroupGrid.pack(
+                    cells =
+                        cells.map {
+                            it.size
+                        },
+                    cols = cells.size.coerceAtLeast(1),
+                    horizontal = false,
+                    sameLayerRows = emptyList(),
+                )
+            val bodyX0 = if (left.isEmpty()) 0f else leftW + leftGap
+
+            val placed = LinkedHashMap<NodeId, Rect>()
+            val placedGroups = LinkedHashMap<GroupId, Rect>()
+            for ((i, c) in cells.withIndex()) {
+                val dx = bodyX0 + row.positions[i].x
+                val dy = row.positions[i].y
+                c.nodes.forEach { (id, r) -> placed[id] = r.moved(dx = dx, dy = dy) }
+                c.group?.let { placedGroups[it.id] = Rect(origin = Point(x = dx, y = dy), size = c.size) }
+            }
+            return Placement(
+                left = left,
+                right = right,
+                leftW = leftW,
+                rightGap = rightGap,
+                nodes = placed,
+                groups = placedGroups,
+                bodyH = row.size.height,
+                bodyRight = bodyX0 + row.size.width,
+            )
+        }
+
+        var placement = place(left = actors.take(leftN), right = actors.drop(leftN))
+        if (spec.actorSide == ActorSide.Both && actors.size >= 2) {
+            val (l, r) = splitBoth(actors = actors, leftN = leftN, graph = graph, useCases = placement.nodes)
+            if (l.map { it.id } != placement.left.map { it.id }) placement = place(left = l, right = r)
+        }
+        val left = placement.left
+        val right = placement.right
+        val leftW = placement.leftW
+        val rightGap = placement.rightGap
+        val nodes = placement.nodes
+        val groups = placement.groups
+        val bodyH = placement.bodyH
+        val bodyRight = placement.bodyRight
 
         fun stack(
             list: List<LayoutNode>,

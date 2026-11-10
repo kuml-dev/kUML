@@ -6,6 +6,27 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 57: use-case grid measures an explicit aspectRatio / maxWidth with the real geometry, `actorSide = Both` follows the use cases
+
+**Why.** Two findings from the design team's generic fixture (4 actors, 8 use cases in one subject frame, 11 associations, one include): (c) an explicit `aspectRatio` in a use-case diagram missed its target badly (`Right` with `aspectRatio = 1.0` gave 0.47, `aspectRatio = 3.0` gave 1.65), because the shared column estimate (`ReqGroupGrid.chooseColumns`) packs with the default 40 px gutter instead of the 72 px row gutter of this grid and ignores the height of the actor stacks; (b) `actorSide = Both` split the actors by declaration order, so an actor whose use cases all stand in the right column could land on the left and draw a long line across the whole grid.
+
+**Change.**
+- `UcFrameGrid.chooseUcColumns`: with an explicit `aspectRatio` or `maxWidth` (and no `wrapColumns`), the column count is chosen with the real geometry (row gutter 72 px, frame padding, actor columns, taller actor stack); `maxWidth` stays a hard limit with the narrowest count as fallback. Without them the shared estimate is called unchanged. `ReqGroupGrid.chooseColumns` is not touched (other diagram types use it).
+- `actorSide = Both` only: the layout is placed once in declaration order, the actors are then ranked by the mean x of the use cases they touch (ties and actors without lines by declaration order), the first `ceil(n / 2)` go left, the rest right, and the grid is placed again if the sets differ (at most two passes). `Auto`, `Left` and `Right` take the first pass only.
+
+**Verification.**
+- Real SVG (`kuml render`, same fixture): `Right` with `aspectRatio = 1.0`: 0.47 -> 1.25 (2 columns), `aspectRatio = 3.0`: 1.65 -> 3.04. `Both` with 1.0 / 3.0 stays 0.57 / 2.32 (the old pick was already the nearest of the candidates there). Default `Both` 1.44 and `Right` 1.25 are unchanged.
+- Declaration order Auditor, Payment Service, Customer, Clerk with `Both`: before, the two actors with right-column use cases stood on the left with lines across the frame; now Customer and Clerk stand left, the others right (same clean picture as the natural order).
+- New tests in `UcFrameGridTest`: closest-to-target column count against all `wrapColumns` references, `aspectRatio = 3.0`, `maxWidth`, regression of the default column count, `Both` side assignment and no left-actor line ending in the right column, `Auto` / `Left` / `Right` keep declaration order. Geometry only (font independent).
+- Vault examples 05, 16 and 47 rendered with the CLI before and after: byte-identical (47 compared against a build of the unchanged source).
+- LaTeX: no change to the TikZ renderer; the use-case LaTeX output only moves through layout positions for an explicit `Both` / `aspectRatio`. `python3 -I scripts/ci/check_latex_tests.py` passes.
+- `KUML-LAYOUT-W003` for a use-case diagram fires when the picture is too wide for the target (e.g. `Right`, `aspectRatio = 1.0`: "actual 1.27"). It stays silent when the picture is too narrow (`Both`, 1.0 -> 0.57), because the use-case call keeps `bothSides = false`; not widened here.
+
+**Not fixed.**
+1. Lines from actors to use cases on both sides of the grid still cross it (the default fixture's Customer to Use Case 2, Payment Service to Use Case 5): needs a bipartite placement of the use cases by actor (redesign). The planned half-gutter lanes (left-actor wires in the upper, right-actor wires in the lower half of a row gutter) were not implemented: they need changes inside the slot logic of `UcEdgeLanes.separate`, which is too risky for this wave.
+2. The default path (no explicit `aspectRatio` / `maxWidth`) still estimates with the 40 px gutter and an over-wide corridor; protected by vault examples 05 / 16 / 47 and the goldens.
+3. Notes in the side columns of a subject frame are not part of the column choice (belongs to the notes-hindrance work, P-COM-02/03).
+
 ### Nacharbeit 56: the same requirement reqId with different text in different documents is reported (OKF-W-009)
 
 #### Why

@@ -181,6 +181,12 @@ diagrams only (`KUML-LAYOUT-W001` elsewhere, check 439 in `kuml validate`). `wra
 block definition diagrams with edges: an edge between two members of one `sameLayer` group is withheld from the
 layered engine and drawn straight between the facing sides of the aligned boxes (check 436 still warns).
 
+In a SysML 2 use-case diagram with a subject frame, an explicit `actorSide = Both` assigns the actors to the two sides by
+the position of their use cases (the actors whose use cases lie furthest left go to the left side) while the counts stay
+as before, half of them per side. An explicit `aspectRatio` or `maxWidth` is evaluated there with the real geometry (row
+gutter, frame padding, actor columns and the height of the actor stacks); without one of them the column count is
+estimated as before.
+
 === UML class diagrams: wrap, grid and band (wave 2G-a)
 
 * **Auto wrap.** If the widest layer of a class diagram with edges holds more than 6 nodes and none of `wrapColumns`,

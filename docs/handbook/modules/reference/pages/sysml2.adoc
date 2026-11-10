@@ -1555,7 +1555,7 @@ ends are visible; the matching rows leave the feature compartment. Blocks show `
   `[condition]` (a condition longer than 38 characters wraps at 23 characters, about 160 px, so it fits between a column of use cases and the border of the subject frame; text longer than 84 characters is cut with an ellipsis; check 220 hints).
   The extension point is drawn inside the extended use case (the target): a divider, the heading `extension points` and
   one line per point (at most six, 40 characters each). The ellipse grows with the block.
-* `layout { actorSide = ActorSide.Auto | Left | Right | Both }` and the grid layout: see the layout chapter.
+* `layout { actorSide = ActorSide.Auto | Left | Right | Both }` and the grid layout: see the layout chapter. With `Both`, the actors are placed on the side of their use cases; an explicit `aspectRatio` or `maxWidth` is measured with the real use-case grid geometry.
 * Edge labels of use-case diagrams are placed by the label placer (like the BDD), so a label avoids nodes and lines. The label of a line inside a subject frame is kept inside that frame, at least 4 px from its border; when the frame leaves no room beside the line, the label sits on its own line with a halo and the layout reports it as not clean.
 * An actor box grows with the number of lines that touch it (14 px per line end, at most 112 px extra); the stick figure keeps its size and stands in the middle. Line ends on an actor and the corridors that lead to it are at least 14 px apart; only when no room exists the pitch falls back to 12 and then 8 px.
 
