@@ -6,6 +6,38 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 61: activity diagram: several unnamed flow finals stay separate nodes, the initial node is drawn filled
+
+**Why.** Two unnamed `flowFinalNode()` calls both received the id `FlowFinal`. The layout bridge resolves nodes by id, so both
+merged into one symbol that sat outside its lane and read as a join with two converging edges. Separately, the initial node
+was drawn as an empty circle: the stylesheet rule `.kuml-class { fill: ... }` beats the presentation attribute
+`fill="currentColor"` that the renderer set.
+
+**Change.** `flowFinalNode` takes `id: String? = null`. If omitted, the id is derived from `name`; the first node keeps it
+unchanged, later ones get `-2`, `-3`, ... (first free number), the name is not changed. An explicit `id` that is already used by
+an `ActionDefinition` throws `IllegalArgumentException("duplicate activity node id 'X' (flowFinalNode)")`. The initial node
+now uses the existing class `kuml-pseudo-filled` (as the state-machine markers do), size unchanged. Both defects were
+reproduced with the local CLI first: the unfixed fixture (two lanes, one flow final each) showed one symbol at the lane
+boundary; with explicit ids the layout was already correct, so the merge was an id problem, not a layout problem. The
+existing documentation of vault example 07 already says "filled circle"; the render now matches it.
+
+**Verification.** `Sysml2DslTest` (2 new tests: id suffixes, explicit duplicate and collision with an auto id throw),
+`Sysml2ActSvgTest` (new filled-dot test, new full-pipeline geometry test: DSL, ELK layout bridge, renderer; two groups
+`FlowFinal` / `FlowFinal-2`, each centre inside its own lane, centre distance at least two radii; the old
+`currentColor` assertion was rewritten to the new class contract). PNG before and after with the local CLI.
+`check_latex_tests.py` and `./gradlew clean check --no-build-cache` as listed in the Nacharbeit 61 hand-over.
+
+**Not verified.** LaTeX ACT renderer is not affected (it lists activity nodes as text and draws no symbols). Vault examples
+07, 48 and `sysml2-c2/act` were not re-rendered as PNG. Windows and Linux runs.
+
+**Not fixed.**
+- `renderFinalNode` has the same hollow defect on its inner disc (`fill="currentColor"` together with `kuml-class`,
+  `Sysml2ActivitySvg.kt`, inner circle of `renderFinalNode`).
+- No global duplicate-id guard across all node kinds (language change, rejected).
+- `initialNode` and `finalNode` have the same default-id collision risk (follow-up).
+- Visible change: every ACT example with an `initialNode` (vault examples 07 and 48, `sysml2-c2/act`) now shows a filled
+  dot; the sources are untouched. No golden file was changed.
+
 ### Nacharbeit 60: block definition diagram: explicit aspectRatio / maxWidth may rotate the flow, the generalisation bus follows the chosen direction
 
 **Why.** In a BDD, `aspectRatio` / `maxWidth` only re-wrapped over-wide layers. A hub with many parts or a generalisation fan

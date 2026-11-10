@@ -866,6 +866,9 @@ sysml2Model(name = "OrderProcessing") {
 }
 ----
 
+The initial node is drawn as a filled dot. Several unnamed `flowFinalNode()` calls each get their own symbol with the ids
+`FlowFinal`, `FlowFinal-2`, `FlowFinal-3`; an explicit `id` that is already used by another action node is rejected.
+
 Activity diagrams are also runnable via `kuml simulate`. The trace contains `ForkSplit`,
 `JoinReached`, `ActionExecuted`, and `ActivityTerminated` entries.
 

@@ -1324,12 +1324,38 @@ class Sysml2ModelBuilder(
      * renderer draws a circle with an X inside (two diagonal lines), marking
      * the end of a single token — other concurrent tokens continue. V2.0.16:
      * accepts an optional [partition] so the flow-final can sit in a lane.
+     *
+     * Ids: when [id] is omitted, it is derived from [name]. The first node keeps
+     * that id unchanged; later nodes whose derived id is already taken get the
+     * suffix `-2`, `-3`, ... (first free number), so several unnamed flow finals
+     * stay distinct nodes. An explicitly passed [id] that is already used by an
+     * [ActionDefinition] throws [IllegalArgumentException].
      */
     fun flowFinalNode(
         name: String = "FlowFinal",
-        id: String = name,
+        id: String? = null,
         partition: ActivityPartitionDefinition? = null,
-    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.FlowFinal, partition = partition)
+    ): ActionDefinition {
+        val resolvedId =
+            if (id == null) {
+                uniqueNodeId(base = name)
+            } else {
+                require(definitions.none { it is ActionDefinition && it.id == id }) {
+                    "duplicate activity node id '$id' (flowFinalNode)"
+                }
+                id
+            }
+        return actionDef(name = name, id = resolvedId, kind = ActivityNodeKind.FlowFinal, partition = partition)
+    }
+
+    /** First free activity-node id: [base], then `base-2`, `base-3`, ... */
+    private fun uniqueNodeId(base: String): String {
+        val taken = definitions.filterIsInstance<ActionDefinition>().map { it.id }.toSet()
+        if (base !in taken) return base
+        var n = 2
+        while ("$base-$n" in taken) n++
+        return "$base-$n"
+    }
 
     /**
      * `decide` — V2.0.10 decision activity-node helper.

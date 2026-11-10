@@ -7,12 +7,16 @@ import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.GroupId
 import dev.kuml.layout.GroupLayout
 import dev.kuml.layout.LayoutEngineId
+import dev.kuml.layout.LayoutEngineRegistry
+import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.Sysml2LayoutBridge
+import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionPin
@@ -20,8 +24,11 @@ import dev.kuml.sysml2.PinDirection
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.dsl.sysml2Model
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.doubles.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 
 /**
  * Strukturelle + Determinismus-Tests für den SysML-2-ACT-SVG-Renderer (V2.0.10).
@@ -32,6 +39,58 @@ import io.kotest.matchers.string.shouldContain
  */
 class Sysml2ActSvgTest :
     StringSpec({
+
+        fun initialGroup(svg: String): String {
+            val start = svg.indexOf("<g id=\"Initial\"")
+            val end = svg.indexOf("</g>", startIndex = start)
+            return svg.substring(start, end)
+        }
+
+        data class Centre(
+            val x: Double,
+            val y: Double,
+            val r: Double,
+        )
+
+        data class Box(
+            val x: Double,
+            val y: Double,
+            val w: Double,
+            val h: Double,
+        )
+
+        fun translateOf(tag: String): Pair<Double, Double> {
+            val m = Regex("""translate\(([-0-9.]+),([-0-9.]+)\)""").find(tag)!!
+            return m.groupValues[1].toDouble() to m.groupValues[2].toDouble()
+        }
+
+        fun symbolCentre(
+            svg: String,
+            id: String,
+        ): Centre {
+            val start = svg.indexOf("<g id=\"$id\"")
+            check(start >= 0) { "no group $id" }
+            val group = svg.substring(start, svg.indexOf("</g>", startIndex = start))
+            val (tx, ty) = translateOf(tag = group)
+            val circle = Regex("""<circle[^>]*>""").find(group)!!.value
+
+            fun attr(n: String) = Regex("""\b$n="([-0-9.]+)"""").find(circle)!!.groupValues[1].toDouble()
+            return Centre(x = tx + attr("cx"), y = ty + attr("cy"), r = attr("r"))
+        }
+
+        fun laneBounds(
+            svg: String,
+            partitionId: String,
+        ): Box {
+            val start = svg.indexOf("<g id=\"activityPartition:$partitionId\"")
+            check(start >= 0) { "no lane $partitionId" }
+            val group = svg.substring(start, svg.indexOf("</g>", startIndex = start))
+            val (tx, ty) = translateOf(tag = group)
+            val rect = Regex("""<rect[^>]*>""").find(group)!!.value
+
+            fun attr(n: String) = Regex("""\b$n="([-0-9.]+)"""").find(rect)!!.groupValues[1].toDouble()
+            return Box(x = tx, y = ty, w = attr("width"), h = attr("height"))
+        }
 
         // Tiny order-processing model: initial → Validate → Decision → (Fork → A, B → Join) → Final.
         // Used by most tests; each test only asserts the shape of one node kind.
@@ -192,10 +251,84 @@ class Sysml2ActSvgTest :
 
             svg shouldContain "id=\"Initial\""
             svg shouldContain "<circle"
-            // The fill="currentColor" attribute marks the initial pseudo-node.
-            svg shouldContain "currentColor"
+            // The dot must use the dedicated filled class: `.kuml-class { fill: nodeFill }` beats a
+            // `fill="currentColor"` presentation attribute and would render it hollow.
+            initialGroup(svg = svg) shouldContain "class=\"kuml-pseudo-filled\""
 
             SampleOutput.write(filename = "sysml2-act/order-initial.svg", content = svg)
+        }
+
+        "ACT initial node is one filled dot that differs from the node fill" {
+            val (model, act) = orderModel()
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = fakeLayout(), theme = PlainTheme())
+
+            val group = initialGroup(svg = svg)
+            Regex("<circle").findAll(group).count() shouldBe 1
+            group shouldNotContain "kuml-class"
+            group shouldNotContain "currentColor"
+
+            val dotFill = Regex("""\.kuml-pseudo-filled \{ fill: (#[0-9A-Fa-f]{3,8}); stroke: none; \}""").find(svg)?.groupValues?.get(1)
+            val nodeFill = Regex("""\.kuml-class \{ fill: (#[0-9A-Fa-f]{3,8});""").find(svg)?.groupValues?.get(1)
+            dotFill shouldNotBe null
+            nodeFill shouldNotBe null
+            dotFill shouldNotBe nodeFill
+        }
+
+        "ACT several unnamed flow finals in different lanes get their own symbols inside their lanes" {
+            val model =
+                sysml2Model(name = "Lanes") {
+                    val laneA = activityPartition(name = "LaneA")
+                    val laneB = activityPartition(name = "LaneB")
+                    val start = initialNode()
+                    val fork = forkNode(name = "Split")
+                    val a1 = actionDef(name = "StepA", partition = laneA)
+                    val b1 = actionDef(name = "StepB", partition = laneB)
+                    val ff1 = flowFinalNode(partition = laneA)
+                    val ff2 = flowFinalNode(partition = laneB)
+                    controlFlow(name = "s", source = start, target = fork)
+                    controlFlow(name = "f1", source = fork, target = a1)
+                    controlFlow(name = "f2", source = fork, target = b1)
+                    controlFlow(name = "e1", source = a1, target = ff1)
+                    controlFlow(name = "e2", source = b1, target = ff2)
+                    actDiagram(name = "Lanes") {
+                        include(node = start)
+                        include(node = fork)
+                        include(node = a1)
+                        include(node = b1)
+                        include(node = ff1)
+                        include(node = ff2)
+                    }
+                }
+            val act = model.diagrams.single() as ActDiagram
+            LayoutEngineRegistry.clear()
+            LayoutEngineRegistry.register(ElkLayoutEngineProvider())
+            val engine = LayoutEngineRegistry.get("elk.layered")!!
+            val layoutResult =
+                engine.layout(
+                    graph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = act),
+                    hints = LayoutHints.DEFAULT,
+                )
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = act, layoutResult = layoutResult, theme = PlainTheme())
+            SampleOutput.write(filename = "sysml2-act/two-flow-finals-in-lanes.svg", content = svg)
+
+            // The two symbols are two distinct layout nodes and two distinct SVG groups.
+            layoutResult.nodes.keys
+                .map { it.value }
+                .filter { it.startsWith("FlowFinal") }
+                .toSet() shouldBe
+                setOf("FlowFinal", "FlowFinal-2")
+            val a = symbolCentre(svg = svg, id = "FlowFinal")
+            val b = symbolCentre(svg = svg, id = "FlowFinal-2")
+            val laneA = laneBounds(svg = svg, partitionId = "LaneA")
+            val laneB = laneBounds(svg = svg, partitionId = "LaneB")
+
+            // Each symbol sits inside the bounds of its own lane.
+            (a.x >= laneA.x && a.x <= laneA.x + laneA.w && a.y >= laneA.y && a.y <= laneA.y + laneA.h) shouldBe true
+            (b.x >= laneB.x && b.x <= laneB.x + laneB.w && b.y >= laneB.y && b.y <= laneB.y + laneB.h) shouldBe true
+            // They do not overlap: centre distance is at least two radii.
+            val dist = kotlin.math.hypot(a.x - b.x, a.y - b.y)
+            dist shouldBeGreaterThanOrEqual (2.0 * a.r)
+            Regex("<g id=\"FlowFinal(-2)?\"").findAll(svg).count() shouldBe 2
         }
 
         "ACT renders Final pseudo-node as a donut (two concentric circles)" {

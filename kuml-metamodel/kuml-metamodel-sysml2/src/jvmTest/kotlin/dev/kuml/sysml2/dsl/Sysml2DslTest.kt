@@ -51,6 +51,7 @@ import dev.kuml.sysml2.UseCaseUsage
 import dev.kuml.sysml2.units.kW
 import dev.kuml.sysml2.units.kWh
 import dev.kuml.sysml2.units.kg
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldContainExactly
@@ -836,6 +837,39 @@ class Sysml2DslTest :
             act.name shouldBe "ValidateOrder"
             act.kind shouldBe ActivityNodeKind.Action
             act.action shouldBe "validate(order)"
+        }
+
+        "unnamed flowFinalNode calls get distinct ids, the first keeps FlowFinal" {
+            val model =
+                sysml2Model(name = "FlowFinals") {
+                    flowFinalNode()
+                    flowFinalNode()
+                    flowFinalNode()
+                    flowFinalNode(name = "Abort")
+                }
+            val finals = model.definitions.filterIsInstance<ActionDefinition>()
+            finals.map { it.id } shouldBe listOf("FlowFinal", "FlowFinal-2", "FlowFinal-3", "Abort")
+            finals.take(3).map { it.name } shouldBe listOf("FlowFinal", "FlowFinal", "FlowFinal")
+        }
+
+        "flowFinalNode rejects an explicit duplicate id" {
+            val twice =
+                shouldThrow<IllegalArgumentException> {
+                    sysml2Model(name = "Dup") {
+                        flowFinalNode(id = "X")
+                        flowFinalNode(id = "X")
+                    }
+                }
+            twice.message shouldBe "duplicate activity node id 'X' (flowFinalNode)"
+
+            val collidesWithAuto =
+                shouldThrow<IllegalArgumentException> {
+                    sysml2Model(name = "Dup2") {
+                        flowFinalNode()
+                        flowFinalNode(id = "FlowFinal")
+                    }
+                }
+            collidesWithAuto.message shouldBe "duplicate activity node id 'FlowFinal' (flowFinalNode)"
         }
 
         "V2.0.10 pseudo-node helpers produce the right ActivityNodeKind" {
