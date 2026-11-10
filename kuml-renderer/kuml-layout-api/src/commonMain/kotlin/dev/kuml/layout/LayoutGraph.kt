@@ -136,6 +136,19 @@ public data class LayoutGroup(
      * group grid): width = widest note, height = top gap plus the stacked notes. `null` = nothing reserved.
      */
     val noteStrip: Size? = null,
+    /**
+     * Estimated widths (px) of the header texts a state-machine composite draws inside its frame (Nacharbeit 58): the
+     * centred title and the widest action line (left-aligned below the header divider). `null` = not a composite with
+     * header texts. Read by the header-band edge avoidance only; engines ignore it.
+     */
+    val headerTextWidths: HeaderTextWidths? = null,
+)
+
+/** Estimated widths of a composite frame's header texts, see [LayoutGroup.headerTextWidths]. */
+@Serializable
+public data class HeaderTextWidths(
+    val title: Float,
+    val actions: Float,
 )
 
 /**

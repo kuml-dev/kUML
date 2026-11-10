@@ -302,16 +302,21 @@ public object LayoutSpecRunner {
                 withoutInternal
             }
 
-        fun aligned(result: LayoutResult): LayoutResult {
+        fun aligned(
+            result: LayoutResult,
+            direction: LayoutDirection = effectiveHints.direction,
+        ): LayoutResult {
             val centred =
                 result.alignSameLayerCenters(
                     groups = alignedGroups,
-                    direction = effectiveHints.direction,
+                    direction = direction,
                     graph = graph,
                     internalEdges = internalEdgeIds,
                 )
             return if (kind == SpecDiagramKind.SYSML2_STM || kind == SpecDiagramKind.UML_STATE) {
-                centred.pinInitialsToTargets(graph = graph, direction = effectiveHints.direction)
+                centred
+                    .pinInitialsToTargets(graph = graph, direction = direction)
+                    .avoidCompositeHeaderBand(graph = graph, direction = direction)
             } else {
                 centred
             }
@@ -378,16 +383,82 @@ public object LayoutSpecRunner {
                 }
             }
         }
+        var bestHorizontal = horizontal
+        // A chain or a cycle has one state per layer, so wrapping cannot reach an explicit target. When the author
+        // gave no direction, one more run with the orthogonal flow direction may land closer (Nacharbeit 58).
+        val stateKind = kind == SpecDiagramKind.SYSML2_STM || kind == SpecDiagramKind.UML_STATE
+        if (stateKind && explicit && checked.direction == null) {
+            val bestW = best.canvas.width.toDouble()
+            val bestH = best.canvas.height.toDouble()
+            val missed =
+                (maxWidth != null && bestW > maxWidth) ||
+                    (
+                        target != null &&
+                            bestH > 0.0 &&
+                            isOffTarget(
+                                ratio = bestW / bestH,
+                                target = target,
+                                horizontal = horizontal,
+                                bothSides =
+                                    checked.aspectRatio != null,
+                            )
+                    )
+            if (missed) {
+                val rotated = orthogonal(effectiveHints.direction)
+                val candidate =
+                    aligned(
+                        result =
+                            engine.layout(
+                                graph = graphWith(graph = engineGraph, spec = checked),
+                                hints = effectiveHints.copy(direction = rotated),
+                            ),
+                        direction = rotated,
+                    )
+                if (closerToTarget(candidate = candidate, current = best, target = target, maxWidth = maxWidth)) {
+                    best = candidate
+                    bestHorizontal = !horizontal
+                }
+            }
+        }
         reportUnreached(
             result = best,
             target = target,
             maxWidth = maxWidth,
-            horizontal = horizontal,
+            horizontal = bestHorizontal,
             explicit = explicit,
             bothSides = checked?.aspectRatio != null,
             findings = findings,
         )
         return SpecLayoutOutcome(result = best, findings = findings)
+    }
+
+    /** The flow direction turned by a quarter: vertical flows become horizontal and the other way round. */
+    private fun orthogonal(direction: LayoutDirection): LayoutDirection =
+        when (direction) {
+            LayoutDirection.TopToBottom -> LayoutDirection.LeftToRight
+            LayoutDirection.BottomToTop -> LayoutDirection.RightToLeft
+            LayoutDirection.LeftToRight -> LayoutDirection.TopToBottom
+            LayoutDirection.RightToLeft -> LayoutDirection.BottomToTop
+        }
+
+    /**
+     * Whether [candidate] is clearly closer to the explicit target than [current], whatever the flow direction of
+     * either run. Unlike [isBetter] this does not depend on the direction (a maxWidth is a plain width limit here).
+     */
+    private fun closerToTarget(
+        candidate: LayoutResult,
+        current: LayoutResult,
+        target: Double?,
+        maxWidth: Int?,
+    ): Boolean {
+        val cw = candidate.canvas.width.toDouble()
+        val ch = candidate.canvas.height.toDouble()
+        if (cw <= 0.0 || ch <= 0.0) return false
+        if (maxWidth != null) return cw < current.canvas.width
+        if (target == null) return false
+
+        fun dist(r: LayoutResult) = kotlin.math.abs(kotlin.math.ln((r.canvas.width.toDouble() / r.canvas.height.toDouble()) / target))
+        return dist(candidate) < dist(current) * 0.9
     }
 
     /**

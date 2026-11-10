@@ -153,6 +153,7 @@ classDiagram(name = "Zoo") {
 
 * Id strings are accepted everywhere (`sameLayer("A::b", "A::c")`); an empty `sameLayer()` is ignored.
 * `maxWidth` (200..20000) and `aspectRatio` (0.1..10) re-wrap over-wide layers; at most two layout runs.
+  In state machines, an explicit `aspectRatio` or `maxWidth` without a `direction` may additionally rotate the flow direction by a quarter turn (one more run) when that lands closer to the target; an explicit `direction` is never overridden, and `KUML-LAYOUT-W003` reports the real ratio.
 * `labelMaxWidth` (120..400 px, default 220) is the wrap width of transition labels. It acts on SysML 2 state machines only; every other diagram kind reports `KUML-LAYOUT-W001`, a value outside 120..400 is `KUML-LAYOUT-E001` (the value is ignored).
   A picture between 1:2.5 and 2.5:1 is never changed implicitly; outside it the layout is wrapped
   automatically (`LayoutHints.autoAspect`).

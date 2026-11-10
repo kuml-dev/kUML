@@ -6,6 +6,29 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 58: state machine: explicit aspectRatio / maxWidth may rotate the flow, edges into composite children avoid the header texts
+
+**Why.** Three findings from the design team's generic state-machine fixtures: (a) `aspectRatio` / `maxWidth` had no effect on a chain or cycle (one state per layer, so wrapping has nothing to wrap), (b) a cycle Off -> Running -> Stopped -> Off drawn with the flow reversed and the start at the bottom, (e) an edge into a child of a composite state ran straight through the composite's title and its `entry` / `exit` / invariant lines.
+
+**Change.**
+- (a) `LayoutSpecRunner.layout`: for SysML 2 STM and UML state machines with an explicit `aspectRatio` or `maxWidth` and **no explicit `direction`**, when wrapping still misses the target, one extra engine run uses the orthogonal flow direction; it is adopted only if clearly closer (new `closerToTarget`, direction independent). `aligned` now takes the direction of the run so `sameLayer` centring and initial pinning use the rotated axis. An explicit `direction` is never overridden; `KUML-LAYOUT-W003` / `W002` report the real value of the chosen result.
+- (e) New `StmCompositeHeaderAvoidance.kt` (`LayoutResult.avoidCompositeHeaderBand`, called in `aligned` after `pinInitialsToTargets`), top-to-bottom flow only: a vertical edge segment that crosses the title or action lines of a SysML 2 composite and enters a child from above is moved to the nearest free x beside the texts. With room below the band the edge returns to the child's x (end point unchanged); when the child touches the band (the usual case, the frame padding ends where the child starts) the edge enters the same top edge of the child at the free x. New optional `LayoutGroup.headerTextWidths` (estimated title / action widths, font independent) is set by `Sysml2LayoutBridge`.
+- (b) No code change, see below.
+
+**Verification.**
+- Real SVG (`kuml render`, generic fixture Start -> Off -> Running -> Stopped -> Off): `aspectRatio = 3.0` without direction: 0.57 -> rotated, W003 "actual 8.78" (before: unchanged 0.57, identical output for 1.0 / 3.0 / `maxWidth`); `aspectRatio = 1.0` stays vertical (0.57 is closer than the rotated flow); explicit `direction = Down` unchanged. Composite fixture (Active with invariant, entry, exit; Prepare -> Warm), direction Down: the edge now runs beside the title and lines instead of through them; direction Right unchanged (entry from the side).
+- (b) Reproduced: with an initial pseudo-state the cycle already draws Off above Running above Stopped with only Stopped -> Off as the back edge (`withForwardEdgePriority`, Nacharbeit 56/57 state); a UML state machine without an initial already orders y(Off) < y(Running) < y(Stopped) as well. Already fixed, nothing built. `StmCycleBreakingTest` pins both cases.
+- New tests: `StmAspectRotationTest` (4), `StmCycleBreakingTest` (4), `StmCompositeHeaderAvoidanceTest` (2, geometry with estimated text rectangles; includes the no-free-x case that leaves the route unchanged).
+- LaTeX STM renderer: code unchanged, geometry input may differ in cases a and e. `python3 -I scripts/ci/check_latex_tests.py` passes after the full check.
+- Handbook `layout.adoc`: one sentence for (a).
+
+**Not verified.** Linux/Windows runs; OCCT tests are skipped on macOS (Linux-only).
+
+**Not fixed / not covered.**
+1. Layout of snake / circle shaped cycles, `sameLayer` deterioration and the length of the long back-edge arc.
+2. Header-band avoidance only for top-to-bottom flow and SysML 2 composites (UML composite states carry no header widths); edges from initial nodes inside the composite, edges ending on the frame, the history edge, side entry and title / text alignment (proposal rejected, it would change goldens) are not touched. The title width is an estimate (13 px bold, 8.9 px per character).
+3. N-STM-A (c) and (d) are outside this wave.
+
 ### Nacharbeit 57: use-case grid measures an explicit aspectRatio / maxWidth with the real geometry, `actorSide = Both` follows the use cases
 
 **Why.** Two findings from the design team's generic fixture (4 actors, 8 use cases in one subject frame, 11 associations, one include): (c) an explicit `aspectRatio` in a use-case diagram missed its target badly (`Right` with `aspectRatio = 1.0` gave 0.47, `aspectRatio = 3.0` gave 1.65), because the shared column estimate (`ReqGroupGrid.chooseColumns`) packs with the default 40 px gutter instead of the 72 px row gutter of this grid and ignores the height of the actor stacks; (b) `actorSide = Both` split the actors by declaration order, so an actor whose use cases all stand in the right column could land on the left and draw a long line across the whole grid.

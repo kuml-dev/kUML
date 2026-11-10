@@ -6,6 +6,7 @@ import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.EndpointRef
 import dev.kuml.layout.GroupId
 import dev.kuml.layout.GroupLayout
+import dev.kuml.layout.HeaderTextWidths
 import dev.kuml.layout.Insets
 import dev.kuml.layout.LayoutDirection
 import dev.kuml.layout.LayoutEdge
@@ -412,6 +413,9 @@ public object Sysml2LayoutBridge {
 
     /** Height of one `entry/exit/do` action line in a composite state's header strip. */
     internal const val STM_COMPOSITE_ACTION_LINE_H: Float = 13f
+
+    /** Width of a 13 px bold title character relative to an 11 px body character (header-band edge avoidance estimate). */
+    internal const val STM_COMPOSITE_TITLE_CHAR_FACTOR: Float = 1.35f
 
     /**
      * Default-Breite einer regulären [ActionDefinition]-Box in einem
@@ -1787,6 +1791,11 @@ public object Sysml2LayoutBridge {
                     minSize =
                         STM_COMPOSITE_MIN_SIZE.copy(
                             width = maxOf(STM_COMPOSITE_MIN_SIZE.width, StateActionCompartment.width(compartment)),
+                        ),
+                    headerTextWidths =
+                        HeaderTextWidths(
+                            title = s.name.length * StateActionCompartment.CHAR_PX * STM_COMPOSITE_TITLE_CHAR_FACTOR,
+                            actions = StateActionCompartment.width(compartment),
                         ),
                 )
             groupIds += s.id
