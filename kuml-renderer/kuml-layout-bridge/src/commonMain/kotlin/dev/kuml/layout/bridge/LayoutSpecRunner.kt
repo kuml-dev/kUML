@@ -138,12 +138,6 @@ public object LayoutSpecRunner {
         // Wave 2E-a: every requirement diagram (grid or legacy) gets spread endpoints and nudged parallel segments.
         return when (kind) {
             SpecDiagramKind.SYSML2_REQ -> outcome.copy(result = ReqEdgeBands.apply(result = outcome.result, graph = graph))
-            // Wave 2E-b: generalisation fans of a block definition diagram are drawn as a bus.
-            SpecDiagramKind.SYSML2_BDD -> {
-                val flow = hintsWith(base = hints, spec = sanitize(spec = spec, findings = mutableListOf())).direction
-                val bus = BddGeneralizationBus.apply(result = outcome.result, graph = graph, direction = flow)
-                outcome.copy(result = BddAllocationDocking.apply(result = bus, graph = graph, direction = flow))
-            }
             else -> outcome
         }
     }
@@ -322,14 +316,32 @@ public object LayoutSpecRunner {
             }
         }
 
+        // Wave 2E-b: generalisation fans of a block definition diagram are drawn as a bus. It is applied once, to the
+        // candidate that was chosen, with that candidate's flow direction (a rotated run, Nacharbeit 60, gets a matching
+        // bus). The candidates themselves are compared before the bus, so existing choices do not change.
+        fun finished(
+            result: LayoutResult,
+            direction: LayoutDirection,
+        ): LayoutResult =
+            if (kind == SpecDiagramKind.SYSML2_BDD) {
+                val bus = BddGeneralizationBus.apply(result = result, graph = graph, direction = direction)
+                BddAllocationDocking.apply(result = bus, graph = graph, direction = direction)
+            } else {
+                result
+            }
+
         val first = aligned(engine.layout(graph = graphWith(graph = engineGraph, spec = checked), hints = effectiveHints))
         val explicit = checked?.aspectRatio != null || checked?.maxWidth != null
-        if (!explicit && !effectiveHints.autoAspect) return SpecLayoutOutcome(result = first, findings = findings)
+        if (!explicit && !effectiveHints.autoAspect) {
+            return SpecLayoutOutcome(result = finished(result = first, direction = effectiveHints.direction), findings = findings)
+        }
 
         val horizontal = effectiveHints.direction == LayoutDirection.LeftToRight || effectiveHints.direction == LayoutDirection.RightToLeft
         val w = first.canvas.width.toDouble()
         val h = first.canvas.height.toDouble()
-        if (w <= 0.0 || h <= 0.0) return SpecLayoutOutcome(result = first, findings = findings)
+        if (w <= 0.0 || h <= 0.0) {
+            return SpecLayoutOutcome(result = finished(result = first, direction = effectiveHints.direction), findings = findings)
+        }
         val ratio = w / h
         val target =
             checked?.aspectRatio
@@ -343,7 +355,9 @@ public object LayoutSpecRunner {
         val offTarget =
             target != null &&
                 isOffTarget(ratio = ratio, target = target, horizontal = horizontal, bothSides = checked?.aspectRatio != null)
-        if (!tooWide && !offTarget) return SpecLayoutOutcome(result = first, findings = findings)
+        if (!tooWide && !offTarget) {
+            return SpecLayoutOutcome(result = finished(result = first, direction = effectiveHints.direction), findings = findings)
+        }
 
         // The widest layer drives the wrap: nodes per layer without any wrapping.
         val layers =
@@ -385,9 +399,10 @@ public object LayoutSpecRunner {
         }
         var bestHorizontal = horizontal
         // A chain or a cycle has one state per layer, so wrapping cannot reach an explicit target. When the author
-        // gave no direction, one more run with the orthogonal flow direction may land closer (Nacharbeit 58).
-        val stateKind = kind == SpecDiagramKind.SYSML2_STM || kind == SpecDiagramKind.UML_STATE
-        if (stateKind && explicit && checked.direction == null) {
+        // gave no direction, one more run with the orthogonal flow direction may land closer (Nacharbeit 58/60).
+        val rotates =
+            kind == SpecDiagramKind.SYSML2_STM || kind == SpecDiagramKind.UML_STATE || kind == SpecDiagramKind.SYSML2_BDD
+        if (rotates && explicit && checked.direction == null) {
             val bestW = best.canvas.width.toDouble()
             val bestH = best.canvas.height.toDouble()
             val missed =
@@ -420,8 +435,10 @@ public object LayoutSpecRunner {
                 }
             }
         }
+        val chosenDirection = if (bestHorizontal == horizontal) effectiveHints.direction else orthogonal(effectiveHints.direction)
+        val chosen = finished(result = best, direction = chosenDirection)
         reportUnreached(
-            result = best,
+            result = chosen,
             target = target,
             maxWidth = maxWidth,
             horizontal = bestHorizontal,
@@ -429,7 +446,7 @@ public object LayoutSpecRunner {
             bothSides = checked?.aspectRatio != null,
             findings = findings,
         )
-        return SpecLayoutOutcome(result = best, findings = findings)
+        return SpecLayoutOutcome(result = chosen, findings = findings)
     }
 
     /** The flow direction turned by a quarter: vertical flows become horizontal and the other way round. */

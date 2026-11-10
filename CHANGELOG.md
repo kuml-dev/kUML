@@ -6,6 +6,33 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 60: block definition diagram: explicit aspectRatio / maxWidth may rotate the flow, the generalisation bus follows the chosen direction
+
+**Why.** In a BDD, `aspectRatio` / `maxWidth` only re-wrapped over-wide layers. A hub with many parts or a generalisation fan
+that wrapping cannot bring near the target stayed as it was (P-BDD-06). In addition, `LayoutSpecRunner.layout` applied the
+generalisation bus and the allocation docking with the direction taken from the spec, not from the layout that was chosen.
+
+**Change.** `LayoutSpecRunner.layoutInner` now runs the one-more-run rotation of Nacharbeit 58 for `SYSML2_BDD` as well, under
+the same conditions (explicit `aspectRatio` / `maxWidth`, no explicit `direction`, target missed after wrapping, adopted only
+when `closerToTarget`). The bus and docking moved from `layout()` into `layoutInner` and are applied once, to the chosen
+candidate, with that candidate's direction. `KUML-LAYOUT-W002` / `W003` now measure the result after the bus. Candidates are still
+compared before the bus, so no existing choice changes. Handbook sentence added in `layout.adoc`.
+
+**Verification.** New `BddAspectRotationTest` (7 tests, geometry only): hub with 8 `refPart` children, fan rotation and bus
+end points on the sides facing the flow, explicit `direction` Down and Right never rotated, `maxWidth`, no findings without
+options. Rendered a hub (8 parts) and a 6-subtype fan with the local CLI before and after: without options and with
+`aspectRatio = 3.0` the SVGs are byte-identical; fan with `aspectRatio = 1.0` went from 912x449 (W003, actual 1.77) to 679x768
+without a finding. `check_latex_tests.py`: no change in `kuml-io-latex`, only its geometry input changes with explicit options.
+
+**Not verified.** Linux and Windows runs.
+
+**Not fixed.**
+- `maxWidth` alone can now rotate a hub to a tall, narrow picture (hub, `maxWidth = 900`: 949x738 with W002 became 722x1028)
+  and then reports `KUML-LAYOUT-W003` for the implicit aspect target 2.5 that the author never set (pre-existing reporting
+  rule, also true for state machines).
+- Label crossing with `direction = Right` in a BDD, P-LAY-01 parallel spacing, N-BDD-A..C.
+- The rotated generalisation bus has no shared trunk: the lines run side by side into the base box.
+
 ### Nacharbeit 59: requirement diagram: «satisfy» label sits at the satisfier and never covers box text
 
 **Why.** In a bundle of `satisfy` edges the label was centred on the longest segment, i.e. far from the satisfier, and
