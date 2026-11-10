@@ -1019,7 +1019,11 @@ lostMessage(label = "drop", source = browser, seqNo = 10)
 
 * A nested frame is inset by 10 px per level on both sides and starts one header band below its parent.
 * `interactionUse` (`ref`) draws a 48 px high frame from the leftmost to the rightmost covered lifeline
-  (+16 px); the referenced name is plain text, never a link. Following rows move down by 16 px.
+  (+16 px); the referenced name is plain text, never a link. Following rows move down by 16 px. When `name` differs from `refersTo`,
+  the frame reads `name : refersTo`.
+* The names of `executionSpec` and `combinedFragment` are drawn too: next to the top of the activation bar and
+  right-aligned on the operator-tag row of the frame. A name that does not fit is clipped; if almost nothing
+  fits only the SVG tooltip (`<title>`) keeps the full name.
 * `durationConstraint` draws a bracket 14 px right of the lifeline axis (of the activation bar if present);
   `timeObservation` draws a tick labelled `name = now`. Lifeline spacing grows so the texts do not run
   into the neighbouring lifeline.

@@ -4,6 +4,7 @@ import dev.kuml.io.svg.sysml2.SYSML2_SEQ_HEAD_HEIGHT
 import dev.kuml.io.svg.sysml2.SYSML2_SEQ_MESSAGE_ROW_HEIGHT
 import dev.kuml.io.svg.sysml2.SeqFragmentTree
 import dev.kuml.io.svg.sysml2.SeqRowOffsets
+import dev.kuml.io.svg.sysml2.nextLifelineAxisX
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
@@ -106,7 +107,13 @@ internal object SeqNoteScenes {
                 for (es in execSpecs) {
                     val nl = layouts[NodeId(es.lifelineId)] ?: continue
                     dev.kuml.io.svg.sysml2
-                        .renderExecutionSpec(execSpec = es, lifelineLayout = nl, builder = sb, rows = rows)
+                        .renderExecutionSpec(
+                            execSpec = es,
+                            lifelineLayout = nl,
+                            builder = sb,
+                            rows = rows,
+                            nextLifelineCx = nextLifelineAxisX(layout = nl, all = layouts.values),
+                        )
                 }
                 for (use in refs) {
                     dev.kuml.io.svg.sysml2

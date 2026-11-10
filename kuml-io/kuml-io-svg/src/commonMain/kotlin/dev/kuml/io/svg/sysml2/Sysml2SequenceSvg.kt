@@ -473,7 +473,7 @@ private fun renderFoundLostMessage(
  *   [LABEL_BG_HPAD]. Pass `0f` for self-call labels so the background matches the text
  *   width and does not spill into an adjacent lifeline's dashed time axis.
  */
-private fun drawSeqLabelWithWhiteBackground(
+internal fun drawSeqLabelWithWhiteBackground(
     label: String,
     x: Float,
     y: Float,
@@ -525,6 +525,37 @@ private fun drawSeqLabelWithWhiteBackground(
         }
     builder.tag(name = "text", attrs = attrs) { text(label) }
 }
+
+/**
+ * Nacharbeit 63: the name of an execution specification, combined fragment or interaction use is shown only
+ * when the author gave one: a blank name, or one that merely repeats the element id, draws nothing.
+ * Returns the trimmed name, or `null` when nothing should be shown.
+ */
+internal fun explicitSeqName(
+    name: String?,
+    id: String,
+): String? {
+    val trimmed = name?.trim().orEmpty()
+    return if (trimmed.isEmpty() || trimmed == id) null else trimmed
+}
+
+/** Smallest lifeline axis x strictly right of [layout]'s axis among [all], or `null` for the rightmost lifeline. */
+internal fun nextLifelineAxisX(
+    layout: NodeLayout,
+    all: Collection<NodeLayout>,
+): Float? {
+    val cx = layout.bounds.origin.x + layout.bounds.size.width / 2f
+    return all
+        .map { it.bounds.origin.x + it.bounds.size.width / 2f }
+        .filter { it > cx + 0.5f }
+        .minOrNull()
+}
+
+/** Fewest characters a name label must keep to be worth drawing; below this only the `<title>` remains. */
+private const val SEQ_NAME_MIN_CHARS: Int = 4
+
+/** How many characters of [BODY_CHAR_WIDTH] fit into [width] pixels. */
+private fun seqCharsFitting(width: Float): Int = (width / BODY_CHAR_WIDTH).toInt()
 
 /**
  * Render a `Create` message — V2.0.15.
@@ -722,6 +753,8 @@ internal fun renderExecutionSpec(
     lifelineLayout: NodeLayout,
     builder: SvgBuilder,
     rows: SeqRowOffsets = SeqRowOffsets.NONE,
+    /** Axis x of the next lifeline to the right (limits the name label), or `null` when there is none. */
+    nextLifelineCx: Float? = null,
 ) {
     val cx = lifelineLayout.bounds.origin.x + lifelineLayout.bounds.size.width / 2f
     val headBottom = lifelineLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
@@ -752,8 +785,31 @@ internal fun renderExecutionSpec(
                     "fill" to "white",
                 ),
         )
+        // Nacharbeit 63: the explicit name sits right of the bar, just above its top edge (the band between the
+        // previous row's arrow and the bar), so it never meets the message label of the bar's own first row.
+        val name = explicitSeqName(name = execSpec.name, id = execSpec.id)
+        if (name != null) {
+            tag(name = "title") { text(name) }
+            val labelX = cx + w / 2f + 4f
+            val room = (nextLifelineCx ?: (labelX + SEQ_EXEC_NAME_MAX_CHARS * BODY_CHAR_WIDTH + 12f)) - 12f - labelX
+            val chars = minOf(SEQ_EXEC_NAME_MAX_CHARS, seqCharsFitting(room))
+            if (chars >= SEQ_NAME_MIN_CHARS) {
+                drawSeqLabelWithWhiteBackground(
+                    label = clipSeqText(text = name, max = chars),
+                    x = labelX,
+                    y = yStart - 3f,
+                    anchor = "start",
+                    builder = this,
+                    cssClass = "kuml-stereotype",
+                    hPad = 1f,
+                )
+            }
+        }
     }
 }
+
+/** Longest execution-specification name drawn next to its bar. */
+private const val SEQ_EXEC_NAME_MAX_CHARS: Int = 16
 
 /**
  * Render a Combined Fragment — V2.0.15.
@@ -889,6 +945,36 @@ internal fun renderCombinedFragment(
                     "text-anchor" to "middle",
                 ),
         ) { text(fragment.operator.name.uppercase()) }
+
+        // Nacharbeit 63: the explicit fragment name sits right-aligned on the tag row; it yields to the
+        // index-0 guard and is dropped (title only) when fewer than SEQ_NAME_MIN_CHARS characters fit.
+        val fragmentName = explicitSeqName(name = fragment.name, id = fragment.id)
+        if (fragmentName != null) {
+            tag(name = "title") { text(fragmentName) }
+            val firstOperand = fragment.operands.first()
+            val firstGuard = (firstOperand.guard ?: "").trim()
+            val guardWidth =
+                if (firstGuard.isEmpty()) {
+                    0f
+                } else {
+                    val shown = if (firstGuard.startsWith("[") && firstGuard.endsWith("]")) firstGuard else "[$firstGuard]"
+                    minOf(shown.length * BODY_CHAR_WIDTH, (frameW - tagW - 8f).coerceAtLeast(20f)) + 7f
+                }
+            val room = frameW - tagW - guardWidth - 12f
+            val chars = seqCharsFitting(room)
+            if (chars >= SEQ_NAME_MIN_CHARS) {
+                tag(
+                    name = "text",
+                    attrs =
+                        mapOf(
+                            "class" to "kuml-stereotype",
+                            "x" to fmt(frameX + frameW - 6f),
+                            "y" to fmt(tagY + tagH / 2f + 4f),
+                            "text-anchor" to "end",
+                        ),
+                ) { text(clipSeqText(text = fragmentName, max = chars)) }
+            }
+        }
 
         // 3. Operand guards — one per operand, in the top-left of each
         //    operand's vertical slice.
@@ -1308,10 +1394,14 @@ internal fun renderInteractionUse(
                     "text-anchor" to "middle",
                 ),
         ) { text("ref") }
+        // Nacharbeit 63: an explicit name that differs from the referenced interaction reads "name : refersTo".
+        val useName = explicitSeqName(name = use.name, id = use.id)
+        val shownText = if (useName != null && useName != use.refersTo) "$useName : ${use.refersTo}" else use.refersTo
+        if (useName != null && useName != use.refersTo) tag(name = "title") { text(shownText) }
         tag(
             name = "text",
             attrs = mapOf("class" to "kuml-body", "x" to fmt((left + tagW + right) / 2f), "y" to fmt(cy + 4f), "text-anchor" to "middle"),
-        ) { text(clipSeqText(text = use.refersTo)) }
+        ) { text(clipSeqText(text = shownText)) }
     }
 }
 

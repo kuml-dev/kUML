@@ -6,6 +6,30 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 63: sequence diagram: names of activations, fragments and `ref` frames are drawn, blank UML guards stay empty
+
+**Why.** Found with the local CLI on a generic fixture: `executionSpec(name = ...)` and `combinedFragment(name = ...)`
+were never drawn, and `interactionUse` showed only `refersTo`, although `name` is a required argument of all three.
+The UML sequence renderer drew `[]` for a blank guard (the SysML 2 renderer had been fixed in Wave 2F, item (f) there
+needed no change).
+
+**Change.** New `explicitSeqName` (blank, or equal to the element id, shows nothing). Activation bar: name in
+`kuml-stereotype` above the bar's top edge, right of it, clipped to 16 characters and to the room left before the next
+lifeline axis. Combined fragment: name right-aligned on the tag row, clipped so it never reaches the first guard.
+`interactionUse`: `name : refersTo` when the name differs from `refersTo`. Every drawn name also gets a `<title>` with
+the full name; a name too long to fit keeps only the `<title>`. UML `UmlSequenceSvg` skips blank guards like SysML 2.
+`drawSeqLabelWithWhiteBackground` is now `internal` (output unchanged). Handbook (sysml2 sequence section) updated.
+
+**Verification.** `Sysml2SeqNamesSvgTest` (14 structural tests incl. escaping of `<script>&`, no byte goldens),
+`UmlSeqBlankGuardSvgTest` (fails without the fix). Fixture PNGs viewed with the local CLI build.
+
+**Not verified.** Windows and Linux rendering, PNG renderer beyond the viewed fixtures, LaTeX (the LaTeX renderer has
+no sequence diagram, unchanged).
+
+**Not fixed.** Other SEQ items (c), (d), (e), (g), (h), (i); an activation name can still touch a message label when the
+previous row carries a self call; node ids that contain markup are escaped twice in `<g id>` (pre-existing,
+`xmlEscapeAttr` plus the builder); copying the changed SVGs to the presentation repo is a follow-up.
+
 ### Nacharbeit 62: activity diagram: the final node is drawn filled, accept-time-events show their name
 
 **Why.** Two symbol defects found with the local CLI on a generic fixture. The inner disc of `finalNode()` was hollow:

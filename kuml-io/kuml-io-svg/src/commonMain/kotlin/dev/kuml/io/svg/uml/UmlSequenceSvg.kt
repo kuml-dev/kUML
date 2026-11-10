@@ -708,7 +708,7 @@ private fun renderUmlFragment(
                 prevOperandBottom = opBottomY ?: (guardY + 4f)
             }
             val guard = operand.guard
-            if (guard != null) {
+            if (guard != null && guard.isNotBlank()) {
                 // V3.0.11: idempotent bracket-wrapping.
                 val trimmed = guard.trim()
                 val displayGuard =

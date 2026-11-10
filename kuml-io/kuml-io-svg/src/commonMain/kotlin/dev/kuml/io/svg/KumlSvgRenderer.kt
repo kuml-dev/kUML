@@ -58,6 +58,7 @@ import dev.kuml.io.svg.erm.renderErmMartinRelationship
 import dev.kuml.io.svg.erm.renderErmView
 import dev.kuml.io.svg.erm.renderIdef1xCategoryCircle
 import dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
+import dev.kuml.io.svg.sysml2.nextLifelineAxisX
 import dev.kuml.io.svg.uml.UmlEndpointSide
 import dev.kuml.io.svg.uml.renderUmlAssociationClassTether
 import dev.kuml.io.svg.uml.toLabel
@@ -3987,6 +3988,7 @@ public object KumlSvgRenderer {
                         lifelineLayout = lifelineLayout,
                         builder = edgesBuilder,
                         rows = rows,
+                        nextLifelineCx = nextLifelineAxisX(layout = lifelineLayout, all = shiftedLayouts.values),
                     )
             }
 
