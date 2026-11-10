@@ -1,5 +1,6 @@
 package dev.kuml.io.svg.sysml2
 
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SampleOutput
 import dev.kuml.kerml.KermlFeature
@@ -19,9 +20,11 @@ import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.sysml2.projection.DEFAULT_LITERAL_META_KEY
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 
 /**
  * Smoke + structural tests für den SysML-2-BDD-SVG-Renderer.
@@ -83,6 +86,45 @@ class Sysml2BddSvgTest :
             svg shouldContain "topSpeed : Speed = 180\u00A0km/h"
 
             SampleOutput.write(filename = "sysml2-bdd/single-part-with-attributes.svg", content = svg)
+        }
+
+        "defaultLiteral is drawn verbatim while a numeric default is normalised" {
+            val num = AttributeDefinition(id = "Zahl", name = "Zahl")
+            val box =
+                PartDefinition(
+                    id = "Kennwert",
+                    name = "Kennwert",
+                    features =
+                        listOf(
+                            KermlFeature(
+                                id = "Kennwert::textEins",
+                                name = "textEins",
+                                typeId = "Zahl",
+                                defaultExpression = "1.0",
+                                metadata = mapOf(DEFAULT_LITERAL_META_KEY to KumlMetaValue.Flag(value = true)),
+                            ),
+                            KermlFeature(id = "Kennwert::zahlEins", name = "zahlEins", typeId = "Zahl", defaultExpression = "1.0"),
+                        ),
+                )
+            val model = Sysml2Model(name = "Demo", definitions = listOf(num, box))
+            val bdd = BdDiagram(name = "Literal", elementIds = listOf("Kennwert"))
+            val layout =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = 1L,
+                    canvas = Size(width = 280f, height = 140f),
+                    nodes =
+                        mapOf(
+                            NodeId("Kennwert") to
+                                NodeLayout(bounds = Rect(origin = Point(x = 20f, y = 20f), size = Size(width = 240f, height = 94f))),
+                        ),
+                    edges = emptyMap(),
+                    groups = emptyMap(),
+                )
+            val svg = KumlSvgRenderer.toSvg(model = model, diagram = bdd, layoutResult = layout, theme = PlainTheme())
+            svg shouldContain "textEins : Zahl = 1.0"
+            svg shouldContain "zahlEins : Zahl = 1"
+            svg shouldNotContain "zahlEins : Zahl = 1.0"
         }
 
         "abstract PartDefinition picks the title-abstract style class" {

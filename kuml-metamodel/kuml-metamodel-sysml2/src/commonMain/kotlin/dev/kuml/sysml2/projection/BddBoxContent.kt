@@ -1,5 +1,6 @@
 package dev.kuml.sysml2.projection
 
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.kerml.KermlFeature
 import dev.kuml.sysml2.AnalysisCaseDefinition
 import dev.kuml.sysml2.AttributeDefinition
@@ -21,13 +22,11 @@ import dev.kuml.sysml2.Sysml2Model
  * the SVG renderer, so box height and drawn content can not drift apart.
  *
  * @property featureLines lines of the feature compartment (hidden features removed).
- * @property widthProbe same lines without default expressions (legacy width estimate).
  * @property actions `name()` lines of the `actions` compartment.
  * @property flows `<direction> <name> : <Type>` lines of the `flows` compartment.
  */
 data class BddBoxContent(
     val featureLines: List<String>,
-    val widthProbe: List<String>,
     val actions: List<String>,
     val flows: List<String>,
     /** Further compartments (wave 2I-b: calc / analysis / perform / exhibit), drawn after `actions` and `flows`. */
@@ -100,27 +99,22 @@ fun sysml2BddBoxContent(
 ): BddBoxContent {
     val hidden = projection?.hiddenFeatureIds ?: emptySet()
     val full = mutableListOf<String>()
-    val probe = mutableListOf<String>()
     // Wave 2E-b: the literals of an enumeration are its feature lines.
     if (def is EnumerationDefinition) {
         full += def.literals
-        probe += def.literals
     }
     for (f in def.features) {
         if (f.id in hidden) continue
         val usage = model.usages.firstOrNull { it.id == f.id }
         full += formatFeature(f = f, usage = usage, withDefault = true, model = model)
-        probe += formatFeature(f = f, usage = usage, withDefault = false, model = model)
     }
     if (def is AttributeDefinition && def.unit != null) {
         full += "unit = ${def.unit}"
-        probe += "unit = ${def.unit}"
     }
     val actions = projection?.actionsByDef?.get(def.id)?.map { "$it()" } ?: emptyList()
     val flows = projection?.flowsByDef?.get(def.id) ?: emptyList()
     return BddBoxContent(
         featureLines = full,
-        widthProbe = probe,
         actions = actions,
         flows = flows,
         compartments = analysisCompartments(model = model, def = def, projection = projection),
@@ -228,6 +222,15 @@ private fun dirWord(d: PortDirection?): String =
         null -> ""
     }
 
+/**
+ * Metadata key marking an attribute default that was declared as a verbatim literal (`defaultLiteral = "..."`). Such a
+ * default is displayed unchanged and never run through the number / unit normalisation of [formatAttributeValue].
+ */
+const val DEFAULT_LITERAL_META_KEY: String = "kuml.defaultLiteral"
+
+/** True when [metadata] carries the [DEFAULT_LITERAL_META_KEY] flag. */
+fun isDefaultLiteral(metadata: Map<String, KumlMetaValue>): Boolean = metadata[DEFAULT_LITERAL_META_KEY] == KumlMetaValue.Flag(value = true)
+
 /** Non-breaking space between a number and its unit (wave 2E-b); display only, never stored. */
 const val NBSP: Char = '\u00A0'
 
@@ -238,12 +241,15 @@ private val INTEGRAL_NUMBER = Regex("""^-?[0-9]+\.0+$""")
  * Display form of an attribute default (wave 2E-b): `-5 Pa` for the stored `-5.0` (unit from the attribute type) as well
  * as for the legacy `-5.0[Pa]`. Integral numbers lose the `.0`; the number is never formatted through the platform
  * locale (the decimal separator is always `.`, the minus is ASCII). Text that is not a number (an enumeration literal)
- * is returned unchanged.
+ * is returned unchanged. With [isLiteral] (a `defaultLiteral`) the text is always returned verbatim: no `.0` trimming,
+ * no unit, no quotes.
  */
 fun formatAttributeValue(
     raw: String,
     typeUnit: String?,
+    isLiteral: Boolean = false,
 ): String {
+    if (isLiteral) return raw
     val m = NUMBER_WITH_UNIT.matchEntire(raw) ?: return raw
     var number = m.groupValues[1]
     if (INTEGRAL_NUMBER.matches(number)) number = number.substringBefore('.')
@@ -270,7 +276,14 @@ private fun formatFeature(
     val multSuffix = if (f.multiplicity.toSpecForm() == "1") "" else " [${f.multiplicity.toSpecForm()}]"
     val typeUnit = (model.definitions.firstOrNull { it.id == f.typeId } as? AttributeDefinition)?.unit
     val defaultSuffix =
-        if (withDefault) f.defaultExpression?.let { " = ${formatAttributeValue(raw = it, typeUnit = typeUnit)}" } ?: "" else ""
+        if (withDefault) {
+            f.defaultExpression?.let {
+                " = ${formatAttributeValue(raw = it, typeUnit = typeUnit, isLiteral = isDefaultLiteral(metadata = f.metadata))}"
+            }
+                ?: ""
+        } else {
+            ""
+        }
     return "$prefix${f.name} : $type$multSuffix$defaultSuffix"
 }
 

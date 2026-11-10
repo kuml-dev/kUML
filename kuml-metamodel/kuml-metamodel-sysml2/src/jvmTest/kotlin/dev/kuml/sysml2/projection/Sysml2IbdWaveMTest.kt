@@ -115,7 +115,8 @@ class Sysml2IbdWaveMTest :
                 }
             val part = m.usages.filterIsInstance<dev.kuml.sysml2.PartUsage>().single { it.name == "sensor" }
             val texts = ibdPartAttributes(model = m, usage = part).lines.map { it.text }
-            texts shouldBe listOf("messwert : Raumdruck = -5${NBSP}Pa", "temperatur : Temperatur = 20$NBSP°C")
+            texts shouldBe listOf("messwert : Raumdruck = -5${NBSP}Pa", "temperatur : Temperatur = 20.0[°C]")
+            // Nacharbeit 51: a defaultLiteral is shown verbatim (no number / unit normalisation), also in the IBD.
         }
 
         test("direction survives on a wire that exists only in the projection (nested definition)") {

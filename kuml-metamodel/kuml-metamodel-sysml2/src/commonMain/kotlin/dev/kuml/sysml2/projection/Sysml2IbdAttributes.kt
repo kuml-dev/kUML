@@ -66,6 +66,7 @@ private fun line(
                 formatAttributeValue(
                     raw = it,
                     typeUnit = (model.definitions.firstOrNull { d -> d.id == a.definitionId } as? AttributeDefinition)?.unit,
+                    isLiteral = isDefaultLiteral(metadata = a.metadata),
                 )
             },
     )

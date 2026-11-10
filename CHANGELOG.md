@@ -6,6 +6,40 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 51: BDD box width includes the attribute value, `defaultLiteral` shown verbatim
+
+#### Why
+
+N-BDD-A, reproduced first with a generic fixture (enumeration literal `nicht in diesem Abschnitt`, a `partDef` with `defaultLiteral = "nicht in diesem Abschnitt"`, `defaultLiteral = "1.0"` and `default = 1.0`; `which kuml` pointed at the local build):
+
+- Width: reproduced. The bridge measured `widthProbe` (feature lines without ` = value`) while the SVG draws the lines with the value, so a long default ran out of the box on the right.
+- Literal: reproduced. `defaultLiteral = "1.0"` was drawn as `= 1`, because `defaultLiteral` and the numeric `default` both end up in `defaultExpression` and the formatter could not tell them apart.
+
+#### Change
+
+- `Sysml2LayoutBridge.bddContentAwareSizeProvider` measures `BddBoxContent.featureLines` (the lines that are drawn). `BddBoxContent.widthProbe` is removed (its only user was the bridge). Formula, 220 px floor and edge puffer are unchanged; no truncation, wrapping or upper limit.
+- `attribute(..., defaultLiteral = ...)` marks the `AttributeUsage` with the metadata flag `kuml.defaultLiteral` (`DEFAULT_LITERAL_META_KEY`). `toFeature` copies only that one key to `KermlFeature.metadata`. The numeric and unit overloads are untouched, so models without `defaultLiteral` serialise as before.
+- `formatAttributeValue(raw, typeUnit, isLiteral = false)` returns the text unchanged when `isLiteral` is set (no `.0` trimming, no unit, no quotes). The BDD (`formatFeature`) and the IBD attribute compartment (`Sysml2IbdAttributes.line`) pass the flag.
+- Behaviour change in the IBD and BDD: a `defaultLiteral` that looks like a number with a unit (`"20.0[°C]"`) is no longer normalised to `20 °C`; use the numeric `default` plus the unit of the attribute type for that. Two existing assertions (`Sysml2IbdWaveMTest` in `kuml-metamodel-sysml2` and in `kuml-io-svg`) that expected the old normalisation were adjusted.
+- Handbook: `sysml2.adoc` (enumerations: verbatim literal versus normalised numeric default, width includes the value).
+
+#### Verification
+
+- New `Sysml2BddValueWidthTest` (layout-bridge, font independent: every feature line fits the provider width, long default widens the box, `1.0` literal versus `1` numeric, IBD `-5<NBSP>Pa` versus verbatim literal, JSON round trip and unchanged JSON without the flag) and a new case in `Sysml2BddSvgTest` (SVG text).
+- `./gradlew clean check --no-build-cache --rerun-tasks`: BUILD SUCCESSFUL in 19 min 40 s, 10627 tests, 0 failures, 5 skipped (not touched by this change). Vault-examples tests ran and are unchanged. `scripts/ci/check_latex_tests.py`: LaTeX skip guard passed.
+- Repro rendered to PNG before and after with the local CLI: the box now holds the full value, `= 1.0` for the literal, `= 1` for the number.
+
+#### Not verified
+
+- Real glyph width for capital-heavy text (the estimate stays at 6.6 px per character).
+- LaTeX: `Sysml2DefLatexRenderer.formatBdd` writes `= $it` raw and does not use the formatter, so its value text is unaffected; box size follows the bridge width and is covered only by the existing LaTeX tests (green), not looked at as a PDF.
+
+#### Not fixed
+
+- A width limit with line wrapping for very long values (a redesign).
+- N-BDD-B/C and P-BDD-04 to 06.
+- No vault example or golden needed a change; none was edited.
+
 ### Nacharbeit 50: STM label wrap without mid-word hyphens, bare name without colon
 
 #### Why

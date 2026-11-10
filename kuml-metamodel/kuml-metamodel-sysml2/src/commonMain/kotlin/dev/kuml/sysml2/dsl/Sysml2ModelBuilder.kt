@@ -1,5 +1,6 @@
 package dev.kuml.sysml2.dsl
 
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.model.note.KumlNote
 import dev.kuml.core.model.note.KumlNoteLink
 import dev.kuml.core.model.note.NoteKind
@@ -92,6 +93,7 @@ import dev.kuml.sysml2.UcSubject
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.UseCaseUsage
 import dev.kuml.sysml2.parseTimerInstant
+import dev.kuml.sysml2.projection.DEFAULT_LITERAL_META_KEY
 import dev.kuml.sysml2.projection.Sysml2PathResolver
 import dev.kuml.sysml2.units.UnitValue
 import kotlin.time.Duration
@@ -2618,6 +2620,7 @@ class DefinitionBuilder internal constructor(
                 definitionId = typeId,
                 multiplicity = multiplicity,
                 defaultExpression = defaultLiteral,
+                metadata = mapOf(DEFAULT_LITERAL_META_KEY to KumlMetaValue.Flag(value = true)),
             )
         collected += toFeature(usage = usage, typeId = typeId)
         modelBuilder.registerUsage(usage)
@@ -2884,6 +2887,8 @@ class DefinitionBuilder internal constructor(
             definitionId = usage.definitionId,
             multiplicity = usage.multiplicity,
             defaultExpression = defaultExpr,
+            // Only the verbatim-literal marker is shadowed; any other usage metadata stays on the usage.
+            metadata = usage.metadata.filterKeys { it == DEFAULT_LITERAL_META_KEY },
         )
     }
 }

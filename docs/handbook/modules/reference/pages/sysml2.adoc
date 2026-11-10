@@ -1567,7 +1567,8 @@ ends are visible; the matching rows leave the feature compartment. Blocks show `
   (`4.mA`); any other symbol works with `attributeDef(unitSymbol = "bar")`.
 * **Enumerations:** `enumerationDef("Colour") { literal("Red"); literal("Green") }` is drawn as `<<enumeration>>` with one
   literal compartment (at most 64 literals); `attribute("colour", colour.id, defaultLiteral = "Red")` shows
-  `colour : Colour = Red`.
+  `colour : Colour = Red`. A `defaultLiteral` is shown verbatim (no number or unit normalisation), while a numeric
+  `default = 1.0` is normalised (`= 1`, unit from the attribute type). The BDD box width includes the drawn value.
 * **Action definitions** in a BDD are blocks with `<<action def>>`. An `allocate` edge docks at the line of the
   allocated action in the `actions` compartment of the target block when the flow is `Right` or `Left`.
 * **Roles and multiplicities:** the role name of a composition or reference is a label in the middle of the line (placed

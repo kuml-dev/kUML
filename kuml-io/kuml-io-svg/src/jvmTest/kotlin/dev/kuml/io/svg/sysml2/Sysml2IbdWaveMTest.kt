@@ -104,9 +104,9 @@ class Sysml2IbdWaveMTest :
                 }
             val ibdSvg = renderIbd(ibd)
             ibdSvg shouldContain "messwert : Raumdruck = -5${nbsp}Pa"
-            ibdSvg shouldContain "= 20$nbsp°C"
+            // Nacharbeit 51: a defaultLiteral is shown verbatim, only the numeric default is normalised.
+            ibdSvg shouldContain "= 20.0[°C]"
             ibdSvg shouldNotContain "-5.0"
-            ibdSvg shouldNotContain "20.0"
 
             val bdd =
                 sysml2Model(name = "Raum") {
@@ -121,9 +121,8 @@ class Sysml2IbdWaveMTest :
                 }
             val bddSvg = renderBdd(bdd)
             bddSvg shouldContain "messwert : Raumdruck = -5${nbsp}Pa"
-            bddSvg shouldContain "= 20$nbsp°C"
+            bddSvg shouldContain "= 20.0[°C]"
             bddSvg shouldNotContain "-5.0"
-            bddSvg shouldNotContain "20.0"
         }
 
         test("F-a: FORWARD draws an open head at the target in the connectionDef colour, without dash pattern") {

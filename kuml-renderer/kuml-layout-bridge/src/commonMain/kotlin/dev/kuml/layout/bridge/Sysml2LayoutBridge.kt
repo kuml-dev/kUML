@@ -649,7 +649,7 @@ public object Sysml2LayoutBridge {
                 }.length * IBD_STEREO_CHAR_PX
             val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
             val bodyMax =
-                ((content?.widthProbe ?: emptyList()) + actions + flows).maxOfOrNull { it.length * BDD_BODY_CHAR_PX } ?: 0f
+                ((content?.featureLines ?: emptyList()) + actions + flows).maxOfOrNull { it.length * BDD_BODY_CHAR_PX } ?: 0f
             val compartmentMax =
                 compartments
                     .flatMap { c ->
