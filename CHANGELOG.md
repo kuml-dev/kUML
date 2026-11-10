@@ -6,6 +6,39 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 53: refPart type validated, typed attributes get no edge (locked), attribute default text pinned
+
+#### Why
+
+N-BDD parts (c), (d) and P-BDD-05. Reproduction used neutral fixtures (`Controller`, `Druck`, `Temperatur`, `Mode`) rendered with the local CLI.
+
+- P-BDD-05: a `refPart` whose `typeId` matches no part definition (typo, or a custom `id`) was dropped from the diagram without any message, because the BDD projection skips an unresolved reference edge.
+- (d) reproduced: `default = -5.0` and `default = 5.Pa` both show `-5 Pa` / `5 Pa` with a non-breaking space, `defaultLiteral = "-5"` shows `-5` verbatim (by contract), an attribute without default shows no unit. No renderer defect. The only way to lose the unit is a type id mismatch: `formatFeature` finds the unit by `it.id == f.typeId`, so `attribute(..., typeId = "Temperatur")` on `attributeDef("Temperatur", id = "tmp")` shows `= 3` without unit. That is a model error, not a renderer bug.
+- (c) decided: no edge from a block to a value or enumeration type; the attribute line already shows type, value and unit.
+
+#### Change
+
+- New check `SYSML2_REFPART_TYPE_UNKNOWN` in `Sysml2AnalysisChecker` (error, element id is the refPart usage id, reported by `kuml validate` through the existing BD branch; no CLI wiring change). It fires when the target is missing or no `PartDefinition`; the hint names the id when a part definition with that name exists under a different id. Owner detection reuses the projection rule (`<owner>::<name>`, no further `::`). Diagrams that exclude the owner produce no finding.
+- (c) No code change; `BddTypedAttributeNoEdgeTest` locks that no edge targets an included attribute or enumeration definition and that the attribute lines stay.
+- (d) No code change; the same test file pins `-5 Pa`, `-5` (literal), no unit without default, and the custom-id lookup behaviour on the string level.
+- Handbook `sysml2.adoc`: types need no `include`, numeric default vs `defaultLiteral`, id lookup of the unit, forward references of `refPart` and the new error.
+- New tests: `Sysml2RefPartCheckerTest`, `BddTypedAttributeNoEdgeTest`, `ValidationServiceTest` (refPart case), `ValidateCommandRefPartTest`. Vault example sources were not edited.
+
+#### Verification
+
+`./gradlew clean check --no-build-cache --rerun-tasks` was BUILD SUCCESSFUL in 19m 56s (about 10,646 test cases in the result XMLs, 5 skipped, 0 failed; detekt, ktlint and the vault example tests are part of `check`, no example or golden changed). `scripts/ci/check_latex_tests.py` passed; `kuml-io-latex` does not reference the BDD projection (grep), so it is unaffected. The reproduction fixture was rendered with the local CLI and inspected as PNG.
+
+**Not verified:** no Windows run, no Intel Mac.
+
+**Not fixed:**
+
+- (c) the `TypedBy` edge. Needs a new `BddEdgeKind.TypedBy` (dashed line, open arrowhead, no role/multiplicity labels) in projection, SVG/PNG renderer, layout bridge and legend. Composition was rejected because it reads as decomposition and would move `= value Unit` out of the attribute line. The empty-space part belongs to P-BDD-06/P-LAY-01.
+- (d) a unit without a default (`druck : Druck (Pa)`): `[..]` is the multiplicity suffix, so a new suffix syntax would be needed.
+- (d) a custom attribute definition `id` makes the unit lookup fail silently; reported only, no renderer workaround.
+- Attribute type validation (built-in types like `Real` have no definitions, so it would raise false positives).
+
+**Not covered:** (a), (b), (e), (f), (g), (h); P-BDD-06; layout of floating type boxes; all other sections; release and tag.
+
 ### Nacharbeit 52: BDD edge multiplicity 1 drawn, flow port listed once, unit symbols documented as fixed
 
 #### Why

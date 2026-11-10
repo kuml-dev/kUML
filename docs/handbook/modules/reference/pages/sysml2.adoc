@@ -1561,7 +1561,9 @@ ends are visible; the matching rows leave the feature compartment. Blocks show `
 * **Attribute defaults:** `attribute("pressure", pressureType.id, default = -5.0)` stores the plain number; the unit comes
   from the attribute definition (`attributeDef("Pressure", unitSymbol = "Pa")`), so it is written once. The block shows
   `pressure : Pressure = -5 Pa` (integral numbers without `.0`, a non-breaking space before the unit, `.` as decimal
-  separator whatever the locale). The older `default = 1500.kg` form shows as `1500 kg` too. `kuml validate` reports a
+  separator whatever the locale). The older `default = 1500.kg` form shows as `1500 kg` too. Numeric values are written as `default = -5.0`;
+  a `defaultLiteral` is shown verbatim, without unit. The unit is looked up by the type id of the attribute, so an
+  attribute definition declared with its own `id` is found by that id, not by its name, and without a match no unit is shown. `kuml validate` reports a
   default whose unit differs from the type's unit (501) and an enumeration default that is not a literal (502, 503).
   New unit constants and literals: `Unit.PASCAL` (`5.Pa`), `Unit.CELSIUS` (`21.degC`, symbol `°C`), `Unit.MILLIAMPERE`
   (`4.mA`); any other symbol works with `attributeDef(unitSymbol = "bar")`. A `unitSymbol` is a fixed symbol and is
@@ -1572,12 +1574,22 @@ ends are visible; the matching rows leave the feature compartment. Blocks show `
   literal compartment (at most 64 literals); `attribute("colour", colour.id, defaultLiteral = "Red")` shows
   `colour : Colour = Red`. A `defaultLiteral` is shown verbatim (no number or unit normalisation), while a numeric
   `default = 1.0` is normalised (`= 1`, unit from the attribute type). The BDD box width includes the drawn value.
+* **Value and enumeration types need no `include`:** an attribute typed by an attribute definition or an enumeration
+  already shows type, value and unit in its line, so kUML draws no edge from the block to the type. Include the type only
+  when you want its own box in the diagram.
 * **Action definitions** in a BDD are blocks with `<<action def>>`. An `allocate` edge docks at the line of the
   allocated action in the `actions` compartment of the target block when the flow is `Right` or `Left`.
 * **Roles and multiplicities:** the role name of a composition or reference is a label in the middle of the line (placed
   by the label placer, never stacked at the target); the multiplicity stays at the target end and is always drawn, `1` included.
 * **`refPart`** is a reference: a plain line with an open arrow at the referenced block, no diamond. (Until now it was
   drawn as an open diamond, which UML reserves for shared aggregation.)
+** *Forward references:* `typeId` is resolved after the whole model is built, so a block may reference one declared later,
+   and two blocks may reference each other: `refPart("I2", typeId = "FMCS")` in one block and
+   `refPart("I1", typeId = vitec.id)` in the other. Ids default to names, so a name string works before the target exists.
+** *Pitfall:* a `partDef` declared with an explicit `id` can no longer be referenced by its name; use its id.
+** `kuml validate` reports `SYSML2_REFPART_TYPE_UNKNOWN` (an error) for a `refPart` that points at nothing and for one that
+   points at a definition that is no part definition (for example an `attributeDef`). The hint names the id when a part
+   definition with that name exists under a different id. Without this check the reference would simply not be drawn.
 * **Generalisation:** a block with three or more specialisations that has no other edge is placed centred above (flow
   `Up`: below) them. The edges form a bus: one hollow triangle, a trunk and a horizontal bus; specialisations of a second
   row reach the bus through the gaps between the columns above. `wrapColumns` sets the number of specialisations per row.

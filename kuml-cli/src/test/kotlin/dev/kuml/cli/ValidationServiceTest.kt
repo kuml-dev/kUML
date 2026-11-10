@@ -145,6 +145,21 @@ class ValidationServiceTest :
             }
         }
 
+        test("a refPart with a mistyped typeId is an error finding SYSML2_REFPART_TYPE_UNKNOWN on the refPart usage") {
+            val script =
+                """
+                sysml2Model(name = "R") {
+                    partDef(name = "Gateway")
+                    val ctl = partDef(name = "Controller") { refPart(name = "gw", typeId = "Gatewya") }
+                    bdd(name = "D") { include(ctl) }
+                }
+                """.trimIndent()
+            val f = ValidationService.validate(script = script).single { it.code == "SYSML2_REFPART_TYPE_UNKNOWN" }
+            f.severity shouldBe Severity.ERROR
+            f.anchorId shouldBe "Controller::gw"
+            f.format() shouldContain "Gatewya"
+        }
+
         test("a clean script has no findings") {
             ValidationService.validate(script = "classDiagram(name = \"A\") { classOf(name = \"A\") }").shouldBeEmpty()
         }

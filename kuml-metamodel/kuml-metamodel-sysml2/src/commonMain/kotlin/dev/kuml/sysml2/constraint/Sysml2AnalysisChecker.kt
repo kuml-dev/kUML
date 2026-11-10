@@ -6,6 +6,7 @@ import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.BehaviorRef
 import dev.kuml.sysml2.CalculationDefinition
 import dev.kuml.sysml2.PartDefinition
+import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.Sysml2Limits
 import dev.kuml.sysml2.Sysml2Model
@@ -34,6 +35,7 @@ public data class AnalysisIssue(
  * | SYSML2_PERFORM_TARGET_NOT_ACTION | a `perform` of a part points at nothing, or at a definition that is no action |
  * | SYSML2_EXHIBIT_TARGET_NOT_STATE | an `exhibit` of a part points at nothing, or at a definition that is no state |
  * | SYSML2_DUPLICATE_USAGE_NAME | two `calc`s, `perform`s or `exhibit`s of one definition share a name |
+ * | SYSML2_REFPART_TYPE_UNKNOWN | a `refPart` of a block points at nothing, or at a definition that is no part definition |
  * | SYSML2_ANALYSIS_LIMIT | a list is longer than [Sysml2Limits.CALC_ENTRIES] |
  *
  * Models without the new constructs produce no findings. Findings come in declaration order.
@@ -106,6 +108,30 @@ public object Sysml2AnalysisChecker {
             }
         }
 
+        // A refPart whose type is no part definition is silently left out of the BDD (no edge), so it is reported here.
+        fun refPartTypes(owner: PartDefinition) {
+            val ownPrefix = "${owner.id}::"
+            for (u in model.usages) {
+                if (u !is PartUsage || !u.isReference) continue
+                if (!u.id.startsWith(ownPrefix) || u.id.removePrefix(ownPrefix).contains("::")) continue
+                if (byId[u.definitionId] is PartDefinition) continue
+                val sameName =
+                    model.definitions.firstOrNull { it is PartDefinition && it.name == u.definitionId && it.id != u.definitionId }
+                issues +=
+                    AnalysisIssue(
+                        code = "SYSML2_REFPART_TYPE_UNKNOWN",
+                        elementId = u.id,
+                        message = "refPart '${owner.name}::${u.name}' points at '${u.definitionId}', which is no part definition.",
+                        hint =
+                            if (sameName != null) {
+                                "Use its id '${sameName.id}' (the id differs from the name)."
+                            } else {
+                                "Check the spelling; typeId takes the id of a partDef (defaults to its name)."
+                            },
+                    )
+            }
+        }
+
         for (def in model.definitions) {
             if (visible != null && def.id !in visible) continue
             when (def) {
@@ -138,6 +164,7 @@ public object Sysml2AnalysisChecker {
                     }
                 }
                 is PartDefinition -> {
+                    refPartTypes(owner = def)
                     behaviours(
                         owner = def.id,
                         refs = def.performs,
