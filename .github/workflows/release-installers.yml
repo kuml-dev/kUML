@@ -5,12 +5,15 @@ on:
   push:
     tags:
       - 'v*.*.*'
-  # Manual run for an existing tag: builds only the Linux packages from that tag
-  # and attaches the DEB/RPM to its release (no Docker push, no DMG/MSI).
+  # Manual run for an existing tag: builds only the Linux packages (DEB/RPM of the
+  # CLI and of the desktop app) from that tag and attaches them to its release
+  # (no Docker push, no DMG/MSI). The DEB smoke test is skipped here: it checks the
+  # PATH symlink and desktop shortcut, which tags released before those changes
+  # (up to v0.56.0) do not contain, so it would fail the backfill.
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing release tag to build the DEB/RPM for (e.g. v0.56.0)"
+        description: "Existing release tag to build the CLI and desktop DEB/RPM for (e.g. v0.56.0)"
         required: true
 
 jobs:
@@ -43,6 +46,29 @@ jobs:
       - name: Build RPM
         run: ./gradlew :kuml-packaging:packageRpm
 
+      - name: Build desktop DEB
+        run: ./gradlew :kuml-desktop:packageDeb
+
+      - name: Build desktop RPM
+        run: ./gradlew :kuml-desktop:packageRpm
+
+      - name: Smoke test DEB install (CLI + desktop side by side)
+        # Push (new release tag) only: old tags checked out by a manual dispatch
+        # predate the postinst/shortcut changes and would fail these checks.
+        if: github.event_name == 'push'
+        # Fail-fast proof that both packages install together without file
+        # conflicts, that `kuml` lands on PATH and that the desktop launcher
+        # file is shipped. Uses only apt for dependencies.
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -l kuml-packaging/build/dist kuml-desktop/build/compose/binaries/main/deb kuml-desktop/build/compose/binaries/main/rpm
+          sudo apt-get install -y ./kuml-packaging/build/dist/kuml_*.deb ./kuml-desktop/build/compose/binaries/main/deb/kuml-desktop_*.deb
+          command -v kuml
+          kuml --version
+          dpkg -L kuml-desktop | grep -E '\.desktop$'
+          ls -l /usr/bin/kuml
+
       - name: Upload DEB + RPM
         uses: actions/upload-artifact@v4
         with:
@@ -53,6 +79,8 @@ jobs:
           path: |
             kuml-packaging/build/dist/*.deb
             kuml-packaging/build/dist/*.rpm
+            kuml-desktop/build/compose/binaries/main/deb/*.deb
+            kuml-desktop/build/compose/binaries/main/rpm/*.rpm
           if-no-files-found: error
 
       - name: Attach DEB + RPM to the GitHub Release
@@ -65,9 +93,11 @@ jobs:
         run: |
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
           shopt -s nullglob
-          FILES=(kuml-packaging/build/dist/*.deb kuml-packaging/build/dist/*.rpm)
-          if [ "${#FILES[@]}" -eq 0 ]; then
-            echo "::error::no .deb/.rpm found in kuml-packaging/build/dist"
+          DEBS=(kuml-packaging/build/dist/*.deb kuml-desktop/build/compose/binaries/main/deb/*.deb)
+          RPMS=(kuml-packaging/build/dist/*.rpm kuml-desktop/build/compose/binaries/main/rpm/*.rpm)
+          FILES=("${DEBS[@]}" "${RPMS[@]}")
+          if [ "${#DEBS[@]}" -lt 2 ] || [ "${#RPMS[@]}" -lt 2 ]; then
+            echo "::error::expected CLI + desktop .deb and .rpm (got ${#DEBS[@]} deb, ${#RPMS[@]} rpm) in kuml-packaging/build/dist and kuml-desktop/build/compose/binaries/main/{deb,rpm}"
             exit 1
           fi
           for attempt in $(seq 1 30); do

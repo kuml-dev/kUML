@@ -116,6 +116,11 @@ val packageDeb =
         val jarP = shadowJarPath
         val destP = distDirPath
         val ver = kumlVersion
+        // Linux jpackage overrides (postinst/prerm): put `kuml` on PATH via /usr/bin/kuml.
+        val resDirP =
+            layout.projectDirectory
+                .dir("src/main/linux-resources/deb")
+                .asFile.absolutePath
         doFirst(
             object : Action<Task> {
                 override fun execute(task: Task) {
@@ -141,6 +146,8 @@ val packageDeb =
                         "kuml.dev",
                         "--linux-package-name",
                         "kuml",
+                        "--resource-dir",
+                        resDirP,
                     )
                 }
             },

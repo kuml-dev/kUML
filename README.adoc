@@ -136,11 +136,16 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 | *Chocolatey* (Windows)
 | `choco install kuml` — bundles a Java 21 runtime, no JDK needed.
 
+| *APT* (Debian/Ubuntu, amd64 only)
+| `curl -fsSL https://apt.kuml.dev/kuml.gpg \| sudo tee /usr/share/keyrings/kuml.gpg > /dev/null`, then
+`echo "deb [signed-by=/usr/share/keyrings/kuml.gpg] https://apt.kuml.dev stable main" \| sudo tee /etc/apt/sources.list.d/kuml.list`, then
+`sudo apt update && sudo apt install kuml` (CLI) or `sudo apt install kuml-desktop` (desktop app; the desktop package is available from the first release built with the Linux desktop packages).
+
 | *Docker*
 | `docker pull ghcr.io/kuml-dev/kuml-cli:<version>` — minimal CLI image.
 
 | *Native installers and runtime bundles*
-| DMG, MSI, DEB, RPM and self-contained ZIPs on the https://github.com/kuml-dev/kUML/releases[GitHub Releases] page.
+| DMG, MSI, DEB and RPM (CLI and, from the release that adds them, desktop app) and self-contained ZIPs on the https://github.com/kuml-dev/kUML/releases[GitHub Releases] page.
 
 | *Maven Central* (library modules)
 | `implementation("dev.kuml:kuml-core-dsl:<version>")` — use the version shown in the badge above.

@@ -53,6 +53,23 @@ resolve. Use xref:#_direct_download[a direct download] in the meantime. Subseque
 updates are approved automatically.
 ====
 
+=== APT (Debian / Ubuntu, amd64 only)
+
+[source,bash]
+----
+curl -fsSL https://apt.kuml.dev/kuml.gpg | sudo tee /usr/share/keyrings/kuml.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/kuml.gpg] https://apt.kuml.dev stable main" | sudo tee /etc/apt/sources.list.d/kuml.list
+sudo apt update && sudo apt install kuml        # CLI
+sudo apt install kuml-desktop                   # desktop app
+----
+
+The CLI package installs to `/opt/kuml` and bundles its own JRE (about 290 MB installed), so no JDK is needed.
+The release pipeline now builds the package so that its post-install script links `/opt/kuml/bin/kuml` to
+`/usr/bin/kuml`; this applies from the first release built with that change (earlier packages need
+`/opt/kuml/bin/kuml` on the `PATH`). The desktop app installs to `/opt/kuml-desktop` and can be installed next
+to `kuml`. arm64 is not covered. The RPM of the CLI does not create the `/usr/bin/kuml` link; call
+`/opt/kuml/bin/kuml` there.
+
 === SDKMAN! (coming soon)
 
 SDKMAN! is the JVM-ecosystem package manager (`kotlin`, `gradle`, `maven`, `springboot`, …).

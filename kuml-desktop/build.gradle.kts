@@ -213,6 +213,16 @@ compose.desktop {
                 val linuxIcon = file("src/jvmMain/resources/icons/kuml-desktop.png")
                 if (linuxIcon.exists()) iconFile.set(linuxIcon)
                 menuGroup = "Development"
+                appCategory = "Development"
+                // Register the generated .desktop launcher in the system menu
+                // (jpackage --linux-shortcut). Not set before, so installing the
+                // package did not add a launcher.
+                shortcut = true
+                // Show the real project version ("0.57.0") in apt/rpm instead of the
+                // jpackage-mapped "57.0.0" (verified present on LinuxPlatformSettings
+                // in compose-gradle-plugin 1.12.1 via javap).
+                debPackageVersion = project.version.toString()
+                rpmPackageVersion = project.version.toString()
             }
         }
     }

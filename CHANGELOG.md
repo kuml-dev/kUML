@@ -6,6 +6,38 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 75: Linux desktop DEB/RPM, kuml on PATH after apt install
+
+**Why.** The Linux release job built only the CLI DEB/RPM; the desktop app had no Linux package, and after
+`apt install kuml` the command was not on the `PATH` (the package installs to `/opt/kuml/bin/kuml`, nothing links it).
+
+**Change.**
+- `release-installers.yml`: builds `:kuml-desktop:packageDeb` and `packageRpm`, uploads and attaches them with the CLI
+  packages (attach step fails unless at least 2 DEB and 2 RPM exist), and runs an install smoke step (both DEBs side
+  by side, `command -v kuml`, `kuml --version`, `.desktop` file listed in `kuml-desktop`).
+- `kuml-packaging`: `packageDeb` passes `--resource-dir src/main/linux-resources/deb` with a `postinst`
+  (`ln -sf /opt/kuml/bin/kuml /usr/bin/kuml` on configure) and `prerm` (removes it on remove/deconfigure, not on
+  upgrade). New `LinuxResourcesTest`.
+- `kuml-desktop` `linux {}`: `shortcut = true`, `appCategory = "Development"`, `debPackageVersion` and
+  `rpmPackageVersion` set to the project version (was the jpackage mapping `57.0.0`; property existence checked with
+  `javap` on compose-gradle-plugin 1.12.1).
+- README, handbook install page: APT section and the DEB/RPM wording.
+
+**Verification.** `actionlint` on the workflow, `javap` on `LinuxPlatformSettings`, `:kuml-desktop:tasks --all` (packageDeb/packageRpm present),
+`:kuml-packaging:packageDeb --dry-run`, new `LinuxResourcesTest`, and `./gradlew clean check --no-build-cache
+--rerun-tasks --max-workers=2` (BUILD SUCCESSFUL in 27m 3s, includes detekt and ktlint), all on macOS.
+
+**Not verified.** The Linux packages were not built or installed on this macOS machine. jpackage/Compose Linux
+packaging, dpkg/rpm install, the symlink, the `.desktop` launcher in the system menu and apt resolution are proven
+only by the DEB smoke step of "Release Installers" on the next release tag push (the smoke step is skipped on a
+manual `workflow_dispatch`, because existing tags up to v0.56.0 lack these changes; a dispatch only backfills DEB/RPM
+to that tag's release with `--clobber`) and by `apt update && apt install kuml kuml-desktop` on a clean Debian/Ubuntu amd64 machine after the
+apt repository rebuild. The exact desktop file names are assumed from the Compose naming scheme. RPM install was not
+tested at all.
+
+**Not fixed.** The CLI RPM has no `/usr/bin/kuml` link (overriding the RPM spec needs the jpackage default template,
+which is not available on this machine); no arm64 packages; the desktop Linux packages are not signed.
+
 ### Nacharbeit 74: use case aspectRatio measured on the final image (item c; item a already fixed; b, d not fixed)
 
 **Why.** Item (a), reproduced with a generic fixture (actor `Operator`, six use cases in one subject frame, one `extend`

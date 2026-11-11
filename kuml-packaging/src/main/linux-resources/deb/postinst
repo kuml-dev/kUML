@@ -1,0 +1,10 @@
+#!/bin/sh
+# kUML CLI: put `kuml` on PATH. Replaces jpackage's default postinst, which only
+# does desktop/service integration that this launcher-less CLI package does not use.
+set -e
+case "$1" in
+    configure)
+        ln -sf /opt/kuml/bin/kuml /usr/bin/kuml
+        ;;
+esac
+exit 0

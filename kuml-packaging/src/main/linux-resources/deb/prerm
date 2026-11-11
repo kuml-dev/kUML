@@ -1,0 +1,9 @@
+#!/bin/sh
+# Remove the /usr/bin/kuml symlink only when the package is removed.
+set -e
+case "$1" in
+    remove|deconfigure)
+        rm -f /usr/bin/kuml
+        ;;
+esac
+exit 0
