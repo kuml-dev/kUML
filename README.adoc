@@ -136,6 +136,9 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 | *Chocolatey* (Windows)
 | `choco install kuml` — bundles a Java 21 runtime, no JDK needed.
 
+| *Scoop* (Windows)
+| `scoop bucket add kuml https://github.com/kuml-dev/scoop-kuml`, then `scoop install kuml` — CLI only, bundles a Java 21 runtime, no JDK needed.
+
 | *APT* (Debian/Ubuntu, amd64 only)
 | `curl -fsSL https://apt.kuml.dev/kuml.gpg \| sudo tee /usr/share/keyrings/kuml.gpg > /dev/null`, then
 `echo "deb [signed-by=/usr/share/keyrings/kuml.gpg] https://apt.kuml.dev stable main" \| sudo tee /etc/apt/sources.list.d/kuml.list`, then

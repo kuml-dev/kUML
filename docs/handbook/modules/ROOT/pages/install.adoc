@@ -53,6 +53,32 @@ resolve. Use xref:#_direct_download[a direct download] in the meantime. Subseque
 updates are approved automatically.
 ====
 
+=== Scoop (Windows)
+
+https://scoop.sh[Scoop] installs command-line tools without administrator rights. The
+bucket `kuml-dev/scoop-kuml` provides the kUML command-line tool with a bundled Java 21
+runtime, so **no separate JDK installation is required**. It puts `kuml`, `kuml-mcp` and
+`kuml-lsp` on the `PATH`. The desktop app is not part of the bucket; use the MSI from the
+https://github.com/kuml-dev/kUML/releases[GitHub Releases] page.
+
+[source,powershell]
+----
+scoop bucket add kuml https://github.com/kuml-dev/scoop-kuml
+scoop install kuml
+kuml --version
+----
+
+Upgrade or remove it the usual way:
+
+[source,powershell]
+----
+scoop update kuml
+scoop uninstall kuml
+----
+
+The bucket follows the latest release automatically (a workflow updates the manifest every
+six hours). An install test on a clean Windows runner checks every manifest change.
+
 === APT (Debian / Ubuntu, amd64 only)
 
 [source,bash]
