@@ -19,7 +19,7 @@ public enum class ActSeverity { Error, Warning }
 /**
  * A finding of the activity diagram checker (wave C2).
  *
- * @property code stable numeric code (301-319), see [Sysml2ActChecker].
+ * @property code stable numeric code (301-317 used), see [Sysml2ActChecker].
  * @property elementId id of the offending node, flow, region or handler.
  * @property hint how to fix it.
  */
@@ -51,8 +51,11 @@ public data class ActIssue(
  * | 313 | Warning | explicit `PinSide` on a pseudo node (it has no pins) |
  * | 314 | Warning | `showName` on a node that is not a control node |
  * | 315 | Warning | members of one region lie in different partitions |
+ * | 316 | Warning | fork node with more than one incoming flow |
+ * | 317 | Warning | accept-event / accept-time-event node with more than one outgoing flow (all of them fire, an implicit fork) |
  *
  * Accept-event and accept-time-event nodes without an incoming flow are valid and not reported.
+ * Rules 316 and 317 count only flows between nodes of the diagram and ignore self-loops.
  * All traversals are iterative and bounded.
  */
 public object Sysml2ActChecker {
@@ -241,6 +244,8 @@ public object Sysml2ActChecker {
             checkInterrupt(id = f.id, interrupts = f.interrupts, src = src, tgt = tgt, issues = issues)
         }
 
+        checkFlowDegrees(model = model, actions = actions, actionById = actionById, issues = issues)
+
         // Exception handlers.
         val handlers = model.usages.filterIsInstance<ExceptionHandlerUsage>()
         for (h in handlers) {
@@ -337,6 +342,47 @@ public object Sysml2ActChecker {
                     message = "Interrupting flow does not leave a region.",
                     hint = "Source must be inside a region, target outside.",
                 )
+        }
+    }
+
+    private fun checkFlowDegrees(
+        model: Sysml2Model,
+        actions: List<ActionDefinition>,
+        actionById: Map<String, ActionDefinition>,
+        issues: MutableList<ActIssue>,
+    ) {
+        val edges =
+            model.usages.filterIsInstance<ObjectFlowUsage>().map { it.sourceNodeId to it.targetNodeId } +
+                model.usages.filterIsInstance<ControlFlowUsage>().map { it.sourceNodeId to it.targetNodeId }
+        val incoming = HashMap<String, Int>()
+        val outgoing = HashMap<String, Int>()
+        for ((source, target) in edges) {
+            if (source == target || source !in actionById || target !in actionById) continue
+            outgoing[source] = (outgoing[source] ?: 0) + 1
+            incoming[target] = (incoming[target] ?: 0) + 1
+        }
+        for (a in actions) {
+            val inCount = incoming[a.id] ?: 0
+            val outCount = outgoing[a.id] ?: 0
+            if (a.kind == ActivityNodeKind.Fork && inCount > 1) {
+                issues +=
+                    warn(
+                        code = 316,
+                        id = a.id,
+                        message = "Fork '${a.name}' has $inCount incoming flows (expected 1).",
+                        hint = "Merge the branches with a mergeNode or joinNode before the fork.",
+                    )
+            }
+            val accept = a.kind == ActivityNodeKind.AcceptEvent || a.kind == ActivityNodeKind.AcceptTimeEvent
+            if (accept && outCount > 1) {
+                issues +=
+                    warn(
+                        code = 317,
+                        id = a.id,
+                        message = "Accept node '${a.name}' has $outCount outgoing flows; all of them fire (implicit fork).",
+                        hint = "Use a decisionNode for alternatives or a forkNode to make the parallelism explicit.",
+                    )
+            }
         }
     }
 

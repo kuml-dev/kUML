@@ -274,6 +274,96 @@ class Sysml2C2ActTest :
             codes(m, ActSeverity.Error) shouldNotContain 311
         }
 
+        test("checker: fork with two incoming flows gets exactly one ACT316 warning") {
+            val m =
+                sysml2Model(name = "Degrees") {
+                    val a = actionDef(name = "A")
+                    val b = actionDef(name = "B")
+                    val c = actionDef(name = "C")
+                    val f = forkNode(name = "F")
+                    controlFlow(name = "af", source = a, target = f)
+                    objectFlow(name = "bf", source = b, target = f)
+                    controlFlow(name = "fc", source = f, target = c)
+                    actDiagram(name = "D") {
+                        include(a)
+                        include(b)
+                        include(c)
+                        include(f)
+                    }
+                }
+            codes(m) shouldBe listOf(316)
+            codes(m, ActSeverity.Warning) shouldBe listOf(316)
+        }
+
+        test("checker: fork with one incoming and two outgoing flows is fine") {
+            val m =
+                sysml2Model(name = "Degrees") {
+                    val a = actionDef(name = "A")
+                    val c = actionDef(name = "C")
+                    val d = actionDef(name = "D")
+                    val f = forkNode(name = "F")
+                    controlFlow(name = "af", source = a, target = f)
+                    controlFlow(name = "fc", source = f, target = c)
+                    controlFlow(name = "fd", source = f, target = d)
+                    actDiagram(name = "D") {
+                        include(a)
+                        include(c)
+                        include(d)
+                        include(f)
+                    }
+                }
+            codes(m) shouldBe emptyList()
+        }
+
+        test("checker: accept and accept-time event with two outgoing flows get ACT317, one outgoing flow does not") {
+            val m =
+                sysml2Model(name = "Degrees") {
+                    val c = actionDef(name = "C")
+                    val d = actionDef(name = "D")
+                    val ev = acceptEvent(name = "Ev", signal = "x")
+                    val tm = acceptTimeEvent(name = "Tm", time = "after 5 min")
+                    val one = acceptEvent(name = "One", signal = "y")
+                    controlFlow(name = "e1", source = ev, target = c)
+                    controlFlow(name = "e2", source = ev, target = d)
+                    controlFlow(name = "t1", source = tm, target = c)
+                    objectFlow(name = "t2", source = tm, target = d)
+                    controlFlow(name = "o1", source = one, target = c)
+                    actDiagram(name = "D") {
+                        include(c)
+                        include(d)
+                        include(ev)
+                        include(tm)
+                        include(one)
+                    }
+                }
+            val issues = Sysml2ActChecker.check(model = m).filter { it.code == 317 }
+            issues.map { it.elementId } shouldBe listOf("Ev", "Tm")
+            issues.all { it.severity == ActSeverity.Warning } shouldBe true
+            codes(m) shouldBe listOf(317, 317)
+        }
+
+        test("checker: self-loops and flows leaving the diagram are not counted for ACT316 and ACT317") {
+            val m =
+                sysml2Model(name = "Degrees") {
+                    val a = actionDef(name = "A")
+                    val outside = actionDef(name = "Outside")
+                    val f = forkNode(name = "F")
+                    val ev = acceptEvent(name = "Ev", signal = "x")
+                    controlFlow(name = "af", source = a, target = f)
+                    controlFlow(name = "ff", source = f, target = f)
+                    controlFlow(name = "outIn", source = outside, target = f)
+                    controlFlow(name = "e1", source = ev, target = a)
+                    controlFlow(name = "ee", source = ev, target = ev)
+                    controlFlow(name = "eOut", source = ev, target = outside)
+                    actDiagram(name = "D") {
+                        include(a)
+                        include(f)
+                        include(ev)
+                    }
+                }
+            codes(m) shouldBe emptyList()
+        }
+
         test("checker: dangling region reference is an error") {
             val m =
                 Sysml2Model(

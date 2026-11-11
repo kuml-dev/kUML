@@ -48,6 +48,7 @@ internal object ActOrthogonalRouter {
     private const val SIDE_MARGIN = 2f
     private const val CORNER = 0f
     private const val STUB = 4f
+    private const val SIDE_SLACK = 4f
     private val DOWN = Point(x = 0f, y = 1f)
     private val UP = Point(x = 0f, y = -1f)
     private val LEFT = Point(x = -1f, y = 0f)
@@ -100,36 +101,22 @@ internal object ActOrthogonalRouter {
                 }
             }
         }
+        val sideEntries =
+            assignFinalSideEntries(nodes = nodes, kinds = kinds, inBy = inBy, start = start, cx = ::cx)
         val end = HashMap<String, Pair<Point, Point>>()
         for ((t, list) in inBy) {
             val r = nodes.getValue(t)
-            val sorted = list.sortedWith(compareBy({ cx(it.source) }, { it.id }))
-            sorted.forEachIndexed {
-                i,
-                e,
-                ->
+            val sorted = list.sortedWith(compareBy({ cx(it.source) }, { it.id })).filter { it.id !in sideEntries }
+            sorted.forEachIndexed { i, e ->
                 end[e.id] = Point(x = spread(r = r, i = i, n = sorted.size, wide = true), y = r.origin.y) to UP
             }
         }
+        end.putAll(sideEntries)
 
         for (e in forward) {
             val (p0, d0) = start.getValue(e.id)
             val (p1, d1) = end.getValue(e.id)
-            val obstacles = nodes.filterKeys { it != e.source && it != e.target }.values.toList()
-            // The router keeps 2 px away from the two connected boxes, so it starts at a short stub outside them.
-            val a = Point(x = p0.x + d0.x * STUB, y = p0.y + d0.y * STUB)
-            val b = Point(x = p1.x + d1.x * STUB, y = p1.y + d1.y * STUB)
-            val mid =
-                IbdObstacleRouter.route(
-                    from = a,
-                    fromDir = d0,
-                    to = b,
-                    toDir = d1,
-                    obstacles = obstacles,
-                    endObstacles = listOf(nodes.getValue(e.source), nodes.getValue(e.target)),
-                )
-            val pts = IbdObstacleRouter.simplifyPath(listOf(p0) + mid + listOf(p1))
-            out[EdgeId(e.id)] = toRoute(pts)
+            out[EdgeId(e.id)] = toRoute(routeEdge(nodes = nodes, e = e, p0 = p0, d0 = d0, p1 = p1, d1 = d1))
         }
 
         // Back edges: right side of the source, corridor of its lane, back into the target.
@@ -173,6 +160,94 @@ internal object ActOrthogonalRouter {
                 )
         }
         return out
+    }
+
+    /** Obstacle-routed path of one forward edge between the given end points (with the short stubs outside the boxes). */
+    private fun routeEdge(
+        nodes: Map<String, Rect>,
+        e: ActEdgeEnds,
+        p0: Point,
+        d0: Point,
+        p1: Point,
+        d1: Point,
+    ): List<Point> {
+        val obstacles = nodes.filterKeys { it != e.source && it != e.target }.values.toList()
+        // The router keeps 2 px away from the two connected boxes, so it starts at a short stub outside them.
+        val a = Point(x = p0.x + d0.x * STUB, y = p0.y + d0.y * STUB)
+        val b = Point(x = p1.x + d1.x * STUB, y = p1.y + d1.y * STUB)
+        val mid =
+            IbdObstacleRouter.route(
+                from = a,
+                fromDir = d0,
+                to = b,
+                toDir = d1,
+                obstacles = obstacles,
+                endObstacles = listOf(nodes.getValue(e.source), nodes.getValue(e.target)),
+            )
+        return IbdObstacleRouter.simplifyPath(listOf(p0) + mid + listOf(p1))
+    }
+
+    /** (collisions with foreign boxes, bends); lexicographically smaller is better. */
+    private fun routeScore(
+        pts: List<Point>,
+        obstacles: List<Rect>,
+    ): Pair<Int, Int> = IbdObstacleRouter.collisions(path = pts, obstacles = obstacles) to maxOf(0, pts.size - 2)
+
+    private fun isBetter(
+        a: Pair<Int, Int>,
+        b: Pair<Int, Int>,
+    ): Boolean = a.first < b.first || (a.first == b.first && a.second < b.second)
+
+    /**
+     * Final nodes with two or more incoming forward flows: at most one flow per side enters the circle at its left or
+     * right tip (centre height) instead of the top, so the arrowheads do not pile up on a 24 px circle. A side entry is
+     * kept only if its route is strictly better (fewer collisions, then fewer bends) than the usual top entry.
+     */
+    private fun assignFinalSideEntries(
+        nodes: Map<String, Rect>,
+        kinds: Map<String, ActivityNodeKind>,
+        inBy: Map<String, List<ActEdgeEnds>>,
+        start: Map<String, Pair<Point, Point>>,
+        cx: (String) -> Float,
+    ): Map<String, Pair<Point, Point>> {
+        val result = HashMap<String, Pair<Point, Point>>()
+        for ((t, list) in inBy) {
+            val kind = kinds[t]
+            if ((kind != ActivityNodeKind.Final && kind != ActivityNodeKind.FlowFinal) || list.size < 2) continue
+            val r = nodes.getValue(t)
+            val cy = r.origin.y + r.size.height / 2f
+            val left = r.origin.x
+            val right = r.origin.x + r.size.width
+            val topOrder = list.sortedWith(compareBy({ cx(it.source) }, { it.id }))
+            for (leftSide in listOf(true, false)) {
+                val candidates =
+                    list.filter { e ->
+                        val src = nodes.getValue(e.source)
+                        val bottom = src.origin.y + src.size.height
+                        val x = cx(e.source)
+                        e.id !in result && bottom <= cy && (if (leftSide) x < left - SIDE_SLACK else x > right + SIDE_SLACK)
+                    }
+                val e =
+                    candidates
+                        .sortedWith(compareBy({ -(nodes.getValue(it.source).let { s -> s.origin.y + s.size.height }) }, { it.id }))
+                        .firstOrNull() ?: continue
+                val (p0, d0) = start.getValue(e.id)
+                val obstacles = nodes.filterKeys { it != e.source && it != e.target }.values.toList()
+                val sidePoint = Point(x = if (leftSide) left else right, y = cy)
+                val sideRoute =
+                    routeEdge(nodes = nodes, e = e, p0 = p0, d0 = d0, p1 = sidePoint, d1 = if (leftSide) LEFT else RIGHT)
+                val topPoint = Point(x = spread(r = r, i = topOrder.indexOf(e), n = topOrder.size, wide = true), y = r.origin.y)
+                val topRoute = routeEdge(nodes = nodes, e = e, p0 = p0, d0 = d0, p1 = topPoint, d1 = UP)
+                if (isBetter(
+                        a = routeScore(pts = sideRoute, obstacles = obstacles),
+                        b = routeScore(pts = topRoute, obstacles = obstacles),
+                    )
+                ) {
+                    result[e.id] = sidePoint to (if (leftSide) LEFT else RIGHT)
+                }
+            }
+        }
+        return result
     }
 
     private fun spread(

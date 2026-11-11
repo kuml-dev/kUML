@@ -378,7 +378,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                             category = "reqUc",
                         )
                     } +
-                        // Wave C2: activity diagram checks (codes 301-315) share this report section.
+                        // Wave C2: activity diagram checks (codes 301-317) share this report section.
                         dev.kuml.sysml2.constraint.Sysml2ActChecker.check(model = ex.model, diagram = ex.diagram).map { i ->
                             StructuralViolation(
                                 id = "ACT${i.code}",

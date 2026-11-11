@@ -917,11 +917,13 @@ end at the pin squares: on the outer border of the square, perpendicular to the 
 
 ==== Structural checks (`kuml validate`, ACT)
 
-`kuml validate` reports activity findings as `ACT301` to `ACT315`: missing signal or time expression (301/302),
+`kuml validate` reports activity findings as `ACT301` to `ACT317`: missing signal or time expression (301/302),
 overlong text (303), region cycles or nesting deeper than 4 (304), handler on itself or on a non-action (305/306),
 wrong or missing pins (307), more than 8 pins per side (308), more than 8 handlers per node (309), dangling references
 (310), unresolved `calledActivityId` (311), interrupting flow that does not leave a region (312), pins on pseudo
-nodes (313), `showName` on non-control nodes (314) and a region spanning several partitions (315).
+nodes (313), `showName` on non-control nodes (314) and a region spanning several partitions (315), a fork with more than one incoming flow (316) and an accept or
+accept-time event with more than one outgoing flow, which fires all of them as an implicit fork (317). 316 and 317 are
+warnings.
 
 ==== Swimlanes, regions and merges (wave 2F)
 

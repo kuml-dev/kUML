@@ -6,6 +6,34 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 70: activity diagrams: validation of fork and accept degrees (ACT316/317), final nodes entered from the side (items g, h)
+
+**Why.** Reproduced with generic fixtures and the local installDist CLI. (g) `kuml validate` accepted a fork with two
+incoming flows and an accept or accept-time event with two outgoing flows (which fires both, an implicit fork), without a
+word. (h) In a swimlane layout every flow into an activity final arrived at the top centre of the 24 px circle, so two
+arrowheads from different lanes piled up on one point (PNG inspected).
+
+**Change.** (g) `Sysml2ActChecker` gets two warnings, counted over object and control flows between nodes of the diagram,
+self-loops ignored: `ACT316` (fork with more than one incoming flow) and `ACT317` (accept-event or accept-time-event
+with more than one outgoing flow). Both are warnings, so `kuml validate` still exits 0. Handbook: `sysml2.adoc`
+(structural checks). (h) `ActOrthogonalRouter`: for a final or flow-final with two or more incoming forward flows, at
+most one flow per side (the one whose source lies furthest down, ties by id) enters at the left or right tip of the
+circle at centre height instead of the top, only if the source lies clearly beside the circle and above its centre.
+The side route is kept only if it has strictly fewer collisions with foreign nodes, or equal collisions and fewer bends,
+than the top route; otherwise the flow keeps the top entry. The remaining flows share the top edge with the reduced count.
+
+**Verification.** New tests: `Sysml2C2ActTest` (fork with two incoming flows, fork with one in and two out, accept and
+accept-time with two out, one out, self-loops, flows leaving the diagram), `ValidateCommandActTest` (CLI: `ACT316`,
+warning severity, exit code 0, text and JSON), `Sysml2AjFinalEntryTest` (side entry on the circle edge, a foreign node
+between source and final bypassed with at most 3 bends and no crossing, the top entry kept when the side approach is
+blocked, single incoming flow unchanged). PNGs before and after viewed. Result of the existing suites: see the commit body.
+
+**Not verified.** Windows and Linux rendering, pixel-exact PNG.
+
+**Not fixed.** The other degree rules (join with more than one outgoing flow, decision with more than one incoming flow,
+merge with more than one outgoing flow, actions with more than one outgoing flow). Layouts without lanes are routed as
+before; a shared trunk or one final per lane was rejected. (e), (i), (j) are out of scope.
+
 ### Nacharbeit 69: activity diagrams: wrapped and hard-broken action names, guard labels avoid lane borders (items b, d)
 
 **Why.** Reproduced with generic fixtures and the local installDist CLI (PNGs inspected; Nacharbeit 61/62 had listed
