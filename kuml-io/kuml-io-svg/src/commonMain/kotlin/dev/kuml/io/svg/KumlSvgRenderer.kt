@@ -4047,6 +4047,9 @@ public object KumlSvgRenderer {
                     lifelineLayout = lifelineLayout,
                     rows = rows,
                     builder = edgesBuilder,
+                    belowLine =
+                        dev.kuml.io.svg.sysml2
+                            .timeObservationSharesRow(observation = to, messages = messages),
                     labelLeft =
                         run {
                             val leftmost = shiftedLayouts.values.minOf { it.bounds.origin.x }

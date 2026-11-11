@@ -6,6 +6,33 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 68: sequence diagrams: empty guard `[]`, time observation on a message row, notes on one anchor
+
+**Why.** Reproduced with a generic fixture and the local installDist CLI (PNG inspected). (f) A guard written as `[]` or
+`[ ]` passed the idempotent bracket rule and was drawn as `[]`; the SysML left padding reserved width for it. (h) A
+`timeObservation` with the same seqNo as a message put its label baseline 4 px below the arrow line, touching the
+message label. (i) The second note on one anchor found no free spot within the short inner-column search range and fell
+to the opposite side of the stem.
+
+**Change.** (f) New `seqGuardDisplay` (`SeqGuardText.kt`) used by the UML and SysML 2 sequence renderers, the SysML
+operand left-padding and the fragment-name width: null, blank and bracketed-empty guards draw no text, the divider stays.
+(h) `renderTimeObservation` gets `belowLine` (label baseline y + 14 instead of y + 4), set by the new
+`timeObservationSharesRow` at both call sites (`KumlSvgRenderer` and the blocker scene in `SeqNoteScenes`); rows without a
+message are unchanged. (i) `SeqNotePlacer` remembers the inner column (right or left) of the first note on a single
+anchor and tries it first for later notes on the same anchor, with the same doubled vertical search range the margin
+columns have; multi-anchor notes, margin columns and notes without a sibling are unchanged. Handbook pages updated
+(`sysml2.adoc`, `uml-dsl.adoc`).
+
+**Verification.** New tests: `SeqGuardTextTest`, guard cases in `Sysml2SeqNamesSvgTest` and `UmlSeqBlankGuardSvgTest`, time
+observation cases in `Sysml2C3SeqSvgTest` (shared row, free row, self message), `SeqNoteStickySideTest` (fails without the
+fix). PNGs viewed after the fix.
+
+**Not verified.** Windows, CI (no push in this wave), PNGs viewed on macOS only.
+
+**Not fixed.** Author control over the side of a note (a `notePlacement` or layout block, a DSL/API redesign); "always below
+the line" for time observations (only rows with a message change); guard brackets on edges in other diagram types; the
+sticky side does not apply to notes spanning several anchors.
+
 ### Nacharbeit 67: SysML 2 sequence diagrams: clearance after a self message, loop nested in `par`
 
 **Why.** Reproduced with a generic fixture (self message at seqNo 1, next message at seqNo 2, rendered to PNG): the label

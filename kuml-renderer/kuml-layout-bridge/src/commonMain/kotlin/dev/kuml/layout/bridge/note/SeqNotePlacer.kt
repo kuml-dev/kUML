@@ -107,7 +107,10 @@ public object SeqNotePlacer {
         val rect: Rect,
         val routes: List<List<Point>>,
         val crossings: Int,
-    )
+    ) {
+        /** Inner column kind (1 right, 2 left) this plan was found in; 0 for margin columns and the fallback. */
+        var columnKind: Int = 0
+    }
 
     private class Column(
         val kind: Int,
@@ -182,11 +185,20 @@ public object SeqNotePlacer {
             crossings += plan.crossings
         }
 
+        // Nacharbeit 68: notes on the same single anchor stay on one side. Anchor ids -> inner column kind (1 or 2).
+        val stickyColumn = HashMap<Set<String>, Int>()
         for ((note, targets) in ordered) {
             val size = measure.measure(body = note.body, maxWidth = maxNoteWidth, kind = note.kind)
-            val ctx = Ctx(scene = scene, policy = policy, placed = placed, routes = routes, own = targets)
+            val anchorKey = targets.map { targetId(it) }.toSet()
+            val preferred = if (targets.size == 1) stickyColumn[anchorKey] ?: 0 else 0
+            val ctx = Ctx(scene = scene, policy = policy, placed = placed, routes = routes, own = targets, preferredKind = preferred)
             val plan = choose(size = size, targets = targets, content = content, ctx = ctx)
             if (plan != null) {
+                if (targets.size == 1 &&
+                    (plan.columnKind == 1 || plan.columnKind == 2)
+                ) {
+                    if (anchorKey !in stickyColumn) stickyColumn[anchorKey] = plan.columnKind
+                }
                 commit(note = note, targets = targets, plan = plan)
             } else {
                 degraded += note.noteId
@@ -235,6 +247,8 @@ public object SeqNotePlacer {
         val placed: List<Rect>,
         val routes: List<List<Point>>,
         val own: List<Target>,
+        /** Inner column kind (1 or 2) earlier notes on the same single anchor went to, or 0. */
+        val preferredKind: Int = 0,
     ) {
         val ownStems: Set<Float> = own.filterIsInstance<StemTarget>().map { it.stem.x }.toSet()
     }
@@ -269,7 +283,7 @@ public object SeqNotePlacer {
         val rows = ctx.scene.rowPitch.coerceAtLeast(policy.step)
         for (col in columns) {
             // the margin columns are free of drawing: they may search twice as far, among the stacked notes
-            val maxShift = rows * policy.maxRowSteps * (if (col.kind >= 3) 2 else 1)
+            val maxShift = rows * policy.maxRowSteps * (if (col.kind >= 3 || col.kind == ctx.preferredKind) 2 else 1)
             var best: Plan? = null
             var bestShift = Float.MAX_VALUE
             var shift = 0f
@@ -288,7 +302,10 @@ public object SeqNotePlacer {
                 if (best != null && best.crossings == 0) break
                 shift += policy.step
             }
-            if (best != null && bestShift <= maxShift) return best
+            if (best != null && bestShift <= maxShift) {
+                best.columnKind = col.kind
+                return best
+            }
         }
         return null
     }
@@ -315,8 +332,16 @@ public object SeqNotePlacer {
                 Column(kind = 1, left = maxX + gap, right = maxX + gap + size.width),
                 Column(kind = 2, left = minX - gap - size.width, right = minX - gap),
             )
-        return inner + listOf(rightMargin, leftMargin)
+        val sticky = inner.firstOrNull { it.kind == ctx.preferredKind }
+        val orderedInner = if (sticky != null) listOf(sticky) + inner.filter { it !== sticky } else inner
+        return orderedInner + listOf(rightMargin, leftMargin)
     }
+
+    private fun targetId(t: Target): String =
+        when (t) {
+            is StemTarget -> t.id
+            is MessageTarget -> t.id
+        }
 
     private fun anchorX(t: Target): Float =
         when (t) {

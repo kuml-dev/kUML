@@ -217,6 +217,17 @@ class Sysml2SeqNamesSvgTest :
             }
         }
 
+        "Nacharbeit 68: bracketed empty guards draw no empty brackets, a real guard is drawn once" {
+            for (guard in listOf("[]", "[ ]")) {
+                val svg = render(fragModel(fragName = "checkout", guard = guard), "frag-bracket-guard")
+                svg shouldNotContain "[]"
+                svg shouldNotContain "[ ]"
+            }
+            val ok = render(fragModel(fragName = "checkout", guard = "[x]"), "frag-bracket-real")
+            ok shouldContain "[x]"
+            ok shouldNotContain "[[x]]"
+        }
+
         fun refModel(
             useName: String,
             refersTo: String,

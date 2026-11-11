@@ -2,6 +2,7 @@ package dev.kuml.io.svg.uml
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt3
+import dev.kuml.io.svg.seqGuardDisplay
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
@@ -731,12 +732,9 @@ private fun renderUmlFragment(
                 guardY = sepY + 12f
                 prevOperandBottom = opBottomY ?: (guardY + 4f)
             }
-            val guard = operand.guard
-            if (guard != null && guard.isNotBlank()) {
-                // V3.0.11: idempotent bracket-wrapping.
-                val trimmed = guard.trim()
-                val displayGuard =
-                    if (trimmed.startsWith("[") && trimmed.endsWith("]")) trimmed else "[$trimmed]"
+            // V3.0.11: idempotent bracket-wrapping; Nacharbeit 68: `[]` / `[ ]` are not drawn.
+            val displayGuard = seqGuardDisplay(raw = operand.guard)
+            if (displayGuard != null) {
                 // Index-0 guard lives to the RIGHT of the pentagon keyword label
                 // (same Y as the keyword centre).  This keeps it above the first
                 // message arrow and gives it the full remaining frame width.

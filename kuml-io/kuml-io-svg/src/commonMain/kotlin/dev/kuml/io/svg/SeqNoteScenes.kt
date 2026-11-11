@@ -152,6 +152,9 @@ internal object SeqNoteScenes {
                             rows = rows,
                             builder = sb,
                             labelLeft = left,
+                            belowLine =
+                                dev.kuml.io.svg.sysml2
+                                    .timeObservationSharesRow(observation = o, messages = messages),
                         )
                     }
                 }

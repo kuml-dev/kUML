@@ -2,6 +2,7 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt3
+import dev.kuml.io.svg.seqGuardDisplay
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
@@ -1122,13 +1123,12 @@ internal fun renderCombinedFragment(
         if (fragmentName != null) {
             tag(name = "title") { text(fragmentName) }
             val firstOperand = fragment.operands.first()
-            val firstGuard = (firstOperand.guard ?: "").trim()
+            val shownGuard = seqGuardDisplay(raw = firstOperand.guard)
             val guardWidth =
-                if (firstGuard.isEmpty()) {
+                if (shownGuard == null) {
                     0f
                 } else {
-                    val shown = if (firstGuard.startsWith("[") && firstGuard.endsWith("]")) firstGuard else "[$firstGuard]"
-                    minOf(shown.length * BODY_CHAR_WIDTH, (frameW - tagW - 8f).coerceAtLeast(20f)) + 7f
+                    minOf(shownGuard.length * BODY_CHAR_WIDTH, (frameW - tagW - 8f).coerceAtLeast(20f)) + 7f
                 }
             val room = frameW - tagW - guardWidth - 12f
             val chars = seqCharsFitting(room)
@@ -1202,16 +1202,11 @@ internal fun renderCombinedFragment(
 
             prevEndSeqNo = operand.endSeqNo
 
-            val guard = operand.guard
             // Wave 2F: no guard text at all (not even `[]`) for a missing or blank guard; the divider stays.
-            if (guard != null && guard.isNotBlank()) {
-                // V3.0.11: idempotent bracket-wrapping. Authors may write
-                // `guard = "valid"` (DSL adds brackets) or `guard = "[valid]"`
-                // (DSL passes through). Both must render as `[valid]`, not
-                // `[[valid]]`. Trim first so `" [valid] "` is also recognised.
-                val trimmed = guard.trim()
-                val displayGuard =
-                    if (trimmed.startsWith("[") && trimmed.endsWith("]")) trimmed else "[$trimmed]"
+            // Nacharbeit 68: a bracketed empty guard (`[]`, `[ ]`) is treated the same way.
+            // V3.0.11: idempotent bracket-wrapping (`valid` and `[valid]` both render as `[valid]`).
+            val displayGuard = seqGuardDisplay(raw = operand.guard)
+            if (displayGuard != null) {
                 // Index-0 guard: place to the RIGHT of the pentagon keyword
                 // label (same pattern as UmlSequenceSvg). This keeps the guard
                 // above the first message arrow.
@@ -1448,10 +1443,7 @@ internal fun sysml2SeqFragmentLeftPad(fragment: CombinedFragmentUsage): Float {
     val longestGuardChars =
         fragment.operands
             .maxOfOrNull { operand ->
-                val raw = operand.guard?.trim().orEmpty()
-                val unwrapped =
-                    if (raw.startsWith("[") && raw.endsWith("]")) raw.length else raw.length + 2
-                unwrapped
+                seqGuardDisplay(raw = operand.guard)?.length ?: 0
             } ?: 0
     val longestGuardW = longestGuardChars * BODY_CHAR_WIDTH + 2f * LABEL_BG_HPAD
     return maxOf(FRAGMENT_PADDING_H, longestGuardW + 12f)
@@ -1621,6 +1613,20 @@ internal fun renderDurationConstraint(
     }
 }
 
+/**
+ * True when a message starts or ends on the observation's lifeline in the observation's row (same seqNo,
+ * self messages included). The message label then occupies the space just above the arrow line, so the
+ * time-observation label is drawn below the line instead of on it.
+ */
+internal fun timeObservationSharesRow(
+    observation: TimeObservationUsage,
+    messages: List<MessageUsage>,
+): Boolean =
+    messages.any { m ->
+        m.seqNo == observation.seqNo &&
+            (m.sourceLifelineId == observation.lifelineId || m.targetLifelineId == observation.lifelineId)
+    }
+
 /** C3 — time observation: an 8 px tick on the lifeline axis at the row with the label `name = now`. */
 internal fun renderTimeObservation(
     observation: TimeObservationUsage,
@@ -1629,6 +1635,8 @@ internal fun renderTimeObservation(
     builder: SvgBuilder,
     /** Wave 2F: the label stands left of the tick unless this is the leftmost lifeline. */
     labelLeft: Boolean = false,
+    /** Nacharbeit 68: a message shares this row, so the label sits below the line (see [timeObservationSharesRow]). */
+    belowLine: Boolean = false,
 ) {
     val cx = lifelineLayout.bounds.origin.x + lifelineLayout.bounds.size.width / 2f
     val headBottom = lifelineLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
@@ -1644,7 +1652,7 @@ internal fun renderTimeObservation(
                 mapOf(
                     "class" to "kuml-body",
                     "x" to fmt(if (labelLeft) cx - 10f else cx + 10f),
-                    "y" to fmt(y + 4f),
+                    "y" to fmt(if (belowLine) y + 14f else y + 4f),
                     "text-anchor" to if (labelLeft) "end" else "start",
                 ),
         ) {

@@ -78,7 +78,23 @@ class UmlSeqBlankGuardSvgTest :
             }
         }
 
+        "Nacharbeit 68: bracketed empty guards draw no empty brackets but keep the divider" {
+            for (guard in listOf("[]", "[ ]")) {
+                val svg = render(guard)
+                svg shouldContain "PAR"
+                svg shouldNotContain "[]"
+                svg shouldNotContain "[ ]"
+                svg shouldContain "class=\"kuml-divider\""
+            }
+        }
+
         "a real guard is still drawn" {
             render("ok") shouldContain "[ok]"
+        }
+
+        "a real bracketed guard is drawn with single brackets" {
+            val svg = render("[x]")
+            svg shouldContain "[x]"
+            svg shouldNotContain "[[x]]"
         }
     })

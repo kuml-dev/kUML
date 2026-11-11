@@ -545,6 +545,9 @@ sequenceDiagram(name = "Place order flow") {
 }
 ----
 
+An operand guard of a combined fragment that is empty, blank or only brackets (`[]`, `[ ]`) is not drawn; the operand
+divider stays.
+
 == Use case diagrams
 
 [source,kotlin]

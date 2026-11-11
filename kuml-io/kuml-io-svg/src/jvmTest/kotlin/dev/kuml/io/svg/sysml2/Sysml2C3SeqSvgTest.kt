@@ -185,6 +185,42 @@ class Sysml2C3SeqSvgTest :
             block(svg, "timeObservation:b-0") shouldNotContain "now"
         }
 
+        "Nacharbeit 68: a time observation sharing a message row sits below the line, otherwise the label stays on it" {
+            fun labelY(
+                svg: String,
+                id: String,
+            ): Float = attr(Regex("<text[^>]*/?>").find(block(svg, id))!!.value, "y")
+
+            fun tickY(
+                svg: String,
+                id: String,
+            ): Float = attr(Regex("<line[^>]*/>").find(block(svg, id))!!.value, "y1")
+            val model =
+                sysml2Model(name = "TimeRow") {
+                    val a = lifelineDef(name = "a")
+                    val b = lifelineDef(name = "b")
+                    message(label = "req", source = a, target = b, seqNo = 0)
+                    message(label = "later", source = a, target = b, seqNo = 2)
+                    message(label = "self", source = b, target = b, seqNo = 3)
+                    timeObservation(lifeline = b, seqNo = 0, name = "shared")
+                    timeObservation(lifeline = b, seqNo = 1, name = "free")
+                    timeObservation(lifeline = b, seqNo = 3, name = "selfrow")
+                    seqDiagram(name = "S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val svg = render(model, "time-row")
+            val shared = block(svg, "timeObservation:b-0")
+            // label below the arrow line (y grows downwards), 14 px under the tick
+            (labelY(svg, "timeObservation:b-0") - tickY(svg, "timeObservation:b-0")) shouldBe 14f
+            // no message on that row: the label baseline stays 4 px below the tick
+            (labelY(svg, "timeObservation:b-1") - tickY(svg, "timeObservation:b-1")) shouldBe 4f
+            // a self message on the same lifeline in the same row shifts the label too
+            (labelY(svg, "timeObservation:b-3") - tickY(svg, "timeObservation:b-3")) shouldBe 14f
+            shared shouldContain "shared"
+        }
+
         "found and lost messages are at least 120 px long with a 5 px circle and are no self-calls (wave 2F)" {
             val model =
                 sysml2Model(name = "FoundLost") {
