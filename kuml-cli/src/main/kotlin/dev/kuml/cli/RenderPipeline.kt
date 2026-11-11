@@ -140,6 +140,8 @@ internal data class SvgRender(
  * of the public API; all user-facing interaction goes through [RenderCommand].
  */
 internal object RenderPipeline {
+    private const val PAR_INCLUDE_NO_EFFECT_CODE = 442
+
     // Registry is initialised lazily on first use; tests can pre-populate it.
     private fun ensureEnginesRegistered() {
         if (LayoutEngineRegistry.ids().isEmpty()) {
@@ -208,6 +210,17 @@ internal object RenderPipeline {
         findings.forEach { f ->
             System.err.println("[kuml] ${if (f.isError) "ERROR" else "WARNING"} [${f.code}] ${f.message}")
         }
+    }
+
+    /** Prints the `PAR442` finding (and only that one) of [diagram] to stderr in the same format as [report]. */
+    private fun reportParIncludeWarnings(
+        model: dev.kuml.sysml2.Sysml2Model,
+        diagram: ParDiagram,
+    ) {
+        dev.kuml.sysml2.constraint.Sysml2ParChecker
+            .check(model = model, diagram = diagram)
+            .filter { it.code == PAR_INCLUDE_NO_EFFECT_CODE }
+            .forEach { System.err.println("[kuml] WARNING [PAR${it.code}] ${it.message} Hint: ${it.hint}") }
     }
 
     /**
@@ -1317,6 +1330,8 @@ internal object RenderPipeline {
                         kind = SpecDiagramKind.SYSML2_PAR,
                         diagramName = diagram.name,
                     )
+                // PAR442: include(attributeDef) has no effect in a parametric diagram. `kuml validate` reports it; render says so too.
+                reportParIncludeWarnings(model = model, diagram = diagram)
                 // PAL 2C-b3: a binding label without a free spot is reported as KUML-LAYOUT-W005 (the render itself still succeeds).
                 report(
                     Sysml2LayoutBridge.parLabelWarnings(

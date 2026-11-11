@@ -529,6 +529,10 @@ public class ActEdgeAdapter(
  * Linienstil bleibt solide, kein Arrow-Head — Bindings sind weiterhin
  * bidirektionale Wertgleichheiten.
  *
+ * Bindings inside one constraint nesting family carry their name as well
+ * (earlier they were suppressed on the assumption that their pins name them).
+ * [diagram] is kept for API stability; the label no longer depends on it.
+ *
  * Endpoint visibility is **not** filtered here: the bridge already drops
  * dangling bindings via longest-prefix-match, so by the time the renderer
  * loop reaches us every edge in `layoutResult.edges` has a binding metadata
@@ -536,41 +540,18 @@ public class ActEdgeAdapter(
  * the model without checking visibility — visibility filtering is the
  * bridge's job, the adapter's job is metadata lookup.
  */
+@Suppress("UnusedParameter")
 public class ParEdgeAdapter(
     model: Sysml2Model,
     diagram: ParDiagram,
 ) : Sysml2EdgeAdapter {
-    private val constraints: Map<String, dev.kuml.sysml2.ConstraintDefinition> =
-        model.definitions
-            .filterIsInstance<dev.kuml.sysml2.ConstraintDefinition>()
-            .filter { it.id in diagram.elementIds }
-            .associateBy { it.id }
-
-    private fun constraintOf(endpoint: String): String? =
-        constraints.keys.filter { endpoint == it || endpoint.startsWith("$it::") }.maxByOrNull { it.length }
-
-    private fun familyRoot(id: String): String {
-        var cur = id
-        repeat(dev.kuml.sysml2.Sysml2Limits.CONSTRAINT_DEPTH + 1) {
-            cur = constraints[cur]?.ownerConstraintId?.takeIf { it in constraints } ?: return cur
-        }
-        return cur
-    }
-
-    /** A binding between two constraints of one nesting family is drawn inside the owner box; its pins name it, so no label. */
-    private fun isInner(binding: BindingConnectorUsage): Boolean {
-        val a = constraintOf(binding.sourceEndId) ?: return false
-        val z = constraintOf(binding.targetEndId) ?: return false
-        return a != z && familyRoot(a) == familyRoot(z)
-    }
-
     private val index: Map<String, Sysml2EdgeMetadata> =
         buildMap {
             for (binding in model.usages.filterIsInstance<BindingConnectorUsage>()) {
                 put(
                     binding.id,
                     Sysml2EdgeMetadata(
-                        label = if (isInner(binding)) null else formatBindingLabel(binding),
+                        label = formatBindingLabel(binding),
                         arrowHead = Sysml2ArrowHead.None,
                     ),
                 )

@@ -6,6 +6,38 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 64: parametric diagrams: bindings inside a nested constraint carry their names, `kuml render` prints `PAR442`
+
+**Why.** Found with the local CLI on a generic fixture: in a `parDiagram` with nested constraints, the bindings between
+an owner and its inner constraints (and between siblings) were drawn without a name, while all other bindings had one.
+The cause was a deliberate suppression in `ParEdgeAdapter` (`isInner`), not a loss in layout or label planning. Second,
+`include(attributeDef)` in a `parDiagram` is reported as `PAR442` by `kuml validate` (since 323773ab), but `kuml render`
+stayed silent.
+
+**Change.**
+- `ParEdgeAdapter` no longer suppresses the label of inner bindings: the label is the binding name (anonymous: `src = tgt`).
+  Unused helpers removed; the `diagram` constructor parameter is kept for API stability.
+- `RenderPipeline` prints `[kuml] WARNING [PAR442] ... Hint: ...` for a `ParDiagram` (only this finding, once per render;
+  exit code and output unchanged). The desktop already shows it through `ValidationService`.
+- Handbook (`sysml2.adoc`, English only, no German copy exists): nested bindings are labelled, `kuml render` prints `PAR442`.
+- Tests: `Sysml2ParNestedBindLabelSvgTest` (new, each nested name exactly once as edge label), `ParEdgeAdapterTest`
+  (nested named and anonymous), `RenderParIncludeWarningTest` (new, `[PAR442]` once, SVG written),
+  `Sysml2ParLabelInvariantTest` example 51: the nested names must now be drawn; for these five labels only the 2 px
+  box-clearance check is relaxed, and up to three `KUML-LAYOUT-W005` (label without a free spot) are accepted for this
+  example only (see Not fixed).
+
+**Effect on other renderers.** `KumlLatexRenderer` and the PNG path use the same adapter, so nested labels also appear in
+LaTeX output (placement there is not the planner's).
+
+**Verification.** Repro with the installDist CLI (not Homebrew): labels of all bindings drawn, `[PAR442]` printed once.
+Tests green: kuml-metamodel-sysml2 jvmTest, kuml-io-svg jvmTest, kuml-cli test, kuml-io-latex test, vault-examples-tests.
+Not verified: real pdflatex build of nested labels; Windows.
+
+**Not fixed.** Halo colour on a constraint fill (the halo uses the canvas colour); label anchor near the inner pin; three nested-binding labels of vault example 51 get `KUML-LAYOUT-W005` (no clean spot, drawn on the line); labels of
+nested bindings can sit closer than 2 px to a box edge or on a vertical line (e.g. `v_to_drag` in vault example 51);
+the other N-PAR-A items (lines near the inner block edge, part-attribute bindings ending at the block top edge, bundles at
+10 px pitch); `kuml render` prints only `PAR442`, no other structure findings.
+
 ### Nacharbeit 63: sequence diagram: names of activations, fragments and `ref` frames are drawn, blank UML guards stay empty
 
 **Why.** Found with the local CLI on a generic fixture: `executionSpec(name = ...)` and `combinedFragment(name = ...)`

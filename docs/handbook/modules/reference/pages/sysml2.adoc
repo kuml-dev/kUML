@@ -1232,8 +1232,10 @@ sysml2Model(name = "VehicleDynamicsModel") {
   count. An expression is capped at 200 characters (then `...`); longer text is a model smell, not a rendering task.
 * A parameter row shows the unit of its type: with `attributeDef(name = "Druck", unitSymbol = "Pa")` a parameter
   `typeId = "Druck"` reads `«in» pMix : Druck [Pa]`. A unit is only shown through the parameter type; including
-  the `attributeDef` in the diagram does nothing (`PAR442`).
-* Binding labels stand beside their line with at least 2 px to every line, line end, box, pin and other label. If
+  the `attributeDef` in the diagram does nothing (`PAR442`, reported by `kuml validate` and also printed by
+  `kuml render`).
+* Every binding carries its name as a label, bindings inside a nested constraint included (an anonymous binding
+  shows `src = tgt`). Labels stand beside their line with at least 2 px to every line, line end, box, pin and other label (labels of nested bindings may come closer to a box edge). If
   no spot is free the label is drawn on its line and `kuml render` reports `KUML-LAYOUT-W005`.
 
 Known limits: a binding that crosses more than one nesting level (outer pin to a grandchild pin) is drawn as a

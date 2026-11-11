@@ -1,6 +1,7 @@
 package dev.kuml.sysml2.edge
 
 import dev.kuml.sysml2.BindingConnectorUsage
+import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.Sysml2Model
 import io.kotest.core.spec.style.StringSpec
@@ -58,6 +59,20 @@ class ParEdgeAdapterTest :
             val model = Sysml2Model(name = "F=ma", usages = listOf(binding))
             val meta = ParEdgeAdapter(model = model, diagram = diagram).metadataFor("binding:foo::bar")!!
             meta.label.shouldBeNull()
+        }
+
+        "binding inside one nesting family carries its name, anonymous one falls back to the pin pair" {
+            val outer = ConstraintDefinition(id = "Outer", name = "Outer")
+            val inner = ConstraintDefinition(id = "Inner", name = "Inner", ownerConstraintId = "Outer")
+            val named =
+                BindingConnectorUsage(id = "b1", name = "p_to_q", sourceEndId = "Outer::p", targetEndId = "Inner::q")
+            val anonymous =
+                BindingConnectorUsage(id = "b2", name = "", sourceEndId = "Outer::p", targetEndId = "Inner::q")
+            val model = Sysml2Model(name = "Nested", definitions = listOf(outer, inner), usages = listOf(named, anonymous))
+            val nestedDiagram = ParDiagram(name = "Nested", elementIds = listOf("Outer", "Inner"))
+            val adapter = ParEdgeAdapter(model = model, diagram = nestedDiagram)
+            adapter.metadataFor("b1")!!.label shouldBe "p_to_q"
+            adapter.metadataFor("b2")!!.label shouldBe "p = q"
         }
 
         "unknown edge id returns null" {
