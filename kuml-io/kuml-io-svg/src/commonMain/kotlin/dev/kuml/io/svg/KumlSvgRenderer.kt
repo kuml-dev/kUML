@@ -2740,31 +2740,19 @@ public object KumlSvgRenderer {
         )
     }
 
-    /**
-     * Rendert ein SysML-2 UC-Diagramm als SVG (V2.0.7).
-     *
-     * Wickelt das UC in ein synthetisches [KumlDiagram] mit den sichtbaren
-     * [ActorDefinition]s + [UseCaseDefinition]s als `elements`. Der
-     * [NodeRendererDispatcher] hat seit V2.0.7 einen Branch in
-     * [dev.kuml.io.svg.sysml2.renderSysml2Definition], der ActorDefinition als
-     * Strichmännchen und UseCaseDefinition als Ellipse rendert.
-     *
-     * **Edge-Styling**: der V2.0.7-MVP rendert alle drei UC-Edge-Kinds
-     * (Association, `«include»`, `«extend»`) als dieselbe einfache solide
-     * Linie. Die synthetische `KumlDiagram`-Hülle enthält keine
-     * `UmlRelationship`-Elemente für UC-Edges, deshalb fällt der
-     * [EdgeRendererDispatcher] auf den Plain-Edge-Pfad zurück — das ist gut
-     * genug für die V2.0.7-Wave. Gestricheltes `«include»`/`«extend»`-
-     * Styling und Stereotyp-Labels sind V2.x-Polish (siehe
-     * [[kUML V2.0]]-Roadmap).
-     */
-    public fun toSvg(
+    private class UcPlan(
+        val elements: List<dev.kuml.sysml2.Sysml2Definition>,
+        val synthetic: KumlDiagram,
+        val adapter: UcEdgeAdapter,
+        val noted: dev.kuml.layout.bridge.note.NotePlacementResult,
+        val finalLabels: Map<String, dev.kuml.layout.bridge.label.PlacedLabel>,
+    )
+
+    private fun ucPlan(
         model: Sysml2Model,
         diagram: UcDiagram,
         layoutResult: LayoutResult,
-        theme: KumlTheme = PlainTheme(),
-        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
-    ): String {
+    ): UcPlan {
         // Wave 2E-b (P-UC-01): subject members are diagram members even if not listed in elementIds.
         val visible = (diagram.elementIds + diagram.subjects.flatMap { it.useCaseIds }).toSet()
         val elements =
@@ -2808,6 +2796,71 @@ public object KumlSvgRenderer {
             } else {
                 planSysml2EdgeLabels(layout = ucNoted.layout, adapter = ucAdapter, keepInsideFrames = true)
             }
+        return UcPlan(
+            elements = elements,
+            synthetic = synthetic,
+            adapter = ucAdapter,
+            noted = ucNoted,
+            finalLabels = ucFinalLabels,
+        )
+    }
+
+    /**
+     * Nacharbeit 74: the final canvas of a SysML 2 use case diagram (label overhang included), i.e. what [toSvg] draws,
+     * with [paddingPx] on both sides. The CLI uses it to report `layout.aspectRatio` against the real image.
+     */
+    public fun ucFinalCanvas(
+        model: Sysml2Model,
+        diagram: UcDiagram,
+        layoutResult: LayoutResult,
+        paddingPx: Float,
+    ): ActFinalCanvas {
+        val plan = ucPlan(model = model, diagram = diagram, layoutResult = layoutResult)
+        val widened =
+            sysml2WidenForLabelOverhang(
+                layoutResult = plan.noted.layout,
+                sysml2EdgeAdapter = plan.adapter,
+                padding = paddingPx,
+                planned = plan.finalLabels,
+            ).first
+        return ActFinalCanvas(
+            width = widened.canvas.width + 2 * paddingPx,
+            height = widened.canvas.height + 2 * paddingPx,
+            hasNotes = sysml2NoteElements(model).isNotEmpty(),
+        )
+    }
+
+    /**
+     * Rendert ein SysML-2 UC-Diagramm als SVG (V2.0.7).
+     *
+     * Wickelt das UC in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * [ActorDefinition]s + [UseCaseDefinition]s als `elements`. Der
+     * [NodeRendererDispatcher] hat seit V2.0.7 einen Branch in
+     * [dev.kuml.io.svg.sysml2.renderSysml2Definition], der ActorDefinition als
+     * Strichmännchen und UseCaseDefinition als Ellipse rendert.
+     *
+     * **Edge-Styling**: der V2.0.7-MVP rendert alle drei UC-Edge-Kinds
+     * (Association, `«include»`, `«extend»`) als dieselbe einfache solide
+     * Linie. Die synthetische `KumlDiagram`-Hülle enthält keine
+     * `UmlRelationship`-Elemente für UC-Edges, deshalb fällt der
+     * [EdgeRendererDispatcher] auf den Plain-Edge-Pfad zurück — das ist gut
+     * genug für die V2.0.7-Wave. Gestricheltes `«include»`/`«extend»`-
+     * Styling und Stereotyp-Labels sind V2.x-Polish (siehe
+     * [[kUML V2.0]]-Roadmap).
+     */
+    public fun toSvg(
+        model: Sysml2Model,
+        diagram: UcDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String {
+        val plan = ucPlan(model = model, diagram = diagram, layoutResult = layoutResult)
+        val elements = plan.elements
+        val synthetic = plan.synthetic
+        val ucAdapter = plan.adapter
+        val ucNoted = plan.noted
+        val ucFinalLabels = plan.finalLabels
         return renderSysml2Synthetic(
             synthetic = synthetic,
             rawLayoutResult = ucNoted.layout,

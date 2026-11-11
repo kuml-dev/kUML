@@ -70,6 +70,7 @@ import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.layout.bridge.normalizeActLayout
 import dev.kuml.layout.bridge.note.NoteUndrawnCollector
 import dev.kuml.layout.bridge.stmAspectFinding
+import dev.kuml.layout.bridge.ucAspectFinding
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.render.smil.SpeedFactor
@@ -999,8 +1000,10 @@ internal object RenderPipeline {
             }
             is UcDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model = model, diagram = diagram)
-                val layoutResult: LayoutResult =
-                    layoutWithSpec(
+                // Nacharbeit 74: with an explicit aspectRatio the runner's ASPECT_UNREACHED (engine canvas, one direction) is
+                // replaced by a measurement on the final image. Without it the runner's behaviour is unchanged.
+                val ucOutcome =
+                    LayoutSpecRunner.layout(
                         engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
@@ -1008,6 +1011,30 @@ internal object RenderPipeline {
                         kind = SpecDiagramKind.SYSML2_UC,
                         diagramName = diagram.name,
                     )
+                val ucTarget = diagram.layout?.aspectRatio
+                if (ucTarget == null) {
+                    report(ucOutcome.findings)
+                } else {
+                    report(ucOutcome.findings.filter { it.code != dev.kuml.core.model.layout.LayoutCodes.ASPECT_UNREACHED })
+                    val final =
+                        KumlSvgRenderer.ucFinalCanvas(
+                            model = model,
+                            diagram = diagram,
+                            layoutResult = ucOutcome.result,
+                            paddingPx = SvgRenderOptions.DEFAULT.paddingPx,
+                        )
+                    report(
+                        listOfNotNull(
+                            ucAspectFinding(
+                                canvasWidth = final.width.toDouble(),
+                                canvasHeight = final.height.toDouble(),
+                                target = ucTarget,
+                                wrapColumnsExplicit = diagram.layout?.wrapColumns != null,
+                            ),
+                        ),
+                    )
+                }
+                val layoutResult: LayoutResult = ucOutcome.result
                 when (format) {
                     "svg" ->
                         writeText(

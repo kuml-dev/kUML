@@ -6,6 +6,34 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 74: use case aspectRatio measured on the final image (item c; item a already fixed; b, d not fixed)
+
+**Why.** Item (a), reproduced with a generic fixture (actor `Operator`, six use cases in one subject frame, one `extend`
+with a 51-character condition; default wrap, `wrapColumns = 1`, `wrapColumns = 2`): in all three PNGs the label lies
+inside the frame, so (a) is already fixed by Nacharbeit 54 and only gets a regression test. Item (c): the use case
+branch of the runner measured the engine canvas without renderer padding or label overhang, in one direction only, and
+a user-set `wrapColumns` silently beat `aspectRatio`. With `aspectRatio = 1.0` the fixture reported `actual 1.39` while
+the image is 620.8 x 456 (1.36).
+
+**Change.**
+- `ucAspectFinding` in `LayoutSpecRunner.kt` (both directions, same tolerance as ACT/STM) and
+  `KumlSvgRenderer.ucFinalCanvas` (the label/note plan of `toSvg` moved into a shared private helper, no change to
+  the drawing).
+- `RenderPipeline` (SysML 2 `UcDiagram` only): when `layout.aspectRatio` is explicit, the runner's
+  `KUML-LAYOUT-W003` is replaced by one measured on the final image, with a hint when `wrapColumns` is set explicitly.
+  Without an explicit `aspectRatio` nothing changes. No layout, grid, routing, wrap threshold or halo change.
+
+**Verification.** `UcExtendLongConditionInFrameTest` (3), `UcFinalAspectFindingTest` (5) and `UcFinalAspectCliTest` (3)
+pass; the CLI test compares the reported `actual` with the SVG viewBox ratio within 0.01. Manual: the fixture now
+reports `actual 1.36`, equal to the viewBox ratio.
+
+**Not verified.** The watermark band (opt-in) is not part of the measured height. No Windows/Linux font check.
+
+**Not fixed.** (b) `actorSide = Both` collinear lines; (d) shared end segments; frame growth so a label does not sit on
+its own line; truncation of conditions over 84 characters; a label crossing a foreign use case (visible in the fixture
+at default wrap); the column choice without explicit `aspectRatio`; UML use case diagrams; `DesktopRenderPipeline` and
+`ValidationService` keep their own measurement.
+
 ### Nacharbeit 73: state machine aspectRatio measured on the final image (item a; b1, b2, e not fixed)
 
 **Why.** Reproduced with a generic 4-state cycle (`direction = Down`, `aspectRatio = 1.0`): the image was 405 x 614

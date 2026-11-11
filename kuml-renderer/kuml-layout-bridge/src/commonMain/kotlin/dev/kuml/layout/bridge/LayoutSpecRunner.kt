@@ -710,6 +710,25 @@ public fun stmAspectFinding(
         hint = if (directionExplicit) " (direction is set explicitly; remove it to allow the flow to rotate)" else "",
     )
 
+/**
+ * Nacharbeit 74: `layout.aspectRatio` report for a SysML 2 use case diagram, measured on the FINAL image (engine canvas
+ * plus label overhang plus the renderer padding) and in both directions. Same tolerance as [actAspectFinding]; at most
+ * one finding. [wrapColumnsExplicit] adds a hint, because an explicit `wrapColumns` takes precedence over the aspect
+ * ratio when the subject frame chooses its columns.
+ */
+public fun ucAspectFinding(
+    canvasWidth: Double,
+    canvasHeight: Double,
+    target: Double,
+    wrapColumnsExplicit: Boolean,
+): LayoutSpecFinding? =
+    aspectFindingFor(
+        canvasWidth = canvasWidth,
+        canvasHeight = canvasHeight,
+        target = target,
+        hint = if (wrapColumnsExplicit) " (wrapColumns is set explicitly; remove it to let aspectRatio choose the columns)" else "",
+    )
+
 private fun aspectFindingFor(
     canvasWidth: Double,
     canvasHeight: Double,
