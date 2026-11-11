@@ -683,11 +683,42 @@ public fun actAspectFinding(
     canvasHeight: Double,
     target: Double,
     hasNoteColumns: Boolean,
+): LayoutSpecFinding? =
+    aspectFindingFor(
+        canvasWidth = canvasWidth,
+        canvasHeight = canvasHeight,
+        target = target,
+        hint = if (hasNoteColumns) " (note columns beside the swimlanes widen the diagram)" else "",
+    )
+
+/**
+ * Nacharbeit 73: `layout.aspectRatio` report for a state machine (SysML 2 STM or UML state), measured on the FINAL
+ * image (engine canvas plus the renderer padding) instead of the engine canvas the runner sees. Same tolerance as
+ * [actAspectFinding]; at most one finding. [directionExplicit] adds a hint, because an explicit `direction` stops the
+ * flow from rotating towards the target.
+ */
+public fun stmAspectFinding(
+    canvasWidth: Double,
+    canvasHeight: Double,
+    target: Double,
+    directionExplicit: Boolean,
+): LayoutSpecFinding? =
+    aspectFindingFor(
+        canvasWidth = canvasWidth,
+        canvasHeight = canvasHeight,
+        target = target,
+        hint = if (directionExplicit) " (direction is set explicitly; remove it to allow the flow to rotate)" else "",
+    )
+
+private fun aspectFindingFor(
+    canvasWidth: Double,
+    canvasHeight: Double,
+    target: Double,
+    hint: String,
 ): LayoutSpecFinding? {
     if (canvasWidth <= 0.0 || canvasHeight <= 0.0 || target <= 0.0) return null
     val ratio = canvasWidth / canvasHeight
     if (!LayoutSpecRunner.isOffTarget(ratio = ratio, target = target, horizontal = false, bothSides = true)) return null
-    val hint = if (hasNoteColumns) " (note columns beside the swimlanes widen the diagram)" else ""
     return LayoutSpecFinding(
         code = LayoutCodes.ASPECT_UNREACHED,
         message = "layout.aspectRatio = $target could not be reached (actual ${kotlin.math.round(ratio * 100) / 100})$hint.",

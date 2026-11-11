@@ -6,6 +6,38 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Nacharbeit 73: state machine aspectRatio measured on the final image (item a; b1, b2, e not fixed)
+
+**Why.** Reproduced with a generic 4-state cycle (`direction = Down`, `aspectRatio = 1.0`): the image was 405 x 614
+(0.66) but `KUML-LAYOUT-W003` said `actual 0.57`, because the runner measures the engine canvas, which the renderer then
+pads by 64 px on each side (16 px for UML state machines).
+
+**Change.** `stmAspectFinding(...)` in `LayoutSpecRunner.kt` (shares one private helper with `actAspectFinding`, so the
+tolerance cannot drift). `RenderPipeline` drops the runner's `ASPECT_UNREACHED` for SysML 2 state machines and UML state
+diagrams and re-measures on engine canvas + renderer padding. With an explicit `direction` the message ends with
+"(direction is set explicitly; remove it to allow the flow to rotate)". The Nacharbeit 58 rotation is unchanged.
+Handbook: `layout.adoc`.
+
+**Verification.** New tests `StmFinalAspectFindingTest` (tolerance, one finding, hint, degenerate input) and
+`StmFinalAspectCliTest` (reported `actual` equals the SVG viewBox ratio within 0.01, for a SysML 2 and a UML state
+machine; geometry only). Manual: the 4-state cycle now reports `actual 0.66`.
+
+**Not verified.** The PAL source diagram with the 2.5:1 and 2.65:1 figures was not available; no full vault-example
+comparison was needed because no route or layout changed.
+
+**Not fixed.**
+- (b1) Side lane for back edges (2 bends instead of up to 4; measured: the back edge of a 5-state cycle has 4 bends). Not
+  built: it changes every back-edge route and needs label re-anchoring and arrowhead handling, which does not fit a small
+  post-pass.
+- (b2) sameLayer on a cycle: not reproduced. A 5-state cycle with `aspectRatio = 1.0` measured 0.42 without and 1.15 with
+  `sameLayer("C", "D")`, so `sameLayer` did not worsen it. No code change.
+- (b3) Frame inner padding: not changed.
+- (e) Composite header crossing: not reproduced. With `direction = Right` an edge into a non-first child arrives from the
+  side and crosses nothing. UML composites (4 fixtures) let edges enter through the header band but none crossed the title
+  text. `UmlLayoutBridge` still sets no `headerTextWidths`, so `avoidCompositeHeaderBand` stays inert for UML.
+- Ring/circle layout for cycles, initials inside composites, edges ending on the frame, history edges, overriding an
+  explicit direction.
+
 ### Nacharbeit 72: BDD compact enum literals, derived marker, external block stereotype (items b, g1, g2; e and g3 not fixed)
 
 **Why.** Reproduced with a generic fixture (partDef with attributes typed by a not-included enumeration, an included one, a

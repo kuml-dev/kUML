@@ -69,6 +69,7 @@ import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.bridge.layoutHintsFor
 import dev.kuml.layout.bridge.normalizeActLayout
 import dev.kuml.layout.bridge.note.NoteUndrawnCollector
+import dev.kuml.layout.bridge.stmAspectFinding
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.render.smil.SpeedFactor
@@ -239,6 +240,38 @@ internal object RenderPipeline {
         val outcome =
             LayoutSpecRunner.layout(engine = engine, graph = graph, hints = hints, spec = spec, kind = kind, diagramName = diagramName)
         report(outcome.findings)
+        return outcome.result
+    }
+
+    /**
+     * Nacharbeit 73: like [layoutWithSpec] for state machines, but `layout.aspectRatio` is measured on the FINAL image
+     * (engine canvas plus the 64 px renderer padding on each side), not on the engine canvas the runner sees.
+     */
+    private fun layoutWithSpecMeasuredOnFinalImage(
+        engine: dev.kuml.layout.KumlLayoutEngine,
+        graph: dev.kuml.layout.LayoutGraph,
+        hints: LayoutHints,
+        spec: dev.kuml.core.model.layout.LayoutSpec?,
+        kind: SpecDiagramKind,
+        diagramName: String? = null,
+        paddingPx: Float = 64f,
+    ): LayoutResult {
+        val outcome =
+            LayoutSpecRunner.layout(engine = engine, graph = graph, hints = hints, spec = spec, kind = kind, diagramName = diagramName)
+        report(outcome.findings.filter { it.code != dev.kuml.core.model.layout.LayoutCodes.ASPECT_UNREACHED })
+        spec?.aspectRatio?.let { target ->
+            val padding = 2.0 * paddingPx
+            report(
+                listOfNotNull(
+                    stmAspectFinding(
+                        canvasWidth = outcome.result.canvas.width + padding,
+                        canvasHeight = outcome.result.canvas.height + padding,
+                        target = target,
+                        directionExplicit = spec.direction != null,
+                    ),
+                ),
+            )
+        }
         return outcome.result
     }
 
@@ -598,17 +631,30 @@ internal object RenderPipeline {
                     ),
             )
         val engine = pickEngine(diagram = diagram, cliOverride = layoutEngineOverride)
+        val umlSpecKind =
+            dev.kuml.layout.bridge.SpecDiagramKinds
+                .of(diagram.type)
         val layoutResult: LayoutResult =
-            layoutWithSpec(
-                engine = engine,
-                graph = layoutGraph,
-                hints = hints,
-                spec = diagram.layout,
-                kind =
-                    dev.kuml.layout.bridge.SpecDiagramKinds
-                        .of(diagram.type),
-                diagramName = diagram.name,
-            )
+            if (diagram.type == DiagramType.STATE) {
+                layoutWithSpecMeasuredOnFinalImage(
+                    engine = engine,
+                    graph = layoutGraph,
+                    hints = hints,
+                    spec = diagram.layout,
+                    kind = umlSpecKind,
+                    diagramName = diagram.name,
+                    paddingPx = SvgRenderOptions().paddingPx,
+                )
+            } else {
+                layoutWithSpec(
+                    engine = engine,
+                    graph = layoutGraph,
+                    hints = hints,
+                    spec = diagram.layout,
+                    kind = umlSpecKind,
+                    diagramName = diagram.name,
+                )
+            }
         when (format) {
             "svg", "apng", "webp", "mp4" -> {
                 when {
@@ -1066,7 +1112,7 @@ internal object RenderPipeline {
                 // and 12px edge-to-edge causes label overlap. Increase both so the
                 // routing pass has room to place labels without crowding.
                 val layoutResult: LayoutResult =
-                    layoutWithSpec(
+                    layoutWithSpecMeasuredOnFinalImage(
                         engine = sysml2Engine,
                         graph = layoutGraph,
                         hints = Sysml2LayoutBridge.layoutHintsFor(model = model, diagram = diagram),
